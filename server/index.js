@@ -8,10 +8,12 @@ import { PORT } from './config.js';
 const app = express();
 app.use(cors());
 
+const corsOrigins = process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : [];
+
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: corsOrigins.length > 0 ? corsOrigins : "*",  // Fallback a "*" si no hay orígenes
     methods: ["GET", "POST"]
   }
 });
