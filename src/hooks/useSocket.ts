@@ -18,7 +18,7 @@ export function useSocket(roomId: string) {
   useEffect(() => {
     if (!playerName) return; // Don't connect if no player name
 
-    const newSocket = io('http://localhost:3001');
+    const newSocket = io('https://bingo-game-il3y.onrender.com');
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
