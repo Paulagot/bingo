@@ -3,14 +3,12 @@ import { Play, Pause, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface GameControlsProps {
-  onCallNumber: () => void;
   onToggleAutoPlay: () => void;
   hasWon: boolean;
   autoPlay: boolean;
 }
 
 export function GameControls({ 
-  onCallNumber, 
   onToggleAutoPlay,
   hasWon,
   autoPlay 
@@ -24,7 +22,7 @@ export function GameControls({
   };
 
   return (
-    <div className="flex justify-center gap-4 mt-6">
+    <div className="flex flex-wrap justify-center gap-4 mt-6">
       <button
         onClick={onToggleAutoPlay}
         disabled={hasWon}
@@ -32,13 +30,6 @@ export function GameControls({
       >
         {autoPlay ? <Pause size={20} /> : <Play size={20} />}
         {autoPlay ? 'Pause' : 'Auto Play'}
-      </button>
-      <button
-        onClick={onCallNumber}
-        disabled={hasWon || autoPlay}
-        className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        Call Number
       </button>
       <button
         onClick={handleReturnToLanding}

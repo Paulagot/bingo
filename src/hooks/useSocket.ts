@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { io } from 'socket.io-client';
 import { useGameStore } from '../store/gameStore';
 
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL;
+
 export function useSocket(roomId: string) {
   const {
     setSocket,
@@ -16,9 +18,9 @@ export function useSocket(roomId: string) {
   } = useGameStore();
 
   useEffect(() => {
-    if (!playerName) return; // Don't connect if no player name
+    if (!playerName) return;
 
-    const newSocket = io('https://bingo-game-il3y.onrender.com');
+    const newSocket = io(SOCKET_URL);
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
@@ -58,14 +60,6 @@ export function useSocket(roomId: string) {
         winnerId: null
       });
       setHasWon(false);
-    });
-
-    newSocket.on('disconnect', () => {
-      console.log('Disconnected from server');
-    });
-
-    newSocket.on('connect_error', (error) => {
-      console.error('Connection error:', error);
     });
 
     return () => {

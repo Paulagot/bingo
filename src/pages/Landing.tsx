@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Users, Dices, ArrowRight, Gamepad2 } from 'lucide-react';
@@ -16,11 +16,8 @@ export function Landing() {
     
     setIsGenerating(true);
     setPlayerName(name);
-    // Simulate API call delay
-    setTimeout(() => {
-      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-      navigate(`/game/${code}`);
-    }, 800);
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    navigate(`/game/${code}`);
   };
 
   const joinRoom = (e: React.FormEvent) => {
@@ -31,30 +28,36 @@ export function Landing() {
     }
   };
 
+  const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && name.trim()) {
+      generateRoomCode();
+    }
+  };
+
   return (
-    <div className="container mx-auto px-4 py-12 max-w-6xl">
+    <div className="container mx-auto px-4 py-8 md:py-12 max-w-6xl">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center mb-16"
+        className="text-center mb-8 md:mb-16"
       >
         <div className="flex justify-center mb-6">
-          <Gamepad2 className="h-20 w-20 text-blue-600" />
+          <Gamepad2 className="h-16 w-16 md:h-20 md:w-20 text-blue-600" />
         </div>
-        <h1 className="text-5xl font-bold text-blue-900 mb-4">
+        <h1 className="text-4xl md:text-5xl font-bold text-blue-900 mb-4">
           Multiplayer Bingo
         </h1>
-        <p className="text-xl text-blue-700 opacity-80">
+        <p className="text-lg md:text-xl text-blue-700 opacity-80">
           Create a room or join your friends for an exciting game of Bingo!
         </p>
       </motion.div>
 
-      <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+      <div className="grid md:grid-cols-2 gap-6 md:gap-8 max-w-4xl mx-auto">
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-white rounded-2xl shadow-xl p-8"
+          className="bg-white rounded-2xl shadow-xl p-6 md:p-8"
         >
           <div className="flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-6 mx-auto">
             <Dices className="h-8 w-8 text-blue-600" />
@@ -65,6 +68,7 @@ export function Landing() {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              onKeyPress={handleKeyPress}
               placeholder="Enter Your Name"
               className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition"
               maxLength={20}
@@ -93,7 +97,7 @@ export function Landing() {
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.4 }}
-          className="bg-white rounded-2xl shadow-xl p-8"
+          className="bg-white rounded-2xl shadow-xl p-6 md:p-8"
         >
           <div className="flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-6 mx-auto">
             <Users className="h-8 w-8 text-green-600" />

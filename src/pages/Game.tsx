@@ -1,7 +1,6 @@
 import React, { useEffect, useCallback, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, ArrowLeft } from 'lucide-react';
 import { BingoCard } from '../components/BingoCard';
 import { NumberCaller } from '../components/NumberCaller';
 import { GameControls } from '../components/GameControls';
@@ -22,7 +21,6 @@ export function Game() {
     gameState,
     autoPlay,
     handleCellClick,
-    callNumber,
     toggleAutoPlay,
   } = useGame(socket, roomId);
 
@@ -57,7 +55,6 @@ export function Game() {
     };
 
     socket?.on('join_error', handleJoinError);
-
     return () => {
       socket?.off('join_error', handleJoinError);
     };
@@ -71,12 +68,6 @@ export function Game() {
     socket?.emit('start_game', { roomId });
   }, [socket, roomId]);
 
-  const handleReturnToLanding = useCallback(() => {
-    if (window.confirm('Are you sure you want to leave the game?')) {
-      navigate('/');
-    }
-  }, [navigate]);
-
   useEffect(() => {
     if (gameState.hasWon) {
       socket?.emit('player_won', { roomId });
@@ -88,7 +79,7 @@ export function Game() {
   }
 
   return (
-    <div className="p-8">
+    <div className="container mx-auto px-4 py-4 sm:py-6 lg:py-8">
       <AnimatePresence>
         {showAccessError && (
           <GameAccessAlert
@@ -99,39 +90,11 @@ export function Game() {
       </AnimatePresence>
 
       <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleReturnToLanding}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 transition-colors"
-            >
-              <ArrowLeft size={20} />
-              Return to Landing
-            </motion.button>
-            <h1 className="text-4xl font-bold text-blue-900">
-              Bingo Game
-            </h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="px-4 py-2 bg-blue-100 rounded-lg">
-              <span className="text-blue-800 font-medium">Room: {roomId}</span>
-            </div>
-            <div className="flex items-center gap-2 px-4 py-2 bg-green-100 rounded-lg">
-              <Users size={20} className="text-green-600" />
-              <span className="text-green-800 font-medium">
-                {isSinglePlayer ? 'Solo Mode' : `${players.length} Players`}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          <div className="lg:col-span-3">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+          <div className="lg:col-span-3 space-y-4 sm:space-y-6">
             {!gameStarted ? (
-              <div className="flex items-center justify-center h-48 bg-white rounded-lg shadow-md">
-                <h2 className="text-2xl text-gray-600 font-medium">
+              <div className="flex items-center justify-center h-32 sm:h-48 bg-white rounded-lg shadow-md">
+                <h2 className="text-xl sm:text-2xl text-gray-600 font-medium px-4 text-center">
                   {isSinglePlayer 
                     ? "Ready to play solo! Click 'Start Solo Game' to begin."
                     : "Waiting for players to ready up..."}
@@ -161,7 +124,6 @@ export function Game() {
 
                 {isHost && (
                   <GameControls
-                    onCallNumber={callNumber}
                     onToggleAutoPlay={toggleAutoPlay}
                     hasWon={!!winnerId}
                     autoPlay={autoPlay}
