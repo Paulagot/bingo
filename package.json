@@ -3,12 +3,10 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "scripts": {
+"scripts": {
     "dev": "concurrently \"vite\" \"node server/index.js\"",
-    "build": "npm install --no-optional && vite build",
+    "build": "vite build",
     "start": "node server/index.js",
-    "railway:build": "npm install --no-optional --production=false && vite build",
-    "railway:start": "npm install --no-optional --production && node server/index.js",
     "lint": "eslint .",
     "preview": "vite preview"
 
