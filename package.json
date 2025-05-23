@@ -3,13 +3,12 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-"scripts": {
+  "scripts": {
     "dev": "concurrently \"vite\" \"node server/index.js\"",
     "build": "vite build",
     "start": "node server/index.js",
     "lint": "eslint .",
     "preview": "vite preview"
-
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",
@@ -32,11 +31,13 @@
     "framer-motion": "^11.0.8",
     "lodash": "^4.17.21",
     "lucide-react": "^0.344.0",
+    "qr": "^0.4.2",
     "qrcode.react": "^4.2.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.22.2",
     "socket.io-client": "^4.7.4",
+    "uuid": "^11.1.0",
     "viem": "^2.26.3",
     "wagmi": "^2.15.3",
     "zustand": "^4.5.2"
@@ -71,9 +72,7 @@
     "vite": "^5.4.2",
     "vitest": "^3.1.1"
   },
-  "optionalDependencies": {
-    "usb": "^2.11.0"
-  },
+ 
   "overrides": {
     "lit": "^3.1.0",
     "lit-html": "^3.1.0",
