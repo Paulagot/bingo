@@ -68,7 +68,13 @@
     "typescript-eslint": "^8.3.0",
     "vite": "^5.4.2",
     "vitest": "^3.1.1"
+    
   },
+    "optionalDependencies": {
+    "usb": "^2.11.0"
+  },
+
+  
   "overrides": {
     "lit": "^3.1.0",
     "lit-html": "^3.1.0",
@@ -80,5 +86,6 @@
     "@walletconnect/solana-adapter": {
       "@reown/appkit": "1.7.5"
     }
+    
   }
 }
