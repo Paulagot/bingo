@@ -19,11 +19,11 @@ const HeroSection: React.FC = () => {
             </div>
             
             <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-transparent leading-tight">
-              FundRaisely: Compliant Fundraising for Clubs & Charities
+              FundRaisely: Effortless Fundraising Events for Clubs & Charities
             </h1>
             
             <p className="text-lg md:text-xl text-indigo-900/70 max-w-3xl mx-auto mb-8">
-              Host bingo, lotteries and quizzes with built-in compliance checks, automatically enforced limits, and comprehensive reporting for all regulatory requirements.
+              All-in-one platform to host fun, modern, and trackable fundraising events, starting with live quiz nights.
             </p>
             
             <p className="text-xl font-semibold text-indigo-700 mb-6 italic">
@@ -34,15 +34,15 @@ const HeroSection: React.FC = () => {
               {/* Reduced margin bottom from mb-12 to mb-8 */}
               <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-md">
                 <Shield className="h-5 w-5 text-indigo-600" />
-                <span className="text-sm font-medium">Regulatory Enforcement</span>
+                <span className="text-sm font-medium">Event Integrity</span>
               </div>
               <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-md">
                 <Heart className="h-5 w-5 text-pink-600" />
-                <span className="text-sm font-medium">License Tracking</span>
+                <span className="text-sm font-medium">Participation Verification</span>
               </div>
               <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-md">
                 <Users className="h-5 w-5 text-green-600" />
-                <span className="text-sm font-medium">Complete Audit Trail</span>
+                <span className="text-sm font-medium">Proof of Fundraising</span>
               </div>
             </div>
           </div>

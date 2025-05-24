@@ -6,7 +6,7 @@ const Benefit: React.FC = () => {
     <div id="benefits" className="container mx-auto px-4 max-w-6xl mt-20 pt-10">
       <div className="text-center mb-12">
         <h2 className="text-3xl font-bold text-gray-800 mb-4">Benefits for Clubs & Charities</h2>
-        <p className="text-gray-600 max-w-2xl mx-auto">Comprehensive compliance and management for all regulated fundraising activities</p>
+        <p className="text-gray-600 max-w-2xl mx-auto">Everything you need to run engaging, transparent, and trusted fundraising events, no headaches, no paperwork.</p>
       </div>
       
       <div className="grid md:grid-cols-2 gap-8">
@@ -17,8 +17,8 @@ const Benefit: React.FC = () => {
             </div>
           </div>
           <div>
-            <h3 className="text-xl font-bold mb-2 text-gray-800">License & Permit Tracking</h3>
-            <p className="text-gray-600">Automatically track and verify all required licenses and permits for each type of fundraising event</p>
+            <h3 className="text-xl font-bold mb-2 text-gray-800">Ready-Made Events</h3>
+            <p className="text-gray-600">Host fully-packaged events like quiz nights with curated questions, built-in scoring, fundraising extras such as reveal clue, and flexible payment options.</p>
           </div>
         </div>
         
@@ -29,8 +29,8 @@ const Benefit: React.FC = () => {
             </div>
           </div>
           <div>
-            <h3 className="text-xl font-bold mb-2 text-gray-800">Fraud Prevention</h3>
-            <p className="text-gray-600">Eliminate accusations of favoritism with verifiable random selections and transparent winner determination</p>
+            <h3 className="text-xl font-bold mb-2 text-gray-800">Payment Reconciliation</h3>
+            <p className="text-gray-600">Track both cash and digital payments, player-by-player, and get clean reports to support your financial records.</p>
           </div>
         </div>
         
@@ -41,8 +41,8 @@ const Benefit: React.FC = () => {
             </div>
           </div>
           <div>
-            <h3 className="text-xl font-bold mb-2 text-gray-800">Multiple Event Types</h3>
-            <p className="text-gray-600">Run bingo games, lotteries, or skill-based quizzes - each with appropriate compliance controls built in</p>
+            <h3 className="text-xl font-bold mb-2 text-gray-800">Tamper-Proof Records</h3>
+            <p className="text-gray-600">Hash event outcomes and transactions on-chain for transparency and accountability, build donor trust with audit-ready reports.</p>
           </div>
         </div>
         
@@ -53,8 +53,8 @@ const Benefit: React.FC = () => {
             </div>
           </div>
           <div>
-            <h3 className="text-xl font-bold mb-2 text-gray-800">Complete Audit Trail</h3>
-            <p className="text-gray-600">Permanent, tamper-proof records of all transactions and winners for full regulatory compliance</p>
+            <h3 className="text-xl font-bold mb-2 text-gray-800">Grow Participation</h3>
+            <p className="text-gray-600">Offer exciting, modern formats that attract younger supporters while keeping it simple for clubs to run.</p>
           </div>
         </div>
         
@@ -65,8 +65,8 @@ const Benefit: React.FC = () => {
             </div>
           </div>
           <div>
-            <h3 className="text-xl font-bold mb-2 text-gray-800">Enforced Compliance</h3>
-            <p className="text-gray-600">System automatically enforces legal requirements like maximum stakes, minimum charity percentages, and age restrictions</p>
+            <h3 className="text-xl font-bold mb-2 text-gray-800">Built for Fundraising</h3>
+            <p className="text-gray-600">SFrom entry fees to prize tracking, everything is tailored to ensure smooth fundraising with minimal overhead.</p>
           </div>
         </div>
         

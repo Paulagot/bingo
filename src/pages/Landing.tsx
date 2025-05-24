@@ -10,7 +10,7 @@ import Benefit from '../components/Benefits';
 import Hfooter from '../components/hFooter';
 import { Link } from 'react-router-dom';
 import FundRaiselyWhereYouSave from './savings';
-import SolanaWalletOperations from '../components/SolanaWalletOperations';
+// import SolanaWalletOperations from '../components/SolanaWalletOperations';
 
 
 
@@ -35,13 +35,13 @@ export function Landing() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white pb-20">
-      <SolanaWalletOperations />
+      {/* <SolanaWalletOperations /> */}
    
       <Headers />
       <HeroSection />
       
       {/* Campaign Link Section - Reduced padding from py-12 to py-8 */}
-      <div className="container mx-auto px-4 max-w-6xl mt-4 mb-4">
+      <div className="container mx-auto px-4 max-w-6xl mt-4 mb-2">
         <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl overflow-hidden shadow-xl">
           <div className="px-8 py-8 text-center">
             <h2 className="text-3xl font-bold text-white mb-4">
@@ -66,7 +66,7 @@ export function Landing() {
       <HowItWorks />
       <Benefit />
       <FAQ />
-       <FundRaiselyWhereYouSave />
+       {/* <FundRaiselyWhereYouSave /> */}
       <CTASection />
       <Hfooter />
     </div>

@@ -5,8 +5,8 @@ const CTASection: React.FC = () => {
     <div className="container mx-auto px-4 max-w-6xl mt-20 pt-10">
       <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl overflow-hidden shadow-xl">
         <div className="px-8 py-12 text-center">
-          <h2 className="text-3xl font-bold text-white mb-4">Ready to Run Compliant Fundraising Events?</h2>
-          <p className="text-white/80 max-w-2xl mx-auto mb-8">Join clubs and charities using FundRaisely to manage bingo, lotteries, and quizzes with automatic compliance controls</p>
+          <h2 className="text-3xl font-bold text-white mb-4">Ready to Run Your Fundraising Events?</h2>
+          <p className="text-white/80 max-w-2xl mx-auto mb-8">Join clubs and charities using FundRaisely to manage their fundraising events with automatic reporting and transparency</p>
           
           <div className="flex flex-wrap justify-center gap-4">
             <button 
