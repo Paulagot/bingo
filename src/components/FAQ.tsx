@@ -11,22 +11,22 @@ const FAQ: React.FC = () => {
       <div className="grid md:grid-cols-2 gap-8">
         <div className="bg-white p-6 rounded-xl shadow-md">
           <h3 className="text-xl font-bold mb-2 text-gray-800">What fundraising events can I run?</h3>
-          <p className="text-gray-600">Our platform supports bingo games, lotteries, and skill-based quizzes - each with appropriate compliance controls built in.</p>
+          <p className="text-gray-600">We currently support skill-based events like live or virtual quiz nights. Bingo and lottery support will be available once our compliance engine is complete.</p>
         </div>
         
         <div className="bg-white p-6 rounded-xl shadow-md">
-          <h3 className="text-xl font-bold mb-2 text-gray-800">How does it ensure compliance?</h3>
-          <p className="text-gray-600">We automatically enforce legal limits on stakes, minimum charity percentages, and age verification based on your jurisdiction.</p>
+          <h3 className="text-xl font-bold mb-2 text-gray-800">Is this legally compliant?</h3>
+          <p className="text-gray-600">Games of skill like quizzes do not fall under gambling regulations in most jurisdictions. We’re working on full legal compliance tools for regulated games coming soon.</p>
         </div>
         
         <div className="bg-white p-6 rounded-xl shadow-md">
-          <h3 className="text-xl font-bold mb-2 text-gray-800">What reporting features are included?</h3>
-          <p className="text-gray-600">Comprehensive regulatory-ready reports showing all transactions, winners, and charitable distributions with verified audit trails.</p>
+          <h3 className="text-xl font-bold mb-2 text-gray-800">How does on-chain tracking work?</h3>
+          <p className="text-gray-600">Key event data, like scores, winners, and financial summaries - is hashed and timestamped on-chain for a transparent, tamper-resistant record.</p>
         </div>
         
         <div className="bg-white p-6 rounded-xl shadow-md">
-          <h3 className="text-xl font-bold mb-2 text-gray-800">Do I need special licenses?</h3>
-          <p className="text-gray-600">Our system will guide you through the necessary permits for your organization and activity type, ensuring full compliance.</p>
+          <h3 className="text-xl font-bold mb-2 text-gray-800">Can I accept cash and digital payments?</h3>
+          <p className="text-gray-600">OYes! Hosts can reconcile both, and our system helps you track who paid what - perfect for clean record-keeping and reporting.</p>
         </div>
       </div>
     </div>

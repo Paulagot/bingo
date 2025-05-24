@@ -15,7 +15,7 @@ const FundRaiselyWhereYouSave: React.FC = () => {
             💸 Where You Save with FundRaisely
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            FundRaisely isn't just fundraising software — it's your <strong>legal, logistical, and admin co-pilot</strong>. 
+            FundRaisely isn't just fundraising software, it's your <strong>legal, logistical, and admin co-pilot</strong>. 
             Here's where you save money, time, and stress on every event.
           </p>
         </div>

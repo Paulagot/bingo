@@ -364,7 +364,7 @@ export function TestCampaign() {
                 <li>Get a room number to share with players.</li>
               </ul>
               <p className="text-lg text-indigo-600 font-medium mt-2">
-                ⚡ Rooms are created instantly — no waiting around.
+                ⚡ Rooms are created instantly, no waiting around.
               </p>
             </div>
 
@@ -411,11 +411,11 @@ export function TestCampaign() {
               <li>Pick your chain.</li>
               <li>Confirm the setup.</li>
               <li>Share your room number.</li>
-              <li>Play live on Zoom, Twitter Spaces, Discord — wherever you hang out.</li>
+              <li>Play live on Zoom, Twitter Spaces, Discord, wherever you hang out.</li>
             </ul>
 
             <p className="text-lg text-indigo-700 font-semibold">
-              As the Host, you earn <span className="font-bold">32%</span> of the total game intake just for running the game. 🙌 No tech skills needed — just your wallet and some good vibes.
+              As the Host, you earn <span className="font-bold">32%</span> of the total game intake just for running the game. 🙌 No tech skills needed, just your wallet and some good vibes.
             </p>
           </div>
         </div>
@@ -447,7 +447,7 @@ export function TestCampaign() {
             </ul>
 
             <p className="text-lg text-indigo-700 font-semibold">
-              Simple, fun, and fair — the way bingo <em>should</em> be.
+              Simple, fun, and fair, the way bingo <em>should</em> be.
             </p>
           </div>
         </div>
@@ -459,7 +459,7 @@ export function TestCampaign() {
           <h2 className="text-3xl font-bold text-center mb-8 text-indigo-900">About Fundraisely</h2>
           <div className="bg-white rounded-lg shadow-md p-8">
             <p className="text-lg text-gray-700 mb-6">
-              This isn't just about bingo. We're building <span className="font-bold">Fundraisely</span> — a full platform to help communities and charities run legit fundraising events like bingo, raffles, and more — all on blockchain for transparency and fairness.
+              This isn't just about bingo. We're building <span className="font-bold">Fundraisely</span>, a full platform to help communities and charities run legit fundraising events like bingo, raffles, and more, all on blockchain for transparency and fairness.
             </p>
 
             <p className="text-lg text-gray-700 mb-6">
@@ -467,7 +467,7 @@ export function TestCampaign() {
             </p>
 
             <p className="text-lg text-indigo-700">
-              Want the full inside scoop? Check out our <span className="font-bold">Pitch Deck</span> (you'll need an access code — DM us if you want it!)
+              Want the full inside scoop? Check out our <span className="font-bold">Pitch Deck</span> (you'll need an access code, DM us if you want it!)
             </p>
           </div>
         </div>
