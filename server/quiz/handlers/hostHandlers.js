@@ -1,12 +1,15 @@
-// handlers/hostHandlers.js
 import {
+  createQuizRoom,
   getQuizRoom,
   getCurrentRound,
   getCurrentQuestion,
   getTotalRounds,
   advanceToNextQuestion,
   startNextRound,
-  resetRoundClueTracking
+  resetRoundClueTracking,
+  addAdminToQuizRoom,
+  removeQuizRoom,
+  emitRoomState   // ✅ <- this must exist in quizRoomManager.js
 } from '../quizRoomManager.js';
 
 import { isRateLimited } from '../../socketRateLimiter.js';
@@ -14,92 +17,50 @@ import { isRateLimited } from '../../socketRateLimiter.js';
 const debug = true;
 
 export function setupHostHandlers(socket, namespace) {
-  // 🧠 Room creation
+
   socket.on('create_quiz_room', ({ roomId, hostId, config }) => {
     if (debug) console.log(`[Server] 🧠 create_quiz_room for: ${roomId}, host: ${hostId}`);
-    
-    // First join the room immediately, before any asynchronous operations
-    console.log(`[Server] 🔌 Socket ${socket.id} joining room ${roomId} as host`);
+
     socket.join(roomId);
-    
-    // Verify the join was successful
-    setTimeout(() => {
-      namespace.in(roomId).allSockets().then(clients => {
-        console.log(`[Server Debug] Host join verification: Room ${roomId} has clients:`, [...clients]);
-      });
-    }, 100);
-    
-    import('../quizRoomManager.js').then(({ createQuizRoom, getQuizRoom }) => {
-      // Disabled rate limiting for testing
-      /*
-      if (isRateLimited(socket, 'create_quiz_room', 10)) {
-        socket.emit('quiz_error', { message: 'Too many room creation attempts. Please wait.' });
-        return;
-      }
-      */
+    console.log(`[Server] 🔌 Socket ${socket.id} joined ${roomId}`);
 
-      const success = createQuizRoom(roomId, hostId, config);
-      if (!success) {
-        socket.emit('quiz_error', { message: 'Room already exists' });
-        // If failed, leave the room
-        socket.leave(roomId);
-        return;
-      }
+    const success = createQuizRoom(roomId, hostId, config);
+    if (!success) {
+      socket.emit('quiz_error', { message: 'Room already exists' });
+      socket.leave(roomId);
+      return;
+    }
 
-      socket.emit('quiz_room_created', { roomId });
-      if (debug) console.log(`✅ Room created: ${roomId}`);
+    socket.emit('quiz_room_created', { roomId });
+    if (debug) console.log(`✅ Room created: ${roomId}`);
 
-      const room = getQuizRoom(roomId);
-      if (room) {
-        // Double check socket is in the room before emitting
-        namespace.in(roomId).allSockets().then(clients => {
-          console.log(`[Server] 🧾 Room config: clients in room ${roomId}:`, [...clients]);
-          
-          // Broadcast room config to all clients in the room
-          namespace.to(roomId).emit('room_config', {
-            totalRounds: room.config.roundCount || 3,
-            questionsPerRound: room.config.questionsPerRound || 5,
-          });
-          
-          // Also send directly to the host socket just in case
-          socket.emit('room_config', {
-            totalRounds: room.config.roundCount || 3,
-            questionsPerRound: room.config.questionsPerRound || 5,
-          });
-        });
-      }
-    }).catch(err => {
-      console.error(`[Error] Failed in create_quiz_room:`, err);
-      socket.emit('quiz_error', { message: 'Internal server error' });
-    });
+    const room = getQuizRoom(roomId);
+    if (room) {
+      namespace.to(roomId).emit('room_config', room.config);
+      emitRoomState(namespace, roomId);
+    }
   });
 
-  // 👥 Host adds multiple players manually
   socket.on('add_player', ({ roomId, players }) => {
-    import('../quizRoomManager.js').then(({ addPlayerToQuizRoom, getQuizRoom }) => {
-      if (debug) console.log(`[Server] 🔄 Received add_player for room ${roomId}`);
-      
-      const room = getQuizRoom(roomId);
-      if (!room) {
-        console.warn(`[Server] ⚠️ Room not found: ${roomId}`);
-        socket.emit('quiz_error', { message: 'Room not found' });
-        return;
-      }
+    if (debug) console.log(`[add_player] Adding players to ${roomId}`);
 
-      for (const player of players) {
-        addPlayerToQuizRoom(roomId, player);
-      }
+    const room = getQuizRoom(roomId);
+    if (!room) {
+      socket.emit('quiz_error', { message: 'Room not found' });
+      return;
+    }
 
-      namespace.to(roomId).emit('player_list_updated', { 
-        players: room.players 
-      });
-      console.log(`[Server] ✅ Updated players for room ${roomId}`);
-    });
+    for (const player of players) {
+      const added = addPlayerToQuizRoom(roomId, player);
+      if (debug) console.log(`  ➕ Added: ${player.id} (${added ? 'success' : 'exists'})`);
+    }
+
+    namespace.to(roomId).emit('player_list_updated', { players: room.players });
+    emitRoomState(namespace, roomId);
   });
 
-  // 🟩 Start the next question
   socket.on('start_next_question', async ({ roomId }) => {
-    if (debug) console.log(`[Server] ▶️ start_next_question for room ${roomId}`);
+    if (debug) console.log(`[start_next_question] For room ${roomId}`);
 
     const room = getQuizRoom(roomId);
     if (!room) {
@@ -111,17 +72,13 @@ export function setupHostHandlers(socket, namespace) {
     const currentIndex = room.currentQuestionIndex || 0;
 
     if ((currentIndex + 1) >= questionsPerRound) {
-      if (debug) console.log(`[Server] 🚫 Max questions reached for round`);
       socket.emit('round_limit_reached', { round: getCurrentRound(roomId) });
       return;
     }
 
-    const clients = await namespace.in(roomId).allSockets();
-    if (debug) console.log(`[Server] 👥 Clients in room ${roomId}:`, [...clients]);
-
     if (room.currentPhase !== 'in_question') {
       room.currentPhase = 'in_question';
-      if (debug) console.log(`[Server] ⏯️ Setting in_question phase`);
+      console.log(`[start_next_question] Phase set to in_question`);
     }
 
     const nextQuestion = advanceToNextQuestion(roomId);
@@ -130,6 +87,8 @@ export function setupHostHandlers(socket, namespace) {
       return;
     }
 
+    emitRoomState(namespace, roomId);
+
     const currentQuestion = getCurrentQuestion(roomId);
     if (!currentQuestion) {
       socket.emit('quiz_error', { message: 'Failed to fetch question' });
@@ -137,8 +96,6 @@ export function setupHostHandlers(socket, namespace) {
     }
 
     const timeLimit = room.config.timePerQuestion || 30;
-    if (debug) console.log(`[Server] 📤 Emitting question "${currentQuestion.text}" with ${timeLimit}s`);
-
     namespace.to(roomId).emit('question', {
       id: currentQuestion.id,
       text: currentQuestion.text,
@@ -146,19 +103,12 @@ export function setupHostHandlers(socket, namespace) {
       timeLimit
     });
 
-    socket.emit('debug_question_emitted', {
-      questionText: currentQuestion.text,
-      socketCount: [...clients].length
-    });
-
-    if ((room.currentQuestionIndex + 1) >= questionsPerRound) {
-      if (debug) console.log(`[Server] 🏁 Last question of round ${getCurrentRound(roomId)}`);
-    }
+    const clients = await namespace.in(roomId).allSockets();
+    console.log(`[start_next_question] Emitted question to ${clients.size} clients`);
   });
 
-  // 🔁 Start the next round
   socket.on('start_next_round', ({ roomId }) => {
-    if (debug) console.log(`[Server] 🔁 start_next_round for room ${roomId}`);
+    if (debug) console.log(`[start_next_round] For room ${roomId}`);
 
     const room = getQuizRoom(roomId);
     if (!room) {
@@ -170,10 +120,7 @@ export function setupHostHandlers(socket, namespace) {
     const nextRound = getCurrentRound(roomId) + 1;
 
     if (nextRound > totalRounds) {
-      if (debug) console.log(`[Server] 🏁 All rounds complete. Emitting quiz_end.`);
-      namespace.to(roomId).emit('quiz_end', {
-        message: 'Quiz complete. Thank you for playing!'
-      });
+      namespace.to(roomId).emit('quiz_end', { message: 'Quiz complete. Thank you!' });
       return;
     }
 
@@ -181,15 +128,12 @@ export function setupHostHandlers(socket, namespace) {
     startNextRound(roomId);
     room.currentPhase = 'waiting';
 
-    if (debug) console.log(`[Server] 🔄 Starting round ${getCurrentRound(roomId)}`);
-    namespace.to(roomId).emit('next_round_starting', {
-      round: getCurrentRound(roomId)
-    });
+    namespace.to(roomId).emit('next_round_starting', { round: getCurrentRound(roomId) });
+    emitRoomState(namespace, roomId);
   });
 
-  // ❌ End the quiz
   socket.on('end_quiz', ({ roomId }) => {
-    if (debug) console.log(`[Server] ❌ end_quiz called for room ${roomId}`);
+    if (debug) console.log(`[end_quiz] For room ${roomId}`);
 
     const room = getQuizRoom(roomId);
     if (!room) {
@@ -198,20 +142,72 @@ export function setupHostHandlers(socket, namespace) {
     }
 
     room.currentPhase = 'complete';
-
-    namespace.to(roomId).emit('quiz_end', {
-      message: 'Quiz has been ended by the host.'
-    });
+    namespace.to(roomId).emit('quiz_end', { message: 'Quiz ended by host.' });
+    emitRoomState(namespace, roomId);
   });
 
-  // 📣 Start the review phase (placeholder for now)
-  socket.on('start_review_phase', ({ roomId }) => {
-    if (debug) console.log(`[Server] 📣 start_review_phase for room ${roomId}`);
+  socket.on('add_admin', ({ roomId, admin }) => {
+    if (debug) console.log(`[add_admin] Adding admin: ${admin.id} to ${roomId}`);
 
-    // TODO: Emit first question + correct answer to start the review flow
-    // Example:
-    // namespace.to(roomId).emit('review_start', { questionId, correctAnswer });
+    const room = getQuizRoom(roomId);
+    if (!room) {
+      socket.emit('quiz_error', { message: 'Room not found' });
+      return;
+    }
 
-    socket.emit('quiz_error', { message: 'Review phase not yet implemented' });
+    const existing = room.admins.find(a => a.id === admin.id);
+    if (existing) {
+      existing.name = admin.name;
+    } else {
+      const added = addAdminToQuizRoom(roomId, admin);
+      if (!added) {
+        socket.emit('quiz_error', { message: 'Failed to add admin' });
+        return;
+      }
+    }
+
+    socket.join(roomId);
+    socket.join(`${roomId}:admin`);
+    namespace.to(roomId).emit('admin_list_updated', { admins: room.admins });
+    emitRoomState(namespace, roomId);
   });
+
+  socket.on('rebuild_room_state', ({ roomId, players, admins }) => {
+    console.log(`[rebuild_room_state] For room ${roomId}`);
+
+    const room = getQuizRoom(roomId);
+    if (!room) return;
+
+    room.players = players || [];
+    room.admins = admins || [];
+
+    namespace.to(roomId).emit('player_list_updated', { players: room.players });
+    namespace.to(roomId).emit('admin_list_updated', { admins: room.admins });
+    emitRoomState(namespace, roomId);
+  });
+
+  socket.on('delete_quiz_room', ({ roomId }) => {
+    if (debug) console.log(`[delete_quiz_room] For room ${roomId}`);
+
+    const room = getQuizRoom(roomId);
+    if (!room) {
+      socket.emit('quiz_error', { message: 'Room not found' });
+      return;
+    }
+
+    namespace.to(roomId).emit('quiz_cancelled', { message: 'Quiz cancelled', roomId });
+    const removed = removeQuizRoom(roomId);
+
+    if (removed) {
+      namespace.in(roomId).socketsLeave(roomId);
+      namespace.in(`${roomId}:host`).socketsLeave(`${roomId}:host`);
+      namespace.in(`${roomId}:admin`).socketsLeave(`${roomId}:admin`);
+      namespace.in(`${roomId}:player`).socketsLeave(`${roomId}:player`);
+      console.log(`[delete_quiz_room] ✅ Room ${roomId} deleted`);
+    }
+  });
+
 }
+
+
+

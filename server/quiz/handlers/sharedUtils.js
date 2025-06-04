@@ -10,10 +10,8 @@ export function setupSharedHandlers(socket, namespace) {
     import('../quizRoomManager.js').then(({ getQuizRoom }) => {
       const room = getQuizRoom(roomId);
       if (room) {
-        socket.emit('room_config', {
-          totalRounds: room.config.roundCount || 3,
-          questionsPerRound: room.config.questionsPerRound || 5,
-        });
+        socket.emit('room_config', room.config);
+        if (debug) console.log(`[Server sharedutils] 🧾 Sent full room.config for ${roomId}`);
         if (debug) console.log(`[Server] 🧾 Sent room_config for ${roomId}`);
       } else {
         socket.emit('quiz_error', { message: 'Room not found' });
@@ -24,17 +22,17 @@ export function setupSharedHandlers(socket, namespace) {
   // ✅ Room exists? What's the payment method?
   socket.on('verify_quiz_room', ({ roomId }) => {
     import('../quizRoomManager.js').then(({ getQuizRoom }) => {
-      console.log('[Server] 🧠 Received verify_quiz_room for:', roomId);
+      console.log('[Server sharedutils] 🧠 Received verify_quiz_room for:', roomId);
     
       const room = getQuizRoom(roomId);
       if (!room) {
-        console.log('[Server] ❌ Room not found:', roomId);
+        console.log('[Server sharedutils] ❌ Room not found:', roomId);
         socket.emit('quiz_room_verification_result', {
           exists: false,
           paymentMethod: 'cash',
         });
       } else {
-        console.log('[Server] ✅ Room found:', roomId, 'Payment method:', room.config?.paymentMethod);
+        console.log('[Server sharedutils] ✅ Room found:', roomId, 'Payment method:', room.config?.paymentMethod);
         socket.emit('quiz_room_verification_result', {
           exists: true,
           paymentMethod: room.config?.paymentMethod || 'cash',

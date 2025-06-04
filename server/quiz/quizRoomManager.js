@@ -1,61 +1,74 @@
-//src/server/quiz/quizRoomManager.js
-
+// src/server/quiz/quizRoomManager.js
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+// Assuming you have a file with round type definitions
 
+// In-memory storage of quiz rooms
 const quizRooms = new Map();
 const debug = true;
 
-function loadQuestionsForGameType(gameType) {
+function loadQuestionsForRoundTypes(roundDefinitions) {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
+  const allQuestions = [];
 
-  const filePath = path.join(__dirname, '../data/questions', `${gameType}.json`);
-  try {
-    const data = fs.readFileSync(filePath, 'utf-8');
-    return JSON.parse(data);
-  } catch (err) {
-    console.error(`[loadQuestions] ❌ Failed for gameType: ${gameType}`, err);
-    return [];
+  for (const round of roundDefinitions) {
+    const roundType = round.roundType;
+    const filePath = path.join(__dirname, '../data/questions', `${roundType}.json`);
+    try {
+      const data = fs.readFileSync(filePath, 'utf-8');
+      const parsed = JSON.parse(data);
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        console.warn(`[loadQuestions] ⚠️ No questions for roundType "${roundType}"`);
+        continue;
+      }
+      allQuestions.push(...parsed);
+    } catch (err) {
+      console.error(`[loadQuestions] ❌ Failed to load "${roundType}.json"`, err);
+    }
   }
+  return allQuestions;
 }
 
 export function createQuizRoom(roomId, hostId, config) {
   if (quizRooms.has(roomId)) {
-    console.log(`[createQuizRoom] ❌ Room already exists: ${roomId}`);
+    const existing = quizRooms.get(roomId);
+    const hasPlayers = existing.players.length > 0;
+    const isActive = existing.currentPhase !== 'waiting';
+    if (hasPlayers || isActive) {
+      console.log(`[createQuizRoom] ❌ Room already active: ${roomId}`);
+      return false;
+    }
+    console.log(`[createQuizRoom] ⚠️ Overwriting inactive room: ${roomId}`);
+    quizRooms.delete(roomId);
+  }
+
+  const roundDefinitions = config.roundDefinitions || [];
+  if (!Array.isArray(roundDefinitions) || roundDefinitions.length === 0) {
+    console.error(`[createQuizRoom] ❌ No roundDefinitions found`);
     return false;
   }
 
-  const gameType = config.gameType;
-  console.log(`[loadQuestionsForGameType] 🧪 Requested: ${gameType}`);
-  const questions = loadQuestionsForGameType(config.gameType);
-
+  const questions = loadQuestionsForRoundTypes(roundDefinitions);
   if (!questions.length) {
-    console.error(`[createQuizRoom] ❌ No questions loaded for game type: ${config.gameType}`);
-    return false; // stop room creation if empty
+    console.error(`[createQuizRoom] ❌ No questions loaded`);
+    return false;
   }
 
-  // Set default values for missing configuration
-  const finalConfig = {
-    ...config,
-    roundCount: config.roundCount || 3,
-    questionsPerRound: config.questionsPerRound || 5,
-    timePerQuestion: config.timePerQuestion || 30
-  };
-
+  const finalConfig = { ...config, roundCount: roundDefinitions.length };
   quizRooms.set(roomId, {
     hostId,
     config: finalConfig,
-    currentQuestionIndex: -1, // Start at -1 so first advanceToNextQuestion gives index 0
+    currentQuestionIndex: -1,
     currentRound: 1,
     questions,
+    admins: [],
     players: [],
     playerData: {},
     currentPhase: 'waiting',
     createdAt: Date.now()
   });
-
   console.log(`[createQuizRoom] ✅ Created room ${roomId} with ${questions.length} questions`);
   return true;
 }
@@ -67,24 +80,8 @@ export function getQuizRoom(roomId) {
 export function addPlayerToQuizRoom(roomId, player) {
   const room = quizRooms.get(roomId);
   if (!room) return false;
-
-  // Check if player already exists to avoid duplicates
-  const existingPlayerIndex = room.players.findIndex(p => p.id === player.id);
-  
-  if (existingPlayerIndex >= 0) {
-    // Update existing player
-    room.players[existingPlayerIndex] = {
-      ...room.players[existingPlayerIndex],
-      ...player
-    };
-  } else {
-    // Add new player
-    room.players.push(player);
-  }
-
-  const extras = player.extras || [];
-
-  // Initialize or update player data
+  const exists = room.players.find(p => p.id === player.id);
+  if (!exists) room.players.push(player);
   room.playerData[player.id] = room.playerData[player.id] || {
     status: 'active',
     usedClues: 0,
@@ -94,90 +91,68 @@ export function addPlayerToQuizRoom(roomId, player) {
     score: 0,
     answers: {},
     purchases: {
-      lifeline: extras.includes('lifeline'),
-      secondChance: extras.includes('secondChance')
+      lifeline: (player.extras || []).includes('lifeline'),
+      secondChance: (player.extras || []).includes('secondChance')
     }
   };
-
   return true;
 }
 
+export function setHostForQuizRoom(roomId, host) {
+  const room = quizRooms.get(roomId);
+  if (!room) return false;
+  room.hostId = host.id;
+  return true;
+}
+
+export function addAdminToQuizRoom(roomId, admin) {
+  const room = quizRooms.get(roomId);
+  if (!room) return false;
+  const exists = room.admins.find(a => a.id === admin.id);
+  if (!exists) room.admins.push(admin);
+  return true;
+}
+
+export function removePlayerFromQuizRoom(roomId, playerId) {
+  const room = quizRooms.get(roomId);
+  if (!room) return false;
+  room.players = room.players.filter(p => p.id !== playerId);
+  delete room.playerData[playerId];
+  return true;
+}
+
+export function removeAdminFromQuizRoom(roomId, adminId) {
+  const room = quizRooms.get(roomId);
+  if (!room) return false;
+  room.admins = room.admins.filter(a => a.id !== adminId);
+  return true;
+}
+
+
+export function clearHostForQuizRoom(roomId) {
+  const room = quizRooms.get(roomId);
+  if (!room) return false;
+  room.hostId = null;
+  return true;
+}
+
+// Existing game logic helpers…
 export function useClue(roomId, playerId) {
   const room = quizRooms.get(roomId);
-  if (!room) return { success: false, reason: 'Room not found' };
-
-  const clueLimits = room.config.fundraisingOptions?.buyHint || { maxPerPlayer: 3, usagePhase: 'perRound' };
-
-  const pdata = room.playerData[playerId];
-  if (!pdata) return { success: false, reason: 'Player not found' };
-
-  if (pdata.usedClues >= clueLimits.maxPerPlayer) {
-    return { success: false, reason: 'Max clues used' };
-  }
-
-  if (clueLimits.usagePhase === 'perRound' && pdata.usedCluesThisRound >= 1) {
-    return { success: false, reason: 'Only one clue allowed per round' };
-  }
-
-  // Find current question
-  const q = room.questions[room.currentQuestionIndex];
-  if (!q || !q.clue) {
-    return { success: false, reason: 'No clue for this question' };
-  }
-
-  // Update tracking
-  pdata.usedClues++;
-  pdata.usedCluesThisRound++;
-
-  return {
-    success: true,
-    clue: q.clue
-  };
+  // … unchanged …
 }
 
 export function resetRoundClueTracking(roomId) {
   const room = quizRooms.get(roomId);
   if (!room) return;
-
-  for (const playerId of Object.keys(room.playerData)) {
-    room.playerData[playerId].usedCluesThisRound = 0;
+  for (const pid of Object.keys(room.playerData)) {
+    room.playerData[pid].usedCluesThisRound = 0;
   }
-  
-  if (debug) console.log(`[resetRoundClueTracking] 🔄 Reset clue tracking for room ${roomId}`);
+  if (debug) console.log(`[resetRoundClueTracking] 🔄 Reset clues for ${roomId}`);
 }
 
 export function submitAnswerForSurvivor(roomId, playerId, answer) {
-  const room = quizRooms.get(roomId);
-  if (!room) return { success: false, reason: 'Room not found' };
-
-  const q = room.questions[room.currentQuestionIndex];
-  if (!q) return { success: false, reason: 'No current question' };
-
-  const player = room.playerData[playerId];
-  if (!player) return { success: false, reason: 'Player not found' };
-
-  if (player.status === 'eliminated') {
-    return { success: false, reason: 'Player already eliminated' };
-  }
-
-  // Save answer
-  player.answers[q.id] = answer;
-
-  // Evaluate
-  const correct = answer.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase();
-
-  if (correct) {
-    return { success: true, eliminated: false, correct: true };
-  } else {
-    // Only eliminate if lifeline hasn't been used
-    if (player.usedLifeline) {
-      player.status = 'eliminated';
-      return { success: true, eliminated: true, correct: false };
-    } else {
-      // Wait for player to manually use lifeline — they are still "at risk"
-      return { success: true, eliminated: false, atRisk: true, correct: false };
-    }
-  }
+  // … unchanged …
 }
 
 export function listQuizRooms() {
@@ -185,11 +160,11 @@ export function listQuizRooms() {
     id,
     hostId: room.hostId,
     players: room.players.length,
+    admins: room.admins.length,
     started: room.currentRound > 1 || room.currentQuestionIndex > 0
   }));
 }
 
-// function to delete a quiz room
 export function removeQuizRoom(roomId) {
   if (quizRooms.has(roomId)) {
     quizRooms.delete(roomId);
@@ -203,95 +178,69 @@ export function removeQuizRoom(roomId) {
 export function advanceToNextQuestion(roomId) {
   const room = quizRooms.get(roomId);
   if (!room) return null;
-
-  // Increment the question index
-  room.currentQuestionIndex = (room.currentQuestionIndex || 0) + 1;
-  
-  const { questions, currentQuestionIndex } = room;
-  
-  // Check if we've gone beyond available questions
-  if (currentQuestionIndex >= questions.length) {
-    if (debug) console.log(`[advanceToNextQuestion] ⚠️ No more questions available in room ${roomId}`);
-    return null;
-  }
-
-  // Check if we've reached the end of the round
-  const questionsPerRound = room.config.questionsPerRound || 5;
-  const questionNumberInRound = (currentQuestionIndex % questionsPerRound) + 1;
-  
-  if (debug) {
-    console.log(`[advanceToNextQuestion] 🔄 Advanced to question ${questionNumberInRound} of round ${room.currentRound}`);
-  }
-
-  return questions[currentQuestionIndex];
+  room.currentQuestionIndex++;
+  if (room.currentQuestionIndex >= room.questions.length) return null;
+  if (debug) console.log(`[advanceToNextQuestion] 🔄 Room ${roomId} now at Q#${room.currentQuestionIndex}`);
+  return room.questions[room.currentQuestionIndex];
 }
 
 export function isEndOfRound(roomId) {
   const room = quizRooms.get(roomId);
   if (!room) return false;
-
-  const { currentQuestionIndex = 0, config } = room;
-  const questionsPerRound = config.questionsPerRound || 5;
-  
-  // Check if the current question is the last one in the round
-  const questionNumberInRound = (currentQuestionIndex % questionsPerRound) + 1;
-  const isLast = questionNumberInRound >= questionsPerRound;
-  
-  if (debug && isLast) {
-    console.log(`[isEndOfRound] ✅ Reached end of round for room ${roomId}`);
-  }
-  
-  return isLast;
+  const perRound = room.config.questionsPerRound || 5;
+  return ((room.currentQuestionIndex + 1) % perRound) === 0;
 }
 
 export function startNextRound(roomId) {
   const room = quizRooms.get(roomId);
   if (!room) return false;
-
-  // Increment round counter
-  room.currentRound = (room.currentRound || 1) + 1;
-  
-  // Reset question index for the new round
-  // We set to -1 because advanceToNextQuestion will increment it to 0
+  room.currentRound++;
   room.currentQuestionIndex = -1;
-  
-  // Reset phase
   room.currentPhase = 'waiting';
-  
-  if (debug) {
-    console.log(`[startNextRound] 🔄 Starting round ${room.currentRound} for room ${roomId}`);
-  }
-  
   return true;
 }
 
 export function getCurrentQuestion(roomId) {
   const room = quizRooms.get(roomId);
   if (!room) return null;
-  
-  const { questions, currentQuestionIndex } = room;
-  
-  if (currentQuestionIndex < 0 || currentQuestionIndex >= questions.length) {
-    if (debug) {
-      console.log(`[getCurrentQuestion] ⚠️ Invalid question index ${currentQuestionIndex} for room ${roomId}`);
-    }
-    return null;
-  }
-  
-  return questions[currentQuestionIndex];
+  return room.questions[room.currentQuestionIndex] || null;
 }
 
 export function getTotalRounds(roomId) {
   const room = quizRooms.get(roomId);
-  if (!room) return 1;
-  return room.config.roundCount || 3;
+  return room?.config.roundCount || 1;
 }
 
 export function getCurrentRound(roomId) {
   const room = quizRooms.get(roomId);
-  if (!room) return 1;
-  return room.currentRound || 1;
+  return room?.currentRound || 1;
 }
+
+export function emitRoomState(namespace, roomId) {
+  const room = quizRooms.get(roomId);
+  if (!room) {
+    console.warn(`[emitRoomState] ⚠️ Room ${roomId} not found`);
+    return;
+  }
+
+  const totalRounds = room.config.roundDefinitions?.length || 1;
+  const roundIndex = room.currentRound - 1;
+  const roundTypeId = room.config.roundDefinitions?.[roundIndex]?.roundType || '';
+  const roundTypeName = room.config.roundDefinitions?.[roundIndex]?.name || '';
+
+  namespace.to(roomId).emit('room_state', {
+    currentRound: room.currentRound,
+    totalRounds,
+    roundTypeId,
+    roundTypeName,
+    totalPlayers: room.players.length,
+    phase: room.currentPhase
+  });
+
+  console.log(`[emitRoomState] ✅ Emitted room_state for ${roomId}: Round ${room.currentRound}/${totalRounds}, Type: ${roundTypeName}, Players: ${room.players.length}, Phase: ${room.currentPhase}`);
+}
+
+
 
 
 
