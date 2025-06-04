@@ -1,22 +1,22 @@
 import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuizSocket } from '../useQuizSocket';
+import { useQuizSocket } from '../../../sockets/QuizSocketProvider';  // ✅ use new context
 import { joinQuizRoom } from '../joinQuizSocket';
 
 const JoinQuizWeb3Page = () => {
   const { roomId } = useParams();
-  const socket = useQuizSocket();
+  const { socket, connected } = useQuizSocket();  // ✅ unpack socket + connection state
 
   useEffect(() => {
-    if (socket && roomId) {
+    if (socket && connected && roomId) {
       const player = {
-        id: socket.id,
-        name: 'Alice', // TODO: Replace with actual name from user session or wallet
+        id: socket.id || 'unknown',  // extra safety if socket.id isn't yet populated
+        name: 'Alice',  // TODO: Replace with actual name from user session or wallet
       };
 
       joinQuizRoom(socket, roomId, player);
     }
-  }, [socket, roomId]);
+  }, [socket, connected, roomId]);
 
   return (
     <div className="p-8">
@@ -28,4 +28,5 @@ const JoinQuizWeb3Page = () => {
 };
 
 export default JoinQuizWeb3Page;
+
 

@@ -1,83 +1,62 @@
-//src/constants/quiztypeconstants.ts
-import type { QuizConfig, QuizGameType } from '../types/quiz';
+// src/constants/quiztypeconstants.ts
 
-export const quizGameTypes: QuizGameType[] = [
+import type { RoundTypeDefinition, RoundTypeId, RoundConfig } from '../types/quiz';
+
+export const roundTypes: RoundTypeDefinition[] = [
   {
-    id: 'classic_trivia',
-    name: 'Classic Team Trivia',
-    description: 'Teams of 4–8 players compete to answer general knowledge questions across themed rounds.',
+    id: 'general_trivia',
+    name: 'General Trivia',
+    description: 'Standard multiple choice format with hints and reviews.',
     defaultConfig: {
-      teamBased: true,
-      roundCount: 5,
-      timePerQuestion: 30,
-      useMedia: true
-    },
-    fundraisingOptions: {
-      buyHint: {
-        maxPerPlayer: 3,
-        usagePhase: 'perRound'
-      }
+      questionsPerRound: 6,
+      timePerQuestion: 25
     }
   },
   {
     id: 'speed_round',
-    name: 'Speed Round Showdown',
-    description: 'Fast-paced format where players race to answer as many questions as possible in a short time.',
+    name: 'Speed Round',
+    description: 'Answer as many questions as fast as possible in limited time.',
     defaultConfig: {
-      teamBased: false,
-      roundCount: 1,
+      questionsPerRound: 6,
       timePerQuestion: 10,
-      useMedia: false,
-      totalTimeSeconds: 120 // ✅ total time per game (e.g. 2 minutes)
-    },
-    fundraisingOptions: {
-      extraTime: {
-        maxPerPlayer: 1,
-        usagePhase: 'any'
-      }
+      totalTimeSeconds: 60
+    }
+  },
+  {
+    id: 'wipeout',
+    name: 'Wipeout',
+    description: 'Lose points for wrong answers. Strategic gameplay.',
+    defaultConfig: {
+      questionsPerRound: 6,
+      timePerQuestion: 20
     }
   },
   {
     id: 'media_puzzle',
-    name: 'Picture and Media Puzzle',
-    description: 'Visual-heavy quiz using images, audio, or video clips.',
+    name: 'Picture & Media Puzzle',
+    description: 'Questions based on images, audio, or video.',
     defaultConfig: {
-      teamBased: true,
-      roundCount: 4,
-      timePerQuestion: 45,
-      useMedia: true
-    },
-    fundraisingOptions: {
-      mediaReveal: {
-        maxPerPlayer: 3,
-        usagePhase: 'perRound'
-      }
+      questionsPerRound: 5,
+      timePerQuestion: 45
     }
   },
   {
-    id: 'survivor_quiz',
-    name: 'Survivor Quiz',
-    description: 'Knockout-style quiz where players or teams are eliminated for wrong answers.',
+    id: 'head_to_head',
+    name: 'Head to Head',
+    description: 'Players face off in a buzzing format with no visible options.',
     defaultConfig: {
-      teamBased: false,
-      roundCount: 0,
-      timePerQuestion: 20,
-      useMedia: false
-    },
-    fundraisingOptions: {
-      lifeline: {
-        maxPerPlayer: 1,
-        usagePhase: 'any'
-      },
-      secondChance: {
-        maxPerPlayer: 1,
-        usagePhase: 'any'
-      }
+      questionsPerRound: 7,
+      timePerQuestion: 20
     }
   }
 ];
 
+export const roundTypeDefaults = Object.fromEntries(
+  roundTypes.map((t) => [t.id, t.defaultConfig])
+) as Record<RoundTypeId, RoundConfig>;
 
-export const gameTypeDefaults: Record<string, Partial<QuizConfig>> = Object.fromEntries(
-  quizGameTypes.map((g) => [g.id, g.defaultConfig])
-);
+
+export const roundTypeMap = Object.fromEntries(
+  roundTypes.map((t) => [t.id, t])
+) as Record<RoundTypeId, RoundTypeDefinition>;
+

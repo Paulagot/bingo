@@ -1,23 +1,27 @@
-// components/quiz/wizard/QuizWizard.tsx
 import { useState } from 'react';
 import StepHostInfo from './StepHostInfo';
-import StepGameType from './StepGameType';
-import StepRoundSettings from './StepRoundSettings';
+import StepAddRounds from './StepAddRounds';
 import StepFundraisingOptions from './StepFundraisingOptions';
 import StepPaymentMethod from './StepPaymentMethod';
 import StepReviewLaunch from './StepReviewLaunch';
 import StepPrizes from './StepPrizes';
-import StepSchedule from './StepSchedule';
 
+interface QuizWizardProps {
+  onComplete?: () => void;   // ✅ add this
+}
 
-const steps = ['host', 'type', 'payment', 'fundraising', 'stepPrizes',  'round', 'schedule', 'review'] as const;
+const steps = ['host', 'type', 'payment', 'fundraising', 'stepPrizes', 'review'] as const;
 
-
-export default function QuizWizard() {
+export default function QuizWizard({ onComplete }: QuizWizardProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
 
   const goNext = () => {
-    setCurrentStepIndex((prev) => Math.min(prev + 1, steps.length - 1));
+    if (currentStepIndex >= steps.length - 1) {
+      // ✅ finished wizard
+      if (onComplete) onComplete();
+    } else {
+      setCurrentStepIndex((prev) => Math.min(prev + 1, steps.length - 1));
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -33,24 +37,21 @@ export default function QuizWizard() {
       case 'host':
         return <StepHostInfo onNext={goNext} />;
       case 'type':
-        return <StepGameType onNext={goNext} onBack={goBack} />;
+        return <StepAddRounds onNext={goNext} onBack={goBack} />;
       case 'payment':
         return <StepPaymentMethod onNext={goNext} onBack={goBack} />;
-        
       case 'fundraising':
         return <StepFundraisingOptions onNext={goNext} onBack={goBack} />;
       case 'stepPrizes':
         return <StepPrizes onNext={goNext} onBack={goBack} />;
-      case 'round':
-        return <StepRoundSettings onNext={goNext} onBack={goBack} />; 
-      case 'schedule':
-        return <StepSchedule onNext={goNext} onBack={goBack} />;
       case 'review':
         return <StepReviewLaunch onNext={goNext} onBack={goBack} />;
       default:
         return null;
     }
   };
+
+  
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
@@ -65,3 +66,4 @@ export default function QuizWizard() {
     </div>
   );
 }
+

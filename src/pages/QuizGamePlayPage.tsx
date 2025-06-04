@@ -1,12 +1,19 @@
+// src/components/Quiz/QuizGamePlayPage.tsx
+
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuizSocket } from '../components/Quiz/useQuizSocket';
+import { useQuizSocket } from '../sockets/QuizSocketProvider';
+
+interface User {
+  id: string;
+  name: string;
+}
 
 const debug = true;
 
 const QuizGamePlayPage = () => {
-  const { roomId, playerId } = useParams();
-  const socket = useQuizSocket();
+  const { roomId, playerId } = useParams<{ roomId: string; playerId: string }>();
+  const { socket, connected } = useQuizSocket();
 
   const [question, setQuestion] = useState<any>(null);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
@@ -14,86 +21,108 @@ const QuizGamePlayPage = () => {
   const [selectedAnswer, setSelectedAnswer] = useState('');
   const [clue, setClue] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [phaseMessage, setPhaseMessage] = useState<string>('Waiting for host to start the quiz...');
+  const [phaseMessage, setPhaseMessage] = useState<string>(
+    'Waiting for host to start the quiz...'
+  );
 
-  // ✅ Rejoin room on reconnect
-useEffect(() => {
-  if (!socket || !roomId || !playerId) return;
-
-  if (debug) console.log('[Client] 🚪 Joining quiz room on mount:', roomId);
-
-  socket.emit('join_quiz_room', {
-    roomId,
-    player: {
-      id: playerId,
-      name: 'Player ' + playerId, // replace if needed
-    },
-  });
-}, [socket, roomId, playerId]);
-
-
-  // ✅ Game event listeners
+  // ────────────────────────────────────────────────────────────────────
+  // 1) Rejoin room on (re)connect: send { roomId, user, role: 'player' }
+  // ────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!socket || !roomId || !playerId) return;
+    if (!socket || !connected || !roomId || !playerId) return;
 
-    socket.on('question', (data) => {
+    if (debug) console.log('[Client] 🚪 Joining quiz room on mount:', roomId);
+
+    // ** UPDATED: emit { roomId, user, role } rather than { roomId, player } **
+    // const user: User = {
+    //   id: playerId,
+    //   name: 'Player ' + playerId,
+    // };
+
+   socket.emit('join_quiz_room', {
+  roomId,
+  user: { id: playerId, name: 'Player ' + playerId },
+  role: 'player'
+});
+  }, [socket, connected, roomId, playerId]);
+
+  // ────────────────────────────────────────────────────────────────────
+  // 2) Register game‐play listeners
+  // ────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!socket || !connected || !roomId || !playerId) return;
+
+    const handleQuestion = (data: any) => {
       if (debug) console.log('[Client] 🧠 Received question:', data);
       setQuestion(data);
       setSelectedAnswer('');
       setClue(null);
       setFeedback(null);
-      setTimeLeft(data.timeLimit || 30);
+      setTimeLeft(data.timeLimit ?? 30);
       setTimerActive(true);
       setPhaseMessage('');
-    });
+    };
 
-    socket.on('clue_revealed', ({ clue }) => {
+    const handleClue = ({ clue }: { clue: string }) => {
       if (debug) console.log('[Client] 💡 Clue revealed:', clue);
       setClue(clue);
-    });
+    };
 
-    socket.on('answer_reveal', ({ correctAnswer, playerResult }) => {
-      if (debug) console.log('[Client] ✅ Answer reveal:', correctAnswer, playerResult);
+    const handleAnswerReveal = ({ correctAnswer, playerResult }: any) => {
+      if (debug) console.log(
+        '[Client] ✅ Answer reveal:',
+        correctAnswer,
+        playerResult
+      );
       setFeedback(playerResult?.correct ? '✅ Correct!' : '❌ Incorrect.');
       setTimerActive(false);
-    });
+    };
 
-    socket.on('round_end', ({ round }) => {
+    const handleRoundEnd = ({ round }: { round: number }) => {
       if (debug) console.log(`[Client] ⏹️ Round ${round} ended`);
       setPhaseMessage(`Round ${round} complete. Waiting for next round...`);
       setQuestion(null);
       setTimerActive(false);
-    });
+    };
 
-    socket.on('next_round_starting', ({ round }) => {
+    const handleNextRound = ({ round }: { round: number }) => {
       if (debug) console.log(`[Client] 🔁 Starting Round ${round}`);
       setPhaseMessage(`Starting Round ${round}...`);
-    });
+    };
 
-    socket.on('quiz_end', ({ message }) => {
+    const handleQuizEnd = ({ message }: { message: string }) => {
       if (debug) console.log(`[Client] 🏁 Quiz ended: ${message}`);
       setPhaseMessage(message);
       setQuestion(null);
       setTimerActive(false);
-    });
+    };
+
+    socket.on('question', handleQuestion);
+    socket.on('clue_revealed', handleClue);
+    socket.on('answer_reveal', handleAnswerReveal);
+    socket.on('round_end', handleRoundEnd);
+    socket.on('next_round_starting', handleNextRound);
+    socket.on('quiz_end', handleQuizEnd);
 
     return () => {
-      socket.off('question');
-      socket.off('clue_revealed');
-      socket.off('answer_reveal');
-      socket.off('round_end');
-      socket.off('next_round_starting');
-      socket.off('quiz_end');
+      socket.off('question', handleQuestion);
+      socket.off('clue_revealed', handleClue);
+      socket.off('answer_reveal', handleAnswerReveal);
+      socket.off('round_end', handleRoundEnd);
+      socket.off('next_round_starting', handleNextRound);
+      socket.off('quiz_end', handleQuizEnd);
     };
-  }, [socket, roomId, playerId]);
+  }, [socket, connected, roomId, playerId]);
 
-  // ✅ Timer countdown logic
+  // ────────────────────────────────────────────────────────────────────
+  // 3) Timer countdown logic
+  // ────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!timerActive || timeLeft === null) return;
 
     if (timeLeft <= 0) {
       setTimerActive(false);
-      handleSubmit(); // auto-submit
+      handleSubmit();
       return;
     }
 
@@ -101,39 +130,48 @@ useEffect(() => {
     return () => clearTimeout(timer);
   }, [timeLeft, timerActive]);
 
+  // ────────────────────────────────────────────────────────────────────
+  // 4) Submit answer to server
+  // ────────────────────────────────────────────────────────────────────
   const handleSubmit = () => {
-    if (!selectedAnswer || !question || !socket) return;
+    if (!selectedAnswer || !question || !socket || !roomId || !playerId) return;
     if (debug) console.log('[Client] 📤 Submitting answer:', selectedAnswer);
 
     socket.emit('submit_survivor_answer', {
       roomId,
       playerId,
-      answer: selectedAnswer
+      answer: selectedAnswer,
     });
   };
 
+  // ────────────────────────────────────────────────────────────────────
+  // 5) Request a clue
+  // ────────────────────────────────────────────────────────────────────
   const handleClueRequest = () => {
-    if (!socket) return;
+    if (!socket || !roomId || !playerId) return;
     if (debug) console.log('[Client] 🧩 Requesting clue...');
     socket.emit('use_clue', { roomId, playerId });
   };
 
-useEffect(() => {
-  if (!socket) return;
+  // ────────────────────────────────────────────────────────────────────
+  // 6) Debug logger: print every incoming event
+  // ────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!socket) return;
 
-  const logAnyEvent = (event: string, ...args: any[]) => {
-    console.log(`[Client] 📥 Received event: ${event}`, args);
-  };
+    const logAnyEvent = (event: string, ...args: any[]) => {
+      console.log(`[Client] 📥 Received event: ${event}`, args);
+    };
 
-  socket.onAny(logAnyEvent);
+    socket.onAny(logAnyEvent);
+    return () => {
+      socket.offAny(logAnyEvent);
+    };
+  }, [socket]);
 
-  return () => {
-    socket.offAny(logAnyEvent);
-  };
-}, [socket]);
-
-
-
+  // ────────────────────────────────────────────────────────────────────
+  // 7) Render UI
+  // ────────────────────────────────────────────────────────────────────
   return (
     <div className="p-8">
       <h1 className="text-2xl font-bold mb-4">🎮 Quiz In Progress</h1>
@@ -144,7 +182,9 @@ useEffect(() => {
         <div className="bg-white p-6 rounded-xl shadow space-y-4">
           <div>
             <h2 className="text-xl font-semibold text-indigo-700">{question.text}</h2>
-            {clue && <p className="text-sm text-blue-500 mt-1">💡 Clue: {clue}</p>}
+            {clue && (
+              <p className="text-sm text-blue-500 mt-1">💡 Clue: {clue}</p>
+            )}
           </div>
 
           {question.options ? (
@@ -195,9 +235,10 @@ useEffect(() => {
               {feedback}
             </div>
           )}
-
           {timerActive && (
-            <div className="text-sm text-gray-500 text-right">⏳ Time left: {timeLeft}s</div>
+            <div className="text-sm text-gray-500 text-right">
+              ⏳ Time left: {timeLeft}s
+            </div>
           )}
         </div>
       ) : (
@@ -210,6 +251,8 @@ useEffect(() => {
 };
 
 export default QuizGamePlayPage;
+
+
 
 
 

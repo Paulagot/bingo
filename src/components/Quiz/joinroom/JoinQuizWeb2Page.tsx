@@ -1,17 +1,17 @@
 import { useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { useQuizSocket } from '../useQuizSocket';
+import { useQuizSocket } from '../../../sockets/QuizSocketProvider';  // ✅ Updated path
 import { joinQuizRoom, verifyRoomAndPlayer } from '../joinQuizSocket';
 
 const JoinQuizWeb2Page = () => {
-  const { roomId } = useParams();
+  const { roomId } = useParams<{ roomId: string }>();
   const [searchParams] = useSearchParams();
   const playerId = searchParams.get('playerId');
-  const socket = useQuizSocket();
+  const { socket, connected } = useQuizSocket();  // ✅ Updated to destructure
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!socket || !roomId || !playerId) return;
+    if (!socket || !connected || !roomId || !playerId) return;
 
     console.log('[JoinQuiz] Verifying room & player...');
     verifyRoomAndPlayer(socket, roomId, playerId, (data) => {
@@ -29,23 +29,17 @@ const JoinQuizWeb2Page = () => {
 
       const player = { id: playerId, name: `Player ${playerId}` };
 
-      if (socket.connected) {
-        console.log('✅ Socket connected. Joining room...');
-        joinQuizRoom(socket, roomId, player);
-      } else {
-        console.warn('❌ Socket not connected. Cannot join room.');
-        return;
-      }
+      console.log('✅ Joining quiz room after verification...');
+      joinQuizRoom(socket, roomId, player);
 
       localStorage.setItem(`quiz_rejoin_${roomId}`, playerId);
 
-      // ⏳ Delay redirect so join_quiz_room finishes
       setTimeout(() => {
         console.log('➡️ Navigating to /quiz/game...');
         navigate(`/quiz/game/${roomId}/${playerId}`);
       }, 1000);
     });
-  }, [socket, roomId, playerId]);
+  }, [socket, connected, roomId, playerId, navigate]);
 
   return (
     <div className="p-10 text-center">
@@ -57,5 +51,6 @@ const JoinQuizWeb2Page = () => {
 };
 
 export default JoinQuizWeb2Page;
+
 
 

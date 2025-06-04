@@ -8,14 +8,11 @@ const PaymentReconciliationPanel: React.FC = () => {
 
   const currency = config.currencySymbol || '€';
   const entryFee = parseFloat(config.entryFee || '0');
-  const isWeb3 = config.paymentMethod === 'web3';
 
-  const paidPlayers = players.filter((p) => p.paid);
-  const unpaidPlayers = players.filter((p) => !p.paid);
-  const totalPlayers = players.length;
-
-  const extrasEnabled = config.fundraisingOptions || {};
-  const extrasPrices = config.fundraisingPrices || {};
+  const activePlayers = players.filter((p) => !p.disqualified);
+  const paidPlayers = activePlayers.filter((p) => p.paid);
+  const unpaidPlayers = activePlayers.filter((p) => !p.paid);
+  const totalPlayers = activePlayers.length;
 
   // Build per-method totals
   const paymentData: Record<
@@ -165,6 +162,7 @@ const PaymentReconciliationPanel: React.FC = () => {
 };
 
 export default PaymentReconciliationPanel;
+
 
 
 

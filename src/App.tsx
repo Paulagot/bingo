@@ -2,21 +2,16 @@ import { useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Landing } from './pages/Landing';
 import { Game } from './pages/Game';
-import { TestCampaign } from './pages/TestCampaign'; // Import the new TestCampaign page
+import { TestCampaign } from './pages/TestCampaign';
 import { Header } from './components/Header';
 import { PitchDeck } from './pages/PitchDeck';
 import { PitchDeckContent } from './pages/PitchDeckContent';
 import { ActionButtonList } from './components/ActionButtonList';
 import { InfoList } from './components/InfoList';
 import ErrorBoundary from './components/ErrorBoundary';
-import HostDashboard from './components/Quiz/dashboard/HostDashboard'; // Import the HostDashboard component}
-import QuizChallengePage from './pages/QuizChallengePage';
-import QuizGameWaitingPage from './pages/QuizGameWaitingPage';
-import JoinQuizWeb2Page from '../src/components/Quiz/joinroom/JoinQuizWeb2Page';
-import QuizGamePlayPage from './pages/QuizGamePlayPage';
-
-
-
+import SocketDebugPanel from './components/Quiz/SocketDebugPanel';
+import QuizRoutes from '../src/components/Quiz/QuizRoutes';
+import { QuizSocketProvider } from '../src/sockets/QuizSocketProvider';  // ✅ Moved back here
 
 export default function App() {
   const navigate = useNavigate();
@@ -65,21 +60,27 @@ export default function App() {
               <InfoList />
             </div>
           )}
+
+          
           <Routes>
+            {/* Bingo & non-quiz routes */}
             <Route path="/" element={<Landing />} />
             <Route path="/game/:roomId" element={<Game />} />
             <Route path="/pitch-deck" element={<PitchDeck />} />
             <Route path="/pitch-deck-content" element={<PitchDeckContent />} />
-            <Route path="/BingoBlitz" element={<TestCampaign />} /> {/* Add the new route */}
-            <Route path="/host-dashboard/:roomId" element={<HostDashboard />} />
-            <Route path="/quiz" element={<QuizChallengePage />} />
-            <Route path="/quiz/game/:roomId/:playerId" element={<QuizGameWaitingPage />} />
-            <Route path="/join/:roomId" element={<JoinQuizWeb2Page />} />
-            <Route path="/quiz/play/:roomId/:playerId" element={<QuizGamePlayPage />} />
-             <Route path="/test" element={<QuizGamePlayPage />} />
+            <Route path="/BingoBlitz" element={<TestCampaign />} />
+
+            {/* ✅ Now only wrap the Quiz routes */}
+            <Route path="/quiz/*" element={
+              <QuizSocketProvider>
+                <SocketDebugPanel />
+                <QuizRoutes />
+              </QuizSocketProvider>
+            } />
           </Routes>
         </main>
       </div>
     </ErrorBoundary>
   );
 }
+

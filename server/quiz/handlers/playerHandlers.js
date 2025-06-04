@@ -1,75 +1,232 @@
-// handlers/playerHandlers.js
 import { isRateLimited } from '../../socketRateLimiter.js';
+import {
+  getQuizRoom,
+  addPlayerToQuizRoom,
+  setHostForQuizRoom,
+  addAdminToQuizRoom,
+  emitRoomState
+} from '../quizRoomManager.js';
 
 const debug = true;
 
-// Track failed attempts per IP to avoid excessive rate limiting
-const joinAttempts = new Map();
-
 export function setupPlayerHandlers(socket, namespace) {
-  // 👤 Player joins quiz room
-  socket.on('join_quiz_room', ({ roomId, player }) => {
-    if (debug) console.log(`[Player] 👤 join_quiz_room for ${roomId} as ${player.name || 'unknown'}`);
-    
-    // Temporarily disable rate limiting for testing
-    /*
-    if (isRateLimited(socket, 'join_quiz_room', 20)) {
-      socket.emit('quiz_error', { message: 'Too many join attempts. Please slow down.' });
+
+  // 👤 Player or Admin joins quiz room
+  socket.on('join_quiz_room', ({ roomId, user, role }) => {
+    if (!roomId || !user || !role) {
+      if (debug) {
+        console.error(`[join_quiz_room] ❌ Missing data!`, { roomId, user, role });
+      }
+      socket.emit('quiz_error', { message: 'Invalid join_quiz_room payload; expecting { roomId, user, role }.' });
       return;
     }
-    */
-    
-    // Important: Join room synchronously, before any async operations
-    console.log(`[JoinRoom] Socket ${socket.id} joining room ${roomId}`);
+
+    if (debug) {
+      console.log(`[Join] ${role} "${user.name || user.id}" is joining room ${roomId}`);
+    }
+
     socket.join(roomId);
-    
-    // Add a brief delay to ensure the join completes
-    setTimeout(() => {
-      namespace.in(roomId).allSockets().then(clients => {
-        console.log(`[JoinDebug] After join, clients in room ${roomId}:`, [...clients]);
-      });
-    }, 100);
-    
-    import('../quizRoomManager.js').then(({ getQuizRoom, addPlayerToQuizRoom }) => {
-      const room = getQuizRoom(roomId);
-      if (!room) {
-        socket.emit('quiz_error', { message: 'Room not found.' });
-        socket.leave(roomId); // Leave room if it doesn't exist
-        return;
+    const roleRoom = `${roomId}:${role}`;
+    socket.join(roleRoom);
+
+    const room = getQuizRoom(roomId);
+    if (!room) {
+      if (debug) console.warn(`[join_quiz_room] ⚠️ Room not found: ${roomId}`);
+      socket.emit('quiz_error', { message: `Room ${roomId} not found.` });
+      socket.leave(roomId);
+      socket.leave(roleRoom);
+      return;
+    }
+
+    if (role === 'player') {
+      const added = addPlayerToQuizRoom(roomId, user);
+      if (!added && debug) {
+        console.warn(`[join_quiz_room] ⚠️ Player ${user.id} might already exist in room ${roomId}`);
+      }
+      
+      // ✅ Send config to player
+      if (debug) {
+        console.log(`[join_quiz_room] 📋 Sending config to player:`, room.config);
+      }
+      
+      if (room.config && typeof room.config === 'object') {
+        socket.emit('room_config', room.config);
+        if (debug) console.log(`[join_quiz_room] ✅ Config sent to player`);
+      } else {
+        if (debug) console.warn(`[join_quiz_room] ⚠️ Invalid config for room ${roomId}:`, room.config);
+        socket.emit('quiz_error', { message: 'Room configuration is invalid' });
+      }
+      
+      // Send current state to player
+      socket.emit('player_list_updated', { players: room.players });
+      socket.emit('admin_list_updated', { admins: room.admins });
+      
+      // Emit room state
+      emitRoomState(namespace, roomId);
+    }
+    else if (role === 'host') {
+      const ok = setHostForQuizRoom(roomId, user);
+      if (!ok && debug) {
+        console.warn(`[join_quiz_room] ⚠️ Could not set host for room ${roomId}`);
       }
 
-      const success = addPlayerToQuizRoom(roomId, player);
-      if (!success) {
-        console.log(`[Player] ⚠️ Failed to add player ${player.name} to room ${roomId}`);
-        // Continue anyway - they may already be added
+      // Host reconnect: ask frontend to send full state rebuild
+      console.log(`[join_quiz_room] 🔄 Host joined, requesting full state from client`);
+      socket.emit('request_full_state', { roomId });
+      
+      // Send current state to host
+      if (room.config && typeof room.config === 'object') {
+        socket.emit('room_config', room.config);
       }
+      socket.emit('player_list_updated', { players: room.players });
+      socket.emit('admin_list_updated', { admins: room.admins });
+      
+      console.log(`[PLAYER-HANDLER - add host] 🎉 role==='host' block reached for user ${user.id}, room ${roomId}`);
+      console.log(`[PLAYER-HANDLER - add host] Current room.config:`, room.config);
+      console.log(`[PLAYER-HANDLER - add host] Current room.players:`, room.players);
+      console.log(`[PLAYER-HANDLER - add host] Current room.admins:`, room.admins);
 
-      // Emit events about the player joining
-      namespace.to(roomId).emit('player_joined', { player });
-      namespace.to(roomId).emit('player_list_updated', {
-        players: room.players || []
-      });
-
-      // Double check that the socket is actually in the room
-      namespace.in(roomId).allSockets().then(clients => {
-        const isInRoom = clients.has(socket.id);
-        console.log(`[Player] 👥 Socket ${socket.id} is ${isInRoom ? 'in' : 'NOT in'} room ${roomId}`);
-        
-        if (!isInRoom) {
-          console.log(`[Player] 🔄 Re-joining socket ${socket.id} to room ${roomId}`);
-          socket.join(roomId);
+      // Emit host assigned event
+      namespace.to(roomId).emit('host_assigned', { host: { id: user.id, name: user.name } });
+      
+      // Emit room state
+      emitRoomState(namespace, roomId);
+    }
+    else if (role === 'admin') {
+      const existingAdmin = room.admins.find(a => a.id === user.id);
+      if (existingAdmin) {
+        user.name = existingAdmin.name;
+      } else {
+        const added = addAdminToQuizRoom(roomId, user);
+        if (!added && debug) {
+          console.warn(`[join_quiz_room] ⚠️ Admin ${user.id} might already exist in room ${roomId}`);
         }
-        
-        console.log(`[Player] ✅ Player ${player.name} joined room ${roomId}`);
-        console.log(`[Player] 👥 Current clients in room:`, [...clients]);
+      }
+
+      const savedAdmin = room.admins.find(a => a.id === user.id);
+      if (savedAdmin) savedAdmin.socketId = socket.id;
+
+      console.log(`[PLAYER-HANDLER] 🎉 role==='admin' block reached for user ${user.id}, room ${roomId}`);
+      console.log(`[PLAYER-HANDLER] Current room.config:`, room.config);
+      console.log(`[PLAYER-HANDLER] Current room.players:`, room.players);
+      console.log(`[PLAYER-HANDLER] Current room.admins:`, room.admins);
+
+      // Send current state to admin
+      if (room.config && typeof room.config === 'object') {
+        socket.emit('room_config', room.config);
+      }
+      socket.emit('player_list_updated', { players: room.players });
+      socket.emit('admin_list_updated', { admins: room.admins });
+      
+      // Emit room state
+      emitRoomState(namespace, roomId);
+    }
+    else {
+      if (debug) console.log(`[PLAYER-HANDLER][join_quiz_room] ❌ Invalid role: ${role}`);
+      socket.emit('quiz_error', { message: `Unknown role "${role}".` });
+      socket.leave(roomId);
+      socket.leave(roleRoom);
+      return;
+    }
+
+    namespace.to(roomId).emit('user_joined', { user, role });
+
+    if (role === 'player') {
+      namespace.to(roomId).emit('player_list_updated', { players: room.players });
+    }
+    else if (role === 'admin') {
+      namespace.to(roomId).emit('admin_list_updated', { admins: room.admins });
+    }
+    else if (role === 'host') {
+      namespace.to(roomId).emit('host_assigned', { host: { id: room.hostId, name: user.name } });
+    }
+
+    setTimeout(() => {
+      namespace.in(roomId).allSockets().then((clients) => {
+        if (debug) {
+          console.log(`[PLAYER-HANDLER][JoinDebug] Clients in ${roomId}:`, [...clients]);
+        }
       });
-    });
+    }, 50);
   });
 
-  // 📝 Player submits an answer
+  // Handle requests for current state
+  socket.on('request_current_state', ({ roomId }) => {
+    if (debug) console.log(`[request_current_state] 📡 Player requesting current state for room ${roomId}`);
+    
+    const room = getQuizRoom(roomId);
+    if (!room) {
+      socket.emit('quiz_error', { message: 'Room not found' });
+      return;
+    }
+    
+    // Send all current state to the requesting player
+    if (room.config && typeof room.config === 'object') {
+      socket.emit('room_config', room.config);
+      if (debug) console.log(`[request_current_state] ✅ Sent config to player`);
+    }
+    
+    socket.emit('player_list_updated', { players: room.players });
+    socket.emit('admin_list_updated', { admins: room.admins });
+    
+    emitRoomState(namespace, roomId);
+    
+    if (debug) console.log(`[request_current_state] ✅ Sent current state to player`);
+  });
+
+  // Admin disconnect cleanup
+  socket.on('disconnect', () => {
+    // Add a grace period before removing admins
+    setTimeout(() => {
+      const rooms = Array.from(socket.rooms).filter(r => r !== socket.id);
+      rooms.forEach(roomId => {
+        const room = getQuizRoom(roomId);
+        if (!room) return;
+        
+        // Check if the admin has reconnected with a new socket
+        const idx = room.admins.findIndex(a => a.socketId === socket.id);
+        if (idx !== -1) {
+          const admin = room.admins[idx];
+          // Only remove if they haven't reconnected
+          const hasReconnected = room.admins.some(a => 
+            a.id === admin.id && a.socketId !== socket.id
+          );
+          
+          if (!hasReconnected) {
+            room.admins.splice(idx, 1);
+            if (debug) console.log(`[PLAYER-HANDLER] 🚪 Admin removed after timeout:`, admin);
+            namespace.to(roomId).emit('admin_list_updated', { admins: room.admins });
+          }
+        }
+      });
+    }, 5000); // 5 second grace period
+  });
+
+  // Handle state rebuild from host after reconnect
+  socket.on('rebuild_room_state', ({ roomId, players, admins }) => {
+    console.log(`[rebuild_room_state] 🚧 Received state rebuild for room ${roomId}`);
+
+    const room = getQuizRoom(roomId);
+    if (!room) {
+      console.warn(`[rebuild_room_state] ⚠️ Room ${roomId} not found`);
+      return;
+    }
+
+    room.players = players || [];
+    room.admins = admins || [];
+
+    console.log(`[rebuild_room_state] ✅ State rebuilt for room ${roomId}`);
+    console.log(`[rebuild_room_state] Players: ${room.players.length}, Admins: ${room.admins.length}`);
+
+    namespace.to(roomId).emit('player_list_updated', { players: room.players });
+    namespace.to(roomId).emit('admin_list_updated', { admins: room.admins });
+    emitRoomState(namespace, roomId);
+  });
+
+  // Player submits answer
   socket.on('submit_answer', ({ roomId, playerId, answer }) => {
     import('../quizRoomManager.js').then(({ getQuizRoom, getCurrentQuestion }) => {
-      if (debug) console.log(`[Player] 📝 ${playerId} submitted answer for ${roomId}:`, answer);
+      if (debug) console.log(`[PLAYER-HANDLER][Player] 📝 ${playerId} submitted answer for ${roomId}:`, answer);
 
       const room = getQuizRoom(roomId);
       if (!room) {
@@ -90,24 +247,17 @@ export function setupPlayerHandlers(socket, namespace) {
       }
 
       const isCorrect = answer.trim().toLowerCase() === question.correctAnswer.trim().toLowerCase();
-
-      // Save answer result
-      playerData.answers[question.id] = {
-        submitted: answer,
-        correct: isCorrect
-      };
-
-      // Optional scoring (if you want real-time points):
+      playerData.answers[question.id] = { submitted: answer, correct: isCorrect };
       playerData.score = (playerData.score || 0) + (isCorrect ? 1 : 0);
 
       if (debug) {
-        console.log(`[Player] ✅ Answer recorded: ${isCorrect ? 'Correct' : 'Wrong'}`);
+        console.log(`[PLAYER-HANDLER][Player] ✅ Answer recorded: ${isCorrect ? 'Correct' : 'Wrong'}`);
       }
 
-      socket.emit('answer_received', {
-        correct: isCorrect,
-        submitted: answer
-      });
+      socket.emit('answer_received', { correct: isCorrect, submitted: answer });
     });
   });
 }
+
+
+

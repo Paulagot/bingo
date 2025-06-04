@@ -23,9 +23,10 @@ export function setupQuizSocketHandlers(quizNamespace) {
     console.log(`[Debug] Socket ${socket.id} is in rooms:`, socketRooms);
 
     // 🧩 Modular socket event registration
-    setupHostHandlers(socket, quizNamespace);
-    setupPlayerHandlers(socket, quizNamespace);
-    setupSharedHandlers(socket, quizNamespace);
+   setupHostHandlers(socket, quizNamespace);
+setupPlayerHandlers(socket, quizNamespace);
+setupSharedHandlers(socket, quizNamespace);
+
 
     socket.on('disconnect', () => {
       console.log(`❌ [quiz] Client disconnected: ${socket.id}`);

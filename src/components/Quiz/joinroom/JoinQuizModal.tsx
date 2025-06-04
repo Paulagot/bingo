@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuizSocket } from '../useQuizSocket';
+import { useQuizSocket } from '../../../sockets/QuizSocketProvider'; // ✅ Updated import
 
 interface Props {
   onClose: () => void;
@@ -11,43 +11,48 @@ const JoinQuizModal: React.FC<Props> = ({ onClose }) => {
   const [playerName, setPlayerName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const socket = useQuizSocket();
+  
+  const { socket, connected } = useQuizSocket();  // ✅ Updated hook usage
   const navigate = useNavigate();
 
- const handleJoin = () => {
-  if (!roomId || !playerName) {
-    setError('Please enter both room ID and name.');
-    return;
-  }
-
-  setError('');
-  setLoading(true);
-  console.log('[JoinQuizModal] 🔍 Verifying room ID:', roomId);
-
-  socket?.emit('verify_quiz_room', { roomId });
-
-  socket?.once('quiz_room_verification_result', (data: any) => {
-    console.log('[JoinQuizModal] ✅ Received room verification:', data);
-    setLoading(false);
-
-    if (!data.exists) {
-      setError('Room not found.');
+  const handleJoin = () => {
+    if (!roomId || !playerName) {
+      setError('Please enter both room ID and name.');
       return;
     }
 
-    const paymentMethod = data.paymentMethod || 'cash';
-    console.log('[JoinQuizModal] 🚦 Routing based on payment method:', paymentMethod);
-
-    if (paymentMethod === 'web3') {
-      navigate(`/quiz/join/${roomId}`);
-    } else {
-      navigate(`/quiz/join/${roomId}/${encodeURIComponent(playerName)}`);
+    if (!connected || !socket) {
+      setError('Socket not connected. Please wait.');
+      return;
     }
 
-    onClose();
-  });
-};
+    setError('');
+    setLoading(true);
+    console.log('[JoinQuizModal] 🔍 Verifying room ID:', roomId);
 
+    socket.emit('verify_quiz_room', { roomId });
+
+    socket.once('quiz_room_verification_result', (data: any) => {
+      console.log('[JoinQuizModal] ✅ Received room verification:', data);
+      setLoading(false);
+
+      if (!data.exists) {
+        setError('Room not found.');
+        return;
+      }
+
+      const paymentMethod = data.paymentMethod || 'cash';
+      console.log('[JoinQuizModal] 🚦 Routing based on payment method:', paymentMethod);
+
+      if (paymentMethod === 'web3') {
+        navigate(`/quiz/join/${roomId}`);
+      } else {
+        navigate(`/quiz/join/${roomId}/${encodeURIComponent(playerName)}`);
+      }
+
+      onClose();
+    });
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center">
@@ -93,3 +98,4 @@ const JoinQuizModal: React.FC<Props> = ({ onClose }) => {
 };
 
 export default JoinQuizModal;
+

@@ -1,0 +1,12 @@
+[
+  {
+    "id": "wo1",
+    "text": "Which of these animals is a mammal?",
+    "options": ["Whale", "Shark", "Octopus", "Tuna"],
+    "correctAnswer": "Whale",
+    "type": "multiple_choice",
+    "points": 15,
+    "clue": "It breathes air",
+    "level": "medium"
+  }
+]

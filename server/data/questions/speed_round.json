@@ -1,0 +1,11 @@
+[
+  {
+    "id": "sr1",
+    "text": "How many seconds are in a minute?",
+    "correctAnswer": "60",
+    "type": "short_answer",
+    "points": 5,
+    "clue": "Think of a stopwatch",
+    "level": "easy"
+  }
+]

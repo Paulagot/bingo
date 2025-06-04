@@ -8,22 +8,18 @@ import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { projectId, metadata, networks, wagmiAdapter, solanaWeb3JsAdapter } from './config';
 
+
 // Create QueryClient
 const queryClient = new QueryClient();
 
-// Initialize AppKit - this sets up global state for hooks to use
 createAppKit({
   adapters: [wagmiAdapter, solanaWeb3JsAdapter],
   projectId,
   networks,
   metadata,
   themeMode: 'light',
-  features: {
-    analytics: true,
-  },
-  themeVariables: {
-    '--w3m-accent': '#000000',
-  },
+  features: { analytics: true },
+  themeVariables: { '--w3m-accent': '#000000' },
 });
 
 createRoot(document.getElementById('root')!).render(
@@ -31,7 +27,9 @@ createRoot(document.getElementById('root')!).render(
     <WagmiProvider config={wagmiAdapter.wagmiConfig}>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
-          <App />
+           {/* 🔥 wrap everything */}
+            <App />
+          
         </BrowserRouter>
       </QueryClientProvider>
     </WagmiProvider>
