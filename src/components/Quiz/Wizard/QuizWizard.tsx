@@ -10,7 +10,7 @@ interface QuizWizardProps {
   onComplete?: () => void;   // ✅ add this
 }
 
-const steps = ['host', 'type', 'payment', 'fundraising', 'stepPrizes', 'review'] as const;
+const steps = ['host', 'payment', 'type',  'fundraising', 'stepPrizes', 'review'] as const;
 
 export default function QuizWizard({ onComplete }: QuizWizardProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -36,10 +36,11 @@ export default function QuizWizard({ onComplete }: QuizWizardProps) {
     switch (currentStep) {
       case 'host':
         return <StepHostInfo onNext={goNext} />;
+        case 'payment':
+        return <StepPaymentMethod onNext={goNext} onBack={goBack} />;
       case 'type':
         return <StepAddRounds onNext={goNext} onBack={goBack} />;
-      case 'payment':
-        return <StepPaymentMethod onNext={goNext} onBack={goBack} />;
+      
       case 'fundraising':
         return <StepFundraisingOptions onNext={goNext} onBack={goBack} />;
       case 'stepPrizes':

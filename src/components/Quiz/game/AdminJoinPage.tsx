@@ -2,17 +2,17 @@
 
 import React, { useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { useQuizSocket } from '../sockets/QuizSocketProvider';
-import { useQuizConfig } from '../components/Quiz/useQuizConfig';
-import PlayerListPanel from '../components/Quiz/dashboard/PlayerListPanel';
-import SetupSummaryPanel from '../components/Quiz/dashboard/SetupSummaryPanel';
+import { useQuizSocket } from '../../../sockets/QuizSocketProvider';
+import { useQuizConfig } from '../useQuizConfig';
+import PlayerListPanel from '../dashboard/PlayerListPanel';
+import SetupSummaryPanel from '../dashboard/SetupSummaryPanel';
 
 // Make sure this path points at your actual QuizConfig definition:
-import type { QuizConfig } from '../types/quiz'
+import type { QuizConfig } from '../../../types/quiz'
 
 interface User {
   id: string;
-  name: string;
+  name?: string;
 }
 
 const AdminJoinPage: React.FC = () => {
@@ -22,7 +22,7 @@ const AdminJoinPage: React.FC = () => {
   const navigate = useNavigate();
 
   const { socket, connected } = useQuizSocket();
-  const { config, updateConfig } = useQuizConfig();
+  const { config, setFullConfig } = useQuizConfig();
 
   useEffect(() => {
     // 0) If required URL params are missing, send back to home
@@ -35,7 +35,7 @@ const AdminJoinPage: React.FC = () => {
       // Build the admin user object
       const adminUser: User = {
         id: adminId,
-        name: `Admin ${adminId.slice(0, 5)}`,
+       
       };
 
       // 1) Attach listeners BEFORE emitting join_quiz_room
@@ -46,8 +46,7 @@ const AdminJoinPage: React.FC = () => {
 
       // Now treat payload as the full QuizConfig
       const handleConfig = (payload: QuizConfig) => {
-        // Copy every field into context, plus ensure roomId is set
-        updateConfig({
+        setFullConfig({
           ...payload,
           roomId: roomId
         });
@@ -70,7 +69,7 @@ const AdminJoinPage: React.FC = () => {
         socket.off('room_config', handleConfig);
       };
     }
-  }, [roomId, adminId, socket, connected, navigate, updateConfig]);
+  }, [roomId, adminId, socket, connected, navigate, setFullConfig]);
 
   // Until config.roomId matches, keep showing “Loading…”
   if (!config || config.roomId !== roomId) {
@@ -99,6 +98,7 @@ const AdminJoinPage: React.FC = () => {
 };
 
 export default AdminJoinPage;
+
 
 
 

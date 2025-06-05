@@ -1,7 +1,6 @@
-// components/quiz/wizard/StepPaymentMethod.tsx
 import { useState, type FC, type FormEvent } from 'react';
 import { Wallet, CreditCard, AlertCircle, Info, Heart, Zap, DollarSign, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
-import { useQuizConfig } from '../useQuizConfig';
+import { useQuizSetupStore } from '../useQuizSetupStore';
 import type { WizardStepProps } from './WizardStepProps';
 
 interface PaymentMethodExplainer {
@@ -18,14 +17,14 @@ const paymentMethodExplainers: Record<string, PaymentMethodExplainer> = {
     title: "Cash/Debit Payment",
     description: "Traditional payment collection where you handle transactions manually. Perfect for in-person events or when you want full control over payments.",
     features: ["Manual payment verification", "You collect entry fees directly", "Choose your preferred currency", "Simple setup"],
-    pros: ["Full control", "No transaction fees", "Familiar to everyone", "Works offline"],
+    pros: ["Full control", "Familiar to everyone", "take cash or card payments", ],
     bestFor: "In-person events, local groups, traditional settings",
     prizeOptions: "You decide prize structure and distribute winnings manually"
   },
   web3: {
     title: "Web3 Smart Contract",
-    description: "Fully automated crypto payments using USDGLOW tokens. Everything happens automatically via smart contracts - no manual intervention needed!",
-    features: ["Automatic payment collection", "Smart contract prize distribution", "USDGLOW charitable impact", "Enhanced prize options"],
+    description: "Fully automated crypto payments using USDGLO tokens. Everything happens automatically via smart contracts - no manual intervention needed!",
+    features: ["Automatic payment collection", "Smart contract prize distribution", "USDGLO charitable impact", "Enhanced prize options"],
     pros: ["Fully automated", "Transparent transactions", "Supports charity", "Global accessibility"],
     bestFor: "Crypto-friendly groups, online events, charitable causes",
     prizeOptions: "Flexible prize pools: give away percentage of intake OR distribute other digital assets"
@@ -33,13 +32,12 @@ const paymentMethodExplainers: Record<string, PaymentMethodExplainer> = {
 };
 
 const StepPaymentMethod: FC<WizardStepProps> = ({ onNext, onBack }) => {
-  const { config, updateConfig } = useQuizConfig();
-  const [paymentMethod, setPaymentMethod] = useState<'cash_or_revolut' | 'web3' | ''>(
-    config.paymentMethod || ''
-  );
-  const [entryFee, setEntryFee] = useState(config.entryFee || '');
-  const [currencySymbol, setCurrencySymbol] = useState(config.currencySymbol || '€');
-  const [error, setError] = useState('');
+  const { setupConfig, updateSetupConfig } = useQuizSetupStore();
+
+  const [paymentMethod, setPaymentMethod] = useState<'cash_or_revolut' | 'web3' | ''>(setupConfig.paymentMethod || '');
+  const [entryFee, setEntryFee] = useState(setupConfig.entryFee || '');
+  const [currencySymbol, setCurrencySymbol] = useState(setupConfig.currencySymbol || '€');
+  const [error, setError] = useState<string>('');
   const [activeExplainer, setActiveExplainer] = useState<PaymentMethodExplainer | null>(null);
   const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
 
@@ -61,20 +59,25 @@ const StepPaymentMethod: FC<WizardStepProps> = ({ onNext, onBack }) => {
       setError('Please choose a payment method.');
       return;
     }
-
     if (!trimmed || Number.isNaN(parsed) || parsed <= 0) {
       setError('Please enter a valid entry fee greater than 0.');
       return;
     }
 
-    const currencyToStore = paymentMethod === 'web3' ? 'USDGLOW' : currencySymbol;
+    const currencyToStore = paymentMethod === 'web3' ? 'USDGLO' : currencySymbol;
 
-    setError('');
-    updateConfig({
+    updateSetupConfig({
       entryFee: trimmed,
       paymentMethod,
       currencySymbol: currencyToStore,
     });
+
+    console.log('✅ Payment step saved:', {
+      entryFee: trimmed,
+      paymentMethod,
+      currencySymbol: currencyToStore,
+    });
+
     onNext();
   };
 
@@ -184,7 +187,7 @@ const StepPaymentMethod: FC<WizardStepProps> = ({ onNext, onBack }) => {
     if (paymentMethod === 'web3') {
       return {
         expression: "charitable",
-        message: "Excellent choice! Web3 payments are fully automated and USDGLOW puts all profits toward charitable causes. You're making a positive impact!"
+        message: "Excellent choice! Web3 payments are fully automated and USDGLO puts all profits toward charitable causes. You're making a positive impact!"
       };
     }
     
@@ -204,7 +207,7 @@ const StepPaymentMethod: FC<WizardStepProps> = ({ onNext, onBack }) => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-indigo-800">Step 3 of 7: Entry Fee & Payment Method</h2>
+        <h2 className="text-xl font-semibold text-indigo-800">Step 2 of 6: Entry Fee & Payment Method</h2>
         <div className="text-sm text-gray-600">Choose payment system</div>
       </div>
 
@@ -294,7 +297,7 @@ const StepPaymentMethod: FC<WizardStepProps> = ({ onNext, onBack }) => {
               <Wallet className="h-6 w-6 text-indigo-600" />
               <div className="flex-1">
                 <div className="flex items-center space-x-2">
-                  <p className="font-medium text-gray-800">Web3 Smart Contract (USDGLOW)</p>
+                  <p className="font-medium text-gray-800">Web3 Smart Contract (USDGLO)</p>
                   <Heart className="w-4 h-4 text-red-500" />
                 </div>
                 <p className="text-sm text-gray-600">Automated crypto payments supporting charity</p>
@@ -323,15 +326,15 @@ const StepPaymentMethod: FC<WizardStepProps> = ({ onNext, onBack }) => {
           </div>
         </div>
 
-        {/* USDGLOW Charity Info */}
+        {/* USDGLO Charity Info */}
         {paymentMethod === 'web3' && (
           <div className="bg-gradient-to-r from-pink-50 to-red-50 border border-pink-200 rounded-xl p-4">
             <div className="flex items-center space-x-2 mb-2">
               <Heart className="w-4 h-4 text-red-500" />
-              <span className="font-medium text-red-800">Why USDGLOW?</span>
+              <span className="font-medium text-red-800">Why USDGLO?</span>
             </div>
             <p className="text-sm text-red-700">
-              Unlike other stablecoins, USDGLOW puts <strong>all profits back into charitable causes</strong>. 
+              Unlike other stablecoins, USDGLO puts <strong>all profits back into charitable causes</strong>. 
               Every transaction you process helps make a positive impact!
             </p>
           </div>
@@ -364,7 +367,7 @@ const StepPaymentMethod: FC<WizardStepProps> = ({ onNext, onBack }) => {
           <div className="space-y-2">
             <label htmlFor="entryFee" className="text-sm font-medium text-gray-700 flex items-center space-x-2">
               <DollarSign className="w-4 h-4" />
-              <span>Entry Fee ({paymentMethod === 'web3' ? 'USDGLOW' : currencySymbol})</span>
+              <span>Entry Fee ({paymentMethod === 'web3' ? 'USDGLO' : currencySymbol})</span>
             </label>
             <input
               id="entryFee"
@@ -381,7 +384,7 @@ const StepPaymentMethod: FC<WizardStepProps> = ({ onNext, onBack }) => {
             />
             {entryFee && (
               <div className="text-xs text-gray-500">
-                Entry fee: {paymentMethod === 'web3' ? 'USDGLOW' : currencySymbol} {entryFee}
+                Entry fee: {paymentMethod === 'web3' ? 'USDGLO' : currencySymbol} {entryFee}
               </div>
             )}
           </div>
@@ -396,7 +399,7 @@ const StepPaymentMethod: FC<WizardStepProps> = ({ onNext, onBack }) => {
             </div>
             {paymentMethod === 'web3' ? (
               <div className="text-sm text-green-700 space-y-1">
-                <div>• Distribute percentage of total USDGLOW collected</div>
+                <div>• Distribute percentage of total USDGLO collected</div>
                 <div>• Award other digital assets from your wallet</div>
                 <div>• Fully automated smart contract distribution</div>
               </div>
@@ -442,5 +445,8 @@ const StepPaymentMethod: FC<WizardStepProps> = ({ onNext, onBack }) => {
 };
 
 export default StepPaymentMethod;
+
+
+
 
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import Headers from '../components/Headers';
-import Hfooter from '../components/hFooter';
+import Headers from './Headers';
+import Hfooter from './hFooter';
 
 const FundRaiselyWhereYouSave: React.FC = () => {
   return (

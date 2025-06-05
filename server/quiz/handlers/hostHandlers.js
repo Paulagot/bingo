@@ -9,7 +9,7 @@ import {
   resetRoundClueTracking,
   addAdminToQuizRoom,
   removeQuizRoom,
-  emitRoomState   // ✅ <- this must exist in quizRoomManager.js
+  emitRoomState
 } from '../quizRoomManager.js';
 
 import { isRateLimited } from '../../socketRateLimiter.js';
@@ -17,6 +17,15 @@ import { isRateLimited } from '../../socketRateLimiter.js';
 const debug = true;
 
 export function setupHostHandlers(socket, namespace) {
+
+  function emitFullRoomState(roomId) {
+    const room = getQuizRoom(roomId);
+    if (!room) return;
+    namespace.to(roomId).emit('room_config', room.config);
+    namespace.to(roomId).emit('player_list_updated', { players: room.players });
+    namespace.to(roomId).emit('admin_list_updated', { admins: room.admins });
+    emitRoomState(namespace, roomId);
+  }
 
   socket.on('create_quiz_room', ({ roomId, hostId, config }) => {
     if (debug) console.log(`[Server] 🧠 create_quiz_room for: ${roomId}, host: ${hostId}`);
@@ -34,11 +43,7 @@ export function setupHostHandlers(socket, namespace) {
     socket.emit('quiz_room_created', { roomId });
     if (debug) console.log(`✅ Room created: ${roomId}`);
 
-    const room = getQuizRoom(roomId);
-    if (room) {
-      namespace.to(roomId).emit('room_config', room.config);
-      emitRoomState(namespace, roomId);
-    }
+    emitFullRoomState(roomId);
   });
 
   socket.on('add_player', ({ roomId, players }) => {
@@ -55,8 +60,7 @@ export function setupHostHandlers(socket, namespace) {
       if (debug) console.log(`  ➕ Added: ${player.id} (${added ? 'success' : 'exists'})`);
     }
 
-    namespace.to(roomId).emit('player_list_updated', { players: room.players });
-    emitRoomState(namespace, roomId);
+    emitFullRoomState(roomId);
   });
 
   socket.on('start_next_question', async ({ roomId }) => {
@@ -168,8 +172,7 @@ export function setupHostHandlers(socket, namespace) {
 
     socket.join(roomId);
     socket.join(`${roomId}:admin`);
-    namespace.to(roomId).emit('admin_list_updated', { admins: room.admins });
-    emitRoomState(namespace, roomId);
+    emitFullRoomState(roomId);
   });
 
   socket.on('rebuild_room_state', ({ roomId, players, admins }) => {
@@ -181,9 +184,7 @@ export function setupHostHandlers(socket, namespace) {
     room.players = players || [];
     room.admins = admins || [];
 
-    namespace.to(roomId).emit('player_list_updated', { players: room.players });
-    namespace.to(roomId).emit('admin_list_updated', { admins: room.admins });
-    emitRoomState(namespace, roomId);
+    emitFullRoomState(roomId);
   });
 
   socket.on('delete_quiz_room', ({ roomId }) => {
@@ -208,6 +209,7 @@ export function setupHostHandlers(socket, namespace) {
   });
 
 }
+
 
 
 

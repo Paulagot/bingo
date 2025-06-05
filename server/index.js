@@ -8,12 +8,19 @@ import { fileURLToPath } from 'node:url';
 import { setupSocketHandlers } from './socketHandler.js';
 import { PORT } from './config.js';
 import { logAllRooms } from './roomManager.js';
+import createRoomApi from './quiz/api/create-room.js';
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
+
+app.use(express.json());
+app.use('/quiz/api', createRoomApi);
+
+
 
 // ✅ Serve static files in development
 app.use(express.static(path.join(__dirname, '../public')));

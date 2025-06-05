@@ -1,8 +1,9 @@
-// src/server/quiz/quizRoomManager.js
+// server/quiz/quizRoomManager.js
+
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-// Assuming you have a file with round type definitions
+import { roundTypeDefinitions } from '../../server/quiz/quizMetadata.js';
 
 // In-memory storage of quiz rooms
 const quizRooms = new Map();
@@ -32,6 +33,12 @@ function loadQuestionsForRoundTypes(roundDefinitions) {
 }
 
 export function createQuizRoom(roomId, hostId, config) {
+  console.log('-----------------------------------------');
+  console.log(`[createQuizRoom] 🟢 Starting room creation`);
+  console.log(`[createQuizRoom] 🧩 roomId=${roomId}, hostId=${hostId}`);
+  console.log(`[createQuizRoom] 📦 Incoming config:`);
+  console.log(JSON.stringify(config, null, 2));
+
   if (quizRooms.has(roomId)) {
     const existing = quizRooms.get(roomId);
     const hasPlayers = existing.players.length > 0;
@@ -50,7 +57,11 @@ export function createQuizRoom(roomId, hostId, config) {
     return false;
   }
 
+  console.log(`[createQuizRoom] 📝 Total rounds: ${roundDefinitions.length}`);
+
   const questions = loadQuestionsForRoundTypes(roundDefinitions);
+  console.log(`[createQuizRoom] 📚 Loaded total questions: ${questions.length}`);
+
   if (!questions.length) {
     console.error(`[createQuizRoom] ❌ No questions loaded`);
     return false;
@@ -69,19 +80,58 @@ export function createQuizRoom(roomId, hostId, config) {
     currentPhase: 'waiting',
     createdAt: Date.now()
   });
-  console.log(`[createQuizRoom] ✅ Created room ${roomId} with ${questions.length} questions`);
+
+  console.log(`[createQuizRoom] ✅ Room ${roomId} successfully created`);
+  console.log('-----------------------------------------');
   return true;
 }
+
 
 export function getQuizRoom(roomId) {
   return quizRooms.get(roomId);
 }
 
-export function addPlayerToQuizRoom(roomId, player) {
+export function emitRoomState(namespace, roomId) {
+  const room = quizRooms.get(roomId);
+  if (!room) {
+    console.warn(`[emitRoomState] ⚠️ Room ${roomId} not found`);
+    return;
+  }
+
+  const totalRounds = room.config.roundDefinitions?.length || 1;
+  const roundIndex = room.currentRound - 1;
+  const roundTypeId = room.config.roundDefinitions?.[roundIndex]?.roundType || '';
+  const roundTypeName = roundTypeDefinitions[roundTypeId]?.name || roundTypeId || '';
+
+  namespace.to(roomId).emit('room_state', {
+    currentRound: room.currentRound,
+    totalRounds,
+    roundTypeId,
+    roundTypeName,
+    totalPlayers: room.players.length,
+    phase: room.currentPhase
+  });
+
+  console.log(`[emitRoomState] ✅ Emitted room_state for ${roomId}: Round ${room.currentRound}/${totalRounds}, Type: ${roundTypeName}, Players: ${room.players.length}, Phase: ${room.currentPhase}`);
+}
+
+// --------------------------
+// State update helpers
+// --------------------------
+
+export function addOrUpdatePlayer(roomId, player) {
   const room = quizRooms.get(roomId);
   if (!room) return false;
-  const exists = room.players.find(p => p.id === player.id);
-  if (!exists) room.players.push(player);
+
+  const existing = room.players.find(p => p.id === player.id);
+  if (existing) {
+    Object.assign(existing, player);
+    if (debug) console.log(`[addOrUpdatePlayer] Updated existing player: ${player.id}`);
+  } else {
+    room.players.push(player);
+    if (debug) console.log(`[addOrUpdatePlayer] Added new player: ${player.id}`);
+  }
+
   room.playerData[player.id] = room.playerData[player.id] || {
     status: 'active',
     usedClues: 0,
@@ -95,13 +145,32 @@ export function addPlayerToQuizRoom(roomId, player) {
       secondChance: (player.extras || []).includes('secondChance')
     }
   };
+
   return true;
 }
 
-export function setHostForQuizRoom(roomId, host) {
+export function updateHostSocketId(roomId, socketId) {
   const room = quizRooms.get(roomId);
   if (!room) return false;
-  room.hostId = host.id;
+  room.hostSocketId = socketId;
+  return true;
+}
+
+export function updateAdminSocketId(roomId, adminId, socketId) {
+  const room = quizRooms.get(roomId);
+  if (!room) return false;
+  const admin = room.admins.find(a => a.id === adminId);
+  if (!admin) return false;
+  admin.socketId = socketId;
+  return true;
+}
+
+export function updatePlayerSocketId(roomId, playerId, socketId) {
+  const room = quizRooms.get(roomId);
+  if (!room) return false;
+  const player = room.players.find(p => p.id === playerId);
+  if (!player) return false;
+  player.socketId = socketId;
   return true;
 }
 
@@ -113,67 +182,9 @@ export function addAdminToQuizRoom(roomId, admin) {
   return true;
 }
 
-export function removePlayerFromQuizRoom(roomId, playerId) {
-  const room = quizRooms.get(roomId);
-  if (!room) return false;
-  room.players = room.players.filter(p => p.id !== playerId);
-  delete room.playerData[playerId];
-  return true;
-}
-
-export function removeAdminFromQuizRoom(roomId, adminId) {
-  const room = quizRooms.get(roomId);
-  if (!room) return false;
-  room.admins = room.admins.filter(a => a.id !== adminId);
-  return true;
-}
-
-
-export function clearHostForQuizRoom(roomId) {
-  const room = quizRooms.get(roomId);
-  if (!room) return false;
-  room.hostId = null;
-  return true;
-}
-
-// Existing game logic helpers…
-export function useClue(roomId, playerId) {
-  const room = quizRooms.get(roomId);
-  // … unchanged …
-}
-
-export function resetRoundClueTracking(roomId) {
-  const room = quizRooms.get(roomId);
-  if (!room) return;
-  for (const pid of Object.keys(room.playerData)) {
-    room.playerData[pid].usedCluesThisRound = 0;
-  }
-  if (debug) console.log(`[resetRoundClueTracking] 🔄 Reset clues for ${roomId}`);
-}
-
-export function submitAnswerForSurvivor(roomId, playerId, answer) {
-  // … unchanged …
-}
-
-export function listQuizRooms() {
-  return Array.from(quizRooms.entries()).map(([id, room]) => ({
-    id,
-    hostId: room.hostId,
-    players: room.players.length,
-    admins: room.admins.length,
-    started: room.currentRound > 1 || room.currentQuestionIndex > 0
-  }));
-}
-
-export function removeQuizRoom(roomId) {
-  if (quizRooms.has(roomId)) {
-    quizRooms.delete(roomId);
-    console.log(`[removeQuizRoom] ✅ Removed room ${roomId}`);
-    return true;
-  }
-  console.log(`[removeQuizRoom] ❌ Room not found: ${roomId}`);
-  return false;
-}
+// --------------------------
+// Gameplay helpers
+// --------------------------
 
 export function advanceToNextQuestion(roomId) {
   const room = quizRooms.get(roomId);
@@ -216,29 +227,51 @@ export function getCurrentRound(roomId) {
   return room?.currentRound || 1;
 }
 
-export function emitRoomState(namespace, roomId) {
-  const room = quizRooms.get(roomId);
-  if (!room) {
-    console.warn(`[emitRoomState] ⚠️ Room ${roomId} not found`);
-    return;
+
+
+
+export function removeQuizRoom(roomId) {
+  if (quizRooms.has(roomId)) {
+    quizRooms.delete(roomId);
+    console.log(`[removeQuizRoom] ✅ Removed room ${roomId}`);
+    return true;
   }
-
-  const totalRounds = room.config.roundDefinitions?.length || 1;
-  const roundIndex = room.currentRound - 1;
-  const roundTypeId = room.config.roundDefinitions?.[roundIndex]?.roundType || '';
-  const roundTypeName = room.config.roundDefinitions?.[roundIndex]?.name || '';
-
-  namespace.to(roomId).emit('room_state', {
-    currentRound: room.currentRound,
-    totalRounds,
-    roundTypeId,
-    roundTypeName,
-    totalPlayers: room.players.length,
-    phase: room.currentPhase
-  });
-
-  console.log(`[emitRoomState] ✅ Emitted room_state for ${roomId}: Round ${room.currentRound}/${totalRounds}, Type: ${roundTypeName}, Players: ${room.players.length}, Phase: ${room.currentPhase}`);
+  console.log(`[removeQuizRoom] ❌ Room not found: ${roomId}`);
+  return false;
 }
+
+export function listQuizRooms() {
+  return Array.from(quizRooms.entries()).map(([id, room]) => ({
+    id,
+    hostId: room.hostId,
+    players: room.players.length,
+    admins: room.admins.length,
+    started: room.currentRound > 1 || room.currentQuestionIndex > 0
+  }));
+}
+
+export function resetRoundClueTracking(roomId) {
+  const room = quizRooms.get(roomId);
+  if (!room) return;
+  for (const pid of Object.keys(room.playerData)) {
+    room.playerData[pid].usedCluesThisRound = 0;
+  }
+  if (debug) console.log(`[resetRoundClueTracking] 🔄 Reset clues for ${roomId}`);
+}
+
+export function useClue(roomId, playerId) {
+  const room = quizRooms.get(roomId);
+  if (!room) return false;
+  const playerData = room.playerData[playerId];
+  if (!playerData) return false;
+
+  playerData.usedClues++;
+  playerData.usedCluesThisRound++;
+  if (debug) console.log(`[useClue] 💡 Player ${playerId} used clue in room ${roomId}`);
+  return true;
+}
+
+
 
 
 
