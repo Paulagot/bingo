@@ -2,7 +2,7 @@ import type React from 'react';
 
 const HowItWorks: React.FC = () => {
   return (
-    <div id="how-it-works" className="container mx-auto px-4 max-w-6xl mt-20 pt-2">
+    <div id="how-it-works" className="container mx-auto px-4 max-w-6xl mt-12 pt-2">
       <div className="text-center mb-12">
         <h2 className="text-3xl font-bold text-gray-800 mb-4">How it works</h2>
         <p className="text-gray-600 max-w-2xl mx-auto">Choose a ready-to-run format like a quiz night, we provide the questions, scoring, and player management tools.</p>

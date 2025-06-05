@@ -1,10 +1,10 @@
 import { Routes, Route } from 'react-router-dom';
 import HostDashboard from './dashboard/HostDashboard';
 import QuizChallengePage from '../../pages/QuizChallengePage';
-import QuizGameWaitingPage from '../../pages/QuizGameWaitingPage';
+import QuizGameWaitingPage from './game/QuizGameWaitingPage';
 import JoinQuizWeb2Page from './joinroom/JoinQuizWeb2Page';
-import QuizGamePlayPage from '../../pages/QuizGamePlayPage';
-import AdminJoinPage from '../../pages/AdminJoinPage';
+import QuizGamePlayPage from './game/QuizGamePlayPage';
+import AdminJoinPage from '../../../src/components/Quiz/game/AdminJoinPage';
 
 export default function QuizRoutes() {
   return (

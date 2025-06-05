@@ -1,9 +1,11 @@
 // src/components/Quiz/dashboard/HostDashboard.tsx
 
 import React, { useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useQuizConfig } from '../useQuizConfig';
 import { usePlayerStore } from '../usePlayerStore';
+import { useRoomIdentity } from '../useRoomIdentity';
+import { fullQuizReset } from '../fullQuizReset';
 
 import SetupSummaryPanel from './SetupSummaryPanel';
 import PlayerListPanel from './PlayerListPanel';
@@ -18,24 +20,35 @@ import { useAdminStore } from '../useAdminStore';
 const DEBUG = true;
 
 const HostDashboard: React.FC = () => {
-  const { config, updateConfig, resetConfig } = useQuizConfig();
-  const { resetPlayers, setPlayers } = usePlayerStore();
-  const { admins, setAdmins } = useAdminStore(); // <-- Added to access admin state
-  const { roomId } = useParams<{ roomId: string }>();
+ const { config, resetConfig } = useQuizConfig();
+const { resetPlayers, setFullPlayers } = usePlayerStore();
+const { admins, setFullAdmins } = useAdminStore();
+
+
   const navigate = useNavigate();
   const { socket, connected, connectionState } = useQuizSocket();
+  const { roomId, hostId } = useRoomIdentity();
 
   // Refs for tracking component state
   const mountTimeRef = useRef<number>(Date.now());
-  const configLoadedRef = useRef<boolean>(false);
+ 
 
   const handlePlayerList = ({ players }: { players: any[] }) => {
-    setPlayers(players);
+    setFullPlayers(players);
   };
 
   const handleAdminList = ({ admins }: { admins: any[] }) => {
-    setAdmins(admins);
+    setFullAdmins(admins);
   };
+
+   // ───────────────────────────────────
+  // 0) clear admin state on initial mount
+
+  useEffect(() => {
+  if (DEBUG) console.log('🧹 [HostDashboard] Clearing admin state on initial mount');
+  useAdminStore.getState().resetAdmins();
+}, []);
+
 
   // ───────────────────────────────────
   // 1) On mount, debug info
@@ -60,68 +73,7 @@ const HostDashboard: React.FC = () => {
   }, []);
 
   // ───────────────────────────────────
-  // 2) Load quiz config from localStorage if needed
-  useEffect(() => {
-    if (DEBUG) {
-      console.log('🧭 [HostDashboard] Room ID effect triggered');
-      console.log('🧭 [HostDashboard] Room navigation state:', {
-        roomId,
-        previousConfigRoomId: config?.roomId,
-        configExists: !!config,
-        configMatches: config?.roomId === roomId
-      });
-    }
 
-    if (!roomId) {
-      if (DEBUG) console.warn('⚠️ [HostDashboard] No roomId provided in URL parameters');
-      return;
-    }
-
-    if (DEBUG) console.log(`🔵 [HostDashboard] Processing room: ${roomId}`);
-
-    if (!config.roomId || config.roomId !== roomId) {
-      if (DEBUG) console.log('⚙️ [HostDashboard] Config mismatch detected, loading from localStorage');
-      
-      const storageKey = `quiz_config_${roomId}`;
-      if (DEBUG) console.log(`💾 [HostDashboard] Attempting to load config from key: ${storageKey}`);
-      
-      const storedConfig = localStorage.getItem(storageKey);
-      if (storedConfig) {
-        try {
-          const parsedConfig = JSON.parse(storedConfig);
-          if (DEBUG) {
-            console.log('✅ [HostDashboard] Config successfully loaded from localStorage');
-            console.log('📦 [HostDashboard] Loaded config:', parsedConfig);
-          }
-          
-          updateConfig(parsedConfig);
-          configLoadedRef.current = true;
-          if (DEBUG) console.log('⚙️ [HostDashboard] Config updated in store');
-        } catch (error) {
-          if (DEBUG) {
-            console.error('❌ [HostDashboard] Failed to parse stored config');
-            console.log('📦 [HostDashboard] Parse error:', error);
-          }
-          
-          if (DEBUG) console.log('🧭 [HostDashboard] Redirecting to home due to config parse error');
-          navigate('/');
-          return;
-        }
-      } else {
-        if (DEBUG) {
-          console.warn(`⚠️ [HostDashboard] No quiz config found in localStorage for room: ${roomId}`);
-          console.log('💾 [HostDashboard] Available localStorage keys:', Object.keys(localStorage));
-        }
-        
-        if (DEBUG) console.log('🧭 [HostDashboard] Redirecting to home due to missing config');
-        navigate('/');
-        return;
-      }
-    } else {
-      if (DEBUG) console.log('✅ [HostDashboard] Config already matches current room');
-      configLoadedRef.current = true;
-    }
-  }, [roomId, config?.roomId, updateConfig, navigate]);
 
   // ───────────────────────────────────
   // 3) Debug socket status
@@ -156,7 +108,28 @@ const HostDashboard: React.FC = () => {
       socket.off('player_list_updated', handlePlayerList);
       socket.off('admin_list_updated', handleAdminList);
     };
-  }, [socket, roomId, setPlayers, setAdmins]);
+  }, [socket, roomId, setFullPlayers, setFullAdmins]);
+
+  // 4.5) Listen for room_config to fully rehydrate config after reconnect or refresh
+useEffect(() => {
+  if (!socket || !roomId) return;
+
+  const handleRoomConfig = (payload: any) => {
+    if (DEBUG) {
+      console.log('🎯 [HostDashboard] Received room_config:', payload);
+    }
+    useQuizConfig.getState().setFullConfig({ ...payload, roomId });
+  };
+
+  socket.on('room_config', handleRoomConfig);
+
+  return () => {
+    socket.off('room_config', handleRoomConfig);
+  };
+}, [socket, roomId]);
+
+
+
 
   // ───────────────────────────────────
   // 5) Join room as host when connected
@@ -171,10 +144,18 @@ const HostDashboard: React.FC = () => {
     }
   }, [connected, socket, roomId, config?.hostId, config?.hostName]);
 
+  useEffect(() => {
+  if (socket && connected && roomId) {
+    console.log('📡 [HostDashboard] Requesting full room state');
+    socket.emit('request_current_state', { roomId });
+  }
+}, [socket, connected, roomId]);
+
+
   // ───────────────────────────────────
   // 6) Sync persisted admin data after config loads
   useEffect(() => {
-    if (configLoadedRef.current && roomId && connected && socket) {
+    if (!!config?.roomId && roomId && connected && socket) {
       // Check if we have persisted admin data for this room
       const persistedAdmins = useAdminStore.getState().admins;
       
@@ -189,12 +170,12 @@ const HostDashboard: React.FC = () => {
         if (DEBUG) console.log('🔵 [HostDashboard] Found persisted admins, waiting for server sync');
       }
     }
-  }, [configLoadedRef.current, roomId, connected, socket]);
+  }, [!!config?.roomId, roomId, connected, socket]);
 
   // ───────────────────────────────────
   // 7) Debug config whenever it changes
   useEffect(() => {
-    if (configLoadedRef.current && DEBUG) {
+    if (!!config?.roomId && DEBUG) {
       console.log('⚙️ [HostDashboard] Quiz config updated');
       console.table({
         roomId: config?.roomId,
@@ -206,6 +187,22 @@ const HostDashboard: React.FC = () => {
       });
     }
   }, [config]);
+
+  // ───────────────────────────────────
+  useEffect(() => {
+  if (!socket) return;
+
+const handleQuizCancelled = ({ roomId }: { roomId: string }) => {
+  console.warn('🚫 Quiz was cancelled by host. Resetting local state.');
+  fullQuizReset();
+  navigate('/');
+};
+
+  socket.on('quiz_cancelled', handleQuizCancelled);
+  return () => {
+    socket.off('quiz_cancelled', handleQuizCancelled);
+  };
+}, [socket, navigate]);
 
   // ───────────────────────────────────
  const handleCancelQuiz = () => {
@@ -261,6 +258,8 @@ const HostDashboard: React.FC = () => {
   if (DEBUG) console.log('✅ [HostDashboard] Quiz cancellation completed');
 };
 
+
+
   // ───────────────────────────────────
   // Debug render state
   if (DEBUG) {
@@ -269,7 +268,8 @@ const HostDashboard: React.FC = () => {
       roomId,
       hostName: config?.hostName || 'Host',
       hostId: config?.hostId || '—',
-      configLoaded: configLoadedRef.current,
+     configLoaded: !!config?.roomId,
+
       socketConnected: connected,
       hasSocket: !!socket,
       adminCount: admins.length,
@@ -286,7 +286,7 @@ const HostDashboard: React.FC = () => {
           </p>
           {DEBUG && (
             <div className="mt-2 text-xs text-gray-400">
-              Room: {roomId} | Socket: {connected ? '🟢' : '🔴'} | Config: {configLoadedRef.current ? '✅' : '⏳'} | Admins: {admins.length}
+              Room: {roomId} | Socket: {connected ? '🟢' : '🔴'} | Config: {!!config?.roomId ? '✅' : '⏳'} | Admins: {admins.length}
             </div>
           )}
         </div>

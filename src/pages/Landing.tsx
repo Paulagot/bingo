@@ -1,18 +1,16 @@
 import { useEffect } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { clearAllRoomData } from '../utils/localStorageUtils';
-import Headers from '../components/Headers';
-import HeroSection from '../components/HeroSection';
-import HowItWorks from '../components/HowItWorks';
-import FAQ from '../components/FAQ';
-import CTASection from '../components/CTASection';
-import Benefit from '../components/Benefits';
-import Hfooter from '../components/hFooter';
+import Headers from '../components/GeneralSite/Headers';
+import HeroSection from '../components/GeneralSite/HeroSection';
+import HowItWorks from '../components/GeneralSite/HowItWorks';
+import FAQ from '../components/GeneralSite/FAQ';
+import CTASection from '../components/GeneralSite/CTASection';
+import Benefit from '../components/GeneralSite/Benefits';
+import Hfooter from '../components/GeneralSite/hFooter';
 import { Link } from 'react-router-dom';
-import FundRaiselyWhereYouSave from './savings';
+import FundRaiselyWhereYouSave from '../components/GeneralSite/savings';
 // import SolanaWalletOperations from '../components/SolanaWalletOperations';
-
-
 
 export function Landing() {
   const { resetGameState } = useGameStore((state) => ({
@@ -40,34 +38,42 @@ export function Landing() {
       <Headers />
       <HeroSection />
       
-      {/* Campaign Link Section - Reduced padding from py-12 to py-8 */}
+      {/* Beta Program Invite Section - Reduced height with 2-row subtitle */}
       <div className="container mx-auto px-4 max-w-6xl mt-4 mb-2">
         <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl overflow-hidden shadow-xl">
-          <div className="px-8 py-8 text-center">
-            <h2 className="text-3xl font-bold text-white mb-4">
-              Ready to Try Our Bingo Blitz: Chain Challenge?
+          <div className="px-8 py-6 text-center">
+            <h2 className="text-3xl font-bold text-white mb-3">
+              Fundraising is Changing. Be Part of It.
             </h2>
-            <p className="text-white/80 max-w-2xl mx-auto mb-6">
-              We've created a special Bingo Blitz: Chain Challenge.
-              Whether you want to host a game or join as a player, you can experience our blockchain-based
-              gaming platform in action.
-            </p>
-            <Link 
-              to="/BingoBlitz"
-              className="bg-white text-indigo-600 px-8 py-3 rounded-xl font-semibold shadow-md hover:bg-indigo-50 transition inline-block"
-            >
-              Check Out Our Bingo Blitz: Chain Challenge
-            </Link>
+            <div className="text-white/80 max-w-2xl mx-auto mb-5 space-y-1">
+              <p>We're inviting a small number of clubs, charities, and communities to join our early beta.</p>
+              <p>Test our fundraising quiz platform with cash, card or bank payments — or join our blockchain pilot to help shape the future of compliant, blockchain-powered fundraising.</p>
+            </div>
+            <div className="flex justify-center space-x-4">
+              <a
+                href="https://twitter.com/Fundraisly"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-white text-indigo-600 px-8 py-3 rounded-xl font-semibold shadow-md hover:bg-indigo-50 transition inline-block"
+              >
+                DM Us on Twitter
+              </a>
+              {/* <a
+                href="mailto:beta@fundraisely.io"
+                className="bg-white text-indigo-600 px-8 py-3 rounded-xl font-semibold shadow-md hover:bg-indigo-50 transition inline-block"
+              >
+                Apply to Join Beta
+              </a> */}
+            </div>
           </div>
         </div>
       </div>
-     
          
       <HowItWorks />
       <Benefit />
       <FAQ />
-       {/* <FundRaiselyWhereYouSave /> */}
-      <CTASection />
+      {/* <FundRaiselyWhereYouSave /> */}
+      {/* <CTASection /> */}
       <Hfooter />
     </div>
   );

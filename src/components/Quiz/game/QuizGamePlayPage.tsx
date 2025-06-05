@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuizSocket } from '../sockets/QuizSocketProvider';
+import { useQuizSocket } from '../../../sockets/QuizSocketProvider';
 
 interface User {
   id: string;

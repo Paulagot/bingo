@@ -4,7 +4,7 @@ import { Gamepad2 } from 'lucide-react';
 
 const hFooter: React.FC = () => {
   return (
-    <footer className="container mx-auto px-4 max-w-6xl mt-20 pt-10 pb-8">
+    <footer className="container mx-auto px-4 max-w-6xl mt-12 pt-10 pb-8">
       <div className="border-t border-gray-200 pt-8 flex flex-col md:flex-row justify-between items-center">
         <div className="flex items-center gap-2 mb-4 md:mb-0">
           <Gamepad2 className="h-6 w-6 text-indigo-600" />

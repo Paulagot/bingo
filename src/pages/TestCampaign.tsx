@@ -16,7 +16,7 @@ import { chainInfo } from '../constants/contractFactoryAddresses';
 import SimpleHeader from '../components/SimpleHeader';
 import CreateRoomCard from '../components/CreateRoomCard';
 import JoinRoomCard from '../components/JoinRoomCard';
-import Hfooter from '../components/hFooter';
+import Hfooter from '../components/GeneralSite/hFooter';
 
 // Initialize Socket.IO client
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL;

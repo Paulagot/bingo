@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { useQuizConfig } from '../useQuizConfig';
-import { fundraisingExtraDefinitions, roundTypeDefinitions, type RoundTypeDefinition } from '../../../constants/quizMetadata';
+import { fundraisingExtraDefinitions, roundTypeDefinitions } from '../../../constants/quizMetadata';
 import type { RoundDefinition, RoundTypeId } from '../../../types/quiz';
-import { Info, ChevronLeft, ChevronRight, Trash2, GripVertical, Zap } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trash2, GripVertical, Zap } from 'lucide-react';
+import { useQuizSetupStore } from '../useQuizSetupStore';
 
 interface StepAddRoundsProps {
   onNext: () => void;
@@ -13,25 +13,25 @@ const MAX_ROUNDS = 8;
 const MIN_ROUNDS = 1;
 
 export const StepAddRounds: React.FC<StepAddRoundsProps> = ({ onNext, onBack }) => {
-  const { config, updateConfig } = useQuizConfig();
-  const [activeExplainer, setActiveExplainer] = useState<RoundTypeDefinition | null>(null);
+  const { setupConfig, updateSetupConfig } = useQuizSetupStore();
+  // Removed activeExplainer state as we're showing info directly on cards
   const [selectedRounds, setSelectedRounds] = useState<RoundDefinition[]>([]);
 
   useEffect(() => {
-    console.log('🔄 useEffect: hydrate selectedRounds from config');
+    console.log('[StepAddRounds] Hydrating selectedRounds from setupConfig:', setupConfig);
 
-    if (!config.roundDefinitions || config.roundDefinitions.length === 0) {
+    if (!setupConfig.roundDefinitions || setupConfig.roundDefinitions.length === 0) {
       const defaultRounds: RoundDefinition[] = [
         createRoundDefinition('general_trivia', 1),
         createRoundDefinition('speed_round', 2),
         createRoundDefinition('general_trivia', 3),
       ];
       setSelectedRounds(defaultRounds);
-      updateConfig({ roundDefinitions: defaultRounds });
+      updateSetupConfig({ roundDefinitions: defaultRounds });
     } else {
-      setSelectedRounds(config.roundDefinitions);
+      setSelectedRounds(setupConfig.roundDefinitions);
     }
-  }, [config.roundDefinitions, updateConfig]);
+  }, [setupConfig.roundDefinitions, updateSetupConfig]);
 
   const createRoundDefinition = (roundType: RoundTypeId, roundNumber: number): RoundDefinition => {
     const def = roundTypeDefinitions[roundType].defaultConfig;
@@ -64,31 +64,24 @@ export const StepAddRounds: React.FC<StepAddRoundsProps> = ({ onNext, onBack }) 
     const newRound = createRoundDefinition(roundType, selectedRounds.length + 1);
     const updatedRounds = [...selectedRounds, newRound];
 
-    const renumberedRounds = updatedRounds.map((round, index) => ({
-      ...round,
-      roundNumber: index + 1
-    }));
+    const renumberedRounds = updatedRounds.map((round, index) => ({ ...round, roundNumber: index + 1 }));
 
     setSelectedRounds(renumberedRounds);
-    updateConfig({ roundDefinitions: renumberedRounds });
+    updateSetupConfig({ roundDefinitions: renumberedRounds });
 
-    console.log(`✅ Round added: ${roundType}`);
+    console.log(`[StepAddRounds] ✅ Round added: ${roundType}`);
   };
 
   const removeRound = (index: number) => {
     if (selectedRounds.length <= MIN_ROUNDS) return;
 
     const updatedRounds = selectedRounds.filter((_, i) => i !== index);
-
-    const renumberedRounds = updatedRounds.map((round, i) => ({
-      ...round,
-      roundNumber: i + 1
-    }));
+    const renumberedRounds = updatedRounds.map((round, i) => ({ ...round, roundNumber: i + 1 }));
 
     setSelectedRounds(renumberedRounds);
-    updateConfig({ roundDefinitions: renumberedRounds });
+    updateSetupConfig({ roundDefinitions: renumberedRounds });
 
-    console.log(`🗑 Round removed at index: ${index}`);
+    console.log(`[StepAddRounds] 🗑 Round removed at index: ${index}`);
   };
 
   const Character = ({ expression, message }: { expression: string; message: any }) => {
@@ -148,14 +141,11 @@ export const StepAddRounds: React.FC<StepAddRoundsProps> = ({ onNext, onBack }) 
   };
 
   const getCurrentMessage = () => {
-    if (activeExplainer) {
-      return { expression: "explaining", message: activeExplainer };
-    }
     if (selectedRounds.length === 0) {
-      return { expression: "encouraging", message: "Let's build your quiz! Click a round to add." };
+      return { expression: "encouraging", message: "Let's build your quiz! Click a round type below to add it." };
     }
     if (selectedRounds.length >= MAX_ROUNDS) {
-      return { expression: "strategic", message: "You've reached 8 rounds. You can reorder or remove." };
+      return { expression: "strategic", message: "You've reached 8 rounds. You can reorder or remove rounds above." };
     }
     return { expression: "excited", message: `You have ${selectedRounds.length} round${selectedRounds.length === 1 ? '' : 's'}. Add more below!` };
   };
@@ -168,7 +158,7 @@ export const StepAddRounds: React.FC<StepAddRoundsProps> = ({ onNext, onBack }) 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-indigo-800">Step 2 of 7: Configure Rounds</h2>
+        <h2 className="text-xl font-semibold text-indigo-800">Step 3 of 6: Configure Rounds</h2>
         <div className="text-sm text-gray-600">Build your quiz structure</div>
       </div>
 
@@ -199,7 +189,6 @@ export const StepAddRounds: React.FC<StepAddRoundsProps> = ({ onNext, onBack }) 
                 <span>{explainer.name}</span>
               </div>
               <div className="flex space-x-2">
-                <Info className="w-4 h-4 cursor-pointer text-gray-400 hover:text-indigo-500" onClick={() => setActiveExplainer(explainer)} />
                 <button onClick={() => removeRound(index)} className="p-1 text-red-400 hover:text-red-600 transition">
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -209,23 +198,87 @@ export const StepAddRounds: React.FC<StepAddRoundsProps> = ({ onNext, onBack }) 
         );
       })}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {Object.values(roundTypeDefinitions).map((type) => (
-          <div key={type.id} onClick={() => addRound(type.id)} className="border-2 p-4 rounded-xl hover:bg-indigo-50 cursor-pointer transition">
-            <div className="flex justify-between">
-              <div className="flex items-center space-x-2">
-                <span className="text-2xl">{type.icon}</span>
-                <span>{type.name}</span>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-medium text-gray-800">Available Round Types</h3>
+          <span className="text-sm text-gray-500">
+            {selectedRounds.length}/{MAX_ROUNDS} rounds added
+          </span>
+        </div>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {Object.values(roundTypeDefinitions).map((type) => {
+            const isMaxReached = selectedRounds.length >= MAX_ROUNDS;
+            const estimatedRoundTime = type.defaultConfig.totalTimeSeconds 
+              ? Math.round(type.defaultConfig.totalTimeSeconds / 60)
+              : Math.round(((type.defaultConfig.questionsPerRound ?? 0) * (type.defaultConfig.timePerQuestion || 25)) / 60);
+            
+            return (
+              <div 
+                key={type.id} 
+                className={`border-2 rounded-xl transition-all duration-200 ${
+                  isMaxReached 
+                    ? 'border-gray-200 bg-gray-50' 
+                    : 'border-gray-200 bg-white hover:border-indigo-300 hover:shadow-lg'
+                }`}
+              >
+                <div className="p-6 space-y-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center text-2xl ${
+                        type.difficulty === 'Easy' ? 'bg-green-100' :
+                        type.difficulty === 'Medium' ? 'bg-yellow-100' : 'bg-red-100'
+                      }`}>
+                        {type.icon}
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-gray-900 text-lg">{type.name}</h4>
+                        <p className="text-sm text-gray-600 mt-1 leading-relaxed">{type.description}</p>
+                      </div>
+                    </div>
+                    <span className={`px-3 py-1 text-xs font-medium rounded-full whitespace-nowrap ${
+                      type.difficulty === 'Easy' ? 'bg-green-100 text-green-700' :
+                      type.difficulty === 'Medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
+                    }`}>
+                      {type.difficulty}
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-4 py-3 bg-gray-50 rounded-lg px-4">
+                    <div className="text-center">
+                      <div className="text-lg font-semibold text-gray-900">{type.defaultConfig.questionsPerRound ?? 0}</div>
+                      <div className="text-xs text-gray-600">Questions</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-semibold text-gray-900">
+                        {type.defaultConfig.timePerQuestion || type.defaultConfig.timePerTeam || 'Varies'}
+                      </div>
+                      <div className="text-xs text-gray-600">
+                        {type.defaultConfig.timePerTeam ? 'Sec/Team' : 'Sec/Question'}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-semibold text-gray-900">~{estimatedRoundTime}</div>
+                      <div className="text-xs text-gray-600">Minutes</div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => addRound(type.id)}
+                    disabled={isMaxReached}
+                    className={`w-full py-3 px-4 rounded-lg font-medium transition-all duration-200 ${
+                      isMaxReached
+                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                        : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm hover:shadow-md active:scale-[0.98]'
+                    }`}
+                  >
+                    {isMaxReached ? 'Max Rounds Reached' : 'Add Round'}
+                  </button>
+                </div>
               </div>
-              <span className={`px-2 py-1 text-xs rounded-full ${
-                type.difficulty === 'Easy' ? 'bg-green-100 text-green-700' :
-                type.difficulty === 'Medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
-              }`}>
-                {type.difficulty}
-              </span>
-            </div>
-          </div>
-        ))}
+            );
+          })}
+        </div>
       </div>
 
       <div className="flex justify-between pt-6 border-t border-gray-200">
@@ -241,6 +294,8 @@ export const StepAddRounds: React.FC<StepAddRoundsProps> = ({ onNext, onBack }) 
 };
 
 export default StepAddRounds;
+
+
 
 
 

@@ -2,7 +2,7 @@ import type React from 'react';
 
 const CTASection: React.FC = () => {
   return (
-    <div className="container mx-auto px-4 max-w-6xl mt-20 pt-10">
+    <div className="container mx-auto px-4 max-w-6xl mt-12 pt-10">
       <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl overflow-hidden shadow-xl">
         <div className="px-8 py-12 text-center">
           <h2 className="text-3xl font-bold text-white mb-4">Ready to Run Your Fundraising Events?</h2>

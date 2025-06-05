@@ -1,8 +1,7 @@
 import { useState, type FC, type FormEvent } from 'react';
-import { useQuizConfig } from '../useQuizConfig';
+import { useQuizSetupStore } from '../useQuizSetupStore';  // ✅ using the new Zustand store
 import type { WizardStepProps } from './WizardStepProps';
 import { AlertCircle, Plus, Trash2, Info, Trophy, DollarSign, Percent, Wallet, ChevronLeft, ChevronRight, Gift } from 'lucide-react';
-
 const ordinal = (n: number) => {
   const s = ["th", "st", "nd", "rd"];
   const v = n % 100;
@@ -21,11 +20,11 @@ interface PrizeModeExplainer {
 const prizeModeExplainers: Record<string, PrizeModeExplainer> = {
   split: {
     title: "Split Prize Pool by %",
-    description: "Automatically distribute a percentage of the total USDGLOW collected via smart contract. No manual intervention needed!",
+    description: "Automatically distribute a percentage of the total USDGLO collected via smart contract. No manual intervention needed!",
     features: ["100% automated payouts", "Scales with participation", "Instant distribution", "Transparent blockchain records"],
     pros: ["Fully automated", "Fair scaling", "No upfront cost", "Instant payouts"],
     bestFor: "Online events, crypto communities, automated fundraising",
-    example: "1st: 50%, 2nd: 30%, 3rd: 20% of total USDGLOW collected"
+    example: "1st: 50%, 2nd: 30%, 3rd: 20% of total USDGLO collected"
   },
   assets: {
     title: "Digital Asset Prizes",
@@ -46,19 +45,19 @@ const prizeModeExplainers: Record<string, PrizeModeExplainer> = {
 };
 
 const StepPrizes: FC<WizardStepProps> = ({ onNext, onBack }) => {
-  const { config, updateConfig } = useQuizConfig();
+    const { setupConfig, updateSetupConfig } = useQuizSetupStore();
   const [error, setError] = useState('');
   const [activeExplainer, setActiveExplainer] = useState<PrizeModeExplainer | null>(null);
   const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
 
-  const isWeb3 = config.paymentMethod === 'web3';
-  const currency = isWeb3 ? 'USDGLOW' : config.currencySymbol || '€';
+  const isWeb3 = setupConfig.paymentMethod === 'web3';
+  const currency = isWeb3 ? 'USDGLO' : setupConfig.currencySymbol || '€';
   const [prizeMode, setPrizeMode] = useState<'split' | 'assets' | 'cash'>(
-    isWeb3 ? config.prizeMode || 'split' : 'cash'
+    isWeb3 ? setupConfig.prizeMode || 'split' : 'cash'
   );
 
-  const [splits, setSplits] = useState<Record<number, number>>(config.prizeSplits || { 1: 100 });
-  const [prizes, setPrizes] = useState(config.prizes || []);
+  const [splits, setSplits] = useState<Record<number, number>>(setupConfig.prizeSplits || { 1: 100 });
+  const [prizes, setPrizes] = useState(setupConfig.prizes || []);
 
   const handleSplitChange = (place: number, value: number) => {
     setSplits((prev) => ({ ...prev, [place]: value }));
@@ -81,7 +80,7 @@ const StepPrizes: FC<WizardStepProps> = ({ onNext, onBack }) => {
     setPrizes(updated);
   };
 
-  const handleSubmit = (e: FormEvent) => {
+   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
 
     if (isWeb3 && prizeMode === 'split') {
@@ -92,7 +91,7 @@ const StepPrizes: FC<WizardStepProps> = ({ onNext, onBack }) => {
       if (total > 100) {
         return setError('Total prize percentage cannot exceed 100%.');
       }
-      updateConfig({ prizeMode: 'split', prizeSplits: splits, prizes: [] });
+      updateSetupConfig({ prizeMode: 'split', prizeSplits: splits, prizes: [] });
       return onNext();
     }
 
@@ -100,7 +99,7 @@ const StepPrizes: FC<WizardStepProps> = ({ onNext, onBack }) => {
       return setError('At least a 1st place prize must be defined.');
     }
 
-    updateConfig({ prizeMode, prizes, prizeSplits: undefined });
+    updateSetupConfig({ prizeMode, prizes, prizeSplits: undefined });
     onNext();
   };
 
@@ -230,7 +229,7 @@ const StepPrizes: FC<WizardStepProps> = ({ onNext, onBack }) => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-indigo-800">Step 5 of 7: Prizes</h2>
+        <h2 className="text-xl font-semibold text-indigo-800">Step 5 of 6: Prizes</h2>
         <div className="text-sm text-gray-600">Motivate participants</div>
       </div>
 

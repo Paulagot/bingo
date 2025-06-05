@@ -1,6 +1,6 @@
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { ArrowLeft, Users, Gamepad2 } from 'lucide-react';
-import { useGameStore } from '../store/gameStore';
+import { useGameStore } from '../../store/gameStore';
 
 export function Header() {
   const navigate = useNavigate();

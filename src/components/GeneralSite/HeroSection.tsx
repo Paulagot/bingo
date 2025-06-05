@@ -3,7 +3,7 @@ import { Gamepad2, Shield, Heart, Users } from 'lucide-react';
 
 const HeroSection: React.FC = () => {
   return (
-    <div className="pt-16 pb-8 px-4">
+    <div className="pt-8 pb-4 px-4">
       {/* Reduced top padding from pt-24 to pt-16 */}
       {/* Reduced bottom padding from pb-10 to pb-8 */}
       <div className="container mx-auto max-w-6xl">

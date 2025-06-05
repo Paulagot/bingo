@@ -3,7 +3,7 @@ import { Shield, CheckCircle, Users, Heart, Wallet, Gamepad2 } from 'lucide-reac
 
 const Benefit: React.FC = () => {
   return (
-    <div id="benefits" className="container mx-auto px-4 max-w-6xl mt-20 pt-10">
+    <div id="benefits" className="container mx-auto px-4 max-w-6xl mt-12 pt-10">
       <div className="text-center mb-12">
         <h2 className="text-3xl font-bold text-gray-800 mb-4">Benefits for Clubs & Charities</h2>
         <p className="text-gray-600 max-w-2xl mx-auto">Everything you need to run engaging, transparent, and trusted fundraising events, no headaches, no paperwork.</p>
@@ -17,8 +17,8 @@ const Benefit: React.FC = () => {
             </div>
           </div>
           <div>
-            <h3 className="text-xl font-bold mb-2 text-gray-800">Ready-Made Events</h3>
-            <p className="text-gray-600">Host fully-packaged events like quiz nights with curated questions, built-in scoring, fundraising extras such as reveal clue, and flexible payment options.</p>
+            <h3 className="text-xl font-bold mb-2 text-gray-800">Event in a Box</h3>
+            <p className="text-gray-600">Everything you need to run a fun, fully-managed fundraising quiz night — questions, scoring, fundraising extras, and payments — all handled for you. No spreadsheets, no technical setup, just a great event.</p>
           </div>
         </div>
         
@@ -66,7 +66,7 @@ const Benefit: React.FC = () => {
           </div>
           <div>
             <h3 className="text-xl font-bold mb-2 text-gray-800">Built for Fundraising</h3>
-            <p className="text-gray-600">SFrom entry fees to prize tracking, everything is tailored to ensure smooth fundraising with minimal overhead.</p>
+            <p className="text-gray-600">Maximize fundraising with built-in extras like clues, lifelines, and second chances — all designed to boost donations without adding work for your team.</p>
           </div>
         </div>
         

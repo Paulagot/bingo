@@ -3,7 +3,7 @@ import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Landing } from './pages/Landing';
 import { Game } from './pages/Game';
 import { TestCampaign } from './pages/TestCampaign';
-import { Header } from './components/Header';
+import { Header } from './components/GeneralSite/Header';
 import { PitchDeck } from './pages/PitchDeck';
 import { PitchDeckContent } from './pages/PitchDeckContent';
 import { ActionButtonList } from './components/ActionButtonList';

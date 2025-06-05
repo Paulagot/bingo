@@ -4,15 +4,19 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { v4 as uuidv4 } from 'uuid';
 import { useQuizSocket } from '../../../sockets/QuizSocketProvider';
 import { useAdminStore, Admin } from '../useAdminStore';
+import { fullQuizReset } from '../fullQuizReset';
+import { useNavigate } from 'react-router-dom';
+
 
 const AdminListPanel: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();
   const [newAdminName, setNewAdminName] = useState('');
   const [selectedAdminId, setSelectedAdminId] = useState<string | null>(null);
   const { socket } = useQuizSocket();
-  const { admins, setAdmins, addAdmin } = useAdminStore();
+  const { admins, setFullAdmins } = useAdminStore();
   const debug = true;
 
+   const navigate = useNavigate();
   const handleAddAdmin = () => {
     if (!newAdminName.trim() || !roomId || !socket) return;
 
@@ -21,8 +25,7 @@ const AdminListPanel: React.FC = () => {
       name: newAdminName.trim(),
     };
 
-    addAdmin(newAdmin);  // Update Zustand store
-
+    // ✅ Just emit to server — no local state update here:
     socket.emit('add_admin', { roomId, admin: newAdmin });
 
     if (debug) console.log('[Socket Emit] add_admin', { roomId, admin: newAdmin });
@@ -35,7 +38,7 @@ const AdminListPanel: React.FC = () => {
 
     const handleAdminListUpdate = ({ admins }: { admins: Admin[] }) => {
       if (debug) console.log('[Socket] 🎯 admin_list_updated received:', admins);
-      setAdmins(admins);  // ✅ Update Zustand store
+      setFullAdmins(admins);
     };
 
     socket.on('admin_list_updated', handleAdminListUpdate);
@@ -43,7 +46,23 @@ const AdminListPanel: React.FC = () => {
     return () => {
       socket.off('admin_list_updated', handleAdminListUpdate);
     };
-  }, [socket, setAdmins]);
+  }, [socket, setFullAdmins]);
+
+  useEffect(() => {
+  if (!socket) return;
+
+  const handleQuizCancelled = ({ roomId }: { roomId: string }) => {
+    console.warn('🚫 Quiz was cancelled by host. Resetting local state.');
+    fullQuizReset();
+    navigate('/');
+  };
+
+  socket.on('quiz_cancelled', handleQuizCancelled);
+  return () => {
+    socket.off('quiz_cancelled', handleQuizCancelled);
+  };
+}, [socket, navigate]);
+
 
   return (
     <div className="bg-white p-4 rounded-lg shadow-sm mt-6">
@@ -110,6 +129,7 @@ const AdminListPanel: React.FC = () => {
 };
 
 export default AdminListPanel;
+
 
 
 
