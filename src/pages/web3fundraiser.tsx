@@ -257,7 +257,7 @@ const FundraisingLaunchPage: React.FC = () => {
                 <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full flex items-center justify-center text-white font-bold">4</div>
                 <h3 className="text-xl font-semibold text-gray-900">Multichain Support</h3>
               </div>
-              <p className="text-gray-600">Available on any blockchain that supports Glo Dollar, starting with Polygon, Celo, Base, Arbitrum & Optimism.  Then VeChain and and Stellar.  Finally Solana.  </p>
+              <p className="text-gray-600">Available on Solana and any blockchain that supports Glo Dollar, starting with Polygon, Celo, Base, Arbitrum & Optimism.  Then VeChain and and Stellar.  </p>
             </div>
           </div>
         </div>
