@@ -87,7 +87,7 @@ const FundraisingLaunchPage: React.FC = () => {
               expression="excited" 
               message={
                 <>
-                  And so we have launched the <strong>Web3 Impact Movement</strong> and we hope to become the largest Web3 fundraising event ever.  Powered by <strong>Glo Dollar</strong> and <strong>The Giving Block</strong>.
+                  And so we have launched the <strong>Web3 Impact Event</strong> and we hope to become the largest Web3 fundraising event ever.  Powered by <strong>Glo Dollar</strong> and <strong>The Giving Block</strong>.
                 </>
               }
             />
@@ -263,6 +263,63 @@ const FundraisingLaunchPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Target & Impact Section */}
+<div className="max-w-7xl mx-auto px-4 py-16">
+  <div className="text-center mb-12">
+    <h2 className="text-4xl font-bold text-gray-900 mb-4">Target & Impact</h2>
+    <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+      Our mission is to build the world’s first fully transparent, multichain fundraising platform, built to empower Clubs, Charities and Communities. All While hosting the largest Web3 Regenerative fundraising event ever
+    </p>
+  </div>
+
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200 text-center">
+      <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
+        <DollarSign className="w-8 h-8 text-white" />
+      </div>
+      <h3 className="text-xl font-semibold text-gray-900 mb-2">Fundraising Goal</h3>
+      <p className="text-gray-900 text-2xl font-bold mb-1">$1,000,000</p>
+      <p className="text-gray-600 text-sm">Total campaign target</p>
+    </div>
+
+    <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200 text-center">
+      <div className="w-16 h-16 bg-gradient-to-br from-red-400 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
+        <Heart className="w-8 h-8 text-white" />
+      </div>
+      <h3 className="text-xl font-semibold text-gray-900 mb-2">Direct to Charity</h3>
+      <p className="text-gray-900 text-2xl font-bold mb-1">$500,000+</p>
+      <p className="text-gray-600 text-sm">Delivered directly to charities & non-profits powered by The Giving Block</p>
+    </div>
+
+    <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200 text-center">
+      <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full flex items-center justify-center mx-auto mb-4">
+        <Users className="w-8 h-8 text-white" />
+      </div>
+      <h3 className="text-xl font-semibold text-gray-900 mb-2">Community Rewards</h3>
+      <p className="text-gray-900 text-2xl font-bold mb-1">Up to $300,000</p>
+      <p className="text-gray-600 text-sm">Flowing back to Web3 communities, hosts, and participants, powered by Glo Dollar</p>
+    </div>
+
+    <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200 text-center">
+      <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
+        <Zap className="w-8 h-8 text-white" />
+      </div>
+      <h3 className="text-xl font-semibold text-gray-900 mb-2">Platform Development</h3>
+      <p className="text-gray-900 text-2xl font-bold mb-1">$200,000</p>
+      <p className="text-gray-600 text-sm">Reinvested into FundRaisely to build fundraising tools for clubs, charities, and communities</p>
+    </div>
+  </div>
+
+  <div className="text-center mt-10">
+    <p className="text-gray-700 text-lg">
+      💡 You can track our live progress anytime at{' '}
+      <a href="https://fundraisely.ie/whats-new" target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-semibold underline">
+        fundraisely.ie/whats-new
+      </a>.
+    </p>
+  </div>
+</div>
+
       {/* Who Can Register Section */}
       <div className="max-w-7xl mx-auto px-4 py-16">
         <div className="text-center mb-12">
@@ -382,6 +439,7 @@ const FundraisingLaunchPage: React.FC = () => {
           </div>
         </div>
       </div>
+
 
       {/* Trust & Transparency Section */}
       <div className="bg-white border-t border-gray-200">

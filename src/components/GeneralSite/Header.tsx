@@ -60,7 +60,7 @@ export function Header() {
                 to="/Web3-impact-Event"
                 className="text-sm font-medium text-pink-600 hover:text-pink-800 transition-colors"
               >
-                Join the Web3 Impact Movement 🚀
+                Join the Web3 Impact Event 🚀
               </Link>
 
               <Link
