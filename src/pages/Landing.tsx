@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { clearAllRoomData } from '../utils/localStorageUtils';
-import Headers from '../components/GeneralSite/Headers';
+import { Header } from '../components/GeneralSite/Header';
 import HeroSection from '../components/GeneralSite/HeroSection';
 import HowItWorks from '../components/GeneralSite/HowItWorks';
 import FAQ from '../components/GeneralSite/FAQ';
@@ -35,7 +35,7 @@ export function Landing() {
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white pb-20">
       {/* <SolanaWalletOperations /> */}
    
-      <Headers />
+      <Header />
       <HeroSection />
       
       {/* Beta Program Invite Section - Reduced height with 2-row subtitle */}

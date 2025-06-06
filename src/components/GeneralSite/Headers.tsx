@@ -14,9 +14,9 @@ const Headers: React.FC = () => {
           <a href="#how-it-works" className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition-colors">How It Works</a>
           <a href="#benefits" className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition-colors">Benefits</a>
           <a href="#faq" className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition-colors">FAQ</a>
-          <Link to="/pitch-deck" className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors">Pitch Deck</Link>
-          <Link to="/blog" className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors">Blog</Link>
-          <Link to="/partners" className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors">Partners</Link>
+          {/* <Link to="/pitch-deck" className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors">Pitch Deck</Link> */}
+          <Link to="/whats-new" className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors">Whats New</Link>
+          {/* <Link to="/partners" className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors">Partners</Link> */}
         </div>
       </div>
     </header>
