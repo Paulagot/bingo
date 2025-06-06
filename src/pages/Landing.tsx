@@ -51,12 +51,12 @@ export function Landing() {
             </div>
             <div className="flex justify-center space-x-4">
               <a
-                href="https://twitter.com/Fundraisly"
+                href="https://x.com/Fundraisly"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-white text-indigo-600 px-8 py-3 rounded-xl font-semibold shadow-md hover:bg-indigo-50 transition inline-block"
               >
-                DM Us on Twitter
+                DM us on Twitter
               </a>
               {/* <a
                 href="mailto:beta@fundraisely.io"
