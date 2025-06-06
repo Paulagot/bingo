@@ -12,6 +12,8 @@ import ErrorBoundary from './components/ErrorBoundary';
 import SocketDebugPanel from './components/Quiz/SocketDebugPanel';
 import QuizRoutes from '../src/components/Quiz/QuizRoutes';
 import { QuizSocketProvider } from '../src/sockets/QuizSocketProvider';  // ✅ Moved back here
+import WhatsNew from './pages/WhatsNew';
+import FundraisingLaunchPage from './pages/web3fundraiser'; // ✅ New fundraising launch page
 
 export default function App() {
   const navigate = useNavigate();
@@ -69,6 +71,9 @@ export default function App() {
             <Route path="/pitch-deck" element={<PitchDeck />} />
             <Route path="/pitch-deck-content" element={<PitchDeckContent />} />
             <Route path="/BingoBlitz" element={<TestCampaign />} />
+
+            <Route path="/whats-new" element={<WhatsNew />} />
+            <Route path="/Web3-Impact-Event" element={<FundraisingLaunchPage />} />
 
             {/* ✅ Now only wrap the Quiz routes */}
             <Route path="/quiz/*" element={

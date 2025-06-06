@@ -23,7 +23,7 @@ const HeroSection: React.FC = () => {
             </h1>
             
             <p className="text-lg md:text-xl text-indigo-900/70 max-w-3xl mx-auto mb-8">
-              All-in-one platform to host fun, modern, and trackable fundraising events, starting with live quiz nights.
+              All-in-one platform to host fun, modern, trackable and compliant fundraising events, Coming Soon......
             </p>
             
             <p className="text-xl font-semibold text-indigo-700 mb-6 italic">
