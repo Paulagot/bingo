@@ -1,6 +1,5 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
-import { configDefaults } from 'vitest/config';
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -9,11 +8,15 @@ export default defineConfig({
     exclude: ['lucide-react'],
   },
   test: {
-    ...configDefaults,
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/setupTests.ts',
-  }
-  
-  
+    include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    exclude: ['node_modules', 'dist', '.next', '.nuxt', '.vercel', 'src/test/integration/**'],
+  },
+  resolve: {
+    alias: {
+      '@': '/src',
+    },
+  },
 });

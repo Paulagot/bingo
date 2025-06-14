@@ -34,6 +34,7 @@ export interface RoundConfig {
   timePerQuestion: number;
   totalTimeSeconds?: number;
   timePerTeam?: number;
+  pointsPerQuestion?: number; 
 }
 
 
@@ -80,6 +81,15 @@ export interface QuizConfig {
   currencySymbol?: string;
   totalTimeSeconds?: number;
 }
+
+export type ExtrasPanelProps = {
+  roomId: string;
+  playerId: string;
+  availableExtras: string[];
+  usedExtras: Record<string, boolean>;
+  onUseExtra: (extraId: string) => void;
+  usedExtrasThisRound: Record<string, boolean>;
+};
 
 
 

@@ -1,79 +1,63 @@
-// server/quiz/quizRoomManager.js
-
+// quizRoomManager.js
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { roundTypeDefinitions } from '../../server/quiz/quizMetadata.js';
 
-// In-memory storage of quiz rooms
 const quizRooms = new Map();
 const debug = true;
 
-function loadQuestionsForRoundTypes(roundDefinitions) {
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
-  const allQuestions = [];
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-  for (const round of roundDefinitions) {
-    const roundType = round.roundType;
-    const filePath = path.join(__dirname, '../data/questions', `${roundType}.json`);
-    try {
-      const data = fs.readFileSync(filePath, 'utf-8');
-      const parsed = JSON.parse(data);
-      if (!Array.isArray(parsed) || parsed.length === 0) {
-        console.warn(`[loadQuestions] ⚠️ No questions for roundType "${roundType}"`);
-        continue;
-      }
-      allQuestions.push(...parsed);
-    } catch (err) {
-      console.error(`[loadQuestions] ❌ Failed to load "${roundType}.json"`, err);
+export function loadQuestionsForRoundType(roundType) {
+  const filePath = path.join(__dirname, '../data/questions', `${roundType}.json`);
+  try {
+    const data = fs.readFileSync(filePath, 'utf-8');
+    const parsed = JSON.parse(data);
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      console.warn(`[quizRoomManager] ⚠️ No questions found for "${roundType}"`);
+      return [];
     }
+    return parsed;
+  } catch (err) {
+    console.error(`[quizRoomManager] ❌ Failed to load "${roundType}.json"`, err);
+    return [];
   }
-  return allQuestions;
 }
 
 export function createQuizRoom(roomId, hostId, config) {
   console.log('-----------------------------------------');
-  console.log(`[createQuizRoom] 🟢 Starting room creation`);
-  console.log(`[createQuizRoom] 🧩 roomId=${roomId}, hostId=${hostId}`);
-  console.log(`[createQuizRoom] 📦 Incoming config:`);
-  console.log(JSON.stringify(config, null, 2));
+  console.log(`[quizRoomManager] 🟢 Starting room creation`);
+  console.log(`[quizRoomManager] 🧩 roomId=${roomId}, hostId=${hostId}`);
+  console.log(`[quizRoomManager] 📦 Incoming config:\n`, JSON.stringify(config, null, 2));
 
   if (quizRooms.has(roomId)) {
     const existing = quizRooms.get(roomId);
     const hasPlayers = existing.players.length > 0;
     const isActive = existing.currentPhase !== 'waiting';
     if (hasPlayers || isActive) {
-      console.log(`[createQuizRoom] ❌ Room already active: ${roomId}`);
+      console.log(`[quizRoomManager] ❌ Room already active: ${roomId}`);
       return false;
     }
-    console.log(`[createQuizRoom] ⚠️ Overwriting inactive room: ${roomId}`);
+    console.log(`[quizRoomManager] ⚠️ Overwriting inactive room: ${roomId}`);
     quizRooms.delete(roomId);
   }
 
   const roundDefinitions = config.roundDefinitions || [];
   if (!Array.isArray(roundDefinitions) || roundDefinitions.length === 0) {
-    console.error(`[createQuizRoom] ❌ No roundDefinitions found`);
-    return false;
-  }
-
-  console.log(`[createQuizRoom] 📝 Total rounds: ${roundDefinitions.length}`);
-
-  const questions = loadQuestionsForRoundTypes(roundDefinitions);
-  console.log(`[createQuizRoom] 📚 Loaded total questions: ${questions.length}`);
-
-  if (!questions.length) {
-    console.error(`[createQuizRoom] ❌ No questions loaded`);
+    console.error(`[quizRoomManager] ❌ No roundDefinitions found`);
     return false;
   }
 
   const finalConfig = { ...config, roundCount: roundDefinitions.length };
+
   quizRooms.set(roomId, {
     hostId,
     config: finalConfig,
     currentQuestionIndex: -1,
     currentRound: 1,
-    questions,
+    questions: [],
     admins: [],
     players: [],
     playerData: {},
@@ -81,11 +65,10 @@ export function createQuizRoom(roomId, hostId, config) {
     createdAt: Date.now()
   });
 
-  console.log(`[createQuizRoom] ✅ Room ${roomId} successfully created`);
+  console.log(`[quizRoomManager] ✅ Room ${roomId} created with ${roundDefinitions.length} rounds`);
   console.log('-----------------------------------------');
   return true;
 }
-
 
 export function getQuizRoom(roomId) {
   return quizRooms.get(roomId);
@@ -94,7 +77,7 @@ export function getQuizRoom(roomId) {
 export function emitRoomState(namespace, roomId) {
   const room = quizRooms.get(roomId);
   if (!room) {
-    console.warn(`[emitRoomState] ⚠️ Room ${roomId} not found`);
+    console.warn(`[quizRoomManager] ⚠️ emitRoomState skipped - Room ${roomId} not found`);
     return;
   }
 
@@ -112,39 +95,52 @@ export function emitRoomState(namespace, roomId) {
     phase: room.currentPhase
   });
 
-  console.log(`[emitRoomState] ✅ Emitted room_state for ${roomId}: Round ${room.currentRound}/${totalRounds}, Type: ${roundTypeName}, Players: ${room.players.length}, Phase: ${room.currentPhase}`);
+  console.log(`[quizRoomManager] ✅ Emitted room_state for ${roomId}: Round ${room.currentRound}/${totalRounds}, Type: ${roundTypeName}, Players: ${room.players.length}, Phase: ${room.currentPhase}`);
 }
-
-// --------------------------
-// State update helpers
-// --------------------------
 
 export function addOrUpdatePlayer(roomId, player) {
   const room = quizRooms.get(roomId);
-  if (!room) return false;
+  if (!room) {
+    console.warn(`[quizRoomManager] ❌ addOrUpdatePlayer: Room ${roomId} not found`);
+    return false;
+  }
 
   const existing = room.players.find(p => p.id === player.id);
   if (existing) {
     Object.assign(existing, player);
-    if (debug) console.log(`[addOrUpdatePlayer] Updated existing player: ${player.id}`);
+    if (debug) console.log(`[quizRoomManager] 🔄 Updated player ${player.id}`);
   } else {
     room.players.push(player);
-    if (debug) console.log(`[addOrUpdatePlayer] Added new player: ${player.id}`);
+    if (debug) console.log(`[quizRoomManager] ➕ Added new player ${player.id}`);
   }
 
-  room.playerData[player.id] = room.playerData[player.id] || {
-    status: 'active',
-    usedClues: 0,
-    usedCluesThisRound: 0,
-    usedLifeline: false,
-    usedSecondChance: false,
-    score: 0,
-    answers: {},
-    purchases: {
-      lifeline: (player.extras || []).includes('lifeline'),
-      secondChance: (player.extras || []).includes('secondChance')
+  const purchasedExtras = player.extras || [];
+  if (debug) console.log(`[quizRoomManager] 🎯 Player ${player.id} has extras:`, purchasedExtras);
+
+  if (!room.playerData[player.id]) {
+    const extraPurchases = {};
+    const usedExtras = {};
+    const usedExtrasThisRound = {};
+
+    for (const extra of purchasedExtras) {
+      extraPurchases[extra] = true;
+      usedExtras[extra] = false;
+      usedExtrasThisRound[extra] = false;
     }
-  };
+
+    room.playerData[player.id] = {
+      status: 'active',
+      score: 0,
+      answers: {},
+      purchases: extraPurchases,
+      usedExtras,
+      usedExtrasThisRound,
+      frozenNextQuestion: false,
+      frozenForQuestionIndex: undefined
+    };
+
+    if (debug) console.log(`[quizRoomManager] ✅ Initialized playerData for ${player.id}`);
+  }
 
   return true;
 }
@@ -153,6 +149,7 @@ export function updateHostSocketId(roomId, socketId) {
   const room = quizRooms.get(roomId);
   if (!room) return false;
   room.hostSocketId = socketId;
+  if (debug) console.log(`[quizRoomManager] 🎤 Host socket updated for ${roomId}: ${socketId}`);
   return true;
 }
 
@@ -162,6 +159,7 @@ export function updateAdminSocketId(roomId, adminId, socketId) {
   const admin = room.admins.find(a => a.id === adminId);
   if (!admin) return false;
   admin.socketId = socketId;
+  if (debug) console.log(`[quizRoomManager] 🛠️ Admin socket updated: ${adminId}`);
   return true;
 }
 
@@ -171,6 +169,7 @@ export function updatePlayerSocketId(roomId, playerId, socketId) {
   const player = room.players.find(p => p.id === playerId);
   if (!player) return false;
   player.socketId = socketId;
+  if (debug) console.log(`[quizRoomManager] 🎮 Player socket updated: ${playerId}`);
   return true;
 }
 
@@ -178,21 +177,48 @@ export function addAdminToQuizRoom(roomId, admin) {
   const room = quizRooms.get(roomId);
   if (!room) return false;
   const exists = room.admins.find(a => a.id === admin.id);
-  if (!exists) room.admins.push(admin);
+  if (!exists) {
+    room.admins.push(admin);
+    if (debug) console.log(`[quizRoomManager] ➕ Admin added: ${admin.id}`);
+  }
   return true;
 }
-
-// --------------------------
-// Gameplay helpers
-// --------------------------
 
 export function advanceToNextQuestion(roomId) {
   const room = quizRooms.get(roomId);
   if (!room) return null;
+
   room.currentQuestionIndex++;
   if (room.currentQuestionIndex >= room.questions.length) return null;
-  if (debug) console.log(`[advanceToNextQuestion] 🔄 Room ${roomId} now at Q#${room.currentQuestionIndex}`);
+
+  clearExpiredFreezeFlags(roomId);
+
+  if (debug) console.log(`[quizRoomManager] 🔄 Advanced to Q#${room.currentQuestionIndex} in ${roomId}`);
   return room.questions[room.currentQuestionIndex];
+}
+
+// ✅ FIXED: Clear freeze flags for players who have missed their question
+function clearExpiredFreezeFlags(roomId) {
+  const room = quizRooms.get(roomId);
+  if (!room) return;
+
+  console.log(`[quizRoomManager] 🔍 clearExpiredFreezeFlags called for ${roomId}, currentQuestionIndex: ${room.currentQuestionIndex}`);
+
+  for (const pid of Object.keys(room.playerData)) {
+    const playerData = room.playerData[pid];
+    if (playerData?.frozenNextQuestion && playerData?.frozenForQuestionIndex !== undefined) {
+      console.log(`[quizRoomManager] 🔍 Player ${pid}: frozenForQuestionIndex=${playerData.frozenForQuestionIndex}, currentQuestionIndex=${room.currentQuestionIndex}`);
+      
+      if (room.currentQuestionIndex > playerData.frozenForQuestionIndex) {
+        playerData.frozenNextQuestion = false;
+        const missedQuestion = playerData.frozenForQuestionIndex;
+        playerData.frozenForQuestionIndex = undefined;
+        if (debug) console.log(`[quizRoomManager] ❄️ Cleared freeze flag for ${pid} (missed question ${missedQuestion})`);
+      } else {
+        console.log(`[quizRoomManager] 🔍 NOT clearing ${pid}: ${room.currentQuestionIndex} <= ${playerData.frozenForQuestionIndex}`);
+      }
+    }
+  }
 }
 
 export function isEndOfRound(roomId) {
@@ -208,6 +234,16 @@ export function startNextRound(roomId) {
   room.currentRound++;
   room.currentQuestionIndex = -1;
   room.currentPhase = 'waiting';
+  room.questions = [];
+  if (debug) console.log(`[quizRoomManager] ⏭️ Started round ${room.currentRound} in ${roomId}`);
+  return true;
+}
+
+export function setQuestionsForCurrentRound(roomId, questions) {
+  const room = quizRooms.get(roomId);
+  if (!room) return false;
+  room.questions = questions;
+  if (debug) console.log(`[quizRoomManager] 📘 Questions set for room ${roomId}. Total: ${questions.length}`);
   return true;
 }
 
@@ -227,16 +263,13 @@ export function getCurrentRound(roomId) {
   return room?.currentRound || 1;
 }
 
-
-
-
 export function removeQuizRoom(roomId) {
   if (quizRooms.has(roomId)) {
     quizRooms.delete(roomId);
-    console.log(`[removeQuizRoom] ✅ Removed room ${roomId}`);
+    console.log(`[quizRoomManager] 🗑️ Room removed: ${roomId}`);
     return true;
   }
-  console.log(`[removeQuizRoom] ❌ Room not found: ${roomId}`);
+  console.warn(`[quizRoomManager] ⚠️ Tried to remove nonexistent room: ${roomId}`);
   return false;
 }
 
@@ -250,26 +283,147 @@ export function listQuizRooms() {
   }));
 }
 
-export function resetRoundClueTracking(roomId) {
+export function resetRoundExtrasTracking(roomId) {
   const room = quizRooms.get(roomId);
-  if (!room) return;
-  for (const pid of Object.keys(room.playerData)) {
-    room.playerData[pid].usedCluesThisRound = 0;
+  if (!room) {
+    console.warn(`[quizRoomManager] ⚠️ resetRoundExtrasTracking skipped: Room ${roomId} not found`);
+    return;
   }
-  if (debug) console.log(`[resetRoundClueTracking] 🔄 Reset clues for ${roomId}`);
+
+  for (const pid of Object.keys(room.playerData)) {
+    const playerData = room.playerData[pid];
+    if (!playerData?.usedExtrasThisRound) continue;
+    
+    // ✅ Reset all round-specific tracking
+    for (const extra of Object.keys(playerData.usedExtrasThisRound)) {
+      playerData.usedExtrasThisRound[extra] = false;
+    }
+    
+    // ✅ Clear freeze flags at round start (but not during questions)
+    playerData.frozenNextQuestion = false;
+    playerData.frozenForQuestionIndex = undefined;
+  }
+
+  if (debug) console.log(`[quizRoomManager] 🔄 Round extras reset for ${roomId}`);
 }
 
-export function useClue(roomId, playerId) {
-  const room = quizRooms.get(roomId);
-  if (!room) return false;
+// ✅ IMPROVED: Centralized Extras Handler with better freeze validation
+export function handlePlayerExtra(roomId, playerId, extraId, targetPlayerId, namespace) {
+  const room = getQuizRoom(roomId);
+  if (!room) return { success: false, error: 'Room not found' };
+
   const playerData = room.playerData[playerId];
-  if (!playerData) return false;
+  if (!playerData) return { success: false, error: 'Player data not found' };
 
-  playerData.usedClues++;
-  playerData.usedCluesThisRound++;
-  if (debug) console.log(`[useClue] 💡 Player ${playerId} used clue in room ${roomId}`);
-  return true;
+  if (playerData.frozenNextQuestion) {
+    console.warn(`[ExtrasHandler] ❄️ ${playerId} is frozen and cannot use extras`);
+    return { success: false, error: 'You are frozen and cannot use extras!' };
+  }
+
+  if (debug) {
+    console.log(`[ExtrasHandler] 🧪 ${playerId} using "${extraId}"${targetPlayerId ? ` on ${targetPlayerId}` : ''}`);
+  }
+
+  if (!playerData.purchases[extraId]) {
+    return { success: false, error: 'You have not purchased this extra' };
+  }
+
+  const usedAnyThisRound = Object.values(playerData.usedExtrasThisRound || {}).some(v => v);
+  if (usedAnyThisRound) {
+    return { success: false, error: 'You can only use one extra per round.' };
+  }
+
+  if (playerData.usedExtras[extraId]) {
+    return { success: false, error: 'You have already used this extra in a previous round' };
+  }
+
+  playerData.usedExtras[extraId] = true;
+  playerData.usedExtrasThisRound[extraId] = true;
+
+  const result = executeExtra(roomId, playerId, extraId, targetPlayerId, namespace);
+
+  if (result.success) {
+    console.log(`[ExtrasHandler] ✅ ${extraId} executed successfully for ${playerId}`);
+  } else {
+    playerData.usedExtras[extraId] = false;
+    playerData.usedExtrasThisRound[extraId] = false;
+    console.warn(`[ExtrasHandler] ❌ ${extraId} execution failed for ${playerId}: ${result.error}`);
+  }
+
+  return result;
 }
+
+function executeExtra(roomId, playerId, extraId, targetPlayerId, namespace) {
+  switch (extraId) {
+    case 'buyHint':
+      return executeBuyHint(roomId, playerId, namespace);
+    case 'freezeOutTeam':
+      return executeFreezeOutTeam(roomId, playerId, targetPlayerId, namespace);
+    default:
+      return { success: false, error: 'Unknown extra type' };
+  }
+}
+
+// ✅ Execute buyHint logic
+function executeBuyHint(roomId, playerId, namespace) {
+  const room = getQuizRoom(roomId);
+  const question = getCurrentQuestion(roomId);
+  if (!question || !question.clue) return { success: false, error: 'No clue available for this question' };
+
+  const player = room.players.find(p => p.id === playerId);
+  if (!player?.socketId) return { success: false, error: 'Player socket not found' };
+
+  const targetSocket = namespace.sockets.get(player.socketId);
+  if (targetSocket) {
+    targetSocket.emit('clue_revealed', { clue: question.clue });
+    console.log(`[ExtrasHandler] 💡 buyHint: sent clue to ${playerId}: "${question.clue}"`);
+    return { success: true };
+  }
+
+  return { success: false, error: 'Failed to send clue' };
+}
+
+// ✅ FIXED: Execute freezeOutTeam logic with correct question timing
+
+  function executeFreezeOutTeam(roomId, playerId, targetPlayerId, namespace) {
+  if (!targetPlayerId) return { success: false, error: 'Target player required for freeze' };
+
+  const room = getQuizRoom(roomId);
+
+  if (playerId === targetPlayerId) return { success: false, error: 'You cannot freeze yourself!' };
+
+  const questionsRemaining = room.questions.length - (room.currentQuestionIndex + 1);
+  if (questionsRemaining <= 1) return { success: false, error: 'Cannot freeze player - this is the last question of the round!' };
+
+  if (room.currentPhase !== 'asking') return { success: false, error: 'Can only freeze players during active questions!' };
+
+  const targetData = room.playerData[targetPlayerId];
+  if (!targetData) return { success: false, error: 'Target player not found' };
+
+  if (targetData.frozenNextQuestion) return { success: false, error: 'That player is already frozen for the next question!' };
+
+  const targetPlayer = room.players.find(p => p.id === targetPlayerId);
+  if (!targetPlayer) return { success: false, error: 'Target player not found in room' };
+
+  if (!targetPlayer.socketId) return { success: false, error: 'Target player is not actively connected' };
+
+  if (room.currentQuestionIndex < 0) return { success: false, error: 'Cannot freeze players during round setup!' };
+
+  const freezeForQuestionIndex = room.currentQuestionIndex + 1;
+
+  targetData.frozenNextQuestion = true;
+  targetData.frozenForQuestionIndex = freezeForQuestionIndex;
+  targetData.frozenBy = playerId;
+
+  if (debug) {
+    console.log(`[ExtrasHandler] ❄️ freezeOutTeam: ${targetPlayerId} frozen by ${playerId} for question index ${freezeForQuestionIndex} (Q${freezeForQuestionIndex + 1} to user)`);
+  }
+
+  // ❌ No emit here — notification handled in generalTriviaEngine.js when question is sent
+  return { success: true };
+}
+
+
 
 
 

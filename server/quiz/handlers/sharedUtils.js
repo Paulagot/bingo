@@ -1,5 +1,4 @@
-import { getQuizRoom } from '../quizRoomManager.js';
-import { isRateLimited } from '../../socketRateLimiter.js';
+
 
 const debug = true;
 
@@ -89,8 +88,8 @@ export function emitFullRoomState(socket, namespace, roomId) {
 
 
 // Export shared utility functions that might be used by multiple handlers
-export function resetRoundClueTrackingWrapper(roomId) {
-  return import('../quizRoomManager.js').then(({ resetRoundClueTracking }) => {
-    return resetRoundClueTracking(roomId);
+export function resetRoundExtrasTrackingWrapper(roomId) {
+  return import('../quizRoomManager.js').then(({ resetRoundExtrasTracking }) => {
+    return resetRoundExtrasTracking(roomId);
   });
 }

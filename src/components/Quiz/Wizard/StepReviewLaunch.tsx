@@ -59,13 +59,10 @@ const StepReviewLaunch: FC<WizardStepProps> = ({ onBack }) => {
       const data = await res.json();
       console.log('[API Success]', data);
 
-      // 🔧 NEW: store identifiers into localStorage for reconnect
       localStorage.setItem('current-room-id', data.roomId);
       localStorage.setItem('current-host-id', data.hostId);
 
-      // ✅ Redirect to dashboard after successful room creation
       navigate(`/quiz/host-dashboard/${data.roomId}`);
-
     } catch (err) {
       console.error('[Launch Error]', err);
       setIsLaunching(false);
@@ -106,7 +103,6 @@ const StepReviewLaunch: FC<WizardStepProps> = ({ onBack }) => {
     );
   };
 
-  // Check if configuration seems complete
   const hasRounds = setupConfig.roundDefinitions && setupConfig.roundDefinitions.length > 0;
   const hasHostName = setupConfig.hostName && setupConfig.hostName.trim().length > 0;
   const configComplete = hasRounds && hasHostName;
@@ -219,13 +215,7 @@ const StepReviewLaunch: FC<WizardStepProps> = ({ onBack }) => {
                     Round {index + 1}: {roundTypeMap[round.roundType]?.name || round.roundType}
                   </div>
                   <div className="text-sm text-gray-600 mb-2">
-                    {round.config.questionsPerRound} questions @ {round.config.timePerQuestion}s each
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Extras: {Object.entries(round.enabledExtras || {})
-                      .filter(([_, enabled]) => enabled)
-                      .map(([extraKey]) => fundraisingExtras[extraKey]?.label || extraKey)
-                      .join(', ') || 'None'}
+                    {round.config.questionsPerRound} questions
                   </div>
                 </div>
               ))}
@@ -279,6 +269,7 @@ const StepReviewLaunch: FC<WizardStepProps> = ({ onBack }) => {
 };
 
 export default StepReviewLaunch;
+
 
 
 
