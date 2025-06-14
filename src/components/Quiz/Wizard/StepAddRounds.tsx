@@ -152,7 +152,7 @@ export const StepAddRounds: React.FC<StepAddRoundsProps> = ({ onNext, onBack }) 
 
   const estimatedTime = selectedRounds.reduce((total, round) => {
     const time = (round.config.questionsPerRound * (round.config.timePerQuestion || 25)) / 60;
-    return total + time + 2;
+    return total + time + 2.5;
   }, 0);
 
   return (
@@ -210,8 +210,8 @@ export const StepAddRounds: React.FC<StepAddRoundsProps> = ({ onNext, onBack }) 
           {Object.values(roundTypeDefinitions).map((type) => {
             const isMaxReached = selectedRounds.length >= MAX_ROUNDS;
             const estimatedRoundTime = type.defaultConfig.totalTimeSeconds 
-              ? Math.round(type.defaultConfig.totalTimeSeconds / 60)
-              : Math.round(((type.defaultConfig.questionsPerRound ?? 0) * (type.defaultConfig.timePerQuestion || 25)) / 60);
+              ? Math.round(type.defaultConfig.totalTimeSeconds / 60 + 2.5)
+              : Math.round(((type.defaultConfig.questionsPerRound ?? 0) * (type.defaultConfig.timePerQuestion || 25)) / 60 + 2.5);
             
             return (
               <div 

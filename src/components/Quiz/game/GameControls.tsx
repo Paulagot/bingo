@@ -1,217 +1,237 @@
 import { useParams } from 'react-router-dom';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuizSocket } from '../../../sockets/QuizSocketProvider';
 
 const debug = true;
 
-// ✅ Define type for room_state payload
 type RoomStatePayload = {
   currentRound: number;
   totalRounds: number;
-  roundTypeId: string;
   roundTypeName: string;
-  totalPlayers: number;
-  phase: 'waiting' | 'in_question' | 'reviewing' | 'complete';
+  phase: 'waiting' | 'asking' | 'reviewing' | 'leaderboard' | 'complete';
+  questionsThisRound?: number;
 };
 
-
-// ✅ Define type for question payload
 type QuestionPayload = {
   id: string;
   text: string;
-  options?: string[];
-  timeLimit?: number;
+  options: string[];
+  timeLimit: number;
+  questionStartTime: number;
+};
+
+type ReviewQuestionPayload = {
+  id: string;
+  text: string;
+  options: string[];
+  correctAnswer: string;
+  submittedAnswer?: string | null;
+};
+
+type LeaderboardEntry = {
+  id: string;
+  name: string;
+  score: number;
 };
 
 const HostGameControls = () => {
   const { roomId } = useParams<{ roomId: string }>();
-  const { socket, connected } = useQuizSocket();
+  const { socket } = useQuizSocket();
 
-  const [round, setRound] = useState(1);
-  const [question, setQuestion] = useState(0);
-  const [totalPlayers, setTotalPlayers] = useState(0);
-  const [phase, setPhase] = useState<'waiting' | 'in_question' | 'reviewing' | 'complete'>('waiting');
-  const [status, setStatus] = useState('Waiting to begin');
+  const [roomState, setRoomState] = useState<RoomStatePayload>({
+    currentRound: 1,
+    totalRounds: 1,
+    roundTypeName: '',
+    phase: 'waiting',
+    questionsThisRound: 0
+  });
+
   const [currentQuestion, setCurrentQuestion] = useState<QuestionPayload | null>(null);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
-  const [quizEnded, setQuizEnded] = useState(false);
-  const [totalRounds, setTotalRounds] = useState<number>(1);
-const [roundTypeName, setRoundTypeName] = useState<string>('');
+  const [reviewQuestion, setReviewQuestion] = useState<ReviewQuestionPayload | null>(null);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
 
-
-  // ───────────────────────────────────────────────────────
-  // Subscribe to room_state event
-  // ───────────────────────────────────────────────────────
+  // ──────────────────────────────────────────────────────────
+  // Listen for room_state updates
   useEffect(() => {
     if (!socket) return;
-
-   const handleRoomState = ({ currentRound, totalRounds, roundTypeId, roundTypeName, totalPlayers, phase }: RoomStatePayload) => {
-  if (debug) console.log('[Host] 🔄 Received room_state update:', { currentRound, totalRounds, roundTypeId, roundTypeName, totalPlayers, phase });
-  setRound(currentRound);
-  setTotalPlayers(totalPlayers);
-  setPhase(phase);
-  setTotalRounds(totalRounds);  // <-- add this new state hook below
-  setRoundTypeName(roundTypeName);  // <-- add this new state hook below
-};
-
-
+    const handleRoomState = (data: RoomStatePayload) => {
+      if (debug) console.log('[Host] 🔄 Received room_state update:', data);
+      setRoomState(data);
+    };
     socket.on('room_state', handleRoomState);
-
     return () => {
       socket.off('room_state', handleRoomState);
     };
   }, [socket]);
 
-  // ───────────────────────────────────────────────────────
-  // Subscribe to question event
-  // ───────────────────────────────────────────────────────
+  // ──────────────────────────────────────────────────────────
+  // Listen for question events (host sees live questions too)
   useEffect(() => {
     if (!socket) return;
-
     const handleQuestion = (data: QuestionPayload) => {
-      if (debug) console.log('[Host] 📥 Received question event:', data);
+      if (debug) console.log('[Host] 📥 Received question:', data);
       setCurrentQuestion(data);
-      setTimeLeft(data.timeLimit || 30);
-      setPhase('in_question');
-      setStatus('📤 Question sent');
+      setReviewQuestion(null); // clear review view
+      const now = Date.now();
+      const elapsed = (now - data.questionStartTime) / 1000;
+      const remainingTime = Math.max(0, (data.timeLimit || 30) - elapsed);
+      setTimeLeft(remainingTime);
     };
-
     socket.on('question', handleQuestion);
-
     return () => {
       socket.off('question', handleQuestion);
     };
   }, [socket]);
 
-  // ───────────────────────────────────────────────────────
-  // Subscribe to quiz_end event
-  // ───────────────────────────────────────────────────────
+  // ──────────────────────────────────────────────────────────
+  // Countdown timer
+  useEffect(() => {
+    if (timeLeft === null || roomState.phase !== 'asking') return;
+    if (timeLeft <= 0) return;
+    const timer = setTimeout(() => setTimeLeft(prev => (prev !== null ? prev - 1 : null)), 1000);
+    return () => clearTimeout(timer);
+  }, [timeLeft, roomState.phase]);
+
+  // ──────────────────────────────────────────────────────────
+  // Listen for review_question events
+useEffect(() => {
+  if (!socket) return;
+  const handleHostReviewQuestion = (data: ReviewQuestionPayload) => {
+    if (debug) console.log('[Host] 🧐 Received host review question:', data);
+    setReviewQuestion(data);
+    setCurrentQuestion(null);
+    setTimeLeft(null);
+  };
+  socket.on('host_review_question', handleHostReviewQuestion); // ✅ NEW
+  return () => {
+    socket.off('host_review_question', handleHostReviewQuestion);
+  };
+}, [socket]);
+
+
+  // ──────────────────────────────────────────────────────────
+  // Listen for leaderboard
   useEffect(() => {
     if (!socket) return;
-
-    const handleQuizEnd = ({ message }: { message: string }) => {
-      setStatus(`🏁 ${message}`);
-      setQuizEnded(true);
-      setPhase('complete');
+    const handleLeaderboard = (data: LeaderboardEntry[]) => {
+      if (debug) console.log('[Host] 🏆 Leaderboard received:', data);
+      setLeaderboard(data);
     };
-
-    socket.on('quiz_end', handleQuizEnd);
-
+    socket.on('leaderboard', handleLeaderboard);
     return () => {
-      socket.off('quiz_end', handleQuizEnd);
+      socket.off('leaderboard', handleLeaderboard);
     };
   }, [socket]);
 
-  // ───────────────────────────────────────────────────────
-  // Timer countdown
-  // ───────────────────────────────────────────────────────
-  useEffect(() => {
-    if (timeLeft === null || phase !== 'in_question') return;
-    if (timeLeft <= 0) {
-      setStatus(`⏱️ Time's up for question ${question}`);
-      return;
-    }
-    const timer = setTimeout(() => setTimeLeft(prev => (prev !== null ? prev - 1 : null)), 1000);
-    return () => clearTimeout(timer);
-  }, [timeLeft, phase, question]);
-
-  // ───────────────────────────────────────────────────────
-  // Host actions
-  // ───────────────────────────────────────────────────────
-  const handleNextQuestion = () => {
-    if (!socket || quizEnded) return;
-    socket.emit('start_next_question', { roomId });
+  // ──────────────────────────────────────────────────────────
+  // Socket emitters for host actions
+  const handleStartRound = () => {
+    socket?.emit('start_round', { roomId });
   };
 
-  const handleNextRound = () => {
-    if (!socket || quizEnded) return;
-    socket.emit('start_next_round', { roomId });
+  const handleNextReview = () => {
+    socket?.emit('next_review', { roomId });
   };
 
-  const handleEndQuiz = () => {
-    if (!socket) return;
-    socket.emit('end_quiz', { roomId });
-    setQuizEnded(true);
-    setPhase('complete');
+  const handleLeaderboardConfirm = () => {
+    socket?.emit('next_round_or_end', { roomId });
   };
 
-  // ───────────────────────────────────────────────────────
-  // Render UI
-  // ───────────────────────────────────────────────────────
-  const phaseColor = {
-    waiting: 'bg-gray-400',
-    in_question: 'bg-green-500',
-    reviewing: 'bg-yellow-500',
-    complete: 'bg-red-600'
-  }[phase];
-
+  // ──────────────────────────────────────────────────────────
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold text-indigo-800 mb-4">🎛 Host Game Controls</h1>
-      <p className="text-sm text-gray-500 mb-4">Room ID: {roomId}</p>
+      <h1 className="text-2xl font-bold mb-4">🎛 Host Controls</h1>
 
       <div className="bg-white p-6 rounded-xl shadow space-y-4">
-        <div className="text-sm text-gray-700 space-y-1">
-          <p>🟢 Round: {round} / {totalRounds}</p>
-<p>🎯 Round Type: {roundTypeName}</p>
-<p>👥 Total Players: {totalPlayers}</p>
+        <p>Round: {roomState.currentRound} / {roomState.totalRounds}</p>
+        <p>Round Type: {roomState.roundTypeName}</p>
+        <p>Phase: {roomState.phase}</p>
 
-          <p className="flex items-center gap-2">
-            🧭 Phase: <span className={`text-white text-xs font-semibold px-2 py-1 rounded ${phaseColor}`}>{phase.replace('_', ' ').toUpperCase()}</span>
-          </p>
-          <p className="mt-2 font-medium">📣 Status: {status}</p>
-          {timeLeft !== null && phase === 'in_question' && (
-            <p className={`text-sm font-semibold ${timeLeft <= 5 ? 'text-red-500' : 'text-gray-700'}`}>
-              ⏳ Time left: {timeLeft}s
-            </p>
-          )}
-        </div>
-
+        {/* Current Question Preview */}
         {currentQuestion && (
           <div className="bg-gray-100 p-4 rounded-xl">
-            <p className="text-sm font-semibold text-gray-700">📘 Current Question Preview:</p>
+            <p className="text-sm font-semibold text-gray-700">📘 Question:</p>
             <p className="text-base text-indigo-700 mt-1">{currentQuestion.text}</p>
-            {Array.isArray(currentQuestion.options) && (
-              <ul className="mt-2 list-disc list-inside text-sm text-gray-800">
-                {currentQuestion.options.map((opt, idx) => (
-                  <li key={idx}>{opt}</li>
-                ))}
-              </ul>
+            <ul className="mt-2 list-disc list-inside text-sm text-gray-800">
+              {currentQuestion.options.map((opt, idx) => (
+                <li key={idx}>{opt}</li>
+              ))}
+            </ul>
+            {timeLeft !== null && (
+              <p className="mt-2 text-sm font-semibold">
+                ⏳ Time left: {timeLeft}s
+              </p>
             )}
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-3 mt-4">
-          <button
-            onClick={handleNextQuestion}
-            className={`px-4 py-2 rounded-xl w-full transition text-white font-semibold shadow bg-indigo-600 hover:bg-indigo-700`}
-            disabled={quizEnded}
-          >
-            ▶️ Next Question
-          </button>
+        {/* Review Question View */}
+        {roomState.phase === 'reviewing' && reviewQuestion && (
+          <div className="bg-yellow-50 p-4 rounded-xl mt-4">
+            <p className="text-sm font-semibold text-gray-800">📖 Reviewing:</p>
+            <p className="text-base text-yellow-900 mt-1">{reviewQuestion.text}</p>
+            <ul className="mt-2 space-y-1 text-sm">
+              {reviewQuestion.options.map((opt, idx) => {
+                const isCorrect = opt === reviewQuestion.correctAnswer;
+                const isSubmitted = opt === reviewQuestion.submittedAnswer;
+                const bgColor = isCorrect
+                  ? 'bg-green-200'
+                  : isSubmitted
+                  ? 'bg-red-200'
+                  : 'bg-white';
 
-          <button
-            onClick={handleNextRound}
-            className={`px-4 py-2 rounded-xl w-full transition text-white font-semibold shadow bg-yellow-500 hover:bg-yellow-600`}
-            disabled={quizEnded}
-          >
-            🔁 Start Next Round
-          </button>
+                return (
+                  <li key={idx} className={`p-1 rounded ${bgColor}`}>
+                    {opt}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
 
-          <button
-            onClick={handleEndQuiz}
-            className="bg-red-600 text-white px-4 py-2 rounded-xl w-full hover:bg-red-700 transition font-semibold shadow"
-            disabled={quizEnded}
-          >
-            ❌ End Quiz
+        {/* Leaderboard */}
+        {roomState.phase === 'leaderboard' && leaderboard.length > 0 && (
+          <div className="bg-green-50 p-4 rounded-xl mt-4">
+            <h2 className="text-lg font-bold text-green-900 mb-2">🏆 Leaderboard</h2>
+            <ol className="list-decimal list-inside text-sm">
+              {leaderboard.map((entry, idx) => (
+                <li key={entry.id}>
+                  {entry.name} — {entry.score} pts
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+
+        {/* Host Control Buttons */}
+        {roomState.phase === 'waiting' && (
+          <button onClick={handleStartRound} className="btn-blue w-full">
+            ▶ Start Round
           </button>
-        </div>
+        )}
+
+        {roomState.phase === 'reviewing' && (
+          <button onClick={handleNextReview} className="btn-yellow w-full">
+            ▶ Next Review
+          </button>
+        )}
+
+        {roomState.phase === 'leaderboard' && (
+          <button onClick={handleLeaderboardConfirm} className="btn-green w-full">
+            ✅ Continue
+          </button>
+        )}
       </div>
     </div>
   );
 };
 
 export default HostGameControls;
+
+
+
 
 
 

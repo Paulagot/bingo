@@ -48,7 +48,7 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     description: 'Lose points for wrong answers — strategic risk/reward.',
     gameplay: 'Wrong answers = -1 point → Strategic guessing',
     pros: ['Strategic', 'High tension', 'Risk vs reward'],
-    timing: '25 seconds per question',
+    timing: '20 seconds per question',
     difficulty: 'Hard',
     bestFor: 'Experienced groups',
     defaultConfig: { questionsPerRound: 6, timePerQuestion: 20 }
