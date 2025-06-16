@@ -3,6 +3,10 @@ import { useParams } from 'react-router-dom';
 import { useQuizSocket } from '../../../sockets/QuizSocketProvider';
 import UseExtraModal from './UseExtraModal';
 import ExtrasPanel from './ExtrasPanel';
+import GlobalExtrasDuringLeaderboard from './GlobalExtrasDuringLeaderboard';
+import { usePlayerStore } from '../usePlayerStore';
+import { fundraisingExtraDefinitions } from '../../../constants/quizMetadata';
+import { useQuizConfig } from '../useQuizConfig';
 
 interface User {
   id: string;
@@ -16,6 +20,12 @@ type Question = {
   clue?: string;
   timeLimit: number;
   questionStartTime?: number;
+};
+
+type LeaderboardEntry = {
+  id: string;
+  name: string;
+  score: number;
 };
 
 const debug = true;
@@ -34,8 +44,14 @@ const QuizGamePlayPage = () => {
   const [clue, setClue] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [phaseMessage, setPhaseMessage] = useState('Waiting for host to start the quiz...');
+  const [roomPhase, setRoomPhase] = useState<'waiting' | 'asking' | 'reviewing' | 'leaderboard' | 'complete'>('waiting');
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
 
-  const [availableExtras, setAvailableExtras] = useState<string[]>(['buyHint', 'freezeOutTeam']);
+  const { config } = useQuizConfig();
+
+ const { players } = usePlayerStore();
+const thisPlayer = players.find(p => p.id === storedPlayerId);
+const availableExtras = thisPlayer?.extras || [];
   const [usedExtras, setUsedExtras] = useState<Record<string, boolean>>({});
   const [usedExtrasThisRound, setUsedExtrasThisRound] = useState<Record<string, boolean>>({});
   const [playersInRoom, setPlayersInRoom] = useState<User[]>([]);
@@ -48,10 +64,24 @@ const QuizGamePlayPage = () => {
   const frozenForIndexRef = useRef<number | null>(null);
   const frozenByRef = useRef<string | null>(null);
 
+
+  const currentRoundNumber = currentQuestionIndexRef.current + 1;
+  const currentRoundType = config?.roundDefinitions?.find(
+  (r) => r.roundNumber === currentRoundNumber
+)?.roundType;
+const allPlayerExtras = thisPlayer?.extras || [];
+
+
+
   const isFrozenNow =
     isFrozen &&
     frozenForIndexRef.current !== null &&
     frozenForIndexRef.current === currentQuestionIndexRef.current;
+
+  if (debug) {
+  console.log('[QuizGamePlayPage] 👤 Player extras loaded:', availableExtras);
+}
+  
 
   useEffect(() => {
     if (!socket || !connected || !roomId || !storedPlayerId) return;
@@ -82,20 +112,7 @@ const QuizGamePlayPage = () => {
         frozenForIndexRef.current = null;
         frozenByRef.current = null;
         if (debug) console.log('[Client] ❄️ Freeze cleared for new question');
-        console.log('[Client] ❄️ frozenForIndexRef cleared:', frozenForIndexRef.current);
-        console.log(`[Client] 🎯 Frontend sees question index: ${currentQuestionIndexRef.current}`);
-        console.log(`[Client] 🧊 frozenForIndexRef: ${frozenForIndexRef.current}`);
-
-
-
       }
-
-      if (debug) {
-  console.log('[Client] 🧠 Current index:', currentQuestionIndexRef.current);
-  console.log('[Client] ❄️ Frozen index ref:', frozenForIndexRef.current);
-  console.log('[Client] ❄️ isFrozenNow:', isFrozenNow);
-}
-
 
       const now = Date.now();
       const elapsed = (now - data.questionStartTime) / 1000;
@@ -116,8 +133,14 @@ const QuizGamePlayPage = () => {
       setClue(null);
       setTimerActive(false);
       setTimeLeft(null);
-      setSelectedAnswer('');
-      setFeedback(`✅ Correct Answer: ${data.correctAnswer}${data.submittedAnswer ? ` | You answered: ${data.submittedAnswer}` : ''}`);
+      setSelectedAnswer(data.submittedAnswer || '');
+      setFeedback(
+        data.submittedAnswer
+          ? data.submittedAnswer === data.correctAnswer
+            ? '✅ Correct!'
+            : `❌ Incorrect. Correct Answer: ${data.correctAnswer}`
+          : `❌ You didn't answer. Correct Answer: ${data.correctAnswer}`
+      );
       setPhaseMessage('Reviewing previous question...');
     };
 
@@ -135,7 +158,7 @@ const QuizGamePlayPage = () => {
     const handleFreezeNotice = ({ frozenBy, frozenForQuestionIndex, message }: { frozenBy: string; frozenForQuestionIndex: number; message?: string }) => {
       const frozenByName = playersInRoom.find(p => p.id === frozenBy)?.name || 'Someone';
       frozenByRef.current = frozenBy;
-    frozenForIndexRef.current = frozenForQuestionIndex;
+      frozenForIndexRef.current = frozenForQuestionIndex;
 
       setIsFrozen(true);
       setWasJustFrozen(true);
@@ -148,6 +171,16 @@ const QuizGamePlayPage = () => {
       setTimeout(() => {
         alert(`⚠️ ${frozenByName} froze you out! You cannot answer the next question.`);
       }, 100);
+    };
+
+    const handleRoomState = ({ phase }: { phase: typeof roomPhase }) => {
+      if (debug) console.log('[Client] 🧭 room_state update:', phase);
+      setRoomPhase(phase);
+    };
+
+    const handleLeaderboard = (data: LeaderboardEntry[]) => {
+      if (debug) console.log('[Client] 🏆 Leaderboard received:', data);
+      setLeaderboard(data);
     };
 
     const handleRoundEnd = ({ round }: { round: number }) => {
@@ -169,7 +202,7 @@ const QuizGamePlayPage = () => {
     };
 
     const handleQuizEnd = ({ message }: { message: string }) => {
-      if (debug) console.log(`[Client] 🏍️ Quiz ended: ${message}`);
+      if (debug) console.log(`[Client] 🏁 Quiz ended: ${message}`);
       setPhaseMessage(message);
       setQuestion(null);
       setTimerActive(false);
@@ -201,6 +234,8 @@ const QuizGamePlayPage = () => {
     socket.on('player_list_updated', handlePlayerListUpdated);
     socket.on('extra_used_successfully', handleExtraUsedSuccessfully);
     socket.on('quiz_error', handleQuizError);
+    socket.on('room_state', handleRoomState);
+    socket.on('leaderboard', handleLeaderboard);
 
     return () => {
       socket.off('question', handleQuestion);
@@ -214,6 +249,8 @@ const QuizGamePlayPage = () => {
       socket.off('player_list_updated', handlePlayerListUpdated);
       socket.off('extra_used_successfully', handleExtraUsedSuccessfully);
       socket.off('quiz_error', handleQuizError);
+      socket.off('room_state', handleRoomState);
+      socket.off('leaderboard', handleLeaderboard);
     };
   }, [socket, connected, roomId, storedPlayerId, playersInRoom]);
 
@@ -232,37 +269,24 @@ const QuizGamePlayPage = () => {
     if (!selectedAnswer || !question || !socket || !roomId || !storedPlayerId) return;
     if (isFrozenNow || answerSubmitted) return;
     if (debug) console.log('[Client] 📤 Submitting answer as', storedPlayerId, '→', selectedAnswer);
-    if (isFrozenNow) {
-  if (debug) console.warn('[Client] ❄️ BLOCKED: You are currently frozen and cannot submit an answer');
-  return;
-}
-
-
     socket.emit('submit_answer', {
       roomId,
       playerId: storedPlayerId,
       answer: selectedAnswer
     });
-
     setAnswerSubmitted(true);
   };
 
   const handleUseExtra = (extraId: string) => {
     if (!socket || !roomId || !storedPlayerId) return;
-
     if (usedExtras[extraId]) {
-      if (debug) console.log(`⚠️ Already used ${extraId}`);
       alert(`You have already used ${extraId}`);
       return;
     }
-
-    const usedAnyThisRound = Object.values(usedExtrasThisRound).some(v => v);
-    if (usedAnyThisRound) {
-      if (debug) console.warn(`❌ Already used an extra this round`);
+    if (Object.values(usedExtrasThisRound).some(v => v)) {
       alert('You can only use one extra per round!');
       return;
     }
-
     if (extraId === 'buyHint') {
       socket.emit('use_extra', {
         roomId,
@@ -270,7 +294,6 @@ const QuizGamePlayPage = () => {
         extraId: 'buyHint'
       });
     }
-
     if (extraId === 'freezeOutTeam') {
       setFreezeModalOpen(true);
     }
@@ -278,7 +301,6 @@ const QuizGamePlayPage = () => {
 
   const handleFreezeConfirm = (targetPlayerId: string) => {
     if (!socket || !roomId || !storedPlayerId || !targetPlayerId) return;
-    if (debug) console.log('[Client] ❄️ Submitting freezeout for player:', targetPlayerId);
     socket.emit('use_extra', {
       roomId,
       playerId: storedPlayerId,
@@ -287,6 +309,25 @@ const QuizGamePlayPage = () => {
     });
     setFreezeModalOpen(false);
   };
+
+const roundExtras = allPlayerExtras.filter((extraId) => {
+  const extra = fundraisingExtraDefinitions[extraId as keyof typeof fundraisingExtraDefinitions];
+  if (!extra) return false;
+  if (extra.applicableTo === 'global') return false; // exclude global during question phase
+  if (!currentRoundType) return false;
+  return Array.isArray(extra.applicableTo) && extra.applicableTo.includes(currentRoundType);
+});
+
+
+
+
+if (debug) {
+  console.log('[QuizGamePlayPage] 🔢 currentRoundNumber:', currentRoundNumber);
+  console.log('[QuizGamePlayPage] 🧩 currentRoundType:', currentRoundType);
+  console.log('[QuizGamePlayPage] 🎯 roundExtras:', roundExtras);
+}
+
+
 
   return (
     <div className="p-8">
@@ -306,7 +347,46 @@ const QuizGamePlayPage = () => {
         </div>
       )}
 
-      {question ? (
+   {roomPhase === 'leaderboard' && leaderboard.length > 0 ? (
+  <div className="bg-green-50 p-6 rounded-xl text-center">
+    <h2 className="text-lg font-bold text-green-900 mb-2">🏆 Leaderboard</h2>
+    <ol className="list-decimal list-inside text-sm text-gray-800 mb-4">
+      {leaderboard.map((entry, idx) => (
+        <li key={entry.id}>
+          {entry.name} — {entry.score} pts
+        </li>
+      ))}
+    </ol>
+
+    <GlobalExtrasDuringLeaderboard
+      availableExtras={availableExtras}
+      usedExtras={usedExtras}
+      onUseExtra={handleUseExtra}
+    />
+  </div>
+      ) : roomPhase === 'reviewing' && question ? (
+        <div className="bg-yellow-50 p-6 rounded-xl">
+          <p className="text-sm font-semibold text-gray-800">📖 Reviewing:</p>
+          <p className="text-base text-yellow-900 mt-1">{question.text}</p>
+          <ul className="mt-2 space-y-1 text-sm">
+            {question.options.map((opt, idx) => {
+              const isCorrect = feedback?.includes(opt) && feedback.includes('Correct');
+              const isSubmitted = opt === selectedAnswer;
+              const bgColor = isCorrect
+                ? 'bg-green-200'
+                : isSubmitted
+                ? 'bg-red-200'
+                : 'bg-white';
+              return (
+                <li key={idx} className={`p-1 rounded ${bgColor}`}>
+                  {opt}
+                </li>
+              );
+            })}
+          </ul>
+          {feedback && <p className="mt-4 text-sm text-gray-700 italic">{feedback}</p>}
+        </div>
+      ) : question ? (
         <div className={`bg-white p-6 rounded-xl shadow space-y-4 ${isFrozen ? 'opacity-75 border-2 border-red-300' : ''}`}>
           <div>
             <h2 className="text-xl font-semibold text-indigo-700">{question.text}</h2>
@@ -352,14 +432,14 @@ const QuizGamePlayPage = () => {
             </button>
           </div>
 
-          <ExtrasPanel
-            roomId={roomId!}
-            playerId={storedPlayerId!}
-            availableExtras={availableExtras}
-            usedExtras={usedExtras}
-            usedExtrasThisRound={usedExtrasThisRound}
-            onUseExtra={handleUseExtra}
-          />
+        <ExtrasPanel
+  roomId={roomId!}
+  playerId={storedPlayerId!}
+  availableExtras={roundExtras}
+  usedExtras={usedExtras}
+  usedExtrasThisRound={usedExtrasThisRound}
+  onUseExtra={handleUseExtra}
+/>
 
           {feedback && (
             <div className="mt-4 text-lg font-medium text-center text-gray-800">{feedback}</div>
