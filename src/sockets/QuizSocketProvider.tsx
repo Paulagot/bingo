@@ -63,31 +63,31 @@ export const QuizSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setConnectionState('connecting');
 
       // Hydrate quiz state from server
-      socket.on('room_config', (config) => {
+      socket.on('room_config', (config: any) => {
         debugLog.event('🎮 room_config');
         debugLog.data('config', config);
         useQuizConfig.getState().setFullConfig(config);
       });
 
-      socket.on('player_list_updated', ({ players }) => {
+      socket.on('player_list_updated', ({ players }: { players: any }) => {
         debugLog.event('👥 player_list_updated');
         debugLog.data('players', players);
         usePlayerStore.getState().setFullPlayers(players || []);
       });
 
-      socket.on('admin_list_updated', ({ admins }) => {
+      socket.on('admin_list_updated', ({ admins }: { admins: any }) => {
         debugLog.event('👨‍💼 admin_list_updated');
         debugLog.data('admins', admins);
         useAdminStore.getState().setFullAdmins(admins || []);
       });
 
-      socket.on('room_state', (state) => {
+      socket.on('room_state', (state: any) => {
         debugLog.event('🧩 room_state');
         debugLog.data('state', state);
         useRoomState.getState().setRoomState(state);
       });
 
-      socket.on('quiz_error', (data) => {
+      socket.on('quiz_error', (data: any) => {
         debugLog.error('quiz_error:', data);
       });
 
@@ -105,20 +105,20 @@ export const QuizSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }
       });
 
-      socket.on('disconnect', (reason) => {
+      socket.on('disconnect', (reason: string) => {
         debugLog.warning('🔴 Disconnected:', reason);
         setConnected(false);
         setConnectionState('disconnected');
       });
 
-      socket.on('connect_error', (err) => {
+      socket.on('connect_error', (err: Error) => {
         debugLog.error('connect_error:', err);
         setLastError(err.message);
         setConnectionState('disconnected');
       });
 
       // Engine-level reconnect events
-      socket.io.on('reconnect_attempt', (attempt) => {
+      socket.io.on('reconnect_attempt', (attempt: number) => {
         reconnectAttemptRef.current = attempt;
         debugLog.warning(`Reconnecting attempt ${attempt}`);
         setConnectionState('reconnecting');
