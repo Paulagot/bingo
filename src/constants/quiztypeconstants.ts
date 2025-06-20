@@ -10,7 +10,7 @@ export const roundTypes: RoundTypeDefinition[] = [
     defaultConfig: {
       questionsPerRound: 6,
       timePerQuestion: 25,
-      pointsPerQuestion: 1
+      pointsPerQuestion: 2
     }
   },
   {
@@ -20,7 +20,8 @@ export const roundTypes: RoundTypeDefinition[] = [
     defaultConfig: {
       questionsPerRound: 6,
       timePerQuestion: 10,
-      totalTimeSeconds: 60
+      totalTimeSeconds: 120,
+      pointsPerQuestion: 3
     }
   },
   {
@@ -28,8 +29,10 @@ export const roundTypes: RoundTypeDefinition[] = [
     name: 'Wipeout',
     description: 'Lose points for wrong answers. Strategic gameplay.',
     defaultConfig: {
-      questionsPerRound: 6,
-      timePerQuestion: 20
+      questionsPerRound: 8,
+      timePerQuestion: 18,
+      pointsPerQuestion: 2,
+      pointsLostPerWrong: 1
     }
   },
   {

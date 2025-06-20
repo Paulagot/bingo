@@ -1,7 +1,7 @@
 // src/components/Quiz/useQuizConfig.ts
 
 import { create } from 'zustand';
-import type { QuizConfig, RoundDefinition } from '../../types/quiz';
+import type { QuizConfig, RoundDefinition } from '../Quiz/types/quiz';
 
 
 interface QuizState {

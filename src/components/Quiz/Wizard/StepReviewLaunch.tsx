@@ -1,6 +1,7 @@
 import { FC, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuizSetupStore } from '../useQuizSetupStore';
+import { useQuizConfig } from '../useQuizConfig'; // ADD THIS IMPORT
 import { useQuizSocket } from '../../../sockets/QuizSocketProvider';
 import { roundTypeMap } from '../../../constants/quiztypeconstants';
 import { fundraisingExtras } from '../../../types/quiz';
@@ -10,6 +11,7 @@ import { ChevronLeft, CheckCircle, AlertTriangle, Rocket } from 'lucide-react';
 
 const StepReviewLaunch: FC<WizardStepProps> = ({ onBack }) => {
   const { setupConfig } = useQuizSetupStore();
+  const { setFullConfig } = useQuizConfig(); // ADD THIS
   const navigate = useNavigate();
   const { socket, connected } = useQuizSocket();
   const [isLaunching, setIsLaunching] = useState(false);
@@ -59,8 +61,21 @@ const StepReviewLaunch: FC<WizardStepProps> = ({ onBack }) => {
       const data = await res.json();
       console.log('[API Success]', data);
 
+      // Store room identity
       localStorage.setItem('current-room-id', data.roomId);
       localStorage.setItem('current-host-id', data.hostId);
+
+      // 🔥 CRITICAL FIX: Bridge setup config to dashboard config
+      const completeConfig = {
+        ...setupConfig,
+        roomId: data.roomId,
+        hostId: data.hostId,
+      };
+      
+      // Transfer the complete config to the dashboard store
+      setFullConfig(completeConfig);
+      
+      console.log('🔗 [StepReviewLaunch] Bridged config to dashboard store:', completeConfig);
 
       navigate(`/quiz/host-dashboard/${data.roomId}`);
     } catch (err) {

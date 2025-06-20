@@ -1,4 +1,4 @@
-// playerHandlers.js
+// playerHandlers.js - FIXED VERSION
 import { 
   getQuizRoom, 
   addOrUpdatePlayer, 
@@ -8,27 +8,24 @@ import {
   addAdminToQuizRoom, 
   getCurrentQuestion,
   handlePlayerExtra,
-  emitRoomState  // ✅ Add this import
+  emitRoomState,
+  updatePlayerSession,
+  getPlayerSession,
+  isPlayerInActiveSession,
+  cleanExpiredSessions
 } from '../quizRoomManager.js';
 import { emitFullRoomState } from '../handlers/sharedUtils.js';
 
 const debug = true;
 
-// ✅ Import engines dynamically to avoid circular dependencies
 function getEngine(room) {
   const roundType = room.config.roundDefinitions?.[room.currentRound - 1]?.roundType;
   
   switch (roundType) {
     case 'general_trivia':
       return import('../ gameplayEngines/generalTriviaEngine.js');
-    // case 'speed_round':
-    //   return import('../engines/speedRoundEngine.js');
-    // case 'wipeout':
-    //   return import('../engines/wipeoutEngine.js');
-    // case 'head_to_head':
-    //   return import('../engines/headToHeadEngine.js');
-    // case 'media_puzzle':
-    //   return import('../engines/mediaPuzzleEngine.js');
+    case 'wipeout':
+      return import('../ gameplayEngines/wipeoutEngine.js');
     default:
       console.warn(`[getEngine] ❓ Unknown round type: ${roundType}`);
       return null;
@@ -70,19 +67,64 @@ export function setupPlayerHandlers(socket, namespace) {
       updateAdminSocketId(roomId, user.id, socket.id);
       console.log(`[Join] 🛠️ Admin "${user.name || user.id}" joined with socket ${socket.id}`);
     } else if (role === 'player') {
+      // ✅ NEW: Smart session management for players
+      cleanExpiredSessions(roomId);
+      
       const existingPlayer = room.players.find(p => p.id === user.id);
-      if (existingPlayer) user.name = existingPlayer.name;
-      else if (!user.name) user.name = `Player ${user.id}`;
-      addOrUpdatePlayer(roomId, { ...user, socketId: socket.id });
-      updatePlayerSocketId(roomId, user.id, socket.id);
-      console.log(`[Join] 🎮 Player "${user.name}" (${user.id}) joined with socket ${socket.id}`);
+      const existingSession = getPlayerSession(roomId, user.id);
+      
+      // ✅ Check if player exists in room
+      if (!existingPlayer) {
+        console.log(`[Join] ➕ New player "${user.name}" being added to room`);
+        // This is a new player - add them normally
+        addOrUpdatePlayer(roomId, { ...user, socketId: socket.id });
+        updatePlayerSocketId(roomId, user.id, socket.id);
+        
+        updatePlayerSession(roomId, user.id, {
+          socketId: socket.id,
+          status: 'waiting',
+          inPlayRoute: false
+        });
+      } else {
+        // ✅ Player already exists - this is a socket update/reconnection
+        console.log(`[Join] 🔄 Existing player "${existingPlayer.name}" updating socket connection`);
+        
+        // ✅ SMART LOGIC: Only block if truly duplicate
+        if (existingSession && 
+            existingSession.status === 'playing' && 
+            existingSession.inPlayRoute && 
+            existingSession.socketId !== socket.id) {
+          
+          // Check if the existing socket is still actually connected
+          const existingSocket = namespace.sockets.get(existingSession.socketId);
+          if (existingSocket && existingSocket.connected) {
+            console.warn(`[Join] ❌ Player ${user.id} has active session on different socket`);
+            socket.emit('quiz_error', { 
+              message: 'You already have an active game session. Please close other tabs or wait 45 seconds if you were disconnected.' 
+            });
+            return;
+          } else {
+            console.log(`[Join] 🧹 Previous socket no longer connected, allowing new connection`);
+          }
+        }
+        
+        // Update player's socket ID and session
+        updatePlayerSocketId(roomId, user.id, socket.id);
+        updatePlayerSession(roomId, user.id, {
+          socketId: socket.id,
+          status: existingSession?.inPlayRoute ? 'playing' : 'waiting',
+          inPlayRoute: existingSession?.inPlayRoute || false
+        });
+      }
+      
+      console.log(`[Join] 🎮 Player "${user.name}" (${user.id}) connected with socket ${socket.id}`);
     } else {
       console.error(`[Join] ❌ Unknown role: "${role}"`);
       socket.emit('quiz_error', { message: `Unknown role "${role}".` });
       return;
     }
 
-    // ✅ IMPORTANT: Emit room state after adding player to ensure correct count
+    // ✅ Emit room state after processing join
     emitRoomState(namespace, roomId);
     emitFullRoomState(socket, namespace, roomId);
     namespace.to(roomId).emit('user_joined', { user, role });
@@ -94,6 +136,76 @@ export function setupPlayerHandlers(socket, namespace) {
     }, 50);
   });
 
+  // ✅ NEW: Route change tracking for anti-cheat
+  socket.on('player_route_change', ({ roomId, playerId, route, entering }) => {
+    if (!roomId || !playerId || !route) {
+      console.error(`[RouteChange] ❌ Missing data:`, { roomId, playerId, route, entering });
+      return;
+    }
+
+    if (debug) console.log(`[RouteChange] 🛣️ Player ${playerId} ${entering ? 'entering' : 'leaving'} route: ${route}`);
+    
+    if (route === 'play') {
+      if (entering) {
+        // ✅ FIXED: Don't block here, just update session status
+        updatePlayerSession(roomId, playerId, {
+          socketId: socket.id,
+          status: 'playing',
+          inPlayRoute: true
+        });
+        
+        console.log(`[RouteChange] ✅ Player ${playerId} entered play route`);
+      } else {
+        // Player leaving play route
+        updatePlayerSession(roomId, playerId, {
+          socketId: socket.id,
+          status: 'waiting',
+          inPlayRoute: false
+        });
+        
+        console.log(`[RouteChange] ⬅️ Player ${playerId} left play route`);
+      }
+    }
+  });
+
+  // ... rest of the handlers remain the same ...
+  
+  socket.on('add_admin', ({ roomId, admin }) => {
+    console.log(`[AddAdmin] 🛠️ Host adding admin "${admin.name}" to room ${roomId}`);
+    
+    if (!roomId || !admin || !admin.name || !admin.id) {
+      console.error(`[AddAdmin] ❌ Invalid data:`, { roomId, admin });
+      socket.emit('quiz_error', { message: 'Invalid admin data provided.' });
+      return;
+    }
+
+    const room = getQuizRoom(roomId);
+    if (!room) {
+      console.warn(`[AddAdmin] ❌ Room not found: ${roomId}`);
+      socket.emit('quiz_error', { message: `Room ${roomId} not found.` });
+      return;
+    }
+
+    const existingAdmin = room.admins.find(a => a.name.toLowerCase() === admin.name.toLowerCase());
+    if (existingAdmin) {
+      console.warn(`[AddAdmin] ❌ Admin name already exists: ${admin.name}`);
+      socket.emit('quiz_error', { message: `An admin named "${admin.name}" already exists.` });
+      return;
+    }
+
+    const success = addAdminToQuizRoom(roomId, admin);
+    if (!success) {
+      console.error(`[AddAdmin] ❌ Failed to add admin to room ${roomId}`);
+      socket.emit('quiz_error', { message: 'Failed to add admin to room.' });
+      return;
+    }
+
+    console.log(`[AddAdmin] ✅ Admin "${admin.name}" added to room ${roomId}`);
+    
+    namespace.to(roomId).emit('admin_list_updated', { admins: room.admins });
+    emitRoomState(namespace, roomId);
+  });
+
   socket.on('submit_answer', ({ roomId, playerId, answer }) => {
     const room = getQuizRoom(roomId);
     if (!room) {
@@ -102,14 +214,21 @@ export function setupPlayerHandlers(socket, namespace) {
       return;
     }
 
-    // ✅ Check if player is frozen BEFORE processing answer
-  const playerData = room.playerData?.[playerId];
-if (playerData?.frozenNextQuestion && 
-    playerData?.frozenForQuestionIndex === room.currentQuestionIndex) {
-  console.log(`[Answer] ❄️ Ignoring answer from frozen player: ${playerId}`);
-  socket.emit('quiz_error', { message: 'You are frozen for this question and cannot answer!' });
-  return;
-}
+    const playerData = room.playerData?.[playerId];
+    if (playerData?.frozenNextQuestion && 
+        playerData?.frozenForQuestionIndex === room.currentQuestionIndex) {
+      console.log(`[Answer] ❄️ Ignoring answer from frozen player: ${playerId}`);
+      socket.emit('quiz_error', { message: 'You are frozen for this question and cannot answer!' });
+      return;
+    }
+
+    const currentQuestion = room.questions?.[room.currentQuestionIndex];
+    const roundAnswerKey = `${currentQuestion.id}_round${room.currentRound}`;
+    if (currentQuestion && playerData?.answers?.[roundAnswerKey]) {
+      console.log(`[Answer] 🔄 Player ${playerId} already answered question ${currentQuestion.id} in round ${room.currentRound}`);
+      socket.emit('quiz_error', { message: 'You have already answered this question!' });
+      return;
+    }
 
     const enginePromise = getEngine(room);
     if (!enginePromise) {
@@ -126,23 +245,21 @@ if (playerData?.frozenNextQuestion &&
       }
 
       const question = room.questions?.[room.currentQuestionIndex];
-const isCorrect = question && answer === question.correctAnswer;
+      const isCorrect = question && answer === question.correctAnswer;
+      const player = room.players.find(p => p.id === playerId);
+      const playerName = player?.name || 'Unknown';
 
-const player = room.players.find(p => p.id === playerId);
-const playerName = player?.name || 'Unknown';
+      console.log(
+        `[Answer] ✅ ${playerName} (${playerId}) submitted: "${answer}" → ${isCorrect ? '✅ Correct' : '❌ Wrong'}`
+      );
 
-console.log(
-  `[Answer] ✅ ${playerName} (${playerId}) submitted: "${answer}" → ${isCorrect ? '✅ Correct' : '❌ Wrong'}`
-);
-
-engine.handlePlayerAnswer(roomId, playerId, answer);
+      engine.handlePlayerAnswer(roomId, playerId, answer);
     }).catch(err => {
       console.error(`[Answer] ❌ Engine import failed:`, err);
       socket.emit('quiz_error', { message: 'Failed to load gameplay engine' });
     });
   });
 
-  // ✅ ENHANCED: Use centralized extras handler with better error handling
   socket.on('use_extra', ({ roomId, playerId, extraId, targetPlayerId }) => {
     console.log(`[PlayerHandler] 🧪 Received use_extra:`, { roomId, playerId, extraId, targetPlayerId });
     
@@ -155,12 +272,10 @@ engine.handlePlayerAnswer(roomId, playerId, answer);
       socket.emit('extra_used_successfully', { extraId });
     } else {
       console.warn(`[PlayerHandler] ❌ Extra ${extraId} failed for ${playerId}: ${result.error}`);
-      // ✅ FIXED: Always emit error to client so tests can detect freeze blocking
       socket.emit('quiz_error', { message: result.error });
     }
   });
 
-  // ✅ LEGACY SUPPORT: Keep individual use_clue handler for backward compatibility
   socket.on('use_clue', ({ roomId, playerId }) => {
     console.log(`[PlayerHandler] 💡 Legacy use_clue from ${playerId} - redirecting to buyHint`);
     
@@ -168,7 +283,6 @@ engine.handlePlayerAnswer(roomId, playerId, answer);
     
     if (result.success) {
       console.log(`[PlayerHandler] ✅ Legacy clue used successfully by ${playerId}`);
-      // ✅ Emit legacy event for backward compatibility
       const room = getQuizRoom(roomId);
       const question = getCurrentQuestion(roomId);
       if (question?.clue) {
@@ -180,43 +294,62 @@ engine.handlePlayerAnswer(roomId, playerId, answer);
     }
   });
 
-  socket.on('request_current_state', ({ roomId }) => {
+  socket.on('request_current_state', ({ roomId, playerId }) => {
     emitFullRoomState(socket, namespace, roomId);
     const room = getQuizRoom(roomId);
     if (!room) return;
 
-    // ✅ Resend current question if in asking phase
     if (room.currentPhase === 'asking' && room.currentQuestionIndex >= 0) {
       const question = room.questions[room.currentQuestionIndex];
       const roundConfig = room.config.roundDefinitions[room.currentRound - 1];
-      const timeLimit = roundConfig?.timePerQuestion || 25;
+      const timeLimit = roundConfig?.config?.timePerQuestion || 10;
       const questionStartTime = room.questionStartTime || Date.now();
-
+      
+      const elapsed = Math.floor((Date.now() - questionStartTime) / 1000);
+      const remainingTime = Math.max(0, timeLimit - elapsed);
+      
+      const playerData = room.playerData[playerId];
+      const roundAnswerKey = `${question.id}_round${room.currentRound}`;
+      const hasAnswered = playerData?.answers?.[roundAnswerKey] ? true : false;
+      const submittedAnswer = playerData?.answers?.[roundAnswerKey]?.submitted || null;
+      const isFrozen = playerData?.frozenNextQuestion && 
+                      playerData?.frozenForQuestionIndex === room.currentQuestionIndex;
+      
       socket.emit('question', {
         id: question.id,
         text: question.text,
         options: question.options || [],
         timeLimit,
-        questionStartTime
+        questionStartTime,
+        questionNumber: room.currentQuestionIndex + 1,
+        totalQuestions: room.questions.length
+      });
+      
+      socket.emit('player_state_recovery', {
+        hasAnswered,
+        submittedAnswer,
+        isFrozen,
+        frozenBy: playerData?.frozenBy || null,
+        usedExtras: playerData?.usedExtras || {},
+        usedExtrasThisRound: playerData?.usedExtrasThisRound || {},
+        remainingTime,
+        currentQuestionIndex: room.currentQuestionIndex
       });
 
-      console.log(`[Recovery] 🔁 Resent question ${question.id} to reconnecting player`);
+      console.log(`[Recovery] 🔁 Sent complete state recovery for ${playerId}: answered=${hasAnswered}, frozen=${isFrozen}, remaining=${remainingTime}s`);
     }
   });
 
   socket.on('disconnect', () => {
-    // ✅ Cleanup logic with delay to handle reconnections
     setTimeout(() => {
       const rooms = Array.from(socket.rooms).filter(r => r !== socket.id);
       rooms.forEach(roomId => {
         const room = getQuizRoom(roomId);
         if (!room) return;
 
-        // ✅ Clean up admins who are no longer connected
         const idx = room.admins.findIndex(a => a.socketId === socket.id);
         if (idx !== -1) {
           const admin = room.admins[idx];
-          // ✅ Only remove if this admin doesn't have other active connections
           const stillConnected = room.admins.some(a => a.id === admin.id && a.socketId !== socket.id);
           if (!stillConnected) {
             room.admins.splice(idx, 1);
@@ -224,11 +357,8 @@ engine.handlePlayerAnswer(roomId, playerId, answer);
             namespace.to(roomId).emit('admin_list_updated', { admins: room.admins });
           }
         }
-
-        // ✅ NOTE: We don't remove players on disconnect as they might reconnect
-        // Players are only removed when the game ends or room is deleted
       });
-    }, 5000); // ✅ 5 second delay to allow for quick reconnections
+    }, 5000);
   });
 }
 
