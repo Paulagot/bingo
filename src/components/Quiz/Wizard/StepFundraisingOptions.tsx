@@ -1,8 +1,188 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuizSetupStore } from '../useQuizSetupStore';
 import { fundraisingExtraDefinitions, roundTypeDefinitions } from '../../../constants/quizMetadata';
 import type { FundraisingExtraDefinition } from '../../../constants/quizMetadata';
-import { Globe, Target, ChevronLeft, ChevronRight, TrendingUp, Plus, Trash2 } from 'lucide-react';
+import { Globe, Target, ChevronLeft, ChevronRight, TrendingUp, Plus, Trash2, RotateCcw, Info } from 'lucide-react';
+
+interface FlipCardProps {
+  extraKey: string;
+  details: FundraisingExtraDefinition;
+  onAdd: (key: string) => void;
+  getSuggestedPriceRange: (price: string) => string;
+  getApplicabilityInfo: (rule: FundraisingExtraDefinition) => any;
+  getExcitementColor: (excitement: string) => string;
+}
+
+const FlipCard: React.FC<FlipCardProps> = ({ 
+  extraKey, 
+  details, 
+  onAdd, 
+  getSuggestedPriceRange, 
+  getApplicabilityInfo, 
+  getExcitementColor 
+}) => {
+  const [isFlipped, setIsFlipped] = useState(false);
+  const applicability = getApplicabilityInfo(details);
+
+  const handleCardClick = () => {
+    setIsFlipped(!isFlipped);
+  };
+
+  const handleAddClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onAdd(extraKey);
+  };
+
+  return (
+    <div className="group perspective-1000 h-72 md:h-80">
+      <div 
+        className={`relative w-full h-full transition-transform duration-700 transform-style-preserve-3d cursor-pointer ${
+          isFlipped ? 'rotate-y-180' : ''
+        }`}
+        onClick={handleCardClick}
+      >
+        {/* Front of card */}
+        <div className={`absolute inset-0 backface-hidden border-2 rounded-xl hover:shadow-lg transition-all duration-200 ${getExcitementColor(details.excitement || 'Low')}`}>
+          <div className="p-3 md:p-4 h-full flex flex-col">
+            {/* Header - Compact layout */}
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-center space-x-2 md:space-x-3 flex-1 min-w-0">
+                <div className={`w-8 h-8 md:w-10 md:h-10 rounded-lg flex items-center justify-center text-lg md:text-xl flex-shrink-0 ${
+                  details.excitement === 'High' ? 'bg-red-100' :
+                  details.excitement === 'Medium' ? 'bg-yellow-100' : 'bg-green-100'
+                }`}>
+                  {details.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-semibold text-gray-900 text-sm md:text-base truncate">{details.label}</h4>
+                  <span className={`inline-block px-1.5 py-0.5 rounded-full text-xs font-medium mt-1 ${
+                    details.excitement === 'High' ? 'bg-red-100 text-red-700' :
+                    details.excitement === 'Medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'
+                  }`}>
+                    {details.excitement} Excitement
+                  </span>
+                </div>
+              </div>
+              <Info className="w-3 h-3 text-gray-400 flex-shrink-0" />
+            </div>
+
+            {/* Applicability */}
+            <div className="mb-3">
+              <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs ${applicability.color}`}>
+                {applicability.icon}
+                <span className="truncate">{applicability.text}</span>
+              </div>
+            </div>
+
+            {/* Description */}
+            <div className="mb-3 flex-1">
+              <p className="text-xs md:text-sm text-gray-700 leading-relaxed line-clamp-3">{details.description}</p>
+            </div>
+
+            {/* Suggested Price */}
+            <div className="mb-3">
+              <div className="text-xs text-gray-600 mb-1">Suggested Price</div>
+              <span className="text-xs font-medium text-gray-700 bg-gray-100 px-2 py-1 rounded-full">
+                {getSuggestedPriceRange(details.suggestedPrice)}
+              </span>
+            </div>
+
+            {/* Add button */}
+            <button
+              onClick={handleAddClick}
+              className="w-full py-2 md:py-3 px-3 md:px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md active:scale-[0.98] flex items-center justify-center space-x-2"
+            >
+              <Plus className="w-3 h-3 md:w-4 md:h-4" />
+              <span className="text-xs md:text-sm">Add Extra</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Back of card */}
+        <div className="absolute inset-0 backface-hidden rotate-y-180 border-2 rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-200">
+          <div className="p-4 h-full flex flex-col">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-2">
+                <span className="text-xl">{details.icon}</span>
+                <h4 className="font-semibold text-gray-900 text-base">{details.label}</h4>
+              </div>
+              <RotateCcw className="w-3 h-3 text-gray-400" />
+            </div>
+
+            <div className="space-y-3 flex-1 text-xs overflow-hidden min-h-0">
+              {/* Strategy & Impact */}
+              <div className="min-h-0">
+                <h5 className="font-medium text-gray-800 mb-1 text-xs">Strategy</h5>
+                <p className="text-gray-600 text-xs leading-tight line-clamp-2">{details.strategy}</p>
+              </div>
+
+              <div className="min-h-0">
+                <h5 className="font-medium text-gray-800 mb-1 text-xs">Impact</h5>
+                <p className="text-gray-600 text-xs leading-tight line-clamp-2">{details.impact}</p>
+              </div>
+
+              {/* Pros */}
+              {details.pros && details.pros.length > 0 && (
+                <div className="min-h-0">
+                  <h5 className="font-medium text-gray-800 mb-1 text-xs">Benefits</h5>
+                  <div className="flex flex-wrap gap-1">
+                    {details.pros.map((pro: string, idx: number) => (
+                      <span key={idx} className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded text-xs whitespace-nowrap">
+                        {pro}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Applicable Rounds Detail */}
+              <div className="min-h-0">
+                <h5 className="font-medium text-gray-800 mb-1 text-xs">Available In</h5>
+                {details.applicableTo === 'global' ? (
+                  <div className="flex items-center space-x-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">
+                    <Globe className="w-3 h-3" />
+                    <span>All round types</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-1">
+                    {details.applicableTo.map((roundType, idx) => {
+                      const roundDef = roundTypeDefinitions[roundType];
+                      return (
+                        <div key={idx} className="flex items-center space-x-1 px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
+                          <span>{roundDef?.icon}</span>
+                          <span className="whitespace-nowrap">{roundDef?.name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Special Properties */}
+              {((details as any).totalRestorePoints || (details as any).pointsToRob) && (
+                <div className="min-h-0">
+                  <h5 className="font-medium text-gray-800 mb-1 text-xs">Special</h5>
+                  <div className="flex flex-wrap gap-1">
+                    {(details as any).totalRestorePoints && (
+                      <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">
+                        {(details as any).totalRestorePoints} restore points
+                      </span>
+                    )}
+                    {(details as any).pointsToRob && (
+                      <span className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-xs">
+                        Steal {(details as any).pointsToRob} points
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const StepFundraisingOptions: React.FC<{ onNext: () => void; onBack: () => void }> = ({ onNext, onBack }) => {
   const { setupConfig, updateSetupConfig } = useQuizSetupStore();
@@ -107,7 +287,7 @@ export const StepFundraisingOptions: React.FC<{ onNext: () => void; onBack: () =
         <p className="text-gray-700 text-sm">
           {selectedExtras.length > 0
             ? `Excellent! You've enabled ${selectedExtras.length} fundraising extra${selectedExtras.length > 1 ? 's' : ''} to boost engagement.`
-            : 'Choose optional fundraising extras to enhance both fun and donations!'}
+            : 'Choose optional fundraising extras to enhance both fun and donations! Click any card to see detailed strategy info.'}
         </p>
       </div>
     </div>
@@ -187,54 +367,23 @@ export const StepFundraisingOptions: React.FC<{ onNext: () => void; onBack: () =
       {selectedExtras.length < applicableExtras.length && (
         <div className="space-y-4">
           <h3 className="font-semibold text-gray-800">Add Fundraising Extras</h3>
+          <div className="text-xs md:text-sm text-gray-600 bg-blue-50 border border-blue-200 rounded-lg p-3">
+            💡 <strong>Tip:</strong> Click any card to flip it and see detailed strategy information!
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {applicableExtras
               .filter(([key]) => !selectedExtras.includes(key))
-              .map(([key, details]) => {
-                const applicability = getApplicabilityInfo(details);
-                return (
-                  <div key={key} className={`border-2 rounded-xl ${getExcitementColor(details.excitement || 'Low')} hover:shadow-lg`}>
-                    <div className="p-5 space-y-4">
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-center space-x-3">
-                          <div className={`w-12 h-12 rounded-lg flex items-center justify-center text-2xl ${
-                            details.excitement === 'High' ? 'bg-red-100' :
-                            details.excitement === 'Medium' ? 'bg-yellow-100' : 'bg-green-100'
-                          }`}>
-                            {details.icon}
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-gray-900 text-lg">{details.label}</h4>
-                            <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs mt-1 ${applicability.color}`}>
-                              {applicability.icon}
-                              <span>{applicability.text}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end space-y-2">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            details.excitement === 'High' ? 'bg-red-100 text-red-700' :
-                            details.excitement === 'Medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'
-                          }`}>
-                            {details.excitement} Excitement
-                          </span>
-                          <span className="text-xs font-medium text-gray-600 bg-white px-2 py-1 rounded-full">
-                            {getSuggestedPriceRange(details.suggestedPrice)}
-                          </span>
-                        </div>
-                      </div>
-                      <p className="text-sm text-gray-700 leading-relaxed">{details.description}</p>
-                      <button
-                        onClick={() => handleAddExtra(key)}
-                        className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md active:scale-[0.98] flex items-center justify-center space-x-2"
-                      >
-                        <Plus className="w-4 h-4" />
-                        <span>Add Extra</span>
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+              .map(([key, details]) => (
+                <FlipCard
+                  key={key}
+                  extraKey={key}
+                  details={details}
+                  onAdd={handleAddExtra}
+                  getSuggestedPriceRange={getSuggestedPriceRange}
+                  getApplicabilityInfo={getApplicabilityInfo}
+                  getExcitementColor={getExcitementColor}
+                />
+              ))}
           </div>
         </div>
       )}
@@ -257,6 +406,36 @@ export const StepFundraisingOptions: React.FC<{ onNext: () => void; onBack: () =
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>
+
+      {/* CSS styles */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          .perspective-1000 {
+            perspective: 1000px;
+          }
+          .transform-style-preserve-3d {
+            transform-style: preserve-3d;
+          }
+          .backface-hidden {
+            backface-visibility: hidden;
+          }
+          .rotate-y-180 {
+            transform: rotateY(180deg);
+          }
+          .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+          }
+          .line-clamp-3 {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+          }
+        `
+      }} />
     </div>
   );
 };

@@ -1,15 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuizSocket } from '../../../sockets/QuizSocketProvider';
-import { joinQuizRoom } from '../joinQuizSocket';
-import { usePlayerStore } from '../usePlayerStore';
 import { useQuizConfig } from '../useQuizConfig';
-import { fundraisingExtraDefinitions } from '../../../constants/quizMetadata';
+import { fundraisingExtraDefinitions, roundTypeDefinitions } from '../../../constants/quizMetadata';
+import type { RoundTypeId } from '../../../types/quiz';
 
-// Debug configuration
 const DEBUG = true;
 
-// Debug logger with emojis for this component
 const debugLog = {
   info: (message: string, ...args: any[]) => { if (DEBUG) console.log(`🔵 [WaitingPage] ${message}`, ...args); },
   success: (message: string, ...args: any[]) => { if (DEBUG) console.log(`✅ [WaitingPage] ${message}`, ...args); },
@@ -20,95 +17,203 @@ const debugLog = {
   lifecycle: (message: string, ...args: any[]) => { if (DEBUG) console.log(`🔄 [WaitingPage] ${message}`, ...args); }
 };
 
-// Round type explainers (same as your host dashboard for consistency)
-const roundTypeExplainers: Record<string, { title: string; icon: string; difficulty: string }> = {
-  general_trivia: { title: "General Trivia", icon: "🧠", difficulty: "Easy" },
-  speed_round: { title: "Speed Round", icon: "⚡", difficulty: "Medium" },
-  fastest_finger: { title: "Fastest Finger First", icon: "👆", difficulty: "Medium" },
-  wipeout: { title: "Wipeout", icon: "💀", difficulty: "Hard" },
-  head_to_head: { title: "Head to Head", icon: "⚔️", difficulty: "Hard" },
-  media_puzzle: { title: "Media Puzzle", icon: "🧩", difficulty: "Medium" }
-};
+interface ServerPlayer {
+  id: string;
+  name: string;
+  paid: boolean;
+  paymentMethod: string;
+  credits: number;
+  extras: string[];
+  extraPayments?: Record<string, any>;
+  disqualified?: boolean;
+}
+
+interface RoundDefinition {
+  roundNumber: number;
+  roundType: RoundTypeId;
+  config: any;
+}
+
+interface QuizConfig {
+  prizes?: Array<{
+    place: string;
+    description: string;
+    value?: number;
+    sponsor?: string;
+  }>;
+  currencySymbol?: string;
+  roundDefinitions?: RoundDefinition[];
+}
 
 const QuizGameWaitingPage = () => {
   const { roomId, playerId } = useParams<{ roomId: string; playerId: string }>();
   const { socket, connected } = useQuizSocket();
   const navigate = useNavigate();
-  const { players } = usePlayerStore();
-  const { config } = useQuizConfig();
+  const { config } = useQuizConfig() as { config: QuizConfig };
+  
+  const [playerData, setPlayerData] = useState<ServerPlayer | null>(null);
+  const [allPlayers, setAllPlayers] = useState<ServerPlayer[]>([]);
+  const hasJoinedRef = useRef(false);
 
   debugLog.lifecycle('🚀 QuizGameWaitingPage mount');
   debugLog.data('Component params', { roomId, playerId });
   debugLog.data('Socket state', { connected, hasSocket: !!socket });
-  debugLog.data('Zustand config', config);
 
-  const foundPlayer = players.find(p => p.id === playerId);
-  const name = foundPlayer?.name || 'Player';
-  const extras = foundPlayer?.extras || [];
-
-  // Join room on mount
+  // Listen for server events
   useEffect(() => {
-    if (!socket || !connected || !roomId || !playerId) {
-      debugLog.warning('⚠️ Missing params for joinQuizRoom');
+    if (!socket || !connected) return;
+
+    const handlePlayerListUpdated = ({ players }: { players: ServerPlayer[] }) => {
+      debugLog.event('🎯 player_list_updated received', players);
+      setAllPlayers(players);
+      
+      const currentPlayer = players.find((p: ServerPlayer) => p.id === playerId);
+      if (currentPlayer) {
+        setPlayerData(currentPlayer);
+        debugLog.data('Current player data updated', currentPlayer);
+      }
+    };
+
+    const handleQuizLaunched = ({ roomId: launchedRoomId, message }: { roomId: string; message: string }) => {
+      debugLog.event('🚀 Quiz launched - redirecting to play page', { launchedRoomId, message });
+      
+      setTimeout(() => {
+        navigate(`/quiz/play/${roomId}/${playerId}`);
+      }, 1000);
+      
+      debugLog.success('✅ Redirecting to game...');
+    };
+
+    const handleRoomConfig = (roomConfig: any) => {
+      debugLog.event('🎯 room_config received', roomConfig);
+    };
+
+    socket.on('player_list_updated', handlePlayerListUpdated);
+    socket.on('room_config', handleRoomConfig);
+    socket.on('quiz_launched', handleQuizLaunched);
+
+    return () => {
+      socket.off('player_list_updated', handlePlayerListUpdated);
+      socket.off('room_config', handleRoomConfig);
+      socket.off('quiz_launched', handleQuizLaunched);
+    };
+  }, [socket, connected, playerId, navigate, roomId]);
+
+  // ✅ FIXED: Join room only once and handle existing players properly
+  useEffect(() => {
+    if (!socket || !connected || !roomId || !playerId || hasJoinedRef.current) {
+      if (!socket || !connected || !roomId || !playerId) {
+        debugLog.warning('⚠️ Missing params for joinQuizRoom');
+      }
       return;
     }
 
-    const player = { id: playerId, name };
-    joinQuizRoom(socket, roomId, player);
-    debugLog.success('✅ joinQuizRoom emitted');
-  }, [socket, connected, roomId, playerId, name]);
+    hasJoinedRef.current = true;
 
-  // Listen for quiz start event
-  useEffect(() => {
-    if (!socket) return;
-    const handleQuizStart = () => {
-      debugLog.event('🎯 Quiz started — navigating to gameplay');
-      navigate(`/quiz/play/${roomId}/${playerId}`);
+    // ✅ SMART JOIN: Check if player already exists first
+    const checkPlayerExists = () => {
+      socket.emit('verify_quiz_room_and_player', { roomId, playerId });
+      
+      socket.once('quiz_room_player_verification_result', ({ roomExists, playerApproved }) => {
+        if (!roomExists) {
+          debugLog.error('❌ Room does not exist');
+          navigate('/quiz');
+          return;
+        }
+
+        if (playerApproved) {
+          // ✅ Player already exists in room - just update socket connection
+          debugLog.info('🔄 Player exists, updating socket connection');
+          socket.emit('join_quiz_room', {
+            roomId,
+            user: { id: playerId, name: 'Player' },
+            role: 'player'
+          });
+        } else {
+          // ✅ Player not approved - redirect back
+          debugLog.warning('⚠️ Player not approved for this room');
+          alert('You are not registered for this quiz. Please contact the organizer.');
+          navigate('/quiz');
+          return;
+        }
+
+        // ✅ Request current state after joining
+        setTimeout(() => {
+          socket.emit('request_current_state', { roomId });
+          debugLog.success('✅ Joined room and requested current state');
+        }, 100);
+      });
     };
-    socket.on('quiz_started', handleQuizStart);
-   return () => { socket.off('quiz_started', handleQuizStart); };
 
-  }, [socket, navigate, roomId, playerId]);
+    checkPlayerExists();
+  }, [socket, connected, roomId, playerId, navigate]);
 
   // Helper for extra labels
-  const getExtraLabel = (extraId: string): string => {
-    const extra = fundraisingExtraDefinitions[extraId as keyof typeof fundraisingExtraDefinitions];
-    return extra ? `${extra.icon} ${extra.label}` : extraId;
+  const getExtraInfo = (extraId: string) => {
+    const extra = Object.values(fundraisingExtraDefinitions).find(def => {
+      const defId = def.id.toLowerCase();
+      const searchKey = extraId.toLowerCase();
+      return defId === searchKey || 
+             defId.includes(searchKey) ||
+             searchKey.includes(defId);
+    });
+    
+    if (extra) {
+      return {
+        label: `${extra.icon} ${extra.label}`,
+        strategy: (extra as any).playerStrategy || extra.description,
+        definition: extra
+      };
+    }
+    
+    return {
+      label: extraId,
+      strategy: 'No strategy information available.',
+      definition: null
+    };
   };
 
-  if (!config || Object.keys(config).length === 0) {
+  // Show loading state while waiting for server data
+  if (!config || Object.keys(config).length === 0 || !playerData) {
     return (
       <div className="p-6 text-center">
         <div className="animate-spin text-4xl mb-4">⏳</div>
-        <div className="text-lg font-semibold">Loading quiz configuration...</div>
+        <div className="text-lg font-semibold">
+          {!config ? 'Loading quiz configuration...' : 'Loading player data...'}
+        </div>
+        {DEBUG && (
+          <div className="mt-4 text-xs text-gray-500">
+            Config loaded: {!!config ? '✅' : '❌'} | 
+            Player data: {!!playerData ? '✅' : '❌'} | 
+            Socket: {connected ? '🟢' : '🔴'}
+          </div>
+        )}
       </div>
     );
   }
 
-  return (
-    <div className="p-6 max-w-3xl mx-auto text-center space-y-8">
-      <h1 className="text-3xl font-bold">🎉 Welcome, {name}!</h1>
+  const playerExtras = playerData.extras || [];
+  const playerName = playerData.name;
 
-      <div className="bg-red-50 p-4 rounded-xl border text-red-700 font-semibold">
-        🚫 No Cheating — you will be disqualified if unfair play is detected.
+  return (
+    <div className="p-6 max-w-4xl mx-auto text-center space-y-8">
+      <h1 className="text-3xl font-bold">🎉 Welcome, {playerName}!</h1>
+
+      <div className="p-4 text-lg font-semibold text-gray-700">
+        🙏 Thank you for supporting this fundraiser and GOOD LUCK!
       </div>
 
-      {DEBUG && (
-        <div className="bg-gray-100 p-4 rounded-xl border text-left text-sm">
-          <h3 className="font-bold mb-2">🔧 Debug Information</h3>
-          <div className="space-y-1">
-            <div>Socket Connected: {connected ? '✅' : '❌'}</div>
-            <div>Room ID: {roomId || 'N/A'}</div>
-            <div>Player ID: {playerId || 'N/A'}</div>
-            <div>Players Count: {players.length}</div>
-            <div>Config Loaded: ✅</div>
-            <details className="mt-2">
-              <summary className="cursor-pointer font-bold">Show Config Data</summary>
-              <pre className="text-xs mt-1 p-2 bg-white rounded">
-                {JSON.stringify(config, null, 2)}
-              </pre>
-            </details>
-          </div>
+      {/* Payment Status Warning */}
+      {!playerData.paid && (
+        <div className="bg-yellow-50 p-4 rounded-xl border text-yellow-700 font-semibold">
+          ⚠️ Payment Required — Please complete payment with the quiz organizer to participate.
+        </div>
+      )}
+
+      {/* Disqualification Warning */}
+      {playerData.disqualified && (
+        <div className="bg-red-100 p-4 rounded-xl border text-red-700 font-semibold">
+          🚫 You have been disqualified from this quiz.
         </div>
       )}
 
@@ -116,7 +221,7 @@ const QuizGameWaitingPage = () => {
         <h2 className="text-xl font-semibold mb-3">🎁 Gifts for Winners</h2>
         {config.prizes?.length ? (
           <div className="space-y-3">
-            {config.prizes.map((prize: any, idx: number) => (
+            {config.prizes.map((prize, idx: number) => (
               <div key={idx} className="bg-white p-3 rounded-lg shadow">
                 <div className="font-bold">{prize.place} place: {prize.description}</div>
                 {prize.value && config.currencySymbol && (
@@ -137,20 +242,70 @@ const QuizGameWaitingPage = () => {
         )}
       </div>
 
+      <div className="bg-red-50 p-4 rounded-xl border text-red-700 font-semibold">
+        🚫 No Cheating — you will be disqualified if unfair play is detected.
+      </div>
+
       <div className="bg-blue-50 p-4 rounded-xl border">
         <h2 className="text-xl font-semibold mb-3">🎮 Gameplay</h2>
         {config.roundDefinitions?.length ? (
-          <div className="space-y-2">
-            {config.roundDefinitions.map((round: any, index: number) => {
-              const explainer = roundTypeExplainers[round.roundType];
+          <div className="space-y-3">
+            {config.roundDefinitions.map((round, index: number) => {
+              const roundTypeDef = roundTypeDefinitions[round.roundType as RoundTypeId];
+              
+              const playerExtrasForThisRound = playerExtras.filter(extraId => {
+                const extraDef = Object.values(fundraisingExtraDefinitions).find(def => {
+                  const defId = def.id.toLowerCase();
+                  const searchKey = extraId.toLowerCase();
+                  return defId === searchKey || 
+                         defId.includes(searchKey) ||
+                         searchKey.includes(defId);
+                });
+                
+                if (!extraDef) return false;
+                
+                return extraDef.applicableTo === 'global' || 
+                       (Array.isArray(extraDef.applicableTo) && extraDef.applicableTo.includes(round.roundType));
+              });
+              
+              if (!roundTypeDef) {
+                return (
+                  <div key={index} className="bg-white p-3 rounded-lg shadow">
+                    <div className="flex justify-between">
+                      <span>🎯 Round {round.roundNumber}: Unknown Round Type</span>
+                      <span className="text-sm text-gray-600">Unknown</span>
+                    </div>
+                  </div>
+                );
+              }
+
               return (
-                <div key={index} className="flex justify-between bg-white p-3 rounded-lg shadow">
-                  <span>
-                    {explainer?.icon || '🎯'} Round {round.roundNumber}: {explainer?.title || round.roundType}
-                  </span>
-                  <span className="text-sm text-gray-600">
-                    {explainer?.difficulty || 'Unknown'}
-                  </span>
+                <div key={index} className="bg-white p-3 rounded-lg shadow space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">
+                      {roundTypeDef.icon} Round {round.roundNumber}: {roundTypeDef.name}
+                    </span>
+                    <span className="text-sm text-gray-600 px-2 py-1 bg-gray-100 rounded-full">
+                      {roundTypeDef.difficulty}
+                    </span>
+                  </div>
+                  
+                  {playerExtrasForThisRound.length > 0 && (
+                    <div className="border-t border-gray-200 pt-2">
+                      <div className="text-xs text-gray-600 mb-1 text-left">Your extras available in this round:</div>
+                      <div className="flex flex-wrap gap-1 justify-start">
+                        {playerExtrasForThisRound.map((extraId, extraIdx) => {
+                          const extraInfo = getExtraInfo(extraId);
+                          return (
+                            <div key={extraIdx} className="inline-flex items-center space-x-1 px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
+                              <span>{extraInfo.definition?.icon || '💰'}</span>
+                              <span>{extraInfo.definition?.label || extraId}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -161,24 +316,63 @@ const QuizGameWaitingPage = () => {
       </div>
 
       <div className="bg-green-50 p-4 rounded-xl border">
+        <div className="bg-orange-50 border border-orange-200 p-3 rounded-lg mb-4">
+          <div className="text-sm text-orange-800">
+            <strong>⚠️ Remember: Be Strategic</strong> You can only use one extra per round, so choose your moment carefully! 
+            Think strategically about when each extra will have the most impact. You can use more than one extra during the leaderboard phase
+          </div>
+        </div>
+        
         <h2 className="text-xl font-semibold mb-3">💡 Your Extras</h2>
-        {extras.length ? (
-          <ul className="list-disc list-inside text-left space-y-1">
-            {extras.map((extra: string, idx: number) => (
-              <li key={idx} className="font-medium">{getExtraLabel(extra)}</li>
-            ))}
-          </ul>
+        {playerExtras.length ? (
+          <div className="space-y-4 text-left">
+            {playerExtras.map((extra: string, idx: number) => {
+              const extraInfo = getExtraInfo(extra);
+              return (
+                <div key={idx} className="bg-white p-4 rounded-lg shadow space-y-2">
+                  <div className="font-bold text-lg">{extraInfo.label}</div>
+                  
+                  {extraInfo.definition && (
+                    <>
+                      <div className="text-sm text-gray-600">
+                        <strong>What it does:</strong> {extraInfo.definition.description}
+                      </div>
+                      
+                      <div className="text-sm text-blue-700 bg-blue-50 p-3 rounded-lg">
+                        <strong>💡 Strategy Tip:</strong> {extraInfo.strategy}
+                      </div>
+                      
+                      <div className="text-xs text-gray-600">
+                        <strong>Can be used in:</strong>
+                        {extraInfo.definition.applicableTo === 'global' ? (
+                          <span className="ml-1 px-2 py-1 bg-purple-100 text-purple-700 rounded-full">
+                            🌍 All rounds
+                          </span>
+                        ) : (
+                          <div className="inline-flex flex-wrap gap-1 ml-1">
+                            {extraInfo.definition.applicableTo.map((roundType: string, roundIdx: number) => {
+                              const roundDef = roundTypeDefinitions[roundType as RoundTypeId];
+                              return (
+                                <span key={roundIdx} className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
+                                  {roundDef?.icon} {roundDef?.name}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         ) : (
           <div className="text-gray-500">You have not purchased any extras</div>
         )}
-      </div>
-
-      <div className="p-4 text-lg font-semibold text-gray-700">
-        🙏 Thank you for supporting this fundraiser and GOOD LUCK!
       </div>
     </div>
   );
 };
 
 export default QuizGameWaitingPage;
-

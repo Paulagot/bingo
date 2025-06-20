@@ -114,8 +114,35 @@ export function setupHostHandlers(socket, namespace) {
     emitRoomState(namespace, roomId);
   });
 
-  socket.on('delete_quiz_room', ({ roomId }) => {
-    if (debug) console.log(`[Host] delete_quiz_room for ${roomId}`);
+ socket.on('delete_quiz_room', ({ roomId }) => {
+  if (debug) console.log(`[Host] delete_quiz_room for ${roomId}`);
+
+  const room = getQuizRoom(roomId);
+  if (!room) {
+    socket.emit('quiz_error', { message: 'Room not found' });
+    return;
+  }
+
+  // ✅ Notify everyone first
+  namespace.to(roomId).emit('quiz_cancelled', { message: 'Quiz cancelled by host', roomId });
+  console.log(`[Host] 📢 Sent cancellation notice to room ${roomId}`);
+
+  // ✅ Wait 2 seconds for clients to receive the message, then cleanup
+  setTimeout(() => {
+    const removed = removeQuizRoom(roomId);
+    
+    if (removed) {
+      namespace.in(roomId).socketsLeave(roomId);
+      namespace.in(`${roomId}:host`).socketsLeave(`${roomId}:host`);
+      namespace.in(`${roomId}:admin`).socketsLeave(`${roomId}:admin`);
+      namespace.in(`${roomId}:player`).socketsLeave(`${roomId}:player`);
+      console.log(`[Host] ✅ Room ${roomId} deleted and clients disconnected`);
+    }
+  }, 2000);
+});
+ // ✅ NEW: Launch quiz event - redirects all waiting players to play page
+  socket.on('launch_quiz', ({ roomId }) => {
+    if (debug) console.log(`[Host] launch_quiz for ${roomId}`);
 
     const room = getQuizRoom(roomId);
     if (!room) {
@@ -123,16 +150,25 @@ export function setupHostHandlers(socket, namespace) {
       return;
     }
 
-    namespace.to(roomId).emit('quiz_cancelled', { message: 'Quiz cancelled', roomId });
-    const removed = removeQuizRoom(roomId);
-
-    if (removed) {
-      namespace.in(roomId).socketsLeave(roomId);
-      namespace.in(`${roomId}:host`).socketsLeave(`${roomId}:host`);
-      namespace.in(`${roomId}:admin`).socketsLeave(`${roomId}:admin`);
-      namespace.in(`${roomId}:player`).socketsLeave(`${roomId}:player`);
-      console.log(`[Host] ✅ Room ${roomId} deleted`);
+    // Validate that the requesting socket is actually the host
+    if (room.hostSocketId !== socket.id) {
+      socket.emit('quiz_error', { message: 'Only the host can launch the quiz' });
+      return;
     }
+
+    // Update room phase to indicate quiz has been launched
+    room.currentPhase = 'launched';
+    
+    // Broadcast to all players in the waiting room to redirect to play page
+    namespace.to(roomId).emit('quiz_launched', { 
+      roomId,
+      message: 'Quiz is starting! Redirecting to game...' 
+    });
+    
+    // Also emit room state update
+    emitRoomState(namespace, roomId);
+    
+    console.log(`[Host] ✅ Quiz launched for room ${roomId}, players will be redirected`);
   });
 }
 

@@ -2,7 +2,9 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { roundTypeDefinitions } from '../../server/quiz/quizMetadata.js';
+import { roundTypeDefinitions, fundraisingExtraDefinitions } from '../quiz/quizMetadata.js';
+import { handleGlobalExtra } from './handlers/globalExtrasHandler.js';
+
 
 const quizRooms = new Map();
 const debug = true;
@@ -52,18 +54,20 @@ export function createQuizRoom(roomId, hostId, config) {
 
   const finalConfig = { ...config, roundCount: roundDefinitions.length };
 
-  quizRooms.set(roomId, {
-    hostId,
-    config: finalConfig,
-    currentQuestionIndex: -1,
-    currentRound: 1,
-    questions: [],
-    admins: [],
-    players: [],
-    playerData: {},
-    currentPhase: 'waiting',
-    createdAt: Date.now()
-  });
+ quizRooms.set(roomId, {
+  hostId,
+  config: finalConfig,
+  currentQuestionIndex: -1,
+  currentRound: 1,
+  questions: [],
+  admins: [],
+  players: [],
+  playerData: {},
+  playerSessions: {}, // ← ADD THIS LINE ONLY
+  currentPhase: 'waiting',
+  createdAt: Date.now()
+});
+
 
   console.log(`[quizRoomManager] ✅ Room ${roomId} created with ${roundDefinitions.length} rounds`);
   console.log('-----------------------------------------');
@@ -309,11 +313,28 @@ export function resetRoundExtrasTracking(roomId) {
 
 // ✅ IMPROVED: Centralized Extras Handler with better freeze validation
 export function handlePlayerExtra(roomId, playerId, extraId, targetPlayerId, namespace) {
+  console.log(`[BASIC TEST] handlePlayerExtra called with extraId: ${extraId}`);
   const room = getQuizRoom(roomId);
   if (!room) return { success: false, error: 'Room not found' };
 
   const playerData = room.playerData[playerId];
   if (!playerData) return { success: false, error: 'Player data not found' };
+
+  // ✅ DEBUG: Add logging to see what's happening
+  console.log(`[DEBUG] extraId: "${extraId}"`);
+  console.log(`[DEBUG] fundraisingExtraDefinitions:`, fundraisingExtraDefinitions);
+  console.log(`[DEBUG] extraDefinition:`, fundraisingExtraDefinitions[extraId]);
+  
+  // ✅ NEW: Check if this is a global extra
+  const extraDefinition = fundraisingExtraDefinitions[extraId];
+  if (extraDefinition && extraDefinition.applicableTo === 'global') {
+    if (debug) {
+      console.log(`[ExtrasHandler] 🌍 Routing global extra "${extraId}" to globalExtrasHandler`);
+    }
+    return handleGlobalExtra(roomId, playerId, extraId, targetPlayerId, namespace);
+  }
+
+  console.log(`[DEBUG] Not a global extra, continuing with round-based logic...`);
 
   if (playerData.frozenNextQuestion) {
     console.warn(`[ExtrasHandler] ❄️ ${playerId} is frozen and cannot use extras`);
@@ -422,6 +443,66 @@ function executeBuyHint(roomId, playerId, namespace) {
   // ❌ No emit here — notification handled in generalTriviaEngine.js when question is sent
   return { success: true };
 }
+
+// ✅ NEW: Player session management functions
+export function updatePlayerSession(roomId, playerId, sessionData) {
+  const room = quizRooms.get(roomId);
+  if (!room) return false;
+  
+  if (!room.playerSessions) {
+    room.playerSessions = {};
+  }
+  
+  room.playerSessions[playerId] = {
+    ...room.playerSessions[playerId],
+    ...sessionData,
+    lastActive: Date.now()
+  };
+  
+  if (debug) console.log(`[SessionTracker] 📊 Updated session for ${playerId}:`, room.playerSessions[playerId]);
+  return true;
+}
+
+export function getPlayerSession(roomId, playerId) {
+  const room = quizRooms.get(roomId);
+  return room?.playerSessions?.[playerId] || null;
+}
+
+export function isPlayerInActiveSession(roomId, playerId) {
+  const session = getPlayerSession(roomId, playerId);
+  if (!session) return false;
+  
+  const now = Date.now();
+  const timeSinceActive = now - session.lastActive;
+  const RECONNECT_WINDOW = 45 * 1000; // 45 seconds
+  
+  // Player is in active session if:
+  // 1. Status is 'playing' AND inPlayRoute is true AND within reconnect window
+  if (session.status === 'playing' && session.inPlayRoute && timeSinceActive < RECONNECT_WINDOW) {
+    return true;
+  }
+  
+  return false;
+}
+
+export function cleanExpiredSessions(roomId) {
+  const room = quizRooms.get(roomId);
+  if (!room || !room.playerSessions) return;
+  
+  const now = Date.now();
+  const RECONNECT_WINDOW = 45 * 1000; // 45 seconds
+  
+  for (const playerId in room.playerSessions) {
+    const session = room.playerSessions[playerId];
+    const timeSinceActive = now - session.lastActive;
+    
+    if (timeSinceActive > RECONNECT_WINDOW && session.status === 'disconnected') {
+      delete room.playerSessions[playerId];
+      if (debug) console.log(`[SessionTracker] 🧹 Cleaned expired session for ${playerId}`);
+    }
+  }
+}
+
 
 
 

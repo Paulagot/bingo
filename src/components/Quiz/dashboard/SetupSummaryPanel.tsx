@@ -1,16 +1,8 @@
 import React, { useState } from 'react';
 import { useQuizConfig } from '../useQuizConfig';
 import { Link } from 'react-router-dom';
-import { ChevronDown, ChevronRight, Clock, Target, Users, Zap } from 'lucide-react';
-
-// Round type explainers for display
-const roundTypeExplainers: Record<string, { title: string; icon: string; difficulty: string }> = {
-  general_trivia: { title: "General Trivia", icon: "🧠", difficulty: "Easy" },
-  speed_round: { title: "Speed Round", icon: "⚡", difficulty: "Medium" },
-  fastest_finger: { title: "Fastest Finger First", icon: "👆", difficulty: "Medium" },
-  wipeout: { title: "Wipeout", icon: "💀", difficulty: "Hard" },
-  head_to_head: { title: "Head to Head", icon: "⚔️", difficulty: "Hard" }
-};
+import { ChevronDown, ChevronRight, Clock, Target, Users, Zap, Globe } from 'lucide-react';
+import { roundTypeDefinitions, fundraisingExtraDefinitions } from '../../../constants/quizMetadata';
 
 const SetupSummaryPanel: React.FC = () => {
   const { config } = useQuizConfig();
@@ -63,10 +55,23 @@ const SetupSummaryPanel: React.FC = () => {
     }
   };
 
-  // Calculate total estimated time
+  // Calculate total estimated time - improved to handle different round types
   const estimatedTime = roundDefinitions?.reduce((total, round) => {
-    const timePerRound = round.config.questionsPerRound * (round.config.timePerQuestion || 25) / 60;
-    return total + timePerRound + 2; // Add 2 minutes buffer per round
+    const config = round.config;
+    let roundTime = 2.5; // base time for transitions/setup
+    
+    if (config.totalTimeSeconds) {
+      // For speed rounds and other time-based rounds
+      roundTime += config.totalTimeSeconds / 60;
+    } else if (config.questionsPerRound && config.timePerQuestion) {
+      // For question-based rounds
+      roundTime += (config.questionsPerRound * config.timePerQuestion) / 60;
+    } else {
+      // Fallback for rounds without clear timing
+      roundTime += 5; // 5 minute fallback
+    }
+    
+    return total + roundTime;
   }, 0) || 0;
 
   return (
@@ -152,29 +157,104 @@ const SetupSummaryPanel: React.FC = () => {
             {roundDefinitions && roundDefinitions.length > 0 ? (
               <div className="space-y-2">
                 {roundDefinitions.map((round, index) => {
-                  const explainer = roundTypeExplainers[round.roundType];
-                  return (
-                    <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <span className="text-sm font-medium text-gray-600">Round {round.roundNumber}</span>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-lg">{explainer?.icon}</span>
-                          <span className="font-medium text-gray-800">{explainer?.title}</span>
-                          <span className={`px-2 py-1 text-xs rounded-full ${getDifficultyColor(explainer?.difficulty || 'Easy')}`}>
-                            {explainer?.difficulty}
-                          </span>
+                  // Get round type data from metadata instead of hardcoded object
+                  const roundTypeDef = roundTypeDefinitions[round.roundType];
+                  
+                  // Find applicable fundraising extras for this round
+                  const applicableExtras = Object.entries(fundraisingOptions || {})
+                    .filter(([_, enabled]) => enabled)
+                    .map(([key]) => {
+                      const extraDef = Object.values(fundraisingExtraDefinitions).find(def => {
+                        const defId = def.id.toLowerCase();
+                        const searchKey = key.toLowerCase();
+                        return defId === searchKey || 
+                               defId.includes(searchKey) ||
+                               searchKey.includes(defId);
+                      });
+                      return { key, extraDef };
+                    })
+                    .filter(({ extraDef }) => {
+                      if (!extraDef) return false;
+                      return extraDef.applicableTo === 'global' || 
+                             (Array.isArray(extraDef.applicableTo) && extraDef.applicableTo.includes(round.roundType));
+                    });
+                  
+                  if (!roundTypeDef) {
+                    // Fallback for unknown round types
+                    return (
+                      <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <span className="text-sm font-medium text-gray-600">Round {round.roundNumber}</span>
+                          <span className="font-medium text-gray-800">Unknown Round Type</span>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-4 text-sm text-gray-600">
-                        <span className="flex items-center space-x-1">
-                          <Target className="w-3 h-3" />
-                          <span>{round.config.questionsPerRound}q</span>
-                        </span>
-                        <span className="flex items-center space-x-1">
-                          <Clock className="w-3 h-3" />
-                          <span>{round.config.timePerQuestion}s</span>
-                        </span>
+                    );
+                  }
+
+                  return (
+                    <div key={index} className="bg-gray-50 p-3 rounded-lg space-y-2">
+                      {/* Round header info */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <span className="text-sm font-medium text-gray-600">Round {round.roundNumber}</span>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-lg">{roundTypeDef.icon}</span>
+                            <span className="font-medium text-gray-800">{roundTypeDef.name}</span>
+                            <span className={`px-2 py-1 text-xs rounded-full ${getDifficultyColor(roundTypeDef.difficulty)}`}>
+                              {roundTypeDef.difficulty}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-4 text-sm text-gray-600">
+                          {/* Show questions count if available */}
+                          {round.config.questionsPerRound && (
+                            <span className="flex items-center space-x-1">
+                              <Target className="w-3 h-3" />
+                              <span>{round.config.questionsPerRound}q</span>
+                            </span>
+                          )}
+                          {/* Show time per question if available */}
+                          {round.config.timePerQuestion && (
+                            <span className="flex items-center space-x-1">
+                              <Clock className="w-3 h-3" />
+                              <span>{round.config.timePerQuestion}s</span>
+                            </span>
+                          )}
+                          {/* Show total time if available (for speed rounds) */}
+                          {round.config.totalTimeSeconds && (
+                            <span className="flex items-center space-x-1">
+                              <Clock className="w-3 h-3" />
+                              <span>{Math.round(round.config.totalTimeSeconds / 60)}m total</span>
+                            </span>
+                          )}
+                          {/* Show answer time if available (for head-to-head) */}
+                          {round.config.timeToAnswer && (
+                            <span className="flex items-center space-x-1">
+                              <Target className="w-3 h-3" />
+                              <span>{round.config.timeToAnswer}s to answer</span>
+                            </span>
+                          )}
+                        </div>
                       </div>
+
+                      {/* Show applicable fundraising extras */}
+                      {applicableExtras.length > 0 && (
+                        <div className="border-t border-gray-200 pt-2">
+                          <div className="text-xs text-gray-600 mb-1">Available extras:</div>
+                          <div className="flex flex-wrap gap-1">
+                            {applicableExtras.map(({ key, extraDef }, extraIdx) => {
+                              const price = fundraisingPrices?.[key];
+                              return (
+                                <div key={extraIdx} className="inline-flex items-center space-x-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">
+                                  <span>{extraDef?.icon || '💰'}</span>
+                                  <span>{extraDef?.label || key}</span>
+                                  {price && <span>({currencySymbol ?? ''}{price})</span>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -209,17 +289,62 @@ const SetupSummaryPanel: React.FC = () => {
         {expandedSections.extras && (
           <div className="border-t border-gray-200 p-4">
             {activeFundraising.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {activeFundraising.map((key, index) => {
                   const rawKey = key.toLowerCase().replace(/ /g, '');
                   const price = fundraisingPrices?.[rawKey];
+                  
+                  // More robust lookup for fundraising extra definition
+                  const extraDef = Object.values(fundraisingExtraDefinitions).find(def => {
+                    // Try multiple matching strategies
+                    const defId = def.id.toLowerCase();
+                    const defLabel = def.label.toLowerCase().replace(/ /g, '');
+                    const searchKey = rawKey.toLowerCase();
+                    
+                    return defId === searchKey || 
+                           defLabel === searchKey ||
+                           defId.includes(searchKey) ||
+                           searchKey.includes(defId);
+                  });
+
+                  console.log(`Looking for key: "${rawKey}", found:`, extraDef); // Debug log
+
                   return (
-                    <div key={index} className="flex items-center justify-between bg-green-50 p-3 rounded-lg">
-                      <span className="font-medium text-gray-800">{key}</span>
-                      {price && (
-                        <span className="text-green-700 font-medium">
-                          {currencySymbol ?? ''}{price}
-                        </span>
+                    <div key={index} className="bg-green-50 p-3 rounded-lg space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-lg">{extraDef?.icon || '💰'}</span>
+                          <span className="font-medium text-gray-800">{extraDef?.label || key}</span>
+                        </div>
+                        {price && (
+                          <span className="text-green-700 font-medium">
+                            {currencySymbol ?? ''}{price}
+                          </span>
+                        )}
+                      </div>
+                      
+                      {extraDef && (
+                        <div className="text-sm">
+                          <div className="text-gray-600 mb-1">Available in:</div>
+                          {extraDef.applicableTo === 'global' ? (
+                            <div className="inline-flex items-center space-x-1 px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs">
+                              <Globe className="w-3 h-3" />
+                              <span>All rounds</span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-wrap gap-1">
+                              {extraDef.applicableTo.map((roundType, idx) => {
+                                const roundDef = roundTypeDefinitions[roundType];
+                                return (
+                                  <div key={idx} className="inline-flex items-center space-x-1 px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
+                                    <span>{roundDef?.icon || '❓'}</span>
+                                    <span>{roundDef?.name || roundType}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   );

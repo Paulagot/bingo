@@ -1,4 +1,4 @@
-// types/quiz.ts
+//src/components/quiz/types/quiz.ts
 
 export interface FundraisingExtraRule {
    label: string;
@@ -33,7 +33,9 @@ export interface RoundConfig {
   totalTimeSeconds?: number;
   timePerTeam?: number;
   pointsPerQuestion?: number; 
-  pointsLostPerWrong?: number; // Only for wipeout
+  pointsLostPerWrong?: number; // For wipeout
+  timeToAnswer?: number; // For head-to-head
+  skipAllowed?: boolean; // For speed round
 }
 
 
@@ -79,6 +81,7 @@ export interface QuizConfig {
   roomId?: string;
   currencySymbol?: string;
   totalTimeSeconds?: number;
+  
 }
 
 export type ExtrasPanelProps = {
@@ -89,8 +92,6 @@ export type ExtrasPanelProps = {
   onUseExtra: (extraId: string) => void;
   usedExtrasThisRound: Record<string, boolean>;
 };
-
-
 
 // Constant list of extras available
 export const fundraisingExtras: FundraisingExtrasMeta = {
@@ -125,6 +126,84 @@ export const fundraisingExtras: FundraisingExtrasMeta = {
     applicableTo: ['general_trivia', 'wipeout'],
   },
 };
+
+// ===== ADDITIONAL TYPES FOR REFACTORED ARCHITECTURE =====
+
+export interface User {
+  id: string;
+  name: string;
+}
+
+export type Question = {
+  id: string;
+  text: string;
+  options: string[];
+  clue?: string;
+  timeLimit: number;
+  questionStartTime?: number;
+};
+
+export type LeaderboardEntry = {
+  id: string;
+  name: string;
+  score: number;
+};
+
+export type RoomPhase = 'waiting' | 'asking' | 'reviewing' | 'leaderboard' | 'complete';
+
+// Props interface for round components
+export interface RoundComponentProps {
+  question: Question;
+  timeLeft: number | null;
+  timerActive: boolean;
+  selectedAnswer: string;
+  setSelectedAnswer: (answer: string) => void;
+  answerSubmitted: boolean;
+  clue: string | null;
+  feedback: string | null;
+  isFrozen: boolean;
+  frozenNotice: string | null;
+  onSubmit: () => void;
+  roomId: string;
+  playerId: string;
+  roundExtras: string[];
+  usedExtras: Record<string, boolean>;
+  usedExtrasThisRound: Record<string, boolean>;
+  onUseExtra: (extraId: string) => void;
+}
+
+// Props for the round router
+export interface RoundRouterProps extends RoundComponentProps {
+  roomPhase: 'asking' | 'reviewing';
+  currentRoundType?: RoundTypeId;
+}
+
+// Props for review phase component
+export interface ReviewPhaseProps {
+  question: Question;
+  selectedAnswer: string;
+  feedback: string | null;
+}
+
+// Hook parameter types
+export interface UseQuizTimerParams {
+  question: Question | null;
+  timerActive: boolean;
+  onTimeUp: () => void;
+}
+
+export interface UseRoundExtrasParams {
+  allPlayerExtras: string[];
+  currentRoundType?: RoundTypeId;
+  debug?: boolean;
+}
+
+export interface UseAnswerSubmissionParams {
+  socket: any;
+  roomId: string;
+  playerId: string;
+  debug?: boolean;
+}
 
 
 

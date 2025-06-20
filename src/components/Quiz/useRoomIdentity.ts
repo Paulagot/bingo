@@ -1,3 +1,4 @@
+// src/components/Quiz/useRoomIdentity.ts
 import { useState, useEffect } from 'react';
 
 export interface RoomIdentity {

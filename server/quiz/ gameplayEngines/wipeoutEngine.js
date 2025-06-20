@@ -1,4 +1,4 @@
-// generalTriviaEngine.js
+// wipeoutEngine.js
 
 import {
   getQuizRoom,
@@ -7,7 +7,7 @@ import {
   advanceToNextQuestion,
   resetRoundExtrasTracking,
   getCurrentQuestion,
-  emitRoomState
+  emitRoomState,
 } from '../quizRoomManager.js';
 
 let timers = {}; // per-room timer refs
@@ -20,10 +20,10 @@ export function initRound(roomId, namespace) {
   const roundType = room.config.roundDefinitions?.[room.currentRound - 1]?.roundType;
   let questions = loadQuestionsForRoundType(roundType);
   const roundConfig = room.config.roundDefinitions[room.currentRound - 1];
-  const questionsPerRound = roundConfig?.questionsPerRound || 6;
+  const questionsPerRound = roundConfig?.config?.questionsPerRound || 6;
 
   questions = shuffleArray(questions).slice(0, questionsPerRound);
-  console.log(`[generalTriviaEngine] 🔎 Loaded ${questions.length} randomized questions for ${roundType}`);
+  console.log(`[wipeoutEngine] 🔎 Loaded ${questions.length} randomized questions for ${roundType}`);
 
   setQuestionsForCurrentRound(roomId, questions);
   resetRoundExtrasTracking(roomId);
@@ -37,13 +37,10 @@ export function startNextQuestion(roomId, namespace) {
   const room = getQuizRoom(roomId);
   if (!room) return;
 
-  // ✅ FIRST: clear expired freeze flags BEFORE advancing question index
- 
-
   const nextQuestion = advanceToNextQuestion(roomId);
- clearExpiredFreezeFlags(room);
+  clearExpiredFreezeFlags(room);
   if (!nextQuestion) {
-    if (debug) console.log(`[generalTriviaEngine] 🔄 All questions complete for round ${room.currentRound}`);
+    if (debug) console.log(`[wipeoutEngine] 🔄 All questions complete for round ${room.currentRound}`);
     room.currentPhase = 'reviewing';
     room.currentReviewIndex = 0;
     emitRoomState(namespace, roomId);
@@ -53,22 +50,21 @@ export function startNextQuestion(roomId, namespace) {
 
   emitRoomState(namespace, roomId);
   const roundConfig = room.config.roundDefinitions[room.currentRound - 1];
-  const timeLimit = roundConfig?.timePerQuestion || 25;
+  const timeLimit = roundConfig?.config?.timePerQuestion || 25;
   const questionStartTime = Date.now();
-   room.questionStartTime = questionStartTime;
+  room.questionStartTime = questionStartTime;
 
-namespace.to(roomId).emit('question', {
-  id: nextQuestion.id,
-  text: nextQuestion.text,
-  options: Array.isArray(nextQuestion.options) ? nextQuestion.options : [],
-  timeLimit,
-  questionStartTime,
-  questionNumber: room.currentQuestionIndex + 1,    // ← ADD
-  totalQuestions: room.questions.length             // ← ADD
-});;
+  namespace.to(roomId).emit('question', {
+    id: nextQuestion.id,
+    text: nextQuestion.text,
+    options: Array.isArray(nextQuestion.options) ? nextQuestion.options : [],
+    timeLimit,
+    questionStartTime,
+    questionNumber: room.currentQuestionIndex + 1,
+    totalQuestions: room.questions.length,
+  });
 
-
-  // ✅ Notify frozen players
+  // Notify frozen players
   room.players.forEach(player => {
     const pdata = room.playerData[player.id];
     if (
@@ -77,21 +73,20 @@ namespace.to(roomId).emit('question', {
     ) {
       const socket = namespace.sockets.get(player.socketId);
       if (socket) {
-      socket.emit('freeze_notice', {
-  frozenBy: pdata.frozenBy,
-  frozenForQuestionIndex: pdata.frozenForQuestionIndex,
-  message: `You are frozen for this question!`
-});
-
+        socket.emit('freeze_notice', {
+          frozenBy: pdata.frozenBy,
+          frozenForQuestionIndex: pdata.frozenForQuestionIndex,
+          message: `You are frozen for this question!`
+        });
         if (debug) {
-          console.log(`[generalTriviaEngine] ❄️ Notified ${player.id} they are frozen for question index ${room.currentQuestionIndex}`);
+          console.log(`[wipeoutEngine] ❄️ Notified ${player.id} they are frozen for question index ${room.currentQuestionIndex}`);
         }
       }
     }
   });
 
   if (debug) {
-    console.log(`[generalTriviaEngine] ▶ Sent question: ${nextQuestion.id} (Q#${room.currentQuestionIndex}, timeLimit: ${timeLimit}s, startTime: ${questionStartTime})`);
+    console.log(`[wipeoutEngine] ▶ Sent question: ${nextQuestion.id} (Q#${room.currentQuestionIndex}, timeLimit: ${timeLimit}s, startTime: ${questionStartTime})`);
   }
 
   clearTimeout(timers[roomId]);
@@ -101,8 +96,6 @@ namespace.to(roomId).emit('question', {
 }
 
 export function handlePlayerAnswer(roomId, playerId, answer) {
-  console.log(`[generalTriviaEngine] 🔍 handlePlayerAnswer called for ${playerId}: ${answer}`);
-
   const room = getQuizRoom(roomId);
   if (!room) return;
 
@@ -116,39 +109,30 @@ export function handlePlayerAnswer(roomId, playerId, answer) {
     playerData.frozenNextQuestion &&
     room.currentQuestionIndex === playerData.frozenForQuestionIndex
   ) {
-    console.log(`[generalTriviaEngine] ❄️ Player ${playerId} is frozen and cannot answer question ${room.currentQuestionIndex}`);
-    console.log(`[generalTriviaEngine] ❄️ Freeze is for question index ${playerData.frozenForQuestionIndex}`);
+    console.log(`[wipeoutEngine] ❄️ Player ${playerId} is frozen and cannot answer question ${room.currentQuestionIndex}`);
     return;
-  } else {
-    console.log(`[generalTriviaEngine] ✅ Player ${playerId} is NOT frozen, processing answer`);
   }
 
   const isCorrect = (answer.trim().toLowerCase() === question.correctAnswer.trim().toLowerCase());
 
-const roundConfig = room.config.roundDefinitions[room.currentRound - 1];
+  const roundConfig = room.config.roundDefinitions[room.currentRound - 1]?.config || {};
+  const pointsPerQuestion = roundConfig.pointsPerQuestion || 1;
+  const pointsLostPerWrong = roundConfig.pointsLostPerWrong || 0;
 
-// ✅ DEBUG: Show the full structure
-console.log(`[DEBUG SCORING] Full roundConfig:`, JSON.stringify(roundConfig, null, 2));
+  if (isCorrect) {
+    playerData.score = (playerData.score || 0) + pointsPerQuestion;
+    if (debug) console.log(`[wipeoutEngine] ✅ ${playerId} got it right (+${pointsPerQuestion}), score: ${playerData.score}`);
+  } else {
+    playerData.score = (playerData.score || 0) - pointsLostPerWrong;
+    if (playerData.score < 0) playerData.score = 0;
+    if (debug) console.log(`[wipeoutEngine] ❌ ${playerId} got it wrong (-${pointsLostPerWrong}), score: ${playerData.score}`);
+  }
 
-// ✅ CORRECT: Access the nested config properly
-const configObj = roundConfig?.config;
-const pointsPerQuestion = configObj?.pointsPerQuestion || 10;
-
-console.log(`[DEBUG SCORING] configObj:`, JSON.stringify(configObj, null, 2));
-console.log(`[DEBUG SCORING] pointsPerQuestion from config:`, configObj?.pointsPerQuestion);
-console.log(`[DEBUG SCORING] final pointsPerQuestion:`, pointsPerQuestion);
-
-if (isCorrect) {
-  playerData.score = (playerData.score || 0) + pointsPerQuestion;
-  console.log(`[DEBUG SCORING] Player ${playerId} scored! New total:`, playerData.score);
-}
-
- const roundAnswerKey = `${question.id}_round${room.currentRound}`;
+  const roundAnswerKey = `${question.id}_round${room.currentRound}`;
   playerData.answers[roundAnswerKey] = { submitted: answer, correct: isCorrect };
 
   if (debug) {
-    console.log(`[generalTriviaEngine] 📝 Answer from ${playerId}: ${answer} (${isCorrect ? 'Correct' : 'Wrong'})`);
-    console.log(`[generalTriviaEngine] 🔍 Player ${playerId} freeze status: frozenNextQuestion=${playerData.frozenNextQuestion}, frozenForQuestionIndex=${playerData.frozenForQuestionIndex}, currentQ=${room.currentQuestionIndex}`);
+    console.log(`[wipeoutEngine] 📝 Answer from ${playerId}: ${answer} (${isCorrect ? 'Correct' : 'Wrong'})`);
   }
 }
 
@@ -158,7 +142,7 @@ export function emitNextReviewQuestion(roomId, namespace) {
 
   const reviewIndex = room.currentReviewIndex || 0;
   if (reviewIndex >= room.questions.length) {
-    if (debug) console.log(`[generalTriviaEngine] ✅ Review complete`);
+    if (debug) console.log(`[wipeoutEngine] ✅ Review complete`);
     room.currentPhase = 'leaderboard';
     namespace.to(roomId).emit('leaderboard', buildLeaderboard(room));
     emitRoomState(namespace, roomId);
@@ -169,7 +153,7 @@ export function emitNextReviewQuestion(roomId, namespace) {
   room.players.forEach(player => {
     const playerData = room.playerData[player.id];
     const roundAnswerKey = `${question.id}_round${room.currentRound}`;
-const answerData = playerData?.answers?.[roundAnswerKey] || {};
+    const answerData = playerData?.answers?.[roundAnswerKey] || {};
     const submittedAnswer = answerData.submitted || null;
 
     const socket = namespace.sockets.get(player.socketId);
@@ -179,7 +163,7 @@ const answerData = playerData?.answers?.[roundAnswerKey] || {};
         text: question.text,
         options: Array.isArray(question.options) ? question.options : [],
         correctAnswer: question.correctAnswer,
-        submittedAnswer
+        submittedAnswer,
       });
     }
   });
@@ -193,7 +177,7 @@ const answerData = playerData?.answers?.[roundAnswerKey] || {};
 
   room.currentReviewIndex = reviewIndex + 1;
 
-  if (debug) console.log(`[generalTriviaEngine] 🔍 Reviewing question ${reviewIndex + 1}`);
+  if (debug) console.log(`[wipeoutEngine] 🔍 Reviewing question ${reviewIndex + 1}`);
 }
 
 function buildLeaderboard(room) {
@@ -202,11 +186,10 @@ function buildLeaderboard(room) {
     return {
       id: playerId,
       name: player?.name || playerId,
-      score: data.score || 0
+      score: data.score || 0,
     };
   });
 
-  console.log('[Leaderboard] Final scores:', leaderboard);
   leaderboard.sort((a, b) => b.score - a.score);
   return leaderboard;
 }
@@ -219,22 +202,18 @@ function shuffleArray(array) {
 }
 
 function clearExpiredFreezeFlags(room) {
-  console.log(`[generalTriviaEngine] 🔍 clearExpiredFreezeFlags called, currentQuestionIndex: ${room.currentQuestionIndex}`);
-  
   for (const playerId in room.playerData) {
     const p = room.playerData[playerId];
     if (p.frozenNextQuestion && room.currentQuestionIndex > p.frozenForQuestionIndex) {
-      console.log(`[generalTriviaEngine] 🔍 Player ${playerId}: frozenForQuestionIndex=${p.frozenForQuestionIndex}, currentQuestionIndex=${room.currentQuestionIndex}`);
-      if (debug) {
-        console.log(`[generalTriviaEngine] 🧼 Clearing expired freeze for ${playerId} (was frozen for question ${p.frozenForQuestionIndex})`);
-      }
       p.frozenNextQuestion = false;
       p.frozenForQuestionIndex = null;
-    } else if (p.frozenNextQuestion) {
-      console.log(`[generalTriviaEngine] 🔍 NOT clearing ${playerId}: frozenNext=${p.frozenNextQuestion}, frozenForIndex=${p.frozenForQuestionIndex}, currentQ=${room.currentQuestionIndex}`);
+      if (debug) {
+        console.log(`[wipeoutEngine] 🧼 Cleared freeze for ${playerId}`);
+      }
     }
   }
 }
+
 
 
 

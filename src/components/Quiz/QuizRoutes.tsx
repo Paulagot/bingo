@@ -6,6 +6,8 @@ import JoinQuizWeb2Page from './joinroom/JoinQuizWeb2Page';
 import QuizGamePlayPage from './game/QuizGamePlayPage';
 import AdminJoinPage from '../../../src/components/Quiz/game/AdminJoinPage';
 
+import HostControlsPage from '../../components/Quiz/game/HostControlsPage';
+
 export default function QuizRoutes() {
   return (
     <Routes>
@@ -15,6 +17,7 @@ export default function QuizRoutes() {
       <Route path="/join/:roomId" element={<JoinQuizWeb2Page />} />
       <Route path="/play/:roomId/:playerId" element={<QuizGamePlayPage />} />
       <Route path="/admin-join/:roomId" element={<AdminJoinPage />} />
+      <Route path="/host-controls/:roomId" element={<HostControlsPage />} />
     </Routes>
   );
 }

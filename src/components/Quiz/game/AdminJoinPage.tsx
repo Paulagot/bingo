@@ -52,8 +52,15 @@ const AdminJoinPage: React.FC = () => {
         });
       };
 
+      // ✅ NEW: Quiz cancellation handler
+const handleQuizCancelled = ({ message }: { message: string }) => {
+  console.warn('🚫 [AdminJoinPage] Quiz cancelled:', message);
+  // ✅ The global handler in QuizSocketProvider will handle cleanup and redirect
+};
+
       socket.on('quiz_error', handleError);
       socket.on('room_config', handleConfig);
+      socket.on('quiz_cancelled', handleQuizCancelled);
 
       // 2) Now emit “join_quiz_room” as admin
       console.log('🎯 [QuizSocket] Emitting "join_quiz_room" as admin');
@@ -64,10 +71,11 @@ const AdminJoinPage: React.FC = () => {
       });
 
       // 3) Clean up on unmount
-      return () => {
-        socket.off('quiz_error', handleError);
-        socket.off('room_config', handleConfig);
-      };
+     return () => {
+  socket.off('quiz_error', handleError);
+  socket.off('room_config', handleConfig);
+  socket.off('quiz_cancelled', handleQuizCancelled); // ✅ NEW
+};
     }
   }, [roomId, adminId, socket, connected, navigate, setFullConfig]);
 

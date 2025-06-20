@@ -2,109 +2,304 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuizSocket } from '../../../sockets/QuizSocketProvider';
 import UseExtraModal from './UseExtraModal';
-import ExtrasPanel from './ExtrasPanel';
 import GlobalExtrasDuringLeaderboard from './GlobalExtrasDuringLeaderboard';
+import RoundRouter from './RoundRouter';
 import { usePlayerStore } from '../usePlayerStore';
-import { fundraisingExtraDefinitions } from '../../../constants/quizMetadata';
 import { useQuizConfig } from '../useQuizConfig';
-
-interface User {
-  id: string;
-  name: string;
-}
-
-type Question = {
-  id: string;
-  text: string;
-  options: string[];
-  clue?: string;
-  timeLimit: number;
-  questionStartTime?: number;
-};
-
-type LeaderboardEntry = {
-  id: string;
-  name: string;
-  score: number;
-};
+import { useQuizTimer } from './../hooks/useQuizTimer';
+import { useRoundExtras } from './../hooks/useRoundExtras';
+import { useAnswerSubmission } from './../hooks/useAnswerSubmission';
+import { User, Question, LeaderboardEntry, RoomPhase, RoundDefinition } from './../types/quiz';
+import { useNavigate } from 'react-router-dom';
 
 const debug = true;
 
+type ServerRoomState = {
+  currentRound: number;
+  totalRounds: number;
+  roundTypeId: string;
+  roundTypeName: string;
+  totalPlayers: number;
+  phase: RoomPhase;
+};
+
 const QuizGamePlayPage = () => {
-  const { roomId } = useParams<{ roomId: string }>();
+  // ✅ FIXED: Get playerId from URL params, not localStorage
+  const { roomId, playerId } = useParams<{ roomId: string; playerId: string }>();
   const { socket, connected } = useQuizSocket();
+  const navigate = useNavigate();
 
-  const storedPlayerId = roomId ? localStorage.getItem(`quizPlayerId:${roomId}`) : null;
+  // ✅ VALIDATION: Ensure we have required params
+  if (!roomId || !playerId) {
+    return (
+      <div className="p-8 text-center">
+        <h1 className="text-2xl font-bold mb-4 text-red-600">❌ Invalid Game URL</h1>
+        <p className="text-gray-600">Missing room ID or player ID in URL.</p>
+        <button 
+          onClick={() => navigate('/quiz')}
+          className="mt-4 bg-blue-600 text-white px-4 py-2 rounded"
+        >
+          Return to Quiz Home
+        </button>
+      </div>
+    );
+  }
 
+  // Question and game state
   const [question, setQuestion] = useState<Question | null>(null);
-  const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [timerActive, setTimerActive] = useState(false);
   const [selectedAnswer, setSelectedAnswer] = useState('');
   const [answerSubmitted, setAnswerSubmitted] = useState(false);
   const [clue, setClue] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  
+  // Room and phase state
   const [phaseMessage, setPhaseMessage] = useState('Waiting for host to start the quiz...');
-  const [roomPhase, setRoomPhase] = useState<'waiting' | 'asking' | 'reviewing' | 'leaderboard' | 'complete'>('waiting');
+  const [roomPhase, setRoomPhase] = useState<RoomPhase>('waiting');
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
 
-  const { config } = useQuizConfig();
+  // Server-driven round state
+  const [serverRoomState, setServerRoomState] = useState<ServerRoomState>({
+    currentRound: 1,
+    totalRounds: 1,
+    roundTypeId: '',
+    roundTypeName: '',
+    totalPlayers: 0,
+    phase: 'waiting'
+  });
 
- const { players } = usePlayerStore();
-const thisPlayer = players.find(p => p.id === storedPlayerId);
-const availableExtras = thisPlayer?.extras || [];
+  // Question tracking for position within round
+  const [questionInRound, setQuestionInRound] = useState(1);
+  const [totalInRound, setTotalInRound] = useState(1);
+
+  // Player and extras state
+  const { config } = useQuizConfig();
+  const { players } = usePlayerStore();
+  const thisPlayer = players.find(p => p.id === playerId);
+  const availableExtras = thisPlayer?.extras || [];
+  const allPlayerExtras = thisPlayer?.extras || [];
   const [usedExtras, setUsedExtras] = useState<Record<string, boolean>>({});
   const [usedExtrasThisRound, setUsedExtrasThisRound] = useState<Record<string, boolean>>({});
+  
+  // Player list and freeze state
   const [playersInRoom, setPlayersInRoom] = useState<User[]>([]);
   const [freezeModalOpen, setFreezeModalOpen] = useState(false);
   const [isFrozen, setIsFrozen] = useState(false);
   const [frozenNotice, setFrozenNotice] = useState<string | null>(null);
   const [wasJustFrozen, setWasJustFrozen] = useState(false);
 
+  // Refs for tracking game state
   const currentQuestionIndexRef = useRef<number>(-1);
   const frozenForIndexRef = useRef<number | null>(null);
   const frozenByRef = useRef<string | null>(null);
 
+  const currentRoundType = serverRoomState.roundTypeId;
+  const questionCounterDisplay = `${questionInRound}/${totalInRound}`;
 
-  const currentRoundNumber = currentQuestionIndexRef.current + 1;
-  const currentRoundType = config?.roundDefinitions?.find(
-  (r) => r.roundNumber === currentRoundNumber
-)?.roundType;
-const allPlayerExtras = thisPlayer?.extras || [];
+  const calculateQuestionPosition = (currentQuestionIndex: number, roundDefs: RoundDefinition[]) => {
+    if (!roundDefs || currentQuestionIndex < 0) return { questionInRound: 1, totalInRound: 1 };
+    
+    const currentRoundIndex = serverRoomState.currentRound - 1;
+    const currentRoundDef = roundDefs[currentRoundIndex];
+    
+    if (!currentRoundDef) return { questionInRound: 1, totalInRound: 1 };
+    
+    const questionsPerRound = currentRoundDef.config.questionsPerRound;
+    const questionInCurrentRound = currentQuestionIndex + 1;
+    
+    return {
+      questionInRound: Math.max(1, questionInCurrentRound),
+      totalInRound: questionsPerRound
+    };
+  };
 
+  const isFrozenNow = (() => {
+    if (!isFrozen || frozenForIndexRef.current === null) return false;
+    
+    const questionsPerRound = config?.roundDefinitions?.[serverRoomState.currentRound - 1]?.config?.questionsPerRound || 6;
+    const roundRelativeIndex = currentQuestionIndexRef.current % questionsPerRound;
+    
+    const shouldBeFrozen = frozenForIndexRef.current === roundRelativeIndex;
+    
+    if (debug && frozenForIndexRef.current !== null) {
+      console.log(`[FREEZE CHECK] globalIndex: ${currentQuestionIndexRef.current}, roundRelative: ${roundRelativeIndex}, frozenFor: ${frozenForIndexRef.current}, shouldBeFrozen: ${shouldBeFrozen}`);
+    }
+    
+    return shouldBeFrozen;
+  })();
 
+  // Custom hooks
+  const { submitAnswer } = useAnswerSubmission({
+    socket,
+    roomId: roomId!,
+    playerId: playerId!,
+    debug
+  });
 
-  const isFrozenNow =
-    isFrozen &&
-    frozenForIndexRef.current !== null &&
-    frozenForIndexRef.current === currentQuestionIndexRef.current;
+  const { roundExtras } = useRoundExtras({
+    allPlayerExtras,
+    currentRoundType,
+    debug
+  });
 
+  const { timeLeft } = useQuizTimer({
+    question,
+    timerActive,
+    onTimeUp: handleSubmit
+  });
+
+  // ✅ DEBUG: Log the player ID we're using
   if (debug) {
-  console.log('[QuizGamePlayPage] 👤 Player extras loaded:', availableExtras);
-}
-  
+    console.log('[QuizGamePlayPage] 🆔 Using playerId from URL:', playerId);
+    console.log('[QuizGamePlayPage] 👤 Player extras loaded:', availableExtras);
+    console.log('[QuizGamePlayPage] 🎯 Server round state:', serverRoomState);
+    console.log('[QuizGamePlayPage] 🧩 currentRoundType:', currentRoundType);
+    console.log('[QuizGamePlayPage] 📊 questionPosition:', questionCounterDisplay);
+  }
 
+  // ✅ FIXED: Anti-cheat tab tracking with reconnection support
   useEffect(() => {
-    if (!socket || !connected || !roomId || !storedPlayerId) return;
+    if (!roomId || !playerId) return;
+
+    // Generate unique tab ID for this browser tab
+    const tabId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+    sessionStorage.setItem('quiz-play-tab-id', tabId);
+
+    // ✅ IMPROVED: Check for existing tabs but allow reconnections
+    const existingTabId = localStorage.getItem(`quiz-active-play-${roomId}-${playerId}`);
+    const lastActiveTime = localStorage.getItem(`quiz-active-play-time-${roomId}-${playerId}`);
+    
+    if (existingTabId && existingTabId !== tabId) {
+      // ✅ Allow reconnection if the last activity was more than 10 seconds ago
+      const now = Date.now();
+      const lastActive = lastActiveTime ? parseInt(lastActiveTime) : 0;
+      const timeSinceLastActive = now - lastActive;
+      
+      if (timeSinceLastActive < 10000) { // Less than 10 seconds = likely duplicate tab
+        if (debug) console.log('[AntiCheat] 🚫 Blocking duplicate tab access');
+        alert('This quiz is already open in another browser tab! Please close the other tab first.');
+        navigate(`/quiz/game/${roomId}/${playerId}`);
+        return;
+      } else {
+        if (debug) console.log('[AntiCheat] ✅ Allowing reconnection - previous tab inactive');
+      }
+    }
+
+    // Mark this tab as the active play tab with timestamp
+    localStorage.setItem(`quiz-active-play-${roomId}-${playerId}`, tabId);
+    localStorage.setItem(`quiz-active-play-time-${roomId}-${playerId}`, Date.now().toString());
+
+    // ✅ Update activity timestamp periodically
+    const activityInterval = setInterval(() => {
+      localStorage.setItem(`quiz-active-play-time-${roomId}-${playerId}`, Date.now().toString());
+    }, 5000); // Update every 5 seconds
+
+    // Notify server about route change
+    if (socket && connected) {
+      socket.emit('player_route_change', {
+        roomId,
+        playerId: playerId,
+        route: 'play',
+        entering: true
+      });
+    }
+
+    // Listen for other tabs trying to access the same route
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === `quiz-active-play-${roomId}-${playerId}` && e.newValue !== tabId) {
+        // ✅ Only redirect if the new tab is actually active (recent timestamp)
+        const newTimestamp = localStorage.getItem(`quiz-active-play-time-${roomId}-${playerId}`);
+        if (newTimestamp && Date.now() - parseInt(newTimestamp) < 10000) {
+          alert('Quiz opened in another tab. This tab will return to the waiting page.');
+          navigate(`/quiz/game/${roomId}/${playerId}`);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    // Cleanup function
+    return () => {
+      clearInterval(activityInterval);
+      window.removeEventListener('storage', handleStorageChange);
+      
+      const currentActiveTab = localStorage.getItem(`quiz-active-play-${roomId}-${playerId}`);
+      if (currentActiveTab === tabId) {
+        localStorage.removeItem(`quiz-active-play-${roomId}-${playerId}`);
+        localStorage.removeItem(`quiz-active-play-time-${roomId}-${playerId}`);
+      }
+      
+      // Notify server about route change
+      if (socket) {
+        socket.emit('player_route_change', {
+          roomId,
+          playerId: playerId,
+          route: 'play',
+          entering: false
+        });
+      }
+    };
+  }, [roomId, playerId, socket, connected, navigate]);
+
+  // ✅ FIXED: Join room with URL playerId
+  useEffect(() => {
+    if (!socket || !connected) return;
+
     if (debug) console.log('[Client] 🚪 Joining quiz room on mount:', roomId);
+    
     socket.emit('join_quiz_room', {
       roomId,
-      user: { id: storedPlayerId, name: 'Player ' + storedPlayerId },
+      user: { id: playerId, name: 'Player ' + playerId },
       role: 'player'
     });
-  }, [socket, connected, roomId, storedPlayerId]);
+    
+    // Request current state after joining
+    setTimeout(() => {
+      socket.emit('request_current_state', { roomId, playerId: playerId });
+      if (debug) console.log('[Client] 🔄 Requested current state for reconnection');
+    }, 100);
+    
+  }, [socket, connected, roomId, playerId]);
 
+  // Socket event handlers
   useEffect(() => {
-    if (!socket || !connected || !roomId || !storedPlayerId) return;
+    if (!socket || !connected || !roomId || !playerId) return;
 
     const handleQuestion = (data: any) => {
+      console.log(`[DEBUG] Question received:`, data);
+      console.log(`[DEBUG] Before update - currentQuestionIndexRef:`, currentQuestionIndexRef.current);
+      console.log(`[DEBUG] Before update - questionInRound:`, questionInRound, 'totalInRound:', totalInRound);
+      
       if (debug) console.log('[Client] 🧐 Received question:', data);
-      currentQuestionIndexRef.current += 1;
+      
+      const isRecovery = currentQuestionIndexRef.current >= 0 && 
+                        Math.abs(Date.now() - data.questionStartTime) > 5000;
+      
+      if (!isRecovery) {
+        currentQuestionIndexRef.current += 1;
+        console.log(`[DEBUG] Incremented currentQuestionIndexRef to:`, currentQuestionIndexRef.current);
+      } else {
+        console.log(`[DEBUG] Recovery detected - keeping currentQuestionIndexRef:`, currentQuestionIndexRef.current);
+      }
+      
       setQuestion(data);
       setSelectedAnswer('');
       setAnswerSubmitted(false);
       setClue(null);
       setFeedback(null);
       setUsedExtrasThisRound({});
+
+      if (data.questionNumber && data.totalQuestions) {
+        setQuestionInRound(data.questionNumber);
+        setTotalInRound(data.totalQuestions);
+      } else if (config?.roundDefinitions) {
+        const { questionInRound: qInRound, totalInRound: totalInR } = calculateQuestionPosition(
+          currentQuestionIndexRef.current, 
+          config.roundDefinitions
+        );
+        setQuestionInRound(qInRound);
+        setTotalInRound(totalInR);
+      }
 
       if (frozenForIndexRef.current !== null && frozenForIndexRef.current !== currentQuestionIndexRef.current) {
         setIsFrozen(false);
@@ -114,10 +309,6 @@ const allPlayerExtras = thisPlayer?.extras || [];
         if (debug) console.log('[Client] ❄️ Freeze cleared for new question');
       }
 
-      const now = Date.now();
-      const elapsed = (now - data.questionStartTime) / 1000;
-      const remainingTime = Math.max(0, (data.timeLimit || 30) - elapsed);
-      setTimeLeft(remainingTime);
       setTimerActive(true);
       setPhaseMessage('');
     };
@@ -132,7 +323,6 @@ const allPlayerExtras = thisPlayer?.extras || [];
       });
       setClue(null);
       setTimerActive(false);
-      setTimeLeft(null);
       setSelectedAnswer(data.submittedAnswer || '');
       setFeedback(
         data.submittedAnswer
@@ -165,7 +355,12 @@ const allPlayerExtras = thisPlayer?.extras || [];
       setFrozenNotice(`❄️ ${frozenByName} froze you out!!!`);
 
       if (debug) {
-        console.log(`[Client] ❄️ Freeze Notice: You are frozen by ${frozenByName} for question ${currentQuestionIndexRef.current + 1}`);
+        console.log(`[Client] ❄️ Freeze Notice Details:`);
+        console.log(`  - Frozen by: ${frozenByName}`);
+        console.log(`  - Frozen for question INDEX: ${frozenForQuestionIndex}`);
+        console.log(`  - Current question INDEX: ${currentQuestionIndexRef.current}`);
+        console.log(`  - Current question NUMBER: ${currentQuestionIndexRef.current + 1}`);
+        console.log(`[Client] ❄️ Freeze Notice: You are frozen by ${frozenByName} for question index ${frozenForQuestionIndex} (question ${frozenForQuestionIndex + 1} to user)`);
       }
 
       setTimeout(() => {
@@ -173,9 +368,17 @@ const allPlayerExtras = thisPlayer?.extras || [];
       }, 100);
     };
 
-    const handleRoomState = ({ phase }: { phase: typeof roomPhase }) => {
-      if (debug) console.log('[Client] 🧭 room_state update:', phase);
-      setRoomPhase(phase);
+    const handleRoomState = (data: ServerRoomState) => {
+      if (debug) console.log('[Client] 🧭 room_state update:', data);
+      
+      const previousRound = serverRoomState.currentRound;
+      if (data.currentRound !== previousRound && data.phase) {
+        if (debug) console.log(`[Client] 🔄 Round changed from ${previousRound} to ${data.currentRound}, resetting question counter`);
+        currentQuestionIndexRef.current = -1;
+      }
+      
+      setRoomPhase(data.phase);
+      setServerRoomState(data);
     };
 
     const handleLeaderboard = (data: LeaderboardEntry[]) => {
@@ -208,7 +411,7 @@ const allPlayerExtras = thisPlayer?.extras || [];
       setTimerActive(false);
     };
 
-    const handlePlayerListUpdated = ({ players }: { players: { id: string, name: string }[] }) => {
+    const handlePlayerListUpdated = ({ players }: { players: User[] }) => {
       setPlayersInRoom(players);
     };
 
@@ -220,9 +423,59 @@ const allPlayerExtras = thisPlayer?.extras || [];
 
     const handleQuizError = ({ message }: { message: string }) => {
       if (debug) console.error('[Client] ❌ Quiz error:', message);
-      alert(`Error: ${message}`);
+      
+      if (message.includes('active game session') || message.includes('already open in another tab')) {
+        alert(`⚠️ ${message}\n\nRedirecting to waiting page...`);
+        navigate(`/quiz/game/${roomId}/${playerId}`);
+      } else {
+        alert(`Error: ${message}`);
+      }
     };
 
+    const handleQuizNotification = ({ type, message }: { type: 'success' | 'warning' | 'info' | 'error'; message: string }) => {
+      if (debug) console.log('[Client] 📢 Quiz notification:', type, message);
+      alert(`${type === 'success' ? '✅' : type === 'warning' ? '⚠️' : '❌'} ${message}`);
+    };
+
+    const handleQuizCancelled = ({ message }: { message: string }) => {
+      if (debug) console.log('[Client] 🚫 Quiz cancelled:', message);
+    };
+
+    const handlePlayerStateRecovery = (data: {
+      hasAnswered: boolean;
+      isFrozen: boolean;
+      frozenBy: string | null;
+      usedExtras: Record<string, boolean>;
+      usedExtrasThisRound: Record<string, boolean>;
+      remainingTime: number;
+      currentQuestionIndex: number;
+      submittedAnswer: string | null;
+    }) => {
+      if (debug) console.log('[Client] 🔄 Player state recovery:', data);
+      
+      setAnswerSubmitted(data.hasAnswered);
+      if (data.submittedAnswer) {
+        setSelectedAnswer(data.submittedAnswer);
+      }
+      
+      setIsFrozen(data.isFrozen);
+      if (data.isFrozen && data.frozenBy) {
+        const frozenByName = playersInRoom.find(p => p.id === data.frozenBy)?.name || 'Someone';
+        setFrozenNotice(`❄️ ${frozenByName} froze you out!!!`);
+        frozenForIndexRef.current = data.currentQuestionIndex;
+        frozenByRef.current = data.frozenBy;
+      }
+      
+      setUsedExtras(data.usedExtras);
+      setUsedExtrasThisRound(data.usedExtrasThisRound);
+      currentQuestionIndexRef.current = data.currentQuestionIndex;
+      
+      console.log(`[Client] ✅ State recovered: answered=${data.hasAnswered}, frozen=${data.isFrozen}, timer=${data.remainingTime}s`);
+    };
+
+    console.log('[Client] 🧷 Registering socket listeners for player:', playerId, 'Room:', roomId);
+
+    // Register all socket listeners
     socket.on('question', handleQuestion);
     socket.on('review_question', handleReviewQuestion);
     socket.on('clue_revealed', handleClue);
@@ -236,7 +489,11 @@ const allPlayerExtras = thisPlayer?.extras || [];
     socket.on('quiz_error', handleQuizError);
     socket.on('room_state', handleRoomState);
     socket.on('leaderboard', handleLeaderboard);
+    socket.on('quiz_notification', handleQuizNotification);
+    socket.on('player_state_recovery', handlePlayerStateRecovery);
+    socket.on('quiz_cancelled', handleQuizCancelled);
 
+    // Cleanup
     return () => {
       socket.off('question', handleQuestion);
       socket.off('review_question', handleReviewQuestion);
@@ -251,89 +508,80 @@ const allPlayerExtras = thisPlayer?.extras || [];
       socket.off('quiz_error', handleQuizError);
       socket.off('room_state', handleRoomState);
       socket.off('leaderboard', handleLeaderboard);
+      socket.off('quiz_notification', handleQuizNotification);
+      socket.off('player_state_recovery', handlePlayerStateRecovery);
+      socket.off('quiz_cancelled', handleQuizCancelled);
     };
-  }, [socket, connected, roomId, storedPlayerId, playersInRoom]);
+  }, [socket, connected, roomId, playerId, playersInRoom, config?.roundDefinitions, serverRoomState.currentRound]);
 
-  useEffect(() => {
-    if (!timerActive || timeLeft === null) return;
-    if (timeLeft <= 0) {
-      setTimerActive(false);
-      handleSubmit();
-      return;
+  function handleSubmit() {
+    if (!selectedAnswer || !question || isFrozenNow || answerSubmitted) return;
+    
+    const success = submitAnswer(selectedAnswer);
+    if (success) {
+      setAnswerSubmitted(true);
     }
-    const timer = setTimeout(() => setTimeLeft(prev => (prev ?? 1) - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [timeLeft, timerActive]);
+  }
 
-  const handleSubmit = () => {
-    if (!selectedAnswer || !question || !socket || !roomId || !storedPlayerId) return;
-    if (isFrozenNow || answerSubmitted) return;
-    if (debug) console.log('[Client] 📤 Submitting answer as', storedPlayerId, '→', selectedAnswer);
-    socket.emit('submit_answer', {
-      roomId,
-      playerId: storedPlayerId,
-      answer: selectedAnswer
-    });
-    setAnswerSubmitted(true);
-  };
-
-  const handleUseExtra = (extraId: string) => {
-    if (!socket || !roomId || !storedPlayerId) return;
+  const handleUseExtra = (extraId: string, targetPlayerId?: string) => {
+    if (!socket || !roomId || !playerId) return;
+    
     if (usedExtras[extraId]) {
       alert(`You have already used ${extraId}`);
       return;
     }
+    
     if (Object.values(usedExtrasThisRound).some(v => v)) {
       alert('You can only use one extra per round!');
       return;
     }
+
     if (extraId === 'buyHint') {
       socket.emit('use_extra', {
         roomId,
-        playerId: storedPlayerId,
+        playerId: playerId,
         extraId: 'buyHint'
       });
-    }
-    if (extraId === 'freezeOutTeam') {
+    } else if (extraId === 'freezeOutTeam') {
       setFreezeModalOpen(true);
+    } else if (extraId === 'robPoints') {
+      if (!targetPlayerId) {
+        console.error('[handleUseExtra] robPoints requires targetPlayerId');
+        return;
+      }
+      
+      socket.emit('use_extra', {
+        roomId,
+        playerId: playerId,
+        extraId: 'robPoints',
+        targetPlayerId
+      });
+    } else {
+      socket.emit('use_extra', {
+        roomId,
+        playerId: playerId,
+        extraId,
+        targetPlayerId
+      });
     }
   };
 
   const handleFreezeConfirm = (targetPlayerId: string) => {
-    if (!socket || !roomId || !storedPlayerId || !targetPlayerId) return;
+    if (!socket || !roomId || !playerId || !targetPlayerId) return;
     socket.emit('use_extra', {
       roomId,
-      playerId: storedPlayerId,
+      playerId: playerId,
       extraId: 'freezeOutTeam',
       targetPlayerId
     });
     setFreezeModalOpen(false);
   };
 
-const roundExtras = allPlayerExtras.filter((extraId) => {
-  const extra = fundraisingExtraDefinitions[extraId as keyof typeof fundraisingExtraDefinitions];
-  if (!extra) return false;
-  if (extra.applicableTo === 'global') return false; // exclude global during question phase
-  if (!currentRoundType) return false;
-  return Array.isArray(extra.applicableTo) && extra.applicableTo.includes(currentRoundType);
-});
-
-
-
-
-if (debug) {
-  console.log('[QuizGamePlayPage] 🔢 currentRoundNumber:', currentRoundNumber);
-  console.log('[QuizGamePlayPage] 🧩 currentRoundType:', currentRoundType);
-  console.log('[QuizGamePlayPage] 🎯 roundExtras:', roundExtras);
-}
-
-
-
   return (
     <div className="p-8">
       <h1 className="text-2xl font-bold mb-4">🎮 Quiz In Progress</h1>
       <p className="text-sm text-gray-500 mb-2">Room ID: {roomId}</p>
-      <p className="text-sm text-gray-500 mb-4">Player ID: {storedPlayerId || '(not set)'}</p>
+      <p className="text-sm text-gray-500 mb-4">Player ID: {playerId}</p>
 
       {isFrozenNow && frozenNotice && (
         <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded">
@@ -347,106 +595,57 @@ if (debug) {
         </div>
       )}
 
-   {roomPhase === 'leaderboard' && leaderboard.length > 0 ? (
-  <div className="bg-green-50 p-6 rounded-xl text-center">
-    <h2 className="text-lg font-bold text-green-900 mb-2">🏆 Leaderboard</h2>
-    <ol className="list-decimal list-inside text-sm text-gray-800 mb-4">
-      {leaderboard.map((entry, idx) => (
-        <li key={entry.id}>
-          {entry.name} — {entry.score} pts
-        </li>
-      ))}
-    </ol>
+      {roomPhase === 'leaderboard' && leaderboard.length > 0 ? (
+        <div className="bg-green-50 p-6 rounded-xl text-center">
+          <h2 className="text-lg font-bold text-green-900 mb-2">🏆 Leaderboard</h2>
+          <ol className="list-decimal list-inside text-sm text-gray-800 mb-4">
+            {leaderboard.map((entry) => (
+              <li key={entry.id}>
+                {entry.name} — {entry.score} pts
+              </li>
+            ))}
+          </ol>
 
-    <GlobalExtrasDuringLeaderboard
-      availableExtras={availableExtras}
-      usedExtras={usedExtras}
-      onUseExtra={handleUseExtra}
-    />
-  </div>
-      ) : roomPhase === 'reviewing' && question ? (
-        <div className="bg-yellow-50 p-6 rounded-xl">
-          <p className="text-sm font-semibold text-gray-800">📖 Reviewing:</p>
-          <p className="text-base text-yellow-900 mt-1">{question.text}</p>
-          <ul className="mt-2 space-y-1 text-sm">
-            {question.options.map((opt, idx) => {
-              const isCorrect = feedback?.includes(opt) && feedback.includes('Correct');
-              const isSubmitted = opt === selectedAnswer;
-              const bgColor = isCorrect
-                ? 'bg-green-200'
-                : isSubmitted
-                ? 'bg-red-200'
-                : 'bg-white';
-              return (
-                <li key={idx} className={`p-1 rounded ${bgColor}`}>
-                  {opt}
-                </li>
-              );
-            })}
-          </ul>
-          {feedback && <p className="mt-4 text-sm text-gray-700 italic">{feedback}</p>}
+          <GlobalExtrasDuringLeaderboard
+            availableExtras={availableExtras}
+            usedExtras={usedExtras}
+            onUseExtra={handleUseExtra}
+            leaderboard={leaderboard}
+            currentPlayerId={playerId || ''}
+          />
         </div>
-      ) : question ? (
-        <div className={`bg-white p-6 rounded-xl shadow space-y-4 ${isFrozen ? 'opacity-75 border-2 border-red-300' : ''}`}>
-          <div>
-            <h2 className="text-xl font-semibold text-indigo-700">{question.text}</h2>
-            {clue && <p className="text-sm text-blue-500 mt-1">💡 Clue: {clue}</p>}
+      ) : (roomPhase === 'reviewing' || roomPhase === 'asking') && question ? (
+        <div>
+          <div className="flex justify-between items-center mb-4">
+            <span className="text-sm text-gray-600">
+              Round {serverRoomState.currentRound}/{serverRoomState.totalRounds} - Question {questionCounterDisplay}
+            </span>
+            <span className="text-lg font-bold">
+              ⏱️ {timeLeft}s
+            </span>
           </div>
 
-          {question.options && (
-            <div className="space-y-2">
-              {question.options.map((opt: string, idx: number) => (
-                <button
-                  key={idx}
-                  onClick={() => !isFrozen && setSelectedAnswer(opt)}
-                  className={`block w-full text-left px-4 py-2 rounded-lg border transition-all
-                    ${isFrozen
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                      : selectedAnswer === opt
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-gray-100 hover:bg-gray-200'
-                    }`}
-                  disabled={isFrozen}
-                >
-                  {opt} {isFrozen && '❄️'}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <div className="flex items-center justify-between mt-4">
-            <button
-              onClick={handleSubmit}
-              className={`px-4 py-2 rounded-lg font-semibold shadow transition
-                ${isFrozen || !selectedAnswer || answerSubmitted
-                  ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
-                  : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                }`}
-              disabled={!selectedAnswer || isFrozen || answerSubmitted}
-            >
-              {isFrozen
-                ? '❄️ Frozen - Cannot Submit'
-                : answerSubmitted
-                  ? '✅ Submitted'
-                  : 'Submit Answer'}
-            </button>
-          </div>
-
-        <ExtrasPanel
-  roomId={roomId!}
-  playerId={storedPlayerId!}
-  availableExtras={roundExtras}
-  usedExtras={usedExtras}
-  usedExtrasThisRound={usedExtrasThisRound}
-  onUseExtra={handleUseExtra}
-/>
-
-          {feedback && (
-            <div className="mt-4 text-lg font-medium text-center text-gray-800">{feedback}</div>
-          )}
-          {timerActive && (
-            <div className="text-sm text-gray-500 text-right">⏳ Time left: {Math.floor(timeLeft!)}s</div>
-          )}
+          <RoundRouter
+            roomPhase={roomPhase}
+            currentRoundType={currentRoundType}
+            question={question}
+            timeLeft={timeLeft}
+            timerActive={timerActive}
+            selectedAnswer={selectedAnswer}
+            setSelectedAnswer={setSelectedAnswer}
+            answerSubmitted={answerSubmitted}
+            clue={clue}
+            feedback={feedback}
+            isFrozen={isFrozenNow}
+            frozenNotice={frozenNotice}
+            onSubmit={handleSubmit}
+            roomId={roomId!}
+            playerId={playerId!}
+            roundExtras={roundExtras}
+            usedExtras={usedExtras}
+            usedExtrasThisRound={usedExtrasThisRound}
+            onUseExtra={handleUseExtra}
+          />
         </div>
       ) : (
         <div className="bg-gray-100 p-6 rounded-xl text-center text-gray-600">{phaseMessage}</div>
@@ -454,7 +653,7 @@ if (debug) {
 
       <UseExtraModal
         visible={freezeModalOpen}
-        players={playersInRoom.filter(p => p.id !== storedPlayerId)}
+        players={playersInRoom.filter(p => p.id !== playerId)}
         onCancel={() => setFreezeModalOpen(false)}
         onConfirm={handleFreezeConfirm}
       />

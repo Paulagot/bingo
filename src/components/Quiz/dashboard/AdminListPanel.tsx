@@ -4,7 +4,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { v4 as uuidv4 } from 'uuid';
 import { useQuizSocket } from '../../../sockets/QuizSocketProvider';
 import { useAdminStore, Admin } from '../useAdminStore';
-import { fullQuizReset } from '../fullQuizReset';
+import { fullQuizReset } from '../utils/fullQuizReset';
 import { useNavigate } from 'react-router-dom';
 
 
@@ -48,20 +48,7 @@ const AdminListPanel: React.FC = () => {
     };
   }, [socket, setFullAdmins]);
 
-  useEffect(() => {
-  if (!socket) return;
-
-  const handleQuizCancelled = ({ roomId }: { roomId: string }) => {
-    console.warn('🚫 Quiz was cancelled by host. Resetting local state.');
-    fullQuizReset();
-    navigate('/');
-  };
-
-  socket.on('quiz_cancelled', handleQuizCancelled);
-  return () => {
-    socket.off('quiz_cancelled', handleQuizCancelled);
-  };
-}, [socket, navigate]);
+ 
 
 
   return (

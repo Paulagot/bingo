@@ -87,9 +87,35 @@ export const QuizSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         useRoomState.getState().setRoomState(state);
       });
 
-      socket.on('quiz_error', (data: any) => {
-        debugLog.error('quiz_error:', data);
-      });
+     socket.on('quiz_error', (data: any) => {
+  debugLog.error('quiz_error:', data);
+});
+
+// ✅ NEW: Global quiz cancellation handler
+socket.on('quiz_cancelled', ({ message, roomId: cancelledRoomId }: { message: string; roomId: string }) => {
+  debugLog.warning('🚫 Quiz cancelled:', message, 'Room:', cancelledRoomId);
+  
+  // ✅ Clear all quiz state
+  useQuizConfig.getState().resetConfig();
+  usePlayerStore.getState().resetPlayers();
+  useAdminStore.getState().resetAdmins();
+  
+  // ✅ Clear localStorage
+  if (cancelledRoomId) {
+    const storageKey = `quiz_config_${cancelledRoomId}`;
+    localStorage.removeItem(storageKey);
+    localStorage.removeItem('current-room-id');
+    localStorage.removeItem('current-host-id');
+    debugLog.info(`💾 Cleared localStorage for room: ${cancelledRoomId}`);
+  }
+  
+  // ✅ Show message and redirect
+  setTimeout(() => {
+    alert(`🚫 ${message}\n\nRedirecting to quiz home...`);
+    window.location.href = '/quiz'; // ✅ Force navigation to ensure clean state
+  }, 100);
+});
+
 
       // Connection lifecycle
       socket.on('connect', () => {

@@ -1,12 +1,502 @@
 [
   {
-    "id": "wo1",
-    "text": "Which of these animals is a mammal?",
-    "options": ["Whale", "Shark", "Octopus", "Tuna"],
-    "correctAnswer": "Whale",
+    "id": "q001",
+    "text": "What is the capital city of France?",
+    "options": ["Paris", "London", "Berlin", "Madrid"],
+    "correctAnswer": "Paris",
+    "type": "multiple_choice",
+    "points": 10,
+    "clue": "It’s known as the City of Light",
+    "level": "easy"
+  },
+  {
+    "id": "q002",
+    "text": "Which planet is known as the Red Planet?",
+    "options": ["Mars", "Jupiter", "Venus", "Mercury"],
+    "correctAnswer": "Mars",
     "type": "multiple_choice",
     "points": 15,
-    "clue": "It breathes air",
+    "clue": "It’s named after a Roman god of war",
     "level": "medium"
+  },
+  {
+    "id": "q003",
+    "text": "Who wrote the play 'Romeo and Juliet'?",
+    "options": ["William Shakespeare", "Jane Austen", "Charles Dickens", "Mark Twain"],
+    "correctAnswer": "William Shakespeare",
+    "type": "multiple_choice",
+    "points": 10,
+    "clue": "He’s a famous English playwright",
+    "level": "easy"
+  },
+  {
+    "id": "q004",
+    "text": "What is the chemical symbol for Gold?",
+    "options": ["Au", "Ag", "Fe", "Cu"],
+    "correctAnswer": "Au",
+    "type": "multiple_choice",
+    "points": 20,
+    "clue": "It’s derived from the Latin word 'Aurum'",
+    "level": "hard"
+  },
+  {
+    "id": "q005",
+    "text": "Which of these is a primary color?",
+    "options": ["Red", "Orange", "Purple", "Green"],
+    "correctAnswer": "Red",
+    "type": "multiple_choice",
+    "points": 10,
+    "clue": "It’s fundamental in color mixing",
+    "level": "easy"
+  },
+  {
+    "id": "q006",
+    "text": "What is the largest mammal on Earth?",
+    "options": ["Blue Whale", "African Elephant", "Giraffe", "Great White Shark"],
+    "correctAnswer": "Blue Whale",
+    "type": "multiple_choice",
+    "points": 15,
+    "clue": "It lives in the ocean",
+    "level": "medium"
+  },
+  {
+    "id": "q007",
+    "text": "In which year did World War II end?",
+    "options": ["1945", "1918", "1939", "1965"],
+    "correctAnswer": "1945",
+    "type": "multiple_choice",
+    "points": 15,
+    "clue": "It was after the atomic bombs were dropped",
+    "level": "medium"
+  },
+  {
+    "id": "q008",
+    "text": "What is the powerhouse of the cell?",
+    "options": ["Mitochondria", "Nucleus", "Ribosome", "Golgi Apparatus"],
+    "correctAnswer": "Mitochondria",
+    "type": "multiple_choice",
+    "points": 20,
+    "clue": "It generates energy",
+    "level": "hard"
+  },
+  {
+    "id": "q009",
+    "text": "Which country is known as the Land of the Rising Sun?",
+    "options": ["Japan", "China", "Thailand", "South Korea"],
+    "correctAnswer": "Japan",
+    "type": "multiple_choice",
+    "points": 10,
+    "clue": "It’s an island nation in Asia",
+    "level": "easy"
+  },
+  {
+    "id": "q010",
+    "text": "Who painted the Mona Lisa?",
+    "options": ["Leonardo da Vinci", "Vincent van Gogh", "Pablo Picasso", "Claude Monet"],
+    "correctAnswer": "Leonardo da Vinci",
+    "type": "multiple_choice",
+    "points": 15,
+    "clue": "He was a Renaissance polymath",
+    "level": "medium"
+  },
+  {
+    "id": "q011",
+    "text": "What is the smallest prime number?",
+    "options": ["2", "1", "3", "5"],
+    "correctAnswer": "2",
+    "type": "multiple_choice",
+    "points": 15,
+    "clue": "It’s the only even prime number",
+    "level": "medium"
+  },
+  {
+    "id": "q012",
+    "text": "Which gas makes up the majority of Earth’s atmosphere?",
+    "options": ["Nitrogen", "Oxygen", "Carbon Dioxide", "Argon"],
+    "correctAnswer": "Nitrogen",
+    "type": "multiple_choice",
+    "points": 20,
+    "clue": "It constitutes about 78% of the air",
+    "level": "hard"
+  },
+  {
+    "id": "q013",
+    "text": "What is the longest river in the world?",
+    "options": ["Nile", "Amazon", "Yangtze", "Mississippi"],
+    "correctAnswer": "Nile",
+    "type": "multiple_choice",
+    "points": 15,
+    "clue": "It flows through Egypt",
+    "level": "medium"
+  },
+  {
+    "id": "q014",
+    "text": "Which element has the atomic number 1?",
+    "options": ["Hydrogen", "Helium", "Lithium", "Beryllium"],
+    "correctAnswer": "Hydrogen",
+    "type": "multiple_choice",
+    "points": 10,
+    "clue": "It’s the lightest element",
+    "level": "easy"
+  },
+  {
+    "id": "q015",
+    "text": "Who discovered penicillin?",
+    "options": ["Alexander Fleming", "Marie Curie", "Thomas Edison", "Albert Einstein"],
+    "correctAnswer": "Alexander Fleming",
+    "type": "multiple_choice",
+    "points": 20,
+    "clue": "It was an accidental discovery in 1928",
+    "level": "hard"
+  },
+  {
+    "id": "q016",
+    "text": "What is the currency of Brazil?",
+    "options": ["Real", "Peso", "Dollar", "Euro"],
+    "correctAnswer": "Real",
+    "type": "multiple_choice",
+    "points": 10,
+    "clue": "It’s used in South America",
+    "level": "easy"
+  },
+  {
+    "id": "q017",
+    "text": "Which of these is a type of evergreen tree?",
+    "options": ["Pine", "Maple", "Oak", "Birch"],
+    "correctAnswer": "Pine",
+    "type": "multiple_choice",
+    "points": 15,
+    "clue": "It has needles instead of leaves",
+    "level": "medium"
+  },
+  {
+    "id": "q018",
+    "text": "What is the formula for water?",
+    "options": ["H2O", "CO2", "NaCl", "O2"],
+    "correctAnswer": "H2O",
+    "type": "multiple_choice",
+    "points": 10,
+    "clue": "It’s essential for life",
+    "level": "easy"
+  },
+  {
+    "id": "q019",
+    "text": "Which country hosted the 2016 Summer Olympics?",
+    "options": ["Brazil", "China", "United Kingdom", "Japan"],
+    "correctAnswer": "Brazil",
+    "type": "multiple_choice",
+    "points": 15,
+    "clue": "It was held in Rio de Janeiro",
+    "level": "medium"
+  },
+  {
+    "id": "q020",
+    "text": "What is the hardest natural substance known?",
+    "options": ["Diamond", "Quartz", "Graphite", "Talc"],
+    "correctAnswer": "Diamond",
+    "type": "multiple_choice",
+    "points": 20,
+    "clue": "It’s a form of carbon",
+    "level": "hard"
+  },
+  {
+    "id": "q021",
+    "text": "Which of these is a string instrument?",
+    "options": ["Violin", "Trumpet", "Flute", "Drum"],
+    "correctAnswer": "Violin",
+    "type": "multiple_choice",
+    "points": 10,
+    "clue": "It’s played with a bow",
+    "level": "easy"
+  },
+  {
+    "id": "q022",
+    "text": "What is the capital of Australia?",
+    "options": ["Canberra", "Sydney", "Melbourne", "Brisbane"],
+    "correctAnswer": "Canberra",
+    "type": "multiple_choice",
+    "points": 15,
+    "clue": "It’s not Sydney",
+    "level": "medium"
+  },
+  {
+    "id": "q023",
+    "text": "Who developed the theory of relativity?",
+    "options": ["Albert Einstein", "Isaac Newton", "Galileo Galilei", "Stephen Hawking"],
+    "correctAnswer": "Albert Einstein",
+    "type": "multiple_choice",
+    "points": 20,
+    "clue": "It involves E=mc²",
+    "level": "hard"
+  },
+  {
+    "id": "q024",
+    "text": "What is the largest continent by land area?",
+    "options": ["Asia", "Africa", "Australia", "Antarctica"],
+    "correctAnswer": "Asia",
+    "type": "multiple_choice",
+    "points": 10,
+    "clue": "It’s home to China and India",
+    "level": "easy"
+  },
+  {
+    "id": "q025",
+    "text": "Which bird is known for its colorful feathers and ability to mimic sounds?",
+    "options": ["Parrot", "Eagle", "Owl", "Penguin"],
+    "correctAnswer": "Parrot",
+    "type": "multiple_choice",
+    "points": 15,
+    "clue": "It’s often kept as a pet",
+    "level": "medium"
+  },
+  {
+    "id": "q026",
+    "text": "What is the boiling point of water in Celsius?",
+    "options": ["100", "0", "50", "200"],
+    "correctAnswer": "100",
+    "type": "multiple_choice",
+    "points": 10,
+    "clue": "It’s at standard atmospheric pressure",
+    "level": "easy"
+  },
+  {
+    "id": "q027",
+    "text": "Which of these is a noble gas?",
+    "options": ["Helium", "Oxygen", "Nitrogen", "Carbon"],
+    "correctAnswer": "Helium",
+    "type": "multiple_choice",
+    "points": 20,
+    "clue": "It’s used in balloons",
+    "level": "hard"
+  },
+  {
+    "id": "q028",
+    "text": "What is the tallest mountain in the world?",
+    "options": ["Mount Everest", "K2", "Kangchenjunga", "Lhotse"],
+    "correctAnswer": "Mount Everest",
+    "type": "multiple_choice",
+    "points": 15,
+    "clue": "It’s in the Himalayas",
+    "level": "medium"
+  },
+  {
+    "id": "q029",
+    "text": "Which language is primarily spoken in Brazil?",
+    "options": ["Portuguese", "Spanish", "French", "English"],
+    "correctAnswer": "Portuguese",
+    "type": "multiple_choice",
+    "points": 10,
+    "clue": "It’s a Romance language",
+    "level": "easy"
+  },
+  {
+    "id": "q030",
+    "text": "What is the main source of energy for Earth’s climate system?",
+    "options": ["Sun", "Moon", "Geothermal Heat", "Wind"],
+    "correctAnswer": "Sun",
+    "type": "multiple_choice",
+    "points": 15,
+    "clue": "It drives weather patterns",
+    "level": "medium"
+  },
+  {
+    "id": "q031",
+    "text": "Who was the first person to walk on the moon?",
+    "options": ["Neil Armstrong", "Buzz Aldrin", "Yuri Gagarin", "John Glenn"],
+    "correctAnswer": "Neil Armstrong",
+    "type": "multiple_choice",
+    "points": 15,
+    "clue": "He said, 'One small step for man'",
+    "level": "medium"
+  },
+  {
+    "id": "q032",
+    "text": "What is the chemical formula for table salt?",
+    "options": ["NaCl", "KCl", "CaCO3", "HCl"],
+    "correctAnswer": "NaCl",
+    "type": "multiple_choice",
+    "points": 20,
+    "clue": "It’s sodium and chlorine",
+    "level": "hard"
+  },
+  {
+    "id": "q033",
+    "text": "Which of these is a type of cloud?",
+    "options": ["Cumulus", "Cactus", "Coral", "Cypress"],
+    "correctAnswer": "Cumulus",
+    "type": "multiple_choice",
+    "points": 15,
+    "clue": "It’s puffy and white",
+    "level": "medium"
+  },
+  {
+    "id": "q034",
+    "text": "What is the largest organ in the human body?",
+    "options": ["Skin", "Liver", "Heart", "Brain"],
+    "correctAnswer": "Skin",
+    "type": "multiple_choice",
+    "points": 20,
+    "clue": "It’s external and protective",
+    "level": "hard"
+  },
+  {
+    "id": "q035",
+    "text": "Which country is famous for the Great Wall?",
+    "options": ["China", "India", "Japan", "Russia"],
+    "correctAnswer": "China",
+    "type": "multiple_choice",
+    "points": 10,
+    "clue": "It’s a historical defensive structure",
+    "level": "easy"
+  },
+  {
+    "id": "q036",
+    "text": "What gas do plants absorb during photosynthesis?",
+    "options": ["Carbon Dioxide", "Oxygen", "Nitrogen", "Helium"],
+    "correctAnswer": "Carbon Dioxide",
+    "type": "multiple_choice",
+    "points": 15,
+    "clue": "It’s used to produce glucose",
+    "level": "medium"
+  },
+  {
+    "id": "q037",
+    "text": "Which of these is a Shakespeare tragedy?",
+    "options": ["Hamlet", "A Midsummer Night’s Dream", "The Tempest", "Twelfth Night"],
+    "correctAnswer": "Hamlet",
+    "type": "multiple_choice",
+    "points": 20,
+    "clue": "It involves a Danish prince",
+    "level": "hard"
+  },
+  {
+    "id": "q038",
+    "text": "What is the currency of Japan?",
+    "options": ["Yen", "Won", "Dollar", "Euro"],
+    "correctAnswer": "Yen",
+    "type": "multiple_choice",
+    "points": 10,
+    "clue": "It’s used in Tokyo",
+    "level": "easy"
+  },
+  {
+    "id": "q039",
+    "text": "Which of these animals is a reptile?",
+    "options": ["Crocodile", "Frog", "Salamander", "Toad"],
+    "correctAnswer": "Crocodile",
+    "type": "multiple_choice",
+    "points": 15,
+    "clue": "It has scales and lays eggs",
+    "level": "medium"
+  },
+  {
+    "id": "q040",
+    "text": "What is the square root of 16?",
+    "options": ["4", "2", "8", "16"],
+    "correctAnswer": "4",
+    "type": "multiple_choice",
+    "points": 10,
+    "clue": "It’s a basic math operation",
+    "level": "easy"
+  },
+  {
+    "id": "q041",
+    "text": "Which scientist proposed the laws of motion?",
+    "options": ["Isaac Newton", "Albert Einstein", "Galileo Galilei", "Nikola Tesla"],
+    "correctAnswer": "Isaac Newton",
+    "type": "multiple_choice",
+    "points": 20,
+    "clue": "They’re three fundamental laws",
+    "level": "hard"
+  },
+  {
+    "id": "q042",
+    "text": "What is the capital of Canada?",
+    "options": ["Ottawa", "Toronto", "Vancouver", "Montreal"],
+    "correctAnswer": "Ottawa",
+    "type": "multiple_choice",
+    "points": 10,
+    "clue": "It’s not the largest city",
+    "level": "easy"
+  },
+  {
+    "id": "q043",
+    "text": "Which of these is a type of renewable energy?",
+    "options": ["Solar", "Coal", "Oil", "Natural Gas"],
+    "correctAnswer": "Solar",
+    "type": "multiple_choice",
+    "points": 15,
+    "clue": "It comes from the sun",
+    "level": "medium"
+  },
+  {
+    "id": "q044",
+    "text": "What is the chemical symbol for Iron?",
+    "options": ["Fe", "Au", "Ag", "Cu"],
+    "correctAnswer": "Fe",
+    "type": "multiple_choice",
+    "points": 20,
+    "clue": "It’s derived from the Latin word 'Ferrum'",
+    "level": "hard"
+  },
+  {
+    "id": "q045",
+    "text": "Which of these is a type of fish?",
+    "options": ["Salmon", "Dolphin", "Whale", "Shark"],
+    "correctAnswer": "Salmon",
+    "type": "multiple_choice",
+    "points": 15,
+    "clue": "It’s often used in sushi",
+    "level": "medium"
+  },
+  {
+    "id": "q046",
+    "text": "What is the largest desert in the world?",
+    "options": ["Sahara", "Gobi", "Kalahari", "Antarctic"],
+    "correctAnswer": "Antarctic",
+    "type": "multiple_choice",
+    "points": 20,
+    "clue": "It’s a cold desert",
+    "level": "hard"
+  },
+  {
+    "id": "q047",
+    "text": "Which of these is a type of pasta?",
+    "options": ["Spaghetti", "Sushi", "Taco", "Bagel"],
+    "correctAnswer": "Spaghetti",
+    "type": "multiple_choice",
+    "points": 10,
+    "clue": "It’s long and thin",
+    "level": "easy"
+  },
+  {
+    "id": "q048",
+    "text": "What is the primary language spoken in Egypt?",
+    "options": ["Arabic", "French", "English", "Swahili"],
+    "correctAnswer": "Arabic",
+    "type": "multiple_choice",
+    "points": 15,
+    "clue": "It’s widely spoken in the Middle East",
+    "level": "medium"
+  },
+  {
+    "id": "q049",
+    "text": "Which gas is essential for human respiration?",
+    "options": ["Oxygen", "Nitrogen", "Carbon Dioxide", "Helium"],
+    "correctAnswer": "Oxygen",
+    "type": "multiple_choice",
+    "points": 10,
+    "clue": "You breathe it in",
+    "level": "easy"
+  },
+  {
+    "id": "q050",
+    "text": "Who wrote the novel 'Pride and Prejudice'?",
+    "options": ["Jane Austen", "Emily Brontë", "Charlotte Brontë", "Virginia Woolf"],
+    "correctAnswer": "Jane Austen",
+    "type": "multiple_choice",
+    "points": 20,
+    "clue": "It’s a classic romance novel",
+    "level": "hard"
   }
 ]

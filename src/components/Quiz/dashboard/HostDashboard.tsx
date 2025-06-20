@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useQuizConfig } from '../useQuizConfig';
 import { usePlayerStore } from '../usePlayerStore';
 import { useRoomIdentity } from '../useRoomIdentity';
-import { fullQuizReset } from '../fullQuizReset';
+import { fullQuizReset } from '../utils/fullQuizReset';
 import SetupSummaryPanel from './SetupSummaryPanel';
 import PlayerListPanel from './PlayerListPanel';
 import AdminListPanel from './AdminListPanel';
 import PaymentReconciliationPanel from './PaymentReconciliation';
-import HostGameControls from '../game/GameControls';
+
 import { useQuizSocket } from '../../../sockets/QuizSocketProvider';
 import { useAdminStore } from '../useAdminStore';
 
@@ -74,6 +74,22 @@ const HostDashboard: React.FC = () => {
     }
   }, [connected, socket, roomId, config?.hostId, config?.hostName]);
 
+
+
+const handleLaunchQuiz = () => {
+  if (DEBUG) console.log('👤 [HostDashboard] 🚀 Host launching quiz');
+
+  if (socket && roomId) {
+    socket.emit('launch_quiz', { roomId });
+    navigate(`/quiz/host-controls/${roomId}`);
+    if (DEBUG) console.log('✅ Launch quiz request sent and host redirected');
+  } else {
+    console.error('❌ Cannot launch quiz: missing socket or roomId');
+    alert('Unable to launch quiz. Please try refreshing the page.');
+  }
+};
+
+
   // Quiz cancelled handler
   useEffect(() => {
     if (!socket) return;
@@ -90,34 +106,19 @@ const HostDashboard: React.FC = () => {
     };
   }, [socket, navigate]);
 
-  const handleCancelQuiz = () => {
-    if (DEBUG) console.log('👤 [HostDashboard] 🚫 User initiated quiz cancellation');
+ const handleCancelQuiz = () => {
+  if (DEBUG) console.log('👤 [HostDashboard] 🚫 User initiated quiz cancellation');
 
-    if (socket && roomId) {
-      socket.emit('delete_quiz_room', { roomId });
-    }
-
-    resetConfig();
-    resetPlayers();
-    useAdminStore.getState().resetAdmins();
-
-    if (roomId) {
-      const storageKey = `quiz_config_${roomId}`;
-      localStorage.removeItem(storageKey);
-      if (DEBUG) console.log(`💾 Removed localStorage key: ${storageKey}`);
-    }
-
-    if (socket) {
-      try {
-        socket.disconnect();
-        if (DEBUG) console.log('✅ Socket disconnected successfully');
-      } catch (error) {
-        console.error('❌ Error during socket disconnect', error);
-      }
-    }
-
-    navigate('/');
-  };
+  if (socket && roomId) {
+    socket.emit('delete_quiz_room', { roomId });
+    // ✅ Don't disconnect immediately - let the server send us the cancellation event
+    // ✅ Don't navigate immediately - let the global handler do it
+    if (DEBUG) console.log('✅ Cancellation request sent to server');
+  } else {
+    // ✅ Fallback if no socket/roomId
+    navigate('/quiz');
+  }
+};
 
   if (DEBUG) {
     console.log('🎨 [HostDashboard] Component rendering');
@@ -151,7 +152,23 @@ const HostDashboard: React.FC = () => {
         <AdminListPanel />
         <PlayerListPanel />
         <PaymentReconciliationPanel />
-        <HostGameControls />
+       
+
+       {/* Launch Quiz Section */}
+<div className="bg-gradient-to-r from-green-50 to-blue-50 p-6 rounded-xl border-2 border-green-200">
+  <div className="text-center">
+    <h2 className="text-2xl font-bold text-green-800 mb-3">🚀 Ready to Start?</h2>
+    <p className="text-gray-600 mb-6">
+      Launch the quiz to redirect all waiting players to the game and open your host controls.
+    </p>
+    <button
+      onClick={handleLaunchQuiz}
+      className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-xl font-bold text-lg transition-colors shadow-lg"
+    >
+      🚀 Launch Quiz
+    </button>
+  </div>
+</div>
 
         <div className="text-center pt-8">
           <button
