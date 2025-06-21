@@ -46,7 +46,11 @@ const StepReviewLaunch: FC<WizardStepProps> = ({ onBack }) => {
     setIsLaunching(true);
 
     try {
-      const res = await fetch('http://localhost:3001/quiz/api/create-room', {
+      const apiUrl = window.location.hostname === 'localhost' 
+  ? 'http://localhost:3001' 
+  : 'https://bingo-production-4534.up.railway.app';
+
+const res = await fetch(`${apiUrl}/quiz/api/create-room`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ config: setupConfig })
