@@ -11,6 +11,8 @@ import { useRoundExtras } from './../hooks/useRoundExtras';
 import { useAnswerSubmission } from './../hooks/useAnswerSubmission';
 import { User, Question, LeaderboardEntry, RoomPhase, RoundDefinition } from './../types/quiz';
 import { useNavigate } from 'react-router-dom';
+import LaunchedPhase from './LaunchedPhase';
+import { roundTypeDefinitions } from '../../../constants/quizMetadata';
 
 const debug = true;
 
@@ -313,26 +315,51 @@ const QuizGamePlayPage = () => {
       setPhaseMessage('');
     };
 
-    const handleReviewQuestion = (data: any) => {
-      if (debug) console.log('[Client] 🤔 Review question received:', data);
-      setQuestion({
-        id: data.id,
-        text: data.text,
-        options: data.options || [],
-        timeLimit: 0
-      });
-      setClue(null);
-      setTimerActive(false);
-      setSelectedAnswer(data.submittedAnswer || '');
-      setFeedback(
-        data.submittedAnswer
-          ? data.submittedAnswer === data.correctAnswer
-            ? '✅ Correct!'
-            : `❌ Incorrect. Correct Answer: ${data.correctAnswer}`
-          : `❌ You didn't answer. Correct Answer: ${data.correctAnswer}`
-      );
-      setPhaseMessage('Reviewing previous question...');
-    };
+  const handleReviewQuestion = (data: any) => {
+  if (debug) console.log('[Client] 🤔 Review question received:', data);
+  setQuestion({
+    id: data.id,
+    text: data.text,
+    options: data.options || [],
+    timeLimit: 0
+  });
+  setClue(null);
+  setTimerActive(false);
+  setSelectedAnswer(data.submittedAnswer || '');
+  
+  // ✅ 3. Calculate points using existing config data
+  const currentRoundDef = config?.roundDefinitions?.[serverRoomState.currentRound - 1];
+  const roundConfig = currentRoundDef?.config;
+  const pointsPerQuestion = roundConfig?.pointsPerQuestion || 2;
+  const pointsLostPerWrong = roundConfig?.pointsLostPerWrong || 0;
+  
+  const hasAnswered = data.submittedAnswer !== null && data.submittedAnswer !== undefined;
+  const isCorrect = hasAnswered && data.submittedAnswer === data.correctAnswer;
+  
+  let pointsEarned = 0;
+  if (hasAnswered) {
+    if (isCorrect) {
+      pointsEarned = pointsPerQuestion;
+    } else if (pointsLostPerWrong > 0) {
+      pointsEarned = -pointsLostPerWrong;
+    }
+  }
+  
+  // ✅ 4. FIXED: Improved feedback with points and correct color logic
+  let feedbackMessage = '';
+  
+  if (!hasAnswered) {
+    feedbackMessage = `❌ You didn't answer. Correct Answer: ${data.correctAnswer}`;
+  } else if (isCorrect) {
+    feedbackMessage = `✅ Correct! +${pointsEarned} points`;
+  } else {
+    const pointsText = pointsEarned < 0 ? `${pointsEarned}` : '0';
+    feedbackMessage = `❌ Incorrect. ${pointsText} points. Correct Answer: ${data.correctAnswer}`;
+  }
+  
+  setFeedback(feedbackMessage);
+  setPhaseMessage('Reviewing previous question...');
+};
 
     const handleClue = ({ clue }: { clue: string }) => {
       if (debug) console.log('[Client] 💡 Clue revealed:', clue);
@@ -595,70 +622,83 @@ const QuizGamePlayPage = () => {
         </div>
       )}
 
-      {roomPhase === 'leaderboard' && leaderboard.length > 0 ? (
-        <div className="bg-green-50 p-6 rounded-xl text-center">
-          <h2 className="text-lg font-bold text-green-900 mb-2">🏆 Leaderboard</h2>
-          <ol className="list-decimal list-inside text-sm text-gray-800 mb-4">
-            {leaderboard.map((entry) => (
-              <li key={entry.id}>
-                {entry.name} — {entry.score} pts
-              </li>
-            ))}
-          </ol>
+      
 
-          <GlobalExtrasDuringLeaderboard
-            availableExtras={availableExtras}
-            usedExtras={usedExtras}
-            onUseExtra={handleUseExtra}
-            leaderboard={leaderboard}
-            currentPlayerId={playerId || ''}
-          />
+     {/* ✅ 5. NEW: Add LaunchedPhase component using existing data */}
+     {(roomPhase === 'launched' || (roomPhase === 'waiting' && serverRoomState.currentRound > 1)) ? (
+  <LaunchedPhase
+    currentRound={serverRoomState.currentRound}
+    config={config}
+    totalPlayers={serverRoomState.totalPlayers}
+    playerId={playerId || ''}
+    playerExtras={thisPlayer?.extras || []}
+    roomPhase={roomPhase}
+  />
+) : roomPhase === 'leaderboard' && leaderboard.length > 0 ? (
+  <div className="bg-green-50 p-6 rounded-xl text-center">
+    <h2 className="text-lg font-bold text-green-900 mb-2">🏆 Leaderboard</h2>
+    <ol className="list-decimal list-inside text-sm text-gray-800 mb-4">
+      {leaderboard.map((entry) => (
+        <li key={entry.id}>
+          {entry.name} — {entry.score} pts
+        </li>
+      ))}
+    </ol>
+
+    <GlobalExtrasDuringLeaderboard
+      availableExtras={availableExtras}
+      usedExtras={usedExtras}
+      onUseExtra={handleUseExtra}
+      leaderboard={leaderboard}
+      currentPlayerId={playerId || ''}
+    />
+  </div>
+) : (roomPhase === 'reviewing' || roomPhase === 'asking') && question ? (
+      <div>
+        <div className="flex justify-between items-center mb-4">
+          <span className="text-sm text-gray-600">
+            Round {serverRoomState.currentRound}/{serverRoomState.totalRounds} - Question {questionCounterDisplay}
+          </span>
+          <span className="text-lg font-bold">
+            ⏱️ {timeLeft}s
+          </span>
         </div>
-      ) : (roomPhase === 'reviewing' || roomPhase === 'asking') && question ? (
-        <div>
-          <div className="flex justify-between items-center mb-4">
-            <span className="text-sm text-gray-600">
-              Round {serverRoomState.currentRound}/{serverRoomState.totalRounds} - Question {questionCounterDisplay}
-            </span>
-            <span className="text-lg font-bold">
-              ⏱️ {timeLeft}s
-            </span>
-          </div>
 
-          <RoundRouter
-            roomPhase={roomPhase}
-            currentRoundType={currentRoundType}
-            question={question}
-            timeLeft={timeLeft}
-            timerActive={timerActive}
-            selectedAnswer={selectedAnswer}
-            setSelectedAnswer={setSelectedAnswer}
-            answerSubmitted={answerSubmitted}
-            clue={clue}
-            feedback={feedback}
-            isFrozen={isFrozenNow}
-            frozenNotice={frozenNotice}
-            onSubmit={handleSubmit}
-            roomId={roomId!}
-            playerId={playerId!}
-            roundExtras={roundExtras}
-            usedExtras={usedExtras}
-            usedExtrasThisRound={usedExtrasThisRound}
-            onUseExtra={handleUseExtra}
-          />
-        </div>
-      ) : (
-        <div className="bg-gray-100 p-6 rounded-xl text-center text-gray-600">{phaseMessage}</div>
-      )}
+        <RoundRouter
+          roomPhase={roomPhase}
+          currentRoundType={currentRoundType}
+          question={question}
+          timeLeft={timeLeft}
+          timerActive={timerActive}
+          selectedAnswer={selectedAnswer}
+          setSelectedAnswer={setSelectedAnswer}
+          answerSubmitted={answerSubmitted}
+          clue={clue}
+          feedback={feedback}
+          isFrozen={isFrozenNow}
+          frozenNotice={frozenNotice}
+          onSubmit={handleSubmit}
+          roomId={roomId!}
+          playerId={playerId!}
+          roundExtras={roundExtras}
+          usedExtras={usedExtras}
+          usedExtrasThisRound={usedExtrasThisRound}
+          onUseExtra={handleUseExtra}
+        />
+      </div>
+    ) : (
+      <div className="bg-gray-100 p-6 rounded-xl text-center text-gray-600">{phaseMessage}</div>
+    )}
 
-      <UseExtraModal
-        visible={freezeModalOpen}
-        players={playersInRoom.filter(p => p.id !== playerId)}
-        onCancel={() => setFreezeModalOpen(false)}
-        onConfirm={handleFreezeConfirm}
-      />
-    </div>
-  );
+    <UseExtraModal
+      visible={freezeModalOpen}
+      players={playersInRoom.filter(p => p.id !== playerId)}
+      onCancel={() => setFreezeModalOpen(false)}
+      onConfirm={handleFreezeConfirm}
+    />
+  </div>
+);
+  
 };
 
 export default QuizGamePlayPage;

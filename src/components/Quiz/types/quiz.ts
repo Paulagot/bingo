@@ -149,7 +149,7 @@ export type LeaderboardEntry = {
   score: number;
 };
 
-export type RoomPhase = 'waiting' | 'asking' | 'reviewing' | 'leaderboard' | 'complete';
+export type RoomPhase = 'waiting' | 'launched' | 'asking' | 'reviewing' | 'leaderboard' | 'complete';
 
 // Props interface for round components
 export interface RoundComponentProps {
