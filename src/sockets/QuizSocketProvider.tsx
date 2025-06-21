@@ -44,20 +44,26 @@ export const QuizSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const { roomId, hostId } = useRoomIdentity();
 
   useEffect(() => {
-   console.log('🚀 QuizSocketProvider mounting');
+  console.log('🚀 QuizSocketProvider mounting');
 
-    if (!socketRef.current) {
-      const namespaceUrl = `${import.meta.env.VITE_SOCKET_URL || window.location.origin}/quiz`;
-      console.log('Connecting to Socket.IO namespace:', namespaceUrl);
+  if (!socketRef.current) {
+    // NEW CODE:
+ const isLocalhost = window.location.hostname === 'localhost';
+const socketTarget = isLocalhost 
+  ? `${import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001'}/quiz`
+  : '/quiz';
 
-      const socket = io(namespaceUrl, {
-        path: '/socket.io',
-       transports: ['polling', 'websocket'],
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
-        timeout: 20000,
-      });
+console.log('Connecting to Socket.IO namespace:', socketTarget);
+
+const socket = io(socketTarget, {
+  ...(isLocalhost ? {} : { forceNew: true }),
+  path: '/socket.io',
+  transports: ['polling', 'websocket'],
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
+  timeout: 20000,
+});
 
       socketRef.current = socket;
       setConnectionState('connecting');
