@@ -29,7 +29,7 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     timing: '25 seconds per question',
     difficulty: 'Easy',
     bestFor: 'Mixed groups, warm-up rounds, classic quiz feel, family events',
-    defaultConfig: { questionsPerRound: 6, timePerQuestion: 25 },
+    defaultConfig: { questionsPerRound: 6, timePerQuestion: 20 },
     extras: ['Hint', 'Freeze-out-Team'],// ✅ Optional extras
     videoId: 'YOUR_YOUTUBE_VIDEO_ID' // ✅ Optional video ID
   },
@@ -57,7 +57,7 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     timing: '18 seconds per question',
     difficulty: 'Easy',
     bestFor: 'Mixed groups, competitive play, family events',
-    defaultConfig: { questionsPerRound: 8, timePerQuestion: 18 },
+    defaultConfig: { questionsPerRound: 8, timePerQuestion: 12 },
     extras: ['Hint', 'Freeze-out-Team', 'Restore Points'],
     videoId: 'YOUR_YOUTUBE_VIDEO_ID'
   },

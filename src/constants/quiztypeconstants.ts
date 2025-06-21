@@ -9,7 +9,7 @@ export const roundTypes: RoundTypeDefinition[] = [
     description: 'Standard multiple choice format with hints and reviews.',
     defaultConfig: {
       questionsPerRound: 6,
-      timePerQuestion: 25,
+      timePerQuestion: 20,
       pointsPerQuestion: 2
     }
   },
@@ -30,7 +30,7 @@ export const roundTypes: RoundTypeDefinition[] = [
     description: 'Lose points for wrong answers. Strategic gameplay.',
     defaultConfig: {
       questionsPerRound: 8,
-      timePerQuestion: 18,
+      timePerQuestion: 12,
       pointsPerQuestion: 2,
       pointsLostPerWrong: 1
     }
