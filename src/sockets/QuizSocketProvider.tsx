@@ -13,10 +13,10 @@ const DEBUG = true;
 const debugLog = {
   info: (msg: string, ...args: any[]) => { if (DEBUG) console.log(`🔵 [QuizSocket] ${msg}`, ...args); },
   success: (msg: string, ...args: any[]) => { if (DEBUG) console.log(`✅ [QuizSocket] ${msg}`, ...args); },
-  warning: (msg: string, ...args: any[]) => { if (DEBUG) console.warn(`⚠️ [QuizSocket] ${msg}`, ...args); },
-  error: (msg: string, ...args: any[]) => { if (DEBUG) console.error(`❌ [QuizSocket] ${msg}`, ...args); },
+  warning: (msg: string, ...args: any[]) => { if (DEBUG) console.log(`⚠️ [QuizSocket] ${msg}`, ...args); },
+  error: (msg: string, ...args: any[]) => { if (DEBUG) console.log(`❌ [QuizSocket] ${msg}`, ...args); },
   event: (msg: string, ...args: any[]) => { if (DEBUG) console.log(`🎯 [QuizSocket] ${msg}`, ...args); },
-  data: (msg: string, data: any) => { if (DEBUG) { console.group(`📦 [QuizSocket] ${msg}`); console.log(data); console.groupEnd(); } },
+  data: (msg: string, data: any) => { if (DEBUG) { console.log(`📦 [QuizSocket] ${msg}`); console.log(data); console.groupEnd(); } },
 };
 
 // Socket context type
@@ -44,15 +44,15 @@ export const QuizSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const { roomId, hostId } = useRoomIdentity();
 
   useEffect(() => {
-    debugLog.info('🚀 QuizSocketProvider mounting');
+   console.log('🚀 QuizSocketProvider mounting');
 
     if (!socketRef.current) {
       const namespaceUrl = `${import.meta.env.VITE_SOCKET_URL || window.location.origin}/quiz`;
-      debugLog.info('Connecting to Socket.IO namespace:', namespaceUrl);
+      console.log('Connecting to Socket.IO namespace:', namespaceUrl);
 
       const socket = io(namespaceUrl, {
         path: '/socket.io',
-        transports: ['websocket'],
+       transports: ['polling', 'websocket'],
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
