@@ -47,7 +47,7 @@ export const QuizSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     debugLog.info('🚀 QuizSocketProvider mounting');
 
     if (!socketRef.current) {
-      const namespaceUrl = `${import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001'}/quiz`;
+      const namespaceUrl = `${import.meta.env.VITE_SOCKET_URL || window.location.origin}/quiz`;
       debugLog.info('Connecting to Socket.IO namespace:', namespaceUrl);
 
       const socket = io(namespaceUrl, {

@@ -43,8 +43,14 @@ const httpServer = createServer(app);
 
 const io = new Server(httpServer, {
   cors: {
-    origin: '*',
+    origin: [
+      'https://fundraisely.ie',
+      'https://fundraisely.co.uk',
+      'http://localhost:3000', // for development
+      'http://localhost:5173'  // Vite default port
+    ],
     methods: ['GET', 'POST'],
+    credentials: true
   }
 });
 
