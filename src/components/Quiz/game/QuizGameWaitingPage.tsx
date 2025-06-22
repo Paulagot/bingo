@@ -88,18 +88,33 @@ const QuizGameWaitingPage = () => {
       debugLog.event('🎯 room_config received', roomConfig);
     };
 
+    // ✅ NEW: Handle room state updates that indicate game is in progress
+    const handleRoomState = (data: any) => {
+      debugLog.event('🎯 room_state received in waiting page', data);
+      
+      // If we receive a room state indicating the game is active, redirect
+      if (data.phase && (data.phase === 'asking' || data.phase === 'reviewing' || data.phase === 'leaderboard')) {
+        debugLog.info('🎮 Game detected as active - redirecting to play page');
+        setTimeout(() => {
+          navigate(`/quiz/play/${roomId}/${playerId}`);
+        }, 500);
+      }
+    };
+
     socket.on('player_list_updated', handlePlayerListUpdated);
     socket.on('room_config', handleRoomConfig);
     socket.on('quiz_launched', handleQuizLaunched);
+    socket.on('room_state', handleRoomState); // ✅ NEW
 
     return () => {
       socket.off('player_list_updated', handlePlayerListUpdated);
       socket.off('room_config', handleRoomConfig);
       socket.off('quiz_launched', handleQuizLaunched);
+      socket.off('room_state', handleRoomState); // ✅ NEW
     };
   }, [socket, connected, playerId, navigate, roomId]);
 
-  // ✅ FIXED: Join room only once and handle existing players properly
+  // ✅ UPDATED: Join room logic with reconnection support
   useEffect(() => {
     if (!socket || !connected || !roomId || !playerId || hasJoinedRef.current) {
       if (!socket || !connected || !roomId || !playerId) {
@@ -110,11 +125,10 @@ const QuizGameWaitingPage = () => {
 
     hasJoinedRef.current = true;
 
-    // ✅ SMART JOIN: Check if player already exists first
     const checkPlayerExists = () => {
       socket.emit('verify_quiz_room_and_player', { roomId, playerId });
       
-      socket.once('quiz_room_player_verification_result', ({ roomExists, playerApproved }) => {
+      socket.once('quiz_room_player_verification_result', ({ roomExists, playerApproved, roomState }) => {
         if (!roomExists) {
           debugLog.error('❌ Room does not exist');
           navigate('/quiz');
@@ -122,18 +136,43 @@ const QuizGameWaitingPage = () => {
         }
 
         if (playerApproved) {
-          // ✅ Player already exists in room - just update socket connection
+          // ✅ Player exists, updating socket connection
           debugLog.info('🔄 Player exists, updating socket connection');
           socket.emit('join_quiz_room', {
             roomId,
             user: { id: playerId, name: 'Player' },
             role: 'player'
           });
+
+          // ✅ NEW: Check if quiz is already in progress
+          if (roomState && (roomState.phase === 'asking' || roomState.phase === 'reviewing' || roomState.phase === 'leaderboard' || roomState.phase === 'launched')) {
+            debugLog.info('🎮 Quiz already in progress - redirecting to play page');
+            setTimeout(() => {
+              navigate(`/quiz/play/${roomId}/${playerId}`);
+            }, 500);
+            return;
+          }
+
         } else {
-          // ✅ Player not approved - redirect back
+          // ✅ IMPROVED: More specific error handling
           debugLog.warning('⚠️ Player not approved for this room');
-          alert('You are not registered for this quiz. Please contact the organizer.');
-          navigate('/quiz');
+          
+          // Check if it's a mid-game reconnection issue
+          socket.emit('check_player_in_active_game', { roomId, playerId });
+          
+          socket.once('player_active_game_status', ({ isInActiveGame, currentPhase }) => {
+            if (isInActiveGame) {
+              debugLog.info('🔄 Player found in active game - allowing reconnection');
+              socket.emit('rejoin_active_game', { roomId, playerId });
+              setTimeout(() => {
+                navigate(`/quiz/play/${roomId}/${playerId}`);
+              }, 500);
+            } else {
+              alert('You are not registered for this quiz. Please contact the organizer.');
+              navigate('/quiz');
+            }
+          });
+          
           return;
         }
 
