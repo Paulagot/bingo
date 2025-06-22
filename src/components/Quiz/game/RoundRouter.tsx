@@ -6,6 +6,7 @@ import ReviewPhase from './../game/ReviewPhase';
 interface RoundRouterProps extends RoundComponentProps {
   roomPhase: 'asking' | 'reviewing';
   currentRoundType?: string;
+    correctAnswer?: string;
 }
 
 const RoundRouter: React.FC<RoundRouterProps> = ({
@@ -14,6 +15,7 @@ const RoundRouter: React.FC<RoundRouterProps> = ({
   question,
   selectedAnswer,
   feedback,
+   correctAnswer,
   ...props
 }) => {
   if (roomPhase === 'reviewing') {
@@ -22,6 +24,7 @@ const RoundRouter: React.FC<RoundRouterProps> = ({
         question={question}
         selectedAnswer={selectedAnswer}
         feedback={feedback}
+        correctAnswer={correctAnswer}
       />
     );
   }

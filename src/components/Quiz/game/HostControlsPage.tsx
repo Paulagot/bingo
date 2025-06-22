@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useQuizSocket } from '../../../sockets/QuizSocketProvider';
 import { useNavigate } from 'react-router-dom';
+import { useQuizTimer } from '../hooks/useQuizTimer'; // ✅ ADD: Import the timer hook
 
 const debug = true;
 
@@ -50,9 +51,20 @@ const HostControlsPage = () => {
   });
 
   const [currentQuestion, setCurrentQuestion] = useState<QuestionPayload | null>(null);
-  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  // ✅ REMOVED: const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [reviewQuestion, setReviewQuestion] = useState<ReviewQuestionPayload | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+
+  // ✅ ADD: Use the timer hook (same as players use)
+  const { timeLeft } = useQuizTimer({
+    question: currentQuestion,
+    timerActive: roomState.phase === 'asking',
+    onTimeUp: () => {
+      // Host doesn't need to do anything when time runs out
+      // Server handles advancing to next question automatically
+      if (debug) console.log('[Host] ⏰ Timer reached zero - server will advance question');
+    }
+  });
 
   // ✅ Join room as host when component mounts
   useEffect(() => {
@@ -86,17 +98,14 @@ const HostControlsPage = () => {
     };
   }, [socket]);
 
-  // Listen for question events (host sees live questions too)
+  // ✅ SIMPLIFIED: Listen for question events (no manual timer calculation)
   useEffect(() => {
     if (!socket) return;
     const handleQuestion = (data: QuestionPayload) => {
       if (debug) console.log('[Host] 📥 Received question:', data);
       setCurrentQuestion(data);
       setReviewQuestion(null); // clear review view
-      const now = Date.now();
-      const elapsed = (now - data.questionStartTime) / 1000;
-      const remainingTime = Math.max(0, (data.timeLimit || 30) - elapsed);
-      setTimeLeft(remainingTime);
+      // ✅ REMOVED: Manual timer calculation - the hook handles this now!
     };
     socket.on('question', handleQuestion);
     return () => {
@@ -104,13 +113,7 @@ const HostControlsPage = () => {
     };
   }, [socket]);
 
-  // Countdown timer
-  useEffect(() => {
-    if (timeLeft === null || roomState.phase !== 'asking') return;
-    if (timeLeft <= 0) return;
-    const timer = setTimeout(() => setTimeLeft(prev => (prev !== null ? prev - 1 : null)), 1000);
-    return () => clearTimeout(timer);
-  }, [timeLeft, roomState.phase]);
+  // ✅ REMOVED: Manual countdown timer useEffect - the hook handles this now!
 
   // Listen for review_question events
   useEffect(() => {
@@ -119,7 +122,7 @@ const HostControlsPage = () => {
       if (debug) console.log('[Host] 🧐 Received host review question:', data);
       setReviewQuestion(data);
       setCurrentQuestion(null);
-      setTimeLeft(null);
+      // ✅ No need to setTimeLeft(null) - hook will handle when currentQuestion becomes null
     };
     socket.on('host_review_question', handleHostReviewQuestion);
     return () => {
@@ -171,7 +174,8 @@ const HostControlsPage = () => {
       phase: roomState.phase,
       connected,
       socketId: socket?.id,
-      roomId
+      roomId,
+      timeLeft // ✅ Now comes from the hook
     });
   }
 
@@ -194,7 +198,8 @@ const HostControlsPage = () => {
             <div className="bg-gray-100 p-2 text-xs rounded">
               <strong>🔧 Debug:</strong> Connected: {connected ? '✅' : '❌'} | 
               Socket: {socket?.id ? '🟢' : '🔴'} | 
-              Phase: {roomState.phase}
+              Phase: {roomState.phase} |
+              Timer: {timeLeft}s
             </div>
           )}
 
@@ -208,6 +213,7 @@ const HostControlsPage = () => {
                   <li key={idx}>{opt}</li>
                 ))}
               </ul>
+              {/* ✅ FIXED: Timer now uses the hook value and displays whole numbers */}
               {timeLeft !== null && (
                 <p className="mt-2 text-sm font-semibold">
                   ⏳ Time left: {timeLeft}s
@@ -255,7 +261,7 @@ const HostControlsPage = () => {
             </div>
           )}
 
-          {/* ✅ FIXED: Host Control Buttons - Added launched phase */}
+          {/* ✅ Host Control Buttons */}
           {roomState.phase === 'waiting' && (
             <div className="bg-blue-50 p-4 rounded-xl">
               <p className="text-sm text-blue-700 mb-3">🎬 Ready to start the quiz?</p>
@@ -265,7 +271,7 @@ const HostControlsPage = () => {
             </div>
           )}
 
-          {/* ✅ NEW: Button for launched phase */}
+          {/* ✅ Button for launched phase */}
           {roomState.phase === 'launched' && (
             <div className="bg-green-50 p-4 rounded-xl">
               <p className="text-sm text-green-700 mb-3">🚀 Quiz launched! Players are now in the game. Start the first round when ready.</p>

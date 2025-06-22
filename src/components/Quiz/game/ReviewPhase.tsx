@@ -5,12 +5,14 @@ interface ReviewPhaseProps {
   question: Question;
   selectedAnswer: string;
   feedback: string | null;
+  correctAnswer?: string; // ✅ ADD THIS PROP
 }
 
 const ReviewPhase: React.FC<ReviewPhaseProps> = ({
   question,
   selectedAnswer,
   feedback,
+  correctAnswer, // ✅ ADD THIS
 }) => {
   return (
     <div className="bg-yellow-50 p-6 rounded-xl">
@@ -18,13 +20,20 @@ const ReviewPhase: React.FC<ReviewPhaseProps> = ({
       <p className="text-base text-yellow-900 mt-1">{question.text}</p>
       <ul className="mt-2 space-y-1 text-sm">
         {question.options.map((opt, idx) => {
-          const isCorrect = feedback?.includes(opt) && feedback.includes('Correct');
-          const isSubmitted = opt === selectedAnswer;
-          const bgColor = isCorrect
-            ? 'bg-green-200'
-            : isSubmitted
-            ? 'bg-red-200'
-            : 'bg-white';
+          // ✅ FIXED LOGIC:
+          const isThisTheCorrectAnswer = correctAnswer === opt;
+          const isThisThePlayerAnswer = opt === selectedAnswer;
+          const isPlayerCorrect = selectedAnswer === correctAnswer;
+          
+          // ✅ PROPER COLOR LOGIC:
+          let bgColor = 'bg-white'; // default
+          
+          if (isThisTheCorrectAnswer) {
+            bgColor = 'bg-green-200'; // Always highlight correct answer in green
+          } else if (isThisThePlayerAnswer && !isPlayerCorrect) {
+            bgColor = 'bg-red-200'; // Only highlight player's wrong answer in red
+          }
+          
           return (
             <li key={idx} className={`p-1 rounded ${bgColor}`}>
               {opt}

@@ -13,6 +13,7 @@ import { User, Question, LeaderboardEntry, RoomPhase, RoundDefinition } from './
 import { useNavigate } from 'react-router-dom';
 import LaunchedPhase from './LaunchedPhase';
 import { roundTypeDefinitions } from '../../../constants/quizMetadata';
+import { useCountdownEffects } from './../hooks/useCountdownEffects'
 
 const debug = true;
 
@@ -60,6 +61,8 @@ const QuizGamePlayPage = () => {
   const [roomPhase, setRoomPhase] = useState<RoomPhase>('waiting');
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
 
+   const { currentEffect, isFlashing, getFlashClasses } = useCountdownEffects();
+
   // Server-driven round state
   const [serverRoomState, setServerRoomState] = useState<ServerRoomState>({
     currentRound: 1,
@@ -89,6 +92,7 @@ const QuizGamePlayPage = () => {
   const [isFrozen, setIsFrozen] = useState(false);
   const [frozenNotice, setFrozenNotice] = useState<string | null>(null);
   const [wasJustFrozen, setWasJustFrozen] = useState(false);
+  const [correctAnswer, setCorrectAnswer] = useState<string | null>(null);
 
   // Refs for tracking game state
   const currentQuestionIndexRef = useRef<number>(-1);
@@ -326,6 +330,7 @@ const QuizGamePlayPage = () => {
   setClue(null);
   setTimerActive(false);
   setSelectedAnswer(data.submittedAnswer || '');
+   setCorrectAnswer(data.correctAnswer);
   
   // ✅ 3. Calculate points using existing config data
   const currentRoundDef = config?.roundDefinitions?.[serverRoomState.currentRound - 1];
@@ -610,6 +615,19 @@ const QuizGamePlayPage = () => {
       <p className="text-sm text-gray-500 mb-2">Room ID: {roomId}</p>
       <p className="text-sm text-gray-500 mb-4">Player ID: {playerId}</p>
 
+      {/* ✅ NEW: Countdown message overlay */}
+      {currentEffect && isFlashing && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+          <div className={`text-8xl font-bold animate-bounce ${
+            currentEffect.color === 'green' ? 'text-green-500' :
+            currentEffect.color === 'orange' ? 'text-orange-500' : 
+            'text-red-500'
+          }`}>
+            {currentEffect.message}
+          </div>
+        </div>
+      )}
+
       {isFrozenNow && frozenNotice && (
         <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded">
           <div className="flex items-center">
@@ -659,22 +677,21 @@ const QuizGamePlayPage = () => {
           <span className="text-sm text-gray-600">
             Round {serverRoomState.currentRound}/{serverRoomState.totalRounds} - Question {questionCounterDisplay}
           </span>
-          <span className="text-lg font-bold">
-            ⏱️ {timeLeft}s
-          </span>
+         
         </div>
 
         <RoundRouter
           roomPhase={roomPhase}
           currentRoundType={currentRoundType}
           question={question}
-          timeLeft={timeLeft}
+          timeLeft={null}
           timerActive={timerActive}
           selectedAnswer={selectedAnswer}
           setSelectedAnswer={setSelectedAnswer}
           answerSubmitted={answerSubmitted}
           clue={clue}
           feedback={feedback}
+           correctAnswer={correctAnswer ?? undefined} 
           isFrozen={isFrozenNow}
           frozenNotice={frozenNotice}
           onSubmit={handleSubmit}

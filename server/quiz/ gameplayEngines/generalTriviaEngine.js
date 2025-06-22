@@ -53,7 +53,7 @@ export function startNextQuestion(roomId, namespace) {
 
   emitRoomState(namespace, roomId);
   const roundConfig = room.config.roundDefinitions[room.currentRound - 1];
-  const timeLimit = roundConfig?.timePerQuestion || 25;
+  const timeLimit = roundConfig?.config?.timePerQuestion || 10;
   const questionStartTime = Date.now();
    room.questionStartTime = questionStartTime;
 
@@ -66,6 +66,36 @@ namespace.to(roomId).emit('question', {
   questionNumber: room.currentQuestionIndex + 1,    // ← ADD
   totalQuestions: room.questions.length             // ← ADD
 });;
+
+// ✅ NEW: Schedule countdown effects
+  if (timeLimit >= 3) {
+    // 3 seconds left - GREEN flash + beep
+    setTimeout(() => {
+      namespace.to(roomId).emit('countdown_effect', { 
+        secondsLeft: 3, 
+        color: 'green',
+        message: '3...' 
+      });
+    }, (timeLimit - 3) * 1000);
+
+    // 2 seconds left - ORANGE flash + beep  
+    setTimeout(() => {
+      namespace.to(roomId).emit('countdown_effect', { 
+        secondsLeft: 2, 
+        color: 'orange',
+        message: '2...' 
+      });
+    }, (timeLimit - 2) * 1000);
+
+    // 1 second left - RED flash + beep
+    setTimeout(() => {
+      namespace.to(roomId).emit('countdown_effect', { 
+        secondsLeft: 1, 
+        color: 'red',
+        message: '1...' 
+      });
+    }, (timeLimit - 1) * 1000);
+  }
 
 
   // ✅ Notify frozen players
