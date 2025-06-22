@@ -453,16 +453,20 @@ const QuizGamePlayPage = () => {
       setUsedExtrasThisRound(prev => ({ ...prev, [extraId]: true }));
     };
 
-    const handleQuizError = ({ message }: { message: string }) => {
-      if (debug) console.error('[Client] ❌ Quiz error:', message);
-      
-      if (message.includes('active game session') || message.includes('already open in another tab')) {
-        alert(`⚠️ ${message}\n\nRedirecting to waiting page...`);
-        navigate(`/quiz/game/${roomId}/${playerId}`);
-      } else {
-        alert(`Error: ${message}`);
-      }
-    };
+ const handleQuizError = ({ message }: { message: string }) => {
+  if (debug) console.error('[Client] ❌ Quiz error:', message);
+  
+  if (message.includes('active game session') || message.includes('already open in another tab')) {
+    alert(`⚠️ ${message}\n\nRedirecting to waiting page...`);
+    navigate(`/quiz/game/${roomId}/${playerId}`);
+  } else if (message.includes('Room not found') || message.includes('Player not found')) {
+    // ✅ NEW: Handle reconnection errors more gracefully
+    console.log('[Client] 🔄 Attempting to rejoin through waiting page...');
+    navigate(`/quiz/game/${roomId}/${playerId}`);
+  } else {
+    alert(`Error: ${message}`);
+  }
+};
 
     const handleQuizNotification = ({ type, message }: { type: 'success' | 'warning' | 'info' | 'error'; message: string }) => {
       if (debug) console.log('[Client] 📢 Quiz notification:', type, message);
