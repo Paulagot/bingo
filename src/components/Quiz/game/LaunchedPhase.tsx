@@ -107,25 +107,7 @@ const LaunchedPhase: React.FC<LaunchedPhaseProps> = ({
               </ul>
             </div>
 
-            {/* Strategy Tips */}
-            <div className="bg-green-50 p-4 rounded-lg">
-              <h5 className="font-semibold text-green-800 mb-2">💡 Strategy Tips</h5>
-              <div className="text-sm text-green-700 space-y-1">
-                {roundMetadata.pros?.map((tip: string, index: number) => (
-                  <div key={index}>• {tip}</div>
-                ))}
-                {roundTypeId === 'wipeout' && (
-                  <div className="text-orange-600 font-medium mt-2">
-                    ⚠️ Think carefully - wrong answers cost you points!
-                  </div>
-                )}
-                {roundTypeId === 'general_trivia' && (
-                  <div className="text-blue-600 font-medium mt-2">
-                    💡 Hint extras available if you get stuck!
-                  </div>
-                )}
-              </div>
-            </div>
+        
           </div>
         </div>
 

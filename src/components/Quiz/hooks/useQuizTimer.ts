@@ -15,7 +15,7 @@ export const useQuizTimer = ({ question, timerActive, onTimeUp }: UseQuizTimerPa
     const now = Date.now();
     const elapsed = (now - question.questionStartTime) / 1000;
     const remainingTime = Math.max(0, (question.timeLimit || 30) - elapsed);
-    setTimeLeft(remainingTime);
+   setTimeLeft(Math.floor(remainingTime));
   }, [question, timerActive]);
 
   useEffect(() => {

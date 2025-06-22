@@ -79,9 +79,9 @@ const StandardRound: React.FC<RoundComponentProps> = ({
       {feedback && (
         <div className="mt-4 text-lg font-medium text-center text-gray-800">{feedback}</div>
       )}
-      {timerActive && (
-        <div className="text-sm text-gray-500 text-right">⏳ Time left: {Math.floor(timeLeft!)}s</div>
-      )}
+      {timerActive && timeLeft && (
+  <div className="text-sm text-gray-500 text-right">⏱️ Time left: {Math.floor(timeLeft)}s</div>
+)}
     </div>
   );
 };
