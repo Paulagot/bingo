@@ -1,7 +1,10 @@
-import { useState, type FC, type FormEvent } from 'react';
+import { useState, useEffect, type FC, type FormEvent } from 'react';
 import { Wallet, CreditCard, AlertCircle, Info, Heart, Zap, DollarSign, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { useQuizSetupStore } from '../useQuizSetupStore';
 import type { WizardStepProps } from './WizardStepProps';
+
+// Feature flag to control Web3 availability
+const ENABLE_WEB3 = false; // Set to true when Web3 flow is ready
 
 interface PaymentMethodExplainer {
   title: string;
@@ -49,13 +52,23 @@ const StepPaymentMethod: FC<WizardStepProps> = ({ onNext, onBack }) => {
     { symbol: '¥', label: 'Japanese Yen (JPY)' },
   ];
 
+  // Auto-select cash_or_revolut when Web3 is disabled
+  useEffect(() => {
+    if (!ENABLE_WEB3 && !paymentMethod) {
+      setPaymentMethod('cash_or_revolut');
+    }
+  }, [paymentMethod]);
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
 
     const trimmed = entryFee.trim();
     const parsed = Number.parseFloat(trimmed);
 
-    if (!paymentMethod) {
+    // Auto-select cash_or_revolut if Web3 is disabled and no method is selected
+    const selectedMethod = paymentMethod || (!ENABLE_WEB3 ? 'cash_or_revolut' : '');
+
+    if (!selectedMethod) {
       setError('Please choose a payment method.');
       return;
     }
@@ -64,17 +77,17 @@ const StepPaymentMethod: FC<WizardStepProps> = ({ onNext, onBack }) => {
       return;
     }
 
-    const currencyToStore = paymentMethod === 'web3' ? 'USDGLO' : currencySymbol;
+    const currencyToStore = selectedMethod === 'web3' ? 'USDGLO' : currencySymbol;
 
     updateSetupConfig({
       entryFee: trimmed,
-      paymentMethod,
+      paymentMethod: selectedMethod,
       currencySymbol: currencyToStore,
     });
 
     console.log('✅ Payment step saved:', {
       entryFee: trimmed,
-      paymentMethod,
+      paymentMethod: selectedMethod,
       currencySymbol: currencyToStore,
     });
 
@@ -278,51 +291,70 @@ const StepPaymentMethod: FC<WizardStepProps> = ({ onNext, onBack }) => {
               />
             </label>
 
-            {/* Web3 Option */}
-            <label
-              className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition ${
-                paymentMethod === 'web3'
-                  ? 'border-indigo-600 bg-indigo-50'
-                  : 'border-gray-200 hover:border-indigo-400'
-              }`}
-            >
-              <input
-                type="radio"
-                name="paymentMethod"
-                value="web3"
-                checked={paymentMethod === 'web3'}
-                onChange={() => handlePaymentMethodChange('web3')}
-                className="hidden"
-              />
-              <Wallet className="h-6 w-6 text-indigo-600" />
-              <div className="flex-1">
-                <div className="flex items-center space-x-2">
-                  <p className="font-medium text-gray-800">Web3 Smart Contract (USDGLO)</p>
-                  <Heart className="w-4 h-4 text-red-500" />
+            {/* Web3 Option - Only show if enabled */}
+            {ENABLE_WEB3 && (
+              <label
+                className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition ${
+                  paymentMethod === 'web3'
+                    ? 'border-indigo-600 bg-indigo-50'
+                    : 'border-gray-200 hover:border-indigo-400'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="web3"
+                  checked={paymentMethod === 'web3'}
+                  onChange={() => handlePaymentMethodChange('web3')}
+                  className="hidden"
+                />
+                <Wallet className="h-6 w-6 text-indigo-600" />
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2">
+                    <p className="font-medium text-gray-800">Web3 Smart Contract (USDGLO)</p>
+                    <Heart className="w-4 h-4 text-red-500" />
+                  </div>
+                  <p className="text-sm text-gray-600">Automated crypto payments supporting charity</p>
                 </div>
-                <p className="text-sm text-gray-600">Automated crypto payments supporting charity</p>
+                <Info 
+                  className="w-4 h-4 cursor-pointer text-gray-400 hover:text-indigo-500 transition-colors"
+                  onMouseEnter={() => {
+                    if (hoverTimeout) clearTimeout(hoverTimeout);
+                    setActiveExplainer(paymentMethodExplainers.web3);
+                  }}
+                  onMouseLeave={() => {
+                    const timeout = setTimeout(() => setActiveExplainer(null), 150);
+                    setHoverTimeout(timeout);
+                  }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (hoverTimeout) {
+                      clearTimeout(hoverTimeout);
+                      setHoverTimeout(null);
+                    }
+                    const explainer = paymentMethodExplainers.web3;
+                    setActiveExplainer(activeExplainer?.title === explainer.title ? null : explainer);
+                  }}
+                />
+              </label>
+            )}
+
+            {/* Coming Soon placeholder when Web3 is disabled */}
+            {!ENABLE_WEB3 && (
+              <div className="flex items-center gap-4 p-4 border-2 border-gray-100 rounded-xl bg-gray-50 opacity-60">
+                <Wallet className="h-6 w-6 text-gray-400" />
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2">
+                    <p className="font-medium text-gray-500">Web3 Smart Contract (USDGLO)</p>
+                    <Heart className="w-4 h-4 text-gray-400" />
+                  </div>
+                  <p className="text-sm text-gray-400">Coming soon - automated crypto payments</p>
+                </div>
+                <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
+                  Coming Soon
+                </span>
               </div>
-              <Info 
-                className="w-4 h-4 cursor-pointer text-gray-400 hover:text-indigo-500 transition-colors"
-                onMouseEnter={() => {
-                  if (hoverTimeout) clearTimeout(hoverTimeout);
-                  setActiveExplainer(paymentMethodExplainers.web3);
-                }}
-                onMouseLeave={() => {
-                  const timeout = setTimeout(() => setActiveExplainer(null), 150);
-                  setHoverTimeout(timeout);
-                }}
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (hoverTimeout) {
-                    clearTimeout(hoverTimeout);
-                    setHoverTimeout(null);
-                  }
-                  const explainer = paymentMethodExplainers.web3;
-                  setActiveExplainer(activeExplainer?.title === explainer.title ? null : explainer);
-                }}
-              />
-            </label>
+            )}
           </div>
         </div>
 
