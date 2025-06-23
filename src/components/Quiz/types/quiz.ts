@@ -36,6 +36,7 @@ export interface RoundConfig {
   pointsLostPerWrong?: number; // For wipeout
   timeToAnswer?: number; // For head-to-head
   skipAllowed?: boolean; // For speed round
+  pointslostperunanswered?: number; // For wipeout
 }
 
 
@@ -147,6 +148,8 @@ export type LeaderboardEntry = {
   id: string;
   name: string;
   score: number;
+  cumulativeNegativePoints?: number; // Total negative points accumulated
+  pointsRestored?: number; // Points restored by this player
 };
 
 export type RoomPhase = 'waiting' | 'launched' | 'asking' | 'reviewing' | 'leaderboard' | 'complete';

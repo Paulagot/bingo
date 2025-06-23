@@ -10,13 +10,17 @@ interface UseRoundExtrasParams {
 
 export const useRoundExtras = ({ allPlayerExtras, currentRoundType, debug = false }: UseRoundExtrasParams) => {
   const roundExtras = useMemo(() => {
-    const extras = allPlayerExtras.filter((extraId) => {
-      const extra = fundraisingExtraDefinitions[extraId as keyof typeof fundraisingExtraDefinitions];
-      if (!extra) return false;
-      if (extra.applicableTo === 'global') return false;
-      if (!currentRoundType) return false;
-      return Array.isArray(extra.applicableTo) && extra.applicableTo.includes(currentRoundType);
-    });
+ const extras = allPlayerExtras.filter((extraId) => {
+  const extra = fundraisingExtraDefinitions[extraId as keyof typeof fundraisingExtraDefinitions];
+  if (!extra) return false;
+  if (extra.applicableTo === 'global') return false;
+  
+  // ✅ NEW: Exclude restore points from round extras (show only on leaderboard)
+  if (extraId === 'restorePoints') return false;
+  
+  if (!currentRoundType) return false;
+  return Array.isArray(extra.applicableTo) && extra.applicableTo.includes(currentRoundType);
+});
 
     if (debug) {
       console.log('[useRoundExtras] 🎯 roundExtras:', extras);

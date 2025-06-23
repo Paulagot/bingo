@@ -34,6 +34,7 @@ export interface RoundConfig {
   timePerTeam?: number;
   pointsPerQuestion?: number; 
   pointsLostPerWrong?: number; // Only for wipeout
+  pointslostperunanswered?: number; // Only for wipeout
 }
 
 

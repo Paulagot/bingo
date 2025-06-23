@@ -39,6 +39,35 @@ export function startNextQuestion(roomId, namespace) {
 
   const nextQuestion = advanceToNextQuestion(roomId);
   clearExpiredFreezeFlags(room);
+
+  // ✅ NEW: Handle unanswered questions from previous question (if there was one)
+  if (room.currentQuestionIndex >= 0 && room.questions[room.currentQuestionIndex - 1]) {
+    const previousQuestion = room.questions[room.currentQuestionIndex - 1];
+    const roundConfig = room.config.roundDefinitions[room.currentRound - 1]?.config || {};
+    const pointsLostPerUnanswered = roundConfig.pointslostperunanswered || 0;
+
+    // Check each player to see if they answered the previous question
+    room.players.forEach(player => {
+      const playerData = room.playerData[player.id];
+      if (!playerData) return;
+
+      const roundAnswerKey = `${previousQuestion.id}_round${room.currentRound}`;
+      const hasAnswered = playerData.answers[roundAnswerKey] !== undefined;
+
+      if (!hasAnswered && pointsLostPerUnanswered > 0) {
+        // Deduct points for not answering
+        playerData.score = Math.max(0, (playerData.score || 0) - pointsLostPerUnanswered);
+        
+        // ✅ Track cumulative negative points
+        playerData.cumulativeNegativePoints = (playerData.cumulativeNegativePoints || 0) + pointsLostPerUnanswered;
+
+        if (debug) {
+          console.log(`[wipeoutEngine] ⏰ ${player.id} didn't answer question ${previousQuestion.id}, lost ${pointsLostPerUnanswered} points. Score: ${playerData.score}, Cumulative negative: ${playerData.cumulativeNegativePoints}`);
+        }
+      }
+    });
+  }
+
   if (!nextQuestion) {
     if (debug) console.log(`[wipeoutEngine] 🔄 All questions complete for round ${room.currentRound}`);
     room.currentPhase = 'reviewing';
@@ -149,13 +178,19 @@ export function handlePlayerAnswer(roomId, playerId, answer) {
   const pointsPerQuestion = roundConfig.pointsPerQuestion || 1;
   const pointsLostPerWrong = roundConfig.pointsLostPerWrong || 0;
 
-  if (isCorrect) {
+if (isCorrect) {
     playerData.score = (playerData.score || 0) + pointsPerQuestion;
     if (debug) console.log(`[wipeoutEngine] ✅ ${playerId} got it right (+${pointsPerQuestion}), score: ${playerData.score}`);
   } else {
     playerData.score = (playerData.score || 0) - pointsLostPerWrong;
     if (playerData.score < 0) playerData.score = 0;
-    if (debug) console.log(`[wipeoutEngine] ❌ ${playerId} got it wrong (-${pointsLostPerWrong}), score: ${playerData.score}`);
+    
+    // ✅ NEW: Track cumulative negative points for wrong answers
+    if (pointsLostPerWrong > 0) {
+      playerData.cumulativeNegativePoints = (playerData.cumulativeNegativePoints || 0) + pointsLostPerWrong;
+    }
+    
+    if (debug) console.log(`[wipeoutEngine] ❌ ${playerId} got it wrong (-${pointsLostPerWrong}), score: ${playerData.score}, Cumulative negative: ${playerData.cumulativeNegativePoints}`);
   }
 
   const roundAnswerKey = `${question.id}_round${room.currentRound}`;
@@ -172,10 +207,12 @@ export function emitNextReviewQuestion(roomId, namespace) {
 
   const reviewIndex = room.currentReviewIndex || 0;
   if (reviewIndex >= room.questions.length) {
-    if (debug) console.log(`[wipeoutEngine] ✅ Review complete`);
-    room.currentPhase = 'leaderboard';
-    namespace.to(roomId).emit('leaderboard', buildLeaderboard(room));
-    emitRoomState(namespace, roomId);
+   if (debug) console.log(`[wipeoutEngine] ✅ Review complete`);
+room.currentPhase = 'leaderboard';
+const leaderboardData = buildLeaderboard(room);
+if (debug) console.log(`[wipeoutEngine] 📊 Emitting leaderboard:`, leaderboardData);
+namespace.to(roomId).emit('leaderboard', leaderboardData);
+emitRoomState(namespace, roomId);
     return;
   }
 
@@ -217,6 +254,8 @@ function buildLeaderboard(room) {
       id: playerId,
       name: player?.name || playerId,
       score: data.score || 0,
+      cumulativeNegativePoints: data.cumulativeNegativePoints || 0,  // ✅ NEW
+      pointsRestored: data.pointsRestored || 0  // ✅ NEW
     };
   });
 

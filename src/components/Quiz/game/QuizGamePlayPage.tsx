@@ -413,10 +413,16 @@ const QuizGamePlayPage = () => {
       setServerRoomState(data);
     };
 
-    const handleLeaderboard = (data: LeaderboardEntry[]) => {
-      if (debug) console.log('[Client] 🏆 Leaderboard received:', data);
-      setLeaderboard(data);
-    };
+  const handleLeaderboard = (data: LeaderboardEntry[]) => {
+  if (debug) {
+    console.log('[Client] 🏆 Leaderboard received:', data);
+    console.log('[Client] 🔍 Leaderboard structure check:');
+    data.forEach(player => {
+      console.log(`  - ${player.name}: score=${player.score}, cumulativeNegativePoints=${player.cumulativeNegativePoints}, pointsRestored=${player.pointsRestored}`);
+    });
+  }
+  setLeaderboard(data);
+};
 
     const handleRoundEnd = ({ round }: { round: number }) => {
       if (debug) console.log(`[Client] ⏹️ Round ${round} ended`);
@@ -447,11 +453,15 @@ const QuizGamePlayPage = () => {
       setPlayersInRoom(players);
     };
 
-    const handleExtraUsedSuccessfully = ({ extraId }: { extraId: string }) => {
-      if (debug) console.log('[Client] ✅ Extra used successfully:', extraId);
-      setUsedExtras(prev => ({ ...prev, [extraId]: true }));
-      setUsedExtrasThisRound(prev => ({ ...prev, [extraId]: true }));
-    };
+   const handleExtraUsedSuccessfully = ({ extraId }: { extraId: string }) => {
+  if (debug) console.log('[Client] ✅ Extra used successfully:', extraId);
+  
+  // ✅ Don't mark restorePoints as "used" - it has its own limit logic
+  if (extraId !== 'restorePoints') {
+    setUsedExtras(prev => ({ ...prev, [extraId]: true }));
+    setUsedExtrasThisRound(prev => ({ ...prev, [extraId]: true }));
+  }
+};
 
  const handleQuizError = ({ message }: { message: string }) => {
   if (debug) console.error('[Client] ❌ Quiz error:', message);
@@ -666,13 +676,14 @@ const QuizGamePlayPage = () => {
         </li>
       ))}
     </ol>
-
-    <GlobalExtrasDuringLeaderboard
+<GlobalExtrasDuringLeaderboard
       availableExtras={availableExtras}
       usedExtras={usedExtras}
       onUseExtra={handleUseExtra}
       leaderboard={leaderboard}
       currentPlayerId={playerId || ''}
+      cumulativeNegativePoints={leaderboard.find(p => p.id === playerId)?.cumulativeNegativePoints || 0}
+      pointsRestored={leaderboard.find(p => p.id === playerId)?.pointsRestored || 0}
     />
   </div>
 ) : (roomPhase === 'reviewing' || roomPhase === 'asking') && question ? (
