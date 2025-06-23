@@ -140,7 +140,9 @@ export function addOrUpdatePlayer(roomId, player) {
       usedExtras,
       usedExtrasThisRound,
       frozenNextQuestion: false,
-      frozenForQuestionIndex: undefined
+      frozenForQuestionIndex: undefined,
+       cumulativeNegativePoints: 0,    // ✅ NEW: Track total negative points across all rounds
+  pointsRestored: 0   
     };
 
     if (debug) console.log(`[quizRoomManager] ✅ Initialized playerData for ${player.id}`);
@@ -326,13 +328,15 @@ export function handlePlayerExtra(roomId, playerId, extraId, targetPlayerId, nam
   console.log(`[DEBUG] extraDefinition:`, fundraisingExtraDefinitions[extraId]);
   
   // ✅ NEW: Check if this is a global extra
-  const extraDefinition = fundraisingExtraDefinitions[extraId];
-  if (extraDefinition && extraDefinition.applicableTo === 'global') {
+ const extraDefinition = fundraisingExtraDefinitions[extraId];
+  if ((extraDefinition && extraDefinition.applicableTo === 'global') || extraId === 'restorePoints') {
     if (debug) {
-      console.log(`[ExtrasHandler] 🌍 Routing global extra "${extraId}" to globalExtrasHandler`);
+      console.log(`[ExtrasHandler] 🌍 Routing ${extraId === 'restorePoints' ? 'special case restorePoints' : 'global extra'} "${extraId}" to globalExtrasHandler`);
     }
     return handleGlobalExtra(roomId, playerId, extraId, targetPlayerId, namespace);
   }
+
+  console.log(`[DEBUG] Not a global extra, continuing with round-based logic...`);
 
   console.log(`[DEBUG] Not a global extra, continuing with round-based logic...`);
 

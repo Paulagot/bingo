@@ -21,7 +21,8 @@ export const roundTypes: RoundTypeDefinition[] = [
       questionsPerRound: 6,
       timePerQuestion: 10,
       totalTimeSeconds: 120,
-      pointsPerQuestion: 3
+      pointsPerQuestion: 3,
+      pointslostperunanswered: 2
     }
   },
   {
@@ -32,7 +33,8 @@ export const roundTypes: RoundTypeDefinition[] = [
       questionsPerRound: 8,
       timePerQuestion: 12,
       pointsPerQuestion: 2,
-      pointsLostPerWrong: 1
+      pointsLostPerWrong: 1,
+      pointslostperunanswered: 2
     }
   },
   {
