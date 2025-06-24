@@ -20,7 +20,7 @@ export function initRound(roomId, namespace) {
   const roundType = room.config.roundDefinitions?.[room.currentRound - 1]?.roundType;
   let questions = loadQuestionsForRoundType(roundType);
   const roundConfig = room.config.roundDefinitions[room.currentRound - 1];
-  const questionsPerRound = roundConfig?.config?.questionsPerRound || 6;
+  const questionsPerRound = roundConfig?.config?.questionsPerRound || 8;
 
   questions = shuffleArray(questions).slice(0, questionsPerRound);
   console.log(`[wipeoutEngine] 🔎 Loaded ${questions.length} randomized questions for ${roundType}`);

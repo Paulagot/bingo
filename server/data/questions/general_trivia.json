@@ -398,7 +398,408 @@
     "correctAnswer": "Isaac Newton",
     "clue": "He formulated three famous laws.",
     "level": "medium"
+  },  
+  {
+    "id": "q51",
+    "text": "What is the name of the first cryptocurrency created?",
+    "options": ["Bitcoin", "Ethereum", "Ripple", "Litecoin"],
+    "correctAnswer": "Bitcoin",
+    "clue": "It was introduced by Satoshi Nakamoto in 2009.",
+    "level": "easy"
+  },
+  {
+    "id": "q52",
+    "text": "What technology underpins most cryptocurrencies?",
+    "options": ["Blockchain", "Cloud Computing", "Artificial Intelligence", "Quantum Computing"],
+    "correctAnswer": "Blockchain",
+    "clue": "It’s a decentralized ledger system.",
+    "level": "easy"
+  },
+  {
+    "id": "q53",
+    "text": "Which cryptocurrency is known for its smart contract functionality?",
+    "options": ["Ethereum", "Bitcoin", "Cardano", "Polkadot"],
+    "correctAnswer": "Ethereum",
+    "clue": "It was created by Vitalik Buterin.",
+    "level": "easy"
+  },
+  {
+    "id": "q54",
+    "text": "What is the term for a digital or virtual currency secured by cryptography?",
+    "options": ["Cryptocurrency", "Fiat Currency", "Stablecoin", "Token"],
+    "correctAnswer": "Cryptocurrency",
+    "clue": "It’s designed to be secure and decentralized.",
+    "level": "easy"
+  },
+  {
+    "id": "q55",
+    "text": "What is the process of verifying transactions on a blockchain called?",
+    "options": ["Mining", "Staking", "Hashing", "Forging"],
+    "correctAnswer": "Mining",
+    "clue": "It often involves solving complex mathematical problems.",
+    "level": "easy"
+  },
+  {
+    "id": "q56",
+    "text": "What is a decentralized application called in the Web3 ecosystem?",
+    "options": ["DApp", "API", "Smart Contract", "Wallet"],
+    "correctAnswer": "DApp",
+    "clue": "It runs on a blockchain without a central authority.",
+    "level": "medium"
+  },
+  {
+    "id": "q57",
+    "text": "Which consensus mechanism uses proof of work?",
+    "options": ["Bitcoin", "Cardano", "Tezos", "Solana"],
+    "correctAnswer": "Bitcoin",
+    "clue": "Miners compete to solve cryptographic puzzles.",
+    "level": "medium"
+  },
+  {
+    "id": "q58",
+    "text": "What is the name of Ethereum’s native cryptocurrency?",
+    "options": ["Ether", "Bitcoin", "Tether", "Binance Coin"],
+    "correctAnswer": "Ether",
+    "clue": "It’s used to pay for transactions on its network.",
+    "level": "easy"
+  },
+  {
+    "id": "q59",
+    "text": "What is a private key in the context of cryptocurrency?",
+    "options": ["Secret code to access a wallet", "Public address for transactions", "Blockchain identifier", "Mining reward"],
+    "correctAnswer": "Secret code to access a wallet",
+    "clue": "It must be kept secure and private.",
+    "level": "medium"
+  },
+  {
+    "id": "q60",
+    "text": "Which term describes a blockchain that anyone can join and participate in?",
+    "options": ["Public Blockchain", "Private Blockchain", "Consortium Blockchain", "Hybrid Blockchain"],
+    "correctAnswer": "Public Blockchain",
+    "clue": "Bitcoin and Ethereum are examples.",
+    "level": "easy"
+  },
+  {
+    "id": "q61",
+    "text": "What is the purpose of a smart contract?",
+    "options": ["Self-executing code", "Mining software", "Wallet security", "Transaction validation"],
+    "correctAnswer": "Self-executing code",
+    "clue": "It automatically enforces contract terms.",
+    "level": "medium"
+  },
+  {
+    "id": "q62",
+    "text": "Which cryptocurrency is pegged to the value of a fiat currency?",
+    "options": ["Tether", "Bitcoin", "Ether", "Dogecoin"],
+    "correctAnswer": "Tether",
+    "clue": "It’s often used to maintain stable value.",
+    "level": "easy"
+  },
+  {
+    "id": "q63",
+    "text": "What is the term for splitting a blockchain into smaller parts to improve scalability?",
+    "options": ["Sharding", "Forking", "Mining", "Staking"],
+    "correctAnswer": "Sharding",
+    "clue": "Ethereum plans to use this for scalability.",
+    "level": "hard"
+  },
+  {
+    "id": "q64",
+    "text": "Which platform is known for hosting decentralized finance (DeFi) applications?",
+    "options": ["Ethereum", "Bitcoin", "Ripple", "Litecoin"],
+    "correctAnswer": "Ethereum",
+    "clue": "It supports protocols like Uniswap and Aave.",
+    "level": "medium"
+  },
+  {
+    "id": "q65",
+    "text": "What does NFT stand for in the Web3 space?",
+    "options": ["Non-Fungible Token", "Network File Transfer", "New Financial Token", "Non-Fiat Transaction"],
+    "correctAnswer": "Non-Fungible Token",
+    "clue": "It represents unique digital assets.",
+    "level": "easy"
+  },
+  {
+    "id": "q66",
+    "text": "What is the name of Bitcoin’s creator pseudonym?",
+    "options": ["Satoshi Nakamoto", "Vitalik Buterin", "Charlie Lee", "Gavin Andresen"],
+    "correctAnswer": "Satoshi Nakamoto",
+    "clue": "Their true identity remains unknown.",
+    "level": "easy"
+  },
+  {
+    "id": "q67",
+    "text": "Which blockchain uses a proof-of-stake consensus mechanism?",
+    "options": ["Cardano", "Bitcoin", "Litecoin", "Monero"],
+    "correctAnswer": "Cardano",
+    "clue": "It’s more energy-efficient than proof of work.",
+    "level": "medium"
+  },
+  {
+    "id": "q68",
+    "text": "What is a wallet in the context of cryptocurrency?",
+    "options": ["Software or device to store keys", "Physical coin storage", "Mining hardware", "Blockchain node"],
+    "correctAnswer": "Software or device to store keys",
+    "clue": "It holds private and public keys.",
+    "level": "easy"
+  },
+  {
+    "id": "q69",
+    "text": "What is the term for a permanent change in a blockchain’s protocol?",
+    "options": ["Hard Fork", "Soft Fork", "Shard", "Merge"],
+    "correctAnswer": "Hard Fork",
+    "clue": "It creates a new blockchain incompatible with the old one.",
+    "level": "hard"
+  },
+  {
+    "id": "q70",
+    "text": "Which cryptocurrency was created as a joke but gained popularity?",
+    "options": ["Dogecoin", "Bitcoin", "Ether", "Ripple"],
+    "correctAnswer": "Dogecoin",
+    "clue": "It features a Shiba Inu dog logo.",
+    "level": "easy"
+  },
+  {
+    "id": "q71",
+    "text": "What is the main purpose of a decentralized exchange (DEX)?",
+    "options": ["Peer-to-peer trading", "Centralized banking", "Mining rewards", "Fiat conversion"],
+    "correctAnswer": "Peer-to-peer trading",
+    "clue": "It operates without a central authority.",
+    "level": "medium"
+  },
+  {
+    "id": "q72",
+    "text": "Which blockchain is known for its focus on privacy?",
+    "options": ["Monero", "Bitcoin", "Ethereum", "Cardano"],
+    "correctAnswer": "Monero",
+    "clue": "It uses advanced cryptography for anonymity.",
+    "level": "medium"
+  },
+  {
+    "id": "q73",
+    "text": "What is gas in the context of Ethereum?",
+    "options": ["Transaction fee", "Mining reward", "Wallet balance", "Consensus mechanism"],
+    "correctAnswer": "Transaction fee",
+    "clue": "It’s paid in Ether to process transactions.",
+    "level": "medium"
+  },
+  {
+    "id": "q74",
+    "text": "Which term describes a digital representation of an asset on a blockchain?",
+    "options": ["Token", "Coin", "Block", "Hash"],
+    "correctAnswer": "Token",
+    "clue": "It can represent assets like art or real estate.",
+    "level": "easy"
+  },
+  {
+    "id": "q75",
+    "text": "What is the maximum supply of Bitcoin?",
+    "options": ["21 million", "100 million", "1 billion", "Unlimited"],
+    "correctAnswer": "21 million",
+    "clue": "It’s hardcoded into the protocol.",
+    "level": "medium"
+  },
+  {
+    "id": "q76",
+    "text": "Which blockchain platform is known for its interoperability?",
+    "options": ["Polkadot", "Ethereum", "Bitcoin", "Ripple"],
+    "correctAnswer": "Polkadot",
+    "clue": "It connects multiple blockchains.",
+    "level": "medium"
+  },
+  {
+    "id": "q77",
+    "text": "What is the term for a blockchain’s smallest unit of data?",
+    "options": ["Block", "Transaction", "Hash", "Node"],
+    "correctAnswer": "Block",
+    "clue": "It contains a set of transactions.",
+    "level": "easy"
+  },
+  {
+    "id": "q78",
+    "text": "Which cryptocurrency is associated with the XRP token?",
+    "options": ["Ripple", "Ethereum", "Stellar", "Cardano"],
+    "correctAnswer": "Ripple",
+    "clue": "It’s focused on cross-border payments.",
+    "level": "medium"
+  },
+  {
+    "id": "q79",
+    "text": "What is a 51% attack in blockchain?",
+    "options": ["Controlling majority of network power", "Hacking a wallet", "Forking a chain", "Double-spending coins"],
+    "correctAnswer": "Controlling majority of network power",
+    "clue": "It allows manipulation of the blockchain.",
+    "level": "hard"
+  },
+  {
+    "id": "q80",
+    "text": "Which term refers to locking up cryptocurrency to support a blockchain’s operations?",
+    "options": ["Staking", "Mining", "Hashing", "Forging"],
+    "correctAnswer": "Staking",
+    "clue": "It’s common in proof-of-stake networks.",
+ "level": "medium"
+  },
+  {
+    "id": "q81",
+    "text": "What is the name of Ethereum’s upgrade to proof-of-stake?",
+    "options": ["The Merge", "Sharding", "Hard Fork", "Beacon Chain"],
+    "correctAnswer": "The Merge",
+    "clue": "It reduced energy consumption significantly.",
+    "level": "medium"
+  },
+  {
+    "id": "q82",
+    "text": "Which platform is known for hosting NFT marketplaces like OpenSea?",
+    "options": ["Ethereum", "Bitcoin", "Solana", "Cardano"],
+    "correctAnswer": "Ethereum",
+    "clue": "It’s the primary blockchain for NFTs.",
+    "level": "easy"
+  },
+  {
+    "id": "q83",
+    "text": "What is a DAO in the Web3 ecosystem?",
+    "options": ["Decentralized Autonomous Organization", "Digital Asset Offering", "Distributed Application Operator", "Decentralized Algorithm Output"],
+    "correctAnswer": "Decentralized Autonomous Organization",
+    "clue": "It’s governed by smart contracts.",
+    "level": "medium"
+  },
+  {
+    "id": "q84",
+    "text": "Which cryptocurrency uses the Scrypt algorithm instead of SHA-256?",
+    "options": ["Litecoin", "Bitcoin", "Ethereum", "Monero"],
+    "correctAnswer": "Litecoin",
+    "clue": "It’s often called the silver to Bitcoin’s gold.",
+    "level": "medium"
+  },
+  {
+    "id": "q85",
+    "text": "What is the purpose of a hash function in blockchain?",
+    "options": ["Data integrity", "User authentication", "Transaction speed", "Wallet creation"],
+    "correctAnswer": "Data integrity",
+    "clue": "It ensures data hasn’t been tampered with.",
+    "level": "medium"
+  },
+  {
+    "id": "q86",
+    "text": "Which blockchain is designed for fast and low-cost transactions?",
+    "options": ["Solana", "Bitcoin", "Ethereum", "Ripple"],
+    "correctAnswer": "Solana",
+    "clue": "It claims thousands of transactions per second.",
+    "level": "medium"
+  },
+  {
+    "id": "q87",
+    "text": "What is the term for a cryptocurrency tied to a specific blockchain?",
+    "options": ["Coin", "Token", "Stablecoin", "NFT"],
+    "correctAnswer": "Coin",
+    "clue": "Bitcoin and Ether are examples.",
+    "level": "easy"
+  },
+  {
+    "id": "q88",
+    "text": "Which attack involves spending the same cryptocurrency twice?",
+    "options": ["Double-spending", "51% attack", "Phishing", "Sybil attack"],
+    "correctAnswer": "Double-spending",
+    "clue": "Blockchains are designed to prevent this.",
+    "level": "medium"
+  },
+  {
+    "id": "q89",
+    "text": "What is the main goal of Web3?",
+    "options": ["Decentralized internet", "Centralized banking", "Faster transactions", "Cloud storage"],
+    "correctAnswer": "Decentralized internet",
+    "clue": "It aims to give users control over data.",
+    "level": "easy"
+  },
+  {
+    "id": "q90",
+    "text": "Which cryptocurrency is focused on smart contract privacy?",
+    "options": ["Zcash", "Bitcoin", "Ether", "Litecoin"],
+    "correctAnswer": "Zcash",
+    "clue": "It uses zero-knowledge proofs.",
+    "level": "medium"
+  },
+  {
+    "id": "q91",
+    "text": "What is a gas limit in Ethereum?",
+    "options": ["Maximum computation per transaction", "Wallet balance cap", "Mining reward limit", "Block size limit"],
+    "correctAnswer": "Maximum computation per transaction",
+    "clue": "It prevents infinite loops in smart contracts.",
+    "level": "hard"
+  },
+  {
+    "id": "q92",
+    "text": "Which blockchain is associated with the BNB token?",
+    "options": ["Binance Smart Chain", "Ethereum", "Solana", "Cardano"],
+    "correctAnswer": "Binance Smart Chain",
+    "clue": "It’s tied to a major crypto exchange.",
+    "level": "medium"
+  },
+  {
+    "id": "q93",
+    "text": "What is the term for a blockchain’s record of all transactions?",
+    "options": ["Ledger", "Wallet", "Node", "Block"],
+    "correctAnswer": "Ledger",
+    "clue": "It’s immutable and distributed.",
+    "level": "easy"
+  },
+  {
+    "id": "q94",
+    "text": "Which platform is known for its focus on academic research for blockchain?",
+    "options": ["Cardano", "Bitcoin", "Ripple", "Solana"],
+    "correctAnswer": "Cardano",
+    "clue": "It uses a peer-reviewed approach.",
+    "level": "medium"
+  },
+  {
+    "id": "q95",
+    "text": "What is a seed phrase used for in cryptocurrency?",
+    "options": ["Recovering a wallet", "Mining coins", "Creating tokens", "Validating blocks"],
+    "correctAnswer": "Recovering a wallet",
+    "clue": "It’s a series of words for backup.",
+    "level": "medium"
+  },
+  {
+    "id": "q96",
+    "text": "Which term describes a blockchain that restricts access to certain participants?",
+    "options": ["Private Blockchain", "Public Blockchain", "Hybrid Blockchain", "Consortium Blockchain"],
+    "correctAnswer": "Private Blockchain",
+    "clue": "It’s often used by businesses.",
+    "level": "medium"
+  },
+  {
+    "id": "q97",
+    "text": "What is the name of the process to confirm transactions in proof-of-stake?",
+    "options": ["Validating", "Mining", "Hashing", "Forging"],
+    "correctAnswer": "Validating",
+    "clue": "It involves staked coins.",
+    "level": "medium"
+  },
+  {
+    "id": "q98",
+    "text": "Which cryptocurrency is known for its focus on cross-border payments?",
+    "options": ["Ripple", "Bitcoin", "Ethereum", "Dogecoin"],
+    "correctAnswer": "Ripple",
+    "clue": "It works with financial institutions.",
+    "level": "easy"
+  },
+  {
+    "id": "q99",
+    "text": "What is the term for a blockchain’s unique identifier for a transaction?",
+    "options": ["Hash", "Block", "Token", "Wallet"],
+    "correctAnswer": "Hash",
+    "clue": "It’s a cryptographic fingerprint.",
+    "level": "medium"
+  },
+  {
+    "id": "q100",
+    "text": "Which concept in Web3 refers to digital ownership without intermediaries?",
+    "options": ["Decentralization", "Centralization", "Encryption", "Tokenization"],
+    "correctAnswer": "Decentralization",
+    "clue": "It’s a core principle of blockchain.",
+    "level": "easy"
   }
+
 ]
 
 

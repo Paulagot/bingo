@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { fundraisingExtraDefinitions, roundTypeDefinitions } from '../../../constants/quizMetadata';
-import type { RoundDefinition, RoundTypeId } from '../../../types/quiz';
+import type { RoundDefinition, RoundTypeId } from '../types/quiz';
 import { ChevronLeft, ChevronRight, Trash2, GripVertical, Zap, RotateCcw, Info, Play, X } from 'lucide-react';
 import { useQuizSetupStore } from '../useQuizSetupStore';
 import { roundTypeDefaults } from '../../../constants/quiztypeconstants';
@@ -332,7 +332,7 @@ export const StepAddRounds: React.FC<StepAddRoundsProps> = ({ onNext, onBack }) 
     if (!setupConfig.roundDefinitions || setupConfig.roundDefinitions.length === 0) {
       const defaultRounds: RoundDefinition[] = [
         createRoundDefinition('general_trivia', 1),
-        createRoundDefinition('speed_round', 2),
+        createRoundDefinition('wipeout', 2),
         createRoundDefinition('general_trivia', 3),
       ];
       setSelectedRounds(defaultRounds);
@@ -442,7 +442,7 @@ export const StepAddRounds: React.FC<StepAddRoundsProps> = ({ onNext, onBack }) 
     // Check if we're showing the initial default setup
     const hasDefaultSetup = selectedRounds.length === 3 && 
                            selectedRounds[0]?.roundType === 'general_trivia' &&
-                           selectedRounds[1]?.roundType === 'speed_round' &&
+                           selectedRounds[1]?.roundType === 'wipeout' &&
                            selectedRounds[2]?.roundType === 'general_trivia';
     
     if (hasDefaultSetup) {
