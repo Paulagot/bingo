@@ -21,10 +21,10 @@ export interface Prize {
 
 export type RoundTypeId =
   | 'general_trivia'
-  | 'wipeout'
-  | 'speed_round'
-  | 'head_to_head'
-  | 'media_puzzle';
+  | 'wipeout';
+  // | 'speed_round'
+  // | 'head_to_head'
+  // | 'media_puzzle';
 
   
 export interface RoundConfig {
@@ -102,12 +102,12 @@ export const fundraisingExtras: FundraisingExtrasMeta = {
     maxPerTeam: 1,
     applicableTo: ['general_trivia', 'wipeout'],
   },
-  buyExtraTime: {
-    label: 'Buy Extra Time',
-    description: 'Add extra time on a question',
-    maxPerTeam: 1,
-    applicableTo: ['speed_round'],
-  },
+  // buyExtraTime: {
+  //   label: 'Buy Extra Time',
+  //   description: 'Add extra time on a question',
+  //   maxPerTeam: 1,
+  //   applicableTo: ['speed_round'],
+  // },
   restorePoints: {
     label: 'Restore Points',
     description: 'Restore points if score is negative',
