@@ -378,8 +378,39 @@ const FundraisingLaunchPage: React.FC = () => {
             />
           </div>
 
+          {/* Beta Program Invite Section - Reduced height with 2-row subtitle */}
+      <div className="container mx-auto px-4 max-w-6xl mt-4 mb-2">
+        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl overflow-hidden shadow-xl">
+          <div className="px-8 py-6 text-center">
+            <h2 className="text-3xl font-bold text-white mb-3">
+              Fundraising is Changing. Be Part of It.
+            </h2>
+            <div className="text-white/80 max-w-2xl mx-auto mb-5 space-y-1">
+              <p>Let us know you are interested in Joining the Web3 Impact Event.</p>
+              <p>Test our fundraising quiz platform, our blockchain pilot to help shape the future of compliant, blockchain-powered fundraising.</p>
+            </div>
+            <div className="flex justify-center space-x-4">
+              <a
+                href="https://x.com/Fundraisly"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-white text-indigo-600 px-8 py-3 rounded-xl font-semibold shadow-md hover:bg-indigo-50 transition inline-block"
+              >
+                DM us on Twitter
+              </a>
+              {/* <a
+                href="mailto:beta@fundraisely.io"
+                className="bg-white text-indigo-600 px-8 py-3 rounded-xl font-semibold shadow-md hover:bg-indigo-50 transition inline-block"
+              >
+                Apply to Join Beta
+              </a> */}
+            </div>
+          </div>
+        </div>
+      </div>
+
           {/* Form */}
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+          {/* <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
             <div className="p-8">
               <div className="flex items-center space-x-4 mb-6">
                 <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-xl flex items-center justify-center">
@@ -436,7 +467,7 @@ const FundraisingLaunchPage: React.FC = () => {
                 </button>
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
 
