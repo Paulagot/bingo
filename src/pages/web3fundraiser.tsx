@@ -216,7 +216,7 @@ const FundraisingLaunchPage: React.FC = () => {
                 <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">1</div>
                 <h3 className="text-xl font-semibold text-gray-900">Campaign Period</h3>
               </div>
-              <p className="text-gray-600">Events run from August 15th 2025 to February 15th, 2026.  Communities are invited to pre-register now.</p>
+              <p className="text-gray-600">Events will run for 6 months from later 2025 into 2026.  Communities are invited to pre-register now, and we will be intouch to show you around the demo</p>
             </div>
 
             <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
@@ -257,7 +257,7 @@ const FundraisingLaunchPage: React.FC = () => {
                 <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full flex items-center justify-center text-white font-bold">4</div>
                 <h3 className="text-xl font-semibold text-gray-900">Multichain Support</h3>
               </div>
-              <p className="text-gray-600">Available on Solana and any blockchain that supports Glo Dollar, starting with Polygon, Celo, Base, Arbitrum & Optimism.  Then VeChain and and Stellar.  </p>
+              <p className="text-gray-600">Available on Solana and any blockchain that supports Glo Dollar, starting with Stellar then Polygon, Celo, Base, Arbitrum & Optimism and Vechain.  </p>
             </div>
           </div>
         </div>
