@@ -5,11 +5,73 @@ const FundraisingLaunchPage: React.FC = () => {
   const [communityName, setCommunityName] = useState('');
   const [contactMethod, setContactMethod] = useState('Email');
   const [contactInfo, setContactInfo] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState('');
 
-  const handleCommunitySubmit = (e: React.FormEvent) => {
+  const handleCommunitySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log({ communityName, contactMethod, contactInfo });
-    alert('Community registration submitted!');
+    setIsSubmitting(true);
+    setSubmitMessage('');
+
+    try {
+      // Use the same pattern as your quiz API
+      const apiUrl = window.location.hostname === 'localhost' 
+        ? 'http://localhost:3001' 
+        : 'https://bingo-production-4534.up.railway.app';
+      
+      const fullUrl = `${apiUrl}/quiz/api/community-registration`;
+      console.log('🚀 Submitting to:', fullUrl);
+      console.log('📝 Data being sent:', { communityName, contactMethod, contactInfo });
+      
+      const response = await fetch(fullUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          communityName,
+          contactMethod,
+          contactInfo
+        }),
+      });
+
+      // Get the raw response text first
+      const responseText = await response.text();
+      console.log('📄 Raw response text:', responseText);
+
+      if (!responseText) {
+        console.error('❌ Empty response body');
+        setSubmitMessage(`❌ Server error: Empty response (Status: ${response.status})`);
+        return;
+      }
+
+      // Try to parse as JSON
+      let data;
+      try {
+        data = JSON.parse(responseText);
+        console.log('✅ Parsed JSON data:', data);
+      } catch (parseError) {
+        console.error('❌ JSON parse error:', parseError);
+        console.error('❌ Response was not valid JSON:', responseText);
+        setSubmitMessage(`❌ Server error: Invalid response format (Status: ${response.status})`);
+        return;
+      }
+
+      if (response.ok) {
+        setSubmitMessage('✅ Community registration submitted successfully! We\'ll be in touch soon.');
+        // Clear form
+        setCommunityName('');
+        setContactInfo('');
+        setContactMethod('Email');
+      } else {
+        setSubmitMessage(`❌ Error: ${data.error || 'Failed to submit registration'}`);
+      }
+    } catch (error) {
+      setSubmitMessage('❌ Network error. Please try again later.');
+      console.error('❌ Submission error:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const Character = ({ expression, message }: { expression: string; message: React.ReactNode }) => {
@@ -99,7 +161,7 @@ const FundraisingLaunchPage: React.FC = () => {
               href="#register" 
               className="inline-flex items-center space-x-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-4 rounded-xl text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
             >
-              <span>Register Your Community</span>
+              <span>Pledge to Host a Quiz Night</span>
               <ArrowRight className="w-5 h-5" />
             </a>
             <a 
@@ -268,7 +330,7 @@ const FundraisingLaunchPage: React.FC = () => {
   <div className="text-center mb-12">
     <h2 className="text-4xl font-bold text-gray-900 mb-4">Target & Impact</h2>
     <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-      Our mission is to build the world’s first fully transparent, multichain fundraising platform, built to empower Clubs, Charities and Communities. All While hosting the largest Web3 Regenerative fundraising event ever
+      Our mission is to build the world's first fully transparent, multichain fundraising platform, built to empower Clubs, Charities and Communities. All While hosting the largest Web3 Regenerative fundraising event ever
     </p>
   </div>
 
@@ -327,42 +389,54 @@ const FundraisingLaunchPage: React.FC = () => {
         </div>
 
         <div className="flex justify-center">
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-200 max-w-lg">
-            <div className="flex items-center space-x-4 mb-4">
-              <div className="w-14 h-14 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-xl flex items-center justify-center">
-                <Users className="w-7 h-7 text-white" />
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-8 border border-blue-200 max-w-2xl">
+            <div className="flex items-center space-x-4 mb-6">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-xl flex items-center justify-center">
+                <Users className="w-8 h-8 text-white" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900">Web3 Communities</h3>
-                <p className="text-blue-700 text-sm">Digital-first organizations</p>
+                <h3 className="text-2xl font-bold text-gray-900">Web3 Communities Welcome</h3>
+                <p className="text-blue-700 text-lg">Any community building in the decentralized future</p>
               </div>
             </div>
-            <ul className="space-y-2 text-gray-700 text-sm">
-              <li className="flex items-center space-x-2">
-                <CheckCircle className="w-4 h-4 text-green-500" />
-                <span>DAOs & Governance Communities</span>
-              </li>
-              <li className="flex items-center space-x-2">
-                <CheckCircle className="w-4 h-4 text-green-500" />
-                <span>NFT Projects & Collections</span>
-              </li>
-              <li className="flex items-center space-x-2">
-                <CheckCircle className="w-4 h-4 text-green-500" />
-                <span>Web3 Protocols & DeFi Projects</span>
-              </li>
-              <li className="flex items-center space-x-2">
-                <CheckCircle className="w-4 h-4 text-green-500" />
-                <span>Metaverse Communities</span>
-              </li>
-              <li className="flex items-center space-x-2">
-                <CheckCircle className="w-4 h-4 text-green-500" />
-                <span>Memecoin Communities</span>
-              </li>
-              <li className="flex items-center space-x-2">
-                <CheckCircle className="w-4 h-4 text-green-500" />
-                <span>Crypto Communities</span>
-              </li>
-            </ul>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                  <span className="text-gray-700">DAOs & Governance Communities</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                  <span className="text-gray-700">NFT Projects & Collections</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                  <span className="text-gray-700">DeFi Protocols & Projects</span>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                  <span className="text-gray-700">Gaming & Metaverse Communities</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                  <span className="text-gray-700">Token & Memecoin Communities</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                  <span className="text-gray-700">Developer & Builder Communities</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-6 p-4 bg-white rounded-lg border border-blue-200">
+              <p className="text-gray-700 text-center">
+                <strong>Got an active Web3 community?</strong> You're exactly who we're looking for! 
+                Whether you're on Discord, Telegram, X, or anywhere else - if you can bring people together for a quiz night, you can make an impact.
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -371,58 +445,56 @@ const FundraisingLaunchPage: React.FC = () => {
       <div id="register" className="bg-gradient-to-br from-indigo-50 to-purple-50">
         <div className="max-w-4xl mx-auto px-4 py-16">
           <div className="text-center mb-10">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Register Your Interest</h2>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">Commit to Making an Impact</h2>
             <Character 
               expression="excited" 
-              message="Ready to join the regenerative fundraising revolution? Register your community below and let's make an impact together!" 
+              message="Ready to pledge your community to host a quiz night for global good? Join the movement and commit to making a real difference during our 6-month campaign!" 
             />
           </div>
 
-          {/* Beta Program Invite Section - Reduced height with 2-row subtitle */}
-      <div className="container mx-auto px-4 max-w-6xl mt-4 mb-2">
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl overflow-hidden shadow-xl">
-          <div className="px-8 py-6 text-center">
-            <h2 className="text-3xl font-bold text-white mb-3">
-              Fundraising is Changing. Be Part of It.
-            </h2>
-            <div className="text-white/80 max-w-2xl mx-auto mb-5 space-y-1">
-              <p>Let us know you are interested in Joining the Web3 Impact Event.</p>
-              <p>Test our fundraising quiz platform, our blockchain pilot to help shape the future of compliant, blockchain-powered fundraising.</p>
-            </div>
-            <div className="flex justify-center space-x-4">
-              <a
-                href="https://x.com/Fundraisly"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-white text-indigo-600 px-8 py-3 rounded-xl font-semibold shadow-md hover:bg-indigo-50 transition inline-block"
-              >
-                DM us on Twitter
-              </a>
-              {/* <a
-                href="mailto:beta@fundraisely.io"
-                className="bg-white text-indigo-600 px-8 py-3 rounded-xl font-semibold shadow-md hover:bg-indigo-50 transition inline-block"
-              >
-                Apply to Join Beta
-              </a> */}
-            </div>
-          </div>
-        </div>
-      </div>
-
-          {/* Form */}
-          {/* <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+               {/* Form */}
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
             <div className="p-8">
               <div className="flex items-center space-x-4 mb-6">
                 <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-xl flex items-center justify-center">
                   <Users className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-semibold text-gray-900">Web3 Community Registration</h3>
-                  <p className="text-gray-600">Join the movement with your community.  Complete the form and we will be in contact.</p>
+                  <h3 className="text-2xl font-semibold text-gray-900">Host Pledge & Movement Registration</h3>
+                  <p className="text-gray-600">Commit to hosting a quiz night during our campaign period. Pledge your community's participation in the world's largest Web3 regenerative fundraising event.</p>
                 </div>
               </div>
 
-              <div className="space-y-6">
+              {submitMessage && (
+                <div className={`mb-6 p-4 rounded-lg ${
+                  submitMessage.includes('✅') 
+                    ? 'bg-green-50 border border-green-200 text-green-700' 
+                    : 'bg-red-50 border border-red-200 text-red-700'
+                }`}>
+                  {submitMessage}
+                </div>
+              )}
+
+              {/* Pledge Section */}
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-8">
+                <h4 className="text-lg font-semibold text-gray-900 mb-3">Your Pledge Includes:</h4>
+                <ul className="space-y-2 text-gray-700">
+                  <li className="flex items-center space-x-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span>Host at least one quiz night during the 6-month campaign</span>
+                  </li>
+                  <li className="flex items-center space-x-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span>Engage your community in regenerative fundraising</span>
+                  </li>
+                  <li className="flex items-center space-x-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span>Be part of the world's largest Web3 impact event</span>
+                  </li>
+                </ul>
+              </div>
+
+              <form onSubmit={handleCommunitySubmit} className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Community Name</label>
                   <input
@@ -431,6 +503,8 @@ const FundraisingLaunchPage: React.FC = () => {
                     onChange={(e) => setCommunityName(e.target.value)}
                     className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                     placeholder="Enter your community name"
+                    required
+                    disabled={isSubmitting}
                   />
                 </div>
                 
@@ -440,6 +514,7 @@ const FundraisingLaunchPage: React.FC = () => {
                     value={contactMethod}
                     onChange={(e) => setContactMethod(e.target.value)}
                     className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                    disabled={isSubmitting}
                   >
                     <option>Email</option>
                     <option>Telegram</option>
@@ -455,19 +530,22 @@ const FundraisingLaunchPage: React.FC = () => {
                     onChange={(e) => setContactInfo(e.target.value)}
                     className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                     placeholder="Your contact information"
+                    required
+                    disabled={isSubmitting}
                   />
                 </div>
                 
                 <button 
-                  onClick={handleCommunitySubmit}
-                  className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-6 py-4 rounded-xl font-semibold hover:from-blue-600 hover:to-indigo-600 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-6 py-4 rounded-xl font-semibold hover:from-blue-600 hover:to-indigo-600 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <span>Register Community</span>
-                  <ArrowRight className="w-5 h-5" />
+                  <span>{isSubmitting ? 'Submitting...' : 'Make Your Pledge'}</span>
+                  {!isSubmitting && <ArrowRight className="w-5 h-5" />}
                 </button>
-              </div>
+              </form>
             </div>
-          </div> */}
+          </div>
         </div>
       </div>
 
