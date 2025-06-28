@@ -48,17 +48,41 @@ async function saveSubmission(submission) {
 // POST /quiz/api/community-registration
 router.post('/', async (req, res) => {
   try {
-    const { communityName, contactMethod, contactInfo } = req.body;
+    const { 
+      communityName, 
+      contactMethod, 
+      contactInfo, 
+      userName, 
+      ecosystem 
+    } = req.body;
     
     // Basic validation
-    if (!communityName || !contactMethod || !contactInfo) {
+    if (!communityName || !contactMethod || !contactInfo || !userName || !ecosystem) {
       return res.status(400).json({ 
-        error: 'Missing required fields: communityName, contactMethod, contactInfo' 
+        error: 'Missing required fields: communityName, contactMethod, contactInfo, userName, ecosystem' 
+      });
+    }
+
+    // Validate ecosystem is one of the allowed values
+    const allowedEcosystems = ['Stellar', 'Solana'];
+    if (!allowedEcosystems.includes(ecosystem)) {
+      return res.status(400).json({ 
+        error: 'Invalid ecosystem. Must be one of: ' + allowedEcosystems.join(', ') 
+      });
+    }
+
+    // Validate contact method is one of the allowed values
+    const allowedContactMethods = ['Email', 'Telegram', 'X (Twitter)'];
+    if (!allowedContactMethods.includes(contactMethod)) {
+      return res.status(400).json({ 
+        error: 'Invalid contact method. Must be one of: ' + allowedContactMethods.join(', ') 
       });
     }
 
     console.log('🎉 New community registration:', {
+      userName,
       communityName,
+      ecosystem,
       contactMethod,
       contactInfo
     });
@@ -66,7 +90,9 @@ router.post('/', async (req, res) => {
     const submission = await saveSubmission({
       communityName,
       contactMethod,
-      contactInfo
+      contactInfo,
+      userName,
+      ecosystem
     });
 
     console.log('💾 Saved submission with ID:', submission.id);
