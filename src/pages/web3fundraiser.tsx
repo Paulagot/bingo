@@ -210,16 +210,14 @@ const FundraisingLaunchPage: React.FC = () => {
                   disabled={isSubmitting}
                 />
 
-                <select
+                <input
+                  type="text"
                   value={ecosystem}
                   onChange={(e) => setEcosystem(e.target.value)}
                   className="border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="Chain *"
                   disabled={isSubmitting}
-                >
-                  <option value="">Ecosystem *</option>
-                  <option value="Stellar">Stellar</option>
-                  <option value="Solana">Solana</option>
-                </select>
+                />
               </div>
 
               {/* Submit Button */}
