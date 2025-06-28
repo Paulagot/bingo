@@ -5,12 +5,14 @@ const FundraisingLaunchPage: React.FC = () => {
   const [communityName, setCommunityName] = useState('');
   const [contactMethod, setContactMethod] = useState('Email');
   const [contactInfo, setContactInfo] = useState('');
+  const [userName, setUserName] = useState('');
+  const [ecosystem, setEcosystem] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
 
   const handleCommunitySubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!communityName || !contactInfo) {
+    if (!communityName || !contactInfo || !userName || !ecosystem) {
       setSubmitMessage('❌ Please fill in all required fields');
       return;
     }
@@ -26,7 +28,13 @@ const FundraisingLaunchPage: React.FC = () => {
       
       const fullUrl = `${apiUrl}/quiz/api/community-registration`;
       console.log('🚀 Submitting to:', fullUrl);
-      console.log('📝 Data being sent:', { communityName, contactMethod, contactInfo });
+      console.log('📝 Data being sent:', { 
+        communityName, 
+        contactMethod, 
+        contactInfo, 
+        userName, 
+        ecosystem 
+      });
       
       const response = await fetch(fullUrl, {
         method: 'POST',
@@ -36,7 +44,9 @@ const FundraisingLaunchPage: React.FC = () => {
         body: JSON.stringify({
           communityName,
           contactMethod,
-          contactInfo
+          contactInfo,
+          userName,
+          ecosystem
         }),
       });
 
@@ -67,7 +77,9 @@ const FundraisingLaunchPage: React.FC = () => {
         // Clear form
         setCommunityName('');
         setContactInfo('');
+        setUserName('');
         setContactMethod('Email');
+        setEcosystem('');
       } else {
         setSubmitMessage(`❌ Error: ${data.error || 'Failed to submit registration'}`);
       }
@@ -117,7 +129,7 @@ const FundraisingLaunchPage: React.FC = () => {
           </div>
 
           {/* Primary CTA Section - Above the fold */}
-          <div id="hero-form" className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-8 mb-12 max-w-4xl mx-auto">
+          <div id="hero-form" className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-8 mb-12 max-w-5xl mx-auto">
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-gray-900 mb-4">
                 🚀 Ready to Make an Impact?
@@ -143,7 +155,7 @@ const FundraisingLaunchPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Registration form right in hero */}
+            {/* Enhanced Registration form */}
             <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-6">
               {submitMessage && (
                 <div className={`mb-4 p-4 rounded-lg ${
@@ -155,16 +167,29 @@ const FundraisingLaunchPage: React.FC = () => {
                 </div>
               )}
               
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* First Row - Personal Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <input
+                  type="text"
+                  value={userName}
+                  onChange={(e) => setUserName(e.target.value)}
+                  className="border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="Your name/alias *"
+                  disabled={isSubmitting}
+                />
+                
                 <input
                   type="text"
                   value={communityName}
                   onChange={(e) => setCommunityName(e.target.value)}
                   className="border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="Community name"
+                  placeholder="Community name *"
                   disabled={isSubmitting}
                 />
-                
+              </div>
+
+              {/* Second Row - Contact & Ecosystem */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <select
                   value={contactMethod}
                   onChange={(e) => setContactMethod(e.target.value)}
@@ -181,14 +206,28 @@ const FundraisingLaunchPage: React.FC = () => {
                   value={contactInfo}
                   onChange={(e) => setContactInfo(e.target.value)}
                   className="border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="Contact info"
+                  placeholder="Contact info *"
                   disabled={isSubmitting}
                 />
-                
+
+                <select
+                  value={ecosystem}
+                  onChange={(e) => setEcosystem(e.target.value)}
+                  className="border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  disabled={isSubmitting}
+                >
+                  <option value="">Ecosystem *</option>
+                  <option value="Stellar">Stellar</option>
+                  <option value="Solana">Solana</option>
+                </select>
+              </div>
+
+              {/* Submit Button */}
+              <div className="text-center">
                 <button 
                   onClick={() => handleCommunitySubmit()}
                   disabled={isSubmitting}
-                  className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-xl transition-all duration-200 hover:scale-105 flex items-center justify-center space-x-2 disabled:opacity-50"
+                  className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-4 rounded-xl font-semibold hover:shadow-xl transition-all duration-200 hover:scale-105 flex items-center justify-center space-x-2 disabled:opacity-50 mx-auto"
                 >
                   <span>{isSubmitting ? 'Submitting...' : 'Pledge Now'}</span>
                   {!isSubmitting && <ArrowRight className="w-4 h-4" />}
@@ -256,6 +295,16 @@ const FundraisingLaunchPage: React.FC = () => {
             <div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">The Web3 Impact Event</h3>
               <p className="text-gray-700">Our mission: become the largest Web3 fundraising event ever. Powered by <strong>Glo Dollar</strong> and <strong>The Giving Block</strong> for maximum transparency and impact.</p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-6 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-2xl p-6 shadow-lg">
+            <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-3xl">
+              ⚡
+            </div>
+            <div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Quiz Nights With Superpowers</h3>
+              <p className="text-gray-700">Forget boring trivia. On Fundraisely, teams battle with <strong>Freeze attacks</strong>, <strong>Point Steals</strong>, and strategic power-ups. Every question becomes a tactical decision, every round raises real money for charity.</p>
             </div>
           </div>
         </div>
