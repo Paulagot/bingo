@@ -63,37 +63,32 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Validate ecosystem is one of the allowed values
-    const allowedEcosystems = ['Stellar', 'Solana'];
-    if (!allowedEcosystems.includes(ecosystem)) {
-      return res.status(400).json({ 
-        error: 'Invalid ecosystem. Must be one of: ' + allowedEcosystems.join(', ') 
-      });
-    }
+    // Basic sanitization - trim whitespace
+    const sanitizedData = {
+      communityName: communityName.trim(),
+      contactMethod: contactMethod.trim(),
+      contactInfo: contactInfo.trim(),
+      userName: userName.trim(),
+      ecosystem: ecosystem.trim()
+    };
 
     // Validate contact method is one of the allowed values
     const allowedContactMethods = ['Email', 'Telegram', 'X (Twitter)'];
-    if (!allowedContactMethods.includes(contactMethod)) {
+    if (!allowedContactMethods.includes(sanitizedData.contactMethod)) {
       return res.status(400).json({ 
         error: 'Invalid contact method. Must be one of: ' + allowedContactMethods.join(', ') 
       });
     }
 
     console.log('🎉 New community registration:', {
-      userName,
-      communityName,
-      ecosystem,
-      contactMethod,
-      contactInfo
+      userName: sanitizedData.userName,
+      communityName: sanitizedData.communityName,
+      ecosystem: sanitizedData.ecosystem,
+      contactMethod: sanitizedData.contactMethod,
+      contactInfo: sanitizedData.contactInfo
     });
     
-    const submission = await saveSubmission({
-      communityName,
-      contactMethod,
-      contactInfo,
-      userName,
-      ecosystem
-    });
+    const submission = await saveSubmission(sanitizedData);
 
     console.log('💾 Saved submission with ID:', submission.id);
     console.log('📁 Saved to:', SUBMISSIONS_FILE);
