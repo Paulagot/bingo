@@ -325,7 +325,7 @@ const FundraisingLaunchPage: React.FC = () => {
       <div className="bg-white border-t border-gray-200">
         <div className="max-w-7xl mx-auto px-4 py-16">
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Our $1M Impact Goal</h2>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">Our $100,000 Impact Goal</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -333,7 +333,7 @@ const FundraisingLaunchPage: React.FC = () => {
               <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Heart className="w-10 h-10 text-white" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">$500,000+</h3>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">$50,000+</h3>
               <h4 className="text-lg font-semibold text-green-600 mb-2">Direct to Charity</h4>
               <p className="text-gray-600">Delivered directly to verified charities through The Giving Block</p>
             </div>
@@ -342,7 +342,7 @@ const FundraisingLaunchPage: React.FC = () => {
               <div className="w-20 h-20 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Users className="w-10 h-10 text-white" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">$300,000</h3>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">$30,000</h3>
               <h4 className="text-lg font-semibold text-blue-600 mb-2">Community Rewards</h4>
               <p className="text-gray-600">Back to participating communities via Glo Dollar</p>
             </div>
@@ -351,7 +351,7 @@ const FundraisingLaunchPage: React.FC = () => {
               <div className="w-20 h-20 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Zap className="w-10 h-10 text-white" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">$200,000</h3>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">$20,000</h3>
               <h4 className="text-lg font-semibold text-purple-600 mb-2">Platform Development</h4>
               <p className="text-gray-600">Building better fundraising tools for everyone</p>
             </div>
