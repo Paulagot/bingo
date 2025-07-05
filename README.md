@@ -1,23 +1,19 @@
-# Multiplayer Crypto Bingo Game 🎲  
+# Multiplayer Fundraising Quiz App 🎲  
 
-A real-time multiplayer Bingo game built with React, TypeScript, and Socket.io, along with smart contracts driven by the Solana blockchain. featuring responsive design, single-player mode, and dynamic room management.  Smart Contract to managed payment and winner prizes.
+A real-time multiplayer quiz game built with React, TypeScript, and Socket.io, along with smart contracts. featuring responsive design, and dynamic room management.  Smart Contract to managed payment and winner prizes.
 
 ## Features  
 
 - **Multiplayer realtime**: Play with friends in real-time.
 - **Dynamic Room Management**: Create or join rooms with unique room IDs.  
 - **Responsive Design**: Fully optimized for mobile and desktop devices.  
-- **Auto-play Functionality**: Automatically call Bingo numbers for a seamless experience.  
 - **Real-Time Updates**: Instant updates for all players in a room.  
-- **Winner Celebration**: Confetti for the winner and a message for other players.  
-- **Solana program to manage prize pool**: curently available on Solana Devnet,
-
 ---
 
-## Prerequisites
+## Prerequisites (not ready yet)
 
-- **Solana testnet tokens to mint and play with**: inlcuding mint button for testnet USDC.
-- **requires testnet SOL to launch smart contract and game**: host requies testnet SOL to launch a game.
+- **testnet tokens to mint and play with**: inlcuding mint button for testnet USD Glo
+- **requires testnet XLM to launch smart contract and game**: host requies testnet XLM to launch a game.
 Ensure you have the following installed:  
 - [Node.js](https://nodejs.org/)
 - [npm](https://www.npmjs.com/)  
@@ -47,8 +43,7 @@ Create a `.env` file in the root directory and add the following:
 
 ```bash  
 VITE_SOCKET_URL=http://localhost:3001
-VITE_SEPOLIA_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/your-api-key
-VITE_PROJECT_ID=reown-api-key
+
 ```  
 
 ---
@@ -78,8 +73,7 @@ By default, the app will run at `http://localhost:5173`.
 - **Frontend**: React, TypeScript, CSS Modules  
 - **Backend**: Node.js, Express, Socket.io  
 - **Styling**: Tailwind CSS  
-- **Reown appkit**: wallet connections and functionality
-- **Blockchain**: Solana Devnet
+- **Blockchain**: Stellar
 
 
 ---
