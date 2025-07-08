@@ -23,13 +23,21 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     id: 'general_trivia',
     name: 'General Trivia',
     icon: '🧠',
-    description: 'Classic multiple choice, questions range from easy to hard. 2 points for a correct answer.',
+    description: 'Classic multiple choice trivia game. Points awarded for correct answers. Customizable Categories and difficulty levels Hints, Freeze out are available as fundraising extras.',
     gameplay: 'Host reads questions → teams see question & answers → automatically serves host and players next question after 25s → Host controlled review of questions with answers → Host presents Leaderboard',
-    pros: ['Beginner friendly', 'Steady pace', 'Fair for all teams'],
+    pros: [ 'Steady pace', 'Fair for all teams', 'Customizable levels of difficulty'],
     timing: '25 seconds per question',
     difficulty: 'Easy',
     bestFor: 'Mixed groups, warm-up rounds, classic quiz feel, family events',
-    defaultConfig: { questionsPerRound: 6, timePerQuestion: 25 },
+    defaultConfig: {
+  questionsPerRound: 6,
+  timePerQuestion: 25,
+  pointsPerDifficulty: {
+    easy: 1,
+    medium: 2,
+    hard: 3
+  }
+},
     extras: ['Hint', 'Freeze-out-Team'],// ✅ Optional extras
     videoId: 'YOUR_YOUTUBE_VIDEO_ID' // ✅ Optional video ID
   },
@@ -51,13 +59,19 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     id: 'wipeout',
     name: 'Wipeout',
     icon: '💀',
-    description: 'Lose points for wrong answers, questions range from easy to hard. Hints, Freeze out and Restore points fundraising extras.',
+    description: 'Multiple choice trivia game. Points awarded for correct answers. Lose points for wrong answers or no answer. Hints, Freeze out and Restore points fundraising extras.',
     gameplay: ' Host reads questions → teams see question & answers → automatically serves host and players next question after 18s → Host controlled review of questions with answers → Host presents Leaderboard (correct answers = 2 point, wrong answers = -2 point)',
     pros: ['Strategic', 'High tension', 'Risk vs reward'],
     timing: '18 seconds per question',
     difficulty: 'Easy',
     bestFor: 'Mixed groups, competitive play, family events',
-    defaultConfig: { questionsPerRound: 8, timePerQuestion: 18 },
+    defaultConfig:   {
+     questionsPerRound: 8,
+      timePerQuestion: 18,
+      pointsPerDifficulty: {
+  easy: 2,
+  medium: 3,
+  hard: 4},},
     extras: ['Hint', 'Freeze-out-Team', 'Restore Points'],
     videoId: 'YOUR_YOUTUBE_VIDEO_ID'
   },
@@ -168,6 +182,16 @@ export const fundraisingExtraDefinitions = {
     playerStrategy: 'Use this to freeze out an opponent team for one question. Use this extra in a general triva or wipeout round, but you can only use one extra per round, so choose wisely.'
   }
 } as const;
+
+export const availableDifficulties = ['easy', 'medium', 'hard'] as const;
+
+export const availableCategories: Record<RoundTypeId, string[]> = {
+  general_trivia: ['General Knowledge', 'Science', 'History', 'Sport', 'Pop Culture'],
+  wipeout: ['General Knowledge', 'Geography', 'TV & Film', 'Maths', 'Music'],
+  // speed_round: [...],
+  // media_puzzle: [...],
+  // head_to_head: [...]
+};
 
 // ✅ Inferred type for fundraising extras
 export type FundraisingExtraDefinition = typeof fundraisingExtraDefinitions[keyof typeof fundraisingExtraDefinitions];

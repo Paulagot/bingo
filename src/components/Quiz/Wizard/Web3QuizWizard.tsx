@@ -1,14 +1,13 @@
-// src/components/Quiz/Wizard/QuizWizard.tsx
+// src/components/Quiz/Wizard/QuizWeb3Wizard.tsx
 import { useState } from 'react';
 import StepHostInfo from './StepHostInfo';
 import StepAddRounds from './StepAddRounds';
 import StepFundraisingOptions from './StepFundraisingOptions';
-import StepPaymentMethod from './StepPaymentMethod';
+import StepWeb3PaymentMethod from './StepWeb3PaymentMethod';
+import StepWeb3Prizes from './StepWeb3Prizes';
 import StepReviewLaunch from './StepReviewLaunch';
-import StepPrizes from './StepPrizes';
 import StepScheduleEvent from './StepScheduleEvent';
 import StepConfigureRounds from './StepConfigureRounds';
-
 
 interface QuizWizardProps {
   onComplete?: () => void;
@@ -18,14 +17,14 @@ const steps = [
   'host',
   'payment',
   'type',
-   'configure',
+  'configure',
   'fundraising',
   'stepPrizes',
   'schedule',
   'review',
 ] as const;
 
-export default function QuizWizard({ onComplete }: QuizWizardProps) {
+export default function QuizWeb3Wizard({ onComplete }: QuizWizardProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
 
   const goNext = () => {
@@ -49,15 +48,15 @@ export default function QuizWizard({ onComplete }: QuizWizardProps) {
       case 'host':
         return <StepHostInfo onNext={goNext} />;
       case 'payment':
-        return <StepPaymentMethod onNext={goNext} onBack={goBack} />;
+        return <StepWeb3PaymentMethod onNext={goNext} onBack={goBack} />;
       case 'type':
         return <StepAddRounds onNext={goNext} onBack={goBack} />;
-        case 'configure':
+          case 'configure':
       return <StepConfigureRounds onNext={goNext} onBack={goBack} />;
       case 'fundraising':
         return <StepFundraisingOptions onNext={goNext} onBack={goBack} />;
       case 'stepPrizes':
-        return <StepPrizes onNext={goNext} onBack={goBack} />;
+        return <StepWeb3Prizes onNext={goNext} onBack={goBack} />;
       case 'schedule':
         return <StepScheduleEvent onNext={goNext} onBack={goBack} />;
       case 'review':
@@ -70,7 +69,7 @@ export default function QuizWizard({ onComplete }: QuizWizardProps) {
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
       <div className="mb-6 text-center">
-        <h1 className="text-2xl font-bold text-indigo-800">Create Your Fundraising Quiz</h1>
+        <h1 className="text-2xl font-bold text-indigo-800">Create Web3 Impact Quiz</h1>
         <p className="text-sm text-gray-600 mt-2">
           Step {currentStepIndex + 1} of {steps.length}
         </p>
@@ -80,5 +79,4 @@ export default function QuizWizard({ onComplete }: QuizWizardProps) {
     </div>
   );
 }
-
 

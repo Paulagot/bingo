@@ -294,51 +294,145 @@ export function setupPlayerHandlers(socket, namespace) {
     }
   });
 
-  socket.on('request_current_state', ({ roomId, playerId }) => {
-    emitFullRoomState(socket, namespace, roomId);
-    const room = getQuizRoom(roomId);
-    if (!room) return;
+// REPLACE your existing request_current_state handler in playerHandlers.js with this:
 
-    if (room.currentPhase === 'asking' && room.currentQuestionIndex >= 0) {
-      const question = room.questions[room.currentQuestionIndex];
-      const roundConfig = room.config.roundDefinitions[room.currentRound - 1];
-      const timeLimit = roundConfig?.config?.timePerQuestion || 10;
-      const questionStartTime = room.questionStartTime || Date.now();
-      
-      const elapsed = Math.floor((Date.now() - questionStartTime) / 1000);
-      const remainingTime = Math.max(0, timeLimit - elapsed);
-      
-      const playerData = room.playerData[playerId];
-      const roundAnswerKey = `${question.id}_round${room.currentRound}`;
-      const hasAnswered = playerData?.answers?.[roundAnswerKey] ? true : false;
-      const submittedAnswer = playerData?.answers?.[roundAnswerKey]?.submitted || null;
-      const isFrozen = playerData?.frozenNextQuestion && 
-                      playerData?.frozenForQuestionIndex === room.currentQuestionIndex;
-      
-      socket.emit('question', {
-        id: question.id,
-        text: question.text,
-        options: question.options || [],
-        timeLimit,
-        questionStartTime,
-        questionNumber: room.currentQuestionIndex + 1,
-        totalQuestions: room.questions.length
-      });
-      
-      socket.emit('player_state_recovery', {
-        hasAnswered,
-        submittedAnswer,
-        isFrozen,
-        frozenBy: playerData?.frozenBy || null,
-        usedExtras: playerData?.usedExtras || {},
-        usedExtrasThisRound: playerData?.usedExtrasThisRound || {},
-        remainingTime,
-        currentQuestionIndex: room.currentQuestionIndex
-      });
+socket.on('request_current_state', ({ roomId, playerId }) => {
+  emitFullRoomState(socket, namespace, roomId);
+  const room = getQuizRoom(roomId);
+  if (!room) return;
 
-      console.log(`[Recovery] 🔁 Sent complete state recovery for ${playerId}: answered=${hasAnswered}, frozen=${isFrozen}, remaining=${remainingTime}s`);
+  // ✅ EXISTING: Handle asking phase
+  if (room.currentPhase === 'asking' && room.currentQuestionIndex >= 0) {
+    const question = room.questions[room.currentQuestionIndex];
+    const roundConfig = room.config.roundDefinitions[room.currentRound - 1];
+    const timeLimit = roundConfig?.config?.timePerQuestion || 10;
+    const questionStartTime = room.questionStartTime || Date.now();
+    
+    const elapsed = Math.floor((Date.now() - questionStartTime) / 1000);
+    const remainingTime = Math.max(0, timeLimit - elapsed);
+    
+    const playerData = room.playerData[playerId];
+    const roundAnswerKey = `${question.id}_round${room.currentRound}`;
+    const hasAnswered = playerData?.answers?.[roundAnswerKey] ? true : false;
+    const submittedAnswer = playerData?.answers?.[roundAnswerKey]?.submitted || null;
+    const isFrozen = playerData?.frozenNextQuestion && 
+                    playerData?.frozenForQuestionIndex === room.currentQuestionIndex;
+    
+    socket.emit('question', {
+      id: question.id,
+      text: question.text,
+      options: question.options || [],
+      timeLimit,
+      questionStartTime,
+      questionNumber: room.currentQuestionIndex + 1,
+      totalQuestions: room.questions.length
+    });
+    
+    socket.emit('player_state_recovery', {
+      hasAnswered,
+      submittedAnswer,
+      isFrozen,
+      frozenBy: playerData?.frozenBy || null,
+      usedExtras: playerData?.usedExtras || {},
+      usedExtrasThisRound: playerData?.usedExtrasThisRound || {},
+      remainingTime,
+      currentQuestionIndex: room.currentQuestionIndex
+    });
+
+    console.log(`[Recovery] 🔁 Sent complete state recovery for ${playerId}: answered=${hasAnswered}, frozen=${isFrozen}, remaining=${remainingTime}s`);
+  }
+
+  // ✅ NEW: Handle reviewing phase
+  else if (room.currentPhase === 'reviewing') {
+    console.log(`[Recovery] 📖 Recovering review phase for ${playerId} in room ${roomId}`);
+    
+    // Import the engine dynamically
+    const roundType = room.config.roundDefinitions?.[room.currentRound - 1]?.roundType;
+    let enginePromise;
+    
+    if (roundType === 'general_trivia') {
+      enginePromise = import('../ gameplayEngines/generalTriviaEngine.js');
+    } else if (roundType === 'wipeout') {
+      enginePromise = import('../ gameplayEngines/wipeoutEngine.js');
     }
-  });
+    
+    if (enginePromise) {
+      enginePromise.then(engine => {
+        if (engine && typeof engine.getCurrentReviewQuestion === 'function') {
+          const reviewQuestion = engine.getCurrentReviewQuestion(roomId);
+          
+          if (reviewQuestion) {
+            // Check if this is for a host or player
+            const isHost = playerId === 'host' || socket.rooms.has(`${roomId}:host`);
+            
+            if (isHost) {
+              // Send host-specific review question
+              socket.emit('host_review_question', {
+                id: reviewQuestion.id,
+                text: reviewQuestion.text,
+                options: reviewQuestion.options || [],
+                correctAnswer: reviewQuestion.correctAnswer,
+                difficulty: reviewQuestion.difficulty,
+                category: reviewQuestion.category
+              });
+              
+              console.log(`[Recovery] 🧐 Sent host review question for ${roomId}: ${reviewQuestion.id}`);
+            } else {
+              // Send player-specific review question with their answer
+              const playerData = room.playerData[playerId];
+              const roundAnswerKey = `${reviewQuestion.id}_round${room.currentRound}`;
+              const playerAnswer = playerData?.answers?.[roundAnswerKey];
+              
+              socket.emit('review_question', {
+                id: reviewQuestion.id,
+                text: reviewQuestion.text,
+                options: reviewQuestion.options || [],
+                correctAnswer: reviewQuestion.correctAnswer,
+                submittedAnswer: playerAnswer?.submitted || null,
+                difficulty: reviewQuestion.difficulty,
+                category: reviewQuestion.category
+              });
+              
+              console.log(`[Recovery] 📖 Sent player review question for ${playerId}: ${reviewQuestion.id}`);
+            }
+          }
+          
+          // Check if review is complete
+          if (engine.isReviewComplete && engine.isReviewComplete(roomId)) {
+            const roundConfig = room.config.roundDefinitions[room.currentRound - 1];
+            const questionsPerRound = roundConfig?.config?.questionsPerRound || 6;
+            
+            socket.emit('review_complete', {
+              message: `All ${questionsPerRound} questions have been reviewed`,
+              roundNumber: room.currentRound,
+              totalQuestions: questionsPerRound
+            });
+            
+            console.log(`[Recovery] ✅ Sent review complete notification for ${roomId}`);
+          }
+        }
+      }).catch(err => {
+        console.error(`[Recovery] ❌ Failed to load engine for review recovery:`, err);
+      });
+    }
+  }
+
+  // ✅ NEW: Handle leaderboard phase
+  else if (room.currentPhase === 'leaderboard') {
+    console.log(`[Recovery] 🏆 Recovering leaderboard phase for ${playerId} in room ${roomId}`);
+    
+    // Send stored leaderboard data if available
+    if (room.currentRoundResults) {
+      socket.emit('round_leaderboard', room.currentRoundResults);
+      console.log(`[Recovery] 🏆 Sent round leaderboard for room ${roomId}`);
+    }
+    
+    if (room.currentOverallLeaderboard) {
+      socket.emit('leaderboard', room.currentOverallLeaderboard);
+      console.log(`[Recovery] 🏆 Sent overall leaderboard for room ${roomId}`);
+    }
+  }
+});
 
   socket.on('disconnect', () => {
     setTimeout(() => {

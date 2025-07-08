@@ -1,23 +1,20 @@
-[
+[  
   {
-    "id": "1751060571474",
-    "timestamp": "2025-06-27T21:42:51.474Z",
-    "communityName": "jack",
-    "contactMethod": "Email",
-    "contactInfo": "jack@test.com"
-  },
+    "id":"1751752366741",
+  "timestamp":"2025-07-05T21:52:46.741Z",
+  "communityName":"ChileDAO",
+  "contactMethod":"Email",
+  "contactInfo":"simon@dobprotocol.com",
+  "userName":"SimonSadhu",
+  "ecosystem":"Arbitrum"
+},
   {
-    "id": "1751061403672",
-    "timestamp": "2025-06-27T21:56:43.672Z",
-    "communityName": "flaskfdl",
-    "contactMethod": "Email",
-    "contactInfo": "sjfksfal"
-  },
-  {
-    "id": "1751067174692",
-    "timestamp": "2025-06-27T23:32:54.692Z",
-    "communityName": "abc",
-    "contactMethod": "Email",
-    "contactInfo": "paula@abc.com"
+    "id":"1751754269790",
+    "timestamp":"2025-07-05T22:24:29.790Z",
+    "communityName":"A Block of Crypto",
+    "contactMethod":"Email",
+    "contactInfo":"simon@ablockofcrypto.com",
+    "userName":"Simon",
+    "ecosystem":"stellar"
   }
-]
+ ]

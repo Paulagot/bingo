@@ -1,503 +1,453 @@
 [
   {
-    "id": "q001",
-    "text": "What is the capital city of France?",
-    "options": ["Paris", "London", "Berlin", "Madrid"],
-    "correctAnswer": "Paris",
-    "type": "multiple_choice",
-    "points": 10,
-    "clue": "It’s known as the City of Light",
-    "level": "easy"
+    "id": "q1",
+    "text": "What is the smallest country in the world by land area?",
+    "options": ["Monaco", "Vatican City", "San Marino", "Liechtenstein"],
+    "correctAnswer": "Vatican City",
+    "clue": "It’s an independent city-state within Rome.",
+    "difficulty": "medium",
+    "category": "General Knowledge"
   },
   {
-    "id": "q002",
-    "text": "Which planet is known as the Red Planet?",
-    "options": ["Mars", "Jupiter", "Venus", "Mercury"],
-    "correctAnswer": "Mars",
-    "type": "multiple_choice",
-    "points": 15,
-    "clue": "It’s named after a Roman god of war",
-    "level": "medium"
+    "id": "q2",
+    "text": "Which element has the highest melting point?",
+    "options": ["Tungsten", "Carbon", "Iron", "Titanium"],
+    "correctAnswer": "Tungsten",
+    "clue": "It’s used in light bulb filaments.",
+    "difficulty": "hard",
+    "category": "Science"
   },
   {
-    "id": "q003",
-    "text": "Who wrote the play 'Romeo and Juliet'?",
-    "options": ["William Shakespeare", "Jane Austen", "Charles Dickens", "Mark Twain"],
-    "correctAnswer": "William Shakespeare",
-    "type": "multiple_choice",
-    "points": 10,
-    "clue": "He’s a famous English playwright",
-    "level": "easy"
+    "id": "q3",
+    "text": "Who was the first woman to win a Nobel Prize?",
+    "options": ["Marie Curie", "Jane Addams", "Pearl Buck", "Mother Teresa"],
+    "correctAnswer": "Marie Curie",
+    "clue": "She was honored for her work in radioactivity.",
+    "difficulty": "medium",
+    "category": "History"
   },
   {
-    "id": "q004",
-    "text": "What is the chemical symbol for Gold?",
-    "options": ["Au", "Ag", "Fe", "Cu"],
-    "correctAnswer": "Au",
-    "type": "multiple_choice",
-    "points": 20,
-    "clue": "It’s derived from the Latin word 'Aurum'",
-    "level": "hard"
+    "id": "q4",
+    "text": "In which sport is the term ‘love’ used for a score of zero?",
+    "options": ["Badminton", "Tennis", "Table Tennis", "Squash"],
+    "correctAnswer": "Tennis",
+    "clue": "It’s played with a racket and a net.",
+    "difficulty": "easy",
+    "category": "Sport"
   },
   {
-    "id": "q005",
-    "text": "Which of these is a primary color?",
-    "options": ["Red", "Orange", "Purple", "Green"],
-    "correctAnswer": "Red",
-    "type": "multiple_choice",
-    "points": 10,
-    "clue": "It’s fundamental in color mixing",
-    "level": "easy"
+    "id": "q5",
+    "text": "Which band performed the hit song ‘Bohemian Rhapsody’?",
+    "options": ["The Beatles", "Queen", "Led Zeppelin", "The Rolling Stones"],
+    "correctAnswer": "Queen",
+    "clue": "The song is known for its operatic section.",
+    "difficulty": "easy",
+    "category": "Pop Culture"
   },
   {
-    "id": "q006",
-    "text": "What is the largest mammal on Earth?",
-    "options": ["Blue Whale", "African Elephant", "Giraffe", "Great White Shark"],
-    "correctAnswer": "Blue Whale",
-    "type": "multiple_choice",
-    "points": 15,
-    "clue": "It lives in the ocean",
-    "level": "medium"
+    "id": "q6",
+    "text": "What is the longest river in South America?",
+    "options": ["Amazon", "Paraná", "Madeira", "São Francisco"],
+    "correctAnswer": "Amazon",
+    "clue": "It flows through a vast rainforest.",
+    "difficulty": "medium",
+    "category": "General Knowledge"
   },
   {
-    "id": "q007",
-    "text": "In which year did World War II end?",
-    "options": ["1945", "1918", "1939", "1965"],
-    "correctAnswer": "1945",
-    "type": "multiple_choice",
-    "points": 15,
-    "clue": "It was after the atomic bombs were dropped",
-    "level": "medium"
-  },
-  {
-    "id": "q008",
-    "text": "What is the powerhouse of the cell?",
-    "options": ["Mitochondria", "Nucleus", "Ribosome", "Golgi Apparatus"],
-    "correctAnswer": "Mitochondria",
-    "type": "multiple_choice",
-    "points": 20,
-    "clue": "It generates energy",
-    "level": "hard"
-  },
-  {
-    "id": "q009",
-    "text": "Which country is known as the Land of the Rising Sun?",
-    "options": ["Japan", "China", "Thailand", "South Korea"],
-    "correctAnswer": "Japan",
-    "type": "multiple_choice",
-    "points": 10,
-    "clue": "It’s an island nation in Asia",
-    "level": "easy"
-  },
-  {
-    "id": "q010",
-    "text": "Who painted the Mona Lisa?",
-    "options": ["Leonardo da Vinci", "Vincent van Gogh", "Pablo Picasso", "Claude Monet"],
-    "correctAnswer": "Leonardo da Vinci",
-    "type": "multiple_choice",
-    "points": 15,
-    "clue": "He was a Renaissance polymath",
-    "level": "medium"
-  },
-  {
-    "id": "q011",
-    "text": "What is the smallest prime number?",
-    "options": ["2", "1", "3", "5"],
-    "correctAnswer": "2",
-    "type": "multiple_choice",
-    "points": 15,
-    "clue": "It’s the only even prime number",
-    "level": "medium"
-  },
-  {
-    "id": "q012",
-    "text": "Which gas makes up the majority of Earth’s atmosphere?",
-    "options": ["Nitrogen", "Oxygen", "Carbon Dioxide", "Argon"],
-    "correctAnswer": "Nitrogen",
-    "type": "multiple_choice",
-    "points": 20,
-    "clue": "It constitutes about 78% of the air",
-    "level": "hard"
-  },
-  {
-    "id": "q013",
-    "text": "What is the longest river in the world?",
-    "options": ["Nile", "Amazon", "Yangtze", "Mississippi"],
-    "correctAnswer": "Nile",
-    "type": "multiple_choice",
-    "points": 15,
-    "clue": "It flows through Egypt",
-    "level": "medium"
-  },
-  {
-    "id": "q014",
-    "text": "Which element has the atomic number 1?",
-    "options": ["Hydrogen", "Helium", "Lithium", "Beryllium"],
-    "correctAnswer": "Hydrogen",
-    "type": "multiple_choice",
-    "points": 10,
-    "clue": "It’s the lightest element",
-    "level": "easy"
-  },
-  {
-    "id": "q015",
-    "text": "Who discovered penicillin?",
-    "options": ["Alexander Fleming", "Marie Curie", "Thomas Edison", "Albert Einstein"],
-    "correctAnswer": "Alexander Fleming",
-    "type": "multiple_choice",
-    "points": 20,
-    "clue": "It was an accidental discovery in 1928",
-    "level": "hard"
-  },
-  {
-    "id": "q016",
-    "text": "What is the currency of Brazil?",
-    "options": ["Real", "Peso", "Dollar", "Euro"],
-    "correctAnswer": "Real",
-    "type": "multiple_choice",
-    "points": 10,
-    "clue": "It’s used in South America",
-    "level": "easy"
-  },
-  {
-    "id": "q017",
-    "text": "Which of these is a type of evergreen tree?",
-    "options": ["Pine", "Maple", "Oak", "Birch"],
-    "correctAnswer": "Pine",
-    "type": "multiple_choice",
-    "points": 15,
-    "clue": "It has needles instead of leaves",
-    "level": "medium"
-  },
-  {
-    "id": "q018",
-    "text": "What is the formula for water?",
-    "options": ["H2O", "CO2", "NaCl", "O2"],
-    "correctAnswer": "H2O",
-    "type": "multiple_choice",
-    "points": 10,
-    "clue": "It’s essential for life",
-    "level": "easy"
-  },
-  {
-    "id": "q019",
-    "text": "Which country hosted the 2016 Summer Olympics?",
-    "options": ["Brazil", "China", "United Kingdom", "Japan"],
-    "correctAnswer": "Brazil",
-    "type": "multiple_choice",
-    "points": 15,
-    "clue": "It was held in Rio de Janeiro",
-    "level": "medium"
-  },
-  {
-    "id": "q020",
-    "text": "What is the hardest natural substance known?",
-    "options": ["Diamond", "Quartz", "Graphite", "Talc"],
-    "correctAnswer": "Diamond",
-    "type": "multiple_choice",
-    "points": 20,
-    "clue": "It’s a form of carbon",
-    "level": "hard"
-  },
-  {
-    "id": "q021",
-    "text": "Which of these is a string instrument?",
-    "options": ["Violin", "Trumpet", "Flute", "Drum"],
-    "correctAnswer": "Violin",
-    "type": "multiple_choice",
-    "points": 10,
-    "clue": "It’s played with a bow",
-    "level": "easy"
-  },
-  {
-    "id": "q022",
-    "text": "What is the capital of Australia?",
-    "options": ["Canberra", "Sydney", "Melbourne", "Brisbane"],
-    "correctAnswer": "Canberra",
-    "type": "multiple_choice",
-    "points": 15,
-    "clue": "It’s not Sydney",
-    "level": "medium"
-  },
-  {
-    "id": "q023",
-    "text": "Who developed the theory of relativity?",
-    "options": ["Albert Einstein", "Isaac Newton", "Galileo Galilei", "Stephen Hawking"],
-    "correctAnswer": "Albert Einstein",
-    "type": "multiple_choice",
-    "points": 20,
-    "clue": "It involves E=mc²",
-    "level": "hard"
-  },
-  {
-    "id": "q024",
-    "text": "What is the largest continent by land area?",
-    "options": ["Asia", "Africa", "Australia", "Antarctica"],
-    "correctAnswer": "Asia",
-    "type": "multiple_choice",
-    "points": 10,
-    "clue": "It’s home to China and India",
-    "level": "easy"
-  },
-  {
-    "id": "q025",
-    "text": "Which bird is known for its colorful feathers and ability to mimic sounds?",
-    "options": ["Parrot", "Eagle", "Owl", "Penguin"],
-    "correctAnswer": "Parrot",
-    "type": "multiple_choice",
-    "points": 15,
-    "clue": "It’s often kept as a pet",
-    "level": "medium"
-  },
-  {
-    "id": "q026",
-    "text": "What is the boiling point of water in Celsius?",
-    "options": ["100", "0", "50", "200"],
-    "correctAnswer": "100",
-    "type": "multiple_choice",
-    "points": 10,
-    "clue": "It’s at standard atmospheric pressure",
-    "level": "easy"
-  },
-  {
-    "id": "q027",
-    "text": "Which of these is a noble gas?",
-    "options": ["Helium", "Oxygen", "Nitrogen", "Carbon"],
+    "id": "q7",
+    "text": "What gas, discovered on the sun before Earth, is the second most abundant element in the universe?",
+    "options": ["Hydrogen", "Helium", "Oxygen", "Nitrogen"],
     "correctAnswer": "Helium",
-    "type": "multiple_choice",
-    "points": 20,
-    "clue": "It’s used in balloons",
-    "level": "hard"
+    "clue": "It’s used in balloons due to its lightness.",
+    "difficulty": "medium",
+    "category": "Science"
   },
   {
-    "id": "q028",
-    "text": "What is the tallest mountain in the world?",
-    "options": ["Mount Everest", "K2", "Kangchenjunga", "Lhotse"],
-    "correctAnswer": "Mount Everest",
-    "type": "multiple_choice",
-    "points": 15,
-    "clue": "It’s in the Himalayas",
-    "level": "medium"
+    "id": "q8",
+    "text": "Which battle is considered the turning point of the American Civil War?",
+    "options": ["Battle of Antietam", "Battle of Gettysburg", "Battle of Vicksburg", "Battle of Shiloh"],
+    "correctAnswer": "Battle of Gettysburg",
+    "clue": "It occurred in Pennsylvania in 1863.",
+    "difficulty": "hard",
+    "category": "History"
   },
   {
-    "id": "q029",
-    "text": "Which language is primarily spoken in Brazil?",
-    "options": ["Portuguese", "Spanish", "French", "English"],
-    "correctAnswer": "Portuguese",
-    "type": "multiple_choice",
-    "points": 10,
-    "clue": "It’s a Romance language",
-    "level": "easy"
+    "id": "q9",
+    "text": "Which country has won the most FIFA World Cup titles?",
+    "options": ["Brazil", "Germany", "Italy", "Argentina"],
+    "correctAnswer": "Brazil",
+    "clue": "They’ve won it five times.",
+    "difficulty": "medium",
+    "category": "Sport"
   },
   {
-    "id": "q030",
-    "text": "What is the main source of energy for Earth’s climate system?",
-    "options": ["Sun", "Moon", "Geothermal Heat", "Wind"],
-    "correctAnswer": "Sun",
-    "type": "multiple_choice",
-    "points": 15,
-    "clue": "It drives weather patterns",
-    "level": "medium"
+    "id": "q10",
+    "text": "Who played Jack Sparrow in the ‘Pirates of the Caribbean’ series?",
+    "options": ["Johnny Depp", "Orlando Bloom", "Geoffrey Rush", "Javier Bardem"],
+    "correctAnswer": "Johnny Depp",
+    "clue": "He’s known for his eccentric performance.",
+    "difficulty": "easy",
+    "category": "Pop Culture"
   },
   {
-    "id": "q031",
-    "text": "Who was the first person to walk on the moon?",
-    "options": ["Neil Armstrong", "Buzz Aldrin", "Yuri Gagarin", "John Glenn"],
-    "correctAnswer": "Neil Armstrong",
-    "type": "multiple_choice",
-    "points": 15,
-    "clue": "He said, 'One small step for man'",
-    "level": "medium"
+    "id": "q11",
+    "text": "What is the capital city of Bhutan?",
+    "options": ["Thimphu", "Paro", "Punakha", "Jakar"],
+    "correctAnswer": "Thimphu",
+    "clue": "It’s located in a high Himalayan valley.",
+    "difficulty": "hard",
+    "category": "General Knowledge"
   },
   {
-    "id": "q032",
-    "text": "What is the chemical formula for table salt?",
-    "options": ["NaCl", "KCl", "CaCO3", "HCl"],
-    "correctAnswer": "NaCl",
-    "type": "multiple_choice",
-    "points": 20,
-    "clue": "It’s sodium and chlorine",
-    "level": "hard"
+    "id": "q12",
+    "text": "What is the primary source of energy for Earth’s climate system?",
+    "options": ["Geothermal heat", "Solar radiation", "Tidal forces", "Volcanic activity"],
+    "correctAnswer": "Solar radiation",
+    "clue": "It comes from the nearest star.",
+    "difficulty": "medium",
+    "category": "Science"
   },
   {
-    "id": "q033",
-    "text": "Which of these is a type of cloud?",
-    "options": ["Cumulus", "Cactus", "Coral", "Cypress"],
-    "correctAnswer": "Cumulus",
-    "type": "multiple_choice",
-    "points": 15,
-    "clue": "It’s puffy and white",
-    "level": "medium"
+    "id": "q13",
+    "text": "Who was the last pharaoh of Ancient Egypt?",
+    "options": ["Ramses II", "Tutankhamun", "Cleopatra VII", "Hatshepsut"],
+    "correctAnswer": "Cleopatra VII",
+    "clue": "She was allied with Roman leaders.",
+    "difficulty": "medium",
+    "category": "History"
   },
   {
-    "id": "q034",
-    "text": "What is the largest organ in the human body?",
-    "options": ["Skin", "Liver", "Heart", "Brain"],
-    "correctAnswer": "Skin",
-    "type": "multiple_choice",
-    "points": 20,
-    "clue": "It’s external and protective",
-    "level": "hard"
+    "id": "q14",
+    "text": "In which Olympic event would you perform a ‘fosbury flop’?",
+    "options": ["Pole Vault", "High Jump", "Long Jump", "Triple Jump"],
+    "correctAnswer": "High Jump",
+    "clue": "It involves clearing a bar backward.",
+    "difficulty": "hard",
+    "category": "Sport"
   },
   {
-    "id": "q035",
-    "text": "Which country is famous for the Great Wall?",
-    "options": ["China", "India", "Japan", "Russia"],
-    "correctAnswer": "China",
-    "type": "multiple_choice",
-    "points": 10,
-    "clue": "It’s a historical defensive structure",
-    "level": "easy"
+    "id": "q15",
+    "text": "Which 1990s TV show featured friends living in New York City, including Ross and Rachel?",
+    "options": ["Seinfeld", "Friends", "Frasier", "The Simpsons"],
+    "correctAnswer": "Friends",
+    "clue": "It’s set around Central Perk coffee shop.",
+    "difficulty": "easy",
+    "category": "Pop Culture"
   },
   {
-    "id": "q036",
-    "text": "What gas do plants absorb during photosynthesis?",
-    "options": ["Carbon Dioxide", "Oxygen", "Nitrogen", "Helium"],
-    "correctAnswer": "Carbon Dioxide",
-    "type": "multiple_choice",
-    "points": 15,
-    "clue": "It’s used to produce glucose",
-    "level": "medium"
+    "id": "q16",
+    "text": "Which African country was formerly known as Abyssinia?",
+    "options": ["Kenya", "Ethiopia", "Sudan", "Somalia"],
+    "correctAnswer": "Ethiopia",
+    "clue": "It’s one of Africa’s oldest nations.",
+    "difficulty": "hard",
+    "category": "General Knowledge"
   },
   {
-    "id": "q037",
-    "text": "Which of these is a Shakespeare tragedy?",
-    "options": ["Hamlet", "A Midsummer Night’s Dream", "The Tempest", "Twelfth Night"],
-    "correctAnswer": "Hamlet",
-    "type": "multiple_choice",
-    "points": 20,
-    "clue": "It involves a Danish prince",
-    "level": "hard"
+    "id": "q17",
+    "text": "What is the primary source of a black hole’s gravitational pull?",
+    "options": ["Dark matter", "Singularity", "Event horizon", "Accretion disk"],
+    "correctAnswer": "Singularity",
+    "clue": "It’s a point of infinite density.",
+    "difficulty": "hard",
+    "category": "Science"
   },
   {
-    "id": "q038",
+    "id": "q18",
+    "text": "Which treaty ended World War I?",
+    "options": ["Treaty of Versailles", "Treaty of Trianon", "Treaty of Brest-Litovsk", "Treaty of Lausanne"],
+    "correctAnswer": "Treaty of Versailles",
+    "clue": "It was signed in 1919 in a French palace.",
+    "difficulty": "medium",
+    "category": "History"
+  },
+  {
+    "id": "q19",
+    "text": "Which sport uses a piece of equipment called a ‘shuttlecock’?",
+    "options": ["Badminton", "Tennis", "Squash", "Racquetball"],
+    "correctAnswer": "Badminton",
+    "clue": "It’s hit over a net with a racket.",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": "q20",
+    "text": "Who directed the movie ‘Citizen Kane’?",
+    "options": ["Alfred Hitchcock", "Orson Welles", "Stanley Kubrick", "Frank Capra"],
+    "correctAnswer": "Orson Welles",
+    "clue": "He also starred as the main character.",
+    "difficulty": "hard",
+    "category": "Pop Culture"
+  },
+  {
+    "id": "q21",
     "text": "What is the currency of Japan?",
-    "options": ["Yen", "Won", "Dollar", "Euro"],
+    "options": ["Yuan", "Yen", "Won", "Ringgit"],
     "correctAnswer": "Yen",
-    "type": "multiple_choice",
-    "points": 10,
-    "clue": "It’s used in Tokyo",
-    "level": "easy"
+    "clue": "It’s abbreviated with a ¥ symbol.",
+    "difficulty": "easy",
+    "category": "General Knowledge"
   },
   {
-    "id": "q039",
-    "text": "Which of these animals is a reptile?",
-    "options": ["Crocodile", "Frog", "Salamander", "Toad"],
-    "correctAnswer": "Crocodile",
-    "type": "multiple_choice",
-    "points": 15,
-    "clue": "It has scales and lays eggs",
-    "level": "medium"
+    "id": "q22",
+    "text": "Which organelle is known as the powerhouse of the cell?",
+    "options": ["Nucleus", "Mitochondrion", "Ribosome", "Golgi Apparatus"],
+    "correctAnswer": "Mitochondrion",
+    "clue": "It generates ATP for energy.",
+    "difficulty": "medium",
+    "category": "Science"
   },
   {
-    "id": "q040",
-    "text": "What is the square root of 16?",
-    "options": ["4", "2", "8", "16"],
-    "correctAnswer": "4",
-    "type": "multiple_choice",
-    "points": 10,
-    "clue": "It’s a basic math operation",
-    "level": "easy"
+    "id": "q23",
+    "text": "Which civilization built the city of Machu Picchu?",
+    "options": ["Maya", "Aztec", "Inca", "Olmec"],
+    "correctAnswer": "Inca",
+    "clue": "It’s located in the Andes Mountains.",
+    "difficulty": "medium",
+    "category": "History"
   },
   {
-    "id": "q041",
-    "text": "Which scientist proposed the laws of motion?",
-    "options": ["Isaac Newton", "Albert Einstein", "Galileo Galilei", "Nikola Tesla"],
-    "correctAnswer": "Isaac Newton",
-    "type": "multiple_choice",
-    "points": 20,
-    "clue": "They’re three fundamental laws",
-    "level": "hard"
+    "id": "q24",
+    "text": "Which athlete holds the record for the most Olympic gold medals?",
+    "options": ["Usain Bolt", "Michael Phelps", "Simone Biles", "Carl Lewis"],
+    "correctAnswer": "Michael Phelps",
+    "clue": "He dominated swimming events.",
+    "difficulty": "medium",
+    "category": "Sport"
   },
   {
-    "id": "q042",
-    "text": "What is the capital of Canada?",
-    "options": ["Ottawa", "Toronto", "Vancouver", "Montreal"],
-    "correctAnswer": "Ottawa",
-    "type": "multiple_choice",
-    "points": 10,
-    "clue": "It’s not the largest city",
-    "level": "easy"
+    "id": "q25",
+    "text": "Which singer is known as the ‘Queen of Pop’?",
+    "options": ["Madonna", "Beyoncé", "Lady Gaga", "Rihanna"],
+    "correctAnswer": "Madonna",
+    "clue": "She rose to fame in the 1980s.",
+    "difficulty": "easy",
+    "category": "Pop Culture"
   },
   {
-    "id": "q043",
-    "text": "Which of these is a type of renewable energy?",
-    "options": ["Solar", "Coal", "Oil", "Natural Gas"],
-    "correctAnswer": "Solar",
-    "type": "multiple_choice",
-    "points": 15,
-    "clue": "It comes from the sun",
-    "level": "medium"
-  },
-  {
-    "id": "q044",
-    "text": "What is the chemical symbol for Iron?",
-    "options": ["Fe", "Au", "Ag", "Cu"],
-    "correctAnswer": "Fe",
-    "type": "multiple_choice",
-    "points": 20,
-    "clue": "It’s derived from the Latin word 'Ferrum'",
-    "level": "hard"
-  },
-  {
-    "id": "q045",
-    "text": "Which of these is a type of fish?",
-    "options": ["Salmon", "Dolphin", "Whale", "Shark"],
-    "correctAnswer": "Salmon",
-    "type": "multiple_choice",
-    "points": 15,
-    "clue": "It’s often used in sushi",
-    "level": "medium"
-  },
-  {
-    "id": "q046",
+    "id": "q26",
     "text": "What is the largest desert in the world?",
-    "options": ["Sahara", "Gobi", "Kalahari", "Antarctic"],
+    "options": ["Sahara", "Gobi", "Antarctic", "Kalahari"],
     "correctAnswer": "Antarctic",
-    "type": "multiple_choice",
-    "points": 20,
-    "clue": "It’s a cold desert",
-    "level": "hard"
+    "clue": "It’s a cold desert covering a continent.",
+    "difficulty": "hard",
+    "category": "General Knowledge"
   },
   {
-    "id": "q047",
-    "text": "Which of these is a type of pasta?",
-    "options": ["Spaghetti", "Sushi", "Taco", "Bagel"],
-    "correctAnswer": "Spaghetti",
-    "type": "multiple_choice",
-    "points": 10,
-    "clue": "It’s long and thin",
-    "level": "easy"
+    "id": "q27",
+    "text": "What is the primary gas in Earth’s atmosphere?",
+    "options": ["Oxygen", "Nitrogen", "Carbon Dioxide", "Argon"],
+    "correctAnswer": "Nitrogen",
+    "clue": "It makes up about 78% of the air.",
+    "difficulty": "medium",
+    "category": "Science"
   },
   {
-    "id": "q048",
-    "text": "What is the primary language spoken in Egypt?",
-    "options": ["Arabic", "French", "English", "Swahili"],
-    "correctAnswer": "Arabic",
-    "type": "multiple_choice",
-    "points": 15,
-    "clue": "It’s widely spoken in the Middle East",
-    "level": "medium"
+    "id": "q28",
+    "text": "Who was the first emperor of the Roman Empire?",
+    "options": ["Julius Caesar", "Augustus", "Nero", "Constantine"],
+    "correctAnswer": "Augustus",
+    "clue": "He was originally named Octavian.",
+    "difficulty": "hard",
+    "category": "History"
   },
   {
-    "id": "q049",
-    "text": "Which gas is essential for human respiration?",
-    "options": ["Oxygen", "Nitrogen", "Carbon Dioxide", "Helium"],
-    "correctAnswer": "Oxygen",
-    "type": "multiple_choice",
-    "points": 10,
-    "clue": "You breathe it in",
-    "level": "easy"
+    "id": "q29",
+    "text": "In which sport is the ‘Heisman Trophy’ awarded?",
+    "options": ["Basketball", "American Football", "Baseball", "Ice Hockey"],
+    "correctAnswer": "American Football",
+    "clue": "It’s given to the top college player.",
+    "difficulty": "medium",
+    "category": "Sport"
   },
   {
-    "id": "q050",
-    "text": "Who wrote the novel 'Pride and Prejudice'?",
-    "options": ["Jane Austen", "Emily Brontë", "Charlotte Brontë", "Virginia Woolf"],
-    "correctAnswer": "Jane Austen",
-    "type": "multiple_choice",
-    "points": 20,
-    "clue": "It’s a classic romance novel",
-    "level": "hard"
+    "id": "q30",
+    "text": "Which animated film features a lion named Simba?",
+    "options": ["The Jungle Book", "The Lion King", "Aladdin", "Mulan"],
+    "correctAnswer": "The Lion King",
+    "clue": "It’s set in the African savanna.",
+    "difficulty": "easy",
+    "category": "Pop Culture"
+  },
+  {
+    "id": "q31",
+    "text": "Which mountain range separates Europe from Asia?",
+    "options": ["Alps", "Ural Mountains", "Himalayas", "Andes"],
+    "correctAnswer": "Ural Mountains",
+    "clue": "It runs through Russia.",
+    "difficulty": "hard",
+    "category": "General Knowledge"
+  },
+  {
+    "id": "q32",
+    "text": "What particle carries the strong nuclear force?",
+    "options": ["Photon", "Gluon", "Boson", "Quark"],
+    "correctAnswer": "Gluon",
+    "clue": "It binds quarks inside protons and neutrons.",
+    "difficulty": "hard",
+    "category": "Science"
+  },
+  {
+    "id": "q33",
+    "text": "Which event sparked the start of World War II?",
+    "options": ["Invasion of Poland", "Attack on Pearl Harbor", "Battle of Stalingrad", "D-Day"],
+    "correctAnswer": "Invasion of Poland",
+    "clue": "It occurred in September 1939.",
+    "difficulty": "medium",
+    "category": "History"
+  },
+  {
+    "id": "q34",
+    "text": "Which sport is known as the ‘Sport of Kings’?",
+    "options": ["Horse Racing", "Polo", "Cricket", "Fencing"],
+    "correctAnswer": "Polo",
+    "clue": "It’s played on horseback with a mallet.",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": "q35",
+    "text": "Who created the TV show ‘The Simpsons’?",
+    "options": ["Seth MacFarlane", "Matt Groening", "Trey Parker", "Mike Judge"],
+    "correctAnswer": "Matt Groening",
+    "clue": "He also created ‘Futurama.’",
+    "difficulty": "medium",
+    "category": "Pop Culture"
+  },
+  {
+    "id": "q36",
+    "text": "What is the only mammal capable of true flight?",
+    "options": ["Bat", "Flying Squirrel", "Pterodactyl", "Colugo"],
+    "correctAnswer": "Bat",
+    "clue": "It uses echolocation to navigate.",
+    "difficulty": "easy",
+    "category": "General Knowledge"
+  },
+  {
+    "id": "q37",
+    "text": "What is the primary source of energy for the Sun?",
+    "options": ["Fission", "Fusion", "Combustion", "Gravitational collapse"],
+    "correctAnswer": "Fusion",
+    "clue": "It involves combining hydrogen nuclei.",
+    "difficulty": "medium",
+    "category": "Science"
+  },
+  {
+    "id": "q38",
+    "text": "Which Chinese dynasty built most of the Great Wall still standing today?",
+    "options": ["Han", "Tang", "Ming", "Qing"],
+    "correctAnswer": "Ming",
+    "clue": "It ruled from the 14th to 17th century.",
+    "difficulty": "hard",
+    "category": "History"
+  },
+  {
+    "id": "q39",
+    "text": "Which sport features the ‘Vince Lombardi Trophy’?",
+    "options": ["Basketball", "American Football", "Baseball", "Ice Hockey"],
+    "correctAnswer": "American Football",
+    "clue": "It’s awarded to the Super Bowl winner.",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": "q40",
+    "text": "Which Marvel character is known as the ‘God of Thunder’?",
+    "options": ["Iron Man", "Thor", "Hulk", "Loki"],
+    "correctAnswer": "Thor",
+    "clue": "He wields a hammer called Mjolnir.",
+    "difficulty": "easy",
+    "category": "Pop Culture"
+  },
+  {
+    "id": "q41",
+    "text": "What is the largest species of shark?",
+    "options": ["Great White", "Whale Shark", "Hammerhead", "Tiger Shark"],
+    "correctAnswer": "Whale Shark",
+    "clue": "It’s a gentle giant that feeds on plankton.",
+    "difficulty": "medium",
+    "category": "General Knowledge"
+  },
+  {
+    "id": "q42",
+    "text": "Which law of thermodynamics states that entropy of an isolated system always increases?",
+    "options": ["Zeroth", "First", "Second", "Third"],
+    "correctAnswer": "Second",
+    "clue": "It deals with the direction of energy flow.",
+    "difficulty": "hard",
+    "category": "Science"
+  },
+  {
+    "id": "q43",
+    "text": "Who was the first European to reach India by sea?",
+    "options": ["Christopher Columbus", "Vasco da Gama", "Ferdinand Magellan", "Marco Polo"],
+    "correctAnswer": "Vasco da Gama",
+    "clue": "He sailed around the Cape of Good Hope in 1498.",
+    "difficulty": "hard",
+    "category": "History"
+  },
+  {
+    "id": "q44",
+    "text": "In which sport would you perform a ‘slalom’?",
+    "options": ["Skiing", "Snowboarding", "Figure Skating", "Luge"],
+    "correctAnswer": "Skiing",
+    "clue": "It involves weaving between poles.",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": "q45",
+    "text": "Which 1980s movie features the quote, ‘Life moves pretty fast. If you don’t stop and look around once in a while, you could miss it’?",
+    "options": ["The Breakfast Club", "Ferris Bueller’s Day Off", "Back to the Future", "E.T."],
+    "correctAnswer": "Ferris Bueller’s Day Off",
+    "clue": "It’s about a teenager skipping school.",
+    "difficulty": "medium",
+    "category": "Pop Culture"
+  },
+  {
+    "id": "q46",
+    "text": "Which country is the largest producer of coffee in the world?",
+    "options": ["Colombia", "Brazil", "Ethiopia", "Vietnam"],
+    "correctAnswer": "Brazil",
+    "clue": "It’s known for its vast plantations.",
+    "difficulty": "medium",
+    "category": "General Knowledge"
+  },
+  {
+    "id": "q47",
+    "text": "What is the primary source of energy for Earth’s core?",
+    "options": ["Solar radiation", "Radioactive decay", "Tidal forces", "Magnetic fields"],
+    "correctAnswer": "Radioactive decay",
+    "clue": "It involves elements like uranium.",
+    "difficulty": "hard",
+    "category": "Science"
+  },
+  {
+    "id": "q48",
+    "text": "Which war was fought between the Allied Powers and the Central Powers?",
+    "options": ["World War I", "World War II", "Cold War", "Napoleonic Wars"],
+    "correctAnswer": "World War I",
+    "clue": "It was known as the Great War.",
+    "difficulty": "medium",
+    "category": "History"
+  },
+  {
+    "id": "q49",
+    "text": "Which sport is associated with the term ‘hole-in-one’?",
+    "options": ["Golf", "Tennis", "Cricket", "Bowling"],
+    "correctAnswer": "Golf",
+    "clue": "It’s achieved with a single stroke.",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": "q50",
+    "text": "Which artist painted the ‘Starry Night’?",
+    "options": ["Pablo Picasso", "Vincent van Gogh", "Cl ﻵaude Monet", "Leonardo da Vinci"],
+    "correctAnswer": "Vincent van Gogh",
+    "clue": "It’s a swirling depiction of a night sky.",
+    "difficulty": "medium",
+    "category": "Pop Culture"
   },
 
   {
@@ -506,7 +456,7 @@
     "options": ["Bitcoin", "Ethereum", "Ripple", "Litecoin"],
     "correctAnswer": "Bitcoin",
     "clue": "It was introduced by Satoshi Nakamoto in 2009.",
-    "level": "easy"
+    "difficulty": "easy"
   },
   {
     "id": "q52",
@@ -514,7 +464,7 @@
     "options": ["Blockchain", "Cloud Computing", "Artificial Intelligence", "Quantum Computing"],
     "correctAnswer": "Blockchain",
     "clue": "It’s a decentralized ledger system.",
-    "level": "easy"
+    "difficulty": "easy"
   },
   {
     "id": "q53",
@@ -522,7 +472,7 @@
     "options": ["Ethereum", "Bitcoin", "Cardano", "Polkadot"],
     "correctAnswer": "Ethereum",
     "clue": "It was created by Vitalik Buterin.",
-    "level": "easy"
+    "difficulty": "easy"
   },
   {
     "id": "q54",
@@ -530,7 +480,7 @@
     "options": ["Cryptocurrency", "Fiat Currency", "Stablecoin", "Token"],
     "correctAnswer": "Cryptocurrency",
     "clue": "It’s designed to be secure and decentralized.",
-    "level": "easy"
+    "difficulty": "easy"
   },
   {
     "id": "q55",
@@ -538,7 +488,7 @@
     "options": ["Mining", "Staking", "Hashing", "Forging"],
     "correctAnswer": "Mining",
     "clue": "It often involves solving complex mathematical problems.",
-    "level": "easy"
+    "difficulty": "easy"
   },
   {
     "id": "q56",
@@ -546,7 +496,7 @@
     "options": ["DApp", "API", "Smart Contract", "Wallet"],
     "correctAnswer": "DApp",
     "clue": "It runs on a blockchain without a central authority.",
-    "level": "medium"
+    "difficulty": "medium"
   },
   {
     "id": "q57",
@@ -554,7 +504,7 @@
     "options": ["Bitcoin", "Cardano", "Tezos", "Solana"],
     "correctAnswer": "Bitcoin",
     "clue": "Miners compete to solve cryptographic puzzles.",
-    "level": "medium"
+    "difficulty": "medium"
   },
   {
     "id": "q58",
@@ -562,7 +512,7 @@
     "options": ["Ether", "Bitcoin", "Tether", "Binance Coin"],
     "correctAnswer": "Ether",
     "clue": "It’s used to pay for transactions on its network.",
-    "level": "easy"
+    "difficulty": "easy"
   },
   {
     "id": "q59",
@@ -570,7 +520,7 @@
     "options": ["Secret code to access a wallet", "Public address for transactions", "Blockchain identifier", "Mining reward"],
     "correctAnswer": "Secret code to access a wallet",
     "clue": "It must be kept secure and private.",
-    "level": "medium"
+    "difficulty": "medium"
   },
   {
     "id": "q60",
@@ -578,7 +528,7 @@
     "options": ["Public Blockchain", "Private Blockchain", "Consortium Blockchain", "Hybrid Blockchain"],
     "correctAnswer": "Public Blockchain",
     "clue": "Bitcoin and Ethereum are examples.",
-    "level": "easy"
+    "difficulty": "easy"
   },
   {
     "id": "q61",
@@ -586,7 +536,7 @@
     "options": ["Self-executing code", "Mining software", "Wallet security", "Transaction validation"],
     "correctAnswer": "Self-executing code",
     "clue": "It automatically enforces contract terms.",
-    "level": "medium"
+    "difficulty": "medium"
   },
   {
     "id": "q62",
@@ -594,7 +544,7 @@
     "options": ["Tether", "Bitcoin", "Ether", "Dogecoin"],
     "correctAnswer": "Tether",
     "clue": "It’s often used to maintain stable value.",
-    "level": "easy"
+    "difficulty": "easy"
   },
   {
     "id": "q63",
@@ -602,7 +552,7 @@
     "options": ["Sharding", "Forking", "Mining", "Staking"],
     "correctAnswer": "Sharding",
     "clue": "Ethereum plans to use this for scalability.",
-    "level": "hard"
+    "difficulty": "hard"
   },
   {
     "id": "q64",
@@ -610,7 +560,7 @@
     "options": ["Ethereum", "Bitcoin", "Ripple", "Litecoin"],
     "correctAnswer": "Ethereum",
     "clue": "It supports protocols like Uniswap and Aave.",
-    "level": "medium"
+    "difficulty": "medium"
   },
   {
     "id": "q65",
@@ -618,7 +568,7 @@
     "options": ["Non-Fungible Token", "Network File Transfer", "New Financial Token", "Non-Fiat Transaction"],
     "correctAnswer": "Non-Fungible Token",
     "clue": "It represents unique digital assets.",
-    "level": "easy"
+    "difficulty": "easy"
   },
   {
     "id": "q66",
@@ -626,7 +576,7 @@
     "options": ["Satoshi Nakamoto", "Vitalik Buterin", "Charlie Lee", "Gavin Andresen"],
     "correctAnswer": "Satoshi Nakamoto",
     "clue": "Their true identity remains unknown.",
-    "level": "easy"
+    "difficulty": "easy"
   },
   {
     "id": "q67",
@@ -634,7 +584,7 @@
     "options": ["Cardano", "Bitcoin", "Litecoin", "Monero"],
     "correctAnswer": "Cardano",
     "clue": "It’s more energy-efficient than proof of work.",
-    "level": "medium"
+    "difficulty": "medium"
   },
   {
     "id": "q68",
@@ -642,7 +592,7 @@
     "options": ["Software or device to store keys", "Physical coin storage", "Mining hardware", "Blockchain node"],
     "correctAnswer": "Software or device to store keys",
     "clue": "It holds private and public keys.",
-    "level": "easy"
+    "difficulty": "easy"
   },
   {
     "id": "q69",
@@ -650,7 +600,7 @@
     "options": ["Hard Fork", "Soft Fork", "Shard", "Merge"],
     "correctAnswer": "Hard Fork",
     "clue": "It creates a new blockchain incompatible with the old one.",
-    "level": "hard"
+    "difficulty": "hard"
   },
   {
     "id": "q70",
@@ -658,7 +608,7 @@
     "options": ["Dogecoin", "Bitcoin", "Ether", "Ripple"],
     "correctAnswer": "Dogecoin",
     "clue": "It features a Shiba Inu dog logo.",
-    "level": "easy"
+    "difficulty": "easy"
   },
   {
     "id": "q71",
@@ -666,7 +616,7 @@
     "options": ["Peer-to-peer trading", "Centralized banking", "Mining rewards", "Fiat conversion"],
     "correctAnswer": "Peer-to-peer trading",
     "clue": "It operates without a central authority.",
-    "level": "medium"
+    "difficulty": "medium"
   },
   {
     "id": "q72",
@@ -674,7 +624,7 @@
     "options": ["Monero", "Bitcoin", "Ethereum", "Cardano"],
     "correctAnswer": "Monero",
     "clue": "It uses advanced cryptography for anonymity.",
-    "level": "medium"
+    "difficulty": "medium"
   },
   {
     "id": "q73",
@@ -682,7 +632,7 @@
     "options": ["Transaction fee", "Mining reward", "Wallet balance", "Consensus mechanism"],
     "correctAnswer": "Transaction fee",
     "clue": "It’s paid in Ether to process transactions.",
-    "level": "medium"
+    "difficulty": "medium"
   },
   {
     "id": "q74",
@@ -690,7 +640,7 @@
     "options": ["Token", "Coin", "Block", "Hash"],
     "correctAnswer": "Token",
     "clue": "It can represent assets like art or real estate.",
-    "level": "easy"
+    "difficulty": "easy"
   },
   {
     "id": "q75",
@@ -698,7 +648,7 @@
     "options": ["21 million", "100 million", "1 billion", "Unlimited"],
     "correctAnswer": "21 million",
     "clue": "It’s hardcoded into the protocol.",
-    "level": "medium"
+    "difficulty": "medium"
   },
   {
     "id": "q76",
@@ -706,7 +656,7 @@
     "options": ["Polkadot", "Ethereum", "Bitcoin", "Ripple"],
     "correctAnswer": "Polkadot",
     "clue": "It connects multiple blockchains.",
-    "level": "medium"
+    "difficulty": "medium"
   },
   {
     "id": "q77",
@@ -714,7 +664,8 @@
     "options": ["Block", "Transaction", "Hash", "Node"],
     "correctAnswer": "Block",
     "clue": "It contains a set of transactions.",
-    "level": "easy"
+    "difficulty": "easy",
+    "category": "General Knowledge"
   },
   {
     "id": "q78",
@@ -722,7 +673,8 @@
     "options": ["Ripple", "Ethereum", "Stellar", "Cardano"],
     "correctAnswer": "Ripple",
     "clue": "It’s focused on cross-border payments.",
-    "level": "medium"
+    "difficulty": "medium",
+    "category": "General Knowledge"
   },
   {
     "id": "q79",
@@ -730,7 +682,7 @@
     "options": ["Controlling majority of network power", "Hacking a wallet", "Forking a chain", "Double-spending coins"],
     "correctAnswer": "Controlling majority of network power",
     "clue": "It allows manipulation of the blockchain.",
-    "level": "hard"
+    "difficulty": "hard"
   },
   {
     "id": "q80",
@@ -738,7 +690,7 @@
     "options": ["Staking", "Mining", "Hashing", "Forging"],
     "correctAnswer": "Staking",
     "clue": "It’s common in proof-of-stake networks.",
- "level": "medium"
+ "difficulty": "medium"
   },
   {
     "id": "q81",
@@ -746,7 +698,7 @@
     "options": ["The Merge", "Sharding", "Hard Fork", "Beacon Chain"],
     "correctAnswer": "The Merge",
     "clue": "It reduced energy consumption significantly.",
-    "level": "medium"
+    "difficulty": "medium"
   },
   {
     "id": "q82",
@@ -754,7 +706,8 @@
     "options": ["Ethereum", "Bitcoin", "Solana", "Cardano"],
     "correctAnswer": "Ethereum",
     "clue": "It’s the primary blockchain for NFTs.",
-    "level": "easy"
+    "difficulty": "easy",
+    "category": "General Knowledge"
   },
   {
     "id": "q83",
@@ -762,7 +715,7 @@
     "options": ["Decentralized Autonomous Organization", "Digital Asset Offering", "Distributed Application Operator", "Decentralized Algorithm Output"],
     "correctAnswer": "Decentralized Autonomous Organization",
     "clue": "It’s governed by smart contracts.",
-    "level": "medium"
+    "difficulty": "medium"
   },
   {
     "id": "q84",
@@ -770,7 +723,7 @@
     "options": ["Litecoin", "Bitcoin", "Ethereum", "Monero"],
     "correctAnswer": "Litecoin",
     "clue": "It’s often called the silver to Bitcoin’s gold.",
-    "level": "medium"
+    "difficulty": "medium"
   },
   {
     "id": "q85",
@@ -778,7 +731,7 @@
     "options": ["Data integrity", "User authentication", "Transaction speed", "Wallet creation"],
     "correctAnswer": "Data integrity",
     "clue": "It ensures data hasn’t been tampered with.",
-    "level": "medium"
+    "difficulty": "medium"
   },
   {
     "id": "q86",
@@ -786,7 +739,7 @@
     "options": ["Solana", "Bitcoin", "Ethereum", "Ripple"],
     "correctAnswer": "Solana",
     "clue": "It claims thousands of transactions per second.",
-    "level": "medium"
+    "difficulty": "medium"
   },
   {
     "id": "q87",
@@ -794,7 +747,8 @@
     "options": ["Coin", "Token", "Stablecoin", "NFT"],
     "correctAnswer": "Coin",
     "clue": "Bitcoin and Ether are examples.",
-    "level": "easy"
+    "difficulty": "easy",
+    "category": "General Knowledge"
   },
   {
     "id": "q88",
@@ -802,7 +756,7 @@
     "options": ["Double-spending", "51% attack", "Phishing", "Sybil attack"],
     "correctAnswer": "Double-spending",
     "clue": "Blockchains are designed to prevent this.",
-    "level": "medium"
+    "difficulty": "medium"
   },
   {
     "id": "q89",
@@ -810,7 +764,8 @@
     "options": ["Decentralized internet", "Centralized banking", "Faster transactions", "Cloud storage"],
     "correctAnswer": "Decentralized internet",
     "clue": "It aims to give users control over data.",
-    "level": "easy"
+    "difficulty": "easy",
+    "category": "General Knowledge"
   },
   {
     "id": "q90",
@@ -818,7 +773,7 @@
     "options": ["Zcash", "Bitcoin", "Ether", "Litecoin"],
     "correctAnswer": "Zcash",
     "clue": "It uses zero-knowledge proofs.",
-    "level": "medium"
+    "difficulty": "medium"
   },
   {
     "id": "q91",
@@ -826,7 +781,7 @@
     "options": ["Maximum computation per transaction", "Wallet balance cap", "Mining reward limit", "Block size limit"],
     "correctAnswer": "Maximum computation per transaction",
     "clue": "It prevents infinite loops in smart contracts.",
-    "level": "hard"
+    "difficulty": "hard"
   },
   {
     "id": "q92",
@@ -834,7 +789,7 @@
     "options": ["Binance Smart Chain", "Ethereum", "Solana", "Cardano"],
     "correctAnswer": "Binance Smart Chain",
     "clue": "It’s tied to a major crypto exchange.",
-    "level": "medium"
+    "difficulty": "medium"
   },
   {
     "id": "q93",
@@ -842,7 +797,8 @@
     "options": ["Ledger", "Wallet", "Node", "Block"],
     "correctAnswer": "Ledger",
     "clue": "It’s immutable and distributed.",
-    "level": "easy"
+    "difficulty": "easy",
+    "category": "General Knowledge"
   },
   {
     "id": "q94",
@@ -850,7 +806,7 @@
     "options": ["Cardano", "Bitcoin", "Ripple", "Solana"],
     "correctAnswer": "Cardano",
     "clue": "It uses a peer-reviewed approach.",
-    "level": "medium"
+    "difficulty": "medium"
   },
   {
     "id": "q95",
@@ -858,7 +814,7 @@
     "options": ["Recovering a wallet", "Mining coins", "Creating tokens", "Validating blocks"],
     "correctAnswer": "Recovering a wallet",
     "clue": "It’s a series of words for backup.",
-    "level": "medium"
+    "difficulty": "medium"
   },
   {
     "id": "q96",
@@ -866,7 +822,7 @@
     "options": ["Private Blockchain", "Public Blockchain", "Hybrid Blockchain", "Consortium Blockchain"],
     "correctAnswer": "Private Blockchain",
     "clue": "It’s often used by businesses.",
-    "level": "medium"
+    "difficulty": "medium"
   },
   {
     "id": "q97",
@@ -874,7 +830,7 @@
     "options": ["Validating", "Mining", "Hashing", "Forging"],
     "correctAnswer": "Validating",
     "clue": "It involves staked coins.",
-    "level": "medium"
+    "difficulty": "medium"
   },
   {
     "id": "q98",
@@ -882,7 +838,7 @@
     "options": ["Ripple", "Bitcoin", "Ethereum", "Dogecoin"],
     "correctAnswer": "Ripple",
     "clue": "It works with financial institutions.",
-    "level": "easy"
+    "difficulty": "easy"
   },
   {
     "id": "q99",
@@ -890,7 +846,7 @@
     "options": ["Hash", "Block", "Token", "Wallet"],
     "correctAnswer": "Hash",
     "clue": "It’s a cryptographic fingerprint.",
-    "level": "medium"
+    "difficulty": "medium"
   },
   {
     "id": "q100",
@@ -898,7 +854,459 @@
     "options": ["Decentralization", "Centralization", "Encryption", "Tokenization"],
     "correctAnswer": "Decentralization",
     "clue": "It’s a core principle of blockchain.",
-    "level": "easy"
+    "difficulty": "easy"
   }
+  ,
+  {
+    "id": "q101",
+    "text": "Which country is known as the Land of the Rising Sun?",
+    "options": ["China", "Japan", "Thailand", "South Korea"],
+    "correctAnswer": "Japan",
+    "clue": "It’s an island nation in East Asia.",
+    "difficulty": "easy",
+    "category": "General Knowledge"
+  },
+  {
+    "id": "q102",
+    "text": "What is the chemical symbol for gold?",
+    "options": ["Ag", "Au", "Pb", "Hg"],
+    "correctAnswer": "Au",
+    "clue": "It’s derived from the Latin word ‘aurum.’",
+    "difficulty": "easy",
+    "category": "Science"
+  },
+  {
+    "id": "q103",
+    "text": "Which ancient wonder was located in Alexandria, Egypt?",
+    "options": ["Hanging Gardens", "Lighthouse of Alexandria", "Colossus of Rhodes", "Statue of Zeus"],
+    "correctAnswer": "Lighthouse of Alexandria",
+    "clue": "It guided ships into the harbor.",
+    "difficulty": "medium",
+    "category": "History"
+  },
+  {
+    "id": "q104",
+    "text": "Which sport is played on a diamond-shaped field?",
+    "options": ["Cricket", "Baseball", "Rugby", "Soccer"],
+    "correctAnswer": "Baseball",
+    "clue": "It involves bases and a bat.",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": "q105",
+    "text": "Which movie won the Best Picture Oscar in 1994?",
+    "options": ["Pulp Fiction", "Forrest Gump", "The Shawshank Redemption", "Speed"],
+    "correctAnswer": "Forrest Gump",
+    "clue": "It follows the life of a man with a low IQ.",
+    "difficulty": "medium",
+    "category": "Pop Culture"
+  },
+  {
+    "id": "q106",
+    "text": "What is the capital of Iceland?",
+    "options": ["Oslo", "Reykjavik", "Helsinki", "Stockholm"],
+    "correctAnswer": "Reykjavik",
+    "clue": "It’s one of the northernmost capitals.",
+    "difficulty": "medium",
+    "category": "General Knowledge"
+  },
+  {
+    "id": "q107",
+    "text": "Which gas is essential for photosynthesis?",
+    "options": ["Oxygen", "Nitrogen", "Carbon Dioxide", "Hydrogen"],
+    "correctAnswer": "Carbon Dioxide",
+    "clue": "Plants use it to produce glucose.",
+    "difficulty": "easy",
+    "category": "Science"
+  },
+  {
+    "id": "q108",
+    "text": "Who was the first president of the United States?",
+    "options": ["Thomas Jefferson", "George Washington", "John Adams", "Benjamin Franklin"],
+    "correctAnswer": "George Washington",
+    "clue": "He served from 1789 to 1797.",
+    "difficulty": "easy",
+    "category": "History"
+  },
+  {
+    "id": "q109",
+    "text": "In which sport is a ‘try’ scored?",
+    "options": ["Rugby", "Soccer", "Hockey", "Lacrosse"],
+    "correctAnswer": "Rugby",
+    "clue": "It’s worth five points and involves grounding the ball.",
+    "difficulty": "medium",
+     "category": "Sport"
+  },
+  {
+    "id": "q110",
+    "text": "Which singer is known for the song ‘Umbrella’?",
+    "options": ["Rihanna", "Beyoncé", "Adele", "Taylor Swift"],
+    "correctAnswer": "Rihanna",
+    "clue": "It features a collaborator named Jay-Z.",
+    "difficulty": "easy",
+    "category": "Pop Culture"
+  },
+  {
+    "id": "q111",
+    "text": "Which river flows through Paris?",
+    "options": ["Thames", "Seine", "Danube", "Rhine"],
+    "correctAnswer": "Seine",
+    "clue": "It divides the city into northern and southern halves.",
+    "difficulty": "medium",
+    "category": "General Knowledge"
+  },
+  {
+    "id": "q112",
+    "text": "What is the primary source of energy for Jupiter’s storms?",
+    "options": ["Solar radiation", "Internal heat", "Magnetic fields", "Tidal forces"],
+    "correctAnswer": "Internal heat",
+    "clue": "It’s generated from the planet’s core.",
+    "difficulty": "hard",
+    "category": "Science"
+  },
+  {
+    "id": "q113",
+    "text": "Which empire was ruled by Genghis Khan?",
+    "options": ["Ottoman Empire", "Mongol Empire", "Byzantine Empire", "Roman Empire"],
+    "correctAnswer": "Mongol Empire",
+    "clue": "It was the largest contiguous empire in history.",
+    "difficulty": "medium",
+    "category": "History"
+  },
+  {
+    "id": "q114",
+    "text": "Which sport features the ‘America’s Cup’?",
+    "options": ["Sailing", "Rowing", "Swimming", "Water Polo"],
+    "correctAnswer": "Sailing",
+    "clue": "It’s one of the oldest international trophies.",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": "q115",
+    "text": "Who wrote the novel ‘Pride and Prejudice’?",
+    "options": ["Charlotte Brontë", "Jane Austen", "Emily Dickinson", "Virginia Woolf"],
+    "correctAnswer": "Jane Austen",
+    "clue": "It’s a classic romance novel from 1813.",
+    "difficulty": "medium",
+    "category": "Pop Culture"
+  },
+  {
+    "id": "q116",
+    "text": "What is the largest island in the Mediterranean Sea?",
+    "options": ["Crete", "Sicily", "Cyprus", "Malta"],
+    "correctAnswer": "Sicily",
+    "clue": "It’s near the toe of Italy’s boot.",
+    "difficulty": "medium",
+    "category": "General Knowledge"
+  },
+  {
+    "id": "q117",
+    "text": "Which planet has the most moons in our solar system?",
+    "options": ["Jupiter", "Saturn", "Uranus", "Neptune"],
+    "correctAnswer": "Saturn",
+    "clue": "It’s known for its prominent ring system.",
+    "difficulty": "medium",
+    "category": "Science"
+  },
+  {
+    "id": "q118",
+    "text": "Which year marked the fall of the Berlin Wall?",
+    "options": ["1987", "1989", "1991", "1993"],
+    "correctAnswer": "1989",
+    "clue": "It symbolized the end of the Cold War.",
+    "difficulty": "medium",
+    "category": "History"
+  },
+  {
+    "id": "q119",
+    "text": "In which sport is a ‘grand slam’ a home run with all bases occupied?",
+    "options": ["Cricket", "Baseball", "Softball", "Rounders"],
+    "correctAnswer": "Baseball",
+    "clue": "It results in four runs scored.",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": "q120",
+    "text": "Which TV show features the fictional continent of Westeros?",
+    "options": ["The Witcher", "Game of Thrones", "Legend of the Seeker", "Vikings"],
+    "correctAnswer": "Game of Thrones",
+    "clue": "It’s based on books by George R.R. Martin.",
+    "difficulty": "easy",
+    "category": "Pop Culture"
+  },
+  {
+    "id": "q121",
+    "text": "Which African nation is known for its pyramids, similar to Egypt’s?",
+    "options": ["Nigeria", "Sudan", "Ethiopia", "Ghana"],
+    "correctAnswer": "Sudan",
+    "clue": "It was part of the ancient Kingdom of Nubia.",
+    "difficulty": "hard",
+    "category": "General Knowledge"
+  },
+  {
+    "id": "q122",
+    "text": "What process do plants use to lose water through their leaves?",
+    "options": ["Photosynthesis", "Transpiration", "Respiration", "Absorption"],
+    "correctAnswer": "Transpiration",
+    "clue": "It’s part of the water cycle.",
+    "difficulty": "medium",
+    "category": "Science"
+  },
+  {
+    "id": "q123",
+    "text": "Which queen ruled England for 63 years, the longest until Elizabeth II?",
+    "options": ["Queen Victoria", "Queen Elizabeth I", "Queen Anne", "Queen Mary"],
+    "correctAnswer": "Queen Victoria",
+    "clue": "Her era is known as the Victorian Age.",
+    "difficulty": "medium",
+    "category": "History"
+  },
+  {
+    "id": "q124",
+    "text": "Which sport is associated with the Ryder Cup?",
+    "options": ["Tennis", "Golf", "Cricket", "Rugby"],
+    "correctAnswer": "Golf",
+    "clue": "It’s a biennial event between Europe and the USA.",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": "q125",
+    "text": "Which band released the album ‘Abbey Road’?",
+    "options": ["The Rolling Stones", "The Beatles", "The Who", "Pink Floyd"],
+    "correctAnswer": "The Beatles",
+    "clue": "It features a famous crosswalk on its cover.",
+    "difficulty": "medium",
+    "category": "Pop Culture"
+  },
+  {
+    "id": "q126",
+    "text": "What is the official language of Brazil?",
+    "options": ["Spanish", "Portuguese", "French", "English"],
+    "correctAnswer": "Portuguese",
+    "clue": "It’s the only Portuguese-speaking country in South America.",
+    "difficulty": "easy",
+    "category": "General Knowledge"
+  },
+  {
+    "id": "q127",
+    "text": "Which subatomic particle has a positive charge?",
+    "options": ["Electron", "Neutron", "Proton", "Photon"],
+    "correctAnswer": "Proton",
+    "clue": "It’s found in the nucleus of an atom.",
+    "difficulty": "easy",
+    "category": "Science"
+  },
+  {
+    "id": "q128",
+    "text": "Which war was fought between 1861 and 1865 in the United States?",
+    "options": ["Revolutionary War", "Civil War", "War of 1812", "Mexican-American War"],
+    "correctAnswer": "Civil War",
+    "clue": "It was fought between the Union and the Confederacy.",
+    "difficulty": "easy",
+    "category": "History"
+  },
+  {
+    "id": "q129",
+    "text": "Which sport uses a ‘pommel horse’?",
+    "options": ["Gymnastics", "Wrestling", "Diving", "Equestrian"],
+    "correctAnswer": "Gymnastics",
+    "clue": "It’s used in artistic events.",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": "q130",
+    "text": "Which actor played Neo in ‘The Matrix’?",
+    "options": ["Keanu Reeves", "Brad Pitt", "Tom Cruise", "Leonardo DiCaprio"],
+    "correctAnswer": "Keanu Reeves",
+    "clue": "He’s known as ‘The One’ in the film.",
+    "difficulty": "easy",
+    "category": "Pop Culture"
+  },
+  {
+    "id": "q131",
+    "text": "Which country is home to the ancient city of Petra?",
+    "options": ["Egypt", "Jordan", "Syria", "Lebanon"],
+    "correctAnswer": "Jordan",
+    "clue": "It’s carved into rose-red cliffs.",
+    "difficulty": "hard",
+    "category": "General Knowledge"
+  },
+  {
+    "id": "q132",
+    "text": "What is the primary component of natural gas?",
+    "options": ["Ethane", "Methane", "Propane", "Butane"],
+    "correctAnswer": "Methane",
+    "clue": "It’s the simplest hydrocarbon.",
+    "difficulty": "medium",
+    "category": "Science"
+  },
+  {
+    "id": "q133",
+    "text": "Which Renaissance artist painted the Sistine Chapel ceiling?",
+    "options": ["Raphael", "Michelangelo", "Leonardo da Vinci", "Donatello"],
+    "correctAnswer": "Michelangelo",
+    "clue": "It includes the ‘Creation of Adam.’",
+    "difficulty": "medium",
+    "category": "History"
+  },
+  {
+    "id": "q134",
+    "text": "Which sport is known for the ‘Tour de France’?",
+    "options": ["Running", "Cycling", "Skiing", "Swimming"],
+    "correctAnswer": "Cycling",
+    "clue": "It’s a multi-stage race held annually.",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": "q135",
+    "text": "Which 2000s TV show follows the lives of the Soprano family?",
+    "options": ["The Wire", "The Sopranos", "Breaking Bad", "Mad Men"],
+    "correctAnswer": "The Sopranos",
+    "clue": "It centers on a New Jersey mob boss.",
+    "difficulty": "medium",
+    "category": "Pop Culture"
+  },
+  {
+    "id": "q136",
+    "text": "Which ocean is the smallest by surface area?",
+    "options": ["Atlantic", "Pacific", "Indian", "Arctic"],
+    "correctAnswer": "Arctic",
+    "clue": "It’s located around the North Pole.",
+    "difficulty": "medium",
+    "category": "General Knowledge"
+  },
+  {
+    "id": "q137",
+    "text": "Which scientist proposed the theory of general relativity?",
+    "options": ["Isaac Newton", "Albert Einstein", "Niels Bohr", "Stephen Hawking"],
+    "correctAnswer": "Albert Einstein",
+    "clue": "It was published in 1915.",
+    "difficulty": "medium",
+    "category": "Science"
+  },
+  {
+    "id": "q138",
+    "text": "Which ancient civilization developed cuneiform writing?",
+    "options": ["Egyptians", "Sumerians", "Greeks", "Romans"],
+    "correctAnswer": "Sumerians",
+    "clue": "It was used in ancient Mesopotamia.",
+    "difficulty": "hard",
+    "category": "History"
+  },
+  {
+    "id": "q139",
+    "text": "Which sport has a playing area called a ‘dohyo’?",
+    "options": ["Judo", "Sumo", "Karate", "Kendo"],
+    "correctAnswer": "Sumo",
+    "clue": "It’s a circular ring in a traditional Japanese sport.",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": "q140",
+    "text": "Which director is known for the ‘Lord of the Rings’ trilogy?",
+    "options": ["Steven Spielberg", "Peter Jackson", "James Cameron", "Christopher Nolan"],
+    "correctAnswer": "Peter Jackson",
+    "clue": "He filmed it in New Zealand.",
+    "difficulty": "medium",
+    "category": "Pop Culture"
+  },
+  {
+    "id": "q141",
+    "text": "Which country has the most deserts in the world?",
+    "options": ["Australia", "Antarctica", "Saudi Arabia", "Chile"],
+    "correctAnswer": "Antarctica",
+    "clue": "It’s covered by a vast ice desert.",
+    "difficulty": "hard",
+    "category": "General Knowledge"
+  },
+  {
+    "id": "q142",
+    "text": "What is the closest star system to Earth?",
+    "options": ["Alpha Centauri", "Sirius", "Proxima Centauri", "Betelgeuse"],
+    "correctAnswer": "Alpha Centauri",
+    "clue": "It’s about 4.37 light-years away.",
+    "difficulty": "hard",
+    "category": "Science"
+  },
+  {
+    "id": "q143",
+    "text": "Which battle marked Napoleon’s final defeat in 1815?",
+    "options": ["Battle of Trafalgar", "Battle of Austerlitz", "Battle of Waterloo", "Battle of Leipzig"],
+    "correctAnswer": "Battle of Waterloo",
+    "clue": "It was fought in Belgium.",
+    "difficulty": "hard",
+    "category": "History"
+  },
+  {
+    "id": "q144",
+    "text": "Which sport is associated with the term ‘checkmate’?",
+    "options": ["Chess", "Go", "Checkers", "Backgammon"],
+    "correctAnswer": "Chess",
+    "clue": "It ends the game when the king is trapped.",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": "q145",
+    "text": "Which pop star is known for the album ‘Thriller’?",
+    "options": ["Prince", "Michael Jackson", "David Bowie", "Elton John"],
+    "correctAnswer": "Michael Jackson",
+    "clue": "It’s one of the best-selling albums ever.",
+    "difficulty": "easy",
+    "category": "Pop Culture"
+  },
+  {
+    "id": "q146",
+    "text": "Which country borders both the Atlantic and Pacific Oceans?",
+    "options": ["Mexico", "Colombia", "Chile", "Canada"],
+    "correctAnswer": "Colombia",
+    "clue": "It has coastlines on two major oceans.",
+    "difficulty": "hard",
+    "category": "General Knowledge"
+  },
+  {
+    "id": "q147",
+    "text": "Which vitamin is synthesized in the skin upon sunlight exposure?",
+    "options": ["Vitamin A", "Vitamin B12", "Vitamin C", "Vitamin D"],
+    "correctAnswer": "Vitamin D",
+    "clue": "It’s essential for bone health.",
+    "difficulty": "medium",
+    "category": "Science"
+  },
+  {
+    "id": "q148",
+    "text": "Which explorer circumnavigated the globe in the early 16th century?",
+    "options": ["Christopher Columbus", "Ferdinand Magellan", "Vasco da Gama", "John Cabot"],
+    "correctAnswer": "Ferdinand Magellan",
+    "clue": "His crew completed the journey after his death.",
+    "difficulty": "hard",
+    "category": "History"
+  },
+  {
+    "id": "q149",
+    "text": "In which sport would you use a ‘puck’?",
+    "options": ["Ice Hockey", "Field Hockey", "Lacrosse", "Curling"],
+    "correctAnswer": "Ice Hockey",
+    "clue": "It’s played on a rink with sticks.",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": "q150",
+    "text": "Which animated series features SpongeBob SquarePants?",
+    "options": ["The Simpsons", "South Park", "SpongeBob SquarePants", "Family Guy"],
+    "correctAnswer": "SpongeBob SquarePants",
+    "clue": "He lives in a pineapple under the sea.",
+    "difficulty": "easy",
+    "category": "Pop Culture"
+  }
+
 
 ]

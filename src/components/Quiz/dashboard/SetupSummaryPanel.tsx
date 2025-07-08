@@ -6,6 +6,7 @@ import { roundTypeDefinitions, fundraisingExtraDefinitions } from '../../../cons
 
 const SetupSummaryPanel: React.FC = () => {
   const { config } = useQuizConfig();
+ 
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     rounds: false,
     extras: false,
@@ -46,14 +47,15 @@ const SetupSummaryPanel: React.FC = () => {
     }));
   };
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'Easy': return 'bg-green-100 text-green-700';
-      case 'Medium': return 'bg-yellow-100 text-yellow-700';
-      case 'Hard': return 'bg-red-100 text-red-700';
-      default: return 'bg-gray-100 text-gray-700';
-    }
-  };
+const getDifficultyColor = (difficulty: string) => {
+  const normalized = difficulty.toLowerCase();
+  switch (normalized) {
+    case 'easy': return 'bg-green-100 text-green-700';
+    case 'medium': return 'bg-yellow-100 text-yellow-700';
+    case 'hard': return 'bg-red-100 text-red-700';
+    default: return 'bg-gray-100 text-gray-700';
+  }
+};
 
   // Calculate total estimated time - improved to handle different round types
   const estimatedTime = roundDefinitions?.reduce((total, round) => {
@@ -200,9 +202,16 @@ const SetupSummaryPanel: React.FC = () => {
                           <div className="flex items-center space-x-2">
                             <span className="text-lg">{roundTypeDef.icon}</span>
                             <span className="font-medium text-gray-800">{roundTypeDef.name}</span>
-                            <span className={`px-2 py-1 text-xs rounded-full ${getDifficultyColor(roundTypeDef.difficulty)}`}>
-                              {roundTypeDef.difficulty}
-                            </span>
+                           {round.difficulty && (
+  <span className={`px-2 py-1 text-xs rounded-full ${getDifficultyColor(round.difficulty.charAt(0).toUpperCase() + round.difficulty.slice(1))}`}>
+    {round.difficulty.charAt(0).toUpperCase() + round.difficulty.slice(1)}
+  </span>
+)}
+{round.category && (
+  <span className="ml-2 px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">
+    {round.category}
+  </span>
+)}
                           </div>
                         </div>
                         <div className="flex items-center space-x-4 text-sm text-gray-600">

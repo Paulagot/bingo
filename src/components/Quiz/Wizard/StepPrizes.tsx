@@ -1,520 +1,352 @@
+// src/components/Quiz/Wizard/StepPrizes.tsx
 import { useState, type FC, type FormEvent } from 'react';
-import { useQuizSetupStore } from '../useQuizSetupStore';  // ✅ using the new Zustand store
+import { useQuizSetupStore } from '../useQuizSetupStore';
 import type { WizardStepProps } from './WizardStepProps';
-import { AlertCircle, Plus, Trash2, Info, Trophy, DollarSign, Percent, Wallet, ChevronLeft, ChevronRight, Gift } from 'lucide-react';
+import {
+  AlertCircle,
+  Plus,
+  Trash2,
+  Gift,
+  ChevronLeft,
+  ChevronRight,
+  DollarSign,
+  Trophy,
+  Info,
+  Tag,
+  CheckCircle,
+  Target
+} from 'lucide-react';
+import type { Prize } from '../../Quiz/types/quiz';
+
 const ordinal = (n: number) => {
-  const s = ["th", "st", "nd", "rd"];
+  const s = ['th', 'st', 'nd', 'rd'];
   const v = n % 100;
   return s[(v - 20) % 10] || s[v] || s[0];
 };
 
-interface PrizeModeExplainer {
-  title: string;
-  description: string;
-  features: string[];
-  pros: string[];
-  bestFor: string;
-  example: string;
-}
+const Character = ({ expression, message }: { expression: string; message: string }) => {
+  const getCharacterStyle = (): string => {
+    const base = "w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center text-2xl md:text-3xl transition-all duration-300";
+    switch (expression) {
+      case "excited": return `${base} bg-gradient-to-br from-indigo-400 to-purple-500 animate-bounce`;
+      case "explaining": return `${base} bg-gradient-to-br from-purple-400 to-pink-500 animate-pulse`;
+      case "strategic": return `${base} bg-gradient-to-br from-orange-400 to-red-500`;
+      case "encouraging": return `${base} bg-gradient-to-br from-green-400 to-blue-500`;
+      default: return `${base} bg-gradient-to-br from-gray-400 to-gray-600`;
+    }
+  };
 
-const prizeModeExplainers: Record<string, PrizeModeExplainer> = {
-  split: {
-    title: "Split Prize Pool by %",
-    description: "Automatically distribute a percentage of the total USDGLO collected via smart contract. No manual intervention needed!",
-    features: ["100% automated payouts", "Scales with participation", "Instant distribution", "Transparent blockchain records"],
-    pros: ["Fully automated", "Fair scaling", "No upfront cost", "Instant payouts"],
-    bestFor: "Online events, crypto communities, automated fundraising",
-    example: "1st: 50%, 2nd: 30%, 3rd: 20% of total USDGLO collected"
-  },
-  assets: {
-    title: "Digital Asset Prizes",
-    description: "Award NFTs, tokens, or other digital assets from your wallet. Create unique, memorable prizes that participants will treasure!",
-    features: ["NFT/token prizes", "Unique digital rewards", "Blockchain verified ownership", "Instant transfer"],
-    pros: ["Unique prizes", "Collectible value", "No upfront cost", "Memorable rewards"],
-    bestFor: "NFT communities, crypto events, creating collectible experiences",
-    example: "1st: Rare Champion NFT, 2nd: 100 custom tokens, 3rd: Digital badge"
-  },
-  cash: {
-    title: "Manual Prize List",
-    description: "List specific prizes with descriptions, values, and optional sponsors. You handle distribution manually after the quiz.",
-    features: ["Flexible prize descriptions", "Sponsor attribution", "Custom prize values", "Manual distribution"],
-    pros: ["Complete flexibility", "Sponsor recognition", "Custom descriptions", "Any prize type"],
-    bestFor: "Traditional events, sponsored prizes, mixed prize types",
-    example: "1st: €500 + iPad (Sponsor: TechCorp), 2nd: €200, 3rd: €100"
-  }
+  const getEmoji = (): string => {
+    switch (expression) {
+      case "excited": return "🎯";
+      case "explaining": return "💡";
+      case "strategic": return "🧠";
+      case "encouraging": return "⚡";
+      default: return "😊";
+    }
+  };
+
+  return (
+    <div className="flex items-start space-x-3 md:space-x-4 mb-6">
+      <div className={getCharacterStyle()}>{getEmoji()}</div>
+      <div className="relative bg-white rounded-2xl p-3 md:p-4 shadow-lg border-2 border-gray-200 max-w-sm md:max-w-lg flex-1">
+        <div className="absolute left-0 top-6 w-0 h-0 border-t-8 border-t-transparent border-r-8 border-r-white border-b-8 border-b-transparent transform -translate-x-2"></div>
+        <div className="absolute left-0 top-6 w-0 h-0 border-t-8 border-t-transparent border-r-8 border-r-gray-200 border-b-8 border-b-transparent transform -translate-x-1"></div>
+        <p className="text-gray-700 text-sm md:text-base">{message}</p>
+      </div>
+    </div>
+  );
 };
 
 const StepPrizes: FC<WizardStepProps> = ({ onNext, onBack }) => {
-    const { setupConfig, updateSetupConfig } = useQuizSetupStore();
+  const { setupConfig, updateSetupConfig } = useQuizSetupStore();
   const [error, setError] = useState('');
-  const [activeExplainer, setActiveExplainer] = useState<PrizeModeExplainer | null>(null);
-  const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [prizes, setPrizes] = useState<Prize[]>(setupConfig.prizes || []);
 
-  const isWeb3 = setupConfig.paymentMethod === 'web3';
-  const currency = isWeb3 ? 'USDGLO' : setupConfig.currencySymbol || '€';
-  const [prizeMode, setPrizeMode] = useState<'split' | 'assets' | 'cash'>(
-    isWeb3 ? setupConfig.prizeMode || 'split' : 'cash'
-  );
+  const currency = setupConfig.currencySymbol || '€';
 
-  const [splits, setSplits] = useState<Record<number, number>>(setupConfig.prizeSplits || { 1: 100 });
-  const [prizes, setPrizes] = useState(setupConfig.prizes || []);
-
-  const handleSplitChange = (place: number, value: number) => {
-    setSplits((prev) => ({ ...prev, [place]: value }));
+  const getCurrentMessage = () => {
+    if (prizes.length === 0) {
+      return { 
+        expression: "explaining", 
+        message: "Let's set up your quiz prizes! You can add physical items, vouchers, gift cards, or any rewards you want to give winners. Don't forget to include sponsors if applicable!" 
+      };
+    }
+    
+    const hasFirstPlace = prizes.some(p => p.place === 1);
+    if (!hasFirstPlace) {
+      return { 
+        expression: "encouraging", 
+        message: "Great start! Make sure you have at least a 1st place prize defined. You can add multiple prizes for different placing positions." 
+      };
+    }
+    
+    const totalValue = prizes.reduce((acc, p) => acc + (p.value || 0), 0);
+    return { 
+      expression: "excited", 
+      message: `Excellent! You have ${prizes.length} prize${prizes.length === 1 ? '' : 's'} set up with a total value of ${currency}${totalValue.toFixed(2)}. Your participants will be motivated to win!` 
+    };
   };
 
-  const handlePrizeChange = (index: number, field: string, value: string | number) => {
+  const handlePrizeChange = <K extends keyof Prize>(
+    index: number,
+    field: K,
+    value: Prize[K]
+  ) => {
     const updated = [...prizes];
-    (updated[index] as any)[field] = value;
+    updated[index] = {
+      ...updated[index],
+      [field]: value,
+    };
     setPrizes(updated);
+    setError('');
   };
 
   const handleAddPrize = () => {
     if (prizes.length >= 10) return;
-    setPrizes([...prizes, { place: prizes.length + 1, description: '', value: 0 }]);
+    setPrizes([
+      ...prizes,
+      {
+        place: prizes.length + 1,
+        description: '',
+        value: 0,
+      },
+    ]);
   };
 
   const handleRemovePrize = (index: number) => {
     const updated = [...prizes];
     updated.splice(index, 1);
-    setPrizes(updated);
+    setPrizes(updated.map((p, i) => ({ ...p, place: i + 1 })));
   };
 
-   const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-
-    if (isWeb3 && prizeMode === 'split') {
-      const total = Object.values(splits).reduce((acc, val) => acc + val, 0);
-      if (!splits[1]) {
-        return setError('At least a 1st place split is required.');
-      }
-      if (total > 100) {
-        return setError('Total prize percentage cannot exceed 100%.');
-      }
-      updateSetupConfig({ prizeMode: 'split', prizeSplits: splits, prizes: [] });
-      return onNext();
-    }
 
     if (!prizes.find((p) => p.place === 1)) {
       return setError('At least a 1st place prize must be defined.');
     }
 
-    updateSetupConfig({ prizeMode, prizes, prizeSplits: undefined });
+    updateSetupConfig({ prizeMode: 'cash', prizes });
     onNext();
   };
 
-  const totalSplit = Object.values(splits).reduce((acc, val) => acc + val, 0);
-
-  // Character component
-  const Character = ({ expression, message }: { expression: string; message: any }) => {
-    const getCharacterStyle = () => {
-      const baseStyle = "w-20 h-20 rounded-full flex items-center justify-center text-3xl transition-all duration-300";
-      
-      switch (expression) {
-        case "prize":
-          return `${baseStyle} bg-gradient-to-br from-yellow-400 to-orange-500 animate-bounce`;
-        case "explaining":
-          return `${baseStyle} bg-gradient-to-br from-purple-400 to-pink-500 animate-pulse`;
-        case "web3":
-          return `${baseStyle} bg-gradient-to-br from-blue-400 to-cyan-500`;
-        case "strategic":
-          return `${baseStyle} bg-gradient-to-br from-green-400 to-emerald-500`;
-        default:
-          return `${baseStyle} bg-gradient-to-br from-gray-400 to-gray-600`;
-      }
-    };
-
-    const getEmoji = () => {
-      switch (expression) {
-        case "prize": return "🏆";
-        case "explaining": return "💡";
-        case "web3": return "🚀";
-        case "strategic": return "🎯";
-        default: return "😊";
-      }
-    };
-
-    const isExplainer = typeof message === 'object' && message.title;
-
-    return (
-      <div className="flex items-start space-x-4 mb-8">
-        <div className={getCharacterStyle()}>
-          {getEmoji()}
-        </div>
-        <div className="relative bg-white rounded-2xl p-4 shadow-lg border-2 border-gray-200 max-w-lg">
-          {/* Speech bubble tail */}
-          <div className="absolute left-0 top-6 w-0 h-0 border-t-8 border-t-transparent border-r-8 border-r-white border-b-8 border-b-transparent transform -translate-x-2"></div>
-          <div className="absolute left-0 top-6 w-0 h-0 border-t-8 border-t-transparent border-r-8 border-r-gray-200 border-b-8 border-b-transparent transform -translate-x-1"></div>
-          
-          {isExplainer ? (
-            <div className="space-y-3">
-              <h4 className="font-semibold text-gray-800">{message.title}</h4>
-              
-              <p className="text-gray-600 text-sm leading-relaxed">
-                {message.description}
-              </p>
-              
-              <div className="space-y-2">
-                <div className="bg-blue-50 p-2 rounded text-xs">
-                  <strong className="text-blue-800">Key Features:</strong>
-                  <ul className="mt-1 space-y-1">
-                    {message.features.map((feature: string, index: number) => (
-                      <li key={index} className="text-blue-700">• {feature}</li>
-                    ))}
-                  </ul>
-                </div>
-                
-                <div className="bg-gray-50 p-2 rounded text-xs">
-                  <strong>Best for:</strong> {message.bestFor}
-                </div>
-
-                <div className="bg-green-50 p-2 rounded text-xs">
-                  <strong className="text-green-800">Example:</strong>
-                  <div className="text-green-700 mt-1">{message.example}</div>
-                </div>
-
-                <div className="flex flex-wrap gap-1">
-                  {message.pros.map((pro: string, index: number) => (
-                    <span key={index} className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
-                      ✓ {pro}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="text-gray-700 text-sm leading-relaxed">{message}</p>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  // Get current message
-  const getCurrentMessage = () => {
-    if (activeExplainer) {
-      return {
-        expression: "explaining",
-        message: activeExplainer
-      };
-    }
-    
-    if (isWeb3 && prizeMode === 'assets') {
-      return {
-        expression: "web3",
-        message: "Fantastic! Digital asset prizes create unique, collectible rewards. NFTs and tokens make your quiz memorable and valuable!"
-      };
-    }
-    
-    if (isWeb3 && prizeMode === 'split') {
-      return {
-        expression: "web3", 
-        message: "Perfect choice! Smart contract percentage distribution is fully automated. Set your percentages and the blockchain handles everything!"
-      };
-    }
-    
-    if (prizeMode === 'cash') {
-      return {
-        expression: "strategic",
-        message: "Great for flexibility! You can list any type of prize with custom descriptions and sponsor recognition. Perfect for traditional events!"
-      };
-    }
-    
-    return {
-      expression: "prize",
-      message: "Time to set up your prizes! This is what will motivate participants and make your quiz exciting. Choose the approach that fits your event and payment method best!"
-    };
-  };
+  const totalValue = prizes.reduce((acc, p) => acc + (p.value || 0), 0);
+  const hasFirstPlace = prizes.some(p => p.place === 1);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-indigo-800">Step 5 of 6: Prizes</h2>
-        <div className="text-sm text-gray-600">Motivate participants</div>
+        <h2 className="text-lg md:text-xl font-semibold text-indigo-800">
+          Step 6 of 8: Prizes Setup
+        </h2>
+        <div className="text-xs md:text-sm text-gray-600">Configure manual prize distribution</div>
       </div>
 
-      {/* Character Guide */}
-      <div 
-        onMouseEnter={() => {
-          if (hoverTimeout) {
-            clearTimeout(hoverTimeout);
-            setHoverTimeout(null);
-          }
-        }}
-      >
-        <Character 
-          expression={getCurrentMessage().expression}
-          message={getCurrentMessage().message}
-        />
+      <Character {...getCurrentMessage()} />
+
+      {/* Prize Setup Info */}
+      <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 md:p-4 sticky top-4 z-10">
+        <div className="flex items-center space-x-2 mb-2">
+          <Trophy className="w-4 h-4 text-indigo-600" />
+          <span className="font-medium text-indigo-800 text-sm md:text-base">Manual Prize Distribution</span>
+        </div>
+        <div className="text-xs md:text-sm text-indigo-700">
+          Physical items, vouchers, and rewards you'll distribute manually
+          {prizes.length > 0 && ` • ${prizes.length} prize${prizes.length === 1 ? '' : 's'} configured`}
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <p className="text-sm text-gray-600">
-          Choose how you'd like to award prizes: split the pot by % for top finishers, offer specific digital assets, or list prizes manually.
-        </p>
-
-        {/* Prize Mode Selection for Web3 */}
-        {isWeb3 && (
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-800 flex items-center space-x-2">
-              <Trophy className="w-5 h-5" />
-              <span>Prize Distribution Method</span>
-            </h3>
-            
-            <div className="space-y-3">
-              <label className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition ${
-                prizeMode === 'split' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-200 hover:border-indigo-400'
-              }`}>
-                <input
-                  type="radio"
-                  name="prizeMode"
-                  checked={prizeMode === 'split'}
-                  onChange={() => setPrizeMode('split')}
-                  className="hidden"
-                />
-                <Percent className="h-6 w-6 text-indigo-600" />
-                <div className="flex-1">
-                  <p className="font-medium text-gray-800">Split prize pool by %</p>
-                  <p className="text-sm text-gray-600">Automated percentage distribution via smart contract</p>
-                </div>
-                <Info 
-                  className="w-4 h-4 cursor-pointer text-gray-400 hover:text-indigo-500 transition-colors"
-                  onMouseEnter={() => {
-                    if (hoverTimeout) clearTimeout(hoverTimeout);
-                    setActiveExplainer(prizeModeExplainers.split);
-                  }}
-                  onMouseLeave={() => {
-                    const timeout = setTimeout(() => setActiveExplainer(null), 150);
-                    setHoverTimeout(timeout);
-                  }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (hoverTimeout) {
-                      clearTimeout(hoverTimeout);
-                      setHoverTimeout(null);
-                    }
-                    const explainer = prizeModeExplainers.split;
-                    setActiveExplainer(activeExplainer?.title === explainer.title ? null : explainer);
-                  }}
-                />
-              </label>
-
-              <label className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition ${
-                prizeMode === 'assets' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-200 hover:border-indigo-400'
-              }`}>
-                <input
-                  type="radio"
-                  name="prizeMode"
-                  checked={prizeMode === 'assets'}
-                  onChange={() => setPrizeMode('assets')}
-                  className="hidden"
-                />
-                <Wallet className="h-6 w-6 text-indigo-600" />
-                <div className="flex-1">
-                  <p className="font-medium text-gray-800">Give away digital assets</p>
-                  <p className="text-sm text-gray-600">Award NFTs, tokens, or other digital assets</p>
-                </div>
-                <Info 
-                  className="w-4 h-4 cursor-pointer text-gray-400 hover:text-indigo-500 transition-colors"
-                  onMouseEnter={() => {
-                    if (hoverTimeout) clearTimeout(hoverTimeout);
-                    setActiveExplainer(prizeModeExplainers.assets);
-                  }}
-                  onMouseLeave={() => {
-                    const timeout = setTimeout(() => setActiveExplainer(null), 150);
-                    setHoverTimeout(timeout);
-                  }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (hoverTimeout) {
-                      clearTimeout(hoverTimeout);
-                      setHoverTimeout(null);
-                    }
-                    const explainer = prizeModeExplainers.assets;
-                    setActiveExplainer(activeExplainer?.title === explainer.title ? null : explainer);
-                  }}
-                />
-              </label>
-            </div>
-          </div>
-        )}
-
-        {/* Split Prize Pool Section */}
-        {prizeMode === 'split' && (
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-800 flex items-center space-x-2">
-              <Percent className="w-5 h-5" />
-              <span>Percentage Distribution</span>
-            </h3>
-            
-            <div className="space-y-3">
-              {[1, 2, 3, 4, 5].map((place) => (
-                <div key={place} className="flex items-center space-x-3">
-                  <div className="w-20 text-sm font-medium text-gray-700">
-                    {place}{ordinal(place)} Place
-                  </div>
-                  <div className="flex-1">
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      step={0.1}
-                      value={splits[place] || ''}
-                      onChange={(e) => handleSplitChange(place, parseFloat(e.target.value))}
-                      placeholder="0"
-                      className="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
-                    />
-                  </div>
-                  <div className="text-sm text-gray-500">%</div>
-                </div>
-              ))}
-            </div>
-            
-            <div className={`p-3 rounded-lg ${
-              totalSplit === 100 ? 'bg-green-50 border border-green-200' : 
-              totalSplit > 100 ? 'bg-red-50 border border-red-200' : 
-              'bg-yellow-50 border border-yellow-200'
-            }`}>
-              <div className="flex items-center space-x-2">
-                <Percent className="w-4 h-4" />
-                <span className="font-medium">Total: {totalSplit}%</span>
+        {/* Prize Configuration */}
+        <div className="bg-white border-2 border-gray-200 rounded-xl p-4 md:p-6 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all duration-200">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl bg-yellow-100">
+                🏆
               </div>
-              {totalSplit > 100 && (
-                <p className="text-sm text-red-600 mt-1">Must not exceed 100%</p>
-              )}
-              {totalSplit < 100 && totalSplit > 0 && (
-                <p className="text-sm text-yellow-600 mt-1">Remaining: {(100 - totalSplit).toFixed(1)}%</p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Manual Prize List Section */}
-        {(prizeMode === 'assets' || prizeMode === 'cash') && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium text-gray-800 flex items-center space-x-2">
-                <Gift className="w-5 h-5" />
-                <span>{prizeMode === 'assets' ? 'Digital Asset Prizes' : 'Prize List'}</span>
-              </h3>
-              <div className="flex items-center space-x-2">
-                <Info 
-                  className="w-4 h-4 cursor-pointer text-gray-400 hover:text-indigo-500 transition-colors"
-                  onMouseEnter={() => {
-                    if (hoverTimeout) clearTimeout(hoverTimeout);
-                    setActiveExplainer(prizeModeExplainers.cash);
-                  }}
-                  onMouseLeave={() => {
-                    const timeout = setTimeout(() => setActiveExplainer(null), 150);
-                    setHoverTimeout(timeout);
-                  }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (hoverTimeout) {
-                      clearTimeout(hoverTimeout);
-                      setHoverTimeout(null);
-                    }
-                    const explainer = prizeModeExplainers.cash;
-                    setActiveExplainer(activeExplainer?.title === explainer.title ? null : explainer);
-                  }}
-                />
+              <div className="flex-1">
+                <h3 className="font-semibold text-gray-900 text-lg">Prize Configuration</h3>
+                <p className="text-sm text-gray-600">Set up rewards for your quiz winners</p>
               </div>
             </div>
+            {prizes.length < 10 && (
+              <button
+                type="button"
+                onClick={handleAddPrize}
+                className="flex items-center space-x-2 px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Prize</span>
+              </button>
+            )}
+          </div>
 
-            <div className="space-y-4">
-              {prizes.map((prize, index) => (
-                <div key={index} className="border-2 border-gray-200 p-4 rounded-xl bg-white shadow-sm space-y-3">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center space-x-2">
-                      <Trophy className="w-4 h-4 text-yellow-500" />
-                      <strong className="text-gray-800">{prize.place}{ordinal(prize.place)} Place</strong>
+          <div className="space-y-4">
+            {prizes.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Trophy className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                <p className="text-sm">No prizes added yet. Click "Add Prize" to get started!</p>
+                <p className="text-xs text-gray-400 mt-1">You need at least a 1st place prize</p>
+              </div>
+            ) : (
+              prizes.map((prize, index) => (
+                <div
+                  key={index}
+                  className="border-2 border-gray-200 rounded-xl p-4 bg-gray-50 hover:bg-white transition-colors"
+                >
+                  <div className="flex justify-between items-center mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                        prize.place === 1 ? 'bg-yellow-100 text-yellow-800' :
+                        prize.place === 2 ? 'bg-gray-100 text-gray-800' :
+                        prize.place === 3 ? 'bg-orange-100 text-orange-800' :
+                        'bg-blue-100 text-blue-800'
+                      }`}>
+                        {prize.place}
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Target className="w-4 h-4 text-gray-600" />
+                        <span className="font-semibold text-gray-800">
+                          {prize.place}{ordinal(prize.place)} Place Prize
+                        </span>
+                      </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => handleRemovePrize(index)}
-                      className="text-red-500 hover:text-red-700 transition-colors"
+                      className="p-1 text-red-400 hover:text-red-600 transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Prize Description</label>
-                    <input
-                      type="text"
-                      value={prize.description || ''}
-                      onChange={(e) => handlePrizeChange(index, 'description', e.target.value)}
-                      placeholder="e.g., iPad Pro, Gift Card, Custom Trophy"
-                      className="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
-                    />
-                  </div>
-
-                  {prizeMode === 'assets' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Token/Contract Address</label>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Prize Description */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700 flex items-center space-x-2">
+                        <Gift className="w-4 h-4" />
+                        <span>Prize Description <span className="text-red-500">*</span></span>
+                      </label>
                       <input
                         type="text"
-                        value={prize.tokenAddress || ''}
-                        onChange={(e) => handlePrizeChange(index, 'tokenAddress', e.target.value)}
-                        placeholder="0x..."
-                        className="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
+                        value={prize.description || ''}
+                        onChange={(e) => handlePrizeChange(index, 'description', e.target.value)}
+                        placeholder="e.g., £50 Gift Card, iPad, Dinner Voucher"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
                       />
                     </div>
+
+                    {/* Sponsor */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700 flex items-center space-x-2">
+                        <Tag className="w-4 h-4" />
+                        <span>Sponsor (optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={prize.sponsor || ''}
+                        onChange={(e) => handlePrizeChange(index, 'sponsor', e.target.value)}
+                        placeholder="e.g., Local Business, Amazon"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
+                      />
+                    </div>
+
+                    {/* Value */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700 flex items-center space-x-2">
+                        <DollarSign className="w-4 h-4" />
+                        <span>Value ({currency})</span>
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        value={prize.value || ''}
+                        onChange={(e) => handlePrizeChange(index, 'value', parseFloat(e.target.value) || 0)}
+                        placeholder="0.00"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Prize Preview */}
+                  {prize.description && (
+                    <div className="mt-3 p-2 bg-white rounded border border-gray-200">
+                      <div className="flex items-center space-x-2 text-sm">
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                        <span className="text-gray-700">
+                          <strong>{prize.place}{ordinal(prize.place)} Place:</strong> {prize.description}
+                          {prize.value && prize.value > 0 && ` (${currency}${prize.value})`}
+                          {prize.sponsor && ` - Sponsored by ${prize.sponsor}`}
+                        </span>
+                      </div>
+                    </div>
                   )}
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Sponsor (optional)</label>
-                    <input
-                      type="text"
-                      value={prize.sponsor || ''}
-                      onChange={(e) => handlePrizeChange(index, 'sponsor', e.target.value)}
-                      placeholder="e.g., TechCorp, Local Business"
-                      className="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center space-x-1">
-                      <DollarSign className="w-3 h-3" />
-                      <span>Value ({currency})</span>
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      step={0.01}
-                      value={prize.value || ''}
-                      onChange={(e) => handlePrizeChange(index, 'value', parseFloat(e.target.value))}
-                      placeholder="0.00"
-                      className="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
-                    />
-                  </div>
                 </div>
-              ))}
+              ))
+            )}
+          </div>
 
-              {prizes.length < 10 && (
-                <button
-                  type="button"
-                  onClick={handleAddPrize}
-                  className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 transition-colors"
-                >
-                  <Plus className="w-4 h-4" /> Add Prize
-                </button>
-              )}
+          {/* Add Prize Button (bottom) */}
+          {prizes.length > 0 && prizes.length < 10 && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={handleAddPrize}
+                className="w-full flex items-center justify-center space-x-2 py-3 border-2 border-dashed border-indigo-300 text-indigo-600 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Another Prize (Max: 10)</span>
+              </button>
+            </div>
+          )}
+        </div>
 
-              {prizes.length > 0 && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                  <div className="flex items-center space-x-2">
-                    <DollarSign className="w-4 h-4 text-green-600" />
-                    <span className="font-medium text-green-800">
-                      Total Prize Value: {prizes.reduce((acc, p) => acc + (p.value || 0), 0)} {currency}
-                    </span>
-                  </div>
+        {/* Prize Summary */}
+        {prizes.length > 0 && (
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-xl p-4">
+            <div className="flex items-center space-x-2 mb-2">
+              <Trophy className="w-5 h-5 text-green-600" />
+              <span className="font-medium text-green-800">Prize Summary</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div className="text-center p-2 bg-white rounded border border-green-200">
+                <div className="font-bold text-green-700 text-lg">{prizes.length}</div>
+                <div className="text-green-600">Total Prizes</div>
+              </div>
+              <div className="text-center p-2 bg-white rounded border border-green-200">
+                <div className="font-bold text-green-700 text-lg">{currency}{totalValue.toFixed(2)}</div>
+                <div className="text-green-600">Total Value</div>
+              </div>
+              <div className="text-center p-2 bg-white rounded border border-green-200">
+                <div className="font-bold text-green-700 text-lg">
+                  {hasFirstPlace ? '✓' : '✗'}
                 </div>
-              )}
+                <div className="text-green-600">1st Place Set</div>
+              </div>
             </div>
           </div>
         )}
 
+        {/* Help Section */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-start space-x-2">
+            <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-blue-800">
+              <p className="font-medium mb-1">Prize Setup Tips</p>
+              <ul className="space-y-1 text-xs">
+                <li>• At least a 1st place prize is required to continue</li>
+                <li>• Include sponsors to acknowledge supporters and add credibility</li>
+                <li>• Set realistic values to help participants understand prize worth</li>
+                <li>• Consider a mix of prizes: gift cards, experiences, physical items</li>
+                <li>• You'll distribute these manually after the quiz ends</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {/* Error Message */}
         {error && (
           <div className="flex items-start gap-2 bg-red-50 text-red-700 px-3 py-2 rounded-lg text-sm">
             <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
@@ -528,7 +360,7 @@ const StepPrizes: FC<WizardStepProps> = ({ onNext, onBack }) => {
             <button
               type="button"
               onClick={onBack}
-              className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
               <span>Back</span>
@@ -536,7 +368,8 @@ const StepPrizes: FC<WizardStepProps> = ({ onNext, onBack }) => {
           )}
           <button
             type="submit"
-            className="flex items-center space-x-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-all duration-200 shadow-lg"
+            disabled={!hasFirstPlace}
+            className="flex items-center space-x-2 px-4 md:px-6 py-2 md:py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-xl transition-all duration-200 shadow-sm hover:shadow-md"
           >
             <span>Save Prizes & Continue</span>
             <ChevronRight className="w-4 h-4" />
@@ -548,5 +381,6 @@ const StepPrizes: FC<WizardStepProps> = ({ onNext, onBack }) => {
 };
 
 export default StepPrizes;
+
 
 

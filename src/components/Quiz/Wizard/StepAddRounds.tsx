@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { fundraisingExtraDefinitions, roundTypeDefinitions } from '../../../constants/quizMetadata';
 import type { RoundDefinition, RoundTypeId } from '../types/quiz';
-import { ChevronLeft, ChevronRight, Trash2, GripVertical, Zap, RotateCcw, Info, Play, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trash2, GripVertical, Zap, RotateCcw, Info, Play, X, FlipHorizontal } from 'lucide-react';
 import { useQuizSetupStore } from '../useQuizSetupStore';
 import { roundTypeDefaults } from '../../../constants/quiztypeconstants';
 
@@ -63,7 +63,7 @@ const MIN_ROUNDS = 1;
 const FlipCard = ({ type, onAdd, isMaxReached }: { 
   type: any, 
   onAdd: (roundType: RoundTypeId) => void, 
-  isMaxReached: boolean 
+  isMaxReached: boolean
 }) => {
   const [isFlipped, setIsFlipped] = useState(false);
   const [showVideoModal, setShowVideoModal] = useState(false);
@@ -125,9 +125,27 @@ const FlipCard = ({ type, onAdd, isMaxReached }: {
     setIsFlipped(!isFlipped);
   };
 
+  const handleFlipBadgeClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsFlipped(!isFlipped);
+  };
+
   return (
     <>
-      <div className="group perspective-1000 h-72 md:h-80">
+      <div className="group perspective-1000 h-72 md:h-80 relative">
+        {/* Interactive Flip Badge */}
+        <div className={`absolute top-2 right-2 z-20 transition-all duration-300 ${
+          isFlipped ? 'opacity-0 pointer-events-none' : ''
+        }`}>
+          <button
+            onClick={handleFlipBadgeClick}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center space-x-1 shadow-lg transition-colors cursor-pointer"
+          >
+            <FlipHorizontal className="w-3 h-3" />
+            <span>Flip for Details</span>
+          </button>
+        </div>
+
         <div 
           className={`relative w-full h-full transition-transform duration-700 transform-style-preserve-3d cursor-pointer ${
             isFlipped ? 'rotate-y-180' : ''
@@ -137,22 +155,13 @@ const FlipCard = ({ type, onAdd, isMaxReached }: {
           {/* Front of card */}
           <div className="absolute inset-0 backface-hidden border-2 rounded-xl bg-white hover:border-indigo-300 hover:shadow-lg transition-all duration-200">
             <div className="p-4 md:p-6 h-full flex flex-col">
-              {/* Header row: icon + name + difficulty + info */}
+              {/* Header row: icon + name + info */}
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-3 flex-1 min-w-0">
-                  <div className={`w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center text-xl md:text-2xl flex-shrink-0 ${
-                    type.difficulty === 'Easy' ? 'bg-green-100' :
-                    type.difficulty === 'Medium' ? 'bg-yellow-100' : 'bg-red-100'
-                  }`}>
+                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center text-xl md:text-2xl flex-shrink-0 bg-gray-100">
                     {type.icon}
                   </div>
                   <h4 className="font-semibold text-gray-900 text-base md:text-lg truncate flex-1">{type.name}</h4>
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full whitespace-nowrap flex-shrink-0 ${
-                    type.difficulty === 'Easy' ? 'bg-green-100 text-green-700' :
-                    type.difficulty === 'Medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
-                  }`}>
-                    {type.difficulty}
-                  </span>
                 </div>
                 <Info className="w-4 h-4 text-gray-400 ml-2 flex-shrink-0" />
               </div>
@@ -446,7 +455,7 @@ export const StepAddRounds: React.FC<StepAddRoundsProps> = ({ onNext, onBack }) 
                            selectedRounds[2]?.roundType === 'general_trivia';
     
     if (hasDefaultSetup) {
-      return { expression: "explaining", message: "We have configured a quiz for you with 3 rounds, you can customise this and have up to 8 rounds." };
+      return { expression: "explaining", message: "We have set up a quiz for you with 3 rounds, you can customise this and have up to 8 rounds. In the next step, you will be able to configure the subject category for the questions and the difficulty level. But first, select the rounds you want to include in your quiz." };
     }
     
     return { expression: "excited", message: `You have ${selectedRounds.length} round${selectedRounds.length === 1 ? '' : 's'}. Add more below!` };
@@ -468,7 +477,7 @@ export const StepAddRounds: React.FC<StepAddRoundsProps> = ({ onNext, onBack }) 
   return (
     <div className="space-y-4 md:space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg md:text-xl font-semibold text-indigo-800">Step 3 of 6: Configure Rounds</h2>
+        <h2 className="text-lg md:text-xl font-semibold text-indigo-800">Step 3 of 8: Select Rounds</h2>
         <div className="text-xs md:text-sm text-gray-600">Build your quiz structure</div>
       </div>
 
@@ -535,8 +544,9 @@ export const StepAddRounds: React.FC<StepAddRoundsProps> = ({ onNext, onBack }) 
           </span>
         </div>
         
+        {/* Enhanced Interactive Tip */}
         <div className="text-xs md:text-sm text-gray-600 bg-blue-50 border border-blue-200 rounded-lg p-3">
-          💡 <strong>Tip:</strong> Click any card to flip it and see detailed gameplay information!
+          💡 <strong>Tip:</strong> Click the "Flip for Details" button on any card to see detailed gameplay information!
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">

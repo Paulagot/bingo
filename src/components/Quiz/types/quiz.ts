@@ -16,7 +16,10 @@ export interface Prize {
   description: string;
   sponsor?: string;
   value?: number;
-  tokenAddress?: string; // Web3 only
+  tokenAddress?: string;
+  uploadStatus?: 'pending' | 'uploading' | 'completed' | 'failed';
+  transactionHash?: string;
+  uploadedAt?: string;
 }
 
 export type RoundTypeId =
@@ -32,7 +35,11 @@ export interface RoundConfig {
   timePerQuestion: number;
   totalTimeSeconds?: number;
   timePerTeam?: number;
-  pointsPerQuestion?: number; 
+ pointsPerDifficulty?: {
+  easy: number;
+  medium: number;
+  hard: number;
+}; 
   pointsLostPerWrong?: number; // For wipeout
   timeToAnswer?: number; // For head-to-head
   skipAllowed?: boolean; // For speed round
@@ -45,6 +52,8 @@ export interface RoundDefinition {
   roundType: RoundTypeId;
   config: RoundConfig;
   enabledExtras: Record<string, boolean>; // Only those valid for this round
+ category?: string;         // 🆕 New: e.g., "Science", "History"
+  difficulty?: 'easy' | 'medium' | 'hard'; // 🆕 New
 }
 export interface FundraisingOptions {
   [key: string]: boolean; // e.g., buyHint: true
@@ -82,6 +91,27 @@ export interface QuizConfig {
   roomId?: string;
   currencySymbol?: string;
   totalTimeSeconds?: number;
+  web3Chain?: string;
+web3Currency?: string;
+web3Charity?: string; 
+web3PrizeSplit?: {
+  charity: number; // min 50
+  host: number;    // max 5
+  prizes: number;  // max 25
+};
+hostWallet?: string; 
+ eventDateTime?: string;
+ timeZone?: string;
+ web3ContractAddress?: string;
+   sponsors?: Array<{
+    name: string;
+    logo?: string;
+    message?: string;
+    website?: string;
+  }>;
+  completionMessage?: string;
+  theme?: string;
+
   
 }
 
@@ -92,6 +122,7 @@ export type ExtrasPanelProps = {
   usedExtras: Record<string, boolean>;
   onUseExtra: (extraId: string) => void;
   usedExtrasThisRound: Record<string, boolean>;
+  answerSubmitted?: boolean;
 };
 
 // Constant list of extras available
@@ -142,6 +173,8 @@ export type Question = {
   clue?: string;
   timeLimit: number;
   questionStartTime?: number;
+   difficulty?: string;    // Add this
+  category?: string; 
 };
 
 export type LeaderboardEntry = {

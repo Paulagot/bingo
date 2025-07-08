@@ -1,48 +1,58 @@
+// src/components/Quiz/Wizard/StepPaymentMethod.tsx
 import { useState, useEffect, type FC, type FormEvent } from 'react';
-import { Wallet, CreditCard, AlertCircle, Info, Heart, Zap, DollarSign, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import {
+  CreditCard,
+  AlertCircle,
+  Info,
+  DollarSign,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+  Trophy
+} from 'lucide-react';
 import { useQuizSetupStore } from '../useQuizSetupStore';
 import type { WizardStepProps } from './WizardStepProps';
 
-// Feature flag to control Web3 availability
-const ENABLE_WEB3 = false; // Set to true when Web3 flow is ready
+const Character = ({ expression, message }: { expression: string; message: string }) => {
+  const getCharacterStyle = (): string => {
+    const base = "w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center text-2xl md:text-3xl transition-all duration-300";
+    switch (expression) {
+      case "excited": return `${base} bg-gradient-to-br from-indigo-400 to-purple-500 animate-bounce`;
+      case "explaining": return `${base} bg-gradient-to-br from-purple-400 to-pink-500 animate-pulse`;
+      case "strategic": return `${base} bg-gradient-to-br from-orange-400 to-red-500`;
+      case "encouraging": return `${base} bg-gradient-to-br from-green-400 to-blue-500`;
+      default: return `${base} bg-gradient-to-br from-gray-400 to-gray-600`;
+    }
+  };
 
-interface PaymentMethodExplainer {
-  title: string;
-  description: string;
-  features: string[];
-  pros: string[];
-  bestFor: string;
-  prizeOptions?: string;
-}
+  const getEmoji = (): string => {
+    switch (expression) {
+      case "excited": return "🎯";
+      case "explaining": return "💡";
+      case "strategic": return "🧠";
+      case "encouraging": return "⚡";
+      default: return "😊";
+    }
+  };
 
-const paymentMethodExplainers: Record<string, PaymentMethodExplainer> = {
-  cash_or_revolut: {
-    title: "Cash/Debit Payment",
-    description: "Traditional payment collection where you handle transactions manually. Perfect for in-person events or when you want full control over payments.",
-    features: ["Manual payment verification", "You collect entry fees directly", "Choose your preferred currency", "Simple setup"],
-    pros: ["Full control", "Familiar to everyone", "take cash or card payments", ],
-    bestFor: "In-person events, local groups, traditional settings",
-    prizeOptions: "You decide prize structure and distribute winnings manually"
-  },
-  web3: {
-    title: "Web3 Smart Contract",
-    description: "Fully automated crypto payments using USDGLO tokens. Everything happens automatically via smart contracts - no manual intervention needed!",
-    features: ["Automatic payment collection", "Smart contract prize distribution", "USDGLO charitable impact", "Enhanced prize options"],
-    pros: ["Fully automated", "Transparent transactions", "Supports charity", "Global accessibility"],
-    bestFor: "Crypto-friendly groups, online events, charitable causes",
-    prizeOptions: "Flexible prize pools: give away percentage of intake OR distribute other digital assets"
-  }
+  return (
+    <div className="flex items-start space-x-3 md:space-x-4 mb-6">
+      <div className={getCharacterStyle()}>{getEmoji()}</div>
+      <div className="relative bg-white rounded-2xl p-3 md:p-4 shadow-lg border-2 border-gray-200 max-w-sm md:max-w-lg flex-1">
+        <div className="absolute left-0 top-6 w-0 h-0 border-t-8 border-t-transparent border-r-8 border-r-white border-b-8 border-b-transparent transform -translate-x-2"></div>
+        <div className="absolute left-0 top-6 w-0 h-0 border-t-8 border-t-transparent border-r-8 border-r-gray-200 border-b-8 border-b-transparent transform -translate-x-1"></div>
+        <p className="text-gray-700 text-sm md:text-base">{message}</p>
+      </div>
+    </div>
+  );
 };
 
 const StepPaymentMethod: FC<WizardStepProps> = ({ onNext, onBack }) => {
   const { setupConfig, updateSetupConfig } = useQuizSetupStore();
 
-  const [paymentMethod, setPaymentMethod] = useState<'cash_or_revolut' | 'web3' | ''>(setupConfig.paymentMethod || '');
   const [entryFee, setEntryFee] = useState(setupConfig.entryFee || '');
   const [currencySymbol, setCurrencySymbol] = useState(setupConfig.currencySymbol || '€');
   const [error, setError] = useState<string>('');
-  const [activeExplainer, setActiveExplainer] = useState<PaymentMethodExplainer | null>(null);
-  const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const currencyOptions = [
     { symbol: '€', label: 'Euro (EUR)' },
@@ -52,12 +62,27 @@ const StepPaymentMethod: FC<WizardStepProps> = ({ onNext, onBack }) => {
     { symbol: '¥', label: 'Japanese Yen (JPY)' },
   ];
 
-  // Auto-select cash_or_revolut when Web3 is disabled
-  useEffect(() => {
-    if (!ENABLE_WEB3 && !paymentMethod) {
-      setPaymentMethod('cash_or_revolut');
+  const getCurrentMessage = () => {
+    if (!entryFee) {
+      return { 
+        expression: "explaining", 
+        message: "Let's set your entry fee! You'll collect entry fees manually using cash or debit (Revolut). This works perfectly for in-person and club-run events." 
+      };
     }
-  }, [paymentMethod]);
+    
+    const fee = parseFloat(entryFee);
+    if (isNaN(fee) || fee <= 0) {
+      return { 
+        expression: "encouraging", 
+        message: "Please enter a valid entry fee amount greater than 0. This will be what each participant pays to join your quiz." 
+      };
+    }
+    
+    return { 
+      expression: "excited", 
+      message: `Perfect! Entry fee set to ${currencySymbol}${entryFee}. You'll collect this manually from each participant when they arrive.` 
+    };
+  };
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -65,384 +90,135 @@ const StepPaymentMethod: FC<WizardStepProps> = ({ onNext, onBack }) => {
     const trimmed = entryFee.trim();
     const parsed = Number.parseFloat(trimmed);
 
-    // Auto-select cash_or_revolut if Web3 is disabled and no method is selected
-    const selectedMethod = paymentMethod || (!ENABLE_WEB3 ? 'cash_or_revolut' : '');
-
-    if (!selectedMethod) {
-      setError('Please choose a payment method.');
-      return;
-    }
     if (!trimmed || Number.isNaN(parsed) || parsed <= 0) {
       setError('Please enter a valid entry fee greater than 0.');
       return;
     }
 
-    const currencyToStore = selectedMethod === 'web3' ? 'USDGLO' : currencySymbol;
-
     updateSetupConfig({
       entryFee: trimmed,
-      paymentMethod: selectedMethod,
-      currencySymbol: currencyToStore,
-    });
-
-    console.log('✅ Payment step saved:', {
-      entryFee: trimmed,
-      paymentMethod: selectedMethod,
-      currencySymbol: currencyToStore,
+      paymentMethod: 'cash_or_revolut', // Always set to cash/debit since that's the only option
+      currencySymbol,
     });
 
     onNext();
   };
 
-  const handlePaymentMethodChange = (method: 'cash_or_revolut' | 'web3') => {
-    setPaymentMethod(method);
-    setActiveExplainer(paymentMethodExplainers[method]);
-    setError('');
-  };
-
-  // Character component
-  const Character = ({ expression, message }: { expression: string; message: any }) => {
-    const getCharacterStyle = () => {
-      const baseStyle = "w-20 h-20 rounded-full flex items-center justify-center text-3xl transition-all duration-300";
-      
-      switch (expression) {
-        case "money":
-          return `${baseStyle} bg-gradient-to-br from-green-400 to-emerald-500 animate-bounce`;
-        case "explaining":
-          return `${baseStyle} bg-gradient-to-br from-purple-400 to-pink-500 animate-pulse`;
-        case "charitable":
-          return `${baseStyle} bg-gradient-to-br from-pink-400 to-red-500`;
-        case "tech":
-          return `${baseStyle} bg-gradient-to-br from-blue-400 to-cyan-500`;
-        default:
-          return `${baseStyle} bg-gradient-to-br from-gray-400 to-gray-600`;
-      }
-    };
-
-    const getEmoji = () => {
-      switch (expression) {
-        case "money": return "💰";
-        case "explaining": return "💡";
-        case "charitable": return "❤️";
-        case "tech": return "🚀";
-        default: return "😊";
-      }
-    };
-
-    const isExplainer = typeof message === 'object' && message.title;
-
-    return (
-      <div className="flex items-start space-x-4 mb-8">
-        <div className={getCharacterStyle()}>
-          {getEmoji()}
-        </div>
-        <div className="relative bg-white rounded-2xl p-4 shadow-lg border-2 border-gray-200 max-w-lg">
-          {/* Speech bubble tail */}
-          <div className="absolute left-0 top-6 w-0 h-0 border-t-8 border-t-transparent border-r-8 border-r-white border-b-8 border-b-transparent transform -translate-x-2"></div>
-          <div className="absolute left-0 top-6 w-0 h-0 border-t-8 border-t-transparent border-r-8 border-r-gray-200 border-b-8 border-b-transparent transform -translate-x-1"></div>
-          
-          {isExplainer ? (
-            <div className="space-y-3">
-              <h4 className="font-semibold text-gray-800 flex items-center space-x-2">
-                <span>{message.title}</span>
-                {message.title.includes('Web3') && <Heart className="w-4 h-4 text-red-500" />}
-              </h4>
-              
-              <p className="text-gray-600 text-sm leading-relaxed">
-                {message.description}
-              </p>
-              
-              <div className="space-y-2">
-                <div className="bg-blue-50 p-2 rounded text-xs">
-                  <strong className="text-blue-800">Key Features:</strong>
-                  <ul className="mt-1 space-y-1">
-                    {message.features.map((feature: string, index: number) => (
-                      <li key={index} className="text-blue-700">• {feature}</li>
-                    ))}
-                  </ul>
-                </div>
-                
-                <div className="bg-gray-50 p-2 rounded text-xs">
-                  <strong>Best for:</strong> {message.bestFor}
-                </div>
-
-                <div className="bg-green-50 p-2 rounded text-xs">
-                  <strong className="text-green-800">Prize Structure:</strong>
-                  <div className="text-green-700 mt-1">{message.prizeOptions}</div>
-                </div>
-
-                <div className="flex flex-wrap gap-1">
-                  {message.pros.map((pro: string, index: number) => (
-                    <span key={index} className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
-                      ✓ {pro}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="text-gray-700 text-sm leading-relaxed">{message}</p>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  // Get current message
-  const getCurrentMessage = () => {
-    if (activeExplainer) {
-      return {
-        expression: "explaining",
-        message: activeExplainer
-      };
-    }
-    
-    if (paymentMethod === 'web3') {
-      return {
-        expression: "charitable",
-        message: "Excellent choice! Web3 payments are fully automated and USDGLO puts all profits toward charitable causes. You're making a positive impact!"
-      };
-    }
-    
-    if (paymentMethod === 'cash_or_revolut') {
-      return {
-        expression: "money",
-        message: "Great for traditional events! You'll have full control over payment collection and can use any currency you prefer."
-      };
-    }
-    
-    return {
-      expression: "money",
-      message: "Let's set up how participants will pay to join your quiz! Choose between traditional payment methods or automated Web3 smart contracts."
-    };
-  };
+  const estimatedPrizePool = entryFee ? (parseFloat(entryFee) * 10).toFixed(2) : '0'; // Example calculation
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-indigo-800">Step 2 of 6: Entry Fee & Payment Method</h2>
-        <div className="text-sm text-gray-600">Choose payment system</div>
+        <h2 className="text-lg md:text-xl font-semibold text-indigo-800">
+          Step 2 of 8: Entry Fee
+        </h2>
+        <div className="text-xs md:text-sm text-gray-600">Set your quiz entry fee</div>
       </div>
 
-      {/* Character Guide */}
-      <div 
-        onMouseEnter={() => {
-          if (hoverTimeout) {
-            clearTimeout(hoverTimeout);
-            setHoverTimeout(null);
-          }
-        }}
-      >
-        <Character 
-          expression={getCurrentMessage().expression}
-          message={getCurrentMessage().message}
-        />
+      <Character {...getCurrentMessage()} />
+
+      {/* Payment Method Info Card */}
+      <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 md:p-4 sticky top-4 z-10">
+        <div className="flex items-center space-x-2 mb-2">
+          <CreditCard className="w-4 h-4 text-indigo-600" />
+          <span className="font-medium text-indigo-800 text-sm md:text-base">Payment Collection</span>
+        </div>
+        <div className="text-xs md:text-sm text-indigo-700">
+          Cash or Debit (Revolut) - You collect entry fees manually
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Payment Method Selection */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium text-gray-800 flex items-center space-x-2">
-            <DollarSign className="w-5 h-5" />
-            <span>Choose Payment Method</span>
-          </h3>
+        {/* Currency & Entry Fee in Card Format */}
+        <div className="bg-white border-2 border-gray-200 rounded-xl p-4 md:p-6 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all duration-200">
+          <div className="flex items-center space-x-3 mb-4">
+            <div className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl bg-green-100">
+              💰
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-900 text-lg">Entry Fee Setup</h3>
+              <p className="text-sm text-gray-600">Choose your currency and set the entry fee amount</p>
+            </div>
+          </div>
 
-          <div className="grid gap-4">
-            {/* Cash/Debit Option */}
-            <label
-              className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition ${
-                paymentMethod === 'cash_or_revolut'
-                  ? 'border-indigo-600 bg-indigo-50'
-                  : 'border-gray-200 hover:border-indigo-400'
-              }`}
-            >
-              <input
-                type="radio"
-                name="paymentMethod"
-                value="cash_or_revolut"
-                checked={paymentMethod === 'cash_or_revolut'}
-                onChange={() => handlePaymentMethodChange('cash_or_revolut')}
-                className="hidden"
-              />
-              <CreditCard className="h-6 w-6 text-indigo-600" />
-              <div className="flex-1">
-                <p className="font-medium text-gray-800">Cash or Debit (Revolut)</p>
-                <p className="text-sm text-gray-600">You handle payment collection manually</p>
-              </div>
-              <Info 
-                className="w-4 h-4 cursor-pointer text-gray-400 hover:text-indigo-500 transition-colors"
-                onMouseEnter={() => {
-                  if (hoverTimeout) clearTimeout(hoverTimeout);
-                  setActiveExplainer(paymentMethodExplainers.cash_or_revolut);
-                }}
-                onMouseLeave={() => {
-                  const timeout = setTimeout(() => setActiveExplainer(null), 150);
-                  setHoverTimeout(timeout);
-                }}
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (hoverTimeout) {
-                    clearTimeout(hoverTimeout);
-                    setHoverTimeout(null);
-                  }
-                  const explainer = paymentMethodExplainers.cash_or_revolut;
-                  setActiveExplainer(activeExplainer?.title === explainer.title ? null : explainer);
-                }}
-              />
-            </label>
-
-            {/* Web3 Option - Only show if enabled */}
-            {ENABLE_WEB3 && (
-              <label
-                className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition ${
-                  paymentMethod === 'web3'
-                    ? 'border-indigo-600 bg-indigo-50'
-                    : 'border-gray-200 hover:border-indigo-400'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  value="web3"
-                  checked={paymentMethod === 'web3'}
-                  onChange={() => handlePaymentMethodChange('web3')}
-                  className="hidden"
-                />
-                <Wallet className="h-6 w-6 text-indigo-600" />
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2">
-                    <p className="font-medium text-gray-800">Web3 Smart Contract (USDGLO)</p>
-                    <Heart className="w-4 h-4 text-red-500" />
-                  </div>
-                  <p className="text-sm text-gray-600">Automated crypto payments supporting charity</p>
-                </div>
-                <Info 
-                  className="w-4 h-4 cursor-pointer text-gray-400 hover:text-indigo-500 transition-colors"
-                  onMouseEnter={() => {
-                    if (hoverTimeout) clearTimeout(hoverTimeout);
-                    setActiveExplainer(paymentMethodExplainers.web3);
-                  }}
-                  onMouseLeave={() => {
-                    const timeout = setTimeout(() => setActiveExplainer(null), 150);
-                    setHoverTimeout(timeout);
-                  }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (hoverTimeout) {
-                      clearTimeout(hoverTimeout);
-                      setHoverTimeout(null);
-                    }
-                    const explainer = paymentMethodExplainers.web3;
-                    setActiveExplainer(activeExplainer?.title === explainer.title ? null : explainer);
-                  }}
-                />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Currency Selector */}
+            <div className="space-y-2">
+              <label htmlFor="currency" className="text-sm font-medium text-gray-700 flex items-center space-x-2">
+                <Sparkles className="w-4 h-4" />
+                <span>Currency</span>
               </label>
-            )}
+              <select
+                id="currency"
+                value={currencySymbol}
+                onChange={(e) => setCurrencySymbol(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
+              >
+                {currencyOptions.map((opt) => (
+                  <option key={opt.symbol} value={opt.symbol}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-            {/* Coming Soon placeholder when Web3 is disabled */}
-            {!ENABLE_WEB3 && (
-              <div className="flex items-center gap-4 p-4 border-2 border-gray-100 rounded-xl bg-gray-50 opacity-60">
-                <Wallet className="h-6 w-6 text-gray-400" />
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2">
-                    <p className="font-medium text-gray-500">Web3 Smart Contract (USDGLO)</p>
-                    <Heart className="w-4 h-4 text-gray-400" />
-                  </div>
-                  <p className="text-sm text-gray-400">Coming soon - automated crypto payments</p>
-                </div>
-                <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
-                  Coming Soon
+            {/* Entry Fee Input */}
+            <div className="space-y-2">
+              <label htmlFor="entryFee" className="text-sm font-medium text-gray-700 flex items-center space-x-2">
+                <DollarSign className="w-4 h-4" />
+                <span>Entry Fee Amount</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
+                  {currencySymbol}
                 </span>
+                <input
+                  id="entryFee"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={entryFee}
+                  onChange={(e) => {
+                    setEntryFee(e.target.value);
+                    setError('');
+                  }}
+                  placeholder="5.00"
+                  className="w-full pl-8 pr-4 py-3 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
+                />
               </div>
-            )}
+            </div>
+          </div>
+
+          {entryFee && !isNaN(parseFloat(entryFee)) && parseFloat(entryFee) > 0 && (
+            <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
+              <div className="flex items-center space-x-2 mb-1">
+                <Trophy className="w-4 h-4 text-green-600" />
+                <span className="text-sm font-medium text-green-800">Entry Fee Set</span>
+              </div>
+              <p className="text-sm text-green-700">
+                Each participant will pay <strong>{currencySymbol}{entryFee}</strong> to join your quiz
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Help Section */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-start space-x-2">
+            <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-blue-800">
+              <p className="font-medium mb-1">Payment Collection Tips</p>
+              <ul className="space-y-1 text-xs">
+                <li>• Collect entry fees when participants arrive</li>
+                <li>• Accept cash or card payments (Revolut works great for debit)</li>
+                <li>• Keep track of who has paid in your participant list</li>
+                <li>• Have change ready if accepting cash payments</li>
+              </ul>
+            </div>
           </div>
         </div>
 
-        {/* USDGLO Charity Info */}
-        {paymentMethod === 'web3' && (
-          <div className="bg-gradient-to-r from-pink-50 to-red-50 border border-pink-200 rounded-xl p-4">
-            <div className="flex items-center space-x-2 mb-2">
-              <Heart className="w-4 h-4 text-red-500" />
-              <span className="font-medium text-red-800">Why USDGLO?</span>
-            </div>
-            <p className="text-sm text-red-700">
-              Unlike other stablecoins, USDGLO puts <strong>all profits back into charitable causes</strong>. 
-              Every transaction you process helps make a positive impact!
-            </p>
-          </div>
-        )}
-
-        {/* Currency Selection for Cash/Debit */}
-        {paymentMethod === 'cash_or_revolut' && (
-          <div className="space-y-2">
-            <label htmlFor="currency" className="text-sm font-medium text-gray-700 flex items-center space-x-2">
-              <Sparkles className="w-4 h-4" />
-              <span>Choose Currency</span>
-            </label>
-            <select
-              id="currency"
-              value={currencySymbol}
-              onChange={(e) => setCurrencySymbol(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
-            >
-              {currencyOptions.map((opt) => (
-                <option key={opt.symbol} value={opt.symbol}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {/* Entry Fee Input */}
-        {paymentMethod && (
-          <div className="space-y-2">
-            <label htmlFor="entryFee" className="text-sm font-medium text-gray-700 flex items-center space-x-2">
-              <DollarSign className="w-4 h-4" />
-              <span>Entry Fee ({paymentMethod === 'web3' ? 'USDGLO' : currencySymbol})</span>
-            </label>
-            <input
-              id="entryFee"
-              type="number"
-              min="0"
-              step="0.01"
-              value={entryFee}
-              onChange={(e) => {
-                setEntryFee(e.target.value);
-                setError('');
-              }}
-              placeholder="e.g., 5"
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
-            />
-            {entryFee && (
-              <div className="text-xs text-gray-500">
-                Entry fee: {paymentMethod === 'web3' ? 'USDGLO' : currencySymbol} {entryFee}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Prize Pool Preview */}
-        {paymentMethod && entryFee && (
-          <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-            <div className="flex items-center space-x-2 mb-2">
-              <Zap className="w-4 h-4 text-green-600" />
-              <span className="font-medium text-green-800">Prize Pool Options</span>
-            </div>
-            {paymentMethod === 'web3' ? (
-              <div className="text-sm text-green-700 space-y-1">
-                <div>• Distribute percentage of total USDGLO collected</div>
-                <div>• Award other digital assets from your wallet</div>
-                <div>• Fully automated smart contract distribution</div>
-              </div>
-            ) : (
-              <div className="text-sm text-green-700">
-                • You'll manually distribute prizes from collected fees
-              </div>
-            )}
-          </div>
-        )}
-
+        {/* Error Message */}
         {error && (
           <div className="flex items-start gap-2 bg-red-50 text-red-700 px-3 py-2 rounded-lg text-sm">
             <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
@@ -456,7 +232,7 @@ const StepPaymentMethod: FC<WizardStepProps> = ({ onNext, onBack }) => {
             <button
               type="button"
               onClick={onBack}
-              className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
               <span>Back</span>
@@ -464,8 +240,8 @@ const StepPaymentMethod: FC<WizardStepProps> = ({ onNext, onBack }) => {
           )}
           <button
             type="submit"
-            disabled={!paymentMethod || !entryFee}
-            className="flex items-center space-x-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-xl transition-all duration-200 shadow-lg"
+            disabled={!entryFee || isNaN(parseFloat(entryFee)) || parseFloat(entryFee) <= 0}
+            className="flex items-center space-x-2 px-4 md:px-6 py-2 md:py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-xl transition-all duration-200 shadow-sm hover:shadow-md"
           >
             <span>Next</span>
             <ChevronRight className="w-4 h-4" />

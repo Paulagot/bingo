@@ -33,6 +33,12 @@ export function createQuizRoom(roomId, hostId, config) {
   console.log(`[quizRoomManager] 🟢 Starting room creation`);
   console.log(`[quizRoomManager] 🧩 roomId=${roomId}, hostId=${hostId}`);
   console.log(`[quizRoomManager] 📦 Incoming config:\n`, JSON.stringify(config, null, 2));
+  console.log(`[quizRoomManager] 📅 Scheduled for: ${config.eventDateTime || 'N/A'} (${config.timeZone || 'N/A'})`);
+if (config.paymentMethod === 'web3') {
+  console.log(`[quizRoomManager] 🌐 Web3 Config: Chain=${config.web3Chain}, Token=${config.web3Currency}, Charity=${config.web3Charity}`);
+  console.log(`[quizRoomManager] 🎁 Prize Split:`, config.web3PrizeSplit);
+  console.log(`[quizRoomManager] 👛 Host Wallet:`, config.hostWallet || 'Not provided');
+}
 
   if (quizRooms.has(roomId)) {
     const existing = quizRooms.get(roomId);
@@ -338,7 +344,7 @@ export function handlePlayerExtra(roomId, playerId, extraId, targetPlayerId, nam
 
   console.log(`[DEBUG] Not a global extra, continuing with round-based logic...`);
 
-  console.log(`[DEBUG] Not a global extra, continuing with round-based logic...`);
+  
 
   if (playerData.frozenNextQuestion) {
     console.warn(`[ExtrasHandler] ❄️ ${playerId} is frozen and cannot use extras`);
@@ -351,11 +357,6 @@ export function handlePlayerExtra(roomId, playerId, extraId, targetPlayerId, nam
 
   if (!playerData.purchases[extraId]) {
     return { success: false, error: 'You have not purchased this extra' };
-  }
-
-  const usedAnyThisRound = Object.values(playerData.usedExtrasThisRound || {}).some(v => v);
-  if (usedAnyThisRound) {
-    return { success: false, error: 'You can only use one extra per round.' };
   }
 
   if (playerData.usedExtras[extraId]) {

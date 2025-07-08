@@ -1,12 +1,18 @@
+// Update your RoundRouter component
 import React from 'react';
-import { RoundComponentProps, Question } from '../types/quiz';
+import { RoundComponentProps } from '../types/quiz';
 import StandardRound from './../game/StandardRound';
 import ReviewPhase from './../game/ReviewPhase';
 
 interface RoundRouterProps extends RoundComponentProps {
   roomPhase: 'asking' | 'reviewing';
   currentRoundType?: string;
-    correctAnswer?: string;
+  correctAnswer?: string;
+  // Add these new props
+  questionNumber?: number;
+  totalQuestions?: number;
+  difficulty?: string;
+  category?: string;
 }
 
 const RoundRouter: React.FC<RoundRouterProps> = ({
@@ -15,7 +21,11 @@ const RoundRouter: React.FC<RoundRouterProps> = ({
   question,
   selectedAnswer,
   feedback,
-   correctAnswer,
+  correctAnswer,
+  questionNumber,
+  totalQuestions,
+  difficulty,
+  category,
   ...props
 }) => {
   if (roomPhase === 'reviewing') {
@@ -25,19 +35,26 @@ const RoundRouter: React.FC<RoundRouterProps> = ({
         selectedAnswer={selectedAnswer}
         feedback={feedback}
         correctAnswer={correctAnswer}
+        difficulty={difficulty}
+        category={category}
+        questionNumber={questionNumber}
+        totalQuestions={totalQuestions}
       />
     );
   }
 
-  // For now, all round types use StandardRound
-  // Future round types can be added here:
-  // switch (currentRoundType) {
-  //   case 'speed': return <SpeedRound {...props} />;
-  //   case 'visual': return <VisualRound {...props} />;
-  //   default: return <StandardRound {...props} />;
-  // }
-  
-  return <StandardRound {...props} question={question} selectedAnswer={selectedAnswer} feedback={feedback} />;
+  return (
+    <StandardRound 
+      {...props} 
+      question={question} 
+      selectedAnswer={selectedAnswer} 
+      feedback={feedback}
+      questionNumber={questionNumber}
+      totalQuestions={totalQuestions}
+      difficulty={difficulty}
+      category={category}
+    />
+  );
 };
 
 export default RoundRouter;

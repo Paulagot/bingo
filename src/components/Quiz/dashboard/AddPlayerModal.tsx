@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog } from '@headlessui/react';
 import { usePlayerStore } from '../usePlayerStore';
 import { useQuizConfig } from '../useQuizConfig';
-import { fundraisingExtras } from '../../../types/quiz';
+import { fundraisingExtras } from '../types/quiz';
 import { nanoid } from 'nanoid';
 import { useQuizSocket } from '../../../sockets/QuizSocketProvider';
 

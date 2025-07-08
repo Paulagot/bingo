@@ -1,6 +1,6 @@
 // src/components/Quiz/game/GlobalExtrasDuringLeaderboard.tsx
 
-import React, { useState } from 'react';
+import  { useState } from 'react';
 import { fundraisingExtraDefinitions } from '../../../constants/quizMetadata';
 import { useGlobalExtras } from '../hooks/useGlobalExtras';
 import UseExtraModal from './UseExtraModal';
@@ -93,33 +93,47 @@ const handleExtraClick = (extraId: string) => {
         <p className="text-sm text-blue-600 mb-3">Use these before the next round starts, or wait for the next leaderboard review.  Be Strategic!:</p>
         <div className="space-y-2">
           {globalExtraDefinitions.map(extra => {
-  const isUsed = usedExtras[extra.id];
-  const isRobPoints = extra.id === 'robPoints';
-  const isRestorePoints = extra.id === 'restorePoints';
-  const noEligibleTargets = isRobPoints && robPointsTargets.length === 0;
-  
-  // ✅ Special logic for restorePoints - use restorablePoints instead of usedExtras
-  const isRestorePointsDisabled = isRestorePoints && restorablePoints <= 0;
-  const shouldDisable = isRestorePoints ? isRestorePointsDisabled : (isUsed || noEligibleTargets);
-  
-  return (
-    <button
-      key={extra.id}
-      onClick={() => handleExtraClick(extra.id)}
-      disabled={shouldDisable}
-                className={`w-full text-left px-4 py-2 rounded-lg transition font-medium
-                  ${isUsed || noEligibleTargets
+            const isUsed = usedExtras[extra.id];
+            const isRobPoints = extra.id === 'robPoints';
+            const isRestorePoints = extra.id === 'restorePoints';
+            const noEligibleTargets = isRobPoints && robPointsTargets.length === 0;
+            
+            // ✅ FIXED: Proper disable logic for each extra type
+            let shouldDisable = false;
+            let disableReason = '';
+            
+            if (isRestorePoints) {
+              shouldDisable = restorablePoints <= 0;
+              disableReason = shouldDisable ? '(No points to restore)' : '';
+            } else if (isRobPoints) {
+              shouldDisable = isUsed || noEligibleTargets;
+              disableReason = isUsed ? '(Used)' : noEligibleTargets ? '(No valid targets)' : '';
+            } else {
+              shouldDisable = isUsed;
+              disableReason = isUsed ? '(Used)' : '';
+            }
+            
+            return (
+              <button
+                key={extra.id}
+                onClick={() => handleExtraClick(extra.id)}
+                disabled={shouldDisable}
+                className={`w-full text-left px-4 py-2 rounded-lg transition font-medium ${
+                  shouldDisable
                     ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
                     : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }`}
+                }`}
               >
                 {extra.icon} {extra.label}
-                {isRestorePoints && !isUsed && ` (${restorablePoints} available)`}
-                {isUsed && ' (Used)'}
-                {noEligibleTargets && !isUsed && ' (No valid targets)'}
-                <span className="block text-xs text-white opacity-80">
+                {/* ✅ FIXED: Show available points for restore, status for others */}
+                {isRestorePoints && !shouldDisable && ` (${restorablePoints} available)`}
+                {disableReason && ` ${disableReason}`}
+                
+                <span className={`block text-xs opacity-80 ${
+                  shouldDisable ? 'text-gray-500' : 'text-white'
+                }`}>
                   {extra.description || 'No description available.'}
-                  {isRobPoints && !isUsed && !noEligibleTargets && (
+                  {isRobPoints && !shouldDisable && (
                     <span className="block mt-1">
                       Eligible targets: {robPointsTargets.length}
                     </span>
