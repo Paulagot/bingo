@@ -8,7 +8,7 @@ import PlayerListPanel from '../dashboard/PlayerListPanel';
 import SetupSummaryPanel from '../dashboard/SetupSummaryPanel';
 
 // Make sure this path points at your actual QuizConfig definition:
-import type { QuizConfig } from '../../../types/quiz'
+import type { QuizConfig } from '../types/quiz';
 
 interface User {
   id: string;

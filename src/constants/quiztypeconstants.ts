@@ -1,6 +1,6 @@
 // src/constants/quiztypeconstants.ts
 
-import type { RoundTypeDefinition, RoundTypeId, RoundConfig } from '../types/quiz';
+import type { RoundTypeDefinition, RoundTypeId, RoundConfig } from '../components/Quiz/types/quiz';
 
 export const roundTypes: RoundTypeDefinition[] = [
   {
@@ -10,7 +10,11 @@ export const roundTypes: RoundTypeDefinition[] = [
     defaultConfig: {
       questionsPerRound: 6,
       timePerQuestion: 25,
-      pointsPerQuestion: 2
+      pointsPerDifficulty: {
+  easy: 1,
+  medium: 2,
+  hard: 3
+}
     }
   },
   // {
@@ -21,7 +25,11 @@ export const roundTypes: RoundTypeDefinition[] = [
   //     questionsPerRound: 6,
   //     timePerQuestion: 10,
   //     totalTimeSeconds: 120,
-  //     pointsPerQuestion: 3,
+  //     pointsPerDifficulty: {
+//   easy: 1,
+//   medium: 2,
+//   hard: 3
+// }
   //     pointslostperunanswered: 2
   //   }
   // },
@@ -32,9 +40,13 @@ export const roundTypes: RoundTypeDefinition[] = [
     defaultConfig: {
       questionsPerRound: 8,
       timePerQuestion: 18,
-      pointsPerQuestion: 2,
-      pointsLostPerWrong: 1,
-      pointslostperunanswered: 2
+      pointsPerDifficulty: {
+  easy: 2,
+  medium: 3,
+  hard: 4
+},
+      pointsLostPerWrong: 2,
+      pointslostperunanswered: 3
     }
   },
   // {

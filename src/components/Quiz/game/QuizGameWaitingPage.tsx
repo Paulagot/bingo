@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuizSocket } from '../../../sockets/QuizSocketProvider';
 import { useQuizConfig } from '../useQuizConfig';
 import { fundraisingExtraDefinitions, roundTypeDefinitions } from '../../../constants/quizMetadata';
-import type { RoundTypeId } from '../../../types/quiz';
+import type { RoundTypeId } from '../types/quiz';
 
 const DEBUG = true;
 
@@ -28,28 +28,11 @@ interface ServerPlayer {
   disqualified?: boolean;
 }
 
-interface RoundDefinition {
-  roundNumber: number;
-  roundType: RoundTypeId;
-  config: any;
-}
-
-interface QuizConfig {
-  prizes?: Array<{
-    place: string;
-    description: string;
-    value?: number;
-    sponsor?: string;
-  }>;
-  currencySymbol?: string;
-  roundDefinitions?: RoundDefinition[];
-}
-
 const QuizGameWaitingPage = () => {
   const { roomId, playerId } = useParams<{ roomId: string; playerId: string }>();
   const { socket, connected } = useQuizSocket();
   const navigate = useNavigate();
-  const { config } = useQuizConfig() as { config: QuizConfig };
+  const { config } = useQuizConfig();
   
   const [playerData, setPlayerData] = useState<ServerPlayer | null>(null);
   const [allPlayers, setAllPlayers] = useState<ServerPlayer[]>([]);
@@ -58,6 +41,14 @@ const QuizGameWaitingPage = () => {
   debugLog.lifecycle('🚀 QuizGameWaitingPage mount');
   debugLog.data('Component params', { roomId, playerId });
   debugLog.data('Socket state', { connected, hasSocket: !!socket });
+
+  // Debug log for round definitions
+  useEffect(() => {
+    if (config?.roundDefinitions) {
+      console.log('Round definitions:', config.roundDefinitions);
+      console.log('Sample round:', config.roundDefinitions[0]);
+    }
+  }, [config]);
 
   // Listen for server events
   useEffect(() => {
@@ -160,7 +151,7 @@ const QuizGameWaitingPage = () => {
           // Check if it's a mid-game reconnection issue
           socket.emit('check_player_in_active_game', { roomId, playerId });
           
-          socket.once('player_active_game_status', ({ isInActiveGame, currentPhase }) => {
+          socket.once('player_active_game_status', ({ isInActiveGame }) => {
             if (isInActiveGame) {
               debugLog.info('🔄 Player found in active game - allowing reconnection');
               socket.emit('rejoin_active_game', { roomId, playerId });
@@ -324,9 +315,21 @@ const QuizGameWaitingPage = () => {
                     <span className="font-medium">
                       {roundTypeDef.icon} Round {round.roundNumber}: {roundTypeDef.name}
                     </span>
-                    <span className="text-sm text-gray-600 px-2 py-1 bg-gray-100 rounded-full">
-                      {roundTypeDef.difficulty}
-                    </span>
+                    <div className="flex items-center space-x-2">
+                      {round.category && (
+                        <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
+                          {round.category}
+                        </span>
+                      )}
+                      <span className={`text-sm px-2 py-1 rounded-full ${
+                        round.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
+                        round.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                        round.difficulty === 'hard' ? 'bg-red-100 text-red-700' :
+                        'bg-gray-100 text-gray-600'
+                      }`}>
+                        {round.difficulty || roundTypeDef.difficulty || 'Unknown'}
+                      </span>
+                    </div>
                   </div>
                   
                   {playerExtrasForThisRound.length > 0 && (

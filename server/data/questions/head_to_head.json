@@ -7,6 +7,6 @@
     "type": "multiple_choice",
     "points": 10,
     "clue": "Steve Jobs was the CEO",
-    "level": "easy"
+    "difficulty": "easy"
   }
 ]

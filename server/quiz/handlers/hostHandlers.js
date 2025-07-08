@@ -25,6 +25,141 @@ export function setupHostHandlers(socket, namespace) {
     emitRoomState(namespace, roomId);
   }
 
+  // ✅ NEW: Calculate round-specific leaderboard scores
+  function calculateRoundLeaderboard(roomId) {
+    const room = getQuizRoom(roomId);
+    if (!room) {
+      console.error(`[RoundLeaderboard] ❌ Room not found: ${roomId}`);
+      return [];
+    }
+
+    const currentRoundIndex = room.currentRound - 1;
+    const roundConfig = room.config.roundDefinitions?.[currentRoundIndex];
+    if (!roundConfig) {
+      console.error(`[RoundLeaderboard] ❌ Round config not found for round ${room.currentRound}`);
+      return [];
+    }
+
+    const questionsPerRound = roundConfig.config.questionsPerRound || 6;
+    const roundLeaderboard = [];
+
+    if (debug) {
+      console.log(`[RoundLeaderboard] 📊 Calculating for Round ${room.currentRound}`);
+      console.log(`[RoundLeaderboard] 📝 Questions per round: ${questionsPerRound}`);
+      console.log(`[RoundLeaderboard] 🎯 Current question index: ${room.currentQuestionIndex}`);
+    }
+
+    // Calculate round scores for each player
+    for (const player of room.players) {
+      const playerData = room.playerData[player.id];
+      if (!playerData) {
+        console.warn(`[RoundLeaderboard] ⚠️ No data found for player ${player.id}`);
+        continue;
+      }
+
+      let roundScore = 0;
+      let questionsAnsweredThisRound = 0;
+
+      // Look through all questions to find ones from current round
+      for (let questionIndex = 0; questionIndex < room.questions.length; questionIndex++) {
+        const question = room.questions[questionIndex];
+        if (!question) continue;
+
+        const roundAnswerKey = `${question.id}_round${room.currentRound}`;
+        const playerAnswer = playerData.answers?.[roundAnswerKey];
+
+        if (playerAnswer) {
+          questionsAnsweredThisRound++;
+          
+          // Calculate points for this question based on round config
+          const difficulty = question.difficulty || 'medium';
+          const pointsPerDifficulty = roundConfig.config.pointsPerDifficulty || { easy: 1, medium: 2, hard: 3 };
+          const pointsLostPerWrong = roundConfig.config.pointsLostPerWrong || 0;
+          const pointsLostPerNoAnswer = roundConfig.config.pointslostperunanswered || 0;
+
+          if (playerAnswer.submitted === null || playerAnswer.submitted === undefined) {
+            // No answer submitted
+            roundScore -= pointsLostPerNoAnswer;
+            if (debug) console.log(`[RoundLeaderboard] 📝 ${player.name}: Q${questionIndex + 1} no answer (-${pointsLostPerNoAnswer})`);
+          } else if (playerAnswer.correct) {
+            // Correct answer
+            const points = pointsPerDifficulty[difficulty] || 2;
+            roundScore += points;
+            if (debug) console.log(`[RoundLeaderboard] ✅ ${player.name}: Q${questionIndex + 1} correct (+${points})`);
+          } else {
+            // Wrong answer
+            roundScore -= pointsLostPerWrong;
+            if (debug) console.log(`[RoundLeaderboard] ❌ ${player.name}: Q${questionIndex + 1} wrong (-${pointsLostPerWrong})`);
+          }
+        }
+      }
+
+      roundLeaderboard.push({
+        id: player.id,
+        name: player.name,
+        score: roundScore,
+        cumulativeNegativePoints: playerData.cumulativeNegativePoints || 0,
+        pointsRestored: playerData.pointsRestored || 0
+      });
+
+      if (debug) {
+        console.log(`[RoundLeaderboard] 🎯 ${player.name}: Round ${room.currentRound} score = ${roundScore} (answered ${questionsAnsweredThisRound} questions)`);
+      }
+    }
+
+    // Sort by score (highest first)
+    roundLeaderboard.sort((a, b) => b.score - a.score);
+
+    if (debug) {
+      console.log(`[RoundLeaderboard] 🏆 Final Round ${room.currentRound} Rankings:`);
+      roundLeaderboard.forEach((entry, index) => {
+        console.log(`  ${index + 1}. ${entry.name}: ${entry.score} points`);
+      });
+    }
+
+    return roundLeaderboard;
+  }
+
+  // ✅ NEW: Calculate overall cumulative leaderboard
+  function calculateOverallLeaderboard(roomId) {
+    const room = getQuizRoom(roomId);
+    if (!room) {
+      console.error(`[OverallLeaderboard] ❌ Room not found: ${roomId}`);
+      return [];
+    }
+
+    const overallLeaderboard = [];
+
+    // Calculate cumulative scores for each player
+    for (const player of room.players) {
+      const playerData = room.playerData[player.id];
+      if (!playerData) {
+        console.warn(`[OverallLeaderboard] ⚠️ No data found for player ${player.id}`);
+        continue;
+      }
+
+      overallLeaderboard.push({
+        id: player.id,
+        name: player.name,
+        score: playerData.score || 0,
+        cumulativeNegativePoints: playerData.cumulativeNegativePoints || 0,
+        pointsRestored: playerData.pointsRestored || 0
+      });
+    }
+
+    // Sort by score (highest first)
+    overallLeaderboard.sort((a, b) => b.score - a.score);
+
+    if (debug) {
+      console.log(`[OverallLeaderboard] 🏆 Overall Rankings through Round ${room.currentRound}:`);
+      overallLeaderboard.forEach((entry, index) => {
+        console.log(`  ${index + 1}. ${entry.name}: ${entry.score} points total`);
+      });
+    }
+
+    return overallLeaderboard;
+  }
+
   socket.on('create_quiz_room', ({ roomId, hostId, config }) => {
     if (debug) console.log(`[Host] create_quiz_room for: ${roomId}, host: ${hostId}`);
 
@@ -75,6 +210,82 @@ export function setupHostHandlers(socket, namespace) {
     }
 
     engine.emitNextReviewQuestion(roomId, namespace);
+  });
+
+  // ✅ NEW: Show round results (triggered by host after last question review)
+  socket.on('show_round_results', ({ roomId }) => {
+    if (debug) console.log(`[Host] 📊 show_round_results for ${roomId}`);
+
+    const room = getQuizRoom(roomId);
+    if (!room) {
+      socket.emit('quiz_error', { message: 'Room not found' });
+      return;
+    }
+
+    // Validate that the requesting socket is actually the host
+    if (room.hostSocketId !== socket.id) {
+      socket.emit('quiz_error', { message: 'Only the host can show round results' });
+      return;
+    }
+
+    // Validate that we're in the right phase
+    if (room.currentPhase !== 'reviewing') {
+      socket.emit('quiz_error', { message: 'Can only show round results during review phase' });
+      return;
+    }
+
+    // Calculate round-specific leaderboard
+    const roundLeaderboard = calculateRoundLeaderboard(roomId);
+    
+    if (roundLeaderboard.length === 0) {
+      socket.emit('quiz_error', { message: 'No round data available for leaderboard' });
+      return;
+    }
+
+    // ✅ Store in room for recovery
+room.currentRoundResults = roundLeaderboard;
+
+    // Update room phase to leaderboard
+    room.currentPhase = 'leaderboard';
+    
+    // Emit round leaderboard to all participants
+    namespace.to(roomId).emit('round_leaderboard', roundLeaderboard);
+    emitRoomState(namespace, roomId);
+    
+    console.log(`[Host] ✅ Round ${room.currentRound} results shown to all players`);
+  });
+
+  // ✅ NEW: Continue to overall leaderboard (triggered by host from round results)
+  socket.on('continue_to_overall_leaderboard', ({ roomId }) => {
+    if (debug) console.log(`[Host] ➡️ continue_to_overall_leaderboard for ${roomId}`);
+
+    const room = getQuizRoom(roomId);
+    if (!room) {
+      socket.emit('quiz_error', { message: 'Room not found' });
+      return;
+    }
+
+    // Validate that the requesting socket is actually the host
+    if (room.hostSocketId !== socket.id) {
+      socket.emit('quiz_error', { message: 'Only the host can continue to overall leaderboard' });
+      return;
+    }
+
+    // Validate that we're in leaderboard phase
+    if (room.currentPhase !== 'leaderboard') {
+      socket.emit('quiz_error', { message: 'Can only continue to overall leaderboard from leaderboard phase' });
+      return;
+    }
+
+    // Calculate overall cumulative leaderboard
+    const overallLeaderboard = calculateOverallLeaderboard(roomId);
+
+    room.currentOverallLeaderboard = overallLeaderboard;
+    
+    // Emit overall leaderboard (using existing 'leaderboard' event)
+    namespace.to(roomId).emit('leaderboard', overallLeaderboard);
+    
+    console.log(`[Host] ✅ Overall leaderboard shown to all players`);
   });
 
   socket.on('next_round_or_end', ({ roomId }) => {
@@ -140,6 +351,7 @@ export function setupHostHandlers(socket, namespace) {
     }
   }, 2000);
 });
+
  // ✅ NEW: Launch quiz event - redirects all waiting players to play page
   socket.on('launch_quiz', ({ roomId }) => {
     if (debug) console.log(`[Host] launch_quiz for ${roomId}`);

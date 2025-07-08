@@ -1,4 +1,4 @@
-// wipeoutEngine.js
+// wipeoutEngine.js - Updated with round leaderboard support
 
 import {
   getQuizRoom,
@@ -17,13 +17,27 @@ export function initRound(roomId, namespace) {
   const room = getQuizRoom(roomId);
   if (!room) return false;
 
-  const roundType = room.config.roundDefinitions?.[room.currentRound - 1]?.roundType;
-  let questions = loadQuestionsForRoundType(roundType);
   const roundConfig = room.config.roundDefinitions[room.currentRound - 1];
-  const questionsPerRound = roundConfig?.config?.questionsPerRound || 8;
+  const roundType = roundConfig.roundType;
+  const desiredDifficulty = roundConfig.difficulty || 'medium';
+  const desiredCategory = roundConfig.category || null;
 
+  let questions = loadQuestionsForRoundType(roundType);
+
+  // ✅ Filter by difficulty and optional category
+  questions = questions.filter((q) => {
+    const matchesDifficulty = q.difficulty?.toLowerCase() === desiredDifficulty.toLowerCase();
+    const matchesCategory = !desiredCategory || q.category?.toLowerCase() === desiredCategory.toLowerCase();
+    return matchesDifficulty && matchesCategory;
+  });
+
+  const questionsPerRound = roundConfig.config?.questionsPerRound || 6;
+
+  // ✅ Shuffle and slice
   questions = shuffleArray(questions).slice(0, questionsPerRound);
-  console.log(`[wipeoutEngine] 🔎 Loaded ${questions.length} randomized questions for ${roundType}`);
+
+  console.log(`[wipeoutEngine] 🔎 Loaded ${questions.length} questions for ${roundType} (difficulty=${desiredDifficulty}, category=${desiredCategory})`);
+  console.log(`[wipeoutEngine] 🧠 Final difficulties:`, questions.map(q => q.difficulty));
 
   setQuestionsForCurrentRound(roomId, questions);
   resetRoundExtrasTracking(roomId);
@@ -174,22 +188,31 @@ export function handlePlayerAnswer(roomId, playerId, answer) {
 
   const isCorrect = (answer.trim().toLowerCase() === question.correctAnswer.trim().toLowerCase());
 
-  const roundConfig = room.config.roundDefinitions[room.currentRound - 1]?.config || {};
-  const pointsPerQuestion = roundConfig.pointsPerQuestion || 1;
-  const pointsLostPerWrong = roundConfig.pointsLostPerWrong || 0;
+  const roundConfig = room.config.roundDefinitions[room.currentRound - 1];
+  const configObj = roundConfig?.config || {};
+  const difficulty = roundConfig?.difficulty || 'medium';
 
-if (isCorrect) {
+  const pointsPerDifficulty = configObj.pointsPerDifficulty || { easy: 2, medium: 3, hard: 4 };
+  const pointsPerQuestion = pointsPerDifficulty[difficulty] ?? 2;
+
+  const pointsLostPerWrong = configObj.pointsLostPerWrong ?? 2; // ✅ fallback to 2 if missing
+
+  console.log(`[DEBUG SCORING] question difficulty: ${difficulty}`);
+  console.log(`[DEBUG SCORING] pointsPerDifficulty:`, pointsPerDifficulty);
+  console.log(`[DEBUG SCORING] pointsLostPerWrong: ${pointsLostPerWrong}`);
+  console.log(`[DEBUG SCORING] final pointsPerQuestion: ${pointsPerQuestion}`);
+
+  if (isCorrect) {
     playerData.score = (playerData.score || 0) + pointsPerQuestion;
     if (debug) console.log(`[wipeoutEngine] ✅ ${playerId} got it right (+${pointsPerQuestion}), score: ${playerData.score}`);
   } else {
     playerData.score = (playerData.score || 0) - pointsLostPerWrong;
     if (playerData.score < 0) playerData.score = 0;
-    
-    // ✅ NEW: Track cumulative negative points for wrong answers
+
     if (pointsLostPerWrong > 0) {
       playerData.cumulativeNegativePoints = (playerData.cumulativeNegativePoints || 0) + pointsLostPerWrong;
     }
-    
+
     if (debug) console.log(`[wipeoutEngine] ❌ ${playerId} got it wrong (-${pointsLostPerWrong}), score: ${playerData.score}, Cumulative negative: ${playerData.cumulativeNegativePoints}`);
   }
 
@@ -206,13 +229,23 @@ export function emitNextReviewQuestion(roomId, namespace) {
   if (!room) return;
 
   const reviewIndex = room.currentReviewIndex || 0;
+  
+  // ✅ UPDATED: When review is complete, stay in reviewing phase for host control
   if (reviewIndex >= room.questions.length) {
-   if (debug) console.log(`[wipeoutEngine] ✅ Review complete`);
-room.currentPhase = 'leaderboard';
-const leaderboardData = buildLeaderboard(room);
-if (debug) console.log(`[wipeoutEngine] 📊 Emitting leaderboard:`, leaderboardData);
-namespace.to(roomId).emit('leaderboard', leaderboardData);
-emitRoomState(namespace, roomId);
+    if (debug) console.log(`[wipeoutEngine] ✅ Review complete - waiting for host to show results`);
+    
+    // ✅ NEW: Stay in reviewing phase, don't automatically show leaderboard
+    // The host will manually trigger round results when ready
+    room.currentPhase = 'reviewing';
+    emitRoomState(namespace, roomId);
+    
+    // ✅ NEW: Notify host that review is complete (optional)
+    namespace.to(`${roomId}:host`).emit('review_complete', {
+      message: 'All questions reviewed. You can now show round results.',
+      roundNumber: room.currentRound,
+      totalQuestions: room.questions.length
+    });
+    
     return;
   }
 
@@ -231,6 +264,7 @@ emitRoomState(namespace, roomId);
         options: Array.isArray(question.options) ? question.options : [],
         correctAnswer: question.correctAnswer,
         submittedAnswer,
+        difficulty: question.difficulty,
       });
     }
   });
@@ -247,15 +281,16 @@ emitRoomState(namespace, roomId);
   if (debug) console.log(`[wipeoutEngine] 🔍 Reviewing question ${reviewIndex + 1}`);
 }
 
-function buildLeaderboard(room) {
+// ✅ MOVED: buildLeaderboard function for use by hostHandlers
+export function buildLeaderboard(room) {
   const leaderboard = Object.entries(room.playerData).map(([playerId, data]) => {
     const player = room.players.find(p => p.id === playerId);
     return {
       id: playerId,
       name: player?.name || playerId,
       score: data.score || 0,
-      cumulativeNegativePoints: data.cumulativeNegativePoints || 0,  // ✅ NEW
-      pointsRestored: data.pointsRestored || 0  // ✅ NEW
+      cumulativeNegativePoints: data.cumulativeNegativePoints || 0,
+      pointsRestored: data.pointsRestored || 0
     };
   });
 
@@ -281,6 +316,40 @@ function clearExpiredFreezeFlags(room) {
       }
     }
   }
+}
+
+// ADD THESE TWO FUNCTIONS TO THE END OF BOTH wipeoutEngine.js AND generalTriviaEngine.js
+// (Just copy and paste at the bottom, before the helper functions)
+
+// ✅ NEW: Get current review question for state recovery
+export function getCurrentReviewQuestion(roomId) {
+  const room = getQuizRoom(roomId);
+  if (!room || !room.questions || room.currentReviewIndex === undefined) {
+    console.warn(`[Engine] ⚠️ getCurrentReviewQuestion: No room or review data for ${roomId}`);
+    return null;
+  }
+  
+  // If we're past all questions, return null
+  if (room.currentReviewIndex >= room.questions.length) {
+    console.log(`[Engine] ✅ getCurrentReviewQuestion: Review complete for ${roomId}`);
+    return null;
+  }
+  
+  const reviewQuestion = room.questions[room.currentReviewIndex];
+  console.log(`[Engine] 📖 getCurrentReviewQuestion: Returning question ${room.currentReviewIndex} for ${roomId}`);
+  return reviewQuestion;
+}
+
+// ✅ NEW: Check if review is complete
+export function isReviewComplete(roomId) {
+  const room = getQuizRoom(roomId);
+  if (!room) return false;
+  
+  // Review is complete if we've reviewed all questions
+  const reviewComplete = room.currentReviewIndex >= room.questions.length;
+  
+  console.log(`[Engine] 🔍 isReviewComplete for ${roomId}: ${reviewComplete} (reviewIndex: ${room.currentReviewIndex}, totalQuestions: ${room.questions.length})`);
+  return reviewComplete;
 }
 
 

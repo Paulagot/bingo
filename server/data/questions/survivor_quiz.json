@@ -7,7 +7,7 @@
     "type": "multiple_choice",
     "clue": "It happened the same year Oreo cookies were introduced.",
     "points": 10,
-    "level": "easy"
+    "difficulty": "easy"
   },
   {
     "id": "s2",
@@ -17,7 +17,7 @@
     "type": "multiple_choice",
     "clue": "He's known as the Bard of Avon.",
     "points": 10,
-    "level": "easy"
+    "difficulty": "easy"
   },
   {
     "id": "s3",
@@ -26,7 +26,7 @@
     "type": "short_answer",
     "clue": "The number is just above 200.",
     "points": 15,
-    "level": "medium"
+    "difficulty": "medium"
   },
   {
     "id": "s4",
@@ -35,7 +35,7 @@
     "type": "short_answer",
     "clue": "It's the lightest element.",
     "points": 15,
-    "level": "medium"
+    "difficulty": "medium"
   },
   {
     "id": "s5",
@@ -45,6 +45,6 @@
     "type": "multiple_choice",
     "clue": "This country is known for croissants.",
     "points": 20,
-    "level": "hard"
+    "difficulty": "hard"
   }
 ]

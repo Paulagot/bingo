@@ -5,7 +5,7 @@ import { useQuizConfig } from '../useQuizConfig';
 import { QRCodeCanvas } from 'qrcode.react';
 import AddPlayerModal from './AddPlayerModal';
 import { BadgeCheck, BadgeX } from 'lucide-react';
-import { fundraisingExtras } from '../../../types/quiz';
+import { fundraisingExtras } from '../types/quiz';
 import { useQuizSocket } from '../../../sockets/QuizSocketProvider';  // ✅ new socket hook
 
 const PlayerListPanel: React.FC = () => {
