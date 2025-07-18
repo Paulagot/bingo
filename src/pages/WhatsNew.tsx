@@ -13,6 +13,47 @@ type UpdateItem = {
 };
 
 const updates: UpdateItem[] = [
+     {
+    id: 9,
+    title: 'Stellar Ireland Hackathon',
+    date: 'July 2025',
+    description:
+      'We are thrilled to announce that we will be participating in the Stellar Ireland Hackathon on July 19th. This event is a fantastic opportunity for us to showcase our platform and connect with the Stellar community. Stay tuned for updates!',
+    image: '/images/hack.webp',
+       cta: {
+      label: 'Connect with Stellar Ireland',
+      url: 'https://x.com/Stellar_IE',
+    },
+  },
+       {
+    id: 8,
+    title: 'SCF Build Award Community Vote',
+    date: 'July 2025',
+    description:
+      'Super cool to be accepted into the SCF Build Award Community Vote. We are looking forward to sharing our progress and getting feedback from the community. Your support means a lot to us!',
+    image: '/images/scf.jpg',
+       cta: {
+      label: 'Check out our submission',
+      url: 'https://communityfund.stellar.org/dashboard/submissions/reczxSWIT1rp5ov92',
+    },
+  },
+     {
+    id: 7,
+    title: 'From Idea to Startup in 4 hours',
+    date: 'July 2025',
+    description:
+      'This workshop, led by Kevin, hosted in WorkIQ Tallagh, sponsored by Superteam Ireland was amazing. For a lean startup, helping clubs and chrities raise funds, learning to use AI tools is a must.  It will save our partners time and money.',
+    image: '/images/ai.jpg',
+     
+  },
+    {
+    id: 6,
+    title: 'SCF Kickstart Camp',
+    date: 'June 2025',
+    description:
+      'We are excited to be part of the Stellar Kickstart Camp. 5 super intense days of learning, building and networking with the Stellar community. We are looking forward to sharing our learnings and insights from this event.',
+    image: '/images/SCF_build.jpg',
+  },
     {
     id: 5,
     title: 'Private Beta Open — Clubs & Communities',
@@ -130,9 +171,9 @@ const WhatsNew: React.FC = () => {
                     rel="noopener noreferrer"
                     className="mt-2 inline-flex items-center justify-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-semibold shadow-md hover:bg-indigo-700 transition"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                    {/* <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M20.184 3H17.71l-5.295 6.574L7.845 3H3.5l6.946 9.06L3 21h2.474l5.675-7.044L16.23 21h4.345l-7.04-9.168L20.184 3z" />
-                    </svg>
+                    </svg> */}
                     {item.cta.label}
                   </a>
                 )}
