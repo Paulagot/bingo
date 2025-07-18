@@ -1306,7 +1306,204 @@
     "clue": "He lives in a pineapple under the sea.",
     "difficulty": "easy",
     "category": "Pop Culture"
-  }
+  },
 
+  {
+    "id": "q166",
+    "text": "What consensus white paper introduced Stellars protocol?",
+    "options": [
+      "Bitcoin Whitepaper",
+      "Ethereum Yellow Paper",
+      "The Stellar Consensus Protocol",
+      "Ripple Protocol Consensus Whitepaper"
+    ],
+    "correctAnswer": "The Stellar Consensus Protocol",
+    "clue": "Authored by David Mazires.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  },
+  {
+    "id": "q167",
+    "text": "What scalability throughput target is planned for Stellars Soroban smart contracts?",
+    "options": [
+      "100 TPS",
+      "500 TPS",
+      "5,000 TPS",
+      "50,000 TPS"
+    ],
+    "correctAnswer": "5,000 TPS",
+    "clue": "Roadmap aims for several thousand TPS.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  },
+  {
+    "id": "q168",
+    "text": "Which platform integrated with Stellar for onchain analytics?",
+    "options": [
+      "Chainalysis",
+      "Nansen",
+      "Glassnode",
+      "Dune Analytics"
+    ],
+    "correctAnswer": "Nansen",
+    "clue": "Partnership announced in Jan 2025.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  },
+  {
+    "id": "q169",
+    "text": "In Stellar, what is an anchor?",
+    "options": [
+      "A validator node",
+      "An issuer of fiat backed tokens",
+      "A consensus mechanism",
+      "A smart contract"
+    ],
+    "correctAnswer": "An issuer of fiat backed tokens",
+    "clue": "Connects real 1world assets to the network.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  },
+  {
+    "id": "q170",
+    "text": "Which European bank launched a euro-backed stablecoin on Stellar in Feb 2025?",
+    "options": [
+      "HSBC",
+      "Societe Generale FORGE",
+      "Deutsche Bank",
+      "BNP Paribas"
+    ],
+    "correctAnswer": "Societe Generale FORGE",
+    "clue": "A subsidiary of Societe Generale Group.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  },
+  {
+    "id": "q171",
+    "text": "What is Stellar''s transaction fee approximate cost?",
+    "options": [
+      "$1",
+      "$0.01",
+      "$0.00001",
+      "Free"
+    ],
+    "correctAnswer": "$0.00001",
+    "clue": "A fraction of a cent per transaction.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  },
+  {
+    "id": "q172",
+    "text": "Which protocol upgrade in 2020 enhanced smart contract support?",
+    "options": [
+      "Protocol 12",
+      "Protocol 15",
+      "Protocol 18",
+      "Protocol 20"
+    ],
+    "correctAnswer": "Protocol 15",
+    "clue": "Introduced enhanced features.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  },
+  {
+    "id": "q173",
+    "text": "What problem with SCP did academic researchers highlight in 2019?",
+    "options": [
+      "Too slow",
+      "Centralization risk",
+      "High fees",
+      "No token supply"
+    ],
+    "correctAnswer": "Centralization risk",
+    "clue": "Quorum slices may centralize control.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  },
+  {
+    "id": "q174",
+    "text": "Which token's price movement often correlates with XLM?",
+    "options": [
+      "ETH",
+      "XRP",
+      "DOT",
+      "ADA"
+    ],
+    "correctAnswer": "XRP",
+    "clue": "Shared founder, often move in sync.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  },
+  {
+    "id": "q175",
+    "text": "Which mutual fund provider tokenized its fund on Stellar?",
+    "options": [
+      "BlackRock",
+      "Vanguard",
+      "Franklin Templeton",
+      "Fidelity"
+    ],
+    "correctAnswer": "Franklin Templeton",
+    "clue": "First US tokenised mutual fund.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  },
+ 
+  {
+    "id": "q177",
+    "text": "Which US-based nonprofit helps broaden financial inclusion via Stellar?",
+    "options": [
+      "Ethereum Foundation",
+      "Stellar Development Foundation",
+      "Ripple Labs",
+      "Chainlink Foundation"
+    ],
+    "correctAnswer": "Stellar Development Foundation",
+    "clue": "Based in the USA, focused on financial access.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  },
+  {
+    "id": "q178",
+    "text": "What tool allows faster ingestion of historical Stellar data?",
+    "options": [
+      "SDP Hosted Mode",
+      "CDP 1.0",
+      "Soroban RPC",
+      "Stellar CLI"
+    ],
+    "correctAnswer": "CDP 1.0",
+    "clue": "Customizable data ingestion product.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  },
+  {
+    "id": "q179",
+    "text": "What is the goal TPS throughput target Stellar aims for?",
+    "options": [
+      "1,000 TPS",
+      "5,000 TPS",
+      "10,000 TPS",
+      "100,000 TPS"
+    ],
+    "correctAnswer": "5,000 TPS",
+    "clue": "Target mentioned in roadmap.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  },
+  {
+    "id": "q180",
+    "text": "Which platform announced new hosted mode for enterprise asset flows?",
+    "options": [
+      "Stellar Core",
+      "SDP Hosted Mode",
+      "Soroban",
+      "Stellar ETL"
+    ],
+    "correctAnswer": "SDP Hosted Mode",
+    "clue": "Enterprise friendly asset flows.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  }
 
 ]

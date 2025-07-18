@@ -186,8 +186,8 @@ export const fundraisingExtraDefinitions = {
 export const availableDifficulties = ['easy', 'medium', 'hard'] as const;
 
 export const availableCategories: Record<RoundTypeId, string[]> = {
-  general_trivia: ['General Knowledge', 'Science', 'History', 'Sport', 'Pop Culture'],
-  wipeout: ['General Knowledge', 'Geography', 'TV & Film', 'Maths', 'Music'],
+  general_trivia: ['Stellar','General Knowledge', 'Science', 'History', 'Sport', 'Pop Culture'],
+  wipeout: ['Stellar', 'General Knowledge', 'Geography', 'TV & Film', 'Maths', 'Music'],
   // speed_round: [...],
   // media_puzzle: [...],
   // head_to_head: [...]
