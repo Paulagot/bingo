@@ -1299,9 +1299,639 @@
     "clue": "He lives in a pineapple under the sea.",
     "difficulty": "easy",
     "category": "Pop Culture"
+  },
+  {
+    "id": "q151",
+    "text": "Sample Stellar question 1?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 1.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q152",
+    "text": "Sample Stellar question 2?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 2.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q153",
+    "text": "Sample Stellar question 3?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 3.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q154",
+    "text": "Sample Stellar question 4?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 4.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q155",
+    "text": "Sample Stellar question 5?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 5.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q156",
+    "text": "Sample Stellar question 6?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 6.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q157",
+    "text": "Sample Stellar question 7?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 7.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q158",
+    "text": "Sample Stellar question 8?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 8.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q159",
+    "text": "Sample Stellar question 9?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 9.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q160",
+    "text": "Sample Stellar question 10?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 10.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q161",
+    "text": "Sample Stellar question 11?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 11.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q162",
+    "text": "Sample Stellar question 12?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 12.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q163",
+    "text": "Sample Stellar question 13?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 13.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q164",
+    "text": "Sample Stellar question 14?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 14.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q165",
+    "text": "Sample Stellar question 15?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 15.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q166",
+    "text": "Sample Stellar question 16?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 16.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  },
+  {
+    "id": "q167",
+    "text": "Sample Stellar question 17?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 17.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  },
+  {
+    "id": "q168",
+    "text": "Sample Stellar question 18?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 18.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  },
+  {
+    "id": "q169",
+    "text": "Sample Stellar question 19?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 19.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  },
+  {
+    "id": "q170",
+    "text": "Sample Stellar question 20?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 20.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  },
+  {
+    "id": "q171",
+    "text": "Sample Stellar question 21?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 21.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  },
+  {
+    "id": "q172",
+    "text": "Sample Stellar question 22?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 22.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  },
+  {
+    "id": "q173",
+    "text": "Sample Stellar question 23?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 23.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  },
+  {
+    "id": "q174",
+    "text": "Sample Stellar question 24?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 24.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  },
+  {
+    "id": "q175",
+    "text": "Sample Stellar question 25?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 25.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  },
+  {
+    "id": "q176",
+    "text": "Sample Stellar question 26?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 26.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  },
+  {
+    "id": "q177",
+    "text": "Sample Stellar question 27?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 27.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  },
+  {
+    "id": "q178",
+    "text": "Sample Stellar question 28?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 28.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  },
+  {
+    "id": "q179",
+    "text": "Sample Stellar question 29?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 29.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  },
+  {
+    "id": "q180",
+    "text": "Sample Stellar question 30?",
+    "options": [
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D"
+    ],
+    "correctAnswer": "Option C",
+    "clue": "This is a clue for question 30.",
+    "difficulty": "medium",
+    "category": "Stellar"
+  
+  },
+
+{
+    "id": "q151",
+    "text": "Who co-founded the Stellar network?",
+    "options": [
+      "Satoshi Nakamoto",
+      "Jed McCaleb",
+      "Vitalik Buterin",
+      "Elon Musk"
+    ],
+    "correctAnswer": "Jed McCaleb",
+    "clue": "Also co-founded Ripple and Mt. Gox.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q152",
+    "text": "What is the native cryptocurrency of the Stellar network?",
+    "options": [
+      "ETH",
+      "BTC",
+      "XLM",
+      "USDT"
+    ],
+    "correctAnswer": "XLM",
+    "clue": "Ticker symbol XLM.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q153",
+    "text": "Which organization maintains the Stellar protocol?",
+    "options": [
+      "Ethereum Foundation",
+      "Stellar Development Foundation",
+      "Ripple Labs",
+      "Coinbase"
+    ],
+    "correctAnswer": "Stellar Development Foundation",
+    "clue": "A non1profit founded in 2014.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q154",
+    "text": "When was the Stellar network officially launched?",
+    "options": [
+      "2012",
+      "2014",
+      "2016",
+      "2018"
+    ],
+    "correctAnswer": "2014",
+    "clue": "The same year SDF was founded.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q155",
+    "text": "What consensus mechanism does Stellar use?",
+    "options": [
+      "Proof of Work",
+      "Proof of Stake",
+      "Federated Byzantine Agreement",
+      "Delegated Proof of Stake"
+    ],
+    "correctAnswer": "Federated Byzantine Agreement",
+    "clue": "A type of Byzantine fault tolerance.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q156",
+    "text": "Which asset type can be issued on Stellar?",
+    "options": [
+      "Only XLM",
+      "Custom tokens/assets",
+      "Only fiat",
+      "Only NFTs"
+    ],
+    "correctAnswer": "Custom tokens/assets",
+    "clue": "Supports issuance of digital assets and stablecoins.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q157",
+    "text": "Which large financial partner used Stellar for World Wire?",
+    "options": [
+      "IBM",
+      "Google",
+      "Amazon",
+      "Visa"
+    ],
+    "correctAnswer": "IBM",
+    "clue": "A major tech company that built crossborder payments.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q158",
+    "text": "Which stablecoin was announced to launch on Stellar in June 2025?",
+    "options": [
+      "USDC",
+      "DAI",
+      "PYUSD (PayPal USD)",
+      "Tether"
+    ],
+    "correctAnswer": "PYUSD (PayPal USD)",
+    "clue": "Issued by PayPal.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q159",
+    "text": "What feature makes Stellar suitable for remittances?",
+    "options": [
+      "High fees",
+      "Slow transactions",
+      "Low fees and fast speed",
+      "Anonymity"
+    ],
+    "correctAnswer": "Low fees and fast speed",
+    "clue": "Transactions take seconds and cost fractions of a cent.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q160",
+    "text": "Which programming languages are supported by Stellar?",
+    "options": [
+      "Only C++",
+      "C++, Rust, Go, Java, JavaScript, Python, Ruby",
+      "Only JavaScript",
+      "Only Python and Ruby"
+    ],
+    "correctAnswer": "C++, Rust, Go, Java, JavaScript, Python, Ruby",
+    "clue": "Supports many cross platform implementations.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q161",
+    "text": "What is the precision subunit of Lumens?",
+    "options": [
+      "Satoshi",
+      "Wei",
+      "Stroop",
+      "Gwei"
+    ],
+    "correctAnswer": "Stroop",
+    "clue": "10/ of a Lumen.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q162",
+    "text": "What was the initial supply of Stellar Lumens?",
+    "options": [
+      "21 million",
+      "100 billion",
+      "50 billion",
+      "1 trillion"
+    ],
+    "correctAnswer": "100 billion",
+    "clue": "Original total supply before allocations.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q163",
+    "text": "Which for profit arm supports Stellar's ecosystem?",
+    "options": [
+      "Coinbase",
+      "Lightyear.io",
+      "Consensys",
+      "Binance"
+    ],
+    "correctAnswer": "Lightyear.io",
+    "clue": "Launched in 2017 as commercial arm.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q164",
+    "text": "What license is Stellar's code released under?",
+    "options": [
+      "MIT",
+      "Apache License 2.0",
+      "GPL",
+      "Proprietary"
+    ],
+    "correctAnswer": "Apache License 2.0",
+    "clue": "Permissive opensource license.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q165",
+    "text": "Which nonprofit funds grants and supports builders on Stellar?",
+    "options": [
+      "Ethereum Foundation",
+      "Stellar Community Fund",
+      "Stellar Development Foundation",
+      "Coinbase Foundation"
+    ],
+    "correctAnswer": "Stellar Development Foundation",
+    "clue": "Also funds the Stellar Community Fund.",
+    "difficulty": "easy",
+    "category": "Stellar"
   }
-
-
 ]
 
 
