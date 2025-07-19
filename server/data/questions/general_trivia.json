@@ -1300,429 +1300,7 @@
     "difficulty": "easy",
     "category": "Pop Culture"
   },
-  {
-    "id": "q151",
-    "text": "Sample Stellar question 1?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 1.",
-    "difficulty": "easy",
-    "category": "Stellar"
-  },
-  {
-    "id": "q152",
-    "text": "Sample Stellar question 2?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 2.",
-    "difficulty": "easy",
-    "category": "Stellar"
-  },
-  {
-    "id": "q153",
-    "text": "Sample Stellar question 3?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 3.",
-    "difficulty": "easy",
-    "category": "Stellar"
-  },
-  {
-    "id": "q154",
-    "text": "Sample Stellar question 4?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 4.",
-    "difficulty": "easy",
-    "category": "Stellar"
-  },
-  {
-    "id": "q155",
-    "text": "Sample Stellar question 5?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 5.",
-    "difficulty": "easy",
-    "category": "Stellar"
-  },
-  {
-    "id": "q156",
-    "text": "Sample Stellar question 6?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 6.",
-    "difficulty": "easy",
-    "category": "Stellar"
-  },
-  {
-    "id": "q157",
-    "text": "Sample Stellar question 7?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 7.",
-    "difficulty": "easy",
-    "category": "Stellar"
-  },
-  {
-    "id": "q158",
-    "text": "Sample Stellar question 8?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 8.",
-    "difficulty": "easy",
-    "category": "Stellar"
-  },
-  {
-    "id": "q159",
-    "text": "Sample Stellar question 9?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 9.",
-    "difficulty": "easy",
-    "category": "Stellar"
-  },
-  {
-    "id": "q160",
-    "text": "Sample Stellar question 10?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 10.",
-    "difficulty": "easy",
-    "category": "Stellar"
-  },
-  {
-    "id": "q161",
-    "text": "Sample Stellar question 11?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 11.",
-    "difficulty": "easy",
-    "category": "Stellar"
-  },
-  {
-    "id": "q162",
-    "text": "Sample Stellar question 12?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 12.",
-    "difficulty": "easy",
-    "category": "Stellar"
-  },
-  {
-    "id": "q163",
-    "text": "Sample Stellar question 13?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 13.",
-    "difficulty": "easy",
-    "category": "Stellar"
-  },
-  {
-    "id": "q164",
-    "text": "Sample Stellar question 14?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 14.",
-    "difficulty": "easy",
-    "category": "Stellar"
-  },
-  {
-    "id": "q165",
-    "text": "Sample Stellar question 15?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 15.",
-    "difficulty": "easy",
-    "category": "Stellar"
-  },
-  {
-    "id": "q166",
-    "text": "Sample Stellar question 16?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 16.",
-    "difficulty": "medium",
-    "category": "Stellar"
-  },
-  {
-    "id": "q167",
-    "text": "Sample Stellar question 17?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 17.",
-    "difficulty": "medium",
-    "category": "Stellar"
-  },
-  {
-    "id": "q168",
-    "text": "Sample Stellar question 18?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 18.",
-    "difficulty": "medium",
-    "category": "Stellar"
-  },
-  {
-    "id": "q169",
-    "text": "Sample Stellar question 19?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 19.",
-    "difficulty": "medium",
-    "category": "Stellar"
-  },
-  {
-    "id": "q170",
-    "text": "Sample Stellar question 20?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 20.",
-    "difficulty": "medium",
-    "category": "Stellar"
-  },
-  {
-    "id": "q171",
-    "text": "Sample Stellar question 21?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 21.",
-    "difficulty": "medium",
-    "category": "Stellar"
-  },
-  {
-    "id": "q172",
-    "text": "Sample Stellar question 22?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 22.",
-    "difficulty": "medium",
-    "category": "Stellar"
-  },
-  {
-    "id": "q173",
-    "text": "Sample Stellar question 23?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 23.",
-    "difficulty": "medium",
-    "category": "Stellar"
-  },
-  {
-    "id": "q174",
-    "text": "Sample Stellar question 24?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 24.",
-    "difficulty": "medium",
-    "category": "Stellar"
-  },
-  {
-    "id": "q175",
-    "text": "Sample Stellar question 25?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 25.",
-    "difficulty": "medium",
-    "category": "Stellar"
-  },
-  {
-    "id": "q176",
-    "text": "Sample Stellar question 26?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 26.",
-    "difficulty": "medium",
-    "category": "Stellar"
-  },
-  {
-    "id": "q177",
-    "text": "Sample Stellar question 27?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 27.",
-    "difficulty": "medium",
-    "category": "Stellar"
-  },
-  {
-    "id": "q178",
-    "text": "Sample Stellar question 28?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 28.",
-    "difficulty": "medium",
-    "category": "Stellar"
-  },
-  {
-    "id": "q179",
-    "text": "Sample Stellar question 29?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 29.",
-    "difficulty": "medium",
-    "category": "Stellar"
-  },
-  {
-    "id": "q180",
-    "text": "Sample Stellar question 30?",
-    "options": [
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D"
-    ],
-    "correctAnswer": "Option C",
-    "clue": "This is a clue for question 30.",
-    "difficulty": "medium",
-    "category": "Stellar"
-  
-  },
-
-{
+   {
     "id": "q151",
     "text": "Who co-founded the Stellar network?",
     "options": [
@@ -1760,7 +1338,7 @@
       "Coinbase"
     ],
     "correctAnswer": "Stellar Development Foundation",
-    "clue": "A non1profit founded in 2014.",
+    "clue": "A nonprofit founded in 2014.",
     "difficulty": "easy",
     "category": "Stellar"
   },
@@ -1858,24 +1436,11 @@
       "Only Python and Ruby"
     ],
     "correctAnswer": "C++, Rust, Go, Java, JavaScript, Python, Ruby",
-    "clue": "Supports many cross platform implementations.",
+    "clue": "Supports many crossplatform implementations.",
     "difficulty": "easy",
     "category": "Stellar"
   },
-  {
-    "id": "q161",
-    "text": "What is the precision subunit of Lumens?",
-    "options": [
-      "Satoshi",
-      "Wei",
-      "Stroop",
-      "Gwei"
-    ],
-    "correctAnswer": "Stroop",
-    "clue": "10/ of a Lumen.",
-    "difficulty": "easy",
-    "category": "Stellar"
-  },
+
   {
     "id": "q162",
     "text": "What was the initial supply of Stellar Lumens?",
@@ -1892,7 +1457,7 @@
   },
   {
     "id": "q163",
-    "text": "Which for profit arm supports Stellar's ecosystem?",
+    "text": "Which forprofit arm supports Stellars ecosystem?",
     "options": [
       "Coinbase",
       "Lightyear.io",
@@ -1906,7 +1471,7 @@
   },
   {
     "id": "q164",
-    "text": "What license is Stellar's code released under?",
+    "text": "What license is Stellars code released under?",
     "options": [
       "MIT",
       "Apache License 2.0",
@@ -1914,7 +1479,7 @@
       "Proprietary"
     ],
     "correctAnswer": "Apache License 2.0",
-    "clue": "Permissive opensource license.",
+    "clue": "Permissive open source license.",
     "difficulty": "easy",
     "category": "Stellar"
   },
@@ -1931,7 +1496,518 @@
     "clue": "Also funds the Stellar Community Fund.",
     "difficulty": "easy",
     "category": "Stellar"
+  },
+  {
+    "id": "q166",
+    "text": "What color is the M in the McDonald's logo?",
+    "options": [
+      "Red",
+      "Green",
+      "Blue",
+      "Yellow"
+    ],
+    "correctAnswer": "Yellow",
+    "clue": "It's shaped like golden arches.",
+    "difficulty": "easy",
+    "category": "Family"
+  },
+  {
+    "id": "q167",
+    "text": "Which animal is known as man's best friend?",
+    "options": [
+      "Cat",
+      "Dog",
+      "Hamster",
+      "Rabbit"
+    ],
+    "correctAnswer": "Dog",
+    "clue": "They love playing fetch.",
+    "difficulty": "easy",
+    "category": "Family"
+  },
+  {
+    "id": "q168",
+    "text": "How many legs does a spider have?",
+    "options": [
+      "6",
+      "8",
+      "10",
+      "12"
+    ],
+    "correctAnswer": "8",
+    "clue": "Insects have 6, spiders have more.",
+    "difficulty": "easy",
+    "category": "Family"
+  },
+  {
+    "id": "q169",
+    "text": "What is the first day of the week?",
+    "options": [
+      "Sunday",
+      "Monday",
+      "Friday",
+      "Wednesday"
+    ],
+    "correctAnswer": "Sunday",
+    "clue": "It's the start of the calendar.",
+    "difficulty": "easy",
+    "category": "Family"
+  },
+  {
+    "id": "q170",
+    "text": "Which planet do we live on?",
+    "options": [
+      "Mars",
+      "Venus",
+      "Jupiter",
+      "Earth"
+    ],
+    "correctAnswer": "Earth",
+    "clue": "It's blue and green from space.",
+    "difficulty": "easy",
+    "category": "Family"
+  },
+  {
+    "id": "q171",
+    "text": "What do cows give us?",
+    "options": [
+      "Bread",
+      "Honey",
+      "Milk",
+      "Water"
+    ],
+    "correctAnswer": "Milk",
+    "clue": "You pour it in cereal.",
+    "difficulty": "easy",
+    "category": "Family"
+  },
+  {
+    "id": "q172",
+    "text": "Which cartoon character lives in a pineapple under the sea?",
+    "options": [
+      "Patrick Star",
+      "Bugs Bunny",
+      "Scooby-Doo",
+      "SpongeBob SquarePants"
+    ],
+    "correctAnswer": "SpongeBob SquarePants",
+    "clue": "Hes square and yellow.",
+    "difficulty": "easy",
+    "category": "Family"
+  },
+  {
+    "id": "q173",
+    "text": "Which food is long, yellow, and curved?",
+    "options": [
+      "Carrot",
+      "Pear",
+      "Apple",
+      "Banana"
+    ],
+    "correctAnswer": "Banana",
+    "clue": "Monkeys love it.",
+    "difficulty": "easy",
+    "category": "Family"
+  },
+  {
+    "id": "q174",
+    "text": "Which season comes after winter?",
+    "options": [
+      "Autumn",
+      "Spring",
+      "Summer",
+      "Monsoon"
+    ],
+    "correctAnswer": "Spring",
+    "clue": "Flowers start blooming.",
+    "difficulty": "easy",
+    "category": "Family"
+  },
+  {
+    "id": "q175",
+    "text": "Which fairy tale character leaves a glass slipper behind?",
+    "options": [
+      "Snow White",
+      "Cinderella",
+      "Rapunzel",
+      "Elsa"
+    ],
+    "correctAnswer": "Cinderella",
+    "clue": "She loses it at the ball.",
+    "difficulty": "easy",
+    "category": "Family"
+  },
+  {
+    "id": "q176",
+    "text": "Which board game has pieces called the dog, car, and top hat?",
+    "options": [
+      "Clue",
+      "Risk",
+      "Scrabble",
+      "Monopoly"
+    ],
+    "correctAnswer": "Monopoly",
+    "clue": "You buy properties.",
+    "difficulty": "medium",
+    "category": "Family"
+  },
+  {
+    "id": "q177",
+    "text": "What is the name of the toy cowboy in Toy Story?",
+    "options": [
+      "Buzz",
+      "Jessie",
+      "Woody",
+      "Andy"
+    ],
+    "correctAnswer": "Woody",
+    "clue": "Sheriff with a pull string.",
+    "difficulty": "medium",
+    "category": "Family"
+  },
+  {
+    "id": "q178",
+    "text": "How many days are in a leap year?",
+    "options": [
+      "364",
+      "365",
+      "366",
+      "367"
+    ],
+    "correctAnswer": "366",
+    "clue": "Happens every 4 years.",
+    "difficulty": "medium",
+    "category": "Family"
+  },
+  {
+    "id": "q179",
+    "text": "What's the main ingredient in guacamole?",
+    "options": [
+      "Tomato",
+      "Cucumber",
+      "Lettuce",
+      "Avocado"
+    ],
+    "correctAnswer": "Avocado",
+    "clue": "Green and creamy.",
+    "difficulty": "medium",
+    "category": "Family"
+  },
+  {
+    "id": "q180",
+    "text": "Which famous wizard has a lightning bolt scar?",
+    "options": [
+      "Merlin",
+      "Dumbledore",
+      "Frodo",
+      "Harry Potter"
+    ],
+    "correctAnswer": "Harry Potter",
+    "clue": "Wears round glasses.",
+    "difficulty": "medium",
+    "category": "Family"
+  },
+  {
+    "id": "q181",
+    "text": "In which game do you shout 'UNO' when you have one card left?",
+    "options": [
+      "Go Fish",
+      "UNO",
+      "Snap",
+      "Spades"
+    ],
+    "correctAnswer": "UNO",
+    "clue": "Color-matching game.",
+    "difficulty": "medium",
+    "category": "Family"
+  },
+  {
+    "id": "q182",
+    "text": "How many colors are there in a rainbow?",
+    "options": [
+      "5",
+      "6",
+      "7",
+      "8"
+    ],
+    "correctAnswer": "7",
+    "clue": "ROYGBIV.",
+    "difficulty": "medium",
+    "category": "Family"
+  },
+  {
+    "id": "q183",
+    "text": "What's the name of Peppa Pig'9s younger brother?",
+    "options": [
+      "Max",
+      "Danny",
+      "Billy",
+      "George"
+    ],
+    "correctAnswer": "George",
+    "clue": "Loves dinosaurs.",
+    "difficulty": "medium",
+    "category": "Family"
+  },
+  {
+    "id": "q184",
+    "text": "Which household appliance keeps food cold?",
+    "options": [
+      "Oven",
+      "Blender",
+      "Fridge",
+      "Toaster"
+    ],
+    "correctAnswer": "Fridge",
+    "clue": "It hums in the kitchen.",
+    "difficulty": "medium",
+    "category": "Family"
+  },
+  {
+    "id": "q185",
+    "text": "Which shape has 4 equal sides and 4 right angles?",
+    "options": [
+      "Triangle",
+      "Circle",
+      "Rectangle",
+      "Square"
+    ],
+    "correctAnswer": "Square",
+    "clue": "Looks like a box.",
+    "difficulty": "medium",
+    "category": "Family"
+  },
+  {
+    "id": "q186",
+    "text": "Which planet is the hottest in the solar system?",
+    "options": [
+      "Mercury",
+      "Venus",
+      "Mars",
+      "Jupiter"
+    ],
+    "correctAnswer": "Venus",
+    "clue": "It has a thick toxic atmosphere.",
+    "difficulty": "hard",
+    "category": "Family"
+  },
+  {
+    "id": "q187",
+    "text": "In chess, which piece can move diagonally only?",
+    "options": [
+      "Rook",
+      "Bishop",
+      "Knight",
+      "Queen"
+    ],
+    "correctAnswer": "Bishop",
+    "clue": "It can't go straight.",
+    "difficulty": "hard",
+    "category": "Family"
+  },
+  {
+    "id": "q188",
+    "text": "What does the H in H2O stand for?",
+    "options": [
+      "Helium",
+      "Hydrogen",
+      "Heat",
+      "Helix"
+    ],
+    "correctAnswer": "Hydrogen",
+    "clue": "Two of them plus one O.",
+    "difficulty": "hard",
+    "category": "Family"
+  },
+  {
+    "id": "q189",
+    "text": "Which artist painted the Mona Lisa?",
+    "options": [
+      "Picasso",
+      "Van Gogh",
+      "Leonardo da Vinci",
+      "Michelangelo"
+    ],
+    "correctAnswer": "Leonardo da Vinci",
+    "clue": "Also an inventor.",
+    "difficulty": "hard",
+    "category": "Family"
+  },
+  {
+    "id": "q190",
+    "text": "What year did the Titanic sink?",
+    "options": [
+      "1910",
+      "1912",
+      "1915",
+      "1920"
+    ],
+    "correctAnswer": "1912",
+    "clue": "It was on its first voyage.",
+    "difficulty": "hard",
+    "category": "Family"
+  },
+  {
+    "id": "q191",
+    "text": "How many bones are in the adult human body?",
+    "options": [
+      "180",
+      "206",
+      "221",
+      "240"
+    ],
+    "correctAnswer": "206",
+    "clue": "More than 200.",
+    "difficulty": "hard",
+    "category": "Family"
+  },
+  {
+    "id": "q192",
+    "text": "Which character in the Lion King sings 'Be Prepared'?",
+    "options": [
+      "Simba",
+      "Scar",
+      "Timon",
+      "Mufasa"
+    ],
+    "correctAnswer": "Scar",
+    "clue": "The villain.",
+    "difficulty": "hard",
+    "category": "Family"
+  },
+  {
+    "id": "q193",
+    "text": "What is the name of the snowman in Frozen?",
+    "options": [
+      "Sven",
+      "Kristoff",
+      "Hans",
+      "Olaf"
+    ],
+    "correctAnswer": "Olaf",
+    "clue": "He loves warm hugs.",
+    "difficulty": "hard",
+    "category": "Family"
+  },
+  {
+    "id": "q194",
+    "text": "How many players are there in a soccer team (on field)?",
+    "options": [
+      "9",
+      "10",
+      "11",
+      "12"
+    ],
+    "correctAnswer": "11",
+    "clue": "Includes the goalie.",
+    "difficulty": "hard",
+    "category": "Family"
+  },
+  {
+    "id": "q195",
+    "text": "Which fruit has its seeds on the outside?",
+    "options": [
+      "Kiwi",
+      "Grape",
+      "Cherry",
+      "Strawberry"
+    ],
+    "correctAnswer": "Strawberry",
+    "clue": "Red and sweet.",
+    "difficulty": "hard",
+    "category": "Family"
+  }, {
+    "id": "q226",
+    "text": "What is the symbol for Stellar Lumens on exchanges?",
+    "options": ["STL", "XLM", "SLM", "STR"],
+    "correctAnswer": "XLM",
+    "clue": "It starts with 'X', like most crypto tickers.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q227",
+    "text": "What does the Stellar network primarily aim to improve?",
+    "options": ["Gaming", "Decentralized AI", "Cross-border payments", "NFT trading"],
+    "correctAnswer": "Cross-border payments",
+    "clue": "It's designed to help people send money around the world quickly and cheaply.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q228",
+    "text": "Which country is home to the headquarters of the Stellar Development Foundation?",
+    "options": ["Germany", "United States", "Switzerland", "Japan"],
+    "correctAnswer": "United States",
+    "clue": "It's based in San Francisco.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q229",
+    "text": "What is the public ledger in Stellar used for?",
+    "options": ["Storing documents", "Mining coins", "Recording transactions", "Playing games"],
+    "correctAnswer": "Recording transactions",
+    "clue": "It keeps track of who owns what.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q230",
+    "text": "Which protocol upgrade introduced fee bump transactions?",
+    "options": ["Protocol 9", "Protocol 11", "Protocol 13", "Protocol 15"],
+    "correctAnswer": "Protocol 13",
+    "clue": "It made fees more flexible.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q231",
+    "text": "What do you call a verified bridge between fiat and Stellar assets?",
+    "options": ["Validator", "Anchor", "Node", "Spoke"],
+    "correctAnswer": "Anchor",
+    "clue": "They connect Stellar to the real-world banking system.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q232",
+    "text": "What is the minimum account balance required on Stellar?",
+    "options": ["0 XLM", "0.5 XLM", "1 XLM", "10 XLM"],
+    "correctAnswer": "1 XLM",
+    "clue": "It helps prevent spam accounts.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q233",
+    "text": "What is a 'memo' in a Stellar transaction?",
+    "options": ["A fee", "A password", "A short message", "A smart contract"],
+    "correctAnswer": "A short message",
+    "clue": "It's often used to identify a recipient.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q234",
+    "text": "Which major stablecoin was among the first to launch on Stellar?",
+    "options": ["DAI", "USDC", "Tether", "GUSD"],
+    "correctAnswer": "USDC",
+    "clue": "Issued by Circle and Centre.",
+    "difficulty": "easy",
+    "category": "Stellar"
+  },
+  {
+    "id": "q235",
+    "text": "What is the purpose of Stellar's decentralized exchange (DEX)?",
+    "options": ["To swap memes", "To mine coins", "To list ICOs", "To trade tokens directly"],
+    "correctAnswer": "To trade tokens directly",
+    "clue": "It allows peer-to-peer trading without a central authority.",
+    "difficulty": "easy",
+    "category": "Stellar"
   }
+
+  
 ]
 
 
