@@ -1504,6 +1504,425 @@
     "clue": "Enterprise friendly asset flows.",
     "difficulty": "medium",
     "category": "Stellar"
+  },{
+    "id": "q196",
+    "text": "What color are Smurfs?",
+    "options": [
+      "Red",
+      "Green",
+      "Blue",
+      "Yellow"
+    ],
+    "correctAnswer": "Blue",
+    "clue": "They wear white hats and live in mushrooms.",
+    "difficulty": "easy",
+    "category": "Family"
+  },
+  {
+    "id": "q197",
+    "text": "Which Disney character has a friend named Abu?",
+    "options": [
+      "Simba",
+      "Aladdin",
+      "Ariel",
+      "Elsa"
+    ],
+    "correctAnswer": "Aladdin",
+    "clue": "He rides a magic carpet.",
+    "difficulty": "easy",
+    "category": "Family"
+  },
+  {
+    "id": "q198",
+    "text": "What kind of animal is Winnie the Pooh?",
+    "options": [
+      "Bear",
+      "Dog",
+      "Cat",
+      "Rabbit"
+    ],
+    "correctAnswer": "Bear",
+    "clue": "He loves honey.",
+    "difficulty": "easy",
+    "category": "Family"
+  },
+  {
+    "id": "q199",
+    "text": "Which vegetable is known to make you cry when chopped?",
+    "options": [
+      "Carrot",
+      "Potato",
+      "Onion",
+      "Celery"
+    ],
+    "correctAnswer": "Onion",
+    "clue": "It's round and has many layers.",
+    "difficulty": "easy",
+    "category": "Family"
+  },
+  {
+    "id": "q200",
+    "text": "What shape is a typical pizza?",
+    "options": [
+      "Triangle",
+      "Circle",
+      "Square",
+      "Oval"
+    ],
+    "correctAnswer": "Circle",
+    "clue": "It's round but cut into triangles.",
+    "difficulty": "easy",
+    "category": "Family"
+  },
+  {
+    "id": "q201",
+    "text": "How many wheels does a tricycle have?",
+    "options": [
+      "2",
+      "3",
+      "4",
+      "6"
+    ],
+    "correctAnswer": "3",
+    "clue": "It's one more than a bicycle.",
+    "difficulty": "easy",
+    "category": "Family"
+  },
+  {
+    "id": "q202",
+    "text": "What is a baby dog called?",
+    "options": [
+      "Kitten",
+      "Cub",
+      "Puppy",
+      "Foal"
+    ],
+    "correctAnswer": "Puppy",
+    "clue": "It grows up to be a dog.",
+    "difficulty": "easy",
+    "category": "Family"
+  },
+  {
+    "id": "q203",
+    "text": "Which day comes after Friday?",
+    "options": [
+      "Thursday",
+      "Saturday",
+      "Sunday",
+      "Monday"
+    ],
+    "correctAnswer": "Saturday",
+    "clue": "It's the weekend!",
+    "difficulty": "easy",
+    "category": "Family"
+  },
+  {
+    "id": "q204",
+    "text": "Which ocean is the largest?",
+    "options": [
+      "Atlantic",
+      "Pacific",
+      "Indian",
+      "Arctic"
+    ],
+    "correctAnswer": "Pacific",
+    "clue": "It's between Asia and America.",
+    "difficulty": "easy",
+    "category": "Family"
+  },
+  {
+    "id": "q205",
+    "text": "What type of animal is a goldfish?",
+    "options": [
+      "Bird",
+      "Reptile",
+      "Fish",
+      "Amphibian"
+    ],
+    "correctAnswer": "Fish",
+    "clue": "It lives in a bowl or tank.",
+    "difficulty": "easy",
+    "category": "Family"
+  },
+  {
+    "id": "q206",
+    "text": "What is the name of the cowboy in the Toy Story films?",
+    "options": [
+      "Woody",
+      "Buzz",
+      "Andy",
+      "Jessie"
+    ],
+    "correctAnswer": "Woody",
+    "clue": "He wears a cowboy hat.",
+    "difficulty": "medium",
+    "category": "Family"
+  },
+  {
+    "id": "q207",
+    "text": "What instrument has 88 keys?",
+    "options": [
+      "Guitar",
+      "Flute",
+      "Piano",
+      "Violin"
+    ],
+    "correctAnswer": "Piano",
+    "clue": "Played with both hands.",
+    "difficulty": "medium",
+    "category": "Family"
+  },
+  {
+    "id": "q208",
+    "text": "Which holiday features a bunny and egg hunts?",
+    "options": [
+      "Christmas",
+      "Easter",
+      "Halloween",
+      "Thanksgiving"
+    ],
+    "correctAnswer": "Easter",
+    "clue": "It's in the spring.",
+    "difficulty": "medium",
+    "category": "Family"
+  },
+  {
+    "id": "q209",
+    "text": "Which sea creature has eight arms?",
+    "options": [
+      "Crab",
+      "Shark",
+      "Octopus",
+      "Whale"
+    ],
+    "correctAnswer": "Octopus",
+    "clue": "It's known for ink and tentacles.",
+    "difficulty": "medium",
+    "category": "Family"
+  },
+  {
+    "id": "q210",
+    "text": "What is the capital of France?",
+    "options": [
+      "Berlin",
+      "London",
+      "Rome",
+      "Paris"
+    ],
+    "correctAnswer": "Paris",
+    "clue": "The Eiffel Tower is there.",
+    "difficulty": "medium",
+    "category": "Family"
+  },
+  {
+    "id": "q211",
+    "text": "Which sport is known as 'the beautiful game'?",
+    "options": [
+      "Tennis",
+      "Football (Soccer)",
+      "Baseball",
+      "Cricket"
+    ],
+    "correctAnswer": "Football (Soccer)",
+    "clue": "It uses a round ball and a goal.",
+    "difficulty": "medium",
+    "category": "Family"
+  },
+  {
+    "id": "q212",
+    "text": "Which famous detective lives at 221B Baker Street?",
+    "options": [
+      "Batman",
+      "Hercule Poirot",
+      "Sherlock Holmes",
+      "Nancy Drew"
+    ],
+    "correctAnswer": "Sherlock Holmes",
+    "clue": "He says, 'Elementary!'",
+    "difficulty": "medium",
+    "category": "Family"
+  },
+  {
+    "id": "q213",
+    "text": "Which bird is known for mimicking sounds and speech?",
+    "options": [
+      "Owl",
+      "Parrot",
+      "Swan",
+      "Eagle"
+    ],
+    "correctAnswer": "Parrot",
+    "clue": "Often kept as a talking pet.",
+    "difficulty": "medium",
+    "category": "Family"
+  },
+  {
+    "id": "q214",
+    "text": "Which part of your body helps you smell?",
+    "options": [
+      "Eyes",
+      "Ears",
+      "Mouth",
+      "Nose"
+    ],
+    "correctAnswer": "Nose",
+    "clue": "It's in the center of your face.",
+    "difficulty": "medium",
+    "category": "Family"
+  },
+  {
+    "id": "q215",
+    "text": "Which fictional character travels in a blue police box?",
+    "options": [
+      "Doctor Strange",
+      "The Doctor",
+      "Sherlock Holmes",
+      "Inspector Gadget"
+    ],
+    "correctAnswer": "The Doctor",
+    "clue": "From a time-traveling sci-fi show.",
+    "difficulty": "medium",
+    "category": "Family"
+  },
+  {
+    "id": "q216",
+    "text": "Which is the smallest bone in the human body?",
+    "options": [
+      "Femur",
+      "Stapes",
+      "Ulna",
+      "Tibia"
+    ],
+    "correctAnswer": "Stapes",
+    "clue": "It's inside your ear.",
+    "difficulty": "hard",
+    "category": "Family"
+  },
+  {
+    "id": "q217",
+    "text": "How many time zones are there in the world?",
+    "options": [
+      "12",
+      "18",
+      "24",
+      "30"
+    ],
+    "correctAnswer": "24",
+    "clue": "One for each hour of the day.",
+    "difficulty": "hard",
+    "category": "Family"
+  },
+  {
+    "id": "q218",
+    "text": "What is the chemical symbol for gold?",
+    "options": [
+      "G",
+      "Au",
+      "Ag",
+      "Go"
+    ],
+    "correctAnswer": "Au",
+    "clue": "It's from the Latin word 'aurum'.",
+    "difficulty": "hard",
+    "category": "Family"
+  },
+  {
+    "id": "q219",
+    "text": "Which planet has the most moons?",
+    "options": [
+      "Earth",
+      "Mars",
+      "Saturn",
+      "Venus"
+    ],
+    "correctAnswer": "Saturn",
+    "clue": "It has rings too!",
+    "difficulty": "hard",
+    "category": "Family"
+  },
+  {
+    "id": "q220",
+    "text": "Which part of the plant conducts photosynthesis?",
+    "options": [
+      "Roots",
+      "Stem",
+      "Leaves",
+      "Flowers"
+    ],
+    "correctAnswer": "Leaves",
+    "clue": "They are usually green.",
+    "difficulty": "hard",
+    "category": "Family"
+  },
+  {
+    "id": "q221",
+    "text": "Which is the largest internal organ in the human body?",
+    "options": [
+      "Lungs",
+      "Heart",
+      "Liver",
+      "Brain"
+    ],
+    "correctAnswer": "Liver",
+    "clue": "It detoxifies the blood.",
+    "difficulty": "hard",
+    "category": "Family"
+  },
+  {
+    "id": "q222",
+    "text": "What is the square root of 144?",
+    "options": [
+      "11",
+      "12",
+      "13",
+      "14"
+    ],
+    "correctAnswer": "12",
+    "clue": "Its a dozen.",
+    "difficulty": "hard",
+    "category": "Family"
+  },
+  {
+    "id": "q223",
+    "text": "What gas do humans need to breathe?",
+    "options": [
+      "Hydrogen",
+      "Carbon Dioxide",
+      "Nitrogen",
+      "Oxygen"
+    ],
+    "correctAnswer": "Oxygen",
+    "clue": "It's about 21% of air.",
+    "difficulty": "hard",
+    "category": "Family"
+  },
+  {
+    "id": "q224",
+    "text": "Which famous scientist developed the laws of motion?",
+    "options": [
+      "Albert Einstein",
+      "Isaac Newton",
+      "Galileo Galilei",
+      "Nikola Tesla"
+    ],
+    "correctAnswer": "Isaac Newton",
+    "clue": "He also got hit by an apple!",
+    "difficulty": "hard",
+    "category": "Family"
+  },
+  {
+    "id": "q225",
+    "text": "What is the main language spoken in Brazil?",
+    "options": [
+      "Spanish",
+      "Portuguese",
+      "English",
+      "French"
+    ],
+    "correctAnswer": "Portuguese",
+    "clue": "It's not Spanish.",
+    "difficulty": "hard",
+    "category": "Family"
   }
 
 ]
