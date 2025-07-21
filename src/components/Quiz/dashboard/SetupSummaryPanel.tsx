@@ -109,9 +109,7 @@ const getDifficultyColor = (difficulty: string) => {
             </div>
           </div>
         )}
-      </div>
-
-      {/* Room Info */}
+   {/* Room Info */}
       {roomId && (
         <div className="bg-indigo-50 border border-indigo-200 p-4 rounded-lg">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -119,20 +117,14 @@ const getDifficultyColor = (difficulty: string) => {
               <strong className="text-indigo-800">Room ID:</strong>
               <div className="text-indigo-700 font-mono">{roomId}</div>
             </div>
-            <div>
-              <strong className="text-indigo-800">Join Link:</strong>
-              <div>
-                <Link
-                  to={`/join/${roomId}`}
-                  className="text-indigo-600 hover:underline font-mono"
-                >
-                  /join/{roomId}
-                </Link>
-              </div>
-            </div>
+           
           </div>
         </div>
       )}
+
+      </div>
+
+    
 
       {/* Rounds Section */}
       <div className="border border-gray-200 rounded-lg">

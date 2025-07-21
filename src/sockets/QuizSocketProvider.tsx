@@ -25,6 +25,7 @@ interface QuizSocketContextType {
   connected: boolean;
   connectionState: 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
   lastError: string | null;
+  
 }
 
 const QuizSocketContext = createContext<QuizSocketContextType>({
@@ -130,6 +131,7 @@ socket.on('quiz_cancelled', ({ message, roomId: cancelledRoomId }: { message: st
         setConnectionState('connected');
         setLastError(null);
         reconnectAttemptRef.current = 0;
+        (window as any).quizSocket = socket;
 
         if (roomId && hostId) {
           debugLog.info('Auto rejoining quiz room after reconnect:', roomId);

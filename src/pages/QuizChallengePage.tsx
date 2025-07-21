@@ -41,12 +41,12 @@ const QuizChallengePage = () => {
               🌐 Host Web3 Impact Event
             </button>
 
-            {/* <button
+            <button
               className="bg-white text-indigo-600 border border-indigo-600 px-6 py-3 rounded-xl font-semibold hover:bg-indigo-50"
               onClick={() => setShowJoinModal(true)}
             >
               🙋 Join a Quiz
-            </button> */}
+            </button>
           </div>
         </>
       )}

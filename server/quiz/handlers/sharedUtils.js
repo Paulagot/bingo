@@ -12,22 +12,36 @@ export function setupSharedHandlers(socket, namespace) {
     });
   });
 
-  socket.on('verify_quiz_room', ({ roomId }) => {
-    import('../quizRoomManager.js').then(({ getQuizRoom }) => {
-      console.log('[Server sharedutils] 🧠 Received verify_quiz_room for:', roomId);
-      const room = getQuizRoom(roomId);
-      if (!room) {
-        console.log('[Server sharedutils] ❌ Room not found:', roomId);
-        socket.emit('quiz_room_verification_result', { exists: false, paymentMethod: 'cash' });
-      } else {
-        console.log('[Server sharedutils] ✅ Room found:', roomId, 'Payment method:', room.config?.paymentMethod);
-        socket.emit('quiz_room_verification_result', {
-          exists: true,
-          paymentMethod: room.config?.paymentMethod || 'cash',
-        });
-      }
+ socket.on('verify_quiz_room', ({ roomId }) => {
+  import('../quizRoomManager.js').then(({ getQuizRoom }) => {
+    const room = getQuizRoom(roomId);
+    if (!room) {
+      socket.emit('quiz_room_verification_result', { 
+        exists: false,
+      });
+      return;
+    }
+
+    // pull everything the client will need
+    const {
+      entryFee    = '0',
+      fundraisingOptions = {},
+      fundraisingPrices  = {},
+      paymentMethod,
+      demoMode    = false
+    } = room.config;
+
+    socket.emit('quiz_room_verification_result', {
+      exists: true,
+      paymentMethod: paymentMethod || 'cash',
+      entryFee: Number(entryFee),
+      fundraisingOptions,
+      fundraisingPrices,
+      demoMode: !!demoMode
     });
   });
+});
+
 
   // ✅ UPDATED: Include room state in verification response
   socket.on('verify_quiz_room_and_player', ({ roomId, playerId }) => {
