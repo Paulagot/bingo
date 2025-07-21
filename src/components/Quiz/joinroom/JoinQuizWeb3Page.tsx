@@ -1,3 +1,5 @@
+//src/components/Quiz/joinroom/JoinQuizWeb3Page.tsx
+
 import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuizSocket } from '../../../sockets/QuizSocketProvider';  // ✅ use new context

@@ -1,3 +1,5 @@
+// src/components/Quiz/dashboard/PlayerListPanel.tsx
+
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { usePlayerStore } from '../usePlayerStore';

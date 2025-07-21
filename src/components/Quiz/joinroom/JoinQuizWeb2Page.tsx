@@ -1,3 +1,5 @@
+//src/components/Quiz/joinroom/JoinQuizWeb2Page.tsx
+
 import { useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuizSocket } from '../../../sockets/QuizSocketProvider';  // ✅ Updated path
