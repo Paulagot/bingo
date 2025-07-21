@@ -336,20 +336,7 @@
         "difficulty": "easy",
         "category": "Pop Culture"
     },
-    {
-        "id": 26,
-        "text": "What is the largest desert in the world?",
-        "options": [
-            "Sahara",
-            "Gobi",
-            "Antarctic",
-            "Kalahari"
-        ],
-        "correctAnswer": "Antarctic",
-        "clue": "This icy expanse, covering a polar continent, is technically the largest desert due to its low precipitation.",
-        "difficulty": "hard",
-        "category": "General Knowledge"
-    },
+   
     {
         "id": 27,
         "text": "What is the primary gas in Earths atmosphere?",
@@ -7268,7 +7255,8 @@
         "difficulty": "hard",
         "category": "Family",
         "id": 568
-    },
+    }
+    ,
     {
         "text": "Which scientist discovered the theory of relativity?",
         "options": [
@@ -7278,7 +7266,7 @@
             "Marie Curie"
         ],
         "correctAnswer": "Albert Einstein",
-        "clue": "This physicist’s formula E=mc² changed our understanding of the universe.",
+        "clue": "This physicist revolutionized our understanding of space and time with a famous equation linking energy and mass.",
         "difficulty": "hard",
         "category": "Family",
         "id": 569
@@ -7450,9 +7438,781 @@
         "difficulty": "hard",
         "category": "Family",
         "id": 581
+    },
+    {
+        "id": 582,
+        "text": "Which African lake is the second deepest in the world?",
+        "options": ["Lake Victoria", "Lake Tanganyika", "Lake Malawi", "Lake Chad"],
+        "correctAnswer": "Lake Tanganyika",
+        "clue": "This long, narrow lake lies in the Great Rift Valley and is known for its extreme depth.",
+        "difficulty": "hard",
+        "category": "General Knowledge"
+    },
+    {
+        "id": 583,
+        "text": "What is the smallest bone in the human body?",
+        "options": ["Stapes", "Incus", "Malleus", "Femur"],
+        "correctAnswer": "Stapes",
+        "clue": "This tiny bone, found in the ear, helps transmit sound vibrations.",
+        "difficulty": "hard",
+        "category": "General Knowledge"
+    },
+    {
+        "id": 584,
+        "text": "Which country is home to the world's largest coral reef system?",
+        "options": ["Indonesia", "Philippines", "Australia", "Belize"],
+        "correctAnswer": "Australia",
+        "clue": "This country’s Great Barrier Reef is a massive underwater ecosystem visible from space.",
+        "difficulty": "hard",
+        "category": "General Knowledge"
+    },
+    {
+        "id": 585,
+        "text": "What is the main source of light for Earth during the day?",
+        "options": ["Moon", "Sun", "Stars", "Clouds"],
+        "correctAnswer": "Sun",
+        "clue": "This celestial body provides warmth and light, driving Earth's climate.",
+        "difficulty": "easy",
+        "category": "Science"
+    },
+    {
+        "id": 586,
+        "text": "Which animal is the largest land mammal?",
+        "options": ["Elephant", "Blue Whale", "Giraffe", "Rhinoceros"],
+        "correctAnswer": "Rhinoceros",
+        "clue": "This massive creature, known for its thick skin and horn, roams African savannas.",
+        "difficulty": "easy",
+        "category": "Science"
+    },
+    {
+        "id": 587,
+        "text": "What is the freezing point of water in Celsius?",
+        "options": ["0", "100", "-10", "50"],
+        "correctAnswer": "0",
+        "clue": "This temperature marks the point where water turns to ice at standard pressure.",
+        "difficulty": "easy",
+        "category": "Science"
+    },
+    {
+        "id": 588,
+        "text": "Which gas do plants absorb during the day to make food?",
+        "options": ["Oxygen", "Nitrogen", "Carbon Dioxide", "Helium"],
+        "correctAnswer": "Carbon Dioxide",
+        "clue": "Plants use this gas in photosynthesis to produce energy and release oxygen.",
+        "difficulty": "easy",
+        "category": "Science"
+    },
+    {
+        "id": 589,
+        "text": "What is the primary source of energy for Earth's magnetic field?",
+        "options": ["Solar wind", "Geodynamo", "Tidal forces", "Cosmic rays"],
+        "correctAnswer": "Geodynamo",
+        "clue": "This process involves molten iron moving in Earth’s outer core, generating a protective field.",
+        "difficulty": "hard",
+        "category": "Science"
+    },
+    {
+        "id": 590,
+        "text": "Which particle is responsible for mediating the electromagnetic force?",
+        "options": ["Photon", "Gluon", "W Boson", "Higgs Boson"],
+        "correctAnswer": "Photon",
+        "clue": "This massless particle carries light and electromagnetic interactions.",
+        "difficulty": "hard",
+        "category": "Science"
+    },
+    {
+        "id": 591,
+        "text": "What is the name of the process where a star exhausts its nuclear fuel and collapses?",
+        "options": ["Supernova", "Nebula formation", "Black hole accretion", "Red giant phase"],
+        "correctAnswer": "Supernova",
+        "clue": "This explosive event marks the dramatic end of a massive star’s life cycle.",
+        "difficulty": "hard",
+        "category": "Science"
+    },
+    {
+        "id": 592,
+        "text": "Who discovered America in 1492?",
+        "options": ["Christopher Columbus", "Ferdinand Magellan", "Vasco da Gama", "Marco Polo"],
+        "correctAnswer": "Christopher Columbus",
+        "clue": "This explorer sailed across the Atlantic, landing in the New World under Spain’s flag.",
+        "difficulty": "easy",
+        "category": "History"
+    },
+    {
+        "id": 593,
+        "text": "Which ancient civilization built the pyramids of Giza?",
+        "options": ["Romans", "Greeks", "Egyptians", "Incas"],
+        "correctAnswer": "Egyptians",
+        "clue": "This civilization constructed monumental tombs for their pharaohs along the Nile.",
+        "difficulty": "easy",
+        "category": "History"
+    },
+    {
+        "id": 594,
+        "text": "What was the name of the ship that carried the Pilgrims to America in 1620?",
+        "options": ["Santa Maria", "Mayflower", "Nina", "Pinta"],
+        "correctAnswer": "Mayflower",
+        "clue": "This vessel brought early English settlers to Plymouth, seeking religious freedom.",
+        "difficulty": "easy",
+        "category": "History"
+    },
+    {
+        "id": 595,
+        "text": "Which country fought for independence from Britain in 1776?",
+        "options": ["France", "United States", "Canada", "Australia"],
+        "correctAnswer": "United States",
+        "clue": "This nation declared its independence with a famous document in Philadelphia.",
+        "difficulty": "easy",
+        "category": "History"
+    },
+    {
+        "id": 596,
+        "text": "Who was the first man to walk on the moon?",
+        "options": ["Neil Armstrong", "Buzz Aldrin", "Yuri Gagarin", "Alan Shepard"],
+        "correctAnswer": "Neil Armstrong",
+        "clue": "This astronaut took a ‘giant leap for mankind’ during the Apollo 11 mission.",
+        "difficulty": "easy",
+        "category": "History"
+    },
+    {
+        "id": 597,
+        "text": "Which ancient city was famous for its hanging gardens?",
+        "options": ["Rome", "Babylon", "Athens", "Jerusalem"],
+        "correctAnswer": "Babylon",
+        "clue": "This ancient Mesopotamian city was renowned for a legendary wonder of the world.",
+        "difficulty": "easy",
+        "category": "History"
+    },
+    {
+        "id": 598,
+        "text": "What was the name of the wall dividing East and West Germany?",
+        "options": ["Great Wall", "Berlin Wall", "Hadrian's Wall", "Chinese Wall"],
+        "correctAnswer": "Berlin Wall",
+        "clue": "This structure symbolized the Cold War division of a European capital.",
+        "difficulty": "easy",
+        "category": "History"
+    },
+    {
+        "id": 599,
+        "text": "Who was the famous nurse during the Crimean War?",
+        "options": ["Florence Nightingale", "Clara Barton", "Mary Seacole", "Edith Cavell"],
+        "correctAnswer": "Florence Nightingale",
+        "clue": "Known as the ‘Lady with the Lamp,’ she transformed nursing during a 19th-century war.",
+        "difficulty": "easy",
+        "category": "History"
+    },
+    {
+        "id": 600,
+        "text": "Which war was fought between Athens and Sparta in ancient Greece?",
+        "options": ["Trojan War", "Peloponnesian War", "Persian War", "Punic War"],
+        "correctAnswer": "Peloponnesian War",
+        "clue": "This prolonged conflict between two Greek city-states shaped ancient history.",
+        "difficulty": "medium",
+        "category": "History"
+    },
+    {
+        "id": 601,
+        "text": "Who was the leader of the Soviet Union during World War II?",
+        "options": ["Lenin", "Stalin", "Trotsky", "Khrushchev"],
+        "correctAnswer": "Stalin",
+        "clue": "This leader guided the Soviet Union through its pivotal role in defeating Nazi Germany.",
+        "difficulty": "medium",
+        "category": "History"
+    },
+    {
+        "id": 602,
+        "text": "Which battle in 1066 determined the fate of England’s throne?",
+        "options": ["Battle of Hastings", "Battle of Agincourt", "Battle of Bannockburn", "Battle of Bosworth"],
+        "correctAnswer": "Battle of Hastings",
+        "clue": "This decisive 11th-century battle led to the Norman conquest of England.",
+        "difficulty": "hard",
+        "category": "History"
+    },
+    {
+        "id": 603,
+        "text": "What was the name of the ship sunk by a German U-boat in 1915, escalating U.S. tensions?",
+        "options": ["Lusitania", "Titanic", "Britannic", "Aquitania"],
+        "correctAnswer": "Lusitania",
+        "clue": "The sinking of this passenger liner heightened World War I tensions for a neutral nation.",
+        "difficulty": "hard",
+        "category": "History"
+    },
+    {
+        "id": 604,
+        "text": "Which African empire was known for its wealth under Mansa Musa in the 14th century?",
+        "options": ["Songhai Empire", "Mali Empire", "Ghana Empire", "Zimbabwe Empire"],
+        "correctAnswer": "Mali Empire",
+        "clue": "This West African empire’s ruler was famed for his lavish pilgrimage to Mecca.",
+        "difficulty": "hard",
+        "category": "History"
+    },
+    {
+        "id": 605,
+        "text": "Which sport uses a round ball and a hoop?",
+        "options": ["Soccer", "Basketball", "Volleyball", "Tennis"],
+        "correctAnswer": "Basketball",
+        "clue": "Players aim to score by shooting a ball through a raised net in this fast-paced game.",
+        "difficulty": "easy",
+        "category": "Sport"
+    },
+    {
+        "id": 606,
+        "text": "What is the name of the object hit in ice hockey?",
+        "options": ["Ball", "Puck", "Shuttlecock", "Disc"],
+        "correctAnswer": "Puck",
+        "clue": "This flat, round object slides across the ice in a fast-paced winter sport.",
+        "difficulty": "easy",
+        "category": "Sport"
+    },
+    {
+        "id": 607,
+        "text": "Which sport is played with a bat and a ball on a diamond field?",
+        "options": ["Cricket", "Baseball", "Softball", "Rounders"],
+        "correctAnswer": "Baseball",
+        "clue": "This American pastime involves hitting a ball and running bases on a diamond-shaped field.",
+        "difficulty": "easy",
+        "category": "Sport"
+    },
+    {
+        "id": 608,
+        "text": "In which sport do you swim in a pool?",
+        "options": ["Diving", "Swimming", "Water Polo", "Synchronized Swimming"],
+        "correctAnswer": "Swimming",
+        "clue": "Competitors race through water using strokes like freestyle or butterfly in this sport.",
+        "difficulty": "easy",
+        "category": "Sport"
+    },
+    {
+        "id": 609,
+        "text": "Which sport involves kicking a ball into a net to score?",
+        "options": ["Rugby", "Soccer", "Hockey", "Lacrosse"],
+        "correctAnswer": "Soccer",
+        "clue": "Known as football in many countries, this sport involves scoring goals with a kick.",
+        "difficulty": "easy",
+        "category": "Sport"
+    },
+    {
+        "id": 610,
+        "text": "Which country won the first FIFA Women’s World Cup in 1991?",
+        "options": ["United States", "Norway", "Germany", "Sweden"],
+        "correctAnswer": "United States",
+        "clue": "This nation’s team triumphed in the inaugural women’s global soccer tournament.",
+        "difficulty": "medium",
+        "category": "Sport"
+    },
+    {
+        "id": 611,
+        "text": "In which sport is the term ‘ace’ used for a serve that isn’t returned?",
+        "options": ["Badminton", "Tennis", "Volleyball", "Table Tennis"],
+        "correctAnswer": "Tennis",
+        "clue": "This sport’s powerful serve scores a point when the opponent can’t return it.",
+        "difficulty": "medium",
+        "category": "Sport"
+    },
+    {
+        "id": 612,
+        "text": "Who holds the record for the most home runs in a single MLB season?",
+        "options": ["Babe Ruth", "Barry Bonds", "Hank Aaron", "Mark McGwire"],
+        "correctAnswer": "Barry Bonds",
+        "clue": "This baseball player hit 73 home runs in 2001, setting a single-season record.",
+        "difficulty": "medium",
+        "category": "Sport"
+    },
+    {
+        "id": 613,
+        "text": "Which cyclist won the Tour de France seven consecutive times before being stripped of titles?",
+        "options": ["Eddy Merckx", "Lance Armstrong", "Miguel Indurain", "Chris Froome"],
+        "correctAnswer": "Lance Armstrong",
+        "clue": "This cyclist’s victories in the iconic French race were later marred by controversy.",
+        "difficulty": "hard",
+        "category": "Sport"
+    },
+    {
+        "id": 614,
+        "text": "In which year was the first modern Olympic Games held?",
+        "options": ["1896", "1900", "1904", "1888"],
+        "correctAnswer": "1896",
+        "clue": "This year marked the revival of the Olympic Games in Athens, Greece.",
+        "difficulty": "hard",
+        "category": "Sport"
+    },
+    {
+        "id": 615,
+        "text": "Which sport features the ‘Triple Crown’ for winning three major races in a season?",
+        "options": ["Horse Racing", "Auto Racing", "Cycling", "Athletics"],
+        "correctAnswer": "Horse Racing",
+        "clue": "This sport’s prestigious title is earned by winning three key races, like the Kentucky Derby.",
+        "difficulty": "hard",
+        "category": "Sport"
+    },
+    {
+        "id": 616,
+        "text": "Who was the first woman to win an Olympic gold medal in boxing?",
+        "options": ["Nicola Adams", "Claressa Shields", "Katie Taylor", "Mary Kom"],
+        "correctAnswer": "Nicola Adams",
+        "clue": "This British boxer made history in 2012 when women’s boxing debuted at the Olympics.",
+        "difficulty": "hard",
+        "category": "Sport"
+    },
+    {
+        "id": 617,
+        "text": "Which sport uses a ‘scrum’ as a method to restart play?",
+        "options": ["Rugby Union", "Rugby League", "American Football", "Australian Rules Football"],
+        "correctAnswer": "Rugby Union",
+        "clue": "In this sport, players lock together in a formation to contest possession after a stoppage.",
+        "difficulty": "hard",
+        "category": "Sport"
+    },
+    {
+        "id": 618,
+        "text": "Which animated movie features a blue genie voiced by Robin Williams?",
+        "options": ["Aladdin", "The Little Mermaid", "Beauty and the Beast", "Cinderella"],
+        "correctAnswer": "Aladdin",
+        "clue": "This Disney film features a magical lamp and a wish-granting spirit with a comedic flair.",
+        "difficulty": "easy",
+        "category": "Pop Culture"
+    },
+    {
+        "id": 619,
+        "text": "Which pop star is known for the song ‘Shake It Off’?",
+        "options": ["Taylor Swift", "Katy Perry", "Ariana Grande", "Miley Cyrus"],
+        "correctAnswer": "Taylor Swift",
+        "clue": "This artist’s upbeat 2014 hit encourages brushing off negativity with a danceable tune.",
+        "difficulty": "easy",
+        "category": "Pop Culture"
+    },
+    {
+        "id": 620,
+        "text": "Which superhero is known as the Man of Steel?",
+        "options": ["Batman", "Superman", "Iron Man", "Captain America"],
+        "correctAnswer": "Superman",
+        "clue": "This comic book hero hails from Krypton and has extraordinary strength.",
+        "difficulty": "easy",
+        "category": "Pop Culture"
+    },
+    {
+        "id": 621,
+        "text": "Which 1980s TV show featured a talking car named KITT?",
+        "options": ["Knight Rider", "The A-Team", "MacGyver", "Miami Vice"],
+        "correctAnswer": "Knight Rider",
+        "clue": "This show followed a crime-fighting duo, one of whom was a high-tech vehicle.",
+        "difficulty": "medium",
+        "category": "Pop Culture"
+    },
+    {
+        "id": 622,
+        "text": "Who directed the 1975 film ‘Jaws’?",
+        "options": ["Steven Spielberg", "George Lucas", "Martin Scorsese", "Francis Ford Coppola"],
+        "correctAnswer": "Steven Spielberg",
+        "clue": "This director brought a terrifying great white shark to life in a blockbuster thriller.",
+        "difficulty": "medium",
+        "category": "Pop Culture"
+    },
+    {
+        "id": 623,
+        "text": "Which band released the album ‘Nevermind’ in 1991?",
+        "options": ["Nirvana", "Pearl Jam", "Soundgarden", "Alice in Chains"],
+        "correctAnswer": "Nirvana",
+        "clue": "This grunge band’s iconic album featured a baby swimming on its cover.",
+        "difficulty": "medium",
+        "category": "Pop Culture"
+    },
+    {
+        "id": 624,
+        "text": "Which actor played the role of Keyser Söze in ‘The Usual Suspects’?",
+        "options": ["Kevin Spacey", "Gabriel Byrne", "Benicio del Toro", "Stephen Baldwin"],
+        "correctAnswer": "Kevin Spacey",
+        "clue": "This actor portrayed a mysterious crime lord in a 1995 thriller with a twist ending.",
+        "difficulty": "hard",
+        "category": "Pop Culture"
+    },
+    {
+        "id": 625,
+        "text": "What was the name of the fictional band in the mockumentary ‘This Is Spinal Tap’?",
+        "options": ["Spinal Tap", "Bad News", "The Folksmen", "Steel Dragon"],
+        "correctAnswer": "Spinal Tap",
+        "clue": "This fake rock band’s amplifiers famously went ‘one louder’ than standard.",
+        "difficulty": "hard",
+        "category": "Pop Culture"
+    },
+    {
+        "id": 626,
+        "text": "Which 1960s TV show featured a family of monsters living in a mansion?",
+        "options": ["The Munsters", "The Addams Family", "Bewitched", "I Dream of Jeannie"],
+        "correctAnswer": "The Munsters",
+        "clue": "This sitcom showcased a quirky family with a Frankenstein-like dad and a vampire mom.",
+        "difficulty": "hard",
+        "category": "Pop Culture"
+    },
+    {
+        "id": 627,
+        "text": "Who composed the soundtrack for the film ‘The Good, the Bad and the Ugly’?",
+        "options": ["Ennio Morricone", "John Williams", "Hans Zimmer", "Elmer Bernstein"],
+        "correctAnswer": "Ennio Morricone",
+        "clue": "This composer’s iconic score defined the sound of a classic Western starring Clint Eastwood.",
+        "difficulty": "hard",
+        "category": "Pop Culture"
+    },
+    {
+        "id": 628,
+        "text": "Which 1990s video game character is a blue hedgehog?",
+        "options": ["Mario", "Sonic", "Link", "Crash Bandicoot"],
+        "correctAnswer": "Sonic",
+        "clue": "This speedy character races through loops in a popular Sega game series.",
+        "difficulty": "hard",
+        "category": "Pop Culture"
+    },
+    {
+        "id": 629,
+        "text": "Which actress won an Oscar for her role in ‘Erin Brockovich’?",
+        "options": ["Julia Roberts", "Meryl Streep", "Nicole Kidman", "Halle Berry"],
+        "correctAnswer": "Julia Roberts",
+        "clue": "This actress portrayed a determined legal clerk in a 2000 film based on a true story.",
+        "difficulty": "hard",
+        "category": "Pop Culture"
+    },
+    {
+        "id": 630,
+        "text": "Which 1970s punk band released the album ‘London Calling’?",
+        "options": ["The Clash", "Sex Pistols", "Ramones", "The Damned"],
+        "correctAnswer": "The Clash",
+        "clue": "This British punk band’s 1979 double album blended punk, reggae, and rock.",
+        "difficulty": "hard",
+        "category": "Pop Culture"
+    },
+    {
+        "id": 631,
+        "text": "What is the name of the attack where a miner reverts transactions by reorganizing the blockchain?",
+        "options": ["Double-spending", "Sybil attack", "Chain reorganization", "Eclipse attack"],
+        "correctAnswer": "Chain reorganization",
+        "clue": "This attack involves a miner creating an alternative blockchain to reverse transactions.",
+        "difficulty": "hard",
+        "category": "Blockchain"
+    },
+    {
+        "id": 632,
+        "text": "Which blockchain introduced the concept of ‘sharding’ to improve scalability?",
+        "options": ["Ethereum", "Zilliqa", "Cardano", "Solana"],
+        "correctAnswer": "Zilliqa",
+        "clue": "This blockchain pioneered splitting its network into smaller pieces to boost transaction speed.",
+        "difficulty": "hard",
+        "category": "Blockchain"
+    },
+    {
+        "id": 633,
+        "text": "What is the name of the consensus algorithm used by Avalanche?",
+        "options": ["Snowman", "Tendermint", "Ouroboros", "Casper"],
+        "correctAnswer": "Snowman",
+        "clue": "This unique consensus mechanism enables fast and scalable transactions on Avalanche.",
+        "difficulty": "hard",
+        "category": "Blockchain"
+    },
+    {
+        "id": 634,
+        "text": "What is the primary goal of the Stellar network?",
+        "options": ["Gaming", "Cross-border payments", "Social media", "Cloud storage"],
+        "correctAnswer": "Cross-border payments",
+        "clue": "This network aims to make global money transfers fast and affordable.",
+        "difficulty": "easy",
+        "category": "Stellar"
+    },
+    {
+        "id": 635,
+        "text": "What is the minimum balance required to activate a Stellar account?",
+        "options": ["0.5 XLM", "1 XLM", "2 XLM", "5 XLM"],
+        "correctAnswer": "1 XLM",
+        "clue": "This small amount of Stellar’s currency is needed to open and maintain an account.",
+        "difficulty": "easy",
+        "category": "Stellar"
+    },
+    {
+        "id": 636,
+        "text": "Which type of transactions is Stellar designed to make affordable?",
+        "options": ["Stock trading", "International payments", "Real estate", "Commodity trading"],
+        "correctAnswer": "International payments",
+        "clue": "Stellar focuses on low-cost transfers of money across borders.",
+        "difficulty": "easy",
+        "category": "Stellar"
+    },
+    {
+        "id": 637,
+        "text": "What is the name of Stellar’s decentralized exchange feature?",
+        "options": ["Stellar DEX", "Path Payments", "Horizon Swap", "Lumen Trade"],
+        "correctAnswer": "Stellar DEX",
+        "clue": "This feature allows users to trade assets directly on Stellar’s blockchain.",
+        "difficulty": "easy",
+        "category": "Stellar"
+    },
+    {
+        "id": 638,
+        "text": "Which asset can be traded on the Stellar network besides XLM?",
+        "options": ["Only XLM", "Custom tokens", "Only Bitcoin", "Only Ethereum"],
+        "correctAnswer": "Custom tokens",
+        "clue": "Stellar allows trading of user-created assets alongside its native currency.",
+        "difficulty": "easy",
+        "category": "Stellar"
+    },
+    {
+        "id": 639,
+        "text": "What is the name of the wallet commonly used with Stellar?",
+        "options": ["Metamask", "StellarTerm", "Trust Wallet", "Coinbase Wallet"],
+        "correctAnswer": "StellarTerm",
+        "clue": "This wallet is designed specifically for managing Stellar’s assets and transactions.",
+        "difficulty": "easy",
+        "category": "Stellar"
+    },
+    {
+        "id": 640,
+        "text": "Which network is Stellar a fork of?",
+        "options": ["Bitcoin", "Ethereum", "Ripple", "Cardano"],
+        "correctAnswer": "Ripple",
+        "clue": "Stellar was created as a modified version of this earlier blockchain network.",
+        "difficulty": "easy",
+        "category": "Stellar"
+    },
+    {
+        "id": 641,
+        "text": "What is the smallest unit of Stellar’s currency, XLM?",
+        "options": ["Satoshi", "Stroop", "Wei", "Gwei"],
+        "correctAnswer": "Stroop",
+        "clue": "This tiny fraction of XLM is named after a unit used in Stellar’s system.",
+        "difficulty": "easy",
+        "category": "Stellar"
+    },
+    {
+        "id": 642,
+        "text": "Which company collaborated with Stellar for a payment solution in 2019?",
+        "options": ["Microsoft", "IBM", "Amazon", "Google"],
+        "correctAnswer": "IBM",
+        "clue": "This tech giant partnered with Stellar to enhance global payment solutions.",
+        "difficulty": "easy",
+        "category": "Stellar"
+    },
+    {
+        "id": 643,
+        "text": "What type of network is Stellar designed to be?",
+        "options": ["Centralized", "Decentralized", "Private", "Hybrid"],
+        "correctAnswer": "Decentralized",
+        "clue": "Stellar operates without a central authority, relying on a distributed network.",
+        "difficulty": "easy",
+        "category": "Stellar"
+    },
+    {
+        "id": 644,
+        "text": "What is the role of anchors in the Stellar network?",
+        "options": ["Issue assets and act as bridges to traditional finance", "Mine XLM", "Validate transactions", "Store user data"],
+        "correctAnswer": "Issue assets and act as bridges to traditional finance",
+        "clue": "These entities connect Stellar’s blockchain to real-world currencies and assets.",
+        "difficulty": "medium",
+        "category": "Stellar"
+    },
+    {
+        "id": 645,
+        "text": "What is the purpose of the Stellar Consensus Protocol (SCP)?",
+        "options": ["To achieve agreement among nodes", "To mine new coins", "To secure wallets", "To encrypt transactions"],
+        "correctAnswer": "To achieve agreement among nodes",
+        "clue": "This protocol ensures Stellar’s network nodes agree on valid transactions.",
+        "difficulty": "medium",
+        "category": "Stellar"
+    },
+    {
+        "id": 646,
+        "text": "Which operation allows users to trade assets on Stellar’s DEX?",
+        "options": ["Manage Offer", "Path Payment", "Create Account", "Set Options"],
+        "correctAnswer": "Manage Offer",
+        "clue": "This Stellar operation lets users set up buy or sell orders on the decentralized exchange.",
+        "difficulty": "medium",
+        "category": "Stellar"
+    },
+    {
+        "id": 647,
+        "text": "What is the name of Stellar’s client-facing API?",
+        "options": ["Horizon", "Stellar Core", "Pathfinder", "Lumen API"],
+        "correctAnswer": "Horizon",
+        "clue": "This API provides developers with access to Stellar’s network data and transactions.",
+        "difficulty": "medium",
+        "category": "Stellar"
+    },
+    {
+        "id": 648,
+        "text": "What is the purpose of a trustline in Stellar?",
+        "options": ["To hold non-native assets", "To mine XLM", "To secure accounts", "To validate blocks"],
+        "correctAnswer": "To hold non-native assets",
+        "clue": "This feature allows Stellar accounts to hold assets issued by other entities.",
+        "difficulty": "medium",
+        "category": "Stellar"
+    },
+    {
+        "id": 649,
+        "text": "What feature allows Stellar to process payments across different currencies?",
+        "options": ["Path Payments", "Smart Contracts", "Staking", "Sharding"],
+        "correctAnswer": "Path Payments",
+        "clue": "This Stellar feature finds the best path to convert currencies for seamless transfers.",
+        "difficulty": "medium",
+        "category": "Stellar"
+    },
+    {
+        "id": 650,
+        "text": "What is the role of validators in the Stellar network?",
+        "options": ["Confirm transactions", "Mine XLM", "Store assets", "Create wallets"],
+        "correctAnswer": "Confirm transactions",
+        "clue": "These network participants verify and agree on the validity of Stellar transactions.",
+        "difficulty": "medium",
+        "category": "Stellar"
+    },
+    {
+        "id": 651,
+        "text": "Which Stellar feature prevents spam transactions?",
+        "options": ["Minimum balance", "Smart contracts", "Proof of Work", "Gas fees"],
+        "correctAnswer": "Minimum balance",
+        "clue": "This requirement discourages frivolous activity on Stellar’s network.",
+        "difficulty": "medium",
+        "category": "Stellar"
+    },
+    {
+        "id": 652,
+        "text": "What is the name of Stellar’s inflation mechanism?",
+        "options": ["Lumen Inflation", "Fee Pool", "Pathfinder", "Anchor Rewards"],
+        "correctAnswer": "Lumen Inflation",
+        "clue": "This process periodically distributes new XLM to accounts based on voting.",
+        "difficulty": "medium",
+        "category": "Stellar"
+    },
+    {
+        "id": 653,
+        "text": "Which operation in Stellar allows changing account permissions?",
+        "options": ["Set Options", "Create Account", "Manage Offer", "Path Payment"],
+        "correctAnswer": "Set Options",
+        "clue": "This operation lets users modify settings like account thresholds or signers.",
+        "difficulty": "medium",
+        "category": "Stellar"
+    },
+    {
+        "id": 654,
+        "text": "Which animal is known for its long neck?",
+        "options": ["Elephant", "Giraffe", "Lion", "Zebra"],
+        "correctAnswer": "Giraffe",
+        "clue": "This tall savanna animal uses its neck to reach leaves high in trees.",
+        "difficulty": "easy",
+        "category": "Family"
+    },
+    {
+        "id": 655,
+        "text": "What is the name of the bear in ‘Winnie the Pooh’?",
+        "options": ["Paddington", "Pooh", "Baloo", "Yogi"],
+        "correctAnswer": "Pooh",
+        "clue": "This honey-loving bear lives in the Hundred Acre Wood with his friends.",
+        "difficulty": "easy",
+        "category": "Family"
+    },
+    {
+        "id": 656,
+        "text": "Which color is associated with a stop sign?",
+        "options": ["Green", "Red", "Blue", "Yellow"],
+        "correctAnswer": "Red",
+        "clue": "This bright color signals drivers to halt at intersections.",
+        "difficulty": "easy",
+        "category": "Family"
+    },
+    {
+        "id": 657,
+        "text": "What is the name of the toy cowboy in ‘Toy Story’?",
+        "options": ["Buzz Lightyear", "Woody", "Jessie", "Slinky"],
+        "correctAnswer": "Woody",
+        "clue": "This loyal toy sheriff is Andy’s favorite in a popular Pixar franchise.",
+        "difficulty": "easy",
+        "category": "Family"
+    },
+    {
+        "id": 658,
+        "text": "Which fruit is known for being red and having a core with seeds?",
+        "options": ["Banana", "Apple", "Orange", "Grape"],
+        "correctAnswer": "Apple",
+        "clue": "This fruit is often associated with teachers and comes in varieties like Granny Smith.",
+        "difficulty": "easy",
+        "category": "Family"
+    },
+    {
+        "id": 659,
+        "text": "What do bees make that we eat?",
+        "options": ["Milk", "Honey", "Butter", "Cheese"],
+        "correctAnswer": "Honey",
+        "clue": "This sweet substance is produced by bees from flower nectar.",
+        "difficulty": "easy",
+        "category": "Family"
+    },
+    {
+        "id": 660,
+        "text": "Which animal is known as the king of the jungle?",
+        "options": ["Tiger", "Lion", "Elephant", "Gorilla"],
+        "correctAnswer": "Lion",
+        "clue": "This majestic animal’s roar is iconic in African savannas.",
+        "difficulty": "easy",
+        "category": "Family"
+    },
+    {
+        "id": 661,
+        "text": "What is the name of the princess in ‘The Princess and the Frog’?",
+        "options": ["Tiana", "Ariel", "Belle", "Jasmine"],
+        "correctAnswer": "Tiana",
+        "clue": "This Disney princess dreams of opening her own restaurant in New Orleans.",
+        "difficulty": "easy",
+        "category": "Family"
+    },
+    {
+        "id": 662,
+        "text": "Which vehicle flies in the sky and has wings?",
+        "options": ["Car", "Airplane", "Boat", "Train"],
+        "correctAnswer": "Airplane",
+        "clue": "This vehicle soars through the air, carrying passengers across continents.",
+        "difficulty": "easy",
+        "category": "Family"
+    },
+    {
+        "id": 663,
+        "text": "What is the name of the dog in ‘The Wizard of Oz’?",
+        "options": ["Toto", "Lassie", "Scooby", "Max"],
+        "correctAnswer": "Toto",
+        "clue": "This small dog accompanies Dorothy on her journey down the Yellow Brick Road.",
+        "difficulty": "easy",
+        "category": "Family"
+    },
+    {
+        "id": 664,
+        "text": "Which game involves building words from letter tiles?",
+        "options": ["Monopoly", "Scrabble", "Clue", "Risk"],
+        "correctAnswer": "Scrabble",
+        "clue": "Players score points by forming words on a board using lettered tiles.",
+        "difficulty": "medium",
+        "category": "Family"
+    },
+    {
+        "id": 665,
+        "text": "What is the name of the fish in ‘Finding Nemo’?",
+        "options": ["Dory", "Marlin", "Nemo", "Gill"],
+        "correctAnswer": "Nemo",
+        "clue": "This young clownfish gets lost in a Pixar film about a father’s search.",
+        "difficulty": "medium",
+        "category": "Family"
+    },
+    {
+        "id": 666,
+        "text": "Which instrument has black and white keys and is played by pressing them?",
+        "options": ["Guitar", "Piano", "Drums", "Violin"],
+        "correctAnswer": "Piano",
+        "clue": "This keyboard instrument produces music with a range of black and white keys.",
+        "difficulty": "medium",
+        "category": "Family"
+    },
+    {
+        "id": 667,
+        "text": "What is the name of the villain in ‘101 Dalmatians’?",
+        "options": ["Ursula", "Cruella De Vil", "Jafar", "Maleficent"],
+        "correctAnswer": "Cruella De Vil",
+        "clue": "This Disney villain has a notorious obsession with fur coats.",
+        "difficulty": "medium",
+        "category": "Family"
     }
-
-    ]
-
+]
 
 
