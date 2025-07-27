@@ -160,6 +160,164 @@ export function setupHostHandlers(socket, namespace) {
     return overallLeaderboard;
   }
 
+  // Add this function after your calculateOverallLeaderboard function in hostHandlers.js
+
+// ✅ NEW: Calculate and send final quiz statistics
+function calculateAndSendFinalStats(roomId, namespace) {
+  const room = getQuizRoom(roomId);
+  if (!room) {
+    console.error(`[FinalStats] ❌ Room not found: ${roomId}`);
+    return;
+  }
+
+  const finalStats = [];
+
+  // Calculate stats for each completed round
+  for (let roundIndex = 0; roundIndex < room.config.roundDefinitions.length; roundIndex++) {
+    const roundNumber = roundIndex + 1;
+    const roundConfig = room.config.roundDefinitions[roundIndex];
+    
+    if (!roundConfig) continue;
+
+    // Initialize round stats
+    const roundStats = {
+      roundNumber,
+      roundType: roundConfig.roundType,
+      hintsUsed: 0,
+      freezesUsed: 0,
+      pointsRobbed: 0,
+      pointsRestored: 0,
+      extrasByPlayer: {},
+      questionsWithExtras: 0,
+      totalExtrasUsed: 0,
+      questionsAnswered: 0,
+      totalQuestions: roundConfig.config.questionsPerRound || 6,
+      correctAnswers: 0,
+      wrongAnswers: 0,
+      noAnswers: 0
+    };
+
+    // Initialize player stats
+    room.players.forEach(player => {
+      roundStats.extrasByPlayer[player.name] = [];
+    });
+
+    // Count questions and answers for this round
+    let roundQuestionCount = 0;
+    
+    for (const question of room.questions || []) {
+      // Check if this question belongs to this round
+      // We'll count questions sequentially by round
+      const questionsPerRound = roundConfig.config.questionsPerRound || 6;
+      const questionRoundNumber = Math.floor(roundQuestionCount / questionsPerRound) + 1;
+      
+      if (questionRoundNumber === roundNumber) {
+        roundStats.questionsAnswered++;
+        
+        // Analyze player answers for this question
+        room.players.forEach(player => {
+          const playerData = room.playerData[player.id];
+          const roundAnswerKey = `${question.id}_round${roundNumber}`;
+          const playerAnswer = playerData?.answers?.[roundAnswerKey];
+          
+          if (!playerAnswer || playerAnswer.submitted === null || playerAnswer.submitted === undefined) {
+            roundStats.noAnswers++;
+          } else if (playerAnswer.correct) {
+            roundStats.correctAnswers++;
+          } else {
+            roundStats.wrongAnswers++;
+          }
+        });
+      }
+      
+      roundQuestionCount++;
+    }
+
+    // Count extras used in this round (from player data)
+    room.players.forEach(player => {
+      const playerData = room.playerData[player.id];
+      const playerName = player.name;
+      
+      // Count from usedExtras (global extras used during this round)
+      if (playerData.usedExtras) {
+        if (playerData.usedExtras.robPoints) {
+          roundStats.pointsRobbed++;
+          roundStats.totalExtrasUsed++;
+          roundStats.extrasByPlayer[playerName].push({
+            extraId: 'robPoints',
+            timestamp: Date.now()
+          });
+        }
+        
+        if (playerData.pointsRestored > 0) {
+          roundStats.pointsRestored += playerData.pointsRestored;
+          roundStats.totalExtrasUsed++;
+          roundStats.extrasByPlayer[playerName].push({
+            extraId: 'restorePoints',
+            timestamp: Date.now()
+          });
+        }
+      }
+    });
+
+    finalStats.push(roundStats);
+
+    if (debug) {
+      console.log(`[FinalStats] 📊 Round ${roundNumber} stats:`, {
+        questions: `${roundStats.questionsAnswered}/${roundStats.totalQuestions}`,
+        answers: `${roundStats.correctAnswers} correct, ${roundStats.wrongAnswers} wrong, ${roundStats.noAnswers} no answer`,
+        extras: `${roundStats.totalExtrasUsed} total`
+      });
+    }
+  }
+
+  // Send final stats to host
+  namespace.to(`${roomId}:host`).emit('host_final_stats', finalStats);
+  
+  if (debug) {
+    console.log(`[FinalStats] 📈 Final quiz stats sent to host for ${finalStats.length} rounds`);
+  }
+
+  // In calculateAndSendFinalStats function
+// console.log(`[FinalStats] 🎯 Sending to room: ${roomId}:host`);
+// console.log(`[FinalStats] 📊 Final stats data:`, finalStats);
+// namespace.to(`${roomId}:host`).emit('host_final_stats', finalStats);
+// console.log(`[FinalStats] ✅ host_final_stats event emitted`);
+
+  return finalStats;
+}
+
+
+
+// ✅ REPLACE your existing next_round_or_end handler with this:
+socket.on('next_round_or_end', ({ roomId }) => {
+  if (debug) console.log(`[Host] next_round_or_end for ${roomId}`);
+
+  const room = getQuizRoom(roomId);
+  if (!room) {
+    socket.emit('quiz_error', { message: 'Room not found' });
+    return;
+  }
+
+  const totalRounds = getTotalRounds(roomId);
+  const nextRound = getCurrentRound(roomId) + 1;
+
+  if (nextRound > totalRounds) {
+    // ✅ NEW: Calculate and send final stats before completing
+    calculateAndSendFinalStats(roomId, namespace);
+    
+    room.currentPhase = 'complete';
+    namespace.to(roomId).emit('quiz_end', { message: 'Quiz complete. Thank you!' });
+    emitRoomState(namespace, roomId);
+    
+    if (debug) console.log(`[Host] ✅ Quiz completed for ${roomId} with final stats sent`);
+  } else {
+    startNextRound(roomId);
+    room.currentPhase = 'waiting';
+    emitRoomState(namespace, roomId);
+  }
+});
+
   socket.on('create_quiz_room', ({ roomId, hostId, config }) => {
     if (debug) console.log(`[Host] create_quiz_room for: ${roomId}, host: ${hostId}`);
 
@@ -288,28 +446,7 @@ room.currentRoundResults = roundLeaderboard;
     console.log(`[Host] ✅ Overall leaderboard shown to all players`);
   });
 
-  socket.on('next_round_or_end', ({ roomId }) => {
-    if (debug) console.log(`[Host] next_round_or_end for ${roomId}`);
 
-    const room = getQuizRoom(roomId);
-    if (!room) {
-      socket.emit('quiz_error', { message: 'Room not found' });
-      return;
-    }
-
-    const totalRounds = getTotalRounds(roomId);
-    const nextRound = getCurrentRound(roomId) + 1;
-
-    if (nextRound > totalRounds) {
-      room.currentPhase = 'complete';
-      namespace.to(roomId).emit('quiz_end', { message: 'Quiz complete. Thank you!' });
-      emitRoomState(namespace, roomId);
-    } else {
-      startNextRound(roomId);
-      room.currentPhase = 'waiting';
-      emitRoomState(namespace, roomId);
-    }
-  });
 
   socket.on('end_quiz', ({ roomId }) => {
     if (debug) console.log(`[Host] end_quiz for ${roomId}`);

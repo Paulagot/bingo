@@ -6,8 +6,13 @@ import { useNavigate } from 'react-router-dom';
 import { useQuizTimer } from '../hooks/useQuizTimer';
 import { useCountdownEffects } from '../hooks/useCountdownEffects';
 import { useQuizConfig } from '../useQuizConfig';
-import { roundTypeDefinitions, } from '../../../constants/quizMetadata';
+import { roundTypeDefinitions } from '../../../constants/quizMetadata';
 import type { RoundTypeId } from '../types/quiz';
+import RoundRouter from '../game/RoundRouter';
+import ActivityTicker from '../host-controls/ActivityTicker';
+import RoundStatsDisplay from '../host-controls/RoundStatsDisplay';
+import FinalQuizStats from '../host-controls/FinalQuizStats';
+import { useHostStats } from '../hooks/useHostStats';
 import { 
   Play, 
   SkipForward, 
@@ -16,7 +21,6 @@ import {
   Timer, 
   Eye,
   XCircle,
-  CheckCircle,
   Crown,
   Settings,
   Medal,
@@ -33,6 +37,16 @@ type RoomStatePayload = {
   questionsThisRound?: number;
   totalPlayers?: number;
 };
+
+interface AnswerStatistics {
+  totalPlayers: number;
+  correctCount: number;
+  incorrectCount: number;
+  noAnswerCount: number;
+  correctPercentage: number;
+  incorrectPercentage: number;
+  noAnswerPercentage: number;
+}
 
 type QuestionPayload = {
   id: string;
@@ -54,6 +68,9 @@ type ReviewQuestionPayload = {
   submittedAnswer?: string | null;
   difficulty?: string;
   category?: string;
+  questionNumber?: number;
+  totalQuestions?: number;
+  statistics?: AnswerStatistics;
 };
 
 type LeaderboardEntry = {
@@ -79,11 +96,25 @@ const HostControlsPage = () => {
     totalPlayers: 0
   });
 
+  // ✅ Use host stats hook
+  const {
+    activities,
+    currentRoundStats,
+    allRoundsStats,
+    clearActivity,
+    hasRoundStats,
+    hasFinalStats
+  } = useHostStats({
+    socket,
+    roomId: roomId!,
+    debug: debug
+  });
+
   const [currentQuestion, setCurrentQuestion] = useState<QuestionPayload | null>(null);
   const [reviewQuestion, setReviewQuestion] = useState<ReviewQuestionPayload | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   
-  // ✅ NEW: Round leaderboard state
+  // Round leaderboard state
   const [roundLeaderboard, setRoundLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [isShowingRoundResults, setIsShowingRoundResults] = useState(false);
   const [reviewComplete, setReviewComplete] = useState(false);
@@ -105,7 +136,7 @@ const HostControlsPage = () => {
   // Use countdown effects hook (same as players use)
   const { currentEffect, isFlashing, getFlashClasses } = useCountdownEffects();
 
-  // ✅ FIXED: Check if we're on the last question of the round OR if review is complete
+  // Check if we're on the last question of the round OR if review is complete
   const isLastQuestionOfRound = () => {
     // Method 1: If we're in reviewing phase and no current question, but have review question, check if it's the last review
     if (roomState.phase === 'reviewing' && reviewQuestion && !currentQuestion) {
@@ -186,13 +217,13 @@ const HostControlsPage = () => {
       if (debug) console.log('[Host] 🔄 Received room_state update:', data);
       setRoomState(data);
       
-      // ✅ NEW: Reset round leaderboard state when phase changes
+      // Reset round leaderboard state when phase changes
       if (data.phase !== 'leaderboard') {
         setIsShowingRoundResults(false);
         setRoundLeaderboard([]);
       }
       
-      // ✅ NEW: Reset review complete flag when leaving reviewing phase
+      // Reset review complete flag when leaving reviewing phase
       if (data.phase !== 'reviewing') {
         setReviewComplete(false);
       }
@@ -244,6 +275,13 @@ const HostControlsPage = () => {
       if (debug) console.log('[Host] 🧐 Received host review question:', data);
       setReviewQuestion(data);
       setCurrentQuestion(null);
+      
+      // Update question position from server data
+      if (data.questionNumber && data.totalQuestions) {
+        setQuestionInRound(data.questionNumber);
+        setTotalInRound(data.totalQuestions);
+        if (debug) console.log(`[Host] 📍 Review position: ${data.questionNumber}/${data.totalQuestions}`);
+      }
     };
     socket.on('host_review_question', handleHostReviewQuestion);
     return () => {
@@ -251,7 +289,7 @@ const HostControlsPage = () => {
     };
   }, [socket]);
 
-  // ✅ NEW: Listen for review complete notification from engine
+  // Listen for review complete notification from engine
   useEffect(() => {
     if (!socket) return;
     const handleReviewComplete = (data: { message: string; roundNumber: number; totalQuestions: number }) => {
@@ -263,6 +301,7 @@ const HostControlsPage = () => {
       socket.off('review_complete', handleReviewComplete);
     };
   }, [socket]);
+
   useEffect(() => {
     if (!socket) return;
     const handleRoundLeaderboard = (data: LeaderboardEntry[]) => {
@@ -300,13 +339,13 @@ const HostControlsPage = () => {
     socket?.emit('next_review', { roomId });
   };
 
-  // ✅ NEW: Show round results
+  // Show round results
   const handleShowRoundResults = () => {
     if (debug) console.log('[Host] 📊 Showing round results...');
     socket?.emit('show_round_results', { roomId });
   };
 
-  // ✅ NEW: Continue to overall leaderboard
+  // Continue to overall leaderboard
   const handleContinueToOverallLeaderboard = () => {
     if (debug) console.log('[Host] ➡️ Continuing to overall leaderboard...');
     socket?.emit('continue_to_overall_leaderboard', { roomId });
@@ -416,6 +455,13 @@ const HostControlsPage = () => {
             </div>
           </div>
         </div>
+
+        {/* ✅ Activity Ticker - Prominently placed for host visibility */}
+        <ActivityTicker
+          activities={activities}
+          onClearActivity={clearActivity}
+          maxVisible={8}
+        />
 
         {/* Round Information Card (when in waiting/launched phase) */}
         {(roomState.phase === 'waiting' || roomState.phase === 'launched') && roundMetadata && currentRoundDef && (
@@ -589,13 +635,21 @@ const HostControlsPage = () => {
           </div>
         )}
 
-        {/* Review Question Display */}
+        {/* Review Question Display with Statistics */}
         {reviewQuestion && roomState.phase === 'reviewing' && (
           <div className="bg-white rounded-xl shadow-lg border-2 border-yellow-200 p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-800">📖 Question Review</h3>
               <div className="flex items-center space-x-3">
-                {/* ✅ UPDATED: Show round results button for last question OR when review is complete */}
+                <h3 className="text-lg font-bold text-gray-800">📖 Question Review</h3>
+                {/* Show question position */}
+                {reviewQuestion.questionNumber && reviewQuestion.totalQuestions && (
+                  <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-medium">
+                    Question {reviewQuestion.questionNumber}/{reviewQuestion.totalQuestions}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center space-x-3">
+                {/* Show round results button for last question OR when review is complete */}
                 {(isLastQuestionOfRound() || reviewComplete) && (
                   <button 
                     onClick={handleShowRoundResults} 
@@ -615,34 +669,56 @@ const HostControlsPage = () => {
                 </button>
               </div>
             </div>
-            
-            <div className="bg-yellow-50 p-4 rounded-lg">
-              <p className="text-lg text-gray-800 mb-3">{reviewQuestion.text}</p>
-              <div className="space-y-2">
-                {reviewQuestion.options.map((opt, idx) => {
-                  const isCorrect = opt === reviewQuestion.correctAnswer;
-                  const isSubmitted = opt === reviewQuestion.submittedAnswer;
-                  
-                  return (
-                    <div key={idx} className={`p-3 rounded border-2 flex items-center justify-between ${
-                      isCorrect ? 'bg-green-100 border-green-300' :
-                      isSubmitted ? 'bg-red-100 border-red-300' :
-                      'bg-white border-gray-200'
-                    }`}>
-                      <span>{opt}</span>
-                      <div className="flex space-x-2">
-                        {isCorrect && <CheckCircle className="w-5 h-5 text-green-600" />}
-                        {isSubmitted && !isCorrect && <XCircle className="w-5 h-5 text-red-600" />}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+
+            {/* Use RoundRouter for consistent display with statistics */}
+            <RoundRouter
+              roomPhase="reviewing"
+              currentRoundType={currentRoundDef?.roundType}
+              question={{
+                id: reviewQuestion.id,
+                text: reviewQuestion.text,
+                options: reviewQuestion.options,
+                timeLimit: 0,
+                difficulty: reviewQuestion.difficulty,
+                category: reviewQuestion.category
+              }}
+              timeLeft={null}
+              timerActive={false}
+              selectedAnswer=""
+              setSelectedAnswer={() => {}}
+              answerSubmitted={false}
+              clue={null}
+              feedback={null}
+              correctAnswer={reviewQuestion.correctAnswer}
+              isFrozen={false}
+              frozenNotice={null}
+              onSubmit={() => {}}
+              roomId={roomId!}
+              playerId="host"
+              roundExtras={[]}
+              usedExtras={{}}
+              usedExtrasThisRound={{}}
+              onUseExtra={() => {}}
+              questionNumber={reviewQuestion.questionNumber}
+              totalQuestions={reviewQuestion.totalQuestions}
+              difficulty={reviewQuestion.difficulty}
+              category={reviewQuestion.category}
+              // Pass statistics and host flag
+              statistics={reviewQuestion.statistics}
+              isHost={true}
+            />
           </div>
         )}
 
-        {/* ✅ NEW: Round Leaderboard Display */}
+        {/* Round Stats Display (show during round leaderboard) */}
+        {roomState.phase === 'leaderboard' && isShowingRoundResults && hasRoundStats && currentRoundStats && (
+          <RoundStatsDisplay
+            roundStats={currentRoundStats}
+            isVisible={true}
+          />
+        )}
+
+        {/* Round Leaderboard Display */}
         {roomState.phase === 'leaderboard' && isShowingRoundResults && roundLeaderboard.length > 0 && (
           <div className="bg-white rounded-xl shadow-lg border-2 border-purple-200 p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
@@ -732,10 +808,40 @@ const HostControlsPage = () => {
 
         {/* Quiz Complete */}
         {roomState.phase === 'complete' && (
-          <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-8 rounded-xl border-2 border-purple-200 text-center">
+          <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-8 rounded-xl border-2 border-purple-200 text-center mb-6">
             <div className="text-6xl mb-4">🎉</div>
             <h2 className="text-3xl font-bold text-purple-800 mb-2">Quiz Complete!</h2>
             <p className="text-purple-600 text-lg">Thank you for hosting this amazing quiz experience!</p>
+          </div>
+        )}
+
+        {/* Final Quiz Statistics (show when quiz is complete) */}
+        {debug && roomState.phase === 'complete' && (
+          <div className="bg-yellow-100 rounded-lg p-4 mb-4">
+            <h4 className="font-semibold text-yellow-800">🐛 Final Stats Debug</h4>
+            <div className="text-sm text-yellow-700">
+              <div>Phase: {roomState.phase}</div>
+              <div>hasFinalStats: {hasFinalStats ? '✅' : '❌'}</div>
+              <div>allRoundsStats length: {allRoundsStats.length}</div>
+              <div>allRoundsStats: {JSON.stringify(allRoundsStats, null, 2)}</div>
+            </div>
+          </div>
+        )}
+        
+        {roomState.phase === 'complete' && (hasFinalStats || allRoundsStats.length > 0) && (
+          <FinalQuizStats
+            allRoundsStats={allRoundsStats}
+            totalPlayers={roomState.totalPlayers || 0}
+            isVisible={true}
+          />
+        )}
+        
+        {/* Fallback: Show even without hasFinalStats if we have data */}
+        {roomState.phase === 'complete' && !hasFinalStats && allRoundsStats.length === 0 && (
+          <div className="bg-blue-50 rounded-xl p-6 mb-6 text-center">
+            <div className="text-blue-600 mb-2">📊</div>
+            <h3 className="text-lg font-bold text-blue-800 mb-2">No Statistics Available</h3>
+            <p className="text-blue-600">Final quiz statistics are not yet available. They may still be loading.</p>
           </div>
         )}
 
@@ -753,10 +859,11 @@ const HostControlsPage = () => {
               <div>Question: {questionInRound}/{totalInRound} | Last Question: {isLastQuestionOfRound() ? '✅' : '❌'}</div>
               <div>Round Results: {isShowingRoundResults ? '✅' : '❌'} | Round Leaderboard: {roundLeaderboard.length} entries</div>
               <div>Review Complete: {reviewComplete ? '✅' : '❌'} | Review Question: {reviewQuestion ? '✅' : '❌'}</div>
+              <div>Activities: {activities.length} | Round Stats: {hasRoundStats ? '✅' : '❌'} | Final Stats: {hasFinalStats ? '✅' : '❌'}</div>
             </div>
           </div>
         )}
-        
+
         {/* Cancel Quiz Section */}
         <div className="text-center">
           <button

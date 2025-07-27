@@ -10,7 +10,8 @@ import {
   Clock,
   MapPin,
   Info,
-  CheckCircle
+  CheckCircle,
+  ChevronDown
 } from 'lucide-react';
 
 const Character = ({ expression, message }: { expression: string; message: string }) => {
@@ -47,6 +48,174 @@ const Character = ({ expression, message }: { expression: string; message: strin
   );
 };
 
+// Custom Time Picker Component
+const TimePicker = ({ 
+  value, 
+  onChange, 
+  disabled = false,
+  minTime = '00:00',
+  className = ''
+}: {
+  value: string;
+  onChange: (time: string) => void;
+  disabled?: boolean;
+  minTime?: string;
+  className?: string;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedHour, setSelectedHour] = useState('12');
+  const [selectedMinute, setSelectedMinute] = useState('00');
+  const [selectedPeriod, setSelectedPeriod] = useState('PM');
+
+  useEffect(() => {
+    if (value) {
+      const [hours, minutes] = value.split(':');
+      const hour24 = parseInt(hours);
+      const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+      const period = hour24 >= 12 ? 'PM' : 'AM';
+      
+      setSelectedHour(hour12.toString().padStart(2, '0'));
+      setSelectedMinute(minutes);
+      setSelectedPeriod(period);
+    }
+  }, [value]);
+
+  const hours = Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, '0'));
+  const minutes = Array.from({ length: 12 }, (_, i) => (i * 5).toString().padStart(2, '0'));
+
+  const formatDisplayTime = () => {
+    if (!value) return 'Select time';
+    const [hours, mins] = value.split(':');
+    const hour24 = parseInt(hours);
+    const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+    const period = hour24 >= 12 ? 'PM' : 'AM';
+    return `${hour12}:${mins} ${period}`;
+  };
+
+  const handleTimeChange = (hour: string, minute: string, period: string) => {
+    let hour24 = parseInt(hour);
+    if (period === 'AM' && hour24 === 12) hour24 = 0;
+    if (period === 'PM' && hour24 !== 12) hour24 += 12;
+    
+    const timeString = `${hour24.toString().padStart(2, '0')}:${minute}`;
+    onChange(timeString);
+  };
+
+  const isTimeDisabled = (hour: string, minute: string, period: string) => {
+    if (!minTime) return false;
+    
+    let hour24 = parseInt(hour);
+    if (period === 'AM' && hour24 === 12) hour24 = 0;
+    if (period === 'PM' && hour24 !== 12) hour24 += 12;
+    
+    const timeString = `${hour24.toString().padStart(2, '0')}:${minute}`;
+    return timeString < minTime;
+  };
+
+  return (
+    <div className={`relative ${className}`}>
+      <button
+        type="button"
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        disabled={disabled}
+        className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none transition flex items-center justify-between ${
+          value 
+            ? 'border-green-300 bg-green-50 focus:border-green-500' 
+            : 'border-gray-200 focus:border-indigo-500'
+        } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-indigo-400'}`}
+      >
+        <span className={value ? 'text-gray-900' : 'text-gray-500'}>
+          {formatDisplayTime()}
+        </span>
+        <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white border-2 border-gray-200 rounded-lg shadow-lg z-50 max-h-64 overflow-hidden">
+          <div className="grid grid-cols-3 divide-x divide-gray-200">
+            {/* Hours */}
+            <div className="p-2">
+              <div className="text-xs font-medium text-gray-500 text-center mb-2">Hour</div>
+              <div className="max-h-32 overflow-y-auto">
+                {hours.map((hour) => (
+                  <button
+                    key={hour}
+                    type="button"
+                    onClick={() => {
+                      setSelectedHour(hour);
+                      handleTimeChange(hour, selectedMinute, selectedPeriod);
+                    }}
+                    className={`w-full px-2 py-1 text-sm rounded text-center hover:bg-indigo-50 ${
+                      selectedHour === hour ? 'bg-indigo-100 text-indigo-700 font-medium' : ''
+                    }`}
+                  >
+                    {hour}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Minutes */}
+            <div className="p-2">
+              <div className="text-xs font-medium text-gray-500 text-center mb-2">Min</div>
+              <div className="max-h-32 overflow-y-auto">
+                {minutes.map((minute) => (
+                  <button
+                    key={minute}
+                    type="button"
+                    onClick={() => {
+                      setSelectedMinute(minute);
+                      handleTimeChange(selectedHour, minute, selectedPeriod);
+                    }}
+                    disabled={isTimeDisabled(selectedHour, minute, selectedPeriod)}
+                    className={`w-full px-2 py-1 text-sm rounded text-center hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed ${
+                      selectedMinute === minute ? 'bg-indigo-100 text-indigo-700 font-medium' : ''
+                    }`}
+                  >
+                    {minute}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* AM/PM */}
+            <div className="p-2">
+              <div className="text-xs font-medium text-gray-500 text-center mb-2">Period</div>
+              <div className="space-y-1">
+                {['AM', 'PM'].map((period) => (
+                  <button
+                    key={period}
+                    type="button"
+                    onClick={() => {
+                      setSelectedPeriod(period);
+                      handleTimeChange(selectedHour, selectedMinute, period);
+                    }}
+                    disabled={isTimeDisabled(selectedHour, selectedMinute, period)}
+                    className={`w-full px-2 py-1 text-sm rounded text-center hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed ${
+                      selectedPeriod === period ? 'bg-indigo-100 text-indigo-700 font-medium' : ''
+                    }`}
+                  >
+                    {period}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="border-t border-gray-200 p-2">
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className="w-full px-3 py-1 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const StepScheduleEvent: FC<WizardStepProps> = ({ onNext, onBack }) => {
   const { setupConfig, updateSetupConfig } = useQuizSetupStore();
   
@@ -79,7 +248,7 @@ const StepScheduleEvent: FC<WizardStepProps> = ({ onNext, onBack }) => {
     if (!eventDate && !eventTime) {
       return { 
         expression: "explaining", 
-        message: "Let's schedule your quiz event! Choose a date and time that works for your participants. We'll automatically detect your timezone." 
+        message: "Let's schedule your quiz event! You can select today's date or any future date. Just make sure the time is at least 30 minutes from now for proper preparation." 
       };
     }
     
@@ -99,11 +268,12 @@ const StepScheduleEvent: FC<WizardStepProps> = ({ onNext, onBack }) => {
     
     const selectedDate = new Date(`${eventDate}T${eventTime}`);
     const now = new Date();
+    const thirtyMinutesFromNow = new Date(now.getTime() + 30 * 60 * 1000);
     
-    if (selectedDate <= now) {
+    if (selectedDate < thirtyMinutesFromNow) {
       return { 
         expression: "strategic", 
-        message: "The selected date and time is in the past. Please choose a future date and time for your quiz event." 
+        message: "Please schedule your quiz at least 30 minutes from now to give participants time to prepare and join." 
       };
     }
     
@@ -127,10 +297,9 @@ const StepScheduleEvent: FC<WizardStepProps> = ({ onNext, onBack }) => {
     }
   };
 
-  const getMinDateTime = () => {
+  const getTodayDate = () => {
     const now = new Date();
-    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-    return tomorrow.toISOString().split('T')[0];
+    return now.toISOString().split('T')[0];
   };
 
   const getMinTime = () => {
@@ -138,9 +307,9 @@ const StepScheduleEvent: FC<WizardStepProps> = ({ onNext, onBack }) => {
     const selectedDate = new Date(`${eventDate}T00:00:00`);
     const today = new Date(now.toISOString().split('T')[0]);
     
-    // If selected date is today, minimum time is current time + 1 hour
+    // If selected date is today, minimum time is current time + 30 minutes
     if (selectedDate.getTime() === today.getTime()) {
-      const minTime = new Date(now.getTime() + 60 * 60 * 1000);
+      const minTime = new Date(now.getTime() + 30 * 60 * 1000);
       return minTime.toTimeString().slice(0, 5);
     }
     
@@ -162,9 +331,10 @@ const StepScheduleEvent: FC<WizardStepProps> = ({ onNext, onBack }) => {
     const eventDateTime = `${eventDate}T${eventTime}`;
     const selectedDate = new Date(eventDateTime);
     const now = new Date();
+    const thirtyMinutesFromNow = new Date(now.getTime() + 30 * 60 * 1000);
 
-    if (selectedDate <= now) {
-      return setError('Event date and time must be in the future.');
+    if (selectedDate < thirtyMinutesFromNow) {
+      return setError('Event must be scheduled at least 30 minutes from now.');
     }
 
     updateSetupConfig({ 
@@ -178,7 +348,9 @@ const StepScheduleEvent: FC<WizardStepProps> = ({ onNext, onBack }) => {
 
   const isComplete = eventDate && eventTime;
   const selectedDateTime = eventDate && eventTime ? new Date(`${eventDate}T${eventTime}`) : null;
-  const isValidDateTime = selectedDateTime && selectedDateTime > new Date();
+  const now = new Date();
+  const thirtyMinutesFromNow = new Date(now.getTime() + 30 * 60 * 1000);
+  const isValidDateTime = selectedDateTime && selectedDateTime >= thirtyMinutesFromNow;
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -225,7 +397,7 @@ const StepScheduleEvent: FC<WizardStepProps> = ({ onNext, onBack }) => {
               <input
                 type="date"
                 value={eventDate}
-                min={getMinDateTime()}
+                min={getTodayDate()}
                 onChange={(e) => {
                   setEventDate(e.target.value);
                   setError('');
@@ -244,19 +416,14 @@ const StepScheduleEvent: FC<WizardStepProps> = ({ onNext, onBack }) => {
                 <Clock className="w-4 h-4" />
                 <span>Event Time <span className="text-red-500">*</span></span>
               </label>
-              <input
-                type="time"
+              <TimePicker
                 value={eventTime}
-                min={eventDate ? getMinTime() : undefined}
-                onChange={(e) => {
-                  setEventTime(e.target.value);
+                onChange={(time) => {
+                  setEventTime(time);
                   setError('');
                 }}
-                className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none transition ${
-                  eventTime 
-                    ? 'border-green-300 bg-green-50 focus:border-green-500' 
-                    : 'border-gray-200 focus:border-indigo-500'
-                }`}
+                minTime={eventDate === getTodayDate() ? getMinTime() : '00:00'}
+                disabled={!eventDate}
               />
             </div>
           </div>
@@ -277,7 +444,7 @@ const StepScheduleEvent: FC<WizardStepProps> = ({ onNext, onBack }) => {
                 <span className={`text-sm font-medium ${
                   isValidDateTime ? 'text-green-800' : 'text-red-800'
                 }`}>
-                  {isValidDateTime ? 'Event Scheduled' : 'Invalid Date/Time'}
+                  {isValidDateTime ? 'Event Scheduled' : 'Schedule Conflict'}
                 </span>
               </div>
               {selectedDateTime && (
@@ -300,7 +467,7 @@ const StepScheduleEvent: FC<WizardStepProps> = ({ onNext, onBack }) => {
                     })} ({timeZone})
                   </p>
                   {!isValidDateTime && (
-                    <p className="text-xs mt-1">Please select a future date and time</p>
+                    <p className="text-xs mt-1">Must be at least 30 minutes from now</p>
                   )}
                 </div>
               )}
@@ -341,9 +508,9 @@ const StepScheduleEvent: FC<WizardStepProps> = ({ onNext, onBack }) => {
             <div className="text-sm text-blue-800">
               <p className="font-medium mb-1">Scheduling Tips</p>
               <ul className="space-y-1 text-xs">
+                <li>• You can schedule for today as long as it's at least 30 minutes from now</li>
                 <li>• Choose a time that works for your expected participants</li>
                 <li>• Consider different timezones if you have international participants</li>
-                <li>• Allow enough time for participants to prepare and join</li>
                 <li>• The system will automatically handle timezone conversions</li>
               </ul>
             </div>

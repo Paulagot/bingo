@@ -5,6 +5,110 @@ import { fundraisingExtraDefinitions } from './../quizMetadata.js';
 
 const debug = true;
 
+// ✅ NEW: Send host activity notification
+function sendHostActivityNotification(namespace, roomId, activityData) {
+  namespace.to(`${roomId}:host`).emit('host_activity_update', {
+    type: activityData.type,
+    playerName: activityData.playerName,
+    targetName: activityData.targetName,
+    context: activityData.context || 'Leaderboard',
+    round: activityData.round,
+    timestamp: Date.now()
+  });
+
+  if (debug) {
+    console.log(`[GlobalExtrasHandler] 📡 Host notified: ${activityData.playerName} used ${activityData.type}`);
+  }
+}
+
+// ✅ NEW: Calculate leaderboard phase stats
+function calculateLeaderboardStats(room) {
+  const stats = {
+    roundNumber: room.currentRound,
+    hintsUsed: 0,
+    freezesUsed: 0,
+    pointsRobbed: 0,
+    pointsRestored: 0,
+    extrasByPlayer: {},
+    questionsWithExtras: 0,
+    totalExtrasUsed: 0
+  };
+
+  // Calculate global extras used during leaderboard phase
+  Object.entries(room.playerData).forEach(([playerId, playerData]) => {
+    const player = room.players.find(p => p.id === playerId);
+    const playerName = player?.name || playerId;
+    
+    if (!stats.extrasByPlayer[playerName]) {
+      stats.extrasByPlayer[playerName] = [];
+    }
+
+    // Count global extras used
+    if (playerData.usedExtras) {
+      if (playerData.usedExtras.robPoints) {
+        stats.pointsRobbed++;
+        stats.totalExtrasUsed++;
+        stats.extrasByPlayer[playerName].push({
+          extraId: 'robPoints',
+          timestamp: Date.now()
+        });
+      }
+      
+      // Note: restorePoints can be used multiple times, so we count pointsRestored value
+      if (playerData.pointsRestored > 0) {
+        stats.pointsRestored += playerData.pointsRestored;
+        // Only count as one "extra use" for the player
+        if (!stats.extrasByPlayer[playerName].some(e => e.extraId === 'restorePoints')) {
+          stats.totalExtrasUsed++;
+          stats.extrasByPlayer[playerName].push({
+            extraId: 'restorePoints',
+            timestamp: Date.now()
+          });
+        }
+      }
+    }
+
+    // Add asking phase extras from usedExtrasThisRound
+    if (playerData.usedExtrasThisRound) {
+      Object.entries(playerData.usedExtrasThisRound).forEach(([extraId, used]) => {
+        if (used) {
+          switch (extraId) {
+            case 'buyHint':
+              stats.hintsUsed++;
+              break;
+            case 'freezeOutTeam':
+              stats.freezesUsed++;
+              break;
+          }
+          
+          if (!stats.extrasByPlayer[playerName].some(e => e.extraId === extraId)) {
+            stats.totalExtrasUsed++;
+            stats.extrasByPlayer[playerName].push({
+              extraId,
+              timestamp: Date.now()
+            });
+          }
+        }
+      });
+    }
+  });
+
+  return stats;
+}
+
+// ✅ NEW: Send updated stats to host
+function sendUpdatedStatsToHost(namespace, roomId) {
+  const room = getQuizRoom(roomId);
+  if (!room) return;
+
+  const updatedStats = calculateLeaderboardStats(room);
+  namespace.to(`${roomId}:host`).emit('host_current_round_stats', updatedStats);
+
+  if (debug) {
+    console.log(`[GlobalExtrasHandler] 📊 Updated stats sent to host:`, updatedStats);
+  }
+}
+
 /**
  * Handle global extras that can be used during leaderboard phase
  * @param {string} roomId 
@@ -53,12 +157,16 @@ export function handleGlobalExtra(roomId, playerId, extraId, targetPlayerId, nam
   // ✅ Execute the specific global extra
   const result = executeGlobalExtra(roomId, playerId, extraId, targetPlayerId, namespace);
 
-if (result.success) {
+  if (result.success) {
     // ✅ Mark as used (but NOT for restorePoints - it has its own limit logic)
     if (extraId !== 'restorePoints') {
       playerData.usedExtras[extraId] = true;
       playerData.usedExtrasThisRound[extraId] = true;
     }
+    
+    // ✅ NEW: Send updated stats to host after any global extra usage
+    sendUpdatedStatsToHost(namespace, roomId);
+    
     console.log(`[GlobalExtrasHandler] ✅ ${extraId} executed successfully for ${playerId}`);
   } else {
     console.warn(`[GlobalExtrasHandler] ❌ ${extraId} execution failed for ${playerId}: ${result.error}`);
@@ -131,20 +239,28 @@ function executeRobPoints(roomId, playerId, targetPlayerId, namespace) {
     console.log(`  - ${targetName}: ${oldTargetScore} → ${targetData.score} (-${pointsToRob})`);
   }
 
+  // ✅ NEW: Notify host of rob points activity
+  sendHostActivityNotification(namespace, roomId, {
+    type: 'rob',
+    playerName: playerName,
+    targetName: targetName,
+    round: room.currentRound
+  });
+
   // ✅ Generate updated leaderboard (sorted by score descending)
-const updatedLeaderboard = Object.keys(room.playerData)
-  .map(pid => {
-    const pData = room.playerData[pid];
-    const pInfo = room.players.find(p => p.id === pid);
-    return {
-      id: pid,
-      name: pInfo?.name || 'Unknown',
-      score: pData.score,
-      cumulativeNegativePoints: pData.cumulativeNegativePoints || 0,  // ✅ ADD THIS
-      pointsRestored: pData.pointsRestored || 0  // ✅ ADD THIS
-    };
-  })
-  .sort((a, b) => b.score - a.score);
+  const updatedLeaderboard = Object.keys(room.playerData)
+    .map(pid => {
+      const pData = room.playerData[pid];
+      const pInfo = room.players.find(p => p.id === pid);
+      return {
+        id: pid,
+        name: pInfo?.name || 'Unknown',
+        score: pData.score,
+        cumulativeNegativePoints: pData.cumulativeNegativePoints || 0,
+        pointsRestored: pData.pointsRestored || 0
+      };
+    })
+    .sort((a, b) => b.score - a.score);
 
   // ✅ Emit updated leaderboard to all players
   namespace.to(roomId).emit('leaderboard', updatedLeaderboard);
@@ -194,22 +310,21 @@ function executeRestorePoints(roomId, playerId, namespace) {
   const maxRestorePoints = fundraisingExtraDefinitions.restorePoints?.totalRestorePoints || 3;
   
   // ✅ Calculate how many points can be restored
+  const cumulativeNegative = playerData.cumulativeNegativePoints || 0;
+  const alreadyRestored = playerData.pointsRestored || 0;
+  const totalAllowedToRestore = maxRestorePoints; // 3 points total lifetime limit
+  const remainingAllowance = Math.max(0, totalAllowedToRestore - alreadyRestored);
+  const availableFromLosses = Math.max(0, cumulativeNegative - alreadyRestored);
+  const pointsToRestore = Math.min(remainingAllowance, availableFromLosses);
 
-const cumulativeNegative = playerData.cumulativeNegativePoints || 0;
-const alreadyRestored = playerData.pointsRestored || 0;
-const totalAllowedToRestore = maxRestorePoints; // 3 points total lifetime limit
-const remainingAllowance = Math.max(0, totalAllowedToRestore - alreadyRestored);
-const availableFromLosses = Math.max(0, cumulativeNegative - alreadyRestored);
-const pointsToRestore = Math.min(remainingAllowance, availableFromLosses);
+  // ✅ Validate player has points to restore
+  if (remainingAllowance <= 0) {
+    return { success: false, error: 'You have already restored the maximum number of points' };
+  }
 
-// ✅ Validate player has points to restore
-if (remainingAllowance <= 0) {
-  return { success: false, error: 'You have already restored the maximum number of points' };
-}
-
-if (pointsToRestore <= 0) {
-  return { success: false, error: 'No points available to restore' };
-}
+  if (pointsToRestore <= 0) {
+    return { success: false, error: 'No points available to restore' };
+  }
 
   // ✅ Get player name for notifications
   const player = room.players.find(p => p.id === playerId);
@@ -230,20 +345,27 @@ if (pointsToRestore <= 0) {
     console.log(`  - Remaining restorable: ${remainingAllowance - pointsToRestore}`);
   }
 
+  // ✅ NEW: Notify host of restore points activity
+  sendHostActivityNotification(namespace, roomId, {
+    type: 'restore',
+    playerName: playerName,
+    round: room.currentRound
+  });
+
   // ✅ Generate updated leaderboard (sorted by score descending)
- const updatedLeaderboard = Object.keys(room.playerData)
-  .map(pid => {
-    const pData = room.playerData[pid];
-    const pInfo = room.players.find(p => p.id === pid);
-    return {
-      id: pid,
-      name: pInfo?.name || 'Unknown',
-      score: pData.score,
-      cumulativeNegativePoints: pData.cumulativeNegativePoints || 0,  // ✅ ADD THIS
-      pointsRestored: pData.pointsRestored || 0  // ✅ ADD THIS
-    };
-  })
-  .sort((a, b) => b.score - a.score);
+  const updatedLeaderboard = Object.keys(room.playerData)
+    .map(pid => {
+      const pData = room.playerData[pid];
+      const pInfo = room.players.find(p => p.id === pid);
+      return {
+        id: pid,
+        name: pInfo?.name || 'Unknown',
+        score: pData.score,
+        cumulativeNegativePoints: pData.cumulativeNegativePoints || 0,
+        pointsRestored: pData.pointsRestored || 0
+      };
+    })
+    .sort((a, b) => b.score - a.sort);
 
   // ✅ Emit updated leaderboard to all players
   namespace.to(roomId).emit('leaderboard', updatedLeaderboard);

@@ -348,14 +348,17 @@ const QuizGamePlayPage = () => {
       setPhaseMessage('');
     };
 
-  const handleReviewQuestion = (data: any) => {
+// QuizGamePlayPage.tsx - Updated handleReviewQuestion function
+const handleReviewQuestion = (data: any) => {
   if (debug) console.log('[Client] 🤔 Review question received:', data);
 
   setQuestion({
     id: data.id,
     text: data.text,
     options: data.options || [],
-    timeLimit: 0
+    timeLimit: 0,
+    difficulty: data.difficulty,
+    category: data.category
   });
 
   setClue(null);
@@ -363,10 +366,17 @@ const QuizGamePlayPage = () => {
   setSelectedAnswer(data.submittedAnswer || '');
   setCorrectAnswer(data.correctAnswer);
 
+  // ✅ NEW: Use server-provided question numbers (persistent across reconnections)
+  if (data.questionNumber && data.totalQuestions) {
+    setQuestionInRound(data.questionNumber);
+    setTotalInRound(data.totalQuestions);
+    if (debug) console.log(`[Client] 📍 Review position: ${data.questionNumber}/${data.totalQuestions}`);
+  }
+
   const hasAnswered = data.submittedAnswer !== null && data.submittedAnswer !== undefined;
   const isCorrect = hasAnswered && data.submittedAnswer === data.correctAnswer;
 
-  // ✅ Dynamically calculate score
+  // ✅ Dynamically calculate score (existing logic)
   const currentRoundDef = config?.roundDefinitions?.[serverRoomState.currentRound - 1];
   const roundType = serverRoomState.roundTypeId as RoundTypeId;
   const roundMeta = roundTypeDefinitions[roundType];
@@ -376,7 +386,6 @@ const QuizGamePlayPage = () => {
 
   const pointsPerDifficulty = roundConfig.pointsPerDifficulty || defaultConfig.pointsPerDifficulty || {};
   const pointsLostPerWrong = roundConfig.pointsLostPerWrong ?? defaultConfig.pointsLostPerWrong ?? 0;
-  // ✅ FIXED: Get penalty for not answering
   const pointsLostPerUnanswered = roundConfig.pointslostperunanswered ?? defaultConfig.pointslostperunanswered ?? 0;
 
   const difficulty = (data.difficulty || 'medium') as keyof typeof pointsPerDifficulty;
@@ -384,7 +393,6 @@ const QuizGamePlayPage = () => {
 
   let pointsEarned = 0;
   if (!hasAnswered) {
-    // ✅ FIXED: Apply penalty for not answering
     pointsEarned = -pointsLostPerUnanswered;
   } else if (isCorrect) {
     pointsEarned = pointsIfCorrect;
@@ -814,31 +822,33 @@ return (
             </div>
 
             <RoundRouter
-              roomPhase={roomPhase}
-              currentRoundType={currentRoundType}
-              question={question}
-              timeLeft={null}
-              timerActive={timerActive}
-              selectedAnswer={selectedAnswer}
-              setSelectedAnswer={setSelectedAnswer}
-              answerSubmitted={answerSubmitted}
-              clue={clue}
-              feedback={feedback}
-              correctAnswer={correctAnswer ?? undefined} 
-              isFrozen={isFrozenNow}
-              frozenNotice={frozenNotice}
-              onSubmit={handleSubmit}
-              roomId={roomId!}
-              playerId={playerId!}
-              roundExtras={roundExtras}
-              usedExtras={usedExtras}
-              usedExtrasThisRound={usedExtrasThisRound}
-              onUseExtra={handleUseExtra}
-              questionNumber={questionInRound}
-              totalQuestions={totalInRound}
-              difficulty={question?.difficulty}
-              category={question?.category}
-            />
+  roomPhase={roomPhase}
+  currentRoundType={currentRoundType}
+  question={question}
+  timeLeft={null}
+  timerActive={timerActive}
+  selectedAnswer={selectedAnswer}
+  setSelectedAnswer={setSelectedAnswer}
+  answerSubmitted={answerSubmitted}
+  clue={clue}
+  feedback={feedback}
+  correctAnswer={correctAnswer ?? undefined} 
+  isFrozen={isFrozenNow}
+  frozenNotice={frozenNotice}
+  onSubmit={handleSubmit}
+  roomId={roomId!}
+  playerId={playerId!}
+  roundExtras={roundExtras}
+  usedExtras={usedExtras}
+  usedExtrasThisRound={usedExtrasThisRound}
+  onUseExtra={handleUseExtra}
+  questionNumber={questionInRound}
+  totalQuestions={totalInRound}
+  difficulty={question?.difficulty}
+  category={question?.category}
+  // ✅ NEW: Player view doesn't get statistics, only host does
+  isHost={false}
+/>
           </div>
         ) : (
           <div className="bg-gray-100 p-6 rounded-xl text-center text-gray-600">{phaseMessage}</div>
