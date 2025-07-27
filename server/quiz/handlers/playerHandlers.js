@@ -253,28 +253,59 @@ export function setupPlayerHandlers(socket, namespace) {
         `[Answer] ✅ ${playerName} (${playerId}) submitted: "${answer}" → ${isCorrect ? '✅ Correct' : '❌ Wrong'}`
       );
 
-      engine.handlePlayerAnswer(roomId, playerId, answer);
+      engine.handlePlayerAnswer(roomId, playerId, answer, namespace);
     }).catch(err => {
       console.error(`[Answer] ❌ Engine import failed:`, err);
       socket.emit('quiz_error', { message: 'Failed to load gameplay engine' });
     });
   });
 
-  socket.on('use_extra', ({ roomId, playerId, extraId, targetPlayerId }) => {
-    console.log(`[PlayerHandler] 🧪 Received use_extra:`, { roomId, playerId, extraId, targetPlayerId });
-    
-    const result = handlePlayerExtra(roomId, playerId, extraId, targetPlayerId, namespace);
-    
-    console.log(`[PlayerHandler] 🔍 handlePlayerExtra result:`, result);
-    
-    if (result.success) {
-      console.log(`[PlayerHandler] ✅ Extra ${extraId} used successfully by ${playerId}`);
-      socket.emit('extra_used_successfully', { extraId });
-    } else {
-      console.warn(`[PlayerHandler] ❌ Extra ${extraId} failed for ${playerId}: ${result.error}`);
-      socket.emit('quiz_error', { message: result.error });
+ // REPLACE the existing use_extra handler in playerHandlers.js with this:
+
+socket.on('use_extra', async ({ roomId, playerId, extraId, targetPlayerId }) => {
+  console.log(`[PlayerHandler] 🧪 Received use_extra:`, { roomId, playerId, extraId, targetPlayerId });
+  
+  const room = getQuizRoom(roomId);
+  if (!room) {
+    socket.emit('quiz_error', { message: 'Room not found' });
+    return;
+  }
+
+  // ✅ FIRST: Handle the extra using existing quizRoomManager function
+  const result = handlePlayerExtra(roomId, playerId, extraId, targetPlayerId, namespace);
+  
+  if (!result.success) {
+    console.warn(`[PlayerHandler] ❌ Extra ${extraId} failed for ${playerId}: ${result.error}`);
+    socket.emit('quiz_error', { message: result.error });
+    return;
+  }
+
+  // ✅ SUCCESS: Extra was used successfully
+  console.log(`[PlayerHandler] ✅ Extra ${extraId} used successfully by ${playerId}`);
+  socket.emit('extra_used_successfully', { extraId });
+
+  // ✅ NEW: Send host notifications for specific extras
+  try {
+    const enginePromise = getEngine(room);
+    if (enginePromise) {
+      const engine = await enginePromise;
+      
+      if (extraId === 'buyHint' && engine.handleHintExtra) {
+        // Notify host of hint usage
+        engine.handleHintExtra(roomId, playerId, namespace);
+        console.log(`[PlayerHandler] 📡 Sent hint notification to host for ${playerId}`);
+      } 
+      else if (extraId === 'freezeOutTeam' && targetPlayerId && engine.handleFreezeExtra) {
+        // Notify host of freeze usage
+        engine.handleFreezeExtra(roomId, playerId, targetPlayerId, namespace);
+        console.log(`[PlayerHandler] 📡 Sent freeze notification to host for ${playerId} -> ${targetPlayerId}`);
+      }
     }
-  });
+  } catch (error) {
+    console.error(`[PlayerHandler] ❌ Failed to send host notification:`, error);
+    // Don't fail the extra usage, just log the notification error
+  }
+});
 
   socket.on('use_clue', ({ roomId, playerId }) => {
     console.log(`[PlayerHandler] 💡 Legacy use_clue from ${playerId} - redirecting to buyHint`);

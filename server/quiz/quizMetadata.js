@@ -50,7 +50,7 @@ export const roundTypeDefinitions = {
     timing: '18 seconds per question',
     difficulty: 'Easy',
     bestFor: 'Mixed groups, competitive play, family events',
-    defaultConfig: { questionsPerRound: 8, timePerQuestion: 18 },
+    defaultConfig: { questionsPerRound: 8, timePerQuestion: 20 },
     extras: ['Hint', 'Freeze-out-Team', 'Restore Points'],
     videoId: 'YOUR_YOUTUBE_VIDEO_ID'
   },

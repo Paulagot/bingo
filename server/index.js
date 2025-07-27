@@ -71,7 +71,9 @@ const io = new Server(httpServer, {
       'https://fundraisely.ie',
       'https://fundraisely.co.uk',
       'http://localhost:3000', // for development
-      'http://localhost:5173'  // Vite default port
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://localhost:3001'  // Vite default port
     ],
     methods: ['GET', 'POST'],
     credentials: true

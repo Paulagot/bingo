@@ -39,7 +39,7 @@ export const roundTypes: RoundTypeDefinition[] = [
     description: 'Lose points for wrong answers. Strategic gameplay.',
     defaultConfig: {
       questionsPerRound: 8,
-      timePerQuestion: 18,
+      timePerQuestion: 20,
       pointsPerDifficulty: {
   easy: 2,
   medium: 3,

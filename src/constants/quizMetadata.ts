@@ -67,7 +67,7 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     bestFor: 'Mixed groups, competitive play, family events',
     defaultConfig:   {
      questionsPerRound: 8,
-      timePerQuestion: 18,
+      timePerQuestion: 20,
       pointsPerDifficulty: {
   easy: 2,
   medium: 3,
