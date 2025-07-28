@@ -13,7 +13,7 @@ import { getEngine } from '../ gameplayEngines/gameplayEngineRouter.js';
 import { isRateLimited } from '../../socketRateLimiter.js';
 import { getCurrentRoundStats } from './globalExtrasHandler.js';
 
-const debug = flase;
+const debug = false;
 
 export function setupHostHandlers(socket, namespace) {
 

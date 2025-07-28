@@ -16,7 +16,7 @@ import {
 } from '../quizRoomManager.js';
 import { emitFullRoomState } from '../handlers/sharedUtils.js';
 
-const debug = flase;
+const debug = false;
 
 function getEngine(room) {
   const roundType = room.config.roundDefinitions?.[room.currentRound - 1]?.roundType;
