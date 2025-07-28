@@ -8,7 +8,7 @@ import { useRoomState } from '../components/Quiz/useRoomState';
 import { useRoomIdentity } from '../components/Quiz/useRoomIdentity';
 
 // Debug config
-const DEBUG = true;
+const DEBUG = false;
 
 const debugLog = {
   info: (msg: string, ...args: any[]) => { if (DEBUG) console.log(`🔵 [QuizSocket] ${msg}`, ...args); },
