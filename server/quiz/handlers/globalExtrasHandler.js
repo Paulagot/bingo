@@ -365,7 +365,7 @@ function executeRestorePoints(roomId, playerId, namespace) {
         pointsRestored: pData.pointsRestored || 0
       };
     })
-    .sort((a, b) => b.score - a.sort);
+    .sort((a, b) => b.score - a.score);
 
   // ✅ Emit updated leaderboard to all players
   namespace.to(roomId).emit('leaderboard', updatedLeaderboard);
