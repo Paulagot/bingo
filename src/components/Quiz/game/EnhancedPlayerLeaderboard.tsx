@@ -1,3 +1,4 @@
+//src/components/Quiz/game/EnhancedPlayerLeaderboard.tsx
 import React, { useEffect, useState } from 'react';
 import { Trophy, Crown, Medal, Award, Star, Sparkles } from 'lucide-react';
 import { LeaderboardEntry } from '../types/quiz';
