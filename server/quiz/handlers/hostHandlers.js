@@ -11,8 +11,9 @@ import {
 
 import { getEngine } from '../ gameplayEngines/gameplayEngineRouter.js';
 import { isRateLimited } from '../../socketRateLimiter.js';
+import { getCurrentRoundStats } from './globalExtrasHandler.js';
 
-const debug = true;
+const debug = flase;
 
 export function setupHostHandlers(socket, namespace) {
 
@@ -163,6 +164,8 @@ export function setupHostHandlers(socket, namespace) {
   // Add this function after your calculateOverallLeaderboard function in hostHandlers.js
 
 // ✅ NEW: Calculate and send final quiz statistics
+// REPLACE your current calculateAndSendFinalStats function in hostHandlers.js with this:
+
 function calculateAndSendFinalStats(roomId, namespace) {
   const room = getQuizRoom(roomId);
   if (!room) {
@@ -170,121 +173,102 @@ function calculateAndSendFinalStats(roomId, namespace) {
     return;
   }
 
-  const finalStats = [];
+   if (debug) {
+    console.log(`[FinalStats] 📊 Calculating final stats using stored round data`);
+    // ✅ DEBUG: Check what's in storage
+    console.log(`[DEBUG] 🔍 room.storedRoundStats:`, room.storedRoundStats);
+    console.log(`[DEBUG] 📝 Available stored rounds:`, Object.keys(room.storedRoundStats || {}));
+  }
 
-  // Calculate stats for each completed round
+  
+
+  const allRoundsStats = [];
+
+  // Use stored round stats for accurate final calculation
   for (let roundIndex = 0; roundIndex < room.config.roundDefinitions.length; roundIndex++) {
     const roundNumber = roundIndex + 1;
     const roundConfig = room.config.roundDefinitions[roundIndex];
     
     if (!roundConfig) continue;
 
-    // Initialize round stats
-    const roundStats = {
-      roundNumber,
-      roundType: roundConfig.roundType,
-      hintsUsed: 0,
-      freezesUsed: 0,
-      pointsRobbed: 0,
-      pointsRestored: 0,
-      extrasByPlayer: {},
-      questionsWithExtras: 0,
-      totalExtrasUsed: 0,
-      questionsAnswered: 0,
-      totalQuestions: roundConfig.config.questionsPerRound || 6,
-      correctAnswers: 0,
-      wrongAnswers: 0,
-      noAnswers: 0
-    };
+    let roundStats;
 
-    // Initialize player stats
-    room.players.forEach(player => {
-      roundStats.extrasByPlayer[player.name] = [];
+     if (debug) console.log(`[DEBUG] 🔍 Looking for stored stats for round ${roundNumber}:`, {
+      hasStoredRoundStats: !!room.storedRoundStats,
+      hasThisRound: !!(room.storedRoundStats && room.storedRoundStats[roundNumber]),
+      storedData: room.storedRoundStats?.[roundNumber]
     });
 
-    // Count questions and answers for this round
-    let roundQuestionCount = 0;
-    
-    for (const question of room.questions || []) {
-      // Check if this question belongs to this round
-      // We'll count questions sequentially by round
-      const questionsPerRound = roundConfig.config.questionsPerRound || 6;
-      const questionRoundNumber = Math.floor(roundQuestionCount / questionsPerRound) + 1;
+    if (room.storedRoundStats && room.storedRoundStats[roundNumber]) {
+      // ✅ Use stored round stats (most accurate)
+      roundStats = {
+        ...room.storedRoundStats[roundNumber],
+        roundType: roundConfig.roundType,
+        totalQuestions: roundConfig.config.questionsPerRound || 6
+      };
       
-      if (questionRoundNumber === roundNumber) {
-        roundStats.questionsAnswered++;
-        
-        // Analyze player answers for this question
-        room.players.forEach(player => {
-          const playerData = room.playerData[player.id];
-          const roundAnswerKey = `${question.id}_round${roundNumber}`;
-          const playerAnswer = playerData?.answers?.[roundAnswerKey];
-          
-          if (!playerAnswer || playerAnswer.submitted === null || playerAnswer.submitted === undefined) {
-            roundStats.noAnswers++;
-          } else if (playerAnswer.correct) {
-            roundStats.correctAnswers++;
-          } else {
-            roundStats.wrongAnswers++;
-          }
+      if (debug) {
+        console.log(`[FinalStats] 📊 Round ${roundNumber} stats (from storage):`, {
+          questions: `${roundStats.questionsAnswered}/${roundStats.totalQuestions}`,
+          answers: `${roundStats.correctAnswers} correct, ${roundStats.wrongAnswers} wrong, ${roundStats.noAnswers} no answer`,
+          extras: `${roundStats.totalExtrasUsed} total (H:${roundStats.hintsUsed}, F:${roundStats.freezesUsed}, R:${roundStats.pointsRobbed}, Re:${roundStats.pointsRestored})`
         });
       }
-      
-      roundQuestionCount++;
-    }
+    } else {
+      if (debug) console.log(`[DEBUG] ⚠️ No stored data for round ${roundNumber}, using fallback`);
+      // ✅ Fallback for rounds without stored data
+      roundStats = {
+        roundNumber,
+        roundType: roundConfig.roundType,
+        hintsUsed: 0,
+        freezesUsed: 0,
+        pointsRobbed: 0,
+        pointsRestored: 0,
+        extrasByPlayer: {},
+        questionsWithExtras: 0,
+        totalExtrasUsed: 0,
+        questionsAnswered: 0,
+        totalQuestions: roundConfig.config.questionsPerRound || 6,
+        correctAnswers: 0,
+        wrongAnswers: 0,
+        noAnswers: 0
+      };
 
-    // Count extras used in this round (from player data)
-    room.players.forEach(player => {
-      const playerData = room.playerData[player.id];
-      const playerName = player.name;
-      
-      // Count from usedExtras (global extras used during this round)
-      if (playerData.usedExtras) {
-        if (playerData.usedExtras.robPoints) {
-          roundStats.pointsRobbed++;
-          roundStats.totalExtrasUsed++;
-          roundStats.extrasByPlayer[playerName].push({
-            extraId: 'robPoints',
-            timestamp: Date.now()
-          });
-        }
-        
-        if (playerData.pointsRestored > 0) {
-          roundStats.pointsRestored += playerData.pointsRestored;
-          roundStats.totalExtrasUsed++;
-          roundStats.extrasByPlayer[playerName].push({
-            extraId: 'restorePoints',
-            timestamp: Date.now()
-          });
-        }
-      }
-    });
-
-    finalStats.push(roundStats);
-
-    if (debug) {
-      console.log(`[FinalStats] 📊 Round ${roundNumber} stats:`, {
-        questions: `${roundStats.questionsAnswered}/${roundStats.totalQuestions}`,
-        answers: `${roundStats.correctAnswers} correct, ${roundStats.wrongAnswers} wrong, ${roundStats.noAnswers} no answer`,
-        extras: `${roundStats.totalExtrasUsed} total`
+      // Initialize empty player stats
+      room.players.forEach(player => {
+        roundStats.extrasByPlayer[player.name] = [];
       });
+      
+      if (debug) {
+        console.log(`[FinalStats] 📊 Round ${roundNumber} stats (fallback):`, {
+          questions: `${roundStats.questionsAnswered}/${roundStats.totalQuestions}`,
+          extras: `${roundStats.totalExtrasUsed} total`
+        });
+      }
     }
+
+    
+    
+    allRoundsStats.push(roundStats);
   }
 
-  // Send final stats to host
-  namespace.to(`${roomId}:host`).emit('host_final_stats', finalStats);
+  // ✅ Send final stats to host
+  namespace.to(`${roomId}:host`).emit('host_final_stats', allRoundsStats);
   
   if (debug) {
-    console.log(`[FinalStats] 📈 Final quiz stats sent to host for ${finalStats.length} rounds`);
+    console.log(`[FinalStats] 📈 Final quiz stats sent to host for ${allRoundsStats.length} rounds`);
+    
+    // ✅ Debug totals
+    const totalExtrasAcrossAllRounds = allRoundsStats.reduce((sum, round) => sum + round.totalExtrasUsed, 0);
+    const totalPointsRestored = allRoundsStats.reduce((sum, round) => sum + round.pointsRestored, 0);
+    const totalPointsRobbed = allRoundsStats.reduce((sum, round) => sum + round.pointsRobbed, 0);
+    const totalHints = allRoundsStats.reduce((sum, round) => sum + round.hintsUsed, 0);
+    const totalFreezes = allRoundsStats.reduce((sum, round) => sum + round.freezesUsed, 0);
+    
+    console.log(`[FinalStats] 🎯 TOTALS: ${totalExtrasAcrossAllRounds} extras, ${totalPointsRestored} points restored, ${totalPointsRobbed} robs, ${totalHints} hints, ${totalFreezes} freezes`);
   }
 
-  // In calculateAndSendFinalStats function
-// console.log(`[FinalStats] 🎯 Sending to room: ${roomId}:host`);
-// console.log(`[FinalStats] 📊 Final stats data:`, finalStats);
-// namespace.to(`${roomId}:host`).emit('host_final_stats', finalStats);
-// console.log(`[FinalStats] ✅ host_final_stats event emitted`);
-
-  return finalStats;
+  return allRoundsStats;
 }
 
 
@@ -303,7 +287,34 @@ socket.on('next_round_or_end', ({ roomId }) => {
   const nextRound = getCurrentRound(roomId) + 1;
 
   if (nextRound > totalRounds) {
-    // ✅ NEW: Calculate and send final stats before completing
+    // ✅ CRITICAL: Update the final round stats with leaderboard extras
+    const finalRoundStats = getCurrentRoundStats(roomId);
+    
+    if (room.storedRoundStats && room.storedRoundStats[room.currentRound]) {
+      // Update stored stats with final leaderboard extras
+      room.storedRoundStats[room.currentRound] = {
+        ...room.storedRoundStats[room.currentRound],
+        // Update with final extras (includes leaderboard phase extras)
+        hintsUsed: finalRoundStats.hintsUsed,
+        freezesUsed: finalRoundStats.freezesUsed,
+        pointsRobbed: finalRoundStats.pointsRobbed,
+        pointsRestored: finalRoundStats.pointsRestored,
+        extrasByPlayer: finalRoundStats.extrasByPlayer,
+        totalExtrasUsed: finalRoundStats.totalExtrasUsed
+      };
+      
+      if (debug) {
+        console.log(`[Host] 🔄 Updated final round ${room.currentRound} stats with leaderboard extras:`, {
+          hintsUsed: finalRoundStats.hintsUsed,
+          freezesUsed: finalRoundStats.freezesUsed,
+          pointsRobbed: finalRoundStats.pointsRobbed,
+          pointsRestored: finalRoundStats.pointsRestored,
+          totalExtrasUsed: finalRoundStats.totalExtrasUsed
+        });
+      }
+    }
+    
+    // Calculate and send final stats
     calculateAndSendFinalStats(roomId, namespace);
     
     room.currentPhase = 'complete';
@@ -400,6 +411,73 @@ socket.on('next_round_or_end', ({ roomId }) => {
       return;
     }
 
+    const currentRoundStats = getCurrentRoundStats(roomId);
+  if (debug) console.log(`[DEBUG] 🔍 getCurrentRoundStats for round ${room.currentRound}:`, currentRoundStats);
+  // Initialize round stats storage if not exists
+  if (!room.storedRoundStats) {
+    room.storedRoundStats = {};
+    if (debug) console.log(`[DEBUG] 🆕 Initialized storedRoundStats object`);
+  }
+  
+  // Store the complete round stats (includes all extras used during questions)
+  room.storedRoundStats[room.currentRound] = {
+    ...currentRoundStats,
+    roundNumber: room.currentRound,
+    timestamp: Date.now(),
+    questionsAnswered: 0,
+    correctAnswers: 0,
+    wrongAnswers: 0,
+    noAnswers: 0
+  };
+
+  if (debug)   console.log(`[DEBUG] 💾 After storage, storedRoundStats:`, room.storedRoundStats);
+   if (debug)   console.log(`[DEBUG] 📊 Stored round ${room.currentRound} data:`, room.storedRoundStats[room.currentRound]);
+
+
+  // Calculate question/answer stats for this round
+  let questionsAnswered = 0;
+  let correctAnswers = 0;
+  let wrongAnswers = 0;
+  let noAnswers = 0;
+
+  // Analyze answers for this specific round
+  for (const question of room.questions || []) {
+    room.players.forEach(player => {
+      const playerData = room.playerData[player.id];
+      const roundAnswerKey = `${question.id}_round${room.currentRound}`;
+      const playerAnswer = playerData?.answers?.[roundAnswerKey];
+      
+      if (playerAnswer) {
+        questionsAnswered++;
+        if (playerAnswer.submitted === null || playerAnswer.submitted === undefined) {
+          noAnswers++;
+        } else if (playerAnswer.correct) {
+          correctAnswers++;
+        } else {
+          wrongAnswers++;
+        }
+      }
+    });
+  }
+
+  // Update stored stats with question/answer data
+  room.storedRoundStats[room.currentRound].questionsAnswered = questionsAnswered;
+  room.storedRoundStats[room.currentRound].correctAnswers = correctAnswers;
+  room.storedRoundStats[room.currentRound].wrongAnswers = wrongAnswers;
+  room.storedRoundStats[room.currentRound].noAnswers = noAnswers;
+
+  if (debug) {
+    console.log(`[Host] 💾 Stored round ${room.currentRound} stats:`, {
+      hintsUsed: currentRoundStats.hintsUsed,
+      freezesUsed: currentRoundStats.freezesUsed,
+      pointsRobbed: currentRoundStats.pointsRobbed,
+      pointsRestored: currentRoundStats.pointsRestored,
+      totalExtrasUsed: currentRoundStats.totalExtrasUsed,
+      questionsAnswered: questionsAnswered
+    });
+  }
+
+
     // ✅ Store in room for recovery
 room.currentRoundResults = roundLeaderboard;
 
@@ -410,7 +488,7 @@ room.currentRoundResults = roundLeaderboard;
     namespace.to(roomId).emit('round_leaderboard', roundLeaderboard);
     emitRoomState(namespace, roomId);
     
-    console.log(`[Host] ✅ Round ${room.currentRound} results shown to all players`);
+   if (debug) console.log(`[Host] ✅ Round ${room.currentRound} results shown to all players`);
   });
 
   // ✅ NEW: Continue to overall leaderboard (triggered by host from round results)
@@ -443,7 +521,7 @@ room.currentRoundResults = roundLeaderboard;
     // Emit overall leaderboard (using existing 'leaderboard' event)
     namespace.to(roomId).emit('leaderboard', overallLeaderboard);
     
-    console.log(`[Host] ✅ Overall leaderboard shown to all players`);
+    if (debug) console.log(`[Host] ✅ Overall leaderboard shown to all players`);
   });
 
 
@@ -473,7 +551,7 @@ room.currentRoundResults = roundLeaderboard;
 
   // ✅ Notify everyone first
   namespace.to(roomId).emit('quiz_cancelled', { message: 'Quiz cancelled by host', roomId });
-  console.log(`[Host] 📢 Sent cancellation notice to room ${roomId}`);
+  if (debug) console.log(`[Host] 📢 Sent cancellation notice to room ${roomId}`);
 
   // ✅ Wait 2 seconds for clients to receive the message, then cleanup
   setTimeout(() => {
@@ -484,7 +562,7 @@ room.currentRoundResults = roundLeaderboard;
       namespace.in(`${roomId}:host`).socketsLeave(`${roomId}:host`);
       namespace.in(`${roomId}:admin`).socketsLeave(`${roomId}:admin`);
       namespace.in(`${roomId}:player`).socketsLeave(`${roomId}:player`);
-      console.log(`[Host] ✅ Room ${roomId} deleted and clients disconnected`);
+      if (debug) console.log(`[Host] ✅ Room ${roomId} deleted and clients disconnected`);
     }
   }, 2000);
 });
@@ -517,7 +595,7 @@ room.currentRoundResults = roundLeaderboard;
     // Also emit room state update
     emitRoomState(namespace, roomId);
     
-    console.log(`[Host] ✅ Quiz launched for room ${roomId}, players will be redirected`);
+    if (debug) console.log(`[Host] ✅ Quiz launched for room ${roomId}, players will be redirected`);
   });
 }
 

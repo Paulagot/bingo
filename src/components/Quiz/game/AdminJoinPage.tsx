@@ -63,7 +63,7 @@ const handleQuizCancelled = ({ message }: { message: string }) => {
       socket.on('quiz_cancelled', handleQuizCancelled);
 
       // 2) Now emit “join_quiz_room” as admin
-      console.log('🎯 [QuizSocket] Emitting "join_quiz_room" as admin');
+      // console.log('🎯 [QuizSocket] Emitting "join_quiz_room" as admin');
       socket.emit('join_quiz_room', {
         roomId,
         user: adminUser,

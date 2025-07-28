@@ -15,7 +15,7 @@ interface Props {
   pointsRestored?: number; // ✅ NEW: For restore points logic
 }
 
-const debug = true;
+const debug = false;
 
 const GlobalExtrasDuringLeaderboard = ({ 
   availableExtras, 

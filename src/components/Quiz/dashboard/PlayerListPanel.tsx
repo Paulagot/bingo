@@ -18,7 +18,7 @@ const PlayerListPanel: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const { socket } = useQuizSocket();
-  const debug = true;
+  const debug = false;
 
   useEffect(() => {
     if (!roomId || !socket) return;

@@ -113,7 +113,7 @@ const RoundStatsDisplay: React.FC<RoundStatsDisplayProps> = ({
       </div>
 
       {/* Insights Row */}
-      {(playerCount > 0 || mostTargetedCount > 0) && (
+      {/* {(playerCount > 0 || mostTargetedCount > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {mostActivePlayerCount > 0 && (
             <div className="bg-white/70 rounded-lg p-4 border border-indigo-200">
@@ -139,7 +139,7 @@ const RoundStatsDisplay: React.FC<RoundStatsDisplayProps> = ({
             </div>
           )}
         </div>
-      )}
+      )} */}
 
       {/* Summary Message */}
       <div className="mt-4 text-center">

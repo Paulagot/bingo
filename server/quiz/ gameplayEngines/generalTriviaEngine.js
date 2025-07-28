@@ -11,7 +11,7 @@ import {
 } from '../quizRoomManager.js';
 
 let timers = {}; // per-room timer refs
-const debug = true;
+const debug = false;
 
 // ✅ NEW: Send host activity notification
 function sendHostActivityNotification(namespace, roomId, activityData) {
@@ -157,7 +157,7 @@ export function initRound(roomId, namespace) {
   // ✅ Finalize selection
   const selectedQuestions = shuffleArray(filteredQuestions).slice(0, questionsPerRound);
 
-  console.log(`[generalTriviaEngine] ✅ Selected ${selectedQuestions.length} questions for round ${room.currentRound}`);
+  if (debug) console.log(`[generalTriviaEngine] ✅ Selected ${selectedQuestions.length} questions for round ${room.currentRound}`);
 
   setQuestionsForCurrentRound(roomId, selectedQuestions);
   resetRoundExtrasTracking(roomId);
@@ -273,7 +273,7 @@ export function startNextQuestion(roomId, namespace) {
 }
 
 export function handlePlayerAnswer(roomId, playerId, answer, namespace) {
-  console.log(`[generalTriviaEngine] 🔍 handlePlayerAnswer called for ${playerId}: ${answer}`);
+ if (debug)  console.log(`[generalTriviaEngine] 🔍 handlePlayerAnswer called for ${playerId}: ${answer}`);
 
   const room = getQuizRoom(roomId);
   if (!room) return;
@@ -288,7 +288,7 @@ export function handlePlayerAnswer(roomId, playerId, answer, namespace) {
     playerData.frozenNextQuestion &&
     room.currentQuestionIndex === playerData.frozenForQuestionIndex
   ) {
-    console.log(`[generalTriviaEngine] ❄️ Player ${playerId} is frozen and cannot answer question ${room.currentQuestionIndex}`);
+    if (debug) console.log(`[generalTriviaEngine] ❄️ Player ${playerId} is frozen and cannot answer question ${room.currentQuestionIndex}`);
     return;
   }
 
@@ -301,13 +301,13 @@ export function handlePlayerAnswer(roomId, playerId, answer, namespace) {
   const pointsPerDifficulty = configObj.pointsPerDifficulty || { easy: 5, medium: 6, hard: 7 };
   const pointsPerQuestion = pointsPerDifficulty[difficulty] ?? 2; // ✅ safe fallback
 
-  console.log(`[DEBUG SCORING] question difficulty: ${difficulty}`);
-  console.log(`[DEBUG SCORING] pointsPerDifficulty:`, pointsPerDifficulty);
-  console.log(`[DEBUG SCORING] final pointsPerQuestion:`, pointsPerQuestion);
+ if (debug)  console.log(`[DEBUG SCORING] question difficulty: ${difficulty}`);
+ if (debug)  console.log(`[DEBUG SCORING] pointsPerDifficulty:`, pointsPerDifficulty);
+ if (debug)  console.log(`[DEBUG SCORING] final pointsPerQuestion:`, pointsPerQuestion);
 
   if (isCorrect) {
     playerData.score = (playerData.score || 0) + pointsPerQuestion;
-    console.log(`[DEBUG SCORING] Player ${playerId} scored! New total:`, playerData.score);
+   if (debug)  console.log(`[DEBUG SCORING] Player ${playerId} scored! New total:`, playerData.score);
   }
 
   const roundAnswerKey = `${question.id}_round${room.currentRound}`;
@@ -503,7 +503,7 @@ export function buildLeaderboard(room) {
     };
   });
 
-  console.log('[Leaderboard] Final scores:', leaderboard);
+ if (debug)  console.log('[Leaderboard] Final scores:', leaderboard);
   leaderboard.sort((a, b) => b.score - a.score);
   return leaderboard;
 }
@@ -518,12 +518,12 @@ export function getCurrentReviewQuestion(roomId) {
   
   // If we're past all questions, return null
   if (room.currentReviewIndex >= room.questions.length) {
-    console.log(`[Engine] ✅ getCurrentReviewQuestion: Review complete for ${roomId}`);
+   if (debug)  console.log(`[Engine] ✅ getCurrentReviewQuestion: Review complete for ${roomId}`);
     return null;
   }
   
   const reviewQuestion = room.questions[room.currentReviewIndex];
-  console.log(`[Engine] 📖 getCurrentReviewQuestion: Returning question ${room.currentReviewIndex} for ${roomId}`);
+ if (debug)  console.log(`[Engine] 📖 getCurrentReviewQuestion: Returning question ${room.currentReviewIndex} for ${roomId}`);
   return reviewQuestion;
 }
 
@@ -535,7 +535,7 @@ export function isReviewComplete(roomId) {
   // Review is complete if we've reviewed all questions
   const reviewComplete = room.currentReviewIndex >= room.questions.length;
   
-  console.log(`[Engine] 🔍 isReviewComplete for ${roomId}: ${reviewComplete} (reviewIndex: ${room.currentReviewIndex}, totalQuestions: ${room.questions.length})`);
+ if (debug)  console.log(`[Engine] 🔍 isReviewComplete for ${roomId}: ${reviewComplete} (reviewIndex: ${room.currentReviewIndex}, totalQuestions: ${room.questions.length})`);
   return reviewComplete;
 }
 
@@ -548,19 +548,19 @@ function shuffleArray(array) {
 }
 
 function clearExpiredFreezeFlags(room) {
-  console.log(`[generalTriviaEngine] 🔍 clearExpiredFreezeFlags called, currentQuestionIndex: ${room.currentQuestionIndex}`);
+ if (debug)  console.log(`[generalTriviaEngine] 🔍 clearExpiredFreezeFlags called, currentQuestionIndex: ${room.currentQuestionIndex}`);
   
   for (const playerId in room.playerData) {
     const p = room.playerData[playerId];
     if (p.frozenNextQuestion && room.currentQuestionIndex > p.frozenForQuestionIndex) {
-      console.log(`[generalTriviaEngine] 🔍 Player ${playerId}: frozenForQuestionIndex=${p.frozenForQuestionIndex}, currentQuestionIndex=${room.currentQuestionIndex}`);
+     if (debug)  console.log(`[generalTriviaEngine] 🔍 Player ${playerId}: frozenForQuestionIndex=${p.frozenForQuestionIndex}, currentQuestionIndex=${room.currentQuestionIndex}`);
       if (debug) {
         console.log(`[generalTriviaEngine] 🧼 Clearing expired freeze for ${playerId} (was frozen for question ${p.frozenForQuestionIndex})`);
       }
       p.frozenNextQuestion = false;
       p.frozenForQuestionIndex = null;
     } else if (p.frozenNextQuestion) {
-      console.log(`[generalTriviaEngine] 🔍 NOT clearing ${playerId}: frozenNext=${p.frozenNextQuestion}, frozenForIndex=${p.frozenForQuestionIndex}, currentQ=${room.currentQuestionIndex}`);
+      if (debug) console.log(`[generalTriviaEngine] 🔍 NOT clearing ${playerId}: frozenNext=${p.frozenNextQuestion}, frozenForIndex=${p.frozenForQuestionIndex}, currentQ=${room.currentQuestionIndex}`);
     }
   }
 }

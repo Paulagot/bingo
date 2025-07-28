@@ -13,7 +13,7 @@ interface AddPlayerModalProps {
   roomId: string;
 }
 
-const debug = true;
+const debug = false;
 
 const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
   isOpen,
@@ -217,7 +217,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
               >
                 <option value="cash">💶 Cash</option>
                 <option value="revolut">📱 Revolut</option>
-                <option value="web3">🌐 Web3</option>
+                <option value="web3">🌐 Credit/debit</option>
                 <option value="unknown">❓ Unknown</option>
               </select>
             </div>

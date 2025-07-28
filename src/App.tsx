@@ -9,7 +9,7 @@ import { PitchDeckContent } from './pages/PitchDeckContent';
 import { ActionButtonList } from './components/ActionButtonList';
 import { InfoList } from './components/InfoList';
 import ErrorBoundary from './components/ErrorBoundary';
-import SocketDebugPanel from './components/Quiz/SocketDebugPanel';
+// import SocketDebugPanel from './components/Quiz/SocketDebugPanel';
 import QuizRoutes from '../src/components/Quiz/QuizRoutes';
 import { QuizSocketProvider } from '../src/sockets/QuizSocketProvider';  // ✅ Moved back here
 import WhatsNew from './pages/WhatsNew';
@@ -78,7 +78,7 @@ export default function App() {
             {/* ✅ Now only wrap the Quiz routes */}
             <Route path="/quiz/*" element={
               <QuizSocketProvider>
-                <SocketDebugPanel />
+                {/* <SocketDebugPanel /> */}
                 <QuizRoutes />
               </QuizSocketProvider>
             } />

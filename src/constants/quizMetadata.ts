@@ -23,7 +23,7 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     id: 'general_trivia',
     name: 'General Trivia',
     icon: '🧠',
-    description: 'Classic multiple choice trivia game. Points awarded for correct answers. Customizable Categories and difficulty levels Hints, Freeze out are available as fundraising extras.',
+    description: 'Classic multiple choice trivia game. Points awarded for correct answers. Hints and Freeze out are available as fundraising extras.',
     gameplay: 'Host reads questions → teams see question & answers → automatically serves host and players next question after 25s → Host controlled review of questions with answers → Host presents Leaderboard',
     pros: [ 'Steady pace', 'Fair for all teams', 'Customizable levels of difficulty'],
     timing: '25 seconds per question',
@@ -59,7 +59,7 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     id: 'wipeout',
     name: 'Wipeout',
     icon: '💀',
-    description: 'Multiple choice trivia game. Points awarded for correct answers. Lose points for wrong answers or no answer. Hints, Freeze out and Restore points fundraising extras.',
+    description: 'Multiple choice trivia game. Points awarded for correct answers. Points deducted for wrong answers or no answer. Hints, Freeze out and Restore points are available as fundraising extras.',
     gameplay: ' Host reads questions → teams see question & answers → automatically serves host and players next question after 18s → Host controlled review of questions with answers → Host presents Leaderboard (correct answers = 2 point, wrong answers = -2 point)',
     pros: ['Strategic', 'High tension', 'Risk vs reward'],
     timing: '18 seconds per question',
@@ -118,11 +118,11 @@ export const fundraisingExtraDefinitions = {
     maxPerTeam: 1,
     applicableTo: ['general_trivia', 'wipeout'] as RoundTypeId[] | 'global',
     impact: 'Moderate fundraising boost with easy usage',
-    strategy: 'Price moderately to encourage use',
+    strategy: 'Price low.',
     pros: [ 'Reduces frustration'],
     suggestedPrice: 'Low-Medium',
-    excitement: 'Medium',
-    playerStrategy: 'This is a great option for players who are unsure about an answer, and it can be used in General Trivia and Wipeout rounds. it can help players avoid losing points in Wipeout rounds. But dont forget, you can only use one extra per round.  Be Strategic!',
+    excitement: 'Low',
+    playerStrategy: 'This is a great option for players who are unsure about an answer, and it can be used in General Trivia and Wipeout rounds. it can help players avoid losing points in Wipeout rounds.  Be Strategic!',
   },
   // buyExtraTime: {
   //   id: 'buyExtraTime',
@@ -142,7 +142,7 @@ export const fundraisingExtraDefinitions = {
     id: 'restorePoints',
     label: 'Restore Points',
     icon: '🎯',
-    description: 'Allows player restore lost points if their answerer is wrong',
+    description: 'Allows player restore to up 3 lost points from wrong or missed answers or if a another team steals points from them. ',
     maxPerTeam: 1,
     applicableTo: ['wipeout'] as RoundTypeId[],
     impact: 'Good comeback option',
@@ -157,7 +157,7 @@ export const fundraisingExtraDefinitions = {
     id: 'robPoints',
     label: 'Rob Points',
     icon: '⚡',
-    description: 'Allows a team or player Steal 2 points from another team',
+    description: 'Allows a team or player steal 2 points from another team. This is like Robinhood for the cause. Select this wisely, how will people feel about being robbed, even if is is for a great cause!',
     maxPerTeam: 1,
     applicableTo: 'global',
     impact: 'High tension, creates drama',
@@ -171,7 +171,7 @@ export const fundraisingExtraDefinitions = {
     id: 'freezeOutTeam',
     label: 'Freeze Out Team',
     icon: '❄️',
-    description: 'Allows a player Freeze opponent team for 1 question',
+    description: 'Allows a team Freeze opponent team for 1 question. Use in a round where points are lost for not answering makes this a very strategic play.',
     maxPerTeam: 1,
     applicableTo: ['general_trivia', 'wipeout'] as RoundTypeId[],
     impact: 'High strategic impact',
@@ -179,7 +179,7 @@ export const fundraisingExtraDefinitions = {
     pros: ['Shifts advantage', 'Drama'],
     suggestedPrice: 'High',
     excitement: 'High',
-    playerStrategy: 'Use this to freeze out an opponent team for one question. Use this extra in a general triva or wipeout round, but you can only use one extra per round, so choose wisely.'
+    playerStrategy: 'Use this to freeze out an opponent team for one question. Use this extra in a general triva or wipeout round.  Choose wisely, as it can turn the tide of the game. This is a great option for players who want to disrupt another team\'s momentum or protect their lead.'
   }
 } as const;
 

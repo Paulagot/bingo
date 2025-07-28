@@ -476,7 +476,7 @@ const StepScheduleEvent: FC<WizardStepProps> = ({ onNext, onBack }) => {
         </div>
 
         {/* Timezone Configuration */}
-        <div className="bg-white border-2 border-gray-200 rounded-xl p-4 md:p-6 shadow-sm">
+        {/* <div className="bg-white border-2 border-gray-200 rounded-xl p-4 md:p-6 shadow-sm">
           <div className="flex items-center space-x-3 mb-4">
             <div className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl bg-purple-100">
               🌍
@@ -499,7 +499,7 @@ const StepScheduleEvent: FC<WizardStepProps> = ({ onNext, onBack }) => {
               </p>
             </div>
           </div>
-        </div>
+        </div> */}
 
         {/* Help Section */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
