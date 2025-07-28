@@ -97,7 +97,7 @@ const getDifficultyColor = (difficulty: string) => {
         <div className="bg-gray-50 p-3 rounded-lg">
           <strong className="text-gray-800">Payment Method:</strong>
           <div className="text-gray-700">
-            {paymentMethod === 'web3' ? 'Web3 Wallet' : 'Cash or Revolut'}
+            {paymentMethod === 'web3' ? 'Web3 Wallet' : 'Cash or Card'}
           </div>
         </div>
 

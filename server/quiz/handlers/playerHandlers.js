@@ -16,7 +16,7 @@ import {
 } from '../quizRoomManager.js';
 import { emitFullRoomState } from '../handlers/sharedUtils.js';
 
-const debug = true;
+const debug = flase;
 
 function getEngine(room) {
   const roundType = room.config.roundDefinitions?.[room.currentRound - 1]?.roundType;
@@ -41,7 +41,7 @@ export function setupPlayerHandlers(socket, namespace) {
       return;
     }
 
-    console.log(`[Join] 🚪 ${role.toUpperCase()} "${user.name || user.id}" joining room ${roomId}`);
+    if (debug) console.log(`[Join] 🚪 ${role.toUpperCase()} "${user.name || user.id}" joining room ${roomId}`);
 
     socket.join(roomId);
     socket.join(`${roomId}:${role}`);
@@ -55,7 +55,7 @@ export function setupPlayerHandlers(socket, namespace) {
 
     if (role === 'host') {
       updateHostSocketId(roomId, socket.id);
-      console.log(`[Join] 👑 Host "${room.config.hostName}" (${user.id}) joined with socket ${socket.id}`);
+      if (debug)  console.log(`[Join] 👑 Host "${room.config.hostName}" (${user.id}) joined with socket ${socket.id}`);
     } else if (role === 'admin') {
       const existingAdmin = room.admins.find(a => a.id === user.id);
       if (existingAdmin) {
@@ -65,7 +65,7 @@ export function setupPlayerHandlers(socket, namespace) {
         addAdminToQuizRoom(roomId, { ...user, socketId: socket.id });
       }
       updateAdminSocketId(roomId, user.id, socket.id);
-      console.log(`[Join] 🛠️ Admin "${user.name || user.id}" joined with socket ${socket.id}`);
+      if (debug) console.log(`[Join] 🛠️ Admin "${user.name || user.id}" joined with socket ${socket.id}`);
     } else if (role === 'player') {
       // ✅ NEW: Smart session management for players
       cleanExpiredSessions(roomId);
@@ -75,7 +75,7 @@ export function setupPlayerHandlers(socket, namespace) {
       
       // ✅ Check if player exists in room
       if (!existingPlayer) {
-        console.log(`[Join] ➕ New player "${user.name}" being added to room`);
+       if (debug)  console.log(`[Join] ➕ New player "${user.name}" being added to room`);
         // This is a new player - add them normally
         addOrUpdatePlayer(roomId, { ...user, socketId: socket.id });
         updatePlayerSocketId(roomId, user.id, socket.id);
@@ -87,7 +87,7 @@ export function setupPlayerHandlers(socket, namespace) {
         });
       } else {
         // ✅ Player already exists - this is a socket update/reconnection
-        console.log(`[Join] 🔄 Existing player "${existingPlayer.name}" updating socket connection`);
+       if (debug)  console.log(`[Join] 🔄 Existing player "${existingPlayer.name}" updating socket connection`);
         
         // ✅ SMART LOGIC: Only block if truly duplicate
         if (existingSession && 
@@ -104,7 +104,7 @@ export function setupPlayerHandlers(socket, namespace) {
             });
             return;
           } else {
-            console.log(`[Join] 🧹 Previous socket no longer connected, allowing new connection`);
+           if (debug)  console.log(`[Join] 🧹 Previous socket no longer connected, allowing new connection`);
           }
         }
         
@@ -117,9 +117,9 @@ export function setupPlayerHandlers(socket, namespace) {
         });
       }
       
-      console.log(`[Join] 🎮 Player "${user.name}" (${user.id}) connected with socket ${socket.id}`);
+      if (debug) console.log(`[Join] 🎮 Player "${user.name}" (${user.id}) connected with socket ${socket.id}`);
     } else {
-      console.error(`[Join] ❌ Unknown role: "${role}"`);
+      if (debug) console.error(`[Join] ❌ Unknown role: "${role}"`);
       socket.emit('quiz_error', { message: `Unknown role "${role}".` });
       return;
     }
@@ -131,7 +131,7 @@ export function setupPlayerHandlers(socket, namespace) {
 
     setTimeout(() => {
       namespace.in(roomId).allSockets().then(clients => {
-        console.log(`[JoinDebug] 🔎 Clients in ${roomId}:`, [...clients]);
+       if (debug)  console.log(`[JoinDebug] 🔎 Clients in ${roomId}:`, [...clients]);
       });
     }, 50);
   });
@@ -154,7 +154,7 @@ export function setupPlayerHandlers(socket, namespace) {
           inPlayRoute: true
         });
         
-        console.log(`[RouteChange] ✅ Player ${playerId} entered play route`);
+       if (debug)  console.log(`[RouteChange] ✅ Player ${playerId} entered play route`);
       } else {
         // Player leaving play route
         updatePlayerSession(roomId, playerId, {
@@ -163,7 +163,7 @@ export function setupPlayerHandlers(socket, namespace) {
           inPlayRoute: false
         });
         
-        console.log(`[RouteChange] ⬅️ Player ${playerId} left play route`);
+      if (debug)   console.log(`[RouteChange] ⬅️ Player ${playerId} left play route`);
       }
     }
   });
@@ -171,7 +171,7 @@ export function setupPlayerHandlers(socket, namespace) {
   // ... rest of the handlers remain the same ...
   
   socket.on('add_admin', ({ roomId, admin }) => {
-    console.log(`[AddAdmin] 🛠️ Host adding admin "${admin.name}" to room ${roomId}`);
+   if (debug)  console.log(`[AddAdmin] 🛠️ Host adding admin "${admin.name}" to room ${roomId}`);
     
     if (!roomId || !admin || !admin.name || !admin.id) {
       console.error(`[AddAdmin] ❌ Invalid data:`, { roomId, admin });
@@ -200,7 +200,7 @@ export function setupPlayerHandlers(socket, namespace) {
       return;
     }
 
-    console.log(`[AddAdmin] ✅ Admin "${admin.name}" added to room ${roomId}`);
+   if (debug)  console.log(`[AddAdmin] ✅ Admin "${admin.name}" added to room ${roomId}`);
     
     namespace.to(roomId).emit('admin_list_updated', { admins: room.admins });
     emitRoomState(namespace, roomId);
@@ -217,7 +217,7 @@ export function setupPlayerHandlers(socket, namespace) {
     const playerData = room.playerData?.[playerId];
     if (playerData?.frozenNextQuestion && 
         playerData?.frozenForQuestionIndex === room.currentQuestionIndex) {
-      console.log(`[Answer] ❄️ Ignoring answer from frozen player: ${playerId}`);
+    if (debug)   console.log(`[Answer] ❄️ Ignoring answer from frozen player: ${playerId}`);
       socket.emit('quiz_error', { message: 'You are frozen for this question and cannot answer!' });
       return;
     }
@@ -225,7 +225,7 @@ export function setupPlayerHandlers(socket, namespace) {
     const currentQuestion = room.questions?.[room.currentQuestionIndex];
     const roundAnswerKey = `${currentQuestion.id}_round${room.currentRound}`;
     if (currentQuestion && playerData?.answers?.[roundAnswerKey]) {
-      console.log(`[Answer] 🔄 Player ${playerId} already answered question ${currentQuestion.id} in round ${room.currentRound}`);
+     if (debug)  console.log(`[Answer] 🔄 Player ${playerId} already answered question ${currentQuestion.id} in round ${room.currentRound}`);
       socket.emit('quiz_error', { message: 'You have already answered this question!' });
       return;
     }
@@ -249,7 +249,7 @@ export function setupPlayerHandlers(socket, namespace) {
       const player = room.players.find(p => p.id === playerId);
       const playerName = player?.name || 'Unknown';
 
-      console.log(
+     if (debug)  console.log(
         `[Answer] ✅ ${playerName} (${playerId}) submitted: "${answer}" → ${isCorrect ? '✅ Correct' : '❌ Wrong'}`
       );
 
@@ -263,7 +263,7 @@ export function setupPlayerHandlers(socket, namespace) {
  // REPLACE the existing use_extra handler in playerHandlers.js with this:
 
 socket.on('use_extra', async ({ roomId, playerId, extraId, targetPlayerId }) => {
-  console.log(`[PlayerHandler] 🧪 Received use_extra:`, { roomId, playerId, extraId, targetPlayerId });
+ if (debug)  console.log(`[PlayerHandler] 🧪 Received use_extra:`, { roomId, playerId, extraId, targetPlayerId });
   
   const room = getQuizRoom(roomId);
   if (!room) {
@@ -281,7 +281,7 @@ socket.on('use_extra', async ({ roomId, playerId, extraId, targetPlayerId }) => 
   }
 
   // ✅ SUCCESS: Extra was used successfully
-  console.log(`[PlayerHandler] ✅ Extra ${extraId} used successfully by ${playerId}`);
+ if (debug)  console.log(`[PlayerHandler] ✅ Extra ${extraId} used successfully by ${playerId}`);
   socket.emit('extra_used_successfully', { extraId });
 
   // ✅ NEW: Send host notifications for specific extras
@@ -293,12 +293,12 @@ socket.on('use_extra', async ({ roomId, playerId, extraId, targetPlayerId }) => 
       if (extraId === 'buyHint' && engine.handleHintExtra) {
         // Notify host of hint usage
         engine.handleHintExtra(roomId, playerId, namespace);
-        console.log(`[PlayerHandler] 📡 Sent hint notification to host for ${playerId}`);
+       if (debug)  console.log(`[PlayerHandler] 📡 Sent hint notification to host for ${playerId}`);
       } 
       else if (extraId === 'freezeOutTeam' && targetPlayerId && engine.handleFreezeExtra) {
         // Notify host of freeze usage
         engine.handleFreezeExtra(roomId, playerId, targetPlayerId, namespace);
-        console.log(`[PlayerHandler] 📡 Sent freeze notification to host for ${playerId} -> ${targetPlayerId}`);
+       if (debug)  console.log(`[PlayerHandler] 📡 Sent freeze notification to host for ${playerId} -> ${targetPlayerId}`);
       }
     }
   } catch (error) {
@@ -308,12 +308,12 @@ socket.on('use_extra', async ({ roomId, playerId, extraId, targetPlayerId }) => 
 });
 
   socket.on('use_clue', ({ roomId, playerId }) => {
-    console.log(`[PlayerHandler] 💡 Legacy use_clue from ${playerId} - redirecting to buyHint`);
+   if (debug)  console.log(`[PlayerHandler] 💡 Legacy use_clue from ${playerId} - redirecting to buyHint`);
     
     const result = handlePlayerExtra(roomId, playerId, 'buyHint', null, namespace);
     
     if (result.success) {
-      console.log(`[PlayerHandler] ✅ Legacy clue used successfully by ${playerId}`);
+     if (debug)  console.log(`[PlayerHandler] ✅ Legacy clue used successfully by ${playerId}`);
       const room = getQuizRoom(roomId);
       const question = getCurrentQuestion(roomId);
       if (question?.clue) {
@@ -370,12 +370,12 @@ socket.on('request_current_state', ({ roomId, playerId }) => {
       currentQuestionIndex: room.currentQuestionIndex
     });
 
-    console.log(`[Recovery] 🔁 Sent complete state recovery for ${playerId}: answered=${hasAnswered}, frozen=${isFrozen}, remaining=${remainingTime}s`);
+   if (debug)  console.log(`[Recovery] 🔁 Sent complete state recovery for ${playerId}: answered=${hasAnswered}, frozen=${isFrozen}, remaining=${remainingTime}s`);
   }
 
   // ✅ NEW: Handle reviewing phase
   else if (room.currentPhase === 'reviewing') {
-    console.log(`[Recovery] 📖 Recovering review phase for ${playerId} in room ${roomId}`);
+    if (debug) console.log(`[Recovery] 📖 Recovering review phase for ${playerId} in room ${roomId}`);
     
     // Import the engine dynamically
     const roundType = room.config.roundDefinitions?.[room.currentRound - 1]?.roundType;
@@ -407,7 +407,7 @@ socket.on('request_current_state', ({ roomId, playerId }) => {
                 category: reviewQuestion.category
               });
               
-              console.log(`[Recovery] 🧐 Sent host review question for ${roomId}: ${reviewQuestion.id}`);
+              if (debug)  console.log(`[Recovery] 🧐 Sent host review question for ${roomId}: ${reviewQuestion.id}`);
             } else {
               // Send player-specific review question with their answer
               const playerData = room.playerData[playerId];
@@ -424,7 +424,7 @@ socket.on('request_current_state', ({ roomId, playerId }) => {
                 category: reviewQuestion.category
               });
               
-              console.log(`[Recovery] 📖 Sent player review question for ${playerId}: ${reviewQuestion.id}`);
+             if (debug)  console.log(`[Recovery] 📖 Sent player review question for ${playerId}: ${reviewQuestion.id}`);
             }
           }
           
@@ -439,7 +439,7 @@ socket.on('request_current_state', ({ roomId, playerId }) => {
               totalQuestions: questionsPerRound
             });
             
-            console.log(`[Recovery] ✅ Sent review complete notification for ${roomId}`);
+           if (debug)  console.log(`[Recovery] ✅ Sent review complete notification for ${roomId}`);
           }
         }
       }).catch(err => {
@@ -450,17 +450,17 @@ socket.on('request_current_state', ({ roomId, playerId }) => {
 
   // ✅ NEW: Handle leaderboard phase
   else if (room.currentPhase === 'leaderboard') {
-    console.log(`[Recovery] 🏆 Recovering leaderboard phase for ${playerId} in room ${roomId}`);
+   if (debug)  console.log(`[Recovery] 🏆 Recovering leaderboard phase for ${playerId} in room ${roomId}`);
     
     // Send stored leaderboard data if available
     if (room.currentRoundResults) {
       socket.emit('round_leaderboard', room.currentRoundResults);
-      console.log(`[Recovery] 🏆 Sent round leaderboard for room ${roomId}`);
+     if (debug)  console.log(`[Recovery] 🏆 Sent round leaderboard for room ${roomId}`);
     }
     
     if (room.currentOverallLeaderboard) {
       socket.emit('leaderboard', room.currentOverallLeaderboard);
-      console.log(`[Recovery] 🏆 Sent overall leaderboard for room ${roomId}`);
+    if (debug)   console.log(`[Recovery] 🏆 Sent overall leaderboard for room ${roomId}`);
     }
   }
 });
@@ -478,7 +478,7 @@ socket.on('request_current_state', ({ roomId, playerId }) => {
           const stillConnected = room.admins.some(a => a.id === admin.id && a.socketId !== socket.id);
           if (!stillConnected) {
             room.admins.splice(idx, 1);
-            console.log(`[DisconnectCleanup] 🧹 Admin "${admin.name}" (${admin.id}) removed from ${roomId}`);
+           if (debug)  console.log(`[DisconnectCleanup] 🧹 Admin "${admin.name}" (${admin.id}) removed from ${roomId}`);
             namespace.to(roomId).emit('admin_list_updated', { admins: room.admins });
           }
         }

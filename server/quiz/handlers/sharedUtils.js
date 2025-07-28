@@ -1,4 +1,4 @@
-const debug = true;
+const debug = false;
 
 export function setupSharedHandlers(socket, namespace) {
   socket.on('request_room_config', ({ roomId }) => {
@@ -66,7 +66,7 @@ export function setupSharedHandlers(socket, namespace) {
         currentQuestionIndex: room.currentQuestionIndex
       };
       
-      console.log(`[SharedUtils] 🔍 Player verification: ${playerId} in room ${roomId} - approved: ${playerApproved}, phase: ${room.currentPhase}`);
+      if (debug)  console.log(`[SharedUtils] 🔍 Player verification: ${playerId} in room ${roomId} - approved: ${playerApproved}, phase: ${room.currentPhase}`);
       
       socket.emit('quiz_room_player_verification_result', {
         roomExists: true,
@@ -92,7 +92,7 @@ export function setupSharedHandlers(socket, namespace) {
       const playerExists = room.players.some(p => p.id === playerId);
       const gameIsActive = ['asking', 'reviewing', 'leaderboard', 'launched'].includes(room.currentPhase);
       
-      console.log(`[SharedUtils] 🎮 Active game check: ${playerId} - exists: ${playerExists}, phase: ${room.currentPhase}, active: ${gameIsActive}`);
+      if (debug) console.log(`[SharedUtils] 🎮 Active game check: ${playerId} - exists: ${playerExists}, phase: ${room.currentPhase}, active: ${gameIsActive}`);
       
       socket.emit('player_active_game_status', {
         isInActiveGame: playerExists && gameIsActive,
@@ -117,7 +117,7 @@ export function setupSharedHandlers(socket, namespace) {
         return;
       }
 
-      console.log(`[SharedUtils] 🔄 Player ${playerId} rejoining active game in room ${roomId}`);
+     if (debug)  console.log(`[SharedUtils] 🔄 Player ${playerId} rejoining active game in room ${roomId}`);
 
       // Add socket to room and update player socket
       socket.join(roomId);
@@ -128,7 +128,7 @@ export function setupSharedHandlers(socket, namespace) {
       emitRoomState(namespace, roomId);
       emitFullRoomState(socket, namespace, roomId);
       
-      console.log(`✅ [SharedUtils] Player ${playerId} rejoined active game in room ${roomId}`);
+      if (debug)  console.log(`✅ [SharedUtils] Player ${playerId} rejoined active game in room ${roomId}`);
     });
   });
 

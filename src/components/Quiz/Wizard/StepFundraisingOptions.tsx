@@ -287,7 +287,7 @@ export const StepFundraisingOptions: React.FC<{ onNext: () => void; onBack: () =
         <p className="text-gray-700 text-sm">
           {selectedExtras.length > 0
             ? `Excellent! You've enabled ${selectedExtras.length} fundraising extra${selectedExtras.length > 1 ? 's' : ''} to boost engagement.`
-            : 'Choose optional fundraising extras to enhance both fun and donations! Click any card to see detailed strategy info.'}
+            : 'Fundraising Extras are totally optional. The are like in game extras that turn a standard quiz into a fun and exciting game of strategy.  Choose fundraising extras to enhance both fun and donations! Click any card to see detailed strategy info. Select the extras you want to enable and set their prices. Team can decide if they want to purchase them before the games starts. '}
         </p>
       </div>
     </div>

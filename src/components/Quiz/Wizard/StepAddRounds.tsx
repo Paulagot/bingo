@@ -17,6 +17,8 @@ interface VideoModalProps {
   title: string;
 }
 
+const debug = false;
+
 const VideoModal: React.FC<VideoModalProps> = ({ isOpen, onClose, videoId, title }) => {
   if (!isOpen) return null;
 
@@ -336,7 +338,7 @@ export const StepAddRounds: React.FC<StepAddRoundsProps> = ({ onNext, onBack }) 
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    console.log('[StepAddRounds] Hydrating selectedRounds from setupConfig:', setupConfig);
+   if (debug) console.log('[StepAddRounds] Hydrating selectedRounds from setupConfig:', setupConfig);
 
     if (!setupConfig.roundDefinitions || setupConfig.roundDefinitions.length === 0) {
       const defaultRounds: RoundDefinition[] = [
@@ -353,7 +355,7 @@ export const StepAddRounds: React.FC<StepAddRoundsProps> = ({ onNext, onBack }) 
 
   const createRoundDefinition = (roundType: RoundTypeId, roundNumber: number): RoundDefinition => {
     const def = roundTypeDefaults[roundType];
-    console.log(`[DEBUG] Creating round for ${roundType}:`, def);
+   if (debug) console.log(`[DEBUG] Creating round for ${roundType}:`, def);
 
     const validExtras = Object.entries(fundraisingExtraDefinitions)
       .filter(([_, rule]) =>
@@ -389,7 +391,7 @@ export const StepAddRounds: React.FC<StepAddRoundsProps> = ({ onNext, onBack }) 
     setSelectedRounds(renumberedRounds);
     updateSetupConfig({ roundDefinitions: renumberedRounds });
 
-    console.log(`[StepAddRounds] ✅ Round added: ${roundType}`);
+   if (debug) console.log(`[StepAddRounds] ✅ Round added: ${roundType}`);
   };
 
   const removeRound = (index: number) => {
@@ -401,7 +403,7 @@ export const StepAddRounds: React.FC<StepAddRoundsProps> = ({ onNext, onBack }) 
     setSelectedRounds(renumberedRounds);
     updateSetupConfig({ roundDefinitions: renumberedRounds });
 
-    console.log(`[StepAddRounds] 🗑 Round removed at index: ${index}`);
+   if (debug) console.log(`[StepAddRounds] 🗑 Round removed at index: ${index}`);
   };
 
   const handleDragStart = (index: number) => {
@@ -429,7 +431,7 @@ export const StepAddRounds: React.FC<StepAddRoundsProps> = ({ onNext, onBack }) 
       setSelectedRounds(renumberedRounds);
       updateSetupConfig({ roundDefinitions: renumberedRounds });
       
-      console.log(`[StepAddRounds] 🔄 Round moved from ${draggedIndex} to ${dragOverIndex}`);
+     if (debug) console.log(`[StepAddRounds] 🔄 Round moved from ${draggedIndex} to ${dragOverIndex}`);
     }
     
     setDraggedIndex(null);
@@ -455,7 +457,7 @@ export const StepAddRounds: React.FC<StepAddRoundsProps> = ({ onNext, onBack }) 
                            selectedRounds[2]?.roundType === 'general_trivia';
     
     if (hasDefaultSetup) {
-      return { expression: "explaining", message: "We have set up a quiz for you with 3 rounds, you can customise this and have up to 8 rounds. In the next step, you will be able to configure the subject category for the questions and the difficulty level. But first, select the rounds you want to include in your quiz." };
+      return { expression: "explaining", message: "Now its time to select the round type's, the cards below provide more information on each type and the game play associated with that round.  We have set up a quiz for you with 3 rounds, you can customise this and have up to 8 rounds." };
     }
     
     return { expression: "excited", message: `You have ${selectedRounds.length} round${selectedRounds.length === 1 ? '' : 's'}. Add more below!` };

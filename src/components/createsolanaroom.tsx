@@ -23,7 +23,7 @@ export const CreateSolanaRoom: React.FC<CreateSolanaRoomProps> = ({
   roomId,
   sendTxId,
   onSuccess,
-  debug = true,
+  debug = false,
 }) => {
   const { address, isConnected } = useAppKitAccount();
   const { connection } = useAppKitConnection();

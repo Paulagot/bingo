@@ -66,7 +66,7 @@ const StepPaymentMethod: FC<WizardStepProps> = ({ onNext, onBack }) => {
     if (!entryFee) {
       return { 
         expression: "explaining", 
-        message: "Let's set your entry fee! You'll collect entry fees manually using cash or debit (Revolut). This works perfectly for in-person and club-run events." 
+        message: "Let's set your entry fee! If you are using teams, its one device per team and price you set here is the team entry fee.  If you are not using teams, this is the entry price per player.  Each player must have a device.   You'll collect entry fees manually using cash or debit. This works perfectly for in-person and club-run events." 
       };
     }
     
@@ -124,7 +124,7 @@ const StepPaymentMethod: FC<WizardStepProps> = ({ onNext, onBack }) => {
           <span className="font-medium text-indigo-800 text-sm md:text-base">Payment Collection</span>
         </div>
         <div className="text-xs md:text-sm text-indigo-700">
-          Cash or Debit (Revolut) - You collect entry fees manually
+          Cash or Debit  - You collect entry fees manually
         </div>
       </div>
 
@@ -210,8 +210,8 @@ const StepPaymentMethod: FC<WizardStepProps> = ({ onNext, onBack }) => {
               <p className="font-medium mb-1">Payment Collection Tips</p>
               <ul className="space-y-1 text-xs">
                 <li>• Collect entry fees when participants arrive</li>
-                <li>• Accept cash or card payments (Revolut works great for debit)</li>
-                <li>• Keep track of who has paid in your participant list</li>
+                <li>• Accept cash or card payments</li>
+                <li>• Fundraisely will keep track of who has paid in your participant list</li>
                 <li>• Have change ready if accepting cash payments</li>
               </ul>
             </div>

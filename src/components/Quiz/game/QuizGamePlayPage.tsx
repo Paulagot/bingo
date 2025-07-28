@@ -19,7 +19,7 @@ import EnhancedPlayerLeaderboard from './EnhancedPlayerLeaderboard';
 import QuizCompletionCelebration from './QuizCompletionCelebration';
 
 import type { RoundConfig } from '../types/quiz';
-const debug = true;
+const debug = false;
 
 // ✅ NEW: Type definitions for notifications
 type NotificationType = 'success' | 'warning' | 'info' | 'error';
@@ -301,9 +301,9 @@ const QuizGamePlayPage = () => {
     if (!socket || !connected || !roomId || !playerId) return;
 
     const handleQuestion = (data: any) => {
-      console.log(`[DEBUG] Question received:`, data);
-      console.log(`[DEBUG] Before update - currentQuestionIndexRef:`, currentQuestionIndexRef.current);
-      console.log(`[DEBUG] Before update - questionInRound:`, questionInRound, 'totalInRound:', totalInRound);
+      if (debug) console.log(`[DEBUG] Question received:`, data);
+      if (debug) console.log(`[DEBUG] Before update - currentQuestionIndexRef:`, currentQuestionIndexRef.current);
+      if (debug) console.log(`[DEBUG] Before update - questionInRound:`, questionInRound, 'totalInRound:', totalInRound);
       
       if (debug) console.log('[Client] 🧐 Received question:', data);
       
@@ -312,9 +312,9 @@ const QuizGamePlayPage = () => {
       
       if (!isRecovery) {
         currentQuestionIndexRef.current += 1;
-        console.log(`[DEBUG] Incremented currentQuestionIndexRef to:`, currentQuestionIndexRef.current);
+         if (debug) console.log(`[DEBUG] Incremented currentQuestionIndexRef to:`, currentQuestionIndexRef.current);
       } else {
-        console.log(`[DEBUG] Recovery detected - keeping currentQuestionIndexRef:`, currentQuestionIndexRef.current);
+         if (debug) console.log(`[DEBUG] Recovery detected - keeping currentQuestionIndexRef:`, currentQuestionIndexRef.current);
       }
       
       setQuestion(data);
@@ -536,7 +536,7 @@ const handleReviewQuestion = (data: any) => {
         setTimeout(() => navigate(`/quiz/game/${roomId}/${playerId}`), 2000);
       } else if (message.includes('Room not found') || message.includes('Player not found')) {
         // ✅ NEW: Handle reconnection errors more gracefully
-        console.log('[Client] 🔄 Attempting to rejoin through waiting page...');
+         if (debug) console.log('[Client] 🔄 Attempting to rejoin through waiting page...');
         navigate(`/quiz/game/${roomId}/${playerId}`);
       } else {
         // ✅ FIXED: Use toast instead of alert
@@ -585,10 +585,10 @@ const handleReviewQuestion = (data: any) => {
       setUsedExtrasThisRound(data.usedExtrasThisRound);
       currentQuestionIndexRef.current = data.currentQuestionIndex;
       
-      console.log(`[Client] ✅ State recovered: answered=${data.hasAnswered}, frozen=${data.isFrozen}, timer=${data.remainingTime}s`);
+       if (debug) console.log(`[Client] ✅ State recovered: answered=${data.hasAnswered}, frozen=${data.isFrozen}, timer=${data.remainingTime}s`);
     };
 
-    console.log('[Client] 🧷 Registering socket listeners for player:', playerId, 'Room:', roomId);
+    if (debug)  console.log('[Client] 🧷 Registering socket listeners for player:', playerId, 'Room:', roomId);
 
     // Register all socket listeners
     socket.on('question', handleQuestion);
@@ -717,8 +717,8 @@ return (
     ) : (
       <>
         <h1 className="text-2xl font-bold mb-4">🎮 Quiz In Progress</h1>
-        <p className="text-sm text-gray-500 mb-2">Room ID: {roomId}</p>
-        <p className="text-sm text-gray-500 mb-4">Player ID: {playerId}</p>
+        {/* <p className="text-sm text-gray-500 mb-2">Room ID: {roomId}</p>
+        <p className="text-sm text-gray-500 mb-4">Player ID: {playerId}</p> */}
 
         {/* ✅ Countdown message overlay */}
         {currentEffect && isFlashing && (

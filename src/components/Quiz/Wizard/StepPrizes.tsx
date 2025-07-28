@@ -338,7 +338,7 @@ const StepPrizes: FC<WizardStepProps> = ({ onNext, onBack }) => {
               <ul className="space-y-1 text-xs">
                 <li>• At least a 1st place prize is required to continue</li>
                 <li>• Include sponsors to acknowledge supporters and add credibility</li>
-                <li>• Set realistic values to help participants understand prize worth</li>
+                
                 <li>• Consider a mix of prizes: gift cards, experiences, physical items</li>
                 <li>• You'll distribute these manually after the quiz ends</li>
               </ul>

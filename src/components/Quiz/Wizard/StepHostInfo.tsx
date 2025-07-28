@@ -10,8 +10,9 @@ const StepHostInfo: FC<WizardStepProps> = ({ onNext }) => {
   const { setupConfig, updateSetupConfig } = useQuizSetupStore();
   const [hostName, setHostName] = useState(setupConfig.hostName || '');
   const [error, setError] = useState('');
+  const debug = false;
 
-  console.log('[StepHostInfo] Current setupConfig:', setupConfig);
+ if (debug)  console.log('[StepHostInfo] Current setupConfig:', setupConfig);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -24,7 +25,7 @@ const StepHostInfo: FC<WizardStepProps> = ({ onNext }) => {
 
     const safeName = trimmedName.replace(/[^a-zA-Z0-9 _-]/g, '');
 
-    console.log('[StepHostInfo] Submitting host name:', safeName);
+    if (debug) console.log('[StepHostInfo] Submitting host name:', safeName);
 
     // ✅ Store it locally in wizard state
     updateSetupConfig({ hostName: safeName });
@@ -72,7 +73,7 @@ const StepHostInfo: FC<WizardStepProps> = ({ onNext }) => {
     if (trimmedName.length === 0) {
       return {
         expression: "friendly" as const,
-        message: "Hi there! Let's start by setting up your host identity. Choose something that represents you or your organization - this is how participants will see you during the quiz."
+        message: "Hi there! together we will set up a quiz, there are 8 steps in total. I will guide you.  Let's start by setting up your host identity. Choose something that represents you or your organization - this is how participants will see you during the quiz."
       };
     }
     

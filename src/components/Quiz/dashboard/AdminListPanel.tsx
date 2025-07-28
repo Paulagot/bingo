@@ -14,7 +14,7 @@ const AdminListPanel: React.FC = () => {
   const [selectedAdminId, setSelectedAdminId] = useState<string | null>(null);
   const { socket } = useQuizSocket();
   const { admins, setFullAdmins } = useAdminStore();
-  const debug = true;
+  const debug = false;
 
    const navigate = useNavigate();
   const handleAddAdmin = () => {

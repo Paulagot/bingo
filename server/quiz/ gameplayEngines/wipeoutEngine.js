@@ -11,7 +11,7 @@ import {
 } from '../quizRoomManager.js';
 
 let timers = {}; // per-room timer refs
-const debug = true;
+const debug = false;
 
 // ✅ NEW: Send host activity notification
 function sendHostActivityNotification(namespace, roomId, activityData) {
@@ -144,8 +144,8 @@ export function initRound(roomId, namespace) {
   // ✅ Shuffle and slice
   questions = shuffleArray(questions).slice(0, questionsPerRound);
 
-  console.log(`[wipeoutEngine] 🔎 Loaded ${questions.length} questions for ${roundType} (difficulty=${desiredDifficulty}, category=${desiredCategory})`);
-  console.log(`[wipeoutEngine] 🧠 Final difficulties:`, questions.map(q => q.difficulty));
+  if (debug) console.log(`[wipeoutEngine] 🔎 Loaded ${questions.length} questions for ${roundType} (difficulty=${desiredDifficulty}, category=${desiredCategory})`);
+ if (debug)  console.log(`[wipeoutEngine] 🧠 Final difficulties:`, questions.map(q => q.difficulty));
 
   setQuestionsForCurrentRound(roomId, questions);
   resetRoundExtrasTracking(roomId);
@@ -300,7 +300,7 @@ export function handlePlayerAnswer(roomId, playerId, answer, namespace) {
     playerData.frozenNextQuestion &&
     room.currentQuestionIndex === playerData.frozenForQuestionIndex
   ) {
-    console.log(`[wipeoutEngine] ❄️ Player ${playerId} is frozen and cannot answer question ${room.currentQuestionIndex}`);
+    if (debug) console.log(`[wipeoutEngine] ❄️ Player ${playerId} is frozen and cannot answer question ${room.currentQuestionIndex}`);
     return;
   }
 
@@ -315,10 +315,10 @@ export function handlePlayerAnswer(roomId, playerId, answer, namespace) {
 
   const pointsLostPerWrong = configObj.pointsLostPerWrong ?? 2; // ✅ fallback to 2 if missing
 
-  console.log(`[DEBUG SCORING] question difficulty: ${difficulty}`);
-  console.log(`[DEBUG SCORING] pointsPerDifficulty:`, pointsPerDifficulty);
-  console.log(`[DEBUG SCORING] pointsLostPerWrong: ${pointsLostPerWrong}`);
-  console.log(`[DEBUG SCORING] final pointsPerQuestion: ${pointsPerQuestion}`);
+  if (debug) console.log(`[DEBUG SCORING] question difficulty: ${difficulty}`);
+ if (debug)  console.log(`[DEBUG SCORING] pointsPerDifficulty:`, pointsPerDifficulty);
+ if (debug)  console.log(`[DEBUG SCORING] pointsLostPerWrong: ${pointsLostPerWrong}`);
+ if (debug)  console.log(`[DEBUG SCORING] final pointsPerQuestion: ${pointsPerQuestion}`);
 
   if (isCorrect) {
     playerData.score = (playerData.score || 0) + pointsPerQuestion;
@@ -338,9 +338,9 @@ export function handlePlayerAnswer(roomId, playerId, answer, namespace) {
   playerData.answers[roundAnswerKey] = { submitted: answer, correct: isCorrect };
 
   // ✅ TEMPORARY DEBUG: Add this after setting the answer
-console.log(`[DEBUG wipepout engine] Player ${playerId} usedExtrasThisRound:`, playerData.usedExtrasThisRound);
-console.log(`[DEBUG wipepout engine] Checking hint usage:`, playerData.usedExtrasThisRound?.buyHint);
-console.log(`[DEBUG wipepout engine] Namespace exists:`, !!namespace);
+if (debug) console.log(`[DEBUG wipepout engine] Player ${playerId} usedExtrasThisRound:`, playerData.usedExtrasThisRound);
+if (debug) console.log(`[DEBUG wipepout engine] Checking hint usage:`, playerData.usedExtrasThisRound?.buyHint);
+if (debug) console.log(`[DEBUG wipepout engine] Namespace exists:`, !!namespace);
 
 
 

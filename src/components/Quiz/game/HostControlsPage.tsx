@@ -27,7 +27,7 @@ import {
   Award
 } from 'lucide-react';
 
-const debug = true;
+const debug = false;
 
 type RoomStatePayload = {
   currentRound: number;
@@ -846,7 +846,7 @@ const HostControlsPage = () => {
         )}
 
         {/* Debug Panel (removable) */}
-        {debug && (
+        {/* {debug && (
           <div className="bg-gray-100 rounded-lg p-4 mb-6">
             <h4 className="font-semibold text-gray-800 mb-2 flex items-center space-x-2">
               <Settings className="w-4 h-4" />
@@ -862,7 +862,7 @@ const HostControlsPage = () => {
               <div>Activities: {activities.length} | Round Stats: {hasRoundStats ? '✅' : '❌'} | Final Stats: {hasFinalStats ? '✅' : '❌'}</div>
             </div>
           </div>
-        )}
+        )} */}
 
         {/* Cancel Quiz Section */}
         <div className="text-center">

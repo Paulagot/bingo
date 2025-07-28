@@ -267,7 +267,7 @@ const ReviewPhase: React.FC<ReviewPhaseProps> = ({
         </div>
 
         {/* Summary Section - Only for Players */}
-        {!isHost && (
+        {/* {!isHost && (
           <div className="mt-6 p-4 bg-white rounded-lg border border-gray-200">
             <h4 className="text-sm font-semibold text-gray-700 mb-2">Review Summary</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
@@ -297,8 +297,8 @@ const ReviewPhase: React.FC<ReviewPhaseProps> = ({
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          </div> */}
+        {/* )} */}
 
         {/* Additional Info - Only for Players */}
         {!isHost && !hasAnswered && (

@@ -1,9 +1,9 @@
-// server/quiz/handlers/globalExtrasHandler.js
+// server/quiz/handlers/globalExtrasHandler.js - FIXED VERSION
 
 import { getQuizRoom } from '../quizRoomManager.js';
 import { fundraisingExtraDefinitions } from './../quizMetadata.js';
 
-const debug = true;
+const debug = false;
 
 // ✅ NEW: Send host activity notification
 function sendHostActivityNotification(namespace, roomId, activityData) {
@@ -21,8 +21,8 @@ function sendHostActivityNotification(namespace, roomId, activityData) {
   }
 }
 
-// ✅ NEW: Calculate leaderboard phase stats
-function calculateLeaderboardStats(room) {
+// ✅ FIXED: Calculate current round stats including all extras used so far
+function calculateCurrentRoundStats(room) {
   const stats = {
     roundNumber: room.currentRound,
     hintsUsed: 0,
@@ -34,7 +34,7 @@ function calculateLeaderboardStats(room) {
     totalExtrasUsed: 0
   };
 
-  // Calculate global extras used during leaderboard phase
+  // Count asking phase extras from usedExtrasThisRound
   Object.entries(room.playerData).forEach(([playerId, playerData]) => {
     const player = room.players.find(p => p.id === playerId);
     const playerName = player?.name || playerId;
@@ -43,55 +43,64 @@ function calculateLeaderboardStats(room) {
       stats.extrasByPlayer[playerName] = [];
     }
 
-    // Count global extras used
-    if (playerData.usedExtras) {
-      if (playerData.usedExtras.robPoints) {
-        stats.pointsRobbed++;
-        stats.totalExtrasUsed++;
-        stats.extrasByPlayer[playerName].push({
-          extraId: 'robPoints',
-          timestamp: Date.now()
-        });
-      }
-      
-      // Note: restorePoints can be used multiple times, so we count pointsRestored value
-      if (playerData.pointsRestored > 0) {
-        stats.pointsRestored += playerData.pointsRestored;
-        // Only count as one "extra use" for the player
-        if (!stats.extrasByPlayer[playerName].some(e => e.extraId === 'restorePoints')) {
-          stats.totalExtrasUsed++;
-          stats.extrasByPlayer[playerName].push({
-            extraId: 'restorePoints',
-            timestamp: Date.now()
-          });
-        }
-      }
-    }
-
-    // Add asking phase extras from usedExtrasThisRound
+    // ✅ Count round-based extras (hints, freezes) 
     if (playerData.usedExtrasThisRound) {
       Object.entries(playerData.usedExtrasThisRound).forEach(([extraId, used]) => {
         if (used) {
           switch (extraId) {
             case 'buyHint':
               stats.hintsUsed++;
+              stats.totalExtrasUsed++;
+              stats.extrasByPlayer[playerName].push({
+                extraId,
+                timestamp: Date.now()
+              });
               break;
             case 'freezeOutTeam':
               stats.freezesUsed++;
+              stats.totalExtrasUsed++;
+              stats.extrasByPlayer[playerName].push({
+                extraId,
+                timestamp: Date.now()
+              });
               break;
-          }
-          
-          if (!stats.extrasByPlayer[playerName].some(e => e.extraId === extraId)) {
-            stats.totalExtrasUsed++;
-            stats.extrasByPlayer[playerName].push({
-              extraId,
-              timestamp: Date.now()
-            });
           }
         }
       });
     }
   });
+
+  // ✅ NEW: Count global extras used during leaderboard phase of THIS round
+  if (room.globalExtrasUsedThisRound) {
+    room.globalExtrasUsedThisRound.forEach(extraUsage => {
+      const playerName = extraUsage.playerName;
+      
+      if (!stats.extrasByPlayer[playerName]) {
+        stats.extrasByPlayer[playerName] = [];
+      }
+
+      switch (extraUsage.extraId) {
+        case 'robPoints':
+          stats.pointsRobbed++;
+          stats.totalExtrasUsed++;
+          stats.extrasByPlayer[playerName].push({
+            extraId: 'robPoints',
+            target: extraUsage.targetName,
+            timestamp: extraUsage.timestamp
+          });
+          break;
+        case 'restorePoints':
+          stats.pointsRestored += extraUsage.pointsRestored; // Track actual points restored
+          stats.totalExtrasUsed++;
+          stats.extrasByPlayer[playerName].push({
+            extraId: 'restorePoints',
+            pointsRestored: extraUsage.pointsRestored,
+            timestamp: extraUsage.timestamp
+          });
+          break;
+      }
+    });
+  }
 
   return stats;
 }
@@ -101,7 +110,7 @@ function sendUpdatedStatsToHost(namespace, roomId) {
   const room = getQuizRoom(roomId);
   if (!room) return;
 
-  const updatedStats = calculateLeaderboardStats(room);
+  const updatedStats = calculateCurrentRoundStats(room);
   namespace.to(`${roomId}:host`).emit('host_current_round_stats', updatedStats);
 
   if (debug) {
@@ -164,12 +173,31 @@ export function handleGlobalExtra(roomId, playerId, extraId, targetPlayerId, nam
       playerData.usedExtrasThisRound[extraId] = true;
     }
     
-    // ✅ NEW: Send updated stats to host after any global extra usage
+    // ✅ NEW: Track global extra usage for this round's stats
+    if (!room.globalExtrasUsedThisRound) {
+      room.globalExtrasUsedThisRound = [];
+    }
+    
+    const player = room.players.find(p => p.id === playerId);
+    const targetPlayer = targetPlayerId ? room.players.find(p => p.id === targetPlayerId) : null;
+    
+    room.globalExtrasUsedThisRound.push({
+      extraId,
+      playerId,
+      playerName: player?.name || 'Unknown',
+      targetPlayerId,
+      targetName: targetPlayer?.name,
+      pointsRestored: result.pointsRestored || 0, // For restorePoints tracking
+      timestamp: Date.now(),
+      round: room.currentRound
+    });
+    
+    // ✅ Send updated stats to host after any global extra usage
     sendUpdatedStatsToHost(namespace, roomId);
     
-    console.log(`[GlobalExtrasHandler] ✅ ${extraId} executed successfully for ${playerId}`);
+   if (debug) console.log(`[GlobalExtrasHandler] ✅ ${extraId} executed successfully for ${playerId}`);
   } else {
-    console.warn(`[GlobalExtrasHandler] ❌ ${extraId} execution failed for ${playerId}: ${result.error}`);
+    if (debug) console.warn(`[GlobalExtrasHandler] ❌ ${extraId} execution failed for ${playerId}: ${result.error}`);
   }
 
   return result;
@@ -239,7 +267,7 @@ function executeRobPoints(roomId, playerId, targetPlayerId, namespace) {
     console.log(`  - ${targetName}: ${oldTargetScore} → ${targetData.score} (-${pointsToRob})`);
   }
 
-  // ✅ NEW: Notify host of rob points activity
+  // ✅ Notify host of rob points activity
   sendHostActivityNotification(namespace, roomId, {
     type: 'rob',
     playerName: playerName,
@@ -345,7 +373,7 @@ function executeRestorePoints(roomId, playerId, namespace) {
     console.log(`  - Remaining restorable: ${remainingAllowance - pointsToRestore}`);
   }
 
-  // ✅ NEW: Notify host of restore points activity
+  // ✅ Notify host of restore points activity
   sendHostActivityNotification(namespace, roomId, {
     type: 'restore',
     playerName: playerName,
@@ -386,5 +414,26 @@ function executeRestorePoints(roomId, playerId, namespace) {
     console.log(`[RestorePoints] 📊 Updated leaderboard emitted with ${updatedLeaderboard.length} players`);
   }
 
-  return { success: true };
+  // ✅ RETURN the points restored for tracking
+  return { success: true, pointsRestored: pointsToRestore };
+}
+
+// ✅ NEW: Export function to get current round stats for final calculation
+export function getCurrentRoundStats(roomId) {
+  const room = getQuizRoom(roomId);
+  if (!room) return null;
+  
+  return calculateCurrentRoundStats(room);
+}
+
+// ✅ NEW: Export function to reset global extras tracking for new round
+export function resetGlobalExtrasForNewRound(roomId) {
+  const room = getQuizRoom(roomId);
+  if (!room) return;
+  
+  room.globalExtrasUsedThisRound = [];
+  
+  if (debug) {
+    console.log(`[GlobalExtrasHandler] 🔄 Global extras tracking reset for round ${room.currentRound}`);
+  }
 }

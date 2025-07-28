@@ -250,7 +250,7 @@ const StandardRound: React.FC<EnhancedStandardRoundProps> = ({
         </div>
 
         {/* Status Information */}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+        {/* <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
           <div className="text-center p-3 bg-gray-50 rounded-lg">
             <div className="font-medium text-gray-600">Selected Answer</div>
             <div className={`font-bold ${selectedAnswer ? 'text-indigo-600' : 'text-gray-400'}`}>
@@ -273,7 +273,7 @@ const StandardRound: React.FC<EnhancedStandardRoundProps> = ({
               {timerActive && timeLeft ? `${Math.floor(timeLeft)}s` : 'No timer'}
             </div>
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );

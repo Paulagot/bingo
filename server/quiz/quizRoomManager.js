@@ -4,10 +4,11 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { roundTypeDefinitions, fundraisingExtraDefinitions } from '../quiz/quizMetadata.js';
 import { handleGlobalExtra } from './handlers/globalExtrasHandler.js';
+import { resetGlobalExtrasForNewRound } from './handlers/globalExtrasHandler.js';
 
 
 const quizRooms = new Map();
-const debug = true;
+const debug = false;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,15 +30,17 @@ export function loadQuestionsForRoundType(roundType) {
 }
 
 export function createQuizRoom(roomId, hostId, config) {
+  if (debug) {
   console.log('-----------------------------------------');
   console.log(`[quizRoomManager] 🟢 Starting room creation`);
   console.log(`[quizRoomManager] 🧩 roomId=${roomId}, hostId=${hostId}`);
   console.log(`[quizRoomManager] 📦 Incoming config:\n`, JSON.stringify(config, null, 2));
-  console.log(`[quizRoomManager] 📅 Scheduled for: ${config.eventDateTime || 'N/A'} (${config.timeZone || 'N/A'})`);
+  console.log(`[quizRoomManager] 📅 Scheduled for: ${config.eventDateTime || 'N/A'} (${config.timeZone || 'N/A'})`);}
 if (config.paymentMethod === 'web3') {
+  if (debug) {
   console.log(`[quizRoomManager] 🌐 Web3 Config: Chain=${config.web3Chain}, Token=${config.web3Currency}, Charity=${config.web3Charity}`);
   console.log(`[quizRoomManager] 🎁 Prize Split:`, config.web3PrizeSplit);
-  console.log(`[quizRoomManager] 👛 Host Wallet:`, config.hostWallet || 'Not provided');
+  console.log(`[quizRoomManager] 👛 Host Wallet:`, config.hostWallet || 'Not provided');}
 }
 
   if (quizRooms.has(roomId)) {
@@ -45,10 +48,10 @@ if (config.paymentMethod === 'web3') {
     const hasPlayers = existing.players.length > 0;
     const isActive = existing.currentPhase !== 'waiting';
     if (hasPlayers || isActive) {
-      console.log(`[quizRoomManager] ❌ Room already active: ${roomId}`);
+     if (debug)  console.log(`[quizRoomManager] ❌ Room already active: ${roomId}`);
       return false;
     }
-    console.log(`[quizRoomManager] ⚠️ Overwriting inactive room: ${roomId}`);
+  if (debug)   console.log(`[quizRoomManager] ⚠️ Overwriting inactive room: ${roomId}`);
     quizRooms.delete(roomId);
   }
 
@@ -71,12 +74,13 @@ if (config.paymentMethod === 'web3') {
   playerData: {},
   playerSessions: {}, // ← ADD THIS LINE ONLY
   currentPhase: 'waiting',
-  createdAt: Date.now()
+  createdAt: Date.now(),
+  globalExtrasUsedThisRound: [],
 });
 
 
-  console.log(`[quizRoomManager] ✅ Room ${roomId} created with ${roundDefinitions.length} rounds`);
-  console.log('-----------------------------------------');
+ if (debug)  console.log(`[quizRoomManager] ✅ Room ${roomId} created with ${roundDefinitions.length} rounds`);
+ if (debug)  console.log('-----------------------------------------');
   return true;
 }
 
@@ -105,7 +109,7 @@ export function emitRoomState(namespace, roomId) {
     phase: room.currentPhase
   });
 
-  console.log(`[quizRoomManager] ✅ Emitted room_state for ${roomId}: Round ${room.currentRound}/${totalRounds}, Type: ${roundTypeName}, Players: ${room.players.length}, Phase: ${room.currentPhase}`);
+ if (debug)  console.log(`[quizRoomManager] ✅ Emitted room_state for ${roomId}: Round ${room.currentRound}/${totalRounds}, Type: ${roundTypeName}, Players: ${room.players.length}, Phase: ${room.currentPhase}`);
 }
 
 export function addOrUpdatePlayer(roomId, player) {
@@ -214,12 +218,12 @@ function clearExpiredFreezeFlags(roomId) {
   const room = quizRooms.get(roomId);
   if (!room) return;
 
-  console.log(`[quizRoomManager] 🔍 clearExpiredFreezeFlags called for ${roomId}, currentQuestionIndex: ${room.currentQuestionIndex}`);
+ if (debug)  console.log(`[quizRoomManager] 🔍 clearExpiredFreezeFlags called for ${roomId}, currentQuestionIndex: ${room.currentQuestionIndex}`);
 
   for (const pid of Object.keys(room.playerData)) {
     const playerData = room.playerData[pid];
     if (playerData?.frozenNextQuestion && playerData?.frozenForQuestionIndex !== undefined) {
-      console.log(`[quizRoomManager] 🔍 Player ${pid}: frozenForQuestionIndex=${playerData.frozenForQuestionIndex}, currentQuestionIndex=${room.currentQuestionIndex}`);
+      if (debug) console.log(`[quizRoomManager] 🔍 Player ${pid}: frozenForQuestionIndex=${playerData.frozenForQuestionIndex}, currentQuestionIndex=${room.currentQuestionIndex}`);
       
       if (room.currentQuestionIndex > playerData.frozenForQuestionIndex) {
         playerData.frozenNextQuestion = false;
@@ -227,7 +231,7 @@ function clearExpiredFreezeFlags(roomId) {
         playerData.frozenForQuestionIndex = undefined;
         if (debug) console.log(`[quizRoomManager] ❄️ Cleared freeze flag for ${pid} (missed question ${missedQuestion})`);
       } else {
-        console.log(`[quizRoomManager] 🔍 NOT clearing ${pid}: ${room.currentQuestionIndex} <= ${playerData.frozenForQuestionIndex}`);
+       if (debug)  console.log(`[quizRoomManager] 🔍 NOT clearing ${pid}: ${room.currentQuestionIndex} <= ${playerData.frozenForQuestionIndex}`);
       }
     }
   }
@@ -278,10 +282,10 @@ export function getCurrentRound(roomId) {
 export function removeQuizRoom(roomId) {
   if (quizRooms.has(roomId)) {
     quizRooms.delete(roomId);
-    console.log(`[quizRoomManager] 🗑️ Room removed: ${roomId}`);
+   if (debug)  console.log(`[quizRoomManager] 🗑️ Room removed: ${roomId}`);
     return true;
   }
-  console.warn(`[quizRoomManager] ⚠️ Tried to remove nonexistent room: ${roomId}`);
+ if (debug)  console.warn(`[quizRoomManager] ⚠️ Tried to remove nonexistent room: ${roomId}`);
   return false;
 }
 
@@ -302,6 +306,9 @@ export function resetRoundExtrasTracking(roomId) {
     return;
   }
 
+  // ✅ Reset global extras tracking for new round
+  resetGlobalExtrasForNewRound(roomId);
+
   for (const pid of Object.keys(room.playerData)) {
     const playerData = room.playerData[pid];
     if (!playerData?.usedExtrasThisRound) continue;
@@ -321,7 +328,7 @@ export function resetRoundExtrasTracking(roomId) {
 
 // ✅ IMPROVED: Centralized Extras Handler with better freeze validation
 export function handlePlayerExtra(roomId, playerId, extraId, targetPlayerId, namespace) {
-  console.log(`[BASIC TEST] handlePlayerExtra called with extraId: ${extraId}`);
+  if (debug) console.log(`[BASIC TEST] handlePlayerExtra called with extraId: ${extraId}`);
   const room = getQuizRoom(roomId);
   if (!room) return { success: false, error: 'Room not found' };
 
@@ -329,9 +336,10 @@ export function handlePlayerExtra(roomId, playerId, extraId, targetPlayerId, nam
   if (!playerData) return { success: false, error: 'Player data not found' };
 
   // ✅ DEBUG: Add logging to see what's happening
+  if (debug) {
   console.log(`[DEBUG] extraId: "${extraId}"`);
   console.log(`[DEBUG] fundraisingExtraDefinitions:`, fundraisingExtraDefinitions);
-  console.log(`[DEBUG] extraDefinition:`, fundraisingExtraDefinitions[extraId]);
+  console.log(`[DEBUG] extraDefinition:`, fundraisingExtraDefinitions[extraId]);}
   
   // ✅ NEW: Check if this is a global extra
  const extraDefinition = fundraisingExtraDefinitions[extraId];
@@ -342,7 +350,7 @@ export function handlePlayerExtra(roomId, playerId, extraId, targetPlayerId, nam
     return handleGlobalExtra(roomId, playerId, extraId, targetPlayerId, namespace);
   }
 
-  console.log(`[DEBUG] Not a global extra, continuing with round-based logic...`);
+ if (debug)  console.log(`[DEBUG] Not a global extra, continuing with round-based logic...`);
 
   
 
@@ -369,11 +377,11 @@ export function handlePlayerExtra(roomId, playerId, extraId, targetPlayerId, nam
   const result = executeExtra(roomId, playerId, extraId, targetPlayerId, namespace);
 
   if (result.success) {
-    console.log(`[ExtrasHandler] ✅ ${extraId} executed successfully for ${playerId}`);
+   if (debug)  console.log(`[ExtrasHandler] ✅ ${extraId} executed successfully for ${playerId}`);
   } else {
     playerData.usedExtras[extraId] = false;
     playerData.usedExtrasThisRound[extraId] = false;
-    console.warn(`[ExtrasHandler] ❌ ${extraId} execution failed for ${playerId}: ${result.error}`);
+   if (debug)  console.warn(`[ExtrasHandler] ❌ ${extraId} execution failed for ${playerId}: ${result.error}`);
   }
 
   return result;
@@ -402,7 +410,7 @@ function executeBuyHint(roomId, playerId, namespace) {
   const targetSocket = namespace.sockets.get(player.socketId);
   if (targetSocket) {
     targetSocket.emit('clue_revealed', { clue: question.clue });
-    console.log(`[ExtrasHandler] 💡 buyHint: sent clue to ${playerId}: "${question.clue}"`);
+   if (debug)  console.log(`[ExtrasHandler] 💡 buyHint: sent clue to ${playerId}: "${question.clue}"`);
     return { success: true };
   }
 

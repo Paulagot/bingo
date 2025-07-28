@@ -257,7 +257,7 @@ const StepReviewLaunch: FC<WizardStepProps> = ({ onBack }) => {
               <div>
                 <p className="text-sm font-medium text-gray-700">Payment Method</p>
                 <p className="text-gray-900">
-                  {setupConfig.paymentMethod === 'web3' ? 'Web3 Wallet' : 'Cash / Revolut'}
+                  {setupConfig.paymentMethod === 'web3' ? 'Web3 Wallet' : 'Cash / Card'}
                 </p>
               </div>
             </div>
