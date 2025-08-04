@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { getLetterForNumber } from '../utils/gameLogic';
+import { getLetterForNumber } from './utils/gameLogic';
 
 
 interface NumberCallerProps {

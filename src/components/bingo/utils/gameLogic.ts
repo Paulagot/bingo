@@ -1,5 +1,5 @@
 // gameLogic.ts
-import type { BingoCell } from '../types/game';
+import type { BingoCell } from '../components/bingo/types/game';
 
 const BINGO_COLUMNS = [
   { letter: 'B', range: [1, 15] },

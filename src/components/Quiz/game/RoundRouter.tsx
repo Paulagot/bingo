@@ -1,8 +1,8 @@
 // RoundRouter.tsx - Updated with statistics support
 import React from 'react';
 import { RoundComponentProps } from '../types/quiz';
-import StandardRound from './../game/StandardRound';
-import ReviewPhase from './../game/ReviewPhase';
+import StandardRound from './StandardRound';
+import ReviewPhase from './ReviewPhase';
 
 interface AnswerStatistics {
   totalPlayers: number;

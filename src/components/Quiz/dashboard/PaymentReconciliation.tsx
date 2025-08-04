@@ -1,6 +1,6 @@
 import React from 'react';
-import { usePlayerStore } from '../usePlayerStore';
-import { useQuizConfig } from '../useQuizConfig';
+import { usePlayerStore } from '../hooks/usePlayerStore';
+import { useQuizConfig } from '../hooks/useQuizConfig';
 
 const PaymentReconciliationPanel: React.FC = () => {
   const { players } = usePlayerStore();

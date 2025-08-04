@@ -4,10 +4,10 @@ import { CheckCircle, AlertCircle } from 'lucide-react';
 import { useAppKit, useAppKitAccount } from '@reown/appkit/react';
 import { useWriteContract, usePublicClient } from 'wagmi';
 import { decodeEventLog } from 'viem';
-import { useSupportedNetworks } from '../hooks/useSupportedNetworks';
-import type { SupportedNetwork } from '../hooks/useSupportedNetworks';
-import { chainInfo } from '../constants/contractFactoryAddresses';
-import { checkServerHealth } from '../utils/checkServerHealth';
+import { useSupportedNetworks } from './hooks/useSupportedNetworks';
+import type { SupportedNetwork } from './hooks/useSupportedNetworks';
+import { chainInfo } from './constants/contractFactoryAddresses';
+import { checkServerHealth } from './utils/checkServerHealth';
 import { CreateSolanaRoom } from './createsolanaroom';
 
 

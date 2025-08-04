@@ -1,6 +1,6 @@
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { ArrowLeft, Users, Gamepad2, Menu, X } from 'lucide-react';
-import { useGameStore } from '../../store/gameStore';
+import { useGameStore } from '../bingo/store/gameStore';
 import { useState } from 'react';
 
 export function Header() {

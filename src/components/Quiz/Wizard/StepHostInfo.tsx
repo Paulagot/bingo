@@ -4,7 +4,7 @@ import { useState, type FC } from 'react';
 import type { FormEvent } from 'react';
 import { Users, AlertCircle, Check, ChevronRight, User, Info } from 'lucide-react';
 import type { WizardStepProps } from './WizardStepProps';
-import { useQuizSetupStore } from '../useQuizSetupStore';
+import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
 
 const StepHostInfo: FC<WizardStepProps> = ({ onNext }) => {
   const { setupConfig, updateSetupConfig } = useQuizSetupStore();

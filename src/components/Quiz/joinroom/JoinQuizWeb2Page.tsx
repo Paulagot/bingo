@@ -2,8 +2,8 @@
 
 import { useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { useQuizSocket } from '../../../sockets/QuizSocketProvider';  // ✅ Updated path
-import { joinQuizRoom, verifyRoomAndPlayer } from '../joinQuizSocket';
+import { useQuizSocket } from '../sockets/QuizSocketProvider';  // ✅ Updated path
+import { joinQuizRoom, verifyRoomAndPlayer } from '../sockets/joinQuizSocket';
 
 const JoinQuizWeb2Page = () => {
   const { roomId } = useParams<{ roomId: string }>();

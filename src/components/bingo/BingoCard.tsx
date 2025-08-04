@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
-import type { BingoCell } from '../types/game';
-import { cn } from '../utils/cn';
+import type { BingoCell } from './types/game';
+import { cn } from './utils/cn';
 
 interface BingoCardProps {
   cells: BingoCell[];

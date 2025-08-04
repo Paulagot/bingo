@@ -1,6 +1,6 @@
 import React from 'react';
 import { RoundComponentProps } from '../types/quiz';
-import ExtrasPanel from '../game/ExtrasPanel';
+import ExtrasPanel from './ExtrasPanel';
 import { 
   Timer, 
   Eye, 

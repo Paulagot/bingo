@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog } from '@headlessui/react';
-import { usePlayerStore } from '../usePlayerStore';
-import { useQuizConfig } from '../useQuizConfig';
+import { usePlayerStore } from '../hooks/usePlayerStore';
+import { useQuizConfig } from '../hooks/useQuizConfig';
 import { fundraisingExtras } from '../types/quiz';
 import { nanoid } from 'nanoid';
-import { useQuizSocket } from '../../../sockets/QuizSocketProvider';
+import { useQuizSocket } from '../sockets/QuizSocketProvider';
 
 interface AddPlayerModalProps {
   isOpen: boolean;

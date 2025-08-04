@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { useQuizConfig } from '../useQuizConfig';
+import { useQuizConfig } from '../hooks/useQuizConfig';
 import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronRight, Clock, Target, Users, Zap, Globe } from 'lucide-react';
-import { roundTypeDefinitions, fundraisingExtraDefinitions } from '../../../constants/quizMetadata';
+import { roundTypeDefinitions, fundraisingExtraDefinitions } from '../constants/quizMetadata';
 
 const SetupSummaryPanel: React.FC = () => {
   const { config } = useQuizConfig();

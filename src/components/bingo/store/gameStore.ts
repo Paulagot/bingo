@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { BingoCell, Player } from '../types/game';
+import {  Player } from '../types/game';
 
 interface GameStore {
   socket: any;

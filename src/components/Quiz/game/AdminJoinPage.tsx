@@ -2,8 +2,8 @@
 
 import React, { useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { useQuizSocket } from '../../../sockets/QuizSocketProvider';
-import { useQuizConfig } from '../useQuizConfig';
+import { useQuizSocket } from '../sockets/QuizSocketProvider';
+import { useQuizConfig } from '../hooks/useQuizConfig';
 import PlayerListPanel from '../dashboard/PlayerListPanel';
 import SetupSummaryPanel from '../dashboard/SetupSummaryPanel';
 

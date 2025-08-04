@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useQuizSocket } from '../../sockets/QuizSocketProvider';
+import { useQuizSocket } from './sockets/QuizSocketProvider';
 
 const SocketDebugPanel: React.FC = () => {
   const { socket, connected } = useQuizSocket();

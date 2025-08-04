@@ -1,23 +1,22 @@
 // src/components/Quiz/Wizard/StepWeb3Prizes.tsx
 import { useState, type FC, type FormEvent } from 'react';
-import { useQuizSetupStore } from '../useQuizSetupStore';
+import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
 import type { WizardStepProps } from './WizardStepProps';
 import { 
   AlertCircle, 
   Percent, 
-  Wallet, 
+   
   ChevronLeft, 
   ChevronRight,
   Trophy,
-  Heart,
+  
   User,
   Info,
-  Plus,
-  Trash2,
+  
   Target,
   Gift
 } from 'lucide-react';
-import type { Prize } from '../../Quiz/types/quiz';
+import type { Prize } from '../types/quiz';
 
 const Character = ({ expression, message }: { expression: string; message: string }) => {
   const getCharacterStyle = (): string => {
@@ -84,8 +83,8 @@ const StepWeb3Prizes: FC<WizardStepProps> = ({ onNext, onBack }) => {
   const [error, setError] = useState('');
 
   // Calculations
-  const maxPrizePool = 30 - personalTake;
-  const charityPct = 50 + (30 - personalTake - (prizeSource === 'pool' ? prizePoolPct : 0));
+  const maxPrizePool = 40 - personalTake;
+  const charityPct = 40 + (40 - personalTake - (prizeSource === 'pool' ? prizePoolPct : 0));
   const platformPct = 20;
 
   const getCurrentMessage = () => {
@@ -572,10 +571,11 @@ const StepWeb3Prizes: FC<WizardStepProps> = ({ onNext, onBack }) => {
             <div className="text-sm text-blue-800">
               <p className="font-medium mb-1">Prize Pool Guidelines</p>
               <ul className="space-y-1 text-xs">
-                <li>• Minimum 50% always goes to charity</li>
-                <li>• You can take up to 5% personally (optional)</li>
-                <li>• Remaining 30% is yours to allocate or donate back</li>
-                <li>• Platform reserves 20% for operational costs</li>
+                <li>• Minimum 40% always goes to charity</li>             
+                <li>• Platform reserves 20% to build tools for good and onboard clubs to web3</li>
+                <li>• Remaining 40% is yours to allocate or donate back</li>
+                  <li>• from which You can take up to 5% personally (optional)</li>
+                
                 <li>• External assets are provided separately from the fund pool</li>
               </ul>
             </div>

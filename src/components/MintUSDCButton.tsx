@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAccount, useWriteContract } from 'wagmi';
-import { chainInfo } from '../constants/contractFactoryAddresses'; // Import chainInfo
+import { chainInfo } from './bingo/constants/contractFactoryAddresses'; // Import chainInfo
 
 // Minimal ABI for the mint function
 const MOCK_USDC_ABI = [

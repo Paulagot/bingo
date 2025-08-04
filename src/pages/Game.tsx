@@ -2,18 +2,18 @@
 import { useEffect, useCallback, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { PlayerList } from '../components/PlayerList';
-import { GameAccessAlert } from '../components/GameAccessAlert';
-import { GameOverScreen } from '../components/GameOverScreen';
-import { useGame } from '../hooks/useGame';
-import { useSocket } from '../hooks/useSocket';
-import { useGameStore } from '../store/gameStore';
-import { WinnerDisplay } from '../components/WinnerDisplay';
-import { GameHeader } from '../components/GameHeader';
-import { GameLoader } from '../components/GameLoader';
+import { PlayerList } from '../components/bingo/PlayerList';
+import { GameAccessAlert } from '../components/bingo/GameAccessAlert';
+import { GameOverScreen } from '../components/bingo/GameOverScreen';
+import { useGame } from '../components/bingo/hooks/useGame';
+import { useSocket } from '../components/bingo/hooks/useSocket';
+import { useGameStore } from '../components/bingo/store/gameStore';
+import { WinnerDisplay } from '../components/bingo/WinnerDisplay';
+import { GameHeader } from '../components/bingo/GameHeader';
+import { GameLoader } from '../components/bingo/GameLoader';
 
-import { GameScreen } from '../components/GameScreen';
-import { getRoomCreationData } from '../utils/localStorageUtils';
+import { GameScreen } from '../components/bingo/GameScreen';
+import { getRoomCreationData } from '../components/bingo/utils/localStorageUtils';
 
 export function Game() {
   console.log('[Game] 🚀 Mounting Game component', { roomId: useParams().roomId });

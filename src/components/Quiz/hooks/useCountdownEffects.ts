@@ -1,7 +1,7 @@
 // STEP 2: Create a countdown effects hook
 
 import { useEffect, useState, useRef } from 'react';
-import { useQuizSocket } from '../../../sockets/QuizSocketProvider';
+import { useQuizSocket } from '../sockets/QuizSocketProvider';
 
 interface CountdownEffect {
   secondsLeft: number;

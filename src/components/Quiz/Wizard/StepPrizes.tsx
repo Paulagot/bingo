@@ -1,6 +1,6 @@
 // src/components/Quiz/Wizard/StepPrizes.tsx
 import { useState, type FC, type FormEvent } from 'react';
-import { useQuizSetupStore } from '../useQuizSetupStore';
+import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
 import type { WizardStepProps } from './WizardStepProps';
 import {
   AlertCircle,
@@ -16,7 +16,7 @@ import {
   CheckCircle,
   Target
 } from 'lucide-react';
-import type { Prize } from '../../Quiz/types/quiz';
+import type { Prize } from '../types/quiz';
 
 const ordinal = (n: number) => {
   const s = ['th', 'st', 'nd', 'rd'];

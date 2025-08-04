@@ -1,6 +1,6 @@
 // src/hooks/useSupportedNetworks.ts
 import { useAppKitState, useAppKitNetwork } from '@reown/appkit/react';
-import { networks } from '../config';
+import { networks } from '../../../config';
 
 export interface SupportedNetwork {
   id: string | number; // Number for EVM, string for Solana

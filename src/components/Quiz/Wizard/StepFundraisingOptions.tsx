@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { useQuizSetupStore } from '../useQuizSetupStore';
-import { fundraisingExtraDefinitions, roundTypeDefinitions } from '../../../constants/quizMetadata';
-import type { FundraisingExtraDefinition } from '../../../constants/quizMetadata';
+import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
+import { fundraisingExtraDefinitions, roundTypeDefinitions } from '../constants/quizMetadata';
+import type { FundraisingExtraDefinition } from '../constants/quizMetadata';
 import { Globe, Target, ChevronLeft, ChevronRight, TrendingUp, Plus, Trash2, RotateCcw, Info } from 'lucide-react';
 
 interface FlipCardProps {

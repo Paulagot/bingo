@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import  { useState } from 'react';
 
 export function PitchDeckContent() {
   const [currentSlide, setCurrentSlide] = useState(0);

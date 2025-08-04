@@ -1,15 +1,15 @@
 import { useEffect } from 'react';
-import { useGameStore } from '../store/gameStore';
-import { clearAllRoomData } from '../utils/localStorageUtils';
+import { useGameStore } from '../components/bingo/store/gameStore';
+import { clearAllRoomData } from '../components/bingo/utils/localStorageUtils';
 import { Header } from '../components/GeneralSite/Header';
 import HeroSection from '../components/GeneralSite/HeroSection';
 import HowItWorks from '../components/GeneralSite/HowItWorks';
 import FAQ from '../components/GeneralSite/FAQ';
-import CTASection from '../components/GeneralSite/CTASection';
+
 import Benefit from '../components/GeneralSite/Benefits';
 import Hfooter from '../components/GeneralSite/hFooter';
-import { Link } from 'react-router-dom';
-import FundRaiselyWhereYouSave from '../components/GeneralSite/savings';
+
+
 // import SolanaWalletOperations from '../components/SolanaWalletOperations';
 
 export function Landing() {

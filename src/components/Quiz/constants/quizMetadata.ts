@@ -1,6 +1,6 @@
 // src/constants/quizMetadata.ts
 
-import type { RoundTypeId, RoundConfig } from '../components/Quiz/types/quiz';
+import type { RoundTypeId, RoundConfig } from '../types/quiz';
 
 // ✅ Centralized Round Type Definitions with proper typing
 type RoundTypeDefinition = {

@@ -1,14 +1,14 @@
 // src/components/Quiz/host-controls/HostControlsPage.tsx
 import { useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { useQuizSocket } from '../../../sockets/QuizSocketProvider';
+import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { useNavigate } from 'react-router-dom';
 import { useQuizTimer } from '../hooks/useQuizTimer';
 import { useCountdownEffects } from '../hooks/useCountdownEffects';
-import { useQuizConfig } from '../useQuizConfig';
-import { roundTypeDefinitions } from '../../../constants/quizMetadata';
+import { useQuizConfig } from '../hooks/useQuizConfig';
+import { roundTypeDefinitions } from '../constants/quizMetadata';
 import type { RoundTypeId } from '../types/quiz';
-import RoundRouter from '../game/RoundRouter';
+import RoundRouter from './RoundRouter';
 import ActivityTicker from '../host-controls/ActivityTicker';
 import RoundStatsDisplay from '../host-controls/RoundStatsDisplay';
 import FinalQuizStats from '../host-controls/FinalQuizStats';
@@ -22,7 +22,7 @@ import {
   Eye,
   XCircle,
   Crown,
-  Settings,
+  
   Medal,
   Award
 } from 'lucide-react';

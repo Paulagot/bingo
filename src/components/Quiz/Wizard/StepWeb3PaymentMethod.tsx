@@ -1,6 +1,6 @@
 // src/components/Quiz/Wizard/StepWeb3PaymentMethod.tsx
 import { useState, type FC, type FormEvent } from 'react';
-import { useQuizSetupStore } from '../useQuizSetupStore';
+import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
 import type { WizardStepProps } from './WizardStepProps';
 import {
   Wallet,
@@ -161,7 +161,11 @@ const StepWeb3PaymentMethod: FC<WizardStepProps> = ({ onNext, onBack }) => {
                 onChange={(e) => setChain(e.target.value)}
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
               >
-                <option value="stellar">Stellar</option>
+                <option value="Solana">Solana</option>
+                <option value="Solana">Base</option>
+                <option value="Solana">Avalanche</option>
+                <option value="Solana">Avax</option>
+                <option value="Solana">Celo</option>
                 {/* TODO: Add dynamic chain list */}
               </select>
             </div>

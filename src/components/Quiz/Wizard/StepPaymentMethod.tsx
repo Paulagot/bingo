@@ -1,5 +1,5 @@
 // src/components/Quiz/Wizard/StepPaymentMethod.tsx
-import { useState, useEffect, type FC, type FormEvent } from 'react';
+import { useState,  type FC, type FormEvent } from 'react';
 import {
   CreditCard,
   AlertCircle,
@@ -10,7 +10,7 @@ import {
   Sparkles,
   Trophy
 } from 'lucide-react';
-import { useQuizSetupStore } from '../useQuizSetupStore';
+import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
 import type { WizardStepProps } from './WizardStepProps';
 
 const Character = ({ expression, message }: { expression: string; message: string }) => {
