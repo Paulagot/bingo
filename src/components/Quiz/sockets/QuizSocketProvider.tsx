@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 
-import { usePlayerStore } from '../components/Quiz/usePlayerStore';
-import { useAdminStore } from '../components/Quiz/useAdminStore';
-import { useQuizConfig } from '../components/Quiz/useQuizConfig';
-import { useRoomState } from '../components/Quiz/useRoomState';
-import { useRoomIdentity } from '../components/Quiz/useRoomIdentity';
+import { usePlayerStore } from '../hooks/usePlayerStore';
+import { useAdminStore } from '../hooks/useAdminStore';
+import { useQuizConfig } from '../hooks/useQuizConfig';
+import { useRoomState } from '../hooks/useRoomState';
+import { useRoomIdentity } from '../hooks/useRoomIdentity';
 
 // Debug config
 const DEBUG = false;

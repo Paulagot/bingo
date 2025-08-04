@@ -1,6 +1,6 @@
 // hooks/useGlobalExtras.ts
 import { useMemo } from 'react';
-import { fundraisingExtraDefinitions } from '../../../constants/quizMetadata';
+import { fundraisingExtraDefinitions } from '../constants/quizMetadata';
 
 interface UseGlobalExtrasParams {
   allPlayerExtras: string[];

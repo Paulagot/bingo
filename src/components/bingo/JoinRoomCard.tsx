@@ -1,12 +1,12 @@
 import type React from 'react';
 import { useState, useEffect } from 'react';
 import { Users, Dices, ArrowRight, Wallet } from 'lucide-react';
-import { getExplorerBaseUrl, getChainName } from '../utils/chainHelpers';
-import { saveRoomJoiningData } from '../utils/localStorageUtils';
+import { getExplorerBaseUrl, getChainName } from './utils/chainHelpers';
+import { saveRoomJoiningData } from './utils/localStorageUtils';
 import { useAppKitState } from '@reown/appkit/react';
-import { useSupportedNetworks } from '../hooks/useSupportedNetworks';
+import { useSupportedNetworks } from './hooks/useSupportedNetworks';
 import VerifyRoomModal from './VerifyRoomModal';
-import { useRoomVerification } from '../hooks/useRoomVerification';
+import { useRoomVerification } from './hooks/useRoomVerification';
 
 interface JoinRoomCardProps {
   onJoinRoom: (roomData: { playerName: string; roomCode: string }) => Promise<void>;

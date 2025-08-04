@@ -1,6 +1,6 @@
 import { Crown, User, CheckCircle2, Circle } from 'lucide-react';
 import { motion } from 'framer-motion';
-import type { Player } from '../types/game';
+import type { Player } from './types/game';
 
 interface PlayerListProps {
   players: Player[];

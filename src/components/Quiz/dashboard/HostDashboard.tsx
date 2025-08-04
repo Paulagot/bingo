@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuizConfig } from '../useQuizConfig';
-import { usePlayerStore } from '../usePlayerStore';
-import { useRoomIdentity } from '../useRoomIdentity';
+import { useQuizConfig } from '../hooks/useQuizConfig';
+import { usePlayerStore } from '../hooks/usePlayerStore';
+import { useRoomIdentity } from '../hooks/useRoomIdentity';
 import { fullQuizReset } from '../utils/fullQuizReset';
 import SetupSummaryPanel from './SetupSummaryPanel';
 import PlayerListPanel from './PlayerListPanel';
@@ -10,8 +10,8 @@ import AdminListPanel from './AdminListPanel';
 import PaymentReconciliationPanel from './PaymentReconciliation';
 import AssetUploadPanel from './AssetUploadPanel';
 
-import { useQuizSocket } from '../../../sockets/QuizSocketProvider';
-import { useAdminStore } from '../useAdminStore';
+import { useQuizSocket } from '../sockets/QuizSocketProvider';
+import { useAdminStore } from '../hooks/useAdminStore';
 import { 
   Users, 
   Shield, 

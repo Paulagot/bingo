@@ -1,6 +1,6 @@
 // src/components/Quiz/Wizard/StepScheduleEvent.tsx
 import { useState, useEffect, type FC, type FormEvent } from 'react';
-import { useQuizSetupStore } from '../useQuizSetupStore';
+import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
 import type { WizardStepProps } from './WizardStepProps';
 import { 
   Calendar, 
@@ -356,7 +356,7 @@ const StepScheduleEvent: FC<WizardStepProps> = ({ onNext, onBack }) => {
     <div className="space-y-4 md:space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-lg md:text-xl font-semibold text-indigo-800">
-          Step 6 of 8: Schedule Event
+          Step 7 of 8: Schedule Event
         </h2>
         <div className="text-xs md:text-sm text-gray-600">Set your quiz date and time</div>
       </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Globe, Heart, Users, DollarSign, CheckCircle, ArrowRight, Sparkles, TrendingUp, Shield, Zap } from 'lucide-react';
+import { Globe, Heart, Users, DollarSign, CheckCircle, ArrowRight, Sparkles,  Shield, Zap } from 'lucide-react';
 
 const FundraisingLaunchPage: React.FC = () => {
   const [communityName, setCommunityName] = useState('');
@@ -101,148 +101,168 @@ const FundraisingLaunchPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-      {/* Hero Section with Immediate CTA */}
+      {/* Compact Hero Section */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/10 to-purple-600/10"></div>
-        <div className="relative max-w-7xl mx-auto px-4 py-12">
+        <div className="relative max-w-7xl mx-auto px-4 py-8">
           
-          {/* Main headline */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center space-x-3 bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 px-6 py-3 rounded-full text-lg font-semibold shadow-md mb-6">
-              <Sparkles className="w-6 h-6" />
-              <span className="text-xl md:text-2xl font-extrabold">
-                The World's First Multichain Regenerative Fundraiser
+          {/* Compact headline */}
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center space-x-2 bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 px-4 py-2 rounded-full text-sm font-semibold shadow-md mb-4">
+              <Sparkles className="w-4 h-4" />
+              <span className="text-base md:text-lg font-bold">
+                World's First Multichain Regenerative Fundraiser
               </span>
             </div>
             
-            <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-              Host a Quiz Night,<br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
-                Change the World
-              </span>
+            <h1 className="text-3xl md:text-5xl font-bold text-gray-900 mb-4 leading-tight">
+              Host a Quiz Night, <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">Change the World</span>
             </h1>
+                     </div>
+
+          {/* Two-column layout: Info column + Centered form */}
+          <div className="grid lg:grid-cols-2 gap-8 items-center max-w-6xl mx-auto">
             
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-              Join the largest Web3 fundraising event ever. 50%+ goes directly to charity, 
-              30% back to your community. Powered by Glo Dollar & The Giving Block.
-            </p>
-          </div>
-
-          {/* Primary CTA Section - Above the fold */}
-          <div id="hero-form" className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-8 mb-12 max-w-5xl mx-auto">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                🚀 Ready to Make an Impact?
-              </h2>
-              <p className="text-lg text-gray-600 mb-6">
-                Pledge your Web3 community to host a quiz night during our 6-month campaign
-              </p>
+            {/* Left column - Pledge Now + Impact stats */}
+            <div className="space-y-6">
               
-              {/* Quick stats to build confidence */}
-              <div className="grid grid-cols-3 gap-4 mb-6">
-                <div className="text-center p-3 bg-green-50 rounded-xl">
-                  <div className="text-2xl font-bold text-green-600">50%+</div>
-                  <div className="text-sm text-green-700">To Charity</div>
+              {/* Pledge Now section - first */}
+              <div className="bg-white rounded-2xl shadow-lg p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">Pledge Now</h3>
+                <p className="text-gray-700 text-sm leading-relaxed mb-4">
+                  All we ask is that you pledge to host a quiz night with your community during our campaign periods. 
+                  Once you pledge, we'll be in touch before the campaign starts with everything you need.
+                </p>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                    <span className="text-sm text-gray-600">Free to participate</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                    <span className="text-sm text-gray-600">Full support provided</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                    <span className="text-sm text-gray-600">6-month window</span>
+                  </div>
                 </div>
-                <div className="text-center p-3 bg-blue-50 rounded-xl">
-                  <div className="text-2xl font-bold text-blue-600">30%</div>
-                  <div className="text-sm text-blue-700">Your Community</div>
-                </div>
-                <div className="text-center p-3 bg-purple-50 rounded-xl">
-                  <div className="text-2xl font-bold text-purple-600">20%</div>
-                  <div className="text-sm text-purple-700">Tech for Good</div>
+              </div>
+
+              {/* Impact stats - second */}
+              <div className="bg-white rounded-2xl shadow-lg p-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-4 text-center">Impact Breakdown</h3>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="text-center p-3 bg-green-50 rounded-xl">
+                    <div className="text-xl font-bold text-green-600">40%+</div>
+                    <div className="text-xs text-green-700">To Charity</div>
+                  </div>
+                  <div className="text-center p-3 bg-blue-50 rounded-xl">
+                    <div className="text-xl font-bold text-blue-600">40%</div>
+                    <div className="text-xs text-blue-700">Your Community</div>
+                  </div>
+                  <div className="text-center p-3 bg-purple-50 rounded-xl">
+                    <div className="text-xl font-bold text-purple-600">20%</div>
+                    <div className="text-xs text-purple-700">Tech for Good</div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Enhanced Registration form */}
-            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-6">
-              {submitMessage && (
-                <div className={`mb-4 p-4 rounded-lg ${
-                  submitMessage.includes('✅') 
-                    ? 'bg-green-50 border border-green-200 text-green-700' 
-                    : 'bg-red-50 border border-red-200 text-red-700'
-                }`}>
-                  {submitMessage}
+            {/* Right column - Centered form */}
+            <div className="flex items-center justify-center">
+              <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 p-6 w-full">
+                <div className="text-center mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    🚀 Pledge Your Community
+                  </h2>
+
+                  <p className="text-gray-600">
+                    Join 100+ communities already interested
+                  </p>
                 </div>
-              )}
-              
-              {/* First Row - Personal Info */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <input
-                  type="text"
-                  value={userName}
-                  onChange={(e) => setUserName(e.target.value)}
-                  className="border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="Your name/alias *"
-                  disabled={isSubmitting}
-                />
+
+                {submitMessage && (
+                  <div className={`mb-4 p-3 rounded-lg text-sm ${
+                    submitMessage.includes('✅') 
+                      ? 'bg-green-50 border border-green-200 text-green-700' 
+                      : 'bg-red-50 border border-red-200 text-red-700'
+                  }`}>
+                    {submitMessage}
+                  </div>
+                )}
                 
-                <input
-                  type="text"
-                  value={communityName}
-                  onChange={(e) => setCommunityName(e.target.value)}
-                  className="border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="Community name *"
-                  disabled={isSubmitting}
-                />
-              </div>
+                {/* Compact form fields */}
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <input
+                      type="text"
+                      value={userName}
+                      onChange={(e) => setUserName(e.target.value)}
+                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="Your name/alias *"
+                      disabled={isSubmitting}
+                    />
+                    
+                    <input
+                      type="text"
+                      value={communityName}
+                      onChange={(e) => setCommunityName(e.target.value)}
+                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="Community name *"
+                      disabled={isSubmitting}
+                    />
+                  </div>
 
-              {/* Second Row - Contact & Ecosystem */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <select
-                  value={contactMethod}
-                  onChange={(e) => setContactMethod(e.target.value)}
-                  className="border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  disabled={isSubmitting}
-                >
-                  <option>Email</option>
-                  <option>Telegram</option>
-                  <option>X (Twitter)</option>
-                </select>
-                
-                <input
-                  type="text"
-                  value={contactInfo}
-                  onChange={(e) => setContactInfo(e.target.value)}
-                  className="border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="Contact info *"
-                  disabled={isSubmitting}
-                />
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <select
+                      value={contactMethod}
+                      onChange={(e) => setContactMethod(e.target.value)}
+                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      disabled={isSubmitting}
+                    >
+                      <option>Email</option>
+                      <option>Telegram</option>
+                      <option>X (Twitter)</option>
+                    </select>
+                    
+                    <input
+                      type="text"
+                      value={contactInfo}
+                      onChange={(e) => setContactInfo(e.target.value)}
+                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="Contact info *"
+                      disabled={isSubmitting}
+                    />
 
-                <input
-                  type="text"
-                  value={ecosystem}
-                  onChange={(e) => setEcosystem(e.target.value)}
-                  className="border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="Chain *"
-                  disabled={isSubmitting}
-                />
-              </div>
+                    <input
+                      type="text"
+                      value={ecosystem}
+                      onChange={(e) => setEcosystem(e.target.value)}
+                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="Chain *"
+                      disabled={isSubmitting}
+                    />
+                  </div>
 
-              {/* Submit Button */}
-              <div className="text-center">
-                <button 
-                  onClick={() => handleCommunitySubmit()}
-                  disabled={isSubmitting}
-                  className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-4 rounded-xl font-semibold hover:shadow-xl transition-all duration-200 hover:scale-105 flex items-center justify-center space-x-2 disabled:opacity-50 mx-auto"
-                >
-                  <span>{isSubmitting ? 'Submitting...' : 'Pledge Now'}</span>
-                  {!isSubmitting && <ArrowRight className="w-4 h-4" />}
-                </button>
+                  <button 
+                    onClick={() => handleCommunitySubmit()}
+                    disabled={isSubmitting}
+                    className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-200 hover:scale-105 flex items-center justify-center space-x-2 disabled:opacity-50"
+                  >
+                    <span>{isSubmitting ? 'Submitting...' : 'Pledge Now'}</span>
+                    {!isSubmitting && <ArrowRight className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
-              
-              <p className="text-sm text-gray-600 text-center mt-4">
-                ✅ Free to pledge • ✅ 6-month campaign • ✅ Full transparency
-              </p>
             </div>
           </div>
 
-          {/* Secondary CTA for those who want to learn more first */}
-          <div className="text-center">
+          {/* Compact secondary CTA */}
+          <div className="text-center mt-8">
             <button 
               onClick={scrollToLearnMore}
-              className="inline-flex items-center space-x-2 text-indigo-600 font-semibold hover:text-indigo-700 transition-colors"
+              className="inline-flex items-center space-x-2 text-indigo-600 font-medium hover:text-indigo-700 transition-colors"
             >
               <span>Want to learn more first?</span>
               <ArrowRight className="w-4 h-4" />
@@ -292,7 +312,7 @@ const FundraisingLaunchPage: React.FC = () => {
             </div>
             <div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">The Web3 Impact Event</h3>
-              <p className="text-gray-700">Our mission: become the largest Web3 fundraising event ever. Powered by <strong>Glo Dollar</strong> and <strong>The Giving Block</strong> for maximum transparency and impact.</p>
+              <p className="text-gray-700">Our mission: become the largest Web3 fundraising event ever. Powered by <strong>The Giving Block</strong> for maximum transparency and impact.</p>
             </div>
           </div>
 
@@ -333,7 +353,7 @@ const FundraisingLaunchPage: React.FC = () => {
               <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Heart className="w-10 h-10 text-white" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">$50,000+</h3>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">$40,000+</h3>
               <h4 className="text-lg font-semibold text-green-600 mb-2">Direct to Charity</h4>
               <p className="text-gray-600">Delivered directly to verified charities through The Giving Block</p>
             </div>
@@ -342,9 +362,9 @@ const FundraisingLaunchPage: React.FC = () => {
               <div className="w-20 h-20 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Users className="w-10 h-10 text-white" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">$30,000</h3>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">$40,000</h3>
               <h4 className="text-lg font-semibold text-blue-600 mb-2">Community Rewards</h4>
-              <p className="text-gray-600">Back to participating communities via Glo Dollar</p>
+              <p className="text-gray-600">Back to participating communities</p>
             </div>
 
             <div className="text-center bg-purple-50 rounded-2xl p-8">
@@ -353,7 +373,7 @@ const FundraisingLaunchPage: React.FC = () => {
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-2">$20,000</h3>
               <h4 className="text-lg font-semibold text-purple-600 mb-2">Platform Development</h4>
-              <p className="text-gray-600">Building better fundraising tools for everyone</p>
+              <p className="text-gray-600">Onboarding Web2 Clubs, Community Groups and Charities</p>
             </div>
           </div>
         </div>
@@ -371,7 +391,7 @@ const FundraisingLaunchPage: React.FC = () => {
               </div>
               <div className="text-center">
                 <Globe className="w-12 h-12 text-green-600 mx-auto mb-2" />
-                <div className="font-semibold text-gray-900">Glo Dollar Powered</div>
+                <div className="font-semibold text-gray-900">Powered by the Giving Block</div>
               </div>
               <div className="text-center">
                 <DollarSign className="w-12 h-12 text-blue-600 mx-auto mb-2" />

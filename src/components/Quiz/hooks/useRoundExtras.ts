@@ -1,6 +1,6 @@
 // hooks/useRoundExtras.ts
 import { useMemo } from 'react';
-import { fundraisingExtraDefinitions } from '../../../constants/quizMetadata';
+import { fundraisingExtraDefinitions } from '../constants/quizMetadata';
 
 interface UseRoundExtrasParams {
   allPlayerExtras: string[];

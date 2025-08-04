@@ -6,7 +6,7 @@ import { readContract } from 'viem/actions';
 import { waitForTransactionReceipt } from 'viem/actions';
 import { fetchContractAddress } from './fetchContractAddress';
 import { useSupportedNetworks } from './useSupportedNetworks';
-import { networks } from '../config';
+import { networks } from '../../../config';
 
 const FundRaiselyBingoRoomABI = [
   {

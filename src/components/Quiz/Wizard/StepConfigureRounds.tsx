@@ -1,7 +1,7 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight, Trophy, Target, Clock, Users, Info, CheckCircle } from 'lucide-react';
-import { useQuizSetupStore } from '../useQuizSetupStore';
-import { roundTypeDefinitions, availableCategories, availableDifficulties } from '../../../constants/quizMetadata';
+import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
+import { roundTypeDefinitions, availableCategories, availableDifficulties } from '../constants/quizMetadata';
 import type { RoundDefinition, RoundTypeId } from '../types/quiz';
 
 interface StepConfigureRoundsProps {

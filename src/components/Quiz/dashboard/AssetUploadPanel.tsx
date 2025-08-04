@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuizConfig } from '../useQuizConfig';
+import { useQuizConfig } from '../hooks/useQuizConfig';
 import { 
   Upload, 
   CheckCircle, 

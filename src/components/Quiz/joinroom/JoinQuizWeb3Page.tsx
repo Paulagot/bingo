@@ -2,8 +2,8 @@
 
 import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuizSocket } from '../../../sockets/QuizSocketProvider';  // ✅ use new context
-import { joinQuizRoom } from '../joinQuizSocket';
+import { useQuizSocket } from '../sockets/QuizSocketProvider';  // ✅ use new context
+import { joinQuizRoom } from '../sockets/joinQuizSocket';
 
 const JoinQuizWeb3Page = () => {
   const { roomId } = useParams();

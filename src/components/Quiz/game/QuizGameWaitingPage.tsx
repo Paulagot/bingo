@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuizSocket } from '../../../sockets/QuizSocketProvider';
-import { useQuizConfig } from '../useQuizConfig';
-import { fundraisingExtraDefinitions, roundTypeDefinitions } from '../../../constants/quizMetadata';
+import { useQuizSocket } from '../sockets/QuizSocketProvider';
+import { useQuizConfig } from '../hooks/useQuizConfig';
+import { fundraisingExtraDefinitions, roundTypeDefinitions } from '../constants/quizMetadata';
 import type { RoundTypeId } from '../types/quiz';
 
 const DEBUG = true;

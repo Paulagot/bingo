@@ -1,19 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuizSocket } from '../../../sockets/QuizSocketProvider';
+import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import UseExtraModal from './UseExtraModal';
 
 import RoundRouter from './RoundRouter';
-import { usePlayerStore } from '../usePlayerStore';
-import { useQuizConfig } from '../useQuizConfig';
+import { usePlayerStore } from '../hooks/usePlayerStore';
+import { useQuizConfig } from '../hooks/useQuizConfig';
 
-import { useRoundExtras } from './../hooks/useRoundExtras';
-import { useAnswerSubmission } from './../hooks/useAnswerSubmission';
-import { User, Question, LeaderboardEntry, RoomPhase, RoundDefinition } from './../types/quiz';
+import { useRoundExtras } from '../hooks/useRoundExtras';
+import { useAnswerSubmission } from '../hooks/useAnswerSubmission';
+import { User, Question, LeaderboardEntry, RoomPhase, RoundDefinition } from '../types/quiz';
 import { useNavigate } from 'react-router-dom';
 import LaunchedPhase from './LaunchedPhase';
-import { useCountdownEffects } from './../hooks/useCountdownEffects'
-import { roundTypeDefinitions } from '../../../constants/quizMetadata';
+import { useCountdownEffects } from '../hooks/useCountdownEffects'
+import { roundTypeDefinitions } from '../constants/quizMetadata';
 import type { RoundTypeId } from '../types/quiz';
 import EnhancedPlayerLeaderboard from './EnhancedPlayerLeaderboard';
 import QuizCompletionCelebration from './QuizCompletionCelebration';

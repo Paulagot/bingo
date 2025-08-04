@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 import { useAppKit, useAppKitAccount } from '@reown/appkit/react';
-import { useSupportedNetworks } from '../hooks/useSupportedNetworks';
-import { getExplorerBaseUrl } from '../utils/chainHelpers';
-import type { SupportedNetwork } from '../hooks/useSupportedNetworks';
+import { useSupportedNetworks } from './hooks/useSupportedNetworks';
+import { getExplorerBaseUrl } from './utils/chainHelpers';
+import type { SupportedNetwork } from './hooks/useSupportedNetworks';
 
 interface VerifyRoomModalProps {
   isOpen: boolean;

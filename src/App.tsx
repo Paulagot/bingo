@@ -8,10 +8,10 @@ import { PitchDeck } from './pages/PitchDeck';
 import { PitchDeckContent } from './pages/PitchDeckContent';
 import { ActionButtonList } from './components/ActionButtonList';
 import { InfoList } from './components/InfoList';
-import ErrorBoundary from './components/ErrorBoundary';
+import ErrorBoundary from './components/bingo/ErrorBoundary';
 // import SocketDebugPanel from './components/Quiz/SocketDebugPanel';
-import QuizRoutes from '../src/components/Quiz/QuizRoutes';
-import { QuizSocketProvider } from '../src/sockets/QuizSocketProvider';  // ✅ Moved back here
+import QuizRoutes from './components/Quiz/QuizRoutes';
+import { QuizSocketProvider } from './components/Quiz/sockets/QuizSocketProvider';  // ✅ Moved back here
 import WhatsNew from './pages/WhatsNew';
 import FundraisingLaunchPage from './pages/web3fundraiser'; // ✅ New fundraising launch page
 

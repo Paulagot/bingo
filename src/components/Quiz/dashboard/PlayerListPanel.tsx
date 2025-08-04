@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { usePlayerStore } from '../usePlayerStore';
-import { useQuizConfig } from '../useQuizConfig';
+import { usePlayerStore } from '../hooks/usePlayerStore';
+import { useQuizConfig } from '../hooks/useQuizConfig';
 import { QRCodeCanvas } from 'qrcode.react';
 import AddPlayerModal from './AddPlayerModal';
 import { BadgeCheck, BadgeX } from 'lucide-react';
 import { fundraisingExtras } from '../types/quiz';
-import { useQuizSocket } from '../../../sockets/QuizSocketProvider';  // ✅ new socket hook
+import { useQuizSocket } from '../sockets/QuizSocketProvider';  // ✅ new socket hook
 
 const PlayerListPanel: React.FC = () => {
   const { config } = useQuizConfig();

@@ -4,9 +4,9 @@ import QuizChallengePage from '../../pages/QuizChallengePage';
 import QuizGameWaitingPage from './game/QuizGameWaitingPage';
 import JoinQuizWeb2Page from './joinroom/JoinQuizWeb2Page';
 import QuizGamePlayPage from './game/QuizGamePlayPage';
-import AdminJoinPage from '../../../src/components/Quiz/game/AdminJoinPage';
+import AdminJoinPage from './game/AdminJoinPage';
 
-import HostControlsPage from '../../components/Quiz/game/HostControlsPage';
+import HostControlsPage from './game/HostControlsPage';
 
 export default function QuizRoutes() {
   return (

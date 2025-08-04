@@ -1,13 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { Trophy, Home, Check, Loader } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useGameStore } from '../store/gameStore';
+import { useGameStore } from './store/gameStore';
 import { useAccount, useWalletClient } from 'wagmi';
 import { readContract, writeContract } from 'viem/actions';
-import FundRaiselyBingoRoomABI from '../abis/FundRaiselyBingoRoom.json';
-import { getExplorerBaseUrl } from '../utils/chainHelpers';
+import FundRaiselyBingoRoomABI from '../../abis/FundRaiselyBingoRoom.json';
+import { getExplorerBaseUrl } from './utils/chainHelpers';
 import WinnerSection from './WinnerSection';
-import { useSupportedNetworks } from '../hooks/useSupportedNetworks';
+import { useSupportedNetworks } from './hooks/useSupportedNetworks';
 
 interface Winner {
   id: string;

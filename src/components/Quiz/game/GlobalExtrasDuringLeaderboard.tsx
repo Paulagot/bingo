@@ -1,7 +1,7 @@
 // src/components/Quiz/game/GlobalExtrasDuringLeaderboard.tsx
 
 import  { useState } from 'react';
-import { fundraisingExtraDefinitions } from '../../../constants/quizMetadata';
+import { fundraisingExtraDefinitions } from '../constants/quizMetadata';
 import { useGlobalExtras } from '../hooks/useGlobalExtras';
 import UseExtraModal from './UseExtraModal';
 

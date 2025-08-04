@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { QuizConfig, RoundDefinition } from '../Quiz/types/quiz';
+import type { QuizConfig, RoundDefinition } from '../types/quiz';
 
 interface QuizSetupState {
   setupConfig: Partial<QuizConfig>;

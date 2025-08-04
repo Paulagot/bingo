@@ -2,20 +2,20 @@
 import { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import { useNavigate } from 'react-router-dom';
-import { useGameStore } from '../store/gameStore';
+import { useGameStore } from '../components/bingo/store/gameStore';
 import { useAppKitAccount } from '@reown/appkit/react';
-import { useReownRoomPayment } from '../hooks/useReownRoomPayments';
-import { useRoomVerification } from '../hooks/useRoomVerification';
+import { useReownRoomPayment } from '../components/bingo/hooks/useReownRoomPayments';
+import { useRoomVerification } from '../components/bingo/hooks/useRoomVerification';
 import {
   isLocalStorageAvailable,
   saveRoomCreationData,
   saveRoomJoiningData,
   clearAllRoomData,
-} from '../utils/localStorageUtils';
-import { chainInfo } from '../constants/contractFactoryAddresses';
-import SimpleHeader from '../components/SimpleHeader';
-import CreateRoomCard from '../components/CreateRoomCard';
-import JoinRoomCard from '../components/JoinRoomCard';
+} from '../components/bingo/utils/localStorageUtils';
+import { chainInfo } from '../components/bingo/constants/contractFactoryAddresses';
+import SimpleHeader from '../components/bingo/SimpleHeader';
+import CreateRoomCard from '../components/bingo/CreateRoomCard';
+import JoinRoomCard from '../components/bingo/JoinRoomCard';
 import Hfooter from '../components/GeneralSite/hFooter';
 
 // Initialize Socket.IO client

@@ -3,11 +3,11 @@ import { useState, type FC } from 'react';
 import ConfirmRoomModal from './ConfirmRoomModal';
 import { Dices, Users, Wallet, Gamepad2, Info, ArrowRight } from 'lucide-react';
 import { useAppKit, useAppKitAccount } from '@reown/appkit/react';
-import { useSupportedNetworks } from '../hooks/useSupportedNetworks';
-import type { SupportedNetwork } from '../hooks/useSupportedNetworks';
-import MintUSDCButton from './MintUSDCButton';
-import { saveRoomCreationData } from '../utils/localStorageUtils';
-import { chainInfo } from '../constants/contractFactoryAddresses'; // Import chainInfo
+import { useSupportedNetworks } from './hooks/useSupportedNetworks';
+import type { SupportedNetwork } from './hooks/useSupportedNetworks';
+import MintUSDCButton from '../MintUSDCButton';
+import { saveRoomCreationData } from './utils/localStorageUtils';
+import { chainInfo } from './constants/contractFactoryAddresses'; // Import chainInfo
 
 
 

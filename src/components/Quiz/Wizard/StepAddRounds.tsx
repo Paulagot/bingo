@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { fundraisingExtraDefinitions, roundTypeDefinitions } from '../../../constants/quizMetadata';
+import { fundraisingExtraDefinitions, roundTypeDefinitions } from '../constants/quizMetadata';
 import type { RoundDefinition, RoundTypeId } from '../types/quiz';
 import { ChevronLeft, ChevronRight, Trash2, GripVertical, Zap, RotateCcw, Info, Play, X, FlipHorizontal } from 'lucide-react';
-import { useQuizSetupStore } from '../useQuizSetupStore';
-import { roundTypeDefaults } from '../../../constants/quiztypeconstants';
+import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
+import { roundTypeDefaults } from '../constants/quiztypeconstants';
 
 interface StepAddRoundsProps {
   onNext: () => void;

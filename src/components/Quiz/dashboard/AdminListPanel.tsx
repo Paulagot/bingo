@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { QRCodeCanvas } from 'qrcode.react';
 import { v4 as uuidv4 } from 'uuid';
-import { useQuizSocket } from '../../../sockets/QuizSocketProvider';
-import { useAdminStore, Admin } from '../useAdminStore';
+import { useQuizSocket } from '../sockets/QuizSocketProvider';
+import { useAdminStore, Admin } from '../hooks/useAdminStore';
 import { fullQuizReset } from '../utils/fullQuizReset';
 import { useNavigate } from 'react-router-dom';
 

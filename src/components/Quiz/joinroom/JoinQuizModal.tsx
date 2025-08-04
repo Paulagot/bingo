@@ -14,10 +14,10 @@ import {
   GamepadIcon
 } from 'lucide-react';
 
-import { useQuizSocket } from '../../../sockets/QuizSocketProvider';
-import { fundraisingExtraDefinitions } from '../../../constants/quizMetadata';
-import { roundTypeDefinitions } from '../../../constants/quizMetadata';
-import type { FundraisingExtraDefinition } from '../../../constants/quizMetadata';
+import { useQuizSocket } from '../sockets/QuizSocketProvider';
+import { fundraisingExtraDefinitions } from '../constants/quizMetadata';
+import { roundTypeDefinitions } from '../constants/quizMetadata';
+import type { FundraisingExtraDefinition } from '../constants/quizMetadata';
 
 interface RoomConfig {
   entryFee: number;
