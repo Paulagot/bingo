@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Globe, Heart, Users, DollarSign, CheckCircle, ArrowRight, Sparkles,  Shield, Zap } from 'lucide-react';
+import { SEO } from '../components/SEO';
 
 const FundraisingLaunchPage: React.FC = () => {
   const [communityName, setCommunityName] = useState('');
@@ -101,6 +102,13 @@ const FundraisingLaunchPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+<SEO
+  title="Web3 Impact Event - World's First Multichain Regenerative Fundraiser"
+  description="Join the largest Web3 fundraising event ever. Host a quiz night with your community and help us raise $100,000 for charity while pioneering the future of transparent, blockchain-powered fundraising."
+  keywords="web3 fundraising, blockchain charity, multichain fundraising, regenerative fundraising, crypto for good, blockchain impact, charity blockchain event"
+  type="event"
+  domainStrategy="geographic"
+/>
       {/* Compact Hero Section */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/10 to-purple-600/10"></div>

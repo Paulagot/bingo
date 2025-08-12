@@ -4,8 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"vite\" \"node server/index.js\"",
-    "build": "vite build",
+    "generate-seo": "node scripts/generateStaticSeoFiles.js",
+    "dev": "npm run generate-seo && concurrently \"vite\" \"node server/index.js\"",
+    "build": "npm run generate-seo && vite build",
     "start": "node server/index.js",
     "lint": "eslint .",
     "preview": "vite preview",

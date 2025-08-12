@@ -1,0 +1,24 @@
+User-agent: *
+
+# ALLOW - Public pages
+Allow: /
+Allow: /whats-new
+Allow: /Web3-Impact-Event
+
+# BLOCK - Private pages
+Disallow: /game/
+Disallow: /quiz/
+Disallow: /pitch-deck
+Disallow: /pitch-deck-content
+Disallow: /BingoBlitz
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /user/
+Disallow: /login
+Disallow: /signup
+Disallow: /payment/
+Disallow: /checkout/
+Disallow: /api/
+
+Crawl-delay: 1
+Sitemap: https://fundraisely.co.uk/sitemap.xml
