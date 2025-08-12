@@ -5,12 +5,11 @@ import { Header } from '../components/GeneralSite/Header';
 import HeroSection from '../components/GeneralSite/HeroSection';
 import HowItWorks from '../components/GeneralSite/HowItWorks';
 import FAQ from '../components/GeneralSite/FAQ';
-
 import Benefit from '../components/GeneralSite/Benefits';
 import Hfooter from '../components/GeneralSite/hFooter';
 import { SEO } from '../components/SEO';
 
-
+// Keep your commented imports for testing - they won't affect bundle size when commented
 // import SolanaWalletOperations from '../components/SolanaWalletOperations';
 
 export function Landing() {
@@ -34,21 +33,23 @@ export function Landing() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white pb-20">
-<SEO
-  title="Fundraising Platform for Clubs & Charities | FundRaisely"
-  description="Empower your club or charity with FundRaisely's innovative fundraising platform. Engage supporters with interactive quiz events, manage campaigns effortlessly, and maximize your fundraising impact."
-  
-  // Default keywords (for localhost/other domains)
-  keywords="fundraising platform, charity fundraising, club events, nonprofit management, campaign management"
-  
-  // UK-specific keywords
-  ukKeywords="fundraising platform UK, charity fundraising software, club events Britain, nonprofit management UK, fundraising tools United Kingdom"
-  
-  // Ireland-specific keywords  
-  ieKeywords="fundraising platform Ireland, charity events Ireland, club fundraising Ireland, nonprofit tools Ireland, community fundraising Ireland"
-  
-  domainStrategy="geographic"
-/>
+      <SEO
+        title="Fundraising Platform for Clubs & Charities | FundRaisely"
+        description="Empower your club or charity with FundRaisely's innovative fundraising platform. Engage supporters with interactive quiz events, manage campaigns effortlessly, and maximize your fundraising impact."
+        
+        // Default keywords (for localhost/other domains)
+        keywords="fundraising platform, charity fundraising, club events, nonprofit management, campaign management"
+        
+        // UK-specific keywords
+        ukKeywords="fundraising platform UK, charity fundraising software, club events Britain, nonprofit management UK, fundraising tools United Kingdom"
+        
+        // Ireland-specific keywords  
+        ieKeywords="fundraising platform Ireland, charity events Ireland, club fundraising Ireland, nonprofit tools Ireland, community fundraising Ireland"
+        
+        domainStrategy="geographic"
+      />
+      
+      {/* Keep commented for testing - no impact on performance when commented */}
       {/* <SolanaWalletOperations /> */}
    
       <Header />
@@ -74,6 +75,7 @@ export function Landing() {
               >
                 DM us on Twitter
               </a>
+              {/* Keep commented for testing */}
               {/* <a
                 href="mailto:beta@fundraisely.io"
                 className="bg-white text-indigo-600 px-8 py-3 rounded-xl font-semibold shadow-md hover:bg-indigo-50 transition inline-block"
@@ -88,6 +90,7 @@ export function Landing() {
       <HowItWorks />
       <Benefit />
       <FAQ />
+      {/* Keep these commented for testing */}
       {/* <FundRaiselyWhereYouSave /> */}
       {/* <CTASection /> */}
       <Hfooter />
