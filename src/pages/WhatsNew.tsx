@@ -115,17 +115,17 @@ const WhatsNew: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white pb-20">
- <SEO
+<SEO
   title="Inside FundRaisely - Latest Updates"
   description="Stay updated with FundRaisely's latest developments, features, and community achievements. Follow our journey building the future of fundraising for clubs and charities."
-  keywords="fundraisely updates, platform news, fundraising innovations, development progress, community achievements"
+  
+  keywords="fundraisely updates, platform news, fundraising innovations, development progress"
+  ukKeywords="fundraising platform updates UK, charity software news Britain, nonprofit technology UK"
+  ieKeywords="fundraising platform updates Ireland, charity software news Ireland, nonprofit technology Ireland"
+  
   type="update"
   domainStrategy="geographic"
-  article={{
-    section: "Company Updates",
-    tags: ["Updates", "News", "Development"],
-    author: "FundRaisely Team"
-  }}
+
 />
       <Header />
 

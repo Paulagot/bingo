@@ -35,9 +35,18 @@ export function Landing() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white pb-20">
 <SEO
-  title="FundRaisely"
+  title="Fundraising Platform for Clubs & Charities | FundRaisely"
   description="Empower your club or charity with FundRaisely's innovative fundraising platform. Engage supporters with interactive quiz events, manage campaigns effortlessly, and maximize your fundraising impact."
-  keywords="fundraising platform, charity fundraising, club fundraising, quiz fundraising, community events, nonprofit platform, fundraising events, charity quiz nights"
+  
+  // Default keywords (for localhost/other domains)
+  keywords="fundraising platform, charity fundraising, club events, nonprofit management, campaign management"
+  
+  // UK-specific keywords
+  ukKeywords="fundraising platform UK, charity fundraising software, club events Britain, nonprofit management UK, fundraising tools United Kingdom"
+  
+  // Ireland-specific keywords  
+  ieKeywords="fundraising platform Ireland, charity events Ireland, club fundraising Ireland, nonprofit tools Ireland, community fundraising Ireland"
+  
   domainStrategy="geographic"
 />
       {/* <SolanaWalletOperations /> */}
