@@ -12,7 +12,7 @@ import createRoomApi from './quiz/api/create-room.js';
 console.log('🔍 About to import community-registration...');
 import communityRegistrationApi from './quiz/api/community-registration.js';
 console.log('✅ Community registration imported:', communityRegistrationApi);
-console.log('📦 Type:', typeof communityRegistrationApi); // ADD THIS LINE
+console.log('📦 Type:', typeof communityRegistrationApi);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,6 +25,7 @@ app.use((req, res, next) => {
   console.log(`📥 ${req.method} ${req.url} - Headers:`, req.headers);
   next();
 });
+
 
 
 console.log('🛠️ Setting up routes...');

@@ -8,6 +8,7 @@ import FAQ from '../components/GeneralSite/FAQ';
 
 import Benefit from '../components/GeneralSite/Benefits';
 import Hfooter from '../components/GeneralSite/hFooter';
+import { SEO } from '../components/SEO';
 
 
 // import SolanaWalletOperations from '../components/SolanaWalletOperations';
@@ -33,6 +34,12 @@ export function Landing() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white pb-20">
+<SEO
+  title="FundRaisely"
+  description="Empower your club or charity with FundRaisely's innovative fundraising platform. Engage supporters with interactive quiz events, manage campaigns effortlessly, and maximize your fundraising impact."
+  keywords="fundraising platform, charity fundraising, club fundraising, quiz fundraising, community events, nonprofit platform, fundraising events, charity quiz nights"
+  domainStrategy="geographic"
+/>
       {/* <SolanaWalletOperations /> */}
    
       <Header />
@@ -51,7 +58,7 @@ export function Landing() {
             </div>
             <div className="flex justify-center space-x-4">
               <a
-                href="https://x.com/Fundraisly"
+                href="https://x.com/Fundraisely"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-white text-indigo-600 px-8 py-3 rounded-xl font-semibold shadow-md hover:bg-indigo-50 transition inline-block"
