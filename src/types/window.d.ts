@@ -14,6 +14,20 @@ declare global {
       getDefaultConfig: any;
     };
   }
+
+  // Declare the appkit-button custom element
+  namespace JSX {
+    interface IntrinsicElements {
+      'appkit-button': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & {
+        label?: string;
+        size?: string;
+        'loading-label'?: string;
+        disabled?: string;
+        balance?: string;
+        namespace?: string;
+      };
+    }
+  }
 }
 
 export {};
