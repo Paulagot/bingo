@@ -15,6 +15,9 @@ import { QuizSocketProvider } from './components/Quiz/sockets/QuizSocketProvider
 import WhatsNew from './pages/WhatsNew';
 import FundraisingLaunchPage from './pages/web3fundraiser';
 
+// Try the correct AppKit import - if this doesn't work, we'll comment it out
+// import { AppKitButton } from '@reown/appkit';
+
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -57,14 +60,24 @@ export default function App() {
           {showAppKit && (
             <div className="appkit-container p-4 bg-white rounded shadow my-4 max-w-3xl mx-auto">
               <h2 className="text-xl font-bold mb-4">Wallet Connection</h2>
-              {/* Fixed: Use the proper React component or add required props */}
-              <appkit-button 
+              {/* Temporarily comment out the problematic button to focus on performance testing */}
+              {/* <AppKitButton 
                 label="Connect Wallet"
                 size="md"
-                loading-label="Connecting..."
-                disabled="false"
+                loadingLabel="Connecting..."
+                disabled={false}
                 balance="show"
-              />
+                namespace="evm"
+              /> */}
+              
+              {/* Temporary placeholder while we fix the AppKit button */}
+              <div className="p-4 bg-gray-100 rounded border-2 border-dashed border-gray-300">
+                <p className="text-gray-600">AppKit Button (temporarily disabled for performance testing)</p>
+                <button className="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                  Test Connect Wallet
+                </button>
+              </div>
+              
               <ActionButtonList />
               <InfoList />
             </div>
