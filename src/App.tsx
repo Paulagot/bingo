@@ -1,22 +1,20 @@
-import { useEffect } from 'react';
+// src/App.tsx - Updated with Web3Provider only for specific routes
+import { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Landing } from './pages/Landing';
 import { Game } from './pages/Game';
 import { TestCampaign } from './pages/TestCampaign';
 import { Header } from './components/GeneralSite/Header';
-import { PitchDeck } from './pages/PitchDeck';
 import { PitchDeckContent } from './pages/PitchDeckContent';
-import { ActionButtonList } from './components/ActionButtonList';
-import { InfoList } from './components/InfoList';
 import ErrorBoundary from './components/bingo/ErrorBoundary';
-// import SocketDebugPanel from './components/Quiz/SocketDebugPanel';
 import QuizRoutes from './components/Quiz/QuizRoutes';
 import { QuizSocketProvider } from './components/Quiz/sockets/QuizSocketProvider';
 import WhatsNew from './pages/WhatsNew';
-import FundraisingLaunchPage from './pages/web3fundraiser';
 
-// Try the correct AppKit import - if this doesn't work, we'll comment it out
-// import { AppKitButton } from '@reown/appkit';
+// Lazy load Web3-heavy components AND the Web3Provider
+
+const FundraisingLaunchPage = lazy(() => import('./pages/web3fundraiser'));
+const Web3Provider = lazy(() => import('./components/Web3Provider').then(m => ({ default: m.Web3Provider })));
 
 export default function App() {
   const navigate = useNavigate();
@@ -50,56 +48,65 @@ export default function App() {
   }, [navigate, location]);
 
   const showHeader = location.pathname !== '/pitch-deck-content' && location.pathname !== '/BingoBlitz';
-  const showAppKit = location.pathname === '/pitch-deck';
 
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
         {showHeader && <Header />}
         <main className={showHeader ? 'pt-16' : ''}>
-          {showAppKit && (
-            <div className="appkit-container p-4 bg-white rounded shadow my-4 max-w-3xl mx-auto">
-              <h2 className="text-xl font-bold mb-4">Wallet Connection</h2>
-              {/* Temporarily comment out the problematic button to focus on performance testing */}
-              {/* <AppKitButton 
-                label="Connect Wallet"
-                size="md"
-                loadingLabel="Connecting..."
-                disabled={false}
-                balance="show"
-                namespace="evm"
-              /> */}
-              
-              {/* Temporary placeholder while we fix the AppKit button */}
-              <div className="p-4 bg-gray-100 rounded border-2 border-dashed border-gray-300">
-                <p className="text-gray-600">AppKit Button (temporarily disabled for performance testing)</p>
-                <button className="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                  Test Connect Wallet
-                </button>
-              </div>
-              
-              <ActionButtonList />
-              <InfoList />
-            </div>
-          )}
-
           <Routes>
-            {/* Bingo & non-quiz routes */}
+            {/* ⚡ FAST routes - NO Web3 loaded */}
             <Route path="/" element={<Landing />} />
-            <Route path="/game/:roomId" element={<Game />} />
-            <Route path="/pitch-deck" element={<PitchDeck />} />
             <Route path="/pitch-deck-content" element={<PitchDeckContent />} />
-            <Route path="/BingoBlitz" element={<TestCampaign />} />
-
             <Route path="/whats-new" element={<WhatsNew />} />
-            <Route path="/Web3-Impact-Event" element={<FundraisingLaunchPage />} />
 
-            {/* Quiz routes with socket provider */}
+            {/* 🔗 Quiz routes - NO Web3 needed */}
             <Route path="/quiz/*" element={
               <QuizSocketProvider>
-                {/* <SocketDebugPanel /> */}
                 <QuizRoutes />
               </QuizSocketProvider>
+            } />
+
+            {/* 🔥 Web3 routes - Only load Web3 when accessed */}
+            <Route path="/game/:roomId" element={
+              <Suspense fallback={
+                <div className="flex items-center justify-center min-h-screen">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
+                  <p>Loading game features...</p>
+                </div>
+              }>
+                <Web3Provider>
+                  <Game />
+                </Web3Provider>
+              </Suspense>
+            } />
+            
+            <Route path="/BingoBlitz" element={
+              <Suspense fallback={
+                <div className="flex items-center justify-center min-h-screen">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
+                  <p>Loading campaign features...</p>
+                </div>
+              }>
+                <Web3Provider>
+                  <TestCampaign />
+                </Web3Provider>
+              </Suspense>
+            } />
+
+        
+            
+            <Route path="/Web3-Impact-Event" element={
+              <Suspense fallback={
+                <div className="flex items-center justify-center min-h-screen">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
+                  <p>Loading Web3 fundraising features...</p>
+                </div>
+              }>
+                <Web3Provider>
+                  <FundraisingLaunchPage />
+                </Web3Provider>
+              </Suspense>
             } />
           </Routes>
         </main>
