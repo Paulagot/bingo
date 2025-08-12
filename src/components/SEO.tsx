@@ -4,6 +4,8 @@ interface SEOProps {
   title: string;
   description: string;
   keywords?: string;
+  ukKeywords?: string; // UK-specific keywords
+  ieKeywords?: string; // Ireland-specific keywords
   image?: string;
   type?: 'website' | 'article' | 'event' | 'blog' | 'update';
   domainStrategy?: 'uk-primary' | 'geographic' | 'ireland-primary';
@@ -13,6 +15,8 @@ export const SEO: React.FC<SEOProps> = ({
   title,
   description,
   keywords,
+  ukKeywords,
+  ieKeywords,
   image = '/fundraisely-og-image.png',
   type = 'website',
   domainStrategy = 'geographic'
@@ -24,6 +28,20 @@ export const SEO: React.FC<SEOProps> = ({
     const fullTitle = title === siteTitle ? title : `${title} | ${siteTitle}`;
     const currentUrl = window.location.href;
     const currentDomain = window.location.hostname;
+    
+    // Choose keywords based on domain
+    const getKeywords = () => {
+      if (currentDomain.includes('co.uk') && ukKeywords) {
+        return ukKeywords;
+      }
+      if (currentDomain.includes('.ie') && ieKeywords) {
+        return ieKeywords;
+      }
+      return keywords; // Default/fallback keywords
+    };
+    
+    const finalKeywords = getKeywords();
+    console.log('🏷️ Using keywords for', currentDomain, ':', finalKeywords);
     
     // Update document title
     document.title = fullTitle;
@@ -58,7 +76,7 @@ export const SEO: React.FC<SEOProps> = ({
     
     // Basic meta tags
     setMetaTag('description', description);
-    if (keywords) setMetaTag('keywords', keywords);
+    if (finalKeywords) setMetaTag('keywords', finalKeywords);
     
     // Open Graph
     setMetaTag('og:title', fullTitle, true);
@@ -118,7 +136,7 @@ export const SEO: React.FC<SEOProps> = ({
     
     console.log('✅ SEO meta tags updated');
     
-  }, [title, description, keywords, image, type, domainStrategy]);
+  }, [title, description, keywords, ukKeywords, ieKeywords, image, type, domainStrategy]);
 
   return null;
 };
