@@ -81,20 +81,22 @@ try {
   writeFileSync(join('public', 'sitemap-uk.xml'), ukSitemap);
   writeFileSync(join('public', 'robots-uk.txt'), ukRobots);
   
-  // Generate IE files
+  // Generate IE files  
   const ieSitemap = generateSitemap('fundraisely.ie', publicPages);
   const ieRobots = generateRobotsTxt('fundraisely.ie');
   
   writeFileSync(join('public', 'sitemap-ie.xml'), ieSitemap);
   writeFileSync(join('public', 'robots-ie.txt'), ieRobots);
   
-  // Create default files (UK version)
+  // Create default files (UK version for development/fallback)
   writeFileSync(join('public', 'sitemap.xml'), ukSitemap);
   writeFileSync(join('public', 'robots.txt'), ukRobots);
   
   console.log('✅ Static SEO files generated successfully!');
-  console.log('  - sitemap-uk.xml, sitemap-ie.xml, sitemap.xml');
-  console.log('  - robots-uk.txt, robots-ie.txt, robots.txt');
+  console.log('  - sitemap-uk.xml (for fundraisely.co.uk)');
+  console.log('  - sitemap-ie.xml (for fundraisely.ie)');  
+  console.log('  - robots-uk.txt, robots-ie.txt');
+  console.log('  - sitemap.xml, robots.txt (UK defaults)');
 } catch (error) {
   console.error('❌ Error generating static SEO files:', error);
 }
