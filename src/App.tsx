@@ -11,9 +11,9 @@ import { InfoList } from './components/InfoList';
 import ErrorBoundary from './components/bingo/ErrorBoundary';
 // import SocketDebugPanel from './components/Quiz/SocketDebugPanel';
 import QuizRoutes from './components/Quiz/QuizRoutes';
-import { QuizSocketProvider } from './components/Quiz/sockets/QuizSocketProvider';  // ✅ Moved back here
+import { QuizSocketProvider } from './components/Quiz/sockets/QuizSocketProvider';
 import WhatsNew from './pages/WhatsNew';
-import FundraisingLaunchPage from './pages/web3fundraiser'; // ✅ New fundraising launch page
+import FundraisingLaunchPage from './pages/web3fundraiser';
 
 export default function App() {
   const navigate = useNavigate();
@@ -57,13 +57,19 @@ export default function App() {
           {showAppKit && (
             <div className="appkit-container p-4 bg-white rounded shadow my-4 max-w-3xl mx-auto">
               <h2 className="text-xl font-bold mb-4">Wallet Connection</h2>
-              <appkit-button />
+              {/* Fixed: Use the proper React component or add required props */}
+              <appkit-button 
+                label="Connect Wallet"
+                size="md"
+                loading-label="Connecting..."
+                disabled="false"
+                balance="show"
+              />
               <ActionButtonList />
               <InfoList />
             </div>
           )}
 
-          
           <Routes>
             {/* Bingo & non-quiz routes */}
             <Route path="/" element={<Landing />} />
@@ -75,7 +81,7 @@ export default function App() {
             <Route path="/whats-new" element={<WhatsNew />} />
             <Route path="/Web3-Impact-Event" element={<FundraisingLaunchPage />} />
 
-            {/* ✅ Now only wrap the Quiz routes */}
+            {/* Quiz routes with socket provider */}
             <Route path="/quiz/*" element={
               <QuizSocketProvider>
                 {/* <SocketDebugPanel /> */}
