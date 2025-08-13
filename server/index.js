@@ -26,8 +26,6 @@ app.use((req, res, next) => {
   next();
 });
 
-
-
 console.log('🛠️ Setting up routes...');
 app.use('/quiz/api', createRoomApi);
 console.log('🔗 Setting up community registration route...');
@@ -108,10 +106,42 @@ app.get('/pitch-deck.html', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/pitch-deck.html'));
 });
 
-// ✅ Serve frontend build in production
+// ✅ Serve frontend build in production with optimized cache headers
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../dist')));
+  // Serve static assets with aggressive caching
+  app.use('/assets', express.static(path.join(__dirname, '../dist/assets'), {
+    maxAge: '31536000000', // 1 year in milliseconds
+    etag: true,
+    lastModified: true,
+    setHeaders: (res, filePath) => {
+      // Set aggressive caching for static assets
+      if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        console.log(`💾 Setting 1-year cache for: ${path.basename(filePath)}`);
+      } else if (filePath.endsWith('.woff2') || filePath.endsWith('.woff')) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      } else {
+        res.setHeader('Cache-Control', 'public, max-age=31536000');
+      }
+    }
+  }));
 
+  // Serve other static files with normal caching
+  app.use(express.static(path.join(__dirname, '../dist'), {
+    maxAge: '3600000', // 1 hour for other files
+    etag: true,
+    lastModified: true
+  }));
+
+  // Serve HTML with no caching
+  app.get('*', (req, res) => {
+    res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+    res.sendFile(path.join(__dirname, '../dist/index.html'));
+  });
+} else {
+  // Development mode - serve dist if it exists
+  app.use(express.static(path.join(__dirname, '../dist')));
+  
   app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../dist/index.html'));
   });
@@ -151,5 +181,7 @@ app.get('/debug/rooms', (req, res) => {
 });
 
 httpServer.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`💾 Cache headers: ${process.env.NODE_ENV === 'production' ? 'Optimized (1 year)' : 'Development mode'}`);
 });

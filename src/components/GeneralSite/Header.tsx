@@ -1,12 +1,15 @@
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { ArrowLeft, Users, Gamepad2, Menu, X } from 'lucide-react';
-import { useGameStore } from '../bingo/store/gameStore';
+// TEMPORARILY COMMENT OUT WEB3 IMPORTS FOR PERFORMANCE
+// import { useGameStore } from '../bingo/store/gameStore';
 import { useState } from 'react';
 
 export function Header() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { players } = useGameStore();
+  // TEMPORARILY COMMENT OUT FOR PERFORMANCE - Web3 features disabled
+  // const { players } = useGameStore();
+  const players: any[] = []; // Temporary placeholder
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   const isGamePage = location.pathname.startsWith('/game/');
@@ -30,6 +33,7 @@ export function Header() {
               type="button"
               onClick={handleBack}
               className="flex items-center gap-2 text-gray-600 hover:text-indigo-600 transition-colors"
+              aria-label="Leave game"
             >
               <ArrowLeft size={20} />
               <span className="hidden sm:inline font-medium">Leave Game</span>
@@ -64,12 +68,10 @@ export function Header() {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-4">
-              <Link
-                to="/Web3-impact-Event"
-                className="text-sm font-medium text-pink-600 hover:text-pink-800 transition-colors"
-              >
-                Join the Web3 Impact Event 🚀
-              </Link>
+              {/* TEMPORARILY DISABLED - Web3 features under optimization */}
+              <span className="text-sm font-medium text-gray-400 line-through">
+                Web3 Impact Event (Coming Soon)
+              </span>
 
               <Link
                 to="/whats-new"
@@ -77,27 +79,39 @@ export function Header() {
               >
                 Inside FundRaisely
               </Link>
+
+              <Link
+                to="/quiz"
+                className="text-sm font-medium text-purple-600 hover:text-purple-800 transition-colors"
+              >
+                Quiz Platform
+              </Link>
             </div>
 
-            {/* Mobile Menu Button */}
+            {/* Mobile Menu Button - FIXED: Added proper accessibility attributes */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="md:hidden p-2 text-gray-600 hover:text-indigo-600 transition-colors"
+              aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+              aria-expanded={mobileMenuOpen}
+              aria-controls="mobile-menu"
             >
               {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
 
-            {/* Mobile Menu Dropdown */}
+            {/* Mobile Menu Dropdown - FIXED: Added proper ARIA attributes */}
             {mobileMenuOpen && (
-              <div className="absolute top-16 left-0 right-0 bg-white/95 backdrop-blur-sm shadow-lg border-t border-gray-200 md:hidden">
+              <div 
+                className="absolute top-16 left-0 right-0 bg-white/95 backdrop-blur-sm shadow-lg border-t border-gray-200 md:hidden"
+                id="mobile-menu"
+                role="navigation"
+                aria-label="Mobile navigation menu"
+              >
                 <div className="container mx-auto px-4 py-4 space-y-3">
-                  <Link
-                    to="/Web3-impact-Event"
-                    className="block text-sm font-medium text-pink-600 hover:text-pink-800 transition-colors py-2"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Join the Web3 Impact Event 🚀
-                  </Link>
+                  {/* TEMPORARILY DISABLED - Web3 features under optimization */}
+                  <span className="block text-sm font-medium text-gray-400 line-through py-2">
+                    Web3 Impact Event (Coming Soon)
+                  </span>
 
                   <Link
                     to="/whats-new"
@@ -105,6 +119,14 @@ export function Header() {
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Inside FundRaisely
+                  </Link>
+
+                  <Link
+                    to="/quiz"
+                    className="block text-sm font-medium text-purple-600 hover:text-purple-800 transition-colors py-2"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Quiz Platform
                   </Link>
                 </div>
               </div>

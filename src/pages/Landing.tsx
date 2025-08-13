@@ -49,8 +49,7 @@ export function Landing() {
         domainStrategy="geographic"
       />
       
-      {/* Keep commented for testing - no impact on performance when commented */}
-      {/* <SolanaWalletOperations /> */}
+     
    
       <Header />
       <HeroSection />
