@@ -1,19 +1,39 @@
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import React, { useNavigate, useLocation, Link } from 'react-router-dom';
 import { ArrowLeft, Users, Gamepad2, Menu, X } from 'lucide-react';
-// TEMPORARILY COMMENT OUT WEB3 IMPORTS FOR PERFORMANCE
-// import { useGameStore } from '../bingo/store/gameStore';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export function Header() {
   const navigate = useNavigate();
   const location = useLocation();
-  // TEMPORARILY COMMENT OUT FOR PERFORMANCE - Web3 features disabled
-  // const { players } = useGameStore();
-  const players: any[] = []; // Temporary placeholder
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   const isGamePage = location.pathname.startsWith('/game/');
   const roomId = isGamePage ? location.pathname.split('/').pop() : '';
+
+  // For game pages, we'll conditionally load the players count
+  const [players, setPlayers] = useState<any[]>([]);
+
+  // Lazy load game store only on game pages
+  useEffect(() => {
+    if (isGamePage) {
+      import('../bingo/store/gameStore').then(({ useGameStore }) => {
+        // Get initial state
+        setPlayers(useGameStore.getState().players);
+        
+        // Subscribe to store changes
+        const unsubscribe = useGameStore.subscribe((state: any) => {
+          setPlayers(state.players);
+        });
+        
+        return unsubscribe;
+      }).catch((error) => {
+        console.error('Failed to load game store:', error);
+        setPlayers([]); // Fallback to empty array
+      });
+    } else {
+      setPlayers([]); // Reset players when not on game page
+    }
+  }, [isGamePage]);
 
   const handleBack = () => {
     if (isGamePage) {
@@ -68,10 +88,12 @@ export function Header() {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-4">
-              {/* TEMPORARILY DISABLED - Web3 features under optimization */}
-              <span className="text-sm font-medium text-gray-400 line-through">
-                Web3 Impact Event (Coming Soon)
-              </span>
+              <Link
+                to="/Web3-Impact-Event"
+                className="text-sm font-medium text-pink-600 hover:text-pink-800 transition-colors"
+              >
+                Join the Web3 Impact Event 🚀
+              </Link>
 
               <Link
                 to="/whats-new"
@@ -99,7 +121,7 @@ export function Header() {
               {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
 
-            {/* Mobile Menu Dropdown - FIXED: Added proper ARIA attributes */}
+            {/* Mobile Menu Dropdown */}
             {mobileMenuOpen && (
               <div 
                 className="absolute top-16 left-0 right-0 bg-white/95 backdrop-blur-sm shadow-lg border-t border-gray-200 md:hidden"
@@ -108,10 +130,13 @@ export function Header() {
                 aria-label="Mobile navigation menu"
               >
                 <div className="container mx-auto px-4 py-4 space-y-3">
-                  {/* TEMPORARILY DISABLED - Web3 features under optimization */}
-                  <span className="block text-sm font-medium text-gray-400 line-through py-2">
-                    Web3 Impact Event (Coming Soon)
-                  </span>
+                  <Link
+                    to="/Web3-Impact-Event"
+                    className="block text-sm font-medium text-pink-600 hover:text-pink-800 transition-colors py-2"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Join the Web3 Impact Event 🚀
+                  </Link>
 
                   <Link
                     to="/whats-new"

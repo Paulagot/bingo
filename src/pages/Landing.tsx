@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
-import { useGameStore } from '../components/bingo/store/gameStore';
-import { clearAllRoomData } from '../components/bingo/utils/localStorageUtils';
+// USE SAFE HOOK - No Web3 imports, no zustand store imports!
+import { resetGameStateForLanding } from '../hooks/useLandingGameStore';
+
 import { Header } from '../components/GeneralSite/Header';
 import HeroSection from '../components/GeneralSite/HeroSection';
 import HowItWorks from '../components/GeneralSite/HowItWorks';
@@ -9,19 +10,13 @@ import Benefit from '../components/GeneralSite/Benefits';
 import Hfooter from '../components/GeneralSite/hFooter';
 import { SEO } from '../components/SEO';
 
-// Keep your commented imports for testing - they won't affect bundle size when commented
-// import SolanaWalletOperations from '../components/SolanaWalletOperations';
-
 export function Landing() {
-  const { resetGameState } = useGameStore((state) => ({
-    resetGameState: state.resetGameState,
-  }));
-  
   useEffect(() => {
-    resetGameState();
-    clearAllRoomData();
+    // Use the safe reset function
+    resetGameStateForLanding();
     
     try {
+      // Clean up any additional Web3 storage
       localStorage.removeItem('wagmi.store');
       localStorage.removeItem('@appkit/portfolio_cache');
       localStorage.removeItem('lace-wallet-mode');
@@ -29,7 +24,7 @@ export function Landing() {
     } catch (e) {
       console.error('Error cleaning up storage:', e);
     }
-  }, [resetGameState]);
+  }, []);  // No dependencies needed
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white pb-20">
@@ -49,7 +44,8 @@ export function Landing() {
         domainStrategy="geographic"
       />
       
-     
+      {/* Keep commented for testing - no impact on performance when commented */}
+      {/* <SolanaWalletOperations /> */}
    
       <Header />
       <HeroSection />

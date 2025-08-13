@@ -1,3 +1,5 @@
+//src/components/bingo/store/gameStore.ts
+
 import { create } from 'zustand';
 import {  Player } from '../types/game';
 
