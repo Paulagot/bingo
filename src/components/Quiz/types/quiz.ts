@@ -199,7 +199,7 @@ export interface RoundComponentProps {
   feedback: string | null;
   isFrozen: boolean;
   frozenNotice: string | null;
-  onSubmit: () => void;
+  onSubmit?: () => void; // ← Make this optional with ?
   roomId: string;
   playerId: string;
   roundExtras: string[];
