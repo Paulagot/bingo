@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+//src/components/Quiz/game/QuizGamePlayPage.tsx
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import UseExtraModal from './UseExtraModal';
@@ -8,6 +9,7 @@ import { usePlayerStore } from '../hooks/usePlayerStore';
 import { useQuizConfig } from '../hooks/useQuizConfig';
 
 import { useRoundExtras } from '../hooks/useRoundExtras';
+import { useQuizTimer } from '../hooks/useQuizTimer';
 import { useAnswerSubmission } from '../hooks/useAnswerSubmission';
 import { User, Question, LeaderboardEntry, RoomPhase, RoundDefinition } from '../types/quiz';
 import { useNavigate } from 'react-router-dom';
@@ -633,14 +635,23 @@ const handleReviewQuestion = (data: any) => {
     };
   }, [socket, connected, roomId, playerId, playersInRoom, config?.roundDefinitions, serverRoomState.currentRound]);
 
-  function handleSubmit() {
-    if (!selectedAnswer || !question || isFrozenNow || answerSubmitted) return;
-    
-    const success = submitAnswer(selectedAnswer);
-    if (success) {
-      setAnswerSubmitted(true);
-    }
+const handleAutoSubmit = useCallback(() => {
+  if (debug) console.log('[AutoSubmit] ⏰ Timer expired - auto-submitting answer');
+  
+  // Submit whatever answer is currently selected (or empty string if none)
+  const answerToSubmit = selectedAnswer || '';
+  
+  if (answerToSubmit) {
+    if (debug) console.log('[AutoSubmit] 📤 Auto-submitting selected answer:', answerToSubmit);
+  } else {
+    if (debug) console.log('[AutoSubmit] 📤 Auto-submitting empty answer (no selection made)');
   }
+  
+  const success = submitAnswer(answerToSubmit);
+  if (success) {
+    setAnswerSubmitted(true);
+  }
+}, [selectedAnswer, submitAnswer, debug]);
 
   const handleUseExtra = (extraId: string, targetPlayerId?: string) => {
     if (!socket || !roomId || !playerId) return;
@@ -692,6 +703,12 @@ const handleReviewQuestion = (data: any) => {
     });
     setFreezeModalOpen(false);
   };
+
+  const { timeLeft } = useQuizTimer({
+  question: question,
+  timerActive: timerActive && roomPhase === 'asking' && !answerSubmitted,
+  onTimeUp: handleAutoSubmit
+});
 
   // ✅ CORRECT PLACEMENT - Move the completion check to the top level
 return (
@@ -821,12 +838,12 @@ return (
               </span>
             </div>
 
-            <RoundRouter
+ <RoundRouter
   roomPhase={roomPhase}
   currentRoundType={currentRoundType}
   question={question}
-  timeLeft={null}
-  timerActive={timerActive}
+  timeLeft={timeLeft}  // ← CHANGED from null to timeLeft
+  timerActive={timerActive && !answerSubmitted}  // ← ADD this condition
   selectedAnswer={selectedAnswer}
   setSelectedAnswer={setSelectedAnswer}
   answerSubmitted={answerSubmitted}
@@ -835,7 +852,7 @@ return (
   correctAnswer={correctAnswer ?? undefined} 
   isFrozen={isFrozenNow}
   frozenNotice={frozenNotice}
-  onSubmit={handleSubmit}
+  onSubmit={() => {}} // ← REMOVE the handleSubmit call since we don't need manual submit
   roomId={roomId!}
   playerId={playerId!}
   roundExtras={roundExtras}
@@ -846,7 +863,6 @@ return (
   totalQuestions={totalInRound}
   difficulty={question?.difficulty}
   category={question?.category}
-  // ✅ NEW: Player view doesn't get statistics, only host does
   isHost={false}
 />
           </div>

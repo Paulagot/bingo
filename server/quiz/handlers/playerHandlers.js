@@ -1,4 +1,4 @@
-// playerHandlers.js - FIXED VERSION
+// playerHandlers.js 
 import { 
   getQuizRoom, 
   addOrUpdatePlayer, 

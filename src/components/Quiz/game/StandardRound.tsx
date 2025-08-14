@@ -7,7 +7,7 @@ import {
   Lightbulb, 
   Check, 
   Snowflake,
-  
+  Clock,
   Target
 } from 'lucide-react';
 
@@ -29,7 +29,7 @@ const StandardRound: React.FC<EnhancedStandardRoundProps> = ({
   feedback,
   isFrozen,
   frozenNotice,
-  onSubmit,
+ 
   roomId,
   playerId,
   roundExtras,
@@ -200,34 +200,37 @@ const StandardRound: React.FC<EnhancedStandardRoundProps> = ({
           </div>
         )}
 
-        {/* Submit Button */}
-        <div className="flex items-center justify-center mb-6">
-          <button
-            onClick={onSubmit}
-            className={`px-8 py-3 rounded-xl font-bold text-lg shadow-lg transition-all duration-200 transform ${
-              isFrozen
-                ? 'bg-red-100 text-red-700 cursor-not-allowed'
-                : !selectedAnswer || answerSubmitted
-                  ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                  : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:scale-105 hover:shadow-xl'
-            }`}
-            disabled={!selectedAnswer || isFrozen || answerSubmitted}
-          >
-            {isFrozen ? (
-              <div className="flex items-center space-x-2">
-                <Snowflake className="w-5 h-5" />
-                <span>Frozen - Cannot Submit</span>
-              </div>
-            ) : answerSubmitted ? (
-              <div className="flex items-center space-x-2">
-                <Check className="w-5 h-5" />
-                <span>Answer Submitted</span>
-              </div>
-            ) : (
-              <span>Submit Answer</span>
-            )}
-          </button>
-        </div>
+       <div className="flex items-center justify-center mb-6">
+  {answerSubmitted ? (
+    <div className="px-8 py-3 rounded-xl font-bold text-lg bg-green-100 text-green-700 border-2 border-green-300">
+      <div className="flex items-center space-x-2">
+        <Check className="w-5 h-5" />
+        <span>Answer Submitted</span>
+      </div>
+    </div>
+  ) : isFrozen ? (
+    <div className="px-8 py-3 rounded-xl font-bold text-lg bg-red-100 text-red-700 border-2 border-red-300">
+      <div className="flex items-center space-x-2">
+        <Snowflake className="w-5 h-5" />
+        <span>Frozen - Cannot Answer</span>
+      </div>
+    </div>
+  ) : selectedAnswer ? (
+    <div className="px-8 py-3 rounded-xl font-bold text-lg bg-blue-100 text-blue-700 border-2 border-blue-300">
+      <div className="flex items-center space-x-2">
+        <Clock className="w-5 h-5" />
+        <span>Answer Selected </span>
+      </div>
+    </div>
+  ) : (
+    <div className="px-8 py-3 rounded-xl font-bold text-lg bg-yellow-100 text-yellow-700 border-2 border-yellow-300">
+      <div className="flex items-center space-x-2">
+        <Clock className="w-5 h-5" />
+        <span>Select an answer before time runs out!</span>
+      </div>
+    </div>
+  )}
+</div>
 
         {/* Feedback */}
         {feedback && (
