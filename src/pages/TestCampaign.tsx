@@ -1,4 +1,4 @@
-// src/pages/TestCampaign.tsx
+// src/pages/TestCampaign.tsx - Fixed version
 import { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import { useNavigate } from 'react-router-dom';
@@ -163,6 +163,7 @@ export function TestCampaign() {
       return;
     }
 
+    // FIX 1: Add missing 'namespace' property
     const roomCreationData = {
       isCreator: true as const,
       playerName: roomData.playerName,
@@ -171,6 +172,7 @@ export function TestCampaign() {
       chain: roomData.chain,
       contractAddress: roomData.contractAddress,
       walletAddress: roomData.walletAddress,
+      namespace: 'evm', // Added missing property
     };
 
     console.log('[TestCampaign] 🧩 Saving roomCreationData', roomCreationData);
@@ -182,8 +184,8 @@ export function TestCampaign() {
       return;
     }
 
-    // Store walletAddress for rejoin
-    localStorage.setItem('walletAddress', roomData.walletAddress);
+    // FIX 2: Handle undefined walletAddress
+    localStorage.setItem('walletAddress', roomData.walletAddress || '');
     console.log('[TestCampaign] 💾 Stored walletAddress', { walletAddress: roomData.walletAddress });
 
     console.log('[TestCampaign] ➡️ Navigating to game', { roomId: roomData.roomId });
@@ -258,13 +260,16 @@ export function TestCampaign() {
     clearAllRoomData();
     console.log('[TestCampaign] ✅ Set playerName and cleared room data', { playerName: roomData.playerName });
 
+    // FIX 3: Fix isCreator type and add missing properties
     const roomJoiningData = {
-      isCreator: false,
+      isCreator: false as const, // Changed from boolean to literal false
       playerName: roomData.playerName,
       roomId: roomData.roomCode.toUpperCase(),
       walletAddress: address || '',
       contractAddress: contractAddress,
       chain: chainId,
+      namespace: 'evm', // Added missing property
+      entryFee: '0', // Added missing property (placeholder value)
     };
 
     console.log('[TestCampaign] 🧩 Saving roomJoiningData', roomJoiningData);

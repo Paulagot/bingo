@@ -1,4 +1,4 @@
-// src/components/Web3Provider.tsx - Updated to be truly lazy
+// src/components/Web3Provider.tsx - Updated with QueryClient
 import React, { useEffect, useState } from 'react';
 
 interface Web3ProviderProps {
@@ -9,27 +9,41 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [WagmiProviderComponent, setWagmiProviderComponent] = useState<any>(null);
+  const [QueryClientProviderComponent, setQueryClientProviderComponent] = useState<any>(null);
   const [wagmiConfig, setWagmiConfig] = useState<any>(null);
+  const [queryClient, setQueryClient] = useState<any>(null);
 
   useEffect(() => {
     const initializeWeb3 = async () => {
       try {
         console.log('🚀 Lazy loading Web3 dependencies...');
         
-        // Dynamically import ALL Web3 dependencies
+        // Dynamically import ALL Web3 dependencies including QueryClient
         const [
           { createAppKit },
           { WagmiProvider },
+          { QueryClient, QueryClientProvider },
           { projectId, metadata, networks, wagmiAdapter, solanaWeb3JsAdapter }
         ] = await Promise.all([
           import('@reown/appkit/react'),
           import('wagmi'),
+          import('@tanstack/react-query'),
           import('../config')
         ]);
 
+        // Create QueryClient for wagmi (fix cacheTime -> gcTime)
+        const client = new QueryClient({
+          defaultOptions: {
+            queries: {
+              staleTime: 60 * 1000, // 1 minute
+              gcTime: 10 * 60 * 1000, // 10 minutes (was cacheTime in older versions)
+            },
+          },
+        });
+
         // Initialize AppKit
         console.log('📦 Creating AppKit modal...');
-        const modal = createAppKit({
+        createAppKit({
           adapters: [wagmiAdapter, solanaWeb3JsAdapter],
           projectId,
           networks,
@@ -42,7 +56,9 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
 
         // Store the components for rendering
         setWagmiProviderComponent(() => WagmiProvider);
+        setQueryClientProviderComponent(() => QueryClientProvider);
         setWagmiConfig(wagmiAdapter.wagmiConfig);
+        setQueryClient(client);
         
         console.log('✅ Web3 initialization complete');
         setIsInitialized(true);
@@ -83,7 +99,7 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
   }
 
   // Loading state
-  if (!isInitialized || !WagmiProviderComponent) {
+  if (!isInitialized || !WagmiProviderComponent || !QueryClientProviderComponent) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="text-center">
@@ -100,10 +116,12 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
     );
   }
 
-  // Render with Web3 provider
+  // Render with Web3 providers in correct order
   return (
-    <WagmiProviderComponent config={wagmiConfig}>
-      {children}
-    </WagmiProviderComponent>
+    <QueryClientProviderComponent client={queryClient}>
+      <WagmiProviderComponent config={wagmiConfig}>
+        {children}
+      </WagmiProviderComponent>
+    </QueryClientProviderComponent>
   );
 };
