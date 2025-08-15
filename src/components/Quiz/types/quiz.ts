@@ -120,7 +120,7 @@ export type ExtrasPanelProps = {
   playerId: string;
   availableExtras: string[];
   usedExtras: Record<string, boolean>;
-  onUseExtra: (extraId: string) => void;
+  onUseExtra: (extraId: string, targetPlayerId?: string) => void; // ← Add optional second parameter
   usedExtrasThisRound: Record<string, boolean>;
   answerSubmitted?: boolean;
 };

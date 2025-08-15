@@ -1,8 +1,12 @@
 //src/components/Quiz/game/EnhancedPlayerLeaderboard.tsx
-import React, { useEffect, useState } from 'react';
-import { Trophy, Crown, Medal, Award, Star, Sparkles } from 'lucide-react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { 
+  Trophy, Crown, Medal, Award, Star, Sparkles, Target
+} from 'lucide-react';
 import { LeaderboardEntry } from '../types/quiz';
-import GlobalExtrasDuringLeaderboard from './GlobalExtrasDuringLeaderboard';
+import { fundraisingExtraDefinitions } from '../constants/quizMetadata';
+import { useGlobalExtras } from '../hooks/useGlobalExtras';
+import UseExtraModal from './UseExtraModal';
 
 interface EnhancedPlayerLeaderboardProps {
   leaderboard: LeaderboardEntry[];
@@ -12,10 +16,168 @@ interface EnhancedPlayerLeaderboardProps {
   currentPlayerId: string;
   cumulativeNegativePoints: number;
   pointsRestored: number;
-  // ✅ NEW: Round context props
   isRoundResults?: boolean;
   currentRound?: number;
 }
+
+// ✅ UPDATED: Floating Actions Bar Component with consistent filtering
+const FloatingExtrasBar: React.FC<{
+  availableExtras: string[];
+  usedExtras: Record<string, boolean>;
+  onUseExtra: (extraId: string, targetPlayerId?: string) => void;
+  leaderboard: LeaderboardEntry[];
+  currentPlayerId: string;
+  cumulativeNegativePoints: number;
+  pointsRestored: number;
+}> = ({ availableExtras, usedExtras, onUseExtra, leaderboard, currentPlayerId, cumulativeNegativePoints, pointsRestored }) => {
+  const [robPointsModalOpen, setRobPointsModalOpen] = useState(false);
+
+  // ✅ UPDATED: Pass usedExtras to the hook for consistent filtering
+  const { globalExtras, restorablePoints, robPointsTargets } = useGlobalExtras({
+    allPlayerExtras: availableExtras,
+    currentPlayerId,
+    leaderboard,
+    cumulativeNegativePoints,
+    pointsRestored,
+    usedExtras, // ✅ NEW: Pass usedExtras for filtering
+    debug: false
+  });
+
+  // ✅ Get actual extra definitions (now pre-filtered by the hook)
+  const globalExtraDefinitions = globalExtras.map(extraId => 
+    fundraisingExtraDefinitions[extraId as keyof typeof fundraisingExtraDefinitions]
+  ).filter(Boolean);
+
+  // Helper function to get display info for each extra
+  const getExtraDisplayInfo = (extraId: string) => {
+    const definition = fundraisingExtraDefinitions[extraId as keyof typeof fundraisingExtraDefinitions];
+    if (!definition) return null;
+
+    const colorMap: Record<string, string> = {
+      'buyHint': 'from-yellow-500 to-orange-500',
+      'restorePoints': 'from-green-500 to-emerald-500', 
+      'robPoints': 'from-red-500 to-pink-500',
+      'freezeOutTeam': 'from-blue-500 to-cyan-500'
+    };
+
+    const needsTarget = extraId === 'robPoints' || extraId === 'freezeOutTeam';
+
+    return {
+      id: extraId,
+      name: definition.label,
+      icon: definition.icon,
+      description: definition.description,
+      needsTarget,
+      color: colorMap[extraId] || 'from-purple-500 to-pink-500'
+    };
+  };
+
+  const handleExtraClick = (extraId: string) => {
+    // ✅ SIMPLIFIED: Since used extras are filtered out at hook level,
+    // we only need special validation for edge cases
+    if (extraId === 'robPoints') {
+      if (robPointsTargets.length === 0) {
+        alert('No players have enough points to rob from (need 2+ points)');
+        return;
+      }
+      setRobPointsModalOpen(true);
+    } else if (extraId === 'freezeOutTeam') {
+      if (leaderboard.filter(p => p.id !== currentPlayerId).length === 0) {
+        alert('No other players to target');
+        return;
+      }
+      onUseExtra(extraId);
+    } else {
+      // ✅ Handle other global extras directly (including restorePoints)
+      onUseExtra(extraId);
+    }
+  };
+
+  const handleRobPointsConfirm = (targetPlayerId: string) => {
+    onUseExtra('robPoints', targetPlayerId);
+    setRobPointsModalOpen(false);
+  };
+
+  // ✅ Don't show if no extras available (now filtered at hook level)
+  if (globalExtraDefinitions.length === 0) return null;
+
+  return (
+    <>
+      <UseExtraModal
+        visible={robPointsModalOpen}
+        players={robPointsTargets}
+        onCancel={() => setRobPointsModalOpen(false)}
+        onConfirm={handleRobPointsConfirm}
+        extraType="robPoints"
+      />
+
+      {/* Floating Actions Bar */}
+      <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-40">
+        <div className="bg-white/95 backdrop-blur-sm border-2 border-purple-300 rounded-full shadow-xl px-6 py-4">
+          <div className="flex items-center space-x-3">
+            <span className="text-sm font-medium text-purple-700 whitespace-nowrap">
+              Take Action:
+            </span>
+            
+            {globalExtraDefinitions.map((extra) => {
+              const displayInfo = getExtraDisplayInfo(extra.id);
+              if (!displayInfo) return null;
+              
+              // ✅ SIMPLIFIED: Since used extras are filtered out, we only need to check
+              // for edge cases like no eligible targets
+              const isRobPoints = extra.id === 'robPoints';
+              const noEligibleTargets = isRobPoints && robPointsTargets.length === 0;
+              const shouldDisable = noEligibleTargets;
+              
+              return (
+                <button
+                  key={extra.id}
+                  onClick={() => handleExtraClick(extra.id)}
+                  disabled={shouldDisable}
+                  className={`
+                    w-12 h-12 rounded-full flex items-center justify-center
+                    transition-all duration-200 transform hover:scale-110 active:scale-95
+                    relative group text-lg
+                    ${shouldDisable 
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+                      : `bg-gradient-to-r ${displayInfo.color} text-white hover:shadow-lg`
+                    }
+                  `}
+                  title={displayInfo.name}
+                >
+                  {extra.icon}
+                  
+                  {/* Targeting indicator */}
+                  {displayInfo.needsTarget && !shouldDisable && (
+                    <Target className="absolute -top-1 -right-1 w-4 h-4 bg-white text-purple-500 rounded-full p-0.5" />
+                  )}
+                  
+                  {/* Status indicator for edge cases */}
+                  {shouldDisable && (
+                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-xs">
+                      ✓
+                    </div>
+                  )}
+
+                  {/* Tooltip */}
+                  <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap max-w-48 text-center">
+                    <div className="font-medium">{displayInfo.name}</div>
+                    {extra.id === 'restorePoints' && (
+                      <div className="text-xs text-gray-300">{restorablePoints} available</div>
+                    )}
+                    {displayInfo.needsTarget && !shouldDisable && (
+                      <div className="text-xs text-gray-300">Click to target</div>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
 
 const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
   leaderboard,
@@ -28,17 +190,30 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
   isRoundResults = false,
   currentRound
 }) => {
-  // ✅ NEW: Celebration state
+  // ✅ EXISTING: Celebration state
   const [showConfetti, setShowConfetti] = useState(false);
   const [showWinnerBadge, setShowWinnerBadge] = useState(false);
   const [celebrationPhase, setCelebrationPhase] = useState(0);
 
-  // ✅ NEW: Check if current player won this round
+  // ✅ EXISTING: Check if current player won this round
   const currentPlayerPosition = leaderboard.findIndex(p => p.id === currentPlayerId);
   const isRoundWinner = isRoundResults && currentPlayerPosition === 0;
   const isTopThree = currentPlayerPosition >= 0 && currentPlayerPosition <= 2;
 
-  // ✅ NEW: Celebration effects for round results
+  // ✅ NEW: Leaderboard display logic - Top 10 + Current Player
+  const displayedLeaderboard = useMemo(() => {
+    const top10 = leaderboard.slice(0, 10);
+    
+    // If current player is not in top 10, add them at the end
+    if (currentPlayerPosition >= 10) {
+      const currentPlayer = leaderboard[currentPlayerPosition];
+      return [...top10, currentPlayer];
+    }
+    
+    return top10;
+  }, [leaderboard, currentPlayerPosition]);
+
+  // ✅ EXISTING: Celebration effects for round results
   useEffect(() => {
     if (!isRoundResults) return;
     
@@ -69,7 +244,7 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
     }
   }, [isRoundResults, isRoundWinner, isTopThree]);
 
-  // ✅ NEW: Confetti animation component
+  // ✅ EXISTING: Confetti animation component
   const ConfettiOverlay = () => (
     <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
       {Array.from({ length: 50 }).map((_, i) => (
@@ -89,7 +264,7 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
     </div>
   );
 
-  // ✅ NEW: Winner badge animation
+  // ✅ EXISTING: Winner badge animation
   const WinnerBadge = () => (
     <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-40">
       <div className={`transform transition-all duration-1000 ${
@@ -109,9 +284,22 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
 
   return (
     <div className="relative">
-      {/* ✅ NEW: Celebration effects */}
+      {/* ✅ EXISTING: Celebration effects */}
       {showConfetti && <ConfettiOverlay />}
       {showWinnerBadge && isRoundWinner && <WinnerBadge />}
+
+      {/* ✅ NEW: Floating Extras Bar (only show during round results) */}
+      {isRoundResults && (
+        <FloatingExtrasBar
+          availableExtras={availableExtras}
+          usedExtras={usedExtras}
+          onUseExtra={onUseExtra}
+          leaderboard={leaderboard}
+          currentPlayerId={currentPlayerId}
+          cumulativeNegativePoints={cumulativeNegativePoints}
+          pointsRestored={pointsRestored}
+        />
+      )}
 
       <div className={`bg-white rounded-xl shadow-lg border-2 overflow-hidden transition-all duration-500 ${
         isRoundResults 
@@ -119,7 +307,7 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
           : 'border-green-200'
       }`}>
         
-        {/* ✅ ENHANCED: Header with round context */}
+        {/* ✅ EXISTING: Header with round context */}
         <div className={`p-6 border-b ${
           isRoundResults 
             ? 'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200' 
@@ -151,7 +339,7 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
               }
             </p>
             
-            {/* ✅ NEW: Round winner announcement */}
+            {/* ✅ EXISTING: Round winner announcement */}
             {isRoundResults && leaderboard.length > 0 && (
               <div className="mt-3 p-3 bg-white/70 rounded-lg">
                 <div className="flex items-center justify-center space-x-2">
@@ -166,119 +354,131 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
           </div>
         </div>
 
-        {/* Leaderboard */}
+        {/* ✅ EXISTING: Leaderboard */}
         <div className="p-6">
           <div className="space-y-3">
-            {leaderboard.map((entry, idx) => {
+            {displayedLeaderboard.map((entry: LeaderboardEntry, displayIdx: number) => {
               const isCurrentPlayer = entry.id === currentPlayerId;
-              const isWinner = idx === 0;
+              const actualPosition = leaderboard.findIndex(p => p.id === entry.id);
+              const isWinner = actualPosition === 0;
+              const isCurrentPlayerOutsideTop10 = currentPlayerPosition >= 10 && isCurrentPlayer;
               
               return (
-                <div
-                  key={entry.id}
-                  className={`flex items-center justify-between p-4 rounded-lg border-2 transition-all duration-200 ${
-                    isCurrentPlayer 
-                      ? isRoundResults && isWinner
-                        ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-300 shadow-lg ring-2 ring-yellow-200' 
-                        : 'bg-blue-50 border-blue-300 shadow-md ring-2 ring-blue-200'
-                      : isRoundResults && isWinner
-                        ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200 shadow-md'
-                        : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                  } ${
-                    isRoundResults && idx <= 2 ? 'transform hover:scale-102' : ''
-                  }`}
-                >
-                  <div className="flex items-center space-x-4">
-                    {/* ✅ ENHANCED: Position Badge with better styling for round results */}
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold relative ${
-                      idx === 0 ? 'bg-yellow-100 text-yellow-800 shadow-md' :
-                      idx === 1 ? 'bg-gray-100 text-gray-800 shadow-md' :
-                      idx === 2 ? 'bg-orange-100 text-orange-800 shadow-md' :
-                      'bg-blue-100 text-blue-800'
+                <div key={entry.id}>
+                  {/* ✅ NEW: Separator for current player if outside top 10 */}
+                  {isCurrentPlayerOutsideTop10 && displayIdx === displayedLeaderboard.length - 1 && (
+                    <div className="flex items-center my-4">
+                      <div className="flex-1 border-t border-gray-300"></div>
+                      <span className="px-3 text-sm text-gray-500 bg-white">Your Position</span>
+                      <div className="flex-1 border-t border-gray-300"></div>
+                    </div>
+                  )}
+                  
+                  <div
+                    className={`flex items-center justify-between p-4 rounded-lg border-2 transition-all duration-200 ${
+                      isCurrentPlayer 
+                        ? isRoundResults && isWinner
+                          ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-300 shadow-lg ring-2 ring-yellow-200' 
+                          : 'bg-blue-50 border-blue-300 shadow-md ring-2 ring-blue-200'
+                        : isRoundResults && isWinner
+                          ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200 shadow-md'
+                          : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
                     } ${
-                      isRoundResults && idx <= 2 ? 'ring-2 ring-offset-1 ' + 
-                        (idx === 0 ? 'ring-yellow-300' : idx === 1 ? 'ring-gray-300' : 'ring-orange-300') 
-                        : ''
-                    }`}>
-                      {idx + 1}
-                      {/* ✅ NEW: Sparkle effect for round winners */}
-                      {isRoundResults && idx === 0 && (
-                        <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-yellow-500 animate-pulse" />
-                      )}
+                      isRoundResults && actualPosition <= 2 ? 'transform hover:scale-102' : ''
+                    }`}
+                  >
+                    <div className="flex items-center space-x-4">
+                      {/* ✅ UPDATED: Position Badge using actual position */}
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold relative ${
+                        actualPosition === 0 ? 'bg-yellow-100 text-yellow-800 shadow-md' :
+                        actualPosition === 1 ? 'bg-gray-100 text-gray-800 shadow-md' :
+                        actualPosition === 2 ? 'bg-orange-100 text-orange-800 shadow-md' :
+                        'bg-blue-100 text-blue-800'
+                      } ${
+                        isRoundResults && actualPosition <= 2 ? 'ring-2 ring-offset-1 ' + 
+                          (actualPosition === 0 ? 'ring-yellow-300' : actualPosition === 1 ? 'ring-gray-300' : 'ring-orange-300') 
+                          : ''
+                      }`}>
+                        {actualPosition + 1}
+                        {/* ✅ EXISTING: Sparkle effect for round winners */}
+                        {isRoundResults && actualPosition === 0 && (
+                          <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-yellow-500 animate-pulse" />
+                        )}
+                      </div>
+
+                      {/* ✅ EXISTING: Player Name */}
+                      <div className="flex items-center space-x-2">
+                        <span className={`font-semibold ${
+                          isCurrentPlayer 
+                            ? isRoundResults && isWinner 
+                              ? 'text-yellow-900' 
+                              : 'text-blue-900'
+                            : 'text-gray-800'
+                        }`}>
+                          {entry.name}
+                        </span>
+                        
+                        {/* ✅ EXISTING: Position Icons with round context */}
+                        {actualPosition === 0 && (
+                          <div className="flex items-center space-x-1">
+                            <Crown className={`w-5 h-5 ${
+                              isRoundResults ? 'text-yellow-500 animate-pulse' : 'text-yellow-600'
+                            }`} />
+                            {isRoundResults && (
+                              <Star className="w-4 h-4 text-yellow-500" />
+                            )}
+                          </div>
+                        )}
+                        {actualPosition === 1 && <Medal className="w-5 h-5 text-gray-600" />}
+                        {actualPosition === 2 && <Award className="w-5 h-5 text-orange-600" />}
+                        
+                        {/* ✅ EXISTING: Current Player Indicator */}
+                        {isCurrentPlayer && (
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            isRoundResults && isWinner
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            You
+                          </span>
+                        )}
+
+                        {/* ✅ EXISTING: Round winner badge */}
+                        {isRoundResults && actualPosition === 0 && (
+                          <span className="px-2 py-1 bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-800 rounded-full text-xs font-bold border border-yellow-300">
+                            Round Winner! 🎉
+                          </span>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Player Name */}
-                    <div className="flex items-center space-x-2">
-                      <span className={`font-semibold ${
+                    {/* ✅ EXISTING: Score */}
+                    <div className="text-right">
+                      <div className={`text-lg font-bold ${
                         isCurrentPlayer 
                           ? isRoundResults && isWinner 
                             ? 'text-yellow-900' 
                             : 'text-blue-900'
                           : 'text-gray-800'
                       }`}>
-                        {entry.name}
-                      </span>
-                      
-                      {/* ✅ ENHANCED: Position Icons with round context */}
-                      {idx === 0 && (
-                        <div className="flex items-center space-x-1">
-                          <Crown className={`w-5 h-5 ${
-                            isRoundResults ? 'text-yellow-500 animate-pulse' : 'text-yellow-600'
-                          }`} />
-                          {isRoundResults && (
-                            <Star className="w-4 h-4 text-yellow-500" />
-                          )}
+                        {entry.score} pts
+                      </div>
+                      {isCurrentPlayer && (cumulativeNegativePoints > 0 || pointsRestored > 0) && (
+                        <div className={`text-xs ${
+                          isRoundResults ? 'text-purple-600' : 'text-blue-600'
+                        }`}>
+                          {cumulativeNegativePoints > 0 && <div>Lost: -{cumulativeNegativePoints}</div>}
+                          {pointsRestored > 0 && <div>Restored: +{pointsRestored}</div>}
                         </div>
                       )}
-                      {idx === 1 && <Medal className="w-5 h-5 text-gray-600" />}
-                      {idx === 2 && <Award className="w-5 h-5 text-orange-600" />}
-                      
-                      {/* Current Player Indicator */}
-                      {isCurrentPlayer && (
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          isRoundResults && isWinner
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          You
-                        </span>
-                      )}
-
-                      {/* ✅ NEW: Round winner badge */}
-                      {isRoundResults && idx === 0 && (
-                        <span className="px-2 py-1 bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-800 rounded-full text-xs font-bold border border-yellow-300">
-                          Round Winner! 🎉
-                        </span>
-                      )}
                     </div>
-                  </div>
-
-                  {/* Score */}
-                  <div className="text-right">
-                    <div className={`text-lg font-bold ${
-                      isCurrentPlayer 
-                        ? isRoundResults && isWinner 
-                          ? 'text-yellow-900' 
-                          : 'text-blue-900'
-                        : 'text-gray-800'
-                    }`}>
-                      {entry.score} pts
-                    </div>
-                    {isCurrentPlayer && (cumulativeNegativePoints > 0 || pointsRestored > 0) && (
-                      <div className={`text-xs ${
-                        isRoundResults ? 'text-purple-600' : 'text-blue-600'
-                      }`}>
-                        {cumulativeNegativePoints > 0 && <div>Lost: -{cumulativeNegativePoints}</div>}
-                        {pointsRestored > 0 && <div>Restored: +{pointsRestored}</div>}
-                      </div>
-                    )}
                   </div>
                 </div>
               );
             })}
           </div>
 
-          {/* ✅ ENHANCED: Position Summary with round context */}
+          {/* ✅ ENHANCED: Position Summary with better messaging for top 10 display */}
           {leaderboard.length > 0 && (
             <div className={`mt-6 p-4 rounded-lg border ${
               isRoundResults 
@@ -311,7 +511,19 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
                   }`}> out of {leaderboard.length}</span>
                 </div>
                 
-                {/* ✅ NEW: Different messages for round vs overall */}
+                {/* ✅ NEW: Show if displaying limited view */}
+                {leaderboard.length > 10 && (
+                  <div className={`text-xs mt-1 ${
+                    isRoundResults ? 'text-purple-600' : 'text-blue-600'
+                  }`}>
+                    {currentPlayerPosition >= 10 
+                      ? 'Showing top 10 + your position'
+                      : 'Showing top 10 players'
+                    }
+                  </div>
+                )}
+                
+                {/* ✅ EXISTING: Different messages for round vs overall */}
                 {isRoundResults ? (
                   currentPlayerPosition === 0 ? (
                     <div className="text-sm text-yellow-700 mt-1 flex items-center justify-center space-x-1">
@@ -341,21 +553,6 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
             </div>
           )}
         </div>
-
-        {/* ✅ CONDITIONAL: Only show Global Extras for overall leaderboard */}
-        {!isRoundResults && (
-          <div className="border-t border-gray-200 p-6 bg-gray-50">
-            <GlobalExtrasDuringLeaderboard
-              availableExtras={availableExtras}
-              usedExtras={usedExtras}
-              onUseExtra={onUseExtra}
-              leaderboard={leaderboard}
-              currentPlayerId={currentPlayerId}
-              cumulativeNegativePoints={cumulativeNegativePoints}
-              pointsRestored={pointsRestored}
-            />
-          </div>
-        )}
       </div>
     </div>
   );

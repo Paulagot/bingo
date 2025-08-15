@@ -1,9 +1,9 @@
-// server/quiz/handlers/globalExtrasHandler.js - FIXED VERSION
+// server/quiz/handlers/globalExtrasHandler.js
 
 import { getQuizRoom } from '../quizRoomManager.js';
 import { fundraisingExtraDefinitions } from './../quizMetadata.js';
 
-const debug = false;
+const debug = true;
 
 // ✅ NEW: Send host activity notification
 function sendHostActivityNotification(namespace, roomId, activityData) {
@@ -275,7 +275,7 @@ function executeRobPoints(roomId, playerId, targetPlayerId, namespace) {
     round: room.currentRound
   });
 
-  // ✅ Generate updated leaderboard (sorted by score descending)
+  // ✅ FIXED: Generate updated leaderboard data but don't auto-switch display
   const updatedLeaderboard = Object.keys(room.playerData)
     .map(pid => {
       const pData = room.playerData[pid];
@@ -290,8 +290,31 @@ function executeRobPoints(roomId, playerId, targetPlayerId, namespace) {
     })
     .sort((a, b) => b.score - a.score);
 
-  // ✅ Emit updated leaderboard to all players
-  namespace.to(roomId).emit('leaderboard', updatedLeaderboard);
+  // ✅ FIXED: Check what's currently being displayed and update accordingly
+  // If showing round results, update round leaderboard. If showing overall, update overall.
+  // DON'T force a transition between them.
+  
+  if (room.currentRoundResults) {
+    // Currently showing round results - update round leaderboard
+    room.currentRoundResults = updatedLeaderboard;
+    namespace.to(roomId).emit('round_leaderboard', updatedLeaderboard);
+    if (debug) console.log(`[RobPoints] 📊 Updated round leaderboard with new scores`);
+  } else if (room.currentOverallLeaderboard) {
+    // Currently showing overall leaderboard - update overall leaderboard
+    room.currentOverallLeaderboard = updatedLeaderboard;
+    namespace.to(roomId).emit('leaderboard', updatedLeaderboard);
+    if (debug) console.log(`[RobPoints] 📊 Updated overall leaderboard with new scores`);
+  } else {
+    // ✅ FALLBACK: We're in leaderboard phase but don't know which view is active
+    // Since global extras only work during leaderboard phase, assume round results
+    if (room.currentPhase === 'leaderboard') {
+      room.currentRoundResults = updatedLeaderboard;
+      namespace.to(roomId).emit('round_leaderboard', updatedLeaderboard);
+      if (debug) console.log(`[RobPoints] 📊 Updated round leaderboard (fallback) with new scores`);
+    } else {
+      if (debug) console.log(`[RobPoints] 📊 Data updated but no leaderboard display change (not in leaderboard phase)`);
+    }
+  }
 
   // ✅ Send success notification to robbing player
   if (player?.socketId) {
@@ -310,14 +333,13 @@ function executeRobPoints(roomId, playerId, targetPlayerId, namespace) {
     if (targetSocket) {
       targetSocket.emit('quiz_notification', {
         type: 'warning',
-        message: `${playerName} stole ${pointsToRob} points from you! ⚡`
+        message: `RobinHood stole ${pointsToRob} points from you! ⚡`
       });
     }
   }
 
   if (debug) {
     console.log(`[RobPoints] ✅ robPoints completed: ${playerName} stole ${pointsToRob} points from ${targetName}`);
-    console.log(`[RobPoints] 📊 Updated leaderboard emitted with ${updatedLeaderboard.length} players`);
   }
 
   return { success: true };
@@ -380,7 +402,7 @@ function executeRestorePoints(roomId, playerId, namespace) {
     round: room.currentRound
   });
 
-  // ✅ Generate updated leaderboard (sorted by score descending)
+  // ✅ FIXED: Generate updated leaderboard data but don't auto-switch display
   const updatedLeaderboard = Object.keys(room.playerData)
     .map(pid => {
       const pData = room.playerData[pid];
@@ -395,8 +417,31 @@ function executeRestorePoints(roomId, playerId, namespace) {
     })
     .sort((a, b) => b.score - a.score);
 
-  // ✅ Emit updated leaderboard to all players
-  namespace.to(roomId).emit('leaderboard', updatedLeaderboard);
+  // ✅ FIXED: Check what's currently being displayed and update accordingly
+  // If showing round results, update round leaderboard. If showing overall, update overall.
+  // DON'T force a transition between them.
+  
+  if (room.currentRoundResults) {
+    // Currently showing round results - update round leaderboard
+    room.currentRoundResults = updatedLeaderboard;
+    namespace.to(roomId).emit('round_leaderboard', updatedLeaderboard);
+    if (debug) console.log(`[RestorePoints] 📊 Updated round leaderboard with new scores`);
+  } else if (room.currentOverallLeaderboard) {
+    // Currently showing overall leaderboard - update overall leaderboard
+    room.currentOverallLeaderboard = updatedLeaderboard;
+    namespace.to(roomId).emit('leaderboard', updatedLeaderboard);
+    if (debug) console.log(`[RestorePoints] 📊 Updated overall leaderboard with new scores`);
+  } else {
+    // ✅ FALLBACK: We're in leaderboard phase but don't know which view is active
+    // Since global extras only work during leaderboard phase, assume round results
+    if (room.currentPhase === 'leaderboard') {
+      room.currentRoundResults = updatedLeaderboard;
+      namespace.to(roomId).emit('round_leaderboard', updatedLeaderboard);
+      if (debug) console.log(`[RestorePoints] 📊 Updated round leaderboard (fallback) with new scores`);
+    } else {
+      if (debug) console.log(`[RestorePoints] 📊 Data updated but no leaderboard display change (not in leaderboard phase)`);
+    }
+  }
 
   // ✅ Send success notification to player
   if (player?.socketId) {
@@ -411,12 +456,12 @@ function executeRestorePoints(roomId, playerId, namespace) {
 
   if (debug) {
     console.log(`[RestorePoints] ✅ restorePoints completed: ${playerName} restored ${pointsToRestore} points`);
-    console.log(`[RestorePoints] 📊 Updated leaderboard emitted with ${updatedLeaderboard.length} players`);
   }
 
   // ✅ RETURN the points restored for tracking
   return { success: true, pointsRestored: pointsToRestore };
 }
+
 
 // ✅ NEW: Export function to get current round stats for final calculation
 export function getCurrentRoundStats(roomId) {

@@ -1,6 +1,6 @@
 // src/constants/quiztypeconstants.ts
 
-import type { RoundTypeDefinition, RoundTypeId, RoundConfig } from '../components/Quiz/types/quiz';
+import type { RoundTypeDefinition, RoundTypeId, RoundConfig } from '../types/quiz';
 
 export const roundTypes: RoundTypeDefinition[] = [
   {

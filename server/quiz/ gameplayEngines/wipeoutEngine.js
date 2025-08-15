@@ -11,7 +11,7 @@ import {
 } from '../quizRoomManager.js';
 
 let timers = {}; // per-room timer refs
-const debug = false;
+const debug = true;
 
 // ✅ NEW: Send host activity notification
 function sendHostActivityNotification(namespace, roomId, activityData) {
@@ -127,30 +127,54 @@ export function initRound(roomId, namespace) {
 
   const roundConfig = room.config.roundDefinitions[room.currentRound - 1];
   const roundType = roundConfig.roundType;
-  const desiredDifficulty = roundConfig.difficulty || 'medium';
-  const desiredCategory = roundConfig.category || null;
-
-  let questions = loadQuestionsForRoundType(roundType);
-
-  // ✅ Filter by difficulty and optional category
-  questions = questions.filter((q) => {
-    const matchesDifficulty = q.difficulty?.toLowerCase() === desiredDifficulty.toLowerCase();
-    const matchesCategory = !desiredCategory || q.category?.toLowerCase() === desiredCategory.toLowerCase();
-    return matchesDifficulty && matchesCategory;
-  });
-
   const questionsPerRound = roundConfig.config?.questionsPerRound || 6;
+  
+  // ✅ NEW: Extract category and difficulty from round config
+  const desiredDifficulty = roundConfig.difficulty;
+  const desiredCategory = roundConfig.category;
+
+  if (debug) {
+    console.log(`[wipeoutEngine] 🔍 Loading questions for round ${room.currentRound}`);
+    console.log(`[wipeoutEngine] 📋 Type: ${roundType}, Category: ${desiredCategory}, Difficulty: ${desiredDifficulty}`);
+    console.log(`[wipeoutEngine] 🎯 Need: ${questionsPerRound} questions`);
+  }
+
+  // ✅ NEW: Load questions WITH filtering parameters
+  let questions = loadQuestionsForRoundType(roundType, desiredCategory, desiredDifficulty, questionsPerRound);
+
+  // ✅ FALLBACK: If not enough questions with strict filtering, try just difficulty
+  if (questions.length < questionsPerRound) {
+    console.warn(`[wipeoutEngine] ⚠️ Only found ${questions.length} questions for category="${desiredCategory}", difficulty="${desiredDifficulty}". Trying difficulty-only filter.`);
+    questions = loadQuestionsForRoundType(roundType, null, desiredDifficulty, questionsPerRound);
+  }
+
+  // ✅ FINAL FALLBACK: Use all questions unfiltered if still not enough
+  if (questions.length < questionsPerRound) {
+    console.warn(`[wipeoutEngine] ⚠️ Still not enough questions (${questions.length}). Using unfiltered questions as last resort.`);
+    questions = loadQuestionsForRoundType(roundType);
+  }
 
   // ✅ Shuffle and slice
   questions = shuffleArray(questions).slice(0, questionsPerRound);
 
-  if (debug) console.log(`[wipeoutEngine] 🔎 Loaded ${questions.length} questions for ${roundType} (difficulty=${desiredDifficulty}, category=${desiredCategory})`);
- if (debug)  console.log(`[wipeoutEngine] 🧠 Final difficulties:`, questions.map(q => q.difficulty));
+  if (debug) {
+    console.log(`[wipeoutEngine] ✅ Selected ${questions.length} questions for round ${room.currentRound}`);
+    
+    // ✅ NEW: Log what we actually got
+    const actualBreakdown = questions.reduce((acc, q) => {
+      const cat = q.category || 'unknown';
+      const diff = q.difficulty || 'unknown';
+      const key = `${cat}/${diff}`;
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+    console.log(`[wipeoutEngine] 📊 Selected question breakdown:`, actualBreakdown);
+  }
 
   setQuestionsForCurrentRound(roomId, questions);
   resetRoundExtrasTracking(roomId);
   
-  // ✅ NEW: Reset round stats tracking
+  // Reset round stats tracking
   Object.values(room.playerData).forEach(playerData => {
     playerData.usedExtrasThisRound = {};
   });
@@ -158,7 +182,7 @@ export function initRound(roomId, namespace) {
   room.currentQuestionIndex = -1;
   room.currentPhase = 'asking';
   
-  // ✅ NEW: Send initial round stats to host
+  // Send initial round stats to host
   calculateAndSendRoundStats(roomId, namespace);
   
   startNextQuestion(roomId, namespace);
