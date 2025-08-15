@@ -47,7 +47,7 @@ export const roundTypeDefinitions = {
     description: 'Lose points for wrong answers, questions range from easy to hard. Hints, Freeze out and Restore points fundraising extras.',
     gameplay: ' Host reads questions → teams see question & answers → automatically serves host and players next question after 18s → Host controlled review of questions with answers → Host presents Leaderboard (correct answers = 2 point, wrong answers = -2 point)',
     pros: ['Strategic', 'High tension', 'Risk vs reward'],
-    timing: '18 seconds per question',
+    timing: '20 seconds per question',
     difficulty: 'Easy',
     bestFor: 'Mixed groups, competitive play, family events',
     defaultConfig: { questionsPerRound: 8, timePerQuestion: 20 },

@@ -138,7 +138,7 @@ const StepPrizes: FC<WizardStepProps> = ({ onNext, onBack }) => {
     <div className="space-y-4 md:space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-lg md:text-xl font-semibold text-indigo-800">
-          Step 6 of 8: Prizes Setup
+          Step 4 of 4: Prizes Setup
         </h2>
         <div className="text-xs md:text-sm text-gray-600">Configure manual prize distribution</div>
       </div>

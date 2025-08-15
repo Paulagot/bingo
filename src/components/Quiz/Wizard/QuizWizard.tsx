@@ -1,13 +1,17 @@
 // src/components/Quiz/Wizard/QuizWizard.tsx
 import { useState } from 'react';
-import StepHostInfo from './StepHostInfo';
+
 import StepAddRounds from './StepAddRounds';
 import StepFundraisingOptions from './StepFundraisingOptions';
-import StepPaymentMethod from './StepPaymentMethod';
+
 import StepReviewLaunch from './StepReviewLaunch';
 import StepPrizes from './StepPrizes';
-import StepScheduleEvent from './StepScheduleEvent';
+
 import StepConfigureRounds from './StepConfigureRounds';
+import StepQuizSetup from './StepQuizSetup';
+
+import StepCombinedRounds from './StepCombinedRounds';
+
 
 
 interface QuizWizardProps {
@@ -15,14 +19,12 @@ interface QuizWizardProps {
 }
 
 const steps = [
-  'host',
-  'payment',
-  'type',
-   'configure',
+  'setup', 
+    'rounds',
+   
   'fundraising',
   'stepPrizes',
-  'schedule',
-  'review',
+    'review',
 ] as const;
 
 export default function QuizWizard({ onComplete }: QuizWizardProps) {
@@ -46,20 +48,17 @@ export default function QuizWizard({ onComplete }: QuizWizardProps) {
 
   const renderStep = () => {
     switch (currentStep) {
-      case 'host':
-        return <StepHostInfo onNext={goNext} />;
-      case 'payment':
-        return <StepPaymentMethod onNext={goNext} onBack={goBack} />;
-      case 'type':
-        return <StepAddRounds onNext={goNext} onBack={goBack} />;
-        case 'configure':
-      return <StepConfigureRounds onNext={goNext} onBack={goBack} />;
+      case 'setup':
+        return <StepQuizSetup onNext={goNext} />;
+      
+      case 'rounds':
+        return <StepCombinedRounds onNext={goNext} onBack={goBack} />;
+      
       case 'fundraising':
         return <StepFundraisingOptions onNext={goNext} onBack={goBack} />;
       case 'stepPrizes':
         return <StepPrizes onNext={goNext} onBack={goBack} />;
-      case 'schedule':
-        return <StepScheduleEvent onNext={goNext} onBack={goBack} />;
+     
       case 'review':
         return <StepReviewLaunch onNext={goNext} onBack={goBack} />;
       default:
@@ -71,9 +70,7 @@ export default function QuizWizard({ onComplete }: QuizWizardProps) {
     <div className="max-w-3xl mx-auto px-4 py-10">
       <div className="mb-6 text-center">
         <h1 className="text-2xl font-bold text-indigo-800">Create Your Fundraising Quiz</h1>
-        <p className="text-sm text-gray-600 mt-2">
-          Step {currentStepIndex + 1} of {steps.length}
-        </p>
+        
       </div>
 
       <div className="bg-white rounded-xl shadow-lg p-6">{renderStep()}</div>

@@ -317,7 +317,7 @@ const StepConfigureRounds: React.FC<StepConfigureRoundsProps> = ({ onNext, onBac
     <div className="space-y-4 md:space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-lg md:text-xl font-semibold text-indigo-800">
-          Step 4 of 8: Configure Rounds
+          Step 3 of 5: Configure Rounds
         </h2>
         <div className="text-xs md:text-sm text-gray-600">
           Choose category and difficulty for each round

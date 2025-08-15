@@ -1,27 +1,23 @@
 // src/components/Quiz/Wizard/QuizWeb3Wizard.tsx
 import { useState } from 'react';
-import StepHostInfo from './StepHostInfo';
 import StepAddRounds from './StepAddRounds';
 import StepFundraisingOptions from './StepFundraisingOptions';
-import StepWeb3PaymentMethod from './StepWeb3PaymentMethod';
 import StepWeb3Prizes from './StepWeb3Prizes';
 import StepReviewLaunch from './StepReviewLaunch';
-import StepScheduleEvent from './StepScheduleEvent';
 import StepConfigureRounds from './StepConfigureRounds';
+import StepQuizSetup from './StepQuizSetup';
 
 interface QuizWizardProps {
   onComplete?: () => void;
 }
 
 const steps = [
-  'host',
-  'payment',
-  'type',
-  'configure',
-  'fundraising',
-  'stepPrizes',
-  'schedule',
-  'review',
+  'setup',        // Combined: Host Info + Payment + Schedule
+  'type',         // Select round types
+  'configure',    // Configure round settings
+  'fundraising',  // Fundraising options
+  'stepPrizes',   // Web3 prizes
+  'review',       // Final review
 ] as const;
 
 export default function QuizWeb3Wizard({ onComplete }: QuizWizardProps) {
@@ -45,20 +41,16 @@ export default function QuizWeb3Wizard({ onComplete }: QuizWizardProps) {
 
   const renderStep = () => {
     switch (currentStep) {
-      case 'host':
-        return <StepHostInfo onNext={goNext} />;
-      case 'payment':
-        return <StepWeb3PaymentMethod onNext={goNext} onBack={goBack} />;
+      case 'setup':
+        return <StepQuizSetup onNext={goNext} />;
       case 'type':
         return <StepAddRounds onNext={goNext} onBack={goBack} />;
-          case 'configure':
-      return <StepConfigureRounds onNext={goNext} onBack={goBack} />;
+      case 'configure':
+        return <StepConfigureRounds onNext={goNext} onBack={goBack} />;
       case 'fundraising':
         return <StepFundraisingOptions onNext={goNext} onBack={goBack} />;
       case 'stepPrizes':
         return <StepWeb3Prizes onNext={goNext} onBack={goBack} />;
-      case 'schedule':
-        return <StepScheduleEvent onNext={goNext} onBack={goBack} />;
       case 'review':
         return <StepReviewLaunch onNext={goNext} onBack={goBack} />;
       default:

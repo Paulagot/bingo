@@ -62,7 +62,7 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     description: 'Multiple choice trivia game. Points awarded for correct answers. Points deducted for wrong answers or no answer. Hints, Freeze out and Restore points are available as fundraising extras.',
     gameplay: ' Host reads questions → teams see question & answers → automatically serves host and players next question after 18s → Host controlled review of questions with answers → Host presents Leaderboard (correct answers = 2 point, wrong answers = -2 point)',
     pros: ['Strategic', 'High tension', 'Risk vs reward'],
-    timing: '18 seconds per question',
+    timing: '20 seconds per question',
     difficulty: 'Easy',
     bestFor: 'Mixed groups, competitive play, family events',
     defaultConfig:   {
