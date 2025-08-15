@@ -13,6 +13,7 @@ import {
 import { WizardStepProps } from './WizardStepProps'; // Import the interface
 import { useQuizSetupStore } from '../hooks/useQuizSetupStore'; // Import the store hook
 
+
 const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext }) => {
   const { setupConfig, updateSetupConfig } = useQuizSetupStore();
   // State for all fields - Initialize from store if available
@@ -108,22 +109,22 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext }) => {
   };
 
   const allSectionsComplete = Object.values(completedSections).every(Boolean);
-  const completedCount = Object.values(completedSections).filter(Boolean).length;
 
   return (
-    <div className="max-w-4xl mx-auto p-4 space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-indigo-800">Step 1 of 4: Quiz Setup</h2>
+    <div className="w-full px-3 sm:px-4 md:px-6 space-y-4 sm:space-y-6 pb-4">
+      {/* Header - More compact on mobile */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <h2 className="text-lg sm:text-xl font-semibold text-indigo-800">Step 1 of 4: Quiz Setup</h2>
         <div className="text-sm text-gray-600">Configure your quiz</div>
       </div>
 
-      {/* Character Guide */}
-      <div className="flex items-start space-x-4 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-200">
-        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-2xl">
+      {/* Character Guide - Simplified for mobile */}
+      <div className="flex items-start gap-3 p-3 sm:p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg sm:rounded-xl border border-indigo-200">
+        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-xl sm:text-2xl">
           {allSectionsComplete ? '🎯' : '👋'}
         </div>
-        <div className="flex-1">
-          <p className="text-gray-700">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm sm:text-base text-gray-700">
             {allSectionsComplete 
               ? "🎉 Perfect! Your quiz is fully configured and ready to launch!" 
               : "Hi there! Let's set up your quiz together. Fill in your host name, entry fee, and event schedule below to get started."}
@@ -131,25 +132,25 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext }) => {
         </div>
       </div>
 
-      {/* Section 1: Host Information */}
-      <div className={`bg-white border-2 rounded-xl p-6 shadow-sm transition-all ${
+      {/* Section 1: Host Information - Compact mobile layout */}
+      <div className={`bg-white border-2 rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm transition-all ${
         completedSections.host ? 'border-green-300 bg-green-50' : 'border-gray-200'
       }`}>
-        <div className="flex items-center space-x-3 mb-4">
-          <div className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl bg-blue-100">
+        <div className="flex items-start gap-3 mb-3 sm:mb-4">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center text-xl sm:text-2xl bg-blue-100 flex-shrink-0">
             👤
           </div>
-          <div className="flex-1">
-            <div className="flex items-center space-x-2">
-              <h3 className="font-semibold text-gray-900 text-lg">Host Information</h3>
-              {completedSections.host && <Check className="w-5 h-5 text-green-600" />}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-semibold text-gray-900 text-base sm:text-lg">Host Information</h3>
+              {completedSections.host && <Check className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />}
             </div>
-            <p className="text-sm text-gray-600">Choose how you want to appear to participants</p>
+            <p className="text-xs sm:text-sm text-gray-600">Choose how you want to appear to participants</p>
           </div>
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700 flex items-center space-x-2">
+          <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
             <Users className="w-4 h-4" />
             <span>Host Display Name <span className="text-red-500">*</span></span>
           </label>
@@ -162,15 +163,15 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext }) => {
                 setError('');
               }}
               placeholder="e.g., Quiz Master Sarah, The Pub Quiz"
-              className={`w-full px-4 py-3 pr-16 border-2 rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none transition ${
+              className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 pr-12 sm:pr-16 border-2 rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none transition text-sm sm:text-base ${
                 completedSections.host 
                   ? 'border-green-300 bg-green-50 focus:border-green-500' 
                   : 'border-gray-200 focus:border-indigo-500'
               }`}
               maxLength={30}
             />
-            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
-              {completedSections.host && <Check className="w-4 h-4 text-green-600" />}
+            <div className="absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1 sm:gap-2">
+              {completedSections.host && <Check className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />}
               <span className="text-xs text-gray-400">{hostName.length}/30</span>
             </div>
           </div>
@@ -180,33 +181,33 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext }) => {
         </div>
       </div>
 
-      {/* Section 2: Entry Fee */}
-      <div className={`bg-white border-2 rounded-xl p-6 shadow-sm transition-all ${
+      {/* Section 2: Entry Fee - Stacked layout for mobile */}
+      <div className={`bg-white border-2 rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm transition-all ${
         completedSections.payment ? 'border-green-300 bg-green-50' : 'border-gray-200'
       }`}>
-        <div className="flex items-center space-x-3 mb-4">
-          <div className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl bg-green-100">
+        <div className="flex items-start gap-3 mb-3 sm:mb-4">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center text-xl sm:text-2xl bg-green-100 flex-shrink-0">
             💰
           </div>
-          <div className="flex-1">
-            <div className="flex items-center space-x-2">
-              <h3 className="font-semibold text-gray-900 text-lg">Entry Fee</h3>
-              {completedSections.payment && <Check className="w-5 h-5 text-green-600" />}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-semibold text-gray-900 text-base sm:text-lg">Entry Fee</h3>
+              {completedSections.payment && <Check className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />}
             </div>
-            <p className="text-sm text-gray-600">Set the cost per participant (collected manually)</p>
+            <p className="text-xs sm:text-sm text-gray-600">Set the cost per participant (collected manually)</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700 flex items-center space-x-2">
+            <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
               <Sparkles className="w-4 h-4" />
               <span>Currency</span>
             </label>
             <select
               value={currencySymbol}
               onChange={(e) => setCurrencySymbol(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
+              className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition text-sm sm:text-base"
             >
               {currencyOptions.map((opt) => (
                 <option key={opt.symbol} value={opt.symbol}>
@@ -217,12 +218,12 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext }) => {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700 flex items-center space-x-2">
+            <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
               <DollarSign className="w-4 h-4" />
               <span>Amount <span className="text-red-500">*</span></span>
             </label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
+              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium text-sm sm:text-base">
                 {currencySymbol}
               </span>
               <input
@@ -235,7 +236,7 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext }) => {
                   setError('');
                 }}
                 placeholder="5.00"
-                className={`w-full pl-8 pr-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none transition ${
+                className={`w-full pl-7 sm:pl-8 pr-3 sm:pr-4 py-2.5 sm:py-3 border-2 rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none transition text-sm sm:text-base ${
                   completedSections.payment 
                     ? 'border-green-300 bg-green-50 focus:border-green-500' 
                     : 'border-gray-200 focus:border-indigo-500'
@@ -245,33 +246,33 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext }) => {
           </div>
         </div>
 
-        <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <p className="text-sm text-blue-800">
+        <div className="mt-3 sm:mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <p className="text-xs sm:text-sm text-blue-800">
             <strong>Payment Collection:</strong> You'll collect entry fees manually from participants using cash or card when they arrive.
           </p>
         </div>
       </div>
 
-      {/* Section 3: Schedule */}
-      <div className={`bg-white border-2 rounded-xl p-6 shadow-sm transition-all ${
+      {/* Section 3: Schedule - Stacked layout for mobile */}
+      <div className={`bg-white border-2 rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm transition-all ${
         completedSections.schedule ? 'border-green-300 bg-green-50' : 'border-gray-200'
       }`}>
-        <div className="flex items-center space-x-3 mb-4">
-          <div className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl bg-purple-100">
+        <div className="flex items-start gap-3 mb-3 sm:mb-4">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center text-xl sm:text-2xl bg-purple-100 flex-shrink-0">
             📅
           </div>
-          <div className="flex-1">
-            <div className="flex items-center space-x-2">
-              <h3 className="font-semibold text-gray-900 text-lg">Event Schedule</h3>
-              {completedSections.schedule && <Check className="w-5 h-5 text-green-600" />}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-semibold text-gray-900 text-base sm:text-lg">Event Schedule</h3>
+              {completedSections.schedule && <Check className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />}
             </div>
-            <p className="text-sm text-gray-600">When will your quiz take place?</p>
+            <p className="text-xs sm:text-sm text-gray-600">When will your quiz take place?</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700 flex items-center space-x-2">
+            <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
               <Calendar className="w-4 h-4" />
               <span>Date <span className="text-red-500">*</span></span>
             </label>
@@ -283,7 +284,7 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext }) => {
                 setEventDate(e.target.value);
                 setError('');
               }}
-              className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none transition ${
+              className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none transition text-sm sm:text-base ${
                 eventDate 
                   ? 'border-green-300 bg-green-50 focus:border-green-500' 
                   : 'border-gray-200 focus:border-indigo-500'
@@ -292,7 +293,7 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext }) => {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700 flex items-center space-x-2">
+            <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
               <Clock className="w-4 h-4" />
               <span>Time <span className="text-red-500">*</span></span>
             </label>
@@ -304,7 +305,7 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext }) => {
                 setError('');
               }}
               disabled={!eventDate}
-              className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none transition ${
+              className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none transition text-sm sm:text-base ${
                 eventTime 
                   ? 'border-green-300 bg-green-50 focus:border-green-500' 
                   : 'border-gray-200 focus:border-indigo-500'
@@ -313,19 +314,19 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext }) => {
           </div>
         </div>
 
-        <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <p className="text-sm text-blue-800">
+        <div className="mt-3 sm:mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <p className="text-xs sm:text-sm text-blue-800">
             <strong>Timezone:</strong> {timeZone} - Participants will see times converted to their local timezone.
           </p>
         </div>
 
         {completedSections.schedule && (
-          <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
-            <div className="flex items-center space-x-2 mb-1">
+          <div className="mt-3 sm:mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
+            <div className="flex items-center gap-2 mb-1">
               <CheckCircle className="w-4 h-4 text-green-600" />
               <span className="text-sm font-medium text-green-800">Event Scheduled!</span>
             </div>
-            <div className="text-sm text-green-700">
+            <div className="text-xs sm:text-sm text-green-700">
               {eventDate && eventTime && (
                 <>
                   <p className="font-medium">
@@ -358,12 +359,12 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext }) => {
         </div>
       )}
 
-      {/* Navigation */}
-      <div className="flex justify-end pt-6 border-t border-gray-200">
+      {/* Navigation - Full width on mobile */}
+      <div className="pt-4 sm:pt-6 border-t border-gray-200">
         <button
           onClick={handleSubmit}
           disabled={!allSectionsComplete}
-          className="flex items-center space-x-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-xl transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+          className="w-full sm:w-auto sm:ml-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg sm:rounded-xl transition-all duration-200 shadow-sm hover:shadow-md font-medium text-sm sm:text-base"
         >
           <span>Continue Setup</span>
           <ChevronRight className="w-4 h-4" />

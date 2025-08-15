@@ -1,11 +1,12 @@
 // src/components/Quiz/Wizard/QuizWeb3Wizard.tsx
 import { useState } from 'react';
-import StepAddRounds from './StepAddRounds';
+
 import StepFundraisingOptions from './StepFundraisingOptions';
 import StepWeb3Prizes from './StepWeb3Prizes';
 import StepReviewLaunch from './StepReviewLaunch';
-import StepConfigureRounds from './StepConfigureRounds';
+
 import StepQuizSetup from './StepQuizSetup';
+import StepCombinedRounds from './StepCombinedRounds';
 
 interface QuizWizardProps {
   onComplete?: () => void;
@@ -13,8 +14,8 @@ interface QuizWizardProps {
 
 const steps = [
   'setup',        // Combined: Host Info + Payment + Schedule
-  'type',         // Select round types
-  'configure',    // Configure round settings
+  'rounds',         // Select round types
+ 
   'fundraising',  // Fundraising options
   'stepPrizes',   // Web3 prizes
   'review',       // Final review
@@ -43,10 +44,9 @@ export default function QuizWeb3Wizard({ onComplete }: QuizWizardProps) {
     switch (currentStep) {
       case 'setup':
         return <StepQuizSetup onNext={goNext} />;
-      case 'type':
-        return <StepAddRounds onNext={goNext} onBack={goBack} />;
-      case 'configure':
-        return <StepConfigureRounds onNext={goNext} onBack={goBack} />;
+      case 'rounds':
+        return <StepCombinedRounds onNext={goNext} onBack={goBack} />;
+    
       case 'fundraising':
         return <StepFundraisingOptions onNext={goNext} onBack={goBack} />;
       case 'stepPrizes':

@@ -26,7 +26,7 @@ const ordinal = (n: number) => {
 
 const Character = ({ expression, message }: { expression: string; message: string }) => {
   const getCharacterStyle = (): string => {
-    const base = "w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center text-2xl md:text-3xl transition-all duration-300";
+    const base = "w-8 h-8 sm:w-16 sm:h-16 rounded-full flex items-center justify-center text-lg sm:text-2xl transition-all duration-300";
     switch (expression) {
       case "excited": return `${base} bg-gradient-to-br from-indigo-400 to-purple-500 animate-bounce`;
       case "explaining": return `${base} bg-gradient-to-br from-purple-400 to-pink-500 animate-pulse`;
@@ -47,12 +47,10 @@ const Character = ({ expression, message }: { expression: string; message: strin
   };
 
   return (
-    <div className="flex items-start space-x-3 md:space-x-4 mb-6">
+    <div className="flex items-center gap-2 sm:gap-4 mb-3 sm:mb-6">
       <div className={getCharacterStyle()}>{getEmoji()}</div>
-      <div className="relative bg-white rounded-2xl p-3 md:p-4 shadow-lg border-2 border-gray-200 max-w-sm md:max-w-lg flex-1">
-        <div className="absolute left-0 top-6 w-0 h-0 border-t-8 border-t-transparent border-r-8 border-r-white border-b-8 border-b-transparent transform -translate-x-2"></div>
-        <div className="absolute left-0 top-6 w-0 h-0 border-t-8 border-t-transparent border-r-8 border-r-gray-200 border-b-8 border-b-transparent transform -translate-x-1"></div>
-        <p className="text-gray-700 text-sm md:text-base">{message}</p>
+      <div className="relative bg-white rounded-lg sm:rounded-2xl p-2 sm:p-4 shadow-lg border border-gray-200 flex-1">
+        <p className="text-gray-700 text-xs sm:text-base leading-tight sm:leading-normal">{message}</p>
       </div>
     </div>
   );
@@ -69,7 +67,7 @@ const StepPrizes: FC<WizardStepProps> = ({ onNext, onBack }) => {
     if (prizes.length === 0) {
       return { 
         expression: "explaining", 
-        message: "Let's set up your quiz prizes! You can add physical items, vouchers, gift cards, or any rewards you want to give winners. Don't forget to include sponsors if applicable!" 
+        message: "Let's set up prizes! Add physical items, vouchers, or any rewards for winners." 
       };
     }
     
@@ -77,14 +75,14 @@ const StepPrizes: FC<WizardStepProps> = ({ onNext, onBack }) => {
     if (!hasFirstPlace) {
       return { 
         expression: "encouraging", 
-        message: "Great start! Make sure you have at least a 1st place prize defined. You can add multiple prizes for different placing positions." 
+        message: "Great start! Make sure you have at least a 1st place prize." 
       };
     }
     
     const totalValue = prizes.reduce((acc, p) => acc + (p.value || 0), 0);
     return { 
       expression: "excited", 
-      message: `Excellent! You have ${prizes.length} prize${prizes.length === 1 ? '' : 's'} set up with a total value of ${currency}${totalValue.toFixed(2)}. Your participants will be motivated to win!` 
+      message: `Perfect! ${prizes.length} prize${prizes.length === 1 ? '' : 's'} worth ${currency}${totalValue.toFixed(2)}. Participants will be motivated!` 
     };
   };
 
@@ -135,69 +133,71 @@ const StepPrizes: FC<WizardStepProps> = ({ onNext, onBack }) => {
   const hasFirstPlace = prizes.some(p => p.place === 1);
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg md:text-xl font-semibold text-indigo-800">
+    <div className="w-full px-2 sm:px-4 space-y-3 sm:space-y-6 pb-4">
+      {/* Header */}
+      <div className="px-1">
+        <h2 className="text-base sm:text-xl font-semibold text-indigo-800">
           Step 4 of 4: Prizes Setup
         </h2>
-        <div className="text-xs md:text-sm text-gray-600">Configure manual prize distribution</div>
+        <div className="text-xs sm:text-sm text-gray-600 mt-0.5">Configure manual prize distribution</div>
       </div>
 
       <Character {...getCurrentMessage()} />
 
-      {/* Prize Setup Info */}
-      <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 md:p-4 sticky top-4 z-10">
-        <div className="flex items-center space-x-2 mb-2">
-          <Trophy className="w-4 h-4 text-indigo-600" />
-          <span className="font-medium text-indigo-800 text-sm md:text-base">Manual Prize Distribution</span>
+      {/* Prize Setup Info - Compact */}
+      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-2 sm:p-4">
+        <div className="flex items-center gap-1.5 mb-1">
+          <Trophy className="w-3 h-3 sm:w-4 sm:h-4 text-indigo-600" />
+          <span className="font-medium text-indigo-800 text-xs sm:text-base">Manual Distribution</span>
         </div>
-        <div className="text-xs md:text-sm text-indigo-700">
-          Physical items, vouchers, and rewards you'll distribute manually
-          {prizes.length > 0 && ` • ${prizes.length} prize${prizes.length === 1 ? '' : 's'} configured`}
+        <div className="text-xs text-indigo-700">
+          Physical items & vouchers you'll distribute manually
+          {prizes.length > 0 && ` • ${prizes.length} prize${prizes.length === 1 ? '' : 's'}`}
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-3 sm:space-y-6">
         {/* Prize Configuration */}
-        <div className="bg-white border-2 border-gray-200 rounded-xl p-4 md:p-6 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all duration-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl bg-yellow-100">
+        <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-6 shadow-sm transition-all duration-200">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-8 h-8 sm:w-12 sm:h-12 rounded bg-yellow-100 flex items-center justify-center text-lg sm:text-2xl">
                 🏆
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-gray-900 text-lg">Prize Configuration</h3>
-                <p className="text-sm text-gray-600">Set up rewards for your quiz winners</p>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-medium text-gray-900 text-sm sm:text-lg">Prize Configuration</h3>
+                <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">Set up rewards for your quiz winners</p>
               </div>
             </div>
             {prizes.length < 10 && (
               <button
                 type="button"
                 onClick={handleAddPrize}
-                className="flex items-center space-x-2 px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 bg-indigo-600 text-white rounded font-medium text-xs sm:text-sm hover:bg-indigo-700 transition-colors"
               >
-                <Plus className="w-4 h-4" />
-                <span>Add Prize</span>
+                <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Add Prize</span>
+                <span className="sm:hidden">Add</span>
               </button>
             )}
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {prizes.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <Trophy className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                <p className="text-sm">No prizes added yet. Click "Add Prize" to get started!</p>
+              <div className="text-center py-6 sm:py-8 text-gray-500">
+                <Trophy className="w-8 h-8 sm:w-12 sm:h-12 mx-auto mb-2 text-gray-300" />
+                <p className="text-xs sm:text-sm">No prizes added yet. Click "Add" to get started!</p>
                 <p className="text-xs text-gray-400 mt-1">You need at least a 1st place prize</p>
               </div>
             ) : (
               prizes.map((prize, index) => (
                 <div
                   key={index}
-                  className="border-2 border-gray-200 rounded-xl p-4 bg-gray-50 hover:bg-white transition-colors"
+                  className="border border-gray-200 rounded-lg p-3 sm:p-4 bg-gray-50 hover:bg-white transition-colors"
                 >
                   <div className="flex justify-between items-center mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold ${
                         prize.place === 1 ? 'bg-yellow-100 text-yellow-800' :
                         prize.place === 2 ? 'bg-gray-100 text-gray-800' :
                         prize.place === 3 ? 'bg-orange-100 text-orange-800' :
@@ -205,10 +205,10 @@ const StepPrizes: FC<WizardStepProps> = ({ onNext, onBack }) => {
                       }`}>
                         {prize.place}
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <Target className="w-4 h-4 text-gray-600" />
-                        <span className="font-semibold text-gray-800">
-                          {prize.place}{ordinal(prize.place)} Place Prize
+                      <div className="flex items-center gap-1.5">
+                        <Target className="w-3 h-3 sm:w-4 sm:h-4 text-gray-600" />
+                        <span className="font-medium text-gray-800 text-sm sm:text-base">
+                          {prize.place}{ordinal(prize.place)} Place
                         </span>
                       </div>
                     </div>
@@ -217,68 +217,70 @@ const StepPrizes: FC<WizardStepProps> = ({ onNext, onBack }) => {
                       onClick={() => handleRemovePrize(index)}
                       className="p-1 text-red-400 hover:text-red-600 transition-colors"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Mobile-optimized inputs - stacked layout */}
+                  <div className="space-y-3">
                     {/* Prize Description */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700 flex items-center space-x-2">
-                        <Gift className="w-4 h-4" />
+                    <div className="space-y-1.5">
+                      <label className="text-xs sm:text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                        <Gift className="w-3 h-3 sm:w-4 sm:h-4" />
                         <span>Prize Description <span className="text-red-500">*</span></span>
                       </label>
                       <input
                         type="text"
                         value={prize.description || ''}
                         onChange={(e) => handlePrizeChange(index, 'description', e.target.value)}
-                        placeholder="e.g., £50 Gift Card, iPad, Dinner Voucher"
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
+                        placeholder="e.g., £50 Gift Card, iPad"
+                        className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none transition text-sm"
                       />
                     </div>
 
-                    {/* Sponsor */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700 flex items-center space-x-2">
-                        <Tag className="w-4 h-4" />
-                        <span>Sponsor (optional)</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={prize.sponsor || ''}
-                        onChange={(e) => handlePrizeChange(index, 'sponsor', e.target.value)}
-                        placeholder="e.g., Local Business, Amazon"
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
-                      />
-                    </div>
+                    {/* Sponsor and Value - side by side on mobile when there's space */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label className="text-xs sm:text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                          <Tag className="w-3 h-3 sm:w-4 sm:h-4" />
+                          <span>Sponsor (optional)</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={prize.sponsor || ''}
+                          onChange={(e) => handlePrizeChange(index, 'sponsor', e.target.value)}
+                          placeholder="Local Business"
+                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none transition text-sm"
+                        />
+                      </div>
 
-                    {/* Value */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700 flex items-center space-x-2">
-                        <DollarSign className="w-4 h-4" />
-                        <span>Value ({currency})</span>
-                      </label>
-                      <input
-                        type="number"
-                        min={0}
-                        step={0.01}
-                        value={prize.value || ''}
-                        onChange={(e) => handlePrizeChange(index, 'value', parseFloat(e.target.value) || 0)}
-                        placeholder="0.00"
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
-                      />
+                      <div className="space-y-1.5">
+                        <label className="text-xs sm:text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                          <DollarSign className="w-3 h-3 sm:w-4 sm:h-4" />
+                          <span>Value ({currency})</span>
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          value={prize.value || ''}
+                          onChange={(e) => handlePrizeChange(index, 'value', parseFloat(e.target.value) || 0)}
+                          placeholder="0.00"
+                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none transition text-sm"
+                        />
+                      </div>
                     </div>
                   </div>
 
-                  {/* Prize Preview */}
+                  {/* Prize Preview - Compact */}
                   {prize.description && (
                     <div className="mt-3 p-2 bg-white rounded border border-gray-200">
-                      <div className="flex items-center space-x-2 text-sm">
-                        <CheckCircle className="w-4 h-4 text-green-600" />
-                        <span className="text-gray-700">
-                          <strong>{prize.place}{ordinal(prize.place)} Place:</strong> {prize.description}
+                      <div className="flex items-center gap-1.5 text-xs sm:text-sm">
+                        <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 text-green-600 flex-shrink-0" />
+                        <span className="text-gray-700 min-w-0">
+                          <strong>{prize.place}{ordinal(prize.place)}:</strong> {prize.description}
                           {prize.value && prize.value > 0 && ` (${currency}${prize.value})`}
-                          {prize.sponsor && ` - Sponsored by ${prize.sponsor}`}
+                          {prize.sponsor && ` - ${prize.sponsor}`}
                         </span>
                       </div>
                     </div>
@@ -290,57 +292,55 @@ const StepPrizes: FC<WizardStepProps> = ({ onNext, onBack }) => {
 
           {/* Add Prize Button (bottom) */}
           {prizes.length > 0 && prizes.length < 10 && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200">
               <button
                 type="button"
                 onClick={handleAddPrize}
-                className="w-full flex items-center justify-center space-x-2 py-3 border-2 border-dashed border-indigo-300 text-indigo-600 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-2 sm:py-3 border-2 border-dashed border-indigo-300 text-indigo-600 rounded hover:border-indigo-400 hover:bg-indigo-50 transition-colors text-sm"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
                 <span>Add Another Prize (Max: 10)</span>
               </button>
             </div>
           )}
         </div>
 
-        {/* Prize Summary */}
+        {/* Prize Summary - Mobile optimized */}
         {prizes.length > 0 && (
-          <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-xl p-4">
-            <div className="flex items-center space-x-2 mb-2">
-              <Trophy className="w-5 h-5 text-green-600" />
-              <span className="font-medium text-green-800">Prize Summary</span>
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-3 sm:p-4">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+              <span className="font-medium text-green-800 text-sm sm:text-base">Prize Summary</span>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 text-xs sm:text-sm">
               <div className="text-center p-2 bg-white rounded border border-green-200">
-                <div className="font-bold text-green-700 text-lg">{prizes.length}</div>
-                <div className="text-green-600">Total Prizes</div>
+                <div className="font-bold text-green-700 text-sm sm:text-lg">{prizes.length}</div>
+                <div className="text-green-600">Prizes</div>
               </div>
               <div className="text-center p-2 bg-white rounded border border-green-200">
-                <div className="font-bold text-green-700 text-lg">{currency}{totalValue.toFixed(2)}</div>
-                <div className="text-green-600">Total Value</div>
+                <div className="font-bold text-green-700 text-sm sm:text-lg">{currency}{totalValue.toFixed(2)}</div>
+                <div className="text-green-600">Value</div>
               </div>
               <div className="text-center p-2 bg-white rounded border border-green-200">
-                <div className="font-bold text-green-700 text-lg">
+                <div className="font-bold text-green-700 text-sm sm:text-lg">
                   {hasFirstPlace ? '✓' : '✗'}
                 </div>
-                <div className="text-green-600">1st Place Set</div>
+                <div className="text-green-600">1st Place</div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Help Section */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-start space-x-2">
-            <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-            <div className="text-sm text-blue-800">
-              <p className="font-medium mb-1">Prize Setup Tips</p>
+        {/* Help Section - Compact */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
+          <div className="flex items-start gap-2">
+            <Info className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div className="text-xs sm:text-sm text-blue-800">
+              <p className="font-medium mb-1">Prize Tips</p>
               <ul className="space-y-1 text-xs">
-                <li>• At least a 1st place prize is required to continue</li>
-                <li>• Include sponsors to acknowledge supporters and add credibility</li>
-                
-                <li>• Consider a mix of prizes: gift cards, experiences, physical items</li>
-                <li>• You'll distribute these manually after the quiz ends</li>
+                <li>• At least 1st place prize required</li>
+                <li>• Include sponsors for credibility</li>
+                <li>• Mix of prizes works best</li>
               </ul>
             </div>
           </div>
@@ -349,33 +349,34 @@ const StepPrizes: FC<WizardStepProps> = ({ onNext, onBack }) => {
         {/* Error Message */}
         {error && (
           <div className="flex items-start gap-2 bg-red-50 text-red-700 px-3 py-2 rounded-lg text-sm">
-            <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            <p>{error}</p>
+            <AlertCircle className="h-3 h-3 sm:h-4 sm:w-4 mt-0.5 flex-shrink-0" />
+            <p className="text-xs sm:text-sm">{error}</p>
           </div>
         )}
 
         {/* Navigation */}
-        <div className="flex justify-between pt-6 border-t border-gray-200">
+        <div className="flex justify-between pt-4 border-t border-gray-200">
           {onBack && (
             <button
               type="button"
               onClick={onBack}
-              className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors"
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors text-sm sm:text-base"
             >
               <ChevronLeft className="w-4 h-4" />
               <span>Back</span>
             </button>
           )}
           <button
-            type="submit"
+            onClick={handleSubmit}
             disabled={!hasFirstPlace}
-            className="flex items-center space-x-2 px-4 md:px-6 py-2 md:py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-xl transition-all duration-200 shadow-sm hover:shadow-md"
+            className="flex items-center gap-2 px-4 py-2 sm:px-6 sm:py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg sm:rounded-xl transition-all duration-200 shadow-sm hover:shadow-md text-sm sm:text-base"
           >
-            <span>Save Prizes & Continue</span>
+            <span className="hidden sm:inline">Save Prizes & Continue</span>
+            <span className="sm:hidden">Continue</span>
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
-      </form>
+      </div>
     </div>
   );
 };

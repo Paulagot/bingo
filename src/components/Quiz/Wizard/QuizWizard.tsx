@@ -1,13 +1,13 @@
 // src/components/Quiz/Wizard/QuizWizard.tsx
 import { useState } from 'react';
 
-import StepAddRounds from './StepAddRounds';
+
 import StepFundraisingOptions from './StepFundraisingOptions';
 
 import StepReviewLaunch from './StepReviewLaunch';
 import StepPrizes from './StepPrizes';
 
-import StepConfigureRounds from './StepConfigureRounds';
+
 import StepQuizSetup from './StepQuizSetup';
 
 import StepCombinedRounds from './StepCombinedRounds';

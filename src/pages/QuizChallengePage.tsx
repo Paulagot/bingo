@@ -18,7 +18,7 @@ const QuizChallengePage = () => {
   const isAnyModalOpen = showWizard || showWeb3Wizard || showJoinModal;
 
   return (
-    <div className="max-w-3xl mx-auto p-8">
+    <div className={isAnyModalOpen ? "" : "max-w-3xl mx-auto p-8"}>
       {!isAnyModalOpen && (
         <>
           <h1 className="text-4xl font-bold mb-6">🧠 Quiz Challenge</h1>
