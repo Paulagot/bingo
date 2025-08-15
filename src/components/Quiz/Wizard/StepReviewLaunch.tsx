@@ -157,7 +157,7 @@ const StepReviewLaunch: FC<WizardStepProps> = ({ onBack }) => {
     <div className="space-y-4 md:space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-lg md:text-xl font-semibold text-indigo-800">
-          Step 8 of 8: Review & Launch
+          Review & Launch
         </h2>
         <div className="text-xs md:text-sm text-gray-600">Final configuration check</div>
       </div>

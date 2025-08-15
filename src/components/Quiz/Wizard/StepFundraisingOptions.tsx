@@ -295,7 +295,7 @@ export const StepFundraisingOptions: React.FC<{ onNext: () => void; onBack: () =
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold text-indigo-800">Step 5 of 8: Fundraising Extras</h2>
+      <h2 className="text-xl font-semibold text-indigo-800">Step 3 of 4: Fundraising Extras</h2>
 
       <Character />
 

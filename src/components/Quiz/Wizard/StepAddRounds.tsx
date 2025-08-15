@@ -479,7 +479,7 @@ export const StepAddRounds: React.FC<StepAddRoundsProps> = ({ onNext, onBack }) 
   return (
     <div className="space-y-4 md:space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg md:text-xl font-semibold text-indigo-800">Step 3 of 8: Select Rounds</h2>
+        <h2 className="text-lg md:text-xl font-semibold text-indigo-800">Step 2 of 5 of 5: Select Rounds</h2>
         <div className="text-xs md:text-sm text-gray-600">Build your quiz structure</div>
       </div>
 
