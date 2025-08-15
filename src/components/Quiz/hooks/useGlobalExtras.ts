@@ -6,8 +6,9 @@ interface UseGlobalExtrasParams {
   allPlayerExtras: string[];
   currentPlayerId: string;
   leaderboard: { id: string; name: string; score: number }[];
-  cumulativeNegativePoints?: number; // ✅ NEW: Track cumulative negative points
-  pointsRestored?: number; // ✅ NEW: Track points already restored
+  cumulativeNegativePoints?: number;
+  pointsRestored?: number;
+  usedExtras?: Record<string, boolean>; // ✅ NEW: Add usedExtras for consistency
   debug?: boolean;
 }
 
@@ -17,14 +18,15 @@ export const useGlobalExtras = ({
   leaderboard, 
   cumulativeNegativePoints = 0,
   pointsRestored = 0,
+  usedExtras = {}, // ✅ NEW: Default to empty object
   debug = false 
 }: UseGlobalExtrasParams) => {
   
-  // ✅ FIXED: Calculate restorable points FIRST so we can use it in filtering
+  // ✅ Calculate restorable points FIRST so we can use it in filtering
   const restorablePoints = useMemo(() => {
     const maxRestore = fundraisingExtraDefinitions.restorePoints?.totalRestorePoints || 3;
     
-    // ✅ FIXED: Account for both constraints:
+    // ✅ Account for both constraints:
     // 1. Can't restore more than the max limit allows
     const remainingRestoreCapacity = Math.max(0, maxRestore - pointsRestored);
     
@@ -52,25 +54,36 @@ export const useGlobalExtras = ({
       const extra = fundraisingExtraDefinitions[extraId as keyof typeof fundraisingExtraDefinitions];
       if (!extra) return false;
       
-      // ✅ FIXED: Handle restore points special case using calculated restorablePoints
+      // ✅ NEW: Filter out used extras (except restorePoints which has special logic)
+      if (extraId !== 'restorePoints' && usedExtras[extraId]) {
+        if (debug) console.log(`[useGlobalExtras] 🚫 Filtering out used extra: ${extraId}`);
+        return false;
+      }
+      
+      // ✅ Handle restore points special case using calculated restorablePoints
       if (extraId === 'restorePoints') {
-        return restorablePoints > 0;
+        const hasRestorablePoints = restorablePoints > 0;
+        if (debug) console.log(`[useGlobalExtras] 🎯 restorePoints available: ${hasRestorablePoints} (${restorablePoints} points)`);
+        return hasRestorablePoints;
       }
       
       // ✅ Handle other global extras
-      return extra.applicableTo === 'global';
+      const isGlobal = extra.applicableTo === 'global';
+      if (debug && isGlobal) console.log(`[useGlobalExtras] ✅ Including global extra: ${extraId}`);
+      return isGlobal;
     });
 
     if (debug) {
       console.log('[useGlobalExtras] 🌍 Available extras:', allPlayerExtras);
+      console.log('[useGlobalExtras] 🚫 Used extras:', usedExtras);
       console.log('[useGlobalExtras] 🎯 Cumulative negative points:', cumulativeNegativePoints);
       console.log('[useGlobalExtras] 🔄 Points already restored:', pointsRestored);
       console.log('[useGlobalExtras] 💎 Restorable points:', restorablePoints);
-      console.log('[useGlobalExtras] ✅ Filtered global extras:', extras);
+      console.log('[useGlobalExtras] ✅ Final filtered global extras:', extras);
     }
 
     return extras;
-  }, [allPlayerExtras, restorablePoints, debug]);
+  }, [allPlayerExtras, restorablePoints, usedExtras, debug]);
 
   // ✅ Helper to get eligible targets for robPoints
   const robPointsTargets = useMemo(() => {

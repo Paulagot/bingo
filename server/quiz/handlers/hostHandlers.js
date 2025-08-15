@@ -13,7 +13,7 @@ import { getEngine } from '../ gameplayEngines/gameplayEngineRouter.js';
 import { isRateLimited } from '../../socketRateLimiter.js';
 import { getCurrentRoundStats } from './globalExtrasHandler.js';
 
-const debug = false;
+const debug = true;
 
 export function setupHostHandlers(socket, namespace) {
 
@@ -344,24 +344,32 @@ socket.on('next_round_or_end', ({ roomId }) => {
     emitFullRoomState(roomId);
   });
 
-  socket.on('start_round', ({ roomId }) => {
-    if (debug) console.log(`[Host] start_round for ${roomId}`);
+ socket.on('start_round', ({ roomId }) => {
+  if (debug) console.log(`[Host] start_round for ${roomId}`);
 
-    const room = getQuizRoom(roomId);
-    if (!room) {
-      socket.emit('quiz_error', { message: 'Room not found' });
-      return;
-    }
+  const room = getQuizRoom(roomId);
+  if (!room) {
+    socket.emit('quiz_error', { message: 'Room not found' });
+    return;
+  }
 
-   resetRoundExtrasTracking(roomId);
-    const engine = getEngine(room);
-    if (!engine || typeof engine.initRound !== 'function') {
-      socket.emit('quiz_error', { message: 'No gameplay engine found for this round type' });
-      return;
-    }
+  // ✅ ADD THIS VALIDATION
+  // const validation = validateRoundQuestions(roomId);
+  // if (!validation.valid) {
+  //   console.error(`[Host] ❌ Cannot start round: ${validation.error}`);
+  //   socket.emit('quiz_error', { message: validation.error });
+  //   return;
+  // }
 
-    engine.initRound(roomId, namespace);
-  });
+  resetRoundExtrasTracking(roomId);
+  const engine = getEngine(room);
+  if (!engine || typeof engine.initRound !== 'function') {
+    socket.emit('quiz_error', { message: 'No gameplay engine found for this round type' });
+    return;
+  }
+
+  engine.initRound(roomId, namespace);
+});
 
   socket.on('next_review', ({ roomId }) => {
     if (debug) console.log(`[Host] next_review for ${roomId}`);

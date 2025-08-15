@@ -8,23 +8,95 @@ import { resetGlobalExtrasForNewRound } from './handlers/globalExtrasHandler.js'
 
 
 const quizRooms = new Map();
-const debug = false;
+const debug = true;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export function loadQuestionsForRoundType(roundType) {
+export function loadQuestionsForRoundType(roundType, category = null, difficulty = null, requiredCount = null) {
   const filePath = path.join(__dirname, '../data/questions', `${roundType}.json`);
+  
+  if (debug) {
+    console.log(`[quizRoomManager] 🔍 Loading questions for "${roundType}"`);
+    console.log(`[quizRoomManager] 📁 File path: ${filePath}`);
+    if (category) console.log(`[quizRoomManager] 🏷️ Category filter: "${category}"`);
+    if (difficulty) console.log(`[quizRoomManager] ⭐ Difficulty filter: "${difficulty}"`);
+    if (requiredCount) console.log(`[quizRoomManager] 🎯 Required questions: ${requiredCount}`);
+  }
+  
   try {
     const data = fs.readFileSync(filePath, 'utf-8');
     const parsed = JSON.parse(data);
+    
     if (!Array.isArray(parsed) || parsed.length === 0) {
-      console.warn(`[quizRoomManager] ⚠️ No questions found for "${roundType}"`);
+      console.warn(`[quizRoomManager] ⚠️ No questions found in "${roundType}.json"`);
       return [];
     }
-    return parsed;
+    
+    if (debug) {
+      console.log(`[quizRoomManager] 📚 Raw questions loaded: ${parsed.length}`);
+    }
+    
+    // ✅ NEW: Apply category and difficulty filters
+    let filteredQuestions = parsed;
+    
+    if (category) {
+      filteredQuestions = filteredQuestions.filter(q => {
+        const questionCategory = q.category || '';
+        return questionCategory.toLowerCase() === category.toLowerCase();
+      });
+      
+      if (debug) {
+        console.log(`[quizRoomManager] 🏷️ After category "${category}" filter: ${filteredQuestions.length} questions`);
+      }
+    }
+    
+    if (difficulty) {
+      filteredQuestions = filteredQuestions.filter(q => {
+        const questionDifficulty = q.difficulty || '';
+        return questionDifficulty.toLowerCase() === difficulty.toLowerCase();
+      });
+      
+      if (debug) {
+        console.log(`[quizRoomManager] ⭐ After difficulty "${difficulty}" filter: ${filteredQuestions.length} questions`);
+      }
+    }
+    
+    // ✅ Check if we have enough questions after filtering
+    if (filteredQuestions.length === 0) {
+      console.error(`[quizRoomManager] ❌ No questions found for roundType="${roundType}", category="${category}", difficulty="${difficulty}"`);
+      return [];
+    }
+    
+    if (requiredCount && filteredQuestions.length < requiredCount) {
+      console.warn(`[quizRoomManager] ⚠️ Only ${filteredQuestions.length} questions available for "${roundType}" (${category}/${difficulty}), but ${requiredCount} required`);
+    }
+    
+    // ✅ SUCCESS LOG with breakdown
+    if (debug) {
+      console.log(`[quizRoomManager] ✅ Successfully filtered to ${filteredQuestions.length} questions for "${roundType}"`);
+      
+      // Log breakdown by difficulty and category of filtered results
+      const breakdown = filteredQuestions.reduce((acc, q) => {
+        const cat = q.category || 'unknown';
+        const diff = q.difficulty || 'unknown';
+        const key = `${cat}/${diff}`;
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {});
+      console.log(`[quizRoomManager] 📊 Filtered question breakdown:`, breakdown);
+    }
+    
+    return filteredQuestions;
+    
   } catch (err) {
-    console.error(`[quizRoomManager] ❌ Failed to load "${roundType}.json"`, err);
+    if (err.code === 'ENOENT') {
+      console.error(`[quizRoomManager] ❌ Question file not found: "${roundType}.json"`);
+    } else if (err instanceof SyntaxError) {
+      console.error(`[quizRoomManager] ❌ Invalid JSON in "${roundType}.json"`, err.message);
+    } else {
+      console.error(`[quizRoomManager] ❌ Failed to load "${roundType}.json"`, err);
+    }
     return [];
   }
 }
@@ -91,7 +163,7 @@ export function getQuizRoom(roomId) {
 export function emitRoomState(namespace, roomId) {
   const room = quizRooms.get(roomId);
   if (!room) {
-    console.warn(`[quizRoomManager] ⚠️ emitRoomState skipped - Room ${roomId} not found`);
+    console.log(`[quizRoomManager] ⚠️ emitRoomState skipped - Room ${roomId} not found`);
     return;
   }
 
@@ -115,7 +187,7 @@ export function emitRoomState(namespace, roomId) {
 export function addOrUpdatePlayer(roomId, player) {
   const room = quizRooms.get(roomId);
   if (!room) {
-    console.warn(`[quizRoomManager] ❌ addOrUpdatePlayer: Room ${roomId} not found`);
+    console.log(`[quizRoomManager] ❌ addOrUpdatePlayer: Room ${roomId} not found`);
     return false;
   }
 
@@ -285,7 +357,7 @@ export function removeQuizRoom(roomId) {
    if (debug)  console.log(`[quizRoomManager] 🗑️ Room removed: ${roomId}`);
     return true;
   }
- if (debug)  console.warn(`[quizRoomManager] ⚠️ Tried to remove nonexistent room: ${roomId}`);
+ if (debug)  console.log(`[quizRoomManager] ⚠️ Tried to remove nonexistent room: ${roomId}`);
   return false;
 }
 
@@ -337,22 +409,28 @@ export function handlePlayerExtra(roomId, playerId, extraId, targetPlayerId, nam
 
   // ✅ DEBUG: Add logging to see what's happening
   if (debug) {
-  console.log(`[DEBUG] extraId: "${extraId}"`);
-  console.log(`[DEBUG] fundraisingExtraDefinitions:`, fundraisingExtraDefinitions);
-  console.log(`[DEBUG] extraDefinition:`, fundraisingExtraDefinitions[extraId]);}
+    console.log(`[DEBUG] extraId: "${extraId}"`);
+    console.log(`[DEBUG] fundraisingExtraDefinitions:`, fundraisingExtraDefinitions);
+    console.log(`[DEBUG] extraDefinition:`, fundraisingExtraDefinitions[extraId]);
+  }
   
-  // ✅ NEW: Check if this is a global extra
- const extraDefinition = fundraisingExtraDefinitions[extraId];
-  if ((extraDefinition && extraDefinition.applicableTo === 'global') || extraId === 'restorePoints') {
+  // ✅ FIXED: Check if this is a global extra with proper type checking
+  const extraDefinition = fundraisingExtraDefinitions[extraId];
+  const isGlobalExtra = extraDefinition && (
+    extraDefinition.applicableTo === 'global' || 
+    extraId === 'restorePoints' || 
+    extraId === 'robPoints'
+  );
+  
+  if (isGlobalExtra) {
     if (debug) {
-      console.log(`[ExtrasHandler] 🌍 Routing ${extraId === 'restorePoints' ? 'special case restorePoints' : 'global extra'} "${extraId}" to globalExtrasHandler`);
+      console.log(`[ExtrasHandler] 🌍 Routing global extra "${extraId}" to globalExtrasHandler`);
     }
     return handleGlobalExtra(roomId, playerId, extraId, targetPlayerId, namespace);
   }
 
- if (debug)  console.log(`[DEBUG] Not a global extra, continuing with round-based logic...`);
-
-  
+  // ✅ Continue with round-based logic for freezeOutTeam and buyHint
+  if (debug) console.log(`[DEBUG] Not a global extra, continuing with round-based logic...`);
 
   if (playerData.frozenNextQuestion) {
     console.warn(`[ExtrasHandler] ❄️ ${playerId} is frozen and cannot use extras`);
@@ -371,30 +449,37 @@ export function handlePlayerExtra(roomId, playerId, extraId, targetPlayerId, nam
     return { success: false, error: 'You have already used this extra in a previous round' };
   }
 
+  // ✅ Mark as used BEFORE executing (in case execution fails, we'll revert below)
   playerData.usedExtras[extraId] = true;
   playerData.usedExtrasThisRound[extraId] = true;
 
   const result = executeExtra(roomId, playerId, extraId, targetPlayerId, namespace);
 
   if (result.success) {
-   if (debug)  console.log(`[ExtrasHandler] ✅ ${extraId} executed successfully for ${playerId}`);
+    if (debug) console.log(`[ExtrasHandler] ✅ ${extraId} executed successfully for ${playerId}`);
   } else {
+    // ✅ Revert the usage flags if execution failed
     playerData.usedExtras[extraId] = false;
     playerData.usedExtrasThisRound[extraId] = false;
-   if (debug)  console.warn(`[ExtrasHandler] ❌ ${extraId} execution failed for ${playerId}: ${result.error}`);
+    if (debug) console.warn(`[ExtrasHandler] ❌ ${extraId} execution failed for ${playerId}: ${result.error}`);
   }
 
   return result;
 }
 
 function executeExtra(roomId, playerId, extraId, targetPlayerId, namespace) {
+  if (debug) console.log(`[executeExtra] Called with: ${extraId}, target: ${targetPlayerId}`);
+  
   switch (extraId) {
     case 'buyHint':
+      if (debug) console.log(`[executeExtra] Executing buyHint`);
       return executeBuyHint(roomId, playerId, namespace);
     case 'freezeOutTeam':
+      if (debug) console.log(`[executeExtra] Executing freezeOutTeam`);
       return executeFreezeOutTeam(roomId, playerId, targetPlayerId, namespace);
     default:
-      return { success: false, error: 'Unknown extra type' };
+      console.error(`[executeExtra] ❌ Unknown extra type: ${extraId}`);
+      return { success: false, error: `Unknown extra type: ${extraId}` };
   }
 }
 
@@ -418,42 +503,80 @@ function executeBuyHint(roomId, playerId, namespace) {
 }
 
 // ✅ FIXED: Execute freezeOutTeam logic with correct question timing
-
-  function executeFreezeOutTeam(roomId, playerId, targetPlayerId, namespace) {
-  if (!targetPlayerId) return { success: false, error: 'Target player required for freeze' };
+function executeFreezeOutTeam(roomId, playerId, targetPlayerId, namespace) {
+  if (debug) console.log(`[executeFreezeOutTeam] Starting freeze execution`);
+  if (debug) console.log(`[executeFreezeOutTeam] Params: roomId=${roomId}, playerId=${playerId}, targetPlayerId=${targetPlayerId}`);
+  
+  if (!targetPlayerId) {
+    console.error(`[executeFreezeOutTeam] ❌ No target player provided`);
+    return { success: false, error: 'Target player required for freeze' };
+  }
 
   const room = getQuizRoom(roomId);
+  if (!room) {
+    console.error(`[executeFreezeOutTeam] ❌ Room not found`);
+    return { success: false, error: 'Room not found' };
+  }
 
-  if (playerId === targetPlayerId) return { success: false, error: 'You cannot freeze yourself!' };
+  if (playerId === targetPlayerId) {
+    console.error(`[executeFreezeOutTeam] ❌ Player trying to freeze themselves`);
+    return { success: false, error: 'You cannot freeze yourself!' };
+  }
 
   const questionsRemaining = room.questions.length - (room.currentQuestionIndex + 1);
-  if (questionsRemaining <= 1) return { success: false, error: 'Cannot freeze player - this is the last question of the round!' };
+  if (questionsRemaining <= 1) {
+    console.error(`[executeFreezeOutTeam] ❌ Cannot freeze - last question`);
+    return { success: false, error: 'Cannot freeze player - this is the last question of the round!' };
+  }
 
-  if (room.currentPhase !== 'asking') return { success: false, error: 'Can only freeze players during active questions!' };
+  if (room.currentPhase !== 'asking') {
+    console.error(`[executeFreezeOutTeam] ❌ Wrong phase: ${room.currentPhase}`);
+    return { success: false, error: 'Can only freeze players during active questions!' };
+  }
 
   const targetData = room.playerData[targetPlayerId];
-  if (!targetData) return { success: false, error: 'Target player not found' };
+  if (!targetData) {
+    console.error(`[executeFreezeOutTeam] ❌ Target data not found`);
+    return { success: false, error: 'Target player not found' };
+  }
 
-  if (targetData.frozenNextQuestion) return { success: false, error: 'That player is already frozen for the next question!' };
+  if (targetData.frozenNextQuestion) {
+    console.error(`[executeFreezeOutTeam] ❌ Target already frozen`);
+    return { success: false, error: 'That player is already frozen for the next question!' };
+  }
 
   const targetPlayer = room.players.find(p => p.id === targetPlayerId);
-  if (!targetPlayer) return { success: false, error: 'Target player not found in room' };
+  if (!targetPlayer) {
+    console.error(`[executeFreezeOutTeam] ❌ Target player not in room`);
+    return { success: false, error: 'Target player not found in room' };
+  }
 
-  if (!targetPlayer.socketId) return { success: false, error: 'Target player is not actively connected' };
+  if (!targetPlayer.socketId) {
+    console.error(`[executeFreezeOutTeam] ❌ Target not connected`);
+    return { success: false, error: 'Target player is not actively connected' };
+  }
 
-  if (room.currentQuestionIndex < 0) return { success: false, error: 'Cannot freeze players during round setup!' };
+  if (room.currentQuestionIndex < 0) {
+    console.error(`[executeFreezeOutTeam] ❌ Wrong question index: ${room.currentQuestionIndex}`);
+    return { success: false, error: 'Cannot freeze players during round setup!' };
+  }
 
   const freezeForQuestionIndex = room.currentQuestionIndex + 1;
 
+  // ✅ Execute the freeze
   targetData.frozenNextQuestion = true;
   targetData.frozenForQuestionIndex = freezeForQuestionIndex;
   targetData.frozenBy = playerId;
 
   if (debug) {
-    console.log(`[ExtrasHandler] ❄️ freezeOutTeam: ${targetPlayerId} frozen by ${playerId} for question index ${freezeForQuestionIndex} (Q${freezeForQuestionIndex + 1} to user)`);
+    console.log(`[executeFreezeOutTeam] ✅ SUCCESS: ${targetPlayerId} frozen by ${playerId} for question index ${freezeForQuestionIndex}`);
+    console.log(`[executeFreezeOutTeam] Target data after freeze:`, {
+      frozenNextQuestion: targetData.frozenNextQuestion,
+      frozenForQuestionIndex: targetData.frozenForQuestionIndex,
+      frozenBy: targetData.frozenBy
+    });
   }
 
-  // ❌ No emit here — notification handled in generalTriviaEngine.js when question is sent
   return { success: true };
 }
 

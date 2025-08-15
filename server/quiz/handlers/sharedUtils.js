@@ -1,4 +1,4 @@
-const debug = false;
+const debug = true;
 
 export function setupSharedHandlers(socket, namespace) {
   socket.on('request_room_config', ({ roomId }) => {

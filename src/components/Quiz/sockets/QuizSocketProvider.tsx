@@ -118,7 +118,7 @@ socket.on('quiz_cancelled', ({ message, roomId: cancelledRoomId }: { message: st
   
   // ✅ Show message and redirect
   setTimeout(() => {
-    alert(`🚫 ${message}\n\nRedirecting to quiz home...`);
+    
     window.location.href = '/quiz'; // ✅ Force navigation to ensure clean state
   }, 100);
 });

@@ -26,6 +26,7 @@ interface RoundRouterProps extends RoundComponentProps {
   // ✅ NEW: Statistics for host view
   statistics?: AnswerStatistics;
   isHost?: boolean;
+  playersInRoom?: { id: string; name: string }[];
 }
 
 const RoundRouter: React.FC<RoundRouterProps> = ({
@@ -41,6 +42,7 @@ const RoundRouter: React.FC<RoundRouterProps> = ({
   category,
   statistics,
   isHost = false,
+  playersInRoom, // ✅ FIX: Add this to the destructuring
   ...props
 }) => {
   if (roomPhase === 'reviewing') {
@@ -64,6 +66,7 @@ const RoundRouter: React.FC<RoundRouterProps> = ({
   return (
     <StandardRound 
       {...props}
+      playersInRoom={playersInRoom} // ✅ FIX: Now playersInRoom is properly available
       question={question}
       selectedAnswer={selectedAnswer}
       feedback={feedback}

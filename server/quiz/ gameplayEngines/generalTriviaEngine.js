@@ -11,7 +11,7 @@ import {
 } from '../quizRoomManager.js';
 
 let timers = {}; // per-room timer refs
-const debug = false;
+const debug = true;
 
 // ✅ NEW: Send host activity notification
 function sendHostActivityNotification(namespace, roomId, activityData) {
@@ -128,41 +128,53 @@ export function initRound(roomId, namespace) {
   const roundDef = room.config.roundDefinitions?.[room.currentRound - 1];
   const roundType = roundDef?.roundType;
   const questionsPerRound = roundDef?.config?.questionsPerRound || 6;
-  const desiredCategory = roundDef?.category?.toLowerCase();
-  const desiredDifficulty = roundDef?.difficulty?.toLowerCase();
+  
+  // ✅ NEW: Extract category and difficulty from round config
+  const desiredCategory = roundDef?.category;
+  const desiredDifficulty = roundDef?.difficulty;
 
-  let allQuestions = loadQuestionsForRoundType(roundType);
-
-  // ✅ First: try to strictly filter by both category and difficulty
-  let filteredQuestions = allQuestions.filter((q) => {
-    const matchesCategory = q.category?.toLowerCase() === desiredCategory;
-    const matchesDifficulty = q.difficulty?.toLowerCase() === desiredDifficulty;
-    return matchesCategory && matchesDifficulty;
-  });
-
-  // ✅ If too few, fallback to just difficulty filter
-  if (filteredQuestions.length < questionsPerRound) {
-    console.warn(`[generalTriviaEngine] ⚠️ Only found ${filteredQuestions.length} questions for category="${desiredCategory}", difficulty="${desiredDifficulty}". Falling back to difficulty-only filter.`);
-    filteredQuestions = allQuestions.filter((q) =>
-      q.difficulty?.toLowerCase() === desiredDifficulty
-    );
+  if (debug) {
+    console.log(`[generalTriviaEngine] 🔍 Loading questions for round ${room.currentRound}`);
+    console.log(`[generalTriviaEngine] 📋 Type: ${roundType}, Category: ${desiredCategory}, Difficulty: ${desiredDifficulty}`);
+    console.log(`[generalTriviaEngine] 🎯 Need: ${questionsPerRound} questions`);
   }
 
-  // ✅ Final fallback: use all questions unfiltered
-  if (filteredQuestions.length < questionsPerRound) {
-    console.warn(`[generalTriviaEngine] ⚠️ Still not enough questions. Using unfiltered questions as last resort.`);
-    filteredQuestions = allQuestions;
+  // ✅ NEW: Load questions WITH filtering parameters
+  let allQuestions = loadQuestionsForRoundType(roundType, desiredCategory, desiredDifficulty, questionsPerRound);
+
+  // ✅ FALLBACK: If not enough questions with strict filtering, try just difficulty
+  if (allQuestions.length < questionsPerRound) {
+    console.warn(`[generalTriviaEngine] ⚠️ Only found ${allQuestions.length} questions for category="${desiredCategory}", difficulty="${desiredDifficulty}". Trying difficulty-only filter.`);
+    allQuestions = loadQuestionsForRoundType(roundType, null, desiredDifficulty, questionsPerRound);
   }
 
-  // ✅ Finalize selection
-  const selectedQuestions = shuffleArray(filteredQuestions).slice(0, questionsPerRound);
+  // ✅ FINAL FALLBACK: Use all questions unfiltered if still not enough
+  if (allQuestions.length < questionsPerRound) {
+    console.warn(`[generalTriviaEngine] ⚠️ Still not enough questions (${allQuestions.length}). Using unfiltered questions as last resort.`);
+    allQuestions = loadQuestionsForRoundType(roundType);
+  }
 
-  if (debug) console.log(`[generalTriviaEngine] ✅ Selected ${selectedQuestions.length} questions for round ${room.currentRound}`);
+  // ✅ Select questions (shuffle and take required amount)
+  const selectedQuestions = shuffleArray(allQuestions).slice(0, questionsPerRound);
+
+  if (debug) {
+    console.log(`[generalTriviaEngine] ✅ Selected ${selectedQuestions.length} questions for round ${room.currentRound}`);
+    
+    // ✅ NEW: Log what we actually got
+    const actualBreakdown = selectedQuestions.reduce((acc, q) => {
+      const cat = q.category || 'unknown';
+      const diff = q.difficulty || 'unknown';
+      const key = `${cat}/${diff}`;
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+    console.log(`[generalTriviaEngine] 📊 Selected question breakdown:`, actualBreakdown);
+  }
 
   setQuestionsForCurrentRound(roomId, selectedQuestions);
   resetRoundExtrasTracking(roomId);
   
-  // ✅ NEW: Reset round stats tracking
+  // Reset round stats tracking
   Object.values(room.playerData).forEach(playerData => {
     playerData.usedExtrasThisRound = {};
   });
@@ -170,7 +182,7 @@ export function initRound(roomId, namespace) {
   room.currentQuestionIndex = -1;
   room.currentPhase = 'asking';
   
-  // ✅ NEW: Send initial round stats to host
+  // Send initial round stats to host
   calculateAndSendRoundStats(roomId, namespace);
   
   startNextQuestion(roomId, namespace);

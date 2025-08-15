@@ -1,6 +1,6 @@
 // src/components/Quiz/game/GlobalExtrasDuringLeaderboard.tsx
 
-import  { useState } from 'react';
+import { useState } from 'react';
 import { fundraisingExtraDefinitions } from '../constants/quizMetadata';
 import { useGlobalExtras } from '../hooks/useGlobalExtras';
 import UseExtraModal from './UseExtraModal';
@@ -11,8 +11,8 @@ interface Props {
   onUseExtra: (extraId: string, targetPlayerId?: string) => void;
   leaderboard: { id: string; name: string; score: number }[];
   currentPlayerId: string;
-  cumulativeNegativePoints?: number; // ✅ NEW: For restore points logic
-  pointsRestored?: number; // ✅ NEW: For restore points logic
+  cumulativeNegativePoints?: number;
+  pointsRestored?: number;
 }
 
 const debug = false;
@@ -26,20 +26,20 @@ const GlobalExtrasDuringLeaderboard = ({
   cumulativeNegativePoints = 0,
   pointsRestored = 0
 }: Props) => {
-  // ✅ Modal state for robPoints
   const [robPointsModalOpen, setRobPointsModalOpen] = useState(false);
 
-  // ✅ Use the new global extras hook
+  // ✅ UPDATED: Pass usedExtras to the hook for consistent filtering
   const { globalExtras, restorablePoints, robPointsTargets } = useGlobalExtras({
     allPlayerExtras: availableExtras,
     currentPlayerId,
     leaderboard,
     cumulativeNegativePoints,
     pointsRestored,
+    usedExtras, // ✅ NEW: Pass usedExtras for filtering
     debug: true
   });
 
-  // ✅ Get extra definitions for display
+  // ✅ Get extra definitions for display (now pre-filtered by the hook)
   const globalExtraDefinitions = globalExtras.map(extraId => 
     fundraisingExtraDefinitions[extraId as keyof typeof fundraisingExtraDefinitions]
   ).filter(Boolean);
@@ -56,30 +56,20 @@ const GlobalExtrasDuringLeaderboard = ({
 
   if (globalExtraDefinitions.length === 0) return null;
 
-const handleExtraClick = (extraId: string) => {
-  // ✅ Special handling for restorePoints
-  if (extraId === 'restorePoints') {
-    if (restorablePoints <= 0) {
-      alert('No points available to restore');
-      return;
+  const handleExtraClick = (extraId: string) => {
+    // ✅ SIMPLIFIED: Since used extras are filtered out at hook level,
+    // we only need special validation for edge cases
+    if (extraId === 'robPoints') {
+      if (robPointsTargets.length === 0) {
+        alert('No players have enough points to rob from (need 2+ points)');
+        return;
+      }
+      setRobPointsModalOpen(true);
+    } else {
+      // ✅ Handle other global extras directly (including restorePoints)
+      onUseExtra(extraId);
     }
-  } else if (usedExtras[extraId]) {
-    alert(`You have already used ${extraId}`);
-    return;
-  }
-
-  if (extraId === 'robPoints') {
-    // ✅ Check if any eligible targets exist
-    if (robPointsTargets.length === 0) {
-      alert('No players have enough points to rob from (need 2+ points)');
-      return;
-    }
-    setRobPointsModalOpen(true);
-  } else {
-    // ✅ Handle other global extras directly (including restorePoints)
-    onUseExtra(extraId);
-  }
-};
+  };
 
   const handleRobPointsConfirm = (targetPlayerId: string) => {
     onUseExtra('robPoints', targetPlayerId);
@@ -90,28 +80,16 @@ const handleExtraClick = (extraId: string) => {
     <>
       <div className="bg-blue-50 p-4 mt-6 rounded-xl shadow">
         <h3 className="text-lg font-semibold text-blue-800 mb-2">🌍 Global Fundraising Extras</h3>
-        <p className="text-sm text-blue-600 mb-3">Use these before the next round starts, or wait for the next leaderboard review.  Be Strategic!:</p>
+        <p className="text-sm text-blue-600 mb-3">Use these before the next round starts, or wait for the next leaderboard review. Be Strategic!:</p>
         <div className="space-y-2">
           {globalExtraDefinitions.map(extra => {
-            const isUsed = usedExtras[extra.id];
             const isRobPoints = extra.id === 'robPoints';
-            const isRestorePoints = extra.id === 'restorePoints';
             const noEligibleTargets = isRobPoints && robPointsTargets.length === 0;
             
-            // ✅ FIXED: Proper disable logic for each extra type
-            let shouldDisable = false;
-            let disableReason = '';
-            
-            if (isRestorePoints) {
-              shouldDisable = restorablePoints <= 0;
-              disableReason = shouldDisable ? '(No points to restore)' : '';
-            } else if (isRobPoints) {
-              shouldDisable = isUsed || noEligibleTargets;
-              disableReason = isUsed ? '(Used)' : noEligibleTargets ? '(No valid targets)' : '';
-            } else {
-              shouldDisable = isUsed;
-              disableReason = isUsed ? '(Used)' : '';
-            }
+            // ✅ SIMPLIFIED: Since used extras are filtered out at hook level,
+            // we only need to check for edge cases
+            const shouldDisable = noEligibleTargets;
+            const disableReason = noEligibleTargets ? '(No valid targets)' : '';
             
             return (
               <button
@@ -125,8 +103,8 @@ const handleExtraClick = (extraId: string) => {
                 }`}
               >
                 {extra.icon} {extra.label}
-                {/* ✅ FIXED: Show available points for restore, status for others */}
-                {isRestorePoints && !shouldDisable && ` (${restorablePoints} available)`}
+                {/* ✅ Show available points for restore */}
+                {extra.id === 'restorePoints' && ` (${restorablePoints} available)`}
                 {disableReason && ` ${disableReason}`}
                 
                 <span className={`block text-xs opacity-80 ${
@@ -145,7 +123,6 @@ const handleExtraClick = (extraId: string) => {
         </div>
       </div>
 
-      {/* ✅ Rob Points Modal */}
       <UseExtraModal
         visible={robPointsModalOpen}
         players={robPointsTargets}

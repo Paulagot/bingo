@@ -16,7 +16,7 @@ import {
 } from '../quizRoomManager.js';
 import { emitFullRoomState } from '../handlers/sharedUtils.js';
 
-const debug = false;
+const debug =  true;
 
 function getEngine(room) {
   const roundType = room.config.roundDefinitions?.[room.currentRound - 1]?.roundType;
@@ -264,6 +264,9 @@ export function setupPlayerHandlers(socket, namespace) {
 
 socket.on('use_extra', async ({ roomId, playerId, extraId, targetPlayerId }) => {
  if (debug)  console.log(`[PlayerHandler] 🧪 Received use_extra:`, { roomId, playerId, extraId, targetPlayerId });
+    if (debug)  console.log(`🐛 [Backend] use_extra event received!`);
+   if (debug)  console.log(`🐛 [Backend] Data:`, { roomId, playerId, extraId, targetPlayerId });
+
   
   const room = getQuizRoom(roomId);
   if (!room) {
@@ -450,19 +453,23 @@ socket.on('request_current_state', ({ roomId, playerId }) => {
 
   // ✅ NEW: Handle leaderboard phase
   else if (room.currentPhase === 'leaderboard') {
-   if (debug)  console.log(`[Recovery] 🏆 Recovering leaderboard phase for ${playerId} in room ${roomId}`);
-    
-    // Send stored leaderboard data if available
-    if (room.currentRoundResults) {
-      socket.emit('round_leaderboard', room.currentRoundResults);
-     if (debug)  console.log(`[Recovery] 🏆 Sent round leaderboard for room ${roomId}`);
-    }
-    
-    if (room.currentOverallLeaderboard) {
-      socket.emit('leaderboard', room.currentOverallLeaderboard);
-    if (debug)   console.log(`[Recovery] 🏆 Sent overall leaderboard for room ${roomId}`);
-    }
+ if (debug)  console.log(`[Recovery] 🏆 Recovering leaderboard phase for ${playerId} in room ${roomId}`);
+  
+  // ✅ FIXED: Only send the appropriate leaderboard, don't send both
+  if (room.currentRoundResults && !room.currentOverallLeaderboard) {
+    // Showing round results - send round leaderboard
+    socket.emit('round_leaderboard', room.currentRoundResults);
+   if (debug)  console.log(`[Recovery] 🏆 Sent round leaderboard for room ${roomId}`);
+  } else if (room.currentOverallLeaderboard) {
+    // Showing overall leaderboard - send overall leaderboard  
+    socket.emit('leaderboard', room.currentOverallLeaderboard);
+  if (debug)   console.log(`[Recovery] 🏆 Sent overall leaderboard for room ${roomId}`);
+  } else if (room.currentRoundResults) {
+    // Fallback: if only round results exist, send that
+    socket.emit('round_leaderboard', room.currentRoundResults);
+   if (debug)  console.log(`[Recovery] 🏆 Sent round leaderboard (fallback) for room ${roomId}`);
   }
+}
 });
 
   socket.on('disconnect', () => {

@@ -181,6 +181,7 @@ const QuizGamePlayPage = () => {
   const { roundExtras } = useRoundExtras({
     allPlayerExtras,
     currentRoundType,
+    usedExtras,
     debug
   });
 
@@ -653,45 +654,65 @@ const handleAutoSubmit = useCallback(() => {
   }
 }, [selectedAnswer, submitAnswer, debug]);
 
-  const handleUseExtra = (extraId: string, targetPlayerId?: string) => {
-    if (!socket || !roomId || !playerId) return;
-    
-    if (usedExtras[extraId]) {
-      // ✅ FIXED: Use toast instead of alert
-      showNotification('warning', `You have already used ${extraId}`);
+ // Fix your handleUseExtra function in the parent component:
+
+const handleUseExtra = (extraId: string, targetPlayerId?: string) => {
+  if (!socket || !roomId || !playerId) return;
+  
+  if (usedExtras[extraId]) {
+    showNotification('warning', `You have already used ${extraId}`);
+    return;
+  }
+
+  console.log('🐛 [Frontend] handleUseExtra called:', { extraId, targetPlayerId });
+
+  if (extraId === 'buyHint') {
+    console.log('🐛 [Frontend] Emitting buyHint');
+    socket.emit('use_extra', {
+      roomId,
+      playerId: playerId,
+      extraId: 'buyHint'
+    });
+  } else if (extraId === 'freezeOutTeam') {
+    // ✅ FIXED: Check if this is modal confirmation or initial click
+    if (targetPlayerId) {
+      // This is from modal confirmation - emit the socket event
+      console.log('🐛 [Frontend] Emitting freezeOutTeam with target:', targetPlayerId);
+      socket.emit('use_extra', {
+        roomId,
+        playerId: playerId,
+        extraId: 'freezeOutTeam',
+        targetPlayerId
+      });
+      console.log('🐛 [Frontend] freezeOutTeam socket event emitted');
+    } else {
+      // This is initial click - open the modal
+      console.log('🐛 [Frontend] Opening freeze modal (no target provided)');
+      setFreezeModalOpen(true);
+    }
+  } else if (extraId === 'robPoints') {
+    if (!targetPlayerId) {
+      console.error('[handleUseExtra] robPoints requires targetPlayerId');
       return;
     }
-   
-
-    if (extraId === 'buyHint') {
-      socket.emit('use_extra', {
-        roomId,
-        playerId: playerId,
-        extraId: 'buyHint'
-      });
-    } else if (extraId === 'freezeOutTeam') {
-      setFreezeModalOpen(true);
-    } else if (extraId === 'robPoints') {
-      if (!targetPlayerId) {
-        console.error('[handleUseExtra] robPoints requires targetPlayerId');
-        return;
-      }
-      
-      socket.emit('use_extra', {
-        roomId,
-        playerId: playerId,
-        extraId: 'robPoints',
-        targetPlayerId
-      });
-    } else {
-      socket.emit('use_extra', {
-        roomId,
-        playerId: playerId,
-        extraId,
-        targetPlayerId
-      });
-    }
-  };
+    
+    console.log('🐛 [Frontend] Emitting robPoints');
+    socket.emit('use_extra', {
+      roomId,
+      playerId: playerId,
+      extraId: 'robPoints',
+      targetPlayerId
+    });
+  } else {
+    console.log('🐛 [Frontend] Emitting other extra:', extraId);
+    socket.emit('use_extra', {
+      roomId,
+      playerId: playerId,
+      extraId,
+      targetPlayerId
+    });
+  }
+};
 
   const handleFreezeConfirm = (targetPlayerId: string) => {
     if (!socket || !roomId || !playerId || !targetPlayerId) return;
@@ -733,7 +754,7 @@ return (
       />
     ) : (
       <>
-        <h1 className="text-2xl font-bold mb-4">🎮 Quiz In Progress</h1>
+        {/* <h1 className="text-2xl font-bold mb-4">🎮 Quiz In Progress</h1> */}
         {/* <p className="text-sm text-gray-500 mb-2">Room ID: {roomId}</p>
         <p className="text-sm text-gray-500 mb-4">Player ID: {playerId}</p> */}
 
@@ -778,7 +799,7 @@ return (
           </div>
         ))}
 
-        {isFrozenNow && frozenNotice && (
+        {/* {isFrozenNow && frozenNotice && (
           <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded">
             <div className="flex items-center">
               <div className="text-2xl mr-2">❄️</div>
@@ -788,7 +809,7 @@ return (
               </div>
             </div>
           </div>
-        )}
+        )} */}
 
         {/* ✅ Main game content */}
         {(roomPhase === 'launched' || (roomPhase === 'waiting' && serverRoomState.currentRound > 1)) ? (
@@ -832,11 +853,11 @@ return (
           )
         ) : (roomPhase === 'reviewing' || roomPhase === 'asking') && question ? (
           <div>
-            <div className="flex justify-between items-center mb-4">
+            {/* <div className="flex justify-between items-center mb-4">
               <span className="text-sm text-gray-600">
                 Round {serverRoomState.currentRound}/{serverRoomState.totalRounds} - Question {questionCounterDisplay}
               </span>
-            </div>
+            </div> */}
 
  <RoundRouter
   roomPhase={roomPhase}
@@ -864,6 +885,7 @@ return (
   difficulty={question?.difficulty}
   category={question?.category}
   isHost={false}
+  playersInRoom={playersInRoom}
 />
           </div>
         ) : (
