@@ -1,5 +1,15 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { 
+  CheckCircle, 
+  Zap, 
+  Users, 
+  AlertCircle,
+  Trophy,
+  Play,
+  ChevronDown,
+  ChevronUp
+} from 'lucide-react';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { useQuizConfig } from '../hooks/useQuizConfig';
 import { fundraisingExtraDefinitions, roundTypeDefinitions } from '../constants/quizMetadata';
@@ -36,6 +46,9 @@ const QuizGameWaitingPage = () => {
   
   const [playerData, setPlayerData] = useState<ServerPlayer | null>(null);
   const [allPlayers, setAllPlayers] = useState<ServerPlayer[]>([]);
+  const [showRounds, setShowRounds] = useState(false);
+  const [showPrizes, setShowPrizes] = useState(false);
+  const [showArsenal, setShowArsenal] = useState(false);
   const hasJoinedRef = useRef(false);
 
   debugLog.lifecycle('🚀 QuizGameWaitingPage mount');
@@ -206,9 +219,9 @@ const QuizGameWaitingPage = () => {
   // Show loading state while waiting for server data
   if (!config || Object.keys(config).length === 0 || !playerData) {
     return (
-      <div className="p-6 text-center">
-        <div className="animate-spin text-4xl mb-4">⏳</div>
-        <div className="text-lg font-semibold">
+      <div className="p-4 sm:p-6 text-center">
+        <div className="animate-spin text-3xl sm:text-4xl mb-4">⏳</div>
+        <div className="text-lg sm:text-xl font-semibold">
           {!config ? 'Loading quiz configuration...' : 'Loading player data...'}
         </div>
         {DEBUG && (
@@ -224,193 +237,219 @@ const QuizGameWaitingPage = () => {
 
   const playerExtras = playerData.extras || [];
   const playerName = playerData.name;
+  const totalPlayers = allPlayers.length;
 
   return (
-    <div className="p-6 max-w-4xl mx-auto text-center space-y-8">
-      <h1 className="text-3xl font-bold">🎉 Welcome, {playerName}!</h1>
-
-      <div className="p-4 text-lg font-semibold text-gray-700">
-        🙏 Thank you for supporting this fundraiser and GOOD LUCK!
-      </div>
-
-      {/* Payment Status Warning */}
-      {!playerData.paid && (
-        <div className="bg-yellow-50 p-4 rounded-xl border text-yellow-700 font-semibold">
-          ⚠️ Payment Required — Please complete payment with the quiz organizer to participate.
+    <div className="max-w-4xl mx-auto p-4 space-y-4 sm:space-y-6">
+      {/* Mobile-optimized header */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl p-4 sm:p-6">
+        <div className="text-center">
+          <div className="text-3xl sm:text-4xl mb-2">🎉</div>
+          <h1 className="text-xl sm:text-2xl font-bold mb-2">
+            Hey {playerName.split(' ')[0]}!
+          </h1>
+          <p className="text-blue-100 text-sm sm:text-base">You're all set to play</p>
+          <p className="text-blue-200 text-xs sm:text-sm mt-1">Thank you for supporting this fundraiser and GOOD LUCK!</p>
         </div>
-      )}
-
-      {/* Disqualification Warning */}
-      {playerData.disqualified && (
-        <div className="bg-red-100 p-4 rounded-xl border text-red-700 font-semibold">
-          🚫 You have been disqualified from this quiz.
-        </div>
-      )}
-
-      <div className="bg-yellow-50 p-4 rounded-xl border">
-        <h2 className="text-xl font-semibold mb-3">🎁 Gifts for Winners</h2>
-        {config.prizes?.length ? (
-          <div className="space-y-3">
-            {config.prizes.map((prize, idx: number) => (
-              <div key={idx} className="bg-white p-3 rounded-lg shadow">
-                <div className="font-bold">{prize.place} place: {prize.description}</div>
-                {prize.value && config.currencySymbol && (
-                  <div className="text-gray-600">
-                    Value: {config.currencySymbol}{prize.value}
-                  </div>
-                )}
-                {prize.sponsor && (
-                  <div className="text-sm text-gray-500">
-                    🎗️ Thanks to our sponsor: {prize.sponsor}
-                  </div>
-                )}
-              </div>
-            ))}
+        
+        {/* Status indicators */}
+        <div className="flex justify-around mt-4 pt-4 border-t border-blue-400">
+          <div className="text-center">
+            {playerData.paid ? (
+              <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 text-green-300" />
+            ) : (
+              <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 text-yellow-300" />
+            )}
+            <div className="text-xs sm:text-sm">{playerData.paid ? 'Paid' : 'Pending'}</div>
           </div>
-        ) : (
-          <div className="text-gray-500">No gifts configured</div>
-        )}
+          <div className="text-center">
+            <Zap className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 text-yellow-300" />
+            <div className="text-xs sm:text-sm">{playerExtras.length} Extras</div>
+          </div>
+          <div className="text-center">
+            <Users className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 text-blue-300" />
+            <div className="text-xs sm:text-sm">{totalPlayers} Players</div>
+          </div>
+        </div>
       </div>
 
-      <div className="bg-red-50 p-4 rounded-xl border text-red-700 font-semibold">
-        🚫 No Cheating — you will be disqualified if unfair play is detected.
+      {/* Warning Messages */}
+      {!playerData.paid && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+          <div className="flex items-center space-x-2">
+            <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0" />
+            <div className="text-yellow-700 text-sm font-semibold">
+              ⚠️ Payment Required — Please complete payment with the quiz organizer to participate.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {playerData.disqualified && (
+        <div className="bg-red-100 border border-red-200 rounded-xl p-4">
+          <div className="flex items-center space-x-2">
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+            <div className="text-red-700 text-sm font-semibold">
+              🚫 You have been disqualified from this quiz.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* No Cheating Warning */}
+      <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+        <div className="text-red-700 text-sm font-semibold">
+          🚫 No Cheating — you will be disqualified if unfair play is detected.
+        </div>
       </div>
 
-      <div className="bg-blue-50 p-4 rounded-xl border">
-        <h2 className="text-xl font-semibold mb-3">🎮 Gameplay</h2>
-        {config.roundDefinitions?.length ? (
-          <div className="space-y-3">
-            {config.roundDefinitions.map((round, index: number) => {
-              const roundTypeDef = roundTypeDefinitions[round.roundType as RoundTypeId];
-              
-              const playerExtrasForThisRound = playerExtras.filter(extraId => {
-                const extraDef = Object.values(fundraisingExtraDefinitions).find(def => {
-                  const defId = def.id.toLowerCase();
-                  const searchKey = extraId.toLowerCase();
-                  return defId === searchKey || 
-                         defId.includes(searchKey) ||
-                         searchKey.includes(defId);
-                });
-                
-                if (!extraDef) return false;
-                
-                return extraDef.applicableTo === 'global' || 
-                       (Array.isArray(extraDef.applicableTo) && extraDef.applicableTo.includes(round.roundType));
-              });
-              
-              if (!roundTypeDef) {
+      {/* Your Arsenal - Collapsible */}
+      {playerExtras.length > 0 && (
+        <div className="bg-green-50 border-l-4 border-green-400 rounded-lg p-4">
+          <button 
+            onClick={() => setShowArsenal(!showArsenal)}
+            className="w-full flex items-center justify-between text-left"
+          >
+            <h3 className="font-bold text-green-800 flex items-center space-x-2 text-base">
+              <Zap className="w-5 h-5" />
+              <span>Your Arsenal ({playerExtras.length} extras)</span>
+            </h3>
+            {showArsenal ? (
+              <ChevronUp className="w-5 h-5 text-green-600" />
+            ) : (
+              <ChevronDown className="w-5 h-5 text-green-600" />
+            )}
+          </button>
+          
+          {showArsenal && (
+            <div className="mt-3 space-y-3">
+              {playerExtras.map((extraId: string, idx: number) => {
+                const extraInfo = getExtraInfo(extraId);
                 return (
-                  <div key={index} className="bg-white p-3 rounded-lg shadow">
-                    <div className="flex justify-between">
-                      <span>🎯 Round {round.roundNumber}: Unknown Round Type</span>
-                      <span className="text-sm text-gray-600">Unknown</span>
+                  <div key={idx} className="bg-white rounded-lg p-3 border border-green-200 shadow flex items-center space-x-3">
+                    <span className="text-2xl flex-shrink-0">{extraInfo.definition?.icon || '💰'}</span>
+                    <div className="flex-1">
+                      <div className="font-medium text-sm text-gray-900">
+                        {extraInfo.definition?.label || extraId}
+                      </div>
+                      <div className="text-xs text-gray-600">
+                        {extraInfo.definition?.description}
+                      </div>
                     </div>
                   </div>
                 );
-              }
+              })}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="text-xs text-blue-800">
+                  <strong>⚠️ Remember:</strong> One extra per round - use wisely!
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
+      {/* Round Overview - Collapsible */}
+      <div className="bg-blue-50 border-l-4 border-blue-400 rounded-lg p-4">
+        <button 
+          onClick={() => setShowRounds(!showRounds)}
+          className="w-full flex items-center justify-between text-left"
+        >
+          <h3 className="font-bold text-blue-800 flex items-center space-x-2 text-base">
+            <Play className="w-5 h-5" />
+            <span>Round Overview ({config.roundDefinitions?.length || 0} rounds)</span>
+          </h3>
+          {showRounds ? (
+            <ChevronUp className="w-5 h-5 text-blue-600" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-blue-600" />
+          )}
+        </button>
+        
+        {showRounds && config.roundDefinitions?.length && (
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {config.roundDefinitions.map((round: any, index: number) => {
+              const roundTypeDef = roundTypeDefinitions[round.roundType as RoundTypeId];
+              
               return (
-                <div key={index} className="bg-white p-3 rounded-lg shadow space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium">
-                      {roundTypeDef.icon} Round {round.roundNumber}: {roundTypeDef.name}
+                <div key={index} className="bg-white rounded-lg p-3 border border-blue-200">
+                  <div className="text-center">
+                    <div className="font-bold text-sm text-blue-900 mb-1">
+                      {roundTypeDef?.icon || '🎯'} Round {round.roundNumber}
+                    </div>
+                    <div className="text-xs text-gray-600 mb-2">
+                      {round.category || roundTypeDef?.name || 'Unknown'}
+                    </div>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      round.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
+                      round.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                      round.difficulty === 'hard' ? 'bg-red-100 text-red-700' :
+                      'bg-gray-100 text-gray-700'
+                    }`}>
+                      {round.difficulty || roundTypeDef?.difficulty || 'Unknown'}
                     </span>
-                    <div className="flex items-center space-x-2">
-                      {round.category && (
-                        <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
-                          {round.category}
-                        </span>
-                      )}
-                      <span className={`text-sm px-2 py-1 rounded-full ${
-                        round.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
-                        round.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                        round.difficulty === 'hard' ? 'bg-red-100 text-red-700' :
-                        'bg-gray-100 text-gray-600'
-                      }`}>
-                        {round.difficulty || roundTypeDef.difficulty || 'Unknown'}
-                      </span>
-                    </div>
                   </div>
-                  
-                  {playerExtrasForThisRound.length > 0 && (
-                    <div className="border-t border-gray-200 pt-2">
-                      <div className="text-xs text-gray-600 mb-1 text-left">Your extras available in this round:</div>
-                      <div className="flex flex-wrap gap-1 justify-start">
-                        {playerExtrasForThisRound.map((extraId, extraIdx) => {
-                          const extraInfo = getExtraInfo(extraId);
-                          return (
-                            <div key={extraIdx} className="inline-flex items-center space-x-1 px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
-                              <span>{extraInfo.definition?.icon || '💰'}</span>
-                              <span>{extraInfo.definition?.label || extraId}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
                 </div>
               );
             })}
           </div>
-        ) : (
-          <div className="text-gray-500">No rounds configured</div>
         )}
       </div>
 
-      <div className="bg-green-50 p-4 rounded-xl border">
-        <div className="bg-orange-50 border border-orange-200 p-3 rounded-lg mb-4">
-          <div className="text-sm text-orange-800">
-            <strong>⚠️ Remember: Be Strategic</strong> You can only use one extra per round, so choose your moment carefully! 
-            Think strategically about when each extra will have the most impact. You can use more than one extra during the leaderboard phase
-          </div>
-        </div>
-        
-        <h2 className="text-xl font-semibold mb-3">💡 Your Extras</h2>
-        {playerExtras.length ? (
-          <div className="space-y-4 text-left">
-            {playerExtras.map((extra: string, idx: number) => {
-              const extraInfo = getExtraInfo(extra);
-              return (
-                <div key={idx} className="bg-white p-4 rounded-lg shadow space-y-2">
-                  <div className="font-bold text-lg">{extraInfo.label}</div>
-                  
-                  {extraInfo.definition && (
-                    <>
-                      <div className="text-sm text-gray-600">
-                        <strong>What it does:</strong> {extraInfo.definition.description}
+      {/* Prizes - Collapsible */}
+      {config.prizes && config.prizes.length > 0 && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 rounded-lg p-4">
+          <button 
+            onClick={() => setShowPrizes(!showPrizes)}
+            className="w-full flex items-center justify-between text-left"
+          >
+            <h3 className="font-bold text-yellow-800 flex items-center space-x-2 text-base">
+              <Trophy className="w-5 h-5" />
+              <span>Win Up To {config.currencySymbol}{config.prizes[0]?.value}!</span>
+            </h3>
+            {showPrizes ? (
+              <ChevronUp className="w-5 h-5 text-yellow-600" />
+            ) : (
+              <ChevronDown className="w-5 h-5 text-yellow-600" />
+            )}
+          </button>
+          
+          {showPrizes && (
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {config.prizes.map((prize: any, idx: number) => (
+                <div key={idx} className="bg-white rounded-lg p-3 border shadow">
+                  <div className="text-center">
+                    <div className="text-xl mb-1">
+                      {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}
+                    </div>
+                    <div className="font-bold text-sm text-gray-900">{prize.place}</div>
+                    <div className="text-xs text-gray-600 mb-1">{prize.description}</div>
+                    {prize.value && (
+                      <div className="font-bold text-sm text-gray-900">
+                        {config.currencySymbol}{prize.value}
                       </div>
-                      
-                      <div className="text-sm text-blue-700 bg-blue-50 p-3 rounded-lg">
-                        <strong>💡 Strategy Tip:</strong> {extraInfo.strategy}
-                      </div>
-                      
-                      <div className="text-xs text-gray-600">
-                        <strong>Can be used in:</strong>
-                        {extraInfo.definition.applicableTo === 'global' ? (
-                          <span className="ml-1 px-2 py-1 bg-purple-100 text-purple-700 rounded-full">
-                            🌍 All rounds
-                          </span>
-                        ) : (
-                          <div className="inline-flex flex-wrap gap-1 ml-1">
-                            {extraInfo.definition.applicableTo.map((roundType: string, roundIdx: number) => {
-                              const roundDef = roundTypeDefinitions[roundType as RoundTypeId];
-                              return (
-                                <span key={roundIdx} className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
-                                  {roundDef?.icon} {roundDef?.name}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  )}
+                    )}
+                    {prize.sponsor && (
+                      <div className="text-xs text-gray-500 mt-1">🎗️ Thanks to {prize.sponsor}</div>
+                    )}
+                  </div>
                 </div>
-              );
-            })}
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Waiting Message */}
+      <div className="text-center bg-gray-50 rounded-lg p-4 sm:p-6">
+        <div className="inline-flex items-center space-x-2 text-gray-600">
+          <div className="animate-spin w-4 h-4 sm:w-5 sm:h-5 border-2 border-gray-300 border-t-blue-600 rounded-full"></div>
+          <span className="font-medium text-sm sm:text-base">Waiting for host to start the game...</span>
+        </div>
+        {DEBUG && (
+          <div className="mt-2 text-xs text-gray-400">
+            Player ID: {playerId} | Socket: {connected ? '🟢 Connected' : '🔴 Disconnected'}
           </div>
-        ) : (
-          <div className="text-gray-500">You have not purchased any extras</div>
         )}
       </div>
     </div>

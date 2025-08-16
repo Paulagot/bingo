@@ -328,12 +328,14 @@ function executeRobPoints(roomId, playerId, targetPlayerId, namespace) {
   }
 
   // ✅ Send notification to robbed player
-  if (targetPlayer?.socketId) {
+ if (targetPlayer?.socketId) {
     const targetSocket = namespace.sockets.get(targetPlayer.socketId);
     if (targetSocket) {
-      targetSocket.emit('quiz_notification', {
-        type: 'warning',
-        message: `RobinHood stole ${pointsToRob} points from you! ⚡`
+      targetSocket.emit('robin_hood_animation', {
+        stolenPoints: pointsToRob,
+        fromTeam: targetName,
+        toTeam: playerName,
+        robberName: playerName
       });
     }
   }

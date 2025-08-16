@@ -20,6 +20,11 @@ import type { RoundTypeId } from '../types/quiz';
 import EnhancedPlayerLeaderboard from './EnhancedPlayerLeaderboard';
 import QuizCompletionCelebration from './QuizCompletionCelebration';
 
+import RobinHoodRunner from './RobinHoodRunner';
+import { useRobinHoodAnimation } from '../hooks/useRobinHoodAnimation';
+
+import FreezeOverlay from './FreezeOverlay';
+
 import type { RoundConfig } from '../types/quiz';
 const debug = false;
 
@@ -47,8 +52,13 @@ const QuizGamePlayPage = () => {
   const { socket, connected } = useQuizSocket();
   const navigate = useNavigate();
 
+  const [showFreezeOverlay, setShowFreezeOverlay] = useState(false);
+  const [freezeOverlayTrigger, setFreezeOverlayTrigger] = useState(0);
+
   // ✅ NEW: Notification state
   const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  const { robinHoodData, isAnimationActive, handleAnimationComplete } = useRobinHoodAnimation(socket);
 
   // ✅ VALIDATION: Ensure we have required params
   if (!roomId || !playerId) {
@@ -184,7 +194,6 @@ const QuizGamePlayPage = () => {
     usedExtras,
     debug
   });
-
 
   // ✅ DEBUG: Log the player ID we're using
   if (debug) {
@@ -344,6 +353,8 @@ const QuizGamePlayPage = () => {
         setFrozenNotice(null);
         frozenForIndexRef.current = null;
         frozenByRef.current = null;
+        // ✅ NEW: Hide freeze overlay when freeze period ends
+        setShowFreezeOverlay(false);
         if (debug) console.log('[Client] ❄️ Freeze cleared for new question');
       }
 
@@ -351,75 +362,75 @@ const QuizGamePlayPage = () => {
       setPhaseMessage('');
     };
 
-// QuizGamePlayPage.tsx - Updated handleReviewQuestion function
-const handleReviewQuestion = (data: any) => {
-  if (debug) console.log('[Client] 🤔 Review question received:', data);
+    // QuizGamePlayPage.tsx - Updated handleReviewQuestion function
+    const handleReviewQuestion = (data: any) => {
+      if (debug) console.log('[Client] 🤔 Review question received:', data);
 
-  setQuestion({
-    id: data.id,
-    text: data.text,
-    options: data.options || [],
-    timeLimit: 0,
-    difficulty: data.difficulty,
-    category: data.category
-  });
+      setQuestion({
+        id: data.id,
+        text: data.text,
+        options: data.options || [],
+        timeLimit: 0,
+        difficulty: data.difficulty,
+        category: data.category
+      });
 
-  setClue(null);
-  setTimerActive(false);
-  setSelectedAnswer(data.submittedAnswer || '');
-  setCorrectAnswer(data.correctAnswer);
+      setClue(null);
+      setTimerActive(false);
+      setSelectedAnswer(data.submittedAnswer || '');
+      setCorrectAnswer(data.correctAnswer);
 
-  // ✅ NEW: Use server-provided question numbers (persistent across reconnections)
-  if (data.questionNumber && data.totalQuestions) {
-    setQuestionInRound(data.questionNumber);
-    setTotalInRound(data.totalQuestions);
-    if (debug) console.log(`[Client] 📍 Review position: ${data.questionNumber}/${data.totalQuestions}`);
-  }
+      // ✅ NEW: Use server-provided question numbers (persistent across reconnections)
+      if (data.questionNumber && data.totalQuestions) {
+        setQuestionInRound(data.questionNumber);
+        setTotalInRound(data.totalQuestions);
+        if (debug) console.log(`[Client] 📍 Review position: ${data.questionNumber}/${data.totalQuestions}`);
+      }
 
-  const hasAnswered = data.submittedAnswer !== null && data.submittedAnswer !== undefined;
-  const isCorrect = hasAnswered && data.submittedAnswer === data.correctAnswer;
+      const hasAnswered = data.submittedAnswer !== null && data.submittedAnswer !== undefined;
+      const isCorrect = hasAnswered && data.submittedAnswer === data.correctAnswer;
 
-  // ✅ Dynamically calculate score (existing logic)
-  const currentRoundDef = config?.roundDefinitions?.[serverRoomState.currentRound - 1];
-  const roundType = serverRoomState.roundTypeId as RoundTypeId;
-  const roundMeta = roundTypeDefinitions[roundType];
+      // ✅ Dynamically calculate score (existing logic)
+      const currentRoundDef = config?.roundDefinitions?.[serverRoomState.currentRound - 1];
+      const roundType = serverRoomState.roundTypeId as RoundTypeId;
+      const roundMeta = roundTypeDefinitions[roundType];
 
-  const roundConfig: Partial<RoundConfig> = currentRoundDef?.config || {};
-  const defaultConfig: Partial<RoundConfig> = roundMeta?.defaultConfig || {};
+      const roundConfig: Partial<RoundConfig> = currentRoundDef?.config || {};
+      const defaultConfig: Partial<RoundConfig> = roundMeta?.defaultConfig || {};
 
-  const pointsPerDifficulty = roundConfig.pointsPerDifficulty || defaultConfig.pointsPerDifficulty || {};
-  const pointsLostPerWrong = roundConfig.pointsLostPerWrong ?? defaultConfig.pointsLostPerWrong ?? 0;
-  const pointsLostPerUnanswered = roundConfig.pointslostperunanswered ?? defaultConfig.pointslostperunanswered ?? 0;
+      const pointsPerDifficulty = roundConfig.pointsPerDifficulty || defaultConfig.pointsPerDifficulty || {};
+      const pointsLostPerWrong = roundConfig.pointsLostPerWrong ?? defaultConfig.pointsLostPerWrong ?? 0;
+      const pointsLostPerUnanswered = roundConfig.pointslostperunanswered ?? defaultConfig.pointslostperunanswered ?? 0;
 
-  const difficulty = (data.difficulty || 'medium') as keyof typeof pointsPerDifficulty;
-  const pointsIfCorrect = pointsPerDifficulty[difficulty] ?? 2;
+      const difficulty = (data.difficulty || 'medium') as keyof typeof pointsPerDifficulty;
+      const pointsIfCorrect = pointsPerDifficulty[difficulty] ?? 2;
 
-  let pointsEarned = 0;
-  if (!hasAnswered) {
-    pointsEarned = -pointsLostPerUnanswered;
-  } else if (isCorrect) {
-    pointsEarned = pointsIfCorrect;
-  } else {
-    pointsEarned = -pointsLostPerWrong;
-  }
+      let pointsEarned = 0;
+      if (!hasAnswered) {
+        pointsEarned = -pointsLostPerUnanswered;
+      } else if (isCorrect) {
+        pointsEarned = pointsIfCorrect;
+      } else {
+        pointsEarned = -pointsLostPerWrong;
+      }
 
-  // ✅ FIXED: Feedback message with proper points display
-  let feedbackMessage = '';
-  if (!hasAnswered) {
-    if (pointsLostPerUnanswered > 0) {
-      feedbackMessage = `❌ You didn't answer. -${pointsLostPerUnanswered} points. Correct Answer: ${data.correctAnswer}`;
-    } else {
-      feedbackMessage = `❌ You didn't answer. No penalty. Correct Answer: ${data.correctAnswer}`;
-    }
-  } else if (isCorrect) {
-    feedbackMessage = `✅ Correct! +${pointsEarned} points`;
-  } else {
-    feedbackMessage = `❌ Incorrect. ${pointsEarned} points. Correct Answer: ${data.correctAnswer}`;
-  }
+      // ✅ FIXED: Feedback message with proper points display
+      let feedbackMessage = '';
+      if (!hasAnswered) {
+        if (pointsLostPerUnanswered > 0) {
+          feedbackMessage = `❌ You didn't answer. -${pointsLostPerUnanswered} points. Correct Answer: ${data.correctAnswer}`;
+        } else {
+          feedbackMessage = `❌ You didn't answer. No penalty. Correct Answer: ${data.correctAnswer}`;
+        }
+      } else if (isCorrect) {
+        feedbackMessage = `✅ Correct! +${pointsEarned} points`;
+      } else {
+        feedbackMessage = `❌ Incorrect. ${pointsEarned} points. Correct Answer: ${data.correctAnswer}`;
+      }
 
-  setFeedback(feedbackMessage);
-  setPhaseMessage('Reviewing previous question...');
-};
+      setFeedback(feedbackMessage);
+      setPhaseMessage('Reviewing previous question...');
+    };
 
     const handleClue = ({ clue }: { clue: string }) => {
       if (debug) console.log('[Client] 💡 Clue revealed:', clue);
@@ -441,8 +452,12 @@ const handleReviewQuestion = (data: any) => {
       setWasJustFrozen(true);
       setFrozenNotice(`❄️ ${frozenByName} froze you out!!!`);
 
+      // ✅ NEW: Trigger the freeze overlay animation
+      setShowFreezeOverlay(true);
+      setFreezeOverlayTrigger(prev => prev + 1); // Force re-trigger even if already showing
+
       if (debug) {
-        console.log(`[Client] ❄️ Freeze Notice:`,wasJustFrozen || 'You have been frozen out!');
+        console.log(`[Client] ❄️ Freeze Notice:`, wasJustFrozen || 'You have been frozen out!');
         console.log(`[Client] ❄️ Freeze Notice Details:`);
         console.log(`  - Frozen by: ${frozenByName}`);
         console.log(`  - Frozen for question INDEX: ${frozenForQuestionIndex}`);
@@ -450,8 +465,6 @@ const handleReviewQuestion = (data: any) => {
         console.log(`  - Current question NUMBER: ${currentQuestionIndexRef.current + 1}`);
         console.log(`[Client] ❄️ Freeze Notice: You are frozen by ${frozenByName} for question index ${frozenForQuestionIndex} (question ${frozenForQuestionIndex + 1} to user)`);
       }
-
-      // ✅ REMOVED: No more alert popup
     };
 
     const handleRoomState = (data: ServerRoomState) => {
@@ -499,6 +512,8 @@ const handleReviewQuestion = (data: any) => {
       setIsFrozen(false);
       setFrozenNotice(null);
       setWasJustFrozen(false);
+      // ✅ NEW: Clear freeze overlay on round end
+      setShowFreezeOverlay(false);
     };
 
     const handleNextRound = ({ round }: { round: number }) => {
@@ -507,6 +522,8 @@ const handleReviewQuestion = (data: any) => {
       setIsFrozen(false);
       setFrozenNotice(null);
       setWasJustFrozen(false);
+      // ✅ NEW: Clear freeze overlay on new round
+      setShowFreezeOverlay(false);
     };
 
     const handleQuizEnd = ({ message }: { message: string }) => {
@@ -636,83 +653,87 @@ const handleReviewQuestion = (data: any) => {
     };
   }, [socket, connected, roomId, playerId, playersInRoom, config?.roundDefinitions, serverRoomState.currentRound]);
 
-const handleAutoSubmit = useCallback(() => {
-  if (debug) console.log('[AutoSubmit] ⏰ Timer expired - auto-submitting answer');
-  
-  // Submit whatever answer is currently selected (or empty string if none)
-  const answerToSubmit = selectedAnswer || '';
-  
-  if (answerToSubmit) {
-    if (debug) console.log('[AutoSubmit] 📤 Auto-submitting selected answer:', answerToSubmit);
-  } else {
-    if (debug) console.log('[AutoSubmit] 📤 Auto-submitting empty answer (no selection made)');
-  }
-  
-  const success = submitAnswer(answerToSubmit);
-  if (success) {
-    setAnswerSubmitted(true);
-  }
-}, [selectedAnswer, submitAnswer, debug]);
+  const handleAutoSubmit = useCallback(() => {
+    if (debug) console.log('[AutoSubmit] ⏰ Timer expired - auto-submitting answer');
+    
+    // Submit whatever answer is currently selected (or empty string if none)
+    const answerToSubmit = selectedAnswer || '';
+    
+    if (answerToSubmit) {
+      if (debug) console.log('[AutoSubmit] 📤 Auto-submitting selected answer:', answerToSubmit);
+    } else {
+      if (debug) console.log('[AutoSubmit] 📤 Auto-submitting empty answer (no selection made)');
+    }
+    
+    const success = submitAnswer(answerToSubmit);
+    if (success) {
+      setAnswerSubmitted(true);
+    }
+  }, [selectedAnswer, submitAnswer, debug]);
 
- // Fix your handleUseExtra function in the parent component:
+  const handleUseExtra = (extraId: string, targetPlayerId?: string) => {
+    if (!socket || !roomId || !playerId) return;
+    
+    if (usedExtras[extraId]) {
+      showNotification('warning', `You have already used ${extraId}`);
+      return;
+    }
 
-const handleUseExtra = (extraId: string, targetPlayerId?: string) => {
-  if (!socket || !roomId || !playerId) return;
-  
-  if (usedExtras[extraId]) {
-    showNotification('warning', `You have already used ${extraId}`);
-    return;
-  }
+    console.log('🐛 [Frontend] handleUseExtra called:', { extraId, targetPlayerId });
 
-  console.log('🐛 [Frontend] handleUseExtra called:', { extraId, targetPlayerId });
-
-  if (extraId === 'buyHint') {
-    console.log('🐛 [Frontend] Emitting buyHint');
-    socket.emit('use_extra', {
-      roomId,
-      playerId: playerId,
-      extraId: 'buyHint'
-    });
-  } else if (extraId === 'freezeOutTeam') {
-    // ✅ FIXED: Check if this is modal confirmation or initial click
-    if (targetPlayerId) {
-      // This is from modal confirmation - emit the socket event
-      console.log('🐛 [Frontend] Emitting freezeOutTeam with target:', targetPlayerId);
+    if (extraId === 'buyHint') {
+      console.log('🐛 [Frontend] Emitting buyHint');
       socket.emit('use_extra', {
         roomId,
         playerId: playerId,
-        extraId: 'freezeOutTeam',
+        extraId: 'buyHint'
+      });
+    } else if (extraId === 'freezeOutTeam') {
+      // ✅ FIXED: Check if this is modal confirmation or initial click
+      if (targetPlayerId) {
+        // This is from modal confirmation - emit the socket event
+        console.log('🐛 [Frontend] Emitting freezeOutTeam with target:', targetPlayerId);
+        socket.emit('use_extra', {
+          roomId,
+          playerId: playerId,
+          extraId: 'freezeOutTeam',
+          targetPlayerId
+        });
+        console.log('🐛 [Frontend] freezeOutTeam socket event emitted');
+      } else {
+        // This is initial click - open the modal
+        console.log('🐛 [Frontend] Opening freeze modal (no target provided)');
+        setFreezeModalOpen(true);
+      }
+    } else if (extraId === 'robPoints') {
+      if (!targetPlayerId) {
+        console.error('[handleUseExtra] robPoints requires targetPlayerId');
+        return;
+      }
+      
+      console.log('🐛 [Frontend] Emitting robPoints');
+      socket.emit('use_extra', {
+        roomId,
+        playerId: playerId,
+        extraId: 'robPoints',
         targetPlayerId
       });
-      console.log('🐛 [Frontend] freezeOutTeam socket event emitted');
     } else {
-      // This is initial click - open the modal
-      console.log('🐛 [Frontend] Opening freeze modal (no target provided)');
-      setFreezeModalOpen(true);
+      console.log('🐛 [Frontend] Emitting other extra:', extraId);
+      socket.emit('use_extra', {
+        roomId,
+        playerId: playerId,
+        extraId,
+        targetPlayerId
+      });
     }
-  } else if (extraId === 'robPoints') {
-    if (!targetPlayerId) {
-      console.error('[handleUseExtra] robPoints requires targetPlayerId');
-      return;
-    }
-    
-    console.log('🐛 [Frontend] Emitting robPoints');
-    socket.emit('use_extra', {
-      roomId,
-      playerId: playerId,
-      extraId: 'robPoints',
-      targetPlayerId
-    });
-  } else {
-    console.log('🐛 [Frontend] Emitting other extra:', extraId);
-    socket.emit('use_extra', {
-      roomId,
-      playerId: playerId,
-      extraId,
-      targetPlayerId
-    });
-  }
-};
+  };
+
+  // ✅ FIXED: Function placed at component level (not inside useEffect)
+  const handleFreezeOverlayComplete = () => {
+    setShowFreezeOverlay(false);
+    console.log('[FreezeOverlay] Animation completed and overlay hidden');
+  };
 
   const handleFreezeConfirm = (targetPlayerId: string) => {
     if (!socket || !roomId || !playerId || !targetPlayerId) return;
@@ -726,182 +747,181 @@ const handleUseExtra = (extraId: string, targetPlayerId?: string) => {
   };
 
   const { timeLeft } = useQuizTimer({
-  question: question,
-  timerActive: timerActive && roomPhase === 'asking' && !answerSubmitted,
-  onTimeUp: handleAutoSubmit
-});
+    question: question,
+    timerActive: timerActive && roomPhase === 'asking' && !answerSubmitted,
+    onTimeUp: handleAutoSubmit
+  });
 
   // ✅ CORRECT PLACEMENT - Move the completion check to the top level
-return (
-  <div className={`p-8 ${getFlashClasses()}`}>
-    {/* ✅ Handle quiz completion FIRST, before other phases */}
-    {roomPhase === 'complete' ? (
-      <QuizCompletionCelebration
-        leaderboard={leaderboard}
-        config={config}
-        playerId={playerId || ''}
-        roomId={roomId || ''}
-        onShareResults={() => {
-          const shareText = `I just completed a quiz and scored ${leaderboard.find(p => p.id === playerId)?.score} points! 🎯`;
-          if (navigator.share) {
-            navigator.share({ text: shareText });
-          } else {
-            navigator.clipboard.writeText(shareText);
-            showNotification('success', 'Results copied to clipboard!');
-          }
-        }}
-        onReturnToHome={() => navigate('/quiz')}
-      />
-    ) : (
-      <>
-        {/* <h1 className="text-2xl font-bold mb-4">🎮 Quiz In Progress</h1> */}
-        {/* <p className="text-sm text-gray-500 mb-2">Room ID: {roomId}</p>
-        <p className="text-sm text-gray-500 mb-4">Player ID: {playerId}</p> */}
-
-        {/* ✅ Countdown message overlay */}
-        {currentEffect && isFlashing && (
-          <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-            <div className={`text-8xl font-bold animate-bounce ${
-              currentEffect.color === 'green' ? 'text-green-500' :
-              currentEffect.color === 'orange' ? 'text-orange-500' : 
-              'text-red-500'
-            }`}>
-              {currentEffect.message}
-            </div>
-          </div>
-        )}
-
-        {/* ✅ Toast Notifications */}
-        {notifications.map(notification => (
-          <div
-            key={notification.id}
-            className={`fixed top-20 right-4 z-40 p-4 rounded-lg shadow-lg transition-all duration-300 ${
-              notification.type === 'success' ? 'bg-green-500 text-white' :
-              notification.type === 'warning' ? 'bg-orange-500 text-white' :
-              notification.type === 'error' ? 'bg-red-500 text-white' :
-              'bg-blue-500 text-white'
-            }`}
-            style={{ marginTop: `${notifications.indexOf(notification) * 80}px` }}
-          >
-            <div className="flex items-center justify-between">
-              <span className="pr-4">
-                {notification.type === 'success' ? '✅' : 
-                 notification.type === 'warning' ? '⚠️' : 
-                 notification.type === 'error' ? '❌' : 'ℹ️'} {notification.message}
-              </span>
-              <button
-                onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
-                className="ml-2 text-white hover:text-gray-200 font-bold text-lg"
-              >
-                ×
-              </button>
-            </div>
-          </div>
-        ))}
-
-        {/* {isFrozenNow && frozenNotice && (
-          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded">
-            <div className="flex items-center">
-              <div className="text-2xl mr-2">❄️</div>
-              <div>
-                <p className="font-bold">You are frozen!</p>
-                <p className="text-sm">{frozenNotice}</p>
+  return (
+    <div className={`p-8 ${getFlashClasses()}`}>
+      {/* ✅ Handle quiz completion FIRST, before other phases */}
+      {roomPhase === 'complete' ? (
+        <QuizCompletionCelebration
+          leaderboard={leaderboard}
+          config={config}
+          playerId={playerId || ''}
+          roomId={roomId || ''}
+          onShareResults={() => {
+            const shareText = `I just completed a quiz and scored ${leaderboard.find(p => p.id === playerId)?.score} points! 🎯`;
+            if (navigator.share) {
+              navigator.share({ text: shareText });
+            } else {
+              navigator.clipboard.writeText(shareText);
+              showNotification('success', 'Results copied to clipboard!');
+            }
+          }}
+          onReturnToHome={() => navigate('/quiz')}
+        />
+      ) : (
+        <>
+          {/* ✅ Countdown message overlay */}
+          {currentEffect && isFlashing && (
+            <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+              <div className={`text-8xl font-bold animate-bounce ${
+                currentEffect.color === 'green' ? 'text-green-500' :
+                currentEffect.color === 'orange' ? 'text-orange-500' : 
+                'text-red-500'
+              }`}>
+                {currentEffect.message}
               </div>
             </div>
-          </div>
-        )} */}
+          )}
 
-        {/* ✅ Main game content */}
-        {(roomPhase === 'launched' || (roomPhase === 'waiting' && serverRoomState.currentRound > 1)) ? (
-          <LaunchedPhase
-            currentRound={serverRoomState.currentRound}
-            config={config}
-            totalPlayers={serverRoomState.totalPlayers}
-            playerId={playerId || ''}
-            playerExtras={thisPlayer?.extras || []}
-            roomPhase={roomPhase}
-          />
-        ) : roomPhase === 'leaderboard' ? (
-          // Enhanced leaderboard display with round context
-          isShowingRoundResults && roundLeaderboard.length > 0 ? (
-            <EnhancedPlayerLeaderboard
-              leaderboard={roundLeaderboard}
-              availableExtras={availableExtras}
-              usedExtras={usedExtras}
-              onUseExtra={handleUseExtra}
-              currentPlayerId={playerId || ''}
-              cumulativeNegativePoints={roundLeaderboard.find(p => p.id === playerId)?.cumulativeNegativePoints || 0}
-              pointsRestored={roundLeaderboard.find(p => p.id === playerId)?.pointsRestored || 0}
-              isRoundResults={true}
-              currentRound={currentRoundNumber}
-            />
-          ) : leaderboard.length > 0 ? (
-            <EnhancedPlayerLeaderboard
-              leaderboard={leaderboard}
-              availableExtras={availableExtras}
-              usedExtras={usedExtras}
-              onUseExtra={handleUseExtra}
-              currentPlayerId={playerId || ''}
-              cumulativeNegativePoints={leaderboard.find(p => p.id === playerId)?.cumulativeNegativePoints || 0}
-              pointsRestored={leaderboard.find(p => p.id === playerId)?.pointsRestored || 0}
-              isRoundResults={false}
-            />
-          ) : (
-            <div className="bg-gray-100 p-6 rounded-xl text-center text-gray-600">
-              Calculating leaderboard...
+          {/* ✅ Toast Notifications */}
+          {notifications.map(notification => (
+            <div
+              key={notification.id}
+              className={`fixed top-20 right-4 z-40 p-4 rounded-lg shadow-lg transition-all duration-300 ${
+                notification.type === 'success' ? 'bg-green-500 text-white' :
+                notification.type === 'warning' ? 'bg-orange-500 text-white' :
+                notification.type === 'error' ? 'bg-red-500 text-white' :
+                'bg-blue-500 text-white'
+              }`}
+              style={{ marginTop: `${notifications.indexOf(notification) * 80}px` }}
+            >
+              <div className="flex items-center justify-between">
+                <span className="pr-4">
+                  {notification.type === 'success' ? '✅' : 
+                   notification.type === 'warning' ? '⚠️' : 
+                   notification.type === 'error' ? '❌' : 'ℹ️'} {notification.message}
+                </span>
+                <button
+                  onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
+                  className="ml-2 text-white hover:text-gray-200 font-bold text-lg"
+                >
+                  ×
+                </button>
+              </div>
             </div>
-          )
-        ) : (roomPhase === 'reviewing' || roomPhase === 'asking') && question ? (
-          <div>
-            {/* <div className="flex justify-between items-center mb-4">
-              <span className="text-sm text-gray-600">
-                Round {serverRoomState.currentRound}/{serverRoomState.totalRounds} - Question {questionCounterDisplay}
-              </span>
-            </div> */}
+          ))}
 
- <RoundRouter
-  roomPhase={roomPhase}
-  currentRoundType={currentRoundType}
-  question={question}
-  timeLeft={timeLeft}  // ← CHANGED from null to timeLeft
-  timerActive={timerActive && !answerSubmitted}  // ← ADD this condition
-  selectedAnswer={selectedAnswer}
-  setSelectedAnswer={setSelectedAnswer}
-  answerSubmitted={answerSubmitted}
-  clue={clue}
-  feedback={feedback}
-  correctAnswer={correctAnswer ?? undefined} 
-  isFrozen={isFrozenNow}
-  frozenNotice={frozenNotice}
-  onSubmit={() => {}} // ← REMOVE the handleSubmit call since we don't need manual submit
-  roomId={roomId!}
-  playerId={playerId!}
-  roundExtras={roundExtras}
-  usedExtras={usedExtras}
-  usedExtrasThisRound={usedExtrasThisRound}
-  onUseExtra={handleUseExtra}
-  questionNumber={questionInRound}
-  totalQuestions={totalInRound}
-  difficulty={question?.difficulty}
-  category={question?.category}
-  isHost={false}
-  playersInRoom={playersInRoom}
-/>
-          </div>
-        ) : (
-          <div className="bg-gray-100 p-6 rounded-xl text-center text-gray-600">{phaseMessage}</div>
-        )}
+          {/* ✅ Main game content */}
+          {(roomPhase === 'launched' || (roomPhase === 'waiting' && serverRoomState.currentRound > 1)) ? (
+            <LaunchedPhase
+              currentRound={serverRoomState.currentRound}
+              config={config}
+              totalPlayers={serverRoomState.totalPlayers}
+              playerId={playerId || ''}
+              playerExtras={thisPlayer?.extras || []}
+              roomPhase={roomPhase}
+            />
+          ) : roomPhase === 'leaderboard' ? (
+            // Enhanced leaderboard display with round context
+            isShowingRoundResults && roundLeaderboard.length > 0 ? (
+              <EnhancedPlayerLeaderboard
+                leaderboard={roundLeaderboard}
+                availableExtras={availableExtras}
+                usedExtras={usedExtras}
+                onUseExtra={handleUseExtra}
+                currentPlayerId={playerId || ''}
+                cumulativeNegativePoints={roundLeaderboard.find(p => p.id === playerId)?.cumulativeNegativePoints || 0}
+                pointsRestored={roundLeaderboard.find(p => p.id === playerId)?.pointsRestored || 0}
+                isRoundResults={true}
+                currentRound={currentRoundNumber}
+              />
+            ) : leaderboard.length > 0 ? (
+              <EnhancedPlayerLeaderboard
+                leaderboard={leaderboard}
+                availableExtras={availableExtras}
+                usedExtras={usedExtras}
+                onUseExtra={handleUseExtra}
+                currentPlayerId={playerId || ''}
+                cumulativeNegativePoints={leaderboard.find(p => p.id === playerId)?.cumulativeNegativePoints || 0}
+                pointsRestored={leaderboard.find(p => p.id === playerId)?.pointsRestored || 0}
+                isRoundResults={false}
+              />
+            ) : (
+              <div className="bg-gray-100 p-6 rounded-xl text-center text-gray-600">
+                Calculating leaderboard...
+              </div>
+            )
+          ) : (roomPhase === 'reviewing' || roomPhase === 'asking') && question ? (
+            <div>
+              <RoundRouter
+                roomPhase={roomPhase}
+                currentRoundType={currentRoundType}
+                question={question}
+                timeLeft={timeLeft}
+                timerActive={timerActive && !answerSubmitted}
+                selectedAnswer={selectedAnswer}
+                setSelectedAnswer={setSelectedAnswer}
+                answerSubmitted={answerSubmitted}
+                clue={clue}
+                feedback={feedback}
+                correctAnswer={correctAnswer ?? undefined} 
+                isFrozen={isFrozenNow}
+                frozenNotice={frozenNotice}
+                onSubmit={() => {}}
+                roomId={roomId!}
+                playerId={playerId!}
+                roundExtras={roundExtras}
+                usedExtras={usedExtras}
+                usedExtrasThisRound={usedExtrasThisRound}
+                onUseExtra={handleUseExtra}
+                questionNumber={questionInRound}
+                totalQuestions={totalInRound}
+                difficulty={question?.difficulty}
+                category={question?.category}
+                isHost={false}
+                playersInRoom={playersInRoom}
+              />
+            </div>
+          ) : (
+            <div className="bg-gray-100 p-6 rounded-xl text-center text-gray-600">{phaseMessage}</div>
+          )}
 
-        <UseExtraModal
-          visible={freezeModalOpen}
-          players={playersInRoom.filter(p => p.id !== playerId)}
-          onCancel={() => setFreezeModalOpen(false)}
-          onConfirm={handleFreezeConfirm}
+          <UseExtraModal
+            visible={freezeModalOpen}
+            players={playersInRoom.filter(p => p.id !== playerId)}
+            onCancel={() => setFreezeModalOpen(false)}
+            onConfirm={handleFreezeConfirm}
+          />
+        </>
+      )}
+
+      {/* ✅ Robin Hood Animation Overlay */}
+      {robinHoodData && (
+        <RobinHoodRunner
+          isActive={isAnimationActive}
+          onComplete={handleAnimationComplete}
+          stolenPoints={robinHoodData.stolenPoints}
+          fromTeam={robinHoodData.fromTeam}
+          toTeam={robinHoodData.toTeam}
         />
-      </>
-    )}
-  </div>
-  )}
+      )}
+
+      {/* ✅ NEW: Freeze Overlay Animation */}
+      <FreezeOverlay
+        key={freezeOverlayTrigger} // Force re-render on new freeze
+        isActive={showFreezeOverlay && isFrozenNow} // ✅ FIXED: Only show when actually frozen
+        frozenBy={playersInRoom.find(p => p.id === frozenByRef.current)?.name || 'Someone'}
+        onAnimationComplete={handleFreezeOverlayComplete}
+        targetElement=".quiz-content, .round-router, [data-testid='question-card']" // ✅ Better target selection
+      />
+    </div>
+  );
+};
 
 export default QuizGamePlayPage;
 
