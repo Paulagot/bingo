@@ -131,7 +131,7 @@ export const StepCombinedRounds: React.FC<StepCombinedRoundsProps> = ({ onNext, 
     if (completedRounds === 0 && totalRounds > 0) {
       return { 
         expression: "encouraging", 
-        message: "Great! Now configure each round below." 
+        message: "Great! Now configure each round below. Select a category and difficulty for each round. Add, remove and rearrange rounds as needed." 
       };
     }
     if (completedRounds === totalRounds && totalRounds > 0) {
@@ -346,7 +346,7 @@ export const StepCombinedRounds: React.FC<StepCombinedRoundsProps> = ({ onNext, 
           <div className="flex items-center justify-center gap-2">
             <Plus className="w-4 h-4" />
             <span className="text-sm sm:text-base font-medium">
-              {selectedRounds.length >= MAX_ROUNDS ? 'Max Rounds (8)' : 'Add Round Type'}
+              {selectedRounds.length >= MAX_ROUNDS ? 'Max Rounds (8)' : 'Add More Rounds'}
             </span>
           </div>
         </button>

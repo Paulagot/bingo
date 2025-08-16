@@ -9,7 +9,9 @@ import WhatsNew from './pages/WhatsNew';
 
 // Only lazy load Quiz components (these work)
 const QuizRoutes = lazy(() => import('./components/Quiz/QuizRoutes'));
-const QuizSocketProvider = lazy(() => import('./components/Quiz/sockets/QuizSocketProvider').then(m => ({ default: m.QuizSocketProvider })));
+const QuizSocketProvider = lazy(() =>
+  import('./components/Quiz/sockets/QuizSocketProvider').then(m => ({ default: m.QuizSocketProvider }))
+);
 
 // Import Web3 pages directly but wrap them to create lazy-like effect
 import { Web3Provider } from './components/Web3Provider';
@@ -23,19 +25,28 @@ import * as Web3FundraiserModule from './pages/web3fundraiser';
 // Create a safe component from whatever export exists
 const FundraisingLaunchPage = () => {
   // Try different possible exports
-  const Component = (Web3FundraiserModule as any).default || 
-                   (Web3FundraiserModule as any).FundraisingLaunchPage ||
-                   (Web3FundraiserModule as any).Web3Fundraiser ||
-                   (() => <div className="p-8 text-center">
-                     <h1 className="text-2xl font-bold">Web3 Impact Event</h1>
-                     <p className="text-gray-600 mt-4">Component loading...</p>
-                   </div>);
-  
+  const Component =
+    (Web3FundraiserModule as any).default ||
+    (Web3FundraiserModule as any).FundraisingLaunchPage ||
+    (Web3FundraiserModule as any).Web3Fundraiser ||
+    (() => (
+      <div className="p-8 text-center">
+        <h1 className="text-2xl font-bold">Web3 Impact Event</h1>
+        <p className="text-gray-600 mt-4">Component loading...</p>
+      </div>
+    ));
+
   return <Component />;
 };
 
 // Loading component
-const LoadingSpinner = ({ message = "Loading...", subMessage }: { message?: string; subMessage?: string }) => (
+const LoadingSpinner = ({
+  message = 'Loading...',
+  subMessage,
+}: {
+  message?: string;
+  subMessage?: string;
+}) => (
   <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
     <div className="text-center max-w-md mx-auto p-6">
       <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-200 border-t-indigo-600 mx-auto mb-6"></div>
@@ -61,7 +72,19 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [location]);
 
-  const showHeader = location.pathname !== '/pitch-deck-content' && location.pathname !== '/BingoBlitz';
+  // ---------- Option A: centralize header visibility rules here ----------
+  const { pathname } = location;
+
+  // Exact-path hides
+  const hideOnPaths = ['/pitch-deck-content', '/BingoBlitz'];
+
+  // Prefix hides (match path or any sub-path)
+  const hideOnPrefixes = ['/quiz/game', '/quiz/play','/quiz/host-dashboard', '/quiz/host-controls'];
+
+  const showHeader =
+    !hideOnPaths.includes(pathname) &&
+    !hideOnPrefixes.some((p) => pathname === p || pathname.startsWith(p + '/'));
+  // ----------------------------------------------------------------------
 
   return (
     <ErrorBoundary>
@@ -75,83 +98,132 @@ export default function App() {
             <Route path="/whats-new" element={<WhatsNew />} />
 
             {/* 🎮 Quiz routes - Lazy loaded */}
-            <Route path="/quiz/*" element={
-              <Suspense fallback={<LoadingSpinner message="Loading Quiz Platform" />}>
-                <QuizSocketProvider>
-                  <QuizRoutes />
-                </QuizSocketProvider>
-              </Suspense>
-            } />
+            <Route
+              path="/quiz/*"
+              element={
+                <Suspense fallback={<LoadingSpinner message="Loading Quiz Platform" />}>
+                  <QuizSocketProvider>
+                    <QuizRoutes />
+                  </QuizSocketProvider>
+                </Suspense>
+              }
+            />
 
             {/* 🎲 WEB3 ROUTES - All fully working */}
-            <Route path="/game/:roomId" element={
-              <Suspense fallback={<LoadingSpinner message="Loading Bingo Game" subMessage="Initializing Web3 and game features..." />}>
-                <Web3Provider>
-                  <Game />
-                </Web3Provider>
-              </Suspense>
-            } />
-            
-            <Route path="/BingoBlitz" element={
-              <Suspense fallback={<LoadingSpinner message="Loading Bingo Blitz" subMessage="Preparing campaign features..." />}>
-                <Web3Provider>
-                  <TestCampaign />
-                </Web3Provider>
-              </Suspense>
-            } />
+            <Route
+              path="/game/:roomId"
+              element={
+                <Suspense
+                  fallback={
+                    <LoadingSpinner
+                      message="Loading Bingo Game"
+                      subMessage="Initializing Web3 and game features..."
+                    />
+                  }
+                >
+                  <Web3Provider>
+                    <Game />
+                  </Web3Provider>
+                </Suspense>
+              }
+            />
 
-            <Route path="/pitch-deck" element={
-              <Suspense fallback={<LoadingSpinner message="Loading Pitch Deck" subMessage="Preparing investor presentation..." />}>
-                <Web3Provider>
-                  <PitchDeck />
-                </Web3Provider>
-              </Suspense>
-            } />
-            
+            <Route
+              path="/BingoBlitz"
+              element={
+                <Suspense
+                  fallback={
+                    <LoadingSpinner
+                      message="Loading Bingo Blitz"
+                      subMessage="Preparing campaign features..."
+                    />
+                  }
+                >
+                  <Web3Provider>
+                    <TestCampaign />
+                  </Web3Provider>
+                </Suspense>
+              }
+            />
+
+            <Route
+              path="/pitch-deck"
+              element={
+                <Suspense
+                  fallback={
+                    <LoadingSpinner
+                      message="Loading Pitch Deck"
+                      subMessage="Preparing investor presentation..."
+                    />
+                  }
+                >
+                  <Web3Provider>
+                    <PitchDeck />
+                  </Web3Provider>
+                </Suspense>
+              }
+            />
+
             {/* ✅ FIXED: Web3 Impact Event route */}
-            <Route path="/Web3-Impact-Event" element={
-              <Suspense fallback={<LoadingSpinner message="Loading Web3 Impact Event" subMessage="Connecting to blockchain features..." />}>
-                <Web3Provider>
-                  <FundraisingLaunchPage />
-                </Web3Provider>
-              </Suspense>
-            } />
+            <Route
+              path="/Web3-Impact-Event"
+              element={
+                <Suspense
+                  fallback={
+                    <LoadingSpinner
+                      message="Loading Web3 Impact Event"
+                      subMessage="Connecting to blockchain features..."
+                    />
+                  }
+                >
+                  <Web3Provider>
+                    <FundraisingLaunchPage />
+                  </Web3Provider>
+                </Suspense>
+              }
+            />
 
             {/* Alternative routes for the Web3 Impact Event */}
-            <Route path="/Web3-impact-Event" element={
-              <Suspense fallback={<LoadingSpinner message="Loading Web3 Impact Event" />}>
-                <Web3Provider>
-                  <FundraisingLaunchPage />
-                </Web3Provider>
-              </Suspense>
-            } />
+            <Route
+              path="/Web3-impact-Event"
+              element={
+                <Suspense fallback={<LoadingSpinner message="Loading Web3 Impact Event" />}>
+                  <Web3Provider>
+                    <FundraisingLaunchPage />
+                  </Web3Provider>
+                </Suspense>
+              }
+            />
 
             {/* Catch-all route */}
-            <Route path="*" element={
-              <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-8">
-                <div className="text-center">
-                  <h1 className="text-2xl font-bold text-gray-900 mb-4">Page Not Found</h1>
-                  <p className="text-gray-600 mb-4">The page you're looking for doesn't exist.</p>
-                  <div className="space-y-2">
-                    <button 
-                      onClick={() => navigate('/')}
-                      className="block w-full bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
-                    >
-                      Return Home
-                    </button>
-                    <button 
-                      onClick={() => navigate('/Web3-Impact-Event')}
-                      className="block w-full bg-pink-600 text-white px-6 py-2 rounded-lg hover:bg-pink-700 transition-colors"
-                    >
-                      Try Web3 Impact Event
-                    </button>
-                  </div>
-                  <div className="mt-4 text-sm text-gray-500">
-                    <p>Looking for: {location.pathname}</p>
+            <Route
+              path="*"
+              element={
+                <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-8">
+                  <div className="text-center">
+                    <h1 className="text-2xl font-bold text-gray-900 mb-4">Page Not Found</h1>
+                    <p className="text-gray-600 mb-4">The page you're looking for doesn't exist.</p>
+                    <div className="space-y-2">
+                      <button
+                        onClick={() => navigate('/')}
+                        className="block w-full bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+                      >
+                        Return Home
+                      </button>
+                      <button
+                        onClick={() => navigate('/Web3-Impact-Event')}
+                        className="block w-full bg-pink-600 text-white px-6 py-2 rounded-lg hover:bg-pink-700 transition-colors"
+                      >
+                        Try Web3 Impact Event
+                      </button>
+                    </div>
+                    <div className="mt-4 text-sm text-gray-500">
+                      <p>Looking for: {location.pathname}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            } />
+              }
+            />
           </Routes>
         </main>
       </div>

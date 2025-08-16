@@ -130,7 +130,7 @@ const StandardRound: React.FC<EnhancedStandardRoundProps> = ({
           </div>
 
           {/* Frozen Notice */}
-          {isFrozen && frozenNotice && (
+          {/* {isFrozen && frozenNotice && (
             <div className="mt-3 p-3 bg-red-100 border border-red-300 rounded-lg">
               <div className="flex items-center space-x-2">
                 <Snowflake className="w-5 h-5 text-red-600" />
@@ -140,7 +140,7 @@ const StandardRound: React.FC<EnhancedStandardRoundProps> = ({
                 </div>
               </div>
             </div>
-          )}
+          )} */}
         </div>
 
         {/* Question Content */}

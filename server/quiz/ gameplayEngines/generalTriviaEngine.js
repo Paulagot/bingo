@@ -264,7 +264,7 @@ export function startNextQuestion(roomId, namespace) {
         socket.emit('freeze_notice', {
           frozenBy: pdata.frozenBy,
           frozenForQuestionIndex: pdata.frozenForQuestionIndex,
-          message: `You are frozen for this question!`
+          // message: `You are frozen for this question!`
         });
 
         if (debug) {
