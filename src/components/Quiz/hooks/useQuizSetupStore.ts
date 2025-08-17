@@ -6,19 +6,19 @@ interface QuizSetupState {
   updateSetupConfig: (updates: Partial<QuizConfig>) => void;
   resetSetupConfig: () => void;
   setSetupConfig: (newConfig: Partial<QuizConfig>) => void;
-
+  
   addRound: (round: RoundDefinition) => void;
   updateRound: (index: number, updates: Partial<RoundDefinition>) => void;
   removeRound: (index: number) => void;
-
+  
   toggleExtra: (key: string) => void;
 }
 
 export const useQuizSetupStore = create<QuizSetupState>((set) => ({
   setupConfig: {},
-
+  
   setSetupConfig: (newConfig) => set({ setupConfig: newConfig }),
-
+  
   updateSetupConfig: (updates) =>
     set((state) => {
       const prev = state.setupConfig;
@@ -36,12 +36,16 @@ export const useQuizSetupStore = create<QuizSetupState>((set) => ({
           },
           roundDefinitions: updates.roundDefinitions ?? prev.roundDefinitions,
           prizes: updates.prizes ?? prev.prizes,
+          // Handle the new template-related fields
+          selectedTemplate: updates.selectedTemplate ?? prev.selectedTemplate,
+          isCustomQuiz: updates.isCustomQuiz ?? prev.isCustomQuiz,
+          skipRoundConfiguration: updates.skipRoundConfiguration ?? prev.skipRoundConfiguration,
         },
       };
     }),
-
+  
   resetSetupConfig: () => set({ setupConfig: {} }),
-
+  
   addRound: (round) =>
     set((state) => ({
       setupConfig: {
@@ -49,7 +53,7 @@ export const useQuizSetupStore = create<QuizSetupState>((set) => ({
         roundDefinitions: [...(state.setupConfig.roundDefinitions || []), round],
       },
     })),
-
+  
   updateRound: (index, updates) =>
     set((state) => {
       const currentRounds = state.setupConfig.roundDefinitions || [];
@@ -63,7 +67,7 @@ export const useQuizSetupStore = create<QuizSetupState>((set) => ({
         },
       };
     }),
-
+  
   removeRound: (index) =>
     set((state) => {
       const currentRounds = state.setupConfig.roundDefinitions || [];
@@ -75,7 +79,7 @@ export const useQuizSetupStore = create<QuizSetupState>((set) => ({
         },
       };
     }),
-
+  
   toggleExtra: (key) =>
     set((state) => {
       const current = !!state.setupConfig.fundraisingOptions?.[key];
@@ -90,4 +94,3 @@ export const useQuizSetupStore = create<QuizSetupState>((set) => ({
       };
     }),
 }));
-

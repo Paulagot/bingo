@@ -82,7 +82,10 @@ export interface QuizConfig {
   paymentMethod: 'cash_or_revolut' | 'web3';
   fundraisingOptions: FundraisingOptions; // ✅ required
   fundraisingPrices: FundraisingPrices;   // ✅ required
-  roundDefinitions: RoundDefinition[];    // ✅ required
+  roundDefinitions: RoundDefinition[]; 
+   selectedTemplate?: string;
+  isCustomQuiz?: boolean;
+  skipRoundConfiguration?: boolean;   // ✅ required
   questions: unknown[];
   prizeMode?: 'split' | 'assets' | 'cash';
   prizeSplits?: Record<number, number>;

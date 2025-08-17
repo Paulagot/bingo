@@ -31,7 +31,7 @@ const StandardRound: React.FC<EnhancedStandardRoundProps> = ({
   clue,
   feedback,
   isFrozen,
-  frozenNotice,
+  
   roomId,
   playerId,
   roundExtras,

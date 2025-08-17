@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { roundTypeDefinitions, fundraisingExtraDefinitions } from '../constants/quizMetadata';
+import { roundTypeDefinitions  } from '../constants/quizMetadata';
 import type { RoundTypeId } from '../types/quiz';
 
 interface LaunchedPhaseProps {
@@ -16,7 +16,7 @@ const LaunchedPhase: React.FC<LaunchedPhaseProps> = ({
   config,
   totalPlayers,
   playerId,
-  playerExtras,
+ 
   roomPhase
 }) => {
   const [isVisible, setIsVisible] = useState(false);
