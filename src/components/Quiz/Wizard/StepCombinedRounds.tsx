@@ -1,3 +1,4 @@
+// src/components/Quiz/Wizard/StepCombinedRounds.tsx
 import React, { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Trophy, Info, CheckCircle, Trash2, GripVertical, Zap, Plus } from 'lucide-react';
 import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
@@ -13,33 +14,40 @@ interface StepCombinedRoundsProps {
 const MAX_ROUNDS = 8;
 const MIN_ROUNDS = 1;
 
-const Character = ({ expression, message }: { expression: string; message: string }) => {
-  const getCharacterStyle = (): string => {
-    const base = "w-8 h-8 sm:w-16 sm:h-16 rounded-full flex items-center justify-center text-lg sm:text-2xl transition-all duration-300";
-    switch (expression) {
-      case "excited": return `${base} bg-gradient-to-br from-indigo-400 to-purple-500 animate-bounce`;
-      case "explaining": return `${base} bg-gradient-to-br from-purple-400 to-pink-500 animate-pulse`;
-      case "strategic": return `${base} bg-gradient-to-br from-orange-400 to-red-500`;
-      case "encouraging": return `${base} bg-gradient-to-br from-green-400 to-blue-500`;
-      default: return `${base} bg-gradient-to-br from-gray-400 to-gray-600`;
+const Character = ({ message }: { message: string }) => {
+  const getBubbleColor = (): string => {
+    if (message.includes('Perfect!') || message.includes('configured!')) {
+      return 'bg-green-50 border-green-200';
     }
-  };
-
-  const getEmoji = (): string => {
-    switch (expression) {
-      case "excited": return "🎯";
-      case "explaining": return "💡";
-      case "strategic": return "🧠";
-      case "encouraging": return "⚡";
-      default: return "😊";
+    if (message.includes('Excellent!') || message.includes('choice!')) {
+      return 'bg-blue-50 border-blue-200';
     }
+    if (message.includes('ready') || message.includes('configured')) {
+      return 'bg-indigo-50 border-indigo-200';
+    }
+    if (message.includes('template') || message.includes('Great choice')) {
+      return 'bg-blue-50 border-blue-200';
+    }
+    if (message.includes('build') || message.includes('custom')) {
+      return 'bg-orange-50 border-orange-200';
+    }
+    if (message.includes('Keep going!')) {
+      return 'bg-yellow-50 border-yellow-200';
+    }
+    return 'bg-gray-50 border-gray-200';
   };
 
   return (
     <div className="flex items-center gap-2 sm:gap-4 mb-3 sm:mb-6">
-      <div className={getCharacterStyle()}>{getEmoji()}</div>
-      <div className="relative bg-white rounded-lg sm:rounded-2xl p-2 sm:p-4 shadow-lg border border-gray-200 flex-1">
-        <p className="text-gray-700 text-xs sm:text-base leading-tight sm:leading-normal">{message}</p>
+      {/* Character Image Placeholder */}
+      <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gray-200 border-2 border-gray-300 flex items-center justify-center flex-shrink-0 overflow-hidden">
+        {/* TODO: Replace with actual character image */}
+        <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-300 flex items-center justify-center">
+          <span className="text-gray-500 text-xs sm:text-sm font-medium">IMG</span>
+        </div>
+      </div>
+      <div className={`relative rounded-lg sm:rounded-2xl p-2 sm:p-4 shadow-lg border flex-1 ${getBubbleColor()}`}>
+        <p className="text-gray-700 text-xs sm:text-sm leading-tight sm:leading-normal">{message}</p>
       </div>
     </div>
   );
@@ -51,18 +59,26 @@ export const StepCombinedRounds: React.FC<StepCombinedRoundsProps> = ({ onNext, 
   const [showAddRounds, setShowAddRounds] = useState(false);
 
   useEffect(() => {
-    if (!setupConfig.roundDefinitions || setupConfig.roundDefinitions.length === 0) {
-      const defaultRounds: RoundDefinition[] = [
-        createRoundDefinition('general_trivia', 1),
-        createRoundDefinition('wipeout', 2),
-        createRoundDefinition('general_trivia', 3),
-      ];
-      setSelectedRounds(defaultRounds);
-      updateSetupConfig({ roundDefinitions: defaultRounds });
+    if (setupConfig.isCustomQuiz) {
+      // Custom quiz - start with default empty rounds
+      if (!setupConfig.roundDefinitions || setupConfig.roundDefinitions.length === 0) {
+        const defaultRounds: RoundDefinition[] = [
+          createRoundDefinition('general_trivia', 1),
+          createRoundDefinition('wipeout', 2),
+          createRoundDefinition('general_trivia', 3),
+        ];
+        setSelectedRounds(defaultRounds);
+        updateSetupConfig({ roundDefinitions: defaultRounds });
+      } else {
+        setSelectedRounds(setupConfig.roundDefinitions);
+      }
     } else {
-      setSelectedRounds(setupConfig.roundDefinitions);
+      // Template selected - rounds should already be populated from previous step
+      if (setupConfig.roundDefinitions && setupConfig.roundDefinitions.length > 0) {
+        setSelectedRounds(setupConfig.roundDefinitions);
+      }
     }
-  }, [setupConfig.roundDefinitions, updateSetupConfig]);
+  }, [setupConfig.roundDefinitions, setupConfig.isCustomQuiz, updateSetupConfig]);
 
   const createRoundDefinition = (roundType: RoundTypeId, roundNumber: number): RoundDefinition => {
     const def = roundTypeDefaults[roundType];
@@ -122,28 +138,25 @@ export const StepCombinedRounds: React.FC<StepCombinedRoundsProps> = ({ onNext, 
     const completedRounds = selectedRounds.filter(r => r.category && r.difficulty).length;
     const totalRounds = selectedRounds.length;
 
+    if (setupConfig.selectedTemplate && setupConfig.selectedTemplate !== 'custom') {
+      // Template was selected
+      if (completedRounds === totalRounds && totalRounds > 0) {
+        return `🎉 Perfect! Your "${setupConfig.selectedTemplate}" template is ready. Feel free to customize it further!`;
+      }
+      return `Great choice with "${setupConfig.selectedTemplate}"! You can modify any rounds below or keep as-is.`;
+    }
+    
+    // Custom quiz logic
     if (completedRounds === 0 && totalRounds === 0) {
-      return { 
-        expression: "explaining", 
-        message: "Let's build your quiz! Add rounds and configure each one." 
-      };
+      return "Let's build your custom quiz! Add rounds and configure each one.";
     }
     if (completedRounds === 0 && totalRounds > 0) {
-      return { 
-        expression: "encouraging", 
-        message: "Great! Now configure each round below. Select a category and difficulty for each round. Add, remove and rearrange rounds as needed." 
-      };
+      return "Great! Now configure each round below. Select a category and difficulty for each round. Add, remove and rearrange rounds as needed.";
     }
     if (completedRounds === totalRounds && totalRounds > 0) {
-      return { 
-        expression: "excited", 
-        message: "Perfect! All rounds configured!" 
-      };
+      return "🎉 Perfect! All rounds configured!";
     }
-    return { 
-      expression: "strategic", 
-      message: `${completedRounds} of ${totalRounds} rounds configured. Keep going!` 
-    };
+    return `${completedRounds} of ${totalRounds} rounds configured. Keep going!`;
   };
 
   const completedRounds = selectedRounds.filter(r => r.category && r.difficulty).length;
@@ -167,20 +180,20 @@ export const StepCombinedRounds: React.FC<StepCombinedRoundsProps> = ({ onNext, 
     <div className="w-full px-2 sm:px-4 space-y-3 sm:space-y-6 pb-4">
       {/* Header */}
       <div className="px-1">
-        <h2 className="text-base sm:text-xl font-semibold text-indigo-800">Step 2 of 4: Build Quiz Rounds</h2>
-        <div className="text-xs sm:text-sm text-gray-600 mt-0.5">Add rounds and configure them</div>
+        <h2 className="text-base sm:text-xl font-semibold text-indigo-800">Step 3 of 4: Configure Rounds</h2>
+        <div className="text-xs sm:text-sm text-gray-600 mt-0.5">Set up each round with categories and difficulty levels</div>
       </div>
 
-      <Character {...getCurrentMessage()} />
+      <Character message={getCurrentMessage()} />
 
-      {/* Progress indicator - Compact */}
-      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-2 sm:p-4">
+      {/* Progress indicator */}
+      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 sm:p-4">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-1.5">
             <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-indigo-600" />
-            <span className="font-medium text-indigo-800 text-xs sm:text-base">Progress</span>
+            <span className="font-medium text-indigo-800 text-xs sm:text-sm">Progress</span>
           </div>
-          <span className="text-xs text-indigo-700">
+          <span className="text-xs sm:text-sm text-indigo-700">
             {totalRounds} rounds • {completedRounds} done • ~{Math.round(estimatedTime)}min
           </span>
         </div>
@@ -192,8 +205,8 @@ export const StepCombinedRounds: React.FC<StepCombinedRoundsProps> = ({ onNext, 
         </div>
       </div>
 
-      {/* Round Configuration Cards - Mobile optimized */}
-      <div className="space-y-2 sm:space-y-4">
+      {/* Round Configuration Cards */}
+      <div className="space-y-3 sm:space-y-4">
         {selectedRounds.map((round, index) => {
           const roundDef = roundTypeDefinitions[round.roundType];
           const isConfigured = round.category && round.difficulty;
@@ -202,68 +215,73 @@ export const StepCombinedRounds: React.FC<StepCombinedRoundsProps> = ({ onNext, 
           return (
             <div 
               key={`${round.roundType}-${index}`}
-              className={`border rounded-lg transition-all ${
-                isConfigured ? 'bg-green-50 border-green-300' : 'bg-white border-gray-300'
+              className={`bg-white border-2 rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm transition-all ${
+                isConfigured ? 'border-green-300 bg-green-50' : 'border-gray-200'
               }`}
             >
-              {/* Round Header - Simplified for mobile */}
-              <div className="p-3 sm:p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-                    <GripVertical className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 hidden sm:block" />
-                    <div className="w-8 h-8 sm:w-12 sm:h-12 rounded bg-gray-100 flex items-center justify-center text-sm sm:text-2xl flex-shrink-0">
-                      {roundDef.icon}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-gray-900 text-sm sm:text-lg truncate">
-                        Round {round.roundNumber}: {roundDef.name}
-                      </h4>
-                      <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">{roundDef.description}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {isConfigured && <CheckCircle className="w-4 h-4 text-green-600" />}
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeRound(index);
-                      }} 
-                      className="p-1 text-red-400 hover:text-red-600 transition-colors"
-                      disabled={selectedRounds.length <= MIN_ROUNDS}
-                    >
-                      <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
-                    </button>
-                  </div>
+              {/* Round Header */}
+              <div className="flex items-start gap-3 mb-3 sm:mb-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center text-xl sm:text-2xl bg-blue-100 flex-shrink-0">
+                  {roundDef.icon}
                 </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-semibold text-gray-900 text-sm sm:text-base">
+                      Round {round.roundNumber}: {roundDef.name}
+                    </h3>
+                    {isConfigured && <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />}
+                  </div>
+                  <p className="text-xs sm:text-sm text-gray-600">{roundDef.description}</p>
+                </div>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeRound(index);
+                  }} 
+                  className="p-1 text-red-400 hover:text-red-600 transition-colors"
+                  disabled={selectedRounds.length <= MIN_ROUNDS}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
 
-                {/* Configuration - Inline on mobile */}
-                <div className="mt-3 space-y-2 sm:space-y-3">
-                  <div className="flex gap-2">
+              {/* Configuration */}
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <label className="text-xs sm:text-sm font-medium text-gray-700">
+                      Category <span className="text-red-500">*</span>
+                    </label>
                     <select
                       value={round.category || ''}
                       onChange={(e) => updateRound(index, 'category', e.target.value)}
-                      className={`flex-1 border rounded px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                      className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none transition text-sm sm:text-base ${
                         round.category 
-                          ? 'border-green-400 bg-green-50' 
-                          : 'border-gray-300 bg-white'
+                          ? 'border-green-300 bg-green-50 focus:border-green-500' 
+                          : 'border-gray-200 focus:border-indigo-500'
                       }`}
                     >
-                      <option value="">Category...</option>
+                      <option value="">Select Category...</option>
                       {categories.map((cat) => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </select>
+                  </div>
 
+                  <div className="space-y-2">
+                    <label className="text-xs sm:text-sm font-medium text-gray-700">
+                      Difficulty <span className="text-red-500">*</span>
+                    </label>
                     <select
                       value={round.difficulty || ''}
                       onChange={(e) => updateRound(index, 'difficulty', e.target.value)}
-                      className={`flex-1 border rounded px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                      className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none transition text-sm sm:text-base ${
                         round.difficulty 
-                          ? 'border-green-400 bg-green-50' 
-                          : 'border-gray-300 bg-white'
+                          ? 'border-green-300 bg-green-50 focus:border-green-500' 
+                          : 'border-gray-200 focus:border-indigo-500'
                       }`}
                     >
-                      <option value="">Difficulty...</option>
+                      <option value="">Select Difficulty...</option>
                       {availableDifficulties.map((diff) => (
                         <option key={diff} value={diff}>
                           {diff.charAt(0).toUpperCase() + diff.slice(1)}
@@ -271,73 +289,73 @@ export const StepCombinedRounds: React.FC<StepCombinedRoundsProps> = ({ onNext, 
                       ))}
                     </select>
                   </div>
+                </div>
 
-                  {/* Points preview - Compact */}
-                  {isConfigured && round.config.pointsPerDifficulty && (
-                    <div className="p-2 bg-gradient-to-r from-indigo-50 to-purple-50 rounded border border-indigo-200">
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <Trophy className="w-3 h-3 sm:w-4 sm:h-4 text-indigo-600" />
-                        <span className="text-xs sm:text-sm font-medium text-indigo-900">Points</span>
-                      </div>
-                      
-                      {round.roundType === 'wipeout' ? (
-                        <div className="space-y-2">
-                          <div className="text-center">
-                            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded font-bold text-sm ${
-                              round.difficulty === 'easy' ? 'bg-green-100 text-green-800' :
-                              round.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-red-100 text-red-800'
-                            }`}>
-                              <Trophy className="w-3 h-3" />
-                              +{round.config.pointsPerDifficulty[round.difficulty as keyof typeof round.config.pointsPerDifficulty]}
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-1 text-xs">
-                            <div className="text-center p-1 bg-red-50 rounded border border-red-200">
-                              <div className="font-bold text-red-700">-{round.config.pointsLostPerWrong || 2}</div>
-                              <div className="text-red-600">Wrong</div>
-                            </div>
-                            <div className="text-center p-1 bg-orange-50 rounded border border-orange-200">
-                              <div className="font-bold text-orange-700">-{round.config.pointslostperunanswered || 3}</div>
-                              <div className="text-orange-600">Skip</div>
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
+                {/* Points preview */}
+                {isConfigured && round.config.pointsPerDifficulty && (
+                  <div className="p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Trophy className="w-4 h-4 text-indigo-600" />
+                      <span className="text-xs sm:text-sm font-medium text-indigo-900">Points System</span>
+                    </div>
+                    
+                    {round.roundType === 'wipeout' ? (
+                      <div className="space-y-2">
                         <div className="text-center">
-                          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded font-bold text-sm ${
+                          <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg font-bold text-sm ${
                             round.difficulty === 'easy' ? 'bg-green-100 text-green-800' :
                             round.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-800' :
                             'bg-red-100 text-red-800'
                           }`}>
                             <Trophy className="w-3 h-3" />
-                            +{round.config.pointsPerDifficulty[round.difficulty as keyof typeof round.config.pointsPerDifficulty]} points
+                            +{round.config.pointsPerDifficulty[round.difficulty as keyof typeof round.config.pointsPerDifficulty]} points per correct answer
                           </span>
                         </div>
-                      )}
-                    </div>
-                  )}
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="text-center p-2 bg-red-50 rounded border border-red-200">
+                            <div className="font-bold text-red-700">-{round.config.pointsLostPerWrong || 2}</div>
+                            <div className="text-red-600">Wrong Answer</div>
+                          </div>
+                          <div className="text-center p-2 bg-orange-50 rounded border border-orange-200">
+                            <div className="font-bold text-orange-700">-{round.config.pointslostperunanswered || 3}</div>
+                            <div className="text-orange-600">No Answer</div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg font-bold text-sm ${
+                          round.difficulty === 'easy' ? 'bg-green-100 text-green-800' :
+                          round.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          <Trophy className="w-3 h-3" />
+                          +{round.config.pointsPerDifficulty[round.difficulty as keyof typeof round.config.pointsPerDifficulty]} points per correct answer
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
 
-                  {/* Help text */}
-                  {!isConfigured && (
-                    <div className="flex items-start gap-1.5 p-2 bg-blue-50 rounded border border-blue-200">
-                      <Info className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                      <p className="text-xs text-blue-700">
-                        Select category and difficulty to complete this round.
-                      </p>
-                    </div>
-                  )}
-                </div>
+                {/* Help text */}
+                {!isConfigured && (
+                  <div className="flex items-start gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs sm:text-sm text-blue-700">
+                      Select both category and difficulty to complete this round configuration.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           );
         })}
 
-        {/* Add Round Button - Simplified */}
+        {/* Add Round Button */}
         <button
           onClick={() => setShowAddRounds(!showAddRounds)}
           disabled={selectedRounds.length >= MAX_ROUNDS}
-          className={`w-full border-2 border-dashed rounded-lg p-3 sm:p-4 transition-colors ${
+          className={`w-full border-2 border-dashed rounded-lg sm:rounded-xl p-4 sm:p-6 transition-all ${
             selectedRounds.length >= MAX_ROUNDS
               ? 'border-gray-300 text-gray-500 cursor-not-allowed'
               : 'border-indigo-300 text-indigo-600 hover:border-indigo-400 hover:bg-indigo-50'
@@ -346,70 +364,76 @@ export const StepCombinedRounds: React.FC<StepCombinedRoundsProps> = ({ onNext, 
           <div className="flex items-center justify-center gap-2">
             <Plus className="w-4 h-4" />
             <span className="text-sm sm:text-base font-medium">
-              {selectedRounds.length >= MAX_ROUNDS ? 'Max Rounds (8)' : 'Add More Rounds'}
+              {selectedRounds.length >= MAX_ROUNDS ? 'Maximum Rounds Reached (8)' : 'Add Another Round'}
             </span>
           </div>
         </button>
 
-        {/* Add Round Options - Mobile optimized */}
+        {/* Add Round Options */}
         {showAddRounds && selectedRounds.length < MAX_ROUNDS && (
-          <div className="space-y-2">
+          <div className="space-y-3 sm:space-y-4">
             {Object.values(roundTypeDefinitions).map((type) => (
               <div
                 key={type.id}
-                className="border border-gray-200 rounded-lg p-3 sm:p-4 bg-white"
+                className="bg-white border-2 rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm transition-all hover:shadow-md"
               >
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded bg-gray-100 flex items-center justify-center text-lg sm:text-xl flex-shrink-0">
+                <div className="flex items-start gap-3 mb-3 sm:mb-4">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-blue-100 flex items-center justify-center text-xl sm:text-2xl flex-shrink-0">
                     {type.icon}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-gray-900 text-sm sm:text-base">{type.name}</h4>
+                    <h3 className="font-semibold text-gray-900 text-sm sm:text-base mb-1">{type.name}</h3>
                     <p className="text-xs sm:text-sm text-gray-600">{type.description}</p>
                   </div>
                 </div>
                 
-                {/* Key info - Compact grid */}
-                <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
-                  <div className="bg-blue-50 p-2 rounded">
-                    <div className="font-medium text-blue-800">Timing</div>
-                    <div className="text-blue-600">{type.timing}</div>
+                {/* Key info */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                    <div className="text-xs sm:text-sm font-medium text-blue-800">Timing</div>
+                    <div className="text-xs sm:text-sm text-blue-600">{type.timing}</div>
                   </div>
-                  <div className="bg-purple-50 p-2 rounded">
-                    <div className="font-medium text-purple-800">Level</div>
-                    <div className="text-purple-600">{type.difficulty}</div>
+                  <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
+                    <div className="text-xs sm:text-sm font-medium text-purple-800">Difficulty Level</div>
+                    <div className="text-xs sm:text-sm text-purple-600">{type.difficulty}</div>
                   </div>
                 </div>
                 
-                {/* Points preview - Compact */}
-                <div className="mb-3 p-2 bg-gradient-to-r from-indigo-50 to-purple-50 rounded border border-indigo-200">
-                  <div className="text-xs font-medium text-indigo-900 mb-1">Points</div>
+                {/* Points preview */}
+                <div className="mb-4 p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-200">
+                  <div className="text-xs sm:text-sm font-medium text-indigo-900 mb-2">Points System</div>
                   
                   {type.id === 'wipeout' ? (
-                    <div className="space-y-1">
-                      <div className="grid grid-cols-3 gap-1 text-xs">
-                        <div className="text-center p-1 bg-green-100 rounded">
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div className="text-center p-2 bg-green-100 rounded border border-green-200">
                           <div className="font-bold text-green-700">+{type.defaultConfig.pointsPerDifficulty?.easy}</div>
+                          <div className="text-green-600">Easy</div>
                         </div>
-                        <div className="text-center p-1 bg-yellow-100 rounded">
+                        <div className="text-center p-2 bg-yellow-100 rounded border border-yellow-200">
                           <div className="font-bold text-yellow-700">+{type.defaultConfig.pointsPerDifficulty?.medium}</div>
+                          <div className="text-yellow-600">Medium</div>
                         </div>
-                        <div className="text-center p-1 bg-red-100 rounded">
+                        <div className="text-center p-2 bg-red-100 rounded border border-red-200">
                           <div className="font-bold text-red-700">+{type.defaultConfig.pointsPerDifficulty?.hard}</div>
+                          <div className="text-red-600">Hard</div>
                         </div>
                       </div>
-                      <div className="text-center text-xs text-red-600">Penalties for wrong answers</div>
+                      <div className="text-center text-xs text-red-600 font-medium">High risk, high reward format</div>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-3 gap-1 text-xs">
-                      <div className="text-center p-1 bg-green-100 rounded">
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div className="text-center p-2 bg-green-100 rounded border border-green-200">
                         <div className="font-bold text-green-700">+{type.defaultConfig.pointsPerDifficulty?.easy}</div>
+                        <div className="text-green-600">Easy</div>
                       </div>
-                      <div className="text-center p-1 bg-yellow-100 rounded">
+                      <div className="text-center p-2 bg-yellow-100 rounded border border-yellow-200">
                         <div className="font-bold text-yellow-700">+{type.defaultConfig.pointsPerDifficulty?.medium}</div>
+                        <div className="text-yellow-600">Medium</div>
                       </div>
-                      <div className="text-center p-1 bg-red-100 rounded">
+                      <div className="text-center p-2 bg-red-100 rounded border border-red-200">
                         <div className="font-bold text-red-700">+{type.defaultConfig.pointsPerDifficulty?.hard}</div>
+                        <div className="text-red-600">Hard</div>
                       </div>
                     </div>
                   )}
@@ -417,7 +441,7 @@ export const StepCombinedRounds: React.FC<StepCombinedRoundsProps> = ({ onNext, 
                 
                 <button
                   onClick={() => addRound(type.id)}
-                  className="w-full py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-medium text-sm transition-colors"
+                  className="w-full py-2.5 sm:py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg sm:rounded-xl font-medium text-sm sm:text-base transition-all duration-200 shadow-sm hover:shadow-md"
                 >
                   Add {type.name}
                 </button>
@@ -427,13 +451,14 @@ export const StepCombinedRounds: React.FC<StepCombinedRoundsProps> = ({ onNext, 
         )}
       </div>
 
-      {/* Help section - Compact */}
+      {/* Help section */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
-        <h4 className="font-medium text-blue-900 mb-2 text-sm sm:text-base">💡 Tips</h4>
+        <h4 className="font-medium text-blue-900 mb-2 text-sm sm:text-base">💡 Round Configuration Tips</h4>
         <ul className="text-xs sm:text-sm text-blue-800 space-y-1">
-          <li>• <strong>Category</strong> sets the topic area</li>
-          <li>• <strong>Difficulty</strong> affects points and complexity</li>
-          <li>• Mix difficulties for engaging progression</li>
+          <li>• <strong>Category</strong> determines the topic area for questions</li>
+          <li>• <strong>Difficulty</strong> affects both question complexity and point values</li>
+          <li>• Mix different difficulties to create an engaging progression</li>
+          <li>• Wipeout rounds offer higher points but with penalties for wrong answers</li>
         </ul>
       </div>
 
@@ -449,13 +474,13 @@ export const StepCombinedRounds: React.FC<StepCombinedRoundsProps> = ({ onNext, 
         <button
           onClick={onNext}
           disabled={!isComplete}
-          className={`flex items-center gap-2 px-4 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl transition-colors text-sm sm:text-base ${
+          className={`flex items-center gap-2 px-4 sm:px-6 py-3 rounded-lg sm:rounded-xl transition-all duration-200 shadow-sm hover:shadow-md font-medium text-sm sm:text-base ${
             isComplete
-              ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm hover:shadow-md'
-              : 'bg-gray-300 text-gray-600 cursor-not-allowed'
+              ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+              : 'bg-gray-400 text-white cursor-not-allowed'
           }`}
         >
-          <span>Next</span>
+          <span>Continue Setup</span>
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>

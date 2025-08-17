@@ -4,15 +4,41 @@ import {
   AlertCircle, 
   Check, 
   ChevronRight, 
-  Calendar,
-  Clock,
-  CheckCircle,
   DollarSign,
   Sparkles
 } from 'lucide-react';
 import { WizardStepProps } from './WizardStepProps'; // Import the interface
 import { useQuizSetupStore } from '../hooks/useQuizSetupStore'; // Import the store hook
 
+const Character = ({ message }: { message: string }) => {
+  const getBubbleColor = (): string => {
+    if (message.includes('Perfect!') || message.includes('🎉')) {
+      return 'bg-green-50 border-green-200';
+    }
+    if (message.includes('Excellent!') || message.includes('choice!')) {
+      return 'bg-blue-50 border-blue-200';
+    }
+    if (message.includes('ready') || message.includes('configured')) {
+      return 'bg-indigo-50 border-indigo-200';
+    }
+    return 'bg-gray-50 border-gray-200';
+  };
+
+  return (
+    <div className="flex items-center gap-2 sm:gap-4 mb-3 sm:mb-6">
+      {/* Character Image Placeholder */}
+      <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gray-200 border-2 border-gray-300 flex items-center justify-center flex-shrink-0 overflow-hidden">
+        {/* TODO: Replace with actual character image */}
+        <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-300 flex items-center justify-center">
+          <span className="text-gray-500 text-xs sm:text-sm font-medium">IMG</span>
+        </div>
+      </div>
+      <div className={`relative rounded-lg sm:rounded-2xl p-2 sm:p-4 shadow-lg border flex-1 ${getBubbleColor()}`}>
+        <p className="text-gray-700 text-xs sm:text-sm leading-tight sm:leading-normal">{message}</p>
+      </div>
+    </div>
+  );
+};
 
 const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext }) => {
   const { setupConfig, updateSetupConfig } = useQuizSetupStore();
@@ -20,59 +46,27 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext }) => {
   const [hostName, setHostName] = useState(setupConfig.hostName || '');
   const [entryFee, setEntryFee] = useState(setupConfig.entryFee || '');
   const [currencySymbol, setCurrencySymbol] = useState(setupConfig.currencySymbol || '€');
-  const [eventDate, setEventDate] = useState('');
-  const [eventTime, setEventTime] = useState('');
-  const [timeZone, setTimeZone] = useState('');
   const [error, setError] = useState('');
 
   // Progress tracking
   const [completedSections, setCompletedSections] = useState({
     host: false,
-    payment: false,
-    schedule: false
+    payment: false
   });
-
-  useEffect(() => {
-    const detectedZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    setTimeZone(detectedZone);
-    
-    // Initialize date/time from store if available
-    if (setupConfig.eventDateTime) {
-      const eventDateTime = new Date(setupConfig.eventDateTime);
-      const dateStr = eventDateTime.toISOString().split('T')[0];
-      const timeStr = eventDateTime.toTimeString().slice(0, 5);
-      setEventDate(dateStr);
-      setEventTime(timeStr);
-    }
-  }, [setupConfig.eventDateTime]);
 
   // Update completion status
   useEffect(() => {
     setCompletedSections({
       host: hostName.trim().length >= 2,
-      payment: Boolean(entryFee && !isNaN(parseFloat(entryFee)) && parseFloat(entryFee) > 0),
-      schedule: Boolean(eventDate && eventTime && isValidDateTime())
+      payment: Boolean(entryFee && !isNaN(parseFloat(entryFee)) && parseFloat(entryFee) > 0)
     });
-  }, [hostName, entryFee, eventDate, eventTime]);
+  }, [hostName, entryFee]);
 
   const currencyOptions = [
     { symbol: '€', label: 'Euro (EUR)' },
     { symbol: '$', label: 'Dollar (USD)' },
     { symbol: '£', label: 'British Pound (GBP)' },
   ];
-
-  const getTodayDate = () => {
-    const now = new Date();
-    return now.toISOString().split('T')[0];
-  };
-
-  const isValidDateTime = () => {
-    if (!eventDate || !eventTime) return false;
-    const selectedDate = new Date(`${eventDate}T${eventTime}`);
-    const now = new Date();
-    const thirtyMinutesFromNow = new Date(now.getTime() + 30 * 60 * 1000);
-    return selectedDate >= thirtyMinutesFromNow;
-  };
 
   const handleSubmit = () => {
     if (!completedSections.host) {
@@ -85,20 +79,11 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext }) => {
       return;
     }
     
-    if (!completedSections.schedule) {
-      setError('Please schedule your event at least 30 minutes from now.');
-      return;
-    }
-
-    const eventDateTime = new Date(`${eventDate}T${eventTime}`);
-    
     // Save all the form data to the store
     updateSetupConfig({
       hostName: hostName.trim(),
       entryFee: entryFee.trim(),
       currencySymbol,
-      eventDateTime: eventDateTime.toISOString(),
-      timeZone,
       paymentMethod: 'cash_or_revolut'
     });
     
@@ -110,29 +95,25 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext }) => {
 
   const allSectionsComplete = Object.values(completedSections).every(Boolean);
 
+  const getCurrentMessage = () => {
+    if (allSectionsComplete) {
+      return "🎉 Perfect! Your quiz is fully configured and ready to launch!";
+    }
+    return "Hi there! Let's set up your quiz together. Fill in your host name and entry fee below to get started.";
+  };
+
   return (
-    <div className="w-full px-3 sm:px-4 md:px-6 space-y-4 sm:space-y-6 pb-4">
-      {/* Header - More compact on mobile */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <h2 className="text-lg sm:text-xl font-semibold text-indigo-800">Step 1 of 4: Quiz Setup</h2>
-        <div className="text-sm text-gray-600">Configure your quiz</div>
+    <div className="w-full px-2 sm:px-4 space-y-3 sm:space-y-6 pb-4">
+      {/* Header */}
+      <div className="px-1">
+        <h2 className="text-base sm:text-xl font-semibold text-indigo-800">Step 1 of 4: Quiz Setup</h2>
+        <div className="text-xs sm:text-sm text-gray-600 mt-0.5">Configure your quiz</div>
       </div>
 
-      {/* Character Guide - Simplified for mobile */}
-      <div className="flex items-start gap-3 p-3 sm:p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg sm:rounded-xl border border-indigo-200">
-        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-xl sm:text-2xl">
-          {allSectionsComplete ? '🎯' : '👋'}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm sm:text-base text-gray-700">
-            {allSectionsComplete 
-              ? "🎉 Perfect! Your quiz is fully configured and ready to launch!" 
-              : "Hi there! Let's set up your quiz together. Fill in your host name, entry fee, and event schedule below to get started."}
-          </p>
-        </div>
-      </div>
+      {/* Character Guide */}
+      <Character message={getCurrentMessage()} />
 
-      {/* Section 1: Host Information - Compact mobile layout */}
+      {/* Section 1: Host Information */}
       <div className={`bg-white border-2 rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm transition-all ${
         completedSections.host ? 'border-green-300 bg-green-50' : 'border-gray-200'
       }`}>
@@ -142,7 +123,7 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext }) => {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-semibold text-gray-900 text-base sm:text-lg">Host Information</h3>
+              <h3 className="font-semibold text-gray-900 text-sm sm:text-base">Host Information</h3>
               {completedSections.host && <Check className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />}
             </div>
             <p className="text-xs sm:text-sm text-gray-600">Choose how you want to appear to participants</p>
@@ -150,7 +131,7 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext }) => {
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+          <label className="text-xs sm:text-sm font-medium text-gray-700 flex items-center gap-2">
             <Users className="w-4 h-4" />
             <span>Host Display Name <span className="text-red-500">*</span></span>
           </label>
@@ -181,7 +162,7 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext }) => {
         </div>
       </div>
 
-      {/* Section 2: Entry Fee - Stacked layout for mobile */}
+      {/* Section 2: Entry Fee */}
       <div className={`bg-white border-2 rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm transition-all ${
         completedSections.payment ? 'border-green-300 bg-green-50' : 'border-gray-200'
       }`}>
@@ -191,7 +172,7 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext }) => {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-semibold text-gray-900 text-base sm:text-lg">Entry Fee</h3>
+              <h3 className="font-semibold text-gray-900 text-sm sm:text-base">Entry Fee</h3>
               {completedSections.payment && <Check className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />}
             </div>
             <p className="text-xs sm:text-sm text-gray-600">Set the cost per participant (collected manually)</p>
@@ -200,7 +181,7 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext }) => {
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+            <label className="text-xs sm:text-sm font-medium text-gray-700 flex items-center gap-2">
               <Sparkles className="w-4 h-4" />
               <span>Currency</span>
             </label>
@@ -218,7 +199,7 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext }) => {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+            <label className="text-xs sm:text-sm font-medium text-gray-700 flex items-center gap-2">
               <DollarSign className="w-4 h-4" />
               <span>Amount <span className="text-red-500">*</span></span>
             </label>
@@ -253,104 +234,6 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext }) => {
         </div>
       </div>
 
-      {/* Section 3: Schedule - Stacked layout for mobile */}
-      <div className={`bg-white border-2 rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm transition-all ${
-        completedSections.schedule ? 'border-green-300 bg-green-50' : 'border-gray-200'
-      }`}>
-        <div className="flex items-start gap-3 mb-3 sm:mb-4">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center text-xl sm:text-2xl bg-purple-100 flex-shrink-0">
-            📅
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-semibold text-gray-900 text-base sm:text-lg">Event Schedule</h3>
-              {completedSections.schedule && <Check className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />}
-            </div>
-            <p className="text-xs sm:text-sm text-gray-600">When will your quiz take place?</p>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              <span>Date <span className="text-red-500">*</span></span>
-            </label>
-            <input
-              type="date"
-              value={eventDate}
-              min={getTodayDate()}
-              onChange={(e) => {
-                setEventDate(e.target.value);
-                setError('');
-              }}
-              className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none transition text-sm sm:text-base ${
-                eventDate 
-                  ? 'border-green-300 bg-green-50 focus:border-green-500' 
-                  : 'border-gray-200 focus:border-indigo-500'
-              }`}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              <span>Time <span className="text-red-500">*</span></span>
-            </label>
-            <input
-              type="time"
-              value={eventTime}
-              onChange={(e) => {
-                setEventTime(e.target.value);
-                setError('');
-              }}
-              disabled={!eventDate}
-              className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none transition text-sm sm:text-base ${
-                eventTime 
-                  ? 'border-green-300 bg-green-50 focus:border-green-500' 
-                  : 'border-gray-200 focus:border-indigo-500'
-              } ${!eventDate ? 'opacity-50 cursor-not-allowed' : ''}`}
-            />
-          </div>
-        </div>
-
-        <div className="mt-3 sm:mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <p className="text-xs sm:text-sm text-blue-800">
-            <strong>Timezone:</strong> {timeZone} - Participants will see times converted to their local timezone.
-          </p>
-        </div>
-
-        {completedSections.schedule && (
-          <div className="mt-3 sm:mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
-            <div className="flex items-center gap-2 mb-1">
-              <CheckCircle className="w-4 h-4 text-green-600" />
-              <span className="text-sm font-medium text-green-800">Event Scheduled!</span>
-            </div>
-            <div className="text-xs sm:text-sm text-green-700">
-              {eventDate && eventTime && (
-                <>
-                  <p className="font-medium">
-                    {new Date(`${eventDate}T${eventTime}`).toLocaleDateString('en-US', { 
-                      weekday: 'long', 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric' 
-                    })}
-                  </p>
-                  <p>
-                    {new Date(`${eventDate}T${eventTime}`).toLocaleTimeString('en-US', { 
-                      hour: '2-digit', 
-                      minute: '2-digit',
-                      hour12: true 
-                    })} ({timeZone})
-                  </p>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* Error Message */}
       {error && (
         <div className="flex items-start gap-2 bg-red-50 text-red-700 px-3 py-2 rounded-lg text-sm">
@@ -359,7 +242,7 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext }) => {
         </div>
       )}
 
-      {/* Navigation - Full width on mobile */}
+      {/* Navigation */}
       <div className="pt-4 sm:pt-6 border-t border-gray-200">
         <button
           onClick={handleSubmit}
