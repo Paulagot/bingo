@@ -53,37 +53,50 @@ const StepReviewLaunch: FC<WizardStepProps> = ({ onBack }) => {
     };
   }, [connected, navigate, socket]);
 
-  const handleLaunch = async () => {
-    if (isLaunching) return;
-    setIsLaunching(true);
+ const handleLaunch = async () => {
+  if (isLaunching) return;
+  setIsLaunching(true);
 
-    try {
-      const apiUrl = window.location.hostname === 'localhost' 
-        ? 'http://localhost:3001' 
-        : 'https://bingo-production-4534.up.railway.app';
+  try {
+    // ✅ same-origin call → no CORS
+    const response = await fetch('/quiz/api/create-room', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config: setupConfig }),
+    });
 
-      const res = await fetch(`${apiUrl}/quiz/api/create-room`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ config: setupConfig })
-      });
+    // Read raw text first so we can show helpful errors even if not JSON
+    const raw = await response.text();
 
-      if (!res.ok) {
-        setIsLaunching(false);
-        return;
-      }
-
-      const data = await res.json();
-      localStorage.setItem('current-room-id', data.roomId);
-      localStorage.setItem('current-host-id', data.hostId);
-
-      setFullConfig({ ...setupConfig, roomId: data.roomId, hostId: data.hostId });
-      navigate(`/quiz/host-dashboard/${data.roomId}`);
-    } catch (err) {
-      console.error('[Launch Error]', err);
+    if (!response.ok) {
+      console.error('[Launch Error] HTTP', response.status, raw);
       setIsLaunching(false);
+      return;
     }
-  };
+
+    // Try parse JSON
+    let data: any = null;
+    try { data = raw ? JSON.parse(raw) : null; } catch {}
+
+    if (!data?.roomId || !data?.hostId) {
+      console.error('[Launch Error] Missing roomId/hostId in response:', raw);
+      setIsLaunching(false);
+      return;
+    }
+
+    // Persist + update stores
+    localStorage.setItem('current-room-id', data.roomId);
+    localStorage.setItem('current-host-id', data.hostId);
+    setFullConfig({ ...setupConfig, roomId: data.roomId, hostId: data.hostId });
+
+    // Go to host dashboard
+    navigate(`/quiz/host-dashboard/${data.roomId}`);
+  } catch (err) {
+    console.error('[Launch Error]', err);
+    setIsLaunching(false);
+  }
+};
+
 
   const currency = setupConfig.currencySymbol || '€';
   const hasHostName = !!setupConfig.hostName;
