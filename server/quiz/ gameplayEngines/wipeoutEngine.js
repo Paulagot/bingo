@@ -127,7 +127,12 @@ export function initRound(roomId, namespace) {
 
   const roundConfig = room.config.roundDefinitions[room.currentRound - 1];
   const roundType = roundConfig.roundType;
-  const questionsPerRound = roundConfig.config?.questionsPerRound || 6;
+  const questionsPerRound = roundConfig.config?.questionsPerRound || 8;
+
+  console.log(`[DEBUG] roundConfig:`, JSON.stringify(roundConfig, null, 2));
+console.log(`[DEBUG] roundConfig.config:`, roundConfig.config);
+console.log(`[DEBUG] roundConfig.config?.questionsPerRound:`, roundConfig.config?.questionsPerRound);
+console.log(`[DEBUG] Final questionsPerRound:`, questionsPerRound);
   
   // ✅ NEW: Extract category and difficulty from round config
   const desiredDifficulty = roundConfig.difficulty;

@@ -5,6 +5,7 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 export default defineConfig({
   // Define polyfills for Node.js modules used by Web3 libraries
+    base: '/',
   define: {
     global: 'globalThis',
     'process.env': {},

@@ -56,7 +56,18 @@ const quizTemplates: QuizTemplate[] = [
     difficulty: 'Easy',
     duration: 5, // Will be calculated dynamically
     rounds: [
-      { type: 'wipeout', category: 'General Knowledge', difficulty: 'medium', customConfig: { questionsPerRound: 4 } }
+      { 
+        type: 'wipeout', 
+        category: 'General Knowledge', 
+        difficulty: 'medium', 
+        customConfig: { 
+          questionsPerRound: 4,
+          timePerQuestion: 20,
+          pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
+          pointsLostPerWrong: 2,
+          pointslostperunanswered: 3
+        } 
+      }
     ],
     tags: ['Demo', 'Quick Start', 'Try It Out']
   },
@@ -249,47 +260,36 @@ const StepQuizTemplates: React.FC<StepQuizTemplatesProps> = ({ onNext, onBack })
   };
 
   const handleTemplateSelect = (templateId: string) => {
-    setSelectedTemplate(templateId);
+  setSelectedTemplate(templateId);
+  
+  const template = quizTemplates.find(t => t.id === templateId);
+  if (template) {
+    const roundDefinitions = template.rounds.map((round, index) => ({
+      roundNumber: index + 1,
+      roundType: round.type as RoundTypeId,
+      category: round.category,
+      difficulty: round.difficulty as 'easy' | 'medium' | 'hard',
+      config: templateId === 'demo-quiz' ? {
+        questionsPerRound: 4,
+        timePerQuestion: 20,
+        pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
+        pointsLostPerWrong: 2,
+        pointslostperunanswered: 3
+      } : {
+        ...roundTypeDefaults[round.type as RoundTypeId],
+        ...round.customConfig
+      },
+      enabledExtras: {}
+    }));
     
-    // Convert template to round definitions format
-    const template = quizTemplates.find(t => t.id === templateId);
-    if (template) {
-      const roundDefinitions = template.rounds.map((round, index) => {
-        // ✅ FIXED: Use actual round configurations
-        const roundConfig = roundTypeDefaults[round.type as RoundTypeId];
-        
-        // Fallback should never be needed if round types are properly defined
-        if (!roundConfig) {
-          console.warn(`No configuration found for round type: ${round.type}`);
-        }
-        
-        const baseConfig = roundConfig || {
-          questionsPerRound: 6, // This fallback should never be used
-          timePerQuestion: 25,  // This fallback should never be used  
-          pointsPerDifficulty: { easy: 1, medium: 2, hard: 3 }
-        };
-
-        return {
-          roundNumber: index + 1,
-          roundType: round.type as RoundTypeId,
-          category: round.category,
-          difficulty: round.difficulty as 'easy' | 'medium' | 'hard',
-          config: {
-            ...baseConfig,
-            // Override with any round-specific configurations if needed
-          },
-          enabledExtras: {}
-        };
-      });
-      
-      updateSetupConfig({ 
-        roundDefinitions,
-        selectedTemplate: templateId,
-        isCustomQuiz: false, // Template selected - will skip customization step
-        skipRoundConfiguration: true // Flag to indicate rounds are pre-configured
-      });
-    }
-  };
+    updateSetupConfig({ 
+      roundDefinitions,
+      selectedTemplate: templateId,
+      isCustomQuiz: false,
+      skipRoundConfiguration: true
+    });
+  }
+};
 
   const handleCustomSelect = () => {
     setSelectedTemplate('custom');
