@@ -1,6 +1,6 @@
 // src/components/Quiz/Wizard/StepCombinedRounds.tsx
 import React, { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, Trophy, Info, CheckCircle, Trash2, GripVertical, Zap, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trophy, Info, CheckCircle, Trash2, Zap, Plus } from 'lucide-react';
 import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
 import { roundTypeDefinitions, fundraisingExtraDefinitions, availableCategories, availableDifficulties } from '../constants/quizMetadata';
 import { roundTypeDefaults } from '../constants/quiztypeconstants';

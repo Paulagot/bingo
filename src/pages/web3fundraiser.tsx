@@ -11,86 +11,65 @@ const FundraisingLaunchPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
 
-  const handleCommunitySubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!communityName || !contactInfo || !userName || !ecosystem) {
-      setSubmitMessage('❌ Please fill in all required fields');
+ const handleCommunitySubmit = async (e?: React.FormEvent) => {
+  if (e) e.preventDefault();
+  if (!communityName || !contactInfo || !userName || !ecosystem) {
+    setSubmitMessage('❌ Please fill in all required fields');
+    return;
+  }
+
+  setIsSubmitting(true);
+  setSubmitMessage('');
+
+  try {
+    const fullUrl = `/quiz/api/community-registration`;
+    const payload = { communityName, contactMethod, contactInfo, userName, ecosystem };
+
+    console.log('🚀 Submitting to:', fullUrl);
+    console.log('📝 Data being sent:', payload);
+
+    const response = await fetch(fullUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    // Read raw text (works whether server returns JSON or not)
+    const raw = await response.text();
+    console.log('📄 Raw response text:', raw);
+
+    // Try to parse JSON if present
+    let data: any = null;
+    if (raw) {
+      try { data = JSON.parse(raw); } catch { /* non-JSON response is fine */ }
+    }
+
+    if (!response.ok) {
+      const msg =
+        data?.error ||
+        data?.message ||
+        raw ||
+        `HTTP ${response.status}`;
+      setSubmitMessage(`❌ Error: ${msg}`);
       return;
     }
 
-    setIsSubmitting(true);
-    setSubmitMessage('');
+    setSubmitMessage('✅ Community registration submitted successfully! We\'ll be in touch soon.');
 
-    try {
-      // Use the same pattern as your quiz API
-      const apiUrl = window.location.hostname === 'localhost' 
-        ? 'http://localhost:3001' 
-        : 'https://bingo-production-4534.up.railway.app';
-      
-      const fullUrl = `${apiUrl}/quiz/api/community-registration`;
-      console.log('🚀 Submitting to:', fullUrl);
-      console.log('📝 Data being sent:', { 
-        communityName, 
-        contactMethod, 
-        contactInfo, 
-        userName, 
-        ecosystem 
-      });
-      
-      const response = await fetch(fullUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          communityName,
-          contactMethod,
-          contactInfo,
-          userName,
-          ecosystem
-        }),
-      });
+    // Clear form
+    setCommunityName('');
+    setContactInfo('');
+    setUserName('');
+    setContactMethod('Email');
+    setEcosystem('');
+  } catch (error) {
+    console.error('❌ Submission error:', error);
+    setSubmitMessage('❌ Network error. Please try again later.');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
-      // Get the raw response text first
-      const responseText = await response.text();
-      console.log('📄 Raw response text:', responseText);
-
-      if (!responseText) {
-        console.error('❌ Empty response body');
-        setSubmitMessage(`❌ Server error: Empty response (Status: ${response.status})`);
-        return;
-      }
-
-      // Try to parse as JSON
-      let data;
-      try {
-        data = JSON.parse(responseText);
-        console.log('✅ Parsed JSON data:', data);
-      } catch (parseError) {
-        console.error('❌ JSON parse error:', parseError);
-        console.error('❌ Response was not valid JSON:', responseText);
-        setSubmitMessage(`❌ Server error: Invalid response format (Status: ${response.status})`);
-        return;
-      }
-
-      if (response.ok) {
-        setSubmitMessage('✅ Community registration submitted successfully! We\'ll be in touch soon.');
-        // Clear form
-        setCommunityName('');
-        setContactInfo('');
-        setUserName('');
-        setContactMethod('Email');
-        setEcosystem('');
-      } else {
-        setSubmitMessage(`❌ Error: ${data.error || 'Failed to submit registration'}`);
-      }
-    } catch (error) {
-      setSubmitMessage('❌ Network error. Please try again later.');
-      console.error('❌ Submission error:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
