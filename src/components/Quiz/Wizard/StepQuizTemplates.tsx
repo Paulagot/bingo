@@ -2,7 +2,9 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Clock, Trophy, Zap, Plus, CheckCircle, Brain } from 'lucide-react';
 import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
-import type { RoundTypeId } from '../types/quiz';
+import type { RoundTypeId, RoundConfig } from '../types/quiz';
+// ✅ FIXED: Import from the correct constants file
+import { roundTypeDefaults, roundTypeMap } from '../constants/quiztypeconstants';
 
 interface QuizTemplate {
   id: string;
@@ -15,14 +17,26 @@ interface QuizTemplate {
     type: string;
     category: string;
     difficulty: string;
+    customConfig?: Partial<RoundConfig>; // ✅ Allow custom overrides
   }>;
   tags: string[];
 }
 
-// Calculate duration with breaks (15min break after every 3 rounds)
+// ✅ FIXED: Calculate duration using actual round configurations with 2.5x multiplier
 const calculateDuration = (rounds: any[]) => {
   const baseTime = rounds.reduce((total, round) => {
-    // GT rounds: ~10.5 min, Wipeout rounds: ~11.2 min
+    const roundConfig = roundTypeDefaults[round.type as RoundTypeId];
+    if (roundConfig) {
+      // Use custom config if provided, otherwise use defaults
+      const questionsPerRound = round.customConfig?.questionsPerRound || roundConfig.questionsPerRound || 6;
+      const timePerQuestion = round.customConfig?.timePerQuestion || roundConfig.timePerQuestion || 25;
+      
+      // Calculate time: (questions × timePerQuestion) × 2.5 ÷ 60 (convert to minutes)
+      const roundTimeSeconds = questionsPerRound * timePerQuestion * 2.5;
+      const roundTimeMinutes = roundTimeSeconds / 60;
+      return total + roundTimeMinutes;
+    }
+    // Fallback if round type not found (should never happen)
     return total + (round.type === 'general_trivia' ? 10.5 : 11.2);
   }, 0);
   
@@ -34,6 +48,18 @@ const calculateDuration = (rounds: any[]) => {
 };
 
 const quizTemplates: QuizTemplate[] = [
+  {
+    id: 'demo-quiz',
+    name: 'Demo Quiz',
+    description: 'Quick 4-question demo to try out the platform.',
+    icon: '🚀',
+    difficulty: 'Easy',
+    duration: 5, // Will be calculated dynamically
+    rounds: [
+      { type: 'wipeout', category: 'General Knowledge', difficulty: 'medium', customConfig: { questionsPerRound: 4 } }
+    ],
+    tags: ['Demo', 'Quick Start', 'Try It Out']
+  },
   {
     id: 'family-night',
     name: 'Family Night In',
@@ -182,13 +208,35 @@ const StepQuizTemplates: React.FC<StepQuizTemplatesProps> = ({ onNext, onBack })
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null);
 
-  // Get round type icon and name
-  const getRoundTypeInfo = (type: string) => {
-    const types = {
-      'general_trivia': { icon: '🧠', name: 'General Trivia', time: 10.5 },
-      'wipeout': { icon: '⚡', name: 'Wipeout', time: 11.2 }
+  // ✅ FIXED: Get round type info using actual configurations with 2.5x multiplier
+  const getRoundTypeInfo = (type: string, customConfig?: any) => {
+    const roundType = roundTypeMap[type as RoundTypeId];
+    const config = roundTypeDefaults[type as RoundTypeId];
+    
+    if (roundType && config) {
+      // Use custom config if provided, otherwise use defaults
+      const questionsPerRound = customConfig?.questionsPerRound || config.questionsPerRound || 6;
+      const timePerQuestion = customConfig?.timePerQuestion || config.timePerQuestion || 25;
+      
+      // Calculate actual time: (questions × timePerQuestion) × 2.5 ÷ 60 (convert to minutes)
+      const roundTimeSeconds = questionsPerRound * timePerQuestion * 2.5;
+      const timeInMinutes = roundTimeSeconds / 60;
+      
+      return {
+        icon: type === 'general_trivia' ? '🧠' : type === 'wipeout' ? '⚡' : '❓',
+        name: roundType.name,
+        time: Math.round(timeInMinutes * 10) / 10, // Round to 1 decimal
+        questionsCount: questionsPerRound
+      };
+    }
+    
+    // Fallback
+    return { 
+      icon: '❓', 
+      name: 'Unknown', 
+      time: 10,
+      questionsCount: 6
     };
-    return types[type as keyof typeof types] || { icon: '❓', name: 'Unknown', time: 10 };
   };
 
   // Calculate breaks in the round sequence
@@ -206,22 +254,33 @@ const StepQuizTemplates: React.FC<StepQuizTemplatesProps> = ({ onNext, onBack })
     // Convert template to round definitions format
     const template = quizTemplates.find(t => t.id === templateId);
     if (template) {
-      const roundDefinitions = template.rounds.map((round, index) => ({
-        roundNumber: index + 1,
-        roundType: round.type as RoundTypeId,
-        category: round.category,
-        difficulty: round.difficulty as 'easy' | 'medium' | 'hard', // Type assertion to fix the error
-        config: {
-          questionsPerRound: round.type === 'general_trivia' ? 10 : 8,
-          timePerQuestion: round.type === 'general_trivia' ? 30 : 45,
-          pointsPerDifficulty: {
-            easy: round.type === 'wipeout' ? 3 : 1,
-            medium: round.type === 'wipeout' ? 5 : 2,
-            hard: round.type === 'wipeout' ? 8 : 3
-          }
-        },
-        enabledExtras: {}
-      }));
+      const roundDefinitions = template.rounds.map((round, index) => {
+        // ✅ FIXED: Use actual round configurations
+        const roundConfig = roundTypeDefaults[round.type as RoundTypeId];
+        
+        // Fallback should never be needed if round types are properly defined
+        if (!roundConfig) {
+          console.warn(`No configuration found for round type: ${round.type}`);
+        }
+        
+        const baseConfig = roundConfig || {
+          questionsPerRound: 6, // This fallback should never be used
+          timePerQuestion: 25,  // This fallback should never be used  
+          pointsPerDifficulty: { easy: 1, medium: 2, hard: 3 }
+        };
+
+        return {
+          roundNumber: index + 1,
+          roundType: round.type as RoundTypeId,
+          category: round.category,
+          difficulty: round.difficulty as 'easy' | 'medium' | 'hard',
+          config: {
+            ...baseConfig,
+            // Override with any round-specific configurations if needed
+          },
+          enabledExtras: {}
+        };
+      });
       
       updateSetupConfig({ 
         roundDefinitions,
@@ -354,7 +413,7 @@ const StepQuizTemplates: React.FC<StepQuizTemplatesProps> = ({ onNext, onBack })
                 // Full round structure with breaks
                 <div className="space-y-1 max-h-64 overflow-y-auto">
                   {template.rounds.map((round, index) => {
-                    const roundInfo = getRoundTypeInfo(round.type);
+                    const roundInfo = getRoundTypeInfo(round.type, round.customConfig);
                     const breakPositions = getBreakPositions(template.rounds.length);
                     const showBreakAfter = breakPositions.includes(index + 1);
                     
@@ -367,7 +426,7 @@ const StepQuizTemplates: React.FC<StepQuizTemplatesProps> = ({ onNext, onBack })
                           <span className="text-lg">{roundInfo.icon}</span>
                           <div className="flex-1">
                             <div className="font-medium text-gray-800">{round.category}</div>
-                            <div className="text-gray-600">{roundInfo.name} • {round.difficulty} • ~{roundInfo.time}min</div>
+                            <div className="text-gray-600">{roundInfo.name} • {round.difficulty} • {roundInfo.questionsCount}Q • ~{roundInfo.time}min</div>
                           </div>
                           <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${getDifficultyColor(round.difficulty.charAt(0).toUpperCase() + round.difficulty.slice(1))}`}>
                             {round.difficulty}
@@ -393,7 +452,7 @@ const StepQuizTemplates: React.FC<StepQuizTemplatesProps> = ({ onNext, onBack })
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
                         <span className="text-indigo-700">Quiz time: </span>
-                        <span className="font-medium">{Math.round(template.rounds.reduce((total, round) => total + getRoundTypeInfo(round.type).time, 0))}min</span>
+                        <span className="font-medium">{Math.round(template.rounds.reduce((total, round) => total + getRoundTypeInfo(round.type, round.customConfig).time, 0))}min</span>
                       </div>
                       <div>
                         <span className="text-indigo-700">Breaks: </span>
@@ -409,7 +468,7 @@ const StepQuizTemplates: React.FC<StepQuizTemplatesProps> = ({ onNext, onBack })
                 // Compact preview (first 3 rounds)
                 <div className="space-y-1">
                   {template.rounds.slice(0, 3).map((round, index) => {
-                    const roundInfo = getRoundTypeInfo(round.type);
+                    const roundInfo = getRoundTypeInfo(round.type, round.customConfig);
                     return (
                       <div key={index} className="flex items-center gap-2 text-xs">
                         <span className="w-4 h-4 rounded bg-gray-200 flex items-center justify-center text-xs font-medium">
@@ -418,6 +477,9 @@ const StepQuizTemplates: React.FC<StepQuizTemplatesProps> = ({ onNext, onBack })
                         <span>{roundInfo.icon}</span>
                         <span className="text-gray-600">
                           {round.category} ({round.difficulty})
+                          {round.customConfig?.questionsPerRound && 
+                            ` • ${round.customConfig.questionsPerRound}Q`
+                          }
                         </span>
                       </div>
                     );
