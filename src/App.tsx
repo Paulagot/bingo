@@ -1,4 +1,4 @@
-// src/App.tsx - Working version with direct imports
+// src/App.tsx
 import { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Landing } from './pages/Landing';
@@ -7,39 +7,21 @@ import { PitchDeckContent } from './pages/PitchDeckContent';
 import ErrorBoundary from './components/bingo/ErrorBoundary';
 import WhatsNew from './pages/WhatsNew';
 
-// Only lazy load Quiz components (these work)
+// Lazy quiz bits
 const QuizRoutes = lazy(() => import('./components/Quiz/QuizRoutes'));
 const QuizSocketProvider = lazy(() =>
   import('./components/Quiz/sockets/QuizSocketProvider').then(m => ({ default: m.QuizSocketProvider }))
 );
 
-// Import Web3 pages directly but wrap them to create lazy-like effect
+// Web3 pages (direct imports are fine)
 import { Web3Provider } from './components/Web3Provider';
 import { Game } from './pages/Game';
 import { TestCampaign } from './pages/TestCampaign';
 import { PitchDeck } from './pages/PitchDeck';
 
-// Import the web3fundraiser - let's see what export it actually has
-import * as Web3FundraiserModule from './pages/web3fundraiser';
+// ✅ Lazy-load the Web3 fundraiser page directly (must export default from src/pages/web3fundraiser.tsx)
+const FundraisingLaunchPage = lazy(() => import('./pages/web3fundraiser'));
 
-// Create a safe component from whatever export exists
-const FundraisingLaunchPage = () => {
-  // Try different possible exports
-  const Component =
-    (Web3FundraiserModule as any).default ||
-    (Web3FundraiserModule as any).FundraisingLaunchPage ||
-    (Web3FundraiserModule as any).Web3Fundraiser ||
-    (() => (
-      <div className="p-8 text-center">
-        <h1 className="text-2xl font-bold">Web3 Impact Event</h1>
-        <p className="text-gray-600 mt-4">Component loading...</p>
-      </div>
-    ));
-
-  return <Component />;
-};
-
-// Loading component
 const LoadingSpinner = ({
   message = 'Loading...',
   subMessage,
@@ -72,19 +54,14 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [location]);
 
-  // ---------- Option A: centralize header visibility rules here ----------
+  // Header visibility rules
   const { pathname } = location;
-
-  // Exact-path hides
   const hideOnPaths = ['/pitch-deck-content', '/BingoBlitz'];
-
-  // Prefix hides (match path or any sub-path)
-  const hideOnPrefixes = ['/quiz/game', '/quiz/play','/quiz/host-dashboard', '/quiz/host-controls'];
+  const hideOnPrefixes = ['/quiz/game', '/quiz/play', '/quiz/host-dashboard', '/quiz/host-controls'];
 
   const showHeader =
     !hideOnPaths.includes(pathname) &&
     !hideOnPrefixes.some((p) => pathname === p || pathname.startsWith(p + '/'));
-  // ----------------------------------------------------------------------
 
   return (
     <ErrorBoundary>
@@ -92,12 +69,12 @@ export default function App() {
         {showHeader && <Header />}
         <main className={showHeader ? 'pt-16' : ''}>
           <Routes>
-            {/* ⚡ LIGHTNING-FAST ROUTES - No Web3 */}
+            {/* ⚡ Non-web3 routes */}
             <Route path="/" element={<Landing />} />
             <Route path="/pitch-deck-content" element={<PitchDeckContent />} />
             <Route path="/whats-new" element={<WhatsNew />} />
 
-            {/* 🎮 Quiz routes - Lazy loaded */}
+            {/* 🎮 Quiz routes (lazy) */}
             <Route
               path="/quiz/*"
               element={
@@ -109,7 +86,7 @@ export default function App() {
               }
             />
 
-            {/* 🎲 WEB3 ROUTES - All fully working */}
+            {/* 🎲 Web3 routes */}
             <Route
               path="/game/:roomId"
               element={
@@ -164,7 +141,7 @@ export default function App() {
               }
             />
 
-            {/* ✅ FIXED: Web3 Impact Event route */}
+            {/* ✅ Web3 Impact Event (lazy page) */}
             <Route
               path="/Web3-Impact-Event"
               element={
@@ -183,7 +160,7 @@ export default function App() {
               }
             />
 
-            {/* Alternative routes for the Web3 Impact Event */}
+            {/* Alternate casing route */}
             <Route
               path="/Web3-impact-Event"
               element={
@@ -195,7 +172,7 @@ export default function App() {
               }
             />
 
-            {/* Catch-all route */}
+            {/* 404 */}
             <Route
               path="*"
               element={
@@ -230,4 +207,5 @@ export default function App() {
     </ErrorBoundary>
   );
 }
+
 
