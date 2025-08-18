@@ -88,11 +88,30 @@ export default defineConfig({
   },
 
   // Performance optimizations
-  server: {
-    // Better dev server performance
-    fs: {
-      cachedChecks: false
-    }
+   server: {
+    // 👇 add these lines
+    port: 5173,
+    proxy: {
+      // REST under /quiz/*
+      '/quiz': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+      // Socket.IO (websockets)
+      '/socket.io': {
+        target: 'http://localhost:3001',
+        ws: true,
+        changeOrigin: true,
+      },
+      // Optional: your /api/health etc.
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+    },
+
+    // existing setting you had
+    fs: { cachedChecks: false },
   },
 
   test: {
