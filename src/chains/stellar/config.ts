@@ -13,10 +13,14 @@ import type { StellarNetwork, StellarNetworkConfig } from '../types/stellar-type
 
 export const stellarNetworks: Record<StellarNetwork, StellarNetworkConfig> = {
   mainnet: {
-    networkPassphrase: 'Public Global Stellar Network ; September 2015',
-    horizonUrl: 'https://horizon.stellar.org',
-    networkId: 'mainnet',
-    isTestnet: false,
+    // networkPassphrase: 'Public Global Stellar Network ; September 2015',
+    // horizonUrl: 'https://horizon.stellar.org',
+    // networkId: 'mainnet',
+    // isTestnet: false,
+     networkPassphrase: 'Test SDF Network ; September 2015',
+    horizonUrl: 'https://horizon-testnet.stellar.org',
+    networkId: 'testnet',
+    isTestnet: true,
   },
   testnet: {
     networkPassphrase: 'Test SDF Network ; September 2015',
