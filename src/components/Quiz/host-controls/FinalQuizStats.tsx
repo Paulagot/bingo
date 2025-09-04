@@ -116,72 +116,72 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border-2 border-purple-200 p-6 mb-6">
+    <div className="bg-muted mb-6 rounded-xl border-2 border-purple-200 p-6 shadow-lg">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <BarChart3 className="w-8 h-8 text-purple-600" />
+          <BarChart3 className="h-8 w-8 text-purple-600" />
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">📈 Final Quiz Statistics</h2>
-            <p className="text-gray-600">Complete breakdown of strategic play across all rounds</p>
+            <h2 className="text-fg text-2xl font-bold">📈 Final Quiz Statistics</h2>
+            <p className="text-fg/70">Complete breakdown of strategic play across all rounds</p>
           </div>
         </div>
         <button
           onClick={exportStats}
-          className="flex items-center space-x-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
+          className="flex items-center space-x-2 rounded-lg bg-purple-600 px-4 py-2 text-white transition hover:bg-purple-700"
         >
-          <Download className="w-4 h-4" />
+          <Download className="h-4 w-4" />
           <span>Export</span>
         </button>
       </div>
 
       {/* Overall Summary */}
-      <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-6 mb-6">
-        <h3 className="text-lg font-bold text-purple-800 mb-4 flex items-center space-x-2">
-          <TrendingUp className="w-5 h-5" />
+      <div className="mb-6 rounded-xl bg-gradient-to-r from-purple-50 to-blue-50 p-6">
+        <h3 className="mb-4 flex items-center space-x-2 text-lg font-bold text-purple-800">
+          <TrendingUp className="h-5 w-5" />
           <span>Overall Quiz Summary</span>
         </h3>
         
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
-          <div className="text-center bg-white/70 rounded-lg p-3">
+        <div className="mb-4 grid grid-cols-2 gap-4 md:grid-cols-5">
+          <div className="bg-muted/70 rounded-lg p-3 text-center">
             <div className="text-2xl font-bold text-blue-600">{overallStats.hintsUsed}</div>
-            <div className="text-xs text-gray-600">Total Hints</div>
+            <div className="text-fg/70 text-xs">Total Hints</div>
           </div>
-          <div className="text-center bg-white/70 rounded-lg p-3">
+          <div className="bg-muted/70 rounded-lg p-3 text-center">
             <div className="text-2xl font-bold text-red-600">{overallStats.freezesUsed}</div>
-            <div className="text-xs text-gray-600">Total Freezes</div>
+            <div className="text-fg/70 text-xs">Total Freezes</div>
           </div>
-          <div className="text-center bg-white/70 rounded-lg p-3">
+          <div className="bg-muted/70 rounded-lg p-3 text-center">
             <div className="text-2xl font-bold text-purple-600">{overallStats.pointsRobbed}</div>
-            <div className="text-xs text-gray-600">Points Robbed</div>
+            <div className="text-fg/70 text-xs">Points Robbed</div>
           </div>
-          <div className="text-center bg-white/70 rounded-lg p-3">
+          <div className="bg-muted/70 rounded-lg p-3 text-center">
             <div className="text-2xl font-bold text-green-600">{overallStats.pointsRestored}</div>
-            <div className="text-xs text-gray-600">Points Restored</div>
+            <div className="text-fg/70 text-xs">Points Restored</div>
           </div>
-          <div className="text-center bg-white/70 rounded-lg p-3">
+          <div className="bg-muted/70 rounded-lg p-3 text-center">
             <div className="text-2xl font-bold text-orange-600">{overallStats.totalExtrasUsed}</div>
-            <div className="text-xs text-gray-600">Total Extras</div>
+            <div className="text-fg/70 text-xs">Total Extras</div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-          <div className="bg-white/70 rounded-lg p-3">
+        <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-3">
+          <div className="bg-muted/70 rounded-lg p-3">
             <div className="font-medium text-purple-700">Quiz Info</div>
-            <div className="text-gray-600">
+            <div className="text-fg/70">
               {allRoundsStats.length} rounds • {totalPlayers} players
               {quizDuration && <div>{quizDuration} minutes duration</div>}
             </div>
           </div>
-          <div className="bg-white/70 rounded-lg p-3">
+          <div className="bg-muted/70 rounded-lg p-3">
             <div className="font-medium text-purple-700">Strategy Rate</div>
-            <div className="text-gray-600">
+            <div className="text-fg/70">
               {totalPlayers > 0 ? (overallStats.totalExtrasUsed / totalPlayers).toFixed(1) : '0'} extras per player
             </div>
           </div>
-          <div className="bg-white/70 rounded-lg p-3">
+          <div className="bg-muted/70 rounded-lg p-3">
             <div className="font-medium text-purple-700">Most Active Round</div>
-            <div className="text-gray-600">
+            <div className="text-fg/70">
               Round {allRoundsStats.reduce((max, round) => 
                 round.totalExtrasUsed > max.totalExtrasUsed ? round : max
               ).roundNumber}
@@ -192,34 +192,34 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
 
       {/* Player Insights */}
       {playerStats.length > 0 && (
-        <div className="bg-blue-50 rounded-xl p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-blue-800 flex items-center space-x-2">
-              <Users className="w-5 h-5" />
+        <div className="mb-6 rounded-xl bg-blue-50 p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="flex items-center space-x-2 text-lg font-bold text-blue-800">
+              <Users className="h-5 w-5" />
               <span>Player Strategic Insights</span>
             </h3>
             <button
               onClick={() => setShowPlayerBreakdown(!showPlayerBreakdown)}
               className="flex items-center space-x-1 text-blue-600 hover:text-blue-800"
             >
-              {showPlayerBreakdown ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              {showPlayerBreakdown ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
               <span>Details</span>
             </button>
           </div>
 
           {/* Top Strategic Players */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-3">
             {playerStats.slice(0, 3).map((player, idx) => (
-              <div key={player.name} className="bg-white/70 rounded-lg p-4 border border-blue-200">
-                <div className="flex items-center space-x-2 mb-2">
-                  <Award className={`w-5 h-5 ${
+              <div key={player.name} className="bg-muted/70 rounded-lg border border-blue-200 p-4">
+                <div className="mb-2 flex items-center space-x-2">
+                  <Award className={`h-5 w-5 ${
                     idx === 0 ? 'text-yellow-600' : 
-                    idx === 1 ? 'text-gray-600' : 'text-orange-600'
+                    idx === 1 ? 'text-fg/70' : 'text-orange-600'
                   }`} />
                   <span className="font-medium text-blue-800">{player.name}</span>
                 </div>
-                <div className="text-2xl font-bold text-blue-600 mb-1">{player.totalExtras}</div>
-                <div className="text-xs text-gray-600">
+                <div className="mb-1 text-2xl font-bold text-blue-600">{player.totalExtras}</div>
+                <div className="text-fg/70 text-xs">
                   {player.hintsUsed}H • {player.freezesUsed}F • {player.robsUsed}R • {player.restoresUsed}Re
                 </div>
               </div>
@@ -228,11 +228,11 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
 
           {/* Most Targeted Players */}
           {mostTargeted.length > 0 && (
-            <div className="bg-white/70 rounded-lg p-4">
-              <div className="font-medium text-blue-700 mb-2">Most Targeted Players</div>
+            <div className="bg-muted/70 rounded-lg p-4">
+              <div className="mb-2 font-medium text-blue-700">Most Targeted Players</div>
               <div className="flex flex-wrap gap-2">
                 {mostTargeted.map(([name, count]) => (
-                  <span key={name} className="bg-orange-100 text-orange-800 px-2 py-1 rounded text-sm">
+                  <span key={name} className="rounded bg-orange-100 px-2 py-1 text-sm text-orange-800">
                     {name} ({count}x)
                   </span>
                 ))}
@@ -245,9 +245,9 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
             <div className="mt-4 space-y-2">
               <h4 className="font-medium text-blue-800">Complete Player Breakdown</h4>
               {playerStats.map(player => (
-                <div key={player.name} className="bg-white/70 rounded-lg p-3 flex justify-between items-center">
+                <div key={player.name} className="bg-muted/70 flex items-center justify-between rounded-lg p-3">
                   <span className="font-medium">{player.name}</span>
-                  <div className="text-sm text-gray-600">
+                  <div className="text-fg/70 text-sm">
                     Total: {player.totalExtras} | 
                     Hints: {player.hintsUsed} | 
                     Freezes: {player.freezesUsed} | 
@@ -262,18 +262,18 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
       )}
 
       {/* Round by Round Breakdown */}
-      <div className="bg-gray-50 rounded-xl p-6">
-        <h3 className="text-lg font-bold text-gray-800 mb-4">📊 Round-by-Round Breakdown</h3>
+      <div className="rounded-xl bg-gray-50 p-6">
+        <h3 className="text-fg mb-4 text-lg font-bold">📊 Round-by-Round Breakdown</h3>
         <div className="space-y-3">
           {allRoundsStats.map(round => (
-            <div key={round.roundNumber} className="bg-white rounded-lg border border-gray-200">
+            <div key={round.roundNumber} className="bg-muted border-border rounded-lg border">
               <button
                 onClick={() => toggleRoundExpanded(round.roundNumber)}
-                className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition"
+                className="flex w-full items-center justify-between p-4 transition hover:bg-gray-50"
               >
                 <div className="flex items-center space-x-3">
                   <span className="font-medium">Round {round.roundNumber}</span>
-                  <div className="flex items-center space-x-4 text-sm text-gray-600">
+                  <div className="text-fg/70 flex items-center space-x-4 text-sm">
                     <span>🧪{round.hintsUsed}</span>
                     <span>❄️{round.freezesUsed}</span>
                     <span>💰{round.pointsRobbed}</span>
@@ -281,38 +281,38 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
                   </div>
                 </div>
                 {expandedRounds.has(round.roundNumber) ? 
-                  <ChevronDown className="w-4 h-4" /> : 
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronDown className="h-4 w-4" /> : 
+                  <ChevronRight className="h-4 w-4" />
                 }
               </button>
               
               {expandedRounds.has(round.roundNumber) && (
-                <div className="px-4 pb-4 border-t border-gray-200">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3 mb-3">
+                <div className="border-border border-t px-4 pb-4">
+                  <div className="mb-3 mt-3 grid grid-cols-2 gap-4 md:grid-cols-4">
                     <div className="text-center">
                       <div className="text-lg font-bold text-blue-600">{round.hintsUsed}</div>
-                      <div className="text-xs text-gray-600">Hints Used</div>
+                      <div className="text-fg/70 text-xs">Hints Used</div>
                     </div>
                     <div className="text-center">
                       <div className="text-lg font-bold text-red-600">{round.freezesUsed}</div>
-                      <div className="text-xs text-gray-600">Freezes Used</div>
+                      <div className="text-fg/70 text-xs">Freezes Used</div>
                     </div>
                     <div className="text-center">
                       <div className="text-lg font-bold text-purple-600">{round.pointsRobbed}</div>
-                      <div className="text-xs text-gray-600">Points Robbed</div>
+                      <div className="text-fg/70 text-xs">Points Robbed</div>
                     </div>
                     <div className="text-center">
                       <div className="text-lg font-bold text-green-600">{round.pointsRestored}</div>
-                      <div className="text-xs text-gray-600">Points Restored</div>
+                      <div className="text-fg/70 text-xs">Points Restored</div>
                     </div>
                   </div>
                   
                   {Object.keys(round.extrasByPlayer).length > 0 && (
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <div className="text-sm font-medium text-gray-700 mb-2">Player Activity</div>
+                    <div className="rounded-lg bg-gray-50 p-3">
+                      <div className="text-fg/80 mb-2 text-sm font-medium">Player Activity</div>
                       <div className="space-y-1">
                         {Object.entries(round.extrasByPlayer).map(([playerName, extras]) => (
-                          <div key={playerName} className="text-sm text-gray-600">
+                          <div key={playerName} className="text-fg/70 text-sm">
                             <span className="font-medium">{playerName}:</span> {extras.length} extra{extras.length !== 1 ? 's' : ''}
                           </div>
                         ))}

@@ -1,4 +1,5 @@
-const debug = true;
+//server/quiz/handlers/sharedUtils.js
+const debug = false;
 
 export function setupSharedHandlers(socket, namespace) {
   socket.on('request_room_config', ({ roomId }) => {
@@ -12,7 +13,7 @@ export function setupSharedHandlers(socket, namespace) {
     });
   });
 
- socket.on('verify_quiz_room', ({ roomId }) => {
+socket.on('verify_quiz_room', ({ roomId }) => {
   import('../quizRoomManager.js').then(({ getQuizRoom }) => {
     const room = getQuizRoom(roomId);
     if (!room) {
@@ -28,17 +29,57 @@ export function setupSharedHandlers(socket, namespace) {
       fundraisingOptions = {},
       fundraisingPrices  = {},
       paymentMethod,
-      demoMode    = false
+      demoMode    = false,
+      // Add Web3-specific fields
+      web3Chain,
+      web3Currency,
+      web3ContractAddress,
+      hostName,
+      gameType,
+      roundDefinitions,
+      currencySymbol
     } = room.config;
 
-    socket.emit('quiz_room_verification_result', {
+    const response = {
       exists: true,
       paymentMethod: paymentMethod || 'cash',
       entryFee: Number(entryFee),
       fundraisingOptions,
       fundraisingPrices,
-      demoMode: !!demoMode
-    });
+      demoMode: !!demoMode,
+      caps: room.roomCaps,
+      hostName,
+      gameType,
+      roundDefinitions,
+      currencySymbol: currencySymbol || '€'
+    };
+
+    // Add Web3-specific fields if it's a Web3 room
+    if (paymentMethod === 'web3') {
+      response.web3Chain = web3Chain || 'stellar';
+      response.web3Currency = web3Currency || 'XLM';
+      response.web3ContractAddress = web3ContractAddress;
+    }
+
+    socket.emit('quiz_room_verification_result', response);
+    if (debug) console.log(`[SharedUtils] 🔍 Room verification for ${roomId}:`, response);
+  });
+});
+
+socket.on('asset_upload_success', ({ roomId, prizeIndex, txHash }) => {
+  import('../quizRoomManager.js').then(({ updateAssetUploadStatus, getQuizRoom }) => {
+    const success = updateAssetUploadStatus(roomId, prizeIndex, 'completed', txHash);
+    if (success) {
+      // Broadcast updated config to all clients in the room
+      const room = getQuizRoom(roomId);
+      if (room) {
+        const cfgWithCaps = { ...room.config, roomCaps: room.roomCaps };
+        namespace.to(roomId).emit('room_config', cfgWithCaps);
+        if (debug) console.log(`[Socket] ✅ Broadcasted updated config for asset upload: ${roomId}`);
+      }
+    } else {
+      socket.emit('quiz_error', { message: 'Failed to update asset upload status' });
+    }
   });
 });
 
@@ -158,7 +199,9 @@ export function emitFullRoomState(socket, namespace, roomId) {
     }
 
     // 🔥 KEY CHANGE: emit to the full room, not just the calling socket
-    namespace.to(roomId).emit('room_config', room.config);
+    // namespace.to(roomId).emit('room_config', room.config);
+    const cfgWithCaps = { ...room.config, roomCaps: room.roomCaps };
+namespace.to(roomId).emit('room_config', cfgWithCaps);
     namespace.to(roomId).emit('player_list_updated', { players: room.players });
     namespace.to(roomId).emit('admin_list_updated', { admins: room.admins });
 

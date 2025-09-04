@@ -29,3 +29,5 @@ _test_
 
 roomState.json
 roomState.json.bak
+
+*.zone.identifier

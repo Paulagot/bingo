@@ -46,13 +46,13 @@ export function GameControls({
   };
 
   return (
-    <div className="flex flex-wrap justify-center gap-4 mt-6">
+    <div className="mt-6 flex flex-wrap justify-center gap-4">
       {/* Auto Play Control */}
       <button
         type="button"
         onClick={onToggleAutoPlay}
         disabled={hasWon || isPaused}
-        className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+        className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-3 text-white shadow-md transition-all hover:from-indigo-700 hover:to-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {autoPlay ? <Pause size={20} /> : <Play size={20} />}
         {autoPlay ? 'Pause' : 'Auto Play'}
@@ -67,7 +67,7 @@ export function GameControls({
             onUnpauseGame();
           }}
           disabled={hasWon}
-          className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-white shadow-md transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <PlayCircle size={20} />
           Unpause Game
@@ -79,7 +79,7 @@ export function GameControls({
       <button
         type="button"
         onClick={handleReturnToLanding}
-        className="flex items-center gap-2 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all shadow-md"
+        className="flex items-center gap-2 rounded-lg bg-gray-600 px-6 py-3 text-white shadow-md transition-all hover:bg-gray-700"
       >
         <ArrowLeft size={20} />
         Return to Landing

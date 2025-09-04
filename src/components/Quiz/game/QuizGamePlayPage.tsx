@@ -60,15 +60,17 @@ const QuizGamePlayPage = () => {
 
   const { robinHoodData, isAnimationActive, handleAnimationComplete } = useRobinHoodAnimation(socket);
 
+  
+
   // ✅ VALIDATION: Ensure we have required params
   if (!roomId || !playerId) {
     return (
       <div className="p-8 text-center">
-        <h1 className="text-2xl font-bold mb-4 text-red-600">❌ Invalid Game URL</h1>
-        <p className="text-gray-600">Missing room ID or player ID in URL.</p>
+        <h1 className="mb-4 text-2xl font-bold text-red-600">❌ Invalid Game URL</h1>
+        <p className="text-fg/70">Missing room ID or player ID in URL.</p>
         <button 
           onClick={() => navigate('/quiz')}
-          className="mt-4 bg-blue-600 text-white px-4 py-2 rounded"
+          className="mt-4 rounded bg-blue-600 px-4 py-2 text-white"
         >
           Return to Quiz Home
         </button>
@@ -96,6 +98,7 @@ const QuizGamePlayPage = () => {
   const [answerSubmitted, setAnswerSubmitted] = useState(false);
   const [clue, setClue] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const getCurrentQuestionId = useCallback(() => question?.id ?? null, [question]);
   
   // Room and phase state
   const [phaseMessage, setPhaseMessage] = useState('Waiting for host to start the quiz...');
@@ -185,6 +188,7 @@ const QuizGamePlayPage = () => {
     socket,
     roomId: roomId!,
     playerId: playerId!,
+     getCurrentQuestionId,
     debug
   });
 
@@ -400,7 +404,7 @@ const QuizGamePlayPage = () => {
 
       const pointsPerDifficulty = roundConfig.pointsPerDifficulty || defaultConfig.pointsPerDifficulty || {};
       const pointsLostPerWrong = roundConfig.pointsLostPerWrong ?? defaultConfig.pointsLostPerWrong ?? 0;
-      const pointsLostPerUnanswered = roundConfig.pointslostperunanswered ?? defaultConfig.pointslostperunanswered ?? 0;
+      const pointsLostPerUnanswered = roundConfig.pointsLostPerUnanswered ?? defaultConfig.pointsLostPerUnanswered ?? 0;
 
       const difficulty = (data.difficulty || 'medium') as keyof typeof pointsPerDifficulty;
       const pointsIfCorrect = pointsPerDifficulty[difficulty] ?? 2;
@@ -653,23 +657,12 @@ const QuizGamePlayPage = () => {
     };
   }, [socket, connected, roomId, playerId, playersInRoom, config?.roundDefinitions, serverRoomState.currentRound]);
 
-  const handleAutoSubmit = useCallback(() => {
-    if (debug) console.log('[AutoSubmit] ⏰ Timer expired - auto-submitting answer');
-    
-    // Submit whatever answer is currently selected (or empty string if none)
-    const answerToSubmit = selectedAnswer || '';
-    
-    if (answerToSubmit) {
-      if (debug) console.log('[AutoSubmit] 📤 Auto-submitting selected answer:', answerToSubmit);
-    } else {
-      if (debug) console.log('[AutoSubmit] 📤 Auto-submitting empty answer (no selection made)');
-    }
-    
-    const success = submitAnswer(answerToSubmit);
-    if (success) {
-      setAnswerSubmitted(true);
-    }
-  }, [selectedAnswer, submitAnswer, debug]);
+const handleAutoSubmit = useCallback(() => {
+  if (!question) return;
+  submitAnswer(selectedAnswer || null, { autoTimeout: true }); // ✅ NEW signature (no questionId arg)
+  setAnswerSubmitted(true);
+}, [question, selectedAnswer, submitAnswer]);
+
 
   const handleUseExtra = (extraId: string, targetPlayerId?: string) => {
     if (!socket || !roomId || !playerId) return;
@@ -777,8 +770,8 @@ const QuizGamePlayPage = () => {
         <>
           {/* ✅ Countdown message overlay */}
           {currentEffect && isFlashing && (
-            <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-              <div className={`text-8xl font-bold animate-bounce ${
+            <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center">
+              <div className={`animate-bounce text-8xl font-bold ${
                 currentEffect.color === 'green' ? 'text-green-500' :
                 currentEffect.color === 'orange' ? 'text-orange-500' : 
                 'text-red-500'
@@ -792,7 +785,7 @@ const QuizGamePlayPage = () => {
           {notifications.map(notification => (
             <div
               key={notification.id}
-              className={`fixed top-20 right-4 z-40 p-4 rounded-lg shadow-lg transition-all duration-300 ${
+              className={`fixed right-4 top-20 z-40 rounded-lg p-4 shadow-lg transition-all duration-300 ${
                 notification.type === 'success' ? 'bg-green-500 text-white' :
                 notification.type === 'warning' ? 'bg-orange-500 text-white' :
                 notification.type === 'error' ? 'bg-red-500 text-white' :
@@ -808,7 +801,7 @@ const QuizGamePlayPage = () => {
                 </span>
                 <button
                   onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
-                  className="ml-2 text-white hover:text-gray-200 font-bold text-lg"
+                  className="ml-2 text-lg font-bold text-white hover:text-gray-200"
                 >
                   ×
                 </button>
@@ -852,7 +845,7 @@ const QuizGamePlayPage = () => {
                 isRoundResults={false}
               />
             ) : (
-              <div className="bg-gray-100 p-6 rounded-xl text-center text-gray-600">
+              <div className="text-fg/70 rounded-xl bg-gray-100 p-6 text-center">
                 Calculating leaderboard...
               </div>
             )
@@ -888,7 +881,7 @@ const QuizGamePlayPage = () => {
               />
             </div>
           ) : (
-            <div className="bg-gray-100 p-6 rounded-xl text-center text-gray-600">{phaseMessage}</div>
+            <div className="text-fg/70 rounded-xl bg-gray-100 p-6 text-center">{phaseMessage}</div>
           )}
 
           <UseExtraModal

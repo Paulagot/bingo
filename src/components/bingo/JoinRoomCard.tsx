@@ -130,33 +130,33 @@ const JoinRoomCard: React.FC<JoinRoomCardProps> = ({
 
   const getJoinButtonText = () => {
     if (paymentStatus === 'pending') {
-      return <div className="w-6 h-6 border-4 border-white border-t-transparent rounded-full animate-spin" />;
+      return <div className="h-6 w-6 animate-spin rounded-full border-4 border-white border-t-transparent" />;
     }
     return (
       <>
         Verify Room
-        <ArrowRight className="w-5 h-5" />
+        <ArrowRight className="h-5 w-5" />
       </>
     );
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl overflow-hidden transform transition hover:shadow-2xl hover:-translate-y-1">
+    <div className="bg-muted transform overflow-hidden rounded-2xl shadow-xl transition hover:-translate-y-1 hover:shadow-2xl">
       <div className="h-2 bg-gradient-to-r from-green-500 to-teal-500" />
       <div className="p-8">
-        <div className="flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-6 mx-auto">
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
           <Users className="h-8 w-8 text-green-600" />
         </div>
 
-        <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">Join Bingo Event</h2>
+        <h2 className="text-fg mb-6 text-center text-2xl font-bold">Join Bingo Event</h2>
 
         <div className="mb-6">
           <appkit-button label="Connect" />
 
           {isReownConnected && (
-            <div className="bg-green-100 text-green-800 p-3 rounded-lg text-center mt-4">
+            <div className="mt-4 rounded-lg bg-green-100 p-3 text-center text-green-800">
               <p className="font-medium">Connected: {formattedAddress}</p>
-              <p className="text-sm mt-1">
+              <p className="mt-1 text-sm">
                 Network: {currentNetwork?.name || (currentChainId ? getChainName(currentChainId) : 'Unknown')}
               </p>
             </div>
@@ -170,7 +170,7 @@ const JoinRoomCard: React.FC<JoinRoomCardProps> = ({
               value={joinName}
               onChange={(e) => setJoinName(e.target.value)}
               placeholder="Enter Your Name"
-              className="w-full px-4 py-3 pl-10 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition"
+              className="border-border w-full rounded-xl border-2 px-4 py-3 pl-10 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-200"
               maxLength={20}
             />
             <Users className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
@@ -182,14 +182,14 @@ const JoinRoomCard: React.FC<JoinRoomCardProps> = ({
               value={roomCode}
               onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
               placeholder="Enter Event Code"
-              className="w-full px-4 py-3 pl-10 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition"
+              className="border-border w-full rounded-xl border-2 px-4 py-3 pl-10 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-200"
               maxLength={6}
             />
             <Dices className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
           </div>
 
           {(paymentError || joinError) && (
-            <div className="bg-red-100 text-red-800 p-3 rounded-lg">
+            <div className="rounded-lg bg-red-100 p-3 text-red-800">
               {paymentError || joinError}
             </div>
           )}
@@ -198,13 +198,13 @@ const JoinRoomCard: React.FC<JoinRoomCardProps> = ({
             <button
               type="button"
               onClick={handleVerifyRoom}
-              className="w-full py-4 px-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold transform transition hover:from-blue-700 hover:to-indigo-700 flex items-center justify-center gap-2 shadow-md"
+              className="flex w-full transform items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 font-semibold text-white shadow-md transition hover:from-blue-700 hover:to-indigo-700"
             >
               {getJoinButtonText()}
             </button>
           )}
 
-          <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+          <div className="text-fg/60 flex items-center justify-center gap-2 text-sm">
             <Wallet className="h-4 w-4" />
             <p>Pay with crypto - Entry fee determined by event</p>
           </div>

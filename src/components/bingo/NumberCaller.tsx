@@ -10,10 +10,10 @@ interface NumberCallerProps {
 
 export function NumberCaller({ currentNumber, calledNumbers, autoPlay }: NumberCallerProps) {
   return (
-    <div className="text-center space-y-4 bg-white p-6 rounded-2xl shadow-lg">
-      <h2 className="text-xl font-bold bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-transparent mb-2">Current Number</h2>
+    <div className="bg-muted space-y-4 rounded-2xl p-6 text-center shadow-lg">
+      <h2 className="mb-2 bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-xl font-bold text-transparent">Current Number</h2>
       
-      <div className="min-h-24 flex items-center justify-center">
+      <div className="flex min-h-24 items-center justify-center">
         <AnimatePresence mode="wait">
           {currentNumber ? (
             <motion.div
@@ -23,53 +23,53 @@ export function NumberCaller({ currentNumber, calledNumbers, autoPlay }: NumberC
               exit={{ scale: 0, opacity: 0 }}
               className="flex flex-col items-center"
             >
-              <div className="text-xl sm:text-2xl text-indigo-600 font-medium">
+              <div className="text-xl font-medium text-indigo-600 sm:text-2xl">
                 {getLetterForNumber(currentNumber)}
               </div>
-              <div className="text-4xl sm:text-5xl md:text-6xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              <div className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-4xl font-bold text-transparent sm:text-5xl md:text-6xl">
                 {currentNumber}
               </div>
             </motion.div>
           ) : (
-            <div className="text-gray-400 italic">Waiting for numbers...</div>
+            <div className="italic text-gray-400">Waiting for numbers...</div>
           )}
         </AnimatePresence>
       </div>
       
       <div className="flex justify-center">
-        <div className="inline-flex items-center px-3 py-1.5 rounded-full bg-indigo-100">
-          <span className="text-sm font-medium mr-2 text-indigo-800">Auto-Play:</span>
+        <div className="inline-flex items-center rounded-full bg-indigo-100 px-3 py-1.5">
+          <span className="mr-2 text-sm font-medium text-indigo-800">Auto-Play:</span>
           <div className="flex items-center gap-1">
             {autoPlay ? (
               <>
-                <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
-                <span className="text-xs text-green-600 font-medium">ON</span>
+                <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
+                <span className="text-xs font-medium text-green-600">ON</span>
               </>
             ) : (
               <>
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
-                <span className="text-xs text-red-600 font-medium">OFF</span>
+                <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
+                <span className="text-xs font-medium text-red-600">OFF</span>
               </>
             )}
           </div>
         </div>
       </div>
       
-      <div className="pt-4 border-t border-gray-100">
-        <h3 className="text-sm font-medium text-gray-500 mb-3">Last 10 Numbers</h3>
-        <div className="flex flex-wrap justify-center gap-2 max-w-xl mx-auto">
+      <div className="border-t border-gray-100 pt-4">
+        <h3 className="text-fg/60 mb-3 text-sm font-medium">Last 10 Numbers</h3>
+        <div className="mx-auto flex max-w-xl flex-wrap justify-center gap-2">
           {calledNumbers.length > 0 ? (
             calledNumbers.slice(-10).map((number) => (
               <div
                 key={number}
-                className="w-10 h-10 sm:w-12 sm:h-12 flex flex-col items-center justify-center bg-indigo-50 rounded-lg text-sm shadow-sm"
+                className="flex h-10 w-10 flex-col items-center justify-center rounded-lg bg-indigo-50 text-sm shadow-sm sm:h-12 sm:w-12"
               >
                 <span className="text-xs text-indigo-600">{getLetterForNumber(number)}</span>
                 <span className="font-medium text-indigo-900">{number}</span>
               </div>
             ))
           ) : (
-            <div className="text-sm text-gray-400 italic">No numbers called yet</div>
+            <div className="text-sm italic text-gray-400">No numbers called yet</div>
           )}
         </div>
       </div>

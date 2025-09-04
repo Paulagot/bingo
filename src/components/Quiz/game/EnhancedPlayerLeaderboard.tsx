@@ -112,10 +112,10 @@ const FloatingExtrasBar: React.FC<{
       />
 
       {/* Floating Actions Bar */}
-      <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-40">
-        <div className="bg-white/95 backdrop-blur-sm border-2 border-purple-300 rounded-full shadow-xl px-6 py-4">
+      <div className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2 transform">
+        <div className="bg-muted/95 rounded-full border-2 border-purple-300 px-6 py-4 shadow-xl backdrop-blur-sm">
           <div className="flex items-center space-x-3">
-            <span className="text-sm font-medium text-purple-700 whitespace-nowrap">
+            <span className="whitespace-nowrap text-sm font-medium text-purple-700">
               Take Action:
             </span>
             
@@ -135,11 +135,11 @@ const FloatingExtrasBar: React.FC<{
                   onClick={() => handleExtraClick(extra.id)}
                   disabled={shouldDisable}
                   className={`
-                    w-12 h-12 rounded-full flex items-center justify-center
-                    transition-all duration-200 transform hover:scale-110 active:scale-95
-                    relative group text-lg
+                    group relative flex h-12 w-12 transform
+                    items-center justify-center rounded-full text-lg transition-all
+                    duration-200 hover:scale-110 active:scale-95
                     ${shouldDisable 
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+                      ? 'cursor-not-allowed bg-gray-200 text-gray-400' 
                       : `bg-gradient-to-r ${displayInfo.color} text-white hover:shadow-lg`
                     }
                   `}
@@ -149,18 +149,18 @@ const FloatingExtrasBar: React.FC<{
                   
                   {/* Targeting indicator */}
                   {displayInfo.needsTarget && !shouldDisable && (
-                    <Target className="absolute -top-1 -right-1 w-4 h-4 bg-white text-purple-500 rounded-full p-0.5" />
+                    <Target className="bg-muted absolute -right-1 -top-1 h-4 w-4 rounded-full p-0.5 text-purple-500" />
                   )}
                   
                   {/* Status indicator for edge cases */}
                   {shouldDisable && (
-                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-xs">
+                    <div className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">
                       ✓
                     </div>
                   )}
 
                   {/* Tooltip */}
-                  <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap max-w-48 text-center">
+                  <div className="absolute bottom-full left-1/2 mb-2 max-w-48 -translate-x-1/2 transform whitespace-nowrap rounded bg-black px-2 py-1 text-center text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
                     <div className="font-medium">{displayInfo.name}</div>
                     {extra.id === 'restorePoints' && (
                       <div className="text-xs text-gray-300">{restorablePoints} available</div>
@@ -246,11 +246,11 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
 
   // ✅ EXISTING: Confetti animation component
   const ConfettiOverlay = () => (
-    <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+    <div className="pointer-events-none fixed inset-0 z-50 overflow-hidden">
       {Array.from({ length: 50 }).map((_, i) => (
         <div
           key={i}
-          className={`absolute w-2 h-2 animate-bounce ${
+          className={`absolute h-2 w-2 animate-bounce ${
             ['bg-yellow-400', 'bg-blue-400', 'bg-green-400', 'bg-red-400', 'bg-purple-400'][i % 5]
           }`}
           style={{
@@ -266,17 +266,17 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
 
   // ✅ EXISTING: Winner badge animation
   const WinnerBadge = () => (
-    <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-40">
+    <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center">
       <div className={`transform transition-all duration-1000 ${
         celebrationPhase === 1 ? 'scale-150 opacity-100' :
         celebrationPhase === 2 ? 'scale-100 opacity-100' :
         celebrationPhase === 3 ? 'scale-75 opacity-50' :
         'scale-0 opacity-0'
       }`}>
-        <div className="bg-gradient-to-r from-yellow-400 to-orange-400 text-white px-8 py-4 rounded-full shadow-2xl flex items-center space-x-3">
-          <Crown className="w-8 h-8" />
+        <div className="flex items-center space-x-3 rounded-full bg-gradient-to-r from-yellow-400 to-orange-400 px-8 py-4 text-white shadow-2xl">
+          <Crown className="h-8 w-8" />
           <span className="text-2xl font-bold">Round Winner!</span>
-          <Crown className="w-8 h-8" />
+          <Crown className="h-8 w-8" />
         </div>
       </div>
     </div>
@@ -301,31 +301,31 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
         />
       )}
 
-      <div className={`bg-white rounded-xl shadow-lg border-2 overflow-hidden transition-all duration-500 ${
+      <div className={`bg-muted overflow-hidden rounded-xl border-2 shadow-lg transition-all duration-500 ${
         isRoundResults 
           ? 'border-purple-300 shadow-purple-200' 
           : 'border-green-200'
       }`}>
         
         {/* ✅ EXISTING: Header with round context */}
-        <div className={`p-6 border-b ${
+        <div className={`border-b p-6 ${
           isRoundResults 
-            ? 'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200' 
-            : 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'
+            ? 'border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50' 
+            : 'border-green-200 bg-gradient-to-r from-green-50 to-emerald-50'
         }`}>
           <div className="text-center">
-            <div className="flex items-center justify-center space-x-3 mb-2">
+            <div className="mb-2 flex items-center justify-center space-x-3">
               {isRoundResults ? (
                 <>
-                  <Medal className="w-8 h-8 text-purple-600" />
+                  <Medal className="h-8 w-8 text-purple-600" />
                   <h2 className="text-2xl font-bold text-purple-900">
                     Round {currentRound} Results
                   </h2>
-                  <Medal className="w-8 h-8 text-purple-600" />
+                  <Medal className="h-8 w-8 text-purple-600" />
                 </>
               ) : (
                 <>
-                  <Trophy className="w-8 h-8 text-yellow-600" />
+                  <Trophy className="h-8 w-8 text-yellow-600" />
                   <h2 className="text-2xl font-bold text-green-900">Current Leaderboard</h2>
                 </>
               )}
@@ -341,13 +341,13 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
             
             {/* ✅ EXISTING: Round winner announcement */}
             {isRoundResults && leaderboard.length > 0 && (
-              <div className="mt-3 p-3 bg-white/70 rounded-lg">
+              <div className="bg-muted/70 mt-3 rounded-lg p-3">
                 <div className="flex items-center justify-center space-x-2">
-                  <Crown className="w-5 h-5 text-yellow-600" />
+                  <Crown className="h-5 w-5 text-yellow-600" />
                   <span className="font-semibold text-purple-800">
                     {leaderboard[0].name} won Round {currentRound}!
                   </span>
-                  <Sparkles className="w-5 h-5 text-yellow-600" />
+                  <Sparkles className="h-5 w-5 text-yellow-600" />
                 </div>
               </div>
             )}
@@ -362,36 +362,42 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
               const actualPosition = leaderboard.findIndex(p => p.id === entry.id);
               const isWinner = actualPosition === 0;
               const isCurrentPlayerOutsideTop10 = currentPlayerPosition >= 10 && isCurrentPlayer;
+
+                 // Which debt number to show in this row:
+             // - In round results, prefer carryDebt (from the round settlement)
+             // - Otherwise, show overall penaltyDebt (carried across rounds)
+             const debtToShow =
+               (isRoundResults ? (entry.carryDebt ?? entry.penaltyDebt) : (entry.penaltyDebt ?? entry.carryDebt)) ?? 0;
               
               return (
                 <div key={entry.id}>
                   {/* ✅ NEW: Separator for current player if outside top 10 */}
                   {isCurrentPlayerOutsideTop10 && displayIdx === displayedLeaderboard.length - 1 && (
-                    <div className="flex items-center my-4">
+                    <div className="my-4 flex items-center">
                       <div className="flex-1 border-t border-gray-300"></div>
-                      <span className="px-3 text-sm text-gray-500 bg-white">Your Position</span>
+                      <span className="text-fg/60 bg-muted px-3 text-sm">Your Position</span>
                       <div className="flex-1 border-t border-gray-300"></div>
                     </div>
                   )}
                   
                   <div
-                    className={`flex items-center justify-between p-4 rounded-lg border-2 transition-all duration-200 ${
+                    className={`flex items-center justify-between rounded-lg border-2 p-4 transition-all duration-200 ${
                       isCurrentPlayer 
                         ? isRoundResults && isWinner
-                          ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-300 shadow-lg ring-2 ring-yellow-200' 
-                          : 'bg-blue-50 border-blue-300 shadow-md ring-2 ring-blue-200'
+                          ? 'border-yellow-300 bg-gradient-to-r from-yellow-50 to-orange-50 shadow-lg ring-2 ring-yellow-200' 
+                          : 'border-blue-300 bg-blue-50 shadow-md ring-2 ring-blue-200'
                         : isRoundResults && isWinner
-                          ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200 shadow-md'
-                          : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                          ? 'border-yellow-200 bg-gradient-to-r from-yellow-50 to-orange-50 shadow-md'
+                          : 'border-border bg-gray-50 hover:bg-gray-100'
                     } ${
-                      isRoundResults && actualPosition <= 2 ? 'transform hover:scale-102' : ''
+                      isRoundResults && actualPosition <= 2 ? 'hover:scale-102 transform' : ''
                     }`}
                   >
                     <div className="flex items-center space-x-4">
                       {/* ✅ UPDATED: Position Badge using actual position */}
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold relative ${
+                      <div className={`relative flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold ${
                         actualPosition === 0 ? 'bg-yellow-100 text-yellow-800 shadow-md' :
-                        actualPosition === 1 ? 'bg-gray-100 text-gray-800 shadow-md' :
+                        actualPosition === 1 ? 'text-fg bg-gray-100 shadow-md' :
                         actualPosition === 2 ? 'bg-orange-100 text-orange-800 shadow-md' :
                         'bg-blue-100 text-blue-800'
                       } ${
@@ -402,7 +408,7 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
                         {actualPosition + 1}
                         {/* ✅ EXISTING: Sparkle effect for round winners */}
                         {isRoundResults && actualPosition === 0 && (
-                          <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-yellow-500 animate-pulse" />
+                          <Sparkles className="absolute -right-1 -top-1 h-4 w-4 animate-pulse text-yellow-500" />
                         )}
                       </div>
 
@@ -413,28 +419,38 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
                             ? isRoundResults && isWinner 
                               ? 'text-yellow-900' 
                               : 'text-blue-900'
-                            : 'text-gray-800'
+                            : 'text-fg'
                         }`}>
                           {entry.name}
                         </span>
+
+                                              {/* NEW: Debt pill */}
+                      {debtToShow > 0 && (
+                        <span
+                           className="ml-1 rounded-full border border-gray-200 bg-gray-100 px-2 py-0.5 text-[11px] leading-4 text-gray-700"
+                            title={isRoundResults ? 'Unpaid round debt' : 'Unpaid penalty debt'}
+                          >
+                            Debt {debtToShow}
+                          </span>
+                        )}
                         
                         {/* ✅ EXISTING: Position Icons with round context */}
                         {actualPosition === 0 && (
                           <div className="flex items-center space-x-1">
-                            <Crown className={`w-5 h-5 ${
-                              isRoundResults ? 'text-yellow-500 animate-pulse' : 'text-yellow-600'
+                            <Crown className={`h-5 w-5 ${
+                              isRoundResults ? 'animate-pulse text-yellow-500' : 'text-yellow-600'
                             }`} />
                             {isRoundResults && (
-                              <Star className="w-4 h-4 text-yellow-500" />
+                              <Star className="h-4 w-4 text-yellow-500" />
                             )}
                           </div>
                         )}
-                        {actualPosition === 1 && <Medal className="w-5 h-5 text-gray-600" />}
-                        {actualPosition === 2 && <Award className="w-5 h-5 text-orange-600" />}
+                        {actualPosition === 1 && <Medal className="text-fg/70 h-5 w-5" />}
+                        {actualPosition === 2 && <Award className="h-5 w-5 text-orange-600" />}
                         
                         {/* ✅ EXISTING: Current Player Indicator */}
                         {isCurrentPlayer && (
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          <span className={`rounded-full px-2 py-1 text-xs font-medium ${
                             isRoundResults && isWinner
                               ? 'bg-yellow-100 text-yellow-800'
                               : 'bg-blue-100 text-blue-800'
@@ -445,7 +461,7 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
 
                         {/* ✅ EXISTING: Round winner badge */}
                         {isRoundResults && actualPosition === 0 && (
-                          <span className="px-2 py-1 bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-800 rounded-full text-xs font-bold border border-yellow-300">
+                          <span className="rounded-full border border-yellow-300 bg-gradient-to-r from-yellow-100 to-orange-100 px-2 py-1 text-xs font-bold text-yellow-800">
                             Round Winner! 🎉
                           </span>
                         )}
@@ -459,7 +475,7 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
                           ? isRoundResults && isWinner 
                             ? 'text-yellow-900' 
                             : 'text-blue-900'
-                          : 'text-gray-800'
+                          : 'text-fg'
                       }`}>
                         {entry.score} pts
                       </div>
@@ -480,17 +496,17 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
 
           {/* ✅ ENHANCED: Position Summary with better messaging for top 10 display */}
           {leaderboard.length > 0 && (
-            <div className={`mt-6 p-4 rounded-lg border ${
+            <div className={`mt-6 rounded-lg border p-4 ${
               isRoundResults 
                 ? currentPlayerPosition === 0
-                  ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200'
+                  ? 'border-yellow-200 bg-gradient-to-r from-yellow-50 to-orange-50'
                   : currentPlayerPosition <= 2
-                    ? 'bg-purple-50 border-purple-200'
-                    : 'bg-purple-50 border-purple-200'
-                : 'bg-blue-50 border-blue-200'
+                    ? 'border-purple-200 bg-purple-50'
+                    : 'border-purple-200 bg-purple-50'
+                : 'border-blue-200 bg-blue-50'
             }`}>
               <div className="text-center">
-                <div className={`text-sm mb-1 ${
+                <div className={`mb-1 text-sm ${
                   isRoundResults ? 'text-purple-700' : 'text-blue-700'
                 }`}>
                   {isRoundResults 
@@ -513,7 +529,7 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
                 
                 {/* ✅ NEW: Show if displaying limited view */}
                 {leaderboard.length > 10 && (
-                  <div className={`text-xs mt-1 ${
+                  <div className={`mt-1 text-xs ${
                     isRoundResults ? 'text-purple-600' : 'text-blue-600'
                   }`}>
                     {currentPlayerPosition >= 10 
@@ -526,25 +542,25 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
                 {/* ✅ EXISTING: Different messages for round vs overall */}
                 {isRoundResults ? (
                   currentPlayerPosition === 0 ? (
-                    <div className="text-sm text-yellow-700 mt-1 flex items-center justify-center space-x-1">
-                      <Crown className="w-4 h-4" />
+                    <div className="mt-1 flex items-center justify-center space-x-1 text-sm text-yellow-700">
+                      <Crown className="h-4 w-4" />
                       <span>You won this round! 🎉</span>
-                      <Sparkles className="w-4 h-4" />
+                      <Sparkles className="h-4 w-4" />
                     </div>
                   ) : currentPlayerPosition <= 2 ? (
-                    <div className="text-sm text-purple-600 mt-1 flex items-center justify-center space-x-1">
-                      <Star className="w-4 h-4" />
+                    <div className="mt-1 flex items-center justify-center space-x-1 text-sm text-purple-600">
+                      <Star className="h-4 w-4" />
                       <span>Great job this round!</span>
                     </div>
                   ) : (
-                    <div className="text-sm text-purple-600 mt-1">
+                    <div className="mt-1 text-sm text-purple-600">
                       Keep it up for the next round!
                     </div>
                   )
                 ) : (
                   currentPlayerPosition === 0 && (
-                    <div className="text-sm text-blue-600 mt-1 flex items-center justify-center space-x-1">
-                      <Crown className="w-4 h-4" />
+                    <div className="mt-1 flex items-center justify-center space-x-1 text-sm text-blue-600">
+                      <Crown className="h-4 w-4" />
                       <span>You're in the lead!</span>
                     </div>
                   )

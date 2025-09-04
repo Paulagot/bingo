@@ -9,9 +9,10 @@ import {
   emitRoomState
 } from '../quizRoomManager.js';
 
-import { getEngine } from '../ gameplayEngines/gameplayEngineRouter.js';
+import { getEngine } from '../gameplayEngines/gameplayEngineRouter.js';
 import { isRateLimited } from '../../socketRateLimiter.js';
 import { getCurrentRoundStats } from './globalExtrasHandler.js';
+import { getRoundScoring } from './scoringUtils.js';
 
 const debug = true;
 
@@ -20,13 +21,87 @@ export function setupHostHandlers(socket, namespace) {
   function emitFullRoomState(roomId) {
     const room = getQuizRoom(roomId);
     if (!room) return;
-    namespace.to(roomId).emit('room_config', room.config);
+    const cfgWithCaps = { ...room.config, roomCaps: room.roomCaps };
+    namespace.to(roomId).emit('room_config', cfgWithCaps);
     namespace.to(roomId).emit('player_list_updated', { players: room.players });
     namespace.to(roomId).emit('admin_list_updated', { admins: room.admins });
     emitRoomState(namespace, roomId);
   }
 
-  // ✅ NEW: Calculate round-specific leaderboard scores
+  // 🆕 --- Debt settlement helpers ------------------------------------------
+
+  function settleBankedScoreAgainstDebt(room) {
+  for (const player of room.players) {
+    const pd = room.playerData[player.id];
+    if (!pd) continue;
+    const bank = Math.max(0, pd.score || 0);
+    const debt = Math.max(0, pd.penaltyDebt || 0);
+    if (debt <= 0 || bank <= 0) continue;
+
+    const settledFromBank = Math.min(bank, debt);
+    pd.score = bank - settledFromBank;
+    pd.penaltyDebt = debt - settledFromBank;
+
+    console.log(
+      `[Settlement] ${player.name}: banked=${bank}, debt=${debt}, ` +
+      `settledFromBank=${settledFromBank}, newScore=${pd.score}, carryDebt=${pd.penaltyDebt}`
+    );
+  }
+}
+
+  // 🆕 Sum *positive* points earned this round (from per-question pointsDelta)
+  function sumRoundPositive(room, playerId) {
+    let total = 0;
+    for (const q of room.questions || []) {
+      const key = `${q.id}_round${room.currentRound}`;
+      const ans = room.playerData[playerId]?.answers?.[key];
+      if (ans && typeof ans.pointsDelta === 'number' && ans.pointsDelta > 0) {
+        total += ans.pointsDelta;
+      }
+    }
+    return total;
+  }
+
+  // 🆕 End-of-round settlement:
+  // Use this round's earned positives to pay down penaltyDebt.
+  // - Reduces playerData.score by settled amount
+  // - Reduces playerData.penaltyDebt by settled amount
+  // - Stores pd.settlementThisRound for display (used by round leaderboard)
+  function settleRoundDebt(roomId) {
+    const room = getQuizRoom(roomId);
+    if (!room) return;
+
+    for (const player of room.players) {
+      const pd = room.playerData[player.id];
+      if (!pd) continue;
+
+      const debt = Math.max(0, pd.penaltyDebt || 0);
+      if (debt === 0) {
+        pd.settlementThisRound = 0;
+        continue;
+      }
+
+      const earnedThisRound = sumRoundPositive(room, player.id);
+      const settle = Math.min(earnedThisRound, debt);
+
+      if (settle > 0) {
+        pd.score = Math.max(0, (pd.score || 0) - settle);
+        pd.penaltyDebt = debt - settle;
+        pd.settlementThisRound = settle;
+
+        if (debug) {
+          console.log(`[Settlement] ${player.name}: earned=${earnedThisRound}, debt=${debt}, settled=${settle}, carryDebt=${pd.penaltyDebt}, newScore=${pd.score}`);
+        }
+      } else {
+        pd.settlementThisRound = 0;
+        if (debug) {
+          console.log(`[Settlement] ${player.name}: earned=0, debt=${debt}, settled=0, carryDebt=${pd.penaltyDebt}`);
+        }
+      }
+    }
+  }
+
+  // ✅ Calculate round-specific leaderboard scores WITHOUT re-applying penalties
   function calculateRoundLeaderboard(roomId) {
     const room = getQuizRoom(roomId);
     if (!room) {
@@ -41,16 +116,16 @@ export function setupHostHandlers(socket, namespace) {
       return [];
     }
 
-    const questionsPerRound = roundConfig.config.questionsPerRound || 6;
-    const roundLeaderboard = [];
+    // Single source of truth for scoring (fallback path only)
+    const { pointsPerDifficulty } = getRoundScoring(room, currentRoundIndex);
 
     if (debug) {
       console.log(`[RoundLeaderboard] 📊 Calculating for Round ${room.currentRound}`);
-      console.log(`[RoundLeaderboard] 📝 Questions per round: ${questionsPerRound}`);
-      console.log(`[RoundLeaderboard] 🎯 Current question index: ${room.currentQuestionIndex}`);
+      console.log(`[RoundLeaderboard] 🎯 questions in memory: ${room.questions?.length ?? 0}`);
     }
 
-    // Calculate round scores for each player
+    const roundLeaderboard = [];
+
     for (const player of room.players) {
       const playerData = room.playerData[player.id];
       if (!playerData) {
@@ -59,69 +134,78 @@ export function setupHostHandlers(socket, namespace) {
       }
 
       let roundScore = 0;
-      let questionsAnsweredThisRound = 0;
 
-      // Look through all questions to find ones from current round
-      for (let questionIndex = 0; questionIndex < room.questions.length; questionIndex++) {
-        const question = room.questions[questionIndex];
-        if (!question) continue;
+      // Iterate the questions for THIS round (room.questions is per-round)
+      for (let i = 0; i < (room.questions?.length || 0); i++) {
+        const q = room.questions[i];
+        if (!q) continue;
 
-        const roundAnswerKey = `${question.id}_round${room.currentRound}`;
-        const playerAnswer = playerData.answers?.[roundAnswerKey];
+        const key = `${q.id}_round${room.currentRound}`;
+        const ans = playerData.answers?.[key];
 
-        if (playerAnswer) {
-          questionsAnsweredThisRound++;
-          
-          // Calculate points for this question based on round config
-          const difficulty = question.difficulty || 'medium';
-          const pointsPerDifficulty = roundConfig.config.pointsPerDifficulty || { easy: 1, medium: 2, hard: 3 };
-          const pointsLostPerWrong = roundConfig.config.pointsLostPerWrong || 0;
-          const pointsLostPerNoAnswer = roundConfig.config.pointslostperunanswered || 0;
+        // Prefer the engine-authored delta (correct/wrong/no-answer are already settled by engines)
+        if (ans && typeof ans.pointsDelta === 'number') {
+          roundScore += ans.pointsDelta;
+          if (debug) {
+            console.log(`[RoundLeaderboard] 🔢 ${player.name}: Q${i + 1} delta=${ans.pointsDelta}`);
+          }
+          continue;
+        }
 
-          if (playerAnswer.submitted === null || playerAnswer.submitted === undefined) {
-            // No answer submitted
-            roundScore -= pointsLostPerNoAnswer;
-            if (debug) console.log(`[RoundLeaderboard] 📝 ${player.name}: Q${questionIndex + 1} no answer (-${pointsLostPerNoAnswer})`);
-          } else if (playerAnswer.correct) {
-            // Correct answer
-            const points = pointsPerDifficulty[difficulty] || 2;
-            roundScore += points;
-            if (debug) console.log(`[RoundLeaderboard] ✅ ${player.name}: Q${questionIndex + 1} correct (+${points})`);
-          } else {
-            // Wrong answer
-            roundScore -= pointsLostPerWrong;
-            if (debug) console.log(`[RoundLeaderboard] ❌ ${player.name}: Q${questionIndex + 1} wrong (-${pointsLostPerWrong})`);
+        // Fallback: only add positives for correct answers (never re-apply penalties here)
+        if (ans && ans.submitted != null && ans.correct === true) {
+          const diff = (q.difficulty || 'medium').toLowerCase();
+          const pts =
+            (pointsPerDifficulty?.[diff]) ??
+            (pointsPerDifficulty?.medium) ??
+            2;
+          roundScore += pts;
+          if (debug) {
+            console.log(`[RoundLeaderboard] ✅ ${player.name}: Q${i + 1} correct (+${pts})`);
+          }
+        } else {
+          // wrong or no answer -> 0 (penalties were applied by engine already)
+          if (debug) {
+            const tag = !ans || ans.submitted == null ? 'no answer' : 'wrong';
+            console.log(`[RoundLeaderboard] ➖ ${player.name}: Q${i + 1} ${tag} (+0, penalties not re-applied here)`);
           }
         }
       }
 
+      // 🛠️ CHANGED: subtract settlement we just applied so the visible round score is net-of-debt
+      const settled = playerData.settlementThisRound || 0;
+      const visibleScore = Math.max(0, roundScore - settled);
+
       roundLeaderboard.push({
         id: player.id,
         name: player.name,
-        score: roundScore,
+        score: visibleScore,                                   // 🛠️ CHANGED: net-of-debt
+        penaltyDebt: playerData.penaltyDebt || 0,              // 🆕 carryover debt for transparency
+        settledThisRound: settled,                              // 🆕 how much of this round’s earnings went to debt
         cumulativeNegativePoints: playerData.cumulativeNegativePoints || 0,
-        pointsRestored: playerData.pointsRestored || 0
+        pointsRestored: playerData.pointsRestored || 0,
+        carryDebt: playerData.penaltyDebt || 0,  // round view: show what’s still owed now
+    // also include for completeness
       });
 
       if (debug) {
-        console.log(`[RoundLeaderboard] 🎯 ${player.name}: Round ${room.currentRound} score = ${roundScore} (answered ${questionsAnsweredThisRound} questions)`);
+        console.log(`[RoundLeaderboard] 🎯 ${player.name}: earned=${roundScore}, settled=${settled}, visible=${visibleScore}, carryDebt=${playerData.penaltyDebt || 0}`);
       }
     }
 
-    // Sort by score (highest first)
     roundLeaderboard.sort((a, b) => b.score - a.score);
 
     if (debug) {
-      console.log(`[RoundLeaderboard] 🏆 Final Round ${room.currentRound} Rankings:`);
+      console.log(`[RoundLeaderboard] 🏆 Final Round ${room.currentRound} Rankings (net-of-debt):`);
       roundLeaderboard.forEach((entry, index) => {
-        console.log(`  ${index + 1}. ${entry.name}: ${entry.score} points`);
+        console.log(`  ${index + 1}. ${entry.name}: ${entry.score} points (settled=${entry.settledThisRound}, carryDebt=${entry.penaltyDebt})`);
       });
     }
 
     return roundLeaderboard;
   }
 
-  // ✅ NEW: Calculate overall cumulative leaderboard
+  // ✅ Calculate overall cumulative leaderboard
   function calculateOverallLeaderboard(roomId) {
     const room = getQuizRoom(roomId);
     if (!room) {
@@ -131,7 +215,6 @@ export function setupHostHandlers(socket, namespace) {
 
     const overallLeaderboard = [];
 
-    // Calculate cumulative scores for each player
     for (const player of room.players) {
       const playerData = room.playerData[player.id];
       if (!playerData) {
@@ -144,11 +227,12 @@ export function setupHostHandlers(socket, namespace) {
         name: player.name,
         score: playerData.score || 0,
         cumulativeNegativePoints: playerData.cumulativeNegativePoints || 0,
-        pointsRestored: playerData.pointsRestored || 0
+        pointsRestored: playerData.pointsRestored || 0,
+        penaltyDebt: playerData.penaltyDebt || 0
+        
       });
     }
 
-    // Sort by score (highest first)
     overallLeaderboard.sort((a, b) => b.score - a.score);
 
     if (debug) {
@@ -161,172 +245,364 @@ export function setupHostHandlers(socket, namespace) {
     return overallLeaderboard;
   }
 
-  // Add this function after your calculateOverallLeaderboard function in hostHandlers.js
-
-// ✅ NEW: Calculate and send final quiz statistics
-// REPLACE your current calculateAndSendFinalStats function in hostHandlers.js with this:
-
-function calculateAndSendFinalStats(roomId, namespace) {
-  const room = getQuizRoom(roomId);
-  if (!room) {
-    console.error(`[FinalStats] ❌ Room not found: ${roomId}`);
-    return;
-  }
-
-   if (debug) {
-    console.log(`[FinalStats] 📊 Calculating final stats using stored round data`);
-    // ✅ DEBUG: Check what's in storage
-    console.log(`[DEBUG] 🔍 room.storedRoundStats:`, room.storedRoundStats);
-    console.log(`[DEBUG] 📝 Available stored rounds:`, Object.keys(room.storedRoundStats || {}));
-  }
-
-  
-
-  const allRoundsStats = [];
-
-  // Use stored round stats for accurate final calculation
-  for (let roundIndex = 0; roundIndex < room.config.roundDefinitions.length; roundIndex++) {
-    const roundNumber = roundIndex + 1;
-    const roundConfig = room.config.roundDefinitions[roundIndex];
-    
-    if (!roundConfig) continue;
-
-    let roundStats;
-
-     if (debug) console.log(`[DEBUG] 🔍 Looking for stored stats for round ${roundNumber}:`, {
-      hasStoredRoundStats: !!room.storedRoundStats,
-      hasThisRound: !!(room.storedRoundStats && room.storedRoundStats[roundNumber]),
-      storedData: room.storedRoundStats?.[roundNumber]
-    });
-
-    if (room.storedRoundStats && room.storedRoundStats[roundNumber]) {
-      // ✅ Use stored round stats (most accurate)
-      roundStats = {
-        ...room.storedRoundStats[roundNumber],
-        roundType: roundConfig.roundType,
-        totalQuestions: roundConfig.config.questionsPerRound || 6
-      };
-      
-      if (debug) {
-        console.log(`[FinalStats] 📊 Round ${roundNumber} stats (from storage):`, {
-          questions: `${roundStats.questionsAnswered}/${roundStats.totalQuestions}`,
-          answers: `${roundStats.correctAnswers} correct, ${roundStats.wrongAnswers} wrong, ${roundStats.noAnswers} no answer`,
-          extras: `${roundStats.totalExtrasUsed} total (H:${roundStats.hintsUsed}, F:${roundStats.freezesUsed}, R:${roundStats.pointsRobbed}, Re:${roundStats.pointsRestored})`
-        });
-      }
-    } else {
-      if (debug) console.log(`[DEBUG] ⚠️ No stored data for round ${roundNumber}, using fallback`);
-      // ✅ Fallback for rounds without stored data
-      roundStats = {
-        roundNumber,
-        roundType: roundConfig.roundType,
-        hintsUsed: 0,
-        freezesUsed: 0,
-        pointsRobbed: 0,
-        pointsRestored: 0,
-        extrasByPlayer: {},
-        questionsWithExtras: 0,
-        totalExtrasUsed: 0,
-        questionsAnswered: 0,
-        totalQuestions: roundConfig.config.questionsPerRound || 6,
-        correctAnswers: 0,
-        wrongAnswers: 0,
-        noAnswers: 0
-      };
-
-      // Initialize empty player stats
-      room.players.forEach(player => {
-        roundStats.extrasByPlayer[player.name] = [];
-      });
-      
-      if (debug) {
-        console.log(`[FinalStats] 📊 Round ${roundNumber} stats (fallback):`, {
-          questions: `${roundStats.questionsAnswered}/${roundStats.totalQuestions}`,
-          extras: `${roundStats.totalExtrasUsed} total`
-        });
-      }
+  // ✅ Calculate and send final quiz statistics
+  function calculateAndSendFinalStats(roomId, namespace) {
+    const room = getQuizRoom(roomId);
+    if (!room) {
+      console.error(`[FinalStats] ❌ Room not found: ${roomId}`);
+      return;
     }
 
-    
-    
-    allRoundsStats.push(roundStats);
+    if (debug) {
+      console.log(`[FinalStats] 📊 Calculating final stats using stored round data`);
+      console.log(`[DEBUG] 🔍 room.storedRoundStats:`, room.storedRoundStats);
+      console.log(`[DEBUG] 📝 Available stored rounds:`, Object.keys(room.storedRoundStats || {}));
+    }
+
+    const allRoundsStats = [];
+
+    for (let roundIndex = 0; roundIndex < room.config.roundDefinitions.length; roundIndex++) {
+      const roundNumber = roundIndex + 1;
+      const roundConfig = room.config.roundDefinitions[roundIndex];
+      if (!roundConfig) continue;
+
+      let roundStats;
+
+      if (debug) console.log(`[DEBUG] 🔍 Looking for stored stats for round ${roundNumber}:`, {
+        hasStoredRoundStats: !!room.storedRoundStats,
+        hasThisRound: !!(room.storedRoundStats && room.storedRoundStats[roundNumber]),
+        storedData: room.storedRoundStats?.[roundNumber]
+      });
+
+      if (room.storedRoundStats && room.storedRoundStats[roundNumber]) {
+        roundStats = {
+          ...room.storedRoundStats[roundNumber],
+          roundType: roundConfig.roundType,
+          totalQuestions: roundConfig.config.questionsPerRound || 6
+        };
+
+        if (debug) {
+          console.log(`[FinalStats] 📊 Round ${roundNumber} stats (from storage):`, {
+            questions: `${roundStats.questionsAnswered}/${roundStats.totalQuestions}`,
+            answers: `${roundStats.correctAnswers} correct, ${roundStats.wrongAnswers} wrong, ${roundStats.noAnswers} no answer`,
+            extras: `${roundStats.totalExtrasUsed} total (H:${roundStats.hintsUsed}, F:${roundStats.freezesUsed}, R:${roundStats.pointsRobbed}, Re:${roundStats.pointsRestored})`
+          });
+        }
+      } else {
+        if (debug) console.log(`[DEBUG] ⚠️ No stored data for round ${roundNumber}, using fallback`);
+        roundStats = {
+          roundNumber,
+          roundType: roundConfig.roundType,
+          hintsUsed: 0,
+          freezesUsed: 0,
+          pointsRobbed: 0,
+          pointsRestored: 0,
+          extrasByPlayer: {},
+          questionsWithExtras: 0,
+          totalExtrasUsed: 0,
+          questionsAnswered: 0,
+          totalQuestions: roundConfig.config.questionsPerRound || 6,
+          correctAnswers: 0,
+          wrongAnswers: 0,
+          noAnswers: 0
+        };
+
+        room.players.forEach(player => {
+          roundStats.extrasByPlayer[player.name] = [];
+        });
+
+        if (debug) {
+          console.log(`[FinalStats] 📊 Round ${roundNumber} stats (fallback):`, {
+            questions: `${roundStats.questionsAnswered}/${roundStats.totalQuestions}`,
+            extras: `${roundStats.totalExtrasUsed} total`
+          });
+        }
+      }
+
+      allRoundsStats.push(roundStats);
+    }
+
+    namespace.to(`${roomId}:host`).emit('host_final_stats', allRoundsStats);
+
+    if (debug) {
+      console.log(`[FinalStats] 📈 Final quiz stats sent to host for ${allRoundsStats.length} rounds`);
+      const totalExtrasAcrossAllRounds = allRoundsStats.reduce((sum, round) => sum + round.totalExtrasUsed, 0);
+      const totalPointsRestored = allRoundsStats.reduce((sum, round) => sum + round.pointsRestored, 0);
+      const totalPointsRobbed = allRoundsStats.reduce((sum, round) => sum + round.pointsRobbed, 0);
+      const totalHints = allRoundsStats.reduce((sum, round) => sum + round.hintsUsed, 0);
+      const totalFreezes = allRoundsStats.reduce((sum, round) => sum + round.freezesUsed, 0);
+      console.log(`[FinalStats] 🎯 TOTALS: ${totalExtrasAcrossAllRounds} extras, ${totalPointsRestored} points restored, ${totalPointsRobbed} robs, ${totalHints} hints, ${totalFreezes} freezes`);
+    }
+
+    return allRoundsStats;
   }
 
-  // ✅ Send final stats to host
-  namespace.to(`${roomId}:host`).emit('host_final_stats', allRoundsStats);
-  
-  if (debug) {
-    console.log(`[FinalStats] 📈 Final quiz stats sent to host for ${allRoundsStats.length} rounds`);
-    
-    // ✅ Debug totals
-    const totalExtrasAcrossAllRounds = allRoundsStats.reduce((sum, round) => sum + round.totalExtrasUsed, 0);
-    const totalPointsRestored = allRoundsStats.reduce((sum, round) => sum + round.pointsRestored, 0);
-    const totalPointsRobbed = allRoundsStats.reduce((sum, round) => sum + round.pointsRobbed, 0);
-    const totalHints = allRoundsStats.reduce((sum, round) => sum + round.hintsUsed, 0);
-    const totalFreezes = allRoundsStats.reduce((sum, round) => sum + round.freezesUsed, 0);
-    
-    console.log(`[FinalStats] 🎯 TOTALS: ${totalExtrasAcrossAllRounds} extras, ${totalPointsRestored} points restored, ${totalPointsRobbed} robs, ${totalHints} hints, ${totalFreezes} freezes`);
-  }
+  // ✅ next_round_or_end (unchanged)
+  socket.on('next_round_or_end', ({ roomId }) => {
+    if (debug) console.log(`[Host] next_round_or_end for ${roomId}`);
 
-  return allRoundsStats;
-}
+    const room = getQuizRoom(roomId);
+    if (!room) {
+      socket.emit('quiz_error', { message: 'Room not found' });
+      return;
+    }
 
+    const totalRounds = getTotalRounds(roomId);
+    const nextRound = getCurrentRound(roomId) + 1;
 
+    if (nextRound > totalRounds) {
+      const finalRoundStats = getCurrentRoundStats(roomId);
 
-// ✅ REPLACE your existing next_round_or_end handler with this:
-socket.on('next_round_or_end', ({ roomId }) => {
-  if (debug) console.log(`[Host] next_round_or_end for ${roomId}`);
-
-  const room = getQuizRoom(roomId);
-  if (!room) {
-    socket.emit('quiz_error', { message: 'Room not found' });
-    return;
-  }
-
-  const totalRounds = getTotalRounds(roomId);
-  const nextRound = getCurrentRound(roomId) + 1;
-
-  if (nextRound > totalRounds) {
-    // ✅ CRITICAL: Update the final round stats with leaderboard extras
-    const finalRoundStats = getCurrentRoundStats(roomId);
-    
-    if (room.storedRoundStats && room.storedRoundStats[room.currentRound]) {
-      // Update stored stats with final leaderboard extras
-      room.storedRoundStats[room.currentRound] = {
-        ...room.storedRoundStats[room.currentRound],
-        // Update with final extras (includes leaderboard phase extras)
-        hintsUsed: finalRoundStats.hintsUsed,
-        freezesUsed: finalRoundStats.freezesUsed,
-        pointsRobbed: finalRoundStats.pointsRobbed,
-        pointsRestored: finalRoundStats.pointsRestored,
-        extrasByPlayer: finalRoundStats.extrasByPlayer,
-        totalExtrasUsed: finalRoundStats.totalExtrasUsed
-      };
-      
-      if (debug) {
-        console.log(`[Host] 🔄 Updated final round ${room.currentRound} stats with leaderboard extras:`, {
+      if (room.storedRoundStats && room.storedRoundStats[room.currentRound]) {
+        room.storedRoundStats[room.currentRound] = {
+          ...room.storedRoundStats[room.currentRound],
           hintsUsed: finalRoundStats.hintsUsed,
           freezesUsed: finalRoundStats.freezesUsed,
           pointsRobbed: finalRoundStats.pointsRobbed,
           pointsRestored: finalRoundStats.pointsRestored,
+          extrasByPlayer: finalRoundStats.extrasByPlayer,
           totalExtrasUsed: finalRoundStats.totalExtrasUsed
-        });
+        };
+
+        if (debug) {
+          console.log(`[Host] 🔄 Updated final round ${room.currentRound} stats with leaderboard extras:`, {
+            hintsUsed: finalRoundStats.hintsUsed,
+            freezesUsed: finalRoundStats.freezesUsed,
+            pointsRobbed: finalRoundStats.pointsRobbed,
+            pointsRestored: finalRoundStats.pointsRestored,
+            totalExtrasUsed: finalRoundStats.totalExtrasUsed
+          });
+        }
+      }
+
+      calculateAndSendFinalStats(roomId, namespace);
+
+      room.currentPhase = 'complete';
+      namespace.to(roomId).emit('quiz_end', { message: 'Quiz complete. Thank you!' });
+      emitRoomState(namespace, roomId);
+
+      if (debug) console.log(`[Host] ✅ Quiz completed for ${roomId} with final stats sent`);
+    } else {
+      startNextRound(roomId);
+      room.currentPhase = 'waiting';
+      emitRoomState(namespace, roomId);
+    }
+  });
+
+  // ✅ end_quiz_and_distribute_prizes (unchanged from your version)
+  socket.on('end_quiz_and_distribute_prizes', ({ roomId }) => {
+    if (debug) console.log(`[Host] 🏆 end_quiz_and_distribute_prizes for ${roomId}`);
+
+    const room = getQuizRoom(roomId);
+    if (!room) {
+      socket.emit('quiz_error', { message: 'Room not found' });
+      return;
+    }
+
+    if (debug) {
+      console.log(`[Host] 🔍 Room config debug:`, {
+        paymentMethod: room.config?.paymentMethod,
+        isWeb3Room: room.config?.isWeb3Room,
+        web3ContractAddress: room.config?.web3ContractAddress,
+        web3Chain: room.config?.web3Chain,
+        web3PrizeStructure: room.config?.web3PrizeStructure,
+        hasWeb3AddressMap: !!room.web3AddressMap,
+        web3AddressMapKeys: room.web3AddressMap ? Object.keys(room.web3AddressMap) : []
+      });
+      console.log('[Host] 🔍 Web3 Address Map Debug:', {
+        hasWeb3AddressMap: !!(room.web3AddressMap && room.web3AddressMap.size > 0),
+        web3AddressMapSize: room.web3AddressMap ? room.web3AddressMap.size : 0,
+        web3AddressEntries: room.web3AddressMap ? Array.from(room.web3AddressMap.entries()) : [],
+        configAddresses: room.config?.web3PlayerAddresses || {}
+      })
+    }
+
+    if (room.hostSocketId !== socket.id) {
+      socket.emit('quiz_error', { message: 'Only the host can end the quiz and distribute prizes' });
+      return;
+    }
+
+    const isWeb3Room = room.config?.paymentMethod === 'web3' || room.config?.isWeb3Room;
+
+    if (debug) console.log(`[Host] 🌐 Web3 room check: paymentMethod=${room.config?.paymentMethod}, isWeb3Room=${room.config?.isWeb3Room}, result=${isWeb3Room}`);
+    if (!isWeb3Room) {
+      socket.emit('quiz_error', { message: 'Prize distribution is only available for Web3 rooms' });
+      return;
+    }
+
+    if (!room.web3AddressMap) {
+      socket.emit('quiz_error', { message: 'No Web3 address mapping found. Players may not have joined properly.' });
+      return;
+    }
+
+    const finalLeaderboard = calculateOverallLeaderboard(roomId);
+    if (finalLeaderboard.length === 0) {
+      socket.emit('quiz_error', { message: 'No players found for prize distribution' });
+      return;
+    }
+
+    const { web3PrizeStructure } = room.config;
+    const hasSecondPrize = web3PrizeStructure?.secondPlace && web3PrizeStructure.secondPlace > 0;
+    const hasThirdPrize = web3PrizeStructure?.thirdPlace && web3PrizeStructure.thirdPlace > 0;
+
+    const winnerAddresses = [];
+    const winnerPlayerIds = [];
+
+    if (debug) console.log('[Host] 🔍 Winner mapping debug:', {
+      winners: finalLeaderboard.slice(0, 3).map(p => p.name),
+      allPlayers: room.players.map(p => ({ id: p.id, name: p.name })),
+      web3AddressMap: Array.from(room.web3AddressMap?.entries() || []).map(([id, info]) => ({
+        playerId: id,
+        playerName: info.playerName,
+        address: info.address
+      }))
+    });
+
+    // 1st
+    if (finalLeaderboard[0]) {
+      const playerObj = room.players.find(p => p.name === finalLeaderboard[0].name);
+      if (!playerObj) {
+        socket.emit('quiz_error', { message: `Cannot find player data for winner: ${finalLeaderboard[0].name}` });
+        return;
+      }
+      const playerId = playerObj.id;
+      const addressInfo = room.web3AddressMap?.get(playerId);
+      if (!addressInfo || !addressInfo.address) {
+        socket.emit('quiz_error', { message: `Cannot find Web3 address for winner: ${finalLeaderboard[0].name}` });
+        return;
+      }
+      winnerAddresses.push(addressInfo.address);
+      winnerPlayerIds.push(playerId);
+      if (debug) console.log(`[Host] 🥇 First place: ${finalLeaderboard[0].name} -> ${addressInfo.address.slice(0, 8)}...`);
+    }
+
+    // 2nd
+    if (hasSecondPrize && finalLeaderboard[1]) {
+      const playerObj = room.players.find(p => p.name === finalLeaderboard[1].name);
+      if (playerObj) {
+        const playerId = playerObj.id;
+        const addressInfo = room.web3AddressMap?.get(playerId);
+        if (addressInfo && addressInfo.address) {
+          winnerAddresses.push(addressInfo.address);
+          winnerPlayerIds.push(playerId);
+          if (debug) console.log(`[Host] 🥈 Second place: ${finalLeaderboard[1].name} -> ${addressInfo.address.slice(0, 8)}...`);
+        } else {
+          console.warn(`[Host] ⚠️ No Web3 address found for second place: ${finalLeaderboard[1].name}`);
+        }
       }
     }
-    
-    // Calculate and send final stats
-    calculateAndSendFinalStats(roomId, namespace);
-    
+
+    // 3rd
+    if (hasThirdPrize && finalLeaderboard[2]) {
+      const playerObj = room.players.find(p => p.name === finalLeaderboard[2].name);
+      if (playerObj) {
+        const playerId = playerObj.id;
+        const addressInfo = room.web3AddressMap?.get(playerId);
+        if (addressInfo && addressInfo.address) {
+          winnerAddresses.push(addressInfo.address);
+          winnerPlayerIds.push(playerId);
+          if (debug) console.log(`[Host] 🥉 Third place: ${finalLeaderboard[2].name} -> ${addressInfo.address.slice(0, 8)}...`);
+        } else {
+          console.warn(`[Host] ⚠️ No Web3 address found for third place: ${finalLeaderboard[2].name}`);
+        }
+      }
+    }
+
+    if (winnerAddresses.length === 0) {
+      socket.emit('quiz_error', { message: 'No valid winner addresses found for prize distribution' });
+      return;
+    }
+
+    const winners = winnerAddresses;
+
+    room.finalWinners = winners;
+    room.finalLeaderboard = finalLeaderboard;
+    room.prizeDistributionStatus = 'initiated';
+    room.currentPhase = 'distributing_prizes';
+
+    if (debug) {
+      console.log(`[Host] 🎯 Prize distribution initiated:`);
+      console.log(`  - Room: ${roomId}`);
+      console.log(`  - Winners: ${winners.length}`);
+      console.log(`  - Contract: ${room.config.web3ContractAddress}`);
+      finalLeaderboard.slice(0, 3).forEach((player, idx) => {
+        const address = room.web3AddressMap[player.id] || room.web3AddressMap[player.name];
+        console.log(`    ${idx + 1}. ${player.name} (${player.score} pts) -> ${address}`);
+      });
+    }
+
+    socket.emit('initiate_prize_distribution', {
+      roomId,
+      winners,
+      finalLeaderboard: finalLeaderboard.slice(0, 5),
+      prizeStructure: web3PrizeStructure,
+      web3Chain: room.config.web3Chain || 'stellar'
+    });
+
+    namespace.to(roomId).emit('prize_distribution_started', {
+      message: 'Prize distribution has begun! Please wait...',
+      finalLeaderboard: finalLeaderboard.slice(0, 5)
+    });
+
+    emitRoomState(namespace, roomId);
+
+    if (debug) console.log(`[Host] ✅ Prize distribution data sent to host for contract execution`);
+  });
+
+  // ✅ prize_distribution_completed (unchanged)
+
+// ✅ prize_distribution_completed (FIXED VERSION)
+socket.on('prize_distribution_completed', ({ roomId, success, txHash, error }) => {
+  if (debug) console.log(`[Host] 💰 Prize distribution result: ${success ? 'SUCCESS' : 'FAILED'}`);
+
+  const room = getQuizRoom(roomId);
+  if (!room) return;
+
+  if (success) {
+    room.prizeDistributionStatus = 'completed';
+    room.prizeDistributionTxHash = txHash;
     room.currentPhase = 'complete';
-    namespace.to(roomId).emit('quiz_end', { message: 'Quiz complete. Thank you!' });
-    emitRoomState(namespace, roomId);
-    
-    if (debug) console.log(`[Host] ✅ Quiz completed for ${roomId} with final stats sent`);
+
+    namespace.to(roomId).emit('prize_distribution_success', {
+      message: 'Prizes have been distributed successfully!',
+      txHash,
+      finalLeaderboard: room.finalLeaderboard?.slice(0, 5),
+      explorerUrl: room.config.web3Chain === 'stellar'
+        ? `https://stellarchain.io/tx/${txHash}`
+        : `https://etherscan.io/tx/${txHash}`
+    });
+
+    // 🚨 ADD THIS: Emit back to the host frontend to update UI state
+    socket.emit('prize_distribution_completed', {
+      roomId,
+      success: true,
+      txHash
+    });
+
+    calculateAndSendFinalStats(roomId, namespace);
+
+    if (debug) console.log(`[Host] 🎉 Quiz completed with successful prize distribution: ${txHash}`);
   } else {
-    startNextRound(roomId);
-    room.currentPhase = 'waiting';
-    emitRoomState(namespace, roomId);
+    room.prizeDistributionStatus = 'failed';
+    room.prizeDistributionError = error;
+
+    namespace.to(roomId).emit('prize_distribution_failed', {
+      message: 'Prize distribution failed. Please contact support.',
+      error: error,
+      finalLeaderboard: room.finalLeaderboard?.slice(0, 5)
+    });
+
+    // 🚨 ADD THIS: Emit back to the host frontend to update UI state
+    socket.emit('prize_distribution_completed', {
+      roomId,
+      success: false,
+      error
+    });
+
+    if (debug) console.log(`[Host] ❌ Prize distribution failed: ${error}`);
   }
+
+  emitRoomState(namespace, roomId);
 });
 
   socket.on('create_quiz_room', ({ roomId, hostId, config }) => {
@@ -344,32 +620,24 @@ socket.on('next_round_or_end', ({ roomId }) => {
     emitFullRoomState(roomId);
   });
 
- socket.on('start_round', ({ roomId }) => {
-  if (debug) console.log(`[Host] start_round for ${roomId}`);
+  socket.on('start_round', ({ roomId }) => {
+    if (debug) console.log(`[Host] start_round for ${roomId}`);
 
-  const room = getQuizRoom(roomId);
-  if (!room) {
-    socket.emit('quiz_error', { message: 'Room not found' });
-    return;
-  }
+    const room = getQuizRoom(roomId);
+    if (!room) {
+      socket.emit('quiz_error', { message: 'Room not found' });
+      return;
+    }
 
-  // ✅ ADD THIS VALIDATION
-  // const validation = validateRoundQuestions(roomId);
-  // if (!validation.valid) {
-  //   console.error(`[Host] ❌ Cannot start round: ${validation.error}`);
-  //   socket.emit('quiz_error', { message: validation.error });
-  //   return;
-  // }
+    resetRoundExtrasTracking(roomId);
+    const engine = getEngine(room);
+    if (!engine || typeof engine.initRound !== 'function') {
+      socket.emit('quiz_error', { message: 'No gameplay engine found for this round type' });
+      return;
+    }
 
-  resetRoundExtrasTracking(roomId);
-  const engine = getEngine(room);
-  if (!engine || typeof engine.initRound !== 'function') {
-    socket.emit('quiz_error', { message: 'No gameplay engine found for this round type' });
-    return;
-  }
-
-  engine.initRound(roomId, namespace);
-});
+    engine.initRound(roomId, namespace);
+  });
 
   socket.on('next_review', ({ roomId }) => {
     if (debug) console.log(`[Host] next_review for ${roomId}`);
@@ -389,7 +657,7 @@ socket.on('next_round_or_end', ({ roomId }) => {
     engine.emitNextReviewQuestion(roomId, namespace);
   });
 
-  // ✅ NEW: Show round results (triggered by host after last question review)
+  // ✅ Show round results
   socket.on('show_round_results', ({ roomId }) => {
     if (debug) console.log(`[Host] 📊 show_round_results for ${roomId}`);
 
@@ -399,107 +667,110 @@ socket.on('next_round_or_end', ({ roomId }) => {
       return;
     }
 
-    // Validate that the requesting socket is actually the host
     if (room.hostSocketId !== socket.id) {
       socket.emit('quiz_error', { message: 'Only the host can show round results' });
       return;
     }
 
-    // Validate that we're in the right phase
     if (room.currentPhase !== 'reviewing') {
       socket.emit('quiz_error', { message: 'Can only show round results during review phase' });
       return;
     }
 
-    // Calculate round-specific leaderboard
+    // 👉 NEW: hard settle banked score vs. penaltyDebt at end of WIPEOUT rounds
+  const roundDef = room.config.roundDefinitions?.[room.currentRound - 1];
+  const isWipeout = roundDef?.roundType === 'wipeout';
+  if (isWipeout) {
+    settleBankedScoreAgainstDebt(room);
+  }
+
+    // 🆕 1) Settle this round's earnings against penalty debt (creates carryover debt)
+    settleRoundDebt(roomId);
+
+    // 🆕 2) Now compute NET-OF-DEBT round leaderboard
     const roundLeaderboard = calculateRoundLeaderboard(roomId);
-    
+
     if (roundLeaderboard.length === 0) {
       socket.emit('quiz_error', { message: 'No round data available for leaderboard' });
       return;
     }
 
+    // Stats capture (unchanged)
     const currentRoundStats = getCurrentRoundStats(roomId);
-  if (debug) console.log(`[DEBUG] 🔍 getCurrentRoundStats for round ${room.currentRound}:`, currentRoundStats);
-  // Initialize round stats storage if not exists
-  if (!room.storedRoundStats) {
-    room.storedRoundStats = {};
-    if (debug) console.log(`[DEBUG] 🆕 Initialized storedRoundStats object`);
-  }
-  
-  // Store the complete round stats (includes all extras used during questions)
-  room.storedRoundStats[room.currentRound] = {
-    ...currentRoundStats,
-    roundNumber: room.currentRound,
-    timestamp: Date.now(),
-    questionsAnswered: 0,
-    correctAnswers: 0,
-    wrongAnswers: 0,
-    noAnswers: 0
-  };
+    if (debug) console.log(`[DEBUG] 🔍 getCurrentRoundStats for round ${room.currentRound}:`, currentRoundStats);
 
-  if (debug)   console.log(`[DEBUG] 💾 After storage, storedRoundStats:`, room.storedRoundStats);
-   if (debug)   console.log(`[DEBUG] 📊 Stored round ${room.currentRound} data:`, room.storedRoundStats[room.currentRound]);
+    if (!room.storedRoundStats) {
+      room.storedRoundStats = {};
+      if (debug) console.log(`[DEBUG] 🆕 Initialized storedRoundStats object`);
+    }
 
+    room.storedRoundStats[room.currentRound] = {
+      ...currentRoundStats,
+      roundNumber: room.currentRound,
+      timestamp: Date.now(),
+      questionsAnswered: 0,
+      correctAnswers: 0,
+      wrongAnswers: 0,
+      noAnswers: 0
+    };
 
-  // Calculate question/answer stats for this round
-  let questionsAnswered = 0;
-  let correctAnswers = 0;
-  let wrongAnswers = 0;
-  let noAnswers = 0;
+    if (debug) {
+      console.log(`[DEBUG] 💾 After storage, storedRoundStats:`, room.storedRoundStats);
+      console.log(`[DEBUG] 📊 Stored round ${room.currentRound} data:`, room.storedRoundStats[room.currentRound]);
+    }
 
-  // Analyze answers for this specific round
-  for (const question of room.questions || []) {
-    room.players.forEach(player => {
-      const playerData = room.playerData[player.id];
-      const roundAnswerKey = `${question.id}_round${room.currentRound}`;
-      const playerAnswer = playerData?.answers?.[roundAnswerKey];
-      
-      if (playerAnswer) {
-        questionsAnswered++;
-        if (playerAnswer.submitted === null || playerAnswer.submitted === undefined) {
-          noAnswers++;
-        } else if (playerAnswer.correct) {
-          correctAnswers++;
-        } else {
-          wrongAnswers++;
+    // Per-question stats
+    let questionsAnswered = 0;
+    let correctAnswers = 0;
+    let wrongAnswers = 0;
+    let noAnswers = 0;
+
+    for (const question of room.questions || []) {
+      room.players.forEach(player => {
+        const playerData = room.playerData[player.id];
+        const roundAnswerKey = `${question.id}_round${room.currentRound}`;
+        const playerAnswer = playerData?.answers?.[roundAnswerKey];
+
+        if (playerAnswer) {
+          questionsAnswered++;
+          if (playerAnswer.submitted === null || playerAnswer.submitted === undefined) {
+            noAnswers++;
+          } else if (playerAnswer.correct) {
+            correctAnswers++;
+          } else {
+            wrongAnswers++;
+          }
         }
-      }
-    });
-  }
+      });
+    }
 
-  // Update stored stats with question/answer data
-  room.storedRoundStats[room.currentRound].questionsAnswered = questionsAnswered;
-  room.storedRoundStats[room.currentRound].correctAnswers = correctAnswers;
-  room.storedRoundStats[room.currentRound].wrongAnswers = wrongAnswers;
-  room.storedRoundStats[room.currentRound].noAnswers = noAnswers;
+    room.storedRoundStats[room.currentRound].questionsAnswered = questionsAnswered;
+    room.storedRoundStats[room.currentRound].correctAnswers = correctAnswers;
+    room.storedRoundStats[room.currentRound].wrongAnswers = wrongAnswers;
+    room.storedRoundStats[room.currentRound].noAnswers = noAnswers;
 
-  if (debug) {
-    console.log(`[Host] 💾 Stored round ${room.currentRound} stats:`, {
-      hintsUsed: currentRoundStats.hintsUsed,
-      freezesUsed: currentRoundStats.freezesUsed,
-      pointsRobbed: currentRoundStats.pointsRobbed,
-      pointsRestored: currentRoundStats.pointsRestored,
-      totalExtrasUsed: currentRoundStats.totalExtrasUsed,
-      questionsAnswered: questionsAnswered
-    });
-  }
+    if (debug) {
+      console.log(`[Host] 💾 Stored round ${room.currentRound} stats:`, {
+        hintsUsed: currentRoundStats.hintsUsed,
+        freezesUsed: currentRoundStats.freezesUsed,
+        pointsRobbed: currentRoundStats.pointsRobbed,
+        pointsRestored: currentRoundStats.pointsRestored,
+        totalExtrasUsed: currentRoundStats.totalExtrasUsed,
+        questionsAnswered: questionsAnswered
+      });
+    }
 
-
-    // ✅ Store in room for recovery
-room.currentRoundResults = roundLeaderboard;
-
-    // Update room phase to leaderboard
+    // Store for recovery & broadcast
+    room.currentRoundResults = roundLeaderboard;
     room.currentPhase = 'leaderboard';
-    
-    // Emit round leaderboard to all participants
+
     namespace.to(roomId).emit('round_leaderboard', roundLeaderboard);
     emitRoomState(namespace, roomId);
-    
-   if (debug) console.log(`[Host] ✅ Round ${room.currentRound} results shown to all players`);
+
+    if (debug) console.log(`[Host] ✅ Round ${room.currentRound} results shown to all players`);
   });
 
-  // ✅ NEW: Continue to overall leaderboard (triggered by host from round results)
+  // ✅ Continue to overall leaderboard
   socket.on('continue_to_overall_leaderboard', ({ roomId }) => {
     if (debug) console.log(`[Host] ➡️ continue_to_overall_leaderboard for ${roomId}`);
 
@@ -509,30 +780,23 @@ room.currentRoundResults = roundLeaderboard;
       return;
     }
 
-    // Validate that the requesting socket is actually the host
     if (room.hostSocketId !== socket.id) {
       socket.emit('quiz_error', { message: 'Only the host can continue to overall leaderboard' });
       return;
     }
 
-    // Validate that we're in leaderboard phase
     if (room.currentPhase !== 'leaderboard') {
       socket.emit('quiz_error', { message: 'Can only continue to overall leaderboard from leaderboard phase' });
       return;
     }
 
-    // Calculate overall cumulative leaderboard
     const overallLeaderboard = calculateOverallLeaderboard(roomId);
-
     room.currentOverallLeaderboard = overallLeaderboard;
-    
-    // Emit overall leaderboard (using existing 'leaderboard' event)
+
     namespace.to(roomId).emit('leaderboard', overallLeaderboard);
-    
+
     if (debug) console.log(`[Host] ✅ Overall leaderboard shown to all players`);
   });
-
-
 
   socket.on('end_quiz', ({ roomId }) => {
     if (debug) console.log(`[Host] end_quiz for ${roomId}`);
@@ -548,34 +812,31 @@ room.currentRoundResults = roundLeaderboard;
     emitRoomState(namespace, roomId);
   });
 
- socket.on('delete_quiz_room', ({ roomId }) => {
-  if (debug) console.log(`[Host] delete_quiz_room for ${roomId}`);
+  socket.on('delete_quiz_room', ({ roomId }) => {
+    if (debug) console.log(`[Host] delete_quiz_room for ${roomId}`);
 
-  const room = getQuizRoom(roomId);
-  if (!room) {
-    socket.emit('quiz_error', { message: 'Room not found' });
-    return;
-  }
-
-  // ✅ Notify everyone first
-  namespace.to(roomId).emit('quiz_cancelled', { message: 'Quiz cancelled by host', roomId });
-  if (debug) console.log(`[Host] 📢 Sent cancellation notice to room ${roomId}`);
-
-  // ✅ Wait 2 seconds for clients to receive the message, then cleanup
-  setTimeout(() => {
-    const removed = removeQuizRoom(roomId);
-    
-    if (removed) {
-      namespace.in(roomId).socketsLeave(roomId);
-      namespace.in(`${roomId}:host`).socketsLeave(`${roomId}:host`);
-      namespace.in(`${roomId}:admin`).socketsLeave(`${roomId}:admin`);
-      namespace.in(`${roomId}:player`).socketsLeave(`${roomId}:player`);
-      if (debug) console.log(`[Host] ✅ Room ${roomId} deleted and clients disconnected`);
+    const room = getQuizRoom(roomId);
+    if (!room) {
+      socket.emit('quiz_error', { message: 'Room not found' });
+      return;
     }
-  }, 2000);
-});
 
- // ✅ NEW: Launch quiz event - redirects all waiting players to play page
+    namespace.to(roomId).emit('quiz_cancelled', { message: 'Quiz cancelled by host', roomId });
+    if (debug) console.log(`[Host] 📢 Sent cancellation notice to room ${roomId}`);
+
+    setTimeout(() => {
+      const removed = removeQuizRoom(roomId);
+      if (removed) {
+        namespace.in(roomId).socketsLeave(roomId);
+        namespace.in(`${roomId}:host`).socketsLeave(`${roomId}:host`);
+        namespace.in(`${roomId}:admin`).socketsLeave(`${roomId}:admin`);
+        namespace.in(`${roomId}:player`).socketsLeave(`${roomId}:player`);
+        if (debug) console.log(`[Host] ✅ Room ${roomId} deleted and clients disconnected`);
+      }
+    }, 2000);
+  });
+
+  // ✅ Launch quiz
   socket.on('launch_quiz', ({ roomId }) => {
     if (debug) console.log(`[Host] launch_quiz for ${roomId}`);
 
@@ -585,26 +846,23 @@ room.currentRoundResults = roundLeaderboard;
       return;
     }
 
-    // Validate that the requesting socket is actually the host
     if (room.hostSocketId !== socket.id) {
       socket.emit('quiz_error', { message: 'Only the host can launch the quiz' });
       return;
     }
 
-    // Update room phase to indicate quiz has been launched
     room.currentPhase = 'launched';
-    
-    // Broadcast to all players in the waiting room to redirect to play page
-    namespace.to(roomId).emit('quiz_launched', { 
+
+    namespace.to(roomId).emit('quiz_launched', {
       roomId,
-      message: 'Quiz is starting! Redirecting to game...' 
+      message: 'Quiz is starting! Redirecting to game...'
     });
-    
-    // Also emit room state update
+
     emitRoomState(namespace, roomId);
-    
+
     if (debug) console.log(`[Host] ✅ Quiz launched for room ${roomId}, players will be redirected`);
   });
 }
+
 
 

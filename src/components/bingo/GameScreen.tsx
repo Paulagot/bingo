@@ -77,14 +77,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({
       />
 
       {showGameOver && (
-        <div className="text-center p-4 bg-green-100 rounded-lg mt-4">
-          <p className="text-green-800 font-bold">🎉 Game Over! Waiting for prize distribution...</p>
+        <div className="mt-4 rounded-lg bg-green-100 p-4 text-center">
+          <p className="font-bold text-green-800">🎉 Game Over! Waiting for prize distribution...</p>
         </div>
       )}
 
       {!showGameOver && isPaused && (
-        <div className="text-center p-4 bg-yellow-100 rounded-lg">
-          <p className="text-yellow-800 font-semibold">
+        <div className="rounded-lg bg-yellow-100 p-4 text-center">
+          <p className="font-semibold text-yellow-800">
             Game Paused: {isHost ? "Verify winners and continue the game" : "Waiting for host to continue"}
           </p>
         </div>

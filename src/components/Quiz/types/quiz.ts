@@ -11,12 +11,14 @@ export interface FundraisingExtrasMeta {
   [key: string]: FundraisingExtraRule;
 }
 
+
 export interface Prize {
   place: number;
   description: string;
   sponsor?: string;
-  value?: number;
+  value?: number;  // Keep this exactly as-is
   tokenAddress?: string;
+  isNFT?: boolean; // NEW: simple flag to distinguish token types
   uploadStatus?: 'pending' | 'uploading' | 'completed' | 'failed';
   transactionHash?: string;
   uploadedAt?: string;
@@ -43,7 +45,7 @@ export interface RoundConfig {
   pointsLostPerWrong?: number; // For wipeout
   timeToAnswer?: number; // For head-to-head
   skipAllowed?: boolean; // For speed round
-  pointslostperunanswered?: number; // For wipeout
+  pointsLostPerUnanswered?: number; // For wipeout
 }
 
 
@@ -70,6 +72,16 @@ export interface RoundTypeDefinition {
   defaultConfig: RoundConfig;
 }
 
+export interface RoomCaps {
+  maxPlayers: number;
+  maxRounds: number;
+  // In Web2 we store explicit arrays; in Web3 we sometimes use a wildcard
+  roundTypesAllowed?: string[] | '*';
+  extrasAllowed?: string[] | '*';
+}
+
+//src/components/quiz/types/quiz.ts
+
 export interface QuizConfig {
   hostName: string;
   hostId: string;
@@ -83,7 +95,7 @@ export interface QuizConfig {
   fundraisingOptions: FundraisingOptions; // ✅ required
   fundraisingPrices: FundraisingPrices;   // ✅ required
   roundDefinitions: RoundDefinition[]; 
-   selectedTemplate?: string;
+  selectedTemplate?: string;
   isCustomQuiz?: boolean;
   skipRoundConfiguration?: boolean;   // ✅ required
   questions: unknown[];
@@ -95,18 +107,23 @@ export interface QuizConfig {
   currencySymbol?: string;
   totalTimeSeconds?: number;
   web3Chain?: string;
-web3Currency?: string;
-web3Charity?: string; 
-web3PrizeSplit?: {
-  charity: number; // min 50
-  host: number;    // max 5
-  prizes: number;  // max 25
-};
-hostWallet?: string; 
- eventDateTime?: string;
- timeZone?: string;
- web3ContractAddress?: string;
-   sponsors?: Array<{
+  web3Currency?: string;
+  web3Charity?: string; 
+  web3PrizeSplit?: {
+    charity: number; // min 50
+    host: number;    // max 5
+    prizes: number;  // max 25
+  };
+  hostWallet?: string; 
+  eventDateTime?: string;
+  timeZone?: string;
+  web3ContractAddress?: string;
+  // Add the missing Web3 deployment properties
+  web3ChainConfirmed?: string;
+  hostWalletConfirmed?: string;
+  contractAddress?: string;
+  deploymentTxHash?: string;
+  sponsors?: Array<{
     name: string;
     logo?: string;
     message?: string;
@@ -114,8 +131,8 @@ hostWallet?: string;
   }>;
   completionMessage?: string;
   theme?: string;
-
-  
+  roomCaps?: RoomCaps;
+  isWeb3Room?: boolean;
 }
 
 export type ExtrasPanelProps = {
@@ -186,9 +203,11 @@ export type LeaderboardEntry = {
   score: number;
   cumulativeNegativePoints?: number; // Total negative points accumulated
   pointsRestored?: number; // Points restored by this player
+   penaltyDebt?: number; // overall unpaid debt carried across rounds
+  carryDebt?: number;   // per-round debt (if your round payload includes it)
 };
 
-export type RoomPhase = 'waiting' | 'launched' | 'asking' | 'reviewing' | 'leaderboard' | 'complete';
+export type RoomPhase = 'waiting' | 'launched' | 'asking' | 'reviewing' | 'leaderboard' | 'complete'| 'distributing_prizes';
 
 // Props interface for round components
 export interface RoundComponentProps {

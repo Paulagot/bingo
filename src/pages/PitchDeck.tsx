@@ -35,12 +35,12 @@ export function PitchDeck() {
   
   if (!authorized) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white pt-24 pb-10 px-4">
+      <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white px-4 pb-10 pt-24">
         <div className="container mx-auto max-w-md">
-          <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+          <div className="bg-muted overflow-hidden rounded-2xl shadow-xl">
             <div className="h-2 bg-gradient-to-r from-indigo-500 to-purple-500" />
             <div className="p-8">
-              <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">Enter PIN to Access Pitch Deck</h2>
+              <h2 className="text-fg mb-6 text-center text-2xl font-bold">Enter PIN to Access Pitch Deck</h2>
               
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="relative">
@@ -50,12 +50,12 @@ export function PitchDeck() {
                     placeholder="Enter 5-digit PIN"
                     value={pin}
                     onChange={handlePinChange}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition text-center text-xl tracking-widest"
+                    className="border-border w-full rounded-xl border-2 px-4 py-3 text-center text-xl tracking-widest outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
                   />
                 </div>
                 
                 {error && (
-                  <div className="bg-red-100 text-red-800 p-3 rounded-lg text-center">
+                  <div className="rounded-lg bg-red-100 p-3 text-center text-red-800">
                     {error}
                   </div>
                 )}
@@ -63,19 +63,19 @@ export function PitchDeck() {
                 <button
                   type="submit"
                   disabled={pin.length !== 5}
-                  className="w-full py-4 px-6 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold
-                         hover:from-indigo-700 hover:to-purple-700 transform transition
-                         disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full transform rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 font-semibold
+                         text-white transition hover:from-indigo-700 hover:to-purple-700
+                         disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Submit
                 </button>
                 
-                <div className="text-center mt-4">
+                <div className="mt-4 text-center">
                   <Link 
                     to="/" 
                     className="inline-flex items-center text-indigo-600 hover:text-indigo-800"
                   >
-                    <Home className="w-4 h-4 mr-1" /> Back to Home
+                    <Home className="mr-1 h-4 w-4" /> Back to Home
                   </Link>
                 </div>
               </form>

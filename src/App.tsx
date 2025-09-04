@@ -1,4 +1,4 @@
-// src/App.tsx
+// src/App.tsx - Updated with Web3 fundraising route at root level
 import { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Landing } from './pages/Landing';
@@ -6,6 +6,17 @@ import { Header } from './components/GeneralSite/Header';
 import { PitchDeckContent } from './pages/PitchDeckContent';
 import ErrorBoundary from './components/bingo/ErrorBoundary';
 import WhatsNew from './pages/WhatsNew';
+
+import { useAuthStore } from './stores/authStore';
+// src/App.tsx
+import AuthPage from './components/auth/AuthPage';
+
+
+
+
+
+// NEW: Web3 Fundraising Quiz page (direct import since it needs to be at root level)
+import Web3FundraisingQuizPage from './pages/Web3FundraisingQuizPage';
 
 // Lazy quiz bits
 const QuizRoutes = lazy(() => import('./components/Quiz/QuizRoutes'));
@@ -19,7 +30,7 @@ import { Game } from './pages/Game';
 import { TestCampaign } from './pages/TestCampaign';
 import { PitchDeck } from './pages/PitchDeck';
 
-// ✅ Lazy-load the Web3 fundraiser page directly (must export default from src/pages/web3fundraiser.tsx)
+// ✅ Lazy-load the Web3 fundraiser page directly
 const FundraisingLaunchPage = lazy(() => import('./pages/web3fundraiser'));
 
 const LoadingSpinner = ({
@@ -29,11 +40,11 @@ const LoadingSpinner = ({
   message?: string;
   subMessage?: string;
 }) => (
-  <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-    <div className="text-center max-w-md mx-auto p-6">
-      <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-200 border-t-indigo-600 mx-auto mb-6"></div>
-      <h2 className="text-xl font-semibold text-gray-800 mb-2">{message}</h2>
-      {subMessage && <p className="text-gray-600 text-sm">{subMessage}</p>}
+  <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="mx-auto max-w-md p-6 text-center">
+      <div className="mx-auto mb-6 h-16 w-16 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600"></div>
+      <h2 className="heading-2">{message}</h2>
+      {subMessage && <p className="text-fg/70 text-sm">{subMessage}</p>}
     </div>
   </div>
 );
@@ -63,6 +74,12 @@ export default function App() {
     !hideOnPaths.includes(pathname) &&
     !hideOnPrefixes.some((p) => pathname === p || pathname.startsWith(p + '/'));
 
+    const initialize = useAuthStore((state) => state.initialize);
+
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -74,7 +91,13 @@ export default function App() {
             <Route path="/pitch-deck-content" element={<PitchDeckContent />} />
             <Route path="/whats-new" element={<WhatsNew />} />
 
-            {/* 🎮 Quiz routes (lazy) */}
+               {/* ✅ GLOBAL AUTH ROUTE — this is the key line */}
+            <Route path="/auth" element={<AuthPage />} />
+
+            {/* NEW: Web3 Fundraising Quiz page at root level */}
+            <Route path="/web3-fundraising-quiz" element={<Web3FundraisingQuizPage />} />
+
+            {/* 🎮 Quiz routes (lazy) - now only contains host quiz */}
             <Route
               path="/quiz/*"
               element={
@@ -176,25 +199,25 @@ export default function App() {
             <Route
               path="*"
               element={
-                <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-8">
+                <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
                   <div className="text-center">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-4">Page Not Found</h1>
-                    <p className="text-gray-600 mb-4">The page you're looking for doesn't exist.</p>
+                    <h1 className="text-fg mb-4 text-2xl font-bold">Page Not Found</h1>
+                    <p className="text-fg/70 mb-4">The page you're looking for doesn't exist.</p>
                     <div className="space-y-2">
                       <button
                         onClick={() => navigate('/')}
-                        className="block w-full bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+                        className="block w-full rounded-lg bg-indigo-600 px-6 py-2 text-white transition-colors hover:bg-indigo-700"
                       >
                         Return Home
                       </button>
                       <button
-                        onClick={() => navigate('/Web3-Impact-Event')}
-                        className="block w-full bg-pink-600 text-white px-6 py-2 rounded-lg hover:bg-pink-700 transition-colors"
+                        onClick={() => navigate('/web3-fundraising-quiz')}
+                        className="block w-full rounded-lg bg-green-600 px-6 py-2 text-white transition-colors hover:bg-green-700"
                       >
-                        Try Web3 Impact Event
+                        Try Web3 Fundraising Quiz
                       </button>
                     </div>
-                    <div className="mt-4 text-sm text-gray-500">
+                    <div className="text-fg/60 mt-4 text-sm">
                       <p>Looking for: {location.pathname}</p>
                     </div>
                   </div>

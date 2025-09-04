@@ -82,7 +82,7 @@ const handleQuizCancelled = ({ message }: { message: string }) => {
   // Until config.roomId matches, keep showing “Loading…”
   if (!config || config.roomId !== roomId) {
     return (
-      <div className="max-w-4xl mx-auto p-4 text-center text-gray-600">
+      <div className="text-fg/70 mx-auto max-w-4xl p-4 text-center">
         <p>Loading quiz information…</p>
       </div>
     );
@@ -90,9 +90,9 @@ const handleQuizCancelled = ({ message }: { message: string }) => {
 
   // Once we have the config in context, render the Admin dashboard
   return (
-    <div className="max-w-4xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">👥 Admin Dashboard</h1>
-      <p className="mb-4 text-gray-600">
+    <div className="mx-auto max-w-4xl p-4">
+      <h1 className="mb-4 text-2xl font-bold">👥 Admin Dashboard</h1>
+      <p className="text-fg/70 mb-4">
         You are logged in as an event admin. You can assist players with setup but not control the quiz.
       </p>
 

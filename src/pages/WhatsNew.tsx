@@ -129,10 +129,10 @@ const WhatsNew: React.FC = () => {
 />
       <Header />
 
-      <div className="container mx-auto px-4 max-w-6xl pt-16 pb-16">
-        <h1 className="text-4xl font-bold text-indigo-700 mb-8">Inside FundRaisely</h1>
+      <div className="container mx-auto max-w-6xl px-4 pb-16 pt-16">
+        <h1 className="mb-8 text-4xl font-bold text-indigo-700">Inside FundRaisely</h1>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {updates.map((item) => {
             const isExpanded = expandedId === item.id;
             const shortDescription =
@@ -143,24 +143,24 @@ const WhatsNew: React.FC = () => {
             return (
               <div
                 key={item.id}
-                className="p-5 bg-white rounded-xl shadow-md border border-gray-100 flex flex-col h-full"
+                className="bg-muted flex h-full flex-col rounded-xl border border-gray-100 p-5 shadow-md"
               >
                 <img
                   src={item.image}
                   alt={item.title}
-                  className="rounded-lg w-full h-40 object-cover mb-4"
+                  className="mb-4 h-40 w-full rounded-lg object-cover"
                 />
 
-                <h2 className="text-lg font-semibold text-indigo-700 mb-1">{item.title}</h2>
-                <p className="text-sm text-gray-500 mb-2">{item.date}</p>
-                <p className="text-gray-700 mb-3">
+                <h2 className="mb-1 text-lg font-semibold text-indigo-700">{item.title}</h2>
+                <p className="text-fg/60 mb-2 text-sm">{item.date}</p>
+                <p className="text-fg/80 mb-3">
                   {isExpanded ? item.description : shortDescription}
                 </p>
 
                 {item.description.length > 80 && (
                   <button
                     onClick={() => toggleExpand(item.id)}
-                    className="text-indigo-600 text-sm font-medium hover:underline mb-2"
+                    className="mb-2 text-sm font-medium text-indigo-600 hover:underline"
                   >
                     {isExpanded ? 'Show Less' : 'Read More'}
                   </button>
@@ -171,7 +171,7 @@ const WhatsNew: React.FC = () => {
                     href={item.video}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-indigo-600 font-medium hover:underline mb-2"
+                    className="mb-2 font-medium text-indigo-600 hover:underline"
                   >
                     🎥 Watch Video
                   </a>
@@ -182,7 +182,7 @@ const WhatsNew: React.FC = () => {
                     href={item.cta.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-2 inline-flex items-center justify-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-semibold shadow-md hover:bg-indigo-700 transition"
+                    className="mt-2 inline-flex items-center justify-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-indigo-700"
                   >
                     {/* <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M20.184 3H17.71l-5.295 6.574L7.845 3H3.5l6.946 9.06L3 21h2.474l5.675-7.044L16.23 21h4.345l-7.04-9.168L20.184 3z" />

@@ -269,7 +269,7 @@ describe('Quiz Player Answer & Extras Tests', () => {
     
     // ✅ FIXED: Set up ALL event listeners BEFORE starting anything
     let questionCount = 0;
-    let receivedQuestions: any[] = [];
+    const receivedQuestions: any[] = [];
     
     // Track all questions received across all sockets
     const questionTracker = (socket: TestSocket, socketName: string) => {

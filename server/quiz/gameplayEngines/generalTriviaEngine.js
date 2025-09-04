@@ -1,4 +1,4 @@
-// generalTriviaEngine.js - Updated with complete host notification support
+// generalTriviaEngine.js - Centralized scoring + pointsDelta + complete host notification support
 
 import {
   getQuizRoom,
@@ -10,10 +10,13 @@ import {
   emitRoomState
 } from '../quizRoomManager.js';
 
-let timers = {}; // per-room timer refs
-const debug = true;
+// ✅ Centralized scoring (1/2/3 defaults; no penalties for General Trivia)
+import { getRoundScoring } from '../handlers/scoringUtils.js';
 
-// ✅ NEW: Send host activity notification
+let timers = {}; // per-room timer refs
+const debug = false;
+
+// ✅ Host activity notification
 function sendHostActivityNotification(namespace, roomId, activityData) {
   namespace.to(`${roomId}:host`).emit('host_activity_update', {
     type: activityData.type,
@@ -30,7 +33,7 @@ function sendHostActivityNotification(namespace, roomId, activityData) {
   }
 }
 
-// ✅ NEW: Calculate and send current round stats
+// ✅ Round stats to host
 function calculateAndSendRoundStats(roomId, namespace) {
   const room = getQuizRoom(roomId);
   if (!room) return null;
@@ -46,78 +49,50 @@ function calculateAndSendRoundStats(roomId, namespace) {
     totalExtrasUsed: 0
   };
 
-  // Calculate stats from player data
   Object.entries(room.playerData).forEach(([playerId, playerData]) => {
     const player = room.players.find(p => p.id === playerId);
     const playerName = player?.name || playerId;
-    
+
     if (!roundStats.extrasByPlayer[playerName]) {
       roundStats.extrasByPlayer[playerName] = [];
     }
 
-    // Count extras used this round (stored in usedExtrasThisRound)
     if (playerData.usedExtrasThisRound) {
       Object.entries(playerData.usedExtrasThisRound).forEach(([extraId, used]) => {
         if (used) {
           roundStats.totalExtrasUsed++;
-          roundStats.extrasByPlayer[playerName].push({
-            extraId,
-            timestamp: Date.now()
-          });
+          roundStats.extrasByPlayer[playerName].push({ extraId, timestamp: Date.now() });
 
-          // Count by type
           switch (extraId) {
-            case 'buyHint':
-              roundStats.hintsUsed++;
-              break;
-            case 'freezeOutTeam':
-              roundStats.freezesUsed++;
-              break;
-            case 'robPoints':
-              roundStats.pointsRobbed++;
-              break;
-            case 'restorePoints':
-              roundStats.pointsRestored++;
-              break;
+            case 'buyHint': roundStats.hintsUsed++; break;
+            case 'freezeOutTeam': roundStats.freezesUsed++; break;
+            case 'robPoints': roundStats.pointsRobbed++; break;
+            case 'restorePoints': roundStats.pointsRestored++; break;
           }
         }
       });
     }
 
-    // ✅ NEW: Also count global extras from usedExtras (for leaderboard phase)
     if (playerData.usedExtras) {
       if (playerData.usedExtras.robPoints) {
         roundStats.pointsRobbed++;
         if (!roundStats.extrasByPlayer[playerName].some(e => e.extraId === 'robPoints')) {
           roundStats.totalExtrasUsed++;
-          roundStats.extrasByPlayer[playerName].push({
-            extraId: 'robPoints',
-            timestamp: Date.now()
-          });
+          roundStats.extrasByPlayer[playerName].push({ extraId: 'robPoints', timestamp: Date.now() });
         }
       }
-      
-      // Count restore points by actual points restored
       if (playerData.pointsRestored > 0) {
         roundStats.pointsRestored += playerData.pointsRestored;
         if (!roundStats.extrasByPlayer[playerName].some(e => e.extraId === 'restorePoints')) {
           roundStats.totalExtrasUsed++;
-          roundStats.extrasByPlayer[playerName].push({
-            extraId: 'restorePoints',
-            timestamp: Date.now()
-          });
+          roundStats.extrasByPlayer[playerName].push({ extraId: 'restorePoints', timestamp: Date.now() });
         }
       }
     }
   });
 
-  // Send to host
   namespace.to(`${roomId}:host`).emit('host_current_round_stats', roundStats);
-
-  if (debug) {
-    console.log(`[generalTriviaEngine] 📊 Round stats sent to host:`, roundStats);
-  }
-
+  if (debug) console.log(`[generalTriviaEngine] 📊 Round stats sent to host:`, roundStats);
   return roundStats;
 }
 
@@ -128,8 +103,7 @@ export function initRound(roomId, namespace) {
   const roundDef = room.config.roundDefinitions?.[room.currentRound - 1];
   const roundType = roundDef?.roundType;
   const questionsPerRound = roundDef?.config?.questionsPerRound || 6;
-  
-  // ✅ NEW: Extract category and difficulty from round config
+
   const desiredCategory = roundDef?.category;
   const desiredDifficulty = roundDef?.difficulty;
 
@@ -139,28 +113,21 @@ export function initRound(roomId, namespace) {
     console.log(`[generalTriviaEngine] 🎯 Need: ${questionsPerRound} questions`);
   }
 
-  // ✅ NEW: Load questions WITH filtering parameters
   let allQuestions = loadQuestionsForRoundType(roundType, desiredCategory, desiredDifficulty, questionsPerRound);
 
-  // ✅ FALLBACK: If not enough questions with strict filtering, try just difficulty
   if (allQuestions.length < questionsPerRound) {
-    console.warn(`[generalTriviaEngine] ⚠️ Only found ${allQuestions.length} questions for category="${desiredCategory}", difficulty="${desiredDifficulty}". Trying difficulty-only filter.`);
+    console.warn(`[generalTriviaEngine] ⚠️ Only found ${allQuestions.length} with category+difficulty; trying difficulty-only.`);
     allQuestions = loadQuestionsForRoundType(roundType, null, desiredDifficulty, questionsPerRound);
   }
-
-  // ✅ FINAL FALLBACK: Use all questions unfiltered if still not enough
   if (allQuestions.length < questionsPerRound) {
-    console.warn(`[generalTriviaEngine] ⚠️ Still not enough questions (${allQuestions.length}). Using unfiltered questions as last resort.`);
+    console.warn(`[generalTriviaEngine] ⚠️ Still not enough (${allQuestions.length}). Using unfiltered questions.`);
     allQuestions = loadQuestionsForRoundType(roundType);
   }
 
-  // ✅ Select questions (shuffle and take required amount)
   const selectedQuestions = shuffleArray(allQuestions).slice(0, questionsPerRound);
 
   if (debug) {
     console.log(`[generalTriviaEngine] ✅ Selected ${selectedQuestions.length} questions for round ${room.currentRound}`);
-    
-    // ✅ NEW: Log what we actually got
     const actualBreakdown = selectedQuestions.reduce((acc, q) => {
       const cat = q.category || 'unknown';
       const diff = q.difficulty || 'unknown';
@@ -173,18 +140,15 @@ export function initRound(roomId, namespace) {
 
   setQuestionsForCurrentRound(roomId, selectedQuestions);
   resetRoundExtrasTracking(roomId);
-  
-  // Reset round stats tracking
+
   Object.values(room.playerData).forEach(playerData => {
     playerData.usedExtrasThisRound = {};
   });
 
   room.currentQuestionIndex = -1;
   room.currentPhase = 'asking';
-  
-  // Send initial round stats to host
+
   calculateAndSendRoundStats(roomId, namespace);
-  
   startNextQuestion(roomId, namespace);
   return true;
 }
@@ -193,10 +157,33 @@ export function startNextQuestion(roomId, namespace) {
   const room = getQuizRoom(roomId);
   if (!room) return;
 
-  // ✅ FIRST: clear expired freeze flags BEFORE advancing question index
+  // Advance first, then clear freezes
   const nextQuestion = advanceToNextQuestion(roomId);
   clearExpiredFreezeFlags(room);
-  
+
+  // ✅ CLOSE PREVIOUS QUESTION (record no-answer ONCE; NO penalties in General Trivia)
+  if (room.currentQuestionIndex >= 0 && room.questions[room.currentQuestionIndex - 1]) {
+    const prev = room.questions[room.currentQuestionIndex - 1];
+    const keyFor = (pid) => `${prev.id}_round${room.currentRound}`;
+
+    room.players.forEach(p => {
+      const pd = room.playerData[p.id];
+      if (!pd) return;
+
+      if (pd.answers[keyFor(p.id)] === undefined) {
+        // auto-finalize as no-answer with zero delta
+        pd.answers[keyFor(p.id)] = { submitted: null, correct: false, noAnswer: true, pointsDelta: 0, finalized: true };
+      } else {
+        // if client marked noAnswer earlier, make sure pointsDelta is present and finalize
+        if (pd.answers[keyFor(p.id)].noAnswer && typeof pd.answers[keyFor(p.id)].pointsDelta !== 'number') {
+          pd.answers[keyFor(p.id)].pointsDelta = 0;
+        }
+        pd.answers[keyFor(p.id)].finalized = true;
+      }
+    });
+  }
+
+  // If that was the last question, go to review
   if (!nextQuestion) {
     if (debug) console.log(`[generalTriviaEngine] 🔄 All questions complete for round ${room.currentRound}`);
     room.currentPhase = 'reviewing';
@@ -207,8 +194,10 @@ export function startNextQuestion(roomId, namespace) {
   }
 
   emitRoomState(namespace, roomId);
+
   const roundConfig = room.config.roundDefinitions[room.currentRound - 1];
   const timeLimit = roundConfig?.config?.timePerQuestion || 10;
+
   const questionStartTime = Date.now();
   room.questionStartTime = questionStartTime;
 
@@ -222,53 +211,30 @@ export function startNextQuestion(roomId, namespace) {
     totalQuestions: room.questions.length
   });
 
-  // ✅ NEW: Schedule countdown effects
   if (timeLimit >= 3) {
-    // 3 seconds left - GREEN flash + beep
     setTimeout(() => {
-      namespace.to(roomId).emit('countdown_effect', { 
-        secondsLeft: 3, 
-        color: 'green',
-        message: '3...' 
-      });
+      namespace.to(roomId).emit('countdown_effect', { secondsLeft: 3, color: 'green', message: '3...' });
     }, (timeLimit - 3) * 1000);
-
-    // 2 seconds left - ORANGE flash + beep  
     setTimeout(() => {
-      namespace.to(roomId).emit('countdown_effect', { 
-        secondsLeft: 2, 
-        color: 'orange',
-        message: '2...' 
-      });
+      namespace.to(roomId).emit('countdown_effect', { secondsLeft: 2, color: 'orange', message: '2...' });
     }, (timeLimit - 2) * 1000);
-
-    // 1 second left - RED flash + beep
     setTimeout(() => {
-      namespace.to(roomId).emit('countdown_effect', { 
-        secondsLeft: 1, 
-        color: 'red',
-        message: '1...' 
-      });
+      namespace.to(roomId).emit('countdown_effect', { secondsLeft: 1, color: 'red', message: '1...' });
     }, (timeLimit - 1) * 1000);
   }
 
-  // ✅ Notify frozen players
+  // Notify frozen players
   room.players.forEach(player => {
     const pdata = room.playerData[player.id];
-    if (
-      pdata?.frozenNextQuestion &&
-      pdata.frozenForQuestionIndex === room.currentQuestionIndex
-    ) {
+    if (pdata?.frozenNextQuestion && pdata.frozenForQuestionIndex === room.currentQuestionIndex) {
       const socket = namespace.sockets.get(player.socketId);
       if (socket) {
         socket.emit('freeze_notice', {
           frozenBy: pdata.frozenBy,
           frozenForQuestionIndex: pdata.frozenForQuestionIndex,
-          // message: `You are frozen for this question!`
         });
-
         if (debug) {
-          console.log(`[generalTriviaEngine] ❄️ Notified ${player.id} they are frozen for question index ${room.currentQuestionIndex}`);
+          console.log(`[generalTriviaEngine] ❄️ Notified ${player.id} frozen for question index ${room.currentQuestionIndex}`);
         }
       }
     }
@@ -284,127 +250,89 @@ export function startNextQuestion(roomId, namespace) {
   }, timeLimit * 1000);
 }
 
-export function handlePlayerAnswer(roomId, playerId, answer, namespace) {
- if (debug)  console.log(`[generalTriviaEngine] 🔍 handlePlayerAnswer called for ${playerId}: ${answer}`);
-
+export function handlePlayerAnswer(roomId, playerId, payload, namespace) {
   const room = getQuizRoom(roomId);
-  if (!room) return;
-
   const question = getCurrentQuestion(roomId);
-  if (!question) return;
+  if (!room || !question) return;
+
+  // Normalize payload: support strings, { answer }, or { questionId, answer }
+  const norm = (typeof payload === 'object' && payload !== null)
+    ? payload
+    : { answer: payload };
+
+  const questionId = norm.questionId ?? question.id; // default to current question
+  const answer = norm.answer;
+
+  // Only accept answers for the currently active question
+  if (question.id !== questionId) return;
 
   const playerData = room.playerData[playerId];
   if (!playerData) return;
 
-  if (
-    playerData.frozenNextQuestion &&
-    room.currentQuestionIndex === playerData.frozenForQuestionIndex
-  ) {
-    if (debug) console.log(`[generalTriviaEngine] ❄️ Player ${playerId} is frozen and cannot answer question ${room.currentQuestionIndex}`);
+  // frozen? then ignore
+  if (playerData.frozenNextQuestion && room.currentQuestionIndex === playerData.frozenForQuestionIndex) return;
+
+  // ✅ Centralized scoring (ensures 1/2/3 defaults; no penalties here)
+  const scoring = getRoundScoring(room, room.currentRound - 1);
+  const qDifficulty = (question.difficulty || 'medium').toLowerCase();
+
+  const key = `${question.id}_round${room.currentRound}`;
+  if (playerData.answers[key]) return; // already answered
+
+  // Explicit no-answer (timeout)
+  if (answer == null || answer === '') {
+    playerData.answers[key] = { submitted: null, correct: false, noAnswer: true, pointsDelta: 0, finalized: true };
     return;
   }
 
-  const isCorrect = (answer.trim().toLowerCase() === question.correctAnswer.trim().toLowerCase());
+  const isCorrect =
+    String(answer).trim().toLowerCase() ===
+    String(question.correctAnswer).trim().toLowerCase();
 
-  const roundConfig = room.config.roundDefinitions[room.currentRound - 1];
-  const configObj = roundConfig?.config || {};
-  const difficulty = roundConfig?.difficulty || 'medium';
+ if (isCorrect) {
+  const pts = scoring.pointsPerDifficulty[qDifficulty] ?? scoring.pointsPerDifficulty.medium ?? 2;
 
-  const pointsPerDifficulty = configObj.pointsPerDifficulty || { easy: 5, medium: 6, hard: 7 };
-  const pointsPerQuestion = pointsPerDifficulty[difficulty] ?? 2; // ✅ safe fallback
+  // 👉 NEW: debt-first settlement of current round earnings
+  const currentDebt = Math.max(0, playerData.penaltyDebt || 0);
+  const paidDebt = Math.min(currentDebt, pts);
+  const netToScore = pts - paidDebt;
 
- if (debug)  console.log(`[DEBUG SCORING] question difficulty: ${difficulty}`);
- if (debug)  console.log(`[DEBUG SCORING] pointsPerDifficulty:`, pointsPerDifficulty);
- if (debug)  console.log(`[DEBUG SCORING] final pointsPerQuestion:`, pointsPerQuestion);
-
-  if (isCorrect) {
-    playerData.score = (playerData.score || 0) + pointsPerQuestion;
-   if (debug)  console.log(`[DEBUG SCORING] Player ${playerId} scored! New total:`, playerData.score);
+  if (paidDebt > 0) {
+    playerData.penaltyDebt = currentDebt - paidDebt; // reduce outstanding debt
+  }
+  if (netToScore > 0) {
+    playerData.score = (playerData.score || 0) + netToScore; // only net goes to score
   }
 
-  const roundAnswerKey = `${question.id}_round${room.currentRound}`;
-  playerData.answers[roundAnswerKey] = { submitted: answer, correct: isCorrect };
-
-  // ✅ REMOVED: Hint notification moved to when hint is actually used (in quizRoomManager.js)
+  playerData.answers[key] = {
+    submitted: answer,
+    correct: true,
+    pointsDelta: netToScore,   // 👈 leaderboard shows what actually hit score
+    paidDebt,                  // (optional) nice to keep for debugging/host UI
+    finalized: true
+  };
 
   if (debug) {
-    console.log(`[generalTriviaEngine] 📝 Answer from ${playerId}: ${answer} (${isCorrect ? 'Correct' : 'Wrong'})`);
-    console.log(`[generalTriviaEngine] 🔍 Player ${playerId} freeze status: frozenNextQuestion=${playerData.frozenNextQuestion}, frozenForQuestionIndex=${playerData.frozenForQuestionIndex}, currentQ=${room.currentQuestionIndex}`);
+    console.log(`[generalTriviaEngine] ✅ ${playerId} correct: raw=${pts}, paidDebt=${paidDebt}, +score=${netToScore}, remainingDebt=${playerData.penaltyDebt || 0}`);
   }
+} else {
+  // General Trivia: no new penalties
+  playerData.answers[key] = { submitted: answer, correct: false, pointsDelta: 0, finalized: true };
 }
 
-// ✅ NEW: Function to handle freeze extra with host notification
-export function handleFreezeExtra(roomId, playerId, targetPlayerId, namespace) {
-  const room = getQuizRoom(roomId);
-  if (!room) return { success: false, error: 'Room not found' };
-
-  const player = room.players.find(p => p.id === playerId);
-  const targetPlayer = room.players.find(p => p.id === targetPlayerId);
-  
-  if (!player || !targetPlayer) {
-    return { success: false, error: 'Player not found' };
-  }
-
-  // Execute freeze logic (this would be your existing freeze implementation)
-  const targetData = room.playerData[targetPlayerId];
-  if (targetData) {
-    targetData.frozenNextQuestion = true;
-    targetData.frozenForQuestionIndex = room.currentQuestionIndex + 1;
-    targetData.frozenBy = player.name;
-  }
-
-  // ✅ NEW: Notify host of freeze activity
-  sendHostActivityNotification(namespace, roomId, {
-    type: 'freeze',
-    playerName: player.name,
-    targetName: targetPlayer.name,
-    context: 'Next Question',
-    round: room.currentRound
-  });
-
-  // ✅ NEW: Update round stats
-  calculateAndSendRoundStats(roomId, namespace);
-
-  return { success: true };
 }
 
-// ✅ NEW: Function to handle hint extra with host notification
-export function handleHintExtra(roomId, playerId, namespace) {
-  const room = getQuizRoom(roomId);
-  if (!room) return { success: false, error: 'Room not found' };
-
-  const player = room.players.find(p => p.id === playerId);
-  if (!player) return { success: false, error: 'Player not found' };
-
-  // ✅ NEW: Notify host of hint activity  
-  sendHostActivityNotification(namespace, roomId, {
-    type: 'hint',
-    playerName: player.name,
-    context: `Q${room.currentQuestionIndex + 1}`,
-    round: room.currentRound,
-    questionNumber: room.currentQuestionIndex + 1
-  });
-
-  // ✅ NEW: Update round stats
-  calculateAndSendRoundStats(roomId, namespace);
-
-  return { success: true };
-}
-
-// Updated emitNextReviewQuestion function
+// Review flow (unchanged except for stats payload)
 export function emitNextReviewQuestion(roomId, namespace) {
   const room = getQuizRoom(roomId);
   if (!room) return;
 
   const reviewIndex = room.currentReviewIndex || 0;
-  
   if (reviewIndex >= room.questions.length) {
     if (debug) console.log(`[generalTriviaEngine] ✅ Review complete - waiting for host to show results`);
-    
     room.currentPhase = 'reviewing';
     emitRoomState(namespace, roomId);
-    
-    // ✅ NEW: Calculate and send final round stats when review is complete
+
     const finalRoundStats = calculateAndSendRoundStats(roomId, namespace);
     namespace.to(`${roomId}:host`).emit('host_round_stats', finalRoundStats);
 
@@ -413,28 +341,22 @@ export function emitNextReviewQuestion(roomId, namespace) {
       roundNumber: room.currentRound,
       totalQuestions: room.questions.length
     });
-
-    if (debug) {
-      console.log(`[generalTriviaEngine] 📈 Final round ${room.currentRound} stats sent to host`);
-    }
-    
+    if (debug) console.log(`[generalTriviaEngine] 📈 Final round stats sent to host`);
     return;
   }
 
   const question = room.questions[reviewIndex];
   const roundAnswerKey = `${question.id}_round${room.currentRound}`;
-  
-  // ✅ NEW: Calculate answer statistics
+
   let correctCount = 0;
   let incorrectCount = 0;
   let noAnswerCount = 0;
   const totalPlayers = room.players.length;
 
-  // Analyze all player answers for this question
   room.players.forEach(player => {
     const playerData = room.playerData[player.id];
     const answerData = playerData?.answers?.[roundAnswerKey];
-    
+
     if (!answerData || answerData.submitted === null || answerData.submitted === undefined) {
       noAnswerCount++;
     } else if (answerData.correct) {
@@ -444,7 +366,6 @@ export function emitNextReviewQuestion(roomId, namespace) {
     }
   });
 
-  // ✅ NEW: Send individual review to each player (existing logic + question numbers)
   room.players.forEach(player => {
     const playerData = room.playerData[player.id];
     const answerData = playerData?.answers?.[roundAnswerKey] || {};
@@ -460,7 +381,6 @@ export function emitNextReviewQuestion(roomId, namespace) {
         submittedAnswer,
         difficulty: question.difficulty,
         category: question.category,
-        // ✅ NEW: Add question positioning
         questionNumber: reviewIndex + 1,
         totalQuestions: room.questions.length,
         currentRound: room.currentRound,
@@ -469,7 +389,6 @@ export function emitNextReviewQuestion(roomId, namespace) {
     }
   });
 
-  // ✅ NEW: Send enhanced review to host with statistics
   namespace.to(`${roomId}:host`).emit('host_review_question', {
     id: question.id,
     text: question.text,
@@ -477,12 +396,10 @@ export function emitNextReviewQuestion(roomId, namespace) {
     correctAnswer: question.correctAnswer,
     difficulty: question.difficulty,
     category: question.category,
-    // ✅ NEW: Add question positioning for host
     questionNumber: reviewIndex + 1,
     totalQuestions: room.questions.length,
     currentRound: room.currentRound,
     totalRounds: room.config.roundDefinitions?.length || 1,
-    // ✅ NEW: Add answer statistics for host
     statistics: {
       totalPlayers,
       correctCount,
@@ -502,7 +419,7 @@ export function emitNextReviewQuestion(roomId, namespace) {
   }
 }
 
-// ✅ MOVED: buildLeaderboard function for use by hostHandlers
+// Leaderboard helper
 export function buildLeaderboard(room) {
   const leaderboard = Object.entries(room.playerData).map(([playerId, data]) => {
     const player = room.players.find(p => p.id === playerId);
@@ -515,43 +432,36 @@ export function buildLeaderboard(room) {
     };
   });
 
- if (debug)  console.log('[Leaderboard] Final scores:', leaderboard);
+  if (debug) console.log('[Leaderboard] Final scores:', leaderboard);
   leaderboard.sort((a, b) => b.score - a.score);
   return leaderboard;
 }
 
-// ✅ NEW: Get current review question for state recovery
+// State recovery helpers
 export function getCurrentReviewQuestion(roomId) {
   const room = getQuizRoom(roomId);
   if (!room || !room.questions || room.currentReviewIndex === undefined) {
     console.warn(`[Engine] ⚠️ getCurrentReviewQuestion: No room or review data for ${roomId}`);
     return null;
   }
-  
-  // If we're past all questions, return null
   if (room.currentReviewIndex >= room.questions.length) {
-   if (debug)  console.log(`[Engine] ✅ getCurrentReviewQuestion: Review complete for ${roomId}`);
+    if (debug) console.log(`[Engine] ✅ getCurrentReviewQuestion: Review complete for ${roomId}`);
     return null;
   }
-  
   const reviewQuestion = room.questions[room.currentReviewIndex];
- if (debug)  console.log(`[Engine] 📖 getCurrentReviewQuestion: Returning question ${room.currentReviewIndex} for ${roomId}`);
+  if (debug) console.log(`[Engine] 📖 getCurrentReviewQuestion: Returning question ${room.currentReviewIndex} for ${roomId}`);
   return reviewQuestion;
 }
 
-// ✅ NEW: Check if review is complete
 export function isReviewComplete(roomId) {
   const room = getQuizRoom(roomId);
   if (!room) return false;
-  
-  // Review is complete if we've reviewed all questions
   const reviewComplete = room.currentReviewIndex >= room.questions.length;
-  
- if (debug)  console.log(`[Engine] 🔍 isReviewComplete for ${roomId}: ${reviewComplete} (reviewIndex: ${room.currentReviewIndex}, totalQuestions: ${room.questions.length})`);
+  if (debug) console.log(`[Engine] 🔍 isReviewComplete for ${roomId}: ${reviewComplete} (reviewIndex: ${room.currentReviewIndex}, totalQuestions: ${room.questions.length})`);
   return reviewComplete;
 }
 
-// Helper functions
+// Helpers
 function shuffleArray(array) {
   return array
     .map(value => ({ value, sort: Math.random() }))
@@ -560,29 +470,25 @@ function shuffleArray(array) {
 }
 
 function clearExpiredFreezeFlags(room) {
- if (debug)  console.log(`[generalTriviaEngine] 🔍 clearExpiredFreezeFlags called, currentQuestionIndex: ${room.currentQuestionIndex}`);
-  
+  if (debug) console.log(`[generalTriviaEngine] 🔍 clearExpiredFreezeFlags called, currentQuestionIndex: ${room.currentQuestionIndex}`);
   for (const playerId in room.playerData) {
     const p = room.playerData[playerId];
     if (p.frozenNextQuestion && room.currentQuestionIndex > p.frozenForQuestionIndex) {
-     if (debug)  console.log(`[generalTriviaEngine] 🔍 Player ${playerId}: frozenForQuestionIndex=${p.frozenForQuestionIndex}, currentQuestionIndex=${room.currentQuestionIndex}`);
-      if (debug) {
-        console.log(`[generalTriviaEngine] 🧼 Clearing expired freeze for ${playerId} (was frozen for question ${p.frozenForQuestionIndex})`);
-      }
+      if (debug) console.log(`[generalTriviaEngine] 🧼 Clearing expired freeze for ${playerId} (was frozen for question ${p.frozenForQuestionIndex})`);
       p.frozenNextQuestion = false;
       p.frozenForQuestionIndex = null;
-    } else if (p.frozenNextQuestion) {
-      if (debug) console.log(`[generalTriviaEngine] 🔍 NOT clearing ${playerId}: frozenNext=${p.frozenNextQuestion}, frozenForIndex=${p.frozenForQuestionIndex}, currentQ=${room.currentQuestionIndex}`);
     }
   }
 }
 
-// ✅ NEW: Export helper functions for use by handlers
+// Exports for handlers
 export { 
   sendHostActivityNotification, 
   calculateAndSendRoundStats, 
-
 };
+
+
+
 
 
 

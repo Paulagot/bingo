@@ -1,4 +1,4 @@
-// src/constants/quizMetadata.ts
+// src/Quiz/constants/quizMetadata.ts
 
 import type { RoundTypeId, RoundConfig } from '../types/quiz';
 

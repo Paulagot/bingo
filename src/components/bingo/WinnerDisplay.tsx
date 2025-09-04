@@ -16,15 +16,15 @@ export const WinnerDisplay: React.FC<WinnerDisplayProps> = ({ lineWinners, fullH
 
   return (
     <div className="mb-6 text-center">
-      <h2 className="text-xl font-semibold text-indigo-800">Winners</h2>
-      <div className="flex flex-wrap justify-center gap-2 mt-2">
+      <h2 className="heading-2">Winners</h2>
+      <div className="mt-2 flex flex-wrap justify-center gap-2">
         {lineWinners.map(winner => (
-          <span key={winner.id} className="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full">
+          <span key={winner.id} className="rounded-full bg-indigo-100 px-3 py-1 text-indigo-800">
             {winner.name} (Line)
           </span>
         ))}
         {fullHouseWinners.map(winner => (
-          <span key={winner.id} className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full">
+          <span key={winner.id} className="rounded-full bg-purple-100 px-3 py-1 text-purple-800">
             {winner.name} (Full House)
           </span>
         ))}

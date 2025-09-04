@@ -31,14 +31,14 @@ const FloatingRoundExtrasBar: React.FC<FloatingRoundExtrasBarProps> = ({
     }> = {
       'buyHint': { 
         name: 'Use Hint', 
-        icon: <Lightbulb className="w-5 h-5" />, 
+        icon: <Lightbulb className="h-5 w-5" />, 
         color: 'from-yellow-500 to-orange-500',
         needsTarget: false,
         description: 'Get a helpful hint for this question'
       },
       'freezeOutTeam': { 
         name: 'Freeze Opponent', 
-        icon: <Snowflake className="w-5 h-5" />, 
+        icon: <Snowflake className="h-5 w-5" />, 
         color: 'from-blue-500 to-cyan-500',
         needsTarget: true,
         description: 'Freeze an opponent for one question'
@@ -47,7 +47,7 @@ const FloatingRoundExtrasBar: React.FC<FloatingRoundExtrasBarProps> = ({
     
     return extraMap[extraId] || { 
       name: extraId, 
-      icon: <Target className="w-5 h-5" />, 
+      icon: <Target className="h-5 w-5" />, 
       color: 'from-purple-500 to-pink-500',
       needsTarget: false,
       description: 'Unknown extra'
@@ -87,10 +87,10 @@ const FloatingRoundExtrasBar: React.FC<FloatingRoundExtrasBarProps> = ({
       />
 
       {/* Floating Round Extras Bar */}
-      <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-30">
-        <div className="bg-white/95 backdrop-blur-sm border-2 border-indigo-300 rounded-full shadow-xl px-6 py-4">
+      <div className="fixed bottom-6 left-1/2 z-30 -translate-x-1/2 transform">
+        <div className="bg-muted/95 rounded-full border-2 border-indigo-300 px-6 py-4 shadow-xl backdrop-blur-sm">
           <div className="flex items-center space-x-3">
-            <span className="text-sm font-medium text-indigo-700 whitespace-nowrap">
+            <span className="whitespace-nowrap text-sm font-medium text-indigo-700">
               Round Actions:
             </span>
             
@@ -114,11 +114,11 @@ const FloatingRoundExtrasBar: React.FC<FloatingRoundExtrasBarProps> = ({
                   onClick={() => handleExtraClick(extraId)}
                   disabled={shouldDisable}
                   className={`
-                    w-12 h-12 rounded-full flex items-center justify-center
-                    transition-all duration-200 transform hover:scale-110 active:scale-95
-                    relative group text-lg
+                    group relative flex h-12 w-12 transform
+                    items-center justify-center rounded-full text-lg transition-all
+                    duration-200 hover:scale-110 active:scale-95
                     ${shouldDisable 
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+                      ? 'cursor-not-allowed bg-gray-200 text-gray-400' 
                       : `bg-gradient-to-r ${extraDetails.color} text-white hover:shadow-lg`
                     }
                   `}
@@ -128,18 +128,18 @@ const FloatingRoundExtrasBar: React.FC<FloatingRoundExtrasBarProps> = ({
                   
                   {/* Targeting indicator */}
                   {extraDetails.needsTarget && !shouldDisable && (
-                    <Target className="absolute -top-1 -right-1 w-4 h-4 bg-white text-indigo-500 rounded-full p-0.5" />
+                    <Target className="bg-muted absolute -right-1 -top-1 h-4 w-4 rounded-full p-0.5 text-indigo-500" />
                   )}
                   
                   {/* Status indicator - only for answer submitted case */}
                   {shouldDisable && (
-                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-xs">
+                    <div className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">
                       ✓
                     </div>
                   )}
 
                   {/* Tooltip */}
-                  <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap max-w-48 text-center">
+                  <div className="absolute bottom-full left-1/2 mb-2 max-w-48 -translate-x-1/2 transform whitespace-nowrap rounded bg-black px-2 py-1 text-center text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
                     <div className="font-medium">{extraDetails.name}</div>
                     <div className="text-xs text-gray-300">{extraDetails.description}</div>
                     {statusText && (

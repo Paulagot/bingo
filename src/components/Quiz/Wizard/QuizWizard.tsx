@@ -1,5 +1,5 @@
 // src/components/Quiz/Wizard/QuizWizard.tsx
-import { useState } from 'react';
+import {  useMemo } from 'react';
 import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
 
 import StepFundraisingOptions from './StepFundraisingOptions';
@@ -23,69 +23,61 @@ const steps = [
 ] as const;
 
 export default function QuizWizard({ onComplete }: QuizWizardProps) {
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const { setupConfig } = useQuizSetupStore();
+  const { setupConfig, currentStep, setStep } = useQuizSetupStore();
+
+  const index = useMemo(() => steps.indexOf(currentStep), [currentStep]);
+  const atLast = index >= steps.length - 1;
+
+  const resetToFirst = () => {
+    setStep('setup'); // <-- always the first step key for Web2 wizard
+    window.scrollTo({ top: 0 });
+  };
 
   const goNext = () => {
-    // Check if we should skip the rounds step for preconfigured quizzes
     if (currentStep === 'templates' && setupConfig.skipRoundConfiguration) {
-      // Skip the rounds step, go directly to fundraising
-      setCurrentStepIndex((prev) => Math.min(prev + 2, steps.length - 1));
-    } else if (currentStepIndex >= steps.length - 1) {
-      if (onComplete) onComplete();
+      setStep(steps[Math.min(index + 2, steps.length - 1)]);
+    } else if (atLast) {
+      onComplete?.();
     } else {
-      setCurrentStepIndex((prev) => Math.min(prev + 1, steps.length - 1));
+      setStep(steps[index + 1]);
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const goBack = () => {
-    // Check if we're coming back from a step that was reached by skipping rounds
     if (currentStep === 'fundraising' && setupConfig.skipRoundConfiguration) {
-      // Go back to templates step, skipping rounds
-      setCurrentStepIndex((prev) => Math.max(prev - 2, 0));
+      setStep(steps[Math.max(index - 2, 0)]);
     } else {
-      setCurrentStepIndex((prev) => Math.max(prev - 1, 0));
+      setStep(steps[Math.max(index - 1, 0)]);
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const currentStep = steps[currentStepIndex];
-
   const renderStep = () => {
     switch (currentStep) {
       case 'setup':
-        return <StepQuizSetup onNext={goNext} />;
-      
+        return <StepQuizSetup onNext={goNext} onResetToFirst={resetToFirst} />;
       case 'templates':
-        return <StepQuizTemplates onNext={goNext} onBack={goBack} />;
-      
+        return <StepQuizTemplates onNext={goNext} onBack={goBack} onResetToFirst={resetToFirst} />;
       case 'rounds':
-        return <StepCombinedRounds onNext={goNext} onBack={goBack} />;
-      
+        return <StepCombinedRounds onNext={goNext} onBack={goBack} onResetToFirst={resetToFirst} />;
       case 'fundraising':
-        return <StepFundraisingOptions onNext={goNext} onBack={goBack} />;
-        
+        return <StepFundraisingOptions onNext={goNext} onBack={goBack} onResetToFirst={resetToFirst} />;
       case 'stepPrizes':
-        return <StepPrizes onNext={goNext} onBack={goBack} />;
-     
+        return <StepPrizes onNext={goNext} onBack={goBack} onResetToFirst={resetToFirst} />;
       case 'review':
-        return <StepReviewLaunch onNext={goNext} onBack={goBack} />;
-        
+        return <StepReviewLaunch onNext={goNext} onBack={goBack} onResetToFirst={resetToFirst} />;
       default:
         return null;
     }
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-10">
+    <div className="mx-auto max-w-3xl px-4 py-10">
       <div className="mb-6 text-center">
-        <h1 className="text-2xl font-bold text-indigo-800">Create Your Fundraising Quiz</h1>
+        <h1 className="heading-1">Create Your Fundraising Quiz</h1>
       </div>
-
-      <div className="bg-white rounded-xl shadow-lg p-6">{renderStep()}</div>
+      <div className="bg-muted rounded-xl p-6 shadow-lg">{renderStep()}</div>
     </div>
   );
 }
-
-

@@ -8,15 +8,15 @@ interface GameLoaderProps {
 
 export const GameLoader: React.FC<GameLoaderProps> = ({ isHost }) => {
   return (
-    <div className="flex items-center justify-center h-48 bg-white rounded-2xl shadow-md p-6">
+    <div className="bg-muted flex h-48 items-center justify-center rounded-2xl p-6 shadow-md">
       <div className="text-center">
-        <div className="inline-block p-3 bg-indigo-100 rounded-full mb-4">
-          <Loader2 className="h-8 w-8 text-indigo-600 animate-spin" />
+        <div className="mb-4 inline-block rounded-full bg-indigo-100 p-3">
+          <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
         </div>
-        <h2 className="text-xl sm:text-2xl text-gray-700 font-medium px-4">
+        <h2 className="text-fg/80 px-4 text-xl font-medium sm:text-2xl">
           Waiting for players to ready up...
         </h2>
-        <p className="text-sm text-gray-500 mt-2">
+        <p className="text-fg/60 mt-2 text-sm">
           {isHost
             ? "The game will start once all players are ready"
             : "Please click 'Ready Up' when you're ready to play"}

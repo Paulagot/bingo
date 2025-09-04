@@ -24,15 +24,15 @@ const SimpleHeader = () => {
   };
 
   return (
-    <header className="bg-white shadow-md fixed w-full z-10">
-      <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+    <header className="bg-muted fixed z-10 w-full shadow-md">
+      <div className="container mx-auto flex items-center justify-between px-4 py-4">
         <div className="flex items-center">
           <Link to="/" className="text-xl font-bold text-indigo-700">Fundraisely</Link>
         </div>
         
         {/* Mobile menu button */}
         <button 
-          className="md:hidden text-gray-700 hover:text-indigo-600"
+          className="text-fg/80 hover:text-indigo-600 md:hidden"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -50,7 +50,7 @@ const SimpleHeader = () => {
             <li>
               <Link
                 to="/"
-                className="text-gray-700 hover:text-indigo-600 font-medium transition-colors"
+                className="text-fg/80 font-medium transition-colors hover:text-indigo-600"
               >
                 Home
               </Link>
@@ -58,7 +58,7 @@ const SimpleHeader = () => {
             <li>
               <button
                 onClick={() => scrollToSection('about-campaign')}
-                className="text-gray-700 hover:text-indigo-600 font-medium transition-colors"
+                className="text-fg/80 font-medium transition-colors hover:text-indigo-600"
               >
                 About This Campaign
               </button>
@@ -66,7 +66,7 @@ const SimpleHeader = () => {
             <li>
               <button
                 onClick={() => scrollToSection('for-hosts')}
-                className="text-gray-700 hover:text-indigo-600 font-medium transition-colors"
+                className="text-fg/80 font-medium transition-colors hover:text-indigo-600"
               >
                 For Hosts
               </button>
@@ -74,7 +74,7 @@ const SimpleHeader = () => {
             <li>
               <button
                 onClick={() => scrollToSection('for-players')}
-                className="text-gray-700 hover:text-indigo-600 font-medium transition-colors"
+                className="text-fg/80 font-medium transition-colors hover:text-indigo-600"
               >
                 For Players
               </button>
@@ -82,7 +82,7 @@ const SimpleHeader = () => {
             <li>
               <button
                 onClick={() => scrollToSection('about-fundraisely')}
-                className="text-gray-700 hover:text-indigo-600 font-medium transition-colors"
+                className="text-fg/80 font-medium transition-colors hover:text-indigo-600"
               >
                 About Fundraisely
               </button>
@@ -90,7 +90,7 @@ const SimpleHeader = () => {
             <li>
               <Link
                 to="/pitch-deck"
-                className="text-gray-700 hover:text-indigo-600 font-medium transition-colors"
+                className="text-fg/80 font-medium transition-colors hover:text-indigo-600"
               >
                 Pitch Deck
               </Link>
@@ -101,12 +101,12 @@ const SimpleHeader = () => {
       
       {/* Mobile Navigation Menu */}
       {isMobileMenuOpen && (
-        <div className="md:hidden bg-white border-t border-gray-200 py-2">
+        <div className="bg-muted border-border border-t py-2 md:hidden">
           <ul className="flex flex-col space-y-2 px-4">
             <li>
               <Link
                 to="/"
-                className="block py-2 text-gray-700 hover:text-indigo-600 font-medium transition-colors"
+                className="text-fg/80 block py-2 font-medium transition-colors hover:text-indigo-600"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Home
@@ -115,7 +115,7 @@ const SimpleHeader = () => {
             <li>
               <button
                 onClick={() => scrollToSection('about-campaign')}
-                className="block w-full text-left py-2 text-gray-700 hover:text-indigo-600 font-medium transition-colors"
+                className="text-fg/80 block w-full py-2 text-left font-medium transition-colors hover:text-indigo-600"
               >
                 About This Campaign
               </button>
@@ -123,7 +123,7 @@ const SimpleHeader = () => {
             <li>
               <button
                 onClick={() => scrollToSection('for-hosts')}
-                className="block w-full text-left py-2 text-gray-700 hover:text-indigo-600 font-medium transition-colors"
+                className="text-fg/80 block w-full py-2 text-left font-medium transition-colors hover:text-indigo-600"
               >
                 For Hosts
               </button>
@@ -131,7 +131,7 @@ const SimpleHeader = () => {
             <li>
               <button
                 onClick={() => scrollToSection('for-players')}
-                className="block w-full text-left py-2 text-gray-700 hover:text-indigo-600 font-medium transition-colors"
+                className="text-fg/80 block w-full py-2 text-left font-medium transition-colors hover:text-indigo-600"
               >
                 For Players
               </button>
@@ -139,7 +139,7 @@ const SimpleHeader = () => {
             <li>
               <button
                 onClick={() => scrollToSection('about-fundraisely')}
-                className="block w-full text-left py-2 text-gray-700 hover:text-indigo-600 font-medium transition-colors"
+                className="text-fg/80 block w-full py-2 text-left font-medium transition-colors hover:text-indigo-600"
               >
                 About Fundraisely
               </button>
@@ -147,7 +147,7 @@ const SimpleHeader = () => {
             <li>
               <Link
                 to="/pitch-deck"
-                className="block py-2 text-gray-700 hover:text-indigo-600 font-medium transition-colors"
+                className="text-fg/80 block py-2 font-medium transition-colors hover:text-indigo-600"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Pitch Deck

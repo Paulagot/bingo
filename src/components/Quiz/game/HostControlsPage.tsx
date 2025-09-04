@@ -14,6 +14,7 @@ import RoundStatsDisplay from '../host-controls/RoundStatsDisplay';
 import FinalQuizStats from '../host-controls/FinalQuizStats';
 import { useHostStats } from '../hooks/useHostStats';
 import { 
+  Loader,
   Play, 
   SkipForward, 
   Users, 
@@ -27,13 +28,16 @@ import {
   Award
 } from 'lucide-react';
 
+import { useQuizContract } from '../../../chains/stellar/useQuizContract';
+import { useStellarWallet } from '../../../chains/stellar/useStellarWallet';
+
 const debug = false;
 
 type RoomStatePayload = {
   currentRound: number;
   totalRounds: number;
   roundTypeName: string;
-  phase: 'waiting' | 'launched' | 'asking' | 'reviewing' | 'leaderboard' | 'complete';
+  phase: 'waiting' | 'launched' | 'asking' | 'reviewing' | 'leaderboard' | 'complete' | 'distributing_prizes';
   questionsThisRound?: number;
   totalPlayers?: number;
 };
@@ -87,6 +91,9 @@ const HostControlsPage = () => {
   const { socket, connected } = useQuizSocket();
   const { config } = useQuizConfig();
 
+  const stellarContract = useQuizContract();
+  const stellarWallet = useStellarWallet();
+
   const [roomState, setRoomState] = useState<RoomStatePayload>({
     currentRound: 1,
     totalRounds: 1,
@@ -96,7 +103,14 @@ const HostControlsPage = () => {
     totalPlayers: 0
   });
 
-  // ✅ Use host stats hook
+  // Prize distribution state
+  const [prizeDistributionState, setPrizeDistributionState] = useState<{
+    status: 'idle' | 'distributing' | 'success' | 'error';
+    txHash?: string;
+    error?: string;
+  }>({ status: 'idle' });
+
+  // Use host stats hook
   const {
     activities,
     currentRoundStats,
@@ -121,7 +135,7 @@ const HostControlsPage = () => {
   
   // Question tracking (same as players)
   const [questionInRound, setQuestionInRound] = useState(1);
-  const [totalInRound, setTotalInRound] = useState(1);
+  const [, setTotalInRound] = useState(1);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(-1);
 
   // Use the timer hook (same as players use)
@@ -129,7 +143,7 @@ const HostControlsPage = () => {
     question: currentQuestion,
     timerActive: roomState.phase === 'asking',
     onTimeUp: () => {
-      if (debug) console.log('[Host] ⏰ Timer reached zero - server will advance question');
+      if (debug) console.log('[Host] Timer reached zero - server will advance question');
     }
   });
 
@@ -195,7 +209,7 @@ const HostControlsPage = () => {
   useEffect(() => {
     if (!socket || !connected || !roomId) return;
     
-    if (debug) console.log('[HostControls] 🚪 Joining room as host:', roomId);
+    if (debug) console.log('[HostControls] Joining room as host:', roomId);
     
     socket.emit('join_quiz_room', {
       roomId,
@@ -214,7 +228,7 @@ const HostControlsPage = () => {
   useEffect(() => {
     if (!socket) return;
     const handleRoomState = (data: RoomStatePayload) => {
-      if (debug) console.log('[Host] 🔄 Received room_state update:', data);
+      if (debug) console.log('[Host] Received room_state update:', data);
       setRoomState(data);
       
       // Reset round leaderboard state when phase changes
@@ -238,7 +252,7 @@ const HostControlsPage = () => {
   useEffect(() => {
     if (!socket) return;
     const handleQuestion = (data: QuestionPayload) => {
-      if (debug) console.log('[Host] 📥 Received question:', data);
+      if (debug) console.log('[Host] Received question:', data);
       
       // Update question index (same logic as players)
       const isRecovery = currentQuestionIndex >= 0 && 
@@ -272,7 +286,7 @@ const HostControlsPage = () => {
   useEffect(() => {
     if (!socket) return;
     const handleHostReviewQuestion = (data: ReviewQuestionPayload) => {
-      if (debug) console.log('[Host] 🧐 Received host review question:', data);
+      if (debug) console.log('[Host] Received host review question:', data);
       setReviewQuestion(data);
       setCurrentQuestion(null);
       
@@ -280,7 +294,7 @@ const HostControlsPage = () => {
       if (data.questionNumber && data.totalQuestions) {
         setQuestionInRound(data.questionNumber);
         setTotalInRound(data.totalQuestions);
-        if (debug) console.log(`[Host] 📍 Review position: ${data.questionNumber}/${data.totalQuestions}`);
+        if (debug) console.log(`[Host] Review position: ${data.questionNumber}/${data.totalQuestions}`);
       }
     };
     socket.on('host_review_question', handleHostReviewQuestion);
@@ -293,7 +307,7 @@ const HostControlsPage = () => {
   useEffect(() => {
     if (!socket) return;
     const handleReviewComplete = (data: { message: string; roundNumber: number; totalQuestions: number }) => {
-      if (debug) console.log('[Host] 📝 Review complete notification:', data);
+      if (debug) console.log('[Host] Review complete notification:', data);
       setReviewComplete(true);
     };
     socket.on('review_complete', handleReviewComplete);
@@ -305,7 +319,7 @@ const HostControlsPage = () => {
   useEffect(() => {
     if (!socket) return;
     const handleRoundLeaderboard = (data: LeaderboardEntry[]) => {
-      if (debug) console.log('[Host] 🏆 Round leaderboard received:', data);
+      if (debug) console.log('[Host] Round leaderboard received:', data);
       setRoundLeaderboard(data);
       setIsShowingRoundResults(true);
     };
@@ -319,7 +333,7 @@ const HostControlsPage = () => {
   useEffect(() => {
     if (!socket) return;
     const handleLeaderboard = (data: LeaderboardEntry[]) => {
-      if (debug) console.log('[Host] 🏆 Overall leaderboard received:', data);
+      if (debug) console.log('[Host] Overall leaderboard received:', data);
       setLeaderboard(data);
       setIsShowingRoundResults(false); // Switch to overall leaderboard
     };
@@ -331,7 +345,7 @@ const HostControlsPage = () => {
 
   // Socket emitters for host actions
   const handleStartRound = () => {
-    if (debug) console.log('[Host] 🎬 Starting round...');
+    if (debug) console.log('[Host] Starting round...');
     socket?.emit('start_round', { roomId });
   };
 
@@ -341,13 +355,13 @@ const HostControlsPage = () => {
 
   // Show round results
   const handleShowRoundResults = () => {
-    if (debug) console.log('[Host] 📊 Showing round results...');
+    if (debug) console.log('[Host] Showing round results...');
     socket?.emit('show_round_results', { roomId });
   };
 
   // Continue to overall leaderboard
   const handleContinueToOverallLeaderboard = () => {
-    if (debug) console.log('[Host] ➡️ Continuing to overall leaderboard...');
+    if (debug) console.log('[Host] Continuing to overall leaderboard...');
     socket?.emit('continue_to_overall_leaderboard', { roomId });
   };
 
@@ -356,11 +370,11 @@ const HostControlsPage = () => {
   };
 
   const handleCancelQuiz = () => {
-    if (debug) console.log('👤 [HostControls] 🚫 User initiated quiz cancellation');
+    if (debug) console.log('HostControls User initiated quiz cancellation');
 
     if (socket && roomId) {
       socket.emit('delete_quiz_room', { roomId });
-      if (debug) console.log('✅ Cancellation request sent to server');
+      if (debug) console.log('Cancellation request sent to server');
     } else {
       navigate('/quiz');
     }
@@ -375,7 +389,7 @@ const HostControlsPage = () => {
     
     const pointsPerDifficulty = roundConfig?.pointsPerDifficulty || defaultConfig.pointsPerDifficulty || { easy: 1, medium: 2, hard: 3 };
     const pointsLostPerWrong = roundConfig?.pointsLostPerWrong ?? defaultConfig.pointsLostPerWrong ?? 0;
-    const pointsLostPerNoAnswer = roundConfig?.pointslostperunanswered ?? defaultConfig.pointslostperunanswered ?? 0;
+    const pointsLostPerNoAnswer = roundConfig?.pointsLostPerUnanswered ?? defaultConfig.pointsLostPerUnanswered ?? 0;
     const timePerQuestion = roundConfig?.timePerQuestion || defaultConfig.timePerQuestion || 25;
     const questionsPerRound = roundConfig?.questionsPerRound || defaultConfig.questionsPerRound || 6;
     
@@ -394,14 +408,158 @@ const HostControlsPage = () => {
   };
 
   const scoringInfo = getRoundScoringInfo();
+  
+  useEffect(() => {
+    if (roomState.phase === 'complete' && leaderboard.length > 0) {
+      if (debug) console.log('[Host] Prize distribution debug:', {
+        leaderboardPlayers: leaderboard.map(p => ({
+          id: p.id,
+          name: p.name,
+          score: p.score
+        })),
+        needWalletAddresses: 'Players need to have joined with Stellar addresses stored'
+      });
+    }
+  }, [roomState.phase, leaderboard]);
+
+  // Add this useEffect to debug wallet state in HostControlsPage.tsx
+  useEffect(() => {
+    if (debug) console.log('[Host] Stellar wallet state debug:', {
+      isReady: stellarContract?.isReady,
+      walletAddress: stellarContract?.walletAddress,
+      contractAddress: stellarContract?.contractAddress,
+      currentNetwork: stellarContract?.currentNetwork
+    });
+  }, [stellarContract]);
+
+  // Also debug the config and UI state
+  useEffect(() => {
+    if (debug) console.log('[Host] UI state debug:', {
+      paymentMethod: config?.paymentMethod,
+      phase: roomState.phase,
+      buttonShouldBeVisible: roomState.phase === 'complete' && config?.paymentMethod === 'web3',
+      buttonShouldBeEnabled: stellarContract?.isReady
+    });
+  }, [config, roomState.phase, stellarContract?.isReady]);
+
+  // Prize distribution handler
+  const handleDistributePrizes = () => {
+    if (debug) console.log('[Host] Initiating prize distribution...');
+    
+    // Set state to distributing to disable button
+    setPrizeDistributionState({ status: 'distributing' });
+    
+    socket?.emit('end_quiz_and_distribute_prizes', { roomId });
+    if (debug) console.log('[Host] Prize distribution initiated');
+    if (debug) console.log('[Host] Winners needed:', leaderboard.slice(0, 3).map(p => p.name));
+  };
+
+  // Add socket listeners for prize distribution completion
+  useEffect(() => {
+    if (!socket) return;
+
+    const handlePrizeDistributionCompleted = (data: {
+      roomId: string;
+      success: boolean;
+      txHash?: string;
+      error?: string;
+    }) => {
+      if (debug) console.log('[Host] Prize distribution completed:', data);
+      
+      if (data.success) {
+        setPrizeDistributionState({ 
+          status: 'success', 
+          txHash: data.txHash 
+        });
+      } else {
+        setPrizeDistributionState({ 
+          status: 'error', 
+          error: data.error || 'Distribution failed' 
+        });
+      }
+    };
+
+    socket.on('prize_distribution_completed', handlePrizeDistributionCompleted);
+
+    return () => {
+      socket.off('prize_distribution_completed', handlePrizeDistributionCompleted);
+    };
+  }, [socket]);
+
+  // Add socket listeners for prize distribution
+  useEffect(() => {
+    if (!socket) return;
+
+    const handlePrizeDistribution = async (data: {
+      roomId: string;
+      winners: string[];
+      finalLeaderboard: any[];
+      web3Chain?: string;
+    }) => {
+      if (debug) console.log('[Host] Received prize distribution request:', data);
+
+      try {
+        if (!stellarContract) {
+          throw new Error('Contract not initialized');
+        }
+
+        if (!stellarContract.endRoom) {
+          throw new Error('endRoom method not available');
+        }
+
+        if (!stellarContract.isReady) {
+          throw new Error('Wallet not connected');
+        }
+
+        if (debug) console.log('[Host] Calling endRoom with:', {
+          roomId: data.roomId,
+          winners: data.winners,
+          winnersCount: data.winners.length
+        });
+
+        const result = await stellarContract.endRoom({
+          roomId: data.roomId,
+          winners: data.winners
+        });
+
+        if (result.success) {
+          if (debug) console.log('[Host] Prize distribution successful:', result.txHash);
+          socket.emit('prize_distribution_completed', {
+            roomId: data.roomId,
+            success: true,
+            txHash: result.txHash
+          });
+        } else {
+          socket.emit('prize_distribution_completed', {
+            roomId: data.roomId,
+            success: false,
+            error: result.error || 'Unknown error occurred'
+          });
+        }
+      } catch (error: any) {
+        console.error('[Host] Prize distribution failed:', error);
+        socket.emit('prize_distribution_completed', {
+          roomId: data.roomId,
+          success: false,
+          error: error.message || 'Contract call failed'
+        });
+      }
+    };
+
+    socket.on('initiate_prize_distribution', handlePrizeDistribution);
+
+    return () => {
+      socket.off('initiate_prize_distribution', handlePrizeDistribution);
+    };
+  }, [socket, roomId, stellarContract]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
       
       {/* Countdown Effect Overlay (same as players) */}
       {currentEffect && isFlashing && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-          <div className={`text-8xl font-bold animate-bounce ${
+        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center">
+          <div className={`animate-bounce text-8xl font-bold ${
             currentEffect.color === 'green' ? 'text-green-500' :
             currentEffect.color === 'orange' ? 'text-orange-500' : 
             'text-red-500'
@@ -414,41 +572,41 @@ const HostControlsPage = () => {
       <div className={`container mx-auto max-w-6xl px-4 py-8 ${getFlashClasses()}`}>
         
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2 flex items-center justify-center space-x-3">
-            <div className="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white text-2xl">
+        <div className="mb-8 text-center">
+          <h1 className="text-fg mb-2 flex items-center justify-center space-x-3 text-3xl font-bold md:text-4xl">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-600 text-2xl text-white">
               👑
             </div>
             <span>Host Dashboard</span>
           </h1>
-          <p className="text-gray-600 text-lg">Control your quiz experience</p>
-          <p className="text-sm text-gray-500 mt-2">Room: {roomId}</p>
+          <p className="text-fg/70 text-lg">Control your quiz experience</p>
+          <p className="text-fg/60 mt-2 text-sm">Room: {roomId}</p>
         </div>
 
         {/* Status Bar */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+        <div className="bg-muted border-border mb-6 rounded-xl border p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center space-x-4">
-              <span className="text-lg font-semibold text-gray-800">
+              <span className="text-fg text-lg font-semibold">
                 Round {roomState.currentRound} / {roomState.totalRounds}
               </span>
               <div className="flex items-center space-x-2">
-                <div className={`w-3 h-3 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                <span className="text-sm text-gray-600">{connected ? 'Connected' : 'Disconnected'}</span>
+                <div className={`h-3 w-3 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                <span className="text-fg/70 text-sm">{connected ? 'Connected' : 'Disconnected'}</span>
               </div>
             </div>
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                <Users className="w-4 h-4 text-blue-600" />
-                <span className="text-sm text-gray-600">{roomState.totalPlayers || 0} players</span>
+                <Users className="h-4 w-4 text-blue-600" />
+                <span className="text-fg/70 text-sm">{roomState.totalPlayers || 0} players</span>
               </div>
-              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+              <span className={`rounded-full px-3 py-1 text-xs font-medium ${
                 roomState.phase === 'waiting' ? 'bg-yellow-100 text-yellow-800' :
                 roomState.phase === 'launched' ? 'bg-green-100 text-green-800' :
                 roomState.phase === 'asking' ? 'bg-blue-100 text-blue-800' :
                 roomState.phase === 'reviewing' ? 'bg-orange-100 text-orange-800' :
                 roomState.phase === 'leaderboard' ? 'bg-purple-100 text-purple-800' :
-                'bg-gray-100 text-gray-800'
+                'text-fg bg-gray-100'
               }`}>
                 {roomState.phase.charAt(0).toUpperCase() + roomState.phase.slice(1)}
               </span>
@@ -456,7 +614,7 @@ const HostControlsPage = () => {
           </div>
         </div>
 
-        {/* ✅ Activity Ticker - Prominently placed for host visibility */}
+        {/* Activity Ticker - Prominently placed for host visibility */}
         <ActivityTicker
           activities={activities}
           onClearActivity={clearActivity}
@@ -465,23 +623,23 @@ const HostControlsPage = () => {
 
         {/* Round Information Card (when in waiting/launched phase) */}
         {(roomState.phase === 'waiting' || roomState.phase === 'launched') && roundMetadata && currentRoundDef && (
-          <div className="bg-gradient-to-br from-purple-50 to-indigo-50 p-8 rounded-xl border border-purple-200 shadow-lg mb-6">
-            <div className="text-center mb-6">
-              <div className="text-6xl mb-3">{roundMetadata.icon}</div>
-              <h2 className="text-3xl font-bold text-indigo-900 mb-2">
+          <div className="mb-6 rounded-xl border border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50 p-8 shadow-lg">
+            <div className="mb-6 text-center">
+              <div className="mb-3 text-6xl">{roundMetadata.icon}</div>
+              <h2 className="mb-2 text-3xl font-bold text-indigo-900">
                 {roomState.phase === 'waiting' ? 'Preparing' : 'Ready to Start'} Round {roomState.currentRound}
               </h2>
-              <h3 className="text-xl text-indigo-700 font-semibold">{roundMetadata.name}</h3>
+              <h3 className="heading-2">{roundMetadata.name}</h3>
               
               {/* Round details */}
-              <div className="flex justify-center items-center space-x-4 mt-3">
+              <div className="mt-3 flex items-center justify-center space-x-4">
                 {currentRoundDef.category && (
-                  <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                  <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700">
                     📚 {currentRoundDef.category}
                   </span>
                 )}
                 {currentRoundDef.difficulty && (
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  <span className={`rounded-full px-3 py-1 text-sm font-medium ${
                     currentRoundDef.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
                     currentRoundDef.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
                     'bg-red-100 text-red-700'
@@ -493,15 +651,15 @@ const HostControlsPage = () => {
             </div>
 
             {/* Round Rules */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-lg p-6 mb-6">
-              <h4 className="text-lg font-bold text-gray-800 mb-3">📋 Round Configuration</h4>
-              <p className="text-gray-700 mb-4">{roundMetadata.description}</p>
+            <div className="bg-muted/70 mb-6 rounded-lg p-6 backdrop-blur-sm">
+              <h4 className="text-fg mb-3 text-lg font-bold">📋 Round Configuration</h4>
+              <p className="text-fg/80 mb-4">{roundMetadata.description}</p>
               
               {scoringInfo && (
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <h5 className="font-semibold text-blue-800 mb-2">⏱️ Timing & Scoring</h5>
-                    <ul className="text-sm text-blue-700 space-y-1">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-lg bg-blue-50 p-4">
+                    <h5 className="mb-2 font-semibold text-blue-800">⏱️ Timing & Scoring</h5>
+                    <ul className="space-y-1 text-sm text-blue-700">
                       <li>• {scoringInfo.questionsPerRound} questions this round</li>
                       <li>• {scoringInfo.timePerQuestion} seconds per question</li>
                       
@@ -528,14 +686,14 @@ const HostControlsPage = () => {
                         <li className="text-orange-600">• -{scoringInfo.pointsLostPerNoAnswer} points for not answering</li>
                       )}
                       {scoringInfo.pointsLostPerWrong === 0 && scoringInfo.pointsLostPerNoAnswer === 0 && (
-                        <li className="text-gray-600">• No penalties for wrong/missed answers</li>
+                        <li className="text-fg/70">• No penalties for wrong/missed answers</li>
                       )}
                     </ul>
                   </div>
 
-                  <div className="bg-green-50 p-4 rounded-lg">
-                    <h5 className="font-semibold text-green-800 mb-2">🎯 Host Controls</h5>
-                    <ul className="text-sm text-green-700 space-y-1">
+                  <div className="rounded-lg bg-green-50 p-4">
+                    <h5 className="mb-2 font-semibold text-green-800">🎯 Host Controls</h5>
+                    <ul className="space-y-1 text-sm text-green-700">
                       <li>• Start round when players are ready</li>
                       <li>• Monitor question timer during play</li>
                       <li>• Review answers with players</li>
@@ -552,9 +710,9 @@ const HostControlsPage = () => {
               <div className="text-center">
                 <button 
                   onClick={handleStartRound} 
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-xl font-bold text-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center space-x-3 mx-auto"
+                  className="mx-auto flex transform items-center space-x-3 rounded-xl bg-indigo-600 px-8 py-4 text-xl font-bold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-indigo-700 hover:shadow-xl"
                 >
-                  <Play className="w-6 h-6" />
+                  <Play className="h-6 w-6" />
                   <span>Launch Quiz & Start Round {roomState.currentRound}</span>
                 </button>
               </div>
@@ -562,14 +720,14 @@ const HostControlsPage = () => {
 
             {roomState.phase === 'launched' && (
               <div className="text-center">
-                <div className="bg-green-50 p-4 rounded-lg mb-4">
-                  <p className="text-green-700 font-medium">🚀 Quiz launched! Players are now ready.</p>
+                <div className="mb-4 rounded-lg bg-green-50 p-4">
+                  <p className="font-medium text-green-700">🚀 Quiz launched! Players are now ready.</p>
                 </div>
                 <button 
                   onClick={handleStartRound} 
-                  className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-xl font-bold text-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center space-x-3 mx-auto"
+                  className="mx-auto flex transform items-center space-x-3 rounded-xl bg-green-600 px-8 py-4 text-xl font-bold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-green-700 hover:shadow-xl"
                 >
-                  <Play className="w-6 h-6" />
+                  <Play className="h-6 w-6" />
                   <span>Start Round {roomState.currentRound}</span>
                 </button>
               </div>
@@ -579,28 +737,28 @@ const HostControlsPage = () => {
 
         {/* Active Question Display */}
         {currentQuestion && roomState.phase === 'asking' && (
-          <div className="bg-white rounded-xl shadow-lg border-2 border-blue-200 p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
+          <div className="bg-muted mb-6 rounded-xl border-2 border-blue-200 p-6 shadow-lg">
+            <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                <h3 className="text-lg font-bold text-gray-800 flex items-center space-x-2">
-                  <Eye className="w-5 h-5 text-blue-600" />
+                <h3 className="text-fg flex items-center space-x-2 text-lg font-bold">
+                  <Eye className="h-5 w-5 text-blue-600" />
                   <span>Current Question</span>
                 </h3>
                 {/* Question Counter */}
                 {(currentQuestion.questionNumber && currentQuestion.totalQuestions) && (
-                  <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                  <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700">
                     Question {currentQuestion.questionNumber}/{currentQuestion.totalQuestions}
                   </span>
                 )}
               </div>
               <div className="flex items-center space-x-4">
                 {currentQuestion.category && (
-                  <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
+                  <span className="rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-700">
                     {currentQuestion.category}
                   </span>
                 )}
                 {currentQuestion.difficulty && (
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  <span className={`rounded-full px-2 py-1 text-xs font-medium ${
                     currentQuestion.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
                     currentQuestion.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
                     'bg-red-100 text-red-700'
@@ -610,9 +768,9 @@ const HostControlsPage = () => {
                 )}
                 {timeLeft !== null && (
                   <div className="flex items-center space-x-2">
-                    <Timer className="w-4 h-4 text-orange-600" />
-                    <span className={`font-bold text-lg ${
-                      timeLeft <= 10 ? 'text-red-600 animate-pulse' : 
+                    <Timer className="h-4 w-4 text-orange-600" />
+                    <span className={`text-lg font-bold ${
+                      timeLeft <= 10 ? 'animate-pulse text-red-600' : 
                       timeLeft <= 30 ? 'text-orange-600' : 'text-green-600'
                     }`}>
                       {timeLeft}s
@@ -622,12 +780,12 @@ const HostControlsPage = () => {
               </div>
             </div>
             
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="text-lg text-gray-800 mb-3">{currentQuestion.text}</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <div className="rounded-lg bg-gray-50 p-4">
+              <p className="text-fg mb-3 text-lg">{currentQuestion.text}</p>
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                 {currentQuestion.options.map((opt, idx) => (
-                  <div key={idx} className="bg-white p-3 rounded border text-sm hover:bg-gray-50 transition-colors">
-                    <span className="font-medium text-gray-600">Option {String.fromCharCode(65 + idx)}:</span> {opt}
+                  <div key={idx} className="bg-muted rounded border p-3 text-sm transition-colors hover:bg-gray-50">
+                    <span className="text-fg/70 font-medium">Option {String.fromCharCode(65 + idx)}:</span> {opt}
                   </div>
                 ))}
               </div>
@@ -637,13 +795,13 @@ const HostControlsPage = () => {
 
         {/* Review Question Display with Statistics */}
         {reviewQuestion && roomState.phase === 'reviewing' && (
-          <div className="bg-white rounded-xl shadow-lg border-2 border-yellow-200 p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
+          <div className="bg-muted mb-6 rounded-xl border-2 border-yellow-200 p-6 shadow-lg">
+            <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <h3 className="text-lg font-bold text-gray-800">📖 Question Review</h3>
+                <h3 className="text-fg text-lg font-bold">📖 Question Review</h3>
                 {/* Show question position */}
                 {reviewQuestion.questionNumber && reviewQuestion.totalQuestions && (
-                  <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-medium">
+                  <span className="rounded-full bg-yellow-100 px-3 py-1 text-sm font-medium text-yellow-700">
                     Question {reviewQuestion.questionNumber}/{reviewQuestion.totalQuestions}
                   </span>
                 )}
@@ -653,18 +811,18 @@ const HostControlsPage = () => {
                 {(isLastQuestionOfRound() || reviewComplete) && (
                   <button 
                     onClick={handleShowRoundResults} 
-                    className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg font-medium transition flex items-center space-x-2"
+                    className="flex items-center space-x-2 rounded-lg bg-purple-500 px-4 py-2 font-medium text-white transition hover:bg-purple-600"
                   >
-                    <Trophy className="w-4 h-4" />
+                    <Trophy className="h-4 w-4" />
                     <span>Show Round Results</span>
                   </button>
                 )}
                 <button 
                   onClick={handleNextReview} 
-                  className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-medium transition flex items-center space-x-2"
+                  className="flex items-center space-x-2 rounded-lg bg-yellow-500 px-4 py-2 font-medium text-white transition hover:bg-yellow-600"
                   disabled={reviewComplete}
                 >
-                  <SkipForward className="w-4 h-4" />
+                  <SkipForward className="h-4 w-4" />
                   <span>{reviewComplete ? 'Review Complete' : 'Next Review'}</span>
                 </button>
               </div>
@@ -720,44 +878,44 @@ const HostControlsPage = () => {
 
         {/* Round Leaderboard Display */}
         {roomState.phase === 'leaderboard' && isShowingRoundResults && roundLeaderboard.length > 0 && (
-          <div className="bg-white rounded-xl shadow-lg border-2 border-purple-200 p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-800 flex items-center space-x-2">
-                <Medal className="w-5 h-5 text-purple-600" />
+          <div className="bg-muted mb-6 rounded-xl border-2 border-purple-200 p-6 shadow-lg">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-fg flex items-center space-x-2 text-lg font-bold">
+                <Medal className="h-5 w-5 text-purple-600" />
                 <span>Round {roomState.currentRound} Results</span>
               </h3>
               <button 
                 onClick={handleContinueToOverallLeaderboard} 
-                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition flex items-center space-x-2"
+                className="flex items-center space-x-2 rounded-lg bg-purple-600 px-4 py-2 font-medium text-white transition hover:bg-purple-700"
               >
-                <Trophy className="w-4 h-4" />
+                <Trophy className="h-4 w-4" />
                 <span>Show Overall Leaderboard</span>
               </button>
             </div>
             
-            <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg">
-              <div className="text-center mb-4">
-                <h4 className="text-xl font-bold text-purple-800 mb-2">🎉 Round {roomState.currentRound} Complete!</h4>
+            <div className="rounded-lg bg-gradient-to-r from-purple-50 to-pink-50 p-4">
+              <div className="mb-4 text-center">
+                <h4 className="mb-2 text-xl font-bold text-purple-800">🎉 Round {roomState.currentRound} Complete!</h4>
                 <p className="text-purple-600">Here's how everyone performed this round</p>
               </div>
               <div className="space-y-2">
                 {roundLeaderboard.map((entry, idx) => (
-                  <div key={entry.id} className="flex items-center justify-between bg-white p-3 rounded border-2 border-purple-200">
+                  <div key={entry.id} className="bg-muted flex items-center justify-between rounded border-2 border-purple-200 p-3">
                     <div className="flex items-center space-x-3">
-                      <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                      <span className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
                         idx === 0 ? 'bg-yellow-100 text-yellow-800 shadow-md' :
-                        idx === 1 ? 'bg-gray-100 text-gray-800 shadow-md' :
+                        idx === 1 ? 'text-fg bg-gray-100 shadow-md' :
                         idx === 2 ? 'bg-orange-100 text-orange-800 shadow-md' :
                         'bg-blue-100 text-blue-800'
                       }`}>
                         {idx + 1}
                       </span>
                       <span className="font-medium">{entry.name}</span>
-                      {idx === 0 && <Crown className="w-4 h-4 text-yellow-600" />}
-                      {idx === 1 && <Medal className="w-4 h-4 text-gray-600" />}
-                      {idx === 2 && <Award className="w-4 h-4 text-orange-600" />}
+                      {idx === 0 && <Crown className="h-4 w-4 text-yellow-600" />}
+                      {idx === 1 && <Medal className="text-fg/70 h-4 w-4" />}
+                      {idx === 2 && <Award className="h-4 w-4 text-orange-600" />}
                     </div>
-                    <span className="font-bold text-gray-800">{entry.score} pts</span>
+                    <span className="text-fg font-bold">{entry.score} pts</span>
                   </div>
                 ))}
               </div>
@@ -767,38 +925,38 @@ const HostControlsPage = () => {
 
         {/* Overall Leaderboard Display */}
         {roomState.phase === 'leaderboard' && !isShowingRoundResults && leaderboard.length > 0 && (
-          <div className="bg-white rounded-xl shadow-lg border-2 border-green-200 p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-800 flex items-center space-x-2">
-                <Trophy className="w-5 h-5 text-yellow-600" />
+          <div className="bg-muted mb-6 rounded-xl border-2 border-green-200 p-6 shadow-lg">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-fg flex items-center space-x-2 text-lg font-bold">
+                <Trophy className="h-5 w-5 text-yellow-600" />
                 <span>Overall Leaderboard</span>
               </h3>
               <button 
                 onClick={handleLeaderboardConfirm} 
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition flex items-center space-x-2"
+                className="flex items-center space-x-2 rounded-lg bg-green-600 px-4 py-2 font-medium text-white transition hover:bg-green-700"
               >
-                <SkipForward className="w-4 h-4" />
+                <SkipForward className="h-4 w-4" />
                 <span>Continue</span>
               </button>
             </div>
             
-            <div className="bg-green-50 p-4 rounded-lg">
+            <div className="rounded-lg bg-green-50 p-4">
               <div className="space-y-2">
                 {leaderboard.map((entry, idx) => (
-                  <div key={entry.id} className="flex items-center justify-between bg-white p-3 rounded border">
+                  <div key={entry.id} className="bg-muted flex items-center justify-between rounded border p-3">
                     <div className="flex items-center space-x-3">
-                      <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                      <span className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
                         idx === 0 ? 'bg-yellow-100 text-yellow-800' :
-                        idx === 1 ? 'bg-gray-100 text-gray-800' :
+                        idx === 1 ? 'text-fg bg-gray-100' :
                         idx === 2 ? 'bg-orange-100 text-orange-800' :
                         'bg-blue-100 text-blue-800'
                       }`}>
                         {idx + 1}
                       </span>
                       <span className="font-medium">{entry.name}</span>
-                      {idx === 0 && <Crown className="w-4 h-4 text-yellow-600" />}
+                      {idx === 0 && <Crown className="h-4 w-4 text-yellow-600" />}
                     </div>
-                    <span className="font-bold text-gray-800">{entry.score} pts</span>
+                    <span className="text-fg font-bold">{entry.score} pts</span>
                   </div>
                 ))}
               </div>
@@ -808,16 +966,153 @@ const HostControlsPage = () => {
 
         {/* Quiz Complete */}
         {roomState.phase === 'complete' && (
-          <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-8 rounded-xl border-2 border-purple-200 text-center mb-6">
-            <div className="text-6xl mb-4">🎉</div>
-            <h2 className="text-3xl font-bold text-purple-800 mb-2">Quiz Complete!</h2>
-            <p className="text-purple-600 text-lg">Thank you for hosting this amazing quiz experience!</p>
+          <div className="mb-6 rounded-xl border-2 border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50 p-8 text-center">
+            <div className="mb-4 text-6xl">🎉</div>
+            <h2 className="mb-2 text-3xl font-bold text-purple-800">Quiz Complete!</h2>
+            <p className="text-lg text-purple-600">Thank you for hosting this amazing quiz experience!</p>
+            
+            {/* Web3 Prize Distribution Button */}
+            {config?.paymentMethod === 'web3' && roomState.phase === 'complete' && (
+              <div className="mt-6">
+                {/* Wallet Connection Section */}
+                {!stellarWallet.isConnected && (
+                  <div className="mb-6 rounded-xl border-2 border-blue-200 bg-blue-50 p-6 text-center">
+                    <div className="mb-4 text-4xl">🔗</div>
+                    <h3 className="mb-2 text-xl font-bold text-blue-800">
+                      Connect Stellar Wallet
+                    </h3>
+                    <p className="mb-4 text-blue-600">
+                      Connect your wallet to distribute prizes to winners
+                    </p>
+                    
+                    <button
+                      onClick={() => stellarWallet.connect()}
+                      disabled={stellarWallet?.isConnecting}
+                      className="mx-auto flex items-center space-x-3 rounded-xl bg-blue-600 px-6 py-3 font-bold text-white hover:bg-blue-700 disabled:bg-gray-400"
+                    >
+                      {stellarWallet?.isConnecting ? (
+                        <>
+                          <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                          <span>Connecting...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>🔗</span>
+                          <span>Connect Wallet</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Connected State */}
+                {stellarWallet.isConnected && (
+                  <div className="mb-6 rounded-xl border-2 border-green-200 bg-green-50 p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="text-2xl">✅</div>
+                        <div>
+                          <div className="font-semibold text-green-800">Stellar Wallet Connected</div>
+                          <div className="text-sm text-green-600">
+                            {stellarWallet.address ? `${stellarWallet.address.slice(0, 8)}...${stellarWallet.address.slice(-6)}` : 'Loading address...'}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => stellarWallet.disconnect()}
+                        className="rounded bg-red-100 px-3 py-1 text-sm text-red-700 hover:bg-red-200"
+                      >
+                        Disconnect
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Prize Distribution Button States */}
+                {stellarWallet.isConnected && stellarContract?.isReady && (
+                  <div className="text-center">
+                    {prizeDistributionState.status === 'idle' && (
+                      <>
+                        <button
+                          onClick={handleDistributePrizes}
+                          className="mx-auto flex items-center space-x-3 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 px-8 py-4 text-xl font-bold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:shadow-xl"
+                        >
+                          <span>🏆</span>
+                          <span>Distribute Prizes via Smart Contract</span>
+                        </button>
+                        <p className="mt-2 text-sm text-green-600">
+                          This will automatically send prizes to the top players using the blockchain
+                        </p>
+                      </>
+                    )}
+
+                    {prizeDistributionState.status === 'distributing' && (
+                      <div className="rounded-xl border-2 border-orange-200 bg-orange-50 p-6">
+                        <div className="flex items-center justify-center space-x-3 text-orange-700">
+                          <Loader className="h-6 w-6 animate-spin" />
+                          <span className="text-lg font-semibold">Distributing Prizes...</span>
+                        </div>
+                        <p className="mt-2 text-sm text-orange-600">
+                          Transaction is being processed on the blockchain. Please wait...
+                        </p>
+                      </div>
+                    )}
+
+                    {prizeDistributionState.status === 'success' && (
+                      <div className="rounded-xl border-2 border-green-200 bg-green-50 p-6">
+                        <div className="mb-3 text-center">
+                          <div className="text-4xl">✅</div>
+                          <h3 className="text-xl font-bold text-green-800">Prizes Distributed Successfully!</h3>
+                        </div>
+                        {prizeDistributionState.txHash && (
+                          <p className="text-center text-sm text-green-600">
+                            Transaction Hash: <code className="bg-green-100 px-2 py-1 rounded">{prizeDistributionState.txHash}</code>
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {prizeDistributionState.status === 'error' && (
+                      <div className="rounded-xl border-2 border-red-200 bg-red-50 p-6">
+                        <div className="mb-3 text-center">
+                          <div className="text-4xl">❌</div>
+                          <h3 className="text-xl font-bold text-red-800">Prize Distribution Failed</h3>
+                        </div>
+                        <p className="text-center text-sm text-red-600">
+                          Error: {prizeDistributionState.error}
+                        </p>
+                        <div className="mt-4 text-center">
+                          <button
+                            onClick={() => setPrizeDistributionState({ status: 'idle' })}
+                            className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
+                          >
+                            Try Again
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Prize Distribution Status */}
+        {roomState.phase === 'distributing_prizes' && (
+          <div className="mb-6 rounded-xl border-2 border-orange-200 bg-gradient-to-r from-orange-50 to-yellow-50 p-8 text-center">
+            <div className="mb-4 text-6xl">💰</div>
+            <h2 className="mb-2 text-3xl font-bold text-orange-800">Distributing Prizes...</h2>
+            <p className="text-lg text-orange-600">Please wait while prizes are sent to winners via smart contract</p>
+            <div className="mt-4">
+              <Loader className="mx-auto h-8 w-8 animate-spin text-orange-600" />
+            </div>
           </div>
         )}
 
         {/* Final Quiz Statistics (show when quiz is complete) */}
         {debug && roomState.phase === 'complete' && (
-          <div className="bg-yellow-100 rounded-lg p-4 mb-4">
+          <div className="mb-4 rounded-lg bg-yellow-100 p-4">
             <h4 className="font-semibold text-yellow-800">🐛 Final Stats Debug</h4>
             <div className="text-sm text-yellow-700">
               <div>Phase: {roomState.phase}</div>
@@ -838,39 +1133,20 @@ const HostControlsPage = () => {
         
         {/* Fallback: Show even without hasFinalStats if we have data */}
         {roomState.phase === 'complete' && !hasFinalStats && allRoundsStats.length === 0 && (
-          <div className="bg-blue-50 rounded-xl p-6 mb-6 text-center">
-            <div className="text-blue-600 mb-2">📊</div>
-            <h3 className="text-lg font-bold text-blue-800 mb-2">No Statistics Available</h3>
+          <div className="mb-6 rounded-xl bg-blue-50 p-6 text-center">
+            <div className="mb-2 text-blue-600">📊</div>
+            <h3 className="mb-2 text-lg font-bold text-blue-800">No Statistics Available</h3>
             <p className="text-blue-600">Final quiz statistics are not yet available. They may still be loading.</p>
           </div>
         )}
-
-        {/* Debug Panel (removable) */}
-        {/* {debug && (
-          <div className="bg-gray-100 rounded-lg p-4 mb-6">
-            <h4 className="font-semibold text-gray-800 mb-2 flex items-center space-x-2">
-              <Settings className="w-4 h-4" />
-              <span>Debug Information</span>
-            </h4>
-            <div className="text-xs text-gray-600 space-y-1">
-              <div>Phase: {roomState.phase} | Connected: {connected ? '✅' : '❌'}</div>
-              <div>Socket ID: {socket?.id || 'None'} | Timer: {timeLeft}s</div>
-              <div>Round: {roomState.currentRound}/{roomState.totalRounds} | Type: {roomState.roundTypeName}</div>
-              <div>Question: {questionInRound}/{totalInRound} | Last Question: {isLastQuestionOfRound() ? '✅' : '❌'}</div>
-              <div>Round Results: {isShowingRoundResults ? '✅' : '❌'} | Round Leaderboard: {roundLeaderboard.length} entries</div>
-              <div>Review Complete: {reviewComplete ? '✅' : '❌'} | Review Question: {reviewQuestion ? '✅' : '❌'}</div>
-              <div>Activities: {activities.length} | Round Stats: {hasRoundStats ? '✅' : '❌'} | Final Stats: {hasFinalStats ? '✅' : '❌'}</div>
-            </div>
-          </div>
-        )} */}
 
         {/* Cancel Quiz Section */}
         <div className="text-center">
           <button
             onClick={handleCancelQuiz}
-            className="bg-red-100 text-red-700 px-6 py-2 rounded-xl font-medium hover:bg-red-200 transition flex items-center space-x-2 mx-auto"
+            className="mx-auto flex items-center space-x-2 rounded-xl bg-red-100 px-6 py-2 font-medium text-red-700 transition hover:bg-red-200"
           >
-            <XCircle className="w-4 h-4" />
+            <XCircle className="h-4 w-4" />
             <span>Cancel Quiz</span>
           </button>
         </div>

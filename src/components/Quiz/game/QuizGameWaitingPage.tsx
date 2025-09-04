@@ -15,7 +15,7 @@ import { useQuizConfig } from '../hooks/useQuizConfig';
 import { fundraisingExtraDefinitions, roundTypeDefinitions } from '../constants/quizMetadata';
 import type { RoundTypeId } from '../types/quiz';
 
-const DEBUG = true;
+const DEBUG = false;
 
 const debugLog = {
   info: (message: string, ...args: any[]) => { if (DEBUG) console.log(`🔵 [WaitingPage] ${message}`, ...args); },
@@ -58,8 +58,8 @@ const QuizGameWaitingPage = () => {
   // Debug log for round definitions
   useEffect(() => {
     if (config?.roundDefinitions) {
-      console.log('Round definitions:', config.roundDefinitions);
-      console.log('Sample round:', config.roundDefinitions[0]);
+     if (DEBUG) console.log('Round definitions:', config.roundDefinitions);
+     if (DEBUG) console.log('Sample round:', config.roundDefinitions[0]);
     }
   }, [config]);
 
@@ -219,13 +219,13 @@ const QuizGameWaitingPage = () => {
   // Show loading state while waiting for server data
   if (!config || Object.keys(config).length === 0 || !playerData) {
     return (
-      <div className="p-4 sm:p-6 text-center">
-        <div className="animate-spin text-3xl sm:text-4xl mb-4">⏳</div>
-        <div className="text-lg sm:text-xl font-semibold">
+      <div className="p-4 text-center sm:p-6">
+        <div className="mb-4 animate-spin text-3xl sm:text-4xl">⏳</div>
+        <div className="heading-2">
           {!config ? 'Loading quiz configuration...' : 'Loading player data...'}
         </div>
         {DEBUG && (
-          <div className="mt-4 text-xs text-gray-500">
+          <div className="text-fg/60 mt-4 text-xs">
             Config loaded: {!!config ? '✅' : '❌'} | 
             Player data: {!!playerData ? '✅' : '❌'} | 
             Socket: {connected ? '🟢' : '🔴'}
@@ -240,34 +240,34 @@ const QuizGameWaitingPage = () => {
   const totalPlayers = allPlayers.length;
 
   return (
-    <div className="max-w-4xl mx-auto p-4 space-y-4 sm:space-y-6">
+    <div className="mx-auto max-w-4xl space-y-4 p-4 sm:space-y-6">
       {/* Mobile-optimized header */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl p-4 sm:p-6">
+      <div className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 p-4 text-white sm:p-6">
         <div className="text-center">
-          <div className="text-3xl sm:text-4xl mb-2">🎉</div>
-          <h1 className="text-xl sm:text-2xl font-bold mb-2">
+          <div className="mb-2 text-3xl sm:text-4xl">🎉</div>
+          <h1 className="mb-2 text-xl font-bold sm:text-2xl">
             Hey {playerName.split(' ')[0]}!
           </h1>
-          <p className="text-blue-100 text-sm sm:text-base">You're all set to play</p>
-          <p className="text-blue-200 text-xs sm:text-sm mt-1">Thank you for supporting this fundraiser and GOOD LUCK!</p>
+          <p className="text-sm text-blue-100 sm:text-base">You're all set to play</p>
+          <p className="mt-1 text-xs text-blue-200 sm:text-sm">Thank you for supporting this fundraiser and GOOD LUCK!</p>
         </div>
         
         {/* Status indicators */}
-        <div className="flex justify-around mt-4 pt-4 border-t border-blue-400">
+        <div className="mt-4 flex justify-around border-t border-blue-400 pt-4">
           <div className="text-center">
             {playerData.paid ? (
-              <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 text-green-300" />
+              <CheckCircle className="mx-auto mb-1 h-5 w-5 text-green-300 sm:h-6 sm:w-6" />
             ) : (
-              <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 text-yellow-300" />
+              <AlertCircle className="mx-auto mb-1 h-5 w-5 text-yellow-300 sm:h-6 sm:w-6" />
             )}
             <div className="text-xs sm:text-sm">{playerData.paid ? 'Paid' : 'Pending'}</div>
           </div>
           <div className="text-center">
-            <Zap className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 text-yellow-300" />
+            <Zap className="mx-auto mb-1 h-5 w-5 text-yellow-300 sm:h-6 sm:w-6" />
             <div className="text-xs sm:text-sm">{playerExtras.length} Extras</div>
           </div>
           <div className="text-center">
-            <Users className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 text-blue-300" />
+            <Users className="mx-auto mb-1 h-5 w-5 text-blue-300 sm:h-6 sm:w-6" />
             <div className="text-xs sm:text-sm">{totalPlayers} Players</div>
           </div>
         </div>
@@ -275,10 +275,10 @@ const QuizGameWaitingPage = () => {
 
       {/* Warning Messages */}
       {!playerData.paid && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+        <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4">
           <div className="flex items-center space-x-2">
-            <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0" />
-            <div className="text-yellow-700 text-sm font-semibold">
+            <AlertCircle className="h-5 w-5 flex-shrink-0 text-yellow-500" />
+            <div className="text-sm font-semibold text-yellow-700">
               ⚠️ Payment Required — Please complete payment with the quiz organizer to participate.
             </div>
           </div>
@@ -286,10 +286,10 @@ const QuizGameWaitingPage = () => {
       )}
 
       {playerData.disqualified && (
-        <div className="bg-red-100 border border-red-200 rounded-xl p-4">
+        <div className="rounded-xl border border-red-200 bg-red-100 p-4">
           <div className="flex items-center space-x-2">
-            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-            <div className="text-red-700 text-sm font-semibold">
+            <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-500" />
+            <div className="text-sm font-semibold text-red-700">
               🚫 You have been disqualified from this quiz.
             </div>
           </div>
@@ -297,27 +297,27 @@ const QuizGameWaitingPage = () => {
       )}
 
       {/* No Cheating Warning */}
-      <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-        <div className="text-red-700 text-sm font-semibold">
+      <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+        <div className="text-sm font-semibold text-red-700">
           🚫 No Cheating — you will be disqualified if unfair play is detected.
         </div>
       </div>
 
       {/* Your Arsenal - Collapsible */}
       {playerExtras.length > 0 && (
-        <div className="bg-green-50 border-l-4 border-green-400 rounded-lg p-4">
+        <div className="rounded-lg border-l-4 border-green-400 bg-green-50 p-4">
           <button 
             onClick={() => setShowArsenal(!showArsenal)}
-            className="w-full flex items-center justify-between text-left"
+            className="flex w-full items-center justify-between text-left"
           >
-            <h3 className="font-bold text-green-800 flex items-center space-x-2 text-base">
-              <Zap className="w-5 h-5" />
+            <h3 className="flex items-center space-x-2 text-base font-bold text-green-800">
+              <Zap className="h-5 w-5" />
               <span>Your Arsenal ({playerExtras.length} extras)</span>
             </h3>
             {showArsenal ? (
-              <ChevronUp className="w-5 h-5 text-green-600" />
+              <ChevronUp className="h-5 w-5 text-green-600" />
             ) : (
-              <ChevronDown className="w-5 h-5 text-green-600" />
+              <ChevronDown className="h-5 w-5 text-green-600" />
             )}
           </button>
           
@@ -326,22 +326,22 @@ const QuizGameWaitingPage = () => {
               {playerExtras.map((extraId: string, idx: number) => {
                 const extraInfo = getExtraInfo(extraId);
                 return (
-                  <div key={idx} className="bg-white rounded-lg p-3 border border-green-200 shadow flex items-center space-x-3">
-                    <span className="text-2xl flex-shrink-0">{extraInfo.definition?.icon || '💰'}</span>
+                  <div key={idx} className="bg-muted flex items-center space-x-3 rounded-lg border border-green-200 p-3 shadow">
+                    <span className="flex-shrink-0 text-2xl">{extraInfo.definition?.icon || '💰'}</span>
                     <div className="flex-1">
-                      <div className="font-medium text-sm text-gray-900">
+                      <div className="text-fg text-sm font-medium">
                         {extraInfo.definition?.label || extraId}
                       </div>
-                      <div className="text-xs text-gray-600">
+                      <div className="text-fg/70 text-xs">
                         {extraInfo.definition?.description}
                       </div>
                     </div>
                   </div>
                 );
               })}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
                 <div className="text-xs text-blue-800">
-                  <strong>⚠️ Remember:</strong> One extra per round - use wisely!
+                  <strong>⚠️ Remember:</strong> Once you use an extra, it cannot be reused. Use them wisely!
                 </div>
               </div>
             </div>
@@ -350,41 +350,41 @@ const QuizGameWaitingPage = () => {
       )}
 
       {/* Round Overview - Collapsible */}
-      <div className="bg-blue-50 border-l-4 border-blue-400 rounded-lg p-4">
+      <div className="rounded-lg border-l-4 border-blue-400 bg-blue-50 p-4">
         <button 
           onClick={() => setShowRounds(!showRounds)}
-          className="w-full flex items-center justify-between text-left"
+          className="flex w-full items-center justify-between text-left"
         >
-          <h3 className="font-bold text-blue-800 flex items-center space-x-2 text-base">
-            <Play className="w-5 h-5" />
+          <h3 className="flex items-center space-x-2 text-base font-bold text-blue-800">
+            <Play className="h-5 w-5" />
             <span>Round Overview ({config.roundDefinitions?.length || 0} rounds)</span>
           </h3>
           {showRounds ? (
-            <ChevronUp className="w-5 h-5 text-blue-600" />
+            <ChevronUp className="h-5 w-5 text-blue-600" />
           ) : (
-            <ChevronDown className="w-5 h-5 text-blue-600" />
+            <ChevronDown className="h-5 w-5 text-blue-600" />
           )}
         </button>
         
         {showRounds && config.roundDefinitions?.length && (
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {config.roundDefinitions.map((round: any, index: number) => {
               const roundTypeDef = roundTypeDefinitions[round.roundType as RoundTypeId];
               
               return (
-                <div key={index} className="bg-white rounded-lg p-3 border border-blue-200">
+                <div key={index} className="bg-muted rounded-lg border border-blue-200 p-3">
                   <div className="text-center">
-                    <div className="font-bold text-sm text-blue-900 mb-1">
+                    <div className="mb-1 text-sm font-bold text-blue-900">
                       {roundTypeDef?.icon || '🎯'} Round {round.roundNumber}
                     </div>
-                    <div className="text-xs text-gray-600 mb-2">
+                    <div className="text-fg/70 mb-2 text-xs">
                       {round.category || roundTypeDef?.name || 'Unknown'}
                     </div>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    <span className={`rounded-full px-2 py-1 text-xs font-medium ${
                       round.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
                       round.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
                       round.difficulty === 'hard' ? 'bg-red-100 text-red-700' :
-                      'bg-gray-100 text-gray-700'
+                      'text-fg/80 bg-gray-100'
                     }`}>
                       {round.difficulty || roundTypeDef?.difficulty || 'Unknown'}
                     </span>
@@ -398,39 +398,39 @@ const QuizGameWaitingPage = () => {
 
       {/* Prizes - Collapsible */}
       {config.prizes && config.prizes.length > 0 && (
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 rounded-lg p-4">
+        <div className="rounded-lg border-l-4 border-yellow-400 bg-yellow-50 p-4">
           <button 
             onClick={() => setShowPrizes(!showPrizes)}
-            className="w-full flex items-center justify-between text-left"
+            className="flex w-full items-center justify-between text-left"
           >
-            <h3 className="font-bold text-yellow-800 flex items-center space-x-2 text-base">
-              <Trophy className="w-5 h-5" />
+            <h3 className="flex items-center space-x-2 text-base font-bold text-yellow-800">
+              <Trophy className="h-5 w-5" />
               <span>Win Up To {config.currencySymbol}{config.prizes[0]?.value}!</span>
             </h3>
             {showPrizes ? (
-              <ChevronUp className="w-5 h-5 text-yellow-600" />
+              <ChevronUp className="h-5 w-5 text-yellow-600" />
             ) : (
-              <ChevronDown className="w-5 h-5 text-yellow-600" />
+              <ChevronDown className="h-5 w-5 text-yellow-600" />
             )}
           </button>
           
           {showPrizes && (
-            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {config.prizes.map((prize: any, idx: number) => (
-                <div key={idx} className="bg-white rounded-lg p-3 border shadow">
+                <div key={idx} className="bg-muted rounded-lg border p-3 shadow">
                   <div className="text-center">
-                    <div className="text-xl mb-1">
+                    <div className="mb-1 text-xl">
                       {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}
                     </div>
-                    <div className="font-bold text-sm text-gray-900">{prize.place}</div>
-                    <div className="text-xs text-gray-600 mb-1">{prize.description}</div>
+                    <div className="text-fg text-sm font-bold">{prize.place}</div>
+                    <div className="text-fg/70 mb-1 text-xs">{prize.description}</div>
                     {prize.value && (
-                      <div className="font-bold text-sm text-gray-900">
+                      <div className="text-fg text-sm font-bold">
                         {config.currencySymbol}{prize.value}
                       </div>
                     )}
                     {prize.sponsor && (
-                      <div className="text-xs text-gray-500 mt-1">🎗️ Thanks to {prize.sponsor}</div>
+                      <div className="text-fg/60 mt-1 text-xs">🎗️ Thanks to {prize.sponsor}</div>
                     )}
                   </div>
                 </div>
@@ -441,10 +441,10 @@ const QuizGameWaitingPage = () => {
       )}
 
       {/* Waiting Message */}
-      <div className="text-center bg-gray-50 rounded-lg p-4 sm:p-6">
-        <div className="inline-flex items-center space-x-2 text-gray-600">
-          <div className="animate-spin w-4 h-4 sm:w-5 sm:h-5 border-2 border-gray-300 border-t-blue-600 rounded-full"></div>
-          <span className="font-medium text-sm sm:text-base">Waiting for host to start the game...</span>
+      <div className="rounded-lg bg-gray-50 p-4 text-center sm:p-6">
+        <div className="text-fg/70 inline-flex items-center space-x-2">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600 sm:h-5 sm:w-5"></div>
+          <span className="text-sm font-medium sm:text-base">Waiting for host to start the game...</span>
         </div>
         {DEBUG && (
           <div className="mt-2 text-xs text-gray-400">

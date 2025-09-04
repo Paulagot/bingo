@@ -1,4 +1,4 @@
-// wipeoutEngine.js - Updated with complete host notification support
+// wipeoutEngine.js - Debt model + centralized scoring + pointsDelta + host notifications
 
 import {
   getQuizRoom,
@@ -10,10 +10,13 @@ import {
   emitRoomState,
 } from '../quizRoomManager.js';
 
+// Centralized scoring (per-round config + defaults)
+import { getRoundScoring } from '../handlers/scoringUtils.js';
+
 let timers = {}; // per-room timer refs
 const debug = true;
 
-// ✅ NEW: Send host activity notification
+/* ------------------------ Host notifications ------------------------ */
 function sendHostActivityNotification(namespace, roomId, activityData) {
   namespace.to(`${roomId}:host`).emit('host_activity_update', {
     type: activityData.type,
@@ -30,7 +33,7 @@ function sendHostActivityNotification(namespace, roomId, activityData) {
   }
 }
 
-// ✅ NEW: Calculate and send current round stats
+/* ----------------------- Round stats to host ------------------------ */
 function calculateAndSendRoundStats(roomId, namespace) {
   const room = getQuizRoom(roomId);
   if (!room) return null;
@@ -46,81 +49,56 @@ function calculateAndSendRoundStats(roomId, namespace) {
     totalExtrasUsed: 0
   };
 
-  // Calculate stats from player data
   Object.entries(room.playerData).forEach(([playerId, playerData]) => {
     const player = room.players.find(p => p.id === playerId);
     const playerName = player?.name || playerId;
-    
+
     if (!roundStats.extrasByPlayer[playerName]) {
       roundStats.extrasByPlayer[playerName] = [];
     }
 
-    // Count extras used this round (stored in usedExtrasThisRound)
+    // Per-round extras
     if (playerData.usedExtrasThisRound) {
       Object.entries(playerData.usedExtrasThisRound).forEach(([extraId, used]) => {
         if (used) {
           roundStats.totalExtrasUsed++;
-          roundStats.extrasByPlayer[playerName].push({
-            extraId,
-            timestamp: Date.now()
-          });
+          roundStats.extrasByPlayer[playerName].push({ extraId, timestamp: Date.now() });
 
-          // Count by type
           switch (extraId) {
-            case 'buyHint':
-              roundStats.hintsUsed++;
-              break;
-            case 'freezeOutTeam':
-              roundStats.freezesUsed++;
-              break;
-            case 'robPoints':
-              roundStats.pointsRobbed++;
-              break;
-            case 'restorePoints':
-              roundStats.pointsRestored++;
-              break;
+            case 'buyHint': roundStats.hintsUsed++; break;
+            case 'freezeOutTeam': roundStats.freezesUsed++; break;
+            case 'robPoints': roundStats.pointsRobbed++; break;
+            case 'restorePoints': roundStats.pointsRestored++; break;
           }
         }
       });
     }
 
-    // ✅ NEW: Also count global extras from usedExtras (for leaderboard phase)
+    // Leaderboard-phase extras (global)
     if (playerData.usedExtras) {
       if (playerData.usedExtras.robPoints) {
         roundStats.pointsRobbed++;
         if (!roundStats.extrasByPlayer[playerName].some(e => e.extraId === 'robPoints')) {
           roundStats.totalExtrasUsed++;
-          roundStats.extrasByPlayer[playerName].push({
-            extraId: 'robPoints',
-            timestamp: Date.now()
-          });
+          roundStats.extrasByPlayer[playerName].push({ extraId: 'robPoints', timestamp: Date.now() });
         }
       }
-      
-      // Count restore points by actual points restored
       if (playerData.pointsRestored > 0) {
         roundStats.pointsRestored += playerData.pointsRestored;
         if (!roundStats.extrasByPlayer[playerName].some(e => e.extraId === 'restorePoints')) {
           roundStats.totalExtrasUsed++;
-          roundStats.extrasByPlayer[playerName].push({
-            extraId: 'restorePoints',
-            timestamp: Date.now()
-          });
+          roundStats.extrasByPlayer[playerName].push({ extraId: 'restorePoints', timestamp: Date.now() });
         }
       }
     }
   });
 
-  // Send to host
   namespace.to(`${roomId}:host`).emit('host_current_round_stats', roundStats);
-
-  if (debug) {
-    console.log(`[wipeoutEngine] 📊 Round stats sent to host:`, roundStats);
-  }
-
+  if (debug) console.log(`[wipeoutEngine] 📊 Round stats sent to host:`, roundStats);
   return roundStats;
 }
 
+/* ---------------------------- Init round ---------------------------- */
 export function initRound(roomId, namespace) {
   const room = getQuizRoom(roomId);
   if (!room) return false;
@@ -129,12 +107,7 @@ export function initRound(roomId, namespace) {
   const roundType = roundConfig.roundType;
   const questionsPerRound = roundConfig.config?.questionsPerRound || 8;
 
-  console.log(`[DEBUG] roundConfig:`, JSON.stringify(roundConfig, null, 2));
-console.log(`[DEBUG] roundConfig.config:`, roundConfig.config);
-console.log(`[DEBUG] roundConfig.config?.questionsPerRound:`, roundConfig.config?.questionsPerRound);
-console.log(`[DEBUG] Final questionsPerRound:`, questionsPerRound);
-  
-  // ✅ NEW: Extract category and difficulty from round config
+  // Extract filters
   const desiredDifficulty = roundConfig.difficulty;
   const desiredCategory = roundConfig.category;
 
@@ -144,28 +117,21 @@ console.log(`[DEBUG] Final questionsPerRound:`, questionsPerRound);
     console.log(`[wipeoutEngine] 🎯 Need: ${questionsPerRound} questions`);
   }
 
-  // ✅ NEW: Load questions WITH filtering parameters
+  // Load w/ filters + fallbacks
   let questions = loadQuestionsForRoundType(roundType, desiredCategory, desiredDifficulty, questionsPerRound);
-
-  // ✅ FALLBACK: If not enough questions with strict filtering, try just difficulty
   if (questions.length < questionsPerRound) {
-    console.warn(`[wipeoutEngine] ⚠️ Only found ${questions.length} questions for category="${desiredCategory}", difficulty="${desiredDifficulty}". Trying difficulty-only filter.`);
+    console.warn(`[wipeoutEngine] ⚠️ Only found ${questions.length} with category+difficulty; trying difficulty-only.`);
     questions = loadQuestionsForRoundType(roundType, null, desiredDifficulty, questionsPerRound);
   }
-
-  // ✅ FINAL FALLBACK: Use all questions unfiltered if still not enough
   if (questions.length < questionsPerRound) {
-    console.warn(`[wipeoutEngine] ⚠️ Still not enough questions (${questions.length}). Using unfiltered questions as last resort.`);
+    console.warn(`[wipeoutEngine] ⚠️ Still not enough (${questions.length}). Using unfiltered questions.`);
     questions = loadQuestionsForRoundType(roundType);
   }
 
-  // ✅ Shuffle and slice
   questions = shuffleArray(questions).slice(0, questionsPerRound);
 
   if (debug) {
     console.log(`[wipeoutEngine] ✅ Selected ${questions.length} questions for round ${room.currentRound}`);
-    
-    // ✅ NEW: Log what we actually got
     const actualBreakdown = questions.reduce((acc, q) => {
       const cat = q.category || 'unknown';
       const diff = q.difficulty || 'unknown';
@@ -178,22 +144,22 @@ console.log(`[DEBUG] Final questionsPerRound:`, questionsPerRound);
 
   setQuestionsForCurrentRound(roomId, questions);
   resetRoundExtrasTracking(roomId);
-  
-  // Reset round stats tracking
-  Object.values(room.playerData).forEach(playerData => {
-    playerData.usedExtrasThisRound = {};
+
+  // ✅ Reset per-round extras tracking AND per-round penalty debt
+  Object.values(room.playerData).forEach(pd => {
+    pd.usedExtrasThisRound = {};
+    // pd.penaltyDebt = 0; // <-- debt is per round
   });
 
   room.currentQuestionIndex = -1;
   room.currentPhase = 'asking';
-  
-  // Send initial round stats to host
+
   calculateAndSendRoundStats(roomId, namespace);
-  
   startNextQuestion(roomId, namespace);
   return true;
 }
 
+/* -------------------------- Next question -------------------------- */
 export function startNextQuestion(roomId, namespace) {
   const room = getQuizRoom(roomId);
   if (!room) return;
@@ -201,34 +167,49 @@ export function startNextQuestion(roomId, namespace) {
   const nextQuestion = advanceToNextQuestion(roomId);
   clearExpiredFreezeFlags(room);
 
-  // ✅ NEW: Handle unanswered questions from previous question (if there was one)
+  // ✅ Finalize previous question:
+  //    - If player never answered → write noAnswer record and add NO-ANSWER DEBT once
+  //    - If player answered with noAnswer earlier → add debt here (once), then finalize
   if (room.currentQuestionIndex >= 0 && room.questions[room.currentQuestionIndex - 1]) {
-    const previousQuestion = room.questions[room.currentQuestionIndex - 1];
-    const roundConfig = room.config.roundDefinitions[room.currentRound - 1]?.config || {};
-    const pointsLostPerUnanswered = roundConfig.pointslostperunanswered || 0;
+    const prev = room.questions[room.currentQuestionIndex - 1];
+    const scoring = getRoundScoring(room, room.currentRound - 1);
+    const keyFor = (pid) => `${prev.id}_round${room.currentRound}`;
 
-    // Check each player to see if they answered the previous question
-    room.players.forEach(player => {
-      const playerData = room.playerData[player.id];
-      if (!playerData) return;
+    room.players.forEach(p => {
+      const pd = room.playerData[p.id];
+      if (!pd) return;
 
-      const roundAnswerKey = `${previousQuestion.id}_round${room.currentRound}`;
-      const hasAnswered = playerData.answers[roundAnswerKey] !== undefined;
+      let rec = pd.answers[keyFor(p.id)];
 
-      if (!hasAnswered && pointsLostPerUnanswered > 0) {
-        // Deduct points for not answering
-        playerData.score = Math.max(0, (playerData.score || 0) - pointsLostPerUnanswered);
-        
-        // ✅ Track cumulative negative points
-        playerData.cumulativeNegativePoints = (playerData.cumulativeNegativePoints || 0) + pointsLostPerUnanswered;
+      const needToAddNoAnswerDebt =
+        (!rec) || (rec && rec.noAnswer && !rec.finalized);
 
-        if (debug) {
-          console.log(`[wipeoutEngine] ⏰ ${player.id} didn't answer question ${previousQuestion.id}, lost ${pointsLostPerUnanswered} points. Score: ${playerData.score}, Cumulative negative: ${playerData.cumulativeNegativePoints}`);
+      if (needToAddNoAnswerDebt) {
+        // ensure record exists
+        if (!rec) {
+          rec = { submitted: null, correct: false, noAnswer: true };
+          pd.answers[keyFor(p.id)] = rec;
         }
+        // add no-answer debt (no immediate score change)
+        const penalty = Math.max(0, scoring.pointsLostPerUnanswered || 0);
+        pd.penaltyDebt = Math.max(0, (pd.penaltyDebt || 0) + penalty);
+
+        // finalize record with zero delta (no score impact now)
+        rec.pointsDelta = 0;
+        rec.finalized = true;
+
+        if (debug && penalty > 0) {
+          console.log(`[wipeoutEngine] 🧾 No-answer debt +${penalty} for ${p.name} on ${prev.id}; total debt=${pd.penaltyDebt}`);
+        }
+      } else if (rec && !rec.finalized) {
+        // just finalize if needed
+        if (typeof rec.pointsDelta !== 'number') rec.pointsDelta = 0;
+        rec.finalized = true;
       }
     });
   }
 
+  // End-of-round -> review
   if (!nextQuestion) {
     if (debug) console.log(`[wipeoutEngine] 🔄 All questions complete for round ${room.currentRound}`);
     room.currentPhase = 'reviewing';
@@ -239,8 +220,10 @@ export function startNextQuestion(roomId, namespace) {
   }
 
   emitRoomState(namespace, roomId);
+
   const roundConfig = room.config.roundDefinitions[room.currentRound - 1];
   const timeLimit = roundConfig?.config?.timePerQuestion || 25;
+
   const questionStartTime = Date.now();
   room.questionStartTime = questionStartTime;
 
@@ -254,43 +237,25 @@ export function startNextQuestion(roomId, namespace) {
     totalQuestions: room.questions.length,
   });
 
-  // ✅ NEW: Schedule countdown effects
+  // Countdown effects
   if (timeLimit >= 3) {
-    // 3 seconds left - GREEN flash + beep
     setTimeout(() => {
-      namespace.to(roomId).emit('countdown_effect', { 
-        secondsLeft: 3, 
-        color: 'green',
-        message: '3...' 
-      });
+      namespace.to(roomId).emit('countdown_effect', { secondsLeft: 3, color: 'green', message: '3...' });
     }, (timeLimit - 3) * 1000);
 
-    // 2 seconds left - ORANGE flash + beep  
     setTimeout(() => {
-      namespace.to(roomId).emit('countdown_effect', { 
-        secondsLeft: 2, 
-        color: 'orange',
-        message: '2...' 
-      });
+      namespace.to(roomId).emit('countdown_effect', { secondsLeft: 2, color: 'orange', message: '2...' });
     }, (timeLimit - 2) * 1000);
 
-    // 1 second left - RED flash + beep
     setTimeout(() => {
-      namespace.to(roomId).emit('countdown_effect', { 
-        secondsLeft: 1, 
-        color: 'red',
-        message: '1...' 
-      });
+      namespace.to(roomId).emit('countdown_effect', { secondsLeft: 1, color: 'red', message: '1...' });
     }, (timeLimit - 1) * 1000);
   }
 
   // Notify frozen players
   room.players.forEach(player => {
     const pdata = room.playerData[player.id];
-    if (
-      pdata?.frozenNextQuestion &&
-      pdata.frozenForQuestionIndex === room.currentQuestionIndex
-    ) {
+    if (pdata?.frozenNextQuestion && pdata.frozenForQuestionIndex === room.currentQuestionIndex) {
       const socket = namespace.sockets.get(player.socketId);
       if (socket) {
         socket.emit('freeze_notice', {
@@ -298,15 +263,15 @@ export function startNextQuestion(roomId, namespace) {
           frozenForQuestionIndex: pdata.frozenForQuestionIndex,
           message: `You are frozen for this question!`
         });
-        if (debug) {
-          console.log(`[wipeoutEngine] ❄️ Notified ${player.id} they are frozen for question index ${room.currentQuestionIndex}`);
-        }
+        if (debug) console.log(`[wipeoutEngine] ❄️ Notified ${player.id} they are frozen for question index ${room.currentQuestionIndex}`);
       }
     }
   });
 
   if (debug) {
-    console.log(`[wipeoutEngine] ▶ Sent question: ${nextQuestion.id} (Q#${room.currentQuestionIndex}, timeLimit: ${timeLimit}s, startTime: ${questionStartTime})`);
+    console.log(
+      `[wipeoutEngine] ▶ Sent question: ${nextQuestion.id} (Q#${room.currentQuestionIndex}, timeLimit: ${timeLimit}s, startTime: ${questionStartTime})`
+    );
   }
 
   clearTimeout(timers[roomId]);
@@ -315,82 +280,99 @@ export function startNextQuestion(roomId, namespace) {
   }, timeLimit * 1000);
 }
 
-export function handlePlayerAnswer(roomId, playerId, answer, namespace) {
+/* ------------------------- Handle an answer ------------------------- */
+export function handlePlayerAnswer(roomId, playerId, payload, namespace) {
   const room = getQuizRoom(roomId);
-  if (!room) return;
-
   const question = getCurrentQuestion(roomId);
-  if (!question) return;
+  if (!room || !question) return;
 
-  const playerData = room.playerData[playerId];
-  if (!playerData) return;
+  // Normalize payload
+  const norm = (typeof payload === 'object' && payload !== null) ? payload : { answer: payload };
+  const questionId = norm.questionId ?? question.id;
+  const answer = norm.answer;
 
-  if (
-    playerData.frozenNextQuestion &&
-    room.currentQuestionIndex === playerData.frozenForQuestionIndex
-  ) {
-    if (debug) console.log(`[wipeoutEngine] ❄️ Player ${playerId} is frozen and cannot answer question ${room.currentQuestionIndex}`);
+  // Only accept for active question
+  if (question.id !== questionId) return;
+
+  const pd = room.playerData[playerId];
+  if (!pd) return;
+
+  // Frozen players cannot answer
+  if (pd.frozenNextQuestion && room.currentQuestionIndex === pd.frozenForQuestionIndex) return;
+
+  const scoring = getRoundScoring(room, room.currentRound - 1);
+  const qDifficulty = (question.difficulty || 'medium').toLowerCase();
+
+  const key = `${question.id}_round${room.currentRound}`;
+  if (pd.answers[key]) return; // already answered
+
+  // Explicit no-answer (timeout clicked/auto)
+  if (answer == null || answer === '') {
+    // Record as no-answer now; debt is added at finalize sweep (once)
+    pd.answers[key] = { submitted: null, correct: false, noAnswer: true, pointsDelta: 0, finalized: false };
     return;
   }
 
-  const isCorrect = (answer.trim().toLowerCase() === question.correctAnswer.trim().toLowerCase());
-
-  const roundConfig = room.config.roundDefinitions[room.currentRound - 1];
-  const configObj = roundConfig?.config || {};
-  const difficulty = roundConfig?.difficulty || 'medium';
-
-  const pointsPerDifficulty = configObj.pointsPerDifficulty || { easy: 2, medium: 3, hard: 4 };
-  const pointsPerQuestion = pointsPerDifficulty[difficulty] ?? 2;
-
-  const pointsLostPerWrong = configObj.pointsLostPerWrong ?? 2; // ✅ fallback to 2 if missing
-
-  if (debug) console.log(`[DEBUG SCORING] question difficulty: ${difficulty}`);
- if (debug)  console.log(`[DEBUG SCORING] pointsPerDifficulty:`, pointsPerDifficulty);
- if (debug)  console.log(`[DEBUG SCORING] pointsLostPerWrong: ${pointsLostPerWrong}`);
- if (debug)  console.log(`[DEBUG SCORING] final pointsPerQuestion: ${pointsPerQuestion}`);
+  const isCorrect =
+    String(answer).trim().toLowerCase() === String(question.correctAnswer).trim().toLowerCase();
 
   if (isCorrect) {
-    playerData.score = (playerData.score || 0) + pointsPerQuestion;
-    if (debug) console.log(`[wipeoutEngine] ✅ ${playerId} got it right (+${pointsPerQuestion}), score: ${playerData.score}`);
-  } else {
-    playerData.score = (playerData.score || 0) - pointsLostPerWrong;
-    if (playerData.score < 0) playerData.score = 0;
+    const rawPts =
+      scoring.pointsPerDifficulty[qDifficulty] ??
+      scoring.pointsPerDifficulty.medium ??
+      2;
 
-    if (pointsLostPerWrong > 0) {
-      playerData.cumulativeNegativePoints = (playerData.cumulativeNegativePoints || 0) + pointsLostPerWrong;
+    const currentDebt = Math.max(0, pd.penaltyDebt || 0);
+    const payDebt = Math.min(currentDebt, rawPts);
+    const addToScore = rawPts - payDebt;
+
+    // Pay debt first
+    pd.penaltyDebt = currentDebt - payDebt;
+
+    // Then add whatever remains to score
+    if (addToScore > 0) {
+      pd.score = (pd.score || 0) + addToScore;
     }
 
-    if (debug) console.log(`[wipeoutEngine] ❌ ${playerId} got it wrong (-${pointsLostPerWrong}), score: ${playerData.score}, Cumulative negative: ${playerData.cumulativeNegativePoints}`);
-  }
+    pd.answers[key] = {
+      submitted: answer,
+      correct: true,
+      pointsDelta: addToScore, // net that actually hit the score
+      finalized: true
+    };
 
-  const roundAnswerKey = `${question.id}_round${room.currentRound}`;
-  playerData.answers[roundAnswerKey] = { submitted: answer, correct: isCorrect };
+    if (debug) {
+      console.log(`[wipeoutEngine] ✅ ${playerId} correct: raw=${rawPts}, paidDebt=${payDebt}, +score=${addToScore}, remainingDebt=${pd.penaltyDebt}`);
+    }
+  } else {
+    // Wrong answer → add debt now; no immediate score change
+    const penalty = Math.max(0, scoring.pointsLostPerWrong || 0);
+    pd.penaltyDebt = Math.max(0, (pd.penaltyDebt || 0) + penalty);
 
-  // ✅ TEMPORARY DEBUG: Add this after setting the answer
-if (debug) console.log(`[DEBUG wipepout engine] Player ${playerId} usedExtrasThisRound:`, playerData.usedExtrasThisRound);
-if (debug) console.log(`[DEBUG wipepout engine] Checking hint usage:`, playerData.usedExtrasThisRound?.buyHint);
-if (debug) console.log(`[DEBUG wipepout engine] Namespace exists:`, !!namespace);
+    pd.answers[key] = {
+      submitted: answer,
+      correct: false,
+      pointsDelta: 0, // no score change now
+      finalized: true
+    };
 
-
-
-  if (debug) {
-    console.log(`[wipeoutEngine] 📝 Answer from ${playerId}: ${answer} (${isCorrect ? 'Correct' : 'Wrong'})`);
+    if (debug && penalty > 0) {
+      console.log(`[wipeoutEngine] ❌ ${playerId} wrong: +debt=${penalty}, totalDebt=${pd.penaltyDebt}`);
+    }
   }
 }
 
-// ✅ NEW: Function to handle freeze extra with host notification
+/* --------------------------- Extras helpers ------------------------ */
 export function handleFreezeExtra(roomId, playerId, targetPlayerId, namespace) {
   const room = getQuizRoom(roomId);
   if (!room) return { success: false, error: 'Room not found' };
 
   const player = room.players.find(p => p.id === playerId);
   const targetPlayer = room.players.find(p => p.id === targetPlayerId);
-  
   if (!player || !targetPlayer) {
     return { success: false, error: 'Player not found' };
   }
 
-  // Execute freeze logic (this would be your existing freeze implementation)
   const targetData = room.playerData[targetPlayerId];
   if (targetData) {
     targetData.frozenNextQuestion = true;
@@ -398,7 +380,6 @@ export function handleFreezeExtra(roomId, playerId, targetPlayerId, namespace) {
     targetData.frozenBy = player.name;
   }
 
-  // ✅ NEW: Notify host of freeze activity
   sendHostActivityNotification(namespace, roomId, {
     type: 'freeze',
     playerName: player.name,
@@ -407,13 +388,10 @@ export function handleFreezeExtra(roomId, playerId, targetPlayerId, namespace) {
     round: room.currentRound
   });
 
-  // ✅ NEW: Update round stats
   calculateAndSendRoundStats(roomId, namespace);
-
   return { success: true };
 }
 
-// ✅ NEW: Function to handle hint extra with host notification
 export function handleHintExtra(roomId, playerId, namespace) {
   const room = getQuizRoom(roomId);
   if (!room) return { success: false, error: 'Room not found' };
@@ -421,7 +399,6 @@ export function handleHintExtra(roomId, playerId, namespace) {
   const player = room.players.find(p => p.id === playerId);
   if (!player) return { success: false, error: 'Player not found' };
 
-  // ✅ NEW: Notify host of hint activity  
   sendHostActivityNotification(namespace, roomId, {
     type: 'hint',
     playerName: player.name,
@@ -430,25 +407,23 @@ export function handleHintExtra(roomId, playerId, namespace) {
     questionNumber: room.currentQuestionIndex + 1
   });
 
-  // ✅ NEW: Update round stats
   calculateAndSendRoundStats(roomId, namespace);
-
   return { success: true };
 }
 
+/* ------------------------------ Review ----------------------------- */
 export function emitNextReviewQuestion(roomId, namespace) {
   const room = getQuizRoom(roomId);
   if (!room) return;
 
   const reviewIndex = room.currentReviewIndex || 0;
-  
+
   if (reviewIndex >= room.questions.length) {
     if (debug) console.log(`[wipeoutEngine] ✅ Review complete - waiting for host to show results`);
-    
+
     room.currentPhase = 'reviewing';
     emitRoomState(namespace, roomId);
-    
-    // ✅ NEW: Calculate and send final round stats when review is complete
+
     const finalRoundStats = calculateAndSendRoundStats(roomId, namespace);
     namespace.to(`${roomId}:host`).emit('host_round_stats', finalRoundStats);
 
@@ -458,27 +433,23 @@ export function emitNextReviewQuestion(roomId, namespace) {
       totalQuestions: room.questions.length
     });
 
-    if (debug) {
-      console.log(`[wipeoutEngine] 📈 Final round ${room.currentRound} stats sent to host`);
-    }
-    
+    if (debug) console.log(`[wipeoutEngine] 📈 Final round ${room.currentRound} stats sent to host`);
     return;
   }
 
   const question = room.questions[reviewIndex];
   const roundAnswerKey = `${question.id}_round${room.currentRound}`;
-  
-  // ✅ NEW: Calculate answer statistics
+
+  // Per-question stats
   let correctCount = 0;
   let incorrectCount = 0;
   let noAnswerCount = 0;
   const totalPlayers = room.players.length;
 
-  // Analyze all player answers for this question
   room.players.forEach(player => {
     const playerData = room.playerData[player.id];
     const answerData = playerData?.answers?.[roundAnswerKey];
-    
+
     if (!answerData || answerData.submitted === null || answerData.submitted === undefined) {
       noAnswerCount++;
     } else if (answerData.correct) {
@@ -488,7 +459,7 @@ export function emitNextReviewQuestion(roomId, namespace) {
     }
   });
 
-  // ✅ NEW: Send individual review to each player (existing logic + question numbers)
+  // Player review
   room.players.forEach(player => {
     const playerData = room.playerData[player.id];
     const answerData = playerData?.answers?.[roundAnswerKey] || {};
@@ -504,7 +475,6 @@ export function emitNextReviewQuestion(roomId, namespace) {
         submittedAnswer,
         difficulty: question.difficulty,
         category: question.category,
-        // ✅ NEW: Add question positioning
         questionNumber: reviewIndex + 1,
         totalQuestions: room.questions.length,
         currentRound: room.currentRound,
@@ -513,7 +483,7 @@ export function emitNextReviewQuestion(roomId, namespace) {
     }
   });
 
-  // ✅ NEW: Send enhanced review to host with statistics
+  // Host review w/ stats
   namespace.to(`${roomId}:host`).emit('host_review_question', {
     id: question.id,
     text: question.text,
@@ -521,12 +491,10 @@ export function emitNextReviewQuestion(roomId, namespace) {
     correctAnswer: question.correctAnswer,
     difficulty: question.difficulty,
     category: question.category,
-    // ✅ NEW: Add question positioning for host
     questionNumber: reviewIndex + 1,
     totalQuestions: room.questions.length,
     currentRound: room.currentRound,
     totalRounds: room.config.roundDefinitions?.length || 1,
-    // ✅ NEW: Add answer statistics for host
     statistics: {
       totalPlayers,
       correctCount,
@@ -546,7 +514,7 @@ export function emitNextReviewQuestion(roomId, namespace) {
   }
 }
 
-// ✅ MOVED: buildLeaderboard function for use by hostHandlers
+/* -------------------------- Leaderboard util ------------------------ */
 export function buildLeaderboard(room) {
   const leaderboard = Object.entries(room.playerData).map(([playerId, data]) => {
     const player = room.players.find(p => p.id === playerId);
@@ -563,38 +531,32 @@ export function buildLeaderboard(room) {
   return leaderboard;
 }
 
-// ✅ NEW: Get current review question for state recovery
+/* ------------------------ State recovery utils --------------------- */
 export function getCurrentReviewQuestion(roomId) {
   const room = getQuizRoom(roomId);
   if (!room || !room.questions || room.currentReviewIndex === undefined) {
     console.warn(`[Engine] ⚠️ getCurrentReviewQuestion: No room or review data for ${roomId}`);
     return null;
   }
-  
-  // If we're past all questions, return null
   if (room.currentReviewIndex >= room.questions.length) {
     console.log(`[Engine] ✅ getCurrentReviewQuestion: Review complete for ${roomId}`);
     return null;
   }
-  
   const reviewQuestion = room.questions[room.currentReviewIndex];
   console.log(`[Engine] 📖 getCurrentReviewQuestion: Returning question ${room.currentReviewIndex} for ${roomId}`);
   return reviewQuestion;
 }
 
-// ✅ NEW: Check if review is complete
 export function isReviewComplete(roomId) {
   const room = getQuizRoom(roomId);
   if (!room) return false;
-  
-  // Review is complete if we've reviewed all questions
+
   const reviewComplete = room.currentReviewIndex >= room.questions.length;
-  
   console.log(`[Engine] 🔍 isReviewComplete for ${roomId}: ${reviewComplete} (reviewIndex: ${room.currentReviewIndex}, totalQuestions: ${room.questions.length})`);
   return reviewComplete;
 }
 
-// Helper functions
+/* ------------------------------- Helpers --------------------------- */
 function shuffleArray(array) {
   return array
     .map(value => ({ value, sort: Math.random() }))
@@ -608,20 +570,21 @@ function clearExpiredFreezeFlags(room) {
     if (p.frozenNextQuestion && room.currentQuestionIndex > p.frozenForQuestionIndex) {
       p.frozenNextQuestion = false;
       p.frozenForQuestionIndex = null;
-      if (debug) {
-        console.log(`[wipeoutEngine] 🧼 Cleared freeze for ${playerId}`);
-      }
+      if (debug) console.log(`[wipeoutEngine] 🧼 Cleared freeze for ${playerId}`);
     }
   }
 }
 
-// ✅ NEW: Export helper functions for use by handlers
- export { 
-  sendHostActivityNotification, 
-  calculateAndSendRoundStats, 
- 
- 
- };
+/* ------------------------ Exports for handlers --------------------- */
+export {
+  sendHostActivityNotification,
+  calculateAndSendRoundStats,
+};
+
+
+
+
+
 
 
 

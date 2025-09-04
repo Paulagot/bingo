@@ -16,15 +16,15 @@ export const AccessErrorScreen: React.FC<AccessErrorScreenProps> = ({
   onClose,
 }) => {
   return (
-    <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-b from-indigo-50 to-white">
+    <div className="flex h-screen flex-col items-center justify-center bg-gradient-to-b from-indigo-50 to-white">
       <AnimatePresence>
         {showAccessError && (
           <GameAccessAlert message={accessErrorMessage} onClose={onClose} />
         )}
       </AnimatePresence>
       <div className="flex flex-col items-center gap-4">
-        <Loader2 className="w-12 h-12 text-indigo-600 animate-spin" />
-        <p className="text-lg text-indigo-800 font-medium">Initializing game...</p>
+        <Loader2 className="h-12 w-12 animate-spin text-indigo-600" />
+        <p className="text-lg font-medium text-indigo-800">Initializing game...</p>
       </div>
     </div>
   );

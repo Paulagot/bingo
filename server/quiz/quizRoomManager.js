@@ -8,7 +8,7 @@ import { resetGlobalExtrasForNewRound } from './handlers/globalExtrasHandler.js'
 
 
 const quizRooms = new Map();
-const debug = true;
+const debug = false;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -84,7 +84,7 @@ export function loadQuestionsForRoundType(roundType, category = null, difficulty
         acc[key] = (acc[key] || 0) + 1;
         return acc;
       }, {});
-      console.log(`[quizRoomManager] 📊 Filtered question breakdown:`, breakdown);
+     if (debug) console.log(`[quizRoomManager] 📊 Filtered question breakdown:`, breakdown);
     }
     
     return filteredQuestions;
@@ -136,6 +136,7 @@ if (config.paymentMethod === 'web3') {
   const finalConfig = { ...config, roundCount: roundDefinitions.length };
 
  quizRooms.set(roomId, {
+  roomCaps: config.roomCaps ?? { maxPlayers: 20, maxRounds: finalConfig.roundCount, roundTypesAllowed: [], extrasAllowed: [] }, // ← add this
   hostId,
   config: finalConfig,
   currentQuestionIndex: -1,
@@ -156,6 +157,25 @@ if (config.paymentMethod === 'web3') {
   return true;
 }
 
+export function updateAssetUploadStatus(roomId, prizeIndex, status, txHash) {
+  const room = quizRooms.get(roomId);
+  if (!room || !room.config.prizes) return false;
+  
+  // Find the prize by its place (1-indexed) matching prizeIndex (0-indexed)
+  const prizeToUpdate = room.config.prizes.find(p => (p.place - 1) === prizeIndex);
+  if (!prizeToUpdate) return false;
+  
+  // Update the prize object
+  prizeToUpdate.uploadStatus = status;
+  if (status === 'completed' && txHash) {
+    prizeToUpdate.transactionHash = txHash;
+    prizeToUpdate.uploadedAt = new Date().toISOString();
+  }
+  
+  if (debug) console.log(`[quizRoomManager] ✅ Updated asset upload for room ${roomId}, prize ${prizeIndex + 1}: ${status}`);
+  return true;
+}
+
 export function getQuizRoom(roomId) {
   return quizRooms.get(roomId);
 }
@@ -163,7 +183,7 @@ export function getQuizRoom(roomId) {
 export function emitRoomState(namespace, roomId) {
   const room = quizRooms.get(roomId);
   if (!room) {
-    console.log(`[quizRoomManager] ⚠️ emitRoomState skipped - Room ${roomId} not found`);
+   if (debug) console.log(`[quizRoomManager] ⚠️ emitRoomState skipped - Room ${roomId} not found`);
     return;
   }
 
@@ -178,7 +198,8 @@ export function emitRoomState(namespace, roomId) {
     roundTypeId,
     roundTypeName,
     totalPlayers: room.players.length,
-    phase: room.currentPhase
+    phase: room.currentPhase,
+     caps: room.roomCaps
   });
 
  if (debug)  console.log(`[quizRoomManager] ✅ Emitted room_state for ${roomId}: Round ${room.currentRound}/${totalRounds}, Type: ${roundTypeName}, Players: ${room.players.length}, Phase: ${room.currentPhase}`);
@@ -187,7 +208,7 @@ export function emitRoomState(namespace, roomId) {
 export function addOrUpdatePlayer(roomId, player) {
   const room = quizRooms.get(roomId);
   if (!room) {
-    console.log(`[quizRoomManager] ❌ addOrUpdatePlayer: Room ${roomId} not found`);
+   if (debug) console.log(`[quizRoomManager] ❌ addOrUpdatePlayer: Room ${roomId} not found`);
     return false;
   }
 

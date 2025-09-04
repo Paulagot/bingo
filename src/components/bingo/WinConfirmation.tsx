@@ -19,8 +19,8 @@ export const WinConfirmation: React.FC<WinConfirmationProps> = ({
   return (
     <div
       className={`${
-        isLine ? 'bg-yellow-50 border border-yellow-200' : 'bg-purple-50 border border-purple-200'
-      } rounded-lg p-4 my-4`}
+        isLine ? 'border border-yellow-200 bg-yellow-50' : 'border border-purple-200 bg-purple-50'
+      } my-4 rounded-lg p-4`}
     >
       <h3 className={`font-medium ${isLine ? 'text-yellow-800' : 'text-purple-800'} mb-2`}>
         {isLine ? 'Line Win Claimed!' : 'Full House Claimed!'}
@@ -32,7 +32,7 @@ export const WinConfirmation: React.FC<WinConfirmationProps> = ({
         type="button"
         onClick={onConfirm}
         disabled={disabled}
-        className={`w-full py-2 px-4 rounded-lg text-white transition-colors ${
+        className={`w-full rounded-lg px-4 py-2 text-white transition-colors ${
           isLine
             ? 'bg-green-600 hover:bg-green-700'
             : 'bg-purple-600 hover:bg-purple-700'

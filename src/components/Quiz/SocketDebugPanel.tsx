@@ -21,7 +21,7 @@ const SocketDebugPanel: React.FC = () => {
   }, [socket]);
 
   return (
-    <div className="fixed bottom-4 right-4 p-3 bg-black text-white text-xs rounded shadow z-50">
+    <div className="fixed bottom-4 right-4 z-50 rounded bg-black p-3 text-xs text-white shadow">
       <div>Socket: {connected ? '🟢 Connected' : '🔴 Disconnected'}</div>
       <div>ID: {socketId || '—'}</div>
     </div>

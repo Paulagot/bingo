@@ -78,9 +78,9 @@ const GlobalExtrasDuringLeaderboard = ({
 
   return (
     <>
-      <div className="bg-blue-50 p-4 mt-6 rounded-xl shadow">
-        <h3 className="text-lg font-semibold text-blue-800 mb-2">🌍 Global Fundraising Extras</h3>
-        <p className="text-sm text-blue-600 mb-3">Use these before the next round starts, or wait for the next leaderboard review. Be Strategic!:</p>
+      <div className="mt-6 rounded-xl bg-blue-50 p-4 shadow">
+        <h3 className="mb-2 text-lg font-semibold text-blue-800">🌍 Global Fundraising Extras</h3>
+        <p className="mb-3 text-sm text-blue-600">Use these before the next round starts, or wait for the next leaderboard review. Be Strategic!:</p>
         <div className="space-y-2">
           {globalExtraDefinitions.map(extra => {
             const isRobPoints = extra.id === 'robPoints';
@@ -96,9 +96,9 @@ const GlobalExtrasDuringLeaderboard = ({
                 key={extra.id}
                 onClick={() => handleExtraClick(extra.id)}
                 disabled={shouldDisable}
-                className={`w-full text-left px-4 py-2 rounded-lg transition font-medium ${
+                className={`w-full rounded-lg px-4 py-2 text-left font-medium transition ${
                   shouldDisable
-                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                    ? 'text-fg/60 cursor-not-allowed bg-gray-200'
                     : 'bg-blue-600 text-white hover:bg-blue-700'
                 }`}
               >
@@ -108,11 +108,11 @@ const GlobalExtrasDuringLeaderboard = ({
                 {disableReason && ` ${disableReason}`}
                 
                 <span className={`block text-xs opacity-80 ${
-                  shouldDisable ? 'text-gray-500' : 'text-white'
+                  shouldDisable ? 'text-fg/60' : 'text-white'
                 }`}>
                   {extra.description || 'No description available.'}
                   {isRobPoints && !shouldDisable && (
-                    <span className="block mt-1">
+                    <span className="mt-1 block">
                       Eligible targets: {robPointsTargets.length}
                     </span>
                   )}

@@ -1,4 +1,4 @@
-// src/constants/quiztypeconstants.ts
+// src/Quiz/constants/quiztypeconstants.ts
 
 import type { RoundTypeDefinition, RoundTypeId, RoundConfig } from '../types/quiz';
 
@@ -30,7 +30,7 @@ export const roundTypes: RoundTypeDefinition[] = [
 //   medium: 2,
 //   hard: 3
 // }
-  //     pointslostperunanswered: 2
+  //      pointsLostPerUnanswered: 2
   //   }
   // },
   {
@@ -46,7 +46,7 @@ export const roundTypes: RoundTypeDefinition[] = [
   hard: 4
 },
       pointsLostPerWrong: 2,
-      pointslostperunanswered: 3
+      pointsLostPerUnanswered: 3
     }
   },
   // {
