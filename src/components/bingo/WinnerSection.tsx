@@ -18,15 +18,15 @@ const WinnerSection: React.FC<WinnerSectionProps> = ({ title, color, winners }) 
   const itemClass = `text-${color}-600`;
 
   return (
-    <div className={`${bgClass} rounded-lg p-4 mb-4`}>
+    <div className={`${bgClass} mb-4 rounded-lg p-4`}>
       <h3 className={`font-medium ${titleClass} mb-2`}>{title}</h3>
       {winners.length > 0 ? (
-        <ul className="list-disc list-inside">
+        <ul className="list-inside list-disc">
           {winners.map((winner) => (
             <li key={winner.id} className={itemClass}>
               {winner.name}
               {winner.wallet && (
-                <span className="text-xs text-gray-500 ml-2">
+                <span className="text-fg/60 ml-2 text-xs">
                   ({winner.wallet.slice(0, 6)}...{winner.wallet.slice(-4)})
                 </span>
               )}
@@ -34,7 +34,7 @@ const WinnerSection: React.FC<WinnerSectionProps> = ({ title, color, winners }) 
           ))}
         </ul>
       ) : (
-        <p className="text-gray-500 italic">No {title.toLowerCase()}</p>
+        <p className="text-fg/60 italic">No {title.toLowerCase()}</p>
       )}
     </div>
   );

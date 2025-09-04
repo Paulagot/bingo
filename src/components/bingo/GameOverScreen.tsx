@@ -182,20 +182,20 @@ export function GameOverScreen({
   const explorerUrl = currentNetwork ? getExplorerBaseUrl(currentNetwork.id) : 'https://etherscan.io';
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-8 max-w-3xl mx-auto">
-      <div className="text-center mb-8">
-        <Trophy className="h-12 w-12 text-purple-600 mx-auto mb-4" />
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Game Complete!</h1>
-        <p className="text-gray-600">Thank you for playing FundRaisely Bingo</p>
+    <div className="bg-muted mx-auto max-w-3xl rounded-xl p-8 shadow-lg">
+      <div className="mb-8 text-center">
+        <Trophy className="mx-auto mb-4 h-12 w-12 text-purple-600" />
+        <h1 className="text-fg mb-2 text-3xl font-bold">Game Complete!</h1>
+        <p className="text-fg/70">Thank you for playing FundRaisely Bingo</p>
       </div>
 
       <WinnerSection title="Line Winners" color="indigo" winners={lineWinners} />
       <WinnerSection title="Full House Winners" color="purple" winners={fullHouseWinners} />
 
       {transactionHash && (
-        <div className="mt-6 p-4 rounded-lg bg-blue-50 text-center">
-          <h4 className="text-blue-800 font-semibold mb-2">Transaction submitted!</h4>
-          <a href={`${explorerUrl}/tx/${transactionHash}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-sm">
+        <div className="mt-6 rounded-lg bg-blue-50 p-4 text-center">
+          <h4 className="mb-2 font-semibold text-blue-800">Transaction submitted!</h4>
+          <a href={`${explorerUrl}/tx/${transactionHash}`} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 underline">
             View Transaction
           </a>
         </div>
@@ -203,20 +203,20 @@ export function GameOverScreen({
 
       {isHost && (
         <div className="mb-6 mt-6">
-          <div className={`p-4 rounded-lg ${paymentsFinalized ? 'bg-green-50' : 'bg-yellow-50'}`}>
-            <h3 className={`font-medium mb-2 ${paymentsFinalized ? 'text-green-800' : 'text-yellow-800'}`}>Payment Status</h3>
+          <div className={`rounded-lg p-4 ${paymentsFinalized ? 'bg-green-50' : 'bg-yellow-50'}`}>
+            <h3 className={`mb-2 font-medium ${paymentsFinalized ? 'text-green-800' : 'text-yellow-800'}`}>Payment Status</h3>
             {paymentsFinalized ? (
               <div className="flex items-center text-green-700">
-                <Check className="h-5 w-5 mr-2" /> Prize payments finalized!
+                <Check className="mr-2 h-5 w-5" /> Prize payments finalized!
               </div>
             ) : (
               <>
-                <p className="text-yellow-700 mb-3">Finalize prize payments:</p>
-                {error && <div className="mb-3 p-2 bg-red-100 text-red-700 rounded">{error}</div>}
+                <p className="mb-3 text-yellow-700">Finalize prize payments:</p>
+                {error && <div className="mb-3 rounded bg-red-100 p-2 text-red-700">{error}</div>}
                 <button
                   onClick={handleFinalizePayments}
                   disabled={isFinalizing || finalizeStep === 'done'}
-                  className="w-full py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 flex items-center justify-center gap-2 disabled:bg-yellow-400 disabled:opacity-50"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-yellow-600 py-3 text-white hover:bg-yellow-700 disabled:bg-yellow-400 disabled:opacity-50"
                 >
                   {isFinalizing ? <Loader className="h-5 w-5 animate-spin" /> : (finalizeStep === 'line' ? 'Declare Line Winner' : 'Declare Full House Winner')}
                 </button>
@@ -227,22 +227,22 @@ export function GameOverScreen({
       )}
 
       {!isHost && !paymentsFinalized && (
-        <div className="mt-4 p-3 bg-yellow-50 text-yellow-700 text-center rounded-lg">
+        <div className="mt-4 rounded-lg bg-yellow-50 p-3 text-center text-yellow-700">
           ⏳ Waiting for host to finalize payments...
         </div>
       )}
 
       {!isHost && paymentsFinalized && (
-        <div className="mt-4 p-3 bg-green-50 text-green-700 text-center rounded-lg">
+        <div className="mt-4 rounded-lg bg-green-50 p-3 text-center text-green-700">
           ✅ Payments finalized! You can return to the lobby.
         </div>
       )}
 
-      <div className="flex justify-center gap-4 mt-6">
+      <div className="mt-6 flex justify-center gap-4">
         <button
           onClick={handleReturnToLobby}
           disabled={!paymentsFinalized}
-          className={`px-6 py-3 ${paymentsFinalized ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-400'} text-white rounded-lg flex items-center gap-2 ${!paymentsFinalized && 'opacity-50 cursor-not-allowed'}`}
+          className={`px-6 py-3 ${paymentsFinalized ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-400'} flex items-center gap-2 rounded-lg text-white ${!paymentsFinalized && 'cursor-not-allowed opacity-50'}`}
         >
           <Home className="h-5 w-5" /> Return to Lobby
         </button>

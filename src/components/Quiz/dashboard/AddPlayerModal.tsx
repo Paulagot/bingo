@@ -6,6 +6,7 @@ import { fundraisingExtras } from '../types/quiz';
 import { nanoid } from 'nanoid';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 
+
 interface AddPlayerModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -24,6 +25,12 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
   const { config } = useQuizConfig();
   // We only need `players` here; drop the unused `addPlayer`
   const { players } = usePlayerStore();
+// 👉 Capacity derived inside component, after hooks
+const isWeb3 = config?.paymentMethod === 'web3' || config?.isWeb3Room;
+const maxPlayers = isWeb3 ? Number.POSITIVE_INFINITY : (config?.roomCaps?.maxPlayers ?? 20);
+const atCapacity = isWeb3 ? false : ((players?.length || 0) >= maxPlayers);
+
+ 
 
   const [name, setName] = useState(initialName);
   const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
@@ -131,13 +138,13 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
     <Dialog
       open={isOpen}
       onClose={onClose}
-      className="fixed z-50 inset-0 overflow-y-auto"
+      className="fixed inset-0 z-50 overflow-y-auto"
     >
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex min-h-screen items-center justify-center">
         <div className="fixed inset-0 bg-black opacity-30" aria-hidden="true" />
 
-        <div className="bg-white rounded-xl p-6 z-50 w-full max-w-md shadow-xl relative">
-          <Dialog.Title className="text-xl font-semibold mb-4">
+        <div className="bg-muted relative z-50 w-full max-w-md rounded-xl p-6 shadow-xl">
+          <Dialog.Title className="heading-2">
             Add Player
           </Dialog.Title>
 
@@ -150,13 +157,13 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
                 setNameError('');
               }}
               placeholder="Player name"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2"
             />
             {nameError && (
               <p className="text-sm text-red-600">{nameError}</p>
             )}
 
-            <p className="text-sm text-gray-600">
+            <p className="text-fg/70 text-sm">
               Entry Fee: {currency}
               {entryFee.toFixed(2)}
             </p>
@@ -170,7 +177,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
                   return (
                     <label
                       key={key}
-                      className="flex items-center justify-between text-sm text-gray-700"
+                      className="text-fg/80 flex items-center justify-between text-sm"
                     >
                       <span
                         title={extra?.description || ''}
@@ -180,7 +187,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
                           type="checkbox"
                           checked={selectedExtras.includes(key)}
                           onChange={() => handleToggleExtra(key)}
-                          className="w-4 h-4"
+                          className="h-4 w-4"
                         />
                         {extra?.label || key}
                       </span>
@@ -194,7 +201,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
               </div>
             )}
 
-            <p className="text-right font-semibold mt-2">
+            <p className="mt-2 text-right font-semibold">
               Total:{' '}
               <span className="text-indigo-700">
                 {currency}
@@ -203,7 +210,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
             </p>
 
             <div className="mt-3">
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
+              <label className="text-fg/80 mb-1 block text-sm font-medium">
                 Payment Method
               </label>
               <select
@@ -213,7 +220,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
                     e.target.value as 'cash' | 'revolut' | 'web3' | 'unknown'
                   )
                 }
-                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2"
               >
                 <option value="cash">💶 Cash</option>
                 <option value="revolut">📱 Revolut</option>
@@ -222,35 +229,39 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
               </select>
             </div>
 
-            <div className="flex items-center gap-3 mt-2">
+            <div className="mt-2 flex items-center gap-3">
               <input
                 type="checkbox"
                 id="paid"
                 checked={paid}
                 onChange={(e) => setPaid(e.target.checked)}
-                className="w-4 h-4"
+                className="h-4 w-4"
               />
-              <label htmlFor="paid" className="text-sm text-gray-700">
+              <label htmlFor="paid" className="text-fg/80 text-sm">
                 Mark as paid
               </label>
             </div>
 
-            <div className="flex gap-2 mt-4">
+            <div className="mt-4 flex gap-2">
               <button
                 onClick={onClose}
-                className="w-1/2 py-2 rounded-lg font-semibold bg-gray-200 hover:bg-gray-300 text-gray-800"
+                className="text-fg w-1/2 rounded-lg bg-gray-200 py-2 font-semibold hover:bg-gray-300"
               >
                 Cancel
               </button>
-              <button
-                onClick={handleAddPlayer}
-                disabled={!paid || !name.trim()}
-                className={`w-1/2 py-2 rounded-lg font-semibold transition text-white ${
-                  paid ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-400 cursor-not-allowed'
-                }`}
-              >
-                {added ? '✅ Added!' : 'Add Player'}
-              </button>
+ <button
+  onClick={handleAddPlayer}
+  disabled={!paid || !name.trim() || (!isWeb3 && atCapacity)}
+  className={`w-1/2 rounded-lg py-2 font-semibold text-white transition ${
+    (!paid || !name.trim() || (!isWeb3 && atCapacity))
+      ? 'cursor-not-allowed bg-gray-400'
+      : 'bg-indigo-600 hover:bg-indigo-700'
+  }`}
+>
+  {added ? '✅ Added!' : (!isWeb3 && atCapacity) ? `Limit ${Number.isFinite(maxPlayers) ? maxPlayers : ''} reached` : 'Add Player'}
+</button>
+
+
             </div>
           </div>
         </div>

@@ -1,5 +1,5 @@
 // Updated StandardRound.tsx with floating extras bar
-
+//src/components/Quiz/game/StandardRound.tsx
 import React from 'react';
 import { RoundComponentProps } from '../types/quiz';
 import FloatingRoundExtrasBar from './FloatingRoundExtrasBar';
@@ -45,7 +45,7 @@ const StandardRound: React.FC<EnhancedStandardRoundProps> = ({
   playersInRoom = [] // ✅ NEW: Default empty array
 }) => {
   const getTimerColor = () => {
-    if (!timeLeft) return 'text-gray-500';
+    if (!timeLeft) return 'text-fg/60';
     if (timeLeft <= 10) return 'text-red-600';
     if (timeLeft <= 30) return 'text-orange-600';
     return 'text-green-600';
@@ -72,23 +72,23 @@ const StandardRound: React.FC<EnhancedStandardRoundProps> = ({
   currentPlayerId={playerId}
 />
 
-      <div className={`bg-white rounded-xl shadow-lg border-2 overflow-hidden transition-all duration-200 ${
+      <div className={`bg-muted overflow-hidden rounded-xl border-2 shadow-lg transition-all duration-200 ${
         isFrozen ? 'border-red-300 opacity-75' : 'border-blue-200'
       }`}>
         
         {/* Header */}
-        <div className={`p-4 border-b border-gray-200 ${
+        <div className={`border-border border-b p-4 ${
           isFrozen ? 'bg-red-50' : 'bg-blue-50'
         }`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <Eye className={`w-5 h-5 ${isFrozen ? 'text-red-600' : 'text-blue-600'}`} />
+              <Eye className={`h-5 w-5 ${isFrozen ? 'text-red-600' : 'text-blue-600'}`} />
               <h3 className={`text-lg font-bold ${isFrozen ? 'text-red-800' : 'text-blue-800'}`}>
                 {isFrozen ? 'Frozen Question' : 'Current Question'}
               </h3>
               {/* Question Counter */}
               {(questionNumber && totalQuestions) && (
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                <span className={`rounded-full px-3 py-1 text-sm font-medium ${
                   isFrozen 
                     ? 'bg-red-100 text-red-700' 
                     : 'bg-blue-100 text-blue-700'
@@ -101,14 +101,14 @@ const StandardRound: React.FC<EnhancedStandardRoundProps> = ({
             <div className="flex items-center space-x-3">
               {/* Category Badge */}
               {category && (
-                <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                <span className="rounded-full bg-purple-100 px-2 py-1 text-xs font-medium text-purple-700">
                   {category}
                 </span>
               )}
               
               {/* Difficulty Badge */}
               {difficulty && (
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                <span className={`rounded-full px-2 py-1 text-xs font-medium ${
                   difficulty === 'easy' ? 'bg-green-100 text-green-700' :
                   difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
                   'bg-red-100 text-red-700'
@@ -119,9 +119,9 @@ const StandardRound: React.FC<EnhancedStandardRoundProps> = ({
               
               {/* Timer */}
               {timerActive && timeLeft !== null && (
-                <div className={`flex items-center space-x-2 px-3 py-1 rounded-full bg-white shadow-sm ${getTimerAnimation()}`}>
-                  <Timer className={`w-4 h-4 ${getTimerColor()}`} />
-                  <span className={`font-bold text-lg ${getTimerColor()}`}>
+                <div className={`bg-muted flex items-center space-x-2 rounded-full px-3 py-1 shadow-sm ${getTimerAnimation()}`}>
+                  <Timer className={`h-4 w-4 ${getTimerColor()}`} />
+                  <span className={`text-lg font-bold ${getTimerColor()}`}>
                     {Math.floor(timeLeft)}s
                   </span>
                 </div>
@@ -148,17 +148,17 @@ const StandardRound: React.FC<EnhancedStandardRoundProps> = ({
           {/* Question Text */}
           <div className="mb-6">
             <div className="flex items-start space-x-3">
-              <Target className="w-5 h-5 text-gray-600 mt-1 flex-shrink-0" />
+              <Target className="text-fg/70 mt-1 h-5 w-5 flex-shrink-0" />
               <div className="flex-1">
-                <h2 className="text-xl font-semibold text-gray-800 leading-relaxed">
+                <h2 className="heading-2">
                   {question.text}
                 </h2>
                 
                 {/* Clue Display */}
                 {clue && (
-                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="mt-3 rounded-lg border border-yellow-200 bg-yellow-50 p-3">
                     <div className="flex items-start space-x-2">
-                      <Lightbulb className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                      <Lightbulb className="mt-0.5 h-4 w-4 flex-shrink-0 text-yellow-600" />
                       <div>
                         <p className="text-sm font-medium text-yellow-800">Hint Revealed</p>
                         <p className="text-sm text-yellow-700">{clue}</p>
@@ -172,8 +172,8 @@ const StandardRound: React.FC<EnhancedStandardRoundProps> = ({
 
           {/* Answer Options */}
           {question.options && (
-            <div className="space-y-3 mb-6">
-              <h4 className="text-sm font-semibold text-gray-700 mb-3">Choose your answer:</h4>
+            <div className="mb-6 space-y-3">
+              <h4 className="text-fg/80 mb-3 text-sm font-semibold">Choose your answer:</h4>
               {question.options.map((opt: string, idx: number) => {
                 const isSelected = selectedAnswer === opt;
                 const isDisabled = isFrozen || answerSubmitted;
@@ -182,21 +182,21 @@ const StandardRound: React.FC<EnhancedStandardRoundProps> = ({
                   <button
                     key={idx}
                     onClick={() => !isDisabled && setSelectedAnswer(opt)}
-                    className={`w-full text-left p-4 rounded-lg border-2 transition-all duration-200 ${
+                    className={`w-full rounded-lg border-2 p-4 text-left transition-all duration-200 ${
                       isDisabled
-                        ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                        ? 'border-border cursor-not-allowed bg-gray-100 text-gray-400'
                         : isSelected
-                          ? 'bg-indigo-100 border-indigo-400 text-indigo-900 shadow-md'
-                          : 'bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-gray-300'
+                          ? 'border-indigo-400 bg-indigo-100 text-indigo-900 shadow-md'
+                          : 'border-border bg-gray-50 hover:border-gray-300 hover:bg-gray-100'
                     }`}
                     disabled={isDisabled}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
-                        <span className={`w-6 h-6 rounded-full text-sm font-medium flex items-center justify-center ${
+                        <span className={`flex h-6 w-6 items-center justify-center rounded-full text-sm font-medium ${
                           isSelected 
                             ? 'bg-indigo-600 text-white' 
-                            : 'bg-gray-300 text-gray-600'
+                            : 'text-fg/70 bg-gray-300'
                         }`}>
                           {String.fromCharCode(65 + idx)}
                         </span>
@@ -204,10 +204,10 @@ const StandardRound: React.FC<EnhancedStandardRoundProps> = ({
                       </div>
                       <div className="flex items-center space-x-2">
                         {isSelected && !isDisabled && (
-                          <Check className="w-4 h-4 text-indigo-600" />
+                          <Check className="h-4 w-4 text-indigo-600" />
                         )}
                         {isFrozen && (
-                          <Snowflake className="w-4 h-4 text-red-400" />
+                          <Snowflake className="h-4 w-4 text-red-400" />
                         )}
                       </div>
                     </div>
@@ -218,11 +218,11 @@ const StandardRound: React.FC<EnhancedStandardRoundProps> = ({
           )}
 
        {/* Status Display */}
-<div className="flex items-center justify-center mb-6">
+<div className="mb-6 flex items-center justify-center">
   {!selectedAnswer && !isFrozen && !answerSubmitted && (
-    <div className="px-8 py-3 rounded-xl font-bold text-lg bg-yellow-100 text-yellow-700 border-2 border-yellow-300">
+    <div className="rounded-xl border-2 border-yellow-300 bg-yellow-100 px-8 py-3 text-lg font-bold text-yellow-700">
       <div className="flex items-center space-x-2">
-        <Clock className="w-5 h-5" />
+        <Clock className="h-5 w-5" />
         <span>Select an answer before time runs out!</span>
       </div>
     </div>
@@ -231,7 +231,7 @@ const StandardRound: React.FC<EnhancedStandardRoundProps> = ({
 
           {/* Feedback */}
           {feedback && (
-            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-center">
+            <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4 text-center">
               <p className="text-lg font-medium text-blue-800">{feedback}</p>
             </div>
           )}

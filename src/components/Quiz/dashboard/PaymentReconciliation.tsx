@@ -59,13 +59,13 @@ const PaymentReconciliationPanel: React.FC = () => {
   const totalReceived = totalEntryReceived + totalExtrasReceived;
 
   return (
-    <div className="bg-white p-8 rounded-xl shadow-md">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">
+    <div className="bg-muted rounded-xl p-8 shadow-md">
+      <h2 className="text-fg mb-6 text-2xl font-bold">
         💰 Payment Reconciliation
       </h2>
 
       {/* Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-gray-600 mb-6">
+      <div className="text-fg/70 mb-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
         <div>
           <strong>Entry Fee:</strong> {entryFee ? `${currency}${entryFee}` : 'Free'}
         </div>
@@ -84,7 +84,7 @@ const PaymentReconciliationPanel: React.FC = () => {
           <strong>Received Extras:</strong> {currency}
           {totalExtrasReceived.toFixed(2)}
         </div>
-        <div className="font-semibold text-gray-800">
+        <div className="text-fg font-semibold">
           <strong>Total Received:</strong> {currency}
           {totalReceived.toFixed(2)}
         </div>
@@ -92,37 +92,37 @@ const PaymentReconciliationPanel: React.FC = () => {
 
       {/* Table Breakdown */}
       <div className="mb-6">
-        <h3 className="font-semibold text-gray-700 mb-2">
+        <h3 className="text-fg/80 mb-2 font-semibold">
           Breakdown by Payment Method:
         </h3>
         <div className="overflow-auto">
-          <table className="min-w-full text-left text-sm text-gray-700 border">
+          <table className="text-fg/80 min-w-full border text-left text-sm">
             <thead className="bg-gray-100">
               <tr>
-                <th className="px-4 py-2 border">Payment Method</th>
-                <th className="px-4 py-2 border">Entry Fees</th>
-                <th className="px-4 py-2 border">Extras</th>
-                <th className="px-4 py-2 border">Total</th>
-                <th className="px-4 py-2 border">% of Total</th>
+                <th className="border px-4 py-2">Payment Method</th>
+                <th className="border px-4 py-2">Entry Fees</th>
+                <th className="border px-4 py-2">Extras</th>
+                <th className="border px-4 py-2">Total</th>
+                <th className="border px-4 py-2">% of Total</th>
               </tr>
             </thead>
             <tbody>
               {Object.entries(paymentData).map(([method, data]) => (
                 <tr key={method}>
-                  <td className="px-4 py-2 border capitalize">{method}</td>
-                  <td className="px-4 py-2 border">
+                  <td className="border px-4 py-2 capitalize">{method}</td>
+                  <td className="border px-4 py-2">
                     {currency}
                     {data.entry.toFixed(2)}
                   </td>
-                  <td className="px-4 py-2 border">
+                  <td className="border px-4 py-2">
                     {currency}
                     {data.extras.toFixed(2)}
                   </td>
-                  <td className="px-4 py-2 border">
+                  <td className="border px-4 py-2">
                     {currency}
                     {data.total.toFixed(2)}
                   </td>
-                  <td className="px-4 py-2 border">
+                  <td className="border px-4 py-2">
                     {totalReceived > 0
                       ? `${((data.total / totalReceived) * 100).toFixed(1)}%`
                       : '—'}
@@ -131,11 +131,11 @@ const PaymentReconciliationPanel: React.FC = () => {
               ))}
               {/* Totals Row */}
               <tr className="bg-gray-50 font-semibold">
-                <td className="px-4 py-2 border">Total</td>
-                <td className="px-4 py-2 border">{currency}{totalEntryReceived.toFixed(2)}</td>
-                <td className="px-4 py-2 border">{currency}{totalExtrasReceived.toFixed(2)}</td>
-                <td className="px-4 py-2 border">{currency}{totalReceived.toFixed(2)}</td>
-                <td className="px-4 py-2 border">100%</td>
+                <td className="border px-4 py-2">Total</td>
+                <td className="border px-4 py-2">{currency}{totalEntryReceived.toFixed(2)}</td>
+                <td className="border px-4 py-2">{currency}{totalExtrasReceived.toFixed(2)}</td>
+                <td className="border px-4 py-2">{currency}{totalReceived.toFixed(2)}</td>
+                <td className="border px-4 py-2">100%</td>
               </tr>
             </tbody>
           </table>
@@ -144,13 +144,13 @@ const PaymentReconciliationPanel: React.FC = () => {
 
       {/* Unpaid Players */}
       <div>
-        <h3 className="font-semibold text-gray-700 mb-2">
+        <h3 className="text-fg/80 mb-2 font-semibold">
           🚩 Unpaid Players (Entry):
         </h3>
         {unpaidPlayers.length === 0 ? (
           <p className="text-green-700">All players are paid. Ready to go! ✅</p>
         ) : (
-          <ul className="list-disc list-inside text-red-600 space-y-1">
+          <ul className="list-inside list-disc space-y-1 text-red-600">
             {unpaidPlayers.map((p) => (
               <li key={p.id}>{p.name}</li>
             ))}

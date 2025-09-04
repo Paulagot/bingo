@@ -44,32 +44,32 @@ export function Header() {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-sm shadow-sm z-50">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+    <header className="bg-muted/90 fixed left-0 right-0 top-0 z-50 shadow-sm backdrop-blur-sm">
+      <div className="container mx-auto flex h-16 items-center justify-between px-4">
         {isGamePage ? (
           <>
             {/* Game Page Header */}
             <button
               type="button"
               onClick={handleBack}
-              className="flex items-center gap-2 text-gray-600 hover:text-indigo-600 transition-colors"
+              className="text-fg/70 flex items-center gap-2 transition-colors hover:text-indigo-600"
               aria-label="Leave game"
             >
               <ArrowLeft size={20} />
-              <span className="hidden sm:inline font-medium">Leave Game</span>
+              <span className="hidden font-medium sm:inline">Leave Game</span>
             </button>
 
             <div className="flex items-center gap-2 sm:gap-3">
               {/* Player Count */}
-              <div className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 bg-indigo-100 rounded-full text-xs sm:text-sm">
+              <div className="flex items-center gap-1.5 rounded-full bg-indigo-100 px-2 py-1.5 text-xs sm:px-3 sm:text-sm">
                 <Users size={14} className="text-indigo-600 sm:size-4" />
-                <span className="text-indigo-800 font-medium">{players.length}</span>
+                <span className="font-medium text-indigo-800">{players.length}</span>
               </div>
 
               {/* Room ID */}
-              <div className="px-2 sm:px-3 py-1.5 bg-green-100 rounded-full">
-                <span className="text-xs sm:text-sm text-green-800 font-medium">
-                  <span className="hidden xs:inline">Room: </span>{roomId}
+              <div className="rounded-full bg-green-100 px-2 py-1.5 sm:px-3">
+                <span className="text-xs font-medium text-green-800 sm:text-sm">
+                  <span className="xs:inline hidden">Room: </span>{roomId}
                 </span>
               </div>
             </div>
@@ -79,32 +79,32 @@ export function Header() {
             {/* Non-Game Page Header */}
             <div className="flex items-center gap-2">
               <Link to="/" className="flex items-center gap-2">
-                <Gamepad2 className="h-5 w-5 sm:h-6 sm:w-6 text-indigo-600" />
-                <h1 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-transparent">
+                <Gamepad2 className="h-5 w-5 text-indigo-600 sm:h-6 sm:w-6" />
+                <h1 className="bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-lg font-bold text-transparent sm:text-xl">
                   FundRaisely
                 </h1>
               </Link>
             </div>
 
             {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-4">
+            <div className="hidden items-center gap-4 md:flex">
               <Link
                 to="/Web3-Impact-Event"
-                className="text-sm font-medium text-pink-600 hover:text-pink-800 transition-colors"
+                className="text-sm font-medium text-pink-600 transition-colors hover:text-pink-800"
               >
                 Join the Web3 Impact Event 🚀
               </Link>
 
               <Link
                 to="/whats-new"
-                className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+                className="text-sm font-medium text-indigo-600 transition-colors hover:text-indigo-800"
               >
                 Inside FundRaisely
               </Link>
 
               <Link
                 to="/quiz"
-                className="text-sm font-medium text-purple-600 hover:text-purple-800 transition-colors"
+                className="text-sm font-medium text-purple-600 transition-colors hover:text-purple-800"
               >
                 Quiz Platform
               </Link>
@@ -113,7 +113,7 @@ export function Header() {
             {/* Mobile Menu Button - FIXED: Added proper accessibility attributes */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 text-gray-600 hover:text-indigo-600 transition-colors"
+              className="text-fg/70 p-2 transition-colors hover:text-indigo-600 md:hidden"
               aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
               aria-expanded={mobileMenuOpen}
               aria-controls="mobile-menu"
@@ -124,15 +124,15 @@ export function Header() {
             {/* Mobile Menu Dropdown */}
             {mobileMenuOpen && (
               <div 
-                className="absolute top-16 left-0 right-0 bg-white/95 backdrop-blur-sm shadow-lg border-t border-gray-200 md:hidden"
+                className="bg-muted/95 border-border absolute left-0 right-0 top-16 border-t shadow-lg backdrop-blur-sm md:hidden"
                 id="mobile-menu"
                 role="navigation"
                 aria-label="Mobile navigation menu"
               >
-                <div className="container mx-auto px-4 py-4 space-y-3">
+                <div className="container mx-auto space-y-3 px-4 py-4">
                   <Link
                     to="/Web3-Impact-Event"
-                    className="block text-sm font-medium text-pink-600 hover:text-pink-800 transition-colors py-2"
+                    className="block py-2 text-sm font-medium text-pink-600 transition-colors hover:text-pink-800"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Join the Web3 Impact Event 🚀
@@ -140,7 +140,7 @@ export function Header() {
 
                   <Link
                     to="/whats-new"
-                    className="block text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors py-2"
+                    className="block py-2 text-sm font-medium text-indigo-600 transition-colors hover:text-indigo-800"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Inside FundRaisely
@@ -148,7 +148,7 @@ export function Header() {
 
                   <Link
                     to="/quiz"
-                    className="block text-sm font-medium text-purple-600 hover:text-purple-800 transition-colors py-2"
+                    className="block py-2 text-sm font-medium text-purple-600 transition-colors hover:text-purple-800"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Quiz Platform

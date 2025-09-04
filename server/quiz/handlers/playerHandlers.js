@@ -15,17 +15,18 @@ import {
   cleanExpiredSessions
 } from '../quizRoomManager.js';
 import { emitFullRoomState } from '../handlers/sharedUtils.js';
+import { isQuestionWindowOpen } from './scoringUtils.js';
 
 const debug =  true;
 
 function getEngine(room) {
   const roundType = room.config.roundDefinitions?.[room.currentRound - 1]?.roundType;
-  
+
   switch (roundType) {
     case 'general_trivia':
-      return import('../ gameplayEngines/generalTriviaEngine.js');
+      return import('../gameplayEngines/generalTriviaEngine.js'); // <- fixed path
     case 'wipeout':
-      return import('../ gameplayEngines/wipeoutEngine.js');
+      return import('../gameplayEngines/wipeoutEngine.js');       // <- fixed path
     default:
       console.warn(`[getEngine] ❓ Unknown round type: ${roundType}`);
       return null;
@@ -66,12 +67,50 @@ export function setupPlayerHandlers(socket, namespace) {
       }
       updateAdminSocketId(roomId, user.id, socket.id);
       if (debug) console.log(`[Join] 🛠️ Admin "${user.name || user.id}" joined with socket ${socket.id}`);
+      
     } else if (role === 'player') {
       // ✅ NEW: Smart session management for players
       cleanExpiredSessions(roomId);
       
       const existingPlayer = room.players.find(p => p.id === user.id);
       const existingSession = getPlayerSession(roomId, user.id);
+
+       // 👉 Determine Web3 once, reuse below
+  const isWeb3 = room.config?.paymentMethod === 'web3' || room.config?.isWeb3Room === true;
+
+  // Capacity check #1 (guard for Web2 only)
+  if (!isWeb3) {
+    const max = room.roomCaps?.maxPlayers ?? 20;
+    if (room.players.length >= max) {
+      socket.emit('quiz_error', { message: `Room is full (limit ${max})` });
+      return;
+    }
+  }
+
+  // Capacity check #2 (guard for Web2 only)
+  if (!isWeb3) {
+    const caps = room.config?.roomCaps || { maxPlayers: 20 };
+    if (room.players.length >= caps.maxPlayers) {
+      console.warn(`[Join] 🚫 Player limit reached (${caps.maxPlayers}) in room ${roomId}`);
+      socket.emit('quiz_error', { message: `Player limit reached (${caps.maxPlayers}).` });
+      return;
+    }
+  }
+
+      if (role === 'player') {
+  const max = room.roomCaps?.maxPlayers ?? 20;
+  if (room.players.length >= max) {
+    socket.emit('quiz_error', { message: `Room is full (limit ${max})` });
+    return;
+  }
+}
+
+const caps = room.config?.roomCaps || { maxPlayers: 20 };
+if (room.players.length >= caps.maxPlayers) {
+  console.warn(`[Join] 🚫 Player limit reached (${caps.maxPlayers}) in room ${roomId}`);
+  socket.emit('quiz_error', { message: `Player limit reached (${caps.maxPlayers}).` });
+  return;
+}
       
       // ✅ Check if player exists in room
       if (!existingPlayer) {
@@ -123,6 +162,54 @@ export function setupPlayerHandlers(socket, namespace) {
       socket.emit('quiz_error', { message: `Unknown role "${role}".` });
       return;
     }
+
+    // ✅ NEW: Store Web3 wallet addresses for prize distribution
+if (user.web3Address && user.web3Chain) {
+  // Initialize web3AddressMap if it doesn't exist
+  if (!room.web3AddressMap) {
+    room.web3AddressMap = new Map();
+  }
+  
+  // Store the mapping: playerId -> wallet info
+  room.web3AddressMap.set(user.id, {
+    address: user.web3Address,
+    chain: user.web3Chain,
+    txHash: user.web3TxHash || null,
+    playerName: user.name || 'Unknown'
+  });
+  
+  if (debug) console.log(`[Join] 🔗 Stored Web3 address for player "${user.name}":`, {
+    playerId: user.id,
+    address: user.web3Address,
+    chain: user.web3Chain,
+    txHash: user.web3TxHash
+  });
+  
+  // Also store in the room config for easier debugging
+  if (!room.config.web3PlayerAddresses) {
+    room.config.web3PlayerAddresses = {};
+  }
+  room.config.web3PlayerAddresses[user.id] = {
+    address: user.web3Address,
+    chain: user.web3Chain,
+    name: user.name
+  };
+}
+
+// ✅ DEBUG: Log Web3 room state after each join
+if (room.config?.paymentMethod === 'web3' && debug) {
+  console.log(`[Join] 🌐 Web3 room state after ${user.name} joined:`, {
+    totalPlayers: room.players.length,
+    web3AddressMapSize: room.web3AddressMap ? room.web3AddressMap.size : 0,
+    web3Addresses: room.web3AddressMap ? Array.from(room.web3AddressMap.entries()).map(([id, info]) => ({
+      playerId: id,
+      playerName: info.playerName,
+      address: info.address,
+      chain: info.chain
+    })) : [],
+    paymentMethod: room.config.paymentMethod
+  });
+}
 
     // ✅ Emit room state after processing join
     emitRoomState(namespace, roomId);
@@ -206,59 +293,44 @@ export function setupPlayerHandlers(socket, namespace) {
     emitRoomState(namespace, roomId);
   });
 
-  socket.on('submit_answer', ({ roomId, playerId, answer }) => {
-    const room = getQuizRoom(roomId);
-    if (!room) {
-      console.warn(`[Answer] ❌ Room not found: ${roomId}`);
-      socket.emit('quiz_error', { message: 'Room not found' });
+socket.on('submit_answer', ({ roomId, playerId, questionId, answer, autoTimeout }) => {
+  const room = getQuizRoom(roomId);
+  if (!room) {
+    socket.emit('quiz_error', { message: 'Room not found' });
+    return;
+  }
+
+  // ✅ Central guard: only accept answers for the current, still-open question
+  if (!isQuestionWindowOpen(room, questionId)) {
+    if (debug) {
+      console.warn('[submit_answer] ❌ reject: too late or wrong question', {
+        roomId, playerId, questionId, phase: room.currentPhase, currentIndex: room.currentQuestionIndex
+      });
+    }
+    socket.emit('quiz_error', { message: 'Answer window closed or question mismatch.' });
+    return;
+  }
+
+  const enginePromise = getEngine(room);
+  if (!enginePromise) {
+    socket.emit('quiz_error', { message: 'No gameplay engine available' });
+    return;
+  }
+
+  enginePromise.then(engine => {
+    if (!engine?.handlePlayerAnswer) {
+      socket.emit('quiz_error', { message: 'Invalid gameplay engine' });
       return;
     }
-
-    const playerData = room.playerData?.[playerId];
-    if (playerData?.frozenNextQuestion && 
-        playerData?.frozenForQuestionIndex === room.currentQuestionIndex) {
-    if (debug)   console.log(`[Answer] ❄️ Ignoring answer from frozen player: ${playerId}`);
-      socket.emit('quiz_error', { message: 'You are frozen for this question and cannot answer!' });
-      return;
-    }
-
-    const currentQuestion = room.questions?.[room.currentQuestionIndex];
-    const roundAnswerKey = `${currentQuestion.id}_round${room.currentRound}`;
-    if (currentQuestion && playerData?.answers?.[roundAnswerKey]) {
-     if (debug)  console.log(`[Answer] 🔄 Player ${playerId} already answered question ${currentQuestion.id} in round ${room.currentRound}`);
-      socket.emit('quiz_error', { message: 'You have already answered this question!' });
-      return;
-    }
-
-    const enginePromise = getEngine(room);
-    if (!enginePromise) {
-      console.warn(`[Answer] ⚠️ No engine for room ${roomId}`);
-      socket.emit('quiz_error', { message: 'No gameplay engine available for this round type' });
-      return;
-    }
-
-    enginePromise.then(engine => {
-      if (!engine || typeof engine.handlePlayerAnswer !== 'function') {
-        console.warn(`[Answer] ⚠️ Invalid engine for room ${roomId}`);
-        socket.emit('quiz_error', { message: 'Invalid gameplay engine for this round type' });
-        return;
-      }
-
-      const question = room.questions?.[room.currentQuestionIndex];
-      const isCorrect = question && answer === question.correctAnswer;
-      const player = room.players.find(p => p.id === playerId);
-      const playerName = player?.name || 'Unknown';
-
-     if (debug)  console.log(
-        `[Answer] ✅ ${playerName} (${playerId}) submitted: "${answer}" → ${isCorrect ? '✅ Correct' : '❌ Wrong'}`
-      );
-
-      engine.handlePlayerAnswer(roomId, playerId, answer, namespace);
-    }).catch(err => {
-      console.error(`[Answer] ❌ Engine import failed:`, err);
-      socket.emit('quiz_error', { message: 'Failed to load gameplay engine' });
-    });
+    // Normalize empty string to null (no answer)
+    const normalised = (answer === '' || answer === undefined) ? null : answer;
+    engine.handlePlayerAnswer(roomId, playerId, { questionId, answer: normalised, autoTimeout }, namespace);
+  }).catch(() => {
+    socket.emit('quiz_error', { message: 'Failed to load gameplay engine' });
   });
+});
+
+
 
  // REPLACE the existing use_extra handler in playerHandlers.js with this:
 
@@ -269,6 +341,22 @@ socket.on('use_extra', async ({ roomId, playerId, extraId, targetPlayerId }) => 
 
   
   const room = getQuizRoom(roomId);
+  // Plan + config enforcement: extra must be allowed by plan AND enabled in room config
+  const allowedByPlan =
+    room.config?.roomCaps?.extrasAllowed === '*' ||
+    (Array.isArray(room.config?.roomCaps?.extrasAllowed) &&
+     room.config.roomCaps.extrasAllowed.includes(extraId));
+
+  const enabledInConfig = !!room.config?.fundraisingOptions?.[extraId];
+
+  if (!allowedByPlan || !enabledInConfig) {
+    if (debug) console.warn(`[PlayerHandler] 🚫 Extra "${extraId}" not permitted (allowedByPlan=${allowedByPlan}, enabled=${enabledInConfig})`);
+    socket.emit('quiz_error', { message: `Extra "${extraId}" is not available in this game.` });
+    return;
+  }
+
+
+
   if (!room) {
     socket.emit('quiz_error', { message: 'Room not found' });
     return;
@@ -384,11 +472,11 @@ socket.on('request_current_state', ({ roomId, playerId }) => {
     const roundType = room.config.roundDefinitions?.[room.currentRound - 1]?.roundType;
     let enginePromise;
     
-    if (roundType === 'general_trivia') {
-      enginePromise = import('../ gameplayEngines/generalTriviaEngine.js');
-    } else if (roundType === 'wipeout') {
-      enginePromise = import('../ gameplayEngines/wipeoutEngine.js');
-    }
+  if (roundType === 'general_trivia') {
+  enginePromise = import('../gameplayEngines/generalTriviaEngine.js'); // <- fixed
+} else if (roundType === 'wipeout') {
+  enginePromise = import('../gameplayEngines/wipeoutEngine.js');       // <- fixed
+}
     
     if (enginePromise) {
       enginePromise.then(engine => {

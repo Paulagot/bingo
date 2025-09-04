@@ -2,5 +2,6 @@
 export interface WizardStepProps {
     onNext: () => void;
     onBack?: () => void;
+    onResetToFirst?: () => void;
   }
   

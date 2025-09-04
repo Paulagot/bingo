@@ -1,0 +1,126 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===========================
+   Design tokens (CSS variables)
+   =========================== */
+
+/* Light theme */
+:root {
+  --bg: 0 0% 100%;
+  --fg: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-fg: 222 47% 11%;
+
+  --brand: 243 75% 59%;        /* ~ indigo-600 */
+  --brand-fg: 0 0% 100%;
+  --brand-soft: 243 100% 95%;
+
+  --muted: 220 14% 96%;
+  --border: 220 13% 91%;
+
+  --success: 142 76% 36%;
+  --warning: 32 95% 44%;
+  --danger: 0 84% 60%;
+}
+
+/* Dark theme */
+.dark {
+  --bg: 222 47% 11%;
+  --fg: 210 40% 98%;
+  --card: 222 47% 13%;
+  --card-fg: 210 40% 98%;
+
+  --brand: 243 75% 59%;
+  --brand-fg: 222 47% 11%;
+  --brand-soft: 243 30% 18%;
+
+  --muted: 217 16% 22%;
+  --border: 217 19% 27%;
+
+  --success: 142 70% 45%;
+  --warning: 32 90% 55%;
+  --danger: 0 80% 65%;
+}
+
+/* ===========================
+   Base tweaks
+   =========================== */
+@layer base {
+  html, body, #root {
+    @apply min-h-screen;
+  }
+  body {
+    @apply bg-bg text-fg font-sans antialiased;
+  }
+
+  /* Better focus visibility by default */
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand/40 ring-offset-2 ring-offset-bg;
+  }
+}
+
+/* ===========================
+   Reusable components / patterns
+   =========================== */
+@layer components {
+  /* App wrapper */
+  .app { @apply min-h-screen bg-bg text-fg; }
+
+  /* Headings */
+  .heading-1 { @apply text-2xl font-bold text-fg; }
+  .heading-2 { @apply text-xl font-semibold text-fg; }
+
+  /* Cards & sections */
+  .card    { @apply bg-card text-cardFg rounded-2xl border border-border shadow-card; }
+  .section { @apply card p-6; }
+  .muted-card { @apply bg-muted rounded-xl p-6 shadow-card; }
+
+  /* Buttons */
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition; }
+  .btn-primary { @apply btn bg-brand text-brand-fg hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed; }
+  .btn-muted   { @apply btn border border-border text-fg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed; }
+
+  /* Badges (tokenized, dark-mode friendly) */
+  .badge { @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium; }
+  .badge-success { @apply badge bg-success/10 text-success; }
+  .badge-warn    { @apply badge bg-warning/10 text-warning; }
+  .badge-danger  { @apply badge bg-danger/10 text-danger; }
+
+  /* Pills & icon bubbles */
+  .chip        { @apply inline-flex items-center gap-2 rounded-full bg-muted px-4 py-2 shadow-card; }
+  .icon-circle { @apply flex h-12 w-12 items-center justify-center rounded-full; }
+
+  /* Notes / info panels (theme-aware) */
+  .note { @apply rounded-lg bg-brand-soft/60 text-fg/90 border border-brand/20 p-4; }
+
+  /* Header glass effect */
+  .glass { @apply bg-muted/90 backdrop-blur-sm border-b border-border shadow-sm; }
+
+  /* Brand gradients */
+  .brand-gradient      { @apply bg-gradient-to-r from-indigo-600 to-purple-600; }
+  .brand-gradient-text { @apply bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-transparent; }
+
+  /* Container variants */
+  .container-narrow { @apply max-w-5xl mx-auto; } /* handy for prose/landing sections */
+}
+
+/* ===========================
+   Optional utilities
+   =========================== */
+@layer utilities {
+  /* Clamp prose width when needed */
+  .prose-narrow { max-width: 65ch; }
+}
+@layer components {
+  /* Stateful panels used in wizard steps */
+  .wizard-section { @apply bg-muted rounded-lg sm:rounded-xl p-4 sm:p-6 border-2 border-border shadow-sm transition-all; }
+  .wizard-section--complete { @apply bg-green-50 border-green-300; }
+
+  /* Clickable/selectable tiles (like template cards) */
+  .select-card { @apply relative cursor-pointer rounded-lg border-2 border-border bg-muted p-3 sm:p-4 transition-all hover:shadow-md; }
+  .select-card--selected { @apply bg-green-50 border-green-300 shadow-lg; }
+}
+
+

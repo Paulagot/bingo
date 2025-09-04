@@ -3,8 +3,9 @@ import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Clock, Trophy, Zap, Plus, CheckCircle, Brain } from 'lucide-react';
 import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
 import type { RoundTypeId, RoundConfig } from '../types/quiz';
-// ✅ FIXED: Import from the correct constants file
 import { roundTypeDefaults, roundTypeMap } from '../constants/quiztypeconstants';
+import ClearSetupButton from './ClearSetupButton';
+import type { WizardStepProps } from './WizardStepProps';
 
 interface QuizTemplate {
   id: string;
@@ -17,33 +18,26 @@ interface QuizTemplate {
     type: string;
     category: string;
     difficulty: string;
-    customConfig?: Partial<RoundConfig>; // ✅ Allow custom overrides
+    customConfig?: Partial<RoundConfig>;
   }>;
   tags: string[];
 }
 
-// ✅ FIXED: Calculate duration using actual round configurations with 2.5x multiplier
+// duration helper
 const calculateDuration = (rounds: any[]) => {
   const baseTime = rounds.reduce((total, round) => {
     const roundConfig = roundTypeDefaults[round.type as RoundTypeId];
     if (roundConfig) {
-      // Use custom config if provided, otherwise use defaults
       const questionsPerRound = round.customConfig?.questionsPerRound || roundConfig.questionsPerRound || 6;
       const timePerQuestion = round.customConfig?.timePerQuestion || roundConfig.timePerQuestion || 25;
-      
-      // Calculate time: (questions × timePerQuestion) × 2.5 ÷ 60 (convert to minutes)
       const roundTimeSeconds = questionsPerRound * timePerQuestion * 2.5;
-      const roundTimeMinutes = roundTimeSeconds / 60;
-      return total + roundTimeMinutes;
+      return total + roundTimeSeconds / 60;
     }
-    // Fallback if round type not found (should never happen)
     return total + (round.type === 'general_trivia' ? 10.5 : 11.2);
   }, 0);
-  
-  // Add 15min break after every 3 rounds (but not at the end)
+
   const breakCount = Math.floor((rounds.length - 1) / 3);
   const breakTime = breakCount * 15;
-  
   return Math.round(baseTime + breakTime);
 };
 
@@ -54,22 +48,22 @@ const quizTemplates: QuizTemplate[] = [
     description: 'Quick 4-question demo to try out the platform.',
     icon: '🚀',
     difficulty: 'Easy',
-    duration: 5, // Will be calculated dynamically
+    duration: 5,
     rounds: [
-      { 
-        type: 'wipeout', 
-        category: 'General Knowledge', 
-        difficulty: 'medium', 
-        customConfig: { 
+      {
+        type: 'wipeout',
+        category: 'General Knowledge',
+        difficulty: 'medium',
+        customConfig: {
           questionsPerRound: 4,
           timePerQuestion: 20,
           pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
           pointsLostPerWrong: 2,
-          pointslostperunanswered: 3
-        } 
-      }
+           pointsLostPerUnanswered: 3,
+        },
+      },
     ],
-    tags: ['Demo', 'Quick Start', 'Try It Out']
+    tags: ['Demo', 'Quick Start', 'Try It Out'],
   },
   {
     id: 'family-night',
@@ -77,16 +71,16 @@ const quizTemplates: QuizTemplate[] = [
     description: 'Balanced, family-friendly, light risk.',
     icon: '👨‍👩‍👧‍👦',
     difficulty: 'Easy',
-    duration: 64, // Will be calculated dynamically
+    duration: 64,
     rounds: [
       { type: 'general_trivia', category: 'Family', difficulty: 'easy' },
       { type: 'general_trivia', category: 'General Knowledge', difficulty: 'medium' },
       { type: 'wipeout', category: 'Pop Culture', difficulty: 'easy' },
       { type: 'general_trivia', category: 'Sport', difficulty: 'medium' },
       { type: 'general_trivia', category: 'History', difficulty: 'medium' },
-      { type: 'general_trivia', category: 'Family', difficulty: 'medium' }
+      { type: 'general_trivia', category: 'Family', difficulty: 'medium' },
     ],
-    tags: ['Family-Friendly', 'Beginner', 'Mixed Topics']
+    tags: ['Family-Friendly', 'Beginner', 'Mixed Topics'],
   },
   {
     id: 'pub-classic',
@@ -94,7 +88,7 @@ const quizTemplates: QuizTemplate[] = [
     description: 'The traditional all-rounder.',
     icon: '🍺',
     difficulty: 'Medium',
-    duration: 75, // Will be calculated dynamically
+    duration: 75,
     rounds: [
       { type: 'general_trivia', category: 'General Knowledge', difficulty: 'medium' },
       { type: 'general_trivia', category: 'History', difficulty: 'medium' },
@@ -102,9 +96,9 @@ const quizTemplates: QuizTemplate[] = [
       { type: 'general_trivia', category: 'Pop Culture', difficulty: 'medium' },
       { type: 'general_trivia', category: 'Science', difficulty: 'medium' },
       { type: 'wipeout', category: 'General Knowledge', difficulty: 'easy' },
-      { type: 'general_trivia', category: 'General Knowledge', difficulty: 'hard' }
+      { type: 'general_trivia', category: 'General Knowledge', difficulty: 'hard' },
     ],
-    tags: ['Traditional', 'Balanced', 'All Topics']
+    tags: ['Traditional', 'Balanced', 'All Topics'],
   },
   {
     id: 'brains-bants',
@@ -112,16 +106,16 @@ const quizTemplates: QuizTemplate[] = [
     description: 'Clever mix with a little spice.',
     icon: '🧠',
     difficulty: 'Hard',
-    duration: 64, // Will be calculated dynamically
+    duration: 64,
     rounds: [
       { type: 'general_trivia', category: 'Science', difficulty: 'medium' },
       { type: 'general_trivia', category: 'History', difficulty: 'hard' },
       { type: 'wipeout', category: 'Pop Culture', difficulty: 'medium' },
       { type: 'general_trivia', category: 'General Knowledge', difficulty: 'medium' },
       { type: 'wipeout', category: 'Science', difficulty: 'medium' },
-      { type: 'general_trivia', category: 'Pop Culture', difficulty: 'hard' }
+      { type: 'general_trivia', category: 'Pop Culture', difficulty: 'hard' },
     ],
-    tags: ['Challenging', 'Intellectual', 'Science Focus']
+    tags: ['Challenging', 'Intellectual', 'Science Focus'],
   },
   {
     id: 'sports-showdown',
@@ -129,16 +123,16 @@ const quizTemplates: QuizTemplate[] = [
     description: 'Sport-centric with a movie/TV crossover.',
     icon: '⚽',
     difficulty: 'Medium',
-    duration: 64, // Will be calculated dynamically
+    duration: 64,
     rounds: [
       { type: 'general_trivia', category: 'Sport', difficulty: 'easy' },
       { type: 'wipeout', category: 'Sport', difficulty: 'medium' },
       { type: 'general_trivia', category: 'Pop Culture', difficulty: 'medium' },
       { type: 'general_trivia', category: 'Sport', difficulty: 'medium' },
       { type: 'wipeout', category: 'Sport', difficulty: 'hard' },
-      { type: 'general_trivia', category: 'General Knowledge', difficulty: 'medium' }
+      { type: 'general_trivia', category: 'General Knowledge', difficulty: 'medium' },
     ],
-    tags: ['Sports Focus', 'Entertainment', 'Active']
+    tags: ['Sports Focus', 'Entertainment', 'Active'],
   },
   {
     id: 'future-shock',
@@ -146,16 +140,16 @@ const quizTemplates: QuizTemplate[] = [
     description: 'Web3/Blockchain + Science, still approachable.',
     icon: '🚀',
     difficulty: 'Medium',
-    duration: 64, // Will be calculated dynamically
+    duration: 64,
     rounds: [
       { type: 'general_trivia', category: 'Web3', difficulty: 'easy' },
       { type: 'general_trivia', category: 'Science', difficulty: 'medium' },
       { type: 'wipeout', category: 'Blockchain', difficulty: 'medium' },
       { type: 'general_trivia', category: 'General Knowledge', difficulty: 'medium' },
       { type: 'wipeout', category: 'Web3', difficulty: 'medium' },
-      { type: 'general_trivia', category: 'Pop Culture', difficulty: 'medium' }
+      { type: 'general_trivia', category: 'Pop Culture', difficulty: 'medium' },
     ],
-    tags: ['Tech Focus', 'Modern', 'Innovation']
+    tags: ['Tech Focus', 'Modern', 'Innovation'],
   },
   {
     id: 'time-travelers',
@@ -163,232 +157,213 @@ const quizTemplates: QuizTemplate[] = [
     description: 'History-led with GK anchors.',
     icon: '⏰',
     difficulty: 'Medium',
-    duration: 64, // Will be calculated dynamically
+    duration: 64,
     rounds: [
       { type: 'general_trivia', category: 'History', difficulty: 'easy' },
       { type: 'general_trivia', category: 'General Knowledge', difficulty: 'medium' },
       { type: 'wipeout', category: 'History', difficulty: 'medium' },
       { type: 'general_trivia', category: 'Science', difficulty: 'medium' },
       { type: 'general_trivia', category: 'History', difficulty: 'hard' },
-      { type: 'wipeout', category: 'General Knowledge', difficulty: 'easy' }
+      { type: 'wipeout', category: 'General Knowledge', difficulty: 'easy' },
     ],
-    tags: ['History Focus', 'Educational', 'Timeless']
-  }
+    tags: ['History Focus', 'Educational', 'Timeless'],
+  },
 ];
 
 const Character = ({ message }: { message: string }) => {
   const getBubbleColor = (): string => {
-    if (message.includes('Perfect!') || message.includes('🎉')) {
-      return 'bg-green-50 border-green-200';
-    }
-    if (message.includes('Excellent!') || message.includes('choice!')) {
-      return 'bg-blue-50 border-blue-200';
-    }
-    if (message.includes('ready') || message.includes('configured')) {
-      return 'bg-indigo-50 border-indigo-200';
-    }
-    if (message.includes('build')) {
-      return 'bg-orange-50 border-orange-200';
-    }
-    return 'bg-gray-50 border-gray-200';
+    if (message.includes('Perfect!') || message.includes('🎉')) return 'bg-green-50 border-green-200';
+    if (message.includes('Excellent!') || message.includes('choice!')) return 'bg-blue-50 border-blue-200';
+    if (message.includes('ready') || message.includes('configured')) return 'bg-indigo-50 border-indigo-200';
+    if (message.includes('build')) return 'bg-orange-50 border-orange-200';
+    return 'bg-muted border-border';
   };
 
   return (
-    <div className="flex items-center gap-2 sm:gap-4 mb-3 sm:mb-6">
-      {/* Character Image Placeholder */}
-      <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gray-200 border-2 border-gray-300 flex items-center justify-center flex-shrink-0 overflow-hidden">
-        {/* TODO: Replace with actual character image */}
-        <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-300 flex items-center justify-center">
-          <span className="text-gray-500 text-xs sm:text-sm font-medium">IMG</span>
+    <div className="mb-3 flex items-center gap-2 sm:mb-6 sm:gap-4">
+      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-border bg-muted sm:h-16 sm:w-16">
+        <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-gray-100 to-gray-300">
+          <span className="text-fg/60 text-xs font-medium sm:text-sm">IMG</span>
         </div>
       </div>
-      <div className={`relative rounded-lg sm:rounded-2xl p-2 sm:p-4 shadow-lg border flex-1 ${getBubbleColor()}`}>
-        <p className="text-gray-700 text-xs sm:text-sm leading-tight sm:leading-normal">{message}</p>
+      <div className={`relative flex-1 rounded-lg border p-2 shadow-lg sm:rounded-2xl sm:p-4 ${getBubbleColor()}`}>
+        <p className="text-fg/80 text-xs leading-tight sm:text-sm sm:leading-normal">{message}</p>
       </div>
     </div>
   );
 };
 
-interface StepQuizTemplatesProps {
-  onNext: () => void;
-  onBack: () => void;
-}
 
-const StepQuizTemplates: React.FC<StepQuizTemplatesProps> = ({ onNext, onBack }) => {
-  const { updateSetupConfig } = useQuizSetupStore();
-  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+
+const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst }) => {
+  // ✅ Use store for persistence
+  const { setupConfig, setTemplate, updateSetupConfig, flow } = useQuizSetupStore();
+
+  // purely UI state can remain local
   const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null);
 
-  // ✅ FIXED: Get round type info using actual configurations with 2.5x multiplier
+  const selectedTemplate = setupConfig.selectedTemplate ?? null;
+
   const getRoundTypeInfo = (type: string, customConfig?: any) => {
     const roundType = roundTypeMap[type as RoundTypeId];
     const config = roundTypeDefaults[type as RoundTypeId];
-    
+
     if (roundType && config) {
-      // Use custom config if provided, otherwise use defaults
       const questionsPerRound = customConfig?.questionsPerRound || config.questionsPerRound || 6;
       const timePerQuestion = customConfig?.timePerQuestion || config.timePerQuestion || 25;
-      
-      // Calculate actual time: (questions × timePerQuestion) × 2.5 ÷ 60 (convert to minutes)
       const roundTimeSeconds = questionsPerRound * timePerQuestion * 2.5;
       const timeInMinutes = roundTimeSeconds / 60;
-      
+
       return {
         icon: type === 'general_trivia' ? '🧠' : type === 'wipeout' ? '⚡' : '❓',
         name: roundType.name,
-        time: Math.round(timeInMinutes * 10) / 10, // Round to 1 decimal
-        questionsCount: questionsPerRound
+        time: Math.round(timeInMinutes * 10) / 10,
+        questionsCount: questionsPerRound,
       };
     }
-    
-    // Fallback
-    return { 
-      icon: '❓', 
-      name: 'Unknown', 
-      time: 10,
-      questionsCount: 6
-    };
+    return { icon: '❓', name: 'Unknown', time: 10, questionsCount: 6 };
   };
 
-  // Calculate breaks in the round sequence
   const getBreakPositions = (roundCount: number) => {
     const breaks = [];
-    for (let i = 3; i < roundCount; i += 3) {
-      breaks.push(i); // After round 3, 6, 9, etc.
-    }
+    for (let i = 3; i < roundCount; i += 3) breaks.push(i);
     return breaks;
   };
 
   const handleTemplateSelect = (templateId: string) => {
-  setSelectedTemplate(templateId);
-  
-  const template = quizTemplates.find(t => t.id === templateId);
-  if (template) {
+    // ✅ Persist template choice + skip flags in store
+    setTemplate(templateId);
+
+    const template = quizTemplates.find((t) => t.id === templateId);
+    if (!template) return;
+
+    // Build round definitions
     const roundDefinitions = template.rounds.map((round, index) => ({
       roundNumber: index + 1,
       roundType: round.type as RoundTypeId,
       category: round.category,
       difficulty: round.difficulty as 'easy' | 'medium' | 'hard',
-      config: templateId === 'demo-quiz' ? {
-        questionsPerRound: 4,
-        timePerQuestion: 20,
-        pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
-        pointsLostPerWrong: 2,
-        pointslostperunanswered: 3
-      } : {
-        ...roundTypeDefaults[round.type as RoundTypeId],
-        ...round.customConfig
-      },
-      enabledExtras: {}
+      config:
+        templateId === 'demo-quiz'
+          ? {
+              questionsPerRound: 4,
+              timePerQuestion: 20,
+              pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
+              pointsLostPerWrong: 2,
+              pointsLostPerUnanswered: 3,
+            }
+          : {
+              ...roundTypeDefaults[round.type as RoundTypeId],
+              ...round.customConfig,
+            },
+      enabledExtras: {},
     }));
-    
-    updateSetupConfig({ 
-      roundDefinitions,
-      selectedTemplate: templateId,
-      isCustomQuiz: false,
-      skipRoundConfiguration: true
-    });
-  }
-};
+
+    // ✅ Only update config that belongs here (rounds)
+     updateSetupConfig({
+roundDefinitions,
+skipRoundConfiguration: templateId !== 'custom', // <-- important
+});
+  };
 
   const handleCustomSelect = () => {
-    setSelectedTemplate('custom');
-    updateSetupConfig({ 
-      roundDefinitions: [], // Empty - user builds from scratch
-      selectedTemplate: 'custom',
-      isCustomQuiz: true,
-      skipRoundConfiguration: false // Custom quiz needs configuration step
-    });
+    setTemplate('custom');
+    updateSetupConfig({
+roundDefinitions: [],
+ skipRoundConfiguration: false, // <-- do NOT skip combined rounds
+});
   };
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
-      case 'Easy': return 'bg-green-100 text-green-800 border-green-200';
-      case 'Medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'Hard': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'Easy':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'Medium':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'Hard':
+        return 'bg-red-100 text-red-800 border-red-200';
+      default:
+        return 'bg-muted text-fg border-border';
     }
   };
 
   const getCurrentMessage = () => {
-    if (!selectedTemplate) {
-      return "Choose a ready-made quiz to get started quickly, or build your own custom quiz from scratch!";
-    }
-    if (selectedTemplate === 'custom') {
-      return "Perfect! You'll be able to build your quiz exactly how you want it.";
-    }
-    const template = quizTemplates.find(t => t.id === selectedTemplate);
+    if (!selectedTemplate) return 'Choose a ready-made quiz to get started quickly, or build your own custom quiz from scratch!';
+    if (selectedTemplate === 'custom') return "Perfect! You'll be able to build your quiz exactly how you want it.";
+    const template = quizTemplates.find((t) => t.id === selectedTemplate);
     return `Excellent choice! "${template?.name}" is ready to go. Just a few more steps!`;
   };
 
   return (
-    <div className="w-full px-2 sm:px-4 space-y-3 sm:space-y-6 pb-4">
+    <div className="w-full space-y-3 px-2 pb-4 sm:space-y-6 sm:px-4">
       {/* Header */}
       <div className="px-1">
-        <h2 className="text-base sm:text-xl font-semibold text-indigo-800">Step 2 of 4: Select Quiz</h2>
-        <div className="text-xs sm:text-sm text-gray-600 mt-0.5">Choose any one of the preconfigured quiz nights or custom build your own</div>
+        <h2 className="heading-2">Step 2 of 4: Select Quiz</h2>
+        <div className="text-fg/70 mt-0.5 text-xs sm:text-sm">
+          Choose any one of the preconfigured quiz nights or custom build your own
+        </div>
       </div>
 
       <Character message={getCurrentMessage()} />
 
       {/* Template Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
         {quizTemplates.map((template) => (
           <div
             key={template.id}
             onClick={() => handleTemplateSelect(template.id)}
-            className={`relative border rounded-lg p-3 sm:p-4 cursor-pointer transition-all hover:shadow-md ${
-              selectedTemplate === template.id
-                ? 'border-indigo-500 bg-indigo-50 shadow-lg'
-                : 'border-gray-200 bg-white hover:border-indigo-300'
-            }`}
+            className={`select-card ${selectedTemplate === template.id ? 'select-card--selected' : ''}`}
           >
             {/* Selection indicator */}
             {selectedTemplate === template.id && (
-              <div className="absolute top-2 right-2">
-                <CheckCircle className="w-5 h-5 text-indigo-600" />
+              <div className="absolute right-2 top-2">
+                <CheckCircle className="h-5 w-5 text-green-600" />
               </div>
             )}
 
             {/* Template header */}
-            <div className="flex items-start gap-3 mb-3">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center text-lg sm:text-xl flex-shrink-0">
+            <div className="mb-3 flex items-start gap-3">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 text-lg sm:h-12 sm:w-12 sm:text-xl">
                 {template.icon}
               </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-gray-900 text-sm sm:text-base mb-1">{template.name}</h3>
-                <p className="text-xs sm:text-sm text-gray-600 leading-tight">{template.description}</p>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-fg mb-1 text-sm font-semibold sm:text-base">{template.name}</h3>
+                <p className="text-fg/70 text-xs leading-tight sm:text-sm">{template.description}</p>
               </div>
             </div>
 
             {/* Template stats */}
-            <div className="grid grid-cols-2 gap-2 mb-3">
+            <div className="mb-3 grid grid-cols-2 gap-2">
               <div className="flex items-center gap-1.5">
-                <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-indigo-600" />
-                <span className="text-xs sm:text-sm text-gray-700">{calculateDuration(template.rounds)}min</span>
+                <Clock className="h-3 w-3 text-indigo-600 sm:h-4 sm:w-4" />
+                <span className="text-fg/80 text-xs sm:text-sm">{calculateDuration(template.rounds)}min</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <Trophy className="w-3 h-3 sm:w-4 sm:h-4 text-purple-600" />
-                <span className="text-xs sm:text-sm text-gray-700">{template.rounds.length} rounds</span>
+                <Trophy className="h-3 w-3 text-purple-600 sm:h-4 sm:w-4" />
+                <span className="text-fg/80 text-xs sm:text-sm">{template.rounds.length} rounds</span>
               </div>
             </div>
 
             {/* Difficulty badge */}
             <div className="mb-3">
-              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getDifficultyColor(template.difficulty)}`}>
+              <span
+                className={`inline-flex items-center rounded-full border px-2 py-1 text-xs font-medium ${getDifficultyColor(
+                  template.difficulty
+                )}`}
+              >
                 {template.difficulty}
               </span>
             </div>
 
             {/* Tags */}
-            <div className="flex flex-wrap gap-1 mb-3">
+            <div className="mb-3 flex flex-wrap gap-1">
               {template.tags.slice(0, 2).map((tag) => (
-                <span key={tag} className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
+                <span key={tag} className="text-fg/80 rounded bg-muted px-2 py-0.5 text-xs">
                   {tag}
                 </span>
               ))}
               {template.tags.length > 2 && (
-                <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
+                <span className="text-fg/80 rounded bg-muted px-2 py-0.5 text-xs">
                   +{template.tags.length - 2} more
                 </span>
               )}
@@ -397,69 +372,81 @@ const StepQuizTemplates: React.FC<StepQuizTemplatesProps> = ({ onNext, onBack })
             {/* Round preview - Expandable */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <div className="text-xs font-medium text-gray-700">Quiz Structure:</div>
+                <div className="text-fg/80 text-xs font-medium">Quiz Structure:</div>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     setExpandedTemplate(expandedTemplate === template.id ? null : template.id);
                   }}
-                  className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                  className="text-xs font-medium text-indigo-600 hover:text-indigo-800"
                 >
                   {expandedTemplate === template.id ? 'Show Less' : 'View All Rounds'}
                 </button>
               </div>
-              
+
               {expandedTemplate === template.id ? (
                 // Full round structure with breaks
-                <div className="space-y-1 max-h-64 overflow-y-auto">
+                <div className="max-h-64 space-y-1 overflow-y-auto">
                   {template.rounds.map((round, index) => {
                     const roundInfo = getRoundTypeInfo(round.type, round.customConfig);
                     const breakPositions = getBreakPositions(template.rounds.length);
                     const showBreakAfter = breakPositions.includes(index + 1);
-                    
+
                     return (
                       <div key={index}>
-                        <div className="flex items-center gap-2 text-xs p-2 bg-gray-50 rounded">
-                          <span className="w-5 h-5 rounded bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-700">
+                        <div className="flex items-center gap-2 rounded bg-muted p-2 text-xs">
+                          <span className="flex h-5 w-5 items-center justify-center rounded bg-indigo-100 text-xs font-bold text-indigo-700">
                             {index + 1}
                           </span>
                           <span className="text-lg">{roundInfo.icon}</span>
                           <div className="flex-1">
-                            <div className="font-medium text-gray-800">{round.category}</div>
-                            <div className="text-gray-600">{roundInfo.name} • {round.difficulty} • {roundInfo.questionsCount}Q • ~{roundInfo.time}min</div>
+                            <div className="text-fg font-medium">{round.category}</div>
+                            <div className="text-fg/70">
+                              {roundInfo.name} • {round.difficulty} • {roundInfo.questionsCount}Q • ~{roundInfo.time}min
+                            </div>
                           </div>
-                          <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${getDifficultyColor(round.difficulty.charAt(0).toUpperCase() + round.difficulty.slice(1))}`}>
+                          <span
+                            className={`rounded px-1.5 py-0.5 text-xs font-medium ${getDifficultyColor(
+                              round.difficulty.charAt(0).toUpperCase() + round.difficulty.slice(1)
+                            )}`}
+                          >
                             {round.difficulty}
                           </span>
                         </div>
-                        
+
                         {showBreakAfter && (
-                          <div className="flex items-center gap-2 my-2 py-2 px-3 bg-orange-50 rounded border border-orange-200">
-                            <div className="w-5 h-5 rounded bg-orange-200 flex items-center justify-center">
-                              ☕
-                            </div>
-                            <span className="text-xs font-medium text-orange-800">15 minute break</span>
-                            <span className="text-xs text-orange-600 ml-auto">Rest & refresh</span>
+                          <div className="my-2 flex items-center gap-2 rounded border border-border bg-muted px-3 py-2">
+                            <div className="flex h-5 w-5 items-center justify-center rounded bg-orange-200">☕</div>
+                            <span className="text-xs font-medium text-fg/80">15 minute break</span>
+                            <span className="ml-auto text-xs text-fg/60">Rest & refresh</span>
                           </div>
                         )}
                       </div>
                     );
                   })}
-                  
+
                   {/* Total time breakdown */}
-                  <div className="mt-3 p-2 bg-indigo-50 rounded border border-indigo-200">
-                    <div className="text-xs font-medium text-indigo-900 mb-1">Time Breakdown:</div>
+                  <div className="mt-3 rounded border border-border bg-muted p-2">
+                    <div className="mb-1 text-xs font-medium text-fg">Time Breakdown:</div>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
-                        <span className="text-indigo-700">Quiz time: </span>
-                        <span className="font-medium">{Math.round(template.rounds.reduce((total, round) => total + getRoundTypeInfo(round.type, round.customConfig).time, 0))}min</span>
+                        <span className="text-fg/80">Quiz time: </span>
+                        <span className="font-medium">
+                          {Math.round(
+                            template.rounds.reduce(
+                              (total, round) => total + getRoundTypeInfo(round.type, round.customConfig).time,
+                              0
+                            )
+                          )}
+                          min
+                        </span>
                       </div>
                       <div>
-                        <span className="text-indigo-700">Breaks: </span>
+                        <span className="text-fg/80">Breaks: </span>
                         <span className="font-medium">{getBreakPositions(template.rounds.length).length * 15}min</span>
                       </div>
                     </div>
-                    <div className="text-xs font-bold text-indigo-800 mt-1 pt-1 border-t border-indigo-200">
+                    <div className="mt-1 border-t border-border pt-1 text-xs font-bold text-fg">
                       Total: {calculateDuration(template.rounds)} minutes
                     </div>
                   </div>
@@ -471,25 +458,24 @@ const StepQuizTemplates: React.FC<StepQuizTemplatesProps> = ({ onNext, onBack })
                     const roundInfo = getRoundTypeInfo(round.type, round.customConfig);
                     return (
                       <div key={index} className="flex items-center gap-2 text-xs">
-                        <span className="w-4 h-4 rounded bg-gray-200 flex items-center justify-center text-xs font-medium">
+                        <span className="flex h-4 w-4 items-center justify-center rounded bg-muted text-xs font-medium">
                           {index + 1}
                         </span>
                         <span>{roundInfo.icon}</span>
-                        <span className="text-gray-600">
+                        <span className="text-fg/70">
                           {round.category} ({round.difficulty})
-                          {round.customConfig?.questionsPerRound && 
-                            ` • ${round.customConfig.questionsPerRound}Q`
-                          }
+                          {round.customConfig?.questionsPerRound && ` • ${round.customConfig.questionsPerRound}Q`}
                         </span>
                       </div>
                     );
                   })}
                   {template.rounds.length > 3 && (
-                    <div className="text-xs text-gray-500 pl-6">
+                    <div className="text-fg/60 pl-6 text-xs">
                       +{template.rounds.length - 3} more rounds
-                      {getBreakPositions(template.rounds.length).length > 0 && 
-                        ` • ${getBreakPositions(template.rounds.length).length} break${getBreakPositions(template.rounds.length).length > 1 ? 's' : ''}`
-                      }
+                      {getBreakPositions(template.rounds.length).length > 0 &&
+                        ` • ${getBreakPositions(template.rounds.length).length} break${
+                          getBreakPositions(template.rounds.length).length > 1 ? 's' : ''
+                        }`}
                     </div>
                   )}
                 </div>
@@ -501,49 +487,44 @@ const StepQuizTemplates: React.FC<StepQuizTemplatesProps> = ({ onNext, onBack })
         {/* Custom Quiz Option */}
         <div
           onClick={handleCustomSelect}
-          className={`relative border rounded-lg p-3 sm:p-4 cursor-pointer transition-all hover:shadow-md ${
-            selectedTemplate === 'custom'
-              ? 'border-indigo-500 bg-indigo-50 shadow-lg'
-              : 'border-gray-200 bg-white hover:border-indigo-300'
-          }`}
+          className={`select-card ${selectedTemplate === 'custom' ? 'select-card--selected' : ''}`}
         >
-          {/* Selection indicator */}
           {selectedTemplate === 'custom' && (
-            <div className="absolute top-2 right-2">
-              <CheckCircle className="w-5 h-5 text-indigo-600" />
+            <div className="absolute right-2 top-2">
+              <CheckCircle className="h-5 w-5 text-green-600" />
             </div>
           )}
 
           {/* Custom header */}
-          <div className="flex items-start gap-3 mb-3">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br from-orange-100 to-pink-100 flex items-center justify-center text-lg sm:text-xl flex-shrink-0">
+          <div className="mb-3 flex items-start gap-3">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-orange-100 to-pink-100 text-lg sm:h-12 sm:w-12 sm:text-xl">
               🎨
             </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-gray-900 text-sm sm:text-base mb-1">Custom Quiz</h3>
-              <p className="text-xs sm:text-sm text-gray-600 leading-tight">Build your own quiz from scratch with full control</p>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-fg mb-1 text-sm font-semibold sm:text-base">Custom Quiz</h3>
+              <p className="text-fg/70 text-xs leading-tight sm:text-sm">Build your own quiz from scratch with full control</p>
             </div>
           </div>
 
           {/* Custom features */}
           <div className="space-y-2">
-            <div className="flex items-center gap-1.5 text-xs sm:text-sm text-gray-700">
-              <Plus className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
+            <div className="text-fg/80 flex items-center gap-1.5 text-xs sm:text-sm">
+              <Plus className="h-3 w-3 text-green-600 sm:h-4 sm:w-4" />
               <span>Add any number of rounds</span>
             </div>
-            <div className="flex items-center gap-1.5 text-xs sm:text-sm text-gray-700">
-              <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-600" />
+            <div className="text-fg/80 flex items-center gap-1.5 text-xs sm:text-sm">
+              <Zap className="h-3 w-3 text-yellow-600 sm:h-4 sm:w-4" />
               <span>Choose categories & difficulties</span>
             </div>
-            <div className="flex items-center gap-1.5 text-xs sm:text-sm text-gray-700">
-              <Brain className="w-3 h-3 sm:w-4 sm:h-4 text-purple-600" />
+            <div className="text-fg/80 flex items-center gap-1.5 text-xs sm:text-sm">
+              <Brain className="h-3 w-3 text-purple-600 sm:h-4 sm:w-4" />
               <span>Mix different round types</span>
             </div>
           </div>
 
           {/* Perfect for badge */}
           <div className="mt-3">
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200">
+            <span className="inline-flex items-center rounded-full border border-orange-200 bg-orange-100 px-2 py-1 text-xs font-medium text-orange-800">
               Perfect for experts
             </span>
           </div>
@@ -551,9 +532,9 @@ const StepQuizTemplates: React.FC<StepQuizTemplatesProps> = ({ onNext, onBack })
       </div>
 
       {/* Help section */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
-        <h4 className="font-medium text-blue-900 mb-2 text-sm sm:text-base">💡 Quick Guide</h4>
-        <ul className="text-xs sm:text-sm text-blue-800 space-y-1">
+      <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 sm:p-4">
+        <h4 className="mb-2 text-sm font-medium text-blue-900 sm:text-base">💡 Quick Guide</h4>
+        <ul className="space-y-1 text-xs text-blue-800 sm:text-sm">
           <li>• <strong>Preconfigured Quizzes</strong> are ready to play immediately</li>
           <li>• <strong>Custom Quiz</strong> lets you build your own rounds step-by-step</li>
           <li>• All times include 15-minute breaks after every 3 rounds</li>
@@ -561,25 +542,28 @@ const StepQuizTemplates: React.FC<StepQuizTemplatesProps> = ({ onNext, onBack })
       </div>
 
       {/* Navigation */}
-      <div className="flex justify-between pt-4 border-t border-gray-200">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors text-sm sm:text-base"
-        >
-          <ChevronLeft className="w-4 h-4" />
+      <div className="border-border flex justify-between border-t pt-4">
+        <button onClick={onBack} className="btn-muted">
+          <ChevronLeft className="h-4 w-4" />
           <span>Back</span>
+         
         </button>
+ <ClearSetupButton
+  label="Start Over"
+  variant="ghost"
+  size="sm"
+  keepIds={false}
+  flow={flow ?? (setupConfig.paymentMethod === 'web3' ? 'web3' : 'web2')}
+  onCleared={onResetToFirst}
+/>
+
         <button
           onClick={onNext}
           disabled={!selectedTemplate}
-          className={`flex items-center gap-2 px-4 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl transition-all duration-200 shadow-sm hover:shadow-md font-medium text-sm sm:text-base ${
-            selectedTemplate
-              ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
-              : 'bg-gray-400 text-white cursor-not-allowed'
-          }`}
+          className="btn-primary sm:rounded-xl sm:px-6 sm:py-3 sm:text-base"
         >
           <span>{selectedTemplate === 'custom' ? 'Configure Quiz' : 'Next'}</span>
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="h-4 w-4" />
         </button>
       </div>
     </div>
@@ -587,3 +571,4 @@ const StepQuizTemplates: React.FC<StepQuizTemplatesProps> = ({ onNext, onBack })
 };
 
 export default StepQuizTemplates;
+

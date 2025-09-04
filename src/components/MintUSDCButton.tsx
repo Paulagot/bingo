@@ -84,11 +84,11 @@ const MintUSDCButton = ({ chainId }: MintUSDCButtonProps) => {
         type="button"
         onClick={handleMint}
         disabled={isMinting || !isConnected}
-        className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 disabled:opacity-50"
+        className="rounded-xl bg-indigo-600 px-6 py-2 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
       >
         {isMinting ? 'Minting...' : 'Mint 100 USDC'}
       </button>
-      {status && <p className="text-sm mt-2 text-gray-600">{status}</p>}
+      {status && <p className="text-fg/70 mt-2 text-sm">{status}</p>}
     </div>
   );
 };

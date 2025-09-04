@@ -18,26 +18,26 @@ export function PitchDeckContent() {
   
   // The pitch deck content is embedded as an HTML file
   return (
-    <div className="h-screen flex flex-col">
-      <div className="flex-grow relative">
+    <div className="flex h-screen flex-col">
+      <div className="relative flex-grow">
         <iframe 
           src="/pitch-deck.html" 
-          className="w-full h-full border-0" 
+          className="h-full w-full border-0" 
           title="FundRaisely Pitch Deck"
        />
       </div>
       
-      <div className="p-4 flex justify-center space-x-4">
+      <div className="flex justify-center space-x-4 p-4">
         <button 
          type="button"
           onClick={handlePrevious}
           disabled={currentSlide === 0}
-          className="px-6 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          className="rounded-lg bg-indigo-600 px-6 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
           Previous
         </button>
         <div className="flex items-center">
-          <span className="text-gray-700">
+          <span className="text-fg/80">
             {currentSlide + 1} / {totalSlides}
           </span>
         </div>
@@ -45,7 +45,7 @@ export function PitchDeckContent() {
          type="button"
           onClick={handleNext}
           disabled={currentSlide === totalSlides - 1}
-          className="px-6 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          className="rounded-lg bg-indigo-600 px-6 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
           Next
         </button>

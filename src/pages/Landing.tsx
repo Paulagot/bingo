@@ -51,13 +51,13 @@ export function Landing() {
       <HeroSection />
       
       {/* Beta Program Invite Section - Reduced height with 2-row subtitle */}
-      <div className="container mx-auto px-4 max-w-6xl mt-4 mb-2">
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl overflow-hidden shadow-xl">
+      <div className="container mx-auto mb-2 mt-4 max-w-6xl px-4">
+        <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 shadow-xl">
           <div className="px-8 py-6 text-center">
-            <h2 className="text-3xl font-bold text-white mb-3">
+            <h2 className="mb-3 text-3xl font-bold text-white">
               Fundraising is Changing. Be Part of It.
             </h2>
-            <div className="text-white/80 max-w-2xl mx-auto mb-5 space-y-1">
+            <div className="mx-auto mb-5 max-w-2xl space-y-1 text-white/80">
               <p>We're inviting a small number of clubs, charities, and communities to join our early beta.</p>
               <p>Test our fundraising quiz platform with cash, card or bank payments — or join our blockchain pilot to help shape the future of compliant, blockchain-powered fundraising.</p>
             </div>
@@ -66,14 +66,14 @@ export function Landing() {
                 href="https://x.com/Fundraisely"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-white text-indigo-600 px-8 py-3 rounded-xl font-semibold shadow-md hover:bg-indigo-50 transition inline-block"
+                className="bg-muted inline-block rounded-xl px-8 py-3 font-semibold text-indigo-600 shadow-md transition hover:bg-indigo-50"
               >
                 DM us on Twitter
               </a>
               {/* Keep commented for testing */}
               {/* <a
                 href="mailto:beta@fundraisely.io"
-                className="bg-white text-indigo-600 px-8 py-3 rounded-xl font-semibold shadow-md hover:bg-indigo-50 transition inline-block"
+                className="bg-muted text-indigo-600 px-8 py-3 rounded-xl font-semibold shadow-md hover:bg-indigo-50 transition inline-block"
               >
                 Apply to Join Beta
               </a> */}

@@ -327,7 +327,7 @@ export function Game() {
   console.log('[Game] ↩️ Rendering component', { roomId, socketId: socket?.id });
 
   return (
-    <div className="container mx-auto px-4 py-20 min-h-screen bg-gradient-to-b from-indigo-50 to-white">
+    <div className="container mx-auto min-h-screen bg-gradient-to-b from-indigo-50 to-white px-4 py-20">
       <AnimatePresence>
         {showAccessError && (
           <GameAccessAlert
@@ -346,10 +346,10 @@ export function Game() {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3, ease: 'easeOut' }}
-          className="bg-indigo-100 rounded-xl p-6 mb-8 text-center text-indigo-900 shadow-md"
+          className="mb-8 rounded-xl bg-indigo-100 p-6 text-center text-indigo-900 shadow-md"
         >
-          <h2 className="text-lg font-bold mb-2">🎯 Game Stats</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+          <h2 className="mb-2 text-lg font-bold">🎯 Game Stats</h2>
+          <div className="grid grid-cols-2 gap-4 text-sm md:grid-cols-3">
             <div>
               <p className="font-semibold">Players</p>
               <p>
@@ -377,7 +377,7 @@ export function Game() {
       )}
 
       {isRoomFull && (
-        <div className="bg-red-100 border border-red-300 text-red-800 rounded-xl p-4 mb-6 text-center shadow-md">
+        <div className="mb-6 rounded-xl border border-red-300 bg-red-100 p-4 text-center text-red-800 shadow-md">
           🚨 Room Full! No more players can join this event.
         </div>
       )}
@@ -389,8 +389,8 @@ export function Game() {
       />
 
       {/* 🎯 Main Game Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8">
-        <div className="lg:col-span-3 space-y-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-4 lg:gap-8">
+        <div className="space-y-6 lg:col-span-3">
           {!gameStarted ? (
             <GameLoader isHost={isHost} />
           ) : (
@@ -435,7 +435,7 @@ export function Game() {
 
       {/* 🛑 Game Over Screen */}
       {showGameOver && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4">
           <GameOverScreen
             lineWinners={lineWinners}
             fullHouseWinners={fullHouseWinners}

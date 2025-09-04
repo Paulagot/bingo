@@ -125,14 +125,14 @@ if (currentNetwork?.namespace === 'solana') {
   const isTestnetWithUSDC = selectedChain && TESTNET_CHAIN_IDS.includes(selectedChain) && !!chainInfo[selectedChain]?.usdcAddress;
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl overflow-hidden transform transition hover:shadow-2xl hover:-translate-y-1">
+    <div className="bg-muted transform overflow-hidden rounded-2xl shadow-xl transition hover:-translate-y-1 hover:shadow-2xl">
       <div className="h-2 bg-gradient-to-r from-indigo-500 to-purple-500" />
       <div className="p-8">
-        <div className="flex items-center justify-center w-16 h-16 bg-indigo-100 rounded-full mb-6 mx-auto">
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-indigo-100">
           <Dices className="h-8 w-8 text-indigo-600" />
         </div>
 
-        <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">Create Bingo Event</h2>
+        <h2 className="text-fg mb-6 text-center text-2xl font-bold">Create Bingo Event</h2>
 
         <div className="space-y-4">
           {!isConnected ? (
@@ -140,15 +140,15 @@ if (currentNetwork?.namespace === 'solana') {
               <button
                 type="button"
                 onClick={() => open({ view: 'Connect', namespace: currentNetwork?.namespace || 'eip155' })}
-                className="py-2 px-4 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition"
+                className="rounded-xl bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-700"
               >
                 Connect Wallet
               </button>
-              <p className="text-sm text-red-500 mt-2">Wallet required to create an event</p>
+              <p className="mt-2 text-sm text-red-500">Wallet required to create an event</p>
             </div>
           ) : (
             <div className="text-center">
-              <span className="inline-block bg-green-100 text-green-800 text-sm px-3 py-1 rounded-full">
+              <span className="inline-block rounded-full bg-green-100 px-3 py-1 text-sm text-green-800">
                 ✅ Connected to {activeChainName}
               </span>
             </div>
@@ -160,7 +160,7 @@ if (currentNetwork?.namespace === 'solana') {
               value={createName}
               onChange={(e) => setCreateName(e.target.value)}
               placeholder="Enter your name"
-              className="w-full px-4 py-3 pl-10 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
+              className="border-border w-full rounded-xl border-2 px-4 py-3 pl-10 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
               maxLength={20}
             />
             <Users className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
@@ -172,7 +172,7 @@ if (currentNetwork?.namespace === 'solana') {
               value={entryFee}
               onChange={(e) => setEntryFee(e.target.value)}
               placeholder="Entry Fee (USDC)"
-              className="w-full px-4 py-3 pl-10 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
+              className="border-border w-full rounded-xl border-2 px-4 py-3 pl-10 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
               min="0"
               step="0.001"
             />
@@ -183,7 +183,7 @@ if (currentNetwork?.namespace === 'solana') {
             <select
               value={selectedChain}
               onChange={handleChainChange}
-              className="w-full px-4 py-3 pl-10 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"
+              className="border-border w-full rounded-xl border-2 px-4 py-3 pl-10 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
               aria-label="Select Blockchain Network"
             >
               <option value="">Select Chain</option>
@@ -195,7 +195,7 @@ if (currentNetwork?.namespace === 'solana') {
             </select>
             <Gamepad2 className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
             {solanaWarning && (
-              <p className="text-sm text-red-500 mt-2">Solana is not yet supported for room creation.</p>
+              <p className="mt-2 text-sm text-red-500">Solana is not yet supported for room creation.</p>
             )}
           </div>
 
@@ -203,23 +203,23 @@ if (currentNetwork?.namespace === 'solana') {
             type="button"
             onClick={() => setShowConfirmModal(true)}
             disabled={isGenerating || !formReady}
-            className="w-full py-4 px-6 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold
-                       hover:from-indigo-700 hover:to-purple-700 transform transition
-                       disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md"
+            className="flex w-full transform items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600
+                       to-purple-600 px-6 py-4 font-semibold
+                       text-white shadow-md transition hover:from-indigo-700 hover:to-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isGenerating ? (
-              <div className="w-6 h-6 border-4 border-white border-t-transparent rounded-full animate-spin" />
+              <div className="h-6 w-6 animate-spin rounded-full border-4 border-white border-t-transparent" />
             ) : (
               <>
                 Create Bingo Event
-                <ArrowRight className="w-5 h-5" />
+                <ArrowRight className="h-5 w-5" />
               </>
             )}
           </button>
 
           {isTestnetWithUSDC && <MintUSDCButton chainId={selectedChain} />}
 
-          <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+          <div className="text-fg/60 flex items-center justify-center gap-2 text-sm">
             <Info className="h-4 w-4" />
             <p>Free setup & Hosting- Just a few cent in transaction fees required</p>
           </div>

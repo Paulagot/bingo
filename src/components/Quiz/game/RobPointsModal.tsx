@@ -20,7 +20,7 @@
 
 //   return (
 //     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-//       <div className="bg-white p-6 rounded-xl shadow-lg w-80">
+//       <div className="bg-muted p-6 rounded-xl shadow-lg w-80">
 //         <h2 className="text-lg font-semibold mb-4">⚡ Rob Points</h2>
 //         <p className="text-sm mb-2">Select a player to rob 5 points from:</p>
 //         <ul className="space-y-2">
@@ -35,7 +35,7 @@
 //             </li>
 //           ))}
 //         </ul>
-//         <button onClick={onCancel} className="mt-4 text-sm text-gray-600 hover:underline">Cancel</button>
+//         <button onClick={onCancel} className="mt-4 text-sm text-fg/70 hover:underline">Cancel</button>
 //       </div>
 //     </div>
 //   );

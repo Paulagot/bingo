@@ -74,21 +74,21 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
   // Error state
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-red-50">
-        <div className="text-center max-w-md mx-auto p-6">
-          <div className="text-red-500 text-4xl mb-4">⚠️</div>
-          <h2 className="text-xl font-bold text-red-800 mb-2">Web3 Connection Failed</h2>
-          <p className="text-red-600 mb-4 text-sm">{error}</p>
+      <div className="flex min-h-screen items-center justify-center bg-red-50">
+        <div className="mx-auto max-w-md p-6 text-center">
+          <div className="mb-4 text-4xl text-red-500">⚠️</div>
+          <h2 className="mb-2 text-xl font-bold text-red-800">Web3 Connection Failed</h2>
+          <p className="mb-4 text-sm text-red-600">{error}</p>
           <div className="space-y-2">
             <button 
               onClick={() => window.location.reload()}
-              className="w-full bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+              className="w-full rounded bg-red-600 px-4 py-2 text-white hover:bg-red-700"
             >
               Retry Connection
             </button>
             <button 
               onClick={() => window.history.back()}
-              className="w-full bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
+              className="w-full rounded bg-gray-600 px-4 py-2 text-white hover:bg-gray-700"
             >
               Go Back
             </button>
@@ -101,12 +101,12 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
   // Loading state
   if (!isInitialized || !WagmiProviderComponent || !QueryClientProviderComponent) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-200 border-t-indigo-600 mx-auto mb-6"></div>
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">Connecting to Web3</h2>
-          <p className="text-gray-600 text-sm mb-4">Loading blockchain connectivity...</p>
-          <div className="text-xs text-gray-500">
+          <div className="mx-auto mb-6 h-16 w-16 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600"></div>
+          <h2 className="heading-2">Connecting to Web3</h2>
+          <p className="text-fg/70 mb-4 text-sm">Loading blockchain connectivity...</p>
+          <div className="text-fg/60 text-xs">
             <p>• Initializing wallet connections</p>
             <p>• Setting up blockchain networks</p>
             <p>• Preparing smart contracts</p>

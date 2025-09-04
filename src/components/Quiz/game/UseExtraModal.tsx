@@ -43,19 +43,19 @@ const UseExtraModal: React.FC<UseExtraModalProps> = ({
   const modalConfig = getModalConfig();
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-white p-6 rounded-xl shadow-xl w-[400px]">
-        <h2 className="text-xl font-bold mb-4">{modalConfig.title}</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div className="bg-muted w-[400px] rounded-xl p-6 shadow-xl">
+        <h2 className="mb-4 text-xl font-bold">{modalConfig.title}</h2>
 
-        <div className="space-y-2 mb-4">
+        <div className="mb-4 space-y-2">
           {players.map((player) => (
             <button
               key={player.id}
               onClick={() => setSelectedPlayer(player.id)}
-              className={`block w-full px-4 py-2 rounded-lg border text-left
+              className={`block w-full rounded-lg border px-4 py-2 text-left
                 ${selectedPlayer === player.id ? 'bg-indigo-600 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
             >
-              <div className="flex justify-between items-center">
+              <div className="flex items-center justify-between">
                 <span>{player.name}</span>
                 {/* ✅ Show score for robPoints */}
                 {extraType === 'robPoints' && player.score !== undefined && (
@@ -67,13 +67,13 @@ const UseExtraModal: React.FC<UseExtraModalProps> = ({
         </div>
 
         <div className="flex justify-end space-x-4">
-          <button onClick={onCancel} className="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400">
+          <button onClick={onCancel} className="rounded bg-gray-300 px-4 py-2 hover:bg-gray-400">
             Cancel
           </button>
           <button
             onClick={() => onConfirm(selectedPlayer)}
             disabled={!selectedPlayer}
-            className="px-4 py-2 rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+            className="rounded bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 disabled:opacity-50"
           >
             {modalConfig.icon} {modalConfig.buttonText}
           </button>

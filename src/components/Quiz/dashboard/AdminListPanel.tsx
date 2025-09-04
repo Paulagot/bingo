@@ -52,27 +52,27 @@ const AdminListPanel: React.FC = () => {
 
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow-sm mt-6">
-      <h2 className="text-2xl font-bold text-gray-800 mb-4">🛠️ Admins</h2>
+    <div className="bg-muted mt-6 rounded-lg p-4 shadow-sm">
+      <h2 className="text-fg mb-4 text-2xl font-bold">🛠️ Admins</h2>
 
-      <div className="flex flex-col sm:flex-row gap-2 mb-4">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row">
         <input
           type="text"
           placeholder="Admin Name"
           value={newAdminName}
           onChange={(e) => setNewAdminName(e.target.value)}
-          className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500"
+          className="flex-1 rounded-md border border-gray-300 px-3 py-2 focus:ring-indigo-500"
         />
         <button
           onClick={handleAddAdmin}
-          className="bg-indigo-600 text-white px-5 py-2 rounded-md font-medium shadow hover:bg-indigo-700 transition"
+          className="rounded-md bg-indigo-600 px-5 py-2 font-medium text-white shadow transition hover:bg-indigo-700"
         >
           Add Admin
         </button>
       </div>
 
       {admins.length === 0 ? (
-        <p className="text-gray-600">No admins added yet.</p>
+        <p className="text-fg/70">No admins added yet.</p>
       ) : (
         <ul className="space-y-2">
           {admins.map((admin) => {
@@ -80,25 +80,25 @@ const AdminListPanel: React.FC = () => {
             const isShowingQR = selectedAdminId === admin.id;
 
             return (
-              <li key={admin.id} className="p-2 border rounded-md bg-gray-50 text-sm">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <li key={admin.id} className="rounded-md border bg-gray-50 p-2 text-sm">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex-1">
-                    <p className="font-semibold text-gray-800">{admin.name}</p>
+                    <p className="text-fg font-semibold">{admin.name}</p>
                   </div>
                   <div className="flex flex-col items-end">
                     <button
                       onClick={() => setSelectedAdminId(isShowingQR ? null : admin.id)}
-                      className="text-indigo-600 hover:underline text-xs font-semibold"
+                      className="text-xs font-semibold text-indigo-600 hover:underline"
                     >
                       🔗 Invite
                     </button>
                     {isShowingQR && (
-                      <div className="mt-1 p-2 bg-white border rounded-md shadow-sm max-w-xs">
+                      <div className="bg-muted mt-1 max-w-xs rounded-md border p-2 shadow-sm">
                         <QRCodeCanvas value={joinLink} size={96} />
-                        <p className="mt-1 text-xs text-gray-600 break-all">{joinLink}</p>
+                        <p className="text-fg/70 mt-1 break-all text-xs">{joinLink}</p>
                         <button
                           onClick={() => navigator.clipboard.writeText(joinLink)}
-                          className="text-indigo-600 text-xs mt-1 hover:underline"
+                          className="mt-1 text-xs text-indigo-600 hover:underline"
                         >
                           Copy Link
                         </button>

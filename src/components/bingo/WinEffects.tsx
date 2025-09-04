@@ -60,7 +60,7 @@ export function WinEffects({
       initial={{ scale: 0 }}
       animate={{ scale: 1 }}
       exit={{ scale: 0 }}
-      className={`relative flex items-center justify-center gap-4 mb-8 p-6 rounded-xl shadow-lg ${
+      className={`relative mb-8 flex items-center justify-center gap-4 rounded-xl p-6 shadow-lg ${
         isWinner
           ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white'
           : 'bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-800'
@@ -94,7 +94,7 @@ export function WinEffects({
           setShowEffect(false);
           onClose?.();
         }}
-        className="absolute top-2 right-2 p-1 rounded-full hover:bg-black/10 transition-colors"
+        className="absolute right-2 top-2 rounded-full p-1 transition-colors hover:bg-black/10"
       >
         <X size={16} className="opacity-75 hover:opacity-100" />
       </button>

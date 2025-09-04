@@ -153,7 +153,7 @@ const RobinHoodRunner: React.FC<RobinHoodRunnerProps> = ({
     <>
       <style dangerouslySetInnerHTML={{ __html: styles }} />
       
-      <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+      <div className="pointer-events-none fixed inset-0 z-50 overflow-hidden">
         
         <div className="absolute inset-0 bg-black bg-opacity-10" />
         
@@ -165,39 +165,39 @@ const RobinHoodRunner: React.FC<RobinHoodRunnerProps> = ({
             zIndex: 100
           }}
         >
-          <div className="relative body-bob">
+          <div className="body-bob relative">
             
-            <div className="relative w-24 h-20">
+            <div className="relative h-20 w-24">
               
-              <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-2 bg-black opacity-30 rounded-full" />
+              <div className="absolute bottom-0 left-1/2 h-2 w-8 -translate-x-1/2 transform rounded-full bg-black opacity-30" />
               
               <div 
-                className="absolute left-2 top-4 w-4 h-12 bg-red-700 rounded-r-lg opacity-80 transform -skew-x-6"
+                className="absolute left-2 top-4 h-12 w-4 -skew-x-6 transform rounded-r-lg bg-red-700 opacity-80"
                 style={{ zIndex: 1 }}
               />
               
               <div 
-                className="absolute left-6 top-6 w-4 h-10 bg-green-600 rounded-sm"
+                className="absolute left-6 top-6 h-10 w-4 rounded-sm bg-green-600"
                 style={{ zIndex: 10 }}
               />
               
               <div 
-                className="absolute left-5 top-2 w-6 h-6 bg-pink-200 rounded-full"
+                className="absolute left-5 top-2 h-6 w-6 rounded-full bg-pink-200"
                 style={{ zIndex: 10 }}
               >
-                <div className="absolute right-1 top-2 w-1 h-1 bg-black rounded-full" />
-                <div className="absolute right-0 top-3 w-1 h-0.5 bg-pink-300 rounded-r-full" />
+                <div className="absolute right-1 top-2 h-1 w-1 rounded-full bg-black" />
+                <div className="absolute right-0 top-3 h-0.5 w-1 rounded-r-full bg-pink-300" />
               </div>
               
               <div 
-                className="absolute left-4 top-1 w-8 h-3 bg-green-700 rounded-r-lg"
+                className="absolute left-4 top-1 h-3 w-8 rounded-r-lg bg-green-700"
                 style={{ zIndex: 15 }}
               >
-                <div className="absolute right-0 -top-1 w-0.5 h-3 bg-red-500" />
+                <div className="absolute -top-1 right-0 h-3 w-0.5 bg-red-500" />
               </div>
               
               <div 
-                className="absolute left-4 top-8 w-1.5 h-6 bg-pink-200 rounded-full left-arm"
+                className="left-arm absolute left-4 top-8 h-6 w-1.5 rounded-full bg-pink-200"
                 style={{ 
                   zIndex: 5, 
                   transformOrigin: 'top center'
@@ -205,7 +205,7 @@ const RobinHoodRunner: React.FC<RobinHoodRunnerProps> = ({
               />
               
               <div 
-                className="absolute left-9 top-8 w-1.5 h-6 bg-pink-200 rounded-full right-arm"
+                className="right-arm absolute left-9 top-8 h-6 w-1.5 rounded-full bg-pink-200"
                 style={{ 
                   zIndex: 5,
                   transformOrigin: 'top center'
@@ -213,44 +213,44 @@ const RobinHoodRunner: React.FC<RobinHoodRunnerProps> = ({
               />
               
               <div 
-                className="absolute left-6 top-14 w-1.5 h-8 bg-amber-800 rounded-full left-leg"
+                className="left-leg absolute left-6 top-14 h-8 w-1.5 rounded-full bg-amber-800"
                 style={{ 
                   zIndex: 5,
                   transformOrigin: 'top center'
                 }}
               >
-                <div className="absolute -bottom-0.5 -left-1 w-3 h-1.5 bg-black rounded" />
+                <div className="absolute -bottom-0.5 -left-1 h-1.5 w-3 rounded bg-black" />
               </div>
               
               <div 
-                className="absolute left-8 top-14 w-1.5 h-8 bg-amber-800 rounded-full right-leg"
+                className="right-leg absolute left-8 top-14 h-8 w-1.5 rounded-full bg-amber-800"
                 style={{ 
                   zIndex: 5,
                   transformOrigin: 'top center'
                 }}
               >
-                <div className="absolute -bottom-0.5 -left-1 w-3 h-1.5 bg-black rounded" />
+                <div className="absolute -bottom-0.5 -left-1 h-1.5 w-3 rounded bg-black" />
               </div>
               
               <div 
-                className="absolute left-12 top-10 w-3 h-4 bg-yellow-400 rounded-b-lg"
+                className="absolute left-12 top-10 h-4 w-3 rounded-b-lg bg-yellow-400"
                 style={{ zIndex: 10 }}
               >
-                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-2 h-1 bg-yellow-600 rounded-t-full" />
-                <div className="absolute top-1 left-1/2 transform -translate-x-1/2 text-xs font-bold text-green-800">$</div>
+                <div className="absolute left-1/2 top-0 h-1 w-2 -translate-x-1/2 transform rounded-t-full bg-yellow-600" />
+                <div className="absolute left-1/2 top-1 -translate-x-1/2 transform text-xs font-bold text-green-800">$</div>
               </div>
               
               <div 
-                className="absolute left-15 top-9 w-0.5 h-6 bg-amber-600 rounded-full"
+                className="left-15 absolute top-9 h-6 w-0.5 rounded-full bg-amber-600"
                 style={{ zIndex: 12 }}
               />
               
             </div>
             
-            <div className="absolute top-1/2 -left-6 transform -translate-y-1/2 space-y-1 opacity-60">
-              <div className="w-4 h-0.5 bg-white rounded" />
-              <div className="w-3 h-0.5 bg-white rounded" />
-              <div className="w-5 h-0.5 bg-white rounded" />
+            <div className="absolute -left-6 top-1/2 -translate-y-1/2 transform space-y-1 opacity-60">
+              <div className="bg-muted h-0.5 w-4 rounded" />
+              <div className="bg-muted h-0.5 w-3 rounded" />
+              <div className="bg-muted h-0.5 w-5 rounded" />
             </div>
             
           </div>
@@ -259,33 +259,33 @@ const RobinHoodRunner: React.FC<RobinHoodRunnerProps> = ({
         {stars.map(star => (
           <div
             key={star.id}
-            className="absolute star-trail"
+            className="star-trail absolute"
             style={{
               left: `${star.left}%`,
               top: `${star.top}%`,
               zIndex: 75
             }}
           >
-            <div className="text-yellow-400 text-lg">⭐</div>
+            <div className="text-lg text-yellow-400">⭐</div>
           </div>
         ))}
         
         {showPoints && (
           <div 
-            className="absolute top-1/2 left-1/2 points-pop"
+            className="points-pop absolute left-1/2 top-1/2"
             style={{ 
               zIndex: 50,
               transform: 'translateX(-50%) translateY(-50%) rotate(-8deg)'
             }}
           >
-            <div className="bg-red-600 text-white px-6 py-4 rounded-lg shadow-2xl border-2 border-red-800">
-              <div className="text-xl font-bold text-center mb-2">💰 POINTS STOLEN! 💰</div>
+            <div className="rounded-lg border-2 border-red-800 bg-red-600 px-6 py-4 text-white shadow-2xl">
+              <div className="mb-2 text-center text-xl font-bold">💰 POINTS STOLEN! 💰</div>
               <div className="text-center">
                 <div className="text-lg">
                   <span className="font-bold text-yellow-300">{stolenPoints}</span> points stolen from{' '}
                   <span className="font-bold text-red-300">{fromTeam}</span>
                 </div>
-                <div className="text-sm mt-1">
+                <div className="mt-1 text-sm">
                   Given to <span className="font-bold text-green-300">{toTeam}</span>
                 </div>
               </div>
@@ -293,11 +293,11 @@ const RobinHoodRunner: React.FC<RobinHoodRunnerProps> = ({
           </div>
         )}
         
-        <div className="absolute inset-0 pointer-events-none">
+        <div className="pointer-events-none absolute inset-0">
           {[...Array(6)].map((_, i) => (
             <div
               key={i}
-              className="absolute w-1 h-1 bg-yellow-400 rounded-full animate-ping"
+              className="absolute h-1 w-1 animate-ping rounded-full bg-yellow-400"
               style={{
                 top: `${30 + (i * 8)}%`,
                 left: `${15 + (i * 15)}%`,

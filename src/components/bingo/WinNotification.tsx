@@ -18,11 +18,11 @@ export const WinNotification: React.FC<WinNotificationProps> = ({
   const isWinner = winnerName === playerName;
 
   return (
-    <div className={`relative p-4 my-4 rounded-lg ${isLine ? 'bg-indigo-100' : 'bg-green-100'}`}>
+    <div className={`relative my-4 rounded-lg p-4 ${isLine ? 'bg-indigo-100' : 'bg-green-100'}`}>
       <button
         type="button"
         onClick={onClose}
-        className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+        className="hover:text-fg/70 absolute right-2 top-2 text-gray-400"
       >
         ×
       </button>

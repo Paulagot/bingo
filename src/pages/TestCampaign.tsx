@@ -305,13 +305,13 @@ export function TestCampaign() {
       <SimpleHeader />
 
       {/* Action Cards Section - Side by side on large screens, stacked on small */}
-      <section className="pt-20 pb-12">
-        <div className="container mx-auto px-4 max-w-6xl">
-          <h2 className="text-3xl font-bold text-center mb-8 text-indigo-900">Bingo Blitz: Chain Challenge</h2>
-          <div className="grid md:grid-cols-2 gap-8">
+      <section className="pb-12 pt-20">
+        <div className="container mx-auto max-w-6xl px-4">
+          <h2 className="mb-8 text-center text-3xl font-bold text-indigo-900">Bingo Blitz: Chain Challenge</h2>
+          <div className="grid gap-8 md:grid-cols-2">
             {/* Create Room Card */}
             <div>
-              <h3 className="text-2xl font-semibold mb-4 text-indigo-800">Create Bingo Blitz Room</h3>
+              <h3 className="mb-4 text-2xl font-semibold text-indigo-800">Create Bingo Blitz Room</h3>
               <CreateRoomCard
                 onCreateRoom={handleCreateRoom}
                 isGenerating={isGenerating}
@@ -321,7 +321,7 @@ export function TestCampaign() {
 
             {/* Join Room Card */}
             <div>
-              <h3 className="text-2xl font-semibold mb-4 text-indigo-800">Join Bingo Blitz Room</h3>
+              <h3 className="mb-4 text-2xl font-semibold text-indigo-800">Join Bingo Blitz Room</h3>
               <JoinRoomCard
                 onJoinRoom={handleJoinRoom}
                 isReownConnected={isReownConnected}
@@ -338,22 +338,22 @@ export function TestCampaign() {
       </section>
 
       {/* Campaign Info Section */}
-      <section id="about-campaign" className="py-12 bg-gradient-to-r from-blue-50 to-indigo-50">
-        <div className="container mx-auto px-4 max-w-6xl">
-          <h2 className="text-3xl font-bold text-center mb-8 text-indigo-900">About This Campaign</h2>
-          <div className="bg-white rounded-lg shadow-md p-8">
+      <section id="about-campaign" className="bg-gradient-to-r from-blue-50 to-indigo-50 py-12">
+        <div className="container mx-auto max-w-6xl px-4">
+          <h2 className="mb-8 text-center text-3xl font-bold text-indigo-900">About This Campaign</h2>
+          <div className="bg-muted rounded-lg p-8 shadow-md">
             <div className="mb-6">
-              <p className="text-xl font-semibold text-indigo-800 mb-4">
+              <p className="heading-2">
                 Welcome to the <span className="font-bold">Fundraisely Test Drive!</span> 🚀🎉
               </p>
-              <p className="text-lg text-gray-700 mb-4">
+              <p className="text-fg/80 mb-4 text-lg">
                 We've built a Web3 bingo game where <em>anyone</em> can host, <em>everyone</em> can play, and <strong>we all</strong> help decide where to launch the real thing.
               </p>
             </div>
 
             <div className="mb-6">
-              <p className="text-lg font-semibold text-indigo-700 mb-2">Here's the deal:</p>
-              <ul className="list-disc pl-6 text-gray-700 space-y-2">
+              <p className="mb-2 text-lg font-semibold text-indigo-700">Here's the deal:</p>
+              <ul className="text-fg/80 list-disc space-y-2 pl-6">
                 <li>We're testing on a few different blockchains.</li>
                 <li>Whichever chain earns the most wins the full launch. 🏆</li>
                 <li>Every game = one bingo card, one shot at winning, tons of fun.</li>
@@ -361,23 +361,23 @@ export function TestCampaign() {
             </div>
 
             <div className="mb-6">
-              <p className="text-lg font-semibold text-indigo-700 mb-2">When you host a game:</p>
-              <ul className="list-disc pl-6 text-gray-700 space-y-2">
+              <p className="mb-2 text-lg font-semibold text-indigo-700">When you host a game:</p>
+              <ul className="text-fg/80 list-disc space-y-2 pl-6">
                 <li>Set your own card price 💸</li>
                 <li>Pick a chain 🌐</li>
                 <li>Confirm the transaction ✅</li>
                 <li>Get a room number to share with players.</li>
               </ul>
-              <p className="text-lg text-indigo-600 font-medium mt-2">
+              <p className="mt-2 text-lg font-medium text-indigo-600">
                 ⚡ Rooms are created instantly, no waiting around.
               </p>
             </div>
 
             <div className="mb-6">
-              <p className="text-lg font-semibold text-indigo-700 mb-2">
+              <p className="mb-2 text-lg font-semibold text-indigo-700">
                 Each game has a <span className="font-bold">max pot of 1,000 USDC</span>, and the split goes like this:
               </p>
-              <ul className="list-disc pl-6 text-gray-700 space-y-2">
+              <ul className="text-fg/80 list-disc space-y-2 pl-6">
                 <li><span className="font-bold">15%</span> helps us build the full Fundraisely app.</li>
                 <li><span className="font-bold">25%</span> goes straight to the host.</li>
                 <li><span className="font-bold">60%</span> goes to the winners (30% for line winners, 70% for full house).</li>
@@ -385,17 +385,17 @@ export function TestCampaign() {
             </div>
 
             <div className="mb-4">
-              <p className="text-lg font-semibold text-indigo-700 mb-2">
+              <p className="mb-2 text-lg font-semibold text-indigo-700">
                 <span className="font-bold">Zero cheating. Zero shady stuff.</span>
               </p>
-              <ul className="list-disc pl-6 text-gray-700 space-y-2">
+              <ul className="text-fg/80 list-disc space-y-2 pl-6">
                 <li>Numbers are drawn by the system.</li>
                 <li>The host <em>calls out</em> numbers, but the system auto-checks wins behind the scenes.</li>
                 <li>Payouts happen automatically when the game's done.</li>
               </ul>
             </div>
 
-            <p className="text-lg text-indigo-800 font-medium mt-6">
+            <p className="mt-6 text-lg font-medium text-indigo-800">
               All you need is a little USDC and a few cents for blockchain fees. Let's go! 🏁
             </p>
           </div>
@@ -404,14 +404,14 @@ export function TestCampaign() {
 
       {/* Hosts Section */}
       <section id="for-hosts" className="py-12">
-        <div className="container mx-auto px-4 max-w-6xl">
-          <h2 className="text-3xl font-bold text-center mb-8 text-indigo-900">For Hosts</h2>
-          <div className="bg-white rounded-lg shadow-md p-8">
-            <p className="text-lg text-gray-700 mb-4">
+        <div className="container mx-auto max-w-6xl px-4">
+          <h2 className="mb-8 text-center text-3xl font-bold text-indigo-900">For Hosts</h2>
+          <div className="bg-muted rounded-lg p-8 shadow-md">
+            <p className="text-fg/80 mb-4 text-lg">
               Want to bring your community together <em>and</em> earn some rewards? Hosting a bingo game is super easy:
             </p>
 
-            <ul className="list-disc pl-6 text-gray-700 space-y-2 mb-6">
+            <ul className="text-fg/80 mb-6 list-disc space-y-2 pl-6">
               <li>Pick your card price.</li>
               <li>Pick your chain.</li>
               <li>Confirm the setup.</li>
@@ -419,7 +419,7 @@ export function TestCampaign() {
               <li>Play live on Zoom, Twitter Spaces, Discord, wherever you hang out.</li>
             </ul>
 
-            <p className="text-lg text-indigo-700 font-semibold">
+            <p className="text-lg font-semibold text-indigo-700">
               As the Host, you earn <span className="font-bold">32%</span> of the total game intake just for running the game. 🙌 No tech skills needed, just your wallet and some good vibes.
             </p>
           </div>
@@ -427,31 +427,31 @@ export function TestCampaign() {
       </section>
 
       {/* Players Section */}
-      <section id="for-players" className="py-12 bg-gradient-to-r from-blue-50 to-indigo-50">
-        <div className="container mx-auto px-4 max-w-6xl">
-          <h2 className="text-3xl font-bold text-center mb-8 text-indigo-900">For Players</h2>
-          <div className="bg-white rounded-lg shadow-md p-8">
-            <p className="text-lg text-gray-700 mb-4">
+      <section id="for-players" className="bg-gradient-to-r from-blue-50 to-indigo-50 py-12">
+        <div className="container mx-auto max-w-6xl px-4">
+          <h2 className="mb-8 text-center text-3xl font-bold text-indigo-900">For Players</h2>
+          <div className="bg-muted rounded-lg p-8 shadow-md">
+            <p className="text-fg/80 mb-4 text-lg">
               Ready to join the fun? 🎉 Here's what you'll need:
             </p>
 
-            <ul className="list-disc pl-6 text-gray-700 space-y-2 mb-6">
+            <ul className="text-fg/80 mb-6 list-disc space-y-2 pl-6">
               <li>A little USDC for your card.</li>
               <li>A couple cents (or less) for gas fees.</li>
               <li>The room number from your Host.</li>
             </ul>
 
-            <p className="text-lg text-gray-700 mb-4">
+            <p className="text-fg/80 mb-4 text-lg">
               Once you join:
             </p>
 
-            <ul className="list-disc pl-6 text-gray-700 space-y-2 mb-6">
+            <ul className="text-fg/80 mb-6 list-disc space-y-2 pl-6">
               <li>Play with one bingo card.</li>
               <li>Chase that Line Win or Full House!</li>
               <li>Winnings are paid out automatically when the game wraps up.</li>
             </ul>
 
-            <p className="text-lg text-indigo-700 font-semibold">
+            <p className="text-lg font-semibold text-indigo-700">
               Simple, fun, and fair, the way bingo <em>should</em> be.
             </p>
           </div>
@@ -460,14 +460,14 @@ export function TestCampaign() {
 
       {/* About Fundraisely Section */}
       <section id="about-fundraisely" className="py-12">
-        <div className="container mx-auto px-4 max-w-6xl">
-          <h2 className="text-3xl font-bold text-center mb-8 text-indigo-900">About Fundraisely</h2>
-          <div className="bg-white rounded-lg shadow-md p-8">
-            <p className="text-lg text-gray-700 mb-6">
+        <div className="container mx-auto max-w-6xl px-4">
+          <h2 className="mb-8 text-center text-3xl font-bold text-indigo-900">About Fundraisely</h2>
+          <div className="bg-muted rounded-lg p-8 shadow-md">
+            <p className="text-fg/80 mb-6 text-lg">
               This isn't just about bingo. We're building <span className="font-bold">Fundraisely</span>, a full platform to help communities and charities run legit fundraising events like bingo, raffles, and more, all on blockchain for transparency and fairness.
             </p>
 
-            <p className="text-lg text-gray-700 mb-6">
+            <p className="text-fg/80 mb-6 text-lg">
               This test campaign helps us get there — faster. 🛠️
             </p>
 

@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App.tsx';
 import './index.css';
+import '../src/styles/global.css'
 
 // Remove all Web3 imports and providers from here!
 // Web3 will be loaded only when needed

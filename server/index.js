@@ -1,3 +1,14 @@
+
+import dotenv from 'dotenv';
+dotenv.config();
+
+// ADD DEBUG immediately after:
+console.log('🔍 Server Environment Debug:');
+console.log('DB_HOST:', process.env.DB_HOST);
+console.log('DB_USER:', process.env.DB_USER);
+console.log('DB_NAME:', process.env.DB_NAME);
+console.log('DB_PORT:', process.env.DB_PORT);
+
 //server/index.js
 import express from 'express';
 import { createServer } from 'node:http';
@@ -13,6 +24,11 @@ console.log('🔍 About to import community-registration...');
 import communityRegistrationApi from './quiz/api/community-registration.js';
 console.log('✅ Community registration imported:', communityRegistrationApi);
 console.log('📦 Type:', typeof communityRegistrationApi);
+
+import { initializeDatabase } from './config/database.js';
+
+
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -147,6 +163,26 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
+// Add this before starting the server
+// Replace the startServer function and the final listen call with this:
+async function startServer() {
+  try {
+    // Initialize database connection FIRST
+    await initializeDatabase();
+    
+    // THEN start the server (only once!)
+    httpServer.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`💾 Cache headers: ${process.env.NODE_ENV === 'production' ? 'Optimized (1 year)' : 'Development mode'}`);
+      console.log(`🗄️ Database connected`);
+    });
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
 const httpServer = createServer(app);
 
 const io = new Server(httpServer, {
@@ -182,8 +218,7 @@ app.get('/debug/rooms', (req, res) => {
   });
 });
 
-httpServer.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`💾 Cache headers: ${process.env.NODE_ENV === 'production' ? 'Optimized (1 year)' : 'Development mode'}`);
-});
+
+
+// Call the startup function (replaces the duplicate httpServer.listen)
+startServer().catch(console.error);

@@ -295,7 +295,7 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
       
       {/* FULL SCREEN OVERLAY WITH CORRECTED ICE COLORS */}
       <div 
-        className="fixed inset-0 z-50 pointer-events-none"
+        className="pointer-events-none fixed inset-0 z-50"
         style={{ 
           background: `radial-gradient(120% 120% at 50% 50%, 
             rgba(200,230,255,.2) 0%, rgba(150,200,240,.3) 45%, rgba(80,120,160,.45) 100%)`,
@@ -312,7 +312,7 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
         />
 
         {/* FROST PLATES */}
-        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
           <defs>
             <linearGradient id="frostGrad" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="rgba(240,250,255,0.8)" />
@@ -329,7 +329,7 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
         {/* CANVAS FOR DYNAMIC CRACKS */}
         <canvas 
           ref={canvasRef}
-          className="absolute inset-0 w-full h-full"
+          className="absolute inset-0 h-full w-full"
           style={{ pointerEvents: 'none' }}
         />
 
@@ -343,7 +343,7 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
             return (
               <span
                 key={i}
-                className="absolute animate-shard-sweep-centered"
+                className="animate-shard-sweep-centered absolute"
                 style={{
                   top: '50%',
                   left: '50%',
@@ -364,7 +364,7 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
 
         {/* BLOOM EFFECT */}
         <div 
-          className="absolute inset-0 animate-bloom"
+          className="animate-bloom absolute inset-0"
           style={{
             background: `
               radial-gradient(40% 30% at 50% 50%, rgba(180,220,255,.3), rgba(255,255,255,0) 70%),
@@ -378,7 +378,7 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
 
         {/* REFRACTION */}
         <div 
-          className="absolute inset-0 animate-refract"
+          className="animate-refract absolute inset-0"
           style={{
             background: `
               radial-gradient(60% 40% at 50% 50%, rgba(255,255,255,.25), rgba(255,255,255,0) 70%),
@@ -393,7 +393,7 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
 
         {/* GLINT */}
         <div 
-          className="absolute inset-0 animate-glint"
+          className="animate-glint absolute inset-0"
           style={{
             background: 'radial-gradient(45% 35% at 50% 50%, rgba(255,255,255,.3), transparent 70%)',
             animationDelay: '900ms'
@@ -412,7 +412,7 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
             return (
               <div
                 key={i}
-                className="absolute animate-ice-crystal"
+                className="animate-ice-crystal absolute"
                 style={{
                   top: `${Math.max(5, Math.min(95, y))}%`,
                   left: `${Math.max(5, Math.min(95, x))}%`,
@@ -435,39 +435,39 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
         </div>
 
         {/* FREEZE NOTIFICATION */}
-        <div className="absolute inset-0 flex items-center justify-center p-4 z-30">
-          <div className="relative animate-freeze-notification-enter">
+        <div className="absolute inset-0 z-30 flex items-center justify-center p-4">
+          <div className="animate-freeze-notification-enter relative">
             {/* Glow backdrop */}
-            <div className="absolute inset-0 bg-cyan-300/20 rounded-3xl blur-xl scale-110"></div>
+            <div className="absolute inset-0 scale-110 rounded-3xl bg-cyan-300/20 blur-xl"></div>
             
             {/* Main notification */}
-            <div className="relative bg-gradient-to-br from-slate-900/95 to-slate-800/95 backdrop-blur-md rounded-2xl p-8 text-center border border-cyan-300/30 shadow-2xl">
+            <div className="relative rounded-2xl border border-cyan-300/30 bg-gradient-to-br from-slate-900/95 to-slate-800/95 p-8 text-center shadow-2xl backdrop-blur-md">
               {/* Animated border */}
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-cyan-300/50 via-blue-300/50 to-cyan-300/50 animate-border-glow"></div>
+              <div className="animate-border-glow absolute inset-0 rounded-2xl bg-gradient-to-r from-cyan-300/50 via-blue-300/50 to-cyan-300/50"></div>
               <div className="absolute inset-[1px] rounded-2xl bg-gradient-to-br from-slate-900/95 to-slate-800/95"></div>
               
               {/* Content */}
               <div className="relative z-10">
                 {/* Animated freeze icon */}
-                <div className="text-7xl mb-4 animate-freeze-icon">
-                  <span className="inline-block animate-spin-slow">❄️</span>
+                <div className="animate-freeze-icon mb-4 text-7xl">
+                  <span className="animate-spin-slow inline-block">❄️</span>
                 </div>
                 
                 {/* Title with gradient text */}
-                <h2 className="text-4xl font-black mb-3 bg-gradient-to-r from-cyan-200 to-blue-200 bg-clip-text text-transparent animate-text-shimmer">
+                <h2 className="animate-text-shimmer mb-3 bg-gradient-to-r from-cyan-200 to-blue-200 bg-clip-text text-4xl font-black text-transparent">
                   FROZEN!
                 </h2>
                 
                 {/* Subtitle */}
-                <p className="text-xl text-cyan-100 mb-2 font-medium">
+                <p className="mb-2 text-xl font-medium text-cyan-100">
                   {frozenBy} froze you out!
                 </p>
                 
                 {/* Status indicator */}
                 <div className="flex items-center justify-center gap-2 text-sm text-cyan-200/80">
-                  <div className="w-2 h-2 bg-cyan-300 rounded-full animate-pulse"></div>
+                  <div className="h-2 w-2 animate-pulse rounded-full bg-cyan-300"></div>
                   <span>Unfreezing next question...</span>
-                  <div className="w-2 h-2 bg-cyan-300 rounded-full animate-pulse" style={{ animationDelay: '0.5s' }}></div>
+                  <div className="h-2 w-2 animate-pulse rounded-full bg-cyan-300" style={{ animationDelay: '0.5s' }}></div>
                 </div>
               </div>
             </div>

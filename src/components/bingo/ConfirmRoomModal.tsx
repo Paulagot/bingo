@@ -22,9 +22,9 @@ interface ConfirmRoomModalProps {
 }
 
 const InfoItem = ({ label, value, className = '' }: { label: string; value: string; className?: string }) => (
-  <div className={`bg-gray-50 p-2 rounded-lg ${className}`}>
-    <p className="text-xs text-gray-500">{label}</p>
-    <p className="text-sm font-medium break-all">{value}</p>
+  <div className={`rounded-lg bg-gray-50 p-2 ${className}`}>
+    <p className="text-fg/60 text-xs">{label}</p>
+    <p className="break-all text-sm font-medium">{value}</p>
   </div>
 );
 
@@ -170,21 +170,21 @@ if (selectedNetwork?.namespace === 'solana') {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl w-full max-w-sm mx-4 shadow-lg overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-muted mx-4 w-full max-w-sm overflow-hidden rounded-xl shadow-lg">
         <div className="p-3">
-          <div className="flex items-center justify-center mb-2">
-            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+          <div className="mb-2 flex items-center justify-center">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100">
               <CheckCircle className="h-4 w-4 text-green-600" />
             </div>
           </div>
 
-          <h3 className="text-lg font-bold text-center mb-2">Confirm Fundraising Event</h3>
+          <h3 className="mb-2 text-center text-lg font-bold">Confirm Fundraising Event</h3>
 
-          <div className="space-y-2 mb-3">
+          <div className="mb-3 space-y-2">
             {error && (
-              <div className="flex items-start gap-1 bg-red-50 p-2 rounded-lg text-red-500 text-xs">
-                <AlertCircle className="h-3 w-3 flex-shrink-0 mt-0.5" />
+              <div className="flex items-start gap-1 rounded-lg bg-red-50 p-2 text-xs text-red-500">
+                <AlertCircle className="mt-0.5 h-3 w-3 flex-shrink-0" />
                 <p>{error}</p>
               </div>
             )}
@@ -198,9 +198,9 @@ if (selectedNetwork?.namespace === 'solana') {
             <InfoItem
               label="Contract Address"
               value={factoryAddress ? `${factoryAddress?.slice(0, 6)}...${factoryAddress?.slice(-4)}` : 'No contract available'}
-              className={factoryAddress ? '' : 'text-yellow-500 bg-yellow-50'}
+              className={factoryAddress ? '' : 'bg-yellow-50 text-yellow-500'}
             />
-            {status && <InfoItem label="Status" value={status} className="text-blue-500 bg-blue-50" />}
+            {status && <InfoItem label="Status" value={status} className="bg-blue-50 text-blue-500" />}
           </div>
 
 {triggerSolanaRoomCreation && (
@@ -224,7 +224,7 @@ if (selectedNetwork?.namespace === 'solana') {
               <button
                 type="button"
                 onClick={() => open({ view: 'Connect', namespace: selectedNetwork?.namespace || 'eip155' })}
-                className="w-full py-1.5 px-3 bg-indigo-500 text-white text-sm rounded-lg font-medium hover:bg-indigo-600 transition"
+                className="w-full rounded-lg bg-indigo-500 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-600"
               >
                 Connect Wallet
               </button>
@@ -235,14 +235,14 @@ if (selectedNetwork?.namespace === 'solana') {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2 px-3 border border-gray-300 text-gray-700 text-sm rounded-lg font-medium hover:bg-gray-50 transition"
+              className="text-fg/80 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium transition hover:bg-gray-50"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleConfirm}
-              className="flex-1 py-2 px-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm rounded-lg font-medium hover:from-indigo-700 hover:to-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 px-3 py-2 text-sm font-medium text-white transition hover:from-indigo-700 hover:to-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
               disabled={!isConnected || isDeploying || !selectedChain || !serverHealthy}
             >
               {isDeploying ? 'Creating...' : 'Create Event'}

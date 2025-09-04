@@ -1,117 +1,142 @@
-import React, { useState } from 'react';
+// src/components/Quiz/Wizard/StepFundraisingOptions.tsx
+import React, { useState, useEffect } from 'react';
 import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
 import { fundraisingExtraDefinitions, roundTypeDefinitions } from '../constants/quizMetadata';
 import type { FundraisingExtraDefinition } from '../constants/quizMetadata';
-import { Globe, Target, ChevronLeft, ChevronRight, TrendingUp, Plus, Trash2, Info, Eye } from 'lucide-react';
+import {
+  Globe,
+  Target,
+  ChevronLeft,
+  ChevronRight,
+  TrendingUp,
+  Plus,
+  Trash2,
+  Eye,
+  CheckCircle,
+} from 'lucide-react';
+import ClearSetupButton from './ClearSetupButton';
+import type { WizardStepProps } from './WizardStepProps';
 
 interface SimpleCardProps {
   extraKey: string;
   details: FundraisingExtraDefinition;
   onAdd: (key: string) => void;
   getSuggestedPriceRange: (price: string) => string;
-  getApplicabilityInfo: (rule: FundraisingExtraDefinition) => any;
-  getExcitementColor: (excitement: string) => string;
+  getApplicabilityInfo: (rule: FundraisingExtraDefinition) => { text: string; icon: React.ReactNode; color: string };
 }
 
-const SimpleCard: React.FC<SimpleCardProps> = ({ 
-  extraKey, 
-  details, 
-  onAdd, 
-  getSuggestedPriceRange, 
-  getApplicabilityInfo, 
-  getExcitementColor 
+const Character = ({ message }: { message: string }) => {
+  const bubbleTone = message.includes('enabled')
+    ? 'bg-green-50 border-green-200'
+    : 'bg-indigo-50 border-indigo-200';
+
+  return (
+    <div className="mb-3 flex items-center gap-2 sm:mb-6 sm:gap-4">
+      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-border bg-muted sm:h-16 sm:w-16">
+        <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-gray-100 to-gray-300">
+          <span className="text-fg/60 text-xs font-medium sm:text-sm">IMG</span>
+        </div>
+      </div>
+      <div className={`relative flex-1 rounded-lg border p-2 shadow-lg sm:rounded-2xl sm:p-4 ${bubbleTone}`}>
+        <p className="text-fg/80 text-xs leading-tight sm:text-sm sm:leading-normal">{message}</p>
+      </div>
+    </div>
+  );
+};
+
+const SimpleCard: React.FC<SimpleCardProps> = ({
+  extraKey,
+  details,
+  onAdd,
+  getSuggestedPriceRange,
+  getApplicabilityInfo,
 }) => {
   const [showDetails, setShowDetails] = useState(false);
   const applicability = getApplicabilityInfo(details);
 
-  const handleAddClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onAdd(extraKey);
-  };
-
-  const toggleDetails = () => {
-    setShowDetails(!showDetails);
-  };
-
   return (
-    <div className={`border rounded-lg transition-all ${getExcitementColor(details.excitement || 'Low')}`}>
-      {/* Main card content */}
-      <div className="p-3 sm:p-4">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded bg-gray-100 flex items-center justify-center text-lg sm:text-xl flex-shrink-0">
-              {details.icon}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h4 className="font-medium text-gray-900 text-sm sm:text-base truncate">{details.label}</h4>
-              <span className={`inline-block px-1.5 py-0.5 rounded-full text-xs font-medium ${
-                details.excitement === 'High' ? 'bg-red-100 text-red-700' :
-                details.excitement === 'Medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'
-              }`}>
-                {details.excitement}
-              </span>
-            </div>
-          </div>
-          <button
-            onClick={toggleDetails}
-            className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <Eye className="w-4 h-4" />
-          </button>
+    <div className="relative cursor-pointer rounded-lg border-2 border-border bg-muted p-3 transition-all hover:border-indigo-300 hover:shadow-md sm:rounded-xl sm:p-4">
+      {/* expand / actions */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setShowDetails((s) => !s);
+        }}
+        className="absolute right-2 top-2 rounded p-1 text-fg/60 hover:bg-muted hover:text-fg"
+        aria-label="Toggle details"
+      >
+        <Eye className="h-4 w-4" />
+      </button>
+
+      {/* header */}
+      <div className="mb-3 flex items-start gap-3">
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 text-lg sm:h-12 sm:w-12 sm:text-xl">
+          {details.icon}
         </div>
-
-        {/* Description */}
-        <p className="text-xs sm:text-sm text-gray-700 mb-3">{details.description}</p>
-
-        {/* Applicability and Price */}
-        <div className="space-y-2 mb-3">
-          <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${applicability.color}`}>
-            {applicability.icon}
-            <span className="truncate">{applicability.text}</span>
-          </div>
-          
-          <div className="text-xs text-gray-600">
-            Suggested: <span className="font-medium">{getSuggestedPriceRange(details.suggestedPrice)}</span>
+        <div className="min-w-0 flex-1">
+          <h4 className="text-fg mb-1 truncate text-sm font-semibold sm:text-base">{details.label}</h4>
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${
+                details.excitement === 'High'
+                  ? 'border-red-200 bg-red-100 text-red-800'
+                  : details.excitement === 'Medium'
+                  ? 'border-yellow-200 bg-yellow-100 text-yellow-800'
+                  : 'border-green-200 bg-green-100 text-green-800'
+              }`}
+            >
+              {details.excitement}
+            </span>
+            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${applicability.color}`}>
+              {applicability.icon}
+              {applicability.text}
+            </span>
           </div>
         </div>
-
-        {/* Add button */}
-        <button
-          onClick={handleAddClick}
-          className="w-full py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-medium text-sm transition-colors flex items-center justify-center gap-2"
-        >
-          <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
-          <span>Add Extra</span>
-        </button>
       </div>
 
-      {/* Expandable details */}
+      {/* description */}
+      <p className="text-fg/80 mb-3 text-xs sm:text-sm">{details.description}</p>
+
+      {/* suggested price */}
+      <div className="mb-3 text-xs text-fg/70 sm:text-sm">
+        Suggested: <span className="font-medium">{getSuggestedPriceRange(details.suggestedPrice)}</span>
+      </div>
+
+      {/* primary action */}
+      <button onClick={() => onAdd(extraKey)} className="btn-primary w-full">
+        <Plus className="h-4 w-4" />
+        <span>Add Extra</span>
+      </button>
+
+      {/* expandable details */}
       {showDetails && (
-        <div className="border-t border-gray-200 p-3 sm:p-4 bg-gray-50">
+        <div className="mt-3 rounded-lg border border-border bg-card p-3 sm:p-4">
           <div className="space-y-3 text-xs sm:text-sm">
-            <div>
-              <h5 className="font-medium text-gray-800 mb-1">Strategy</h5>
-              <p className="text-gray-600">{details.strategy}</p>
-            </div>
-
-            <div>
-              <h5 className="font-medium text-gray-800 mb-1">Impact</h5>
-              <p className="text-gray-600">{details.impact}</p>
-            </div>
-
-            {details.pros && details.pros.length > 0 && (
+            {details.strategy && (
               <div>
-                <h5 className="font-medium text-gray-800 mb-1">Benefits</h5>
+                <h5 className="text-fg mb-1 font-medium">Strategy</h5>
+                <p className="text-fg/70">{details.strategy}</p>
+              </div>
+            )}
+            {details.impact && (
+              <div>
+                <h5 className="text-fg mb-1 font-medium">Impact</h5>
+                <p className="text-fg/70">{details.impact}</p>
+              </div>
+            )}
+            {details.pros?.length ? (
+              <div>
+                <h5 className="text-fg mb-1 font-medium">Benefits</h5>
                 <div className="flex flex-wrap gap-1">
-                  {details.pros.map((pro: string, idx: number) => (
-                    <span key={idx} className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded text-xs">
+                  {details.pros.map((pro, i) => (
+                    <span key={i} className="rounded bg-indigo-100 px-1.5 py-0.5 text-xs text-indigo-700">
                       {pro}
                     </span>
                   ))}
                 </div>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       )}
@@ -119,182 +144,247 @@ const SimpleCard: React.FC<SimpleCardProps> = ({
   );
 };
 
-export const StepFundraisingOptions: React.FC<{ onNext: () => void; onBack: () => void }> = ({ onNext, onBack }) => {
-  const { setupConfig, updateSetupConfig } = useQuizSetupStore();
+export const StepFundraisingOptions: React.FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst }) => {
+  const {
+    flow,                 // 🧭 flow-aware
+    setupConfig,
+    toggleExtra,          // store helpers
+    setExtraPrice,
+  } = useQuizSetupStore();
+
+  const isWeb3 = flow === 'web3';
+
   const selectedRounds = setupConfig.roundDefinitions || [];
   const currency = setupConfig.currencySymbol || '€';
   const fundraisingOptions = setupConfig.fundraisingOptions || {};
   const fundraisingPrices = setupConfig.fundraisingPrices || {};
-  const selectedExtras = Object.keys(fundraisingOptions).filter((key) => fundraisingOptions[key]);
 
-  const applicableExtras = Object.entries(fundraisingExtraDefinitions).filter(([_, rule]) =>
-    selectedRounds.some((round) =>
-      rule.applicableTo === 'global' ||
-      (Array.isArray(rule.applicableTo) && rule.applicableTo.includes(round.roundType))
+  // ──────────────────────────────────────────────────────────────
+  // Entitlements (Web2 only). Web3: skip entitlements completely.
+  // ──────────────────────────────────────────────────────────────
+  const [entitlements, setEntitlements] = useState<any>(null);
+  const [entitlementsLoaded, setEntitlementsLoaded] = useState(!isWeb3); // if web3, treat as "loaded"
+
+  useEffect(() => {
+    if (isWeb3) return; // skip for Web3
+    let cancelled = false;
+    import('../../../services/apiService')
+      .then(({ apiService }) => apiService.getEntitlements())
+      .then((json) => {
+        if (!cancelled) setEntitlements(json);
+      })
+      .catch(() => {
+        if (!cancelled) setEntitlements(null);
+      })
+      .finally(() => {
+        if (!cancelled) setEntitlementsLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isWeb3]);
+
+  const allowedExtrasArr: string[] | null =
+    !isWeb3 && Array.isArray(entitlements?.extras_allowed)
+      ? (entitlements.extras_allowed as string[])
+      : null;
+
+  const isExtraAllowed = (key: string) => (isWeb3 ? true : !allowedExtrasArr || allowedExtrasArr.includes(key));
+
+  // ──────────────────────────────────────────────────────────────
+  // Applicable extras: must match selected rounds.
+  // Web3: show all applicable (ignore entitlements).
+  // Web2: filter by entitlements if provided.
+  // ──────────────────────────────────────────────────────────────
+  const applicableExtrasBase = Object.entries(fundraisingExtraDefinitions).filter(([_, rule]) =>
+    selectedRounds.some(
+      (round) =>
+        rule.applicableTo === 'global' ||
+        (Array.isArray(rule.applicableTo) && rule.applicableTo.includes(round.roundType))
     )
   );
 
+  const applicableExtras = isWeb3
+    ? applicableExtrasBase
+    : applicableExtrasBase.filter(([key]) => isExtraAllowed(key));
+
+  // Which extras are currently selected (and allowed if Web2)
+  const selectedExtras = Object.keys(fundraisingOptions)
+    .filter((key) => fundraisingOptions[key as keyof typeof fundraisingOptions])
+    .filter((key) => isExtraAllowed(key));
+
+  // ──────────────────────────────────────────────────────────────
+  // Store-backed actions
+  // ──────────────────────────────────────────────────────────────
   const handleAddExtra = (key: string) => {
-    updateSetupConfig({ fundraisingOptions: { ...fundraisingOptions, [key]: true } });
+    if (!isExtraAllowed(key)) return;
+    const currentlyEnabled = !!fundraisingOptions[key as keyof typeof fundraisingOptions];
+    if (!currentlyEnabled) toggleExtra(key);
   };
 
   const handleRemoveExtra = (key: string) => {
-    const updatedOptions = { ...fundraisingOptions, [key]: false };
-    const updatedPrices = { ...fundraisingPrices };
-    delete updatedPrices[key];
-
-    updateSetupConfig({ fundraisingOptions: updatedOptions, fundraisingPrices: updatedPrices });
+    const currentlyEnabled = !!fundraisingOptions[key as keyof typeof fundraisingOptions];
+    if (currentlyEnabled) toggleExtra(key);
+    setExtraPrice(key, undefined);
   };
 
   const handlePriceChange = (key: string, value: string) => {
     const parsed = parseFloat(value);
-    const updatedPrices = { ...fundraisingPrices };
-    if (!isNaN(parsed) && parsed > 0) {
-      updatedPrices[key] = parsed;
-    } else {
-      delete updatedPrices[key];
-    }
-    updateSetupConfig({ fundraisingPrices: updatedPrices });
+    if (!isNaN(parsed) && parsed > 0) setExtraPrice(key, parsed);
+    else setExtraPrice(key, undefined);
   };
 
+  // ──────────────────────────────────────────────────────────────
+  // UI helpers
+  // ──────────────────────────────────────────────────────────────
   const getApplicabilityInfo = (rule: FundraisingExtraDefinition) => {
     if (rule.applicableTo === 'global') {
-      return { text: 'All Rounds', icon: <Globe className="w-3 h-3" />, color: 'text-purple-600 bg-purple-100' };
+      return { text: 'All Rounds', icon: <Globe className="h-3 w-3" />, color: 'text-purple-700 bg-purple-100' };
     }
-    const roundTypeNames = rule.applicableTo
-      .map((type) => roundTypeDefinitions[type]?.name || type)
+    const roundTypeNames = (rule.applicableTo as string[])
+      .map((type) => roundTypeDefinitions[type as keyof typeof roundTypeDefinitions]?.name || type)
       .join(', ');
-    return { text: roundTypeNames, icon: <Target className="w-3 h-3" />, color: 'text-blue-600 bg-blue-100' };
+    return { text: roundTypeNames, icon: <Target className="h-3 w-3" />, color: 'text-blue-700 bg-blue-100' };
   };
 
   const getSuggestedPriceRange = (suggestedPrice: string) => {
     const ranges = {
       'Low-Medium': { min: 1, max: 3 },
-      'Medium': { min: 3, max: 5 },
-      'High': { min: 5, max: 10 },
-      'Low': { min: 1, max: 2 },
-      default: { min: 2, max: 5 }
+      Medium: { min: 3, max: 5 },
+      High: { min: 5, max: 10 },
+      Low: { min: 1, max: 2 },
+      default: { min: 2, max: 5 },
     };
-    const range = ranges[suggestedPrice as keyof typeof ranges] || ranges.default;
-    let adjusted = { ...range };
-
+    const base = (ranges as Record<string, { min: number; max: number }>)[suggestedPrice] || ranges.default;
+    const adjusted = { ...base };
     switch (currency) {
-      case '$':
-      case 'USDGLOW':
-        break;
       case '£':
-        adjusted.min = Math.max(1, Math.round(range.min * 0.85));
-        adjusted.max = Math.round(range.max * 0.85);
+        adjusted.min = Math.max(1, Math.round(base.min * 0.85));
+        adjusted.max = Math.round(base.max * 0.85);
         break;
       case '₹':
-        adjusted.min = Math.round(range.min * 80);
-        adjusted.max = Math.round(range.max * 80);
+        adjusted.min = Math.round(base.min * 80);
+        adjusted.max = Math.round(base.max * 80);
         break;
       case '¥':
-        adjusted.min = Math.round(range.min * 150);
-        adjusted.max = Math.round(range.max * 150);
+        adjusted.min = Math.round(base.min * 150);
+        adjusted.max = Math.round(base.max * 150);
+        break;
+      default:
         break;
     }
-    return `${currency}${adjusted.min}-${adjusted.max}`;
+    return `${adjusted.min}-${adjusted.max} ${currency}` ;
   };
 
-  const totalExtraValue = selectedExtras.reduce((sum, key) => sum + (fundraisingPrices[key] || 0), 0);
+  const totalExtraValue = selectedExtras.reduce((sum, key) => {
+    const price = fundraisingPrices[key];
+    return sum + (typeof price === 'number' ? price : 0);
+  }, 0);
 
-  const getExcitementColor = (excitement: string) => {
-    switch (excitement) {
-      case 'High': return 'bg-red-50 border-red-200 text-red-800';
-      case 'Medium': return 'bg-yellow-50 border-yellow-200 text-yellow-800';
-      case 'Low': return 'bg-green-50 border-green-200 text-green-800';
-      default: return 'bg-gray-50 border-gray-200 text-gray-800';
-    }
-  };
-
-  const allPricesSet = selectedExtras.every(key => fundraisingPrices[key] > 0);
-
-  const Character = () => (
-    <div className="flex items-center gap-2 sm:gap-4 mb-4 sm:mb-6">
-      <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-lg sm:text-2xl bg-gradient-to-br from-orange-400 to-red-500 flex-shrink-0">
-        🚀
-      </div>
-      <div className="relative bg-white rounded-lg sm:rounded-2xl p-2 sm:p-4 shadow-lg border border-gray-200 flex-1">
-        <p className="text-gray-700 text-xs sm:text-sm leading-tight sm:leading-normal">
-          {selectedExtras.length > 0
-            ? `Great! You've enabled ${selectedExtras.length} fundraising extra${selectedExtras.length > 1 ? 's' : ''}.`
-            : 'Fundraising extras are optional fun add-ons that boost engagement and donations. Tap the eye icon to see strategy details!'}
-        </p>
-      </div>
-    </div>
+  const allPricesSet = selectedExtras.every(
+    (key) => typeof fundraisingPrices[key] === 'number' && fundraisingPrices[key] > 0
   );
 
+  const message =
+    selectedExtras.length > 0
+      ? `Great! You've enabled ${selectedExtras.length} fundraising extra${selectedExtras.length > 1 ? 's' : ''}. Set a price for each to continue.`
+      : 'Fundraising extras are optional add-ons that boost engagement and donations. Tap the eye icon to see strategy details!';
+
+  // If Web2 and entitlements are still loading, you can show a tiny loader (optional)
+  // For simplicity we just proceed; applicableExtras will be empty until loaded if filtering is strict.
+
   return (
-    <div className="w-full px-2 sm:px-4 space-y-3 sm:space-y-6 pb-4">
+    <div className="w-full space-y-3 px-2 pb-4 sm:space-y-6 sm:px-4">
       {/* Header */}
       <div className="px-1">
-        <h2 className="text-base sm:text-xl font-semibold text-indigo-800">Step 3 of 4: Fundraising Extras (Optional)</h2>
-        <div className="text-xs sm:text-sm text-gray-600 mt-0.5">Optional add-ons to boost engagement</div>
+        <h2 className="heading-2">
+          {isWeb3 ? 'Step 3 of 4' : 'Step 3 of 4'}: Fundraising Extras (Optional)
+        </h2>
+        <div className="text-fg/70 mt-0.5 text-xs sm:text-sm">
+          Optional add-ons to boost engagement{isWeb3 ? ' (compatible with crypto entry fees)' : ''}
+        </div>
       </div>
 
-      <Character />
+      <Character message={message} />
 
       {/* Revenue indicator */}
-      <div className="bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4">
-        <div className="flex items-center gap-2 mb-1">
-          <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
-          <span className="font-medium text-green-800 text-sm sm:text-base">Potential Revenue</span>
+      <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3 sm:p-4">
+        <div className="mb-1 flex items-center gap-2">
+          <TrendingUp className="h-3 w-3 text-indigo-600 sm:h-4 sm:w-4" />
+          <span className="text-sm font-medium text-indigo-900 sm:text-base">Potential Revenue</span>
         </div>
-        <div className="text-xs sm:text-sm text-green-700">
-          Enabled: <strong>{selectedExtras.length}</strong> • Revenue/player: <strong>{currency}{totalExtraValue.toFixed(2)}</strong>
+        <div className="text-xs text-indigo-800 sm:text-sm">
+          Enabled: <strong>{selectedExtras.length}</strong> • Revenue/Device:{' '}
+          <strong>            
+            {totalExtraValue.toFixed(2)}
+            {currency}
+          </strong>
         </div>
       </div>
 
       {/* Selected extras */}
       {selectedExtras.length > 0 && (
         <div className="space-y-3 sm:space-y-4">
-          <h3 className="font-medium text-gray-800 text-sm sm:text-base">Your Extras ({selectedExtras.length})</h3>
+          <h3 className="text-fg text-sm font-medium sm:text-base">Your Extras ({selectedExtras.length})</h3>
           <div className="space-y-2 sm:space-y-3">
             {selectedExtras.map((key) => {
               const details = fundraisingExtraDefinitions[key as keyof typeof fundraisingExtraDefinitions];
               const applicability = getApplicabilityInfo(details);
               const price = fundraisingPrices[key] ?? '';
+              const priceSet = typeof fundraisingPrices[key] === 'number' && fundraisingPrices[key] > 0;
 
               return (
-                <div key={key} className={`border rounded-lg p-3 sm:p-4 ${getExcitementColor(details.excitement || 'Low')}`}>
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-                      <span className="text-lg sm:text-xl flex-shrink-0">{details.icon}</span>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-gray-800 text-sm sm:text-base">{details.label}</h4>
-                        <p className="text-xs sm:text-sm text-gray-600">{details.description}</p>
+                <div
+                  key={key}
+                  className={`rounded-lg border-2 p-3 transition-all sm:rounded-xl sm:p-4 ${
+                    priceSet ? 'border-green-300 bg-green-50' : 'border-border bg-muted'
+                  }`}
+                >
+                  <div className="mb-3 flex items-start justify-between">
+                    <div className="flex min-w-0 flex-1 items-start gap-3">
+                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 text-lg sm:h-12 sm:w-12 sm:text-xl">
+                        {details.icon}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-fg text-sm font-semibold sm:text-base">{details.label}</h4>
+                          {priceSet && <CheckCircle className="h-4 w-4 text-green-600" />}
+                        </div>
+                        <p className="text-fg/70 text-xs sm:text-sm">{details.description}</p>
+                        <div className="mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs">
+                          <span className={`rounded-full px-1.5 py-0.5 text-xs font-medium ${applicability.color}`}>
+                            {applicability.icon}
+                            <span className="ml-1">{applicability.text}</span>
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <button 
-                      onClick={() => handleRemoveExtra(key)} 
-                      className="p-1 hover:bg-red-100 rounded transition-colors flex-shrink-0" 
+                    <button
+                      onClick={() => handleRemoveExtra(key)}
+                      className="flex-shrink-0 rounded p-1 transition-colors hover:bg-red-100"
                       title="Remove extra"
                     >
-                      <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 text-red-500" />
+                      <Trash2 className="h-4 w-4 text-red-500" />
                     </button>
                   </div>
-                  
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-2">
-                      <label className="text-xs sm:text-sm font-medium text-gray-700">Price ({currency})</label>
+                      <label className="text-fg/80 text-xs font-medium sm:text-sm">Price ({currency})</label>
                       <input
                         type="number"
                         min="0"
-                        step="0.50"
+                        step="0.5"
                         value={price}
                         onChange={(e) => handlePriceChange(key, e.target.value)}
-                        className="border border-gray-300 rounded px-2 py-1 w-20 sm:w-24 text-xs sm:text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                        className={`w-24 rounded-lg border-2 px-2 py-1 text-xs outline-none transition focus:ring-2 focus:ring-indigo-200 sm:w-28 sm:text-sm ${
+                          priceSet ? 'border-green-300 bg-green-50 focus:border-green-500' : 'border-border focus:border-indigo-500'
+                        }`}
                         placeholder="0.00"
                       />
-                      <span className="text-xs text-gray-500 hidden sm:inline">
+                      <span className="text-fg/60 hidden text-xs sm:inline">
                         Suggested: {getSuggestedPriceRange(details.suggestedPrice)}
                       </span>
-                    </div>
-                    <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${applicability.color}`}>
-                      {applicability.icon}
-                      <span>{applicability.text}</span>
                     </div>
                   </div>
                 </div>
@@ -302,8 +392,8 @@ export const StepFundraisingOptions: React.FC<{ onNext: () => void; onBack: () =
             })}
           </div>
 
-          {!allPricesSet && selectedExtras.length > 0 && (
-            <div className="text-xs sm:text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
+          {!allPricesSet && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-2 text-xs text-red-700 sm:text-sm">
               ⚠️ Please set prices for all selected extras before continuing.
             </div>
           )}
@@ -313,11 +403,17 @@ export const StepFundraisingOptions: React.FC<{ onNext: () => void; onBack: () =
       {/* Available extras */}
       {selectedExtras.length < applicableExtras.length && (
         <div className="space-y-3 sm:space-y-4">
-          <h3 className="font-medium text-gray-800 text-sm sm:text-base">Available Extras</h3>
-          <div className="text-xs sm:text-sm text-gray-600 bg-blue-50 border border-blue-200 rounded p-2 sm:p-3">
-            💡 <strong>Tip:</strong> Tap the eye icon to see strategy details!
+          <h3 className="text-fg text-sm font-medium sm:text-base">Available Extras</h3>
+          {!isWeb3 && !entitlementsLoaded && (
+            <div className="text-fg/70 rounded-lg border border-blue-200 bg-blue-50 p-2 text-xs sm:p-3 sm:text-sm">
+              Loading available extras…
+            </div>
+          )}
+          <div className="text-fg/70 rounded-lg border border-blue-200 bg-blue-50 p-2 text-xs sm:p-3 sm:text-sm">
+            💡 <strong>Tip:</strong> Tap the eye icon to see strategy details.
           </div>
-          <div className="space-y-3 sm:space-y-4">
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
             {applicableExtras
               .filter(([key]) => !selectedExtras.includes(key))
               .map(([key, details]) => (
@@ -328,35 +424,33 @@ export const StepFundraisingOptions: React.FC<{ onNext: () => void; onBack: () =
                   onAdd={handleAddExtra}
                   getSuggestedPriceRange={getSuggestedPriceRange}
                   getApplicabilityInfo={getApplicabilityInfo}
-                  getExcitementColor={getExcitementColor}
                 />
               ))}
           </div>
         </div>
       )}
 
-
-
       {/* Navigation */}
-      <div className="flex justify-between pt-4 border-t border-gray-200">
-        <button 
-          onClick={onBack} 
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors text-sm sm:text-base"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          <span>Back</span>
-        </button>
+      <div className="border-border flex justify-between border-t pt-4">
+       
+       {onBack && (
+  <button onClick={onBack} className="btn-muted">
+    <ChevronLeft className="h-4 w-4" />
+    <span>Back</span>
+  </button>
+)}
+
+         <ClearSetupButton
+variant="ghost" flow={flow ?? (setupConfig.paymentMethod === 'web3' ? 'web3' : 'web2')}
+ onCleared={onResetToFirst}
+/>
         <button
           onClick={onNext}
           disabled={selectedExtras.length > 0 && !allPricesSet}
-          className={`flex items-center gap-2 px-4 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl transition-colors text-sm sm:text-base ${
-            selectedExtras.length === 0 || allPricesSet
-              ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`}
+          className="btn-primary disabled:opacity-60"
         >
           <span>Next</span>
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="h-4 w-4" />
         </button>
       </div>
     </div>
@@ -364,6 +458,11 @@ export const StepFundraisingOptions: React.FC<{ onNext: () => void; onBack: () =
 };
 
 export default StepFundraisingOptions;
+
+
+
+
+
 
 
 

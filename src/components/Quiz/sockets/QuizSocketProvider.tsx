@@ -5,6 +5,7 @@ import { usePlayerStore } from '../hooks/usePlayerStore';
 import { useAdminStore } from '../hooks/useAdminStore';
 import { useQuizConfig } from '../hooks/useQuizConfig';
 import { useRoomState } from '../hooks/useRoomState';
+
 import { useRoomIdentity } from '../hooks/useRoomIdentity';
 
 // Debug config
@@ -45,7 +46,7 @@ export const QuizSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const { roomId, hostId } = useRoomIdentity();
 
   useEffect(() => {
-  console.log('🚀 QuizSocketProvider mounting');
+  if (DEBUG) console.log('🚀 QuizSocketProvider mounting');
 
   if (!socketRef.current) {
     // NEW CODE:
@@ -54,7 +55,7 @@ const socketTarget = isLocalhost
   ? `${import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001'}/quiz`
   : '/quiz';
 
-console.log('Connecting to Socket.IO namespace:', socketTarget);
+if (DEBUG) console.log('Connecting to Socket.IO namespace:', socketTarget);
 
 const socket = io(socketTarget, {
   ...(isLocalhost ? {} : { forceNew: true }),
