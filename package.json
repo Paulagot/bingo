@@ -45,6 +45,8 @@
     "dotenv": "^17.2.1",
     "ethers": "^6.13.5",
     "framer-motion": "^11.0.8",
+    "git-filter-repo": "^0.0.30",
+    "install": "^0.13.0",
     "jsonwebtoken": "^9.0.2",
     "lodash": "^4.17.21",
     "lucide-react": "^0.344.0",
