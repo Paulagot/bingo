@@ -26,6 +26,8 @@ _test_
 
 # Environment vars
 .env
+.env.development 
+.env.production
 
 roomState.json
 roomState.json.bak
