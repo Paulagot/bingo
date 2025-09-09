@@ -263,6 +263,37 @@ export interface UseAnswerSubmissionParams {
   debug?: boolean;
 }
 
+export interface EnhancedPlayerStats {
+  playerId: string;
+  playerName: string;
+  questionPerformance: {
+    totalAnswered: number;
+    correctAnswers: number;
+    wrongAnswers: number;
+    noAnswers: number;
+    accuracyRate: number;
+    pointsPerQuestion: number;
+  };
+  roundProgression: {
+    scoreByRound: number[];
+    bestRoundScore: number;
+    worstRoundScore: number;
+    totalRounds: number;
+    trendDirection: 'improving' | 'consistent' | 'declining';
+  };
+  strategicPlay: {
+    extrasUsed: number;
+    extrasTypes: string[];
+    penaltiesReceived: number;
+    pointsRestored: number;
+  };
+  finalStats: {
+    finalScore: number;
+    cumulativeNegativePoints: number;
+    pointsRestored: number;
+  };
+}
+
 
 
 

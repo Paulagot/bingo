@@ -304,6 +304,73 @@ export function setupHostHandlers(socket, namespace) {
     return allRoundsStats;
   }
 
+  // ✅ NEW FUNCTION: Generate enhanced player statistics
+function generateEnhancedPlayerStats(room, playerId) {
+  const playerData = room.playerData[playerId];
+  const player = room.players.find(p => p.id === playerId);
+  
+  if (!playerData || !player) {
+    return null;
+  }
+
+  // Calculate question performance across all rounds
+  const allAnswers = Object.values(playerData.answers || {});
+  const totalAnswered = allAnswers.length;
+  const correctAnswers = allAnswers.filter(a => a.correct).length;
+  const wrongAnswers = allAnswers.filter(a => !a.correct && !a.noAnswer).length;
+  const noAnswers = allAnswers.filter(a => a.noAnswer).length;
+  const accuracyRate = totalAnswered > 0 ? Math.round((correctAnswers / totalAnswered) * 100) : 0;
+
+  // Calculate round progression
+  const roundContributions = playerData.roundContributions || {};
+  const roundScores = Object.values(roundContributions);
+  const bestRound = Math.max(...roundScores.map(s => s || 0));
+  const worstRound = Math.min(...roundScores.map(s => s || 0));
+
+  // Count strategic extras usage
+  const extrasUsed = Object.values(playerData.usedExtras || {}).filter(used => used).length;
+  const extrasTypes = Object.keys(playerData.usedExtras || {}).filter(key => playerData.usedExtras[key]);
+
+  return {
+    playerId,
+    playerName: player.name,
+    
+    // Question Performance
+    questionPerformance: {
+      totalAnswered,
+      correctAnswers,
+      wrongAnswers, 
+      noAnswers,
+      accuracyRate,
+      pointsPerQuestion: totalAnswered > 0 ? Math.round(playerData.score / totalAnswered) : 0
+    },
+    
+    // Round Progression  
+    roundProgression: {
+      scoreByRound: Object.values(roundContributions),
+      bestRoundScore: bestRound,
+      worstRoundScore: worstRound,
+      totalRounds: Object.keys(roundContributions).length,
+      trendDirection: roundScores.length >= 2 && roundScores[roundScores.length - 1] > roundScores[0] ? 'improving' : 'consistent'
+    },
+    
+    // Strategic Play
+    strategicPlay: {
+      extrasUsed,
+      extrasTypes,
+      penaltiesReceived: playerData.cumulativeNegativePoints || 0,
+      pointsRestored: playerData.pointsRestored || 0
+    },
+    
+    // Final Stats
+    finalStats: {
+      finalScore: playerData.score || 0,
+      cumulativeNegativePoints: playerData.cumulativeNegativePoints || 0,
+      pointsRestored: playerData.pointsRestored || 0
+    }
+  };
+}
+
   // ✅ next_round_or_end (unchanged)
   socket.on('next_round_or_end', ({ roomId }) => {
     if (debug) console.log(`[Host] next_round_or_end for ${roomId}`);
@@ -348,6 +415,17 @@ export function setupHostHandlers(socket, namespace) {
   room.finalLeaderboard = finalLeaderboard; // Store for recovery
   namespace.to(roomId).emit('leaderboard', finalLeaderboard); // Send to all players
   namespace.to(`${roomId}:host`).emit('host_final_leaderboard', finalLeaderboard); // Send to host
+
+   room.players.forEach(player => {
+        const playerSocket = namespace.sockets.get(player.socketId);
+        if (playerSocket) {
+          const enhancedStats = generateEnhancedPlayerStats(room, player.id);
+          if (enhancedStats) {
+            playerSocket.emit('enhanced_player_stats', enhancedStats);
+            if (debug) console.log(`[Complete] 📊 Sent enhanced stats to ${player.name}`);
+          }
+        }
+      });
 
       room.currentPhase = 'complete';
       namespace.to(roomId).emit('quiz_end', { message: 'Quiz complete. Thank you!' });
