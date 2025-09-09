@@ -7,9 +7,10 @@ interface CountdownEffect {
   secondsLeft: number;
   color: 'green' | 'orange' | 'red';
   message: string;
+  triggerAutoSubmit?: boolean;
 }
 
-export const useCountdownEffects = () => {
+export const useCountdownEffects = (onAutoSubmitTrigger?: () => void) => {
   const [currentEffect, setCurrentEffect] = useState<CountdownEffect | null>(null);
   const [isFlashing, setIsFlashing] = useState(false);
   const { socket } = useQuizSocket();
@@ -18,8 +19,14 @@ export const useCountdownEffects = () => {
   useEffect(() => {
     if (!socket) return;
 
-    const handleCountdownEffect = (effect: CountdownEffect) => {
+  const handleCountdownEffect = (effect: CountdownEffect) => {
       console.log(`[Countdown] ${effect.message} - ${effect.color} flash`);
+      
+      // ✅ NEW: Trigger auto-submit if requested by server
+      if (effect.triggerAutoSubmit && onAutoSubmitTrigger) {
+        console.log('[Countdown] Server triggered auto-submit');
+        onAutoSubmitTrigger();
+      }
       
       // ✅ Test audio context before playing
       if (audioContextRef.current && audioContextRef.current.state === 'running') {
@@ -145,87 +152,7 @@ export const useCountdownEffects = () => {
       }, 150);
     };
 
-    // OPTION 2: Cinematic Whoosh (uncomment to use this instead)
-    /*
-    const createWhoosh = () => {
-      const noise = audioContext.createBufferSource();
-      const buffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.5, audioContext.sampleRate);
-      const output = buffer.getChannelData(0);
-      
-      for (let i = 0; i < buffer.length; i++) {
-        output[i] = Math.random() * 2 - 1;
-      }
-      
-      noise.buffer = buffer;
-      
-      const filter = audioContext.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(1000, audioContext.currentTime);
-      filter.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.5);
-      
-      const gain = audioContext.createGain();
-      gain.gain.setValueAtTime(0.1, audioContext.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-      
-      noise.connect(filter);
-      filter.connect(gain);
-      gain.connect(audioContext.destination);
-      
-      noise.start(audioContext.currentTime);
-      noise.stop(audioContext.currentTime + 0.5);
-    };
-    */
-
-    // OPTION 3: Dramatic Chord Progression (uncomment to use)
-    /*
-    const createChord = () => {
-      const frequencies = {
-        3: [220, 330, 440],  // A minor chord
-        2: [246, 369, 493],  // B minor chord  
-        1: [277, 415, 554]   // C# minor chord (higher tension)
-      };
-      
-      const chordFreqs = frequencies[secondsLeft as keyof typeof frequencies] || [220, 330, 440];
-      
-      chordFreqs.forEach((freq, index) => {
-        const osc = audioContext.createOscillator();
-        const gain = audioContext.createGain();
-        
-        osc.connect(gain);
-        gain.connect(audioContext.destination);
-        
-        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
-        osc.type = 'sine';
-        gain.gain.setValueAtTime(0.08, audioContext.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
-        
-        osc.start(audioContext.currentTime + index * 0.05);
-        osc.stop(audioContext.currentTime + 0.8);
-      });
-    };
-    */
-
-    // OPTION 4: Vinyl Record Scratch (uncomment to use)
-    /*
-    const createScratch = () => {
-      const osc = audioContext.createOscillator();
-      const gain = audioContext.createGain();
-      
-      osc.connect(gain);
-      gain.connect(audioContext.destination);
-      
-      osc.frequency.setValueAtTime(800, audioContext.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.3);
-      osc.type = 'sawtooth';
-      
-      gain.gain.setValueAtTime(0.15, audioContext.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-      
-      osc.start(audioContext.currentTime);
-      osc.stop(audioContext.currentTime + 0.3);
-    };
-    */
-
+  
     // Use the selected sound effect
     createHeartbeat(); // Change this to use different options
   };

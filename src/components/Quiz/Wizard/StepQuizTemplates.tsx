@@ -56,7 +56,7 @@ const quizTemplates: QuizTemplate[] = [
         difficulty: 'medium',
         customConfig: {
           questionsPerRound: 4,
-          timePerQuestion: 20,
+          timePerQuestion: 10,
           pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
           pointsLostPerWrong: 2,
            pointsLostPerUnanswered: 3,
@@ -247,7 +247,7 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
         templateId === 'demo-quiz'
           ? {
               questionsPerRound: 4,
-              timePerQuestion: 20,
+              timePerQuestion: 10,
               pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
               pointsLostPerWrong: 2,
               pointsLostPerUnanswered: 3,

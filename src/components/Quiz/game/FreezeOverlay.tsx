@@ -249,15 +249,11 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
       }
       
       // Auto-hide after full animation sequence
-      timerRef.current = setTimeout(() => {
-        if (isActive) {
-          setShowOverlay(false);
-          if (targetEl) {
-            (targetEl as HTMLElement).classList.remove('fo-target-iced');
-          }
-          onAnimationComplete?.();
-        }
-      }, 4000);
+//    if (onAnimationComplete) {
+//   timerRef.current = setTimeout(() => {
+//     onAnimationComplete();
+//   }, 2000); // Just to signal animation is complete, not to hide
+// }
       
       return () => {
         if (timerRef.current) clearTimeout(timerRef.current);

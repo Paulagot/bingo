@@ -1,5 +1,5 @@
-// Updated StandardRound.tsx with floating extras bar
-//src/components/Quiz/game/StandardRound.tsx
+// Updated StandardRound.tsx with FIXED answer selection and highlighting
+// src/components/Quiz/game/StandardRound.tsx
 import React from 'react';
 import { RoundComponentProps } from '../types/quiz';
 import FloatingRoundExtrasBar from './FloatingRoundExtrasBar';
@@ -18,7 +18,7 @@ interface EnhancedStandardRoundProps extends RoundComponentProps {
   totalQuestions?: number;
   difficulty?: string;
   category?: string;
-  playersInRoom?: { id: string; name: string }[]; // ✅ NEW: For targeting
+  playersInRoom?: { id: string; name: string }[];
 }
 
 const StandardRound: React.FC<EnhancedStandardRoundProps> = ({
@@ -31,7 +31,6 @@ const StandardRound: React.FC<EnhancedStandardRoundProps> = ({
   clue,
   feedback,
   isFrozen,
-  
   roomId,
   playerId,
   roundExtras,
@@ -42,7 +41,7 @@ const StandardRound: React.FC<EnhancedStandardRoundProps> = ({
   totalQuestions,
   difficulty,
   category,
-  playersInRoom = [] // ✅ NEW: Default empty array
+  playersInRoom = []
 }) => {
   const getTimerColor = () => {
     if (!timeLeft) return 'text-fg/60';
@@ -59,18 +58,18 @@ const StandardRound: React.FC<EnhancedStandardRoundProps> = ({
 
   return (
     <div className="relative">
-      {/* ✅ NEW: Floating Round Extras Bar */}
+      {/* Floating Round Extras Bar */}
       <FloatingRoundExtrasBar
-  roomId={roomId}
-  playerId={playerId}
-  availableExtras={roundExtras}
-  usedExtras={usedExtras}
-  usedExtrasThisRound={usedExtrasThisRound}
-  onUseExtra={onUseExtra}
-  answerSubmitted={answerSubmitted}
-  playersInRoom={playersInRoom}
-  currentPlayerId={playerId}
-/>
+        roomId={roomId}
+        playerId={playerId}
+        availableExtras={roundExtras}
+        usedExtras={usedExtras}
+        usedExtrasThisRound={usedExtrasThisRound}
+        onUseExtra={onUseExtra}
+        answerSubmitted={answerSubmitted}
+        playersInRoom={playersInRoom}
+        currentPlayerId={playerId}
+      />
 
       <div className={`bg-muted overflow-hidden rounded-xl border-2 shadow-lg transition-all duration-200 ${
         isFrozen ? 'border-red-300 opacity-75' : 'border-blue-200'
@@ -128,19 +127,6 @@ const StandardRound: React.FC<EnhancedStandardRoundProps> = ({
               )}
             </div>
           </div>
-
-          {/* Frozen Notice */}
-          {/* {isFrozen && frozenNotice && (
-            <div className="mt-3 p-3 bg-red-100 border border-red-300 rounded-lg">
-              <div className="flex items-center space-x-2">
-                <Snowflake className="w-5 h-5 text-red-600" />
-                <div>
-                  <p className="font-bold text-red-800">You are frozen!</p>
-                  <p className="text-sm text-red-700">{frozenNotice}</p>
-                </div>
-              </div>
-            </div>
-          )} */}
         </div>
 
         {/* Question Content */}
@@ -175,13 +161,26 @@ const StandardRound: React.FC<EnhancedStandardRoundProps> = ({
             <div className="mb-6 space-y-3">
               <h4 className="text-fg/80 mb-3 text-sm font-semibold">Choose your answer:</h4>
               {question.options.map((opt: string, idx: number) => {
+                // ✅ FIXED: Compare against option text, not index
                 const isSelected = selectedAnswer === opt;
                 const isDisabled = isFrozen || answerSubmitted;
                 
                 return (
                   <button
                     key={idx}
-                    onClick={() => !isDisabled && setSelectedAnswer(opt)}
+                    onClick={() => {
+                      if (!isDisabled) {
+                        console.log('[AnswerSelect] Option clicked:', idx, 'text:', opt);
+                        // ✅ FIXED: Store the option text, not index
+                        setSelectedAnswer(opt);
+                        console.log('[AnswerSelect] selectedAnswer should now be:', opt);
+                        
+                        // Debug timing check
+                        setTimeout(() => {
+                          console.log('[AnswerSelect] selectedAnswer after timeout - should be:', opt);
+                        }, 100);
+                      }
+                    }}
                     className={`w-full rounded-lg border-2 p-4 text-left transition-all duration-200 ${
                       isDisabled
                         ? 'border-border cursor-not-allowed bg-gray-100 text-gray-400'
@@ -217,17 +216,17 @@ const StandardRound: React.FC<EnhancedStandardRoundProps> = ({
             </div>
           )}
 
-       {/* Status Display */}
-<div className="mb-6 flex items-center justify-center">
-  {!selectedAnswer && !isFrozen && !answerSubmitted && (
-    <div className="rounded-xl border-2 border-yellow-300 bg-yellow-100 px-8 py-3 text-lg font-bold text-yellow-700">
-      <div className="flex items-center space-x-2">
-        <Clock className="h-5 w-5" />
-        <span>Select an answer before time runs out!</span>
-      </div>
-    </div>
-  )}
-</div>
+          {/* Status Display */}
+          <div className="mb-6 flex items-center justify-center">
+            {!selectedAnswer && !isFrozen && !answerSubmitted && (
+              <div className="rounded-xl border-2 border-yellow-300 bg-yellow-100 px-8 py-3 text-lg font-bold text-yellow-700">
+                <div className="flex items-center space-x-2">
+                  <Clock className="h-5 w-5" />
+                  <span>Select an answer before time runs out!</span>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Feedback */}
           {feedback && (
@@ -235,8 +234,6 @@ const StandardRound: React.FC<EnhancedStandardRoundProps> = ({
               <p className="text-lg font-medium text-blue-800">{feedback}</p>
             </div>
           )}
-
-          {/* ✅ REMOVED: ExtrasPanel - replaced with floating bar */}
         </div>
       </div>
     </div>

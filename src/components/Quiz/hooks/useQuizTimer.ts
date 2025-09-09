@@ -1,3 +1,4 @@
+//src/components/Quiz/hooks/useQuizTimer.ts
 import { useEffect, useState, useRef, useCallback } from 'react';
 
 interface UseQuizTimerParams {
@@ -5,6 +6,8 @@ interface UseQuizTimerParams {
   timerActive: boolean;
   onTimeUp: () => void;
 }
+
+const debug = false
 
 export const useQuizTimer = ({ question, timerActive, onTimeUp }: UseQuizTimerParams) => {
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
@@ -33,6 +36,7 @@ export const useQuizTimer = ({ question, timerActive, onTimeUp }: UseQuizTimerPa
       const now = Date.now();
       const elapsed = (now - question.questionStartTime) / 1000;
       const remainingTime = Math.max(0, (question.timeLimit || 30) - elapsed);
+      
       return Math.floor(remainingTime);
     };
 
@@ -46,13 +50,24 @@ export const useQuizTimer = ({ question, timerActive, onTimeUp }: UseQuizTimerPa
       return;
     }
 
+    // Track the last logged second outside the interval
+    let lastLoggedSecond = -1;
+
     // Update timer every 100ms for smooth updates
     intervalRef.current = setInterval(() => {
       const currentTimeLeft = calculateTimeLeft();
       setTimeLeft(currentTimeLeft);
+      
+      // Only log once per second
+      const currentSecond = Math.floor(currentTimeLeft);
+      if (currentSecond !== lastLoggedSecond && currentSecond >= 0) {
+         if (debug) console.log(`[Timer] ${currentSecond}s remaining (Q${question.id})`);
+        lastLoggedSecond = currentSecond;
+      }
 
       // Check if time is up
-      if (currentTimeLeft <= 0) {
+      if (currentTimeLeft <= 0.8) {
+        if (debug) console.log('[Timer] TIME UP - calling onTimeUp for question:', question.id);
         clearTimer();
         onTimeUp();
       }

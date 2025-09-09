@@ -13,7 +13,7 @@ import { getEngine } from '../gameplayEngines/gameplayEngineRouter.js';
 import { isRateLimited } from '../../socketRateLimiter.js';
 import { getCurrentRoundStats } from './globalExtrasHandler.js';
 import { getRoundScoring } from './scoringUtils.js';
-
+import { StatsService } from '../gameplayEngines/services/StatsService.js'
 const debug = true;
 
 export function setupHostHandlers(socket, namespace) {
@@ -102,108 +102,74 @@ export function setupHostHandlers(socket, namespace) {
   }
 
   // ✅ Calculate round-specific leaderboard scores WITHOUT re-applying penalties
-  function calculateRoundLeaderboard(roomId) {
-    const room = getQuizRoom(roomId);
-    if (!room) {
-      console.error(`[RoundLeaderboard] ❌ Room not found: ${roomId}`);
-      return [];
-    }
-
-    const currentRoundIndex = room.currentRound - 1;
-    const roundConfig = room.config.roundDefinitions?.[currentRoundIndex];
-    if (!roundConfig) {
-      console.error(`[RoundLeaderboard] ❌ Round config not found for round ${room.currentRound}`);
-      return [];
-    }
-
-    // Single source of truth for scoring (fallback path only)
-    const { pointsPerDifficulty } = getRoundScoring(room, currentRoundIndex);
-
-    if (debug) {
-      console.log(`[RoundLeaderboard] 📊 Calculating for Round ${room.currentRound}`);
-      console.log(`[RoundLeaderboard] 🎯 questions in memory: ${room.questions?.length ?? 0}`);
-    }
-
-    const roundLeaderboard = [];
-
-    for (const player of room.players) {
-      const playerData = room.playerData[player.id];
-      if (!playerData) {
-        console.warn(`[RoundLeaderboard] ⚠️ No data found for player ${player.id}`);
-        continue;
-      }
-
-      let roundScore = 0;
-
-      // Iterate the questions for THIS round (room.questions is per-round)
-      for (let i = 0; i < (room.questions?.length || 0); i++) {
-        const q = room.questions[i];
-        if (!q) continue;
-
-        const key = `${q.id}_round${room.currentRound}`;
-        const ans = playerData.answers?.[key];
-
-        // Prefer the engine-authored delta (correct/wrong/no-answer are already settled by engines)
-        if (ans && typeof ans.pointsDelta === 'number') {
-          roundScore += ans.pointsDelta;
-          if (debug) {
-            console.log(`[RoundLeaderboard] 🔢 ${player.name}: Q${i + 1} delta=${ans.pointsDelta}`);
-          }
-          continue;
-        }
-
-        // Fallback: only add positives for correct answers (never re-apply penalties here)
-        if (ans && ans.submitted != null && ans.correct === true) {
-          const diff = (q.difficulty || 'medium').toLowerCase();
-          const pts =
-            (pointsPerDifficulty?.[diff]) ??
-            (pointsPerDifficulty?.medium) ??
-            2;
-          roundScore += pts;
-          if (debug) {
-            console.log(`[RoundLeaderboard] ✅ ${player.name}: Q${i + 1} correct (+${pts})`);
-          }
-        } else {
-          // wrong or no answer -> 0 (penalties were applied by engine already)
-          if (debug) {
-            const tag = !ans || ans.submitted == null ? 'no answer' : 'wrong';
-            console.log(`[RoundLeaderboard] ➖ ${player.name}: Q${i + 1} ${tag} (+0, penalties not re-applied here)`);
-          }
-        }
-      }
-
-      // 🛠️ CHANGED: subtract settlement we just applied so the visible round score is net-of-debt
-      const settled = playerData.settlementThisRound || 0;
-      const visibleScore = Math.max(0, roundScore - settled);
-
-      roundLeaderboard.push({
-        id: player.id,
-        name: player.name,
-        score: visibleScore,                                   // 🛠️ CHANGED: net-of-debt
-        penaltyDebt: playerData.penaltyDebt || 0,              // 🆕 carryover debt for transparency
-        settledThisRound: settled,                              // 🆕 how much of this round’s earnings went to debt
-        cumulativeNegativePoints: playerData.cumulativeNegativePoints || 0,
-        pointsRestored: playerData.pointsRestored || 0,
-        carryDebt: playerData.penaltyDebt || 0,  // round view: show what’s still owed now
-    // also include for completeness
-      });
-
-      if (debug) {
-        console.log(`[RoundLeaderboard] 🎯 ${player.name}: earned=${roundScore}, settled=${settled}, visible=${visibleScore}, carryDebt=${playerData.penaltyDebt || 0}`);
-      }
-    }
-
-    roundLeaderboard.sort((a, b) => b.score - a.score);
-
-    if (debug) {
-      console.log(`[RoundLeaderboard] 🏆 Final Round ${room.currentRound} Rankings (net-of-debt):`);
-      roundLeaderboard.forEach((entry, index) => {
-        console.log(`  ${index + 1}. ${entry.name}: ${entry.score} points (settled=${entry.settledThisRound}, carryDebt=${entry.penaltyDebt})`);
-      });
-    }
-
-    return roundLeaderboard;
+ function calculateRoundLeaderboard(roomId) {
+  const room = getQuizRoom(roomId);
+  if (!room) {
+    console.error(`[RoundLeaderboard] ❌ Room not found: ${roomId}`);
+    return [];
   }
+
+
+
+  if (debug) {
+    console.log(`[RoundLeaderboard] 📊 Calculating for Round ${room.currentRound}`);
+  }
+
+  const roundLeaderboard = [];
+
+  for (const player of room.players) {
+    const playerData = room.playerData[player.id];
+    if (!playerData) {
+      console.warn(`[RoundLeaderboard] ⚠️ No data found for player ${player.id}`);
+      continue;
+    }
+
+    // FIXED: Calculate round score properly
+    // Round score = current cumulative - score at round start
+    const roundStartScore = playerData.roundStartScore || 0;
+    const currentCumulativeScore = playerData.score || 0;
+    const roundScore = currentCumulativeScore - roundStartScore;
+
+    // REMOVED: No more settlement or debt calculations
+    // const settled = playerData.settlementThisRound || 0;
+    // const visibleScore = roundScore - settled;
+
+    roundLeaderboard.push({
+      id: player.id,
+      name: player.name,
+      score: roundScore,  // FIXED: This is now the actual round score
+      roundScore: roundScore,
+    
+      // Keep these for backward compatibility but they should be 0
+      penaltyDebt: 0,
+      settledThisRound: 0,
+      cumulativeNegativePoints: playerData.cumulativeNegativePoints || 0,  // ← Make sure this exists
+  pointsRestored: playerData.pointsRestored || 0,
+      carryDebt: 0
+    });
+
+    if (debug) {
+      console.log(`[RoundLeaderboard] 🎯 ${player.name}: roundStart=${roundStartScore}, cumulative=${currentCumulativeScore}, roundScore=${roundScore}, cumulativeNegative=${playerData.cumulativeNegativePoints || 0}`);
+    }
+  }
+
+  // Sort by round score (highest first, allow negatives)
+  roundLeaderboard.sort((a, b) => b.score - a.score);
+
+  if (debug) {
+    console.log(`[RoundLeaderboard] 🏆 Final Round ${room.currentRound} Rankings:`);
+    roundLeaderboard.forEach((entry, index) => {
+      console.log(`  ${index + 1}. ${entry.name}: ${entry.score} round points`);
+    });
+  }
+
+  if (debug) {
+  console.log(`[DEBUG] Round leaderboard data being sent:`, JSON.stringify(roundLeaderboard, null, 2));
+}
+
+
+  return roundLeaderboard;
+}
 
   // ✅ Calculate overall cumulative leaderboard
   function calculateOverallLeaderboard(roomId) {
@@ -323,6 +289,7 @@ export function setupHostHandlers(socket, namespace) {
     }
 
     namespace.to(`${roomId}:host`).emit('host_final_stats', allRoundsStats);
+    room.finalQuizStats = allRoundsStats;
 
     if (debug) {
       console.log(`[FinalStats] 📈 Final quiz stats sent to host for ${allRoundsStats.length} rounds`);
@@ -678,11 +645,11 @@ socket.on('prize_distribution_completed', ({ roomId, success, txHash, error }) =
     }
 
     // 👉 NEW: hard settle banked score vs. penaltyDebt at end of WIPEOUT rounds
-  const roundDef = room.config.roundDefinitions?.[room.currentRound - 1];
-  const isWipeout = roundDef?.roundType === 'wipeout';
-  if (isWipeout) {
-    settleBankedScoreAgainstDebt(room);
-  }
+    const roundDef = room.config.roundDefinitions?.[room.currentRound - 1];
+    const isWipeout = roundDef?.roundType === 'wipeout';
+    if (isWipeout) {
+      settleBankedScoreAgainstDebt(room);
+    }
 
     // 🆕 1) Settle this round's earnings against penalty debt (creates carryover debt)
     settleRoundDebt(roomId);
@@ -695,8 +662,9 @@ socket.on('prize_distribution_completed', ({ roomId, success, txHash, error }) =
       return;
     }
 
-    // Stats capture (unchanged)
-    const currentRoundStats = getCurrentRoundStats(roomId);
+    // Stats capture
+    const currentRoundStats = StatsService.calculateAndSendRoundStats(roomId, namespace);
+    room.currentRoundStats = currentRoundStats;
     if (debug) console.log(`[DEBUG] 🔍 getCurrentRoundStats for round ${room.currentRound}:`, currentRoundStats);
 
     if (!room.storedRoundStats) {
@@ -705,70 +673,92 @@ socket.on('prize_distribution_completed', ({ roomId, success, txHash, error }) =
     }
 
     room.storedRoundStats[room.currentRound] = {
-      ...currentRoundStats,
-      roundNumber: room.currentRound,
-      timestamp: Date.now(),
-      questionsAnswered: 0,
-      correctAnswers: 0,
-      wrongAnswers: 0,
-      noAnswers: 0
-    };
-
-    if (debug) {
-      console.log(`[DEBUG] 💾 After storage, storedRoundStats:`, room.storedRoundStats);
-      console.log(`[DEBUG] 📊 Stored round ${room.currentRound} data:`, room.storedRoundStats[room.currentRound]);
-    }
-
-    // Per-question stats
-    let questionsAnswered = 0;
-    let correctAnswers = 0;
-    let wrongAnswers = 0;
-    let noAnswers = 0;
-
-    for (const question of room.questions || []) {
-      room.players.forEach(player => {
-        const playerData = room.playerData[player.id];
-        const roundAnswerKey = `${question.id}_round${room.currentRound}`;
-        const playerAnswer = playerData?.answers?.[roundAnswerKey];
-
-        if (playerAnswer) {
-          questionsAnswered++;
-          if (playerAnswer.submitted === null || playerAnswer.submitted === undefined) {
-            noAnswers++;
-          } else if (playerAnswer.correct) {
-            correctAnswers++;
-          } else {
-            wrongAnswers++;
-          }
-        }
-      });
-    }
-
-    room.storedRoundStats[room.currentRound].questionsAnswered = questionsAnswered;
-    room.storedRoundStats[room.currentRound].correctAnswers = correctAnswers;
-    room.storedRoundStats[room.currentRound].wrongAnswers = wrongAnswers;
-    room.storedRoundStats[room.currentRound].noAnswers = noAnswers;
+      ...currentRoundStats,  // This now contains the correct question stats from StatsService!
+      timestamp: Date.now()
+    };   
 
     if (debug) {
       console.log(`[Host] 💾 Stored round ${room.currentRound} stats:`, {
+        roundNumber: currentRoundStats.roundNumber,
         hintsUsed: currentRoundStats.hintsUsed,
         freezesUsed: currentRoundStats.freezesUsed,
         pointsRobbed: currentRoundStats.pointsRobbed,
         pointsRestored: currentRoundStats.pointsRestored,
         totalExtrasUsed: currentRoundStats.totalExtrasUsed,
-        questionsAnswered: questionsAnswered
+        questionsAnswered: currentRoundStats.questionsAnswered,
+        correctAnswers: currentRoundStats.correctAnswers,
+        wrongAnswers: currentRoundStats.wrongAnswers,
+        noAnswers: currentRoundStats.noAnswers,
+        extrasByPlayer: Object.keys(currentRoundStats.extrasByPlayer || {}).length + ' players'
       });
     }
 
+    // 🆕 NEW: Initialize and update cumulative stats (MOVED INSIDE the handler)
+    // Initialize cumulative stats if this is the first round
+    if (!room.cumulativeStats) {
+      room.cumulativeStats = {
+        totalQuestionsAnswered: 0,
+        totalCorrectAnswers: 0,
+        totalWrongAnswers: 0,
+        totalNoAnswers: 0,
+        totalExtrasUsed: 0,
+        totalHintsUsed: 0,
+        totalFreezesUsed: 0,
+        totalPointsRobbed: 0,
+        totalPointsRestored: 0,
+        roundsCompleted: 0,
+        overallSuccessRate: 0
+      };
+      if (debug) console.log(`[Host] 🆕 Initialized cumulative stats tracking`);
+    }
+
+    // Update cumulative stats with this round's data
+    room.cumulativeStats.totalQuestionsAnswered += currentRoundStats.questionsAnswered || 0;
+    room.cumulativeStats.totalCorrectAnswers += currentRoundStats.correctAnswers || 0;
+    room.cumulativeStats.totalWrongAnswers += currentRoundStats.wrongAnswers || 0;
+    room.cumulativeStats.totalNoAnswers += currentRoundStats.noAnswers || 0;
+    room.cumulativeStats.totalExtrasUsed += currentRoundStats.totalExtrasUsed || 0;
+    room.cumulativeStats.totalHintsUsed += currentRoundStats.hintsUsed || 0;
+    room.cumulativeStats.totalFreezesUsed += currentRoundStats.freezesUsed || 0;
+    room.cumulativeStats.totalPointsRobbed += currentRoundStats.pointsRobbed || 0;
+    room.cumulativeStats.totalPointsRestored += currentRoundStats.pointsRestored || 0;
+    room.cumulativeStats.roundsCompleted = room.currentRound;
+    
+    // Calculate overall success rate
+    room.cumulativeStats.overallSuccessRate = room.cumulativeStats.totalQuestionsAnswered > 0 
+      ? ((room.cumulativeStats.totalCorrectAnswers / room.cumulativeStats.totalQuestionsAnswered) * 100).toFixed(1)
+      : 0;
+
+    if (debug) {
+      console.log(`[Host] 📊 Updated cumulative stats:`, {
+        totalCorrect: room.cumulativeStats.totalCorrectAnswers,
+        totalResponses: room.cumulativeStats.totalQuestionsAnswered,
+        successRate: room.cumulativeStats.overallSuccessRate + '%',
+        totalExtras: room.cumulativeStats.totalExtrasUsed,
+        roundsCompleted: room.cumulativeStats.roundsCompleted
+      });
+    }
+
+    // Store cumulative stats for recovery
+    room.cumulativeStatsForRecovery = { ...room.cumulativeStats };
+
     // Store for recovery & broadcast
     room.currentRoundResults = roundLeaderboard;
+    room.currentRoundStats = currentRoundStats;
     room.currentPhase = 'leaderboard';
 
     namespace.to(roomId).emit('round_leaderboard', roundLeaderboard);
+
+    if (room.currentRoundStats) {
+      socket.emit('host_current_round_stats', room.currentRoundStats);
+    }
     emitRoomState(namespace, roomId);
 
     if (debug) console.log(`[Host] ✅ Round ${room.currentRound} results shown to all players`);
   });
+
+
+   
 
   // ✅ Continue to overall leaderboard
   socket.on('continue_to_overall_leaderboard', ({ roomId }) => {
@@ -821,6 +811,7 @@ socket.on('prize_distribution_completed', ({ roomId, success, txHash, error }) =
       return;
     }
 
+  
     namespace.to(roomId).emit('quiz_cancelled', { message: 'Quiz cancelled by host', roomId });
     if (debug) console.log(`[Host] 📢 Sent cancellation notice to room ${roomId}`);
 

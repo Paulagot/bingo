@@ -35,7 +35,8 @@ const GlobalExtrasDuringLeaderboard = ({
     leaderboard,
     cumulativeNegativePoints,
     pointsRestored,
-    usedExtras, // ✅ NEW: Pass usedExtras for filtering
+    usedExtras,
+     // ✅ NEW: Pass usedExtras for filtering
     debug: true
   });
 
