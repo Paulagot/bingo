@@ -30,12 +30,12 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     difficulty: 'Easy',
     bestFor: 'Mixed groups, warm-up rounds, classic quiz feel, family events',
     defaultConfig: {
-  questionsPerRound: 4,
-  timePerQuestion: 10,
+  questionsPerRound: 6,
+  timePerQuestion: 28,
   pointsPerDifficulty: {
-    easy: 1,
-    medium: 2,
-    hard: 3
+    easy: 2,
+    medium: 3,
+    hard: 4
   }
 },
     extras: ['Hint', 'Freeze-out-Team'],// ✅ Optional extras
@@ -66,12 +66,12 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     difficulty: 'Easy',
     bestFor: 'Mixed groups, competitive play, family events',
     defaultConfig:   {
-     questionsPerRound: 4,
-      timePerQuestion: 10,
+     questionsPerRound: 6,
+      timePerQuestion: 22,
       pointsPerDifficulty: {
-  easy: 2,
-  medium: 3,
-  hard: 4},},
+  easy: 3,
+  medium: 4,
+  hard: 5},},
     extras: ['Hint', 'Freeze-out-Team', 'Restore Points'],
     videoId: 'YOUR_YOUTUBE_VIDEO_ID'
   },

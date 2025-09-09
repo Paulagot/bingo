@@ -344,6 +344,11 @@ export function setupHostHandlers(socket, namespace) {
 
       calculateAndSendFinalStats(roomId, namespace);
 
+      const finalLeaderboard = calculateOverallLeaderboard(roomId);
+  room.finalLeaderboard = finalLeaderboard; // Store for recovery
+  namespace.to(roomId).emit('leaderboard', finalLeaderboard); // Send to all players
+  namespace.to(`${roomId}:host`).emit('host_final_leaderboard', finalLeaderboard); // Send to host
+
       room.currentPhase = 'complete';
       namespace.to(roomId).emit('quiz_end', { message: 'Quiz complete. Thank you!' });
       emitRoomState(namespace, roomId);

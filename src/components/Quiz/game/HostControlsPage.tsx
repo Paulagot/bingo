@@ -241,6 +241,18 @@ const HostControlsPage = () => {
     };
   }, [socket]);
 
+  useEffect(() => {
+  if (!socket) return;
+  const handleFinalLeaderboard = (data: LeaderboardEntry[]) => {
+    if (debug) console.log('[Host] Final leaderboard received:', data);
+    setLeaderboard(data); // Use existing leaderboard state
+  };
+  socket.on('host_final_leaderboard', handleFinalLeaderboard);
+  return () => {
+    socket.off('host_final_leaderboard', handleFinalLeaderboard);
+  };
+}, [socket]);
+
   // Listen for question events
   useEffect(() => {
     if (!socket) return;
@@ -957,6 +969,7 @@ const HostControlsPage = () => {
           </div>
         )}
 
+
         {/* Quiz Complete */}
         {roomState.phase === 'complete' && (
           <div className="mb-6 rounded-xl border-2 border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50 p-8 text-center">
@@ -1102,6 +1115,58 @@ const HostControlsPage = () => {
             </div>
           </div>
         )}
+
+         {/* Final Leaderboard Display */}
+    {leaderboard.length > 0 && (
+      <div className="bg-muted mb-6 rounded-xl border-2 border-green-200 p-6 shadow-lg">
+        <div className="mb-4 flex items-center justify-center">
+          <h3 className="text-fg flex items-center space-x-2 text-2xl font-bold">
+            <Trophy className="h-6 w-6 text-yellow-600" />
+            <span>Final Quiz Results</span>
+          </h3>
+        </div>
+        
+        <div className="rounded-lg bg-gradient-to-r from-green-50 to-blue-50 p-6">
+          <div className="mb-4 text-center">
+            <h4 className="mb-2 text-xl font-bold text-green-800">🏆 Final Rankings</h4>
+            <p className="text-green-600">Congratulations to all participants!</p>
+          </div>
+          <div className="space-y-3">
+            {leaderboard.map((entry, idx) => (
+              <div key={entry.id} className="bg-muted flex items-center justify-between rounded-lg border-2 p-4 shadow-sm">
+                <div className="flex items-center space-x-4">
+                  <span className={`flex h-10 w-10 items-center justify-center rounded-full text-lg font-bold ${
+                    idx === 0 ? 'bg-yellow-100 text-yellow-800 ring-2 ring-yellow-400' :
+                    idx === 1 ? 'text-fg bg-gray-100 ring-2 ring-gray-400' :
+                    idx === 2 ? 'bg-orange-100 text-orange-800 ring-2 ring-orange-400' :
+                    'bg-blue-100 text-blue-800'
+                  }`}>
+                    {idx + 1}
+                  </span>
+                  <span className="text-lg font-semibold">{entry.name}</span>
+                  {idx === 0 && <Crown className="h-6 w-6 text-yellow-600" />}
+                  {idx === 1 && <Medal className="text-fg/70 h-6 w-6" />}
+                  {idx === 2 && <Award className="h-6 w-6 text-orange-600" />}
+                </div>
+                <div className="text-right">
+                  <div className="text-xl font-bold text-green-700">{entry.score} pts</div>
+                  {(entry.cumulativeNegativePoints || 0) > 0 && (
+  <div className="text-sm text-gray-600">
+    -{entry.cumulativeNegativePoints || 0} penalties
+  </div>
+)}
+{(entry.pointsRestored || 0) > 0 && (
+  <div className="text-sm text-purple-600">
+    +{entry.pointsRestored || 0} restored
+  </div>
+)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )}
 
         {/* Final Quiz Statistics (show when quiz is complete) */}
         {debug && roomState.phase === 'complete' && (
