@@ -98,7 +98,7 @@ interface QuizCompletionProps {
   config: QuizConfig | null;
   playerId: string;
   roomId: string;
-  enhancedStats?: EnhancedPlayerStats; // NEW: Optional enhanced statistics
+  enhancedStats?: EnhancedPlayerStats | null; // NEW: Optional enhanced statistics
   fundraisingData?: FundraisingData;
   isHost?: boolean;
   onShareResults: (platform: string, shareText: string) => void;
