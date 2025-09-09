@@ -1,17 +1,16 @@
 //src/components/Quiz/game/QuizGamePlayPage.tsx
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import UseExtraModal from './UseExtraModal';
-
+import { fundraisingExtraDefinitions } from '../constants/quizMetadata';
 import RoundRouter from './RoundRouter';
 import { usePlayerStore } from '../hooks/usePlayerStore';
 import { useQuizConfig } from '../hooks/useQuizConfig';
 
 import { useRoundExtras } from '../hooks/useRoundExtras';
-import { useQuizTimer } from '../hooks/useQuizTimer';
 import { useAnswerSubmission } from '../hooks/useAnswerSubmission';
-import { User, Question, LeaderboardEntry, RoomPhase, RoundDefinition } from '../types/quiz';
+import { User, Question, LeaderboardEntry, RoomPhase } from '../types/quiz';
 import { useNavigate } from 'react-router-dom';
 import LaunchedPhase from './LaunchedPhase';
 import { useCountdownEffects } from '../hooks/useCountdownEffects'
@@ -26,7 +25,7 @@ import { useRobinHoodAnimation } from '../hooks/useRobinHoodAnimation';
 import FreezeOverlay from './FreezeOverlay';
 
 import type { RoundConfig } from '../types/quiz';
-const debug = false;
+const debug = true;
 
 // ✅ NEW: Type definitions for notifications
 type NotificationType = 'success' | 'warning' | 'info' | 'error';
@@ -60,7 +59,8 @@ const QuizGamePlayPage = () => {
 
   const { robinHoodData, isAnimationActive, handleAnimationComplete } = useRobinHoodAnimation(socket);
 
-  
+  const selectedAnswerRef = useRef<string>('');
+const answerSubmittedRef = useRef<boolean>(false);
 
   // ✅ VALIDATION: Ensure we have required params
   if (!roomId || !playerId) {
@@ -98,7 +98,9 @@ const QuizGamePlayPage = () => {
   const [answerSubmitted, setAnswerSubmitted] = useState(false);
   const [clue, setClue] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const getCurrentQuestionId = useCallback(() => question?.id ?? null, [question]);
+  const getCurrentQuestionId = useCallback(() => {
+  return question?.id ?? currentQuestionIdRef.current;
+}, [question])
   
   // Room and phase state
   const [phaseMessage, setPhaseMessage] = useState('Waiting for host to start the quiz...');
@@ -110,7 +112,7 @@ const QuizGamePlayPage = () => {
   const [isShowingRoundResults, setIsShowingRoundResults] = useState(false);
   const [currentRoundNumber, setCurrentRoundNumber] = useState(1);
 
-  const { currentEffect, isFlashing, getFlashClasses } = useCountdownEffects();
+ const currentQuestionIdRef = useRef<string | null>(null);
 
   // Server-driven round state
   const [serverRoomState, setServerRoomState] = useState<ServerRoomState>({
@@ -151,46 +153,57 @@ const QuizGamePlayPage = () => {
   const currentRoundType = serverRoomState.roundTypeId;
   const questionCounterDisplay = `${questionInRound}/${totalInRound}`;
 
-  const calculateQuestionPosition = (currentQuestionIndex: number, roundDefs: RoundDefinition[]) => {
-    if (!roundDefs || currentQuestionIndex < 0) return { questionInRound: 1, totalInRound: 1 };
-    
-    const currentRoundIndex = serverRoomState.currentRound - 1;
-    const currentRoundDef = roundDefs[currentRoundIndex];
-    
-    if (!currentRoundDef) return { questionInRound: 1, totalInRound: 1 };
-    
-    const questionsPerRound = currentRoundDef.config.questionsPerRound;
-    const questionInCurrentRound = currentQuestionIndex + 1;
-    
-    return {
-      questionInRound: Math.max(1, questionInCurrentRound),
-      totalInRound: questionsPerRound
-    };
-  };
-
-  const isFrozenNow = (() => {
-    if (!isFrozen || frozenForIndexRef.current === null) return false;
-    
-    const questionsPerRound = config?.roundDefinitions?.[serverRoomState.currentRound - 1]?.config?.questionsPerRound || 6;
-    const roundRelativeIndex = currentQuestionIndexRef.current % questionsPerRound;
-    
-    const shouldBeFrozen = frozenForIndexRef.current === roundRelativeIndex;
-    
-    if (debug && frozenForIndexRef.current !== null) {
-      console.log(`[FREEZE CHECK] globalIndex: ${currentQuestionIndexRef.current}, roundRelative: ${roundRelativeIndex}, frozenFor: ${frozenForIndexRef.current}, shouldBeFrozen: ${shouldBeFrozen}`);
-    }
-    
-    return shouldBeFrozen;
-  })();
+const isFrozenNow = isFrozen && 
+  frozenForIndexRef.current === currentQuestionIndexRef.current;
 
   // Custom hooks
-  const { submitAnswer } = useAnswerSubmission({
-    socket,
-    roomId: roomId!,
-    playerId: playerId!,
-     getCurrentQuestionId,
-    debug
+const { submitAnswer } = useAnswerSubmission({
+  socket,
+  roomId: roomId!,
+  playerId: playerId!,
+  getCurrentQuestionId,
+  debug
+});
+
+// Move handleAutoSubmit here - BEFORE useCountdownEffects
+const handleAutoSubmit = useCallback(() => {
+  console.log('[AutoSubmit] 🚨 ENTRY - handleAutoSubmit called');
+  
+  // Use refs to get current values, not closure-captured values
+  const currentAnswer = selectedAnswerRef.current;
+  const currentAnswerSubmitted = answerSubmittedRef.current;
+  
+  console.log('[AutoSubmit] 🚨 currentAnswer from ref:', currentAnswer);
+  console.log('[AutoSubmit] 🚨 currentAnswerSubmitted:', currentAnswerSubmitted);
+  
+  // Don't auto-submit if already submitted
+  if (currentAnswerSubmitted) {
+    console.log('[AutoSubmit] 🚨 EARLY RETURN - answer already submitted');
+    return;
+  }
+  
+  // Use question from state first, fallback to ref
+  const questionToSubmit = question || { id: currentQuestionIdRef.current };
+  
+  if (!questionToSubmit?.id) {
+    console.log('[AutoSubmit] 🚨 EARLY RETURN - no question ID available');
+    return;
+  }
+  
+  console.log('[AutoSubmit] 🕐 Auto-submitting for question:', questionToSubmit.id, 'answer:', currentAnswer || 'null');
+  
+  // Mark as submitted immediately to prevent double-submission
+  setAnswerSubmitted(true);
+  
+  submitAnswer(currentAnswer || null, { 
+    autoTimeout: true,
+    isFrozen: isFrozen,
+    currentQuestionIndex: currentQuestionIndexRef.current,
+    frozenForIndex: frozenForIndexRef.current
   });
+}, [question, submitAnswer, isFrozen]);
+
+const { currentEffect, isFlashing, getFlashClasses } = useCountdownEffects(handleAutoSubmit);
 
   const { roundExtras } = useRoundExtras({
     allPlayerExtras,
@@ -200,13 +213,27 @@ const QuizGamePlayPage = () => {
   });
 
   // ✅ DEBUG: Log the player ID we're using
-  if (debug) {
-    console.log('[QuizGamePlayPage] 🆔 Using playerId from URL:', playerId);
-    console.log('[QuizGamePlayPage] 👤 Player extras loaded:', availableExtras);
-    console.log('[QuizGamePlayPage] 🎯 Server round state:', serverRoomState);
-    console.log('[QuizGamePlayPage] 🧩 currentRoundType:', currentRoundType);
-    console.log('[QuizGamePlayPage] 📊 questionPosition:', questionCounterDisplay);
-  }
+const debugInfo = useMemo(() => ({
+  playerId,
+  availableExtras,
+  serverRoomState,
+  currentRoundType,
+  questionCounterDisplay
+}), [playerId, availableExtras, serverRoomState, currentRoundType, questionCounterDisplay]);
+
+if (debug) {
+  console.log('[QuizGamePlayPage] Debug Info:', debugInfo);
+}
+
+useEffect(() => {
+  selectedAnswerRef.current = selectedAnswer;
+  console.log('[AnswerSync] selectedAnswer updated to:', selectedAnswer);
+}, [selectedAnswer]);
+
+// Sync answerSubmitted with ref
+useEffect(() => {
+  answerSubmittedRef.current = answerSubmitted;
+}, [answerSubmitted]);
 
   // ✅ FIXED: Anti-cheat tab tracking with reconnection support
   useEffect(() => {
@@ -317,50 +344,64 @@ const QuizGamePlayPage = () => {
     if (!socket || !connected || !roomId || !playerId) return;
 
     const handleQuestion = (data: any) => {
+
+       currentQuestionIdRef.current = data.id;
+
+   if (debug)   console.log('[Client] Question received with timing data:', {
+    id: data.id,
+    timeLimit: data.timeLimit,
+    questionStartTime: data.questionStartTime,
+    currentTime: Date.now()
+    });
       if (debug) console.log(`[DEBUG] Question received:`, data);
       if (debug) console.log(`[DEBUG] Before update - currentQuestionIndexRef:`, currentQuestionIndexRef.current);
       if (debug) console.log(`[DEBUG] Before update - questionInRound:`, questionInRound, 'totalInRound:', totalInRound);
       
       if (debug) console.log('[Client] 🧐 Received question:', data);
       
-      const isRecovery = currentQuestionIndexRef.current >= 0 && 
-                        Math.abs(Date.now() - data.questionStartTime) > 5000;
+   // Use server-provided question index instead of prediction
+if (data.currentQuestionIndex !== undefined) {
+  currentQuestionIndexRef.current = data.currentQuestionIndex;
+  if (debug) console.log(`[DEBUG] Using server question index:`, data.currentQuestionIndex);
+} else {
+  if (debug) console.log(`[DEBUG] No server index provided, keeping current:`, currentQuestionIndexRef.current);
+}
+
+const questionIndex = data.currentQuestionIndex !== undefined ? data.currentQuestionIndex : currentQuestionIndexRef.current;
+if (frozenForIndexRef.current !== null && frozenForIndexRef.current !== questionIndex) {
+  setIsFrozen(false);
+  setFrozenNotice(null);
+  setWasJustFrozen(false);
+  setShowFreezeOverlay(false); // Hide the overlay when moving to non-frozen question
+  
+  if (debug) {
+    console.log(`[Client] ❄️ Cleared freeze state - frozen for index ${frozenForIndexRef.current}, current index ${questionIndex}`);
+  }
+}
+
+ currentQuestionIdRef.current = data.id;
       
-      if (!isRecovery) {
-        currentQuestionIndexRef.current += 1;
-         if (debug) console.log(`[DEBUG] Incremented currentQuestionIndexRef to:`, currentQuestionIndexRef.current);
-      } else {
-         if (debug) console.log(`[DEBUG] Recovery detected - keeping currentQuestionIndexRef:`, currentQuestionIndexRef.current);
-      }
-      
-      setQuestion(data);
+       setQuestion({
+    ...data,
+    questionStartTime: data.questionStartTime, // Make sure this is being set
+    timeLimit: data.timeLimit
+  });
       setSelectedAnswer('');
-      setAnswerSubmitted(false);
+selectedAnswerRef.current = ''; // Also clear the ref
+setAnswerSubmitted(false);
+answerSubmittedRef.current = false;
+      
       setClue(null);
       setFeedback(null);
       setUsedExtrasThisRound({});
 
-      if (data.questionNumber && data.totalQuestions) {
-        setQuestionInRound(data.questionNumber);
-        setTotalInRound(data.totalQuestions);
-      } else if (config?.roundDefinitions) {
-        const { questionInRound: qInRound, totalInRound: totalInR } = calculateQuestionPosition(
-          currentQuestionIndexRef.current, 
-          config.roundDefinitions
-        );
-        setQuestionInRound(qInRound);
-        setTotalInRound(totalInR);
-      }
-
-      if (frozenForIndexRef.current !== null && frozenForIndexRef.current !== currentQuestionIndexRef.current) {
-        setIsFrozen(false);
-        setFrozenNotice(null);
-        frozenForIndexRef.current = null;
-        frozenByRef.current = null;
-        // ✅ NEW: Hide freeze overlay when freeze period ends
-        setShowFreezeOverlay(false);
-        if (debug) console.log('[Client] ❄️ Freeze cleared for new question');
-      }
+   // Always use server-provided question numbers (no fallback calculation needed)
+if (data.questionNumber && data.totalQuestions) {
+  setQuestionInRound(data.questionNumber);
+  setTotalInRound(data.totalQuestions);
+} else {
+  if (debug) console.warn('[Client] Server did not provide question numbers');
+}
 
       setTimerActive(true);
       setPhaseMessage('');
@@ -369,6 +410,8 @@ const QuizGamePlayPage = () => {
     // QuizGamePlayPage.tsx - Updated handleReviewQuestion function
     const handleReviewQuestion = (data: any) => {
       if (debug) console.log('[Client] 🤔 Review question received:', data);
+       console.log('[Client] 🔍 Submitted answer:', data.submittedAnswer);
+  console.log('[Client] 🔍 Correct answer:', data.correctAnswer);
 
       setQuestion({
         id: data.id,
@@ -447,29 +490,26 @@ const QuizGamePlayPage = () => {
       setTimerActive(false);
     };
 
-    const handleFreezeNotice = ({ frozenBy, frozenForQuestionIndex }: { frozenBy: string; frozenForQuestionIndex: number; message?: string }) => {
-      const frozenByName = playersInRoom.find(p => p.id === frozenBy)?.name || 'Someone';
-      frozenByRef.current = frozenBy;
-      frozenForIndexRef.current = frozenForQuestionIndex;
+  const handleFreezeNotice = ({ frozenBy, frozenForQuestionIndex }: { frozenBy: string; frozenForQuestionIndex: number; message?: string }) => {
+  const frozenByName = playersInRoom.find(p => p.id === frozenBy)?.name || 'Someone';
+  frozenByRef.current = frozenBy;
+  frozenForIndexRef.current = frozenForQuestionIndex;
 
-      setIsFrozen(true);
-      setWasJustFrozen(true);
-      setFrozenNotice(`❄️ ${frozenByName} froze you out!!!`);
+  setIsFrozen(true);
+  setWasJustFrozen(true);
+  setFrozenNotice(`❄️ ${frozenByName} froze you out!!!`);
 
-      // ✅ NEW: Trigger the freeze overlay animation
-      setShowFreezeOverlay(true);
-      setFreezeOverlayTrigger(prev => prev + 1); // Force re-trigger even if already showing
+  // Trigger the freeze overlay animation
+  setShowFreezeOverlay(true);
+  setFreezeOverlayTrigger(prev => prev + 1);
 
-      if (debug) {
-        console.log(`[Client] ❄️ Freeze Notice:`, wasJustFrozen || 'You have been frozen out!');
-        console.log(`[Client] ❄️ Freeze Notice Details:`);
-        console.log(`  - Frozen by: ${frozenByName}`);
-        console.log(`  - Frozen for question INDEX: ${frozenForQuestionIndex}`);
-        console.log(`  - Current question INDEX: ${currentQuestionIndexRef.current}`);
-        console.log(`  - Current question NUMBER: ${currentQuestionIndexRef.current + 1}`);
-        console.log(`[Client] ❄️ Freeze Notice: You are frozen by ${frozenByName} for question index ${frozenForQuestionIndex} (question ${frozenForQuestionIndex + 1} to user)`);
-      }
-    };
+  console.log(`[Client] ❄️ Freeze Notice received:`, {
+    frozenBy: frozenByName,
+    frozenForQuestionIndex,
+    currentQuestionIndex: currentQuestionIndexRef.current,
+    willBeFrozenForIndex: frozenForQuestionIndex
+  });
+};
 
     const handleRoomState = (data: ServerRoomState) => {
       if (debug) console.log('[Client] 🧭 room_state update:', data);
@@ -657,11 +697,7 @@ const QuizGamePlayPage = () => {
     };
   }, [socket, connected, roomId, playerId, playersInRoom, config?.roundDefinitions, serverRoomState.currentRound]);
 
-const handleAutoSubmit = useCallback(() => {
-  if (!question) return;
-  submitAnswer(selectedAnswer || null, { autoTimeout: true }); // ✅ NEW signature (no questionId arg)
-  setAnswerSubmitted(true);
-}, [question, selectedAnswer, submitAnswer]);
+
 
 
   const handleUseExtra = (extraId: string, targetPlayerId?: string) => {
@@ -722,6 +758,12 @@ const handleAutoSubmit = useCallback(() => {
     }
   };
 
+  const getMaxRestorePointsFromConfig = (config: any): number => {
+  return config?.fundraisingOptions?.restorePoints?.totalRestorePoints 
+    ?? fundraisingExtraDefinitions.restorePoints?.totalRestorePoints 
+    ?? 3;
+};
+
   // ✅ FIXED: Function placed at component level (not inside useEffect)
   const handleFreezeOverlayComplete = () => {
     setShowFreezeOverlay(false);
@@ -739,11 +781,9 @@ const handleAutoSubmit = useCallback(() => {
     setFreezeModalOpen(false);
   };
 
-  const { timeLeft } = useQuizTimer({
-    question: question,
-    timerActive: timerActive && roomPhase === 'asking' && !answerSubmitted,
-    onTimeUp: handleAutoSubmit
-  });
+  // Timer now managed by server via countdown effects
+  const timeLeft = null; // Will be removed in next phase
+
 
   // ✅ CORRECT PLACEMENT - Move the completion check to the top level
   return (
@@ -832,6 +872,7 @@ const handleAutoSubmit = useCallback(() => {
                 pointsRestored={roundLeaderboard.find(p => p.id === playerId)?.pointsRestored || 0}
                 isRoundResults={true}
                 currentRound={currentRoundNumber}
+                maxRestorePoints={getMaxRestorePointsFromConfig(config)}
               />
             ) : leaderboard.length > 0 ? (
               <EnhancedPlayerLeaderboard
@@ -843,6 +884,7 @@ const handleAutoSubmit = useCallback(() => {
                 cumulativeNegativePoints={leaderboard.find(p => p.id === playerId)?.cumulativeNegativePoints || 0}
                 pointsRestored={leaderboard.find(p => p.id === playerId)?.pointsRestored || 0}
                 isRoundResults={false}
+                maxRestorePoints={getMaxRestorePointsFromConfig(config)}
               />
             ) : (
               <div className="text-fg/70 rounded-xl bg-gray-100 p-6 text-center">
@@ -909,7 +951,7 @@ const handleAutoSubmit = useCallback(() => {
         key={freezeOverlayTrigger} // Force re-render on new freeze
         isActive={showFreezeOverlay && isFrozenNow} // ✅ FIXED: Only show when actually frozen
         frozenBy={playersInRoom.find(p => p.id === frozenByRef.current)?.name || 'Someone'}
-        onAnimationComplete={handleFreezeOverlayComplete}
+      
         targetElement=".quiz-content, .round-router, [data-testid='question-card']" // ✅ Better target selection
       />
     </div>

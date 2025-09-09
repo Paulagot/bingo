@@ -16,6 +16,7 @@ import {
 } from '../quizRoomManager.js';
 import { emitFullRoomState } from '../handlers/sharedUtils.js';
 import { isQuestionWindowOpen } from './scoringUtils.js';
+import { QuestionEmissionService } from '../gameplayEngines/services/QuestionEmissionService.js';
 
 const debug =  true;
 
@@ -218,7 +219,7 @@ if (room.config?.paymentMethod === 'web3' && debug) {
 
     setTimeout(() => {
       namespace.in(roomId).allSockets().then(clients => {
-       if (debug)  console.log(`[JoinDebug] 🔎 Clients in ${roomId}:`, [...clients]);
+      //  if (debug)  console.log(`[JoinDebug] 🔎 Clients in ${roomId}:`, [...clients]);
       });
     }, 50);
   });
@@ -230,7 +231,7 @@ if (room.config?.paymentMethod === 'web3' && debug) {
       return;
     }
 
-    if (debug) console.log(`[RouteChange] 🛣️ Player ${playerId} ${entering ? 'entering' : 'leaving'} route: ${route}`);
+    // if (debug) console.log(`[RouteChange] 🛣️ Player ${playerId} ${entering ? 'entering' : 'leaving'} route: ${route}`);
     
     if (route === 'play') {
       if (entering) {
@@ -294,20 +295,10 @@ if (room.config?.paymentMethod === 'web3' && debug) {
   });
 
 socket.on('submit_answer', ({ roomId, playerId, questionId, answer, autoTimeout }) => {
+   if (debug) console.log(`[DEBUG] submit_answer received:`, { roomId, playerId, questionId, answer, autoTimeout });
   const room = getQuizRoom(roomId);
   if (!room) {
     socket.emit('quiz_error', { message: 'Room not found' });
-    return;
-  }
-
-  // ✅ Central guard: only accept answers for the current, still-open question
-  if (!isQuestionWindowOpen(room, questionId)) {
-    if (debug) {
-      console.warn('[submit_answer] ❌ reject: too late or wrong question', {
-        roomId, playerId, questionId, phase: room.currentPhase, currentIndex: room.currentQuestionIndex
-      });
-    }
-    socket.emit('quiz_error', { message: 'Answer window closed or question mismatch.' });
     return;
   }
 
@@ -318,6 +309,7 @@ socket.on('submit_answer', ({ roomId, playerId, questionId, answer, autoTimeout 
   }
 
   enginePromise.then(engine => {
+    console.log(`[DEBUG] Engine loaded successfully:`, !!engine?.handlePlayerAnswer);
     if (!engine?.handlePlayerAnswer) {
       socket.emit('quiz_error', { message: 'Invalid gameplay engine' });
       return;
@@ -325,8 +317,8 @@ socket.on('submit_answer', ({ roomId, playerId, questionId, answer, autoTimeout 
     // Normalize empty string to null (no answer)
     const normalised = (answer === '' || answer === undefined) ? null : answer;
     engine.handlePlayerAnswer(roomId, playerId, { questionId, answer: normalised, autoTimeout }, namespace);
-  }).catch(() => {
-    socket.emit('quiz_error', { message: 'Failed to load gameplay engine' });
+  }).catch(err => {
+  console.error(`[DEBUG] Engine loading failed:`, err);
   });
 });
 
@@ -335,9 +327,16 @@ socket.on('submit_answer', ({ roomId, playerId, questionId, answer, autoTimeout 
  // REPLACE the existing use_extra handler in playerHandlers.js with this:
 
 socket.on('use_extra', async ({ roomId, playerId, extraId, targetPlayerId }) => {
- if (debug)  console.log(`[PlayerHandler] 🧪 Received use_extra:`, { roomId, playerId, extraId, targetPlayerId });
-    if (debug)  console.log(`🐛 [Backend] use_extra event received!`);
-   if (debug)  console.log(`🐛 [Backend] Data:`, { roomId, playerId, extraId, targetPlayerId });
+//    console.log(`[DEBUG] 🎯 use_extra socket event received:`, {
+//     roomId,
+//     playerId, 
+//     extraId,
+//     targetPlayerId,
+//     socketId: socket.id
+//   })
+//  if (debug)  console.log(`[PlayerHandler] 🧪 Received use_extra:`, { roomId, playerId, extraId, targetPlayerId });
+//     if (debug)  console.log(`🐛 [Backend] use_extra event received!`);
+//    if (debug)  console.log(`🐛 [Backend] Data:`, { roomId, playerId, extraId, targetPlayerId });
 
   
   const room = getQuizRoom(roomId);
@@ -416,7 +415,7 @@ socket.on('use_extra', async ({ roomId, playerId, extraId, targetPlayerId }) => 
     }
   });
 
-// REPLACE your existing request_current_state handler in playerHandlers.js with this:
+// request_current_state handler
 
 socket.on('request_current_state', ({ roomId, playerId }) => {
   emitFullRoomState(socket, namespace, roomId);
@@ -424,45 +423,46 @@ socket.on('request_current_state', ({ roomId, playerId }) => {
   if (!room) return;
 
   // ✅ EXISTING: Handle asking phase
-  if (room.currentPhase === 'asking' && room.currentQuestionIndex >= 0) {
-    const question = room.questions[room.currentQuestionIndex];
-    const roundConfig = room.config.roundDefinitions[room.currentRound - 1];
-    const timeLimit = roundConfig?.config?.timePerQuestion || 10;
-    const questionStartTime = room.questionStartTime || Date.now();
+if (room.currentPhase === 'asking' && room.currentQuestionIndex >= 0) {
+  const question = room.questions[room.currentQuestionIndex];
+  const roundConfig = room.config.roundDefinitions[room.currentRound - 1];
+  const timeLimit = roundConfig?.config?.timePerQuestion || 10;
+  const questionStartTime = room.questionStartTime || Date.now();
+  
+  const elapsed = Math.floor((Date.now() - questionStartTime) / 1000);
+  const remainingTime = Math.max(0, timeLimit - elapsed);
+  
+  const playerData = room.playerData[playerId];
+  const roundAnswerKey = `${question.id}_round${room.currentRound}`;
+  const hasAnswered = playerData?.answers?.[roundAnswerKey] ? true : false;
+  const submittedAnswer = playerData?.answers?.[roundAnswerKey]?.submitted || null;
+  const isFrozen = playerData?.frozenNextQuestion && 
+                  playerData?.frozenForQuestionIndex === room.currentQuestionIndex;
+  
+  socket.emit('question', {
+    id: question.id,
+    text: question.text,
+    options: question.options || [],
+    timeLimit,
+    questionStartTime,
+    questionNumber: room.currentQuestionIndex + 1,
+    totalQuestions: room.questions.length,
     
-    const elapsed = Math.floor((Date.now() - questionStartTime) / 1000);
-    const remainingTime = Math.max(0, timeLimit - elapsed);
-    
-    const playerData = room.playerData[playerId];
-    const roundAnswerKey = `${question.id}_round${room.currentRound}`;
-    const hasAnswered = playerData?.answers?.[roundAnswerKey] ? true : false;
-    const submittedAnswer = playerData?.answers?.[roundAnswerKey]?.submitted || null;
-    const isFrozen = playerData?.frozenNextQuestion && 
-                    playerData?.frozenForQuestionIndex === room.currentQuestionIndex;
-    
-    socket.emit('question', {
-      id: question.id,
-      text: question.text,
-      options: question.options || [],
-      timeLimit,
-      questionStartTime,
-      questionNumber: room.currentQuestionIndex + 1,
-      totalQuestions: room.questions.length
-    });
-    
-    socket.emit('player_state_recovery', {
-      hasAnswered,
-      submittedAnswer,
-      isFrozen,
-      frozenBy: playerData?.frozenBy || null,
-      usedExtras: playerData?.usedExtras || {},
-      usedExtrasThisRound: playerData?.usedExtrasThisRound || {},
-      remainingTime,
-      currentQuestionIndex: room.currentQuestionIndex
-    });
+  });
+  
+  socket.emit('player_state_recovery', {
+    hasAnswered,
+    submittedAnswer,
+    isFrozen,
+    frozenBy: playerData?.frozenBy || null,
+    usedExtras: playerData?.usedExtras || {},
+    usedExtrasThisRound: playerData?.usedExtrasThisRound || {},
+    remainingTime,
+    currentQuestionIndex: room.currentQuestionIndex
+  });
 
-   if (debug)  console.log(`[Recovery] 🔁 Sent complete state recovery for ${playerId}: answered=${hasAnswered}, frozen=${isFrozen}, remaining=${remainingTime}s`);
-  }
+  if (debug) console.log(`[Recovery] 🔁 Sent complete state recovery for ${playerId}: answered=${hasAnswered}, frozen=${isFrozen}, remaining=${remainingTime}s`);
+}
 
   // ✅ NEW: Handle reviewing phase
   else if (room.currentPhase === 'reviewing') {
@@ -558,6 +558,42 @@ socket.on('request_current_state', ({ roomId, playerId }) => {
    if (debug)  console.log(`[Recovery] 🏆 Sent round leaderboard (fallback) for room ${roomId}`);
   }
 }
+
+ // Host calls request_current_state without playerId, but socket is in host room
+   const isHost = !playerId || playerId === 'host' || socket.rooms.has(`${roomId}:host`);
+  if (isHost && socket.rooms.has(`${roomId}:host`)) {
+    if (debug) console.log(`[Recovery] 📊 Recovering host stats for room ${roomId}`);
+    
+    // Send current round stats if available
+    if (room.currentRoundStats) {
+      socket.emit('host_current_round_stats', room.currentRoundStats);
+      if (debug) console.log(`[Recovery] 📊 Sent current round stats for room ${roomId}:`, {
+        roundNumber: room.currentRoundStats.roundNumber,
+        questionsAnswered: room.currentRoundStats.questionsAnswered,
+        correctAnswers: room.currentRoundStats.correctAnswers,
+        totalExtras: room.currentRoundStats.totalExtrasUsed
+      });
+    }
+    
+    // Send final quiz stats if available (for completed quizzes)
+    if (room.finalQuizStats) {
+      socket.emit('host_final_stats', room.finalQuizStats);
+      if (debug) console.log(`[Recovery] 📈 Sent final quiz stats for room ${roomId} (${room.finalQuizStats.length} rounds)`);
+    }
+
+    // NEW: Send cumulative stats if available
+    if (room.cumulativeStatsForRecovery) {
+      // Emit cumulative stats as a special event for potential future use
+      socket.emit('host_cumulative_stats', room.cumulativeStatsForRecovery);
+      if (debug) console.log(`[Recovery] 📈 Sent cumulative stats for room ${roomId}:`, {
+        totalCorrect: room.cumulativeStatsForRecovery.totalCorrectAnswers,
+        totalResponses: room.cumulativeStatsForRecovery.totalQuestionsAnswered,
+        successRate: room.cumulativeStatsForRecovery.overallSuccessRate + '%',
+        roundsCompleted: room.cumulativeStatsForRecovery.roundsCompleted
+      });
+    }
+  }
+  
 });
 
   socket.on('disconnect', () => {

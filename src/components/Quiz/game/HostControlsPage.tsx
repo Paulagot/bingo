@@ -3,7 +3,6 @@ import { useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { useNavigate } from 'react-router-dom';
-import { useQuizTimer } from '../hooks/useQuizTimer';
 import { useCountdownEffects } from '../hooks/useCountdownEffects';
 import { useQuizConfig } from '../hooks/useQuizConfig';
 import { roundTypeDefinitions } from '../constants/quizMetadata';
@@ -138,14 +137,8 @@ const HostControlsPage = () => {
   const [, setTotalInRound] = useState(1);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(-1);
 
-  // Use the timer hook (same as players use)
-  const { timeLeft } = useQuizTimer({
-    question: currentQuestion,
-    timerActive: roomState.phase === 'asking',
-    onTimeUp: () => {
-      if (debug) console.log('[Host] Timer reached zero - server will advance question');
-    }
-  });
+ // Timer now managed by server - host gets same countdown effects as players
+  const timeLeft = null; // Will be removed in next phase
 
   // Use countdown effects hook (same as players use)
   const { currentEffect, isFlashing, getFlashClasses } = useCountdownEffects();

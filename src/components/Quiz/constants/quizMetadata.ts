@@ -30,8 +30,8 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     difficulty: 'Easy',
     bestFor: 'Mixed groups, warm-up rounds, classic quiz feel, family events',
     defaultConfig: {
-  questionsPerRound: 6,
-  timePerQuestion: 25,
+  questionsPerRound: 4,
+  timePerQuestion: 10,
   pointsPerDifficulty: {
     easy: 1,
     medium: 2,
@@ -66,8 +66,8 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     difficulty: 'Easy',
     bestFor: 'Mixed groups, competitive play, family events',
     defaultConfig:   {
-     questionsPerRound: 8,
-      timePerQuestion: 20,
+     questionsPerRound: 4,
+      timePerQuestion: 10,
       pointsPerDifficulty: {
   easy: 2,
   medium: 3,

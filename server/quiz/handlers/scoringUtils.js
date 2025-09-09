@@ -64,12 +64,30 @@ export function isQuestionWindowOpen(room, questionId) {
   if (!room) return false;
   const current = room.questions?.[room.currentQuestionIndex];
   if (!current) return false;
-  // window is open only if this is the current asking question and not finalized
-  return (
-    room.currentPhase === 'asking' &&
-    current.id === questionId &&
-    !isQuestionFinalized(room, questionId)
-  );
+  
+  // Check current question with grace period
+  if (current.id === questionId) {
+    const timeLimit = room.config.roundDefinitions[room.currentRound - 1]?.config?.timePerQuestion || 10;
+    const elapsed = (Date.now() - room.questionStartTime) / 1000;
+    const gracePeriod = 2;
+    
+    return (
+      room.currentPhase === 'asking' &&
+      elapsed <= (timeLimit + gracePeriod) &&
+      !isQuestionFinalized(room, questionId)
+    );
+  }
+  
+  // Also accept previous question during transition period
+  if (room.currentQuestionIndex > 0) {
+    const previousQuestion = room.questions[room.currentQuestionIndex - 1];
+    if (previousQuestion?.id === questionId) {
+      const timeSinceNewQuestion = (Date.now() - room.questionStartTime) / 1000;
+      return timeSinceNewQuestion <= 2 && !isQuestionFinalized(room, questionId);
+    }
+  }
+  
+  return false;
 }
 
 /**

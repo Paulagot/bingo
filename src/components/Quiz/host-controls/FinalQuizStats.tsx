@@ -8,6 +8,9 @@ import {
   ChevronDown, 
   ChevronRight,
   Download,
+  CheckCircle,
+  XCircle,
+  Clock
 
 } from 'lucide-react';
 import { RoundStats } from './RoundStatsDisplay';
@@ -38,14 +41,31 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
     freezesUsed: total.freezesUsed + round.freezesUsed,
     pointsRobbed: total.pointsRobbed + round.pointsRobbed,
     pointsRestored: total.pointsRestored + round.pointsRestored,
-    totalExtrasUsed: total.totalExtrasUsed + round.totalExtrasUsed
+    totalExtrasUsed: total.totalExtrasUsed + round.totalExtrasUsed,
+    // NEW: Question totals
+    questionsAnswered: total.questionsAnswered + (round.questionsAnswered || 0),
+    correctAnswers: total.correctAnswers + (round.correctAnswers || 0),
+    wrongAnswers: total.wrongAnswers + (round.wrongAnswers || 0),
+    noAnswers: total.noAnswers + (round.noAnswers || 0)
   }), {
     hintsUsed: 0,
     freezesUsed: 0,
     pointsRobbed: 0,
     pointsRestored: 0,
-    totalExtrasUsed: 0
+    totalExtrasUsed: 0,
+    questionsAnswered: 0,
+    correctAnswers: 0,
+    wrongAnswers: 0,
+    noAnswers: 0
   });
+
+  // NEW: Calculate question performance metrics
+  const overallCorrectPercentage = overallStats.questionsAnswered > 0 
+    ? ((overallStats.correctAnswers / overallStats.questionsAnswered) * 100).toFixed(1) 
+    : '0';
+  const averageCorrectPerRound = allRoundsStats.length > 0 
+    ? (overallStats.correctAnswers / allRoundsStats.length).toFixed(1) 
+    : '0';
 
   // Calculate player insights across all rounds
   const allPlayerExtras: Record<string, { extraId: string; target?: string; round: number }[]> = {};
@@ -102,7 +122,11 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
       roundBreakdown: allRoundsStats,
       mostTargeted,
       quizDuration,
-      totalPlayers
+      totalPlayers,
+      performanceMetrics: {
+        overallCorrectPercentage,
+        averageCorrectPerRound
+      }
     };
     
     const dataStr = JSON.stringify(statsData, null, 2);
@@ -122,8 +146,8 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
         <div className="flex items-center space-x-3">
           <BarChart3 className="h-8 w-8 text-purple-600" />
           <div>
-            <h2 className="text-fg text-2xl font-bold">📈 Final Quiz Statistics</h2>
-            <p className="text-fg/70">Complete breakdown of strategic play across all rounds</p>
+            <h2 className="text-fg text-2xl font-bold">Final Quiz Statistics</h2>
+            <p className="text-fg/70">Complete analysis of performance and strategic play</p>
           </div>
         </div>
         <button
@@ -135,11 +159,44 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
         </button>
       </div>
 
-      {/* Overall Summary */}
+      {/* NEW: Overall Question Performance */}
+      <div className="mb-6 rounded-xl bg-gradient-to-r from-green-50 to-blue-50 p-6">
+        <h3 className="mb-4 flex items-center space-x-2 text-lg font-bold text-green-800">
+          <CheckCircle className="h-5 w-5" />
+          <span>Overall Question Performance</span>
+        </h3>
+        
+        <div className="mb-4 grid grid-cols-2 gap-4 md:grid-cols-4">
+          <div className="bg-muted/70 rounded-lg border border-green-200 p-3 text-center">
+            <div className="text-2xl font-bold text-green-600">{overallStats.correctAnswers}</div>
+            <div className="text-fg/70 text-xs">Correct Answers</div>
+            <div className="text-green-600 text-xs font-medium">{overallCorrectPercentage}%</div>
+          </div>
+          <div className="bg-muted/70 rounded-lg border border-red-200 p-3 text-center">
+            <div className="text-2xl font-bold text-red-600">{overallStats.wrongAnswers}</div>
+            <div className="text-fg/70 text-xs">Wrong Answers</div>
+          </div>
+          <div className="bg-muted/70 rounded-lg border border-gray-200 p-3 text-center">
+            <div className="text-2xl font-bold text-gray-600">{overallStats.noAnswers}</div>
+            <div className="text-fg/70 text-xs">No Answers</div>
+          </div>
+          <div className="bg-muted/70 rounded-lg border border-blue-200 p-3 text-center">
+            <div className="text-2xl font-bold text-blue-600">{overallStats.questionsAnswered}</div>
+            <div className="text-fg/70 text-xs">Total Responses</div>
+          </div>
+        </div>
+
+        <div className="bg-muted/70 rounded-lg p-3 text-center">
+          <div className="text-green-700 font-medium">Quiz Success Rate: {overallCorrectPercentage}%</div>
+          <div className="text-fg/70 text-sm">Average {averageCorrectPerRound} correct answers per round</div>
+        </div>
+      </div>
+
+      {/* Strategic Summary */}
       <div className="mb-6 rounded-xl bg-gradient-to-r from-purple-50 to-blue-50 p-6">
         <h3 className="mb-4 flex items-center space-x-2 text-lg font-bold text-purple-800">
           <TrendingUp className="h-5 w-5" />
-          <span>Overall Quiz Summary</span>
+          <span>Strategic Extras Summary</span>
         </h3>
         
         <div className="mb-4 grid grid-cols-2 gap-4 md:grid-cols-5">
@@ -263,7 +320,7 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
 
       {/* Round by Round Breakdown */}
       <div className="rounded-xl bg-gray-50 p-6">
-        <h3 className="text-fg mb-4 text-lg font-bold">📊 Round-by-Round Breakdown</h3>
+        <h3 className="text-fg mb-4 text-lg font-bold">Round-by-Round Breakdown</h3>
         <div className="space-y-3">
           {allRoundsStats.map(round => (
             <div key={round.roundNumber} className="bg-muted border-border rounded-lg border">
@@ -274,6 +331,8 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
                 <div className="flex items-center space-x-3">
                   <span className="font-medium">Round {round.roundNumber}</span>
                   <div className="text-fg/70 flex items-center space-x-4 text-sm">
+                    <span className="text-green-600">✓{round.correctAnswers || 0}</span>
+                    <span className="text-red-600">✗{round.wrongAnswers || 0}</span>
                     <span>🧪{round.hintsUsed}</span>
                     <span>❄️{round.freezesUsed}</span>
                     <span>💰{round.pointsRobbed}</span>
@@ -288,22 +347,49 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
               
               {expandedRounds.has(round.roundNumber) && (
                 <div className="border-border border-t px-4 pb-4">
-                  <div className="mb-3 mt-3 grid grid-cols-2 gap-4 md:grid-cols-4">
-                    <div className="text-center">
-                      <div className="text-lg font-bold text-blue-600">{round.hintsUsed}</div>
-                      <div className="text-fg/70 text-xs">Hints Used</div>
+                  {/* Question Performance for this round */}
+                  <div className="mb-3 mt-3">
+                    <h5 className="text-fg/80 mb-2 text-sm font-medium">Question Performance</h5>
+                    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-green-600">{round.correctAnswers || 0}</div>
+                        <div className="text-fg/70 text-xs">Correct</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-red-600">{round.wrongAnswers || 0}</div>
+                        <div className="text-fg/70 text-xs">Wrong</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-gray-600">{round.noAnswers || 0}</div>
+                        <div className="text-fg/70 text-xs">No Answer</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-blue-600">{round.questionsAnswered || 0}</div>
+                        <div className="text-fg/70 text-xs">Total Responses</div>
+                      </div>
                     </div>
-                    <div className="text-center">
-                      <div className="text-lg font-bold text-red-600">{round.freezesUsed}</div>
-                      <div className="text-fg/70 text-xs">Freezes Used</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-bold text-purple-600">{round.pointsRobbed}</div>
-                      <div className="text-fg/70 text-xs">Points Robbed</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-bold text-green-600">{round.pointsRestored}</div>
-                      <div className="text-fg/70 text-xs">Points Restored</div>
+                  </div>
+
+                  {/* Strategic Extras */}
+                  <div className="mb-3">
+                    <h5 className="text-fg/80 mb-2 text-sm font-medium">Strategic Extras</h5>
+                    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-blue-600">{round.hintsUsed}</div>
+                        <div className="text-fg/70 text-xs">Hints Used</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-red-600">{round.freezesUsed}</div>
+                        <div className="text-fg/70 text-xs">Freezes Used</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-purple-600">{round.pointsRobbed}</div>
+                        <div className="text-fg/70 text-xs">Points Robbed</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-green-600">{round.pointsRestored}</div>
+                        <div className="text-fg/70 text-xs">Points Restored</div>
+                      </div>
                     </div>
                   </div>
                   

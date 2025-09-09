@@ -32,8 +32,8 @@ type TabType = 'overview' | 'assets' | 'launch' | 'players' | 'admins' | 'paymen
 const HostDashboardCore: React.FC = () => {
   const { config } = useQuizConfig();
   const isWeb3 = config?.paymentMethod === 'web3';
-  const { players, setFullPlayers } = usePlayerStore();
-  const { admins, setFullAdmins } = useAdminStore();
+  const { players } = usePlayerStore();
+  const { admins } = useAdminStore();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
 
   const navigate = useNavigate();
@@ -46,38 +46,15 @@ const HostDashboardCore: React.FC = () => {
     useAdminStore.getState().resetAdmins();
   }, []);
 
-  // Handle socket events only after connection established
+  // Simplified: Only request current state when socket connects
   useEffect(() => {
     if (!socket || !connected || !roomId) return;
 
-    if (DEBUG) console.log('✅ [HostDashboard] Socket connected, setting up event listeners');
-
-    const handleRoomConfig = (payload: any) => {
-      if (DEBUG) console.log('🎯 [HostDashboard] Received room_config:', payload);
-      useQuizConfig.getState().setFullConfig({ ...payload, roomId });
-    };
-
-    const handlePlayerList = ({ players }: { players: any[] }) => {
-      setFullPlayers(players);
-    };
-
-    const handleAdminList = ({ admins }: { admins: any[] }) => {
-      setFullAdmins(admins);
-    };
-
-    socket.on('room_config', handleRoomConfig);
-    socket.on('player_list_updated', handlePlayerList);
-    socket.on('admin_list_updated', handleAdminList);
-
-    // 🔥 Only emit request after handlers attached
+    if (DEBUG) console.log('✅ [HostDashboard] Socket connected, requesting current state');
+    
+    // Only emit request - QuizSocketProvider handles all the socket events
     socket.emit('request_current_state', { roomId });
-
-    return () => {
-      socket.off('room_config', handleRoomConfig);
-      socket.off('player_list_updated', handlePlayerList);
-      socket.off('admin_list_updated', handleAdminList);
-    };
-  }, [socket, connected, roomId, setFullPlayers, setFullAdmins]);
+  }, [socket, connected, roomId]);
 
   // Join room as host
   useEffect(() => {

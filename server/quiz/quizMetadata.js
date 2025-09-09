@@ -16,7 +16,7 @@ export const roundTypeDefinitions = {
     bestFor: 'Mixed groups, warm-up rounds, classic quiz feel, family events',
     defaultConfig: {
   questionsPerRound: 6,
-  timePerQuestion: 25,
+  timePerQuestion: 10,
   pointsPerDifficulty: {
     easy: 1,
     medium: 2,
@@ -50,7 +50,7 @@ export const roundTypeDefinitions = {
     timing: '20 seconds per question',
     difficulty: 'Easy',
     bestFor: 'Mixed groups, competitive play, family events',
-    defaultConfig: { questionsPerRound: 8, timePerQuestion: 20 },
+    defaultConfig: { questionsPerRound: 8, timePerQuestion: 10 },
     extras: ['Hint', 'Freeze-out-Team', 'Restore Points'],
     videoId: 'YOUR_YOUTUBE_VIDEO_ID'
   },

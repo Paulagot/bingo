@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import { roundTypeDefinitions, fundraisingExtraDefinitions } from '../quiz/quizMetadata.js';
 import { handleGlobalExtra } from './handlers/globalExtrasHandler.js';
 import { resetGlobalExtrasForNewRound } from './handlers/globalExtrasHandler.js';
+import { FreezeService } from '../quiz/gameplayEngines/services/FreezeServices.js';
 
 
 const quizRooms = new Map();
@@ -300,7 +301,7 @@ export function advanceToNextQuestion(roomId) {
   room.currentQuestionIndex++;
   if (room.currentQuestionIndex >= room.questions.length) return null;
 
-  clearExpiredFreezeFlags(roomId);
+ FreezeService.clearExpiredFreezes(roomId, room.currentQuestionIndex);
 
   if (debug) console.log(`[quizRoomManager] 🔄 Advanced to Q#${room.currentQuestionIndex} in ${roomId}`);
   return room.questions[room.currentQuestionIndex];
@@ -525,80 +526,7 @@ function executeBuyHint(roomId, playerId, namespace) {
 
 // ✅ FIXED: Execute freezeOutTeam logic with correct question timing
 function executeFreezeOutTeam(roomId, playerId, targetPlayerId, namespace) {
-  if (debug) console.log(`[executeFreezeOutTeam] Starting freeze execution`);
-  if (debug) console.log(`[executeFreezeOutTeam] Params: roomId=${roomId}, playerId=${playerId}, targetPlayerId=${targetPlayerId}`);
-  
-  if (!targetPlayerId) {
-    console.error(`[executeFreezeOutTeam] ❌ No target player provided`);
-    return { success: false, error: 'Target player required for freeze' };
-  }
-
-  const room = getQuizRoom(roomId);
-  if (!room) {
-    console.error(`[executeFreezeOutTeam] ❌ Room not found`);
-    return { success: false, error: 'Room not found' };
-  }
-
-  if (playerId === targetPlayerId) {
-    console.error(`[executeFreezeOutTeam] ❌ Player trying to freeze themselves`);
-    return { success: false, error: 'You cannot freeze yourself!' };
-  }
-
-  const questionsRemaining = room.questions.length - (room.currentQuestionIndex + 1);
-  if (questionsRemaining <= 1) {
-    console.error(`[executeFreezeOutTeam] ❌ Cannot freeze - last question`);
-    return { success: false, error: 'Cannot freeze player - this is the last question of the round!' };
-  }
-
-  if (room.currentPhase !== 'asking') {
-    console.error(`[executeFreezeOutTeam] ❌ Wrong phase: ${room.currentPhase}`);
-    return { success: false, error: 'Can only freeze players during active questions!' };
-  }
-
-  const targetData = room.playerData[targetPlayerId];
-  if (!targetData) {
-    console.error(`[executeFreezeOutTeam] ❌ Target data not found`);
-    return { success: false, error: 'Target player not found' };
-  }
-
-  if (targetData.frozenNextQuestion) {
-    console.error(`[executeFreezeOutTeam] ❌ Target already frozen`);
-    return { success: false, error: 'That player is already frozen for the next question!' };
-  }
-
-  const targetPlayer = room.players.find(p => p.id === targetPlayerId);
-  if (!targetPlayer) {
-    console.error(`[executeFreezeOutTeam] ❌ Target player not in room`);
-    return { success: false, error: 'Target player not found in room' };
-  }
-
-  if (!targetPlayer.socketId) {
-    console.error(`[executeFreezeOutTeam] ❌ Target not connected`);
-    return { success: false, error: 'Target player is not actively connected' };
-  }
-
-  if (room.currentQuestionIndex < 0) {
-    console.error(`[executeFreezeOutTeam] ❌ Wrong question index: ${room.currentQuestionIndex}`);
-    return { success: false, error: 'Cannot freeze players during round setup!' };
-  }
-
-  const freezeForQuestionIndex = room.currentQuestionIndex + 1;
-
-  // ✅ Execute the freeze
-  targetData.frozenNextQuestion = true;
-  targetData.frozenForQuestionIndex = freezeForQuestionIndex;
-  targetData.frozenBy = playerId;
-
-  if (debug) {
-    console.log(`[executeFreezeOutTeam] ✅ SUCCESS: ${targetPlayerId} frozen by ${playerId} for question index ${freezeForQuestionIndex}`);
-    console.log(`[executeFreezeOutTeam] Target data after freeze:`, {
-      frozenNextQuestion: targetData.frozenNextQuestion,
-      frozenForQuestionIndex: targetData.frozenForQuestionIndex,
-      frozenBy: targetData.frozenBy
-    });
-  }
-
-  return { success: true };
+  return FreezeService.setFreeze(roomId, playerId, targetPlayerId);
 }
 
 // ✅ NEW: Player session management functions
@@ -616,7 +544,7 @@ export function updatePlayerSession(roomId, playerId, sessionData) {
     lastActive: Date.now()
   };
   
-  if (debug) console.log(`[SessionTracker] 📊 Updated session for ${playerId}:`, room.playerSessions[playerId]);
+  // if (debug) console.log(`[SessionTracker] 📊 Updated session for ${playerId}:`, room.playerSessions[playerId]);
   return true;
 }
 
@@ -655,7 +583,7 @@ export function cleanExpiredSessions(roomId) {
     
     if (timeSinceActive > RECONNECT_WINDOW && session.status === 'disconnected') {
       delete room.playerSessions[playerId];
-      if (debug) console.log(`[SessionTracker] 🧹 Cleaned expired session for ${playerId}`);
+      // if (debug) console.log(`[SessionTracker] 🧹 Cleaned expired session for ${playerId}`);
     }
   }
 }
