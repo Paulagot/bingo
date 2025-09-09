@@ -7,10 +7,11 @@ import { fundraisingExtraDefinitions } from '../constants/quizMetadata';
 import RoundRouter from './RoundRouter';
 import { usePlayerStore } from '../hooks/usePlayerStore';
 import { useQuizConfig } from '../hooks/useQuizConfig';
+import { User, Question, LeaderboardEntry, RoomPhase, EnhancedPlayerStats } from '../types/quiz';
 
 import { useRoundExtras } from '../hooks/useRoundExtras';
 import { useAnswerSubmission } from '../hooks/useAnswerSubmission';
-import { User, Question, LeaderboardEntry, RoomPhase } from '../types/quiz';
+
 import { useNavigate } from 'react-router-dom';
 import LaunchedPhase from './LaunchedPhase';
 import { useCountdownEffects } from '../hooks/useCountdownEffects'
@@ -144,6 +145,7 @@ const answerSubmittedRef = useRef<boolean>(false);
   const [frozenNotice, setFrozenNotice] = useState<string | null>(null);
   const [wasJustFrozen, setWasJustFrozen] = useState(false);
   const [correctAnswer, setCorrectAnswer] = useState<string | null>(null);
+  const [enhancedStats, setEnhancedStats] = useState<EnhancedPlayerStats | null>(null);
 
   // Refs for tracking game state
   const currentQuestionIndexRef = useRef<number>(-1);
@@ -654,6 +656,11 @@ if (data.questionNumber && data.totalQuestions) {
 
     if (debug)  console.log('[Client] 🧷 Registering socket listeners for player:', playerId, 'Room:', roomId);
 
+    const handleEnhancedPlayerStats = (data: EnhancedPlayerStats) => {
+  if (debug) console.log('[Client] 📊 Enhanced player stats received:', data);
+  setEnhancedStats(data);
+};
+
     // Register all socket listeners
     socket.on('question', handleQuestion);
     socket.on('review_question', handleReviewQuestion);
@@ -673,6 +680,7 @@ if (data.questionNumber && data.totalQuestions) {
     socket.on('quiz_notification', handleQuizNotification);
     socket.on('player_state_recovery', handlePlayerStateRecovery);
     socket.on('quiz_cancelled', handleQuizCancelled);
+    socket.on('enhanced_player_stats', handleEnhancedPlayerStats);
 
     // Cleanup
     return () => {
@@ -694,6 +702,7 @@ if (data.questionNumber && data.totalQuestions) {
       socket.off('quiz_notification', handleQuizNotification);
       socket.off('player_state_recovery', handlePlayerStateRecovery);
       socket.off('quiz_cancelled', handleQuizCancelled);
+      socket.off('enhanced_player_stats', handleEnhancedPlayerStats);
     };
   }, [socket, connected, roomId, playerId, playersInRoom, config?.roundDefinitions, serverRoomState.currentRound]);
 
@@ -790,22 +799,23 @@ if (data.questionNumber && data.totalQuestions) {
     <div className={`p-8 ${getFlashClasses()}`}>
       {/* ✅ Handle quiz completion FIRST, before other phases */}
       {roomPhase === 'complete' ? (
-        <QuizCompletionCelebration
-          leaderboard={leaderboard}
-          config={config}
-          playerId={playerId || ''}
-          roomId={roomId || ''}
-          onShareResults={() => {
-            const shareText = `I just completed a quiz and scored ${leaderboard.find(p => p.id === playerId)?.score} points! 🎯`;
-            if (navigator.share) {
-              navigator.share({ text: shareText });
-            } else {
-              navigator.clipboard.writeText(shareText);
-              showNotification('success', 'Results copied to clipboard!');
-            }
-          }}
-          onReturnToHome={() => navigate('/quiz')}
-        />
+     <QuizCompletionCelebration
+  leaderboard={leaderboard}
+  config={config}
+  playerId={playerId || ''}
+  roomId={roomId || ''}
+  enhancedStats={enhancedStats} // NEW: Rich player statistics
+  onShareResults={() => {
+    const shareText = `I just completed a quiz and scored ${leaderboard.find(p => p.id === playerId)?.score} points! 🎯`;
+    if (navigator.share) {
+      navigator.share({ text: shareText });
+    } else {
+      navigator.clipboard.writeText(shareText);
+      showNotification('success', 'Results copied to clipboard!');
+    }
+  }}
+  onReturnToHome={() => navigate('/quiz')}
+/>
       ) : (
         <>
           {/* ✅ Countdown message overlay */}
