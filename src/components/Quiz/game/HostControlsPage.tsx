@@ -1117,7 +1117,7 @@ const HostControlsPage = () => {
         )}
 
          {/* Final Leaderboard Display */}
-    {leaderboard.length > 0 && (
+    {roomState.phase === 'complete' && leaderboard.length > 0 && (
       <div className="bg-muted mb-6 rounded-xl border-2 border-green-200 p-6 shadow-lg">
         <div className="mb-4 flex items-center justify-center">
           <h3 className="text-fg flex items-center space-x-2 text-2xl font-bold">

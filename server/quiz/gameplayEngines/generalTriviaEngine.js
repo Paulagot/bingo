@@ -1,4 +1,4 @@
-// generalTriviaEngine.js - Updated to use centralized StatsService
+// generalTriviaEngine.js - Updated to use centralized StatsService and FreezeService
 
 import {
   getQuizRoom,
@@ -12,6 +12,7 @@ import {
 
 import { QuestionService } from './services/QuestionService.js';
 import { StatsService } from './services/StatsService.js'; // ✅ Import centralized StatsService
+import { FreezeService } from './services/FreezeServices.js'; // ✅ Import centralized FreezeService
 
 import { TimerService } from './services/TimerService.js';
 import { LeaderboardService } from './services/LeaderboardService.js';
@@ -82,7 +83,7 @@ export function initRound(roomId, namespace) {
   room.currentPhase = 'asking';
 
   // ✅ Use StatsService instead of local function
-  StatsService.calculateAndSendRoundStats(roomId, namespace);
+  StatsService.calculateLiveRoundStats(roomId, namespace);
   startNextQuestion(roomId, namespace);
   return true;
 }
@@ -94,15 +95,17 @@ export function startNextQuestion(roomId, namespace) {
 
   // Advance first, then clear freezes
   const nextQuestion = advanceToNextQuestion(roomId);
-  clearExpiredFreezeFlags(room);
+  
+  // ✅ USE CENTRALIZED FREEZE SERVICE instead of manual clearing
+  FreezeService.clearExpiredFreezes(roomId, room.currentQuestionIndex);
 
   // ✅ CLOSE PREVIOUS QUESTION using SimplifiedScoringService
-if (room.currentQuestionIndex >= 0) {
-  const penalizedCount = SimplifiedScoringService.finalizePreviousQuestion(room);
-  if (debug && penalizedCount > 0) {
-    console.log(`[Engine] ⏰ Finalized previous question, ${penalizedCount} players received no-answer penalties`);
+  if (room.currentQuestionIndex >= 0) {
+    const penalizedCount = SimplifiedScoringService.finalizePreviousQuestion(room);
+    if (debug && penalizedCount > 0) {
+      console.log(`[Engine] ⏰ Finalized previous question, ${penalizedCount} players received no-answer penalties`);
+    }
   }
-}
 
   // If that was the last question, go to review
   if (!nextQuestion) {
@@ -129,7 +132,8 @@ if (room.currentQuestionIndex >= 0) {
     timeLimit,
     questionStartTime,
     questionNumber: room.currentQuestionIndex + 1,
-    totalQuestions: room.questions.length
+    totalQuestions: room.questions.length,
+    currentQuestionIndex: room.currentQuestionIndex // ✅ ADD THIS LINE
   });
 
   // Use TimerService for unified timer management
@@ -137,22 +141,8 @@ if (room.currentQuestionIndex >= 0) {
     startNextQuestion(roomId, namespace);
   });
 
-  // Notify frozen players
-  room.players.forEach(player => {
-    const pdata = room.playerData[player.id];
-    if (pdata?.frozenNextQuestion && pdata.frozenForQuestionIndex === room.currentQuestionIndex) {
-      const socket = namespace.sockets.get(player.socketId);
-      if (socket) {
-        socket.emit('freeze_notice', {
-          frozenBy: pdata.frozenBy,
-          frozenForQuestionIndex: pdata.frozenForQuestionIndex,
-        });
-        if (debug) {
-          console.log(`[generalTriviaEngine] ❄️ Notified ${player.id} frozen for question index ${room.currentQuestionIndex}`);
-        }
-      }
-    }
-  });
+  // ✅ FIXED: Use centralized FreezeService instead of manual implementation
+  FreezeService.notifyFrozenPlayers(namespace, roomId, room.currentQuestionIndex);
 
   if (debug) {
     console.log(`[generalTriviaEngine] ▶ Sent question: ${nextQuestion.id} (Q#${room.currentQuestionIndex}, timeLimit: ${timeLimit}s, startTime: ${questionStartTime})`);
@@ -219,7 +209,7 @@ export function handlePlayerAnswer(roomId, playerId, payload, namespace) {
 export function emitNextReviewQuestion(roomId, namespace) {
   const gameEngineRef = {
     // ✅ Use StatsService method instead of local function
-    calculateAndSendRoundStats: (roomId, namespace) => StatsService.calculateAndSendRoundStats(roomId, namespace)
+    calculateAndSendRoundStats: (roomId, namespace) => StatsService.calculateFinalRoundStats(roomId, namespace)
   };
   
   return ReviewService.emitNextReviewQuestion(
@@ -244,19 +234,6 @@ export function buildLeaderboard(room) {
   return LeaderboardService.buildLeaderboard(room);
 }
 
-/* ------------------------------- Helpers --------------------------- */
-function clearExpiredFreezeFlags(room) {
-  if (debug) console.log(`[generalTriviaEngine] 🔍 clearExpiredFreezeFlags called, currentQuestionIndex: ${room.currentQuestionIndex}`);
-  for (const playerId in room.playerData) {
-    const p = room.playerData[playerId];
-    if (p.frozenNextQuestion && room.currentQuestionIndex > p.frozenForQuestionIndex) {
-      if (debug) console.log(`[generalTriviaEngine] 🧼 Clearing expired freeze for ${playerId} (was frozen for question ${p.frozenForQuestionIndex})`);
-      p.frozenNextQuestion = false;
-      p.frozenForQuestionIndex = null;
-    }
-  }
-}
-
 /* ------------------------ Exports for handlers --------------------- */
 export { 
   StatsService as HostNotificationService // Export StatsService under alias for backward compatibility
@@ -268,7 +245,7 @@ export const sendHostActivityNotification = (namespace, roomId, activityData) =>
 };
 
 export const calculateAndSendRoundStats = (roomId, namespace) => {
-  return StatsService.calculateAndSendRoundStats(roomId, namespace);
+  return StatsService.calculateFinalRoundStats(roomId, namespace);
 };
 
 

@@ -40,12 +40,14 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
   targetElement = '.quiz-content' 
 }) => {
   const [showOverlay, setShowOverlay] = useState(false);
+  const [animationActive, setAnimationActive] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const rafIdRef = useRef<number | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const prefersReduced = useRef(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
-  // Canvas crack system
+  // Canvas crack system - matches the HTML version exactly
   const makeCrackSystem = useCallback(({ seeds, maxTime = 1600, color = 'rgba(235,245,255,0.95)' }: CrackSystemParams) => {
     const segs: CrackSegment[] = [];
     const started = performance.now();
@@ -173,10 +175,7 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
     if (!canvas || !ctx) return;
 
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const container = canvas.parentElement;
-    if (!container) return;
-
-    const { width, height } = container.getBoundingClientRect();
+    const { width, height } = canvas.getBoundingClientRect();
     canvas.width = Math.floor(width * dpr);
     canvas.height = Math.floor(height * dpr);
     canvas.style.width = width + 'px';
@@ -189,8 +188,7 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
 
   const startCrackAnimation = useCallback(() => {
     const canvas = canvasRef.current;
-    const ctx = ctxRef.current;
-    if (!canvas || !ctx) return;
+    if (!canvas || !ctxRef.current) return;
 
     resizeCanvas();
     
@@ -214,7 +212,10 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
       },
     ];
     
-    const fracture = makeCrackSystem({ seeds, maxTime: 1600 });
+    const fracture = makeCrackSystem({ 
+      seeds, 
+      maxTime: prefersReduced.current ? 400 : 1600 
+    });
     let prev = performance.now();
 
     const loop = (now: number) => {
@@ -227,49 +228,73 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
       }
     };
 
+    if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
     rafIdRef.current = requestAnimationFrame(loop);
   }, [makeCrackSystem, clearCanvas, resizeCanvas]);
 
+  // Main effect controller
   useEffect(() => {
     if (isActive) {
+      console.log('[FreezeOverlay] Activating freeze effect');
       setShowOverlay(true);
       
-      // Apply CORRECTED ice effect to target element
+      // Apply ice effect to target element
       const targetEl = document.querySelector(targetElement);
       if (targetEl) {
         (targetEl as HTMLElement).classList.add('fo-target-iced');
       }
 
-      // Initialize canvas
-      const canvas = canvasRef.current;
-      if (canvas) {
-        ctxRef.current = canvas.getContext('2d');
-        // Start crack animation after a brief delay
-        setTimeout(startCrackAnimation, 200);
-      }
+      // Trigger animation state change after a brief delay
+      setTimeout(() => {
+        setAnimationActive(true);
+        
+        // Initialize canvas
+        const canvas = canvasRef.current;
+        if (canvas) {
+          ctxRef.current = canvas.getContext('2d');
+          startCrackAnimation();
+        }
+      }, 50);
+
+      // Auto-hide after duration
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        console.log('[FreezeOverlay] Auto-hiding after timeout');
+        setAnimationActive(false);
+        setTimeout(() => {
+          setShowOverlay(false);
+          if (onAnimationComplete) {
+            onAnimationComplete();
+          }
+        }, 250);
+      }, 3800);
       
-      // Auto-hide after full animation sequence
-//    if (onAnimationComplete) {
-//   timerRef.current = setTimeout(() => {
-//     onAnimationComplete();
-//   }, 2000); // Just to signal animation is complete, not to hide
-// }
-      
-      return () => {
-        if (timerRef.current) clearTimeout(timerRef.current);
-        if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
-      };
     } else {
-      setShowOverlay(false);
+      // Clean up when deactivated
+      console.log('[FreezeOverlay] Deactivating freeze effect');
       const targetEl = document.querySelector(targetElement);
       if (targetEl) {
         (targetEl as HTMLElement).classList.remove('fo-target-iced');
       }
+      
+      setAnimationActive(false);
       if (rafIdRef.current) {
         cancelAnimationFrame(rafIdRef.current);
       }
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+      
+      setTimeout(() => {
+        setShowOverlay(false);
+      }, 200);
     }
-  }, [isActive, targetElement, onAnimationComplete, startCrackAnimation]);
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+    };
+  }, [isActive, targetElement, startCrackAnimation, onAnimationComplete]);
 
   // Handle window resize
   useEffect(() => {
@@ -281,156 +306,228 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
 
   return (
     <>
+      {/* Inject CSS that matches the HTML version */}
       <style>{`
         .fo-target-iced { 
-          filter: saturate(0.7) hue-rotate(180deg) contrast(1.1) brightness(0.9) sepia(0.1);
+          filter: saturate(.8) hue-rotate(190deg) contrast(1.05) brightness(.98); 
           transform: translateZ(0);
-          transition: filter 0.3s ease;
+        }
+
+        /* Frost animations - exactly like HTML version */
+        @keyframes frostGrow {
+          0%{transform:translateY(0) scale(1); opacity:0; filter:blur(10px)}
+          60%{opacity:.95}
+          100%{transform:translateY(0) scale(.02); opacity:1; filter:blur(0)}
+        }
+
+        .fo-frost .plate {
+          opacity: 0;
+          transform-origin: center;
+        }
+
+        .fo-active .fo-frost .plate.top { animation: frostGrow 1.1s ease-out both .08s; }
+        .fo-active .fo-frost .plate.bottom { animation: frostGrow 1.25s ease-out both .16s; }
+        .fo-active .fo-frost .plate.left { animation: frostGrow 1.05s ease-out both .06s; }
+        .fo-active .fo-frost .plate.right { animation: frostGrow 1.15s ease-out both .12s; }
+
+        /* Shard animations */
+        @keyframes shardSweep {
+          0%{transform:rotate(var(--r)) translate3d(0,0,0); opacity:0}
+          10%{opacity:.95}
+          100%{transform:rotate(var(--r)) translate3d(140vw,45vh,0); opacity:0}
+        }
+
+        .fo-shards span {
+          position: absolute;
+          top: -10vh;
+          left: -15vw;
+          width: 24vmax;
+          height: 2px;
+          border-radius: 2px;
+          background: linear-gradient(90deg, rgba(255,255,255,0), rgba(225,240,255,.95), rgba(255,255,255,0));
+          transform: rotate(var(--r,25deg)) translate3d(0,0,0);
+          opacity: 0;
+        }
+
+        .fo-active .fo-shards span {
+          animation: shardSweep var(--t,950ms) cubic-bezier(.16,.84,.44,1) forwards var(--d,120ms);
+        }
+
+        /* Bloom effect */
+        @keyframes bloom {
+          from{opacity:0; filter:blur(0)}
+          60%{opacity:.8; filter:blur(12px)}
+          to{opacity:.35; filter:blur(6px)}
+        }
+
+        .fo-bloom {
+          opacity: 0;
+        }
+
+        .fo-active .fo-bloom {
+          animation: bloom 1200ms ease-out .35s forwards;
+        }
+
+        /* Refraction effect */
+        @keyframes refract {
+          0%{opacity:0; transform:scale(.92)}
+          40%{opacity:.75; transform:scale(1.02)}
+          100%{opacity:.28; transform:scale(1)}
+        }
+
+        .fo-refraction {
+          opacity: 0;
+        }
+
+        .fo-active .fo-refraction {
+          animation: refract 1.2s ease-out .6s forwards;
+        }
+
+        /* Glint effect */
+        @keyframes glint {
+          0%{opacity:0; transform:translateX(-10%) translateY(-8%) scale(1.1)}
+          40%{opacity:.55}
+          100%{opacity:0; transform:translateX(6%) translateY(4%) scale(1)}
+        }
+
+        .fo-glint {
+          opacity: 0;
+        }
+
+        .fo-active .fo-glint {
+          animation: glint 1.8s ease-in-out .9s 1 forwards;
+        }
+
+        /* Notification animations */
+        @keyframes freeze-notification-enter {
+          0% { 
+            transform: scale(0.3) translateY(50px); 
+            opacity: 0; 
+            filter: blur(10px);
+          }
+          60% { 
+            transform: scale(1.05) translateY(-5px); 
+            opacity: 0.9;
+            filter: blur(2px);
+          }
+          100% { 
+            transform: scale(1) translateY(0px); 
+            opacity: 1;
+            filter: blur(0px);
+          }
+        }
+
+        .animate-freeze-notification-enter { 
+          animation: freeze-notification-enter 1s cubic-bezier(0.34, 1.56, 0.64, 1) 0.5s both; 
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .fo-frost .plate, .fo-shards span, .fo-glint, .fo-bloom, .fo-refraction {
+            animation: none !important;
+            transition: none !important;
+          }
         }
       `}</style>
       
-      {/* FULL SCREEN OVERLAY WITH CORRECTED ICE COLORS */}
+      {/* Main overlay with fo-active class for triggering animations */}
       <div 
-        className="pointer-events-none fixed inset-0 z-50"
+        className={`pointer-events-none fixed inset-0 z-50 ${animationActive ? 'fo-active' : ''}`}
         style={{ 
-          background: `radial-gradient(120% 120% at 50% 50%, 
-            rgba(200,230,255,.2) 0%, rgba(150,200,240,.3) 45%, rgba(80,120,160,.45) 100%)`,
-          filter: 'saturate(1.2)'
+          opacity: animationActive ? 1 : 0,
+          transform: animationActive ? 'scale(1)' : 'scale(1.02)',
+          transition: 'opacity .25s ease, transform .35s ease'
         }}
       >
-        {/* VIGNETTE EFFECT */}
+        {/* Tint - matches HTML version */}
         <div 
           className="absolute inset-0"
           style={{
-            background: 'radial-gradient(70% 50% at 50% 50%, rgba(255,255,255,0) 60%, rgba(20,40,70,.4) 100%)',
+            background: `radial-gradient(120% 120% at 50% 40%,
+              rgba(180,215,255,.25) 0%, rgba(120,170,230,.35) 45%, rgba(40,60,90,.55) 100%)`,
+            filter: 'saturate(1.1) hue-rotate(200deg)'
+          }}
+        />
+
+        {/* Vignette */}
+        <div 
+          className="absolute inset-0"
+          style={{
+            background: 'radial-gradient(70% 50% at 50% 40%, rgba(255,255,255,0) 60%, rgba(10,20,35,.48) 100%)',
             mixBlendMode: 'multiply'
           }}
         />
 
-        {/* FROST PLATES */}
-        <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+        {/* Bloom effect */}
+        <div 
+          className="fo-bloom absolute inset-0"
+          style={{
+            background: `
+              radial-gradient(40% 30% at 30% 20%, rgba(140,200,255,.25), rgba(255,255,255,0) 70%),
+              radial-gradient(30% 24% at 70% 72%, rgba(150,210,255,.20), rgba(255,255,255,0) 70%)
+            `,
+            mixBlendMode: 'screen'
+          }}
+        />
+
+        {/* Frost plates - matches HTML exactly */}
+        <svg className="fo-frost absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <rect className="plate top" x="0" y="-50" width="100" height="50" fill="url(#frostGrad)" />
+          <rect className="plate bottom" x="0" y="100" width="100" height="50" fill="url(#frostGrad)" />
+          <rect className="plate left" x="-50" y="0" width="50" height="100" fill="url(#frostGrad)" />
+          <rect className="plate right" x="100" y="0" width="50" height="100" fill="url(#frostGrad)" />
           <defs>
             <linearGradient id="frostGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="rgba(240,250,255,0.8)" />
-              <stop offset="70%" stopColor="rgba(200,230,255,0.4)" />
-              <stop offset="100%" stopColor="rgba(200,230,255,0)" />
+              <stop offset="0%" stopColor="rgba(224,245,255,0.85)" />
+              <stop offset="70%" stopColor="rgba(190,225,255,0.35)" />
+              <stop offset="100%" stopColor="rgba(190,225,255,0)" />
             </linearGradient>
           </defs>
-          <rect className="animate-frost-top" x="0" y="-50" width="100" height="50" fill="url(#frostGrad)" />
-          <rect className="animate-frost-bottom" x="0" y="100" width="100" height="50" fill="url(#frostGrad)" />
-          <rect className="animate-frost-left" x="-50" y="0" width="50" height="100" fill="url(#frostGrad)" />
-          <rect className="animate-frost-right" x="100" y="0" width="50" height="100" fill="url(#frostGrad)" />
         </svg>
 
-        {/* CANVAS FOR DYNAMIC CRACKS */}
+        {/* Canvas for cracks */}
         <canvas 
           ref={canvasRef}
           className="absolute inset-0 h-full w-full"
           style={{ pointerEvents: 'none' }}
         />
 
-        {/* ENHANCED SHARDS - CENTERED SWEEP */}
-        <div className="absolute inset-0 overflow-hidden">
-          {Array.from({ length: 15 }, (_, i) => {
-            const angle = (i * 24) + 10;
-            const delay = 120 + (i * 30);
-            const duration = 800 + (i * 25);
-            
-            return (
-              <span
-                key={i}
-                className="animate-shard-sweep-centered absolute"
-                style={{
-                  top: '50%',
-                  left: '50%',
-                  width: 'min(40vw, 500px)',
-                  height: '3px',
-                  borderRadius: '2px',
-                  background: 'linear-gradient(90deg, rgba(255,255,255,0), rgba(235,245,255,.95), rgba(255,255,255,0))',
-                  transform: `translate(-50%, -50%) rotate(${angle}deg)`,
-                  transformOrigin: '0 50%',
-                  animationDelay: `${delay}ms`,
-                  animationDuration: `${duration}ms`,
-                  boxShadow: '0 0 15px rgba(235,245,255,0.6), 0 0 30px rgba(180,220,255,0.3)'
-                }}
-              />
-            );
-          })}
+        {/* Shards - matches HTML version exactly */}
+        <div className="fo-shards absolute inset-0 overflow-hidden">
+          <span style={{'--r': '22deg', '--t': '900ms', '--d': '120ms', top: '10%', left: '-20%'} as React.CSSProperties}></span>
+          <span style={{'--r': '28deg', '--t': '980ms', '--d': '200ms', top: '20%', left: '-30%'} as React.CSSProperties}></span>
+          <span style={{'--r': '18deg', '--t': '840ms', '--d': '260ms', top: '30%', left: '-25%'} as React.CSSProperties}></span>
+          <span style={{'--r': '35deg', '--t': '1100ms', '--d': '180ms', top: '40%', left: '-35%'} as React.CSSProperties}></span>
+          <span style={{'--r': '26deg', '--t': '860ms', '--d': '240ms', top: '50%', left: '-28%'} as React.CSSProperties}></span>
+          <span style={{'--r': '22deg', '--t': '900ms', '--d': '300ms', top: '60%', left: '-20%'} as React.CSSProperties}></span>
+          <span style={{'--r': '28deg', '--t': '980ms', '--d': '340ms', top: '70%', left: '-30%'} as React.CSSProperties}></span>
+          <span style={{'--r': '18deg', '--t': '840ms', '--d': '380ms', top: '15%', left: '-18%'} as React.CSSProperties}></span>
+          <span style={{'--r': '32deg', '--t': '1040ms', '--d': '220ms', top: '35%', left: '-34%'} as React.CSSProperties}></span>
+          <span style={{'--r': '25deg', '--t': '900ms', '--d': '260ms', top: '55%', left: '-22%'} as React.CSSProperties}></span>
         </div>
 
-        {/* BLOOM EFFECT */}
+        {/* Refraction */}
         <div 
-          className="animate-bloom absolute inset-0"
+          className="fo-refraction absolute inset-0"
           style={{
+            maskImage: 'radial-gradient(closest-side, rgba(0,0,0,.9), transparent 75%)',
             background: `
-              radial-gradient(40% 30% at 50% 50%, rgba(180,220,255,.3), rgba(255,255,255,0) 70%),
-              radial-gradient(30% 24% at 45% 55%, rgba(200,230,255,.25), rgba(255,255,255,0) 70%),
-              radial-gradient(35% 28% at 55% 45%, rgba(220,240,255,.2), rgba(255,255,255,0) 70%)
+              radial-gradient(60% 40% at 50% 40%, rgba(255,255,255,.22), rgba(255,255,255,0) 70%),
+              conic-gradient(from 0turn at 40% 50%, rgba(255,255,255,.06), rgba(255,255,255,0) 70%)
             `,
             mixBlendMode: 'screen',
-            animationDelay: '350ms'
+            filter: 'contrast(1.15) saturate(1.1) blur(.3px)'
           }}
         />
 
-        {/* REFRACTION */}
+        {/* Glint */}
         <div 
-          className="animate-refract absolute inset-0"
+          className="fo-glint absolute inset-0"
           style={{
-            background: `
-              radial-gradient(60% 40% at 50% 50%, rgba(255,255,255,.25), rgba(255,255,255,0) 70%),
-              conic-gradient(from 0turn at 50% 50%, rgba(255,255,255,.06), rgba(255,255,255,0) 70%)
-            `,
-            maskImage: 'radial-gradient(closest-side at 50% 50%, rgba(0,0,0,.9), transparent 75%)',
-            mixBlendMode: 'screen',
-            filter: 'contrast(1.15) saturate(1.1) blur(.3px)',
-            animationDelay: '600ms'
+            background: 'radial-gradient(40% 30% at 30% 20%, rgba(255,255,255,.25), transparent 70%)'
           }}
         />
 
-        {/* GLINT */}
-        <div 
-          className="animate-glint absolute inset-0"
-          style={{
-            background: 'radial-gradient(45% 35% at 50% 50%, rgba(255,255,255,.3), transparent 70%)',
-            animationDelay: '900ms'
-          }}
-        />
-
-        {/* ICE CRYSTALS */}
-        <div className="absolute inset-0">
-          {Array.from({ length: 25 }, (_, i) => {
-            const angle = (i * 14.4);
-            const distance = 20 + (i % 5) * 12;
-            const x = 50 + Math.cos(angle * Math.PI / 180) * distance;
-            const y = 50 + Math.sin(angle * Math.PI / 180) * distance;
-            const size = 3 + (i % 3);
-            
-            return (
-              <div
-                key={i}
-                className="animate-ice-crystal absolute"
-                style={{
-                  top: `${Math.max(5, Math.min(95, y))}%`,
-                  left: `${Math.max(5, Math.min(95, x))}%`,
-                  width: `${size}px`,
-                  height: `${size}px`,
-                  background: 'rgba(255,255,255,0.9)',
-                  borderRadius: i % 2 === 0 ? '50%' : '0',
-                  animationDelay: `${500 + i * 40}ms`,
-                  boxShadow: `
-                    0 0 ${size * 3}px rgba(255,255,255,0.8), 
-                    0 0 ${size * 6}px rgba(180,220,255,0.4),
-                    inset 0 0 ${size}px rgba(220,240,255,0.6)
-                  `,
-                  transform: 'translate(-50%, -50%)',
-                  clipPath: i % 3 === 0 ? 'polygon(50% 0%, 0% 100%, 100% 100%)' : 'none'
-                }}
-              />
-            );
-          })}
-        </div>
-
-        {/* FREEZE NOTIFICATION */}
+        {/* Freeze notification */}
         <div className="absolute inset-0 z-30 flex items-center justify-center p-4">
           <div className="animate-freeze-notification-enter relative">
             {/* Glow backdrop */}
@@ -438,19 +535,15 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
             
             {/* Main notification */}
             <div className="relative rounded-2xl border border-cyan-300/30 bg-gradient-to-br from-slate-900/95 to-slate-800/95 p-8 text-center shadow-2xl backdrop-blur-md">
-              {/* Animated border */}
-              <div className="animate-border-glow absolute inset-0 rounded-2xl bg-gradient-to-r from-cyan-300/50 via-blue-300/50 to-cyan-300/50"></div>
-              <div className="absolute inset-[1px] rounded-2xl bg-gradient-to-br from-slate-900/95 to-slate-800/95"></div>
-              
               {/* Content */}
               <div className="relative z-10">
                 {/* Animated freeze icon */}
-                <div className="animate-freeze-icon mb-4 text-7xl">
-                  <span className="animate-spin-slow inline-block">❄️</span>
+                <div className="mb-4 text-7xl">
+                  <span className="inline-block animate-spin" style={{animationDuration: '8s'}}>❄️</span>
                 </div>
                 
                 {/* Title with gradient text */}
-                <h2 className="animate-text-shimmer mb-3 bg-gradient-to-r from-cyan-200 to-blue-200 bg-clip-text text-4xl font-black text-transparent">
+                <h2 className="mb-3 bg-gradient-to-r from-cyan-200 to-blue-200 bg-clip-text text-4xl font-black text-transparent">
                   FROZEN!
                 </h2>
                 
@@ -470,164 +563,6 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
           </div>
         </div>
       </div>
-
-      <style>{`
-        /* FROST PLATE ANIMATIONS */
-        @keyframes frost-grow {
-          0% { transform: translateY(0) scale(1); opacity: 0; filter: blur(10px); }
-          60% { opacity: 0.95; }
-          100% { transform: translateY(0) scale(0.02); opacity: 1; filter: blur(0); }
-        }
-
-        .animate-frost-top { animation: frost-grow 1.1s ease-out both 0.08s; }
-        .animate-frost-bottom { animation: frost-grow 1.25s ease-out both 0.16s; }
-        .animate-frost-left { animation: frost-grow 1.05s ease-out both 0.06s; }
-        .animate-frost-right { animation: frost-grow 1.15s ease-out both 0.12s; }
-
-        /* SHARD ANIMATIONS */
-        @keyframes shard-sweep-centered {
-          0% { 
-            transform: translate(-50%, -50%) rotate(var(--angle)) scaleX(0); 
-            opacity: 0; 
-          }
-          15% { 
-            opacity: 0.95; 
-          }
-          100% { 
-            transform: translate(-50%, -50%) rotate(var(--angle)) scaleX(4); 
-            opacity: 0; 
-          }
-        }
-
-        .animate-shard-sweep-centered {
-          animation: shard-sweep-centered 1000ms cubic-bezier(0.16,0.84,0.44,1) forwards;
-        }
-
-        /* BLOOM EFFECT */
-        @keyframes bloom {
-          from { opacity: 0; filter: blur(0); }
-          60% { opacity: 0.8; filter: blur(12px); }
-          to { opacity: 0.35; filter: blur(6px); }
-        }
-
-        .animate-bloom {
-          animation: bloom 1200ms ease-out forwards;
-          opacity: 0;
-        }
-
-        /* REFRACTION EFFECT */
-        @keyframes refract {
-          0% { opacity: 0; transform: scale(0.92); }
-          40% { opacity: 0.75; transform: scale(1.02); }
-          100% { opacity: 0.28; transform: scale(1); }
-        }
-
-        .animate-refract {
-          animation: refract 1.2s ease-out forwards;
-          opacity: 0;
-        }
-
-        /* GLINT EFFECT */
-        @keyframes glint {
-          0% { opacity: 0; transform: translateX(-10%) translateY(-8%) scale(1.1); }
-          40% { opacity: 0.55; }
-          100% { opacity: 0; transform: translateX(6%) translateY(4%) scale(1); }
-        }
-
-        .animate-glint {
-          animation: glint 1.8s ease-in-out forwards;
-          opacity: 0;
-        }
-
-        /* NOTIFICATION ANIMATIONS */
-        @keyframes freeze-notification-enter {
-          0% { 
-            transform: scale(0.3) translateY(50px); 
-            opacity: 0; 
-            filter: blur(10px);
-          }
-          60% { 
-            transform: scale(1.05) translateY(-5px); 
-            opacity: 0.9;
-            filter: blur(2px);
-          }
-          100% { 
-            transform: scale(1) translateY(0px); 
-            opacity: 1;
-            filter: blur(0px);
-          }
-        }
-
-        @keyframes border-glow {
-          0%, 100% { 
-            opacity: 0.3; 
-            transform: scale(1);
-          }
-          50% { 
-            opacity: 0.7; 
-            transform: scale(1.02);
-          }
-        }
-
-        @keyframes text-shimmer {
-          0% { background-position: -200% 0; }
-          100% { background-position: 200% 0; }
-        }
-
-        @keyframes freeze-icon {
-          0% { transform: scale(1) rotate(0deg); }
-          25% { transform: scale(1.1) rotate(5deg); }
-          50% { transform: scale(1) rotate(0deg); }
-          75% { transform: scale(1.05) rotate(-3deg); }
-          100% { transform: scale(1) rotate(0deg); }
-        }
-
-        @keyframes spin-slow {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-
-        .animate-freeze-notification-enter { animation: freeze-notification-enter 1s cubic-bezier(0.34, 1.56, 0.64, 1) 0.5s both; }
-        .animate-border-glow { animation: border-glow 2s ease-in-out infinite; }
-        .animate-text-shimmer { 
-          background-size: 200% 100%;
-          animation: text-shimmer 3s ease-in-out infinite;
-        }
-        .animate-freeze-icon { animation: freeze-icon 2s ease-in-out infinite; }
-        .animate-spin-slow { animation: spin-slow 8s linear infinite; }
-
-        /* ICE CRYSTAL ANIMATIONS */
-        @keyframes ice-crystal {
-          0% { 
-            opacity: 0; 
-            transform: translate(-50%, -50%) scale(0) rotate(0deg); 
-          }
-          20% { 
-            opacity: 1; 
-            transform: translate(-50%, -50%) scale(0.5) rotate(90deg); 
-          }
-          80% { 
-            opacity: 1; 
-            transform: translate(-50%, -50%) scale(1.2) rotate(270deg); 
-          }
-          100% { 
-            opacity: 0.8; 
-            transform: translate(-50%, -50%) scale(1) rotate(360deg); 
-          }
-        }
-
-        .animate-ice-crystal {
-          animation: ice-crystal 2s ease-in-out infinite;
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .animate-frost-top, .animate-frost-bottom, .animate-frost-left, .animate-frost-right,
-          .animate-shard-sweep-centered, .animate-bloom, .animate-refract, .animate-glint, 
-          .animate-ice-crystal {
-            animation: none !important;
-          }
-        }
-      `}</style>
     </>
   );
 };
