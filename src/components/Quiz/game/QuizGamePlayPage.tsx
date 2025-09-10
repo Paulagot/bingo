@@ -345,69 +345,67 @@ useEffect(() => {
   useEffect(() => {
     if (!socket || !connected || !roomId || !playerId) return;
 
-    const handleQuestion = (data: any) => {
+  const handleQuestion = (data: any) => {
+  currentQuestionIdRef.current = data.id;
 
-       currentQuestionIdRef.current = data.id;
-
-   if (debug)   console.log('[Client] Question received with timing data:', {
+  if (debug) console.log('[Client] Question received with timing data:', {
     id: data.id,
     timeLimit: data.timeLimit,
     questionStartTime: data.questionStartTime,
     currentTime: Date.now()
-    });
-      if (debug) console.log(`[DEBUG] Question received:`, data);
-      if (debug) console.log(`[DEBUG] Before update - currentQuestionIndexRef:`, currentQuestionIndexRef.current);
-      if (debug) console.log(`[DEBUG] Before update - questionInRound:`, questionInRound, 'totalInRound:', totalInRound);
-      
-      if (debug) console.log('[Client] 🧐 Received question:', data);
-      
-   // Use server-provided question index instead of prediction
-if (data.currentQuestionIndex !== undefined) {
-  currentQuestionIndexRef.current = data.currentQuestionIndex;
-  if (debug) console.log(`[DEBUG] Using server question index:`, data.currentQuestionIndex);
-} else {
-  if (debug) console.log(`[DEBUG] No server index provided, keeping current:`, currentQuestionIndexRef.current);
-}
+  });
 
-const questionIndex = data.currentQuestionIndex !== undefined ? data.currentQuestionIndex : currentQuestionIndexRef.current;
-if (frozenForIndexRef.current !== null && frozenForIndexRef.current !== questionIndex) {
-  setIsFrozen(false);
-  setFrozenNotice(null);
-  setWasJustFrozen(false);
-  setShowFreezeOverlay(false); // Hide the overlay when moving to non-frozen question
-  
-  if (debug) {
-    console.log(`[Client] ❄️ Cleared freeze state - frozen for index ${frozenForIndexRef.current}, current index ${questionIndex}`);
+  if (debug) console.log(`[DEBUG] Question received:`, data);
+
+  // Use server-provided question index
+  if (data.currentQuestionIndex !== undefined) {
+    currentQuestionIndexRef.current = data.currentQuestionIndex;
+    if (debug) console.log(`[DEBUG] Using server question index:`, data.currentQuestionIndex);
   }
-}
 
- currentQuestionIdRef.current = data.id;
-      
-       setQuestion({
+  const questionIndex = data.currentQuestionIndex !== undefined ? data.currentQuestionIndex : currentQuestionIndexRef.current;
+  
+  // ✅ FIXED: Only clear freeze state, don't force-hide overlay animation
+  if (frozenForIndexRef.current !== null && frozenForIndexRef.current !== questionIndex) {
+    setIsFrozen(false);
+    setFrozenNotice(null);
+    setWasJustFrozen(false);
+    // ❌ DON'T DO THIS: setShowFreezeOverlay(false); 
+    // ✅ Let the animation complete naturally or timeout
+    
+    if (debug) {
+      console.log(`[Client] ❄️ Cleared freeze state - frozen for index ${frozenForIndexRef.current}, current index ${questionIndex}`);
+    }
+  }
+
+  currentQuestionIdRef.current = data.id;
+  
+  setQuestion({
     ...data,
-    questionStartTime: data.questionStartTime, // Make sure this is being set
+    questionStartTime: data.questionStartTime,
     timeLimit: data.timeLimit
   });
-      setSelectedAnswer('');
-selectedAnswerRef.current = ''; // Also clear the ref
-setAnswerSubmitted(false);
-answerSubmittedRef.current = false;
-      
-      setClue(null);
-      setFeedback(null);
-      setUsedExtrasThisRound({});
+  
+  setSelectedAnswer('');
+  selectedAnswerRef.current = '';
+  setAnswerSubmitted(false);
+  answerSubmittedRef.current = false;
+  
+  setClue(null);
+  setFeedback(null);
+  setUsedExtrasThisRound({});
 
-   // Always use server-provided question numbers (no fallback calculation needed)
-if (data.questionNumber && data.totalQuestions) {
-  setQuestionInRound(data.questionNumber);
-  setTotalInRound(data.totalQuestions);
-} else {
-  if (debug) console.warn('[Client] Server did not provide question numbers');
-}
+  // Always use server-provided question numbers
+  if (data.questionNumber && data.totalQuestions) {
+    setQuestionInRound(data.questionNumber);
+    setTotalInRound(data.totalQuestions);
+  } else {
+    if (debug) console.warn('[Client] Server did not provide question numbers');
+  }
 
-      setTimerActive(true);
-      setPhaseMessage('');
-    };
+  setTimerActive(true);
+  setPhaseMessage('');
+};
 
     // QuizGamePlayPage.tsx - Updated handleReviewQuestion function
     const handleReviewQuestion = (data: any) => {
@@ -517,6 +515,19 @@ if (data.questionNumber && data.totalQuestions) {
       if (debug) console.log('[Client] 🧭 room_state update:', data);
       
       const previousRound = serverRoomState.currentRound;
+
+  if (data.phase === 'reviewing' && roomPhase !== 'reviewing') {
+    if (debug) console.log('[Client] ❄️ Clearing freeze state on transition to reviewing phase');
+    setIsFrozen(false);
+    setFrozenNotice(null);
+    setWasJustFrozen(false);
+    setShowFreezeOverlay(false);
+    frozenForIndexRef.current = null;
+    frozenByRef.current = null;
+  }
+
+
+
       if (data.currentRound !== previousRound && data.phase) {
         if (debug) console.log(`[Client] 🔄 Round changed from ${previousRound} to ${data.currentRound}, resetting question counter`);
         currentQuestionIndexRef.current = -1;
