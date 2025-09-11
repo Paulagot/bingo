@@ -5,6 +5,7 @@ import { useQuizConfig } from '../components/Quiz/hooks/useQuizConfig';
 import { useDynamicChain } from '../components/chains/DynamicChainProvider';
 import type { SupportedChain } from '../chains/types';
 
+
 /**
  * Type guard to safely check if a value represents a positive amount
  */

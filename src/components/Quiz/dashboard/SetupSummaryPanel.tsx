@@ -3,9 +3,24 @@ import { useQuizConfig } from '../hooks/useQuizConfig';
 import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronRight, Clock, Target, Users, Zap, Globe } from 'lucide-react';
 import { roundTypeDefinitions, fundraisingExtraDefinitions } from '../constants/quizMetadata';
+import { useRoomIdentity } from '../hooks/useRoomIdentity';
 
 const SetupSummaryPanel: React.FC = () => {
   const { config } = useQuizConfig();
+  const { roomId } = useRoomIdentity();
+
+   // Show loading if config isn't loaded yet
+  if (!config || !config.hostName) {
+    return (
+      <div className="bg-muted space-y-6 rounded-xl p-8 shadow-md">
+        <h2 className="text-fg mb-6 text-2xl font-bold">📋 Quiz Setup Summary</h2>
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-fg/60">Loading quiz configuration...</p>
+        </div>
+      </div>
+    );
+  }
  
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     rounds: false,
@@ -23,7 +38,6 @@ const SetupSummaryPanel: React.FC = () => {
     fundraisingPrices,
     currencySymbol,
     startTime,
-    roomId,
     prizeMode,
     prizeSplits,
     prizes,

@@ -24,13 +24,13 @@ import {
   Upload
 } from 'lucide-react';
 
-const DEBUG = false;
+const DEBUG = true;
 
 type TabType = 'overview' | 'assets' | 'launch' | 'players' | 'admins' | 'payments';
 
 // Core dashboard component (without providers)
 const HostDashboardCore: React.FC = () => {
-  const { config } = useQuizConfig();
+  const { config, setFullConfig } = useQuizConfig();
   const isWeb3 = config?.paymentMethod === 'web3';
   const { players } = usePlayerStore();
   const { admins } = useAdminStore();
@@ -55,6 +55,54 @@ const HostDashboardCore: React.FC = () => {
     // Only emit request - QuizSocketProvider handles all the socket events
     socket.emit('request_current_state', { roomId });
   }, [socket, connected, roomId]);
+
+  // Add this effect after the existing socket connection effect
+useEffect(() => {
+  if (!socket || !connected || !roomId) return;
+
+  const handleRoomConfig = (data: { config: any }) => {
+  if (DEBUG) console.log('📋 [HostDashboard] Received room config from socket:', data);
+  
+  // Add the missing fields that the backend isn't sending
+  const enhancedConfig = {
+    ...data.config,
+    roomId: roomId, // Add roomId from URL since backend doesn't include it
+    hostId: data.config.hostId || data.config.hostWalletConfirmed, // Fallback for hostId
+  };
+  
+  setFullConfig(enhancedConfig);
+};
+
+  const handleSocketError = (error: { message: string }) => {
+    console.error('❌ [HostDashboard] Socket error:', error);
+    
+    // If room not found, redirect to home
+    if (error.message.includes('Room not found') || error.message.includes('not found')) {
+      console.warn('🏠 Room not found, redirecting to home');
+      navigate('/');
+    }
+  };
+
+  // Listen for config data
+  socket.on('room_config', handleRoomConfig);
+  socket.on('quiz_error', handleSocketError);
+
+  return () => {
+    socket.off('room_config', handleRoomConfig);
+    socket.off('quiz_error', handleSocketError);
+  };
+}, [socket, connected, roomId, setFullConfig, navigate]);
+
+// Also add this effect to request config when roomId changes
+useEffect(() => {
+  if (!socket || !connected || !roomId) return;
+  
+  // Only request if we don't have config yet
+  if (!config?.roomId) {
+    if (DEBUG) console.log('🔄 [HostDashboard] Requesting room config for:', roomId);
+    socket.emit('get_room_config', { roomId });
+  }
+}, [socket, connected, roomId, config?.roomId]);
 
   // Join room as host
   useEffect(() => {
@@ -343,7 +391,7 @@ const HostDashboardCore: React.FC = () => {
       roomId,
       hostName: config?.hostName || 'Host',
       hostId: config?.hostId || '—',
-      configLoaded: !!config?.roomId,
+      configLoaded: !!(config && Object.keys(config).length > 5),
       socketConnected: connected,
       hasSocket: !!socket,
       adminCount: admins?.length || 0,
@@ -515,20 +563,34 @@ const HostDashboardCore: React.FC = () => {
 const HostDashboard: React.FC = () => {
   const { config } = useQuizConfig();
   
+  console.log('=== HOST DASHBOARD CHAIN INTEGRATION ===');
+  console.log('Config state:', {
+    hasConfig: !!config,
+    configKeys: config ? Object.keys(config).length : 0,
+    web3Chain: config?.web3Chain,
+    isWeb3Room: config?.isWeb3Room,
+    paymentMethod: config?.paymentMethod
+  });
+
+  // WAIT for config to be loaded before making chain decisions
+  if (!config || Object.keys(config).length === 0) {
+    console.log('Config not loaded yet, rendering without chain provider');
+    return <HostDashboardCore />;
+  }
+  
   // Get the chain from room config with proper type casting
   const selectedChain = (() => {
     const chain = config?.web3Chain;
-    // Type guard to ensure it's a valid SupportedChain
     if (chain === 'stellar' || chain === 'evm' || chain === 'solana') {
       return chain;
     }
     return null;
   })();
 
-  console.log('=== HOST DASHBOARD CHAIN INTEGRATION ===');
-  console.log('Room config web3Chain:', config?.web3Chain);
-  console.log('Selected chain for provider:', selectedChain);
-  console.log('Is Web3 room:', config?.isWeb3Room);
+  console.log('Chain selection after config loaded:', {
+    selectedChain,
+    isWeb3Room: config?.isWeb3Room
+  });
 
   // For non-Web3 rooms, render without chain provider
   if (!config?.isWeb3Room || !selectedChain) {

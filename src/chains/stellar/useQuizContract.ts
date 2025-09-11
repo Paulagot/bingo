@@ -7,7 +7,7 @@ import type { u32, Option } from '@stellar/stellar-sdk/contract';
 
 
 // Correct contract address from your CLI success
-const CONTRACT_ID = 'CCFMYUDWDIJUMXCNLX7HBHUH6Z5KKMGLRB2VKJ5FVB6YX22AGLKQTQ3C';
+const CONTRACT_ID = 'CAIJMMJUKKVT6U4EGG3EER7FWGGRK2VGK3JDTIKWMBMNL3FGUXTMBAZW';
 
 // Token addresses that work with your contract (from CLI success)
 const APPROVED_TOKENS = {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuizConfig } from '../hooks/useQuizConfig';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { useQuizChainIntegration } from '../../../hooks/useQuizChainIntegration';
+import { useRoomIdentity } from '../hooks/useRoomIdentity';
 
 // Import Stellar contract hook directly
 import { useQuizContract } from '../../../chains/stellar/useQuizContract';
@@ -24,6 +25,7 @@ import {
 const AssetUploadPanel: React.FC = () => {
   const { config, setFullConfig } = useQuizConfig();
   const { socket, connected } = useQuizSocket();
+  const { roomId } = useRoomIdentity();
   
   // Use the chain integration hook for multichain state
   const {
@@ -41,7 +43,7 @@ const AssetUploadPanel: React.FC = () => {
   const [copying, setCopying] = useState<string | null>(null);
 
   const prizes = config?.prizes || [];
-  const roomId = config?.roomId;
+  
   const web3ContractAddress = config?.web3ContractAddress || config?.contractAddress;
   const assetPrizes = prizes.filter(prize => prize.tokenAddress);
 
