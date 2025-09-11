@@ -24,6 +24,7 @@ interface RoomConfig {
   hostName?: string;
   gameType?: string;
   roundDefinitions?: Array<{ roundType: string }>;
+  roomId: string;
 }
 
 interface Web3PaymentStepProps {

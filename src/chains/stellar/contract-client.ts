@@ -34,7 +34,7 @@ if (typeof window !== 'undefined') {
 export const networks = {
   testnet: {
     networkPassphrase: "Test SDF Network ; September 2015",
-    contractId: "CCFMYUDWDIJUMXCNLX7HBHUH6Z5KKMGLRB2VKJ5FVB6YX22AGLKQTQ3C",
+    contractId: "CAIJMMJUKKVT6U4EGG3EER7FWGGRK2VGK3JDTIKWMBMNL3FGUXTMBAZW",
   }
 } as const
 
@@ -119,6 +119,7 @@ export interface RoomConfig {
   prize_distribution: Array<u32>;
   prize_mode: PrizeMode;
   prize_pool_pct: u32;
+  recovery_initiated_ledger: Option<u32>;
   room_id: string;
   room_status: RoomStatus;
   total_entry_fees: i128;
@@ -504,6 +505,69 @@ export interface Client {
   }) => Promise<AssembledTransaction<Result<void>>>
 
   /**
+   * Construct and simulate a cleanup_room transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   * Clean up room data after game completion (gas optimization)
+   */
+  cleanup_room: ({room_id}: {room_id: string}, options?: {
+    /**
+     * The fee to pay for the transaction. Default: BASE_FEE
+     */
+    fee?: number;
+
+    /**
+     * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
+     */
+    timeoutInSeconds?: number;
+
+    /**
+     * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
+     */
+    simulate?: boolean;
+  }) => Promise<AssembledTransaction<Result<void>>>
+
+  /**
+   * Construct and simulate a cleanup_rooms_batch transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   * Clean up multiple ended rooms in a single transaction (gas efficient)
+   */
+  cleanup_rooms_batch: ({room_ids}: {room_ids: Array<string>}, options?: {
+    /**
+     * The fee to pay for the transaction. Default: BASE_FEE
+     */
+    fee?: number;
+
+    /**
+     * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
+     */
+    timeoutInSeconds?: number;
+
+    /**
+     * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
+     */
+    simulate?: boolean;
+  }) => Promise<AssembledTransaction<Result<Array<boolean>>>>
+
+  /**
+   * Construct and simulate a recover_abandoned_room transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   * Recover funds from abandoned rooms (admin only, 7-day delay)
+   */
+  recover_abandoned_room: ({room_id, batch_size}: {room_id: string, batch_size: u32}, options?: {
+    /**
+     * The fee to pay for the transaction. Default: BASE_FEE
+     */
+    fee?: number;
+
+    /**
+     * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
+     */
+    timeoutInSeconds?: number;
+
+    /**
+     * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
+     */
+    simulate?: boolean;
+  }) => Promise<AssembledTransaction<Result<readonly [u32, u32, boolean]>>>
+
+  /**
    * Construct and simulate a get_platform_wallet transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    * Get platform wallet address
    */
@@ -616,7 +680,7 @@ export class Client extends ContractClient {
         "AAAAAQAAAAAAAAAAAAAACVRva2VuSW5mbwAAAAAAAAUAAAAAAAAAC2NvbnRyYWN0X2lkAAAAABMAAAAAAAAACGRlY2ltYWxzAAAABAAAAAAAAAAHZW5hYmxlZAAAAAABAAAAAAAAAARuYW1lAAAAEAAAAAAAAAAGc3ltYm9sAAAAAAAQ",
         "AAAAAQAAAAAAAAAAAAAADkFwcHJvdmVkVG9rZW5zAAAAAAACAAAAAAAAAAt0b2tlbl9jb3VudAAAAAAEAAAAAAAAAAZ0b2tlbnMAAAAAA+wAAAATAAAH0AAAAAlUb2tlbkluZm8AAAA=",
         "AAAAAQAAAAAAAAAAAAAADUFjY2Vzc0NvbnRyb2wAAAAAAAACAAAAAAAAAA9lbWVyZ2VuY3lfcGF1c2UAAAAAAQAAAAAAAAAFcm9sZXMAAAAAAAPsAAAAEwAAB9AAAAAEUm9sZQ==",
-        "AAAAAQAAAAAAAAAAAAAAClJvb21Db25maWcAAAAAABYAAAAAAAAADGNoYXJpdHlfbWVtbwAAABAAAAAAAAAAC2NoYXJpdHlfcGN0AAAAAAQAAAAAAAAAD2NyZWF0aW9uX2xlZGdlcgAAAAAEAAAAAAAAAAVlbmRlZAAAAAAAAAEAAAAAAAAACWVudHJ5X2ZlZQAAAAAAAAsAAAAAAAAACWZlZV90b2tlbgAAAAAAABMAAAAAAAAABGhvc3QAAAATAAAAAAAAAAxob3N0X2ZlZV9wY3QAAAAEAAAAAAAAAAtob3N0X3dhbGxldAAAAAATAAAAAAAAAAxwbGF5ZXJfY291bnQAAAAEAAAAAAAAAApwbGF5ZXJfbWFwAAAAAAPsAAAAEwAAB9AAAAALUGxheWVyRW50cnkAAAAAAAAAAAxwcml6ZV9hc3NldHMAAAPqAAAD6AAAB9AAAAAKUHJpemVBc3NldAAAAAAAAAAAABJwcml6ZV9kaXN0cmlidXRpb24AAAAAA+oAAAAEAAAAAAAAAApwcml6ZV9tb2RlAAAAAAfQAAAACVByaXplTW9kZQAAAAAAAAAAAAAOcHJpemVfcG9vbF9wY3QAAAAAAAQAAAAAAAAAB3Jvb21faWQAAAAAEAAAAAAAAAALcm9vbV9zdGF0dXMAAAAH0AAAAApSb29tU3RhdHVzAAAAAAAAAAAAEHRvdGFsX2VudHJ5X2ZlZXMAAAALAAAAAAAAABF0b3RhbF9leHRyYXNfZmVlcwAAAAAAAAsAAAAAAAAADnRvdGFsX3BhaWRfb3V0AAAAAAALAAAAAAAAAAp0b3RhbF9wb29sAAAAAAALAAAAAAAAAAd3aW5uZXJzAAAAA+oAAAAT",
+        "AAAAAQAAAAAAAAAAAAAAClJvb21Db25maWcAAAAAABcAAAAAAAAADGNoYXJpdHlfbWVtbwAAABAAAAAAAAAAC2NoYXJpdHlfcGN0AAAAAAQAAAAAAAAAD2NyZWF0aW9uX2xlZGdlcgAAAAAEAAAAAAAAAAVlbmRlZAAAAAAAAAEAAAAAAAAACWVudHJ5X2ZlZQAAAAAAAAsAAAAAAAAACWZlZV90b2tlbgAAAAAAABMAAAAAAAAABGhvc3QAAAATAAAAAAAAAAxob3N0X2ZlZV9wY3QAAAAEAAAAAAAAAAtob3N0X3dhbGxldAAAAAATAAAAAAAAAAxwbGF5ZXJfY291bnQAAAAEAAAAAAAAAApwbGF5ZXJfbWFwAAAAAAPsAAAAEwAAB9AAAAALUGxheWVyRW50cnkAAAAAAAAAAAxwcml6ZV9hc3NldHMAAAPqAAAD6AAAB9AAAAAKUHJpemVBc3NldAAAAAAAAAAAABJwcml6ZV9kaXN0cmlidXRpb24AAAAAA+oAAAAEAAAAAAAAAApwcml6ZV9tb2RlAAAAAAfQAAAACVByaXplTW9kZQAAAAAAAAAAAAAOcHJpemVfcG9vbF9wY3QAAAAAAAQAAAAAAAAAGXJlY292ZXJ5X2luaXRpYXRlZF9sZWRnZXIAAAAAAAPoAAAABAAAAAAAAAAHcm9vbV9pZAAAAAAQAAAAAAAAAAtyb29tX3N0YXR1cwAAAAfQAAAAClJvb21TdGF0dXMAAAAAAAAAAAAQdG90YWxfZW50cnlfZmVlcwAAAAsAAAAAAAAAEXRvdGFsX2V4dHJhc19mZWVzAAAAAAAACwAAAAAAAAAOdG90YWxfcGFpZF9vdXQAAAAAAAsAAAAAAAAACnRvdGFsX3Bvb2wAAAAAAAsAAAAAAAAAB3dpbm5lcnMAAAAD6gAAABM=",
         "AAAAAQAAAAAAAAAAAAAADVN0YXRlU25hcHNob3QAAAAAAAADAAAAAAAAAAZjb25maWcAAAAAB9AAAAAKUm9vbUNvbmZpZwAAAAAAAAAAAAZsZWRnZXIAAAAAAAQAAAAAAAAACXRpbWVzdGFtcAAAAAAAAAY=",
         "AAAABAAAAAAAAAAAAAAACVF1aXpFcnJvcgAAAAAAADEAAAAAAAAADkludmFsaWRIb3N0RmVlAAAAAAABAAAAAAAAABFNaXNzaW5nSG9zdFdhbGxldAAAAAAAAAIAAAAAAAAAEUludmFsaWRQcml6ZVNwbGl0AAAAAAAAAwAAAAAAAAATQ2hhcml0eUJlbG93TWluaW11bQAAAAAEAAAAAAAAABNJbnZhbGlkUHJpemVQb29sUGN0AAAAAAUAAAAAAAAAFk1pc3NpbmdQcml6ZVBvb2xDb25maWcAAAAAAAYAAAAAAAAAEk1pc3NpbmdQcml6ZUFzc2V0cwAAAAAABwAAAAAAAAASSW52YWxpZFByaXplQXNzZXRzAAAAAAAIAAAAAAAAABZJbnZhbGlkVG90YWxBbGxvY2F0aW9uAAAAAAAJAAAAAAAAAA9JbnZhbGlkRmVlVG9rZW4AAAAACgAAAAAAAAARUm9vbUFscmVhZHlFeGlzdHMAAAAAAAALAAAAAAAAAAxSb29tTm90Rm91bmQAAAAMAAAAAAAAABBSb29tQWxyZWFkeUVuZGVkAAAADwAAAAAAAAATUGxheWVyQWxyZWFkeUpvaW5lZAAAAAAQAAAAAAAAABNJbnN1ZmZpY2llbnRQYXltZW50AAAAABEAAAAAAAAADFVuYXV0aG9yaXplZAAAABIAAAAAAAAADkludmFsaWRXaW5uZXJzAAAAAAATAAAAAAAAABNBc3NldFRyYW5zZmVyRmFpbGVkAAAAABQAAAAAAAAAE0luc3VmZmljaWVudFBsYXllcnMAAAAAFQAAAAAAAAASSW5zdWZmaWNpZW50QXNzZXRzAAAAAAAWAAAAAAAAAA1EZXBvc2l0RmFpbGVkAAAAAAAAFwAAAAAAAAASQXJpdGhtZXRpY092ZXJmbG93AAAAAAAaAAAAAAAAABNBcml0aG1ldGljVW5kZXJmbG93AAAAABsAAAAAAAAADkRpdmlzaW9uQnlaZXJvAAAAAAAcAAAAAAAAABNJbnN1ZmZpY2llbnRCYWxhbmNlAAAAAB0AAAAAAAAAGlRyYW5zZmVyVmVyaWZpY2F0aW9uRmFpbGVkAAAAAAAeAAAAAAAAABJSZWVudHJhbmN5RGV0ZWN0ZWQAAAAAAB8AAAAAAAAADkludmFsaWRBZGRyZXNzAAAAAAAgAAAAAAAAAAxJbnZhbGlkVG9rZW4AAAAhAAAAAAAAAA5BbW91bnRUb29MYXJnZQAAAAAAIgAAAAAAAAARUGVyY2VudGFnZVRvb0hpZ2gAAAAAAAAjAAAAAAAAABJTdGF0ZUluY29uc2lzdGVuY3kAAAAAACQAAAAAAAAADk5vdEluaXRpYWxpemVkAAAAAAAlAAAAAAAAABJBbHJlYWR5SW5pdGlhbGl6ZWQAAAAAACYAAAAAAAAADk5vUGVuZGluZ0FkbWluAAAAAAAnAAAAAAAAAA5FbWVyZ2VuY3lQYXVzZQAAAAAAKAAAAAAAAAAPSW52YWxpZEVudHJ5RmVlAAAAACkAAAAAAAAAEkluc3VmZmljaWVudEFtb3VudAAAAAAAKgAAAAAAAAAQVG9rZW5Ob3RBcHByb3ZlZAAAACsAAAAAAAAAElRva2VuQWxyZWFkeUV4aXN0cwAAAAAALAAAAAAAAAANVG9rZW5Ob3RGb3VuZAAAAAAAAC0AAAAAAAAAEE1heFRva2Vuc1JlYWNoZWQAAAAuAAAAAAAAAA1JbnZhbGlkUm9vbUlkAAAAAAAALwAAAAAAAAASSG9zdENhbm5vdEJlV2lubmVyAAAAAAAwAAAAAAAAAAtJbnZhbGlkTWVtbwAAAAAxAAAAAAAAAAxSb29tTm90UmVhZHkAAAAyAAAAAAAAABJQcml6ZUFscmVhZHlGdW5kZWQAAAAAADMAAAAAAAAAEUludmFsaWRQcml6ZUluZGV4AAAAAAAANAAAAAAAAAAQUHJpemVOb3RNYXRjaGluZwAAADU=",
         "AAAAAAAAADdJbml0aWFsaXplIHRoZSBjb250cmFjdCB3aXRoIGFkbWluIGFuZCB3YWxsZXQgYWRkcmVzc2VzAAAAAAppbml0aWFsaXplAAAAAAADAAAAAAAAAAVhZG1pbgAAAAAAABMAAAAAAAAAD3BsYXRmb3JtX3dhbGxldAAAAAATAAAAAAAAAA5jaGFyaXR5X3dhbGxldAAAAAAAEwAAAAEAAAPpAAAD7QAAAAAAAAfQAAAACVF1aXpFcnJvcgAAAA==",
@@ -634,6 +698,9 @@ export class Client extends ContractClient {
         "AAAAAAAAACpHZXQgZnVuZGluZyBzdGF0dXMgZm9yIGFuIGFzc2V0LWJhc2VkIHJvb20AAAAAABdnZXRfcm9vbV9mdW5kaW5nX3N0YXR1cwAAAAABAAAAAAAAAAdyb29tX2lkAAAAABAAAAABAAAD6AAAA+0AAAACAAAH0AAAAApSb29tU3RhdHVzAAAAAAPqAAAAAQ==",
         "AAAAAAAAADtQbGF5ZXIgam9pbnMgYSByb29tIGJ5IHBheWluZyBlbnRyeSBmZWUgYW5kIG9wdGlvbmFsIGV4dHJhcwAAAAAJam9pbl9yb29tAAAAAAAAAwAAAAAAAAAHcm9vbV9pZAAAAAAQAAAAAAAAAAZwbGF5ZXIAAAAAABMAAAAAAAAADWV4dHJhc19hbW91bnQAAAAAAAALAAAAAQAAA+kAAAPtAAAAAAAAB9AAAAAJUXVpekVycm9yAAAA",
         "AAAAAAAAACdIb3N0IGVuZHMgdGhlIHJvb20gYW5kIGRlY2xhcmVzIHdpbm5lcnMAAAAACGVuZF9yb29tAAAAAgAAAAAAAAAHcm9vbV9pZAAAAAAQAAAAAAAAAAd3aW5uZXJzAAAAA+oAAAATAAAAAQAAA+kAAAPtAAAAAAAAB9AAAAAJUXVpekVycm9yAAAA",
+        "AAAAAAAAADtDbGVhbiB1cCByb29tIGRhdGEgYWZ0ZXIgZ2FtZSBjb21wbGV0aW9uIChnYXMgb3B0aW1pemF0aW9uKQAAAAAMY2xlYW51cF9yb29tAAAAAQAAAAAAAAAHcm9vbV9pZAAAAAAQAAAAAQAAA+kAAAPtAAAAAAAAB9AAAAAJUXVpekVycm9yAAAA",
+        "AAAAAAAAAEVDbGVhbiB1cCBtdWx0aXBsZSBlbmRlZCByb29tcyBpbiBhIHNpbmdsZSB0cmFuc2FjdGlvbiAoZ2FzIGVmZmljaWVudCkAAAAAAAATY2xlYW51cF9yb29tc19iYXRjaAAAAAABAAAAAAAAAAhyb29tX2lkcwAAA+oAAAAQAAAAAQAAA+kAAAPqAAAAAQAAB9AAAAAJUXVpekVycm9yAAAA",
+        "AAAAAAAAADxSZWNvdmVyIGZ1bmRzIGZyb20gYWJhbmRvbmVkIHJvb21zIChhZG1pbiBvbmx5LCA3LWRheSBkZWxheSkAAAAWcmVjb3Zlcl9hYmFuZG9uZWRfcm9vbQAAAAAAAgAAAAAAAAAHcm9vbV9pZAAAAAAQAAAAAAAAAApiYXRjaF9zaXplAAAAAAAEAAAAAQAAA+kAAAPtAAAAAwAAAAQAAAAEAAAAAQAAB9AAAAAJUXVpekVycm9yAAAA",
         "AAAAAAAAABtHZXQgcGxhdGZvcm0gd2FsbGV0IGFkZHJlc3MAAAAAE2dldF9wbGF0Zm9ybV93YWxsZXQAAAAAAAAAAAEAAAPpAAAAEwAAB9AAAAAJUXVpekVycm9yAAAA",
         "AAAAAAAAABpHZXQgY2hhcml0eSB3YWxsZXQgYWRkcmVzcwAAAAAAEmdldF9jaGFyaXR5X3dhbGxldAAAAAAAAAAAAAEAAAPpAAAAEwAAB9AAAAAJUXVpekVycm9yAAAA",
         "AAAAAAAAACVHZXQgZWNvbm9taWMgY29uZmlndXJhdGlvbiBwYXJhbWV0ZXJzAAAAAAAAE2dldF9lY29ub21pY19jb25maWcAAAAAAAAAAAEAAAPpAAAH0AAAAA5FY29ub21pY0NvbmZpZwAAAAAH0AAAAAlRdWl6RXJyb3IAAAA=",
@@ -657,6 +724,9 @@ export class Client extends ContractClient {
         get_room_funding_status: this.txFromJSON<Option<readonly [RoomStatus, Array<boolean>]>>,
         join_room: this.txFromJSON<Result<void>>,
         end_room: this.txFromJSON<Result<void>>,
+        cleanup_room: this.txFromJSON<Result<void>>,
+        cleanup_rooms_batch: this.txFromJSON<Result<Array<boolean>>>,
+        recover_abandoned_room: this.txFromJSON<Result<readonly [u32, u32, boolean]>>,
         get_platform_wallet: this.txFromJSON<Result<string>>,
         get_charity_wallet: this.txFromJSON<Result<string>>,
         get_economic_config: this.txFromJSON<Result<EconomicConfig>>,

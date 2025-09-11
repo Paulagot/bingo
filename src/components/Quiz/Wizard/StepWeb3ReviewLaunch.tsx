@@ -17,7 +17,7 @@ import type { RoundDefinition } from '../types/quiz';
 import {
   ChevronLeft,
   Rocket,
-  AlertTriangle,
+ 
   User,
   Calendar,
   Target,
@@ -27,8 +27,7 @@ import {
   Clock,
   MapPin,
   CheckCircle,
-  Zap,
-  ExternalLink,
+   ExternalLink,
   Shield,
   Layers,
   Users,
@@ -602,18 +601,7 @@ setTimeout(() => {
         </div>
       )}
 
-      {/* Deployment notice
-      <div className="rounded-xl border border-orange-200 bg-gradient-to-r from-orange-50 to-red-50 p-4">
-        <div className="mb-2 flex items-center space-x-2">
-          <AlertTriangle className="h-5 w-5 text-orange-600" />
-          <span className="font-medium text-orange-800">Blockchain Deployment Notice</span>
-        </div>
-        <div className="space-y-1 text-sm text-orange-700">
-          <p>• Deployment is permanent on-chain.</p>
-          <p>• Ensure you have gas for deployment.</p>
-          <p>• After deployment, quiz structure cannot be changed.</p>
-        </div>
-      </div> */}
+   
 
       {/* Overview: Host & Event + Template */}
       <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2">
@@ -857,22 +845,7 @@ setTimeout(() => {
 
       {/* <WalletDebug /> */}
 
-      {/* Launch CTA */}
-      {/* <div className="rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50 p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-2xl text-white">
-              🚀
-            </div>
-            <div>
-              <h3 className="text-xl font-bold text-indigo-900">Ready to Deploy</h3>
-              <p className="text-indigo-700">Your quiz will be deployed on {getChainDisplayName()} and go live.</p>
-            </div>
-          </div>
-          <Zap className="h-8 w-8 text-indigo-600" />
-        </div>
-      </div> */}
-
+      
             {/* Blockchain config & wallet */}
       <div className="rounded-xl border border-purple-200 bg-gradient-to-r from-purple-50 to-indigo-50 p-4">
         <div className="mb-3 flex items-center justify-between">
