@@ -26,7 +26,7 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     description: 'Classic multiple choice trivia game. Points awarded for correct answers. Hints and Freeze out are available as fundraising extras.',
     gameplay: 'Host reads questions → teams see question & answers → automatically serves host and players next question after 25s → Host controlled review of questions with answers → Host presents Leaderboard',
     pros: [ 'Steady pace', 'Fair for all teams', 'Customizable levels of difficulty'],
-    timing: '25 seconds per question',
+    timing: '28 seconds per question',
     difficulty: 'Easy',
     bestFor: 'Mixed groups, warm-up rounds, classic quiz feel, family events',
     defaultConfig: {
@@ -59,14 +59,14 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     id: 'wipeout',
     name: 'Wipeout',
     icon: '💀',
-    description: 'Multiple choice trivia game. Points awarded for correct answers. Points deducted for wrong answers or no answer. Hints, Freeze out and Restore points are available as fundraising extras.',
+    description: 'Welcome to the Wipeout Round.  Here points are awarded for correct answers. Points deducted for wrong answers or no answer. Hints, Freeze out, Rob Points and Restore points are available as player arsnal during this round.  Are you ready to get started?',
     gameplay: ' Host reads questions → teams see question & answers → automatically serves host and players next question after 18s → Host controlled review of questions with answers → Host presents Leaderboard (correct answers = 2 point, wrong answers = -2 point)',
     pros: ['Strategic', 'High tension', 'Risk vs reward'],
-    timing: '20 seconds per question',
+    timing: '22 seconds per question',
     difficulty: 'Easy',
     bestFor: 'Mixed groups, competitive play, family events',
     defaultConfig:   {
-     questionsPerRound: 6,
+     questionsPerRound: 8,
       timePerQuestion: 22,
       pointsPerDifficulty: {
   easy: 3,

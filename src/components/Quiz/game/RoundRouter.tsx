@@ -1,7 +1,7 @@
-// RoundRouter.tsx - Updated with statistics support
+// RoundRouter.tsx - Updated imports and props
 import React from 'react';
 import { RoundComponentProps } from '../types/quiz';
-import StandardRound from './StandardRound';
+import ModernStandardRound from './ModernStandardRound'; // Changed import
 import ReviewPhase from './ReviewPhase';
 
 interface AnswerStatistics {
@@ -18,15 +18,17 @@ interface RoundRouterProps extends RoundComponentProps {
   roomPhase: 'asking' | 'reviewing';
   currentRoundType?: string;
   correctAnswer?: string;
-  // Add these new props
   questionNumber?: number;
   totalQuestions?: number;
   difficulty?: string;
   category?: string;
-  // ✅ NEW: Statistics for host view
   statistics?: AnswerStatistics;
   isHost?: boolean;
   playersInRoom?: { id: string; name: string }[];
+  // Add countdown props
+  isFlashing?: boolean;
+  currentEffect?: any;
+  getFlashClasses?: () => string;
 }
 
 const RoundRouter: React.FC<RoundRouterProps> = ({
@@ -42,7 +44,10 @@ const RoundRouter: React.FC<RoundRouterProps> = ({
   category,
   statistics,
   isHost = false,
-  playersInRoom, // ✅ FIX: Add this to the destructuring
+  playersInRoom,
+  isFlashing,
+  currentEffect,
+  getFlashClasses,
   ...props
 }) => {
   if (roomPhase === 'reviewing') {
@@ -56,7 +61,6 @@ const RoundRouter: React.FC<RoundRouterProps> = ({
         category={category}
         questionNumber={questionNumber}
         totalQuestions={totalQuestions}
-        // ✅ NEW: Pass statistics for host view
         statistics={statistics}
         isHost={isHost}
       />
@@ -64,9 +68,9 @@ const RoundRouter: React.FC<RoundRouterProps> = ({
   }
 
   return (
-    <StandardRound 
+    <ModernStandardRound
       {...props}
-      playersInRoom={playersInRoom} // ✅ FIX: Now playersInRoom is properly available
+      playersInRoom={playersInRoom}
       question={question}
       selectedAnswer={selectedAnswer}
       feedback={feedback}
@@ -74,6 +78,9 @@ const RoundRouter: React.FC<RoundRouterProps> = ({
       totalQuestions={totalQuestions}
       difficulty={difficulty}
       category={category}
+      isFlashing={isFlashing}
+      currentEffect={currentEffect}
+      getFlashClasses={getFlashClasses}
     />
   );
 };

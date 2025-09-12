@@ -397,13 +397,13 @@ const QuizCompletionCelebration: React.FC<QuizCompletionProps> = ({
   // Social share component
   const SocialShareMenu = () => (
     <div className="relative">
-      <button
+      {/* <button
         onClick={() => setShowShareMenu(!showShareMenu)}
         className="flex items-center rounded-xl bg-green-500 px-6 py-3 text-lg font-bold text-white shadow-lg transition-all duration-200 hover:bg-green-600 hover:shadow-xl md:px-8"
       >
         <Share2 className="mr-2 h-5 w-5" />
         Share Results
-      </button>
+      </button> */}
       
       {showShareMenu && (
         <div className="absolute left-0 top-full z-50 mt-2 min-w-64 rounded-xl border-2 border-gray-300 bg-white p-4 shadow-xl">

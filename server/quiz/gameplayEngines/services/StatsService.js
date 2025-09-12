@@ -3,7 +3,7 @@
 
 import { getQuizRoom } from '../../quizRoomManager.js';
 
-const debug = true;
+const debug = false;
 
 export class StatsService {
   /**

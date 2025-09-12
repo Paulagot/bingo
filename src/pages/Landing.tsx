@@ -7,7 +7,8 @@ import HeroSection from '../components/GeneralSite/HeroSection';
 import HowItWorks from '../components/GeneralSite/HowItWorks';
 import FAQ from '../components/GeneralSite/FAQ';
 import Benefit from '../components/GeneralSite/Benefits';
-import Hfooter from '../components/GeneralSite/hFooter';
+import SiteFooter from '../components/GeneralSite2/SiteFooter';
+import ImpactRibbon from '../components/GeneralSite2/ImpactRibbon';
 import { SEO } from '../components/SEO';
 
 export function Landing() {
@@ -50,45 +51,14 @@ export function Landing() {
       <Header />
       <HeroSection />
       
-      {/* Beta Program Invite Section - Reduced height with 2-row subtitle */}
-      <div className="container mx-auto mb-2 mt-4 max-w-6xl px-4">
-        <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 shadow-xl">
-          <div className="px-8 py-6 text-center">
-            <h2 className="mb-3 text-3xl font-bold text-white">
-              Fundraising is Changing. Be Part of It.
-            </h2>
-            <div className="mx-auto mb-5 max-w-2xl space-y-1 text-white/80">
-              <p>We're inviting a small number of clubs, charities, and communities to join our early beta.</p>
-              <p>Test our fundraising quiz platform with cash, card or bank payments — or join our blockchain pilot to help shape the future of compliant, blockchain-powered fundraising.</p>
-            </div>
-            <div className="flex justify-center space-x-4">
-              <a
-                href="https://x.com/Fundraisely"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-muted inline-block rounded-xl px-8 py-3 font-semibold text-indigo-600 shadow-md transition hover:bg-indigo-50"
-              >
-                DM us on Twitter
-              </a>
-              {/* Keep commented for testing */}
-              {/* <a
-                href="mailto:beta@fundraisely.io"
-                className="bg-muted text-indigo-600 px-8 py-3 rounded-xl font-semibold shadow-md hover:bg-indigo-50 transition inline-block"
-              >
-                Apply to Join Beta
-              </a> */}
-            </div>
-          </div>
-        </div>
-      </div>
-         
+      <ImpactRibbon />   
       <HowItWorks />
       <Benefit />
       <FAQ />
       {/* Keep these commented for testing */}
       {/* <FundRaiselyWhereYouSave /> */}
       {/* <CTASection /> */}
-      <Hfooter />
+      <SiteFooter />
     </div>
   );
 }

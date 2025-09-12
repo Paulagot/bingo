@@ -14,7 +14,7 @@ import { isRateLimited } from '../../socketRateLimiter.js';
 import { getCurrentRoundStats } from './globalExtrasHandler.js';
 import { getRoundScoring } from './scoringUtils.js';
 import { StatsService } from '../gameplayEngines/services/StatsService.js'
-const debug = true;
+const debug = false;
 
 export function setupHostHandlers(socket, namespace) {
 
