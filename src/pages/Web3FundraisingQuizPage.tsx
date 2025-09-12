@@ -168,15 +168,15 @@ const [detectedChain, setDetectedChain] = useState<SupportedChain | null>(null);
           {/* Traditional Quiz Hosting */}
           <div className="bg-muted border-border rounded-xl border p-6 shadow-lg">
             <div className="text-center">
-              <h3 className="heading-2">Looking to host a traditional fundraising quiz?</h3>
+              <h3 className="heading-2">Host a Quiz</h3>
               <p className="text-fg/70 mb-4">
-                Create custom quizzes with entry fees, manage players, and raise funds for your cause with our easy-to-use platform.
+                We are inviting all Web3 Communities, DAOs, NFT Projects & Crypto Enthusiasts to host quiz nights with their communities during our campaign periods. Our Target is $100K
               </p>
               <button
-                onClick={() => navigate('/quiz')}
+                onClick={() => navigate('/Web3-Impact-Event')}
                 className="rounded-xl bg-indigo-600 px-6 py-3 font-semibold text-white shadow transition-all duration-200 hover:bg-indigo-700"
               >
-                🎤 Host Traditional Quiz
+                🎤 Find out More!
               </button>
             </div>
           </div>

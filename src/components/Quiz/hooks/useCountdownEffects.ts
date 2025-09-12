@@ -1,4 +1,4 @@
-// STEP 2: Create a countdown effects hook
+// Updated countdown effects hook with subtle flash effects
 
 import { useEffect, useState, useRef } from 'react';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
@@ -19,7 +19,7 @@ export const useCountdownEffects = (onAutoSubmitTrigger?: () => void) => {
   useEffect(() => {
     if (!socket) return;
 
-  const handleCountdownEffect = (effect: CountdownEffect) => {
+    const handleCountdownEffect = (effect: CountdownEffect) => {
       console.log(`[Countdown] ${effect.message} - ${effect.color} flash`);
       
       // ✅ NEW: Trigger auto-submit if requested by server
@@ -52,13 +52,12 @@ export const useCountdownEffects = (onAutoSubmitTrigger?: () => void) => {
 
     socket.on('countdown_effect', handleCountdownEffect);
     
-    // ✅ FIXED: Proper cleanup function for your socket structure
     return () => {
       if (socket) {
         socket.off('countdown_effect', handleCountdownEffect);
       }
     };
-  }, [socket]);
+  }, [socket, onAutoSubmitTrigger]);
 
   // Initialize audio context once (with user gesture support)
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -115,11 +114,11 @@ export const useCountdownEffects = (onAutoSubmitTrigger?: () => void) => {
       return;
     }
     
-    // OPTION 1: Heartbeat Sound (choose one option)
+    // Heartbeat Sound
     const createHeartbeat = () => {
       const duration = secondsLeft === 1 ? 0.6 : 0.4;
       
-      // First beat - LOUDER
+      // First beat
       const osc1 = audioContext.createOscillator();
       const gain1 = audioContext.createGain();
       
@@ -128,13 +127,13 @@ export const useCountdownEffects = (onAutoSubmitTrigger?: () => void) => {
       
       osc1.frequency.setValueAtTime(80, audioContext.currentTime);
       osc1.type = 'sine';
-      gain1.gain.setValueAtTime(0.6, audioContext.currentTime); // ✅ INCREASED from 0.2 to 0.4
+      gain1.gain.setValueAtTime(0.6, audioContext.currentTime);
       gain1.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
       
       osc1.start(audioContext.currentTime);
       osc1.stop(audioContext.currentTime + 0.1);
       
-      // Second beat (slightly delayed) - LOUDER
+      // Second beat (slightly delayed)
       setTimeout(() => {
         const osc2 = audioContext.createOscillator();
         const gain2 = audioContext.createGain();
@@ -144,7 +143,7 @@ export const useCountdownEffects = (onAutoSubmitTrigger?: () => void) => {
         
         osc2.frequency.setValueAtTime(60, audioContext.currentTime);
         osc2.type = 'sine';
-        gain2.gain.setValueAtTime(0.4, audioContext.currentTime); // ✅ INCREASED from 0.15 to 0.3
+        gain2.gain.setValueAtTime(0.4, audioContext.currentTime);
         gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
         
         osc2.start(audioContext.currentTime);
@@ -152,22 +151,21 @@ export const useCountdownEffects = (onAutoSubmitTrigger?: () => void) => {
       }, 150);
     };
 
-  
-    // Use the selected sound effect
-    createHeartbeat(); // Change this to use different options
+    createHeartbeat();
   };
 
-  // Generate flash classes based on current effect
+  // 🎨 MUCH MORE SUBTLE flash classes
   const getFlashClasses = () => {
     if (!isFlashing || !currentEffect) return '';
     
+    // More subtle color mapping with lower opacity and softer transitions
     const colorMap = {
-      green: 'bg-green-400/20 border-green-400',
-      orange: 'bg-orange-400/20 border-orange-400', 
-      red: 'bg-red-400/20 border-red-400'
+      green: 'flash-green',
+      orange: 'flash-orange', 
+      red: 'flash-red'
     };
 
-    return `${colorMap[currentEffect.color]} border-4 animate-pulse transition-all duration-200`;
+    return `${colorMap[currentEffect.color]} flash-effect`;
   };
 
   return {

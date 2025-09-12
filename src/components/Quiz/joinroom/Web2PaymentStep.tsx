@@ -76,7 +76,7 @@ export const Web2PaymentStep: React.FC<Web2PaymentStepProps> = ({
         <div className="rounded-lg border border-green-200 bg-green-50 p-4 mb-4">
           <h3 className="text-green-800 font-medium mb-3 flex items-center space-x-2">
             <Shield className="h-4 w-4" />
-            <span>Selected Power-Ups</span>
+            <span>Selected Arsnal</span>
           </h3>
           <div className="space-y-2">
             {selectedExtras.map(extraId => {

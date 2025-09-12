@@ -3,7 +3,7 @@
 // Extracts identical leaderboard logic from generalTriviaEngine.js and wipeoutEngine.js
 // Handles score sorting, player data aggregation, and leaderboard formatting
 
-const debug = true;
+const debug = false;
 
 export class LeaderboardService {
   /**

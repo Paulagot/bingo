@@ -19,7 +19,7 @@ import { getRoundScoring, isQuestionWindowOpen } from '../handlers/scoringUtils.
 import { FreezeService } from './services/FreezeServices.js';
 
 let timerService = null;
-const debug = true;
+const debug = false;
 
 
 /* ---------------------------- Init round ---------------------------- */

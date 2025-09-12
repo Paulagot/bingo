@@ -117,21 +117,25 @@ const FundraisingLaunchPage: React.FC = () => {
               <div className="bg-muted rounded-2xl p-6 shadow-lg">
                 <h3 className="text-fg mb-4 text-lg font-bold">Pledge Now</h3>
                 <p className="text-fg/80 mb-4 text-sm leading-relaxed">
-                  All we ask is that you pledge to host a quiz night with your community during our campaign periods. 
+                  Pledge to host a quiz night with your community during our campaign periods. 
                   Once you pledge, we'll be in touch before the campaign starts with everything you need.
                 </p>
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2">
                     <CheckCircle className="h-4 w-4 flex-shrink-0 text-green-500" />
-                    <span className="text-fg/70 text-sm">Free to participate</span>
+                    <span className="text-fg/70 text-sm">Full Support Provided</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <CheckCircle className="h-4 w-4 flex-shrink-0 text-green-500" />
-                    <span className="text-fg/70 text-sm">Full support provided</span>
+                    <span className="text-fg/70 text-sm">Media Opportunities</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <CheckCircle className="h-4 w-4 flex-shrink-0 text-green-500" />
-                    <span className="text-fg/70 text-sm">6-month window</span>
+                    <span className="text-fg/70 text-sm">Engage and Revive your community</span>
+                  </div>
+                   <div className="flex items-center space-x-2">
+                    <CheckCircle className="h-4 w-4 flex-shrink-0 text-green-500" />
+                    <span className="text-fg/70 text-sm">Raise Funds for Good Causes</span>
                   </div>
                 </div>
               </div>

@@ -18,10 +18,10 @@ interface EnhancedPlayerLeaderboardProps {
   pointsRestored: number;
   isRoundResults?: boolean;
   currentRound?: number;
-  maxRestorePoints?: number; // NEW: Accept config as prop
+  maxRestorePoints?: number;
 }
 
-// UPDATED: Floating Actions Bar Component with config support
+// UPDATED: Enhanced FloatingExtrasBar Component with animated power-ups
 const FloatingExtrasBar: React.FC<{
   availableExtras: string[];
   usedExtras: Record<string, boolean>;
@@ -30,7 +30,7 @@ const FloatingExtrasBar: React.FC<{
   currentPlayerId: string;
   cumulativeNegativePoints: number;
   pointsRestored: number;
-  maxRestorePoints?: number; // NEW: Accept config
+  maxRestorePoints?: number;
 }> = ({ 
   availableExtras, 
   usedExtras, 
@@ -39,11 +39,10 @@ const FloatingExtrasBar: React.FC<{
   currentPlayerId, 
   cumulativeNegativePoints, 
   pointsRestored,
-  maxRestorePoints // NEW: Pass through to hook
+  maxRestorePoints
 }) => {
   const [robPointsModalOpen, setRobPointsModalOpen] = useState(false);
 
-  // UPDATED: Pass maxRestorePoints to the hook
   const { globalExtras, restorablePoints, robPointsTargets } = useGlobalExtras({
     allPlayerExtras: availableExtras,
     currentPlayerId,
@@ -51,7 +50,7 @@ const FloatingExtrasBar: React.FC<{
     cumulativeNegativePoints,
     pointsRestored,
     usedExtras,
-    maxRestorePoints, // FIXED: Pass config instead of accessing room
+    maxRestorePoints,
     debug: false
   });
 
@@ -60,33 +59,43 @@ const FloatingExtrasBar: React.FC<{
     fundraisingExtraDefinitions[extraId as keyof typeof fundraisingExtraDefinitions]
   ).filter(Boolean);
 
-  // Helper function to get display info for each extra
-  const getExtraDisplayInfo = (extraId: string) => {
+  // Helper function to get power-up styling and icon
+  const getPowerUpInfo = (extraId: string) => {
     const definition = fundraisingExtraDefinitions[extraId as keyof typeof fundraisingExtraDefinitions];
     if (!definition) return null;
 
-    const colorMap: Record<string, string> = {
-      'buyHint': 'from-yellow-500 to-orange-500',
-      'restorePoints': 'from-green-500 to-emerald-500', 
-      'robPoints': 'from-red-500 to-pink-500',
-      'freezeOutTeam': 'from-blue-500 to-cyan-500'
+    // Map to power-up classes and icons
+    const powerUpMap: Record<string, { class: string; icon: string; tooltip: string }> = {
+      'buyHint': { 
+        class: 'power-up hint', 
+        icon: '💡',
+        tooltip: 'Buy Hint - Reveal clues'
+      },
+      'restorePoints': { 
+        class: 'power-up restore', 
+        icon: '🎯',
+        tooltip: `Restore Points - ${restorablePoints} available`
+      },
+      'robPoints': { 
+        class: 'power-up rob', 
+        icon: '💰',
+        tooltip: 'Rob Points - Steal from others'
+      },
+      'freezeOutTeam': { 
+        class: 'power-up freeze', 
+        icon: '❄️',
+        tooltip: 'Freeze Opponent - Block their actions'
+      }
     };
 
-    const needsTarget = extraId === 'robPoints' || extraId === 'freezeOutTeam';
-
-    return {
-      id: extraId,
-      name: definition.label,
-      icon: definition.icon,
-      description: definition.description,
-      needsTarget,
-      color: colorMap[extraId] || 'from-purple-500 to-pink-500'
+    return powerUpMap[extraId] || { 
+      class: 'power-up', 
+      icon: '✨',
+      tooltip: definition.label
     };
   };
 
   const handleExtraClick = (extraId: string) => {
-    // SIMPLIFIED: Since used extras are filtered out at hook level,
-    // we only need special validation for edge cases
     if (extraId === 'robPoints') {
       if (robPointsTargets.length === 0) {
         alert('No players have enough points to rob from (need 2+ points)');
@@ -100,7 +109,6 @@ const FloatingExtrasBar: React.FC<{
       }
       onUseExtra(extraId);
     } else {
-      // Handle other global extras directly (including restorePoints)
       onUseExtra(extraId);
     }
   };
@@ -110,11 +118,212 @@ const FloatingExtrasBar: React.FC<{
     setRobPointsModalOpen(false);
   };
 
-  // Don't show if no extras available (now filtered at hook level)
+  // Don't show if no extras available
   if (globalExtraDefinitions.length === 0) return null;
 
   return (
     <>
+      {/* Add the power-up styles */}
+      <style>{`
+        /* Power-up animations - Eye-catching and engaging */
+        .floating-power-up {
+          width: 60px;
+          height: 60px;
+          border-radius: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          border: 2px solid transparent;
+          font-size: 24px;
+          position: relative;
+          /* Attention-grabbing pulse animation */
+          animation: powerUpPulse 2s infinite;
+        }
+
+        @media (max-width: 640px) {
+          .floating-power-up {
+            width: 50px;
+            height: 50px;
+            font-size: 20px;
+          }
+        }
+
+        /* Multi-layer animations */
+        @keyframes powerUpPulse {
+          0%, 100% { 
+            transform: scale(1); 
+            box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.7);
+          }
+          50% { 
+            transform: scale(1.05); 
+            box-shadow: 0 0 20px 10px rgba(139, 92, 246, 0);
+          }
+        }
+
+        @keyframes powerUpBounce {
+          0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+          40% { transform: translateY(-8px); }
+          60% { transform: translateY(-4px); }
+        }
+
+        @keyframes powerUpGlow {
+          0%, 100% { box-shadow: 0 0 5px rgba(139, 92, 246, 0.5); }
+          50% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.8), 0 0 30px rgba(139, 92, 246, 0.6); }
+        }
+
+        /* Combine pulse and bounce for maximum attention */
+        .floating-power-up:not(:disabled) {
+          animation: powerUpPulse 2s infinite, powerUpBounce 3s infinite 0.5s;
+        }
+
+        /* Power-up specific styles */
+        .floating-power-up.hint {
+          background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+          color: white;
+        }
+
+        .floating-power-up.freeze {
+          background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+          color: white;
+        }
+
+        .floating-power-up.restore {
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          color: white;
+        }
+
+        .floating-power-up.rob {
+          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+          color: white;
+        }
+
+        /* Enhanced hover effects */
+        .floating-power-up:hover:not(:disabled) {
+          transform: scale(1.2);
+          box-shadow: 0 12px 35px rgba(0, 0, 0, 0.2);
+          animation: powerUpGlow 1s infinite;
+        }
+
+        .floating-power-up:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+          transform: none !important;
+          animation: none !important;
+          filter: grayscale(50%);
+        }
+
+        /* Enhanced tooltip */
+        .floating-power-up-tooltip {
+          position: absolute;
+          bottom: 120%;
+          left: 50%;
+          transform: translateX(-50%);
+          background: #1e293b;
+          color: white;
+          padding: 8px 12px;
+          border-radius: 8px;
+          font-size: 12px;
+          white-space: nowrap;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.3s ease;
+          z-index: 1000;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+          font-weight: 500;
+          max-width: 200px;
+          text-align: center;
+        }
+
+        /* Tooltip arrow */
+        .floating-power-up-tooltip::after {
+          content: '';
+          position: absolute;
+          top: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          border: 6px solid transparent;
+          border-top-color: #1e293b;
+        }
+
+        .floating-power-up:hover .floating-power-up-tooltip {
+          opacity: 1;
+        }
+
+        /* Floating bar enhancements */
+        .enhanced-floating-bar {
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(12px);
+          border: 2px solid rgba(139, 92, 246, 0.3);
+          border-radius: 25px;
+          padding: 16px 24px;
+          box-shadow: 
+            0 8px 32px rgba(0, 0, 0, 0.1),
+            0 0 0 1px rgba(255, 255, 255, 0.2);
+          animation: floatingBarEntrance 0.5s ease-out;
+        }
+
+        @keyframes floatingBarEntrance {
+          0% {
+            opacity: 0;
+            transform: translate(-50%, 20px);
+          }
+          100% {
+            opacity: 1;
+            transform: translate(-50%, 0);
+          }
+        }
+
+        .floating-bar-label {
+          color: #7c3aed;
+          font-weight: 600;
+          font-size: 14px;
+          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Target indicator enhancement */
+        .target-indicator {
+          position: absolute;
+          top: -4px;
+          right: -4px;
+          background: linear-gradient(135deg, #ef4444, #dc2626);
+          color: white;
+          border-radius: 50%;
+          width: 20px;
+          height: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 10px;
+          font-weight: bold;
+          border: 2px solid white;
+          animation: targetPulse 1.5s infinite;
+        }
+
+        @keyframes targetPulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.1); }
+        }
+
+        /* Disabled state indicator */
+        .disabled-indicator {
+          position: absolute;
+          top: -4px;
+          right: -4px;
+          background: #64748b;
+          color: white;
+          border-radius: 50%;
+          width: 18px;
+          height: 18px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 10px;
+          border: 2px solid white;
+        }
+      `}</style>
+
       <UseExtraModal
         visible={robPointsModalOpen}
         players={robPointsTargets}
@@ -123,21 +332,20 @@ const FloatingExtrasBar: React.FC<{
         extraType="robPoints"
       />
 
-      {/* Floating Actions Bar */}
+      {/* Enhanced Floating Actions Bar */}
       <div className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2 transform">
-        <div className="bg-muted/95 rounded-full border-2 border-purple-300 px-6 py-4 shadow-xl backdrop-blur-sm">
-          <div className="flex items-center space-x-3">
-            <span className="whitespace-nowrap text-sm font-medium text-purple-700">
+        <div className="enhanced-floating-bar">
+          <div className="flex items-center space-x-4">
+            <span className="floating-bar-label">
               Take Action:
             </span>
             
             {globalExtraDefinitions.map((extra) => {
-              const displayInfo = getExtraDisplayInfo(extra.id);
-              if (!displayInfo) return null;
+              const powerUpInfo = getPowerUpInfo(extra.id);
+              if (!powerUpInfo) return null;
               
-              // SIMPLIFIED: Since used extras are filtered out, we only need to check
-              // for edge cases like no eligible targets
               const isRobPoints = extra.id === 'robPoints';
+              const isFreezeOut = extra.id === 'freezeOutTeam';
               const noEligibleTargets = isRobPoints && robPointsTargets.length === 0;
               const shouldDisable = noEligibleTargets;
               
@@ -147,38 +355,35 @@ const FloatingExtrasBar: React.FC<{
                   onClick={() => handleExtraClick(extra.id)}
                   disabled={shouldDisable}
                   className={`
-                    group relative flex h-12 w-12 transform
-                    items-center justify-center rounded-full text-lg transition-all
-                    duration-200 hover:scale-110 active:scale-95
-                    ${shouldDisable 
-                      ? 'cursor-not-allowed bg-gray-200 text-gray-400' 
-                      : `bg-gradient-to-r ${displayInfo.color} text-white hover:shadow-lg`
-                    }
+                    ${powerUpInfo.class.replace('power-up', 'floating-power-up')}
+                    ${shouldDisable ? 'disabled' : ''}
                   `}
-                  title={displayInfo.name}
+                  title={powerUpInfo.tooltip}
                 >
-                  {extra.icon}
+                  {powerUpInfo.icon}
                   
-                  {/* Targeting indicator */}
-                  {displayInfo.needsTarget && !shouldDisable && (
-                    <Target className="bg-muted absolute -right-1 -top-1 h-4 w-4 rounded-full p-0.5 text-purple-500" />
+                  {/* Enhanced targeting indicator */}
+                  {(isRobPoints || isFreezeOut) && !shouldDisable && (
+                    <div className="target-indicator">🎯</div>
                   )}
                   
-                  {/* Status indicator for edge cases */}
+                  {/* Enhanced disabled indicator */}
                   {shouldDisable && (
-                    <div className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">
-                      ✓
-                    </div>
+                    <div className="disabled-indicator">✗</div>
                   )}
 
-                  {/* Tooltip */}
-                  <div className="absolute bottom-full left-1/2 mb-2 max-w-48 -translate-x-1/2 transform whitespace-nowrap rounded bg-black px-2 py-1 text-center text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
-                    <div className="font-medium">{displayInfo.name}</div>
+                  {/* Enhanced tooltip */}
+                  <div className="floating-power-up-tooltip">
+                    <div className="font-medium">{powerUpInfo.tooltip}</div>
                     {extra.id === 'restorePoints' && (
-                      <div className="text-xs text-gray-300">{restorablePoints} available</div>
+                      <div className="text-xs text-gray-300 mt-1">
+                        {restorablePoints} points available
+                      </div>
                     )}
-                    {displayInfo.needsTarget && !shouldDisable && (
-                      <div className="text-xs text-gray-300">Click to target</div>
+                    {(isRobPoints || isFreezeOut) && !shouldDisable && (
+                      <div className="text-xs text-gray-300 mt-1">
+                        Click to target player
+                      </div>
                     )}
                   </div>
                 </button>
@@ -201,7 +406,7 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
   pointsRestored,
   isRoundResults = false,
   currentRound,
-  maxRestorePoints // NEW: Accept as prop
+  maxRestorePoints
 }) => {
   // Celebration state
   const [showConfetti, setShowConfetti] = useState(false);
@@ -301,7 +506,7 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
       {showConfetti && <ConfettiOverlay />}
       {showWinnerBadge && isRoundWinner && <WinnerBadge />}
 
-      {/* NEW: Floating Extras Bar (only show during round results) */}
+      {/* Enhanced Floating Extras Bar (only show during round results) */}
       {isRoundResults && (
         <FloatingExtrasBar
           availableExtras={availableExtras}
@@ -311,7 +516,7 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
           currentPlayerId={currentPlayerId}
           cumulativeNegativePoints={cumulativeNegativePoints}
           pointsRestored={pointsRestored}
-          maxRestorePoints={maxRestorePoints} // FIXED: Pass through config
+          maxRestorePoints={maxRestorePoints}
         />
       )}
 
@@ -558,7 +763,7 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
                   currentPlayerPosition === 0 ? (
                     <div className="mt-1 flex items-center justify-center space-x-1 text-sm text-yellow-700">
                       <Crown className="h-4 w-4" />
-                      <span>You won this round! 🎉</span>
+                      <span>You won this round!</span>
                       <Sparkles className="h-4 w-4" />
                     </div>
                   ) : currentPlayerPosition <= 2 ? (

@@ -41,14 +41,16 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
 }) => {
   const [showOverlay, setShowOverlay] = useState(false);
   const [animationActive, setAnimationActive] = useState(false);
+  const [crackCycle, setCrackCycle] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const rafIdRef = useRef<number | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const crackTimerRef = useRef<NodeJS.Timeout | null>(null);
   const prefersReduced = useRef(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
-  // Canvas crack system - matches the HTML version exactly
-  const makeCrackSystem = useCallback(({ seeds, maxTime = 1600, color = 'rgba(235,245,255,0.95)' }: CrackSystemParams) => {
+  // Canvas crack system - enhanced to support looping
+  const makeCrackSystem = useCallback(({ seeds, maxTime = 2000, color = 'rgba(235,245,255,0.95)' }: CrackSystemParams) => {
     const segs: CrackSegment[] = [];
     const started = performance.now();
     const speedBase = 540;
@@ -193,28 +195,31 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
     resizeCanvas();
     
     const rect = canvas.getBoundingClientRect();
-    const seeds = [
-      { 
-        x: rect.width * 0.45 + (Math.random() * 30 - 15), 
-        y: rect.height * 0.15, 
-        rays: 4, 
-        spread: Math.PI / 1.8, 
-        width: 2.4, 
-        angle: Math.PI / 1.8 
-      },
-      { 
-        x: rect.width * 0.55 + (Math.random() * 30 - 15), 
-        y: rect.height * 0.12, 
-        rays: 3, 
-        spread: Math.PI / 2.1, 
-        width: 2.2, 
-        angle: Math.PI / 1.7 
-      },
-    ];
+    
+    // Create random crack patterns for each cycle
+    const createRandomSeeds = () => {
+      const seedCount = 2 + Math.floor(Math.random() * 2); // 2-3 seeds
+      const seeds = [];
+      
+      for (let i = 0; i < seedCount; i++) {
+        seeds.push({
+          x: rect.width * (0.2 + Math.random() * 0.6), // Random X position
+          y: rect.height * (0.1 + Math.random() * 0.3), // Random Y in upper area
+          rays: 3 + Math.floor(Math.random() * 3), // 3-5 rays
+          spread: Math.PI / (1.5 + Math.random() * 0.8), // Variable spread
+          width: 2 + Math.random() * 0.8, // Variable width
+          angle: Math.PI / (1.5 + Math.random() * 0.5) // Variable angle
+        });
+      }
+      
+      return seeds;
+    };
+    
+    const seeds = createRandomSeeds();
     
     const fracture = makeCrackSystem({ 
       seeds, 
-      maxTime: prefersReduced.current ? 400 : 1600 
+      maxTime: prefersReduced.current ? 800 : 2000 
     });
     let prev = performance.now();
 
@@ -232,11 +237,32 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
     rafIdRef.current = requestAnimationFrame(loop);
   }, [makeCrackSystem, clearCanvas, resizeCanvas]);
 
-  // Main effect controller
+  // Function to restart crack animations periodically
+  const scheduleCrackLoop = useCallback(() => {
+    if (crackTimerRef.current) clearTimeout(crackTimerRef.current);
+    
+    crackTimerRef.current = setTimeout(() => {
+      if (animationActive) {
+        setCrackCycle(prev => prev + 1);
+        startCrackAnimation();
+        scheduleCrackLoop(); // Schedule next cycle
+      }
+    }, prefersReduced.current ? 1500 : 3000); // Restart every 3 seconds (or 1.5s for reduced motion)
+  }, [animationActive, startCrackAnimation]);
+
+  // Trigger new crack animation when cycle changes
+  useEffect(() => {
+    if (animationActive && crackCycle > 0) {
+      startCrackAnimation();
+    }
+  }, [crackCycle, startCrackAnimation, animationActive]);
+
+  // Main effect controller - EXTENDED TO 20 SECONDS
   useEffect(() => {
     if (isActive) {
       console.log('[FreezeOverlay] Activating freeze effect');
       setShowOverlay(true);
+      setCrackCycle(0);
       
       // Apply ice effect to target element
       const targetEl = document.querySelector(targetElement);
@@ -253,21 +279,23 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
         if (canvas) {
           ctxRef.current = canvas.getContext('2d');
           startCrackAnimation();
+          scheduleCrackLoop(); // Start the looping crack animations
         }
       }, 50);
 
-      // Auto-hide after duration
+      // Auto-hide after 20 seconds instead of 3.8 seconds
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => {
-        console.log('[FreezeOverlay] Auto-hiding after timeout');
+        console.log('[FreezeOverlay] Auto-hiding after 20 second timeout');
         setAnimationActive(false);
+        if (crackTimerRef.current) clearTimeout(crackTimerRef.current);
         setTimeout(() => {
           setShowOverlay(false);
           if (onAnimationComplete) {
             onAnimationComplete();
           }
         }, 250);
-      }, 3800);
+      }, 20000); // Changed from 3800 to 20000 (20 seconds)
       
     } else {
       // Clean up when deactivated
@@ -284,6 +312,9 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
       if (timerRef.current) {
         clearTimeout(timerRef.current);
       }
+      if (crackTimerRef.current) {
+        clearTimeout(crackTimerRef.current);
+      }
       
       setTimeout(() => {
         setShowOverlay(false);
@@ -293,8 +324,9 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
       if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+      if (crackTimerRef.current) clearTimeout(crackTimerRef.current);
     };
-  }, [isActive, targetElement, startCrackAnimation, onAnimationComplete]);
+  }, [isActive, targetElement, startCrackAnimation, scheduleCrackLoop, onAnimationComplete]);
 
   // Handle window resize
   useEffect(() => {
@@ -306,18 +338,20 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
 
   return (
     <>
-      {/* Inject CSS that matches the HTML version */}
+      {/* Inject CSS that matches the HTML version - with extended animations */}
       <style>{`
         .fo-target-iced { 
           filter: saturate(.8) hue-rotate(190deg) contrast(1.05) brightness(.98); 
           transform: translateZ(0);
         }
 
-        /* Frost animations - exactly like HTML version */
+        /* Extended frost animations */
         @keyframes frostGrow {
           0%{transform:translateY(0) scale(1); opacity:0; filter:blur(10px)}
-          60%{opacity:.95}
-          100%{transform:translateY(0) scale(.02); opacity:1; filter:blur(0)}
+          5%{opacity:.95}
+          10%{transform:translateY(0) scale(.02); opacity:1; filter:blur(0)}
+          90%{transform:translateY(0) scale(.02); opacity:1; filter:blur(0)}
+          100%{transform:translateY(0) scale(.02); opacity:0.8; filter:blur(1px)}
         }
 
         .fo-frost .plate {
@@ -325,16 +359,26 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
           transform-origin: center;
         }
 
-        .fo-active .fo-frost .plate.top { animation: frostGrow 1.1s ease-out both .08s; }
-        .fo-active .fo-frost .plate.bottom { animation: frostGrow 1.25s ease-out both .16s; }
-        .fo-active .fo-frost .plate.left { animation: frostGrow 1.05s ease-out both .06s; }
-        .fo-active .fo-frost .plate.right { animation: frostGrow 1.15s ease-out both .12s; }
+        .fo-active .fo-frost .plate.top { animation: frostGrow 20s ease-out both .08s; }
+        .fo-active .fo-frost .plate.bottom { animation: frostGrow 20s ease-out both .16s; }
+        .fo-active .fo-frost .plate.left { animation: frostGrow 20s ease-out both .06s; }
+        .fo-active .fo-frost .plate.right { animation: frostGrow 20s ease-out both .12s; }
 
-        /* Shard animations */
+        /* Extended shard animations - loop multiple times */
         @keyframes shardSweep {
           0%{transform:rotate(var(--r)) translate3d(0,0,0); opacity:0}
-          10%{opacity:.95}
-          100%{transform:rotate(var(--r)) translate3d(140vw,45vh,0); opacity:0}
+          2%{opacity:.95}
+          15%{transform:rotate(var(--r)) translate3d(140vw,45vh,0); opacity:0}
+          25%{transform:rotate(var(--r)) translate3d(0,0,0); opacity:0}
+          27%{opacity:.85}
+          40%{transform:rotate(var(--r)) translate3d(140vw,45vh,0); opacity:0}
+          50%{transform:rotate(var(--r)) translate3d(0,0,0); opacity:0}
+          52%{opacity:.75}
+          65%{transform:rotate(var(--r)) translate3d(140vw,45vh,0); opacity:0}
+          75%{transform:rotate(var(--r)) translate3d(0,0,0); opacity:0}
+          77%{opacity:.65}
+          90%{transform:rotate(var(--r)) translate3d(140vw,45vh,0); opacity:0}
+          100%{transform:rotate(var(--r)) translate3d(0,0,0); opacity:0}
         }
 
         .fo-shards span {
@@ -350,14 +394,16 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
         }
 
         .fo-active .fo-shards span {
-          animation: shardSweep var(--t,950ms) cubic-bezier(.16,.84,.44,1) forwards var(--d,120ms);
+          animation: shardSweep 20s cubic-bezier(.16,.84,.44,1) forwards var(--d,120ms);
         }
 
-        /* Bloom effect */
+        /* Extended bloom effect */
         @keyframes bloom {
-          from{opacity:0; filter:blur(0)}
-          60%{opacity:.8; filter:blur(12px)}
-          to{opacity:.35; filter:blur(6px)}
+          0%{opacity:0; filter:blur(0)}
+          3%{opacity:.8; filter:blur(12px)}
+          10%{opacity:.35; filter:blur(6px)}
+          90%{opacity:.35; filter:blur(6px)}
+          100%{opacity:0; filter:blur(0)}
         }
 
         .fo-bloom {
@@ -365,14 +411,16 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
         }
 
         .fo-active .fo-bloom {
-          animation: bloom 1200ms ease-out .35s forwards;
+          animation: bloom 20s ease-out .35s forwards;
         }
 
-        /* Refraction effect */
+        /* Extended refraction effect */
         @keyframes refract {
           0%{opacity:0; transform:scale(.92)}
-          40%{opacity:.75; transform:scale(1.02)}
-          100%{opacity:.28; transform:scale(1)}
+          4%{opacity:.75; transform:scale(1.02)}
+          10%{opacity:.28; transform:scale(1)}
+          90%{opacity:.28; transform:scale(1)}
+          100%{opacity:0; transform:scale(.98)}
         }
 
         .fo-refraction {
@@ -380,14 +428,24 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
         }
 
         .fo-active .fo-refraction {
-          animation: refract 1.2s ease-out .6s forwards;
+          animation: refract 20s ease-out .6s forwards;
         }
 
-        /* Glint effect */
+        /* Extended glint effect - multiple cycles */
         @keyframes glint {
           0%{opacity:0; transform:translateX(-10%) translateY(-8%) scale(1.1)}
-          40%{opacity:.55}
-          100%{opacity:0; transform:translateX(6%) translateY(4%) scale(1)}
+          2%{opacity:.55}
+          5%{opacity:0; transform:translateX(6%) translateY(4%) scale(1)}
+          25%{opacity:0; transform:translateX(-8%) translateY(-6%) scale(1.05)}
+          27%{opacity:.45}
+          30%{opacity:0; transform:translateX(4%) translateY(2%) scale(1)}
+          50%{opacity:0; transform:translateX(-6%) translateY(-4%) scale(1.02)}
+          52%{opacity:.35}
+          55%{opacity:0; transform:translateX(2%) translateY(1%) scale(1)}
+          75%{opacity:0; transform:translateX(-4%) translateY(-2%) scale(1.01)}
+          77%{opacity:.25}
+          80%{opacity:0; transform:translateX(1%) translateY(.5%) scale(1)}
+          100%{opacity:0; transform:translateX(0%) translateY(0%) scale(1)}
         }
 
         .fo-glint {
@@ -395,36 +453,48 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
         }
 
         .fo-active .fo-glint {
-          animation: glint 1.8s ease-in-out .9s 1 forwards;
+          animation: glint 20s ease-in-out .9s 1 forwards;
         }
 
-        /* Notification animations */
+        /* Notification animations - stays for full duration */
         @keyframes freeze-notification-enter {
           0% { 
             transform: scale(0.3) translateY(50px); 
             opacity: 0; 
             filter: blur(10px);
           }
-          60% { 
+          3% { 
             transform: scale(1.05) translateY(-5px); 
             opacity: 0.9;
             filter: blur(2px);
           }
-          100% { 
+          5% { 
             transform: scale(1) translateY(0px); 
             opacity: 1;
             filter: blur(0px);
           }
+          95% { 
+            transform: scale(1) translateY(0px); 
+            opacity: 1;
+            filter: blur(0px);
+          }
+          100% { 
+            transform: scale(0.95) translateY(10px); 
+            opacity: 0.8;
+            filter: blur(2px);
+          }
         }
 
         .animate-freeze-notification-enter { 
-          animation: freeze-notification-enter 1s cubic-bezier(0.34, 1.56, 0.64, 1) 0.5s both; 
+          animation: freeze-notification-enter 20s cubic-bezier(0.34, 1.56, 0.64, 1) 0.5s both; 
         }
 
         @media (prefers-reduced-motion: reduce) {
           .fo-frost .plate, .fo-shards span, .fo-glint, .fo-bloom, .fo-refraction {
-            animation: none !important;
-            transition: none !important;
+            animation-duration: 5s !important;
+          }
+          .animate-freeze-notification-enter {
+            animation-duration: 5s !important;
           }
         }
       `}</style>
@@ -555,7 +625,7 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
                 {/* Status indicator */}
                 <div className="flex items-center justify-center gap-2 text-sm text-cyan-200/80">
                   <div className="h-2 w-2 animate-pulse rounded-full bg-cyan-300"></div>
-                  <span>Unfreezing next question...</span>
+                  <span>Frozen for 20 seconds...</span>
                   <div className="h-2 w-2 animate-pulse rounded-full bg-cyan-300" style={{ animationDelay: '0.5s' }}></div>
                 </div>
               </div>

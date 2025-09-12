@@ -24,7 +24,7 @@ import {
   Upload
 } from 'lucide-react';
 
-const DEBUG = true;
+const DEBUG = false;
 
 type TabType = 'overview' | 'assets' | 'launch' | 'players' | 'admins' | 'payments';
 

@@ -3,7 +3,7 @@
 // Extracts identical review logic from generalTriviaEngine.js and wipeoutEngine.js
 // Handles question review flow, statistics calculation, and host notifications
 
-const debug = true;
+const debug = false;
 
 export class ReviewService {
   /**

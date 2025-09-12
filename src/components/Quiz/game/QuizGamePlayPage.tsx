@@ -26,7 +26,7 @@ import { useRobinHoodAnimation } from '../hooks/useRobinHoodAnimation';
 import FreezeOverlay from './FreezeOverlay';
 
 import type { RoundConfig } from '../types/quiz';
-const debug = true;
+const debug = false; // Set to true to enable debug logs 
 
 // ✅ NEW: Type definitions for notifications
 type NotificationType = 'success' | 'warning' | 'info' | 'error';
@@ -968,13 +968,13 @@ useEffect(() => {
       )}
 
       {/* ✅ NEW: Freeze Overlay Animation */}
-      <FreezeOverlay
-        key={freezeOverlayTrigger} // Force re-render on new freeze
-        isActive={showFreezeOverlay && isFrozenNow} // ✅ FIXED: Only show when actually frozen
-        frozenBy={playersInRoom.find(p => p.id === frozenByRef.current)?.name || 'Someone'}
-      
-        targetElement=".quiz-content, .round-router, [data-testid='question-card']" // ✅ Better target selection
-      />
+    <FreezeOverlay
+  key={freezeOverlayTrigger}
+  isActive={showFreezeOverlay && isFrozenNow} // ✅ This will be false when timer expires
+  frozenBy={playersInRoom.find(p => p.id === frozenByRef.current)?.name || 'Someone'}
+  onAnimationComplete={handleFreezeOverlayComplete}
+  targetElement=".quiz-content, .round-router, [data-testid='question-card']"
+/>
     </div>
   );
 };

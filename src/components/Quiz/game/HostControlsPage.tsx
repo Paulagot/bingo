@@ -12,6 +12,7 @@ import ActivityTicker from '../host-controls/ActivityTicker';
 import RoundStatsDisplay from '../host-controls/RoundStatsDisplay';
 import FinalQuizStats from '../host-controls/FinalQuizStats';
 import { useHostStats } from '../hooks/useHostStats';
+import HostRoundPreview from './HostRoundPreview';
 import { 
   Loader,
   Play, 
@@ -626,119 +627,17 @@ const HostControlsPage = () => {
           maxVisible={8}
         />
 
-        {/* Round Information Card (when in waiting/launched phase) */}
-        {(roomState.phase === 'waiting' || roomState.phase === 'launched') && roundMetadata && currentRoundDef && (
-          <div className="mb-6 rounded-xl border border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50 p-8 shadow-lg">
-            <div className="mb-6 text-center">
-              <div className="mb-3 text-6xl">{roundMetadata.icon}</div>
-              <h2 className="mb-2 text-3xl font-bold text-indigo-900">
-                {roomState.phase === 'waiting' ? 'Preparing' : 'Ready to Start'} Round {roomState.currentRound}
-              </h2>
-              <h3 className="heading-2">{roundMetadata.name}</h3>
-              
-              {/* Round details */}
-              <div className="mt-3 flex items-center justify-center space-x-4">
-                {currentRoundDef.category && (
-                  <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700">
-                    📚 {currentRoundDef.category}
-                  </span>
-                )}
-                {currentRoundDef.difficulty && (
-                  <span className={`rounded-full px-3 py-1 text-sm font-medium ${
-                    currentRoundDef.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
-                    currentRoundDef.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-red-100 text-red-700'
-                  }`}>
-                    {currentRoundDef.difficulty.charAt(0).toUpperCase() + currentRoundDef.difficulty.slice(1)} Level
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Round Rules */}
-            <div className="bg-muted/70 mb-6 rounded-lg p-6 backdrop-blur-sm">
-              <h4 className="text-fg mb-3 text-lg font-bold">📋 Round Configuration</h4>
-              <p className="text-fg/80 mb-4">{roundMetadata.description}</p>
-              
-              {scoringInfo && (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-lg bg-blue-50 p-4">
-                    <h5 className="mb-2 font-semibold text-blue-800">⏱️ Timing & Scoring</h5>
-                    <ul className="space-y-1 text-sm text-blue-700">
-                      <li>• {scoringInfo.questionsPerRound} questions this round</li>
-                      <li>• {scoringInfo.timePerQuestion} seconds per question</li>
-                      
-                      {scoringInfo.pointsForThisRound !== null ? (
-                        <li className={`${
-                          scoringInfo.roundDifficulty === 'easy' ? 'text-green-700' :
-                          scoringInfo.roundDifficulty === 'medium' ? 'text-blue-700' :
-                          'text-purple-700'
-                        }`}>
-                          • +{scoringInfo.pointsForThisRound} points for correct answers
-                        </li>
-                      ) : (
-                        <>
-                          <li className="text-green-700">• +{scoringInfo.pointsPerDifficulty.easy} points for easy questions</li>
-                          <li className="text-blue-700">• +{scoringInfo.pointsPerDifficulty.medium} points for medium questions</li>
-                          <li className="text-purple-700">• +{scoringInfo.pointsPerDifficulty.hard} points for hard questions</li>
-                        </>
-                      )}
-                      
-                      {scoringInfo.pointsLostPerWrong > 0 && (
-                        <li className="text-red-600">• -{scoringInfo.pointsLostPerWrong} points for wrong answers</li>
-                      )}
-                      {scoringInfo.pointsLostPerNoAnswer > 0 && (
-                        <li className="text-orange-600">• -{scoringInfo.pointsLostPerNoAnswer} points for not answering</li>
-                      )}
-                      {scoringInfo.pointsLostPerWrong === 0 && scoringInfo.pointsLostPerNoAnswer === 0 && (
-                        <li className="text-fg/70">• No penalties for wrong/missed answers</li>
-                      )}
-                    </ul>
-                  </div>
-
-                  <div className="rounded-lg bg-green-50 p-4">
-                    <h5 className="mb-2 font-semibold text-green-800">🎯 Host Controls</h5>
-                    <ul className="space-y-1 text-sm text-green-700">
-                      <li>• Start round when players are ready</li>
-                      <li>• Monitor question timer during play</li>
-                      <li>• Review answers with players</li>
-                      <li>• Control leaderboard transitions</li>
-                      <li>• Cancel quiz if needed</li>
-                    </ul>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Host Action Buttons */}
-            {roomState.phase === 'waiting' && (
-              <div className="text-center">
-                <button 
-                  onClick={handleStartRound} 
-                  className="mx-auto flex transform items-center space-x-3 rounded-xl bg-indigo-600 px-8 py-4 text-xl font-bold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-indigo-700 hover:shadow-xl"
-                >
-                  <Play className="h-6 w-6" />
-                  <span>Launch Quiz & Start Round {roomState.currentRound}</span>
-                </button>
-              </div>
-            )}
-
-            {roomState.phase === 'launched' && (
-              <div className="text-center">
-                <div className="mb-4 rounded-lg bg-green-50 p-4">
-                  <p className="font-medium text-green-700">🚀 Quiz launched! Players are now ready.</p>
-                </div>
-                <button 
-                  onClick={handleStartRound} 
-                  className="mx-auto flex transform items-center space-x-3 rounded-xl bg-green-600 px-8 py-4 text-xl font-bold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-green-700 hover:shadow-xl"
-                >
-                  <Play className="h-6 w-6" />
-                  <span>Start Round {roomState.currentRound}</span>
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+       {/* Round Information Card */}
+{(roomState.phase === 'waiting' || roomState.phase === 'launched') && (
+  <HostRoundPreview
+    currentRound={roomState.currentRound}
+    totalRounds={roomState.totalRounds}
+    config={config}
+    roomPhase={roomState.phase}
+    totalPlayers={roomState.totalPlayers || 0}
+    onStartRound={handleStartRound}
+  />
+)}
 
         {/* Active Question Display */}
         {currentQuestion && roomState.phase === 'asking' && (
