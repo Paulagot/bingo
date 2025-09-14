@@ -59,7 +59,7 @@ const HostRoundPreview: React.FC<HostRoundPreviewProps> = ({
           🎯 Host Controls
         </h4>
         <ul className="space-y-1 text-sm text-green-700">
-          <li>• Read out the round configuration below to players</li>
+          <li>• Read the round configuration below to players</li>
           <li>• Start round when players are ready</li>
           <li>• Read questions to players with possible answers - questions auto-transition when timer expires</li>
           <li>• Review stage: Read each question again with correct answer and share stats</li>

@@ -625,7 +625,7 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
                 {/* Status indicator */}
                 <div className="flex items-center justify-center gap-2 text-sm text-cyan-200/80">
                   <div className="h-2 w-2 animate-pulse rounded-full bg-cyan-300"></div>
-                  <span>Frozen for 20 seconds...</span>
+                  <span>You will defrost for the next question</span>
                   <div className="h-2 w-2 animate-pulse rounded-full bg-cyan-300" style={{ animationDelay: '0.5s' }}></div>
                 </div>
               </div>

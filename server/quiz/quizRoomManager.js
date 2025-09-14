@@ -150,6 +150,7 @@ if (config.paymentMethod === 'web3') {
   currentPhase: 'waiting',
   createdAt: Date.now(),
   globalExtrasUsedThisRound: [],
+  completedAt: null,
 });
 
 

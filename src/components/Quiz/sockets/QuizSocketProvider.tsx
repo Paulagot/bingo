@@ -93,6 +93,9 @@ const socket = io(socketTarget, {
         debugLog.event('🧩 room_state');
         debugLog.data('state', state);
         useRoomState.getState().setRoomState(state);
+          if (state.phase) {
+    useQuizConfig.getState().setQuizPhase(state.phase, state.completedAt);
+  }
       });
 
      socket.on('quiz_error', (data: any) => {
