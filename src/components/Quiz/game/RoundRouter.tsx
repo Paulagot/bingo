@@ -29,6 +29,7 @@ interface RoundRouterProps extends RoundComponentProps {
   isFlashing?: boolean;
   currentEffect?: any;
   getFlashClasses?: () => string;
+  currentRound?: number;
 }
 
 const RoundRouter: React.FC<RoundRouterProps> = ({
@@ -48,6 +49,7 @@ const RoundRouter: React.FC<RoundRouterProps> = ({
   isFlashing,
   currentEffect,
   getFlashClasses,
+  currentRound,
   ...props
 }) => {
   if (roomPhase === 'reviewing') {
@@ -81,6 +83,7 @@ const RoundRouter: React.FC<RoundRouterProps> = ({
       isFlashing={isFlashing}
       currentEffect={currentEffect}
       getFlashClasses={getFlashClasses}
+      currentRound={currentRound}
     />
   );
 };

@@ -197,7 +197,7 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
       // Navigate to game
       setTimeout(() => {
         navigate(`/quiz/game/${roomId}/${playerId}`);
-        onClose();
+        
       }, 1500);
 
     } catch (err: any) {

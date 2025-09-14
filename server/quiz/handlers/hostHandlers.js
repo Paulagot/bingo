@@ -428,8 +428,9 @@ function generateEnhancedPlayerStats(room, playerId) {
       });
 
       room.currentPhase = 'complete';
-      namespace.to(roomId).emit('quiz_end', { message: 'Quiz complete. Thank you!' });
+      namespace.to(roomId).emit('quiz_end', { message: 'Quiz complete. Thank you! Prizes being distributed' });
       emitRoomState(namespace, roomId);
+      room.completedAt = Date.now();
 
       if (debug) console.log(`[Host] ✅ Quiz completed for ${roomId} with final stats sent`);
     } else {

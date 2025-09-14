@@ -804,6 +804,10 @@ useEffect(() => {
   // Timer now managed by server via countdown effects
   const timeLeft = null; // Will be removed in next phase
 
+  const getCurrentRoundDefinition = () => {
+  return config?.roundDefinitions?.[serverRoomState.currentRound - 1];
+};
+
 
   // ✅ CORRECT PLACEMENT - Move the completion check to the top level
   return (
@@ -825,7 +829,7 @@ useEffect(() => {
       showNotification('success', 'Results copied to clipboard!');
     }
   }}
-  onReturnToHome={() => navigate('/quiz')}
+  onReturnToHome={() => navigate('/')}
 />
       ) : (
         <>
@@ -915,6 +919,7 @@ useEffect(() => {
           ) : (roomPhase === 'reviewing' || roomPhase === 'asking') && question ? (
             <div>
               <RoundRouter
+                currentRound={serverRoomState.currentRound}
                 roomPhase={roomPhase}
                 currentRoundType={currentRoundType}
                 question={question}
@@ -937,8 +942,8 @@ useEffect(() => {
                 onUseExtra={handleUseExtra}
                 questionNumber={questionInRound}
                 totalQuestions={totalInRound}
-                difficulty={question?.difficulty}
-                category={question?.category}
+                difficulty={getCurrentRoundDefinition()?.difficulty}  // ✅ RIGHT - from round config
+  category={getCurrentRoundDefinition()?.category}
                 isHost={false}
                 playersInRoom={playersInRoom}
               />

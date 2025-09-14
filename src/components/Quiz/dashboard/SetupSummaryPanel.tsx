@@ -4,12 +4,20 @@ import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronRight, Clock, Target, Users, Zap, Globe } from 'lucide-react';
 import { roundTypeDefinitions, fundraisingExtraDefinitions } from '../constants/quizMetadata';
 import { useRoomIdentity } from '../hooks/useRoomIdentity';
+import QRCodeShare from './QRCodeShare';
 
 const SetupSummaryPanel: React.FC = () => {
   const { config } = useQuizConfig();
   const { roomId } = useRoomIdentity();
 
-   // Show loading if config isn't loaded yet
+  // CRITICAL: Move ALL hooks before ANY conditional returns to fix the hook order violation
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    rounds: false,
+    extras: false,
+    prizes: false
+  });
+
+  // Show loading if config isn't loaded yet - AFTER all hooks are declared
   if (!config || !config.hostName) {
     return (
       <div className="bg-muted space-y-6 rounded-xl p-8 shadow-md">
@@ -21,14 +29,6 @@ const SetupSummaryPanel: React.FC = () => {
       </div>
     );
   }
- 
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    rounds: false,
-    extras: false,
-    prizes: false
-  });
-
-  if (!config) return null;
 
   const {
     hostName,
@@ -61,15 +61,15 @@ const SetupSummaryPanel: React.FC = () => {
     }));
   };
 
-const getDifficultyColor = (difficulty: string) => {
-  const normalized = difficulty.toLowerCase();
-  switch (normalized) {
-    case 'easy': return 'bg-green-100 text-green-700';
-    case 'medium': return 'bg-yellow-100 text-yellow-700';
-    case 'hard': return 'bg-red-100 text-red-700';
-    default: return 'bg-gray-100 text-fg/80';
-  }
-};
+  const getDifficultyColor = (difficulty: string) => {
+    const normalized = difficulty.toLowerCase();
+    switch (normalized) {
+      case 'easy': return 'bg-green-100 text-green-700';
+      case 'medium': return 'bg-yellow-100 text-yellow-700';
+      case 'hard': return 'bg-red-100 text-red-700';
+      default: return 'bg-gray-100 text-fg/80';
+    }
+  };
 
   // Calculate total estimated time - improved to handle different round types
   const estimatedTime = roundDefinitions?.reduce((total, round) => {
@@ -123,7 +123,9 @@ const getDifficultyColor = (difficulty: string) => {
             </div>
           </div>
         )}
-   {/* Room Info */}
+      </div>
+
+      {/* Room Info */}
       {roomId && (
         <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -131,14 +133,20 @@ const getDifficultyColor = (difficulty: string) => {
               <strong className="text-indigo-800">Room ID:</strong>
               <div className="font-mono text-indigo-700">{roomId}</div>
             </div>
-           
           </div>
         </div>
       )}
 
-      </div>
 
-    
+
+{/* QR Code Sharing Section */}
+{roomId && (
+  <QRCodeShare
+    roomId={roomId}
+    hostName={hostName}
+    gameType={config?.gameType}
+  />
+)}
 
       {/* Rounds Section */}
       <div className="border-border rounded-lg border">
@@ -208,16 +216,16 @@ const getDifficultyColor = (difficulty: string) => {
                           <div className="flex items-center space-x-2">
                             <span className="text-lg">{roundTypeDef.icon}</span>
                             <span className="text-fg font-medium">{roundTypeDef.name}</span>
-                           {round.difficulty && (
-  <span className={`rounded-full px-2 py-1 text-xs ${getDifficultyColor(round.difficulty.charAt(0).toUpperCase() + round.difficulty.slice(1))}`}>
-    {round.difficulty.charAt(0).toUpperCase() + round.difficulty.slice(1)}
-  </span>
-)}
-{round.category && (
-  <span className="ml-2 rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-700">
-    {round.category}
-  </span>
-)}
+                            {round.difficulty && (
+                              <span className={`rounded-full px-2 py-1 text-xs ${getDifficultyColor(round.difficulty.charAt(0).toUpperCase() + round.difficulty.slice(1))}`}>
+                                {round.difficulty.charAt(0).toUpperCase() + round.difficulty.slice(1)}
+                              </span>
+                            )}
+                            {round.category && (
+                              <span className="ml-2 rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-700">
+                                {round.category}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div className="text-fg/70 flex items-center space-x-4 text-sm">

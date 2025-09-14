@@ -30,6 +30,7 @@ import {
 
 import { useQuizContract } from '../../../chains/stellar/useQuizContract';
 import { useStellarWallet } from '../../../chains/stellar/useStellarWallet';
+import { useQuizTimer } from '../hooks/useQuizTimer';
 
 const debug = false;
 
@@ -90,6 +91,7 @@ const HostControlsPage = () => {
   const { roomId } = useParams<{ roomId: string }>();
   const { socket, connected } = useQuizSocket();
   const { config } = useQuizConfig();
+  const [timerActive, setTimerActive] = useState(false);
 
   const stellarContract = useQuizContract();
   const stellarWallet = useStellarWallet();
@@ -138,8 +140,12 @@ const HostControlsPage = () => {
   const [, setTotalInRound] = useState(1);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(-1);
 
- // Timer now managed by server - host gets same countdown effects as players
-  const timeLeft = null; // Will be removed in next phase
+// Timer now managed by server - host gets same countdown effects as players  
+const { timeLeft } = useQuizTimer({
+  question: currentQuestion,
+  timerActive: timerActive && roomState.phase === 'asking',
+  onTimeUp: () => {} // Host doesn't need to auto-submit
+});
 
   // Use countdown effects hook (same as players use)
   const { currentEffect, isFlashing, getFlashClasses } = useCountdownEffects();
@@ -269,6 +275,7 @@ const HostControlsPage = () => {
       }
       
       setCurrentQuestion(data);
+      setTimerActive(true);
       setReviewQuestion(null);
       
       // Calculate question position (same as players)
@@ -294,6 +301,7 @@ const HostControlsPage = () => {
     const handleHostReviewQuestion = (data: ReviewQuestionPayload) => {
       if (debug) console.log('[Host] Received host review question:', data);
       setReviewQuestion(data);
+      setTimerActive(false);
       setCurrentQuestion(null);
       
       // Update question position from server data
@@ -375,16 +383,7 @@ const HostControlsPage = () => {
     socket?.emit('next_round_or_end', { roomId });
   };
 
-  const handleCancelQuiz = () => {
-    if (debug) console.log('HostControls User initiated quiz cancellation');
 
-    if (socket && roomId) {
-      socket.emit('delete_quiz_room', { roomId });
-      if (debug) console.log('Cancellation request sent to server');
-    } else {
-      navigate('/quiz');
-    }
-  };
 
   // Get round scoring information
   const getRoundScoringInfo = () => {
@@ -1097,16 +1096,19 @@ const HostControlsPage = () => {
           </div>
         )}
 
-        {/* Cancel Quiz Section */}
-        <div className="text-center">
-          <button
-            onClick={handleCancelQuiz}
-            className="mx-auto flex items-center space-x-2 rounded-xl bg-red-100 px-6 py-2 font-medium text-red-700 transition hover:bg-red-200"
-          >
-            <XCircle className="h-4 w-4" />
-            <span>Cancel Quiz</span>
-          </button>
-        </div>
+     {/* Cancel Quiz Section - Only show when quiz is complete */}
+{/* Return to Dashboard Section - Only show when quiz is complete */}
+{roomState.phase === 'complete' && (
+  <div className="text-center">
+    <button
+      onClick={() => navigate(`/quiz/host-dashboard/${roomId}`)}
+      className="mx-auto flex items-center space-x-2 rounded-xl bg-indigo-600 px-6 py-3 font-medium text-white transition hover:bg-indigo-700"
+    >
+      <span>🏠</span>
+      <span>Return to Dashboard</span>
+    </button>
+  </div>
+)}
       </div>
     </div>
   );

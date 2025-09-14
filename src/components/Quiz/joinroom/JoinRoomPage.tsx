@@ -1,15 +1,16 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+
+import { useNavigate, useParams } from 'react-router-dom';
 import { JoinRoomFlow } from '../joinroom/JoinRoomFlow';
 
 const JoinRoomPage = () => {
   const navigate = useNavigate();
+  const { roomId } = useParams<{ roomId: string }>();
   
   const handleClose = () => {
-    navigate('/quiz'); // Navigate back to quiz homepage
+    navigate('/quiz');
   };
   
-  return <JoinRoomFlow onClose={handleClose} />;
+  return <JoinRoomFlow onClose={handleClose} prefilledRoomId={roomId} />;
 };
 
 export default JoinRoomPage;

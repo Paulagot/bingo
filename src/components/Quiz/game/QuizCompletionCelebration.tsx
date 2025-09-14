@@ -1,105 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Trophy, Medal, Award, Crown, Share2, Home, Users, Target, 
+  Trophy, Medal, Award, Crown, Share2, Home, Target, 
   Twitter, Linkedin, Instagram, Facebook, Copy, Heart,
-  DollarSign, TrendingUp, Zap, Gift, CheckCircle, BarChart3
+  DollarSign, TrendingUp, Zap, Gift
 } from 'lucide-react';
 
-// Enhanced interface for player statistics
-interface EnhancedPlayerStats {
-  playerId: string;
-  playerName: string;
-  questionPerformance: {
-    totalAnswered: number;
-    correctAnswers: number;
-    wrongAnswers: number;
-    noAnswers: number;
-    accuracyRate: number;
-    pointsPerQuestion: number;
-  };
-  roundProgression: {
-    scoreByRound: number[];
-    bestRoundScore: number;
-    worstRoundScore: number;
-    totalRounds: number;
-    trendDirection: 'improving' | 'consistent' | 'declining';
-  };
-  strategicPlay: {
-    extrasUsed: number;
-    extrasTypes: string[];
-    penaltiesReceived: number;
-    pointsRestored: number;
-  };
-  finalStats: {
-    finalScore: number;
-    cumulativeNegativePoints: number;
-    pointsRestored: number;
-  };
-}
+// Import the proper types from your types file
+import { 
+  QuizConfig, 
+  LeaderboardEntry, 
+  EnhancedPlayerStats 
+} from '../types/quiz';
 
-// Types based on your existing code
-interface LeaderboardEntry {
-  id: string;
-  name: string;
-  score: number;
-  cumulativeNegativePoints?: number;
-  pointsRestored?: number;
-}
-
-interface Prize {
-  place: number;
-  description: string;
-  sponsor?: string;
-  value?: number;
-  tokenAddress?: string;
-}
-
-interface QuizConfig {
-  hostName?: string;
-  gameType?: string;
-  roundCount?: number;
-  prizes?: Prize[];
-  prizeMode?: 'split' | 'assets' | 'cash';
-  currencySymbol?: string;
-  entryFee?: string;
-  web3Charity?: string;
-  web3PrizeSplit?: {
-    charity: number;
-    host: number;
-    prizes: number;
-  };
-  sponsors?: Array<{
-    name: string;
-    logo?: string;
-    message?: string;
-    website?: string;
-  }>;
-  completionMessage?: string;
-  theme?: string;
-}
-
-interface FundraisingData {
-  totalRaised: number;
-  totalEntry: number;
-  totalExtras: number;
-  charityAmount: number;
-  prizeAmount: number;
-  hostAmount: number;
-  totalPlayers: number;
-  playerContribution: {
-    extrasUsed: number;
-    extrasSpent: number;
-    personalImpact: number;
-  };
-}
+// Import the new hook
+import { useFundraisingData, useQuizPrizes } from '../hooks/useFundraisingData';
 
 interface QuizCompletionProps {
   leaderboard: LeaderboardEntry[];
   config: QuizConfig | null;
   playerId: string;
   roomId: string;
-  enhancedStats?: EnhancedPlayerStats | null; // NEW: Optional enhanced statistics
-  fundraisingData?: FundraisingData;
+  enhancedStats?: EnhancedPlayerStats | null;
   isHost?: boolean;
   onShareResults: (platform: string, shareText: string) => void;
   onReturnToHome: () => void;
@@ -111,7 +32,6 @@ const QuizCompletionCelebration: React.FC<QuizCompletionProps> = ({
   playerId,
   roomId,
   enhancedStats,
-  fundraisingData,
   isHost = false,
   onShareResults,
   onReturnToHome
@@ -119,6 +39,10 @@ const QuizCompletionCelebration: React.FC<QuizCompletionProps> = ({
   const [currentView, setCurrentView] = useState<'celebration' | 'leaderboard' | 'prizes' | 'impact' | 'stats'>('celebration');
   const [confettiActive, setConfettiActive] = useState(true);
   const [showShareMenu, setShowShareMenu] = useState(false);
+  
+  // Use the new hooks to get data
+  const fundraisingData = useFundraisingData(playerId);
+  const prizes = useQuizPrizes();
   
   const playerPosition = leaderboard.findIndex(p => p.id === playerId) + 1;
   const playerScore = leaderboard.find(p => p.id === playerId)?.score || 0;
@@ -187,223 +111,16 @@ const QuizCompletionCelebration: React.FC<QuizCompletionProps> = ({
     return `${baseText}${impactText}${personalImpact}${hashtags}`;
   };
 
-  // Enhanced Statistics Display
-  const renderEnhancedStats = () => (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 p-4 md:p-8">
-      <div className="mx-auto max-w-4xl">
-        <div className="mb-8 text-center">
-          <h2 className="mb-4 text-3xl font-bold text-white md:text-5xl">📊 Your Performance Analysis</h2>
-          <p className="text-lg text-gray-300 md:text-xl">Detailed insights into your quiz journey</p>
-        </div>
-
-        {enhancedStats ? (
-          <div className="space-y-8">
-            {/* Performance Analysis */}
-            <div className="rounded-xl bg-white/10 p-6 backdrop-blur">
-              <h3 className="mb-4 text-2xl font-bold text-white">🎯 Question Performance</h3>
-              
-              <div className="grid gap-6 md:grid-cols-2">
-                <div className="rounded-lg bg-green-500/20 p-4">
-                  <h4 className="text-xl font-bold text-green-300">
-                    {enhancedStats.questionPerformance.accuracyRate}% Accuracy
-                  </h4>
-                  <p className="text-white/80">
-                    {enhancedStats.questionPerformance.correctAnswers} correct out of {enhancedStats.questionPerformance.totalAnswered} answered
-                  </p>
-                  <div className="mt-2 text-sm text-white/60">
-                    {enhancedStats.questionPerformance.wrongAnswers} wrong • {enhancedStats.questionPerformance.noAnswers} skipped
-                  </div>
-                </div>
-                
-                <div className="rounded-lg bg-blue-500/20 p-4">
-                  <h4 className="text-xl font-bold text-blue-300">
-                    {enhancedStats.questionPerformance.pointsPerQuestion} pts/question
-                  </h4>
-                  <p className="text-white/80">Average points per question answered</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Round Progression */}
-            {enhancedStats.roundProgression && enhancedStats.roundProgression.totalRounds > 1 && (
-              <div className="rounded-xl bg-white/10 p-6 backdrop-blur">
-                <h3 className="mb-4 text-2xl font-bold text-white">📈 Round-by-Round Journey</h3>
-                
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="rounded-lg bg-yellow-500/20 p-4 text-center">
-                    <div className="text-2xl font-bold text-yellow-300">
-                      {enhancedStats.roundProgression.bestRoundScore}
-                    </div>
-                    <div className="text-white/80">Best Round</div>
-                  </div>
-                  
-                  <div className="rounded-lg bg-purple-500/20 p-4 text-center">
-                    <div className="text-2xl font-bold text-purple-300">
-                      {enhancedStats.roundProgression.trendDirection === 'improving' ? '📈' : 
-                       enhancedStats.roundProgression.trendDirection === 'declining' ? '📉' : '📊'}
-                    </div>
-                    <div className="text-white/80">
-                      {enhancedStats.roundProgression.trendDirection === 'improving' ? 'Improving!' : 
-                       enhancedStats.roundProgression.trendDirection === 'declining' ? 'Tough Finish' : 'Consistent'}
-                    </div>
-                  </div>
-                  
-                  <div className="rounded-lg bg-blue-500/20 p-4 text-center">
-                    <div className="text-2xl font-bold text-blue-300">
-                      {enhancedStats.roundProgression.totalRounds}
-                    </div>
-                    <div className="text-white/80">Rounds Completed</div>
-                  </div>
-                </div>
-
-                {/* Round Score Progression Chart */}
-                <div className="mt-6">
-                  <h4 className="mb-4 font-semibold text-white">Score by Round:</h4>
-                  <div className="flex items-end justify-center space-x-2">
-                    {enhancedStats.roundProgression.scoreByRound.map((score, index) => {
-                      const maxScore = Math.max(...enhancedStats.roundProgression.scoreByRound);
-                      const height = Math.max((score / (maxScore || 1)) * 100, 8);
-                      
-                      return (
-                        <div key={index} className="flex flex-col items-center">
-                          <div className="mb-1 text-xs text-white/80 font-bold">{score}</div>
-                          <div
-                            className="bg-gradient-to-t from-blue-500 to-purple-500 rounded-t-sm w-8 transition-all duration-1000"
-                            style={{ height: `${height}px` }}
-                          />
-                          <div className="mt-1 text-xs text-white/60">R{index + 1}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Strategic Gameplay */}
-            {enhancedStats.strategicPlay && enhancedStats.strategicPlay.extrasUsed > 0 && (
-              <div className="rounded-xl bg-white/10 p-6 backdrop-blur">
-                <h3 className="mb-4 text-2xl font-bold text-white">⚡ Strategic Gameplay</h3>
-                
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-lg bg-purple-500/20 p-4">
-                    <h4 className="text-xl font-bold text-purple-300">
-                      {enhancedStats.strategicPlay.extrasUsed} Extras Used
-                    </h4>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {enhancedStats.strategicPlay.extrasTypes.map(extra => (
-                        <span key={extra} className="rounded bg-purple-600/50 px-2 py-1 text-xs text-white">
-                          {extra.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  {enhancedStats.strategicPlay.pointsRestored > 0 && (
-                    <div className="rounded-lg bg-green-500/20 p-4">
-                      <h4 className="text-xl font-bold text-green-300">
-                        +{enhancedStats.strategicPlay.pointsRestored} Restored
-                      </h4>
-                      <p className="text-white/80">Points recovered through strategy</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Personal Achievements */}
-            <div className="rounded-xl bg-white/10 p-6 backdrop-blur">
-              <h3 className="mb-4 text-2xl font-bold text-white">🏆 Personal Achievements</h3>
-              <div className="space-y-3">
-                {enhancedStats.questionPerformance.accuracyRate >= 80 && (
-                  <div className="rounded-lg bg-yellow-500/20 p-3">
-                    <span className="text-yellow-300 font-bold">🎯 Sharpshooter:</span>
-                    <span className="text-white ml-2">80%+ accuracy rate!</span>
-                  </div>
-                )}
-                
-                {enhancedStats.strategicPlay.extrasUsed >= 3 && (
-                  <div className="rounded-lg bg-purple-500/20 p-3">
-                    <span className="text-purple-300 font-bold">🧠 Strategist:</span>
-                    <span className="text-white ml-2">Master of tactical gameplay</span>
-                  </div>
-                )}
-                
-                {enhancedStats.roundProgression.trendDirection === 'improving' && (
-                  <div className="rounded-lg bg-blue-500/20 p-3">
-                    <span className="text-blue-300 font-bold">📈 Comeback Kid:</span>
-                    <span className="text-white ml-2">Stronger with every round</span>
-                  </div>
-                )}
-
-                {enhancedStats.questionPerformance.accuracyRate === 100 && (
-                  <div className="rounded-lg bg-gold-500/20 p-3">
-                    <span className="text-yellow-200 font-bold">🌟 Perfect Score:</span>
-                    <span className="text-white ml-2">100% accuracy - flawless performance!</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : (
-          // Fallback to basic stats
-          <div className="rounded-xl bg-white/10 p-6 backdrop-blur text-white">
-            <h3 className="mb-4 flex items-center text-2xl font-bold">
-              <Target className="mr-2 h-6 w-6" />
-              Your Journey
-            </h3>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span>Final Position:</span>
-                <span className="font-bold">{playerPosition}/{leaderboard.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Total Score:</span>
-                <span className="font-bold">{playerScore} points</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Rounds Completed:</span>
-                <span className="font-bold">{config?.roundCount || 0}</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Action Buttons */}
-        <div className="mt-8 space-y-4 text-center">
-          <div className="flex flex-wrap justify-center gap-4">
-            <SocialShareMenu />
-            <button
-              onClick={() => setCurrentView('leaderboard')}
-              className="flex items-center rounded-xl bg-purple-500 px-6 py-3 text-lg font-bold text-white shadow-lg transition-all duration-200 hover:bg-purple-600 hover:shadow-xl md:px-8"
-            >
-              <Trophy className="mr-2 h-5 w-5" />
-              View Leaderboard
-            </button>
-          </div>
-          
-          <button
-            onClick={onReturnToHome}
-            className="mx-auto flex items-center rounded-xl bg-gray-600 px-6 py-3 font-semibold text-white transition-all duration-200 hover:bg-gray-700 md:px-8"
-          >
-            <Home className="mr-2 h-5 w-5" />
-            Return to Home
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
   // Social share component
   const SocialShareMenu = () => (
     <div className="relative">
-      {/* <button
+      <button
         onClick={() => setShowShareMenu(!showShareMenu)}
         className="flex items-center rounded-xl bg-green-500 px-6 py-3 text-lg font-bold text-white shadow-lg transition-all duration-200 hover:bg-green-600 hover:shadow-xl md:px-8"
       >
         <Share2 className="mr-2 h-5 w-5" />
         Share Results
-      </button> */}
+      </button>
       
       {showShareMenu && (
         <div className="absolute left-0 top-full z-50 mt-2 min-w-64 rounded-xl border-2 border-gray-300 bg-white p-4 shadow-xl">
@@ -492,7 +209,7 @@ const QuizCompletionCelebration: React.FC<QuizCompletionProps> = ({
       
       <div className="z-10 px-4 text-center text-white">
         <div className="mb-6 animate-bounce text-8xl">
-          {fundraisingData ? '💝' : '🎉'}
+          {fundraisingData && fundraisingData.totalRaised > 0 ? '💝' : '🎉'}
         </div>
         <h1 className="mb-4 bg-gradient-to-r from-yellow-300 to-pink-300 bg-clip-text text-4xl font-bold text-transparent md:text-6xl lg:text-8xl">
           {isHost ? 'QUIZ COMPLETE!' : 'AMAZING JOB!'}
@@ -575,9 +292,9 @@ const QuizCompletionCelebration: React.FC<QuizCompletionProps> = ({
       <div className="mx-auto max-w-4xl text-center">
         <h2 className="mb-8 text-3xl font-bold text-white md:text-5xl">🎁 Prizes & Distribution</h2>
         
-        {config?.prizes && config.prizes.length > 0 && (
+        {prizes && prizes.length > 0 && (
           <div className="mb-8 grid gap-6 md:grid-cols-3">
-            {config.prizes.slice(0, 3).map((prize, index) => (
+            {prizes.slice(0, 3).map((prize, index) => (
               <div key={index} className="rounded-xl bg-white/10 p-6 text-white backdrop-blur">
                 <div className="mb-4 text-4xl">
                   {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
@@ -585,25 +302,46 @@ const QuizCompletionCelebration: React.FC<QuizCompletionProps> = ({
                 <h3 className="mb-2 text-xl font-bold">{prize.place}{getOrdinalSuffix(prize.place)} Place</h3>
                 <p className="mb-2 text-lg">{prize.description}</p>
                 {prize.value && prize.value > 0 && (
-                  <p className="font-semibold text-green-300">{currency}{prize.value}</p>
+                  <p className="font-semibold text-green-300">
+                    {config?.paymentMethod === 'web3' && prize.tokenAddress ? (
+                      `${prize.value} tokens`
+                    ) : (
+                      `${currency}${prize.value}`
+                    )}
+                  </p>
                 )}
                 {prize.sponsor && (
                   <p className="mt-2 text-sm opacity-80">Sponsored by {prize.sponsor}</p>
+                )}
+                {config?.paymentMethod === 'web3' && prize.isNFT && (
+                  <p className="mt-2 text-xs text-blue-300">NFT Prize</p>
                 )}
               </div>
             ))}
           </div>
         )}
 
-        {!isHost && playerPosition <= 3 && config?.prizes?.find(p => p.place === playerPosition) && (
+        {!isHost && playerPosition <= 3 && prizes?.find(p => p.place === playerPosition) && (
           <div className="mb-8 rounded-xl bg-gradient-to-r from-yellow-400 to-orange-500 p-6 text-black">
             <h3 className="mb-2 text-2xl font-bold">🎉 You Won!</h3>
-            <p className="text-lg">{config.prizes.find(p => p.place === playerPosition)?.description}</p>
-            {config.prizes.find(p => p.place === playerPosition)?.value && (
+            <p className="text-lg">{prizes.find(p => p.place === playerPosition)?.description}</p>
+            {prizes.find(p => p.place === playerPosition)?.value && (
               <p className="text-xl font-bold">
-                {currency}{config.prizes.find(p => p.place === playerPosition)?.value}
+                {config?.paymentMethod === 'web3' && prizes.find(p => p.place === playerPosition)?.tokenAddress ? (
+                  `${prizes.find(p => p.place === playerPosition)?.value} tokens`
+                ) : (
+                  `${currency}${prizes.find(p => p.place === playerPosition)?.value}`
+                )}
               </p>
             )}
+          </div>
+        )}
+
+        {(!prizes || prizes.length === 0) && (
+          <div className="rounded-xl bg-white/10 p-8 text-white backdrop-blur">
+            <Gift className="mx-auto mb-4 h-16 w-16 text-green-300" />
+            <h3 className="mb-4 text-2xl font-bold">Thank you for participating!</h3>
+            <p className="text-lg">Every quiz is a victory in learning and community building.</p>
           </div>
         )}
       </div>
@@ -642,7 +380,11 @@ const QuizCompletionCelebration: React.FC<QuizCompletionProps> = ({
               <div className="rounded-xl bg-white/10 p-6 text-white backdrop-blur">
                 <TrendingUp className="mx-auto mb-4 h-8 w-8 text-green-300" />
                 <h4 className="mb-2 text-2xl font-bold">{currency}{fundraisingData.charityAmount.toFixed(2)}</h4>
-                <p className="text-sm">To Charity ({config?.web3PrizeSplit?.charity || 75}%)</p>
+                <p className="text-sm">
+                  To Charity ({config?.paymentMethod === 'web3' && config?.web3PrizeSplit?.charity 
+                    ? `${config.web3PrizeSplit.charity}%` 
+                    : '85%'})
+                </p>
               </div>
             </div>
 
@@ -672,6 +414,125 @@ const QuizCompletionCelebration: React.FC<QuizCompletionProps> = ({
             <p className="text-lg">Every quiz makes a difference in building community and sharing knowledge.</p>
           </div>
         )}
+      </div>
+    </div>
+  );
+
+  const renderEnhancedStats = () => (
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 p-4 md:p-8">
+      <div className="mx-auto max-w-4xl">
+        <div className="mb-8 text-center">
+          <h2 className="mb-4 text-3xl font-bold text-white md:text-5xl">📊 Your Performance Analysis</h2>
+          <p className="text-lg text-gray-300 md:text-xl">Detailed insights into your quiz journey</p>
+        </div>
+
+        {enhancedStats ? (
+          <div className="space-y-8">
+            {/* Performance Analysis */}
+            <div className="rounded-xl bg-white/10 p-6 backdrop-blur">
+              <h3 className="mb-4 text-2xl font-bold text-white">🎯 Question Performance</h3>
+              
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="rounded-lg bg-green-500/20 p-4">
+                  <h4 className="text-xl font-bold text-green-300">
+                    {enhancedStats.questionPerformance.accuracyRate}% Accuracy
+                  </h4>
+                  <p className="text-white/80">
+                    {enhancedStats.questionPerformance.correctAnswers} correct out of {enhancedStats.questionPerformance.totalAnswered} answered
+                  </p>
+                  <div className="mt-2 text-sm text-white/60">
+                    {enhancedStats.questionPerformance.wrongAnswers} wrong • {enhancedStats.questionPerformance.noAnswers} skipped
+                  </div>
+                </div>
+                
+                <div className="rounded-lg bg-blue-500/20 p-4">
+                  <h4 className="text-xl font-bold text-blue-300">
+                    {enhancedStats.questionPerformance.pointsPerQuestion} pts/question
+                  </h4>
+                  <p className="text-white/80">Average points per question answered</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Personal Achievements */}
+            <div className="rounded-xl bg-white/10 p-6 backdrop-blur">
+              <h3 className="mb-4 text-2xl font-bold text-white">🏆 Personal Achievements</h3>
+              <div className="space-y-3">
+                {enhancedStats.questionPerformance.accuracyRate >= 80 && (
+                  <div className="rounded-lg bg-yellow-500/20 p-3">
+                    <span className="text-yellow-300 font-bold">🎯 Sharpshooter:</span>
+                    <span className="text-white ml-2">80%+ accuracy rate!</span>
+                  </div>
+                )}
+                
+                {enhancedStats.strategicPlay.extrasUsed >= 3 && (
+                  <div className="rounded-lg bg-purple-500/20 p-3">
+                    <span className="text-purple-300 font-bold">🧠 Strategist:</span>
+                    <span className="text-white ml-2">Master of tactical gameplay</span>
+                  </div>
+                )}
+                
+                {enhancedStats.roundProgression.trendDirection === 'improving' && (
+                  <div className="rounded-lg bg-blue-500/20 p-3">
+                    <span className="text-blue-300 font-bold">📈 Comeback Kid:</span>
+                    <span className="text-white ml-2">Stronger with every round</span>
+                  </div>
+                )}
+
+                {enhancedStats.questionPerformance.accuracyRate === 100 && (
+                  <div className="rounded-lg bg-gold-500/20 p-3">
+                    <span className="text-yellow-200 font-bold">🌟 Perfect Score:</span>
+                    <span className="text-white ml-2">100% accuracy - flawless performance!</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          // Fallback to basic stats
+          <div className="rounded-xl bg-white/10 p-6 backdrop-blur text-white">
+            <h3 className="mb-4 flex items-center text-2xl font-bold">
+              <Target className="mr-2 h-6 w-6" />
+              Your Journey
+            </h3>
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span>Final Position:</span>
+                <span className="font-bold">{playerPosition}/{leaderboard.length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Total Score:</span>
+                <span className="font-bold">{playerScore} points</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Rounds Completed:</span>
+                <span className="font-bold">{config?.roundCount || 0}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="mt-8 space-y-4 text-center">
+          <div className="flex flex-wrap justify-center gap-4">
+            <SocialShareMenu />
+            <button
+              onClick={() => setCurrentView('leaderboard')}
+              className="flex items-center rounded-xl bg-purple-500 px-6 py-3 text-lg font-bold text-white shadow-lg transition-all duration-200 hover:bg-purple-600 hover:shadow-xl md:px-8"
+            >
+              <Trophy className="mr-2 h-5 w-5" />
+              View Leaderboard
+            </button>
+          </div>
+          
+          <button
+            onClick={onReturnToHome}
+            className="mx-auto flex items-center rounded-xl bg-gray-600 px-6 py-3 font-semibold text-white transition-all duration-200 hover:bg-gray-700 md:px-8"
+          >
+            <Home className="mr-2 h-5 w-5" />
+            Return to Home
+          </button>
+        </div>
       </div>
     </div>
   );

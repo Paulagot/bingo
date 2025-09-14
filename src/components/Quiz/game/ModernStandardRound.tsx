@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { RoundComponentProps } from '../types/quiz';
 import { usePlayerStore } from '../hooks/usePlayerStore';
 import UseExtraModal from './UseExtraModal';
+import { useQuizTimer } from '../hooks/useQuizTimer';
 
 interface ModernStandardRoundProps extends RoundComponentProps {
   questionNumber?: number;
@@ -13,6 +14,7 @@ interface ModernStandardRoundProps extends RoundComponentProps {
   isFlashing?: boolean;
   currentEffect?: any;
   getFlashClasses?: () => string;
+  currentRound?: number;
 }
 
 const ModernStandardRound: React.FC<ModernStandardRoundProps> = ({
@@ -32,62 +34,42 @@ const ModernStandardRound: React.FC<ModernStandardRoundProps> = ({
   onUseExtra,
   questionNumber,
   totalQuestions,
-  difficulty = 'medium',
-  category = 'General Knowledge',
+  difficulty,
+  category,
   playersInRoom = [],
   isFlashing = false,
   currentEffect,
-  getFlashClasses = () => ''
+  getFlashClasses = () => '',
+  currentRound
 }) => {
   const { players } = usePlayerStore();
   const thisPlayer = players.find(p => p.id === playerId);
-  const [displayTimeLeft, setDisplayTimeLeft] = useState(15);
+
+   const { timeLeft } = useQuizTimer({
+    question,
+    timerActive: timerActive && !answerSubmitted,
+    onTimeUp: () => {} // Players handle auto-submit via countdown effects
+  });
+  
   const [freezeModalOpen, setFreezeModalOpen] = useState(false);
-  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+ 
 
-  // Timer management - sync with server timing
-  useEffect(() => {
-    if (timerActive && question?.timeLimit) {
-      const startTime = question.questionStartTime || Date.now();
-      const totalTime = question.timeLimit;
-      
-      const updateTimer = () => {
-        const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        const remaining = Math.max(0, totalTime - elapsed);
-        setDisplayTimeLeft(remaining);
-        
-        if (remaining <= 0) {
-          if (timerIntervalRef.current) {
-            clearInterval(timerIntervalRef.current);
-            timerIntervalRef.current = null;
-          }
-        }
-      };
-
-      updateTimer();
-      timerIntervalRef.current = setInterval(updateTimer, 1000);
-
-      return () => {
-        if (timerIntervalRef.current) {
-          clearInterval(timerIntervalRef.current);
-          timerIntervalRef.current = null;
-        }
-      };
-    }
-  }, [timerActive, question?.timeLimit, question?.questionStartTime]);
+ 
 
   // Timer ring calculation for circular progress
-  const getTimerProgress = () => {
-    if (!question?.timeLimit) return 0;
-    const percentage = (displayTimeLeft / question.timeLimit);
-    return 157 - (percentage * 157); // 157 is circumference for radius=25
-  };
+const getTimerProgress = () => {
+  if (!question?.timeLimit) return 157;
+  if (timeLeft === null) return 157; // No progress when timer is off
+  const percentage = (timeLeft / question.timeLimit);
+  return 157 - (percentage * 157);
+};
 
-  const getTimerClass = () => {
-    if (displayTimeLeft <= 3) return 'timer-progress danger';
-    if (displayTimeLeft <= 10) return 'timer-progress warning';
-    return 'timer-progress';
-  };
+const getTimerClass = () => {
+  if (timeLeft === null) return 'timer-progress';
+  if (timeLeft <= 1) return 'timer-progress danger';
+  if (timeLeft <= 10) return 'timer-progress warning';
+  return 'timer-progress';
+};
 
   const getDifficultyBadgeClass = () => {
     switch (difficulty?.toLowerCase()) {
@@ -916,7 +898,7 @@ const ModernStandardRound: React.FC<ModernStandardRoundProps> = ({
         {/* Game Header */}
         <div className="game-header">
           <div className="round-info">
-            <div className="round-badge">Round {questionNumber ? Math.ceil(questionNumber / 8) : 1}</div>
+            <div className="round-badge">Round {currentRound || 1}</div>
             <div className="question-counter">Question {questionNumber}/{totalQuestions}</div>
           </div>
           
@@ -932,7 +914,7 @@ const ModernStandardRound: React.FC<ModernStandardRoundProps> = ({
                   style={{ strokeDashoffset: getTimerProgress() }}
                 ></circle>
               </svg>
-              <div className="timer-text">{displayTimeLeft}</div>
+              <div className="timer-text">{timeLeft ?? '0'}</div>
             </div>
           </div>
         </div>
@@ -947,8 +929,8 @@ const ModernStandardRound: React.FC<ModernStandardRoundProps> = ({
         {/* Question Card */}
         <div className="question-card" data-testid="question-card">
           <div className="question-meta">
-            <div className={getDifficultyBadgeClass()}>{difficulty}</div>
-            <div className="category-tag">{category}</div>
+            <div className={getDifficultyBadgeClass()}>{difficulty || 'medium'}</div>
+            <div className="category-tag">{category || 'General'}</div>
           </div>
 
           <div className="question-text">
