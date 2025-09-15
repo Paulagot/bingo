@@ -428,12 +428,7 @@ const connect = useCallback(async (): Promise<WalletConnectionResult> => {
             return pollForConnection();
           }
         } catch (error) {
-          console.log(
-            `Polling attempt ${attempts} failed:`,
-            typeof error === 'object' && error !== null && 'message' in error
-              ? (error as { message?: string }).message
-              : error
-          );
+          console.log(`Polling attempt ${attempts} failed:`, error instanceof Error ? error.message : String(error));
           
           if (attempts >= maxAttempts) {
             hideWaitingMessage();
