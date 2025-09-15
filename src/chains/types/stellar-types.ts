@@ -48,7 +48,7 @@ export const STELLAR_WALLET_TYPES: Record<StellarWalletType, StellarWalletInfo> 
     name: 'LOBSTR',
     icon: '/icons/lobstr.svg',
     downloadUrl: 'https://lobstr.co/',
-    isExtension: false,
+    isExtension: true,
   },
   xbull: {
     name: 'xBull',

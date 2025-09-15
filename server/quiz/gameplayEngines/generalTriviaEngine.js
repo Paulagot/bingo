@@ -1,8 +1,7 @@
-// generalTriviaEngine.js - Updated to use centralized StatsService and FreezeService
+// generalTriviaEngine.js - Updated to use centralized StatsService and FreezeService + Combined Questions
 
 import {
   getQuizRoom,
-  
   setQuestionsForCurrentRound,
   advanceToNextQuestion,
   resetRoundExtrasTracking,
@@ -45,7 +44,9 @@ export function initRound(roomId, namespace) {
     console.log(`[generalTriviaEngine] 🎯 Need: ${questionsPerRound} questions`);
   }
 
+  // ✅ UPDATED: Pass roomId to enable global question tracking
   const selectedQuestions = QuestionService.loadAndFilterQuestions(
+    roomId,      // ← NEW: Pass roomId for global tracking
     roundType, 
     desiredCategory, 
     desiredDifficulty, 
@@ -64,7 +65,7 @@ export function initRound(roomId, namespace) {
     console.log(`[generalTriviaEngine] 📊 Selected question breakdown:`, actualBreakdown);
   }
 
-   room.players.forEach(player => {
+  room.players.forEach(player => {
     SimplifiedScoringService.initializeRoundTracking(room, player.id);
   });
 

@@ -428,6 +428,155 @@ const QuizCompletionCelebration: React.FC<QuizCompletionProps> = ({
 
         {enhancedStats ? (
           <div className="space-y-8">
+            {/* Round Performance Chart */}
+            {enhancedStats.roundProgression.scoreByRound.length > 0 && (
+              <div className="rounded-xl bg-white/10 p-6 backdrop-blur">
+                <h3 className="mb-4 text-2xl font-bold text-white">📈 Round by Round Performance</h3>
+                
+                <div className="mb-4 grid gap-4 md:grid-cols-3">
+                  <div className="rounded-lg bg-green-500/20 p-3 text-center">
+                    <div className="text-lg font-bold text-green-300">
+                      {enhancedStats.roundProgression.bestRoundScore}
+                    </div>
+                    <div className="text-sm text-white/80">Best Round</div>
+                  </div>
+                  <div className="rounded-lg bg-red-500/20 p-3 text-center">
+                    <div className="text-lg font-bold text-red-300">
+                      {enhancedStats.roundProgression.worstRoundScore}
+                    </div>
+                    <div className="text-sm text-white/80">Worst Round</div>
+                  </div>
+                  <div className="rounded-lg bg-blue-500/20 p-3 text-center">
+                    <div className="text-lg font-bold text-blue-300">
+                      {enhancedStats.roundProgression.trendDirection === 'improving' ? '📈' : 
+                       enhancedStats.roundProgression.trendDirection === 'declining' ? '📉' : '➡️'}
+                    </div>
+                    <div className="text-sm text-white/80 capitalize">{enhancedStats.roundProgression.trendDirection}</div>
+                  </div>
+                </div>
+
+                {/* Bar Chart */}
+                <div className="relative">
+                  <div className="flex items-end justify-between space-x-2 h-32">
+                    {enhancedStats.roundProgression.scoreByRound.map((score, index) => {
+                      const maxScore = Math.max(...enhancedStats.roundProgression.scoreByRound, 1);
+                      const height = Math.max((Math.abs(score) / maxScore) * 100, 5);
+                      const isNegative = score < 0;
+                      
+                      return (
+                        <div key={index} className="flex flex-col items-center flex-1 max-w-16">
+                          <div className="text-xs text-white/80 mb-1 font-semibold">
+                            {score > 0 ? '+' : ''}{score}
+                          </div>
+                          <div
+                            className={`w-full rounded-t transition-all duration-500 ${
+                              isNegative 
+                                ? 'bg-gradient-to-t from-red-500 to-red-400' 
+                                : score >= enhancedStats.roundProgression.bestRoundScore
+                                ? 'bg-gradient-to-t from-green-500 to-green-400'
+                                : 'bg-gradient-to-t from-blue-500 to-blue-400'
+                            }`}
+                            style={{ 
+                              height: `${height}%`,
+                              minHeight: '8px'
+                            }}
+                          />
+                          <div className="text-xs text-white/60 mt-1">
+                            R{index + 1}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Strategic Play Breakdown */}
+            <div className="rounded-xl bg-white/10 p-6 backdrop-blur">
+              <h3 className="mb-4 text-2xl font-bold text-white">🧠 Strategic Play Analysis</h3>
+              
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-lg bg-purple-500/20 p-4 text-center">
+                  <div className="text-2xl font-bold text-purple-300">{enhancedStats.strategicPlay.extrasUsed}</div>
+                  <div className="text-sm text-white/80">Extras Used</div>
+                </div>
+                
+                <div className="rounded-lg bg-orange-500/20 p-4 text-center">
+                  <div className="text-2xl font-bold text-orange-300">{enhancedStats.strategicPlay.penaltiesReceived}</div>
+                  <div className="text-sm text-white/80">Penalties Received</div>
+                </div>
+                
+                <div className="rounded-lg bg-green-500/20 p-4 text-center">
+                  <div className="text-2xl font-bold text-green-300">+{enhancedStats.strategicPlay.pointsRestored}</div>
+                  <div className="text-sm text-white/80">Points Restored</div>
+                </div>
+                
+                <div className="rounded-lg bg-blue-500/20 p-4 text-center">
+                  <div className="text-2xl font-bold text-blue-300">{enhancedStats.strategicPlay.extrasTypes.length}</div>
+                  <div className="text-sm text-white/80">Extra Types</div>
+                </div>
+              </div>
+
+              {enhancedStats.strategicPlay.extrasTypes.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="mb-2 text-lg font-semibold text-white">Extras Used:</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {enhancedStats.strategicPlay.extrasTypes.map((extraType, index) => (
+                      <span
+                        key={index}
+                        className="rounded-full bg-purple-500/30 px-3 py-1 text-sm text-purple-200"
+                      >
+                        {extraType.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Final Stats Summary */}
+            <div className="rounded-xl bg-white/10 p-6 backdrop-blur">
+              <h3 className="mb-4 text-2xl font-bold text-white">📊 Final Statistics</h3>
+              
+              <div className="grid gap-6 md:grid-cols-3">
+                <div className="rounded-lg bg-gradient-to-br from-blue-500/20 to-indigo-500/20 p-4">
+                  <h4 className="text-lg font-bold text-blue-300">Final Score</h4>
+                  <div className="text-3xl font-bold text-white">{enhancedStats.finalStats.finalScore}</div>
+                  <div className="text-sm text-white/60">Total points earned</div>
+                </div>
+                
+                <div className="rounded-lg bg-gradient-to-br from-red-500/20 to-pink-500/20 p-4">
+                  <h4 className="text-lg font-bold text-red-300">Negative Points</h4>
+                  <div className="text-3xl font-bold text-white">{enhancedStats.finalStats.cumulativeNegativePoints}</div>
+                  <div className="text-sm text-white/60">Points lost during quiz</div>
+                </div>
+                
+                <div className="rounded-lg bg-gradient-to-br from-green-500/20 to-emerald-500/20 p-4">
+                  <h4 className="text-lg font-bold text-green-300">Points Restored</h4>
+                  <div className="text-3xl font-bold text-white">+{enhancedStats.finalStats.pointsRestored}</div>
+                  <div className="text-sm text-white/60">Via strategic extras</div>
+                </div>
+              </div>
+
+              {/* Net Impact Calculation */}
+              {(enhancedStats.finalStats.cumulativeNegativePoints > 0 || enhancedStats.finalStats.pointsRestored > 0) && (
+                <div className="mt-6 rounded-lg bg-gradient-to-r from-gray-500/20 to-slate-500/20 p-4">
+                  <h4 className="mb-2 text-lg font-bold text-gray-300">Score Journey</h4>
+                  <div className="text-sm text-white/80">
+                    Base Score: <span className="font-semibold">{enhancedStats.finalStats.finalScore + enhancedStats.finalStats.cumulativeNegativePoints - enhancedStats.finalStats.pointsRestored}</span>
+                    {enhancedStats.finalStats.cumulativeNegativePoints > 0 && (
+                      <span className="text-red-300"> - {enhancedStats.finalStats.cumulativeNegativePoints} (penalties)</span>
+                    )}
+                    {enhancedStats.finalStats.pointsRestored > 0 && (
+                      <span className="text-green-300"> + {enhancedStats.finalStats.pointsRestored} (restored)</span>
+                    )}
+                    <span className="text-white"> = {enhancedStats.finalStats.finalScore} final</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Performance Analysis */}
             <div className="rounded-xl bg-white/10 p-6 backdrop-blur">
               <h3 className="mb-4 text-2xl font-bold text-white">🎯 Question Performance</h3>
@@ -480,9 +629,44 @@ const QuizCompletionCelebration: React.FC<QuizCompletionProps> = ({
                 )}
 
                 {enhancedStats.questionPerformance.accuracyRate === 100 && (
-                  <div className="rounded-lg bg-gold-500/20 p-3">
+                  <div className="rounded-lg bg-yellow-500/20 p-3">
                     <span className="text-yellow-200 font-bold">🌟 Perfect Score:</span>
                     <span className="text-white ml-2">100% accuracy - flawless performance!</span>
+                  </div>
+                )}
+
+                {enhancedStats.strategicPlay.pointsRestored > 0 && (
+                  <div className="rounded-lg bg-green-500/20 p-3">
+                    <span className="text-green-300 font-bold">🔄 Resilient:</span>
+                    <span className="text-white ml-2">Successfully recovered from setbacks</span>
+                  </div>
+                )}
+
+                {enhancedStats.roundProgression.bestRoundScore >= 10 && (
+                  <div className="rounded-lg bg-orange-500/20 p-3">
+                    <span className="text-orange-300 font-bold">🔥 High Scorer:</span>
+                    <span className="text-white ml-2">Achieved {enhancedStats.roundProgression.bestRoundScore}+ points in a single round</span>
+                  </div>
+                )}
+
+                {enhancedStats.strategicPlay.extrasTypes.includes('robPoints') && (
+                  <div className="rounded-lg bg-red-500/20 p-3">
+                    <span className="text-red-300 font-bold">🏴‍☠️ Point Pirate:</span>
+                    <span className="text-white ml-2">Used strategic point theft</span>
+                  </div>
+                )}
+
+                {enhancedStats.strategicPlay.extrasTypes.includes('freezeOutTeam') && (
+                  <div className="rounded-lg bg-cyan-500/20 p-3">
+                    <span className="text-cyan-300 font-bold">❄️ Ice Master:</span>
+                    <span className="text-white ml-2">Froze out competitors strategically</span>
+                  </div>
+                )}
+
+                {enhancedStats.strategicPlay.extrasTypes.includes('buyHint') && (
+                  <div className="rounded-lg bg-violet-500/20 p-3">
+                    <span className="text-violet-300 font-bold">💡 Wise Investor:</span>
+                    <span className="text-white ml-2">Purchased strategic hints</span>
                   </div>
                 )}
               </div>
