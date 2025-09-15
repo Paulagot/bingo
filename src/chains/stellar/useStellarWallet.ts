@@ -299,6 +299,7 @@ export const useStellarWallet = () => {
 
 
 
+
 const connect = useCallback(async (): Promise<WalletConnectionResult> => {
   if (stellarState.isConnecting) {
     console.log('Connection already in progress, waiting...');
@@ -332,7 +333,7 @@ const connect = useCallback(async (): Promise<WalletConnectionResult> => {
   try {
     updateStellarWallet({ isConnecting: true, error: null });
     
-    // Extended timeout for mobile connections (WalletConnect can be slow)
+    // Standard timeout for all devices
     const connectionTimeout = 60000; // 60 seconds
     
     return new Promise((resolve, reject) => {
@@ -492,31 +493,18 @@ const connect = useCallback(async (): Promise<WalletConnectionResult> => {
       };
 
       try {
-        // Try to import and use the practical mobile solution
-        import('./practicalMobileConnect')
-          .then(({ createPracticalMobileConnection }) => {
-            createPracticalMobileConnection(
-              walletKitRef.current!,
-              handleWalletSelection,
-              handleConnectionError,
-              handleConnectionClosed
-            );
-          })
-          .catch((importError) => {
-            // Fallback to standard modal if mobile enhancement fails
-            console.warn('Mobile enhancement failed, using standard modal:', importError);
-            walletKitRef.current!.openModal({
-              ...walletConnectionOptions,
-              onWalletSelected: handleWalletSelection,
-              onClosed: (error) => {
-                if (error) {
-                  handleConnectionError(error);
-                } else {
-                  handleConnectionClosed();
-                }
-              },
-            });
-          });
+        // Use the standard StellarWalletsKit modal for all devices
+        walletKitRef.current!.openModal({
+          ...walletConnectionOptions,
+          onWalletSelected: handleWalletSelection,
+          onClosed: (error) => {
+            if (error) {
+              handleConnectionError(error);
+            } else {
+              handleConnectionClosed();
+            }
+          },
+        });
       } catch (modalError) {
         handleConnectionError(modalError);
       }
