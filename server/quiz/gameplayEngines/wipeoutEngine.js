@@ -1,4 +1,6 @@
 // wipeoutEngine.js 
+// Updated to use combined_questions.json and pass roomId for global question tracking
+
 import {
   getQuizRoom,
   setQuestionsForCurrentRound,
@@ -21,7 +23,6 @@ import { FreezeService } from './services/FreezeServices.js';
 let timerService = null;
 const debug = false;
 
-
 /* ---------------------------- Init round ---------------------------- */
 export function initRound(roomId, namespace) {
   const room = getQuizRoom(roomId);
@@ -35,7 +36,7 @@ export function initRound(roomId, namespace) {
   const desiredDifficulty = roundConfig.difficulty;
   const desiredCategory = roundConfig.category;
 
-   room.players.forEach(player => {
+  room.players.forEach(player => {
     SimplifiedScoringService.initializeRoundTracking(room, player.id);
   });
 
@@ -44,8 +45,8 @@ export function initRound(roomId, namespace) {
   }
 
   if (!timerService) {
-  timerService = new TimerService(namespace);
-}
+    timerService = new TimerService(namespace);
+  }
 
   if (debug) {
     console.log(`[wipeoutEngine] 🔍 Loading questions for round ${room.currentRound}`);
@@ -53,31 +54,32 @@ export function initRound(roomId, namespace) {
     console.log(`[wipeoutEngine] 🎯 Need: ${questionsPerRound} questions`);
   }
 
-  // Load w/ filters + fallbacks
-const selectedQuestions = QuestionService.loadAndFilterQuestions(
-  roundType, 
-  desiredCategory, 
-  desiredDifficulty, 
-  questionsPerRound,
-  debug
-);
+  // ✅ UPDATED: Pass roomId to enable global question tracking
+  const selectedQuestions = QuestionService.loadAndFilterQuestions(
+    roomId,      // ← NEW: Pass roomId for global tracking
+    roundType, 
+    desiredCategory, 
+    desiredDifficulty, 
+    questionsPerRound,
+    debug
+  );
 
   if (debug) {
-   console.log(`[wipeoutEngine] ✅ Selected ${selectedQuestions.length} questions for round ${room.currentRound}`);
-  const actualBreakdown = selectedQuestions.reduce((acc, q) => {
-  const cat = q.category || 'unknown';
-  const diff = q.difficulty || 'unknown';
-  const key = `${cat}/${diff}`;
-  acc[key] = (acc[key] || 0) + 1;
-  return acc;
-}, {});
+    console.log(`[wipeoutEngine] ✅ Selected ${selectedQuestions.length} questions for round ${room.currentRound}`);
+    const actualBreakdown = selectedQuestions.reduce((acc, q) => {
+      const cat = q.category || 'unknown';
+      const diff = q.difficulty || 'unknown';
+      const key = `${cat}/${diff}`;
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
     console.log(`[wipeoutEngine] 📊 Selected question breakdown:`, actualBreakdown);
   }
 
-setQuestionsForCurrentRound(roomId, selectedQuestions);
+  setQuestionsForCurrentRound(roomId, selectedQuestions);
   resetRoundExtrasTracking(roomId);
 
-  // ✅ Reset per-round extras tracking AND per-round penalty debt
+  // Reset per-round extras tracking AND per-round penalty debt
   Object.values(room.playerData).forEach(pd => {
     pd.usedExtrasThisRound = {};
     // pd.penaltyDebt = 0; // <-- debt is per round
@@ -86,7 +88,7 @@ setQuestionsForCurrentRound(roomId, selectedQuestions);
   room.currentQuestionIndex = -1;
   room.currentPhase = 'asking';
 
-    StatsService.calculateLiveRoundStats(roomId, namespace);
+  StatsService.calculateLiveRoundStats(roomId, namespace);
   startNextQuestion(roomId, namespace);
   return true;
 }
@@ -97,15 +99,15 @@ export function startNextQuestion(roomId, namespace) {
   if (!room) return;
 
   const nextQuestion = advanceToNextQuestion(roomId);
- FreezeService.clearExpiredFreezes(roomId, room.currentQuestionIndex);
+  FreezeService.clearExpiredFreezes(roomId, room.currentQuestionIndex);
 
-// ✅ CLOSE PREVIOUS QUESTION using SimplifiedScoringService
-if (room.currentQuestionIndex >= 0) {
-  const penalizedCount = SimplifiedScoringService.finalizePreviousQuestion(room);
-  if (debug && penalizedCount > 0) {
-    console.log(`[Engine] ⏰ Finalized previous question, ${penalizedCount} players received no-answer penalties`);
+  // ✅ CLOSE PREVIOUS QUESTION using SimplifiedScoringService
+  if (room.currentQuestionIndex >= 0) {
+    const penalizedCount = SimplifiedScoringService.finalizePreviousQuestion(room);
+    if (debug && penalizedCount > 0) {
+      console.log(`[Engine] ⏰ Finalized previous question, ${penalizedCount} players received no-answer penalties`);
+    }
   }
-}
 
   // End-of-round -> review
   if (!nextQuestion) {
@@ -125,26 +127,26 @@ if (room.currentQuestionIndex >= 0) {
   const questionStartTime = Date.now();
   room.questionStartTime = questionStartTime;
 
- room.players.forEach(player => {
-  const socket = namespace.sockets.get(player.socketId);
-  if (socket) {
-    QuestionEmissionService.emitQuestionToPlayer(socket, room, nextQuestion);
-  }
-});
+  room.players.forEach(player => {
+    const socket = namespace.sockets.get(player.socketId);
+    if (socket) {
+      QuestionEmissionService.emitQuestionToPlayer(socket, room, nextQuestion);
+    }
+  });
 
-// Also send to host
-const hostSocket = namespace.sockets.get(room.hostSocketId);
-if (hostSocket) {
-  QuestionEmissionService.emitQuestionToPlayer(hostSocket, room, nextQuestion);
-}
+  // Also send to host
+  const hostSocket = namespace.sockets.get(room.hostSocketId);
+  if (hostSocket) {
+    QuestionEmissionService.emitQuestionToPlayer(hostSocket, room, nextQuestion);
+  }
 
   timerService.startQuestionTimer(roomId, timeLimit, () => {
     startNextQuestion(roomId, namespace);
   });
 
   // Notify frozen players
-FreezeService.notifyFrozenPlayers(namespace, roomId, room.currentQuestionIndex);}
- 
+  FreezeService.notifyFrozenPlayers(namespace, roomId, room.currentQuestionIndex);
+}
 
 /* ------------------------- Handle an answer ------------------------- */
 // CORRECTED handlePlayerAnswer for both engines:
@@ -232,7 +234,7 @@ export function handleHintExtra(roomId, playerId, namespace) {
   const player = room.players.find(p => p.id === playerId);
   if (!player) return { success: false, error: 'Player not found' };
 
- StatsService.sendHostActivityNotification(namespace, roomId, {
+  StatsService.sendHostActivityNotification(namespace, roomId, {
     type: 'hint',
     playerName: player.name,
     context: `Q${room.currentQuestionIndex + 1}`,
@@ -240,7 +242,7 @@ export function handleHintExtra(roomId, playerId, namespace) {
     questionNumber: room.currentQuestionIndex + 1
   });
 
-StatsService.calculateLiveRoundStats(roomId, namespace);
+  StatsService.calculateLiveRoundStats(roomId, namespace);
   return { success: true };
 }
 
@@ -273,7 +275,6 @@ export function buildLeaderboard(room) {
 }
 
 /* ------------------------------- Helpers --------------------------- */
-
 
 function clearExpiredFreezeFlags(room) {
   for (const playerId in room.playerData) {

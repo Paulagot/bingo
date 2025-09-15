@@ -1,42 +1,46 @@
 // server/quiz/gameplayEngines/services/QuestionService.js
-// Extract question loading logic from both engines
+// Updated to use combined_questions.json and prevent duplicate questions across entire quiz
 
-import { loadQuestionsForRoundType } from '../../quizRoomManager.js';
+import { loadQuestionsFromCombinedFile } from '../../quizRoomManager.js';
 const debug = false;
 
 export class QuestionService {
   /**
-   * Load and filter questions for a round with fallback logic
-   * Extracted from both generalTriviaEngine and wipeoutEngine
+   * Load and filter questions for a round with fallback logic AND global duplicate prevention
+   * Now uses combined_questions.json and tracks used questions globally
    */
-  static loadAndFilterQuestions(roundType, category, difficulty, requiredCount, debug = false) {
+  static loadAndFilterQuestions(roomId, roundType, category, difficulty, requiredCount, debug = false) {
     if (debug) {
       console.log(`[QuestionService] 🔍 Loading questions for round`);
-      console.log(`[QuestionService] 📋 Type: ${roundType}, Category: ${category}, Difficulty: ${difficulty}`);
+      console.log(`[QuestionService] 📋 RoomId: ${roomId}, Type: ${roundType}, Category: ${category}, Difficulty: ${difficulty}`);
       console.log(`[QuestionService] 🎯 Need: ${requiredCount} questions`);
     }
 
-    // Try with both filters first
-    let allQuestions = loadQuestionsForRoundType(roundType, category, difficulty, requiredCount);
+    // Get all available questions (already filtered by used questions in room)
+    let availableQuestions = loadQuestionsFromCombinedFile(roomId, category, difficulty, requiredCount);
+
+    if (debug) {
+      console.log(`[QuestionService] 📚 Available questions after global filter: ${availableQuestions.length}`);
+    }
 
     // Fallback 1: Remove category filter if not enough questions
-    if (allQuestions.length < requiredCount && category) {
+    if (availableQuestions.length < requiredCount && category) {
       if (debug) {
-        console.warn(`[QuestionService] ⚠️ Only found ${allQuestions.length} with category+difficulty; trying difficulty-only.`);
+        console.warn(`[QuestionService] ⚠️ Only found ${availableQuestions.length} with category+difficulty; trying difficulty-only.`);
       }
-      allQuestions = loadQuestionsForRoundType(roundType, null, difficulty, requiredCount);
+      availableQuestions = loadQuestionsFromCombinedFile(roomId, null, difficulty, requiredCount);
     }
 
     // Fallback 2: Remove all filters if still not enough
-    if (allQuestions.length < requiredCount) {
+    if (availableQuestions.length < requiredCount) {
       if (debug) {
-        console.warn(`[QuestionService] ⚠️ Still not enough (${allQuestions.length}). Using unfiltered questions.`);
+        console.warn(`[QuestionService] ⚠️ Still not enough (${availableQuestions.length}). Using unfiltered questions.`);
       }
-      allQuestions = loadQuestionsForRoundType(roundType);
+      availableQuestions = loadQuestionsFromCombinedFile(roomId, null, null, requiredCount);
     }
 
     // Shuffle and slice to required count
-    const selectedQuestions = this.shuffleArray(allQuestions).slice(0, requiredCount);
+    const selectedQuestions = this.shuffleArray(availableQuestions).slice(0, requiredCount);
 
     if (debug) {
       console.log(`[QuestionService] ✅ Selected ${selectedQuestions.length} questions`);
