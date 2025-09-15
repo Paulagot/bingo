@@ -7,6 +7,7 @@ import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { useQuizChainIntegration } from '../../../hooks/useQuizChainIntegration';
 import { useStellarWalletContext } from '../../../chains/stellar/StellarWalletProvider';
 import { useQuizContract as useStellarQuizContract } from '../../../chains/stellar/useQuizContract';
+import { WalletDebugPanel } from './WalletDebug';
 
 import { generateRoomId, generateHostId } from '../utils/idUtils';
 import { roundTypeMap } from '../constants/quiztypeconstants';
@@ -33,7 +34,7 @@ import {
   Users,
 } from 'lucide-react';
 
-import { WalletDebug } from './WalletDebug';
+
 import ClearSetupButton from './ClearSetupButton';
 
 type Web3LaunchState =
@@ -849,6 +850,7 @@ setTimeout(() => {
       </div>
 
       {/* <WalletDebug /> */}
+     <WalletDebugPanel />
 
       
             {/* Blockchain config & wallet */}

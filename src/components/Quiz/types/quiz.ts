@@ -119,7 +119,7 @@ export interface QuizConfig {
   timeZone?: string;
   web3ContractAddress?: string;
   // Add the missing Web3 deployment properties
-  web3ChainConfirmed?: string;
+ web3ChainConfirmed ?: string;
   hostWalletConfirmed?: string;
   contractAddress?: string;
   deploymentTxHash?: string;
