@@ -31,6 +31,7 @@ import { WalletErrorCode } from '../types';
 import { StellarWalletsKit, type ISupportedWallet } from '@creit.tech/stellar-wallets-kit';
 import { Horizon, Asset, Operation, TransactionBuilder, Networks } from '@stellar/stellar-sdk';
 
+
 export const useStellarWallet = () => {
   // ===================================================================
   // STATE MANAGEMENT
@@ -296,6 +297,8 @@ export const useStellarWallet = () => {
 
  // Add this to your useStellarWallet.ts - replace the connect function
 
+
+
 const connect = useCallback(async (): Promise<WalletConnectionResult> => {
   if (stellarState.isConnecting) {
     console.log('Connection already in progress, waiting...');
@@ -489,10 +492,10 @@ const connect = useCallback(async (): Promise<WalletConnectionResult> => {
       };
 
       try {
-        // Try to import and use the simplified mobile solution
-        import('./simpleMobileConnect')
-          .then(({ createSimpleMobileConnection }) => {
-            createSimpleMobileConnection(
+        // Try to import and use the practical mobile solution
+        import('./practicalMobileConnect')
+          .then(({ createPracticalMobileConnection }) => {
+            createPracticalMobileConnection(
               walletKitRef.current!,
               handleWalletSelection,
               handleConnectionError,
