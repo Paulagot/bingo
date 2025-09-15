@@ -1,9 +1,10 @@
-// src/chains/stellar/config.ts
+// src/chains/stellar/config.ts - Complete updated configuration with WalletConnect support
 import { 
   StellarWalletsKit, 
   WalletNetwork, 
   allowAllModules
 } from '@creit.tech/stellar-wallets-kit';
+import { WalletConnectModule, WalletConnectAllowedMethods } from '@creit.tech/stellar-wallets-kit/modules/walletconnect.module';
 import { Horizon } from '@stellar/stellar-sdk';
 import type { StellarNetwork, StellarNetworkConfig } from '../types/stellar-types';
 
@@ -13,11 +14,8 @@ import type { StellarNetwork, StellarNetworkConfig } from '../types/stellar-type
 
 export const stellarNetworks: Record<StellarNetwork, StellarNetworkConfig> = {
   mainnet: {
-    // networkPassphrase: 'Public Global Stellar Network ; September 2015',
-    // horizonUrl: 'https://horizon.stellar.org',
-    // networkId: 'mainnet',
-    // isTestnet: false,
-     networkPassphrase: 'Test SDF Network ; September 2015',
+    // For now, keep using testnet even for "mainnet" during development
+    networkPassphrase: 'Test SDF Network ; September 2015',
     horizonUrl: 'https://horizon-testnet.stellar.org',
     networkId: 'testnet',
     isTestnet: true,
@@ -30,24 +28,71 @@ export const stellarNetworks: Record<StellarNetwork, StellarNetworkConfig> = {
   },
 };
 
-// Default to testnet for development, mainnet for production
-export const defaultStellarNetwork: StellarNetwork = 
-  import.meta.env.MODE === 'production' ? 'mainnet' : 'testnet';
+// Default to testnet for development
+export const defaultStellarNetwork: StellarNetwork = 'testnet';
 
 export const getCurrentNetworkConfig = (network: StellarNetwork = defaultStellarNetwork): StellarNetworkConfig => {
   return stellarNetworks[network];
 };
 
 // ===================================================================
-// STELLAR WALLETS KIT CONFIGURATION
+// WALLETCONNECT CONFIGURATION
+// ===================================================================
+
+// You need to get a project ID from https://cloud.walletconnect.com/
+export const WALLETCONNECT_PROJECT_ID = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || 'your-project-id-here';
+
+export const walletConnectConfig = {
+  url: typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000',
+  projectId: WALLETCONNECT_PROJECT_ID,
+  method: WalletConnectAllowedMethods.SIGN,
+  description: 'Multi-chain quiz platform with crypto rewards',
+  name: 'Quiz Platform',
+  icons: [typeof window !== 'undefined' ? window.location.origin + '/favicon.ico' : '/favicon.ico'],
+};
+
+// ===================================================================
+// ENHANCED STELLAR WALLETS KIT CREATION
 // ===================================================================
 
 export const createStellarWalletsKit = (network: StellarNetwork = defaultStellarNetwork): StellarWalletsKit => {
   const config = getCurrentNetworkConfig(network);
   
+  // Start with all basic modules - explicitly type the array
+  let modules: any[] = [];
+  
+  try {
+    modules = allowAllModules();
+    console.log('Basic Stellar wallet modules loaded');
+  } catch (error) {
+    console.error('Failed to load basic modules:', error);
+    modules = []; // Fallback to empty array
+  }
+  
+  // Add WalletConnect module for mobile deep linking support
+  if (WALLETCONNECT_PROJECT_ID && WALLETCONNECT_PROJECT_ID !== 'your-project-id-here') {
+    try {
+      const walletConnectModule = new WalletConnectModule({
+        ...walletConnectConfig,
+        network: config.networkPassphrase as WalletNetwork,
+      });
+      
+      modules.push(walletConnectModule);
+      console.log('WalletConnect module added to StellarWalletsKit');
+    } catch (error) {
+      console.warn('Failed to add WalletConnect module:', error);
+      console.log('Mobile deep linking will be limited without WalletConnect');
+    }
+  } else {
+    console.warn('WalletConnect Project ID not configured.');
+    console.log('To enable mobile deep linking:');
+    console.log('1. Get a project ID from https://cloud.walletconnect.com/');
+    console.log('2. Add VITE_WALLETCONNECT_PROJECT_ID=your-project-id to your .env file');
+  }
+
   return new StellarWalletsKit({
     network: config.networkPassphrase as WalletNetwork,
-    modules: allowAllModules(),
+    modules: modules,
   });
 };
 
@@ -70,7 +115,7 @@ export const createHorizonServer = (network: StellarNetwork = defaultStellarNetw
 export const stellarWalletMetadata = {
   appName: 'Quiz Platform',
   appDescription: 'Multi-chain quiz platform with crypto rewards',
-  appDomain: window.location.hostname,
+  appDomain: typeof window !== 'undefined' ? window.location.hostname : 'localhost',
   appIcon: '/favicon.ico',
 };
 
@@ -136,13 +181,6 @@ export const getSupportedAssets = (network: StellarNetwork = defaultStellarNetwo
 export const walletConnectionOptions = {
   modalTitle: 'Connect Your Stellar Wallet',
   modalDescription: 'Choose a wallet to connect to the quiz platform',
-  // allowedWallets: [
-  //   'freighter',
-  //   'albedo', 
-  //   'rabet',
-  //   'lobstr',
-  //   'xbull',
-  // ],
 };
 
 // ===================================================================
@@ -243,11 +281,13 @@ export const isValidAmount = (amount: string): boolean => {
 // ===================================================================
 
 export const debugStellarConfig = () => {
-  console.log('🌟 Stellar Configuration Debug:', {
+  console.log('Stellar Configuration Debug:', {
     defaultNetwork: defaultStellarNetwork,
     networks: stellarNetworks,
     supportedAssets: getSupportedAssets(),
     storageKeys: stellarStorageKeys,
     walletOptions: walletConnectionOptions,
+    walletConnectEnabled: WALLETCONNECT_PROJECT_ID !== 'your-project-id-here',
+    walletConnectProjectId: WALLETCONNECT_PROJECT_ID,
   });
 };
