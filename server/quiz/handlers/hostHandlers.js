@@ -14,7 +14,7 @@ import { isRateLimited } from '../../socketRateLimiter.js';
 import { getCurrentRoundStats } from './globalExtrasHandler.js';
 import { getRoundScoring } from './scoringUtils.js';
 import { StatsService } from '../gameplayEngines/services/StatsService.js'
-const debug = false;
+const debug = true;
 
 export function setupHostHandlers(socket, namespace) {
 
@@ -558,6 +558,17 @@ function generateEnhancedPlayerStats(room, playerId) {
         }
       }
     }
+
+    if (debug) {
+  console.log(`[Host] 🔍 Winner collection debug:`, {
+    expectedWinners: hasSecondPrize && hasThirdPrize ? 3 : hasSecondPrize ? 2 : 1,
+    actualWinners: winnerAddresses.length,
+    hasSecondPrize,
+    hasThirdPrize,
+    finalLeaderboard: finalLeaderboard.slice(0, 3).map(p => p.name),
+    winnerAddresses: winnerAddresses.map(addr => addr.slice(0, 8) + '...')
+  });
+}
 
     if (winnerAddresses.length === 0) {
       socket.emit('quiz_error', { message: 'No valid winner addresses found for prize distribution' });

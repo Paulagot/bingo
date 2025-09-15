@@ -354,6 +354,11 @@ const deployQuizContractOnStellar = async (params: any) => {
         hostWalletConfirmed: currentWallet?.address,
         paymentMethod: 'web3' as const,
         isWeb3Room: true,
+          web3PrizeStructure: {
+    firstPlace: setupConfig.prizeSplits?.[1] || 100,
+    secondPlace: setupConfig.prizeSplits?.[2] || 0,
+    thirdPlace: setupConfig.prizeSplits?.[3] || 0
+  }
       };
 
       console.log('🌐 Making API call to create Web3 room...');

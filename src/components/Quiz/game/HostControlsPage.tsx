@@ -32,7 +32,7 @@ import { useQuizContract } from '../../../chains/stellar/useQuizContract';
 import { useStellarWallet } from '../../../chains/stellar/useStellarWallet';
 import { useQuizTimer } from '../hooks/useQuizTimer';
 
-const debug = false;
+const debug = true;
 
 type RoomStatePayload = {
   currentRound: number;
