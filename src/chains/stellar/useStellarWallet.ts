@@ -342,117 +342,228 @@ const connect = useCallback(async (): Promise<WalletConnectionResult> => {
         reject(new Error('Connection timeout - please try again'));
       }, connectionTimeout);
 
-      const handleWalletSelection = async (option: ISupportedWallet) => {
-        clearTimeout(timeoutId);
-        try {
-          const walletId = option.id;
-          console.log('Wallet selected:', walletId, option);
-          
-          // Set the selected wallet in the kit
-          walletKitRef.current!.setWallet(walletId);
-          
-          // Get address (this triggers the wallet's authorization flow)
-          console.log('Getting wallet address...');
-          const addressResult = await walletKitRef.current!.getAddress();
-          console.log('Address result:', addressResult);
-          
-          if (addressResult.address) {
-            // Store wallet preferences
-            localStorage.setItem(stellarStorageKeys.WALLET_ID, walletId);
-            localStorage.setItem(stellarStorageKeys.AUTO_CONNECT, 'true');
-            localStorage.setItem(stellarStorageKeys.LAST_ADDRESS, addressResult.address);
-            
-            // Get network info
-            console.log('Getting network info...');
-            const networkResult = await walletKitRef.current!.getNetwork();
-            console.log('Network result:', networkResult);
-            
-            // Update wallet state
-            const connectionData: Partial<StellarWalletConnection> = {
-              address: addressResult.address,
-              isConnected: true,
-              isConnecting: false,
-              publicKey: addressResult.address,
-              networkPassphrase: networkResult.networkPassphrase,
-              walletType: walletId as StellarWalletType,
-              error: null,
-              lastConnected: new Date(),
-            };
-            
-            updateStellarWallet(connectionData);
-            setActiveChain('stellar');
-            
-            // Fetch initial balances
-            await fetchBalances(addressResult.address);
-            
-            // Start polling for wallet state updates
-            startPolling();
-            
-            const result: WalletConnectionResult = {
-              success: true,
-              address: addressResult.address,
-              networkInfo: {
-                chainId: networkResult.network,
-                name: networkResult.network,
-                isTestnet: currentNetwork === 'testnet',
-                rpcUrl: getCurrentNetworkConfig(currentNetwork).horizonUrl,
-                blockExplorer: getExplorerUrl('account', '', currentNetwork),
-              }
-            };
-            
-            console.log('Connection successful:', result);
-            resolve(result);
-          } else {
-            // Connection failed - no address returned
-            console.error('No address returned from wallet');
-            localStorage.removeItem(stellarStorageKeys.WALLET_ID);
-            const error = createWalletError(
-              WalletErrorCode.CONNECTION_REJECTED, 
-              stellarErrorMessages.CONNECTION_REJECTED
-            );
-            
-            updateStellarWallet({ 
-              isConnecting: false, 
-              error 
-            });
-            
-            resolve({
-              success: false,
-              address: null,
-              error
-            });
-          }
-        } catch (error) {
-          console.error('Wallet selection failed:', error);
-          
-          // Determine error type
-          let errorCode = WalletErrorCode.CONNECTION_FAILED;
-          let errorMessage = stellarErrorMessages.CONNECTION_FAILED;
-          
-          if (error instanceof Error) {
-            if (error.message.includes('rejected') || error.message.includes('denied')) {
-              errorCode = WalletErrorCode.CONNECTION_REJECTED;
-              errorMessage = stellarErrorMessages.CONNECTION_REJECTED;
-            } else if (error.message.includes('timeout')) {
-              errorCode = WalletErrorCode.TIMEOUT;
-              errorMessage = stellarErrorMessages.TIMEOUT;
-            }
-          }
-          
-          const walletError = createWalletError(errorCode, errorMessage, error);
-          
-          updateStellarWallet({ 
-            isConnecting: false, 
-            error: walletError 
-          });
-          
-          resolve({
-            success: false,
-            address: null,
-            error: walletError
-          });
+   const handleWalletSelection = async (option: ISupportedWallet) => {
+  clearTimeout(timeoutId);
+  try {
+    const walletId = option.id;
+    console.log('Wallet selected:', walletId, option);
+    
+    // Set the selected wallet in the kit
+    walletKitRef.current!.setWallet(walletId);
+    
+    // Check if this is a WalletConnect wallet that needs polling
+    const isWalletConnect = walletId.toLowerCase().includes('walletconnect') || 
+                           walletId === 'walletConnect' ||
+                           option.name?.toLowerCase().includes('walletconnect');
+    
+    let addressResult;
+    
+    if (isWalletConnect) {
+      console.log('WalletConnect detected - using polling method');
+      
+      // Show user feedback
+      const showWaitingMessage = () => {
+        const waitingDiv = document.createElement('div');
+        waitingDiv.id = 'walletconnect-waiting';
+        waitingDiv.style.cssText = `
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: white;
+          padding: 24px;
+          border-radius: 12px;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+          z-index: 10001;
+          text-align: center;
+          max-width: 300px;
+          font-family: system-ui, -apple-system, sans-serif;
+        `;
+        
+        waitingDiv.innerHTML = `
+          <h3 style="margin: 0 0 12px 0; color: #1f2937;">Waiting for LOBSTR...</h3>
+          <p style="margin: 0 0 16px 0; color: #6b7280; font-size: 14px;">
+            Please approve the connection in LOBSTR, then return to this browser.
+          </p>
+          <div style="display: inline-block; width: 20px; height: 20px; border: 2px solid #e5e7eb; border-top: 2px solid #3b82f6; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+          <style>
+            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+          </style>
+        `;
+        
+        document.body.appendChild(waitingDiv);
+      };
+      
+      const hideWaitingMessage = () => {
+        const waitingDiv = document.getElementById('walletconnect-waiting');
+        if (waitingDiv) {
+          document.body.removeChild(waitingDiv);
         }
       };
+      
+      showWaitingMessage();
+      
+      // Poll for connection with timeout
+      let attempts = 0;
+      const maxAttempts = 30; // 30 attempts = ~60 seconds
+      const pollInterval = 2000; // 2 seconds between attempts
+      
+      const pollForConnection = async (): Promise<any> => {
+        attempts++;
+        console.log(`Polling attempt ${attempts}/${maxAttempts}`);
+        
+        try {
+          const result = await walletKitRef.current!.getAddress();
+          
+          if (result.address) {
+            console.log('WalletConnect connection successful!', result.address);
+            hideWaitingMessage();
+            return result;
+          } else if (attempts >= maxAttempts) {
+            hideWaitingMessage();
+            throw new Error('Connection timeout - please try again');
+          } else {
+            // Wait and try again
+            await new Promise(resolve => setTimeout(resolve, pollInterval));
+            return pollForConnection();
+          }
+        } catch (error) {
+          console.log(
+            `Polling attempt ${attempts} failed:`,
+            typeof error === 'object' && error !== null && 'message' in error
+              ? (error as { message?: string }).message
+              : error
+          );
+          
+          if (attempts >= maxAttempts) {
+            hideWaitingMessage();
+            throw new Error('Connection failed - wallet may not have approved the connection');
+          } else {
+            // Wait and try again
+            await new Promise(resolve => setTimeout(resolve, pollInterval));
+            return pollForConnection();
+          }
+        }
+      };
+      
+      try {
+        addressResult = await pollForConnection();
+      } catch (pollError) {
+        console.error('WalletConnect polling failed:', pollError);
+        throw pollError;
+      }
+      
+    } else {
+      // Non-WalletConnect wallets - use direct method
+      console.log('Direct wallet connection method');
+      addressResult = await walletKitRef.current!.getAddress();
+    }
+    
+    console.log('Address result:', addressResult);
+    
+    if (addressResult.address) {
+      // Store wallet preferences
+      localStorage.setItem(stellarStorageKeys.WALLET_ID, walletId);
+      localStorage.setItem(stellarStorageKeys.AUTO_CONNECT, 'true');
+      localStorage.setItem(stellarStorageKeys.LAST_ADDRESS, addressResult.address);
+      
+      // Get network info
+      console.log('Getting network info...');
+      const networkResult = await walletKitRef.current!.getNetwork();
+      console.log('Network result:', networkResult);
+      
+      // Update wallet state
+      const connectionData: Partial<StellarWalletConnection> = {
+        address: addressResult.address,
+        isConnected: true,
+        isConnecting: false,
+        publicKey: addressResult.address,
+        networkPassphrase: networkResult.networkPassphrase,
+        walletType: walletId as StellarWalletType,
+        error: null,
+        lastConnected: new Date(),
+      };
+      
+      updateStellarWallet(connectionData);
+      setActiveChain('stellar');
+      
+      // Fetch initial balances
+      await fetchBalances(addressResult.address);
+      
+      // Start polling for wallet state updates
+      startPolling();
+      
+      const result: WalletConnectionResult = {
+        success: true,
+        address: addressResult.address,
+        networkInfo: {
+          chainId: networkResult.network,
+          name: networkResult.network,
+          isTestnet: currentNetwork === 'testnet',
+          rpcUrl: getCurrentNetworkConfig(currentNetwork).horizonUrl,
+          blockExplorer: getExplorerUrl('account', '', currentNetwork),
+        }
+      };
+      
+      console.log('Connection successful:', result);
+      resolve(result);
+    } else {
+      // Connection failed - no address returned
+      console.error('No address returned from wallet');
+      localStorage.removeItem(stellarStorageKeys.WALLET_ID);
+      const error = createWalletError(
+        WalletErrorCode.CONNECTION_REJECTED, 
+        stellarErrorMessages.CONNECTION_REJECTED
+      );
+      
+      updateStellarWallet({ 
+        isConnecting: false, 
+        error 
+      });
+      
+      resolve({
+        success: false,
+        address: null,
+        error
+      });
+    }
+  } catch (error) {
+    console.error('Wallet selection failed:', error);
+    
+    // Clean up waiting message if it exists
+    const waitingDiv = document.getElementById('walletconnect-waiting');
+    if (waitingDiv) {
+      document.body.removeChild(waitingDiv);
+    }
+    
+    // Determine error type
+    let errorCode = WalletErrorCode.CONNECTION_FAILED;
+    let errorMessage = stellarErrorMessages.CONNECTION_FAILED;
+    
+    if (error instanceof Error) {
+      if (error.message.includes('rejected') || error.message.includes('denied')) {
+        errorCode = WalletErrorCode.CONNECTION_REJECTED;
+        errorMessage = stellarErrorMessages.CONNECTION_REJECTED;
+      } else if (error.message.includes('timeout')) {
+        errorCode = WalletErrorCode.TIMEOUT;
+        errorMessage = stellarErrorMessages.TIMEOUT;
+      }
+    }
+    
+    const walletError = createWalletError(errorCode, errorMessage, error);
+    
+    updateStellarWallet({ 
+      isConnecting: false, 
+      error: walletError 
+    });
+    
+    resolve({
+      success: false,
+      address: null,
+      error: walletError
+    });
+  }
+};
 
       const handleConnectionError = (error: any) => {
         clearTimeout(timeoutId);
