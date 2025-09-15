@@ -2,7 +2,7 @@
 import { 
   StellarWalletsKit, 
   WalletNetwork, 
-  sep43Modules
+  allowAllModules
 } from '@creit.tech/stellar-wallets-kit';
 import { Horizon } from '@stellar/stellar-sdk';
 import type { StellarNetwork, StellarNetworkConfig } from '../types/stellar-types';
@@ -47,7 +47,7 @@ export const createStellarWalletsKit = (network: StellarNetwork = defaultStellar
   
   return new StellarWalletsKit({
     network: config.networkPassphrase as WalletNetwork,
-    modules: sep43Modules(),
+    modules: allowAllModules(),
   });
 };
 
@@ -136,13 +136,13 @@ export const getSupportedAssets = (network: StellarNetwork = defaultStellarNetwo
 export const walletConnectionOptions = {
   modalTitle: 'Connect Your Stellar Wallet',
   modalDescription: 'Choose a wallet to connect to the quiz platform',
-  allowedWallets: [
-    'freighter',
-    'albedo', 
-    'rabet',
-    'lobstr',
-    'xbull',
-  ],
+  // allowedWallets: [
+  //   'freighter',
+  //   'albedo', 
+  //   'rabet',
+  //   'lobstr',
+  //   'xbull',
+  // ],
 };
 
 // ===================================================================
