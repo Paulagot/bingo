@@ -225,12 +225,60 @@ const reconnectWallet = useCallback(async (walletId?: string) => {
   try {
     popupLockRef.current = true;
     
-    // Get stored connection info - fix TypeScript null issue
+    // Get stored connection info FIRST - fix TypeScript null issue
     const savedWalletId = walletId || localStorage.getItem(stellarStorageKeys.WALLET_ID) || undefined;
     const lastAddress = localStorage.getItem(stellarStorageKeys.LAST_ADDRESS);
     const autoConnect = localStorage.getItem(stellarStorageKeys.AUTO_CONNECT) === 'true';
     
     console.log('Reconnect attempt:', { savedWalletId, lastAddress, autoConnect });
+    
+    // Check for active WalletConnect session even without stored wallet ID  
+    if (!savedWalletId && !lastAddress) {
+      console.log('No stored connection info, checking for active WalletConnect session...');
+      try {
+        const activeSessionCheck = await walletKitRef.current.getAddress();
+        if (activeSessionCheck?.address) {
+          console.log('Found active WalletConnect session:', activeSessionCheck.address);
+          
+          let networkResult = {
+            network: 'testnet',
+            networkPassphrase: 'Test SDF Network ; September 2015'
+          };
+          
+          try {
+            networkResult = await walletKitRef.current.getNetwork();
+          } catch (networkError) {
+            console.log('Using default testnet network due to error');
+          }
+          
+          // Update React state
+          const connectionData: Partial<StellarWalletConnection> = {
+            address: activeSessionCheck.address,
+            isConnected: true,
+            publicKey: activeSessionCheck.address,
+            networkPassphrase: networkResult.networkPassphrase,
+            walletType: 'lobstr' as StellarWalletType,
+            error: null,
+          };
+          
+          updateStellarWallet(connectionData);
+          setActiveChain('stellar');
+          
+          // Store for future use
+          localStorage.setItem(stellarStorageKeys.WALLET_ID, 'walletConnect');
+          localStorage.setItem(stellarStorageKeys.LAST_ADDRESS, activeSessionCheck.address);
+          localStorage.setItem(stellarStorageKeys.AUTO_CONNECT, 'true');
+          
+          // Fetch balances and start polling
+          await fetchBalances(activeSessionCheck.address);
+          startPolling();
+          
+          return; // Success - exit early
+        }
+      } catch (activeSessionError) {
+        console.log('No active WalletConnect session found:', activeSessionError);
+      }
+    }
     
     // EXISTING DESKTOP LOGIC (unchanged)
     if (savedWalletId) {
