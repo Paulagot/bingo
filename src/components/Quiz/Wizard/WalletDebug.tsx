@@ -77,43 +77,85 @@ export const WalletDebugPanel: React.FC = () => {
     setDebugInfo(info);
   };
 
-  const forceReconnect = async () => {
-    alert('Force Reconnect button clicked!'); // Test if button works
+const forceReconnect = async () => {
+  alert('Force Reconnect button clicked!');
+  
+  try {
+    alert('Checking if stellarWallet.walletKit exists...');
     
-    try {
-      alert('Checking if stellarWallet.walletKit exists...');
+    if (stellarWallet.walletKit) {
+      alert('WalletKit exists, checking for connection info...');
       
-      if (stellarWallet.walletKit) {
-        alert('WalletKit exists, checking for walletId...');
+      const walletId = localStorage.getItem(stellarStorageKeys.WALLET_ID) || undefined;
+      const lastAddress = localStorage.getItem(stellarStorageKeys.LAST_ADDRESS);
+      const autoConnect = localStorage.getItem(stellarStorageKeys.AUTO_CONNECT);
+      
+      alert(`WalletId: ${walletId}, LastAddress: ${lastAddress}, AutoConnect: ${autoConnect}`);
+      
+      // Try different reconnection strategies
+      if (walletId) {
+        // Traditional wallet reconnection
+        alert(`Attempting reconnect with wallet ID: ${walletId}`);
+        stellarWallet.walletKit.setWallet(walletId);
         
-        const walletId = localStorage.getItem(stellarStorageKeys.WALLET_ID);
-        alert(`WalletId found: ${walletId}`);
+        const result = await stellarWallet.walletKit.getAddress();
+        alert(`getAddress result: ${JSON.stringify(result)}`);
         
-        if (walletId) {
-          alert(`Attempting reconnect with wallet: ${walletId}`);
-          console.log('Force reconnecting with wallet:', walletId);
+      } else if (lastAddress && autoConnect === 'true') {
+        // WalletConnect or mobile wallet reconnection
+        alert('No wallet ID but have address - trying WalletConnect reconnection...');
+        
+        try {
+          // Try to get current address without setting wallet
+          const addressResult = await stellarWallet.walletKit.getAddress();
+          alert(`Direct getAddress result: ${JSON.stringify(addressResult)}`);
           
-          stellarWallet.walletKit.setWallet(walletId);
-          alert('setWallet called, now getting address...');
+          if (addressResult.address) {
+            alert('Successfully reconnected via direct address check');
+          } else {
+            alert('No address returned - connection may have expired');
+            // Clear expired connection data
+            localStorage.removeItem(stellarStorageKeys.LAST_ADDRESS);
+            localStorage.removeItem(stellarStorageKeys.AUTO_CONNECT);
+          }
           
-          const result = await stellarWallet.walletKit.getAddress();
-          alert(`getAddress result: ${JSON.stringify(result)}`);
-          console.log('Force reconnect result:', result);
+        } catch (directError) {
+          alert(`Direct address check failed: ${directError}`);
           
-          await refreshDebugInfo();
-          alert('Debug info refreshed');
-        } else {
-          alert('No wallet ID found in localStorage');
+          // Try to find WalletConnect in supported wallets
+          const supportedWallets = await stellarWallet.walletKit.getSupportedWallets();
+          const wcWallet = supportedWallets.find(w => 
+            w.id?.toLowerCase().includes('walletconnect') || 
+            w.name?.toLowerCase().includes('walletconnect')
+          );
+          
+          if (wcWallet) {
+            alert(`Found WalletConnect wallet: ${wcWallet.name || wcWallet.id}`);
+            stellarWallet.walletKit.setWallet(wcWallet.id);
+            
+            const wcResult = await stellarWallet.walletKit.getAddress();
+            alert(`WalletConnect result: ${JSON.stringify(wcResult)}`);
+          } else {
+            alert('No WalletConnect wallet found in supported wallets');
+          }
         }
+        
       } else {
-        alert('No wallet kit available - stellarWallet.walletKit is null/undefined');
+        alert('No wallet ID or saved address - cannot reconnect');
       }
-    } catch (error) {
-      console.error('Force reconnect failed:', error);
-      alert(`Force reconnect error: ${error}`);
+      
       await refreshDebugInfo();
+      alert('Debug info refreshed');
+      
+    } else {
+      alert('No wallet kit available - stellarWallet.walletKit is null/undefined');
     }
-  };
+  } catch (error) {
+    console.error('Force reconnect failed:', error);
+    alert(`Force reconnect error: ${error}`);
+    await refreshDebugInfo();
+  }
+};
 
   useEffect(() => {
     if (isVisible && !debugInfo) {
