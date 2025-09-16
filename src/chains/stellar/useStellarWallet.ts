@@ -218,71 +218,12 @@ export const useStellarWallet = () => {
   // WALLET RECONNECTION
   // ===================================================================
 
-// Replace your existing reconnectWallet function with this version
-const reconnectWallet = useCallback(async (walletId?: string) => {
-  if (!walletKitRef.current || popupLockRef.current) return;
-  
-  try {
-    popupLockRef.current = true;
+  const reconnectWallet = useCallback(async (walletId: string) => {
+    if (!walletKitRef.current || popupLockRef.current) return;
     
-    // Get stored connection info FIRST - fix TypeScript null issue
-    const savedWalletId = walletId || localStorage.getItem(stellarStorageKeys.WALLET_ID) || undefined;
-    const lastAddress = localStorage.getItem(stellarStorageKeys.LAST_ADDRESS);
-    const autoConnect = localStorage.getItem(stellarStorageKeys.AUTO_CONNECT) === 'true';
-    
-    console.log('Reconnect attempt:', { savedWalletId, lastAddress, autoConnect });
-    
-    // Check for active WalletConnect session even without stored wallet ID  
-    if (!savedWalletId && !lastAddress) {
-      console.log('No stored connection info, checking for active WalletConnect session...');
-      try {
-        const activeSessionCheck = await walletKitRef.current.getAddress();
-        if (activeSessionCheck?.address) {
-          console.log('Found active WalletConnect session:', activeSessionCheck.address);
-          
-          let networkResult = {
-            network: 'testnet',
-            networkPassphrase: 'Test SDF Network ; September 2015'
-          };
-          
-          try {
-            networkResult = await walletKitRef.current.getNetwork();
-          } catch (networkError) {
-            console.log('Using default testnet network due to error');
-          }
-          
-          // Update React state
-          const connectionData: Partial<StellarWalletConnection> = {
-            address: activeSessionCheck.address,
-            isConnected: true,
-            publicKey: activeSessionCheck.address,
-            networkPassphrase: networkResult.networkPassphrase,
-            walletType: 'lobstr' as StellarWalletType,
-            error: null,
-          };
-          
-          updateStellarWallet(connectionData);
-          setActiveChain('stellar');
-          
-          // Store for future use
-          localStorage.setItem(stellarStorageKeys.WALLET_ID, 'walletConnect');
-          localStorage.setItem(stellarStorageKeys.LAST_ADDRESS, activeSessionCheck.address);
-          localStorage.setItem(stellarStorageKeys.AUTO_CONNECT, 'true');
-          
-          // Fetch balances and start polling
-          await fetchBalances(activeSessionCheck.address);
-          startPolling();
-          
-          return; // Success - exit early
-        }
-      } catch (activeSessionError) {
-        console.log('No active WalletConnect session found:', activeSessionError);
-      }
-    }
-    
-    // EXISTING DESKTOP LOGIC (unchanged)
-    if (savedWalletId) {
-      walletKitRef.current.setWallet(savedWalletId);
+    try {
+      popupLockRef.current = true;
+      walletKitRef.current.setWallet(walletId);
       
       const [addressResult, networkResult] = await Promise.all([
         walletKitRef.current.getAddress(),
@@ -295,7 +236,7 @@ const reconnectWallet = useCallback(async (walletId?: string) => {
           isConnected: true,
           publicKey: addressResult.address,
           networkPassphrase: networkResult.networkPassphrase,
-          walletType: savedWalletId as StellarWalletType,
+          walletType: walletId as StellarWalletType,
           error: null,
         };
         
@@ -307,65 +248,19 @@ const reconnectWallet = useCallback(async (walletId?: string) => {
         
         // Start polling
         startPolling();
-        return; // SUCCESS - exit here for desktop wallets
+      } else {
+        // Invalid connection, clean up
+        localStorage.removeItem(stellarStorageKeys.WALLET_ID);
+        resetWallet('stellar');
       }
+    } catch (error) {
+      console.error('❌ Wallet reconnection failed:', error);
+      localStorage.removeItem(stellarStorageKeys.WALLET_ID);
+      resetWallet('stellar');
+    } finally {
+      popupLockRef.current = false;
     }
-    
-    // NEW MOBILE LOGIC (only runs if desktop logic didn't work)
-    if (lastAddress && autoConnect) {
-      console.log('Desktop reconnection failed, trying mobile wallet reconnection');
-      
-      try {
-        // Try direct address check (WalletConnect session might still be active)
-        const [addressResult, networkResult] = await Promise.all([
-          walletKitRef.current.getAddress(),
-          walletKitRef.current.getNetwork(),
-        ]);
-        
-        if (addressResult?.address) {
-          console.log('Mobile reconnection successful via direct check');
-          
-          const connectionData: Partial<StellarWalletConnection> = {
-            address: addressResult.address,
-            isConnected: true,
-            publicKey: addressResult.address,
-            networkPassphrase: networkResult?.networkPassphrase,
-            walletType: 'lobstr' as StellarWalletType, // Default for mobile
-            error: null,
-          };
-          
-          updateStellarWallet(connectionData);
-          setActiveChain('stellar');
-          
-          // Fetch balances
-          await fetchBalances(addressResult.address);
-          
-          // Start polling
-          startPolling();
-          return; // SUCCESS
-        }
-      } catch (directError) {
-        console.log('Direct mobile reconnection failed:', directError);
-      }
-    }
-    
-    // If we get here, reconnection failed
-    console.log('All reconnection attempts failed, cleaning up');
-    localStorage.removeItem(stellarStorageKeys.WALLET_ID);
-    localStorage.removeItem(stellarStorageKeys.AUTO_CONNECT);
-    localStorage.removeItem(stellarStorageKeys.LAST_ADDRESS);
-    resetWallet('stellar');
-    
-  } catch (error) {
-    console.error('Wallet reconnection failed:', error);
-    localStorage.removeItem(stellarStorageKeys.WALLET_ID);
-    localStorage.removeItem(stellarStorageKeys.AUTO_CONNECT);
-    localStorage.removeItem(stellarStorageKeys.LAST_ADDRESS);
-    resetWallet('stellar');
-  } finally {
-    popupLockRef.current = false;
-  }
-}, [updateStellarWallet, setActiveChain, resetWallet, fetchBalances, startPolling]);
+  }, [updateStellarWallet, setActiveChain, resetWallet, fetchBalances, startPolling]);
 
   // ===================================================================
   // INITIALIZATION
@@ -383,10 +278,9 @@ const reconnectWallet = useCallback(async (walletId?: string) => {
       const savedWalletId = localStorage.getItem(stellarStorageKeys.WALLET_ID);
       const autoConnect = localStorage.getItem(stellarStorageKeys.AUTO_CONNECT) === 'true';
       
-    const lastAddress = localStorage.getItem(stellarStorageKeys.LAST_ADDRESS);
-if ((savedWalletId || lastAddress) && autoConnect) {
-  await reconnectWallet(savedWalletId || undefined)
-}
+      if (savedWalletId && autoConnect) {
+        await reconnectWallet(savedWalletId);
+      }
       
       console.log('✅ Stellar wallet initialized');
     } catch (error) {
