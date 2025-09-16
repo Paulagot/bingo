@@ -1,7 +1,7 @@
 // src/components/WalletDebugPanel.tsx
 import React, { useState, useEffect } from 'react';
-import { useStellarWallet } from '../chains/stellar/useStellarWallet';
-import { stellarStorageKeys } from '../chains/stellar/config';
+import { useStellarWallet } from '../../../chains/stellar/useStellarWallet';
+import { stellarStorageKeys } from '../../../chains/stellar/config';
 
 interface DebugInfo {
   reactState: {
