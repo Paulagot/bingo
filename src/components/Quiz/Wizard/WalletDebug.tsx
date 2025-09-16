@@ -78,78 +78,87 @@ export const WalletDebugPanel: React.FC = () => {
   };
 
 const forceReconnect = async () => {
-  alert('Force Reconnect button clicked!');
+  alert('Starting Force Reconnect...');
   
   try {
-    alert('Checking if stellarWallet.walletKit exists...');
-    
-    if (stellarWallet.walletKit) {
-      alert('WalletKit exists, checking for connection info...');
-      
-      const walletId = localStorage.getItem(stellarStorageKeys.WALLET_ID);
-      const lastAddress = localStorage.getItem(stellarStorageKeys.LAST_ADDRESS);
-      const autoConnect = localStorage.getItem(stellarStorageKeys.AUTO_CONNECT);
-      
-      alert(`WalletId: ${walletId}, LastAddress: ${lastAddress}, AutoConnect: ${autoConnect}`);
-      
-      // Try different reconnection strategies
-      if (walletId) {
-        // Traditional wallet reconnection
-        alert(`Attempting reconnect with wallet ID: ${walletId}`);
-        stellarWallet.walletKit.setWallet(walletId);
-        
-        const result = await stellarWallet.walletKit.getAddress();
-        alert(`getAddress result: ${JSON.stringify(result)}`);
-        
-      } else if (lastAddress && autoConnect === 'true') {
-        // WalletConnect or mobile wallet reconnection
-        alert('No wallet ID but have address - trying WalletConnect reconnection...');
-        
-        try {
-          // Try to get current address without setting wallet
-          const addressResult = await stellarWallet.walletKit.getAddress();
-          alert(`Direct getAddress result: ${JSON.stringify(addressResult)}`);
-          
-          if (addressResult.address) {
-            alert('Successfully reconnected via direct address check');
-          } else {
-            alert('No address returned - connection may have expired');
-            // Clear expired connection data
-            localStorage.removeItem(stellarStorageKeys.LAST_ADDRESS);
-            localStorage.removeItem(stellarStorageKeys.AUTO_CONNECT);
-          }
-          
-        } catch (directError) {
-          alert(`Direct address check failed: ${directError}`);
-          
-          // Try to find WalletConnect in supported wallets
-          const supportedWallets = await stellarWallet.walletKit.getSupportedWallets();
-          const wcWallet = supportedWallets.find(w => 
-            w.id?.toLowerCase().includes('walletconnect') || 
-            w.name?.toLowerCase().includes('walletconnect')
-          );
-          
-          if (wcWallet) {
-            alert(`Found WalletConnect wallet: ${wcWallet.name || wcWallet.id}`);
-            stellarWallet.walletKit.setWallet(wcWallet.id);
-            
-            const wcResult = await stellarWallet.walletKit.getAddress();
-            alert(`WalletConnect result: ${JSON.stringify(wcResult)}`);
-          } else {
-            alert('No WalletConnect wallet found in supported wallets');
-          }
-        }
-        
-      } else {
-        alert('No wallet ID or saved address - cannot reconnect');
-      }
-      
-      await refreshDebugInfo();
-      alert('Debug info refreshed');
-      
-    } else {
-      alert('No wallet kit available - stellarWallet.walletKit is null/undefined');
+    if (!stellarWallet.walletKit) {
+      alert('No wallet kit available');
+      return;
     }
+
+    alert('Wallet kit exists, checking connection status...');
+
+    // First, try to get address directly (WalletConnect might still be connected)
+    try {
+      const directAddressCheck = await stellarWallet.walletKit.getAddress();
+      alert(`Direct address check result: ${JSON.stringify(directAddressCheck)}`);
+      
+      if (directAddressCheck?.address) {
+        alert(`Found active address: ${directAddressCheck.address}`);
+        
+        // Try to get network info too
+        const networkCheck = await stellarWallet.walletKit.getNetwork();
+        alert(`Network check result: ${JSON.stringify(networkCheck)}`);
+        
+        // This means WalletConnect is still active, we just need to update React state
+        alert('WalletConnect session appears active - updating React state...');
+        
+        // Update the wallet state manually since it's not synced
+        // You'll need to call your updateStellarWallet function here
+        // This is a temporary manual sync
+        
+        alert('Session found but React state not updated. Need to fix state sync.');
+        return;
+      }
+    } catch (directError) {
+      alert(`Direct address check failed: ${directError}`);
+    }
+
+    // If direct check failed, try to find WalletConnect wallets
+    alert('Checking supported wallets...');
+    
+    const supportedWallets = await stellarWallet.walletKit.getSupportedWallets();
+    alert(`Found ${supportedWallets.length} supported wallets`);
+    
+    // Look for WalletConnect wallet types
+    const walletConnectWallets = supportedWallets.filter(w => 
+      w.id?.toLowerCase().includes('walletconnect') || 
+      w.name?.toLowerCase().includes('walletconnect') ||
+      w.id === 'walletConnect'
+    );
+    
+    alert(`Found ${walletConnectWallets.length} WalletConnect wallets: ${walletConnectWallets.map(w => w.name || w.id).join(', ')}`);
+    
+    if (walletConnectWallets.length > 0) {
+      const wcWallet = walletConnectWallets[0];
+      alert(`Trying to connect with: ${wcWallet.name || wcWallet.id}`);
+      
+      try {
+        stellarWallet.walletKit.setWallet(wcWallet.id);
+        
+        const wcResult = await stellarWallet.walletKit.getAddress();
+        alert(`WalletConnect result: ${JSON.stringify(wcResult)}`);
+        
+        if (wcResult?.address) {
+          alert('WalletConnect reconnection successful!');
+          
+          // Store the connection info
+          localStorage.setItem('stellar-wallet-id', wcWallet.id);
+          localStorage.setItem('stellar-last-address', wcResult.address);
+          localStorage.setItem('stellar-auto-connect', 'true');
+          
+          alert('Stored connection info in localStorage');
+        }
+      } catch (wcError) {
+        alert(`WalletConnect connection failed: ${wcError}`);
+      }
+    } else {
+      alert('No WalletConnect wallets found in supported wallets list');
+    }
+
+    await refreshDebugInfo();
+    alert('Debug info refreshed');
+    
   } catch (error) {
     console.error('Force reconnect failed:', error);
     alert(`Force reconnect error: ${error}`);
