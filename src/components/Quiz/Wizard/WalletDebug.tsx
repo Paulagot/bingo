@@ -1,7 +1,7 @@
 // src/components/WalletDebugPanel.tsx
 import React, { useState, useEffect } from 'react';
-import { useStellarWallet } from '../../../chains/stellar/useStellarWallet';
-import { stellarStorageKeys } from '../../../chains/stellar/config';
+import { useStellarWallet } from '../chains/stellar/useStellarWallet';
+import { stellarStorageKeys } from '../chains/stellar/config';
 
 interface DebugInfo {
   reactState: {
@@ -81,23 +81,32 @@ export const WalletDebugPanel: React.FC = () => {
     alert('Force Reconnect button clicked!'); // Test if button works
     
     try {
+      alert('Checking if stellarWallet.walletKit exists...');
+      
       if (stellarWallet.walletKit) {
+        alert('WalletKit exists, checking for walletId...');
+        
         const walletId = localStorage.getItem(stellarStorageKeys.WALLET_ID);
+        alert(`WalletId found: ${walletId}`);
+        
         if (walletId) {
-          console.log('Force reconnecting with wallet:', walletId);
           alert(`Attempting reconnect with wallet: ${walletId}`);
+          console.log('Force reconnecting with wallet:', walletId);
           
           stellarWallet.walletKit.setWallet(walletId);
+          alert('setWallet called, now getting address...');
+          
           const result = await stellarWallet.walletKit.getAddress();
+          alert(`getAddress result: ${JSON.stringify(result)}`);
           console.log('Force reconnect result:', result);
           
-          alert(`Reconnect result: ${JSON.stringify(result)}`);
           await refreshDebugInfo();
+          alert('Debug info refreshed');
         } else {
           alert('No wallet ID found in localStorage');
         }
       } else {
-        alert('No wallet kit available');
+        alert('No wallet kit available - stellarWallet.walletKit is null/undefined');
       }
     } catch (error) {
       console.error('Force reconnect failed:', error);
