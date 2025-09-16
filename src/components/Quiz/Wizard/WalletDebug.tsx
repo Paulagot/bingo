@@ -1,7 +1,8 @@
-// src/components/WalletDebugPanel.tsx
+// src/components/WalletDebugPanel.tsx - Enhanced version with state sync fix
 import React, { useState, useEffect } from 'react';
 import { useStellarWallet } from '../../../chains/stellar/useStellarWallet';
 import { stellarStorageKeys } from '../../../chains/stellar/config';
+import { useWalletStore } from '../../../stores/walletStore'; // Add this import
 
 interface DebugInfo {
   reactState: {
@@ -22,18 +23,28 @@ interface DebugInfo {
     currentAddress: any;
     currentNetwork: any;
     error: string | null;
+    directAddressCheck: any;
+    wcSessionActive: boolean;
   };
+  debugMessages: string[];
 }
 
 export const WalletDebugPanel: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [debugMessages, setDebugMessages] = useState<string[]>([]);
   
   const stellarWallet = useStellarWallet();
+  const { updateStellarWallet, setActiveChain } = useWalletStore(); // Access store directly
+
+  const addDebugMessage = (message: string) => {
+    setDebugMessages(prev => [...prev.slice(-9), `${new Date().toLocaleTimeString()}: ${message}`]);
+  };
 
   const gatherDebugInfo = async (): Promise<DebugInfo> => {
     setIsLoading(true);
+    const messages: string[] = [];
     
     const info: DebugInfo = {
       reactState: {
@@ -54,20 +65,36 @@ export const WalletDebugPanel: React.FC = () => {
         currentAddress: null,
         currentNetwork: null,
         error: null,
-      }
+        directAddressCheck: null,
+        wcSessionActive: false,
+      },
+      debugMessages: debugMessages,
     };
 
     // Try to get wallet kit info
     if (stellarWallet.walletKit) {
       try {
+        // Direct address check
+        try {
+          const directCheck = await stellarWallet.walletKit.getAddress();
+          info.walletKit.directAddressCheck = directCheck;
+          info.walletKit.wcSessionActive = !!directCheck?.address;
+          messages.push(`Direct check result: ${JSON.stringify(directCheck)}`);
+        } catch (directError) {
+          messages.push(`Direct check failed: ${directError}`);
+        }
+
         info.walletKit.supportedWallets = await stellarWallet.walletKit.getSupportedWallets();
-        info.walletKit.currentAddress = await stellarWallet.walletKit.getAddress();
         info.walletKit.currentNetwork = await stellarWallet.walletKit.getNetwork();
+        
+        messages.push(`Found ${info.walletKit.supportedWallets.length} supported wallets`);
       } catch (error) {
         info.walletKit.error = error instanceof Error ? error.message : String(error);
+        messages.push(`WalletKit error: ${info.walletKit.error}`);
       }
     }
 
+    setDebugMessages(prev => [...prev, ...messages]);
     setIsLoading(false);
     return info;
   };
@@ -77,94 +104,204 @@ export const WalletDebugPanel: React.FC = () => {
     setDebugInfo(info);
   };
 
-const forceReconnect = async () => {
-  alert('Starting Force Reconnect...');
-  
-  try {
+  const syncReactState = async () => {
+    addDebugMessage('🔄 Starting React state sync...');
+    
+    try {
+      if (!stellarWallet.walletKit) {
+        addDebugMessage('❌ No wallet kit available');
+        return;
+      }
+
+      // Check for active WalletConnect session
+      const directAddressCheck = await stellarWallet.walletKit.getAddress();
+      addDebugMessage(`Direct address result: ${JSON.stringify(directAddressCheck)}`);
+      
+      if (directAddressCheck?.address) {
+        addDebugMessage(`✅ Found active address: ${directAddressCheck.address}`);
+        
+        // Get network info
+        const networkResult = await stellarWallet.walletKit.getNetwork();
+        addDebugMessage(`Network result: ${JSON.stringify(networkResult)}`);
+        
+        // Get the wallet type from localStorage or default to walletConnect
+        const savedWalletId = localStorage.getItem(stellarStorageKeys.WALLET_ID) || 'walletConnect';
+        
+        // Map wallet IDs to proper StellarWalletType
+        const mapWalletIdToType = (walletId: string): 'freighter' | 'albedo' | 'rabet' | 'lobstr' | 'xbull' => {
+          // Handle WalletConnect variations
+          if (walletId.toLowerCase().includes('walletconnect') || walletId === 'walletConnect') {
+            return 'lobstr'; // Default WalletConnect to LOBSTR
+          }
+          
+          // Handle direct wallet types
+          switch (walletId.toLowerCase()) {
+            case 'freighter':
+              return 'freighter';
+            case 'albedo':
+              return 'albedo';
+            case 'rabet':
+              return 'rabet';
+            case 'lobstr':
+              return 'lobstr';
+            case 'xbull':
+              return 'xbull';
+            default:
+              return 'lobstr'; // Default fallback
+          }
+        };
+        
+        // Update React state directly
+        const connectionData = {
+          address: directAddressCheck.address,
+          isConnected: true,
+          isConnecting: false,
+          publicKey: directAddressCheck.address,
+          networkPassphrase: networkResult.networkPassphrase,
+          walletType: mapWalletIdToType(savedWalletId),
+          error: null,
+          lastConnected: new Date(),
+        };
+        
+        addDebugMessage('🔄 Updating React state...');
+        updateStellarWallet(connectionData);
+        setActiveChain('stellar');
+        
+        // Store the connection info if not already stored
+        localStorage.setItem(stellarStorageKeys.WALLET_ID, savedWalletId);
+        localStorage.setItem(stellarStorageKeys.LAST_ADDRESS, directAddressCheck.address);
+        localStorage.setItem(stellarStorageKeys.AUTO_CONNECT, 'true');
+        
+        addDebugMessage('✅ React state synced successfully!');
+        
+        // Refresh debug info to show the updated state
+        await refreshDebugInfo();
+      } else {
+        addDebugMessage('❌ No active address found');
+      }
+    } catch (error) {
+      addDebugMessage(`❌ Sync failed: ${error}`);
+    }
+  };
+
+  const forceReconnect = async () => {
+    addDebugMessage('🔄 Starting Force Reconnect...');
+    
+    try {
+      if (!stellarWallet.walletKit) {
+        addDebugMessage('❌ No wallet kit available');
+        return;
+      }
+
+      // First, try to sync existing session
+      await syncReactState();
+      
+      // If that didn't work, try full reconnection flow
+      const currentInfo = await gatherDebugInfo();
+      if (!currentInfo.reactState.isConnected) {
+        addDebugMessage('🔄 No existing session found, starting full reconnect...');
+        
+        const supportedWallets = await stellarWallet.walletKit.getSupportedWallets();
+        addDebugMessage(`Found ${supportedWallets.length} supported wallets`);
+        
+        // Look for WalletConnect wallet types
+        const walletConnectWallets = supportedWallets.filter(w => 
+          w.id?.toLowerCase().includes('walletconnect') || 
+          w.name?.toLowerCase().includes('walletconnect') ||
+          w.id === 'walletConnect'
+        );
+        
+        addDebugMessage(`Found ${walletConnectWallets.length} WalletConnect wallets: ${walletConnectWallets.map(w => w.name || w.id).join(', ')}`);
+        
+        if (walletConnectWallets.length > 0) {
+          const wcWallet = walletConnectWallets[0];
+          addDebugMessage(`Trying to connect with: ${wcWallet.name || wcWallet.id}`);
+          
+          try {
+            stellarWallet.walletKit.setWallet(wcWallet.id);
+            
+            // Poll for connection
+            let attempts = 0;
+            const maxAttempts = 15;
+            
+            const pollForConnection = async (): Promise<any> => {
+              attempts++;
+              addDebugMessage(`Polling attempt ${attempts}/${maxAttempts}`);
+              
+              try {
+                const result = await stellarWallet.walletKit!.getAddress();
+                
+                if (result.address) {
+                  addDebugMessage(`✅ Connection successful: ${result.address}`);
+                  return result;
+                } else if (attempts >= maxAttempts) {
+                  throw new Error('Connection timeout');
+                } else {
+                  await new Promise(resolve => setTimeout(resolve, 2000));
+                  return pollForConnection();
+                }
+              } catch (error) {
+                if (attempts >= maxAttempts) {
+                  throw error;
+                } else {
+                  await new Promise(resolve => setTimeout(resolve, 2000));
+                  return pollForConnection();
+                }
+              }
+            };
+            
+            const wcResult = await pollForConnection();
+            
+            if (wcResult?.address) {
+              // Store connection info and sync state
+              localStorage.setItem(stellarStorageKeys.WALLET_ID, wcWallet.id);
+              localStorage.setItem(stellarStorageKeys.LAST_ADDRESS, wcResult.address);
+              localStorage.setItem(stellarStorageKeys.AUTO_CONNECT, 'true');
+              
+              await syncReactState();
+            }
+          } catch (wcError) {
+            addDebugMessage(`❌ WalletConnect connection failed: ${wcError}`);
+          }
+        } else {
+          addDebugMessage('❌ No WalletConnect wallets found');
+        }
+      }
+
+      await refreshDebugInfo();
+      
+    } catch (error) {
+      addDebugMessage(`❌ Force reconnect error: ${error}`);
+      await refreshDebugInfo();
+    }
+  };
+
+  const clearDebugMessages = () => {
+    setDebugMessages([]);
+  };
+
+  const testDirectConnection = async () => {
+    addDebugMessage('🧪 Testing direct connection...');
+    
     if (!stellarWallet.walletKit) {
-      alert('No wallet kit available');
+      addDebugMessage('❌ No wallet kit');
       return;
     }
 
-    alert('Wallet kit exists, checking connection status...');
-
-    // First, try to get address directly (WalletConnect might still be connected)
     try {
-      const directAddressCheck = await stellarWallet.walletKit.getAddress();
-      alert(`Direct address check result: ${JSON.stringify(directAddressCheck)}`);
+      const addressResult = await stellarWallet.walletKit.getAddress();
+      addDebugMessage(`Address result: ${JSON.stringify(addressResult)}`);
       
-      if (directAddressCheck?.address) {
-        alert(`Found active address: ${directAddressCheck.address}`);
-        
-        // Try to get network info too
-        const networkCheck = await stellarWallet.walletKit.getNetwork();
-        alert(`Network check result: ${JSON.stringify(networkCheck)}`);
-        
-        // This means WalletConnect is still active, we just need to update React state
-        alert('WalletConnect session appears active - updating React state...');
-        
-        // Update the wallet state manually since it's not synced
-        // You'll need to call your updateStellarWallet function here
-        // This is a temporary manual sync
-        
-        alert('Session found but React state not updated. Need to fix state sync.');
-        return;
-      }
-    } catch (directError) {
-      alert(`Direct address check failed: ${directError}`);
-    }
-
-    // If direct check failed, try to find WalletConnect wallets
-    alert('Checking supported wallets...');
-    
-    const supportedWallets = await stellarWallet.walletKit.getSupportedWallets();
-    alert(`Found ${supportedWallets.length} supported wallets`);
-    
-    // Look for WalletConnect wallet types
-    const walletConnectWallets = supportedWallets.filter(w => 
-      w.id?.toLowerCase().includes('walletconnect') || 
-      w.name?.toLowerCase().includes('walletconnect') ||
-      w.id === 'walletConnect'
-    );
-    
-    alert(`Found ${walletConnectWallets.length} WalletConnect wallets: ${walletConnectWallets.map(w => w.name || w.id).join(', ')}`);
-    
-    if (walletConnectWallets.length > 0) {
-      const wcWallet = walletConnectWallets[0];
-      alert(`Trying to connect with: ${wcWallet.name || wcWallet.id}`);
+      const networkResult = await stellarWallet.walletKit.getNetwork();
+      addDebugMessage(`Network result: ${JSON.stringify(networkResult)}`);
       
-      try {
-        stellarWallet.walletKit.setWallet(wcWallet.id);
-        
-        const wcResult = await stellarWallet.walletKit.getAddress();
-        alert(`WalletConnect result: ${JSON.stringify(wcResult)}`);
-        
-        if (wcResult?.address) {
-          alert('WalletConnect reconnection successful!');
-          
-          // Store the connection info
-          localStorage.setItem('stellar-wallet-id', wcWallet.id);
-          localStorage.setItem('stellar-last-address', wcResult.address);
-          localStorage.setItem('stellar-auto-connect', 'true');
-          
-          alert('Stored connection info in localStorage');
-        }
-      } catch (wcError) {
-        alert(`WalletConnect connection failed: ${wcError}`);
-      }
-    } else {
-      alert('No WalletConnect wallets found in supported wallets list');
+      const supportedWallets = await stellarWallet.walletKit.getSupportedWallets();
+      addDebugMessage(`Supported wallets: ${supportedWallets.length}`);
+      
+    } catch (error) {
+      addDebugMessage(`❌ Test failed: ${error}`);
     }
-
-    await refreshDebugInfo();
-    alert('Debug info refreshed');
-    
-  } catch (error) {
-    console.error('Force reconnect failed:', error);
-    alert(`Force reconnect error: ${error}`);
-    await refreshDebugInfo();
-  }
-};
+  };
 
   useEffect(() => {
     if (isVisible && !debugInfo) {
@@ -201,10 +338,10 @@ const forceReconnect = async () => {
     <div
       style={{
         position: 'fixed',
-        top: '20px',
-        right: '20px',
-        width: '400px',
-        maxHeight: '80vh',
+        top: '10px',
+        right: '10px',
+        width: '450px',
+        maxHeight: '90vh',
         backgroundColor: 'white',
         border: '1px solid #e5e7eb',
         borderRadius: '12px',
@@ -224,7 +361,7 @@ const forceReconnect = async () => {
           alignItems: 'center',
         }}
       >
-        <h3 style={{ margin: 0, fontSize: '16px' }}>Wallet Debug</h3>
+        <h3 style={{ margin: 0, fontSize: '16px' }}>Wallet Debug Enhanced</h3>
         <button
           onClick={() => setIsVisible(false)}
           style={{
@@ -240,47 +377,76 @@ const forceReconnect = async () => {
       </div>
 
       {/* Content */}
-      <div style={{ padding: '16px', maxHeight: 'calc(80vh - 60px)', overflowY: 'auto' }}>
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+      <div style={{ padding: '16px', maxHeight: 'calc(90vh - 60px)', overflowY: 'auto' }}>
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
           <button
             onClick={refreshDebugInfo}
             disabled={isLoading}
             style={{
-              padding: '8px 12px',
+              padding: '6px 10px',
               backgroundColor: '#3b82f6',
               color: 'white',
               border: 'none',
-              borderRadius: '6px',
+              borderRadius: '4px',
               cursor: 'pointer',
-              fontSize: '12px',
+              fontSize: '11px',
             }}
           >
             {isLoading ? 'Loading...' : 'Refresh'}
           </button>
           <button
-            onClick={forceReconnect}
+            onClick={syncReactState}
             style={{
-              padding: '8px 12px',
+              padding: '6px 10px',
               backgroundColor: '#10b981',
               color: 'white',
               border: 'none',
-              borderRadius: '6px',
+              borderRadius: '4px',
               cursor: 'pointer',
-              fontSize: '12px',
+              fontSize: '11px',
+            }}
+          >
+            Sync State
+          </button>
+          <button
+            onClick={forceReconnect}
+            style={{
+              padding: '6px 10px',
+              backgroundColor: '#f59e0b',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '11px',
             }}
           >
             Force Reconnect
           </button>
+          <button
+            onClick={testDirectConnection}
+            style={{
+              padding: '6px 10px',
+              backgroundColor: '#8b5cf6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '11px',
+            }}
+          >
+            Test Direct
+          </button>
         </div>
 
         {debugInfo && (
-          <div style={{ fontSize: '12px', fontFamily: 'monospace' }}>
+          <div style={{ fontSize: '11px', fontFamily: 'monospace' }}>
             {/* React State */}
-            <div style={{ marginBottom: '16px' }}>
-              <h4 style={{ margin: '0 0 8px 0', color: '#1f2937' }}>React State:</h4>
+            <div style={{ marginBottom: '12px' }}>
+              <h4 style={{ margin: '0 0 6px 0', color: '#1f2937', fontSize: '12px' }}>React State:</h4>
               <div style={{ backgroundColor: '#f9fafb', padding: '8px', borderRadius: '4px' }}>
                 <div>Connected: <strong>{debugInfo.reactState.isConnected ? 'YES' : 'NO'}</strong></div>
-                <div>Address: <strong>{debugInfo.reactState.address || 'None'}</strong></div>
+                <div>Address: <strong>{debugInfo.reactState.address ? `${debugInfo.reactState.address.slice(0, 8)}...${debugInfo.reactState.address.slice(-8)}` : 'None'}</strong></div>
                 <div>Connecting: <strong>{debugInfo.reactState.isConnecting ? 'YES' : 'NO'}</strong></div>
                 <div>Wallet Type: <strong>{debugInfo.reactState.walletType || 'None'}</strong></div>
                 <div>Balance: <strong>{debugInfo.reactState.balance || 'None'}</strong></div>
@@ -288,32 +454,33 @@ const forceReconnect = async () => {
             </div>
 
             {/* LocalStorage */}
-            <div style={{ marginBottom: '16px' }}>
-              <h4 style={{ margin: '0 0 8px 0', color: '#1f2937' }}>LocalStorage:</h4>
+            <div style={{ marginBottom: '12px' }}>
+              <h4 style={{ margin: '0 0 6px 0', color: '#1f2937', fontSize: '12px' }}>LocalStorage:</h4>
               <div style={{ backgroundColor: '#f0f9ff', padding: '8px', borderRadius: '4px' }}>
                 <div>Wallet ID: <strong>{debugInfo.localStorage.walletId || 'None'}</strong></div>
-                <div>Last Address: <strong>{debugInfo.localStorage.lastAddress || 'None'}</strong></div>
+                <div>Last Address: <strong>{debugInfo.localStorage.lastAddress ? `${debugInfo.localStorage.lastAddress.slice(0, 8)}...${debugInfo.localStorage.lastAddress.slice(-8)}` : 'None'}</strong></div>
                 <div>Auto Connect: <strong>{debugInfo.localStorage.autoConnect || 'None'}</strong></div>
               </div>
             </div>
 
             {/* WalletKit Info */}
-            <div style={{ marginBottom: '16px' }}>
-              <h4 style={{ margin: '0 0 8px 0', color: '#1f2937' }}>StellarWalletsKit:</h4>
+            <div style={{ marginBottom: '12px' }}>
+              <h4 style={{ margin: '0 0 6px 0', color: '#1f2937', fontSize: '12px' }}>StellarWalletsKit:</h4>
               <div style={{ backgroundColor: '#f0fdf4', padding: '8px', borderRadius: '4px' }}>
                 <div>Kit Exists: <strong>{debugInfo.walletKit.exists ? 'YES' : 'NO'}</strong></div>
+                <div>WC Session Active: <strong>{debugInfo.walletKit.wcSessionActive ? 'YES' : 'NO'}</strong></div>
                 {debugInfo.walletKit.error && (
                   <div style={{ color: '#dc2626' }}>Error: <strong>{debugInfo.walletKit.error}</strong></div>
                 )}
-                {debugInfo.walletKit.currentAddress && (
-                  <div>Kit Address: <strong>{debugInfo.walletKit.currentAddress.address || 'None'}</strong></div>
+                {debugInfo.walletKit.directAddressCheck && (
+                  <div>Direct Address: <strong>{debugInfo.walletKit.directAddressCheck.address ? `${debugInfo.walletKit.directAddressCheck.address.slice(0, 8)}...${debugInfo.walletKit.directAddressCheck.address.slice(-8)}` : 'None'}</strong></div>
                 )}
                 {debugInfo.walletKit.currentNetwork && (
                   <div>Kit Network: <strong>{debugInfo.walletKit.currentNetwork.network || 'None'}</strong></div>
                 )}
                 <div>Supported Wallets: <strong>{debugInfo.walletKit.supportedWallets.length}</strong></div>
                 {debugInfo.walletKit.supportedWallets.length > 0 && (
-                  <div style={{ marginTop: '4px', fontSize: '10px' }}>
+                  <div style={{ marginTop: '4px', fontSize: '9px', wordBreak: 'break-all' }}>
                     {debugInfo.walletKit.supportedWallets.map(w => w.name || w.id).join(', ')}
                   </div>
                 )}
@@ -321,21 +488,67 @@ const forceReconnect = async () => {
             </div>
 
             {/* Status Analysis */}
-            <div>
-              <h4 style={{ margin: '0 0 8px 0', color: '#1f2937' }}>Status:</h4>
+            <div style={{ marginBottom: '12px' }}>
+              <h4 style={{ margin: '0 0 6px 0', color: '#1f2937', fontSize: '12px' }}>Status Analysis:</h4>
               <div style={{ 
                 backgroundColor: debugInfo.reactState.isConnected ? '#dcfce7' : '#fef2f2', 
                 padding: '8px', 
                 borderRadius: '4px' 
               }}>
                 {debugInfo.reactState.isConnected ? (
-                  <div style={{ color: '#166534' }}>✅ Wallet appears to be connected</div>
-                ) : debugInfo.localStorage.walletId && debugInfo.walletKit.currentAddress?.address ? (
-                  <div style={{ color: '#dc2626' }}>⚠️ Wallet connected to kit but React state not updated</div>
+                  <div style={{ color: '#166534' }}>✅ Wallet connected and synced</div>
+                ) : debugInfo.walletKit.wcSessionActive ? (
+                  <div style={{ color: '#dc2626' }}>⚠️ WalletConnect active but React state not synced - USE SYNC STATE BUTTON</div>
                 ) : debugInfo.localStorage.walletId ? (
-                  <div style={{ color: '#dc2626' }}>⚠️ Wallet ID stored but no active connection</div>
+                  <div style={{ color: '#dc2626' }}>⚠️ Wallet ID stored but no active session</div>
                 ) : (
                   <div style={{ color: '#6b7280' }}>ℹ️ No wallet connection</div>
+                )}
+              </div>
+            </div>
+
+            {/* Debug Messages */}
+            <div>
+              <h4 style={{ margin: '0 0 6px 0', color: '#1f2937', fontSize: '12px' }}>
+                Debug Messages: 
+                <button 
+                  onClick={clearDebugMessages}
+                  style={{
+                    marginLeft: '8px',
+                    padding: '2px 6px',
+                    fontSize: '9px',
+                    backgroundColor: '#ef4444',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '2px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Clear
+                </button>
+              </h4>
+              <div style={{ 
+                backgroundColor: '#f8f9fa', 
+                padding: '8px', 
+                borderRadius: '4px',
+                maxHeight: '200px',
+                overflowY: 'auto',
+                fontSize: '10px',
+              }}>
+                {debugMessages.length === 0 ? (
+                  <div style={{ color: '#6b7280' }}>No debug messages yet...</div>
+                ) : (
+                  debugMessages.map((msg, idx) => (
+                    <div key={idx} style={{ 
+                      marginBottom: '2px', 
+                      padding: '2px',
+                      backgroundColor: msg.includes('❌') ? '#fee2e2' : 
+                                     msg.includes('✅') ? '#dcfce7' : 
+                                     msg.includes('🔄') ? '#dbeafe' : 'transparent'
+                    }}>
+                      {msg}
+                    </div>
+                  ))
                 )}
               </div>
             </div>
