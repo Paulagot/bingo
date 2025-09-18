@@ -227,34 +227,50 @@ export const useStellarWallet = () => {
       popupLockRef.current = true;
       walletKitRef.current.setWallet(walletId);
       
-      const [addressResult, networkResult] = await Promise.all([
-        walletKitRef.current.getAddress(),
-        walletKitRef.current.getNetwork(),
-      ]);
-      
-      if (addressResult.address) {
-        const connectionData: Partial<StellarWalletConnection> = {
-          address: addressResult.address,
-          isConnected: true,
-          publicKey: addressResult.address,
-          networkPassphrase: networkResult.networkPassphrase,
-          walletType: walletId as StellarWalletType,
-          error: null,
-        };
-        
-        updateStellarWallet(connectionData);
-        setActiveChain('stellar');
-        
-        // Fetch balances
-        await fetchBalances(addressResult.address);
-        
-        // Start polling
-        startPolling();
-      } else {
-        // Invalid connection, clean up
-        localStorage.removeItem(stellarStorageKeys.WALLET_ID);
-        resetWallet('stellar');
-      }
+// get address first
+const addressResult = await walletKitRef.current.getAddress();
+
+if (addressResult.address) {
+  // try getNetwork, but WalletConnect doesn't support it — fall back to config
+  let networkResult: any;
+  try {
+    networkResult = await walletKitRef.current.getNetwork();
+  } catch (e) {
+    console.warn('getNetwork not supported by wallet; using config defaults', e);
+    const cfg = getCurrentNetworkConfig(currentNetwork);
+    networkResult = { network: cfg.networkId, networkPassphrase: cfg.networkPassphrase };
+  }
+
+  // map WC → a valid union type (pick lobstr as default brand)
+  const mapWalletIdToType = (id: string): 'freighter' | 'albedo' | 'rabet' | 'lobstr' | 'xbull' => {
+    const s = id.toLowerCase();
+    if (s.includes('freighter')) return 'freighter';
+    if (s.includes('albedo')) return 'albedo';
+    if (s.includes('rabet')) return 'rabet';
+    if (s.includes('xbull')) return 'xbull';
+    return 'lobstr';
+  };
+
+  const connectionData: Partial<StellarWalletConnection> = {
+    address: addressResult.address,
+    isConnected: true,
+    publicKey: addressResult.address,
+    networkPassphrase: networkResult.networkPassphrase,
+    walletType: mapWalletIdToType(walletId),
+    error: null,
+  };
+
+  updateStellarWallet(connectionData);
+  setActiveChain('stellar');
+
+  await fetchBalances(addressResult.address);
+  startPolling();
+} else {
+  // Invalid connection, clean up
+  localStorage.removeItem(stellarStorageKeys.WALLET_ID);
+  resetWallet('stellar');
+}
+
     } catch (error) {
       console.error('❌ Wallet reconnection failed:', error);
       localStorage.removeItem(stellarStorageKeys.WALLET_ID);
@@ -468,7 +484,15 @@ const connect = useCallback(async (): Promise<WalletConnectionResult> => {
       
       // Get network info
       console.log('Getting network info...');
-      const networkResult = await walletKitRef.current!.getNetwork();
+     let networkResult: any;
+try {
+  networkResult = await walletKitRef.current!.getNetwork();
+} catch (e) {
+  console.warn('getNetwork not supported by wallet; using config defaults', e);
+  const cfg = getCurrentNetworkConfig(currentNetwork);
+  networkResult = { network: cfg.networkId, networkPassphrase: cfg.networkPassphrase };
+}
+
       console.log('Network result:', networkResult);
       
       // Update wallet state
