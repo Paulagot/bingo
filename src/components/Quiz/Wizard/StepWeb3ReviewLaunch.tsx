@@ -7,7 +7,7 @@ import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { useQuizChainIntegration } from '../../../hooks/useQuizChainIntegration';
 import { useStellarWalletContext } from '../../../chains/stellar/StellarWalletProvider';
 import { useQuizContract as useStellarQuizContract } from '../../../chains/stellar/useQuizContract';
-import { WalletDebugPanel } from './WalletDebug';
+// import { WalletDebugPanel } from './WalletDebug';
 
 import { generateRoomId, generateHostId } from '../utils/idUtils';
 import { roundTypeMap } from '../constants/quiztypeconstants';
@@ -351,7 +351,7 @@ const deployQuizContractOnStellar = async (params: any) => {
         ...setupConfig,
         contractAddress: contractData.contractAddress,
         deploymentTxHash: contractData.txHash,
-        web3ChainConfirmed: selectedChain,
+        web3ChainConfirmed: selectedChain ?? undefined,
         hostWalletConfirmed: currentWallet?.address,
         paymentMethod: 'web3' as const,
         isWeb3Room: true,
@@ -400,7 +400,8 @@ setFullConfig({
   ...web3RoomConfig,
   roomId: data.roomId,
   hostId: data.hostId,
-   web3ChainConfirmed: web3RoomConfig.web3ChainConfirmed
+  web3ChainConfirmed: web3RoomConfig.web3ChainConfirmed ?? undefined,
+  hostWalletConfirmed: web3RoomConfig.hostWalletConfirmed ?? undefined,
 });
 
 // SUCCESS: wipe the wizard state so nothing persists
@@ -849,8 +850,8 @@ setTimeout(() => {
         )}
       </div>
 
-      {/* <WalletDebug /> */}
-     <WalletDebugPanel />
+     
+     {/* <WalletDebugPanel /> */}
 
       
             {/* Blockchain config & wallet */}
