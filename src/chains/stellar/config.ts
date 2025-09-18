@@ -74,7 +74,8 @@ export const createStellarWalletsKit = (network: StellarNetwork = defaultStellar
     try {
       const walletConnectModule = new WalletConnectModule({
         ...walletConnectConfig,
-        network: config.networkPassphrase as WalletNetwork,
+        network: (config.isTestnet ? 'TESTNET' : 'PUBLIC') as WalletNetwork,
+
       });
       
       modules.push(walletConnectModule);
