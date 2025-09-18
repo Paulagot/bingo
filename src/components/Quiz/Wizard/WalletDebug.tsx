@@ -121,8 +121,17 @@ export const WalletDebugPanel: React.FC = () => {
         addDebugMessage(`✅ Found active address: ${directAddressCheck.address}`);
         
         // Get network info
-        const networkResult = await stellarWallet.walletKit.getNetwork();
-        addDebugMessage(`Network result: ${JSON.stringify(networkResult)}`);
+        let networkResult;
+        try {
+          networkResult = await stellarWallet.walletKit.getNetwork();
+          addDebugMessage(`Network result: ${JSON.stringify(networkResult)}`);
+        } catch (networkError) {
+          addDebugMessage(`⚠️ Network fetch failed, using defaults: ${networkError}`);
+          networkResult = { 
+            networkPassphrase: 'Test SDF Network ; September 2015',
+            network: 'testnet'
+          };
+        }
         
         // Get the wallet type from localStorage or default to walletConnect
         const savedWalletId = localStorage.getItem(stellarStorageKeys.WALLET_ID) || 'walletConnect';
@@ -151,36 +160,52 @@ export const WalletDebugPanel: React.FC = () => {
           }
         };
         
-        // Update React state directly
-        const connectionData = {
-          address: directAddressCheck.address,
-          isConnected: true,
-          isConnecting: false,
-          publicKey: directAddressCheck.address,
-          networkPassphrase: networkResult.networkPassphrase,
-          walletType: mapWalletIdToType(savedWalletId),
-          error: null,
-          lastConnected: new Date(),
-        };
+        // Update React state directly with proper error handling
+        try {
+          const connectionData = {
+            address: directAddressCheck.address,
+            isConnected: true,
+            isConnecting: false,
+            publicKey: directAddressCheck.address,
+            networkPassphrase: networkResult.networkPassphrase,
+            walletType: mapWalletIdToType(savedWalletId),
+            error: null,
+            lastConnected: new Date(),
+          };
+          
+          addDebugMessage(`🔄 About to update state with: ${JSON.stringify(connectionData, null, 2)}`);
+          
+          // Call the store update function
+          updateStellarWallet(connectionData);
+          setActiveChain('stellar');
+          
+          addDebugMessage('🔄 Called updateStellarWallet successfully');
+          
+          // Store the connection info if not already stored
+          localStorage.setItem(stellarStorageKeys.WALLET_ID, savedWalletId);
+          localStorage.setItem(stellarStorageKeys.LAST_ADDRESS, directAddressCheck.address);
+          localStorage.setItem(stellarStorageKeys.AUTO_CONNECT, 'true');
+          
+          addDebugMessage('✅ React state synced successfully!');
+          
+          // Wait a bit then refresh debug info to show the updated state
+          setTimeout(async () => {
+            await refreshDebugInfo();
+          }, 500);
+          
+        } catch (stateUpdateError) {
+          const errorMessage = stateUpdateError instanceof Error ? stateUpdateError.message : String(stateUpdateError);
+          addDebugMessage(`❌ State update failed: ${errorMessage}`);
+          console.error('State update error:', stateUpdateError);
+        }
         
-        addDebugMessage('🔄 Updating React state...');
-        updateStellarWallet(connectionData);
-        setActiveChain('stellar');
-        
-        // Store the connection info if not already stored
-        localStorage.setItem(stellarStorageKeys.WALLET_ID, savedWalletId);
-        localStorage.setItem(stellarStorageKeys.LAST_ADDRESS, directAddressCheck.address);
-        localStorage.setItem(stellarStorageKeys.AUTO_CONNECT, 'true');
-        
-        addDebugMessage('✅ React state synced successfully!');
-        
-        // Refresh debug info to show the updated state
-        await refreshDebugInfo();
       } else {
         addDebugMessage('❌ No active address found');
       }
     } catch (error) {
-      addDebugMessage(`❌ Sync failed: ${error}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      addDebugMessage(`❌ Sync failed: ${errorMessage}`);
+      console.error('Full sync error:', error);
     }
   };
 
@@ -339,8 +364,9 @@ export const WalletDebugPanel: React.FC = () => {
       style={{
         position: 'fixed',
         top: '10px',
+        left: '10px',
         right: '10px',
-        width: '450px',
+        maxWidth: '95vw',
         maxHeight: '90vh',
         backgroundColor: 'white',
         border: '1px solid #e5e7eb',
