@@ -1,8 +1,8 @@
-// src/components/WalletDebugPanel.tsx - Enhanced version with state sync fix
+// src/components/WalletDebugPanel.tsx
 import React, { useState, useEffect } from 'react';
-import { useStellarWallet } from '../../../chains/stellar/useStellarWallet';
-import { stellarStorageKeys } from '../../../chains/stellar/config';
-import { useWalletStore } from '../../../stores/walletStore'; // Add this import
+import { useStellarWalletContext } from '../../../chains/stellar/StellarWalletProvider';
+import { getStellarWalletsKitSingleton, stellarStorageKeys } from '../../../chains/stellar/config';
+import { useWalletStore } from '../../../stores/walletStore';
 
 interface DebugInfo {
   reactState: {
@@ -34,25 +34,46 @@ export const WalletDebugPanel: React.FC = () => {
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [debugMessages, setDebugMessages] = useState<string[]>([]);
-  
-  const stellarWallet = useStellarWallet();
-  const { updateStellarWallet, setActiveChain } = useWalletStore(); // Access store directly
+
+  // ✅ Read provider/context (which reflects Zustand state) instead of spinning a new hook
+  const ctx = useStellarWalletContext();
+  const walletKit = getStellarWalletsKitSingleton(ctx.currentNetwork);
+
+  // ✅ Use the same Zustand store updaters your app/provider uses
+  const { updateStellarWallet, setActiveChain } = useWalletStore();
 
   const addDebugMessage = (message: string) => {
-    setDebugMessages(prev => [...prev.slice(-9), `${new Date().toLocaleTimeString()}: ${message}`]);
+    setDebugMessages(prev => [...prev.slice(-99), `${new Date().toLocaleTimeString()}: ${message}`]);
+  };
+
+  const errText = (e: unknown) =>
+    e instanceof Error ? e.message : typeof e === 'string' ? e : JSON.stringify(e);
+
+  const mapWalletIdToType = (id: string): 'freighter' | 'albedo' | 'rabet' | 'lobstr' | 'xbull' => {
+    if (id.toLowerCase().includes('walletconnect') || id === 'walletConnect') {
+      return 'lobstr';
+    }
+    switch (id.toLowerCase()) {
+      case 'freighter': return 'freighter';
+      case 'albedo': return 'albedo';
+      case 'rabet': return 'rabet';
+      case 'lobstr': return 'lobstr';
+      case 'xbull': return 'xbull';
+      default: return 'lobstr';
+    }
   };
 
   const gatherDebugInfo = async (): Promise<DebugInfo> => {
     setIsLoading(true);
     const messages: string[] = [];
-    
+
     const info: DebugInfo = {
       reactState: {
-        isConnected: stellarWallet.isConnected,
-        address: stellarWallet.address,
-        isConnecting: stellarWallet.isConnecting,
-        walletType: stellarWallet.walletType || null,
-        balance: stellarWallet.balance || null,
+        isConnected: ctx.wallet.isConnected,
+        address: ctx.wallet.address,
+        isConnecting: ctx.wallet.isConnecting,
+        walletType: ctx.wallet.walletType || null,
+        balance: ctx.wallet.balance || null,
       },
       localStorage: {
         walletId: localStorage.getItem(stellarStorageKeys.WALLET_ID),
@@ -60,7 +81,7 @@ export const WalletDebugPanel: React.FC = () => {
         autoConnect: localStorage.getItem(stellarStorageKeys.AUTO_CONNECT),
       },
       walletKit: {
-        exists: !!stellarWallet.walletKit,
+        exists: !!walletKit,
         supportedWallets: [],
         currentAddress: null,
         currentNetwork: null,
@@ -71,26 +92,33 @@ export const WalletDebugPanel: React.FC = () => {
       debugMessages: debugMessages,
     };
 
-    // Try to get wallet kit info
-    if (stellarWallet.walletKit) {
+    if (walletKit) {
       try {
-        // Direct address check
         try {
-          const directCheck = await stellarWallet.walletKit.getAddress();
+          const directCheck = await walletKit.getAddress();
           info.walletKit.directAddressCheck = directCheck;
           info.walletKit.wcSessionActive = !!directCheck?.address;
           messages.push(`Direct check result: ${JSON.stringify(directCheck)}`);
         } catch (directError) {
-          messages.push(`Direct check failed: ${directError}`);
+          messages.push(`Direct check failed: ${errText(directError)}`);
         }
 
-        info.walletKit.supportedWallets = await stellarWallet.walletKit.getSupportedWallets();
-        info.walletKit.currentNetwork = await stellarWallet.walletKit.getNetwork();
-        
-        messages.push(`Found ${info.walletKit.supportedWallets.length} supported wallets`);
+        try {
+          info.walletKit.supportedWallets = await walletKit.getSupportedWallets();
+          messages.push(`Found ${info.walletKit.supportedWallets.length} supported wallets`);
+        } catch (swErr) {
+          messages.push(`supportedWallets failed: ${errText(swErr)}`);
+        }
+
+        try {
+          info.walletKit.currentNetwork = await walletKit.getNetwork();
+        } catch (netErr) {
+          messages.push(`getNetwork failed: ${errText(netErr)}`);
+        }
       } catch (error) {
-        info.walletKit.error = error instanceof Error ? error.message : String(error);
-        messages.push(`WalletKit error: ${info.walletKit.error}`);
+        const msg = errText(error);
+        info.walletKit.error = msg;
+        messages.push(`WalletKit error: ${msg}`);
       }
     }
 
@@ -106,101 +134,71 @@ export const WalletDebugPanel: React.FC = () => {
 
   const syncReactState = async () => {
     addDebugMessage('🔄 Starting React state sync...');
-    
     try {
-      if (!stellarWallet.walletKit) {
+      if (!walletKit) {
         addDebugMessage('❌ No wallet kit available');
         return;
       }
 
-      // Check for active WalletConnect session
       let directAddressCheck;
       try {
-        directAddressCheck = await stellarWallet.walletKit.getAddress();
+        directAddressCheck = await walletKit.getAddress();
         addDebugMessage(`Direct address result: ${JSON.stringify(directAddressCheck)}`);
       } catch (addressError) {
-        const errorMsg = addressError instanceof Error ? addressError.message : String(addressError);
-        addDebugMessage(`❌ Failed to get address: ${errorMsg}`);
+        addDebugMessage(`❌ Failed to get address: ${errText(addressError)}`);
         return;
       }
-      
+
       if (directAddressCheck?.address) {
         addDebugMessage(`✅ Found active address: ${directAddressCheck.address}`);
-        
-        // Get network info with fallback
-        let networkResult;
+
+        let networkResult: any;
         try {
-          networkResult = await stellarWallet.walletKit.getNetwork();
+          networkResult = await walletKit.getNetwork();
           addDebugMessage(`Network result: ${JSON.stringify(networkResult)}`);
         } catch (networkError) {
-          const errorMsg = networkError instanceof Error ? networkError.message : String(networkError);
-          addDebugMessage(`⚠️ Network fetch failed, using defaults: ${errorMsg}`);
-          networkResult = { 
+          addDebugMessage(`⚠️ Network fetch failed, using defaults: ${errText(networkError)}`);
+          networkResult = {
             networkPassphrase: 'Test SDF Network ; September 2015',
-            network: 'testnet'
+            network: 'testnet',
           };
         }
-        
-        // Check localStorage before proceeding
+
         const existingWalletId = localStorage.getItem(stellarStorageKeys.WALLET_ID);
         const existingAddress = localStorage.getItem(stellarStorageKeys.LAST_ADDRESS);
         const existingAutoConnect = localStorage.getItem(stellarStorageKeys.AUTO_CONNECT);
-        
         addDebugMessage(`Current localStorage: walletId=${existingWalletId}, address=${existingAddress}, autoConnect=${existingAutoConnect}`);
-        
-        // Set wallet ID if missing - try to detect wallet type
-        let walletId = existingWalletId;
-        if (!walletId) {
-          // Try to detect wallet type from supported wallets
+
+        // detect WC wallet id if missing
+        let walletId = existingWalletId || 'walletConnect';
+        if (!existingWalletId) {
           try {
-            const supportedWallets = await stellarWallet.walletKit.getSupportedWallets();
-            const wcWallets = supportedWallets.filter(w => 
-              w.id?.toLowerCase().includes('walletconnect') || 
+            const supportedWallets = await walletKit.getSupportedWallets();
+            const wcWallets = supportedWallets.filter((w: any) =>
+              w.id?.toLowerCase().includes('walletconnect') ||
               w.name?.toLowerCase().includes('walletconnect') ||
               w.id === 'walletConnect'
             );
-            
             if (wcWallets.length > 0) {
               walletId = wcWallets[0].id;
               addDebugMessage(`🔍 Detected wallet type: ${walletId}`);
             } else {
-              walletId = 'walletConnect'; // fallback
               addDebugMessage(`🔍 Using fallback wallet ID: ${walletId}`);
             }
           } catch (detectionError) {
-            walletId = 'walletConnect'; // fallback
             addDebugMessage(`🔍 Wallet detection failed, using fallback: ${walletId}`);
           }
         }
-        
-        // Map wallet IDs to proper StellarWalletType
-        const mapWalletIdToType = (id: string): 'freighter' | 'albedo' | 'rabet' | 'lobstr' | 'xbull' => {
-          if (id.toLowerCase().includes('walletconnect') || id === 'walletConnect') {
-            return 'lobstr';
-          }
-          
-          switch (id.toLowerCase()) {
-            case 'freighter': return 'freighter';
-            case 'albedo': return 'albedo';
-            case 'rabet': return 'rabet';
-            case 'lobstr': return 'lobstr';
-            case 'xbull': return 'xbull';
-            default: return 'lobstr';
-          }
-        };
-        
-        // Store connection info FIRST
+
         try {
           localStorage.setItem(stellarStorageKeys.WALLET_ID, walletId);
           localStorage.setItem(stellarStorageKeys.LAST_ADDRESS, directAddressCheck.address);
           localStorage.setItem(stellarStorageKeys.AUTO_CONNECT, 'true');
           addDebugMessage(`💾 Stored to localStorage: ${walletId}, ${directAddressCheck.address}`);
         } catch (storageError) {
-          const errorMsg = storageError instanceof Error ? storageError.message : String(storageError);
-          addDebugMessage(`❌ localStorage failed: ${errorMsg}`);
+          addDebugMessage(`❌ localStorage failed: ${errText(storageError)}`);
         }
-        
-        // Prepare connection data
+
         const connectionData = {
           address: directAddressCheck.address,
           isConnected: true,
@@ -211,111 +209,87 @@ export const WalletDebugPanel: React.FC = () => {
           error: null,
           lastConnected: new Date(),
         };
-        
+
         addDebugMessage(`📤 Updating state with: ${JSON.stringify(connectionData, null, 2)}`);
-        
-        // Check if updateStellarWallet function exists and is callable
+
         if (typeof updateStellarWallet !== 'function') {
           addDebugMessage(`❌ updateStellarWallet is not a function: ${typeof updateStellarWallet}`);
           return;
         }
-        
         if (typeof setActiveChain !== 'function') {
           addDebugMessage(`❌ setActiveChain is not a function: ${typeof setActiveChain}`);
           return;
         }
-        
-        // Update React state
+
         try {
           addDebugMessage('📡 Calling updateStellarWallet...');
           updateStellarWallet(connectionData);
           addDebugMessage('📡 Called updateStellarWallet successfully');
-          
+
           addDebugMessage('📡 Calling setActiveChain...');
           setActiveChain('stellar');
           addDebugMessage('📡 Called setActiveChain successfully');
-          
+
           addDebugMessage('✅ React state synced successfully!');
-          
-          // Wait a bit then refresh debug info
+
           setTimeout(async () => {
             addDebugMessage('🔄 Refreshing debug info...');
             await refreshDebugInfo();
-          }, 1000);
-          
+          }, 800);
         } catch (stateUpdateError) {
-          // Detailed error logging
-          if (stateUpdateError instanceof Error) {
-            addDebugMessage(`❌ State update error: ${stateUpdateError.name}: ${stateUpdateError.message}`);
-            addDebugMessage(`❌ Stack: ${stateUpdateError.stack}`);
-          } else {
-            addDebugMessage(`❌ State update error (non-Error): ${JSON.stringify(stateUpdateError)}`);
-          }
+          addDebugMessage(`❌ State update error: ${errText(stateUpdateError)}`);
           console.error('Full state update error:', stateUpdateError);
         }
-        
       } else {
         addDebugMessage('❌ No active address found in result');
       }
     } catch (error) {
-      // Detailed error logging
-      if (error instanceof Error) {
-        addDebugMessage(`❌ Sync error: ${error.name}: ${error.message}`);
-        addDebugMessage(`❌ Stack: ${error.stack}`);
-      } else {
-        addDebugMessage(`❌ Sync error (non-Error): ${JSON.stringify(error)}`);
-      }
+      addDebugMessage(`❌ Sync error: ${errText(error)}`);
       console.error('Full sync error:', error);
     }
   };
 
   const forceReconnect = async () => {
     addDebugMessage('🔄 Starting Force Reconnect...');
-    
     try {
-      if (!stellarWallet.walletKit) {
+      if (!walletKit) {
         addDebugMessage('❌ No wallet kit available');
         return;
       }
 
-      // First, try to sync existing session
       await syncReactState();
-      
-      // If that didn't work, try full reconnection flow
+
       const currentInfo = await gatherDebugInfo();
       if (!currentInfo.reactState.isConnected) {
         addDebugMessage('🔄 No existing session found, starting full reconnect...');
-        
-        const supportedWallets = await stellarWallet.walletKit.getSupportedWallets();
+
+        const supportedWallets = await walletKit.getSupportedWallets();
         addDebugMessage(`Found ${supportedWallets.length} supported wallets`);
-        
-        // Look for WalletConnect wallet types
-        const walletConnectWallets = supportedWallets.filter(w => 
-          w.id?.toLowerCase().includes('walletconnect') || 
+
+        const walletConnectWallets = supportedWallets.filter((w: any) =>
+          w.id?.toLowerCase().includes('walletconnect') ||
           w.name?.toLowerCase().includes('walletconnect') ||
           w.id === 'walletConnect'
         );
-        
-        addDebugMessage(`Found ${walletConnectWallets.length} WalletConnect wallets: ${walletConnectWallets.map(w => w.name || w.id).join(', ')}`);
-        
+
+        addDebugMessage(`Found ${walletConnectWallets.length} WalletConnect wallets: ${walletConnectWallets.map((w: any) => w.name || w.id).join(', ')}`);
+
         if (walletConnectWallets.length > 0) {
           const wcWallet = walletConnectWallets[0];
           addDebugMessage(`Trying to connect with: ${wcWallet.name || wcWallet.id}`);
-          
+
           try {
-            stellarWallet.walletKit.setWallet(wcWallet.id);
-            
-            // Poll for connection
+            walletKit.setWallet(wcWallet.id);
+
             let attempts = 0;
             const maxAttempts = 15;
-            
+
             const pollForConnection = async (): Promise<any> => {
               attempts++;
               addDebugMessage(`Polling attempt ${attempts}/${maxAttempts}`);
-              
+
               try {
-                const result = await stellarWallet.walletKit!.getAddress();
-                
+                const result = await walletKit.getAddress();
                 if (result.address) {
                   addDebugMessage(`✅ Connection successful: ${result.address}`);
                   return result;
@@ -334,19 +308,18 @@ export const WalletDebugPanel: React.FC = () => {
                 }
               }
             };
-            
+
             const wcResult = await pollForConnection();
-            
+
             if (wcResult?.address) {
-              // Store connection info and sync state
               localStorage.setItem(stellarStorageKeys.WALLET_ID, wcWallet.id);
               localStorage.setItem(stellarStorageKeys.LAST_ADDRESS, wcResult.address);
               localStorage.setItem(stellarStorageKeys.AUTO_CONNECT, 'true');
-              
+
               await syncReactState();
             }
           } catch (wcError) {
-            addDebugMessage(`❌ WalletConnect connection failed: ${wcError}`);
+            addDebugMessage(`❌ WalletConnect connection failed: ${errText(wcError)}`);
           }
         } else {
           addDebugMessage('❌ No WalletConnect wallets found');
@@ -354,37 +327,32 @@ export const WalletDebugPanel: React.FC = () => {
       }
 
       await refreshDebugInfo();
-      
     } catch (error) {
-      addDebugMessage(`❌ Force reconnect error: ${error}`);
+      addDebugMessage(`❌ Force reconnect error: ${errText(error)}`);
       await refreshDebugInfo();
     }
   };
 
-  const clearDebugMessages = () => {
-    setDebugMessages([]);
-  };
+  const clearDebugMessages = () => setDebugMessages([]);
 
   const testDirectConnection = async () => {
     addDebugMessage('🧪 Testing direct connection...');
-    
-    if (!stellarWallet.walletKit) {
+    if (!walletKit) {
       addDebugMessage('❌ No wallet kit');
       return;
     }
 
     try {
-      const addressResult = await stellarWallet.walletKit.getAddress();
+      const addressResult = await walletKit.getAddress();
       addDebugMessage(`Address result: ${JSON.stringify(addressResult)}`);
-      
-      const networkResult = await stellarWallet.walletKit.getNetwork();
+
+      const networkResult = await walletKit.getNetwork();
       addDebugMessage(`Network result: ${JSON.stringify(networkResult)}`);
-      
-      const supportedWallets = await stellarWallet.walletKit.getSupportedWallets();
+
+      const supportedWallets = await walletKit.getSupportedWallets();
       addDebugMessage(`Supported wallets: ${supportedWallets.length}`);
-      
     } catch (error) {
-      addDebugMessage(`❌ Test failed: ${error}`);
+      addDebugMessage(`❌ Test failed: ${errText(error)}`);
     }
   };
 
@@ -392,6 +360,7 @@ export const WalletDebugPanel: React.FC = () => {
     if (isVisible && !debugInfo) {
       refreshDebugInfo();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isVisible]);
 
   if (!isVisible) {
@@ -567,7 +536,7 @@ export const WalletDebugPanel: React.FC = () => {
                 <div>Supported Wallets: <strong>{debugInfo.walletKit.supportedWallets.length}</strong></div>
                 {debugInfo.walletKit.supportedWallets.length > 0 && (
                   <div style={{ marginTop: '4px', fontSize: '9px', wordBreak: 'break-all' }}>
-                    {debugInfo.walletKit.supportedWallets.map(w => w.name || w.id).join(', ')}
+                    {debugInfo.walletKit.supportedWallets.map((w: any) => w.name || w.id).join(', ')}
                   </div>
                 )}
               </div>
@@ -576,10 +545,10 @@ export const WalletDebugPanel: React.FC = () => {
             {/* Status Analysis */}
             <div style={{ marginBottom: '12px' }}>
               <h4 style={{ margin: '0 0 6px 0', color: '#1f2937', fontSize: '12px' }}>Status Analysis:</h4>
-              <div style={{ 
-                backgroundColor: debugInfo.reactState.isConnected ? '#dcfce7' : '#fef2f2', 
-                padding: '8px', 
-                borderRadius: '4px' 
+              <div style={{
+                backgroundColor: debugInfo.reactState.isConnected ? '#dcfce7' : '#fef2f2',
+                padding: '8px',
+                borderRadius: '4px'
               }}>
                 {debugInfo.reactState.isConnected ? (
                   <div style={{ color: '#166534' }}>✅ Wallet connected and synced</div>
@@ -596,8 +565,8 @@ export const WalletDebugPanel: React.FC = () => {
             {/* Debug Messages */}
             <div>
               <h4 style={{ margin: '0 0 6px 0', color: '#1f2937', fontSize: '12px' }}>
-                Debug Messages: 
-                <button 
+                Debug Messages:
+                <button
                   onClick={clearDebugMessages}
                   style={{
                     marginLeft: '8px',
@@ -613,9 +582,9 @@ export const WalletDebugPanel: React.FC = () => {
                   Clear
                 </button>
               </h4>
-              <div style={{ 
-                backgroundColor: '#f8f9fa', 
-                padding: '8px', 
+              <div style={{
+                backgroundColor: '#f8f9fa',
+                padding: '8px',
                 borderRadius: '4px',
                 maxHeight: '200px',
                 overflowY: 'auto',
@@ -625,12 +594,12 @@ export const WalletDebugPanel: React.FC = () => {
                   <div style={{ color: '#6b7280' }}>No debug messages yet...</div>
                 ) : (
                   debugMessages.map((msg, idx) => (
-                    <div key={idx} style={{ 
-                      marginBottom: '2px', 
+                    <div key={idx} style={{
+                      marginBottom: '2px',
                       padding: '2px',
-                      backgroundColor: msg.includes('❌') ? '#fee2e2' : 
-                                     msg.includes('✅') ? '#dcfce7' : 
-                                     msg.includes('🔄') ? '#dbeafe' : 'transparent'
+                      backgroundColor: msg.includes('❌') ? '#fee2e2' :
+                        msg.includes('✅') ? '#dcfce7' :
+                          msg.includes('🔄') ? '#dbeafe' : 'transparent'
                     }}>
                       {msg}
                     </div>
