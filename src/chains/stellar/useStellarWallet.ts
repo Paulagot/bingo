@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useWalletStore } from '../../stores/walletStore';
 import { 
-  createStellarWalletsKit, 
+
   createHorizonServer,
   getCurrentNetworkConfig,
   stellarStorageKeys,
@@ -13,7 +13,9 @@ import {
   getExplorerUrl,
   isValidStellarAddress,
   isValidAmount,
-  defaultStellarNetwork
+  defaultStellarNetwork,
+  getStellarWalletsKitSingleton,
+  resetStellarWalletsKitSingleton,
 } from './config';
 import type { 
   StellarWalletConnection,
@@ -269,7 +271,9 @@ export const useStellarWallet = () => {
   const initializeStellar = useCallback(async () => {
     try {
       // Create wallet kit instance
-      walletKitRef.current = createStellarWalletsKit(currentNetwork);
+     walletKitRef.current = getStellarWalletsKitSingleton(currentNetwork);
+
+
       horizonServerRef.current = createHorizonServer(currentNetwork);
       
       setIsInitialized(true);
@@ -734,28 +738,32 @@ const connect = useCallback(async (): Promise<WalletConnectionResult> => {
   // NETWORK MANAGEMENT
   // ===================================================================
 
-  const switchNetwork = useCallback(async (network: StellarNetwork): Promise<boolean> => {
-    try {
-      setCurrentNetwork(network);
-      localStorage.setItem(stellarStorageKeys.NETWORK, network);
-      
-      // Reinitialize with new network
-      await initializeStellar();
-      
-      // If connected, reconnect to update network info
-      if (stellarState.isConnected) {
-        const savedWalletId = localStorage.getItem(stellarStorageKeys.WALLET_ID);
-        if (savedWalletId) {
-          await reconnectWallet(savedWalletId);
-        }
+ const switchNetwork = useCallback(async (network: StellarNetwork): Promise<boolean> => {
+  try {
+    setCurrentNetwork(network);
+    localStorage.setItem(stellarStorageKeys.NETWORK, network);
+
+    // 👉 Reset the singleton before re-initializing
+    resetStellarWalletsKitSingleton();
+
+    // Reinitialize with new network
+    await initializeStellar();
+
+    // If connected, reconnect to update network info
+    if (stellarState.isConnected) {
+      const savedWalletId = localStorage.getItem(stellarStorageKeys.WALLET_ID);
+      if (savedWalletId) {
+        await reconnectWallet(savedWalletId);
       }
-      
-      return true;
-    } catch (error) {
-      console.error('❌ Network switch failed:', error);
-      return false;
     }
-  }, [stellarState.isConnected, initializeStellar, reconnectWallet]);
+
+    return true;
+  } catch (error) {
+    console.error('❌ Network switch failed:', error);
+    return false;
+  }
+}, [stellarState.isConnected, initializeStellar, reconnectWallet]);
+
 
   // ===================================================================
   // ADDITIONAL UTILITY METHODS

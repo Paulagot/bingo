@@ -291,3 +291,26 @@ export const debugStellarConfig = () => {
     walletConnectProjectId: WALLETCONNECT_PROJECT_ID,
   });
 };
+
+// ---- Singleton accessors (ADD THESE) -------------------------------
+let _stellarKitSingleton: StellarWalletsKit | null = null;
+
+/**
+ * Always return the same StellarWalletsKit instance for the app.
+ * This prevents multiple, de-synced WalletConnect sessions.
+ */
+export const getStellarWalletsKitSingleton = (
+  network: StellarNetwork = defaultStellarNetwork
+): StellarWalletsKit => {
+  if (_stellarKitSingleton) return _stellarKitSingleton;
+  _stellarKitSingleton = createStellarWalletsKit(network);
+  return _stellarKitSingleton;
+};
+
+/**
+ * Use this before re-initializing (e.g., when switching networks).
+ */
+export const resetStellarWalletsKitSingleton = () => {
+  _stellarKitSingleton = null;
+};
+// -------------------------------------------------------------------
