@@ -114,97 +114,157 @@ export const WalletDebugPanel: React.FC = () => {
       }
 
       // Check for active WalletConnect session
-      const directAddressCheck = await stellarWallet.walletKit.getAddress();
-      addDebugMessage(`Direct address result: ${JSON.stringify(directAddressCheck)}`);
+      let directAddressCheck;
+      try {
+        directAddressCheck = await stellarWallet.walletKit.getAddress();
+        addDebugMessage(`Direct address result: ${JSON.stringify(directAddressCheck)}`);
+      } catch (addressError) {
+        const errorMsg = addressError instanceof Error ? addressError.message : String(addressError);
+        addDebugMessage(`❌ Failed to get address: ${errorMsg}`);
+        return;
+      }
       
       if (directAddressCheck?.address) {
         addDebugMessage(`✅ Found active address: ${directAddressCheck.address}`);
         
-        // Get network info
+        // Get network info with fallback
         let networkResult;
         try {
           networkResult = await stellarWallet.walletKit.getNetwork();
           addDebugMessage(`Network result: ${JSON.stringify(networkResult)}`);
         } catch (networkError) {
-          addDebugMessage(`⚠️ Network fetch failed, using defaults: ${networkError}`);
+          const errorMsg = networkError instanceof Error ? networkError.message : String(networkError);
+          addDebugMessage(`⚠️ Network fetch failed, using defaults: ${errorMsg}`);
           networkResult = { 
             networkPassphrase: 'Test SDF Network ; September 2015',
             network: 'testnet'
           };
         }
         
-        // Get the wallet type from localStorage or default to walletConnect
-        const savedWalletId = localStorage.getItem(stellarStorageKeys.WALLET_ID) || 'walletConnect';
+        // Check localStorage before proceeding
+        const existingWalletId = localStorage.getItem(stellarStorageKeys.WALLET_ID);
+        const existingAddress = localStorage.getItem(stellarStorageKeys.LAST_ADDRESS);
+        const existingAutoConnect = localStorage.getItem(stellarStorageKeys.AUTO_CONNECT);
+        
+        addDebugMessage(`Current localStorage: walletId=${existingWalletId}, address=${existingAddress}, autoConnect=${existingAutoConnect}`);
+        
+        // Set wallet ID if missing - try to detect wallet type
+        let walletId = existingWalletId;
+        if (!walletId) {
+          // Try to detect wallet type from supported wallets
+          try {
+            const supportedWallets = await stellarWallet.walletKit.getSupportedWallets();
+            const wcWallets = supportedWallets.filter(w => 
+              w.id?.toLowerCase().includes('walletconnect') || 
+              w.name?.toLowerCase().includes('walletconnect') ||
+              w.id === 'walletConnect'
+            );
+            
+            if (wcWallets.length > 0) {
+              walletId = wcWallets[0].id;
+              addDebugMessage(`🔍 Detected wallet type: ${walletId}`);
+            } else {
+              walletId = 'walletConnect'; // fallback
+              addDebugMessage(`🔍 Using fallback wallet ID: ${walletId}`);
+            }
+          } catch (detectionError) {
+            walletId = 'walletConnect'; // fallback
+            addDebugMessage(`🔍 Wallet detection failed, using fallback: ${walletId}`);
+          }
+        }
         
         // Map wallet IDs to proper StellarWalletType
-        const mapWalletIdToType = (walletId: string): 'freighter' | 'albedo' | 'rabet' | 'lobstr' | 'xbull' => {
-          // Handle WalletConnect variations
-          if (walletId.toLowerCase().includes('walletconnect') || walletId === 'walletConnect') {
-            return 'lobstr'; // Default WalletConnect to LOBSTR
+        const mapWalletIdToType = (id: string): 'freighter' | 'albedo' | 'rabet' | 'lobstr' | 'xbull' => {
+          if (id.toLowerCase().includes('walletconnect') || id === 'walletConnect') {
+            return 'lobstr';
           }
           
-          // Handle direct wallet types
-          switch (walletId.toLowerCase()) {
-            case 'freighter':
-              return 'freighter';
-            case 'albedo':
-              return 'albedo';
-            case 'rabet':
-              return 'rabet';
-            case 'lobstr':
-              return 'lobstr';
-            case 'xbull':
-              return 'xbull';
-            default:
-              return 'lobstr'; // Default fallback
+          switch (id.toLowerCase()) {
+            case 'freighter': return 'freighter';
+            case 'albedo': return 'albedo';
+            case 'rabet': return 'rabet';
+            case 'lobstr': return 'lobstr';
+            case 'xbull': return 'xbull';
+            default: return 'lobstr';
           }
         };
         
-        // Update React state directly with proper error handling
+        // Store connection info FIRST
         try {
-          const connectionData = {
-            address: directAddressCheck.address,
-            isConnected: true,
-            isConnecting: false,
-            publicKey: directAddressCheck.address,
-            networkPassphrase: networkResult.networkPassphrase,
-            walletType: mapWalletIdToType(savedWalletId),
-            error: null,
-            lastConnected: new Date(),
-          };
-          
-          addDebugMessage(`🔄 About to update state with: ${JSON.stringify(connectionData, null, 2)}`);
-          
-          // Call the store update function
-          updateStellarWallet(connectionData);
-          setActiveChain('stellar');
-          
-          addDebugMessage('🔄 Called updateStellarWallet successfully');
-          
-          // Store the connection info if not already stored
-          localStorage.setItem(stellarStorageKeys.WALLET_ID, savedWalletId);
+          localStorage.setItem(stellarStorageKeys.WALLET_ID, walletId);
           localStorage.setItem(stellarStorageKeys.LAST_ADDRESS, directAddressCheck.address);
           localStorage.setItem(stellarStorageKeys.AUTO_CONNECT, 'true');
+          addDebugMessage(`💾 Stored to localStorage: ${walletId}, ${directAddressCheck.address}`);
+        } catch (storageError) {
+          const errorMsg = storageError instanceof Error ? storageError.message : String(storageError);
+          addDebugMessage(`❌ localStorage failed: ${errorMsg}`);
+        }
+        
+        // Prepare connection data
+        const connectionData = {
+          address: directAddressCheck.address,
+          isConnected: true,
+          isConnecting: false,
+          publicKey: directAddressCheck.address,
+          networkPassphrase: networkResult.networkPassphrase,
+          walletType: mapWalletIdToType(walletId),
+          error: null,
+          lastConnected: new Date(),
+        };
+        
+        addDebugMessage(`📤 Updating state with: ${JSON.stringify(connectionData, null, 2)}`);
+        
+        // Check if updateStellarWallet function exists and is callable
+        if (typeof updateStellarWallet !== 'function') {
+          addDebugMessage(`❌ updateStellarWallet is not a function: ${typeof updateStellarWallet}`);
+          return;
+        }
+        
+        if (typeof setActiveChain !== 'function') {
+          addDebugMessage(`❌ setActiveChain is not a function: ${typeof setActiveChain}`);
+          return;
+        }
+        
+        // Update React state
+        try {
+          addDebugMessage('📡 Calling updateStellarWallet...');
+          updateStellarWallet(connectionData);
+          addDebugMessage('📡 Called updateStellarWallet successfully');
+          
+          addDebugMessage('📡 Calling setActiveChain...');
+          setActiveChain('stellar');
+          addDebugMessage('📡 Called setActiveChain successfully');
           
           addDebugMessage('✅ React state synced successfully!');
           
-          // Wait a bit then refresh debug info to show the updated state
+          // Wait a bit then refresh debug info
           setTimeout(async () => {
+            addDebugMessage('🔄 Refreshing debug info...');
             await refreshDebugInfo();
-          }, 500);
+          }, 1000);
           
         } catch (stateUpdateError) {
-          const errorMessage = stateUpdateError instanceof Error ? stateUpdateError.message : String(stateUpdateError);
-          addDebugMessage(`❌ State update failed: ${errorMessage}`);
-          console.error('State update error:', stateUpdateError);
+          // Detailed error logging
+          if (stateUpdateError instanceof Error) {
+            addDebugMessage(`❌ State update error: ${stateUpdateError.name}: ${stateUpdateError.message}`);
+            addDebugMessage(`❌ Stack: ${stateUpdateError.stack}`);
+          } else {
+            addDebugMessage(`❌ State update error (non-Error): ${JSON.stringify(stateUpdateError)}`);
+          }
+          console.error('Full state update error:', stateUpdateError);
         }
         
       } else {
-        addDebugMessage('❌ No active address found');
+        addDebugMessage('❌ No active address found in result');
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      addDebugMessage(`❌ Sync failed: ${errorMessage}`);
+      // Detailed error logging
+      if (error instanceof Error) {
+        addDebugMessage(`❌ Sync error: ${error.name}: ${error.message}`);
+        addDebugMessage(`❌ Stack: ${error.stack}`);
+      } else {
+        addDebugMessage(`❌ Sync error (non-Error): ${JSON.stringify(error)}`);
+      }
       console.error('Full sync error:', error);
     }
   };
