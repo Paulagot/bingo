@@ -41,7 +41,9 @@ const calculateDuration = (rounds: any[]) => {
   return Math.round(baseTime + breakTime);
 };
 
+// ✅ Replace ONLY the quizTemplates array with the following:
 const quizTemplates: QuizTemplate[] = [
+  // --- keep this demo exactly as-is ---
   {
     id: 'demo-quiz',
     name: 'Demo Quiz',
@@ -59,116 +61,129 @@ const quizTemplates: QuizTemplate[] = [
           timePerQuestion: 10,
           pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
           pointsLostPerWrong: 2,
-           pointsLostPerUnanswered: 3,
+          pointsLostPerUnanswered: 3,
         },
       },
     ],
     tags: ['Demo', 'Quick Start', 'Try It Out'],
   },
+
+  // 1) Family-friendly, mixed & light
   {
     id: 'family-night',
     name: 'Family Night In',
-    description: 'Balanced, family-friendly, light risk.',
+    description: 'Balanced, family-friendly mix with easy pacing and feel-good topics.',
     icon: '👨‍👩‍👧‍👦',
     difficulty: 'Easy',
     duration: 64,
     rounds: [
-      { type: 'general_trivia', category: 'Family', difficulty: 'easy' },
+      { type: 'general_trivia', category: 'General Knowledge', difficulty: 'easy' },
+      { type: 'general_trivia', category: 'Pop Culture', difficulty: 'easy' },
+      { type: 'wipeout',        category: 'General Knowledge', difficulty: 'easy' },
+      { type: 'general_trivia', category: 'Pop Music', difficulty: 'easy' },
+      { type: 'general_trivia', category: 'History', difficulty: 'easy' },
       { type: 'general_trivia', category: 'General Knowledge', difficulty: 'medium' },
-      { type: 'wipeout', category: 'Pop Culture', difficulty: 'easy' },
-      { type: 'general_trivia', category: 'Sport', difficulty: 'medium' },
-      { type: 'general_trivia', category: 'History', difficulty: 'medium' },
-      { type: 'general_trivia', category: 'Family', difficulty: 'medium' },
     ],
     tags: ['Family-Friendly', 'Beginner', 'Mixed Topics'],
   },
+
+  // 2) Teens & young adults: high pop-culture energy
+  {
+    id: 'pop-hype',
+    name: 'Pop Hype',
+    description: 'For teens & young adults — fast vibes, pop culture and music.',
+    icon: '🎧',
+    difficulty: 'Medium',
+    duration: 64,
+    rounds: [
+      { type: 'general_trivia', category: 'Pop Music', difficulty: 'easy' },
+      { type: 'general_trivia', category: 'Pop Culture', difficulty: 'medium' },
+      { type: 'wipeout',        category: 'Pop Culture', difficulty: 'medium' },
+      { type: 'general_trivia', category: 'General Knowledge', difficulty: 'medium' },
+      { type: 'general_trivia', category: 'Pop Music', difficulty: 'medium' },
+      { type: 'wipeout',        category: 'General Knowledge', difficulty: 'medium' },
+    ],
+    tags: ['Teens', 'Pop', 'Energy'],
+  },
+
+  // 3) Pub classic: the all-rounder (updated to allowed categories)
   {
     id: 'pub-classic',
     name: 'Pub Quiz Classic',
-    description: 'The traditional all-rounder.',
+    description: 'The traditional all-rounder: familiar topics, steady difficulty.',
     icon: '🍺',
     difficulty: 'Medium',
     duration: 75,
     rounds: [
       { type: 'general_trivia', category: 'General Knowledge', difficulty: 'medium' },
       { type: 'general_trivia', category: 'History', difficulty: 'medium' },
-      { type: 'wipeout', category: 'Sport', difficulty: 'medium' },
+      { type: 'wipeout',        category: 'General Knowledge', difficulty: 'medium' },
       { type: 'general_trivia', category: 'Pop Culture', difficulty: 'medium' },
-      { type: 'general_trivia', category: 'Science', difficulty: 'medium' },
-      { type: 'wipeout', category: 'General Knowledge', difficulty: 'easy' },
+      { type: 'general_trivia', category: 'World Capitals', difficulty: 'medium' },
+      { type: 'wipeout',        category: 'General Knowledge', difficulty: 'easy' },
       { type: 'general_trivia', category: 'General Knowledge', difficulty: 'hard' },
     ],
     tags: ['Traditional', 'Balanced', 'All Topics'],
   },
-  {
-    id: 'brains-bants',
-    name: 'Brains & Bants',
-    description: 'Clever mix with a little spice.',
-    icon: '🧠',
-    difficulty: 'Hard',
-    duration: 64,
-    rounds: [
-      { type: 'general_trivia', category: 'Science', difficulty: 'medium' },
-      { type: 'general_trivia', category: 'History', difficulty: 'hard' },
-      { type: 'wipeout', category: 'Pop Culture', difficulty: 'medium' },
-      { type: 'general_trivia', category: 'General Knowledge', difficulty: 'medium' },
-      { type: 'wipeout', category: 'Science', difficulty: 'medium' },
-      { type: 'general_trivia', category: 'Pop Culture', difficulty: 'hard' },
-    ],
-    tags: ['Challenging', 'Intellectual', 'Science Focus'],
-  },
+
+  // 4) Sports night (Olympics forward) with a crossover
   {
     id: 'sports-showdown',
     name: 'Sports Showdown',
-    description: 'Sport-centric with a movie/TV crossover.',
+    description: 'Olympic Sports focus with a fun pop-culture crossover.',
     icon: '⚽',
     difficulty: 'Medium',
     duration: 64,
     rounds: [
-      { type: 'general_trivia', category: 'Sport', difficulty: 'easy' },
-      { type: 'wipeout', category: 'Sport', difficulty: 'medium' },
+      { type: 'general_trivia', category: 'Olympic Sports', difficulty: 'easy' },
+      { type: 'wipeout',        category: 'Olympic Sports', difficulty: 'medium' },
       { type: 'general_trivia', category: 'Pop Culture', difficulty: 'medium' },
-      { type: 'general_trivia', category: 'Sport', difficulty: 'medium' },
-      { type: 'wipeout', category: 'Sport', difficulty: 'hard' },
+      { type: 'general_trivia', category: 'Olympic Sports', difficulty: 'medium' },
+      { type: 'wipeout',        category: 'Olympic Sports', difficulty: 'hard' },
       { type: 'general_trivia', category: 'General Knowledge', difficulty: 'medium' },
     ],
-    tags: ['Sports Focus', 'Entertainment', 'Active'],
+    tags: ['Sports Focus', 'Olympics', 'Active'],
   },
+
+  // 5) World & travel lovers (capitals/history anchor)
+  {
+    id: 'world-tour',
+    name: 'World Tour Challenge',
+    description: 'For travellers and map nerds — capitals, culture, and history.',
+    icon: '🌍',
+    difficulty: 'Medium',
+    duration: 64,
+    rounds: [
+      { type: 'general_trivia', category: 'World Capitals', difficulty: 'easy' },
+      { type: 'general_trivia', category: 'History', difficulty: 'medium' },
+      { type: 'wipeout',        category: 'World Capitals', difficulty: 'medium' },
+      { type: 'general_trivia', category: 'General Knowledge', difficulty: 'medium' },
+      { type: 'general_trivia', category: 'World Capitals', difficulty: 'hard' },
+      { type: 'wipeout',        category: 'General Knowledge', difficulty: 'easy' },
+    ],
+    tags: ['Geography', 'Travel', 'History'],
+  },
+
+  // 6) Tech-forward crowd (Web3 + approachable anchors)
   {
     id: 'future-shock',
     name: 'Future Shock',
-    description: 'Web3/Blockchain + Science, still approachable.',
+    description: 'Web3 Crypto and Blockchan — approachable, modern, and fun.',
     icon: '🚀',
     difficulty: 'Medium',
     duration: 64,
     rounds: [
-      { type: 'general_trivia', category: 'Web3', difficulty: 'easy' },
-      { type: 'general_trivia', category: 'Science', difficulty: 'medium' },
-      { type: 'wipeout', category: 'Blockchain', difficulty: 'medium' },
-      { type: 'general_trivia', category: 'General Knowledge', difficulty: 'medium' },
-      { type: 'wipeout', category: 'Web3', difficulty: 'medium' },
+      { type: 'general_trivia', category: 'Web3', difficulty: 'easy' },            // you’ll add Web3 Qs soon
       { type: 'general_trivia', category: 'Pop Culture', difficulty: 'medium' },
-    ],
-    tags: ['Tech Focus', 'Modern', 'Innovation'],
-  },
-  {
-    id: 'time-travelers',
-    name: 'Time Travelers',
-    description: 'History-led with GK anchors.',
-    icon: '⏰',
-    difficulty: 'Medium',
-    duration: 64,
-    rounds: [
-      { type: 'general_trivia', category: 'History', difficulty: 'easy' },
+      { type: 'wipeout',        category: 'Web3', difficulty: 'medium' },          // wipeout keeps it spicy
       { type: 'general_trivia', category: 'General Knowledge', difficulty: 'medium' },
-      { type: 'wipeout', category: 'History', difficulty: 'medium' },
-      { type: 'general_trivia', category: 'Science', difficulty: 'medium' },
-      { type: 'general_trivia', category: 'History', difficulty: 'hard' },
-      { type: 'wipeout', category: 'General Knowledge', difficulty: 'easy' },
+      { type: 'general_trivia', category: 'History', difficulty: 'medium' },
+      { type: 'wipeout',        category: 'Web3', difficulty: 'hard' },
     ],
-    tags: ['History Focus', 'Educational', 'Timeless'],
+    tags: ['Tech', 'Modern', 'Innovation'],
   },
 ];
+
 
 const Character = ({ message }: { message: string }) => {
   const getBubbleColor = (): string => {

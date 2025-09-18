@@ -5038,5 +5038,779 @@
     "clue": "Look for the parliament and main government offices.",
     "difficulty": "hard",
     "category": "World Capitals"
+  },
+
+  {
+        "id": 361,
+        "text": "What is the name of the first cryptocurrency created?",
+        "options": [
+            "Bitcoin",
+            "Ethereum",
+            "Ripple",
+            "Litecoin"
+        ],
+        "correctAnswer": "Bitcoin",
+        "clue": "This pioneering digital currency, launched in 2009, introduced the world to blockchain.",
+        "difficulty": "easy",
+        "category": "Web3"
+    },
+    {
+        "id": 362,
+        "text": "What technology underpins most cryptocurrencies?",
+        "options": [
+            "Blockchain",
+            "Cloud Computing",
+            "Artificial Intelligence",
+            "Quantum Computing"
+        ],
+        "correctAnswer": "Blockchain",
+        "clue": "This decentralized ledger ensures secure, transparent transactions across a network.",
+        "difficulty": "easy",
+        "category": "Web3"
+    },
+    
+    {
+        "id": 363,
+        "text": "What is a decentralized application called in the Web3 ecosystem?",
+        "options": [
+            "DApp",
+            "API",
+            "Smart Contract",
+            "Wallet"
+        ],
+        "correctAnswer": "DApp",
+        "clue": "These applications run on blockchain, enabling peer-to-peer interactions without centralized control.",
+        "difficulty": "easy",
+        "category": "Web3"
+    },
+    {
+        "id": 364,
+        "text": "What is a private key in the context of cryptocurrency?",
+        "options": [
+            "Secret code to access a wallet",
+            "Public address for transactions",
+            "Blockchain identifier",
+            "Mining reward"
+        ],
+        "correctAnswer": "Secret code to access a wallet",
+        "clue": "This cryptographic code is essential for securely accessing and managing digital assets.",
+        "difficulty": "medium",
+        "category": " Web3"
+    },
+    {
+        "id": 365,
+        "text": "What does NFT stand for in the Web3 space?",
+        "options": [
+            "Non-Fungible Token",
+            "Network File Transfer",
+            "New Financial Token",
+            "Non-Fiat Transaction"
+        ],
+        "correctAnswer": "Non-Fungible Token",
+        "clue": "This unique digital asset, often tied to art or collectibles, is stored on a blockchain.",
+        "difficulty": "easy",
+        "category": "Web3"
+    },
+    {
+        "id": 366,
+        "text": "What is the name of Bitcoins creator pseudonym?",
+        "options": [
+            "Satoshi Nakamoto",
+            "Vitalik Buterin",
+            "Charlie Lee",
+            "Gavin Andresen"
+        ],
+        "correctAnswer": "Satoshi Nakamoto",
+        "clue": "This mysterious figure’s pseudonym is behind the creation of the first cryptocurrency.",
+        "difficulty": "easy",
+        "category": "Web3"
+    },
+    {
+        "id": 367,
+        "text": "What is a wallet in the context of cryptocurrency?",
+        "options": [
+            "Software or device to store keys",
+            "Physical coin storage",
+            "Mining hardware",
+            "Blockchain node"
+        ],
+        "correctAnswer": "Software or device to store keys",
+        "clue": "This tool securely holds the cryptographic keys needed to access digital assets.",
+        "difficulty": "easy",
+        "category": "Web3"
+    },
+    {
+        "id": 368,
+        "text": "Which cryptocurrency was created as a joke but gained popularity?",
+        "options": [
+            "Dogecoin",
+            "Bitcoin",
+            "Ether",
+            "Ripple"
+        ],
+        "correctAnswer": "Dogecoin",
+        "clue": "Inspired by a meme featuring a Shiba Inu, this currency became a cultural phenomenon.",
+        "difficulty": "easy",
+        "category": "Web3"
+    },
+    {
+        "id": 369,
+        "text": "What is the main purpose of a decentralized exchange (DEX)?",
+        "options": [
+            "Peer-to-peer trading",
+            "Centralized banking",
+            "Mining rewards",
+            "Fiat conversion"
+        ],
+        "correctAnswer": "Peer-to-peer trading",
+        "clue": "This platform allows users to trade digital assets directly without intermediaries.",
+        "difficulty": "medium",
+        "category": "Web3"
+    },
+    {
+        "id": 370,
+        "text": "What is a 51% attack in blockchain?",
+        "options": [
+            "Controlling majority of network power",
+            "Hacking a wallet",
+            "Forking a chain",
+            "Double-spending coins"
+        ],
+        "correctAnswer": "Controlling majority of network power",
+        "clue": "This attack allows a group to dominate a blockchain’s consensus, potentially altering transactions.",
+        "difficulty": "hard",
+        "category": "Web3"
+    },
+    {
+        "id": 371,
+        "text": "Which term refers to locking up cryptocurrency to support a blockchains operations?",
+        "options": [
+            "Staking",
+            "Mining",
+            "Hashing",
+            "Forging"
+        ],
+        "correctAnswer": "Staking",
+        "clue": "This process involves holding assets to validate transactions and earn rewards.",
+        "difficulty": "medium",
+        "category": "Web3"
+    },
+    {
+        "id": 372,
+        "text": "What is a DAO in the Web3 ecosystem?",
+        "options": [
+            "Decentralized Autonomous Organization",
+            "Digital Asset Offering",
+            "Distributed Application Operator",
+            "Decentralized Algorithm Output"
+        ],
+        "correctAnswer": "Decentralized Autonomous Organization",
+        "clue": "This entity uses smart contracts to enable community-driven governance without a central authority.",
+        "difficulty": "medium",
+        "category": "Web3"
+    },
+    {
+        "id":  373,
+        "text": "What is the term for a cryptocurrency tied to a specific blockchain?",
+        "options": [
+            "Coin",
+            "Token",
+            "Stablecoin",
+            "NFT"
+        ],
+        "correctAnswer": "Coin",
+        "clue": "This term refers to a digital currency native to its own blockchain, like Bitcoin or Ether.",
+        "difficulty": "easy",
+        "category": "Web3"
+    },
+    {
+        "id": 374,
+        "text": "What is a seed phrase used for in cryptocurrency?",
+        "options": [
+            "Recovering a wallet",
+            "Mining coins",
+            "Creating tokens",
+            "Validating blocks"
+        ],
+        "correctAnswer": "Recovering a wallet",
+        "clue": "This sequence of words acts as a backup to restore access to a crypto wallet.",
+        "difficulty": "medium",
+        "category": "Web3"
+    },
+ {
+        "id": 375,
+        "text": "What is Web3?",
+        "options": [
+            "The web where you can read only",
+            " A Third website",
+            "A Web where you can read and write",
+            "A Web where you can read, write and own"
+        ],
+        "correctAnswer": " A Web where you can read, write and own ",
+        "clue": "This vision for the internet emphasizes blockchain and user control.",
+        "difficulty": "easy",
+        "category": "Web3"       
+    },
+    {
+        "text": "What is Web3 wallet?",
+        "options": [
+            "Crypto wallet for dApps",
+            "Web browser",
+            "Website builder",
+            "Web hosting"
+        ],
+        "correctAnswer": "Crypto wallet for dApps",
+        "clue": "This tool enables users to interact with decentralized applications on blockchain networks.",
+        "difficulty": "easy",
+        "category": "Web3",
+        "id": 376
+    },
+    {
+        "text": "What is tokenization?",
+        "options": [
+            "Converting assets to tokens",
+            "Creating passwords",
+            "Mining process",
+            "Staking rewards"
+        ],
+        "correctAnswer": "Converting assets to tokens",
+        "clue": "This process turns real-world assets into digital tokens on a blockchain.",
+        "difficulty": "easy",
+        "category": "Web3",
+        "id": 377
+    },
+    {
+        "text": "What is interoperability?",
+        "options": [
+            "Different chains working together",
+            "Internet connectivity",
+            "Operating systems",
+            "Web browsers"
+        ],
+        "correctAnswer": "Different chains working together",
+        "clue": "This Web3 feature enables blockchains to share data and assets seamlessly.",
+        "difficulty": "easy",
+        "category": "Web3",
+        "id": 378
+    },
+    {
+        "text": "What is a bridge in Web3?",
+        "options": [
+            "Connects different blockchains",
+            "Network connection",
+            "Website link",
+            "Data transfer"
+        ],
+        "correctAnswer": "Connects different blockchains",
+        "clue": "This Web3 tool enables asset and data transfers across blockchains.",
+        "difficulty": "medium",
+        "category": "Web3",
+        "id": 379
+    },
+        {
+        "text": "What is an oracle in Web3?",
+        "options": [
+            "A service that connects smart contracts to real-world data",
+            "A fortune teller",
+            "A database",
+            "A search engine"
+        ],
+        "correctAnswer": "A service that connects smart contracts to real-world data",
+        "clue": "This service feeds external data to smart contracts for real-world applications.",
+        "difficulty": "hard",
+        "category": "Web3",
+        "id": 380
+    },
+        {
+        "text": "What is a liquidity pool?",
+        "options": [
+            "A collection of funds locked in a smart contract",
+            "A pool of water for swimming",
+            "A group of investors",
+            "A type of mining pool"
+        ],
+        "correctAnswer": "A collection of funds locked in a smart contract ",
+        "clue": "This pool supports trading on decentralized exchanges like Uniswap.",
+        "difficulty": "medium",
+        "category": "Web3",
+        "id": 381
+    },
+    {
+        "text": "What is a decentralized autonomous organization (DAO) treasury?",
+        "options": [
+            "A fund controlled by the DAO members through voting",
+            "A personal crypto wallet",
+            "A bank account",
+            "A venture capital fund"
+        ],
+        "correctAnswer": "A fund controlled by the DAO members through voting",
+        "clue": "This fund supports DAO projects through community-driven decisions.",
+        "difficulty": "hard",
+        "category": "Web3",
+        "id": 382
+    },
+    {
+        "text": "What is a blockchain’s genesis block?",
+        "options": [
+            "The first block in a blockchain",
+            "The last block in a chain",
+            "A block with no transactions",
+            "A block with smart contracts"
+        ],
+        "correctAnswer": "The first block in a blockchain",
+        "clue": "This initial block starts the entire blockchain ledger.",
+        "difficulty": "easy",
+        "category": "Web3",
+        "id": 384
+    },
+    {
+        "text": "What is a blockchain’s immutability?",
+        "options": [
+            "The inability to change recorded transactions",
+            "The ability to edit blocks",
+            "The speed of transactions",
+            "The size of the blockchain"
+        ],
+        "correctAnswer": "The inability to change recorded transactions",
+        "clue": "This property ensures blockchain data remains permanent and tamper-proof.",
+        "difficulty": "medium",
+        "category": "Web3",
+        "id": 385
+    },
+    {
+        "id": 386,
+        "text": "What is a soulbound token (SBT)?",
+        "options": ["A non-transferable NFT tied to a person's identity or achievements", "A token for your soul", "A transferable NFT", "A fungible token"],
+        "correctAnswer": "A non-transferable NFT tied to a person's identity or achievements",
+        "clue": "This NFT is permanently linked to its owner.",
+        "difficulty": "hard",
+        "category": "Web3"
+    },
+    {
+        "id": 387,
+        "text": "What is an optimistic rollup?",
+        "options": ["A Layer 2 scaling solution that assumes transactions are valid unless proven otherwise", "A type of optimistic trading strategy", "A network optimization technique", "A data encryption method"],
+        "correctAnswer": "A Layer 2 scaling solution that assumes transactions are valid unless proven otherwise",
+        "clue": "This relies on fraud proofs for scaling.",
+        "difficulty": "hard",
+        "category": "Web3"
+    },
+    {
+        "id": 388,
+        "text": "What is account abstraction?",
+        "options": ["Flexible account management", "Data abstraction", "User interface", "Smart contract"],
+        "correctAnswer": "Flexible account management",
+        "clue": "This simplifies user interactions with blockchains.",
+        "difficulty": "hard",
+        "category": "Web3"
+    },
+
+    {
+        "id": 389,
+        "text": "What is the data availability problem?",
+        "options": ["Ensuring data is accessible", "Storage capacity", "Internet connectivity", "Database access"],
+        "correctAnswer": "Ensuring data is accessible",
+        "clue": "This ensures blockchain data is verifiable by all nodes.",
+        "difficulty": "hard",
+        "category": "Web3"
+    },
+    {
+        "id": 390,
+        "text": "What is MEV in Web3?",
+        "options": ["Maximal Extractable Value", "Meta Exchange Value", "Multi-chain Efficiency", "Maximum Entry Value"],
+        "correctAnswer": "Maximal Extractable Value",
+        "clue": "This involves miners reordering transactions for profit.",
+        "difficulty": "hard",
+        "category": "Web3"
+    },
+  {
+        "id": 391,
+        "text": "What is layer 2 scaling?",
+        "options": ["Solutions built on main chain", "Decreasing block time", "Dual mining", "Double staking"],
+        "correctAnswer": "Solutions built on main chain",
+        "clue": "These solutions improve blockchain transaction speed.",
+        "difficulty": "medium",
+        "category": "Web3"
+    },
+   {
+        "id": 391,
+        "text": "What is a fork in blockchain?",
+        "options": ["A split in the blockchain", "A transaction type", "A wallet update", "A mining tool"],
+        "correctAnswer": "A split in the blockchain",
+        "clue": "This creates a new version of the blockchain.",
+        "difficulty": "medium",
+        "category": "Web3"
+    },
+    {
+        "id": 392,
+        "text": "What is the purpose of a hash in blockchain?",
+        "options": ["To secure and link blocks", "To mine coins", "To create wallets", "To encrypt transactions"],
+        "correctAnswer": "To secure and link blocks",
+        "clue": "This cryptographic function ensures data integrity.",
+        "difficulty": "medium",
+        "category": "Web3"
+    },
+    {
+        "id": 393,
+        "text": "What is the name of the attack where nodes are isolated from a blockchain network?",
+        "options": ["Sybil attack", "Eclipse attack", "Double-spending", "51% attack"],
+        "correctAnswer": "Eclipse attack",
+        "clue": "This attack cuts off a node’s connection to the blockchain, preventing it from receiving valid updates.",
+        "difficulty": "hard",
+        "category": "Web3"
+    },
+    {
+        "id": 394,
+        "text": "What is the name of the attack where nodes are isolated from a blockchain network?",
+        "options": ["Sybil attack", "Eclipse attack", "Double-spending", "51% attack"],
+        "correctAnswer": "Eclipse attack",
+        "clue": "This attack cuts off a node’s connection to the blockchain, preventing it from receiving valid updates.",
+        "difficulty": "hard",
+        "category": "Web3"
+    },
+    {
+        "id": 395,
+        "text": "What is a block reward in blockchain?",
+        "options": ["Cryptocurrency given to miners", "A transaction fee", "A smart contract payout", "A wallet bonus"],
+        "correctAnswer": "Cryptocurrency given to miners",
+        "clue": "This incentivizes securing the blockchain.",
+        "difficulty": "medium",
+        "category": "Web3"
+    },
+ {
+        "id": 396,
+        "text": "What is the term for splitting a blockchain into smaller parts to improve scalability?",
+        "options": ["Sharding", "Forking", "Mining", "Staking"],
+        "correctAnswer": "Sharding",
+        "clue": "This technique enhances blockchain performance by dividing data.",
+        "difficulty": "hard",
+        "category": "Web3"
+    },
+
+  {
+    "id": 397,
+    "text": "Who is often called the creator of Bitcoin?",
+    "options": ["Vitalik Buterin", "Charlie Lee", "Satoshi Nakamoto", "Gavin Andresen"],
+    "correctAnswer": "Satoshi Nakamoto",
+    "clue": "This person’s true identity remains a mystery to this day.",
+    "difficulty": "easy",
+    "category": "Web3"
+  },
+  {
+    "id": 398,
+    "text": "Who co-founded Ethereum and is one of its most public figures?",
+    "options": ["Sam Bankman-Fried", "Vitalik Buterin", "Andreas Antonopoulos", "CZ (Changpeng Zhao)"],
+    "correctAnswer": "Vitalik Buterin",
+    "clue": "He published the Ethereum whitepaper at just 19 years old.",
+    "difficulty": "easy",
+    "category": "Web3"
+  },
+  {
+    "id": 399,
+    "text": "Which entrepreneur is the CEO of Binance?",
+    "options": ["CZ (Changpeng Zhao)", "Brian Armstrong", "Tyler Winklevoss", "Jed McCaleb"],
+    "correctAnswer": "CZ (Changpeng Zhao)",
+    "clue": "His initials 'CZ' are widely recognized in the crypto space.",
+    "difficulty": "easy",
+    "category": "Web3"
+  },
+  {
+    "id": 400,
+    "text": "Who founded the cryptocurrency Litecoin in 2011?",
+    "options": ["Charlie Lee", "Hal Finney", "Jack Dorsey", "Gavin Wood"],
+    "correctAnswer": "Charlie Lee",
+    "clue": "He was a former Google engineer before creating this 'lighter' version of Bitcoin.",
+    "difficulty": "easy",
+    "category": "Web3"
+  },
+  {
+    "id": 401,
+    "text": "Who co-founded Ethereum and later created the Polkadot blockchain?",
+    "options": ["Gavin Wood", "Vitalik Buterin", "Joseph Lubin", "Charles Hoskinson"],
+    "correctAnswer": "Gavin Wood",
+    "clue": "He also wrote the first Ethereum yellow paper.",
+    "difficulty": "medium",
+    "category": "Web3"
+  },
+  {
+    "id": 402,
+    "text": "Which founder is behind the cryptocurrency exchange Coinbase?",
+    "options": ["Brian Armstrong", "CZ (Changpeng Zhao)", "Sam Bankman-Fried", "Barry Silbert"],
+    "correctAnswer": "Brian Armstrong",
+    "clue": "His company became the first major crypto exchange to go public on NASDAQ.",
+    "difficulty": "medium",
+    "category": "Web3"
+  },
+  {
+    "id": 403,
+    "text": "Which Ethereum co-founder went on to establish Cardano?",
+    "options": ["Charles Hoskinson", "Gavin Wood", "Joseph Lubin", "Vitalik Buterin"],
+    "correctAnswer": "Charles Hoskinson",
+    "clue": "He is known for emphasizing academic research and peer-reviewed blockchain development.",
+    "difficulty": "medium",
+    "category": "Web3"
+  },
+  {
+    "id": 404,
+    "text": "Who founded ConsenSys, a blockchain software company heavily focused on Ethereum?",
+    "options": ["Joseph Lubin", "Gavin Andresen", "Jed McCaleb", "Barry Silbert"],
+    "correctAnswer": "Joseph Lubin",
+    "clue": "This Canadian entrepreneur was also a co-founder of Ethereum.",
+    "difficulty": "medium",
+    "category": "Web3"
+  },
+  {
+    "id": 405,
+    "text": "Who is the cryptographer and early Bitcoin pioneer often credited as the first person to receive a Bitcoin transaction?",
+    "options": ["Hal Finney", "Nick Szabo", "Adam Back", "Wei Dai"],
+    "correctAnswer": "Hal Finney",
+    "clue": "He received 10 BTC from Satoshi Nakamoto in 2009.",
+    "difficulty": "hard",
+    "category": "Web3"
+  },
+  {
+    "id": 406,
+    "text": "Which computer scientist created the concept of 'smart contracts' in the 1990s?",
+    "options": ["Nick Szabo", "David Chaum", "Hal Finney", "Gavin Wood"],
+    "correctAnswer": "Nick Szabo",
+    "clue": "He also created a digital currency idea called 'Bit Gold.'",
+    "difficulty": "hard",
+    "category": "Web3"
+  },
+  {
+    "id": 407,
+    "text": "Who co-founded Ripple and Stellar, and was also a co-founder of Mt. Gox?",
+    "options": ["Jed McCaleb", "Chris Larsen", "Barry Silbert", "David Schwartz"],
+    "correctAnswer": "Jed McCaleb",
+    "clue": "He left Ripple to create Stellar in 2014.",
+    "difficulty": "hard",
+    "category": "Web3"
+  },
+  {
+    "id": 408,
+    "text": "Who is the cypherpunk and CEO of Blockstream, known for his work on Hashcash?",
+    "options": ["Adam Back", "Wei Dai", "Hal Finney", "Nick Szabo"],
+    "correctAnswer": "Adam Back",
+    "clue": "Hashcash, which he invented, was referenced in the Bitcoin whitepaper.",
+    "difficulty": "hard",
+    "category": "Web3"
+  } ,
+
+  {
+    "id": 409,
+    "text": "Which meme coin was created in 2013 as a joke based on the 'Doge' Shiba Inu meme?",
+    "options": ["Dogecoin", "Shiba Inu", "PEPE", "FLOKI"],
+    "correctAnswer": "Dogecoin",
+    "clue": "Its logo features a Shiba Inu dog with Comic Sans text.",
+    "difficulty": "easy",
+    "category": "Web3"
+  },
+  {
+    "id": 410,
+    "text": "Which meme coin brands itself as the 'Dogecoin killer'?",
+    "options": ["Shiba Inu", "Dogecoin", "FLOKI", "Baby Doge"],
+    "correctAnswer": "Shiba Inu",
+    "clue": "It launched in 2020 and quickly became an ERC-20 token phenomenon.",
+    "difficulty": "easy",
+    "category": "Web3"
+  },
+  {
+    "id": 411,
+    "text": "Which meme coin is directly inspired by Elon Musk’s Shiba Inu puppy?",
+    "options": ["FLOKI", "Dogecoin", "Shiba Inu", "PEPE"],
+    "correctAnswer": "FLOKI",
+    "clue": "It takes its name from a dog owned by a billionaire tech entrepreneur.",
+    "difficulty": "easy",
+    "category": "Web3"
+  },
+  {
+    "id": 412,
+    "text": "Which meme coin is based on the popular 'Sad Frog' internet meme?",
+    "options": ["PEPE", "DogeBonk", "Shiba Inu", "DogeCoin"],
+    "correctAnswer": "PEPE",
+    "clue": "This token surged in 2023 using a frog as its mascot.",
+    "difficulty": "easy",
+    "category": "Web3"
+  },
+  {
+    "id": 413,
+    "text": "Which meme coin was launched in 2021 as a spinoff of Dogecoin with a focus on being 'cute' and family-friendly?",
+    "options": ["Baby Doge", "Shiba Inu", "PEPE", "FLOKI"],
+    "correctAnswer": "Baby Doge",
+    "clue": "The name suggests a smaller, younger version of Dogecoin.",
+    "difficulty": "medium",
+    "category": "Web3"
+  },
+  {
+    "id": 414,
+    "text": "Which meme coin community refers to itself as the 'Shib Army'?",
+    "options": ["Shiba Inu", "FLOKI", "PEPE", "Dogecoin"],
+    "correctAnswer": "Shiba Inu",
+    "clue": "Its fans often use military-style language to describe their community.",
+    "difficulty": "medium",
+    "category": "Web3"
+  },
+  {
+    "id": 415,
+    "text": "Which meme coin experienced a surge after Elon Musk tweeted simply 'Doge'?",
+    "options": ["Dogecoin", "PEPE", "Shiba Inu", "FLOKI"],
+    "correctAnswer": "Dogecoin",
+    "clue": "It’s one of the earliest meme coins and has Musk as a frequent supporter.",
+    "difficulty": "medium",
+    "category": "Web3"
+  },
+  {
+    "id": 416,
+    "text": "Which meme coin project launched a decentralized exchange called ShibaSwap?",
+    "options": ["Shiba Inu", "Dogecoin", "FLOKI", "PEPE"],
+    "correctAnswer": "Shiba Inu",
+    "clue": "This meme coin expanded beyond a token into its own DeFi ecosystem.",
+    "difficulty": "medium",
+    "category": "Web3"
+  },
+  {
+    "id": 417,
+    "text": "Which meme coin uses the slogan 'Meme coin revolution' and launched on the BNB Chain?",
+    "options": ["DogeBonk", "Shiba Inu", "Baby Doge", "PEPE"],
+    "correctAnswer": "DogeBonk",
+    "clue": "It is less known than Doge or Shiba, but its branding emphasizes rebellion.",
+    "difficulty": "hard",
+    "category": "Web3"
+  },
+  {
+    "id": 418,
+    "text": "Which meme coin briefly reached the top 10 cryptocurrencies by market cap in 2021 alongside Dogecoin?",
+    "options": ["Shiba Inu", "PEPE", "Baby Doge", "FLOKI"],
+    "correctAnswer": "Shiba Inu",
+    "clue": "At its peak, its market cap rivaled long-established altcoins like Litecoin.",
+    "difficulty": "hard",
+    "category": "Web3"
+  },
+  {
+    "id": 419,
+    "text": "Which meme coin is sometimes nicknamed 'the people’s cryptocurrency'?",
+    "options": ["Dogecoin", "Shiba Inu", "FLOKI", "PEPE"],
+    "correctAnswer": "Dogecoin",
+    "clue": "It started as a joke but became widely used for tipping and donations.",
+    "difficulty": "hard",
+    "category": "Web3"
+  },
+  {
+    "id": 420,
+    "text": "Which meme coin community is known for adopting Norse mythology branding with Viking themes?",
+    "options": ["FLOKI", "Dogecoin", "Baby Doge", "PEPE"],
+    "correctAnswer": "FLOKI",
+    "clue": "Its imagery includes Viking ships and Nordic warriors.",
+    "difficulty": "hard",
+    "category": "Web3"
+  } ,
+  {
+    "id": 421,
+    "text": "Which cryptocurrency exchange collapsed in 2022, leading to the arrest of its founder Sam Bankman-Fried?",
+    "options": ["FTX", "Mt. Gox", "Binance", "Bitfinex"],
+    "correctAnswer": "FTX",
+    "clue": "This exchange was based in the Bahamas and once ran a Super Bowl ad.",
+    "difficulty": "easy",
+    "category": "Web3"
+  },
+  {
+    "id": 422,
+    "text": "Which infamous platform became a meme in 2017 for its 'guaranteed' returns and the catchphrase 'Bitconnect!'?",
+    "options": ["Bitconnect", "OneCoin", "PlusToken", "QuadrigaCX"],
+    "correctAnswer": "Bitconnect",
+    "clue": "It promised daily interest through a 'trading bot' that never existed.",
+    "difficulty": "easy",
+    "category": "Web3"
+  },
+  {
+    "id": 423,
+    "text": "Which 2014 exchange hack led to the loss of over 650,000 Bitcoin and years of bankruptcy proceedings?",
+    "options": ["Mt. Gox", "FTX", "Bitfinex", "Cryptopia"],
+    "correctAnswer": "Mt. Gox",
+    "clue": "This Tokyo-based exchange once handled 70% of global Bitcoin trades.",
+    "difficulty": "easy",
+    "category": "Web3"
+  },
+  {
+    "id": 424,
+    "text": "Which company marketed itself as 'the Bitcoin killer' but turned out to be one of the largest Ponzi schemes in crypto history?",
+    "options": ["OneCoin", "Bitconnect", "PlusToken", "Terra"],
+    "correctAnswer": "OneCoin",
+    "clue": "Its founder Ruja Ignatova is still on the FBI’s most wanted list.",
+    "difficulty": "easy",
+    "category": "Web3"
+  },
+  {
+    "id": 425,
+    "text": "Which fraud involved a Chinese wallet app that stole over $2 billion from investors before collapsing in 2019?",
+    "options": ["PlusToken", "OneCoin", "QuadrigaCX", "Mirror Trading"],
+    "correctAnswer": "PlusToken",
+    "clue": "It promised 'high yield investment' returns via an app wallet.",
+    "difficulty": "medium",
+    "category": "Web3"
+  },
+  {
+    "id": 426,
+    "text": "Which Canadian exchange collapsed in 2019 after its founder reportedly died, leaving customers unable to access $190M?",
+    "options": ["QuadrigaCX", "Mt. Gox", "Bitfinex", "FTX"],
+    "correctAnswer": "QuadrigaCX",
+    "clue": "Its founder, Gerald Cotten, allegedly died in India, sparking conspiracy theories.",
+    "difficulty": "medium",
+    "category": "Web3"
+  },
+  {
+    "id": 427,
+    "text": "Which stablecoin ecosystem collapsed in 2022, wiping out billions and contributing to a broader crypto market crash?",
+    "options": ["Terra/Luna", "USDT", "DAI", "FRAX"],
+    "correctAnswer": "Terra/Luna",
+    "clue": "Its algorithmic stablecoin UST lost its peg, causing a death spiral.",
+    "difficulty": "medium",
+    "category": "Web3"
+  },
+  {
+    "id": 428,
+    "text": "Which South African crypto scheme called itself a 'Bitcoin investment platform' but turned out to be a $3.6B scam?",
+    "options": ["Mirror Trading International", "PlusToken", "OneCoin", "Bitconnect"],
+    "correctAnswer": "Mirror Trading International",
+    "clue": "The scheme used fake trading bots and was declared the world’s biggest crypto scam of 2020.",
+    "difficulty": "medium",
+    "category": "Web3"
+  },
+  {
+    "id": 429,
+    "text": "Which founder was sentenced in 2023 for defrauding customers of billions through his exchange and trading firm Alameda?",
+    "options": ["Sam Bankman-Fried", "Do Kwon", "Gerald Cotten", "Mark Karpelès"],
+    "correctAnswer": "Sam Bankman-Fried",
+    "clue": "He was once seen as a crypto 'white knight' before his dramatic downfall.",
+    "difficulty": "hard",
+    "category": "Web3"
+  },
+  {
+    "id": 430,
+    "text": "Who was the CEO of Mt. Gox during its collapse and later faced trial in Japan?",
+    "options": ["Mark Karpelès", "Charlie Lee", "Barry Silbert", "Jihan Wu"],
+    "correctAnswer": "Mark Karpelès",
+    "clue": "This French-born programmer was at the center of the Mt. Gox bankruptcy.",
+    "difficulty": "hard",
+    "category": "Web3"
+  },
+  {
+    "id": 431,
+    "text": "Which crypto founder was arrested in Montenegro in 2023 after fleeing charges related to the collapse of Terra/Luna?",
+    "options": ["Do Kwon", "Sam Bankman-Fried", "Changpeng Zhao", "Alex Mashinsky"],
+    "correctAnswer": "Do Kwon",
+    "clue": "He faced charges in both the U.S. and South Korea for his role in the collapse.",
+    "difficulty": "hard",
+    "category": "Web3"
+  },
+  {
+    "id": 432,
+    "text": "Which lending platform filed for bankruptcy in 2022 after freezing withdrawals, leaving billions locked up?",
+    "options": ["Celsius", "BlockFi", "Voyager", "Genesis"],
+    "correctAnswer": "Celsius",
+    "clue": "Its CEO Alex Mashinsky promoted 'unbank yourself' before the platform collapsed.",
+    "difficulty": "hard",
+    "category": "Web3"
   }
+
 ]

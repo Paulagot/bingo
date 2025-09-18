@@ -3,6 +3,9 @@ import React, { createContext, useContext, useEffect, useState, type ReactNode }
 import { useStellarWallet } from './useStellarWallet';
 import type { StellarWalletConnection, StellarNetwork, StellarBalance } from '../types/stellar-types';
 import type { WalletConnectionResult, TransactionResult } from '../types';
+import { stellarStorageKeys } from './config';
+
+
 
 // ===================================================================
 // STELLAR WALLET CONTEXT TYPE
@@ -112,8 +115,9 @@ export const StellarWalletProvider: React.FC<StellarWalletProviderProps> = ({
   // Auto-connect on initialization
   useEffect(() => {
     if (autoConnect && isProviderReady && !stellarWallet.isConnected && !stellarWallet.isConnecting) {
-      const savedWalletId = localStorage.getItem('stellar-wallet-id');
-      const savedAutoConnect = localStorage.getItem('stellar-auto-connect') === 'true';
+     const savedWalletId = localStorage.getItem(stellarStorageKeys.WALLET_ID);
+const savedAutoConnect = localStorage.getItem(stellarStorageKeys.AUTO_CONNECT) === 'true';
+
       
       if (savedWalletId && savedAutoConnect) {
         console.log('🔄 Auto-connecting to Stellar wallet...');
