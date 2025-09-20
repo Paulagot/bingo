@@ -37,7 +37,7 @@ export class LeaderboardService {
         score: data.score || 0,
         cumulativeNegativePoints: data.cumulativeNegativePoints || 0,
         pointsRestored: data.pointsRestored || 0,
-        penaltyDebt: data.penaltyDebt || 0 // Include debt for display purposes
+       // Include debt for display purposes
       };
 
       if (debug) {
@@ -105,7 +105,7 @@ export class LeaderboardService {
         score: data.score || 0,
         cumulativeNegativePoints: data.cumulativeNegativePoints || 0,
         pointsRestored: data.pointsRestored || 0,
-        penaltyDebt: data.penaltyDebt || 0,
+        
         statistics: {
           totalAnswers,
           correctAnswers,
@@ -226,10 +226,7 @@ export class LeaderboardService {
       return total + extrasCount;
     }, 0);
 
-    // Calculate total penalty debt (for Wipeout rounds)
-    const totalPenaltyDebt = activePlayers.reduce((total, player) => {
-      return total + (player.penaltyDebt || 0);
-    }, 0);
+ 
 
     const stats = {
       totalPlayers: room.players.length,

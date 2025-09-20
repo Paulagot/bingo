@@ -140,6 +140,11 @@ const HostControlsPage = () => {
   const [, setTotalInRound] = useState(1);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(-1);
 
+  // 🔵 SPEED ROUND — host live dashboard state
+const [speedActivities, setSpeedActivities] = useState<any[]>([]);
+const [speedStats, setSpeedStats] = useState({ totalAnswers: 0, correct: 0, wrong: 0, skipped: 0, answersPerSec: 0 });
+const [roundCountdown, setRoundCountdown] = useState<number | null>(null);
+
 // Timer now managed by server - host gets same countdown effects as players  
 const { timeLeft } = useQuizTimer({
   question: currentQuestion,
@@ -260,6 +265,35 @@ const { timeLeft } = useQuizTimer({
   };
 }, [socket]);
 
+// 🔵 SPEED ROUND — host live dashboard listeners
+useEffect(() => {
+  if (!socket) return;
+
+  const onRemain = ({ remaining }: { remaining: number }) => {
+    setRoundCountdown(remaining);
+  };
+
+  const onActivity = (evt: any) => {
+    // e.g. { playerId, playerName, correct, skipped, questionId, ts }
+    setSpeedActivities(prev => [evt, ...prev].slice(0, 50));
+  };
+
+  const onStats = (s: { totalAnswers: number; correct: number; wrong: number; skipped: number; answersPerSec: number }) => {
+    setSpeedStats(s);
+  };
+
+  socket.on('round_time_remaining', onRemain);
+  socket.on('host_speed_activity', onActivity);
+  socket.on('host_speed_stats', onStats);
+
+  return () => {
+    socket.off('round_time_remaining', onRemain);
+    socket.off('host_speed_activity', onActivity);
+    socket.off('host_speed_stats', onStats);
+  };
+}, [socket]);
+
+
   // Listen for question events
   useEffect(() => {
     if (!socket) return;
@@ -294,6 +328,8 @@ const { timeLeft } = useQuizTimer({
       socket.off('question', handleQuestion);
     };
   }, [socket, currentQuestionIndex, config?.roundDefinitions]);
+
+  
 
   // Listen for review_question events
   useEffect(() => {
@@ -638,8 +674,66 @@ const { timeLeft } = useQuizTimer({
   />
 )}
 
+{/* 🔵 SPEED ROUND — Host Live Panel */}
+{roomState.phase === 'asking' && roundTypeId === 'speed_round' && (
+  <div className="mb-6 rounded-xl border-2 border-blue-200 bg-white p-6 shadow-lg">
+    <div className="mb-4 flex items-center justify-between">
+      <h3 className="text-fg text-lg font-bold">⚡ Speed Round — Live</h3>
+      {roundCountdown !== null && (
+        <div className="flex items-center space-x-2">
+          <Timer className="h-4 w-4 text-orange-600" />
+          <span className={`text-lg font-bold ${
+            roundCountdown <= 10 ? 'animate-pulse text-red-600' :
+            roundCountdown <= 30 ? 'text-orange-600' : 'text-green-600'
+          }`}>
+            {roundCountdown}s
+          </span>
+        </div>
+      )}
+    </div>
+
+    {/* Stats */}
+    <div className="mb-6 grid grid-cols-4 gap-4">
+      <div className="rounded-xl bg-slate-50 p-4">
+        <div className="text-slate-500 text-sm">Total answers</div>
+        <div className="text-2xl font-bold">{speedStats.totalAnswers}</div>
+      </div>
+      <div className="rounded-xl bg-emerald-50 p-4">
+        <div className="text-emerald-600 text-sm">Correct</div>
+        <div className="text-2xl font-bold">{speedStats.correct}</div>
+      </div>
+      <div className="rounded-xl bg-rose-50 p-4">
+        <div className="text-rose-600 text-sm">Wrong</div>
+        <div className="text-2xl font-bold">{speedStats.wrong}</div>
+      </div>
+      <div className="rounded-xl bg-amber-50 p-4">
+        <div className="text-amber-600 text-sm">Skipped</div>
+        <div className="text-2xl font-bold">{speedStats.skipped}</div>
+      </div>
+    </div>
+
+    {/* Activity ticker (speed-only feed) */}
+    <div className="rounded-xl border bg-white">
+      <ul className="divide-y">
+        {speedActivities.map((e, i) => (
+          <li key={i} className="flex items-center gap-3 p-3">
+            <span className="text-xs text-slate-500">{new Date(e.ts).toLocaleTimeString()}</span>
+            <span className="font-medium">{e.playerName}</span>
+            {e.skipped ? <span>⏭︎</span> : e.correct ? <span>✅</span> : <span>❌</span>}
+            <span className="text-sm text-slate-400">Q{e.questionId}</span>
+          </li>
+        ))}
+        {speedActivities.length === 0 && (
+          <li className="p-3 text-sm text-slate-500">Waiting for answers…</li>
+        )}
+      </ul>
+    </div>
+  </div>
+)}
+
+
         {/* Active Question Display */}
-        {currentQuestion && roomState.phase === 'asking' && (
+        {currentQuestion && roomState.phase === 'asking' && roundTypeId !== 'speed_round' && (
           <div className="bg-muted mb-6 rounded-xl border-2 border-blue-200 p-6 shadow-lg">
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center space-x-4">
