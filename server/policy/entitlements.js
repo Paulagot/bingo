@@ -10,7 +10,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback-dev-secret';
 const FALLBACK_FREE_PLAN = {
   max_players_per_game: 3,
   max_rounds: 8,
-  round_types_allowed: ['general_trivia', 'wipeout'],
+  round_types_allowed: ['general_trivia', 'wipeout', 'speed_round'],
   extras_allowed: ['buyHint', 'restorePoints', 'freezeOutTeam', 'robPoints'],
   concurrent_rooms: 1,
   game_credits_remaining: 2,
@@ -19,7 +19,7 @@ const FALLBACK_FREE_PLAN = {
 const FALLBACK_DEV_PLAN = {
   max_players_per_game: 20,
   max_rounds: 8,
-  round_types_allowed: ['general_trivia', 'wipeout'],
+  round_types_allowed: ['general_trivia', 'wipeout', 'speed_round'],
   extras_allowed: ['buyHint', 'restorePoints', 'freezeOutTeam', 'robPoints'],
   concurrent_rooms: 10,
   game_credits_remaining: 9999,

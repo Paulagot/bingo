@@ -10,7 +10,7 @@ import {
   emitRoomState,
 } from '../quizRoomManager.js';
 
-import { QuestionEmissionService } from './services/QuestionEmissionService.js';
+
 import { QuestionService } from './services/QuestionService.js';
 import { TimerService } from './services/TimerService.js';
 import { LeaderboardService } from './services/LeaderboardService.js';
@@ -82,7 +82,7 @@ export function initRound(roomId, namespace) {
   // Reset per-round extras tracking AND per-round penalty debt
   Object.values(room.playerData).forEach(pd => {
     pd.usedExtrasThisRound = {};
-    // pd.penaltyDebt = 0; // <-- debt is per round
+  
   });
 
   room.currentQuestionIndex = -1;
@@ -127,18 +127,18 @@ export function startNextQuestion(roomId, namespace) {
   const questionStartTime = Date.now();
   room.questionStartTime = questionStartTime;
 
-  room.players.forEach(player => {
-    const socket = namespace.sockets.get(player.socketId);
-    if (socket) {
-      QuestionEmissionService.emitQuestionToPlayer(socket, room, nextQuestion);
-    }
+  // Unified broadcast to match generalTriviaEngine
+  namespace.to(roomId).emit('question', {
+    id: nextQuestion.id,
+    text: nextQuestion.text,
+    options: Array.isArray(nextQuestion.options) ? nextQuestion.options : [],
+    timeLimit,
+    questionStartTime,
+    questionNumber: room.currentQuestionIndex + 1,
+    totalQuestions: room.questions.length,
+    currentQuestionIndex: room.currentQuestionIndex
   });
 
-  // Also send to host
-  const hostSocket = namespace.sockets.get(room.hostSocketId);
-  if (hostSocket) {
-    QuestionEmissionService.emitQuestionToPlayer(hostSocket, room, nextQuestion);
-  }
 
   timerService.startQuestionTimer(roomId, timeLimit, () => {
     startNextQuestion(roomId, namespace);
@@ -272,19 +272,6 @@ export function isReviewComplete(roomId) {
 /* -------------------------- Leaderboard util ------------------------ */
 export function buildLeaderboard(room) {
   return LeaderboardService.buildLeaderboard(room);
-}
-
-/* ------------------------------- Helpers --------------------------- */
-
-function clearExpiredFreezeFlags(room) {
-  for (const playerId in room.playerData) {
-    const p = room.playerData[playerId];
-    if (p.frozenNextQuestion && room.currentQuestionIndex > p.frozenForQuestionIndex) {
-      p.frozenNextQuestion = false;
-      p.frozenForQuestionIndex = null;
-      if (debug) console.log(`[wipeoutEngine] 🧼 Cleared freeze for ${playerId}`);
-    }
-  }
 }
 
 /* ------------------------ Exports for handlers --------------------- */

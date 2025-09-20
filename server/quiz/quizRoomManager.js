@@ -373,36 +373,18 @@ export function advanceToNextQuestion(roomId) {
   return room.questions[room.currentQuestionIndex];
 }
 
-// Clear freeze flags for players who have missed their question
-function clearExpiredFreezeFlags(roomId) {
-  const room = quizRooms.get(roomId);
-  if (!room) return;
-
-  if (debug) console.log(`[quizRoomManager] 🔍 clearExpiredFreezeFlags called for ${roomId}, currentQuestionIndex: ${room.currentQuestionIndex}`);
-
-  for (const pid of Object.keys(room.playerData)) {
-    const playerData = room.playerData[pid];
-    if (playerData?.frozenNextQuestion && playerData?.frozenForQuestionIndex !== undefined) {
-      if (debug) console.log(`[quizRoomManager] 🔍 Player ${pid}: frozenForQuestionIndex=${playerData.frozenForQuestionIndex}, currentQuestionIndex=${room.currentQuestionIndex}`);
-      
-      if (room.currentQuestionIndex > playerData.frozenForQuestionIndex) {
-        playerData.frozenNextQuestion = false;
-        const missedQuestion = playerData.frozenForQuestionIndex;
-        playerData.frozenForQuestionIndex = undefined;
-        if (debug) console.log(`[quizRoomManager] ❄️ Cleared freeze flag for ${pid} (missed question ${missedQuestion})`);
-      } else {
-        if (debug) console.log(`[quizRoomManager] 🔍 NOT clearing ${pid}: ${room.currentQuestionIndex} <= ${playerData.frozenForQuestionIndex}`);
-      }
-    }
-  }
-}
 
 export function isEndOfRound(roomId) {
   const room = quizRooms.get(roomId);
   if (!room) return false;
-  const perRound = room.config.questionsPerRound || 5;
-  return ((room.currentQuestionIndex + 1) % perRound) === 0;
+
+  const totalQuestions = Array.isArray(room.questions) ? room.questions.length : 0;
+  if (totalQuestions === 0) return false;
+
+  // End of round when we’re on the final loaded question
+  return room.currentQuestionIndex >= totalQuestions - 1;
 }
+
 
 export function startNextRound(roomId) {
   const room = quizRooms.get(roomId);
@@ -411,6 +393,8 @@ export function startNextRound(roomId) {
   room.currentQuestionIndex = -1;
   room.currentPhase = 'waiting';
   room.questions = [];
+
+  room.reviewQuestions = undefined;
   // NOTE: We do NOT reset usedQuestionIds here - questions remain used across all rounds
   if (debug) console.log(`[quizRoomManager] ⏭️ Started round ${room.currentRound} in ${roomId}`);
   return true;
@@ -421,6 +405,8 @@ export function setQuestionsForCurrentRound(roomId, questions) {
   if (!room) return false;
   
   room.questions = questions;
+
+  room.reviewQuestions = undefined; // clear any previous review scope
   
   // NEW: Mark these questions as used globally
   markQuestionsAsUsed(roomId, questions);

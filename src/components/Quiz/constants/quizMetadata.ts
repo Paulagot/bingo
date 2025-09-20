@@ -26,12 +26,12 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     description: 'Classic multiple choice trivia game. Points awarded for correct answers. Hints and Freeze out are available as fundraising extras.',
     gameplay: 'Host reads questions → teams see question & answers → automatically serves host and players next question after 25s → Host controlled review of questions with answers → Host presents Leaderboard',
     pros: [ 'Steady pace', 'Fair for all teams', 'Customizable levels of difficulty'],
-    timing: '28 seconds per question',
+    timing: '30 seconds per question',
     difficulty: 'Easy',
     bestFor: 'Mixed groups, warm-up rounds, classic quiz feel, family events',
     defaultConfig: {
   questionsPerRound: 6,
-  timePerQuestion: 28,
+  timePerQuestion: 30,
   pointsPerDifficulty: {
     easy: 2,
     medium: 3,
@@ -41,20 +41,28 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     extras: ['Hint', 'Freeze-out-Team'],// ✅ Optional extras
     videoId: 'YOUR_YOUTUBE_VIDEO_ID' // ✅ Optional video ID
   },
-  // speed_round: {
-  //   id: 'speed_round',
-  //   name: 'Speed Round',
-  //   icon: '⚡',
-  //   description: 'Race against time to answer as many as possible, questions range from easy to hard. Extra Time fundraising option.',
-  //   gameplay: 'Host starts the round → players are servered qustions for 2 Min → players can skip a question if they dont know the answer → players see automatic Scoring → Host reads round scores → Host presents Leaderboard (correct answers = 2 points)',
-  //   pros: ['High energy', 'Strategic skipping', 'Exciting'],
-  //   timing: '2 minutes total',
-  //   difficulty: 'Medium',
-  //   bestFor: 'Mixed groups, Fast energy-building rounds, family events',
-  //   defaultConfig: { totalTimeSeconds: 120 },
-  //   extras: ['Extra-time' ], // ✅ Optional extras
-  //   videoId: 'YOUR_YOUTUBE_VIDEO_ID'
-  // },
+
+
+   speed_round: {
+    id: 'speed_round',
+    name: 'Speed Round (True/False)',
+    icon: '⚡',
+    description: 'Answer as many True/False as possible in 90 seconds. You can skip.',
+    gameplay: 'Host starts → 90s global timer → tap True / False / Skip → instant scoring → Review → Round Leaderboard.',
+    pros: ['Fast-paced', 'Mobile-friendly', 'High engagement'],
+    timing: '75 seconds',
+    difficulty: 'Easy–Hard or Mixed',
+    bestFor: 'Energy spikes and interludes',
+    defaultConfig: {
+      totalTimeSeconds: 75,
+      skipAllowed: true,
+      pointsPerDifficulty: { easy: 1, medium: 2, hard: 3 },
+      pointsLostPerWrong: 0,
+      pointsLostPerUnanswered: 0,
+      
+    },
+    extras: ['robPoints'] // allowed during/after as per your rules
+  },
   wipeout: {
     id: 'wipeout',
     name: 'Wipeout',
@@ -188,7 +196,7 @@ export const availableDifficulties = ['easy', 'medium', 'hard'] as const;
 export const availableCategories: Record<RoundTypeId, string[]> = {
   general_trivia: ['General Knowledge','Olympic Sports', 'Pop Music', 'History', 'World Capitals', 'Pop Culture', 'Web3'],
   wipeout: ['General Knowledge','Olympic Sports', 'Pop Music', 'History', 'World Capitals', 'Pop Culture', 'Web3'],
-  // speed_round: [...],
+  speed_round: ['Math', 'Emojis', 'Pop Music', 'Sport', 'family movies'],
   // media_puzzle: [...],
   // head_to_head: [...]
 };

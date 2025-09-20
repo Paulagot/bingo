@@ -18,21 +18,24 @@ import { emitFullRoomState } from '../handlers/sharedUtils.js';
 import { isQuestionWindowOpen } from './scoringUtils.js';
 import { QuestionEmissionService } from '../gameplayEngines/services/QuestionEmissionService.js';
 
-const debug =  true;
+const debug =  false;
 
 function getEngine(room) {
   const roundType = room.config.roundDefinitions?.[room.currentRound - 1]?.roundType;
 
   switch (roundType) {
     case 'general_trivia':
-      return import('../gameplayEngines/generalTriviaEngine.js'); // <- fixed path
+      return import('../gameplayEngines/generalTriviaEngine.js'); // dynamic import keeps others working
     case 'wipeout':
-      return import('../gameplayEngines/wipeoutEngine.js');       // <- fixed path
+      return import('../gameplayEngines/wipeoutEngine.js');
+    case 'speed_round':
+      return import('../gameplayEngines/speedRoundEngine.js');    // ✅ add this line
     default:
       console.warn(`[getEngine] ❓ Unknown round type: ${roundType}`);
       return null;
   }
 }
+
 
 export function setupPlayerHandlers(socket, namespace) {
 
@@ -397,6 +400,31 @@ socket.on('use_extra', async ({ roomId, playerId, extraId, targetPlayerId }) => 
   }
 });
 
+// Speed-round-specific instant submit
+socket.on('submit_speed_answer', ({ roomId, playerId, questionId, answer }) => {
+  const room = getQuizRoom(roomId);
+  if (!room) {
+    socket.emit('quiz_error', { message: 'Room not found' });
+    return;
+  }
+  const enginePromise = getEngine(room);
+  if (!enginePromise) {
+    socket.emit('quiz_error', { message: 'No gameplay engine available' });
+    return;
+  }
+
+  Promise.resolve(enginePromise).then(engine => {
+    if (!engine?.handlePlayerAnswer) {
+      socket.emit('quiz_error', { message: 'Invalid gameplay engine' });
+      return;
+    }
+    engine.handlePlayerAnswer(roomId, playerId, { questionId, answer }, namespace);
+  }).catch(err => {
+    console.error(`[submit_speed_answer] Engine load error:`, err);
+  });
+});
+
+
   socket.on('use_clue', ({ roomId, playerId }) => {
    if (debug)  console.log(`[PlayerHandler] 💡 Legacy use_clue from ${playerId} - redirecting to buyHint`);
     
@@ -421,6 +449,38 @@ socket.on('request_current_state', ({ roomId, playerId }) => {
   emitFullRoomState(socket, namespace, roomId);
   const room = getQuizRoom(roomId);
   if (!room) return;
+
+  // inside request_current_state:
+if (room.currentPhase === 'asking') {
+  const roundType = room.config.roundDefinitions?.[room.currentRound - 1]?.roundType;
+  if (roundType === 'speed_round') {
+    const remaining = Math.max(0, Math.floor(((room.roundEndTime || 0) - Date.now()) / 1000));
+    socket.emit('round_time_remaining', { remaining });
+
+    // Send the player's current speed question
+    const enginePromise = getEngine(room);
+    if (enginePromise) {
+      Promise.resolve(enginePromise).then(engine => {
+        if (engine?.emitNextQuestionToPlayer) {
+          // Re-emit their current question (doesn't advance cursor)
+          const cursor = room.playerCursors?.[playerId] ?? 0;
+          // Temporarily emit the question at current cursor without changing state:
+          const player = room.players.find(p => p.id === playerId);
+          if (player?.socketId && room.questions[cursor]) {
+            const q = room.questions[cursor];
+            socket.emit('speed_question', {
+              id: q.id,
+              text: q.text,
+              options: Array.isArray(q.options) ? q.options.slice(0, 2) : [],
+            });
+          }
+        }
+      });
+    }
+    return; // avoid falling through to per-question timer logic
+  }
+}
+
 
   // ✅ EXISTING: Handle asking phase
 if (room.currentPhase === 'asking' && room.currentQuestionIndex >= 0) {
@@ -473,10 +533,12 @@ if (room.currentPhase === 'asking' && room.currentQuestionIndex >= 0) {
     let enginePromise;
     
   if (roundType === 'general_trivia') {
-  enginePromise = import('../gameplayEngines/generalTriviaEngine.js'); // <- fixed
-} else if (roundType === 'wipeout') {
-  enginePromise = import('../gameplayEngines/wipeoutEngine.js');       // <- fixed
-}
+      enginePromise = import('../gameplayEngines/generalTriviaEngine.js');
+    } else if (roundType === 'wipeout') {
+      enginePromise = import('../gameplayEngines/wipeoutEngine.js');
+    } else if (roundType === 'speed_round') {
+      enginePromise = import('../gameplayEngines/speedRoundEngine.js'); // ✅ add this
+    }
     
     if (enginePromise) {
       enginePromise.then(engine => {

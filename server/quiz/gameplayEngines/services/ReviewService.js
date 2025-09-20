@@ -20,39 +20,41 @@ export class ReviewService {
    */
   static emitNextReviewQuestion(roomId, namespace, gameEngine, getQuizRoom, emitRoomState) {
     const room = getQuizRoom(roomId);
-    
     if (!room) {
+      if (debug) console.error(`[ReviewService] ❌ Room ${roomId} not found`);
+      return false;
+    }
+
+    // Prefer the engine-scoped review list when present (e.g., speed_round)
+    const qList = (Array.isArray(room.reviewQuestions) && room.reviewQuestions.length > 0)
+      ? room.reviewQuestions
+      : room.questions;
+
+    if (!qList || !Array.isArray(qList)) {
       if (debug) {
-        console.error(`[ReviewService] ❌ Room ${roomId} not found`);
+        console.error(`[ReviewService] ❌ Room ${roomId} has no valid questions array`);
+        console.error(`[ReviewService] 🔍 questions:`, qList);
       }
       return false;
     }
 
-    if (!room.questions || !Array.isArray(room.questions)) {
-      if (debug) {
-        console.error(`[ReviewService] ❌ Room ${roomId} has no questions array`);
-        console.error(`[ReviewService] 🔍 Room.questions:`, room.questions);
-      }
-      return false;
-    }
-
-    const reviewIndex = room.currentReviewIndex || 0;
+    const reviewIndex = room.currentReviewIndex ?? 0;
 
     if (debug) {
-      console.log(`[ReviewService] 🔍 Processing review for room ${roomId}, index ${reviewIndex}/${room.questions.length}`);
+      console.log(`[ReviewService] 🔍 Processing review for room ${roomId}, index ${reviewIndex}/${qList.length}`);
     }
 
     // Check if review is complete
-    if (reviewIndex >= room.questions.length) {
+    if (reviewIndex >= qList.length) {
       this.handleReviewComplete(roomId, namespace, gameEngine, room, emitRoomState);
       return false;
     }
 
-    const question = room.questions[reviewIndex];
+    const question = qList[reviewIndex];
     const roundAnswerKey = `${question.id}_round${room.currentRound}`;
 
     if (debug) {
-      console.log(`[ReviewService] 📖 Reviewing question ${reviewIndex + 1}/${room.questions.length}: ${question.id}`);
+      console.log(`[ReviewService] 📖 Reviewing question ${reviewIndex + 1}/${qList.length}: ${question.id}`);
     }
 
     // Calculate statistics for this question
@@ -65,7 +67,7 @@ export class ReviewService {
     // Send review question to all players
     this.emitReviewQuestionToPlayers(room, question, reviewIndex, namespace);
 
-    // Send review question with statistics to host - PASS ROOMID HERE
+    // Send review question with statistics to host
     this.emitReviewQuestionToHost(roomId, room, question, reviewIndex, stats, namespace);
 
     // Advance to next question for future calls
@@ -102,19 +104,13 @@ export class ReviewService {
 
       if (!answerData || answerData.submitted === null || answerData.submitted === undefined) {
         noAnswerCount++;
-        if (debug) {
-          console.log(`[ReviewService] 📊 Player ${player.id}: NO ANSWER`);
-        }
+        if (debug) console.log(`[ReviewService] 📊 Player ${player.id}: NO ANSWER`);
       } else if (answerData.correct) {
         correctCount++;
-        if (debug) {
-          console.log(`[ReviewService] 📊 Player ${player.id}: CORRECT (${answerData.submitted})`);
-        }
+        if (debug) console.log(`[ReviewService] 📊 Player ${player.id}: CORRECT (${answerData.submitted})`);
       } else {
         incorrectCount++;
-        if (debug) {
-          console.log(`[ReviewService] 📊 Player ${player.id}: INCORRECT (${answerData.submitted})`);
-        }
+        if (debug) console.log(`[ReviewService] 📊 Player ${player.id}: INCORRECT (${answerData.submitted})`);
       }
     });
 
@@ -151,10 +147,14 @@ export class ReviewService {
 
     const roundAnswerKey = `${question.id}_round${room.currentRound}`;
 
+    const totalQuestions = (Array.isArray(room.reviewQuestions) && room.reviewQuestions.length > 0)
+      ? room.reviewQuestions.length
+      : (room.questions?.length || 0);
+
     room.players.forEach(player => {
       const playerData = room.playerData[player.id];
       const answerData = playerData?.answers?.[roundAnswerKey] || {};
-      const submittedAnswer = answerData.submitted || null;
+      const submittedAnswer = (answerData.submitted ?? null);
 
       const socket = namespace.sockets.get(player.socketId);
       if (socket) {
@@ -167,7 +167,7 @@ export class ReviewService {
           difficulty: question.difficulty,
           category: question.category,
           questionNumber: reviewIndex + 1,
-          totalQuestions: room.questions.length,
+          totalQuestions,
           currentRound: room.currentRound,
           totalRounds: room.config?.roundDefinitions?.length || 1
         });
@@ -175,10 +175,8 @@ export class ReviewService {
         if (debug) {
           console.log(`[ReviewService] 📤 Review sent to ${player.id}: submitted="${submittedAnswer}", correct="${question.correctAnswer}"`);
         }
-      } else {
-        if (debug) {
-          console.warn(`[ReviewService] ⚠️ No socket found for player ${player.name} (${player.id})`);
-        }
+      } else if (debug) {
+        console.warn(`[ReviewService] ⚠️ No socket found for player ${player.name} (${player.id})`);
       }
     });
   }
@@ -199,6 +197,10 @@ export class ReviewService {
       console.log(`[ReviewService] 🎤 Sending review question to host for room ${roomId}`);
     }
 
+    const totalQuestions = (Array.isArray(room.reviewQuestions) && room.reviewQuestions.length > 0)
+      ? room.reviewQuestions.length
+      : (room.questions?.length || 0);
+
     const hostReviewData = {
       id: question.id,
       text: question.text,
@@ -207,7 +209,7 @@ export class ReviewService {
       difficulty: question.difficulty,
       category: question.category,
       questionNumber: reviewIndex + 1,
-      totalQuestions: room.questions ? room.questions.length : 0,
+      totalQuestions,
       currentRound: room.currentRound,
       totalRounds: room.config?.roundDefinitions?.length || 1,
       statistics: stats
@@ -232,21 +234,23 @@ export class ReviewService {
    * @param {Function} emitRoomState - Room state emitter function
    */
   static handleReviewComplete(roomId, namespace, gameEngine, room, emitRoomState) {
+    const totalReviewed = (Array.isArray(room.reviewQuestions) && room.reviewQuestions.length > 0)
+      ? room.reviewQuestions.length
+      : (room.questions?.length || 0);
+
     if (debug) {
-      console.log(`[ReviewService] ✅ Review complete for room ${roomId} - all ${room.questions.length} questions reviewed`);
+      console.log(`[ReviewService] ✅ Review complete for room ${roomId} - ${totalReviewed} questions reviewed`);
     }
 
-    // Set phase to reviewing (completed)
+    // Keep phase as 'reviewing' (completed stage), engines may advance to leaderboard afterwards
     room.currentPhase = 'reviewing';
     emitRoomState(namespace, roomId);
 
     // Calculate and send final round statistics if game engine has stats service
     if (gameEngine && typeof gameEngine.calculateAndSendRoundStats === 'function') {
       const finalRoundStats = gameEngine.calculateAndSendRoundStats(roomId, namespace);
-      
       if (finalRoundStats) {
         namespace.to(`${roomId}:host`).emit('host_round_stats', finalRoundStats);
-        
         if (debug) {
           console.log(`[ReviewService] 📈 Final round stats sent to host: ${finalRoundStats.totalExtrasUsed} extras used`);
         }
@@ -257,7 +261,7 @@ export class ReviewService {
     const completionData = {
       message: 'All questions reviewed. You can now show round results.',
       roundNumber: room.currentRound,
-      totalQuestions: room.questions.length,
+      totalQuestions: totalReviewed,
       timestamp: Date.now()
     };
 
@@ -278,25 +282,26 @@ export class ReviewService {
    */
   static getCurrentReviewQuestion(roomId, getQuizRoom) {
     const room = getQuizRoom(roomId);
-    
-    if (!room || !room.questions || room.currentReviewIndex === undefined) {
+    const qList = (Array.isArray(room?.reviewQuestions) && room.reviewQuestions.length > 0)
+      ? room.reviewQuestions
+      : room?.questions;
+
+    if (!room || !qList || room.currentReviewIndex === undefined) {
       if (debug) {
         console.warn(`[ReviewService] ⚠️ getCurrentReviewQuestion: No room or review data for ${roomId}`);
       }
       return null;
     }
 
-    if (room.currentReviewIndex >= room.questions.length) {
-      if (debug) {
-        console.log(`[ReviewService] ✅ getCurrentReviewQuestion: Review complete for ${roomId}`);
-      }
+    if (room.currentReviewIndex >= qList.length) {
+      if (debug) console.log(`[ReviewService] ✅ getCurrentReviewQuestion: Review complete for ${roomId}`);
       return null;
     }
 
-    const reviewQuestion = room.questions[room.currentReviewIndex];
-    
+    const reviewQuestion = qList[room.currentReviewIndex];
+
     if (debug) {
-      console.log(`[ReviewService] 📖 getCurrentReviewQuestion: Returning question ${room.currentReviewIndex + 1}/${room.questions.length} for ${roomId}`);
+      console.log(`[ReviewService] 📖 getCurrentReviewQuestion: Returning question ${room.currentReviewIndex + 1}/${qList.length} for ${roomId}`);
     }
 
     return reviewQuestion;
@@ -311,18 +316,19 @@ export class ReviewService {
    */
   static isReviewComplete(roomId, getQuizRoom) {
     const room = getQuizRoom(roomId);
-    
+    const qList = (Array.isArray(room?.reviewQuestions) && room.reviewQuestions.length > 0)
+      ? room.reviewQuestions
+      : room?.questions;
+
     if (!room) {
-      if (debug) {
-        console.warn(`[ReviewService] ⚠️ isReviewComplete: Room ${roomId} not found`);
-      }
+      if (debug) console.warn(`[ReviewService] ⚠️ isReviewComplete: Room ${roomId} not found`);
       return false;
     }
 
-    const reviewComplete = room.currentReviewIndex >= room.questions.length;
-    
+    const reviewComplete = (room.currentReviewIndex >= (qList?.length || 0));
+
     if (debug) {
-      console.log(`[ReviewService] 🔍 isReviewComplete for ${roomId}: ${reviewComplete} (reviewIndex: ${room.currentReviewIndex}, totalQuestions: ${room.questions.length})`);
+      console.log(`[ReviewService] 🔍 isReviewComplete for ${roomId}: ${reviewComplete} (reviewIndex: ${room.currentReviewIndex}, totalQuestions: ${qList?.length || 0})`);
     }
 
     return reviewComplete;

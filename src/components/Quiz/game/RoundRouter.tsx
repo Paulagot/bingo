@@ -1,8 +1,9 @@
-// RoundRouter.tsx - Updated imports and props
+// src/components/Quiz/game/RoundRouter.tsx
 import React from 'react';
-import { RoundComponentProps } from '../types/quiz';
-import ModernStandardRound from './ModernStandardRound'; // Changed import
+import { RoundComponentProps, type RoundTypeId } from '../types/quiz';
+import ModernStandardRound from './ModernStandardRound';
 import ReviewPhase from './ReviewPhase';
+import SpeedAsking from './SpeedAsking';
 
 interface AnswerStatistics {
   totalPlayers: number;
@@ -16,7 +17,7 @@ interface AnswerStatistics {
 
 interface RoundRouterProps extends RoundComponentProps {
   roomPhase: 'asking' | 'reviewing';
-  currentRoundType?: string;
+  currentRoundType?: RoundTypeId;      // use union type
   correctAnswer?: string;
   questionNumber?: number;
   totalQuestions?: number;
@@ -25,7 +26,7 @@ interface RoundRouterProps extends RoundComponentProps {
   statistics?: AnswerStatistics;
   isHost?: boolean;
   playersInRoom?: { id: string; name: string }[];
-  // Add countdown props
+  // Countdown / FX
   isFlashing?: boolean;
   currentEffect?: any;
   getFlashClasses?: () => string;
@@ -69,6 +70,27 @@ const RoundRouter: React.FC<RoundRouterProps> = ({
     );
   }
 
+  // SPEED ROUND — dedicated component, instant submit
+  if (currentRoundType === 'speed_round') {
+    return (
+      <SpeedAsking
+        {...props}
+        question={question}
+        selectedAnswer={selectedAnswer}
+        feedback={feedback}
+        questionNumber={questionNumber}
+        totalQuestions={totalQuestions}
+        difficulty={difficulty}
+        category={category}
+        isFlashing={isFlashing}
+        currentEffect={currentEffect}
+        getFlashClasses={getFlashClasses}
+        currentRound={currentRound}
+      />
+    );
+  }
+
+  // DEFAULT: Modern Standard Round
   return (
     <ModernStandardRound
       {...props}
@@ -89,3 +111,4 @@ const RoundRouter: React.FC<RoundRouterProps> = ({
 };
 
 export default RoundRouter;
+

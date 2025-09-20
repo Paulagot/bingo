@@ -24,165 +24,198 @@ interface QuizTemplate {
 }
 
 // duration helper
-const calculateDuration = (rounds: any[]) => {
-  const baseTime = rounds.reduce((total, round) => {
-    const roundConfig = roundTypeDefaults[round.type as RoundTypeId];
-    if (roundConfig) {
-      const questionsPerRound = round.customConfig?.questionsPerRound || roundConfig.questionsPerRound || 6;
-      const timePerQuestion = round.customConfig?.timePerQuestion || roundConfig.timePerQuestion || 25;
-      const roundTimeSeconds = questionsPerRound * timePerQuestion * 2.5;
-      return total + roundTimeSeconds / 60;
-    }
-    return total + (round.type === 'general_trivia' ? 10.5 : 11.2);
-  }, 0);
+// duration helpers
+type RoundLite = { type: RoundTypeId; customConfig?: Partial<RoundConfig> };
 
-  const breakCount = Math.floor((rounds.length - 1) / 3);
-  const breakTime = breakCount * 15;
-  return Math.round(baseTime + breakTime);
+const ROUND_BREAK_EVERY = 3;      // after every N rounds
+const BREAK_MINUTES = 15;         // matches your UI copy
+
+function computeRoundMinutes(round: RoundLite): number {
+  const defaults = roundTypeDefaults[round.type as RoundTypeId];
+  const cfg = { ...defaults, ...(round.customConfig ?? {}) };
+
+  if (round.type === 'speed_round' && cfg.totalTimeSeconds) {
+    // ✅ round-time based: totalTimeSeconds × 4 (your rule)
+    const seconds = cfg.totalTimeSeconds * 4;
+    return Math.round((seconds / 60) * 10) / 10;
+  }
+
+  // ✅ per-question based: timePerQuestion × questions × 3 (your rule)
+  const seconds = (cfg.timePerQuestion || 0) * (cfg.questionsPerRound || 0) * 3;
+  return Math.round((seconds / 60) * 10) / 10;
+}
+
+const calculateDuration = (rounds: any[]) => {
+  const quizMinutes = rounds.reduce((total, r) => total + computeRoundMinutes(r), 0);
+  const breakCount = Math.max(0, Math.floor((rounds.length - 1) / ROUND_BREAK_EVERY));
+  const breakMinutes = breakCount * BREAK_MINUTES;
+  return Math.round(quizMinutes + breakMinutes);
 };
+
+
 
 // ✅ Replace ONLY the quizTemplates array with the following:
 const quizTemplates: QuizTemplate[] = [
   // --- keep this demo exactly as-is ---
-  {
-    id: 'demo-quiz',
-    name: 'Demo Quiz',
-    description: 'Quick 4-question demo to try out the platform.',
-    icon: '🚀',
-    difficulty: 'Easy',
-    duration: 5,
-    rounds: [
-      {
-        type: 'wipeout',
-        category: 'General Knowledge',
-        difficulty: 'medium',
-        customConfig: {
-          questionsPerRound: 4,
-          timePerQuestion: 10,
-          pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
-          pointsLostPerWrong: 2,
-          pointsLostPerUnanswered: 3,
-        },
+{
+  id: 'demo-quiz',
+  name: 'Demo Quiz',
+  description: 'Quick demo: 1 short Wipeout + 1 Speed Round.',
+  icon: '🚀',
+  difficulty: 'Easy',
+  duration: 7, // ~2 min (wipeout) + ~5 min (speed)
+  rounds: [
+    {
+      type: 'wipeout',
+      category: 'General Knowledge',
+      difficulty: 'medium',
+      customConfig: {
+        questionsPerRound: 4,
+        timePerQuestion: 10,
+        pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
+        pointsLostPerWrong: 2,
+        pointsLostPerUnanswered: 3,
       },
+    },
+    {
+      type: 'speed_round',
+      category: 'Emojis',
+      difficulty: 'hard',
+      customConfig: {
+        // required even if pacing is total-time based
+        questionsPerRound: 40,
+        totalTimeSeconds: 75,
+        skipAllowed: true,
+        pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
+        pointsLostPerWrong: 0,
+        pointsLostPerUnanswered: 0,
+      },
+    },
+  ],
+  tags: ['Demo', 'Quick Start', 'Try It Out'],
+}
+,
+
+  // 1) Youth-focused (adds some Medium for balance)
+  {
+    id: 'youth-pulse',
+    name: 'Youth Pulse',
+    description: 'High-energy mix with pop culture & music, plus a couple of medium rounds to keep it interesting.',
+    icon: '🎉',
+    difficulty: 'Medium',
+    duration: 60,
+    rounds: [
+      { type: 'general_trivia', category: 'Pop Music', difficulty: 'easy' },
+      { type: 'speed_round',    category: 'Emojis',    difficulty: 'medium' },
+      { type: 'general_trivia', category: 'Pop Culture', difficulty: 'easy' },
+      { type: 'wipeout',        category: 'Pop Culture', difficulty: 'medium' },
+      { type: 'speed_round',    category: 'Pop Music',   difficulty: 'easy' },
+      { type: 'general_trivia', category: 'General Knowledge', difficulty: 'easy' },
     ],
-    tags: ['Demo', 'Quick Start', 'Try It Out'],
+    tags: ['Teens', 'Pop', 'Fast-Paced'],
   },
 
-  // 1) Family-friendly, mixed & light
+  // 2) Family-focused (accessible, friendly topics)
   {
-    id: 'family-night',
-    name: 'Family Night In',
-    description: 'Balanced, family-friendly mix with easy pacing and feel-good topics.',
+    id: 'family-fiesta',
+    name: 'Family Fiesta',
+    description: 'Accessible and upbeat — perfect for mixed ages. One quick speed round for fun.',
     icon: '👨‍👩‍👧‍👦',
     difficulty: 'Easy',
-    duration: 64,
+    duration: 65,
     rounds: [
       { type: 'general_trivia', category: 'General Knowledge', difficulty: 'easy' },
-      { type: 'general_trivia', category: 'Pop Culture', difficulty: 'easy' },
-      { type: 'wipeout',        category: 'General Knowledge', difficulty: 'easy' },
-      { type: 'general_trivia', category: 'Pop Music', difficulty: 'easy' },
-      { type: 'general_trivia', category: 'History', difficulty: 'easy' },
-      { type: 'general_trivia', category: 'General Knowledge', difficulty: 'medium' },
+      { type: 'general_trivia', category: 'Pop Culture',        difficulty: 'easy' },
+      { type: 'speed_round',    category: 'family movies',      difficulty: 'medium' },
+      { type: 'general_trivia', category: 'World Capitals',     difficulty: 'easy' },
+      { type: 'wipeout',        category: 'General Knowledge',  difficulty: 'medium' },
+      { type: 'general_trivia', category: 'History',            difficulty: 'easy' },
+      { type: 'speed_round',    category: 'math',      difficulty: 'easy' },
     ],
-    tags: ['Family-Friendly', 'Beginner', 'Mixed Topics'],
+    tags: ['Family-Friendly', 'Mixed Ages', 'Welcoming'],
   },
 
-  // 2) Teens & young adults: high pop-culture energy
-  {
-    id: 'pop-hype',
-    name: 'Pop Hype',
-    description: 'For teens & young adults — fast vibes, pop culture and music.',
-    icon: '🎧',
-    difficulty: 'Medium',
-    duration: 64,
-    rounds: [
-      { type: 'general_trivia', category: 'Pop Music', difficulty: 'easy' },
-      { type: 'general_trivia', category: 'Pop Culture', difficulty: 'medium' },
-      { type: 'wipeout',        category: 'Pop Culture', difficulty: 'medium' },
-      { type: 'general_trivia', category: 'General Knowledge', difficulty: 'medium' },
-      { type: 'general_trivia', category: 'Pop Music', difficulty: 'medium' },
-      { type: 'wipeout',        category: 'General Knowledge', difficulty: 'medium' },
-    ],
-    tags: ['Teens', 'Pop', 'Energy'],
-  },
-
-  // 3) Pub classic: the all-rounder (updated to allowed categories)
-  {
-    id: 'pub-classic',
-    name: 'Pub Quiz Classic',
-    description: 'The traditional all-rounder: familiar topics, steady difficulty.',
-    icon: '🍺',
-    difficulty: 'Medium',
-    duration: 75,
-    rounds: [
-      { type: 'general_trivia', category: 'General Knowledge', difficulty: 'medium' },
-      { type: 'general_trivia', category: 'History', difficulty: 'medium' },
-      { type: 'wipeout',        category: 'General Knowledge', difficulty: 'medium' },
-      { type: 'general_trivia', category: 'Pop Culture', difficulty: 'medium' },
-      { type: 'general_trivia', category: 'World Capitals', difficulty: 'medium' },
-      { type: 'wipeout',        category: 'General Knowledge', difficulty: 'easy' },
-      { type: 'general_trivia', category: 'General Knowledge', difficulty: 'hard' },
-    ],
-    tags: ['Traditional', 'Balanced', 'All Topics'],
-  },
-
-  // 4) Sports night (Olympics forward) with a crossover
-  {
-    id: 'sports-showdown',
-    name: 'Sports Showdown',
-    description: 'Olympic Sports focus with a fun pop-culture crossover.',
-    icon: '⚽',
-    difficulty: 'Medium',
-    duration: 64,
-    rounds: [
-      { type: 'general_trivia', category: 'Olympic Sports', difficulty: 'easy' },
-      { type: 'wipeout',        category: 'Olympic Sports', difficulty: 'medium' },
-      { type: 'general_trivia', category: 'Pop Culture', difficulty: 'medium' },
-      { type: 'general_trivia', category: 'Olympic Sports', difficulty: 'medium' },
-      { type: 'wipeout',        category: 'Olympic Sports', difficulty: 'hard' },
-      { type: 'general_trivia', category: 'General Knowledge', difficulty: 'medium' },
-    ],
-    tags: ['Sports Focus', 'Olympics', 'Active'],
-  },
-
-  // 5) World & travel lovers (capitals/history anchor)
-  {
-    id: 'world-tour',
-    name: 'World Tour Challenge',
-    description: 'For travellers and map nerds — capitals, culture, and history.',
-    icon: '🌍',
-    difficulty: 'Medium',
-    duration: 64,
-    rounds: [
-      { type: 'general_trivia', category: 'World Capitals', difficulty: 'easy' },
-      { type: 'general_trivia', category: 'History', difficulty: 'medium' },
-      { type: 'wipeout',        category: 'World Capitals', difficulty: 'medium' },
-      { type: 'general_trivia', category: 'General Knowledge', difficulty: 'medium' },
-      { type: 'general_trivia', category: 'World Capitals', difficulty: 'hard' },
-      { type: 'wipeout',        category: 'General Knowledge', difficulty: 'easy' },
-    ],
-    tags: ['Geography', 'Travel', 'History'],
-  },
-
-  // 6) Tech-forward crowd (Web3 + approachable anchors)
+  // 3) Future Shock (tech-forward) — refreshed but familiar
   {
     id: 'future-shock',
     name: 'Future Shock',
-    description: 'Web3 Crypto and Blockchan — approachable, modern, and fun.',
+    description: 'Web3 + approachable anchors. Modern, curious, and fun.',
     icon: '🚀',
     difficulty: 'Medium',
     duration: 64,
     rounds: [
-      { type: 'general_trivia', category: 'Web3', difficulty: 'easy' },            // you’ll add Web3 Qs soon
-      { type: 'general_trivia', category: 'Pop Culture', difficulty: 'medium' },
-      { type: 'wipeout',        category: 'Web3', difficulty: 'medium' },          // wipeout keeps it spicy
+      { type: 'speed_round',    category: 'Emojis',              difficulty: 'hard' },
+      { type: 'general_trivia', category: 'Web3',              difficulty: 'easy' },
+      { type: 'general_trivia', category: 'Pop Culture',       difficulty: 'medium' },
+      { type: 'wipeout',        category: 'Web3',              difficulty: 'medium' },
+      { type: 'speed_round',    category: 'Math',              difficulty: 'hard' },
       { type: 'general_trivia', category: 'General Knowledge', difficulty: 'medium' },
-      { type: 'general_trivia', category: 'History', difficulty: 'medium' },
-      { type: 'wipeout',        category: 'Web3', difficulty: 'hard' },
+      { type: 'wipeout',        category: 'Web3',              difficulty: 'hard' },
     ],
     tags: ['Tech', 'Modern', 'Innovation'],
   },
+
+  // 4) Pub Classic 2.0 (the all-rounder with one speed burst)
+  {
+    id: 'pub-classic-2',
+    name: 'Pub Classic 2.0',
+    description: 'Traditional balance with a quick speed burst to lift the room.',
+    icon: '🍺',
+    difficulty: 'Medium',
+    duration: 72,
+    rounds: [
+      { type: 'general_trivia', category: 'General Knowledge', difficulty: 'medium' },
+      { type: 'general_trivia', category: 'History',           difficulty: 'medium' },
+      { type: 'wipeout',        category: 'General Knowledge', difficulty: 'medium' },
+      { type: 'general_trivia', category: 'Pop Culture',       difficulty: 'medium' },
+      { type: 'general_trivia', category: 'World Capitals',    difficulty: 'medium' },
+      { type: 'speed_round',    category: 'Pop Music',         difficulty: 'easy' },
+      { type: 'general_trivia', category: 'General Knowledge', difficulty: 'hard' },
+    ],
+    tags: ['Traditional', 'Balanced', 'Venue-Friendly'],
+  },
+
+  // 5) Sports Night Reloaded (Olympic Sports core with energy spikes)
+  {
+    id: 'sports-reloaded',
+    name: 'Sports Night Reloaded',
+    description: 'Olympic Sports with a fun speed interlude and solid anchors.',
+    icon: '🏅',
+    difficulty: 'Medium',
+    duration: 64,
+    rounds: [
+      { type: 'general_trivia', category: 'Olympic Sports',    difficulty: 'easy' },
+      { type: 'wipeout',        category: 'Olympic Sports',    difficulty: 'medium' },
+      { type: 'general_trivia', category: 'History', difficulty: 'medium' },
+      { type: 'speed_round',    category: 'Sport',             difficulty: 'medium' },
+      { type: 'general_trivia', category: 'Olympic Sports',    difficulty: 'medium' },
+      { type: 'wipeout',        category: 'General Knowledge', difficulty: 'easy' },
+    ],
+    tags: ['Sports Focus', 'Active', 'Crowd-Pleaser'],
+  },
+
+  // 6) Fundraiser Max (optimized for extras & engagement)
+  {
+    id: 'fundraiser-max',
+    name: 'Fundraiser Max',
+    description: 'Designed to sell extras: wipeout tension + two speed bursts.',
+    icon: '💸',
+    difficulty: 'Hard',
+    duration: 88,
+    rounds: [
+      { type: 'general_trivia', category: 'General Knowledge', difficulty: 'easy' },
+      { type: 'wipeout',        category: 'General Knowledge', difficulty: 'medium' },
+      { type: 'speed_round',    category: 'Pop Music',         difficulty: 'easy' },
+      { type: 'general_trivia', category: 'Pop Culture',       difficulty: 'medium' },
+      { type: 'wipeout',        category: 'General Knowledge', difficulty: 'hard' },
+      { type: 'general_trivia', category: 'World Capitals',    difficulty: 'medium' },
+      { type: 'speed_round',    category: 'Emojis',            difficulty: 'hard' },
+      { type: 'general_trivia', category: 'General Knowledge', difficulty: 'hard' },
+    ],
+    tags: ['High Engagement', 'Extras-Friendly', 'Big Night'],
+  },
 ];
+
 
 
 const Character = ({ message }: { message: string }) => {
@@ -219,25 +252,27 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
 
   const selectedTemplate = setupConfig.selectedTemplate ?? null;
 
-  const getRoundTypeInfo = (type: string, customConfig?: any) => {
-    const roundType = roundTypeMap[type as RoundTypeId];
-    const config = roundTypeDefaults[type as RoundTypeId];
+ const getRoundTypeInfo = (type: string, customConfig?: Partial<RoundConfig>) => {
+  const roundType = roundTypeMap[type as RoundTypeId];
+  const icon = type === 'general_trivia' ? '🧠' : type === 'wipeout' ? '💀' : type === 'speed_round' ? '⚡' : '❓';
 
-    if (roundType && config) {
-      const questionsPerRound = customConfig?.questionsPerRound || config.questionsPerRound || 6;
-      const timePerQuestion = customConfig?.timePerQuestion || config.timePerQuestion || 25;
-      const roundTimeSeconds = questionsPerRound * timePerQuestion * 2.5;
-      const timeInMinutes = roundTimeSeconds / 60;
+  if (roundType) {
+    const time = computeRoundMinutes({ type: type as RoundTypeId, customConfig });
+    // Show question count only for per-question rounds
+    const defaults = roundTypeDefaults[type as RoundTypeId];
+    const cfg = { ...defaults, ...(customConfig ?? {}) };
+    const questionsCount = type === 'speed_round' ? undefined : (cfg.questionsPerRound ?? 6);
 
-      return {
-        icon: type === 'general_trivia' ? '🧠' : type === 'wipeout' ? '⚡' : '❓',
-        name: roundType.name,
-        time: Math.round(timeInMinutes * 10) / 10,
-        questionsCount: questionsPerRound,
-      };
-    }
-    return { icon: '❓', name: 'Unknown', time: 10, questionsCount: 6 };
-  };
+    return {
+      icon,
+      name: roundType.name,
+      time: Math.round(time * 10) / 10,
+      questionsCount,
+      timed: type === 'speed_round' ? (cfg.totalTimeSeconds ?? 0) : undefined,
+    };
+  }
+  return { icon: '❓', name: 'Unknown', time: 10, questionsCount: 6 as number | undefined, timed: undefined };
+};
 
   const getBreakPositions = (roundCount: number) => {
     const breaks = [];
@@ -253,26 +288,31 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
     if (!template) return;
 
     // Build round definitions
-    const roundDefinitions = template.rounds.map((round, index) => ({
-      roundNumber: index + 1,
-      roundType: round.type as RoundTypeId,
-      category: round.category,
-      difficulty: round.difficulty as 'easy' | 'medium' | 'hard',
-      config:
-        templateId === 'demo-quiz'
-          ? {
-              questionsPerRound: 4,
-              timePerQuestion: 10,
-              pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
-              pointsLostPerWrong: 2,
-              pointsLostPerUnanswered: 3,
-            }
-          : {
-              ...roundTypeDefaults[round.type as RoundTypeId],
-              ...round.customConfig,
-            },
-      enabledExtras: {},
-    }));
+ const roundDefinitions = template.rounds.map((round, index) => {
+  // defaults + per-round overrides
+  let cfg = { ...roundTypeDefaults[round.type as RoundTypeId], ...(round.customConfig ?? {}) };
+
+  // For the demo, only override the Wipeout round (keep Speed Round custom config!)
+  if (templateId === 'demo-quiz' && round.type === 'wipeout') {
+    cfg = {
+      questionsPerRound: 4,
+      timePerQuestion: 10,
+      pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
+      pointsLostPerWrong: 2,
+      pointsLostPerUnanswered: 3,
+    };
+  }
+
+  return {
+    roundNumber: index + 1,
+    roundType: round.type as RoundTypeId,
+    category: round.category,
+    difficulty: round.difficulty as 'easy' | 'medium' | 'hard',
+    config: cfg,
+    enabledExtras: {},
+  };
+});
+
 
     // ✅ Only update config that belongs here (rounds)
      updateSetupConfig({
@@ -417,7 +457,10 @@ roundDefinitions: [],
                           <div className="flex-1">
                             <div className="text-fg font-medium">{round.category}</div>
                             <div className="text-fg/70">
-                              {roundInfo.name} • {round.difficulty} • {roundInfo.questionsCount}Q • ~{roundInfo.time}min
+                              {roundInfo.name} • {round.difficulty}
+{roundInfo.questionsCount ? ` • ${roundInfo.questionsCount}Q` : ''}
+{` • ~${roundInfo.time}min`}
+
                             </div>
                           </div>
                           <span

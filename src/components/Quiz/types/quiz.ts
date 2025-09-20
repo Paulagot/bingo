@@ -26,8 +26,8 @@ export interface Prize {
 
 export type RoundTypeId =
   | 'general_trivia'
-  | 'wipeout';
-  // | 'speed_round'
+  | 'wipeout'
+  | 'speed_round';
   // | 'head_to_head'
   // | 'media_puzzle';
 
@@ -46,6 +46,10 @@ export interface RoundConfig {
   timeToAnswer?: number; // For head-to-head
   skipAllowed?: boolean; // For speed round
   pointsLostPerUnanswered?: number; // For wipeout
+    filters?: {
+    difficulty?: 'easy' | 'medium' | 'hard' | 'mixed';
+    category?: string | 'mixed';
+  };
 }
 
 
@@ -221,7 +225,7 @@ export interface RoundComponentProps {
   feedback: string | null;
   isFrozen: boolean;
   frozenNotice: string | null;
-  onSubmit?: () => void; // ← Make this optional with ?
+    onSubmit?: (answer?: string) => void; // ← Make this optional with ?
   roomId: string;
   playerId: string;
   roundExtras: string[];
