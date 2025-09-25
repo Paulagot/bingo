@@ -15,8 +15,8 @@ import {
   cleanExpiredSessions
 } from '../quizRoomManager.js';
 import { emitFullRoomState } from '../handlers/sharedUtils.js';
-import { isQuestionWindowOpen } from './scoringUtils.js';
-import { QuestionEmissionService } from '../gameplayEngines/services/QuestionEmissionService.js';
+
+
 
 const debug =  false;
 
@@ -226,6 +226,22 @@ if (room.config?.paymentMethod === 'web3' && debug) {
       });
     }, 50);
   });
+
+  // --- Tie-breaker: player submits numeric answer ---
+socket.on('tiebreak:answer', async ({ roomId, answer }) => {
+  const room = getQuizRoom(roomId);
+  if (!room?.tiebreaker?.isActive) return;
+
+  // Only participants can submit
+  const player = room.players.find(p => p.socketId === socket.id);
+  const playerId = player?.id;
+  if (!playerId || !room.tiebreaker.participants.includes(playerId)) return;
+
+  // Lazy import to avoid top-level circular deps
+  const mod = await import('../gameplayEngines/services/TiebreakerService.js');
+  mod.TiebreakerService.receiveAnswer(room, playerId, Number(answer));
+});
+
 
   // ✅ NEW: Route change tracking for anti-cheat
   socket.on('player_route_change', ({ roomId, playerId, route, entering }) => {

@@ -1,39 +1,41 @@
-//src/components/Quiz/joinQuizSocket.ts
 // src/components/Quiz/joinQuizSocket.ts
 import type { Socket } from 'socket.io-client';
 
-// We’ll call it “User” now, since that’s what the server is expecting:
+export type RoomRole = 'player' | 'admin' | 'host';
+
 interface User {
   id: string;
   name: string;
 }
 
-export function joinQuizRoom(socket: Socket, roomId: string, player: User) {
+export function joinQuizRoom(socket: Socket, roomId: string, user: User, role: RoomRole) {
   socket.emit('join_quiz_room', {
     roomId,
-    user: { id: player.id, name: player.name },
-    role: 'player'
+    user: { id: user.id, name: user.name },
+    role, // 'player' | 'admin' | 'host'
   });
 
-  // ✅ Store the player ID in localStorage so the frontend knows who it is
-  localStorage.setItem(`quizPlayerId:${roomId}`, player.id);
+  // Keep a per-role localStorage key so UIs can distinguish who joined
+  localStorage.setItem(`quizUser:${roomId}:${role}`, user.id);
 
   socket.on('quiz_error', ({ message }: { message: string }) => {
     alert('Join failed: ' + message);
   });
 
-  socket.on(
-    'user_joined',
-    ({ user, role }: { user: User; role: 'host' | 'player' | 'admin' }) => {
-      if (role === 'player') {
-        console.log(`✅ ${user.name} joined room ${roomId} as a player`);
-      }
+  socket.on('user_joined', ({ user: u, role: r }: { user: User; role: RoomRole }) => {
+    // Optional: reduce noise, but nice for debugging
+    if (r === role && u.id === user.id) {
+      console.log(`✅ ${u.name} joined room ${roomId} as ${r}`);
     }
-  );
+  });
 }
 
+// Convenience wrappers (optional)
+export const joinAsPlayer = (s: Socket, roomId: string, u: User) => joinQuizRoom(s, roomId, u, 'player');
+export const joinAsAdmin  = (s: Socket, roomId: string, u: User) => joinQuizRoom(s, roomId, u, 'admin');
+export const joinAsHost   = (s: Socket, roomId: string, u: User) => joinQuizRoom(s, roomId, u, 'host');
 
-// If your verifyRoomAndPlayer is unchanged, you can leave it alone
+// unchanged
 export function verifyRoomAndPlayer(
   socket: Socket,
   roomId: string,
@@ -45,5 +47,6 @@ export function verifyRoomAndPlayer(
     callback(data);
   });
 }
+
 
 

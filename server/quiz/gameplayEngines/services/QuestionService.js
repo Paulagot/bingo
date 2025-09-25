@@ -172,6 +172,10 @@ export class QuestionService {
       .sort((a, b) => a.sort - b.sort)
       .map(({ value }) => value);
   }
+    static buildEmittableOptions(question) {
+    const opts = Array.isArray(question.options) ? [...question.options] : [];
+    return QuestionService.shuffleArray(opts);
+  }
 
   static validateQuestionData(questions) {
     if (!Array.isArray(questions)) return { valid: false, error: 'Questions must be an array' };
@@ -183,6 +187,8 @@ export class QuestionService {
     }
     return { valid: true };
   }
+
+  
 
   static getRoundQuestionConfig(room, roundIndex) {
     const roundDef = room.config.roundDefinitions?.[roundIndex];
@@ -196,6 +202,8 @@ export class QuestionService {
       difficulty: roundDef.difficulty || null
     };
   }
+
+  
 
   // --- helpers (debug only) ---
   static _logSample(list, dbg, label) {

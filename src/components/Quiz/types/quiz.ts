@@ -137,6 +137,7 @@ export interface QuizConfig {
   theme?: string;
   roomCaps?: RoomCaps;
   isWeb3Room?: boolean;
+  reconciliation?: ReconciliationMeta;
 }
 
 export type ExtrasPanelProps = {
@@ -208,7 +209,7 @@ export type LeaderboardEntry = {
   cumulativeNegativePoints?: number; // Total negative points accumulated
   pointsRestored?: number; // Points restored by this player
    penaltyDebt?: number; // overall unpaid debt carried across rounds
-  carryDebt?: number;   // per-round debt (if your round payload includes it)
+  tiebreakerBonus?: number; // ✅ new   // per-round debt (if your round payload includes it)
 };
 
 export type RoomPhase = 'waiting' | 'launched' | 'asking' | 'reviewing' | 'leaderboard' | 'complete'| 'distributing_prizes';
@@ -267,6 +268,37 @@ export interface UseAnswerSubmissionParams {
   debug?: boolean;
 }
 
+export interface ReconciliationMeta  {
+  approvedBy?: string;
+  notes?: string;
+  approvedAt?: string | null;
+  updatedAt?: string | null;
+  updatedBy?: string | null;
+};
+
+// Add this interface for speed round host stats
+export interface HostSpeedStats {
+  totalAnswers: number;
+  correct: number;
+  wrong: number;
+  skipped: number;
+  answersPerSec: number;
+}
+
+// Add this interface for speed round activity
+export interface HostSpeedActivity {
+  playerId: string;
+  playerName: string;
+  correct: boolean;
+  wrong: boolean;
+  skipped: boolean;
+  questionId: string;
+  submittedAnswer: string | null;
+  correctAnswer: string | null;
+  ts: number;
+}
+
+
 export interface EnhancedPlayerStats {
   playerId: string;
   playerName: string;
@@ -275,6 +307,7 @@ export interface EnhancedPlayerStats {
     correctAnswers: number;
     wrongAnswers: number;
     noAnswers: number;
+    skippedAnswers?: number;    // NEW: Speed round skips
     accuracyRate: number;
     pointsPerQuestion: number;
   };
@@ -297,6 +330,7 @@ export interface EnhancedPlayerStats {
     pointsRestored: number;
   };
 }
+
 
 
 

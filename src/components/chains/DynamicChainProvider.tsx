@@ -102,14 +102,16 @@ export const DynamicChainProvider: FC<DynamicChainProviderProps> = ({
   const { setActiveChain, resetAllWallets } = useWalletStore();
 
   // Update active chain in store when selection changes
-  useEffect(() => {
-    if (selectedChain) {
-      setActiveChain(selectedChain);
-    } else {
-      // Reset all wallets when no chain is selected
-      resetAllWallets();
-    }
-  }, [selectedChain, setActiveChain, resetAllWallets]);
+ useEffect(() => {
+  if (selectedChain) {
+    console.log('🔗 DynamicChainProvider effect -> setActiveChain:', selectedChain);
+    setActiveChain(selectedChain);
+  } else {
+    console.log('🔗 DynamicChainProvider effect -> resetAllWallets');
+    resetAllWallets();
+  }
+}, [selectedChain, setActiveChain, resetAllWallets]);
+
 
   // Memoized provider selection for performance
   const ProviderComponent = useMemo(() => {

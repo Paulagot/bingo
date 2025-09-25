@@ -4,6 +4,7 @@ import { useStellarWallet } from './useStellarWallet';
 import type { StellarWalletConnection, StellarNetwork, StellarBalance } from '../types/stellar-types';
 import type { WalletConnectionResult, TransactionResult } from '../types';
 import { stellarStorageKeys } from './config';
+import { useWalletStore } from '../../stores/walletStore';
 
 
 
@@ -81,6 +82,69 @@ export const StellarWalletProvider: React.FC<StellarWalletProviderProps> = ({
   // ===================================================================
   // EFFECT HANDLERS
   // ===================================================================
+  // ⬇️ NEW: push wallet state into the global wallet store on any change
+  useEffect(() => {
+    // 1) Sync full Stellar wallet slice
+     useWalletStore.getState().updateStellarWallet({
+    address: stellarWallet.address ?? undefined,
+    isConnected: !!stellarWallet.isConnected,
+    isConnecting: !!stellarWallet.isConnecting,
+    isDisconnecting: !!stellarWallet.isDisconnecting,
+    error: stellarWallet.error ?? undefined,                 // ⬅️ no null
+    balance: stellarWallet.balance ?? undefined,             // ⬅️ no null
+    publicKey: stellarWallet.publicKey ?? undefined,         // ⬅️ no null
+    networkPassphrase: stellarWallet.networkPassphrase ?? undefined, // ⬅️ no null
+    lastConnected: stellarWallet.lastConnected ?? undefined, // ⬅️ no null
+    chain: 'stellar',
+  });
+
+    // 2) Maintain activeChain = 'stellar' only when actually connected
+    if (stellarWallet.isConnected && stellarWallet.address) {
+      const { activeChain, setActiveChain } = useWalletStore.getState();
+      if (activeChain !== 'stellar') setActiveChain('stellar');
+    } else {
+      // Clear only if no other chain is connected
+      const state = useWalletStore.getState();
+      const otherConnected =
+        (state.evm && state.evm.isConnected) ||
+        (state.solana && state.solana.isConnected);
+      if (!otherConnected && state.activeChain === 'stellar') {
+        state.setActiveChain(null);
+      }
+    }
+  }, [
+    stellarWallet.address,
+    stellarWallet.isConnected,
+    stellarWallet.isConnecting,
+    stellarWallet.isDisconnecting,
+    stellarWallet.error,
+    stellarWallet.balance,
+    stellarWallet.publicKey,
+    stellarWallet.networkPassphrase,
+    stellarWallet.lastConnected,
+  ]);
+
+
+  // Persist successful connections to localStorage so we can auto-resume later
+  useEffect(() => {
+    if (stellarWallet.isConnected && stellarWallet.address) {
+      try {
+        const prevId = localStorage.getItem(stellarStorageKeys.WALLET_ID);
+        // Prefer the runtime walletType if available; otherwise keep what was there
+        const walletId = stellarWallet.walletType || prevId || 'freighter';
+        localStorage.setItem(stellarStorageKeys.WALLET_ID, walletId);
+        localStorage.setItem(stellarStorageKeys.LAST_ADDRESS, stellarWallet.address);
+        localStorage.setItem(stellarStorageKeys.AUTO_CONNECT, 'true');
+        // Debug
+        // console.log('[StellarProvider] persisted wallet keys:', {
+        //   walletId, address: stellarWallet.address
+        // });
+      } catch (e) {
+        console.warn('[StellarProvider] failed persisting localStorage', e);
+      }
+    }
+  }, [stellarWallet.isConnected, stellarWallet.address, stellarWallet.walletType]);
+
 
   // Handle initialization
   useEffect(() => {
@@ -113,21 +177,52 @@ export const StellarWalletProvider: React.FC<StellarWalletProviderProps> = ({
   }, [stellarWallet.error, onError]);
 
   // Auto-connect on initialization
+  // Auto-connect on initialization (robust resume)
   useEffect(() => {
-    if (autoConnect && isProviderReady && !stellarWallet.isConnected && !stellarWallet.isConnecting) {
-     const savedWalletId = localStorage.getItem(stellarStorageKeys.WALLET_ID);
-const savedAutoConnect = localStorage.getItem(stellarStorageKeys.AUTO_CONNECT) === 'true';
+    if (!autoConnect || !isProviderReady) return;
+    if (stellarWallet.isConnected || stellarWallet.isConnecting) return;
 
-      
-      if (savedWalletId && savedAutoConnect) {
-        console.log('🔄 Auto-connecting to Stellar wallet...');
-        stellarWallet.reconnect().catch((error) => {
-          console.warn('⚠️ Auto-connect failed:', error);
-          // Don't call onError for auto-connect failures as they're expected
-        });
+    const savedWalletId = localStorage.getItem(stellarStorageKeys.WALLET_ID);
+    const savedAutoConnect = localStorage.getItem(stellarStorageKeys.AUTO_CONNECT) === 'true';
+    const savedLastAddress = localStorage.getItem(stellarStorageKeys.LAST_ADDRESS);
+
+    // Only attempt when user opted in
+    if (!savedAutoConnect) return;
+
+    const tryReconnect = async () => {
+      try {
+        // Primary path: normal reconnect (uses whatever your hook expects)
+        if (savedWalletId) {
+          console.log('🔄 Auto-connecting (with wallet id):', savedWalletId);
+          await stellarWallet.reconnect();
+          return;
+        }
+
+        // Fallback path: wallet id missing, but we have a last address → attempt reconnect anyway
+        if (savedLastAddress) {
+          console.log('🔄 Auto-connecting (fallback, no wallet id but last address present)');
+          await stellarWallet.reconnect().catch(() => Promise.resolve());
+          // If reconnect didn’t throw, great; if it did nothing, try a plain connect()
+          if (!useWalletStore.getState().stellar?.isConnected) {
+            await stellarWallet.connect().catch(() => Promise.resolve());
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ Auto-connect failed:', error);
+        // intentionally swallow
       }
-    }
-  }, [autoConnect, isProviderReady, stellarWallet.isConnected, stellarWallet.isConnecting, stellarWallet.reconnect]);
+    };
+
+    tryReconnect();
+  }, [
+    autoConnect,
+    isProviderReady,
+    stellarWallet.isConnected,
+    stellarWallet.isConnecting,
+    stellarWallet.reconnect,
+    stellarWallet.connect
+  ]);
+
 
   // ===================================================================
   // ENHANCED METHODS WITH ERROR HANDLING

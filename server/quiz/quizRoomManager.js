@@ -2,6 +2,7 @@
 // Updated to support combined_questions.json and global question tracking
 
 import fs from 'fs';
+
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { roundTypeDefinitions, fundraisingExtraDefinitions } from '../quiz/quizMetadata.js';
@@ -14,6 +15,36 @@ const debug = false;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+
+const resolveClosestPath = () => {
+  // Adjust this to your actual file location if different
+  // e.g. server/quiz/quizRoomManager.js -> closest.json is at server/data/questions/closest.json
+  return path.resolve(process.cwd(), 'server/data/questions/closest.json');
+};
+
+
+/**
+ * NEW: Load tie-breaker closest-number questions
+ */
+export function loadClosestNumberBank() {
+  try {
+    const filePath = resolveClosestPath();
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    const arr = JSON.parse(raw);
+
+    return (Array.isArray(arr) ? arr : []).map((q, i) => ({
+      id: q.id ?? String(i + 1),
+      text: q.text ?? q.question ?? '',
+      answerNumber: Number(q.answerNumber ?? q.answer ?? q.value),
+    })).filter(q => q.text && Number.isFinite(q.answerNumber));
+  } catch (e) {
+    console.error('[TB] failed to load closest.json:', e?.message);
+    return [];
+  }
+}
+
+
 
 /**
  * NEW: Load questions from combined_questions.json with global duplicate prevention
@@ -198,7 +229,18 @@ export function createQuizRoom(roomId, hostId, config) {
     return false;
   }
 
-  const finalConfig = { ...config, roundCount: roundDefinitions.length };
+  const recDefault = {
+  approvedBy: '',
+  notes: '',
+  approvedAt: null,
+  updatedAt: null,
+  updatedBy: null,
+};
+const finalConfig = { 
+  ...config, 
+  roundCount: roundDefinitions.length,
+  reconciliation: { ...(config.reconciliation || {}), ...recDefault, ...(config.reconciliation || {}) },
+};
 
   quizRooms.set(roomId, {
     roomCaps: config.roomCaps ?? { maxPlayers: 20, maxRounds: finalConfig.roundCount, roundTypesAllowed: [], extrasAllowed: [] },
@@ -217,6 +259,9 @@ export function createQuizRoom(roomId, hostId, config) {
     completedAt: null,
     // NEW: Track used questions globally across all rounds
     usedQuestionIds: new Set(),
+    questionBankTiebreak: loadClosestNumberBank(),
+    tiebreaker: null,
+     tiebreakerAwards: {}, 
   });
 
   if (debug) console.log(`[quizRoomManager] ✅ Room ${roomId} created with ${roundDefinitions.length} rounds`);
@@ -401,6 +446,7 @@ export function startNextRound(roomId) {
 }
 
 export function setQuestionsForCurrentRound(roomId, questions) {
+  
   const room = quizRooms.get(roomId);
   if (!room) return false;
   

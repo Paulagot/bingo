@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState,  useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuizConfig } from '../hooks/useQuizConfig';
 import { usePlayerStore } from '../hooks/usePlayerStore';
 import { useRoomIdentity } from '../hooks/useRoomIdentity';
@@ -10,7 +10,8 @@ import AdminListPanel from './AdminListPanel';
 import PaymentReconciliationPanel from './PaymentReconciliation';
 import AssetUploadPanel from './AssetUploadPanel';
 import { DynamicChainProvider } from '../../chains/DynamicChainProvider';
-
+import WalletDebugPanel from '../Wizard/WalletDebug';
+import  useQuizChainIntegration from '../../../hooks/useQuizChainIntegration';
 
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { useAdminStore } from '../hooks/useAdminStore';
@@ -37,14 +38,33 @@ const HostDashboardCore: React.FC = () => {
   const { players } = usePlayerStore();
   const { admins } = useAdminStore();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const requestedOnceRef = useRef(false);
+
+  // Read URL params (e.g., ?tab=payments&lock=postgame)
+const location = useLocation();
+const params = new URLSearchParams(location.search);
+const urlTab = (params.get('tab') as TabType | null);
+const lockParam = params.get('lock') === 'postgame';
 
   const navigate = useNavigate();
   const { socket, connected } = useQuizSocket();
-  const { roomId } = useRoomIdentity();
+  const { roomId, hostId } = useRoomIdentity();
 
   // Quiz completion logic
   const isQuizComplete = currentPhase === 'complete';
+  const postGameLock = lockParam || isQuizComplete;
   const completedTime = completedAt ? new Date(completedAt).toLocaleString() : null;
+
+  useEffect(() => {
+  // Only run once on mount
+  if (urlTab) {
+    setActiveTab(urlTab);
+  } else if (postGameLock) {
+    setActiveTab('payments');
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
+
 
   // Clear admin state on initial mount
   useEffect(() => {
@@ -66,18 +86,27 @@ const HostDashboardCore: React.FC = () => {
 useEffect(() => {
   if (!socket || !connected || !roomId) return;
 
-  const handleRoomConfig = (data: { config: any }) => {
-  if (DEBUG) console.log('📋 [HostDashboard] Received room config from socket:', data);
-  
-  // Add the missing fields that the backend isn't sending
+const handleRoomConfig = (incoming: any) => {
+  if (DEBUG) console.log('📋 [HostDashboard] Received room config from socket:', incoming);
+
+  // merge with existing to preserve reconciliation if missing (and any other late fields)
+  const existing = useQuizConfig.getState().config || {};
+
   const enhancedConfig = {
-    ...data.config,
-    roomId: roomId, // Add roomId from URL since backend doesn't include it
-    hostId: data.config.hostId || data.config.hostWalletConfirmed, // Fallback for hostId
+    ...existing,                 // start from existing
+    ...incoming,                 // overlay server payload
+    roomId: roomId,              // ensure roomId
+    hostId: incoming?.hostId 
+      || new URLSearchParams(window.location.search).get('hostId') 
+      || localStorage.getItem('current-host-id') 
+      || existing.hostId,
+    // If server didn't include reconciliation (shouldn't happen after server fix), keep the old one
+    reconciliation: incoming?.reconciliation ?? existing?.reconciliation,
   };
-  
+
   setFullConfig(enhancedConfig);
 };
+
 
   const handleSocketError = (error: { message: string }) => {
     console.error('❌ [HostDashboard] Socket error:', error);
@@ -111,16 +140,27 @@ useEffect(() => {
 }, [socket, connected, roomId, config?.roomId]);
 
   // Join room as host
-  useEffect(() => {
-    if (connected && socket && roomId && config?.hostId && config?.hostName) {
-      if (DEBUG) console.log('🔌 [HostDashboard] Emitting join_quiz_room as host');
-      socket.emit('join_quiz_room', {
-        roomId,
-        user: { id: config.hostId, name: config.hostName },
-        role: 'host',
-      });
-    }
-  }, [connected, socket, roomId, config?.hostId, config?.hostName]);
+ useEffect(() => {
+  if (!socket || !roomId) return;
+    const displayName = ( /* prefer config.hostName, fallback */ 
+    (useQuizConfig.getState().config?.hostName) || 'Host'
+  );
+
+  // (re)join on mount/room change
+  socket.emit('join_quiz_room', {
+    roomId,
+    user: { id: hostId || 'host', name: displayName },
+    role: 'host',
+  });
+
+  // ask the server ONCE per room/tab open
+  if (!requestedOnceRef.current) {
+    requestedOnceRef.current = true;
+    socket.emit('request_current_state', { roomId });
+    socket.emit('request_room_config', { roomId }); // optional if your server supports both
+  }
+}, [socket, roomId, hostId]);
+
 
   const handleLaunchQuiz = () => {
     if (DEBUG) console.log('👤 [HostDashboard] 🚀 Host launching quiz');
@@ -173,7 +213,7 @@ useEffect(() => {
     }
   };
 
-  const tabs = [
+  const allTabs = [
     { 
       id: 'overview' as TabType, 
       label: 'Overview', 
@@ -219,6 +259,20 @@ useEffect(() => {
       count: null
     }
   ];
+
+ // If locked, show only Payments + End
+const tabs = postGameLock
+  ? allTabs.filter(t => t.id === 'payments' || t.id === 'end')
+  : allTabs;
+
+  useEffect(() => {
+  const allowed = new Set(tabs.map(t => t.id));
+  if (!allowed.has(activeTab)) {
+    setActiveTab('payments');
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [postGameLock]);
+
 
   const LaunchSection = () => {
     // Check if launch is allowed (considering asset uploads AND quiz completion)
@@ -574,7 +628,7 @@ useEffect(() => {
         {isQuizComplete && (
           <div className="mt-2 rounded-lg border border-green-200 bg-green-50 px-4 py-2">
             <span className="text-sm font-medium text-green-800">
-              ✅ Quiz completed successfully{completedTime && ` on ${completedTime}`} Please ensure you reconcile all payments and End the Romm.
+              ✅ Quiz completed successfully{completedTime && ` on ${completedTime}`} Please ensure you reconcile all payments and End the Room.
             </span>
           </div>
         )}
@@ -594,6 +648,10 @@ useEffect(() => {
           Max rounds: <strong>{ents.max_rounds}</strong>
         </div>
       )}
+
+  <WalletDebugPanel />
+
+
 
       {/* Tab Navigation */}
       <div className="bg-muted border-border mb-6 rounded-xl border shadow-sm">
@@ -677,7 +735,8 @@ useEffect(() => {
                   <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-600" />
                   <div className="text-sm text-blue-800">
                     <p className="mb-1 font-medium">Admin Access</p>
-                    <p>Admins can help manage the quiz during gameplay. They have access to host controls and can assist with technical issues.</p>
+                    <p>Admins can help manage the quiz during gameplay. Admins can add players, accept payments and disqualify players.</p>
+                     <p>You can also add a secondary host, this gives them the same rights as the person that set up the quiz.</p>
                   </div>
                 </div>
               </div>
@@ -709,52 +768,49 @@ useEffect(() => {
 );
 };
 
-// Wrapper component with provider logic
+
+// Wrapper component with provider logic (multichain-normalized)
 const HostDashboard: React.FC = () => {
-const { config } = useQuizConfig();
+  const { config } = useQuizConfig();
+  // 🔁 Use the same normalizer the wizard uses (active provider ➜ dashboard config ➜ setup)
+  const { selectedChain, walletReadiness } = useQuizChainIntegration();
 
-console.log('=== HOST DASHBOARD CHAIN INTEGRATION ===');
-console.log('Config state:', {
-  hasConfig: !!config,
-  configKeys: config ? Object.keys(config).length : 0,
-  web3Chain: config?.web3Chain,
-  isWeb3Room: config?.isWeb3Room,
-  paymentMethod: config?.paymentMethod
-});
+  console.log('=== HOST DASHBOARD CHAIN INTEGRATION ===');
+  console.log('Config state:', {
+    hasConfig: !!config,
+    configKeys: config ? Object.keys(config).length : 0,
+    web3Chain: config?.web3Chain,
+    isWeb3Room: config?.isWeb3Room,
+    paymentMethod: config?.paymentMethod,
+  });
+  console.log('Chain integration:', {
+    selectedChain,
+    walletStatus: walletReadiness?.status,
+    walletMessage: walletReadiness?.message,
+  });
 
-// WAIT for config to be loaded before making chain decisions
-if (!config || Object.keys(config).length === 0) {
-  console.log('Config not loaded yet, rendering without chain provider');
-  return <HostDashboardCore />;
-}
-
-// Get the chain from room config with proper type casting
-const selectedChain = (() => {
-  const chain = config?.web3Chain;
-  if (chain === 'stellar' || chain === 'evm' || chain === 'solana') {
-    return chain;
+  // If this room isn’t Web3 (or config not ready), don’t mount a chain provider
+  if (!config || Object.keys(config).length === 0) {
+    console.log('Config not loaded yet, rendering without chain provider');
+    return <HostDashboardCore />;
   }
-  return null;
-})();
+  if (!config.isWeb3Room) {
+    console.log('Non-Web3 room, rendering without chain provider');
+    return <HostDashboardCore />;
+  }
 
-console.log('Chain selection after config loaded:', {
-  selectedChain,
-  isWeb3Room: config?.isWeb3Room
-});
+  // Web3 room: only mount provider if we actually know which chain to mount (from active provider OR config)
+  if (!selectedChain) {
+    console.log('Web3 room but no chain resolved yet — rendering without provider (UI still works, debug panel will indicate)');
+    return <HostDashboardCore />;
+  }
 
-// For non-Web3 rooms, render without chain provider
-if (!config?.isWeb3Room || !selectedChain) {
-  console.log('Rendering without chain provider (non-Web3 room)');
-  return <HostDashboardCore />;
-}
-
-// For Web3 rooms, wrap with the appropriate chain provider
-console.log(`Rendering with ${selectedChain} chain provider`);
-return (
-  <DynamicChainProvider selectedChain={selectedChain}>
-    <HostDashboardCore />
-  </DynamicChainProvider>
-);
+  console.log(`Rendering with ${selectedChain} DynamicChainProvider`);
+  return (
+    <DynamicChainProvider selectedChain={selectedChain}>
+      <HostDashboardCore />
+    </DynamicChainProvider>
+  );
 };
 
 export default HostDashboard;

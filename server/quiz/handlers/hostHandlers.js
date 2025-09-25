@@ -14,7 +14,9 @@ import { isRateLimited } from '../../socketRateLimiter.js';
 import { getCurrentRoundStats } from './globalExtrasHandler.js';
 import { getRoundScoring } from './scoringUtils.js';
 import { StatsService } from '../gameplayEngines/services/StatsService.js'
-const debug = false;
+import { TiebreakerService } from '../gameplayEngines/services/TiebreakerService.js';
+
+const debug = true;
 
 export function setupHostHandlers(socket, namespace) {
 
@@ -211,6 +213,85 @@ export function setupHostHandlers(socket, namespace) {
     return overallLeaderboard;
   }
 
+  // ---------- Tie-breaker helpers (inside setupHostHandlers) ----------
+function findPrizeBoundaryTies(leaderboard, prizeCount) {
+  if (!leaderboard?.length) return [];
+
+  const ties = [];
+
+  // First place tie
+  const topScore = leaderboard[0]?.score ?? 0;
+  const firstGroup = leaderboard.filter(e => (e.score ?? 0) === topScore).map(e => e.id);
+  if (firstGroup.length > 1) ties.push({ boundary: 1, playerIds: firstGroup });
+
+  // Other prize boundaries (e.g., tie for 2nd/3rd)
+  for (let k = 2; k <= prizeCount; k++) {
+    const idx = k - 1;
+    const kthScore = leaderboard[idx]?.score;
+    if (kthScore == null) continue;
+    const group = leaderboard.filter(e => e.score === kthScore).map(e => e.id);
+    if (group.length > 1) ties.push({ boundary: k, playerIds: group });
+  }
+
+  // De-duplicate
+  return ties.filter((t, i, a) => a.findIndex(z => z.boundary === t.boundary) === i);
+}
+
+function detectTie(roomId, prizeCount) {
+  // Reuse your canonical overall computation
+  const leaderboard = calculateOverallLeaderboard(roomId);
+  const ties = findPrizeBoundaryTies(leaderboard, prizeCount);
+  return ties.length > 0;
+}
+
+
+function maybeStartTiebreaker(
+  roomId,
+  room,
+  namespace,
+  { prizeCount = 3, mode = 'closest_number' } = {}
+) {
+  // 🔒 If a TB is already running, don't start again
+  if (room.tiebreaker?.isActive) return true;
+
+  // 🔒 If we already awarded a TB (winner has been applied), do NOT start again
+  // (TiebreakerService.resolve sets room.tiebreaker.awarded = true)
+  if (room.tiebreaker?.awarded) return false;
+
+  const leaderboard = calculateOverallLeaderboard(roomId);
+  const ties = findPrizeBoundaryTies(leaderboard, prizeCount);
+  if (!ties.length) return false;
+
+  // Resolve highest-value boundary first
+  ties.sort((a, b) => a.boundary - b.boundary);
+  const { playerIds } = ties[0];
+
+  room.tiebreaker = {
+    isActive: true,
+    awarded: false,          // 👈 track award state
+    mode,
+    participants: playerIds,
+    questionIndex: 0,
+    history: [],
+    winnerIds: [],
+  };
+  room.currentPhase = 'tiebreaker';
+
+  TiebreakerService.start(room, namespace, roomId);
+  if (debug) {
+    console.log(
+      '[TB] start with participants:',
+      room.tiebreaker?.participants,
+      'bank size:',
+      room.questionBankTiebreak?.length
+    );
+  }
+  return true;
+}
+
+
+
+
   // ✅ Calculate and send final quiz statistics
   function calculateAndSendFinalStats(roomId, namespace) {
     const room = getQuizRoom(roomId);
@@ -372,73 +453,105 @@ function generateEnhancedPlayerStats(room, playerId) {
 }
 
   // ✅ next_round_or_end (unchanged)
-  socket.on('next_round_or_end', ({ roomId }) => {
-    if (debug) console.log(`[Host] next_round_or_end for ${roomId}`);
+ // ✅ next_round_or_end (patched to include tiebreaker)
+socket.on('next_round_or_end', ({ roomId }) => {
+  if (debug) console.log(`[Host] next_round_or_end for ${roomId}`);
 
-    const room = getQuizRoom(roomId);
-    if (!room) {
-      socket.emit('quiz_error', { message: 'Room not found' });
+  const room = getQuizRoom(roomId);
+  if (!room) {
+    socket.emit('quiz_error', { message: 'Room not found' });
+    return;
+  }
+
+  const totalRounds = getTotalRounds(roomId);
+  const nextRound = getCurrentRound(roomId) + 1;
+
+  if (nextRound > totalRounds) {
+    // --- keep your final round stats update as-is ---
+    const finalRoundStats = getCurrentRoundStats(roomId);
+    if (room.storedRoundStats && room.storedRoundStats[room.currentRound]) {
+      room.storedRoundStats[room.currentRound] = {
+        ...room.storedRoundStats[room.currentRound],
+        hintsUsed: finalRoundStats.hintsUsed,
+        freezesUsed: finalRoundStats.freezesUsed,
+        pointsRobbed: finalRoundStats.pointsRobbed,
+        pointsRestored: finalRoundStats.pointsRestored,
+        extrasByPlayer: finalRoundStats.extrasByPlayer,
+        totalExtrasUsed: finalRoundStats.totalExtrasUsed
+      };
+    }
+
+    // 🔎 Build a preview of the final leaderboard (no emit yet)
+    const finalLeaderboardPreview = calculateOverallLeaderboard(roomId);
+
+    // 🧩 Try to start a tiebreaker BEFORE completion
+    const prizeCount =
+      (Array.isArray(room.config?.prizes) && room.config.prizes.length) ||
+      (Array.isArray(room.config?.web3PrizeSplit) && room.config.web3PrizeSplit.length) ||
+      3;
+
+   const startedTB = maybeStartTiebreaker(
+  roomId,
+  room,
+  namespace,
+  {
+    prizeCount,
+    mode: room.config?.tiebreakMode ?? 'closest_number',
+  }
+);
+
+    if (startedTB) {
+      // Tiebreaker is now active; pause normal completion flow
+      emitRoomState(namespace, roomId);
       return;
     }
 
-    const totalRounds = getTotalRounds(roomId);
-    const nextRound = getCurrentRound(roomId) + 1;
+    // --- No tie → proceed to completion (original flow) ---
+    calculateAndSendFinalStats(roomId, namespace);
 
-    if (nextRound > totalRounds) {
-      const finalRoundStats = getCurrentRoundStats(roomId);
+  // If tiebreaker already resolved, prefer the merged board it produced
+const finalLeaderboard = (room.finalLeaderboard && room.finalLeaderboard.length > 0)
+  ? room.finalLeaderboard
+  : calculateOverallLeaderboard(roomId);
 
-      if (room.storedRoundStats && room.storedRoundStats[room.currentRound]) {
-        room.storedRoundStats[room.currentRound] = {
-          ...room.storedRoundStats[room.currentRound],
-          hintsUsed: finalRoundStats.hintsUsed,
-          freezesUsed: finalRoundStats.freezesUsed,
-          pointsRobbed: finalRoundStats.pointsRobbed,
-          pointsRestored: finalRoundStats.pointsRestored,
-          extrasByPlayer: finalRoundStats.extrasByPlayer,
-          totalExtrasUsed: finalRoundStats.totalExtrasUsed
-        };
+room.finalLeaderboard = finalLeaderboard; // ensure it's stored
+namespace.to(roomId).emit('leaderboard', finalLeaderboard);
+namespace.to(`${roomId}:host`).emit('host_final_leaderboard', finalLeaderboard);
 
-        if (debug) {
-          console.log(`[Host] 🔄 Updated final round ${room.currentRound} stats with leaderboard extras:`, {
-            hintsUsed: finalRoundStats.hintsUsed,
-            freezesUsed: finalRoundStats.freezesUsed,
-            pointsRobbed: finalRoundStats.pointsRobbed,
-            pointsRestored: finalRoundStats.pointsRestored,
-            totalExtrasUsed: finalRoundStats.totalExtrasUsed
-          });
+
+    // Enhanced stats per player
+    room.players.forEach(player => {
+      const playerSocket = namespace.sockets.get(player.socketId);
+      if (playerSocket) {
+        const enhancedStats = generateEnhancedPlayerStats(room, player.id);
+        if (enhancedStats) {
+          playerSocket.emit('enhanced_player_stats', enhancedStats);
+          if (debug) console.log(`[Complete] 📊 Sent enhanced stats to ${player.name}`);
         }
       }
+    });
 
-      calculateAndSendFinalStats(roomId, namespace);
+    room.currentPhase = 'complete';
+    namespace.to(roomId).emit('quiz_end', { message: 'Quiz complete. Thank you! Prizes being distributed' });
+    emitRoomState(namespace, roomId);
+    room.completedAt = Date.now();
 
-      const finalLeaderboard = calculateOverallLeaderboard(roomId);
-  room.finalLeaderboard = finalLeaderboard; // Store for recovery
-  namespace.to(roomId).emit('leaderboard', finalLeaderboard); // Send to all players
-  namespace.to(`${roomId}:host`).emit('host_final_leaderboard', finalLeaderboard); // Send to host
+    if (debug) console.log(`[Host] ✅ Quiz completed for ${roomId}`);
+  } else {
+    // Continue to next round
+    startNextRound(roomId);
+    room.currentPhase = 'waiting';
+    emitRoomState(namespace, roomId);
+  }
+});
 
-   room.players.forEach(player => {
-        const playerSocket = namespace.sockets.get(player.socketId);
-        if (playerSocket) {
-          const enhancedStats = generateEnhancedPlayerStats(room, player.id);
-          if (enhancedStats) {
-            playerSocket.emit('enhanced_player_stats', enhancedStats);
-            if (debug) console.log(`[Complete] 📊 Sent enhanced stats to ${player.name}`);
-          }
-        }
-      });
+// When the TiebreakerService resolves, it emits this so we finish normally.
+socket.on('tiebreak:proceed_to_completion', ({ roomId }) => {
+  // Re-use the same path; nextRound>totalRounds will still be true,
+  // and now there is no tie, so it will fall through to completion.
+  socket.emit('next_round_or_end', { roomId });
+});
 
-      room.currentPhase = 'complete';
-      namespace.to(roomId).emit('quiz_end', { message: 'Quiz complete. Thank you! Prizes being distributed' });
-      emitRoomState(namespace, roomId);
-      room.completedAt = Date.now();
-
-      if (debug) console.log(`[Host] ✅ Quiz completed for ${roomId} with final stats sent`);
-    } else {
-      startNextRound(roomId);
-      room.currentPhase = 'waiting';
-      emitRoomState(namespace, roomId);
-    }
-  });
 
   // ✅ end_quiz_and_distribute_prizes (unchanged from your version)
   socket.on('end_quiz_and_distribute_prizes', ({ roomId }) => {

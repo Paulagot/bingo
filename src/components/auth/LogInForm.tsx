@@ -128,15 +128,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
           </p>
         </div>
 
-        <div className="border-border mt-6 border-t pt-6">
-          <div className="text-center">
-            <h3 className="text-fg mb-3 text-sm font-medium">Test Account</h3>
-            <div className="text-fg/70 space-y-1 text-xs">
-              <p>Email: test@example.com</p>
-              <p>Password: password123</p>
-            </div>
-          </div>
-        </div>
+        
       </div>
     </div>
   );

@@ -5,6 +5,12 @@
 
 const debug = false;
 
+function getTiebreakerBonus(room, playerId) {
+  if (!room || !room.tiebreakerAwards) return 0;
+  const v = room.tiebreakerAwards[playerId];
+  return typeof v === 'number' ? v : 0;
+}
+
 export class LeaderboardService {
   /**
    * Build leaderboard from room data
@@ -40,9 +46,12 @@ export class LeaderboardService {
        // Include debt for display purposes
       };
 
-      if (debug) {
-        console.log(`[LeaderboardService] 📝 Player ${playerName}: score=${entry.score}, debt=${entry.penaltyDebt}, cumNeg=${entry.cumulativeNegativePoints}`);
-      }
+      // ✅ apply tiebreaker bonus (if any)
+const tbBonus = getTiebreakerBonus(room, playerId);
+entry.tiebreakerBonus = tbBonus;     // optional: handy for UI/debug
+entry.score += tbBonus;               // <-- make the winner pull ahead numerically
+
+    
 
       return entry;
     });
@@ -82,6 +91,10 @@ export class LeaderboardService {
     const leaderboard = Object.entries(room.playerData).map(([playerId, data]) => {
       const player = room.players.find(p => p.id === playerId);
       const playerName = player?.name || playerId;
+
+      const tbBonus = getTiebreakerBonus(room, playerId);
+entry.tiebreakerBonus = tbBonus;
+entry.score += tbBonus;
 
       // Calculate additional statistics
       const totalAnswers = Object.keys(data.answers || {}).length;
@@ -236,7 +249,7 @@ export class LeaderboardService {
       lowestScore,
       totalScore,
       totalExtrasUsed,
-      totalPenaltyDebt,
+      
       currentRound: room.currentRound,
       questionsAsked: room.currentQuestionIndex + 1,
       totalQuestions: room.questions.length

@@ -1,128 +1,74 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+// src/components/Quiz/hooks/useQuizTimer.ts
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-interface UseQuizTimerParams {
-  question: any;
-  timerActive: boolean;
-  onTimeUp: () => void;
-}
+type TQuestionLite = { id: string; timeLimit: number; questionStartTime: number };
+type UseQuizTimerOpts = { question: TQuestionLite | null | undefined; timerActive: boolean; onTimeUp?: () => void };
 
-const debug = false;
+export function useQuizTimer({ question, timerActive, onTimeUp }: UseQuizTimerOpts) {
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const intervalRef = useRef<number | null>(null);
+  const onTimeUpRef = useRef(onTimeUp);
+  onTimeUpRef.current = onTimeUp;
 
-/**
- * Upgraded, server-synced countdown with smooth fraction.
- * Supports:
- *  - question.endsAtMs (absolute server ms)  ✅ preferred
- *  - or question.serverNowMs + question.timeLimit (s)
- *  - or legacy question.questionStartTime + timeLimit (assumed server epoch ms)
- */
-export const useQuizTimer = ({ question, timerActive, onTimeUp }: UseQuizTimerParams) => {
-  const [timeLeft, setTimeLeft] = useState<number | null>(null);     // whole seconds (ceil)
-  const [fractionLeft, setFractionLeft] = useState<number>(1);       // 1..0 smooth
-  const [msLeft, setMsLeft] = useState<number>(0);                   // raw ms remaining
+  const qKey = useMemo(() => {
+    if (!question) return null;
+    return `${question.id}:${Number(question.questionStartTime)}:${Number(question.timeLimit)}`;
+  }, [question?.id, question?.questionStartTime, question?.timeLimit]);
 
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const driftRef = useRef<number>(0);           // serverNow - clientNow
-  const endsAtRef = useRef<number | null>(null);
-  const durationRef = useRef<number>(30000);    // ms
-
-  const clearTimer = useCallback(() => {
-    if (intervalRef.current) {
+  const clear = useCallback(() => {
+    if (intervalRef.current !== null) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
   }, []);
 
   useEffect(() => {
-    clearTimer();
+    clear();
 
-    if (!question || !timerActive) {
+    if (!timerActive || !question) {
       setTimeLeft(null);
-      setFractionLeft(1);
-      setMsLeft(0);
       return;
     }
 
-    // 1) Figure out authoritative endsAt (ms) from server
-    const timeLimitSec = question.timeLimit ?? question.totalTimeSeconds ?? 30;
-    const serverNowMs: number | undefined = question.serverNowMs;
-    const endsAtMs: number | undefined = question.endsAtMs;
-
-    let computedEndsAt: number | null = null;
-
-    if (typeof endsAtMs === 'number') {
-      // Preferred: server provided absolute end time
-      computedEndsAt = endsAtMs;
-    } else if (typeof serverNowMs === 'number') {
-      // Fallback: server now + timeLimit
-      computedEndsAt = serverNowMs + timeLimitSec * 1000;
-    } else if (typeof question.questionStartTime === 'number') {
-      // Legacy path: assume startTime is server epoch ms
-      computedEndsAt = question.questionStartTime + timeLimitSec * 1000;
-    }
-
-    if (!computedEndsAt) {
-      // No timing info — behave gracefully
+    const startMs = Number(question.questionStartTime);
+    const limitSec = Number(question.timeLimit);
+    if (!isFinite(startMs) || !isFinite(limitSec) || limitSec <= 0) {
       setTimeLeft(null);
-      setFractionLeft(1);
-      setMsLeft(0);
       return;
     }
 
-    endsAtRef.current = computedEndsAt;
+    const now = Date.now();
+    const elapsed = Math.floor((now - startMs) / 1000);
+    setTimeLeft(Math.max(0, limitSec - elapsed));
 
-    // 2) Duration for smooth fraction
-    if (typeof serverNowMs === 'number') {
-      durationRef.current = Math.max(1000, computedEndsAt - serverNowMs);
-    } else {
-      durationRef.current = Math.max(1000, timeLimitSec * 1000);
+    intervalRef.current = window.setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev === null) return prev;
+        if (prev <= 1) {
+          clear();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return clear;
+    // 👇 only qKey & timerActive control re-init; do NOT include `question` itself
+  }, [qKey, timerActive, clear]);
+
+  const firedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!timerActive || timeLeft !== 0 || !qKey) return;
+    if (firedRef.current !== qKey) {
+      firedRef.current = qKey;
+      onTimeUpRef.current?.();
     }
+  }, [timeLeft, timerActive, qKey]);
 
-    // 3) One-time drift calculation (serverNow - clientNow)
-    const clientNow = Date.now();
-    driftRef.current = typeof serverNowMs === 'number' ? (serverNowMs - clientNow) : 0;
+  useEffect(() => clear, [clear]);
 
-    // Helper compute
-    const compute = () => {
-      const nowCorrected = Date.now() + driftRef.current;
-      const left = Math.max(0, computedEndsAt! - nowCorrected); // ms
-      const secs = Math.ceil(left / 1000);
-      const frac = Math.min(1, Math.max(0, left / durationRef.current));
-      return { left, secs, frac };
-    };
+  return { timeLeft };
+}
 
-    // Prime immediately (no flicker)
-    const first = compute();
-    setMsLeft(first.left);
-    setTimeLeft(first.secs);
-    setFractionLeft(first.frac);
 
-    if (first.secs <= 0) {
-      if (debug) console.log('[Timer] TIME UP immediately');
-      onTimeUp();
-      return;
-    }
-
-    // 4) Drive updates — 100ms gives a smooth ring and visible warnings
-    intervalRef.current = setInterval(() => {
-      const { left, secs, frac } = compute();
-
-      setMsLeft(prev => (prev !== left ? left : prev));
-      setFractionLeft(frac);
-      // only set timeLeft when it changes to avoid re-renders
-      setTimeLeft(prev => (prev !== secs ? secs : prev));
-
-      if (secs <= 0) {
-        if (debug) console.log('[Timer] TIME UP - calling onTimeUp', question.id);
-        clearTimer();
-        onTimeUp();
-      }
-    }, 100);
-
-    return clearTimer;
-  }, [question, timerActive, onTimeUp, clearTimer]);
-
-  useEffect(() => () => clearTimer(), [clearTimer]);
-
-  return { timeLeft, fractionLeft, msLeft };
-};
 

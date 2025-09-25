@@ -1,5 +1,4 @@
 // src/components/Quiz/hooks/useQuizSetupStore.ts
-// ...existing imports
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { QuizConfig, RoundDefinition } from '../types/quiz';
@@ -7,16 +6,35 @@ import type { QuizConfig, RoundDefinition } from '../types/quiz';
 type WizardStep = 'setup' | 'templates' | 'rounds' | 'fundraising' | 'stepPrizes' | 'review';
 type WizardFlow = 'web2' | 'web3';
 
-// IMPORTANT: use the SAME key as your persist config
-const PERSIST_KEY = 'quiz-setup-v2';
+const PERSIST_KEY = 'quiz-setup-v2'; // keep your existing key
+const VERSION = 3;
+
+// small helper so we get a stable pre-room ID all hosts can share
+const genId = () => Math.random().toString(36).slice(2, 10);
+
+function deepMerge<T extends object>(base: T, updates: Partial<T>): T {
+  const out: any = Array.isArray(base) ? [...(base as any)] : { ...(base as any) };
+  for (const [k, v] of Object.entries(updates)) {
+    const cur = (out as any)[k];
+    if (v && typeof v === 'object' && !Array.isArray(v) && cur && typeof cur === 'object' && !Array.isArray(cur)) {
+      (out as any)[k] = deepMerge(cur, v as any);
+    } else {
+      (out as any)[k] = v as any;
+    }
+  }
+  return out;
+}
 
 interface QuizSetupState {
+  setupId: string | null;               // 🆕 pre-room collaboration key
   flow: WizardFlow;
   currentStep: WizardStep;
   setupConfig: Partial<QuizConfig>;
   roomId: string | null;
   hostId: string | null;
   lastSavedAt: number | null;
+
+  ensureSetupId: () => string;          // 🆕 creates one if missing and returns it
 
   setFlow: (flow: WizardFlow) => void;
   setStep: (step: WizardStep) => void;
@@ -44,35 +62,28 @@ interface QuizSetupState {
 
   resetSetupConfig: (opts?: { keepIds?: boolean }) => void;
 
-  /** NEW: fully purge localStorage + in-memory state */
-  purgePersist: (opts?: { keepIds?: boolean }) => void;
-
-  /** NEW: one-call reset; optionally pin the flow right after reset */
+  purgePersist: (opts?: { keepIds?: boolean }) => void; // fully clear persistence
   hardReset: (opts?: { flow?: WizardFlow; keepIds?: boolean }) => void;
-}
-
-function deepMerge<T extends object>(base: T, updates: Partial<T>): T {
-  const out: any = { ...base };
-  for (const [k, v] of Object.entries(updates)) {
-    const cur = (out as any)[k];
-    if (v && typeof v === 'object' && !Array.isArray(v) && cur && typeof cur === 'object' && !Array.isArray(cur)) {
-      (out as any)[k] = deepMerge(cur, v as any);
-    } else {
-      (out as any)[k] = v as any;
-    }
-  }
-  return out;
 }
 
 export const useQuizSetupStore = create<QuizSetupState>()(
   persist(
     (set, get) => ({
+      setupId: null,
       flow: 'web2',
       currentStep: 'setup',
       setupConfig: {},
       roomId: null,
       hostId: null,
       lastSavedAt: null,
+
+      ensureSetupId: () => {
+        const cur = get().setupId;
+        if (cur) return cur;
+        const next = `setup_${genId()}`;
+        set({ setupId: next });
+        return next;
+      },
 
       setFlow: (flow) => set({ flow, currentStep: 'setup' }),
       setStep: (currentStep) => set({ currentStep }),
@@ -185,16 +196,14 @@ export const useQuizSetupStore = create<QuizSetupState>()(
           lastSavedAt: Date.now(),
         })),
 
-      /** NEW: remove the persisted key & fully reset in-memory */
       purgePersist: (opts) => {
-        // clear localStorage for this slice
         try {
           localStorage.removeItem(PERSIST_KEY);
-        } catch { /* ignore */ }
-        // reset the in-memory store too
+        } catch {}
         const keepIds = !!opts?.keepIds;
-        const { roomId, hostId } = get();
+        const { roomId, hostId, setupId } = get();
         set({
+          setupId: keepIds ? setupId : null,
           flow: 'web2',
           currentStep: 'setup',
           setupConfig: {},
@@ -204,13 +213,11 @@ export const useQuizSetupStore = create<QuizSetupState>()(
         });
       },
 
-      /** NEW: convenience method for buttons/success handlers */
       hardReset: (opts) => {
         const keepIds = !!opts?.keepIds;
         const nextFlow: WizardFlow | undefined = opts?.flow;
         get().purgePersist({ keepIds });
         if (nextFlow) {
-          // pin the flow and ensure first step
           set({ flow: nextFlow, currentStep: 'setup' });
         }
       },
@@ -218,11 +225,12 @@ export const useQuizSetupStore = create<QuizSetupState>()(
     {
       name: PERSIST_KEY,
       storage: createJSONStorage(() => localStorage),
-      version: 2,
+      version: VERSION,
       migrate: (persisted: any, version) => {
         if (!persisted) return persisted;
-        if (version < 2) {
+        if (version < 3) {
           return {
+            setupId: persisted.setupId ?? null,
             flow: persisted.flow ?? 'web2',
             currentStep: persisted.currentStep ?? 'setup',
             setupConfig: persisted.setupConfig ?? {},
@@ -234,6 +242,7 @@ export const useQuizSetupStore = create<QuizSetupState>()(
         return persisted;
       },
       partialize: (state) => ({
+        setupId: state.setupId,
         flow: state.flow,
         currentStep: state.currentStep,
         setupConfig: state.setupConfig,
@@ -244,3 +253,4 @@ export const useQuizSetupStore = create<QuizSetupState>()(
     }
   )
 );
+

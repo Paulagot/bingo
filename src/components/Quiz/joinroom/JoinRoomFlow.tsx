@@ -8,6 +8,7 @@ import { Web2PaymentStep } from './Web2PaymentStep';
 import type { SupportedChain } from '../../../chains/types';
 import { DynamicChainProvider } from '../../chains/DynamicChainProvider';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
+import WalletDebugPanel from '../Wizard/WalletDebug';
 
 // Use consistent RoomConfig interface matching what verification returns
 interface RoomConfig {
@@ -27,6 +28,17 @@ interface RoomConfig {
 
 type JoinStep = 'verification' | 'name-entry' | 'extras' | 'payment';
 type PaymentFlow = 'demo' | 'web3' | 'web2';
+
+// Normalize backend strings to our SupportedChain union
+const normalizeChain = (value?: string | null): SupportedChain | null => {
+  if (!value) return null;
+  const v = value.toLowerCase();
+  if (['stellar', 'xlm'].includes(v)) return 'stellar';
+  if (['evm', 'ethereum', 'eth', 'polygon', 'matic', 'arbitrum', 'optimism', 'base'].includes(v)) return 'evm';
+  if (['solana', 'sol'].includes(v)) return 'solana';
+  return null;
+};
+
 
 interface JoinRoomFlowProps {
   onClose: () => void;
@@ -72,9 +84,8 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
         
         setRoomConfig(normalizedConfig);
 
-        if (data.web3Chain) {
-          setDetectedChain(data.web3Chain as SupportedChain);
-        }
+const normalized = normalizeChain(data.web3Chain);
+if (normalized) setDetectedChain(normalized);
 
         if (data.demoMode) {
           setPaymentFlow('demo');
@@ -107,10 +118,10 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
     setPlayerName(playerName);
 
     // Handle chain detection internally (no parent callback)
-    if (config.web3Chain) {
-      console.log('🎯 Setting detected chain to:', config.web3Chain);
-      setDetectedChain(config.web3Chain as SupportedChain);
-    }
+ const normalized = normalizeChain(config.web3Chain);
+console.log('🎯 Setting detected chain to:', normalized || config.web3Chain);
+setDetectedChain(normalized);
+
 
     if (config.demoMode) {
       setPaymentFlow('demo');
@@ -161,6 +172,8 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
               onClose={onClose}
             />
           )}
+
+          <WalletDebugPanel />
           
           {step === 'name-entry' && roomConfig && (
             <NameEntryStep
@@ -197,16 +210,25 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
                 />
               )}
               
-              {paymentFlow === 'web3' && (
-                <Web3PaymentStep
-                  roomId={roomId}
-                  playerName={playerName}
-                  roomConfig={roomConfig}
-                  selectedExtras={selectedExtras}
-                  onBack={handleBackToExtras}
-                  onClose={onClose}
-                />
-              )}
+          {paymentFlow === 'web3' && (
+  detectedChain ? (
+    <Web3PaymentStep
+      roomId={roomId}
+      playerName={playerName}
+      roomConfig={roomConfig}
+      selectedExtras={selectedExtras}
+      onBack={handleBackToExtras}
+      onClose={onClose}
+    />
+  ) : (
+    <div className="p-6">
+      <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+        Detecting blockchain network… Please wait.
+      </div>
+    </div>
+  )
+)}
+
               
               {paymentFlow === 'web2' && (
                 <Web2PaymentStep

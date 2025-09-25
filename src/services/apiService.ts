@@ -1,6 +1,7 @@
 // src/services/apiService.ts
 const MGMT_API_BASE_URL = import.meta.env.VITE_MGMT_API_URL || 'http://localhost:3001/api';
 const QUIZ_API_BASE_URL = import.meta.env.VITE_QUIZ_API_URL || 'http://localhost:3001';
+const Debug = false; // Set to true to enable debug logs
 
 class ApiService {
   private getAuthHeaders() {
@@ -20,7 +21,7 @@ class ApiService {
       ...options,
     };
 
-    console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
+   if (Debug) console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
 
     try {
       const response = await fetch(url, config);
@@ -32,7 +33,7 @@ class ApiService {
 
       return await response.json();
     } catch (error) {
-      console.error(`💥 API Error (${endpoint}):`, error);
+     if (Debug) console.error(`💥 API Error (${endpoint}):`, error);
       throw error;
     }
   }

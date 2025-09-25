@@ -8,6 +8,9 @@ import StepPrizes from './StepPrizes';
 import StepQuizSetup from './StepQuizSetup';
 import StepQuizTemplates from './StepQuizTemplates'; // NEW COMPONENT
 import StepCombinedRounds from './StepCombinedRounds';
+import EntitlementsBar from './EntitlementsBar';
+import { useEntitlements } from '../hooks/useEntitlements';
+
 
 interface QuizWizardProps {
   onComplete?: () => void;
@@ -24,7 +27,7 @@ const steps = [
 
 export default function QuizWizard({ onComplete }: QuizWizardProps) {
   const { setupConfig, currentStep, setStep } = useQuizSetupStore();
-
+const { ents } = useEntitlements();
   const index = useMemo(() => steps.indexOf(currentStep), [currentStep]);
   const atLast = index >= steps.length - 1;
 
@@ -73,11 +76,16 @@ export default function QuizWizard({ onComplete }: QuizWizardProps) {
   };
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
+
+
+        <div className="mx-auto max-w-3xl px-4 py-10">
       <div className="mb-6 text-center">
         <h1 className="heading-1">Create Your Fundraising Quiz</h1>
+        {/* ⬇️ your entitlements strip */}
+        <EntitlementsBar ents={ents} className="inline-block" />
       </div>
       <div className="bg-muted rounded-xl p-6 shadow-lg">{renderStep()}</div>
     </div>
+  
   );
 }

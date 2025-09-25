@@ -10,6 +10,8 @@ interface CountdownEffect {
   triggerAutoSubmit?: boolean;
 }
 
+const debug = false;
+
 export const useCountdownEffects = (onAutoSubmitTrigger?: () => void) => {
   const [currentEffect, setCurrentEffect] = useState<CountdownEffect | null>(null);
   const [isFlashing, setIsFlashing] = useState(false);
@@ -20,17 +22,17 @@ export const useCountdownEffects = (onAutoSubmitTrigger?: () => void) => {
     if (!socket) return;
 
     const handleCountdownEffect = (effect: CountdownEffect) => {
-      console.log(`[Countdown] ${effect.message} - ${effect.color} flash`);
+     if (debug) console.log(`[Countdown] ${effect.message} - ${effect.color} flash`);
       
       // ✅ NEW: Trigger auto-submit if requested by server
       if (effect.triggerAutoSubmit && onAutoSubmitTrigger) {
-        console.log('[Countdown] Server triggered auto-submit');
+       if (debug) console.log('[Countdown] Server triggered auto-submit');
         onAutoSubmitTrigger();
       }
       
       // ✅ Test audio context before playing
       if (audioContextRef.current && audioContextRef.current.state === 'running') {
-        console.log('[Audio] Playing countdown sound...');
+       if (debug) console.log('[Audio] Playing countdown sound...');
         playBeep(effect.secondsLeft);
       } else {
         console.warn('[Audio] Audio context not ready. State:', audioContextRef.current?.state);
@@ -66,16 +68,16 @@ export const useCountdownEffects = (onAutoSubmitTrigger?: () => void) => {
     if (!audioContextRef.current) {
       try {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-        console.log('[Audio] Audio context initialized');
+        if (debug) console.log('[Audio] Audio context initialized');
       } catch (error) {
-        console.error('[Audio] Failed to create audio context:', error);
+        if (debug) console.error('[Audio] Failed to create audio context:', error);
       }
     }
     
     // Resume context if suspended (required by browser policies)
     if (audioContextRef.current?.state === 'suspended') {
       audioContextRef.current.resume().then(() => {
-        console.log('[Audio] Audio context resumed');
+      if (debug)  console.log('[Audio] Audio context resumed');
       });
     }
   };

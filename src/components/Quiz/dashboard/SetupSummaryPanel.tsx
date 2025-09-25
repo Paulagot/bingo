@@ -6,9 +6,11 @@ import { roundTypeDefinitions, fundraisingExtraDefinitions } from '../constants/
 import { useRoomIdentity } from '../hooks/useRoomIdentity';
 import QRCodeShare from './QRCodeShare';
 
+
 const SetupSummaryPanel: React.FC = () => {
   const { config } = useQuizConfig();
-  const { roomId } = useRoomIdentity();
+ const { roomId, hostId } = useRoomIdentity();
+  const isWeb3 = config?.paymentMethod === 'web3'
 
   // CRITICAL: Move ALL hooks before ANY conditional returns to fix the hook order violation
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -139,14 +141,14 @@ const SetupSummaryPanel: React.FC = () => {
 
 
 
-{/* QR Code Sharing Section */}
-{roomId && (
+{/* QR Code Sharing Section — only for Web3 games */}
+{isWeb3 && roomId ? (
   <QRCodeShare
     roomId={roomId}
     hostName={hostName}
     gameType={config?.gameType}
   />
-)}
+) : null}
 
       {/* Rounds Section */}
       <div className="border-border rounded-lg border">

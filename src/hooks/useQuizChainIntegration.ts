@@ -1,10 +1,8 @@
-// src/hooks/useQuizChainIntegration.ts
 import { useMemo } from 'react';
 import { useQuizSetupStore } from '../components/Quiz/hooks/useQuizSetupStore';
 import { useQuizConfig } from '../components/Quiz/hooks/useQuizConfig';
-import { useDynamicChain } from '../components/chains/DynamicChainProvider';
+import { useWalletStore } from '../stores/walletStore'; // ⬅️ NEW: read from store
 import type { SupportedChain } from '../chains/types';
-
 
 /**
  * Type guard to safely check if a value represents a positive amount
@@ -19,65 +17,63 @@ const hasPositiveAmount = (value: unknown): boolean => {
 };
 
 /**
- * Hook that bridges quiz setup configuration with chain wallet providers
- * Provides a clean API for quiz components to access wallet functionality
+ * Hook that bridges quiz setup/config with the wallet store (room-driven)
  */
 export const useQuizChainIntegration = () => {
-  // Get quiz configuration from both stores
+  // Quiz configuration from both stores
   const { setupConfig } = useQuizSetupStore();
   const { config } = useQuizConfig();
-  
-  // Get current wallet state from dynamic provider
-  const {
-    activeChain,
-    currentWallet,
-    isWalletConnected,
-    isWalletConnecting,
-    walletError
-  } = useDynamicChain();
 
-  // Normalize the chain selection from quiz config - check all sources
+  // Wallet state from the central store (populated by providers)
+  const { activeChain, stellar, evm, solana } = useWalletStore((s) => ({
+    activeChain: s.activeChain as SupportedChain | null,
+    stellar: s.stellar,
+    evm: s.evm,
+    solana: s.solana,
+  }));
+
+  // Normalize chain selection with clear priority:
+  // 1) active provider chain (store)  2) dashboard config  3) setup config
   const selectedChain: SupportedChain | null = useMemo(() => {
-    // FIRST: Check if DynamicChainProvider has an active chain (for join room flow)
-    if (activeChain) {
-      return activeChain;
+    if (activeChain) return activeChain;
+
+    const dashboardChain = (config?.web3Chain ?? config?.web3ChainConfirmed) as SupportedChain | undefined;
+    if (dashboardChain === 'stellar' || dashboardChain === 'evm' || dashboardChain === 'solana') {
+      return dashboardChain;
     }
-    
-    // SECOND: Try dashboard config (for dashboard context)
-    const dashboardChain = config?.web3Chain || config?.web3ChainConfirmed;
-    if (dashboardChain) {
-      switch (dashboardChain) {
-        case 'stellar':
-        case 'evm':
-        case 'solana':
-          return dashboardChain;
-      }
+
+    const setupChain = setupConfig?.web3Chain as SupportedChain | undefined;
+    if (setupChain === 'stellar' || setupChain === 'evm' || setupChain === 'solana') {
+      return setupChain;
     }
-    
-    // THIRD: Fall back to setup config (for wizard context)
-    const setupChain = setupConfig?.web3Chain;
-    switch (setupChain) {
-      case 'stellar':
-      case 'evm':
-      case 'solana':
-        return setupChain;
-      default:
-        return null;
-    }
+
+    return null;
   }, [activeChain, config?.web3Chain, config?.web3ChainConfirmed, setupConfig?.web3Chain]);
 
-  // Check if wallet is required for current quiz configuration - check both stores
+  // Select current wallet slice by chain (read-only)
+  const currentWallet = useMemo(() => {
+    switch (selectedChain) {
+      case 'stellar': return stellar;
+      case 'evm':     return evm;
+      case 'solana':  return solana;
+      default:        return undefined;
+    }
+  }, [selectedChain, stellar, evm, solana]);
+
+  // Derived wallet flags (chain-agnostic)
+  const isWalletConnected   = !!currentWallet?.isConnected;
+  const isWalletConnecting  = !!currentWallet?.isConnecting;
+  const walletError         = currentWallet?.error;
+  const walletAddress       = currentWallet?.address;
+
+  // Is a wallet required for this room/setup? (basic rule: entryFee > 0)
   const isWalletRequired = useMemo(() => {
     if (!selectedChain) return false;
-    
-    // Check dashboard config first, then setup config
-    const entryFee = config?.entryFee || setupConfig?.entryFee;
-    const hasEntryFee = hasPositiveAmount(entryFee);
-    
-    return hasEntryFee;
+    const entryFee = config?.entryFee ?? setupConfig?.entryFee;
+    return hasPositiveAmount(entryFee);
   }, [selectedChain, config?.entryFee, setupConfig?.entryFee]);
 
-  // Check if wallet setup is complete for quiz requirements
+  // Overall readiness for flows that need a wallet
   const isWalletSetupComplete = useMemo(() => {
     if (!isWalletRequired) return true;
     if (!selectedChain) return false;
@@ -85,130 +81,89 @@ export const useQuizChainIntegration = () => {
     return true;
   }, [isWalletRequired, selectedChain, isWalletConnected]);
 
-  // Get wallet readiness status with detailed messaging
   const walletReadiness = useMemo(() => {
     if (!isWalletRequired) {
-      return { 
-        status: 'not-required' as const, 
-        message: 'No wallet required for this quiz',
-        canProceed: true
-      };
+      return { status: 'not-required' as const, message: 'No wallet required for this quiz', canProceed: true };
     }
-    
     if (!selectedChain) {
-      return { 
-        status: 'no-chain' as const, 
-        message: 'No blockchain selected',
-        canProceed: false
-      };
+      return { status: 'no-chain' as const, message: 'No blockchain selected', canProceed: false };
     }
-    
     if (isWalletConnecting) {
-      return { 
-        status: 'connecting' as const, 
-        message: `Connecting to ${selectedChain} wallet...`,
-        canProceed: false
-      };
+      return { status: 'connecting' as const, message: `Connecting to ${selectedChain} wallet...`, canProceed: false };
     }
-    
     if (walletError) {
-      return { 
-        status: 'error' as const, 
-        message: `Wallet error: ${walletError.message}`,
-        canProceed: false
-      };
+      return { status: 'error' as const, message: `Wallet error: ${walletError.message}`, canProceed: false };
     }
-    
     if (!isWalletConnected) {
-      return { 
-        status: 'disconnected' as const, 
-        message: `${selectedChain} wallet not connected`,
-        canProceed: false
-      };
+      return { status: 'disconnected' as const, message: `${selectedChain} wallet not connected`, canProceed: false };
     }
-    
-    return { 
-      status: 'ready' as const, 
-      message: `${selectedChain} wallet connected and ready`,
-      canProceed: true
-    };
+    return { status: 'ready' as const, message: `${selectedChain} wallet connected and ready`, canProceed: true };
   }, [isWalletRequired, selectedChain, isWalletConnecting, walletError, isWalletConnected]);
 
-  // Helper to get display-friendly chain name
+  // Helpers
   const getChainDisplayName = (chain?: SupportedChain | null): string => {
     const targetChain = chain ?? selectedChain;
     if (!targetChain) return 'No blockchain';
-    
     switch (targetChain) {
-      case 'stellar':
-        return 'Stellar';
-      case 'evm':
-        return 'Ethereum';
-      case 'solana':
-        return 'Solana';
-      default:
-        return String(targetChain).charAt(0).toUpperCase() + String(targetChain).slice(1);
+      case 'stellar': return 'Stellar';
+      case 'evm':     return 'Ethereum';
+      case 'solana':  return 'Solana';
+      default:        return String(targetChain).charAt(0).toUpperCase() + String(targetChain).slice(1);
     }
   };
 
-  // Helper to check if using a specific chain
-  const isUsingChain = (chain: SupportedChain): boolean => {
-    return selectedChain === chain;
-  };
+  const isUsingChain = (chain: SupportedChain): boolean => selectedChain === chain;
 
-  // Helper to get formatted wallet address
   const getFormattedAddress = (short = true): string | null => {
-    if (!currentWallet?.address) return null;
-    
-    const address = currentWallet.address;
-    if (!short) return address;
-    
-    // Return shortened version: first 6 + ... + last 4
-    if (address.length > 10) {
-      return `${address.slice(0, 6)}...${address.slice(-4)}`;
-    }
-    
-    return address;
+    if (!walletAddress) return null;
+    if (!short) return walletAddress;
+    return walletAddress.length > 10
+      ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
+      : walletAddress;
   };
 
   return {
     // Chain selection
     selectedChain,
     activeChain,
-    
+
     // Wallet state
     currentWallet,
     isWalletConnected,
     isWalletConnecting,
     walletError,
-    
+
     // Quiz-specific logic
     isWalletRequired,
     isWalletSetupComplete,
     walletReadiness,
-    
+
     // Convenience flags
     canStartQuiz: walletReadiness.canProceed,
     canProcessPayments: isWalletConnected && selectedChain !== null,
     needsWalletConnection: isWalletRequired && !isWalletConnected,
-    
+
     // Helper functions
     isUsingChain,
     getChainDisplayName,
     getFormattedAddress,
-    
-    // Debug info (useful during development)
+
+    // Debug info (useful during migration)
     debugInfo: {
       setupConfig,
       config,
-      activeChain, // Add this to see what DynamicChainProvider thinks
-      hasEntryFee: hasPositiveAmount(config?.entryFee || setupConfig?.entryFee),
-      configWeb3Chain: config?.web3Chain || config?.web3ChainConfirmed,
+      activeChain,
+      hasEntryFee: hasPositiveAmount(config?.entryFee ?? setupConfig?.entryFee),
+      configWeb3Chain: config?.web3Chain ?? config?.web3ChainConfirmed,
       setupWeb3Chain: setupConfig?.web3Chain,
-      chainSource: activeChain ? 'dynamic-provider' : 
-                   (config?.web3Chain || config?.web3ChainConfirmed) ? 'config' :
-                   setupConfig?.web3Chain ? 'setup' : 'none'
-    }
+      chainSource: activeChain
+        ? 'active-provider'
+        : (config?.web3Chain || config?.web3ChainConfirmed)
+          ? 'dashboard-config'
+          : setupConfig?.web3Chain
+            ? 'setup-config'
+            : 'none',
+    },
   };
 };
 
