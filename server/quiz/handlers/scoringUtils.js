@@ -16,7 +16,7 @@ export function getRoundScoring(room, roundIndex) {
       pointsLostPerUnanswered: 0,
     },
     wipeout: {
-      pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
+      pointsPerDifficulty: { easy: 3, medium: 4, hard: 5 },
       pointsLostPerWrong: 2,
       pointsLostPerUnanswered: 3,
     },

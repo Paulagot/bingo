@@ -30,8 +30,8 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     difficulty: 'Easy',
     bestFor: 'Mixed groups, warm-up rounds, classic quiz feel, family events',
     defaultConfig: {
-  questionsPerRound: 4,
-  timePerQuestion: 10,
+  questionsPerRound: 6,
+  timePerQuestion: 30,
   pointsPerDifficulty: {
     easy: 2,
     medium: 3,
@@ -54,14 +54,14 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     difficulty: 'Easy–Hard or Mixed',
     bestFor: 'Energy spikes and interludes',
     defaultConfig: {
-      totalTimeSeconds: 20,
+      totalTimeSeconds: 75,
       skipAllowed: true,
       pointsPerDifficulty: { easy: 1, medium: 2, hard: 3 },
       pointsLostPerWrong: 0,
       pointsLostPerUnanswered: 0,
       
     },
-    extras: ['robPoints'] // allowed during/after as per your rules
+    extras: ['robPoints', 'Restore Points' ] // allowed during/after as per your rules
   },
   wipeout: {
     id: 'wipeout',
@@ -74,8 +74,8 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     difficulty: 'Easy',
     bestFor: 'Mixed groups, competitive play, family events',
     defaultConfig:   {
-     questionsPerRound: 4,
-      timePerQuestion: 8,
+     questionsPerRound: 8,
+      timePerQuestion: 22,
       pointsPerDifficulty: {
   easy: 3,
   medium: 4,
