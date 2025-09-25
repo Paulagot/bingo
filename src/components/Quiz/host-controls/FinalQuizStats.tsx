@@ -9,9 +9,7 @@ import {
   ChevronRight,
   Download,
   CheckCircle,
-  XCircle,
-  Clock
-
+ 
 } from 'lucide-react';
 import { RoundStats } from './RoundStatsDisplay';
 
@@ -35,18 +33,19 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
     return null;
   }
 
-  // Calculate overall totals
+  // ENHANCED: Calculate overall totals including skipped answers
   const overallStats = allRoundsStats.reduce((total, round) => ({
     hintsUsed: total.hintsUsed + round.hintsUsed,
     freezesUsed: total.freezesUsed + round.freezesUsed,
     pointsRobbed: total.pointsRobbed + round.pointsRobbed,
     pointsRestored: total.pointsRestored + round.pointsRestored,
     totalExtrasUsed: total.totalExtrasUsed + round.totalExtrasUsed,
-    // NEW: Question totals
+    // Enhanced question totals with skip support
     questionsAnswered: total.questionsAnswered + (round.questionsAnswered || 0),
     correctAnswers: total.correctAnswers + (round.correctAnswers || 0),
     wrongAnswers: total.wrongAnswers + (round.wrongAnswers || 0),
-    noAnswers: total.noAnswers + (round.noAnswers || 0)
+    noAnswers: total.noAnswers + (round.noAnswers || 0),
+    skippedAnswers: total.skippedAnswers + (round.skippedAnswers || 0) // NEW
   }), {
     hintsUsed: 0,
     freezesUsed: 0,
@@ -56,16 +55,29 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
     questionsAnswered: 0,
     correctAnswers: 0,
     wrongAnswers: 0,
-    noAnswers: 0
+    noAnswers: 0,
+    skippedAnswers: 0
   });
 
-  // NEW: Calculate question performance metrics
-  const overallCorrectPercentage = overallStats.questionsAnswered > 0 
-    ? ((overallStats.correctAnswers / overallStats.questionsAnswered) * 100).toFixed(1) 
+  // ENHANCED: Calculate performance metrics considering skips
+  const totalResponses = overallStats.correctAnswers + overallStats.wrongAnswers + overallStats.noAnswers + overallStats.skippedAnswers;
+  const actualAttempts = overallStats.correctAnswers + overallStats.wrongAnswers; // Excludes skips and no-answers
+  
+  const overallCorrectPercentage = totalResponses > 0 
+    ? ((overallStats.correctAnswers / totalResponses) * 100).toFixed(1) 
     : '0';
+  
+  const accuracyRate = actualAttempts > 0 
+    ? ((overallStats.correctAnswers / actualAttempts) * 100).toFixed(1) 
+    : '0';
+
   const averageCorrectPerRound = allRoundsStats.length > 0 
     ? (overallStats.correctAnswers / allRoundsStats.length).toFixed(1) 
     : '0';
+
+  // Check if any rounds were speed rounds
+  const hasSpeedRounds = allRoundsStats.some(round => round.roundType === 'speed_round');
+  const speedRoundCount = allRoundsStats.filter(round => round.roundType === 'speed_round').length;
 
   // Calculate player insights across all rounds
   const allPlayerExtras: Record<string, { extraId: string; target?: string; round: number }[]> = {};
@@ -125,7 +137,10 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
       totalPlayers,
       performanceMetrics: {
         overallCorrectPercentage,
-        averageCorrectPerRound
+        accuracyRate,
+        averageCorrectPerRound,
+        hasSpeedRounds,
+        speedRoundCount
       }
     };
     
@@ -148,6 +163,11 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
           <div>
             <h2 className="text-fg text-2xl font-bold">Final Quiz Statistics</h2>
             <p className="text-fg/70">Complete analysis of performance and strategic play</p>
+            {hasSpeedRounds && (
+              <p className="text-purple-600 text-sm font-medium">
+                Includes {speedRoundCount} speed round{speedRoundCount !== 1 ? 's' : ''}
+              </p>
+            )}
           </div>
         </div>
         <button
@@ -159,14 +179,22 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
         </button>
       </div>
 
-      {/* NEW: Overall Question Performance */}
+      {/* ENHANCED: Overall Question Performance with Skip Support */}
       <div className="mb-6 rounded-xl bg-gradient-to-r from-green-50 to-blue-50 p-6">
         <h3 className="mb-4 flex items-center space-x-2 text-lg font-bold text-green-800">
           <CheckCircle className="h-5 w-5" />
           <span>Overall Question Performance</span>
+          {hasSpeedRounds && (
+            <span className="text-sm font-normal text-green-600">
+              (Accuracy: {accuracyRate}% of attempts)
+            </span>
+          )}
         </h3>
         
-        <div className="mb-4 grid grid-cols-2 gap-4 md:grid-cols-4">
+        {/* Dynamic grid based on whether skips exist */}
+        <div className={`mb-4 grid gap-4 ${
+          overallStats.skippedAnswers > 0 ? 'grid-cols-2 md:grid-cols-5' : 'grid-cols-2 md:grid-cols-4'
+        }`}>
           <div className="bg-muted/70 rounded-lg border border-green-200 p-3 text-center">
             <div className="text-2xl font-bold text-green-600">{overallStats.correctAnswers}</div>
             <div className="text-fg/70 text-xs">Correct Answers</div>
@@ -176,23 +204,45 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
             <div className="text-2xl font-bold text-red-600">{overallStats.wrongAnswers}</div>
             <div className="text-fg/70 text-xs">Wrong Answers</div>
           </div>
-          <div className="bg-muted/70 rounded-lg border border-gray-200 p-3 text-center">
-            <div className="text-2xl font-bold text-gray-600">{overallStats.noAnswers}</div>
-            <div className="text-fg/70 text-xs">No Answers</div>
-          </div>
+          
+          {/* Conditionally show skips or no answers */}
+          {overallStats.skippedAnswers > 0 ? (
+            <div className="bg-muted/70 rounded-lg border border-amber-200 p-3 text-center">
+              <div className="text-2xl font-bold text-amber-600">{overallStats.skippedAnswers}</div>
+              <div className="text-fg/70 text-xs">Skipped</div>
+            </div>
+          ) : null}
+          
+          {overallStats.noAnswers > 0 && (
+            <div className="bg-muted/70 rounded-lg border border-gray-200 p-3 text-center">
+              <div className="text-2xl font-bold text-gray-600">{overallStats.noAnswers}</div>
+              <div className="text-fg/70 text-xs">No Answers</div>
+            </div>
+          )}
+          
           <div className="bg-muted/70 rounded-lg border border-blue-200 p-3 text-center">
-            <div className="text-2xl font-bold text-blue-600">{overallStats.questionsAnswered}</div>
+            <div className="text-2xl font-bold text-blue-600">{totalResponses}</div>
             <div className="text-fg/70 text-xs">Total Responses</div>
           </div>
         </div>
 
         <div className="bg-muted/70 rounded-lg p-3 text-center">
-          <div className="text-green-700 font-medium">Quiz Success Rate: {overallCorrectPercentage}%</div>
-          <div className="text-fg/70 text-sm">Average {averageCorrectPerRound} correct answers per round</div>
+          <div className="text-green-700 font-medium">
+            {hasSpeedRounds 
+              ? `Quiz Success Rate: ${overallCorrectPercentage}% • Accuracy Rate: ${accuracyRate}%`
+              : `Quiz Success Rate: ${overallCorrectPercentage}%`
+            }
+          </div>
+          <div className="text-fg/70 text-sm">
+            Average {averageCorrectPerRound} correct answers per round
+            {overallStats.skippedAnswers > 0 && (
+              <span className="text-amber-600"> • {overallStats.skippedAnswers} questions skipped across all rounds</span>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Strategic Summary */}
+      {/* Strategic Summary - Same as before */}
       <div className="mb-6 rounded-xl bg-gradient-to-r from-purple-50 to-blue-50 p-6">
         <h3 className="mb-4 flex items-center space-x-2 text-lg font-bold text-purple-800">
           <TrendingUp className="h-5 w-5" />
@@ -228,6 +278,7 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
             <div className="text-fg/70">
               {allRoundsStats.length} rounds • {totalPlayers} players
               {quizDuration && <div>{quizDuration} minutes duration</div>}
+              {hasSpeedRounds && <div>{speedRoundCount} speed rounds</div>}
             </div>
           </div>
           <div className="bg-muted/70 rounded-lg p-3">
@@ -247,7 +298,7 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
         </div>
       </div>
 
-      {/* Player Insights */}
+      {/* Player Insights - Same as before */}
       {playerStats.length > 0 && (
         <div className="mb-6 rounded-xl bg-blue-50 p-6">
           <div className="mb-4 flex items-center justify-between">
@@ -318,7 +369,7 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
         </div>
       )}
 
-      {/* Round by Round Breakdown */}
+      {/* ENHANCED: Round by Round Breakdown with Skip Support */}
       <div className="rounded-xl bg-gray-50 p-6">
         <h3 className="text-fg mb-4 text-lg font-bold">Round-by-Round Breakdown</h3>
         <div className="space-y-3">
@@ -329,11 +380,22 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
                 className="flex w-full items-center justify-between p-4 transition hover:bg-gray-50"
               >
                 <div className="flex items-center space-x-3">
-                  <span className="font-medium">Round {round.roundNumber}</span>
+                  <span className="font-medium">
+                    Round {round.roundNumber}
+                    {round.roundType === 'speed_round' && (
+                      <span className="ml-2 rounded bg-blue-100 px-2 py-1 text-xs text-blue-700">⚡ Speed</span>
+                    )}
+                  </span>
                   <div className="text-fg/70 flex items-center space-x-4 text-sm">
                     <span className="text-green-600">✓{round.correctAnswers || 0}</span>
                     <span className="text-red-600">✗{round.wrongAnswers || 0}</span>
-                    <span>🧪{round.hintsUsed}</span>
+                    {(round.skippedAnswers || 0) > 0 && (
+                      <span className="text-amber-600">⏭{round.skippedAnswers}</span>
+                    )}
+                    {(round.noAnswers || 0) > 0 && round.roundType !== 'speed_round' && (
+                      <span className="text-gray-600">⏰{round.noAnswers}</span>
+                    )}
+                    <span>💡{round.hintsUsed}</span>
                     <span>❄️{round.freezesUsed}</span>
                     <span>💰{round.pointsRobbed}</span>
                     <span>🎯{round.pointsRestored}</span>
@@ -347,10 +409,12 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
               
               {expandedRounds.has(round.roundNumber) && (
                 <div className="border-border border-t px-4 pb-4">
-                  {/* Question Performance for this round */}
+                  {/* ENHANCED: Question Performance for this round with skip support */}
                   <div className="mb-3 mt-3">
                     <h5 className="text-fg/80 mb-2 text-sm font-medium">Question Performance</h5>
-                    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                    <div className={`grid gap-4 ${
+                      (round.skippedAnswers || 0) > 0 ? 'grid-cols-2 md:grid-cols-5' : 'grid-cols-2 md:grid-cols-4'
+                    }`}>
                       <div className="text-center">
                         <div className="text-lg font-bold text-green-600">{round.correctAnswers || 0}</div>
                         <div className="text-fg/70 text-xs">Correct</div>
@@ -359,10 +423,23 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
                         <div className="text-lg font-bold text-red-600">{round.wrongAnswers || 0}</div>
                         <div className="text-fg/70 text-xs">Wrong</div>
                       </div>
-                      <div className="text-center">
-                        <div className="text-lg font-bold text-gray-600">{round.noAnswers || 0}</div>
-                        <div className="text-fg/70 text-xs">No Answer</div>
-                      </div>
+                      
+                      {/* Show skips only if they exist */}
+                      {(round.skippedAnswers || 0) > 0 && (
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-amber-600">{round.skippedAnswers}</div>
+                          <div className="text-fg/70 text-xs">Skipped</div>
+                        </div>
+                      )}
+                      
+                      {/* Show no answers only for non-speed rounds or if they exist */}
+                      {((round.noAnswers || 0) > 0 && round.roundType !== 'speed_round') && (
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-gray-600">{round.noAnswers}</div>
+                          <div className="text-fg/70 text-xs">No Answer</div>
+                        </div>
+                      )}
+                      
                       <div className="text-center">
                         <div className="text-lg font-bold text-blue-600">{round.questionsAnswered || 0}</div>
                         <div className="text-fg/70 text-xs">Total Responses</div>
@@ -370,7 +447,7 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
                     </div>
                   </div>
 
-                  {/* Strategic Extras */}
+                  {/* Strategic Extras - Same as before */}
                   <div className="mb-3">
                     <h5 className="text-fg/80 mb-2 text-sm font-medium">Strategic Extras</h5>
                     <div className="grid grid-cols-2 gap-4 md:grid-cols-4">

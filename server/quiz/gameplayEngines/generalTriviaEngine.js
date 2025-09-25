@@ -27,6 +27,8 @@ export function initRound(roomId, namespace) {
   const room = getQuizRoom(roomId);
   if (!room) return false;
 
+    room.emittedOptionsByQuestionId = {};
+
   const roundDef = room.config.roundDefinitions?.[room.currentRound - 1];
   const roundType = roundDef?.roundType;
   const questionsPerRound = roundDef?.config?.questionsPerRound || 6;
@@ -74,6 +76,8 @@ export function initRound(roomId, namespace) {
   }
 
   setQuestionsForCurrentRound(roomId, selectedQuestions);
+ 
+
   resetRoundExtrasTracking(roomId);
 
   Object.values(room.playerData).forEach(playerData => {
@@ -96,7 +100,7 @@ export function startNextQuestion(roomId, namespace) {
 
   // Advance first, then clear freezes
   const nextQuestion = advanceToNextQuestion(roomId);
-  
+
   // ✅ USE CENTRALIZED FREEZE SERVICE instead of manual clearing
   FreezeService.clearExpiredFreezes(roomId, room.currentQuestionIndex);
 
@@ -118,6 +122,14 @@ export function startNextQuestion(roomId, namespace) {
     return;
   }
 
+  // 🔀 Shuffle the options we’re about to emit (without mutating the question)
+  const shuffledOptions = QuestionService.buildEmittableOptions(nextQuestion);
+
+  // 🧠 Remember emitted options for this question so we can map index -> text in handlePlayerAnswer
+  if (!room.emittedOptionsByQuestionId) room.emittedOptionsByQuestionId = {};
+  room.emittedOptionsByQuestionId[nextQuestion.id] = shuffledOptions;
+
+  // Emit updated room state before sending the question (kept from your original)
   emitRoomState(namespace, roomId);
 
   const roundConfig = room.config.roundDefinitions[room.currentRound - 1];
@@ -126,15 +138,16 @@ export function startNextQuestion(roomId, namespace) {
   const questionStartTime = Date.now();
   room.questionStartTime = questionStartTime;
 
+  // 📤 Send the question with shuffled options
   namespace.to(roomId).emit('question', {
     id: nextQuestion.id,
     text: nextQuestion.text,
-    options: Array.isArray(nextQuestion.options) ? nextQuestion.options : [],
+    options: shuffledOptions, // <-- shuffled!
     timeLimit,
     questionStartTime,
     questionNumber: room.currentQuestionIndex + 1,
     totalQuestions: room.questions.length,
-    currentQuestionIndex: room.currentQuestionIndex // ✅ ADD THIS LINE
+    currentQuestionIndex: room.currentQuestionIndex
   });
 
   // Use TimerService for unified timer management
@@ -142,13 +155,16 @@ export function startNextQuestion(roomId, namespace) {
     startNextQuestion(roomId, namespace);
   });
 
-  // ✅ FIXED: Use centralized FreezeService instead of manual implementation
+  // ✅ Notify frozen players for this index
   FreezeService.notifyFrozenPlayers(namespace, roomId, room.currentQuestionIndex);
 
   if (debug) {
-    console.log(`[generalTriviaEngine] ▶ Sent question: ${nextQuestion.id} (Q#${room.currentQuestionIndex}, timeLimit: ${timeLimit}s, startTime: ${questionStartTime})`);
+    console.log(
+      `[generalTriviaEngine] ▶ Sent question: ${nextQuestion.id} (Q#${room.currentQuestionIndex}, timeLimit: ${timeLimit}s, startTime: ${questionStartTime})`
+    );
   }
 }
+
 
 /* ------------------------- Handle an answer ------------------------- */
 

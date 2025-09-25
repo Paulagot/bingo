@@ -1,4 +1,6 @@
 // src/hooks/useFundraisingData.ts
+// UPDATED: Include entry fee in personal impact calculation
+
 import { useMemo } from 'react';
 import { usePlayerStore } from './usePlayerStore';
 import { useQuizConfig } from './useQuizConfig';
@@ -15,6 +17,8 @@ interface FundraisingData {
     extrasUsed: number;
     extrasSpent: number;
     personalImpact: number;
+    entryFee: number;           // NEW: Player's entry fee
+    extrasContribution: number; // NEW: Renamed from extrasSpent for clarity
   };
 }
 
@@ -71,6 +75,11 @@ export const useFundraisingData = (playerId: string): FundraisingData | null => 
       prizeAmount = 0; // Prizes are uploaded assets, not from pool
     }
 
+    // UPDATED: Calculate player's total contribution including entry fee
+    const currentPlayer = players.find(p => p.id === playerId);
+    const playerPaidEntry = currentPlayer?.paid ? entryFee : 0;
+    const playerTotalContribution = playerPaidEntry + playerExtrasSpent;
+
     return {
       totalRaised,
       totalEntry: totalEntryReceived,
@@ -82,7 +91,9 @@ export const useFundraisingData = (playerId: string): FundraisingData | null => 
       playerContribution: {
         extrasUsed: playerExtrasUsed,
         extrasSpent: playerExtrasSpent,
-        personalImpact: playerExtrasSpent, // Their contribution is what they spent
+        personalImpact: playerTotalContribution,  // UPDATED: Now includes entry fee + extras
+        entryFee: playerPaidEntry,               // NEW: Player's entry fee contribution
+        extrasContribution: playerExtrasSpent,   // NEW: Clearer naming for extras only
       },
     };
   }, [players, config, playerId]);

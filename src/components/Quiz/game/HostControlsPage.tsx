@@ -1,36 +1,39 @@
 // src/components/Quiz/host-controls/HostControlsPage.tsx
 import { useParams } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import * as React from 'react';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { useNavigate } from 'react-router-dom';
 import { useCountdownEffects } from '../hooks/useCountdownEffects';
 import { useQuizConfig } from '../hooks/useQuizConfig';
-import { roundTypeDefinitions } from '../constants/quizMetadata';
-import type { RoundTypeId } from '../types/quiz';
-import RoundRouter from './RoundRouter';
+
+import type { RoundTypeId, User } from '../types/quiz';
 import ActivityTicker from '../host-controls/ActivityTicker';
 import RoundStatsDisplay from '../host-controls/RoundStatsDisplay';
 import FinalQuizStats from '../host-controls/FinalQuizStats';
 import { useHostStats } from '../hooks/useHostStats';
 import HostRoundPreview from './HostRoundPreview';
+import HostHeader from '../host-controls/components/HostHeader';
+import RoundLeaderboardCard from '../host-controls/components/RoundLeaderboardCard';
+import OverallLeaderboardCard from '../host-controls/components/OverallLeaderboardCard';
+import ReviewPanel from '../host-controls/components/ReviewPanel';
+import HostTiebreakerPanel from '../host-controls/components/HostTiebreakerPanel';
+import { DynamicChainProvider } from '../../chains/DynamicChainProvider';
+import  SpeedRoundHostPanel  from '../host-controls/components/SpeedRoundHostPanel';
+
+
 import { 
-  Loader,
-  Play, 
-  SkipForward, 
-  Users, 
+  Loader, 
   Trophy, 
   Timer, 
   Eye,
-  XCircle,
-  Crown,
-  
+  Crown,  
   Medal,
   Award
 } from 'lucide-react';
 
-import { useQuizContract } from '../../../chains/stellar/useQuizContract';
-import { useStellarWallet } from '../../../chains/stellar/useStellarWallet';
 import { useQuizTimer } from '../hooks/useQuizTimer';
+import { Web3PrizeDistributionRouter } from '../host-controls/prizes/Web3PrizeDistributionRouter';
 
 const debug = false;
 
@@ -38,7 +41,7 @@ type RoomStatePayload = {
   currentRound: number;
   totalRounds: number;
   roundTypeName: string;
-  phase: 'waiting' | 'launched' | 'asking' | 'reviewing' | 'leaderboard' | 'complete' | 'distributing_prizes';
+  phase: 'waiting' | 'launched' | 'asking' | 'reviewing' | 'leaderboard' | 'complete' | 'distributing_prizes' | 'tiebreaker';
   questionsThisRound?: number;
   totalPlayers?: number;
 };
@@ -86,15 +89,14 @@ type LeaderboardEntry = {
   pointsRestored?: number;
 };
 
-const HostControlsPage = () => {
+const HostControlsCore = () => {
   const navigate = useNavigate();
   const { roomId } = useParams<{ roomId: string }>();
   const { socket, connected } = useQuizSocket();
   const { config } = useQuizConfig();
   const [timerActive, setTimerActive] = useState(false);
-
-  const stellarContract = useQuizContract();
-  const stellarWallet = useStellarWallet();
+const [playersInRoom, setPlayersInRoom] = useState<User[]>([]);
+  
 
   const [roomState, setRoomState] = useState<RoomStatePayload>({
     currentRound: 1,
@@ -105,26 +107,86 @@ const HostControlsPage = () => {
     totalPlayers: 0
   });
 
-  // Prize distribution state
-  const [prizeDistributionState, setPrizeDistributionState] = useState<{
-    status: 'idle' | 'distributing' | 'success' | 'error';
-    txHash?: string;
-    error?: string;
-  }>({ status: 'idle' });
+
 
   // Use host stats hook
-  const {
-    activities,
-    currentRoundStats,
-    allRoundsStats,
-    clearActivity,
-    hasRoundStats,
-    hasFinalStats
-  } = useHostStats({
-    socket,
-    roomId: roomId!,
-    debug: debug
-  });
+// ✅ stable reference across renders
+const hostStatsParams = useMemo(
+  () => ({ socket, roomId: roomId!, debug }),
+  [socket, roomId] // (debug is a constant false)
+);
+
+const {
+  activities,
+  currentRoundStats,
+  allRoundsStats,
+  clearActivity,
+  hasRoundStats,
+  hasFinalStats
+} = useHostStats(hostStatsParams);
+
+
+
+
+// cache the last roomState we actually applied for cheap equality checks
+const lastAppliedRef = useRef<null | {
+  currentRound: number | null | undefined;
+  totalRounds: number | null | undefined;
+  roundTypeName: string | null | undefined;
+  phase: string | null | undefined;
+  questionsThisRound: number | null | undefined;
+  totalPlayers: number | null | undefined;
+}>(null);
+
+
+const handleRoomState = useCallback((data: any) => {
+  // shallow compare the subset you use frequently to avoid no-op state updates
+  const snapshot = {
+    currentRound: data?.currentRound ?? null,
+    totalRounds: data?.totalRounds ?? null,
+    roundTypeName: data?.roundTypeName ?? null,
+    phase: data?.phase ?? null,
+    questionsThisRound: data?.questionsThisRound ?? null,
+    totalPlayers: data?.totalPlayers ?? null,
+  };
+
+  const last = lastAppliedRef.current;
+  const unchanged =
+    last &&
+    last.currentRound === snapshot.currentRound &&
+    last.totalRounds === snapshot.totalRounds &&
+    last.roundTypeName === snapshot.roundTypeName &&
+    last.phase === snapshot.phase &&
+    last.questionsThisRound === snapshot.questionsThisRound &&
+    last.totalPlayers === snapshot.totalPlayers;
+
+  if (!unchanged) {
+    lastAppliedRef.current = snapshot;
+    setRoomState(data); // your existing state setter
+
+    // keep your side-effects, but guard them so they don't thrash
+    if (data?.phase !== 'leaderboard') {
+      setIsShowingRoundResults(false);
+      setRoundLeaderboard([]);
+    }
+    if (data?.phase !== 'reviewing') {
+      setReviewComplete(false);
+    }
+  }
+}, []);
+
+
+
+  // --- TIEBREAKER (host side) ---
+const [tbParticipants, setTbParticipants] = useState<string[]>([]);
+const [tbQuestion, setTbQuestion] = useState<{ id: string; text: string; timeLimit: number; questionStartTime?: number } | null>(null);
+const [tbWinners, setTbWinners] = useState<string[] | null>(null);
+const [tbPlayerAnswers, setTbPlayerAnswers] = useState<Record<string, number>>({});
+const [tbCorrectAnswer, setTbCorrectAnswer] = useState<number | undefined>();
+const [tbShowReview, setTbShowReview] = useState(false);
+const [tbQuestionNumber, setTbQuestionNumber] = useState(1);
+const [tbStillTied, setTbStillTied] = useState<string[]>([]);
+
 
   const [currentQuestion, setCurrentQuestion] = useState<QuestionPayload | null>(null);
   const [reviewQuestion, setReviewQuestion] = useState<ReviewQuestionPayload | null>(null);
@@ -140,17 +202,34 @@ const HostControlsPage = () => {
   const [, setTotalInRound] = useState(1);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(-1);
 
-  // 🔵 SPEED ROUND — host live dashboard state
-const [speedActivities, setSpeedActivities] = useState<any[]>([]);
-const [speedStats, setSpeedStats] = useState({ totalAnswers: 0, correct: 0, wrong: 0, skipped: 0, answersPerSec: 0 });
-const [roundCountdown, setRoundCountdown] = useState<number | null>(null);
+
 
 // Timer now managed by server - host gets same countdown effects as players  
+const timerQuestion = currentQuestion
+  ? {
+      id: currentQuestion.id,
+      timeLimit: currentQuestion.timeLimit,
+      questionStartTime: currentQuestion.questionStartTime,
+    }
+  : null;
+
 const { timeLeft } = useQuizTimer({
-  question: currentQuestion,
-  timerActive: timerActive && roomState.phase === 'asking',
-  onTimeUp: () => {} // Host doesn't need to auto-submit
+  question: timerQuestion,
+  timerActive: roomState.phase === 'asking',
+  onTimeUp: undefined,
 });
+
+useEffect(() => {
+  if (roomState.phase === 'tiebreaker') {
+    console.log('[Host Debug] Tiebreaker Data:', {
+      tbParticipants,
+      playersInRoom: playersInRoom?.map(p => ({ id: p.id, name: p.name })),
+      leaderboard: leaderboard?.map(p => ({ id: p.id, name: p.name })),
+      hasPlayersInRoom: !!playersInRoom?.length,
+      hasLeaderboard: !!leaderboard?.length
+    });
+  }
+}, [roomState.phase, tbParticipants, playersInRoom, leaderboard]);
 
   // Use countdown effects hook (same as players use)
   const { currentEffect, isFlashing, getFlashClasses } = useCountdownEffects();
@@ -208,7 +287,154 @@ const { timeLeft } = useQuizTimer({
   // Get current round information
   const currentRoundDef = config?.roundDefinitions?.[roomState.currentRound - 1];
   const roundTypeId = currentRoundDef?.roundType as RoundTypeId;
-  const roundMetadata = roundTypeDefinitions[roundTypeId];
+
+
+  // --- Prize & tie helpers (host-side preview only) ---
+function computePrizeCount(cfg: any): number {
+  // 1) Web3 explicit structure (amounts for each place)
+  const s = cfg?.web3PrizeStructure;
+  if (s && typeof s === 'object') {
+    const keys = ['firstPlace', 'secondPlace', 'thirdPlace', 'fourthPlace', 'fifthPlace'];
+    const cnt = keys.reduce((n, k) => {
+      const v = Number(s[k]);
+      return n + (Number.isFinite(v) && v > 0 ? 1 : 0);
+    }, 0);
+    if (cnt > 0) return cnt;
+  }
+
+  // 2) Web3 split array (percentages or amounts)
+  //    Accepts numbers OR objects with amount/percent
+  if (Array.isArray(cfg?.web3PrizeSplit)) {
+    const cnt = cfg.web3PrizeSplit.filter((x: any) => {
+      const v = typeof x === 'number' ? x : Number(x?.amount ?? x?.percent);
+      return Number.isFinite(v) && v > 0;
+    }).length;
+    if (cnt > 0) return cnt;
+  }
+
+  // 3) Fiat/cash prizes array
+  //    Accepts objects with amount or any truthy entry
+  if (Array.isArray(cfg?.prizes)) {
+    const cnt = cfg.prizes.filter((p: any) => {
+      if (p == null) return false;
+      const v = Number(p?.amount);
+      // if an amount is present, require > 0; otherwise count truthy prize items
+      return Number.isFinite(v) ? v > 0 : true;
+    }).length;
+    if (cnt > 0) return cnt;
+  }
+
+  // 4) Conservative fallback
+  return 1;
+}
+
+
+function findPrizeBoundaryTies(
+  leaderboard: { id: string; name: string; score: number }[],
+  prizeCount: number
+) {
+  if (!leaderboard?.length) return [];
+
+  const ties: { boundary: number; playerIds: string[] }[] = [];
+
+  // tie for 1st
+  const topScore = leaderboard[0]?.score ?? 0;
+  const firstGroup = leaderboard
+    .filter(e => (e.score ?? 0) === topScore)
+    .map(e => e.id);
+  if (firstGroup.length > 1) ties.push({ boundary: 1, playerIds: firstGroup });
+
+  // ties for 2nd..prizeCount
+  for (let k = 2; k <= prizeCount; k++) {
+    const idx = k - 1;
+    const kthScore = leaderboard[idx]?.score;
+    if (kthScore == null) continue;
+    const group = leaderboard.filter(e => e.score === kthScore).map(e => e.id);
+    if (group.length > 1) ties.push({ boundary: k, playerIds: group });
+  }
+
+  // de-dupe
+  return ties.filter((t, i, a) => a.findIndex(z => z.boundary === t.boundary) === i);
+}
+
+// Tiebreaker & player list listeners (single, flat effect — no nesting)
+useEffect(() => {
+  if (!socket) return;
+
+  const onStart = ({ participants }: { participants: string[] }) => {
+    setTbParticipants(participants);
+    setTbQuestion(null);
+    setTbWinners(null);
+    setRoomState(s => ({ ...s, phase: 'tiebreaker' }));
+  };
+
+  const onQ = (q: { id: string; text: string; type: 'numeric'; timeLimit: number; questionStartTime?: number }) => {
+    setTbQuestion({
+      id: q.id,
+      text: q.text,
+      timeLimit: q.timeLimit,
+      questionStartTime: q.questionStartTime
+    });
+    setTbShowReview(false);
+    setTbPlayerAnswers({});
+  };
+
+  const onRes = ({ winnerIds }: { winnerIds: string[] }) => {
+    setTbWinners(winnerIds);
+  };
+
+  const onReview = (data: {
+    correctAnswer: number;
+    playerAnswers: Record<string, number>;
+    winnerIds?: string[];
+    stillTiedIds?: string[];
+    questionText: string;
+    isFinalAnswer: boolean;
+  }) => {
+    if (debug) console.log('[Host] tiebreak:review', data);
+
+    setTbCorrectAnswer(data.correctAnswer);
+    setTbPlayerAnswers(data.playerAnswers);
+    setTbShowReview(true);
+
+    if (data.winnerIds) {
+      setTbWinners(data.winnerIds);
+    } else if (data.stillTiedIds) {
+      setTbStillTied(data.stillTiedIds);
+    }
+  };
+
+  const onTieAgain = ({ stillTiedIds }: { stillTiedIds: string[] }) => {
+    if (debug) console.log('[Host] tiebreak:tie_again', stillTiedIds);
+    setTbStillTied(stillTiedIds);
+    setTbParticipants(stillTiedIds);
+    setTbShowReview(false);
+    setTbQuestionNumber(prev => prev + 1);
+  };
+
+  const onPlayerListUpdated = ({ players }: { players: User[] }) => {
+    setPlayersInRoom(players);
+    if (debug) console.log('[Host] Player list updated:', players);
+  };
+
+  socket.on('tiebreak:start', onStart);
+  socket.on('tiebreak:question', onQ);
+  socket.on('tiebreak:result', onRes);
+  socket.on('tiebreak:review', onReview);
+  socket.on('tiebreak:tie_again', onTieAgain);
+  socket.on('player_list_updated', onPlayerListUpdated);
+
+  return () => {
+    socket.off('tiebreak:start', onStart);
+    socket.off('tiebreak:question', onQ);
+    socket.off('tiebreak:result', onRes);
+    socket.off('tiebreak:review', onReview);
+    socket.off('tiebreak:tie_again', onTieAgain);
+    socket.off('player_list_updated', onPlayerListUpdated);
+  };
+}, [socket]);
+
+
 
   // Join room as host when component mounts
   useEffect(() => {
@@ -230,28 +456,16 @@ const { timeLeft } = useQuizTimer({
   }, [socket, connected, roomId]);
 
   // Listen for room_state updates
-  useEffect(() => {
-    if (!socket) return;
-    const handleRoomState = (data: RoomStatePayload) => {
-      if (debug) console.log('[Host] Received room_state update:', data);
-      setRoomState(data);
-      
-      // Reset round leaderboard state when phase changes
-      if (data.phase !== 'leaderboard') {
-        setIsShowingRoundResults(false);
-        setRoundLeaderboard([]);
-      }
-      
-      // Reset review complete flag when leaving reviewing phase
-      if (data.phase !== 'reviewing') {
-        setReviewComplete(false);
-      }
-    };
-    socket.on('room_state', handleRoomState);
-    return () => {
-      socket.off('room_state', handleRoomState);
-    };
-  }, [socket]);
+// uses the memoized handleRoomState from above
+useEffect(() => {
+  if (!socket) return;
+
+  socket.on('room_state', handleRoomState);
+  return () => {
+    socket.off('room_state', handleRoomState);
+  };
+}, [socket, handleRoomState]);
+
 
   useEffect(() => {
   if (!socket) return;
@@ -262,34 +476,6 @@ const { timeLeft } = useQuizTimer({
   socket.on('host_final_leaderboard', handleFinalLeaderboard);
   return () => {
     socket.off('host_final_leaderboard', handleFinalLeaderboard);
-  };
-}, [socket]);
-
-// 🔵 SPEED ROUND — host live dashboard listeners
-useEffect(() => {
-  if (!socket) return;
-
-  const onRemain = ({ remaining }: { remaining: number }) => {
-    setRoundCountdown(remaining);
-  };
-
-  const onActivity = (evt: any) => {
-    // e.g. { playerId, playerName, correct, skipped, questionId, ts }
-    setSpeedActivities(prev => [evt, ...prev].slice(0, 50));
-  };
-
-  const onStats = (s: { totalAnswers: number; correct: number; wrong: number; skipped: number; answersPerSec: number }) => {
-    setSpeedStats(s);
-  };
-
-  socket.on('round_time_remaining', onRemain);
-  socket.on('host_speed_activity', onActivity);
-  socket.on('host_speed_stats', onStats);
-
-  return () => {
-    socket.off('round_time_remaining', onRemain);
-    socket.off('host_speed_activity', onActivity);
-    socket.off('host_speed_stats', onStats);
   };
 }, [socket]);
 
@@ -393,6 +579,9 @@ useEffect(() => {
     };
   }, [socket]);
 
+
+  
+
   // Socket emitters for host actions
   const handleStartRound = () => {
     if (debug) console.log('[Host] Starting round...');
@@ -415,40 +604,7 @@ useEffect(() => {
     socket?.emit('continue_to_overall_leaderboard', { roomId });
   };
 
-  const handleLeaderboardConfirm = () => {
-    socket?.emit('next_round_or_end', { roomId });
-  };
-
-
-
-  // Get round scoring information
-  const getRoundScoringInfo = () => {
-    if (!currentRoundDef || !roundMetadata) return null;
-
-    const roundConfig = currentRoundDef.config;
-    const defaultConfig = roundMetadata.defaultConfig || {};
-    
-    const pointsPerDifficulty = roundConfig?.pointsPerDifficulty || defaultConfig.pointsPerDifficulty || { easy: 1, medium: 2, hard: 3 };
-    const pointsLostPerWrong = roundConfig?.pointsLostPerWrong ?? defaultConfig.pointsLostPerWrong ?? 0;
-    const pointsLostPerNoAnswer = roundConfig?.pointsLostPerUnanswered ?? defaultConfig.pointsLostPerUnanswered ?? 0;
-    const timePerQuestion = roundConfig?.timePerQuestion || defaultConfig.timePerQuestion || 25;
-    const questionsPerRound = roundConfig?.questionsPerRound || defaultConfig.questionsPerRound || 6;
-    
-    const roundDifficulty = currentRoundDef.difficulty;
-    const pointsForThisRound = roundDifficulty ? pointsPerDifficulty[roundDifficulty] : null;
-
-    return {
-      pointsPerDifficulty,
-      pointsLostPerWrong,
-      pointsLostPerNoAnswer,
-      timePerQuestion,
-      questionsPerRound,
-      roundDifficulty,
-      pointsForThisRound
-    };
-  };
-
-  const scoringInfo = getRoundScoringInfo();
+ 
   
   useEffect(() => {
     if (roomState.phase === 'complete' && leaderboard.length > 0) {
@@ -463,140 +619,34 @@ useEffect(() => {
     }
   }, [roomState.phase, leaderboard]);
 
-  // Add this useEffect to debug wallet state in HostControlsPage.tsx
-  useEffect(() => {
-    if (debug) console.log('[Host] Stellar wallet state debug:', {
-      isReady: stellarContract?.isReady,
-      walletAddress: stellarContract?.walletAddress,
-      contractAddress: stellarContract?.contractAddress,
-      currentNetwork: stellarContract?.currentNetwork
-    });
-  }, [stellarContract]);
 
-  // Also debug the config and UI state
-  useEffect(() => {
-    if (debug) console.log('[Host] UI state debug:', {
-      paymentMethod: config?.paymentMethod,
-      phase: roomState.phase,
-      buttonShouldBeVisible: roomState.phase === 'complete' && config?.paymentMethod === 'web3',
-      buttonShouldBeEnabled: stellarContract?.isReady
-    });
-  }, [config, roomState.phase, stellarContract?.isReady]);
+  // --- CTA label logic for overall leaderboard ---
+// derive tie meta
+const isFinalRound = roomState.currentRound >= roomState.totalRounds;
+const prizeCount = computePrizeCount(config);
+const prizeBoundaryTies =
+  roomState.phase === 'leaderboard' && !isShowingRoundResults
+    ? findPrizeBoundaryTies(leaderboard, prizeCount)
+    : [];
+const hasPrizeTie = prizeBoundaryTies.length > 0;
 
-  // Prize distribution handler
-  const handleDistributePrizes = () => {
-    if (debug) console.log('[Host] Initiating prize distribution...');
-    
-    // Set state to distributing to disable button
-    setPrizeDistributionState({ status: 'distributing' });
-    
-    socket?.emit('end_quiz_and_distribute_prizes', { roomId });
-    if (debug) console.log('[Host] Prize distribution initiated');
-    if (debug) console.log('[Host] Winners needed:', leaderboard.slice(0, 3).map(p => p.name));
-  };
+// turn participant IDs → names for preview
+const tieParticipantsByName = (() => {
+  if (!hasPrizeTie) return [];
+  const ids = prizeBoundaryTies[0].playerIds;
+  const map = new Map(leaderboard.map(e => [e.id, e.name]));
+  return ids.map(id => map.get(id) || id);
+})();
 
-  // Add socket listeners for prize distribution completion
-  useEffect(() => {
-    if (!socket) return;
 
-    const handlePrizeDistributionCompleted = (data: {
-      roomId: string;
-      success: boolean;
-      txHash?: string;
-      error?: string;
-    }) => {
-      if (debug) console.log('[Host] Prize distribution completed:', data);
-      
-      if (data.success) {
-        setPrizeDistributionState({ 
-          status: 'success', 
-          txHash: data.txHash 
-        });
-      } else {
-        setPrizeDistributionState({ 
-          status: 'error', 
-          error: data.error || 'Distribution failed' 
-        });
-      }
-    };
 
-    socket.on('prize_distribution_completed', handlePrizeDistributionCompleted);
 
-    return () => {
-      socket.off('prize_distribution_completed', handlePrizeDistributionCompleted);
-    };
-  }, [socket]);
 
-  // Add socket listeners for prize distribution
-  useEffect(() => {
-    if (!socket) return;
-
-    const handlePrizeDistribution = async (data: {
-      roomId: string;
-      winners: string[];
-      finalLeaderboard: any[];
-      web3Chain?: string;
-    }) => {
-      if (debug) console.log('[Host] Received prize distribution request:', data);
-
-      try {
-        if (!stellarContract) {
-          throw new Error('Contract not initialized');
-        }
-
-        if (!stellarContract.endRoom) {
-          throw new Error('endRoom method not available');
-        }
-
-        if (!stellarContract.isReady) {
-          throw new Error('Wallet not connected');
-        }
-
-        if (debug) console.log('[Host] Calling endRoom with:', {
-          roomId: data.roomId,
-          winners: data.winners,
-          winnersCount: data.winners.length
-        });
-
-        const result = await stellarContract.endRoom({
-          roomId: data.roomId,
-          winners: data.winners
-        });
-
-        if (result.success) {
-          if (debug) console.log('[Host] Prize distribution successful:', result.txHash);
-          socket.emit('prize_distribution_completed', {
-            roomId: data.roomId,
-            success: true,
-            txHash: result.txHash
-          });
-        } else {
-          socket.emit('prize_distribution_completed', {
-            roomId: data.roomId,
-            success: false,
-            error: result.error || 'Unknown error occurred'
-          });
-        }
-      } catch (error: any) {
-        console.error('[Host] Prize distribution failed:', error);
-        socket.emit('prize_distribution_completed', {
-          roomId: data.roomId,
-          success: false,
-          error: error.message || 'Contract call failed'
-        });
-      }
-    };
-
-    socket.on('initiate_prize_distribution', handlePrizeDistribution);
-
-    return () => {
-      socket.off('initiate_prize_distribution', handlePrizeDistribution);
-    };
-  }, [socket, roomId, stellarContract]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
-      
+
+   
       {/* Countdown Effect Overlay (same as players) */}
       {currentEffect && isFlashing && (
         <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center">
@@ -612,48 +662,26 @@ useEffect(() => {
 
       <div className={`container mx-auto max-w-6xl px-4 py-8 ${getFlashClasses()}`}>
         
-        {/* Header */}
-        <div className="mb-8 text-center">
-          <h1 className="text-fg mb-2 flex items-center justify-center space-x-3 text-3xl font-bold md:text-4xl">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-600 text-2xl text-white">
-              👑
-            </div>
-            <span>Host Dashboard</span>
-          </h1>
-          <p className="text-fg/70 text-lg">Control your quiz experience</p>
-          <p className="text-fg/60 mt-2 text-sm">Room: {roomId}</p>
-        </div>
+   <HostHeader
+  roomId={roomId!}
+  connected={connected}
+  currentRound={roomState.currentRound}
+  totalRounds={roomState.totalRounds}
+  phase={roomState.phase}
+/>
 
-        {/* Status Bar */}
-        <div className="bg-muted border-border mb-6 rounded-xl border p-4 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center space-x-4">
-              <span className="text-fg text-lg font-semibold">
-                Round {roomState.currentRound} / {roomState.totalRounds}
-              </span>
-              <div className="flex items-center space-x-2">
-                <div className={`h-3 w-3 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                <span className="text-fg/70 text-sm">{connected ? 'Connected' : 'Disconnected'}</span>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <Users className="h-4 w-4 text-blue-600" />
-                <span className="text-fg/70 text-sm">{roomState.totalPlayers || 0} players</span>
-              </div>
-              <span className={`rounded-full px-3 py-1 text-xs font-medium ${
-                roomState.phase === 'waiting' ? 'bg-yellow-100 text-yellow-800' :
-                roomState.phase === 'launched' ? 'bg-green-100 text-green-800' :
-                roomState.phase === 'asking' ? 'bg-blue-100 text-blue-800' :
-                roomState.phase === 'reviewing' ? 'bg-orange-100 text-orange-800' :
-                roomState.phase === 'leaderboard' ? 'bg-purple-100 text-purple-800' :
-                'text-fg bg-gray-100'
-              }`}>
-                {roomState.phase.charAt(0).toUpperCase() + roomState.phase.slice(1)}
-              </span>
-            </div>
-          </div>
-        </div>
+<HostTiebreakerPanel
+  visible={roomState.phase === 'tiebreaker'}
+  participants={tbParticipants}
+  question={tbQuestion}
+  winners={tbWinners}
+  playerAnswers={tbPlayerAnswers}
+  correctAnswer={tbCorrectAnswer}
+  showReview={tbShowReview}
+  playersInRoom={playersInRoom?.length ? playersInRoom : leaderboard}
+  questionNumber={tbQuestionNumber}
+  stillTied={tbStillTied}
+/>
 
         {/* Activity Ticker - Prominently placed for host visibility */}
         <ActivityTicker
@@ -673,64 +701,11 @@ useEffect(() => {
     onStartRound={handleStartRound}
   />
 )}
-
-{/* 🔵 SPEED ROUND — Host Live Panel */}
-{roomState.phase === 'asking' && roundTypeId === 'speed_round' && (
-  <div className="mb-6 rounded-xl border-2 border-blue-200 bg-white p-6 shadow-lg">
-    <div className="mb-4 flex items-center justify-between">
-      <h3 className="text-fg text-lg font-bold">⚡ Speed Round — Live</h3>
-      {roundCountdown !== null && (
-        <div className="flex items-center space-x-2">
-          <Timer className="h-4 w-4 text-orange-600" />
-          <span className={`text-lg font-bold ${
-            roundCountdown <= 10 ? 'animate-pulse text-red-600' :
-            roundCountdown <= 30 ? 'text-orange-600' : 'text-green-600'
-          }`}>
-            {roundCountdown}s
-          </span>
-        </div>
-      )}
-    </div>
-
-    {/* Stats */}
-    <div className="mb-6 grid grid-cols-4 gap-4">
-      <div className="rounded-xl bg-slate-50 p-4">
-        <div className="text-slate-500 text-sm">Total answers</div>
-        <div className="text-2xl font-bold">{speedStats.totalAnswers}</div>
-      </div>
-      <div className="rounded-xl bg-emerald-50 p-4">
-        <div className="text-emerald-600 text-sm">Correct</div>
-        <div className="text-2xl font-bold">{speedStats.correct}</div>
-      </div>
-      <div className="rounded-xl bg-rose-50 p-4">
-        <div className="text-rose-600 text-sm">Wrong</div>
-        <div className="text-2xl font-bold">{speedStats.wrong}</div>
-      </div>
-      <div className="rounded-xl bg-amber-50 p-4">
-        <div className="text-amber-600 text-sm">Skipped</div>
-        <div className="text-2xl font-bold">{speedStats.skipped}</div>
-      </div>
-    </div>
-
-    {/* Activity ticker (speed-only feed) */}
-    <div className="rounded-xl border bg-white">
-      <ul className="divide-y">
-        {speedActivities.map((e, i) => (
-          <li key={i} className="flex items-center gap-3 p-3">
-            <span className="text-xs text-slate-500">{new Date(e.ts).toLocaleTimeString()}</span>
-            <span className="font-medium">{e.playerName}</span>
-            {e.skipped ? <span>⏭︎</span> : e.correct ? <span>✅</span> : <span>❌</span>}
-            <span className="text-sm text-slate-400">Q{e.questionId}</span>
-          </li>
-        ))}
-        {speedActivities.length === 0 && (
-          <li className="p-3 text-sm text-slate-500">Waiting for answers…</li>
-        )}
-      </ul>
-    </div>
-  </div>
-)}
-
+{/* Speed Round Host Panel */}
+<SpeedRoundHostPanel
+  roomId={roomId!}
+  visible={roomState.phase === 'asking' && roundTypeId === 'speed_round'}
+/>
 
         {/* Active Question Display */}
         {currentQuestion && roomState.phase === 'asking' && roundTypeId !== 'speed_round' && (
@@ -791,79 +766,17 @@ useEffect(() => {
         )}
 
         {/* Review Question Display with Statistics */}
-        {reviewQuestion && roomState.phase === 'reviewing' && (
-          <div className="bg-muted mb-6 rounded-xl border-2 border-yellow-200 p-6 shadow-lg">
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <h3 className="text-fg text-lg font-bold">📖 Question Review</h3>
-                {/* Show question position */}
-                {reviewQuestion.questionNumber && reviewQuestion.totalQuestions && (
-                  <span className="rounded-full bg-yellow-100 px-3 py-1 text-sm font-medium text-yellow-700">
-                    Question {reviewQuestion.questionNumber}/{reviewQuestion.totalQuestions}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center space-x-3">
-                {/* Show round results button for last question OR when review is complete */}
-                {(isLastQuestionOfRound() || reviewComplete) && (
-                  <button 
-                    onClick={handleShowRoundResults} 
-                    className="flex items-center space-x-2 rounded-lg bg-purple-500 px-4 py-2 font-medium text-white transition hover:bg-purple-600"
-                  >
-                    <Trophy className="h-4 w-4" />
-                    <span>Show Round Results</span>
-                  </button>
-                )}
-                <button 
-                  onClick={handleNextReview} 
-                  className="flex items-center space-x-2 rounded-lg bg-yellow-500 px-4 py-2 font-medium text-white transition hover:bg-yellow-600"
-                  disabled={reviewComplete}
-                >
-                  <SkipForward className="h-4 w-4" />
-                  <span>{reviewComplete ? 'Review Complete' : 'Next Review'}</span>
-                </button>
-              </div>
-            </div>
+      <ReviewPanel
+  roomPhase={roomState.phase}
+  currentRoundDef={currentRoundDef}
+  reviewQuestion={reviewQuestion!}
+  isLastQuestionOfRound={isLastQuestionOfRound()}
+  reviewComplete={reviewComplete}
+  onShowRoundResults={handleShowRoundResults}
+  onNextReview={handleNextReview}
+  roomId={roomId!}
+/>
 
-            {/* Use RoundRouter for consistent display with statistics */}
-            <RoundRouter
-              roomPhase="reviewing"
-              currentRoundType={currentRoundDef?.roundType}
-              question={{
-                id: reviewQuestion.id,
-                text: reviewQuestion.text,
-                options: reviewQuestion.options,
-                timeLimit: 0,
-                difficulty: reviewQuestion.difficulty,
-                category: reviewQuestion.category
-              }}
-              timeLeft={null}
-              timerActive={false}
-              selectedAnswer=""
-              setSelectedAnswer={() => {}}
-              answerSubmitted={false}
-              clue={null}
-              feedback={null}
-              correctAnswer={reviewQuestion.correctAnswer}
-              isFrozen={false}
-              frozenNotice={null}
-              onSubmit={() => {}}
-              roomId={roomId!}
-              playerId="host"
-              roundExtras={[]}
-              usedExtras={{}}
-              usedExtrasThisRound={{}}
-              onUseExtra={() => {}}
-              questionNumber={reviewQuestion.questionNumber}
-              totalQuestions={reviewQuestion.totalQuestions}
-              difficulty={reviewQuestion.difficulty}
-              category={reviewQuestion.category}
-              // Pass statistics and host flag
-              statistics={reviewQuestion.statistics}
-              isHost={true}
-            />
-          </div>
-        )}
 
         {/* Round Stats Display (show during round leaderboard) */}
         {roomState.phase === 'leaderboard' && isShowingRoundResults && hasRoundStats && currentRoundStats && (
@@ -874,92 +787,41 @@ useEffect(() => {
         )}
 
         {/* Round Leaderboard Display */}
-        {roomState.phase === 'leaderboard' && isShowingRoundResults && roundLeaderboard.length > 0 && (
-          <div className="bg-muted mb-6 rounded-xl border-2 border-purple-200 p-6 shadow-lg">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-fg flex items-center space-x-2 text-lg font-bold">
-                <Medal className="h-5 w-5 text-purple-600" />
-                <span>Round {roomState.currentRound} Results</span>
-              </h3>
-              <button 
-                onClick={handleContinueToOverallLeaderboard} 
-                className="flex items-center space-x-2 rounded-lg bg-purple-600 px-4 py-2 font-medium text-white transition hover:bg-purple-700"
-              >
-                <Trophy className="h-4 w-4" />
-                <span>Show Overall Leaderboard</span>
-              </button>
-            </div>
-            
-            <div className="rounded-lg bg-gradient-to-r from-purple-50 to-pink-50 p-4">
-              <div className="mb-4 text-center">
-                <h4 className="mb-2 text-xl font-bold text-purple-800">🎉 Round {roomState.currentRound} Complete!</h4>
-                <p className="text-purple-600">Here's how everyone performed this round</p>
-              </div>
-              <div className="space-y-2">
-                {roundLeaderboard.map((entry, idx) => (
-                  <div key={entry.id} className="bg-muted flex items-center justify-between rounded border-2 border-purple-200 p-3">
-                    <div className="flex items-center space-x-3">
-                      <span className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
-                        idx === 0 ? 'bg-yellow-100 text-yellow-800 shadow-md' :
-                        idx === 1 ? 'text-fg bg-gray-100 shadow-md' :
-                        idx === 2 ? 'bg-orange-100 text-orange-800 shadow-md' :
-                        'bg-blue-100 text-blue-800'
-                      }`}>
-                        {idx + 1}
-                      </span>
-                      <span className="font-medium">{entry.name}</span>
-                      {idx === 0 && <Crown className="h-4 w-4 text-yellow-600" />}
-                      {idx === 1 && <Medal className="text-fg/70 h-4 w-4" />}
-                      {idx === 2 && <Award className="h-4 w-4 text-orange-600" />}
-                    </div>
-                    <span className="text-fg font-bold">{entry.score} pts</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+       {roomState.phase === 'leaderboard' && isShowingRoundResults && roundLeaderboard.length > 0 && (
+  <RoundLeaderboardCard
+    roundNumber={roomState.currentRound}
+    leaderboard={roundLeaderboard}
+    onContinue={handleContinueToOverallLeaderboard}
+  />
+)}
 
         {/* Overall Leaderboard Display */}
-        {roomState.phase === 'leaderboard' && !isShowingRoundResults && leaderboard.length > 0 && (
-          <div className="bg-muted mb-6 rounded-xl border-2 border-green-200 p-6 shadow-lg">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-fg flex items-center space-x-2 text-lg font-bold">
-                <Trophy className="h-5 w-5 text-yellow-600" />
-                <span>Overall Leaderboard</span>
-              </h3>
-              <button 
-                onClick={handleLeaderboardConfirm} 
-                className="flex items-center space-x-2 rounded-lg bg-green-600 px-4 py-2 font-medium text-white transition hover:bg-green-700"
-              >
-                <SkipForward className="h-4 w-4" />
-                <span>Continue</span>
-              </button>
-            </div>
-            
-            <div className="rounded-lg bg-green-50 p-4">
-              <div className="space-y-2">
-                {leaderboard.map((entry, idx) => (
-                  <div key={entry.id} className="bg-muted flex items-center justify-between rounded border p-3">
-                    <div className="flex items-center space-x-3">
-                      <span className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
-                        idx === 0 ? 'bg-yellow-100 text-yellow-800' :
-                        idx === 1 ? 'text-fg bg-gray-100' :
-                        idx === 2 ? 'bg-orange-100 text-orange-800' :
-                        'bg-blue-100 text-blue-800'
-                      }`}>
-                        {idx + 1}
-                      </span>
-                      <span className="font-medium">{entry.name}</span>
-                      {idx === 0 && <Crown className="h-4 w-4 text-yellow-600" />}
-                    </div>
-                    <span className="text-fg font-bold">{entry.score} pts</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+     {roomState.phase === 'leaderboard' && !isShowingRoundResults && leaderboard.length > 0 && (
+<OverallLeaderboardCard
+  leaderboard={leaderboard}
+  isFinalRound={isFinalRound}
+  prizeCount={prizeCount}
+  hasPrizeTie={hasPrizeTie}
+  tieParticipants={tieParticipantsByName}
+  onContinue={() => {
+    // ✅ When you're already on the overall leaderboard:
+    if (!isFinalRound) {
+      // Mid-quiz: advance to the next round
+      socket?.emit('next_round_or_end', { roomId });
+      return;
+    }
+    // Final round & NO tie → finalize
+    socket?.emit('next_round_or_end', { roomId });
+  }}
+  onConfirmTiebreaker={() => {
+    // Final round & tie → start tiebreaker through the same server path
+    socket?.emit('next_round_or_end', { roomId });
+  }}
+/>
+
+
+)}
+
 
 
         {/* Quiz Complete */}
@@ -970,129 +832,11 @@ useEffect(() => {
             <p className="text-lg text-purple-600">Thank you for hosting this amazing quiz experience!</p>
             
             {/* Web3 Prize Distribution Button */}
-            {config?.paymentMethod === 'web3' && roomState.phase === 'complete' && (
-              <div className="mt-6">
-                {/* Wallet Connection Section */}
-                {!stellarWallet.isConnected && (
-                  <div className="mb-6 rounded-xl border-2 border-blue-200 bg-blue-50 p-6 text-center">
-                    <div className="mb-4 text-4xl">🔗</div>
-                    <h3 className="mb-2 text-xl font-bold text-blue-800">
-                      Connect Stellar Wallet
-                    </h3>
-                    <p className="mb-4 text-blue-600">
-                      Connect your wallet to distribute prizes to winners
-                    </p>
-                    
-                    <button
-                      onClick={() => stellarWallet.connect()}
-                      disabled={stellarWallet?.isConnecting}
-                      className="mx-auto flex items-center space-x-3 rounded-xl bg-blue-600 px-6 py-3 font-bold text-white hover:bg-blue-700 disabled:bg-gray-400"
-                    >
-                      {stellarWallet?.isConnecting ? (
-                        <>
-                          <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                          <span>Connecting...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>🔗</span>
-                          <span>Connect Wallet</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                )}
-
-                {/* Connected State */}
-                {stellarWallet.isConnected && (
-                  <div className="mb-6 rounded-xl border-2 border-green-200 bg-green-50 p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="text-2xl">✅</div>
-                        <div>
-                          <div className="font-semibold text-green-800">Stellar Wallet Connected</div>
-                          <div className="text-sm text-green-600">
-                            {stellarWallet.address ? `${stellarWallet.address.slice(0, 8)}...${stellarWallet.address.slice(-6)}` : 'Loading address...'}
-                          </div>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => stellarWallet.disconnect()}
-                        className="rounded bg-red-100 px-3 py-1 text-sm text-red-700 hover:bg-red-200"
-                      >
-                        Disconnect
-                      </button>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Prize Distribution Button States */}
-                {stellarWallet.isConnected && stellarContract?.isReady && (
-                  <div className="text-center">
-                    {prizeDistributionState.status === 'idle' && (
-                      <>
-                        <button
-                          onClick={handleDistributePrizes}
-                          className="mx-auto flex items-center space-x-3 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 px-8 py-4 text-xl font-bold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:shadow-xl"
-                        >
-                          <span>🏆</span>
-                          <span>Distribute Prizes via Smart Contract</span>
-                        </button>
-                        <p className="mt-2 text-sm text-green-600">
-                          This will automatically send prizes to the top players using the blockchain
-                        </p>
-                      </>
-                    )}
-
-                    {prizeDistributionState.status === 'distributing' && (
-                      <div className="rounded-xl border-2 border-orange-200 bg-orange-50 p-6">
-                        <div className="flex items-center justify-center space-x-3 text-orange-700">
-                          <Loader className="h-6 w-6 animate-spin" />
-                          <span className="text-lg font-semibold">Distributing Prizes...</span>
-                        </div>
-                        <p className="mt-2 text-sm text-orange-600">
-                          Transaction is being processed on the blockchain. Please wait...
-                        </p>
-                      </div>
-                    )}
-
-                    {prizeDistributionState.status === 'success' && (
-                      <div className="rounded-xl border-2 border-green-200 bg-green-50 p-6">
-                        <div className="mb-3 text-center">
-                          <div className="text-4xl">✅</div>
-                          <h3 className="text-xl font-bold text-green-800">Prizes Distributed Successfully!</h3>
-                        </div>
-                        {prizeDistributionState.txHash && (
-                          <p className="text-center text-sm text-green-600">
-                            Transaction Hash: <code className="bg-green-100 px-2 py-1 rounded">{prizeDistributionState.txHash}</code>
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {prizeDistributionState.status === 'error' && (
-                      <div className="rounded-xl border-2 border-red-200 bg-red-50 p-6">
-                        <div className="mb-3 text-center">
-                          <div className="text-4xl">❌</div>
-                          <h3 className="text-xl font-bold text-red-800">Prize Distribution Failed</h3>
-                        </div>
-                        <p className="text-center text-sm text-red-600">
-                          Error: {prizeDistributionState.error}
-                        </p>
-                        <div className="mt-4 text-center">
-                          <button
-                            onClick={() => setPrizeDistributionState({ status: 'idle' })}
-                            className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
-                          >
-                            Try Again
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+        {config?.paymentMethod === 'web3' && roomState.phase === 'complete' && (
+  <div className="mt-6">
+    <Web3PrizeDistributionRouter roomId={roomId!} leaderboard={leaderboard} />
+  </div>
+)}
           </div>
         )}
 
@@ -1195,7 +939,9 @@ useEffect(() => {
 {roomState.phase === 'complete' && (
   <div className="text-center">
     <button
-      onClick={() => navigate(`/quiz/host-dashboard/${roomId}`)}
+     onClick={() =>
+  navigate(`/quiz/host-dashboard/${roomId}?tab=payments&lock=postgame`)
+}
       className="mx-auto flex items-center space-x-2 rounded-xl bg-indigo-600 px-6 py-3 font-medium text-white transition hover:bg-indigo-700"
     >
       <span>🏠</span>
@@ -1205,6 +951,39 @@ useEffect(() => {
 )}
       </div>
     </div>
+  );
+};
+
+// Wrapper that selects the chain and wraps HostControlsCore in the right provider
+const HostControlsPage: React.FC = () => {
+  const { config } = useQuizConfig();
+
+  // Wait for config to arrive (prevents rendering the core before we know the chain)
+  if (!config || Object.keys(config).length === 0) {
+    return (
+      <div className="min-h-screen grid place-items-center">
+        <div className="text-center text-sm text-gray-600">Loading host controls…</div>
+      </div>
+    );
+  }
+
+  // Decide which chain to enable for this room
+  const selectedChain = (() => {
+    const c = config?.web3Chain;
+    if (c === 'stellar' || c === 'evm' || c === 'solana') return c;
+    return null;
+  })();
+
+  // If the room is NOT a web3 room, or chain not set, render core with no wallet provider
+  if (!config?.isWeb3Room || !selectedChain) {
+    return <HostControlsCore />;
+  }
+
+  // Web3 room: provide the chain (this gives you the StellarWalletProvider, etc.)
+  return (
+    <DynamicChainProvider selectedChain={selectedChain}>
+      <HostControlsCore />
+    </DynamicChainProvider>
   );
 };
 

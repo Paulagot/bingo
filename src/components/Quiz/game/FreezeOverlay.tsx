@@ -257,7 +257,7 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
     }
   }, [crackCycle, startCrackAnimation, animationActive]);
 
-  // Main effect controller - EXTENDED TO 20 SECONDS
+  // Main effect controller - BACK TO WORKING VERSION
   useEffect(() => {
     if (isActive) {
       console.log('[FreezeOverlay] Activating freeze effect');
@@ -283,19 +283,8 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
         }
       }, 50);
 
-      // Auto-hide after 20 seconds instead of 3.8 seconds
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => {
-        console.log('[FreezeOverlay] Auto-hiding after 20 second timeout');
-        setAnimationActive(false);
-        if (crackTimerRef.current) clearTimeout(crackTimerRef.current);
-        setTimeout(() => {
-          setShowOverlay(false);
-          if (onAnimationComplete) {
-            onAnimationComplete();
-          }
-        }, 250);
-      }, 20000); // Changed from 3800 to 20000 (20 seconds)
+      // Remove auto-hide timer - let parent component control deactivation
+      // The overlay will stay active until isActive becomes false via parent logic
       
     } else {
       // Clean up when deactivated
@@ -338,7 +327,7 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
 
   return (
     <>
-      {/* Inject CSS that matches the HTML version - with extended animations */}
+      {/* CSS - REVERTED TO WORKING VERSION */}
       <style>{`
         .fo-target-iced { 
           filter: saturate(.8) hue-rotate(190deg) contrast(1.05) brightness(.98); 
@@ -359,10 +348,10 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
           transform-origin: center;
         }
 
-        .fo-active .fo-frost .plate.top { animation: frostGrow 20s ease-out both .08s; }
-        .fo-active .fo-frost .plate.bottom { animation: frostGrow 20s ease-out both .16s; }
-        .fo-active .fo-frost .plate.left { animation: frostGrow 20s ease-out both .06s; }
-        .fo-active .fo-frost .plate.right { animation: frostGrow 20s ease-out both .12s; }
+        .fo-active .fo-frost .plate.top { animation: frostGrow 15s ease-out both .08s; }
+        .fo-active .fo-frost .plate.bottom { animation: frostGrow 15s ease-out both .16s; }
+        .fo-active .fo-frost .plate.left { animation: frostGrow 15s ease-out both .06s; }
+        .fo-active .fo-frost .plate.right { animation: frostGrow 15s ease-out both .12s; }
 
         /* Extended shard animations - loop multiple times */
         @keyframes shardSweep {
@@ -394,7 +383,7 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
         }
 
         .fo-active .fo-shards span {
-          animation: shardSweep 20s cubic-bezier(.16,.84,.44,1) forwards var(--d,120ms);
+          animation: shardSweep 15s cubic-bezier(.16,.84,.44,1) forwards var(--d,120ms);
         }
 
         /* Extended bloom effect */
@@ -411,7 +400,7 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
         }
 
         .fo-active .fo-bloom {
-          animation: bloom 20s ease-out .35s forwards;
+          animation: bloom 15s ease-out .35s forwards;
         }
 
         /* Extended refraction effect */
@@ -428,7 +417,7 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
         }
 
         .fo-active .fo-refraction {
-          animation: refract 20s ease-out .6s forwards;
+          animation: refract 15s ease-out .6s forwards;
         }
 
         /* Extended glint effect - multiple cycles */
@@ -453,7 +442,7 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
         }
 
         .fo-active .fo-glint {
-          animation: glint 20s ease-in-out .9s 1 forwards;
+          animation: glint 15s ease-in-out .9s 1 forwards;
         }
 
         /* Notification animations - stays for full duration */
@@ -486,7 +475,7 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
         }
 
         .animate-freeze-notification-enter { 
-          animation: freeze-notification-enter 20s cubic-bezier(0.34, 1.56, 0.64, 1) 0.5s both; 
+          animation: freeze-notification-enter 15s cubic-bezier(0.34, 1.56, 0.64, 1) 0.5s both; 
         }
 
         @media (prefers-reduced-motion: reduce) {

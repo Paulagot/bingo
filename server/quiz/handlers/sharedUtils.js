@@ -1,7 +1,83 @@
 //server/quiz/handlers/sharedUtils.js
 const debug = false;
 
+import { getQuizRoom } from '../quizRoomManager.js';
+
+// NEW: single emitter for standardized room_config payload
+// Emits legacy-compatible room_config payload (raw object), now with hostId + roomId
+export function emitRoomConfig(namespace, roomId) {
+  const room = getQuizRoom(roomId);
+  if (!room) return false;
+
+  const cfgWithCaps = {
+    ...room.config,
+    roomCaps: room.roomCaps,
+    roomId,
+    hostId: room.hostId ?? room.config?.hostId ?? 'host',
+  };
+
+  // ⬅️ Emit RAW object (legacy shape your frontend expects)
+  namespace.to(roomId).emit('room_config', cfgWithCaps);
+
+  if (debug) console.log(`[SharedUtils] 🛰️ Emitted room_config (legacy shape) for ${roomId}`);
+  return true;
+}
+
+
 export function setupSharedHandlers(socket, namespace) {
+
+  // ✅ Reconciliation: fetch current state for this room
+  socket.on('request_reconciliation', ({ roomId }) => {
+    const room = getQuizRoom(roomId);
+    if (!room) {
+      socket.emit('quiz_error', { message: 'Room not found' });
+      return;
+    }
+
+    const rec = room.config?.reconciliation || {
+      approvedBy: '',
+      notes: '',
+      approvedAt: null,
+      updatedAt: null,
+      updatedBy: null,
+    };
+
+    socket.emit('reconciliation_state', { roomId, data: rec });
+    if (debug) console.log(`[Reconciliation] Sent state for ${roomId}`, rec);
+  });
+
+  // ✅ Reconciliation: update & broadcast to all hosts in the room
+  socket.on('update_reconciliation', ({ roomId, patch }) => {
+    const room = getQuizRoom(roomId);
+    if (!room) {
+      socket.emit('quiz_error', { message: 'Room not found' });
+      return;
+    }
+
+    const base = room.config?.reconciliation || {
+      approvedBy: '',
+      notes: '',
+      approvedAt: null,
+      updatedAt: null,
+      updatedBy: null,
+    };
+
+    const rec = {
+      ...base,
+      ...patch,
+      updatedAt: new Date().toISOString(),
+    };
+
+    // Store directly on the room config you’re already using
+    room.config = { ...(room.config || {}), reconciliation: rec };
+
+    // Broadcast to the whole room (all connected hosts/admins)
+    namespace.to(roomId).emit('reconciliation_updated', { roomId, data: rec });
+
+    if (debug) console.log(`[Reconciliation] Updated for ${roomId}`, rec);
+  });
+
+
   socket.on('request_room_config', ({ roomId }) => {
     import('../quizRoomManager.js').then(({ getQuizRoom }) => {
       const room = getQuizRoom(roomId);
@@ -71,12 +147,11 @@ socket.on('asset_upload_success', ({ roomId, prizeIndex, txHash }) => {
     const success = updateAssetUploadStatus(roomId, prizeIndex, 'completed', txHash);
     if (success) {
       // Broadcast updated config to all clients in the room
-      const room = getQuizRoom(roomId);
-      if (room) {
-        const cfgWithCaps = { ...room.config, roomCaps: room.roomCaps };
-        namespace.to(roomId).emit('room_config', cfgWithCaps);
-        if (debug) console.log(`[Socket] ✅ Broadcasted updated config for asset upload: ${roomId}`);
-      }
+    const room = getQuizRoom(roomId);
+if (room) {
+  emitRoomConfig(namespace, roomId);
+  if (debug) console.log(`[Socket] ✅ Broadcasted updated config for asset upload: ${roomId}`);
+}
     } else {
       socket.emit('quiz_error', { message: 'Failed to update asset upload status' });
     }
@@ -189,6 +264,8 @@ socket.on('asset_upload_success', ({ roomId, prizeIndex, txHash }) => {
   });
 }
 
+
+
 // 🔥 NEW universal emitter function (we'll reuse this everywhere)
 export function emitFullRoomState(socket, namespace, roomId) {
   import('../quizRoomManager.js').then(({ getQuizRoom, emitRoomState }) => {
@@ -197,18 +274,24 @@ export function emitFullRoomState(socket, namespace, roomId) {
       socket.emit('quiz_error', { message: `Room ${roomId} not found.` });
       return;
     }
-
-    // 🔥 KEY CHANGE: emit to the full room, not just the calling socket
-    // namespace.to(roomId).emit('room_config', room.config);
-    const cfgWithCaps = { ...room.config, roomCaps: room.roomCaps };
-namespace.to(roomId).emit('room_config', cfgWithCaps);
+    emitRoomConfig(namespace, roomId); // spreads room.config (includes reconciliation)
     namespace.to(roomId).emit('player_list_updated', { players: room.players });
     namespace.to(roomId).emit('admin_list_updated', { admins: room.admins });
-
     emitRoomState(namespace, roomId);
-    if (debug) console.log(`[emitFullRoomState] ✅ Emitted full state for ${roomId}`);
+
+    // Explicit reconciliation state too (keeps panel logic simple/race-free)
+    const rec = room.config?.reconciliation || {
+      approvedBy: '',
+      notes: '',
+      approvedAt: null,
+      updatedAt: null,
+      updatedBy: null,
+    };
+    namespace.to(roomId).emit('reconciliation_state', { roomId, data: rec });
   });
 }
+
+
 
 // Export shared utility functions that might be used by multiple handlers
 export function resetRoundExtrasTrackingWrapper(roomId) {

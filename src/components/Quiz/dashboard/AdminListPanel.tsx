@@ -1,111 +1,152 @@
+// src/components/Quiz/dashboard/AdminListPanel.tsx
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { QRCodeCanvas } from 'qrcode.react';
 import { v4 as uuidv4 } from 'uuid';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
-import { useAdminStore, Admin } from '../hooks/useAdminStore';
-import { fullQuizReset } from '../utils/fullQuizReset';
-import { useNavigate } from 'react-router-dom';
+import { useAdminStore, Admin as StoreAdmin } from '../hooks/useAdminStore';
 
+type Role = 'admin' | 'host';
+
+// Allow for legacy items without `role`
+type Admin = StoreAdmin & { role?: Role };
 
 const AdminListPanel: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();
-  const [newAdminName, setNewAdminName] = useState('');
-  const [selectedAdminId, setSelectedAdminId] = useState<string | null>(null);
   const { socket } = useQuizSocket();
   const { admins, setFullAdmins } = useAdminStore();
+
+  const [newName, setNewName] = useState('');
+  const [newRole, setNewRole] = useState<Role>('admin');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
   const debug = false;
 
-   const navigate = useNavigate();
-  const handleAddAdmin = () => {
-    if (!newAdminName.trim() || !roomId || !socket) return;
+  const handleAdd = () => {
+    if (!newName.trim() || !roomId || !socket) return;
 
-    const newAdmin: Admin = {
+    const newMember: Admin = {
       id: uuidv4(),
-      name: newAdminName.trim(),
+      name: newName.trim(),
+      role: newRole,
     };
 
-    // ✅ Just emit to server — no local state update here:
-    socket.emit('add_admin', { roomId, admin: newAdmin });
+    // Single event that the server can interpret by `admin.role`
+    socket.emit('add_admin', { roomId, admin: newMember });
+    if (debug) console.log('[emit] add_admin', { roomId, admin: newMember });
 
-    if (debug) console.log('[Socket Emit] add_admin', { roomId, admin: newAdmin });
-
-    setNewAdminName('');
+    setNewName('');
+    setNewRole('admin');
   };
 
-  useEffect(() => {
-    if (!socket) return;
 
-    const handleAdminListUpdate = ({ admins }: { admins: Admin[] }) => {
-      if (debug) console.log('[Socket] 🎯 admin_list_updated received:', admins);
-      setFullAdmins(admins);
+
+  useEffect(() => {
+    if (!socket || !roomId) return;
+
+    const onList = ({ admins }: { admins: Admin[] }) => {
+      if (debug) console.log('[on] admin_list_updated', admins);
+      // Default legacy entries to 'admin'
+      setFullAdmins(admins.map(a => ({ ...a, role: (a as Admin).role ?? 'admin' })));
     };
 
-    socket.on('admin_list_updated', handleAdminListUpdate);
+    socket.on('admin_list_updated', onList);
+    // Proactively request the latest list on mount
+    socket.emit?.('request_admin_list', { roomId });
 
     return () => {
-      socket.off('admin_list_updated', handleAdminListUpdate);
+      socket.off('admin_list_updated', onList);
     };
-  }, [socket, setFullAdmins]);
+  }, [socket, roomId, setFullAdmins]);
 
- 
-
+  const buildInviteLink = (member: Admin) => {
+    const role: Role = member.role ?? 'admin';
+    const base = `${window.location.origin}/quiz/admin-join/${roomId}`;
+    // Shared join page; role + memberId decide behavior
+    return `${base}?role=${role}&memberId=${member.id}`;
+  };
 
   return (
     <div className="bg-muted mt-6 rounded-lg p-4 shadow-sm">
-      <h2 className="text-fg mb-4 text-2xl font-bold">🛠️ Admins</h2>
+      <h2 className="text-fg mb-4 text-2xl font-bold">🛠️ Admins & Hosts</h2>
 
       <div className="mb-4 flex flex-col gap-2 sm:flex-row">
         <input
           type="text"
-          placeholder="Admin Name"
-          value={newAdminName}
-          onChange={(e) => setNewAdminName(e.target.value)}
+          placeholder="Name"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
           className="flex-1 rounded-md border border-gray-300 px-3 py-2 focus:ring-indigo-500"
         />
+        <select
+          value={newRole}
+          onChange={(e) => setNewRole(e.target.value as Role)}
+          className="rounded-md border border-gray-300 px-3 py-2"
+        >
+          <option value="admin">Admin</option>
+          <option value="host">Host</option>
+        </select>
         <button
-          onClick={handleAddAdmin}
+          onClick={handleAdd}
           className="rounded-md bg-indigo-600 px-5 py-2 font-medium text-white shadow transition hover:bg-indigo-700"
         >
-          Add Admin
+          Add
         </button>
       </div>
 
       {admins.length === 0 ? (
-        <p className="text-fg/70">No admins added yet.</p>
+        <p className="text-fg/70">No team added yet.</p>
       ) : (
         <ul className="space-y-2">
-          {admins.map((admin) => {
-            const joinLink = `${window.location.origin}/quiz/admin-join/${roomId}?adminId=${admin.id}`;
-            const isShowingQR = selectedAdminId === admin.id;
+          {admins.map((m: Admin) => {
+            const role: Role = m.role ?? 'admin';
+            const invite = buildInviteLink(m);
+            const isQR = selectedId === m.id;
+            const isHost = role === 'host';
 
             return (
-              <li key={admin.id} className="rounded-md border bg-gray-50 p-2 text-sm">
+              <li key={m.id} className="rounded-md border bg-gray-50 p-2 text-sm">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex-1">
-                    <p className="text-fg font-semibold">{admin.name}</p>
+                    <p className="text-fg font-semibold">
+                      {m.name}{' '}
+                      <span
+                        className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs ${
+                          isHost ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'
+                        }`}
+                      >
+                        {isHost ? 'Host' : 'Admin'}
+                      </span>
+                    </p>
                   </div>
-                  <div className="flex flex-col items-end">
+
+                  <div className="flex items-center gap-2">
+                  
+                   
+                  
+
                     <button
-                      onClick={() => setSelectedAdminId(isShowingQR ? null : admin.id)}
+                      onClick={() => setSelectedId(isQR ? null : m.id)}
                       className="text-xs font-semibold text-indigo-600 hover:underline"
                     >
                       🔗 Invite
                     </button>
-                    {isShowingQR && (
-                      <div className="bg-muted mt-1 max-w-xs rounded-md border p-2 shadow-sm">
-                        <QRCodeCanvas value={joinLink} size={96} />
-                        <p className="text-fg/70 mt-1 break-all text-xs">{joinLink}</p>
-                        <button
-                          onClick={() => navigator.clipboard.writeText(joinLink)}
-                          className="mt-1 text-xs text-indigo-600 hover:underline"
-                        >
-                          Copy Link
-                        </button>
-                      </div>
-                    )}
+
                   </div>
                 </div>
+
+                {isQR && (
+                  <div className="bg-muted mt-2 max-w-xs rounded-md border p-2 shadow-sm">
+                    <QRCodeCanvas value={invite} size={96} />
+                    <p className="text-fg/70 mt-1 break-all text-xs">{invite}</p>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(invite)}
+                      className="mt-1 text-xs text-indigo-600 hover:underline"
+                    >
+                      Copy Link
+                    </button>
+                  </div>
+                )}
               </li>
             );
           })}
@@ -116,6 +157,8 @@ const AdminListPanel: React.FC = () => {
 };
 
 export default AdminListPanel;
+
+
 
 
 

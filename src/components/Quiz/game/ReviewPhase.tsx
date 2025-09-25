@@ -7,7 +7,7 @@ import {
   Clock,
   Eye,
   Target,
-  AlertCircle,
+
   Users,
   BarChart3,
   TrendingUp
@@ -301,7 +301,7 @@ const ReviewPhase: React.FC<ReviewPhaseProps> = ({
           </div> */}
         {/* )} */}
 
-        {/* Additional Info - Only for Players */}
+        {/* Additional Info - Only for Players
         {!isHost && !hasAnswered && (
           <div className="mt-4 rounded-lg border border-orange-200 bg-orange-100 p-3">
             <div className="flex items-start space-x-2">
@@ -312,7 +312,7 @@ const ReviewPhase: React.FC<ReviewPhaseProps> = ({
               </div>
             </div>
           </div>
-        )}
+        )} */}
       </div>
     </div>
   );

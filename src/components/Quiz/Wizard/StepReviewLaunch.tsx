@@ -73,10 +73,20 @@ const StepReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) => {
   useEffect(() => {
     if (!connected || !socket) return;
 
-    const handleCreated = ({ roomId }: { roomId: string }) => {
-       resetSetupConfig({ keepIds: false });
-      navigate(`/quiz/host-dashboard/${roomId}`);
-    };
+ const handleCreated = ({ roomId }: { roomId: string }) => {
+   // try localStorage first; fallback to store hostId if present
+   const hId =
+     localStorage.getItem('current-host-id') ||
+     hostId || // from useQuizSetupStore()
+     '';
+
+   resetSetupConfig({ keepIds: false });
+   navigate(
+     hId
+       ? `/quiz/host-dashboard/${roomId}?hostId=${encodeURIComponent(hId)}`
+       : `/quiz/host-dashboard/${roomId}`
+   );
+ };
 
     const handleError = ({ message }: { message: string }) => {
       console.error('[Socket Error]', message);
@@ -118,7 +128,8 @@ const StepReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) => {
       });
       resetSetupConfig({ keepIds: false });
 
-      navigate(`/quiz/host-dashboard/${data.roomId}`);
+    navigate(`/quiz/host-dashboard/${data.roomId}?hostId=${encodeURIComponent(data.hostId)}`)
+
     } catch (err: any) {
       console.error('[Launch Error]', err);
 

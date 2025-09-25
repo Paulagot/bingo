@@ -1,37 +1,36 @@
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { ArrowLeft, Users, Gamepad2, Menu, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useAuth } from '../../stores/authStore';
 
 export function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  
+
+  const { isAuthenticated, user, club, logout } = useAuth();
+
   const isGamePage = location.pathname.startsWith('/game/');
   const roomId = isGamePage ? location.pathname.split('/').pop() : '';
 
-  // For game pages, we'll conditionally load the players count
   const [players, setPlayers] = useState<any[]>([]);
 
-  // Lazy load game store only on game pages
   useEffect(() => {
     if (isGamePage) {
-      import('../bingo/store/gameStore').then(({ useGameStore }) => {
-        // Get initial state
-        setPlayers(useGameStore.getState().players);
-        
-        // Subscribe to store changes
-        const unsubscribe = useGameStore.subscribe((state: any) => {
-          setPlayers(state.players);
+      import('../bingo/store/gameStore')
+        .then(({ useGameStore }) => {
+          setPlayers(useGameStore.getState().players);
+          const unsubscribe = useGameStore.subscribe((state: any) => {
+            setPlayers(state.players);
+          });
+          return unsubscribe;
+        })
+        .catch((error) => {
+          console.error('Failed to load game store:', error);
+          setPlayers([]);
         });
-        
-        return unsubscribe;
-      }).catch((error) => {
-        console.error('Failed to load game store:', error);
-        setPlayers([]); // Fallback to empty array
-      });
     } else {
-      setPlayers([]); // Reset players when not on game page
+      setPlayers([]);
     }
   }, [isGamePage]);
 
@@ -41,6 +40,11 @@ export function Header() {
         navigate('/');
       }
     }
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/'); // ✅ send home
   };
 
   return (
@@ -60,13 +64,11 @@ export function Header() {
             </button>
 
             <div className="flex items-center gap-2 sm:gap-3">
-              {/* Player Count */}
               <div className="flex items-center gap-1.5 rounded-full bg-indigo-100 px-2 py-1.5 text-xs sm:px-3 sm:text-sm">
                 <Users size={14} className="text-indigo-600 sm:size-4" />
                 <span className="font-medium text-indigo-800">{players.length}</span>
               </div>
 
-              {/* Room ID */}
               <div className="rounded-full bg-green-100 px-2 py-1.5 sm:px-3">
                 <span className="text-xs font-medium text-green-800 sm:text-sm">
                   <span className="xs:inline hidden">Room: </span>{roomId}
@@ -108,22 +110,44 @@ export function Header() {
               >
                 Quiz Platform
               </Link>
+
+              {/* ✅ Auth controls (desktop) */}
+              {isAuthenticated ? (
+                <>
+                  <span className="text-sm text-fg/70">
+                    Hi, {club?.name ?? user?.name ?? user?.email}
+                  </span>
+                  <button
+                    onClick={handleLogout}
+                    className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100"
+                  >
+                    Log out
+                  </button>
+                </>
+              ) : (
+                <Link
+                  to="/auth"
+                  className="text-sm font-medium text-indigo-600 transition-colors hover:text-indigo-800"
+                >
+                  Sign in
+                </Link>
+              )}
             </div>
 
-            {/* Mobile Menu Button - FIXED: Added proper accessibility attributes */}
+            {/* Mobile Menu Button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="text-fg/70 p-2 transition-colors hover:text-indigo-600 md:hidden"
-              aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+              aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
               aria-expanded={mobileMenuOpen}
               aria-controls="mobile-menu"
             >
               {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
 
-            {/* Mobile Menu Dropdown */}
+            {/* Mobile Menu */}
             {mobileMenuOpen && (
-              <div 
+              <div
                 className="bg-muted/95 border-border absolute left-0 right-0 top-16 border-t shadow-lg backdrop-blur-sm md:hidden"
                 id="mobile-menu"
                 role="navigation"
@@ -153,6 +177,27 @@ export function Header() {
                   >
                     Quiz Platform
                   </Link>
+
+                  {/* ✅ Auth controls (mobile) */}
+                  {isAuthenticated ? (
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        handleLogout();
+                      }}
+                      className="mt-2 w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-left text-sm font-medium text-red-700 hover:bg-red-100"
+                    >
+                      Log out
+                    </button>
+                  ) : (
+                    <Link
+                      to="/auth"
+                      className="block py-2 text-sm font-medium text-indigo-600 hover:text-indigo-800"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Sign in
+                    </Link>
+                  )}
                 </div>
               </div>
             )}
@@ -162,4 +207,7 @@ export function Header() {
     </header>
   );
 }
+
+
+
 

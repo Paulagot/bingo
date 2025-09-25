@@ -23,11 +23,9 @@ const SpeedAsking: React.FC<SpeedAskingProps> = ({
   answerSubmitted,                // we keep animating even if answered
   setSelectedAnswer,
   onSubmit,
-  questionNumber,
-  totalQuestions,
-  difficulty = 'medium',
-  category = 'General',
-  currentRound = 1,
+  difficulty ,
+  category,
+  currentRound,
   clue,
 
   // ✅ new props (optional)
@@ -154,7 +152,7 @@ const SpeedAsking: React.FC<SpeedAskingProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [left, right, onSubmit]);
 
-  const getTimerProgress = () => 157 - (fractionLeft * 157); // remaining 1..0
+// remaining 1..0
   const getTimerClass = () => {
     if (secondsLeft === null) return 'timer-progress';
     if (secondsLeft <= 3) return 'timer-progress danger';
@@ -377,7 +375,7 @@ const SpeedAsking: React.FC<SpeedAskingProps> = ({
         <div className="game-header">
           <div className="round-info">
             <div className="round-badge">Round {currentRound}</div>
-            <div className="question-counter">Question {questionNumber}/{totalQuestions}</div>
+            {/* <div className="question-counter">Question {questionNumber}/{totalQuestions}</div> */}
           </div>
 
           <div className="timer-section">

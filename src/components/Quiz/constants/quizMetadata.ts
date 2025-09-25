@@ -30,8 +30,8 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     difficulty: 'Easy',
     bestFor: 'Mixed groups, warm-up rounds, classic quiz feel, family events',
     defaultConfig: {
-  questionsPerRound: 6,
-  timePerQuestion: 30,
+  questionsPerRound: 4,
+  timePerQuestion: 10,
   pointsPerDifficulty: {
     easy: 2,
     medium: 3,
@@ -45,16 +45,16 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
 
    speed_round: {
     id: 'speed_round',
-    name: 'Speed Round (True/False)',
+    name: 'Speed Round',
     icon: '⚡',
-    description: 'Answer as many True/False as possible in 90 seconds. You can skip.',
-    gameplay: 'Host starts → 90s global timer → tap True / False / Skip → instant scoring → Review → Round Leaderboard.',
+    description: 'Answer as many True/False as possible in 75 seconds. You can skip.',
+    gameplay: 'Host starts → 75s global timer → tap answer 1 / answer 2/ Skip → instant scoring → Review → Round Leaderboard.',
     pros: ['Fast-paced', 'Mobile-friendly', 'High engagement'],
     timing: '75 seconds',
     difficulty: 'Easy–Hard or Mixed',
     bestFor: 'Energy spikes and interludes',
     defaultConfig: {
-      totalTimeSeconds: 75,
+      totalTimeSeconds: 20,
       skipAllowed: true,
       pointsPerDifficulty: { easy: 1, medium: 2, hard: 3 },
       pointsLostPerWrong: 0,
@@ -74,8 +74,8 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     difficulty: 'Easy',
     bestFor: 'Mixed groups, competitive play, family events',
     defaultConfig:   {
-     questionsPerRound: 8,
-      timePerQuestion: 22,
+     questionsPerRound: 4,
+      timePerQuestion: 8,
       pointsPerDifficulty: {
   easy: 3,
   medium: 4,

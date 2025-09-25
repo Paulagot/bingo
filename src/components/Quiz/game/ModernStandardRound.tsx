@@ -1,9 +1,13 @@
 // ModernStandardRound.tsx - Updated with stronger flash and more transparent countdown
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { RoundComponentProps } from '../types/quiz';
 import { usePlayerStore } from '../hooks/usePlayerStore';
 import UseExtraModal from './UseExtraModal';
 import { useQuizTimer } from '../hooks/useQuizTimer';
+import { shallow } from 'zustand/shallow';
+
+console.count('[ModernStandardRound] render');
+
 
 interface ModernStandardRoundProps extends RoundComponentProps {
   questionNumber?: number;
@@ -42,14 +46,25 @@ const ModernStandardRound: React.FC<ModernStandardRoundProps> = ({
   getFlashClasses = () => '',
   currentRound
 }) => {
-  const { players } = usePlayerStore();
-  const thisPlayer = players.find(p => p.id === playerId);
+ const thisPlayer = usePlayerStore(
+  s => s.players.find(p => p.id === playerId),
+  shallow
+);
 
-   const { timeLeft } = useQuizTimer({
-    question,
-    timerActive: timerActive && !answerSubmitted,
-    onTimeUp: () => {} // Players handle auto-submit via countdown effects
-  });
+
+const timerQuestion = useMemo(() => {
+  if (!question) return null;
+  const { id, timeLimit, questionStartTime } = question;
+  if (typeof timeLimit !== 'number' || typeof questionStartTime !== 'number') return null;
+  return { id, timeLimit, questionStartTime };
+}, [question?.id, question?.timeLimit, question?.questionStartTime]);
+
+const { timeLeft } = useQuizTimer({
+  question: timerQuestion,
+  timerActive: timerActive && !answerSubmitted,
+  onTimeUp: undefined,
+});
+
   
   const [freezeModalOpen, setFreezeModalOpen] = useState(false);
  
@@ -159,11 +174,11 @@ const getTimerClass = () => {
         }
 
         /* 📱 RESPONSIVE BREAKPOINTS */
-        @media (max-width: 768px) {
-          .game-container {
-            padding: 0 12px;
-          }
-        }
+     @media (max-width: 768px) {
+  .game-container {
+    padding: 0 12px;
+  }
+}
 
         .game-header {
           display: flex;

@@ -38,11 +38,11 @@ export const useRoundExtras = ({
              extra.applicableTo.includes(currentRoundType as RoundTypeId);
     });
 
-    if (debug) {
-      console.log('[useRoundExtras] 🎯 Available roundExtras:', extras);
-      console.log('[useRoundExtras] 🚫 Used extras:', usedExtras);
-      console.log('[useRoundExtras] 🔍 All player extras:', allPlayerExtras);
-    }
+    // if (debug) {
+    //   console.log('[useRoundExtras] 🎯 Available roundExtras:', extras);
+    //   console.log('[useRoundExtras] 🚫 Used extras:', usedExtras);
+    //   console.log('[useRoundExtras] 🔍 All player extras:', allPlayerExtras);
+    // }
 
     return extras;
   }, [allPlayerExtras, currentRoundType, usedExtras, debug]);

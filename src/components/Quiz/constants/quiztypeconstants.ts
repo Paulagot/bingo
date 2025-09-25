@@ -7,8 +7,8 @@ export const roundTypes: RoundTypeDefinition[] = [
     name: 'General Trivia',
     description: 'Standard multiple choice format with hints and reviews.',
     defaultConfig: {
-      questionsPerRound: 6,
-      timePerQuestion: 30,
+      questionsPerRound: 4,
+      timePerQuestion: 10,
       pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
     },
   },
@@ -20,7 +20,7 @@ export const roundTypes: RoundTypeDefinition[] = [
       // Required by your RoundConfig shape:
       questionsPerRound: 40,     // not used for pacing, but required by type
       timePerQuestion: 0,        // explicit: no per-question timer
-      totalTimeSeconds: 75,
+      totalTimeSeconds: 20,
       skipAllowed: true,         // ✅ matches your type
       pointsPerDifficulty: { easy: 1, medium: 2, hard: 3 },
       pointsLostPerUnanswered: 0, // set >0 if you want skip penalty
@@ -33,8 +33,8 @@ export const roundTypes: RoundTypeDefinition[] = [
     name: 'Wipeout',
     description: 'Lose points for wrong answers. Strategic gameplay.',
     defaultConfig: {
-      questionsPerRound: 8,
-      timePerQuestion: 22,
+      questionsPerRound: 4,
+      timePerQuestion: 8,
       pointsPerDifficulty: { easy: 3, medium: 4, hard: 5 },
       pointsLostPerWrong: 2,
       pointsLostPerUnanswered: 3,

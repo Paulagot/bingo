@@ -2,15 +2,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { nanoid } from 'nanoid';
-import { ChevronLeft, AlertCircle, CheckCircle, Loader, Wallet, Shield } from 'lucide-react';
+import { ChevronLeft, AlertCircle, CheckCircle, Loader, Wallet,  } from 'lucide-react';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 
 import { useQuizChainIntegration } from '../../../hooks/useQuizChainIntegration';
-import { fundraisingExtraDefinitions } from '../constants/quizMetadata';
 
-// Import chain-specific hooks ALWAYS - not conditionally
-import { useQuizContract as useStellarQuizContract } from '../../../chains/stellar/useQuizContract';
-import { useStellarWalletContext } from '../../../chains/stellar/StellarWalletProvider';
+
+
 
 interface RoomConfig {
   exists: boolean;
@@ -38,7 +36,44 @@ interface Web3PaymentStepProps {
 
 type PaymentStatus = 'idle' | 'connecting' | 'paying' | 'confirming' | 'joining' | 'success';
 
-export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
+// --- ROUTER: picks the right chain-specific component ---
+export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = (props) => {
+  const { selectedChain, getChainDisplayName } = useQuizChainIntegration();
+
+  if (selectedChain === 'stellar') {
+    return <StellarPaymentStep {...props} />;
+  }
+
+  // TODO: add EVM/Solana implementations later
+  return (
+    <div className="p-4 sm:p-6">
+      <div className="mb-6 flex items-center space-x-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-blue-600 text-lg text-white sm:h-12 sm:w-12 sm:text-xl">
+          🌐
+        </div>
+        <div>
+          <h2 className="text-fg text-xl font-bold sm:text-2xl">Web3 Payment</h2>
+          <p className="text-fg/70 text-sm sm:text-base">
+            {getChainDisplayName()} payments are not implemented yet.
+          </p>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+        Multichain placeholder: this room selected a chain we don’t support yet in the join flow.
+      </div>
+    </div>
+  );
+};
+
+// =======================================================
+// ===============  STELLAR SUBCOMPONENT  ================
+// =======================================================
+
+import { useQuizContract as useStellarQuizContract } from '../../../chains/stellar/useQuizContract';
+import { useStellarWalletContext } from '../../../chains/stellar/StellarWalletProvider';
+
+const StellarPaymentStep: React.FC<Web3PaymentStepProps> = ({
   roomId,
   playerName,
   roomConfig,
@@ -48,12 +83,7 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
 }) => {
   const { socket } = useQuizSocket();
   const navigate = useNavigate();
-  
-  // ALWAYS call hooks - never conditionally
-  const stellarWallet = useStellarWalletContext();
-  const stellarContract = useStellarQuizContract();
-  
-  // Use the established multi-chain integration hook
+
   const {
     selectedChain,
     isWalletConnected,
@@ -63,45 +93,35 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
     getFormattedAddress,
     needsWalletConnection,
   } = useQuizChainIntegration();
-  
+
+  // Stellar-only hooks (safe here because this component only renders when selectedChain==='stellar')
+  const stellarWallet = useStellarWalletContext();
+  const stellarContract = useStellarQuizContract();
+
+  type PaymentStatus = 'idle' | 'connecting' | 'paying' | 'confirming' | 'joining' | 'success';
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('idle');
   const [error, setError] = useState('');
   const [txHash, setTxHash] = useState('');
 
-  // Calculate total payment amount
+  // Compute totals
   const extrasTotal = selectedExtras.reduce((sum, extraId) => {
     return sum + (roomConfig.fundraisingPrices[extraId] || 0);
   }, 0);
-  
   const totalAmount = roomConfig.entryFee + extrasTotal;
 
-  // Override wallet requirement check for join room flow
-  const isWalletRequired = selectedChain && totalAmount > 0;
+  const isWalletRequired = totalAmount > 0; // in Stellar subcomponent we know chain is stellar
   const canProceed = isWalletRequired ? isWalletConnected : true;
 
-  // Multi-chain wallet connection handlers
   const handleWalletConnect = async () => {
     try {
       setError('');
       setPaymentStatus('connecting');
-      
-      switch (selectedChain) {
-        case 'stellar':
-          if (stellarWallet) {
-            const result = await stellarWallet.connect();
-            if (!result.success) {
-              throw new Error(result.error?.message || 'Failed to connect Stellar wallet');
-            }
-          }
-          break;
-        case 'evm':
-          throw new Error('EVM wallet connection not implemented yet');
-        case 'solana':
-          throw new Error('Solana wallet connection not implemented yet');
-        default:
-          throw new Error(`Unsupported chain: ${selectedChain}`);
+
+      const result = await stellarWallet.connect();
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Failed to connect Stellar wallet');
       }
-      
+
       setPaymentStatus('idle');
     } catch (err: any) {
       console.error('Wallet connection failed:', err);
@@ -110,50 +130,29 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
     }
   };
 
-  // Multi-chain join room function
   const handleWeb3Join = async () => {
     try {
       setError('');
-      
-      if (!selectedChain) {
-        throw new Error('No blockchain selected');
-      }
 
-      // Step 1: Connect wallet if needed
+      // Step 1: connect if needed
       if (needsWalletConnection) {
         await handleWalletConnect();
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(r => setTimeout(r, 750));
       }
 
-      // Step 2: Verify wallet connection and get contract
-      let joinRoomResult;
-      let walletAddress;
-      
-      switch (selectedChain) {
-        case 'stellar':
-          if (!stellarWallet?.wallet.isConnected || !stellarWallet.wallet.address || !stellarContract) {
-            throw new Error('Stellar wallet not connected or contract not available');
-          }
-          
-          walletAddress = stellarContract.walletAddress;
-          
-          setPaymentStatus('paying');
-          joinRoomResult = await stellarContract.joinRoom({
-            roomId,
-            playerAddress: walletAddress!,
-            extrasAmount: extrasTotal > 0 ? extrasTotal.toString() : undefined
-          });
-          break;
-          
-        case 'evm':
-          throw new Error('EVM contract integration not implemented yet');
-          
-        case 'solana':
-          throw new Error('Solana contract integration not implemented yet');
-          
-        default:
-          throw new Error(`Unsupported chain: ${selectedChain}`);
+      // Step 2: verify wallet/contract
+      if (!stellarWallet?.wallet.isConnected || !stellarWallet.wallet.address || !stellarContract) {
+        throw new Error('Stellar wallet not connected or contract not available');
       }
+
+      const walletAddress = stellarContract.walletAddress;
+      setPaymentStatus('paying');
+
+      const joinRoomResult = await stellarContract.joinRoom({
+        roomId,
+        playerAddress: walletAddress!,
+        extrasAmount: extrasTotal > 0 ? extrasTotal.toString() : undefined
+      });
 
       if (!joinRoomResult.success) {
         throw new Error(joinRoomResult.error || 'Payment failed');
@@ -161,14 +160,12 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
 
       setTxHash(joinRoomResult.txHash || '');
       setPaymentStatus('confirming');
+      await new Promise(r => setTimeout(r, 2000));
 
-      // Step 3: Wait for blockchain confirmation
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Step 4: Join via socket with proof of payment
+      // Step 3: join via socket
       setPaymentStatus('joining');
       const playerId = nanoid();
-      
+
       socket?.emit('join_quiz_room', {
         roomId,
         user: {
@@ -178,14 +175,13 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
           paymentMethod: 'web3',
           web3TxHash: joinRoomResult.txHash,
           web3Address: walletAddress,
-          web3Chain: selectedChain,
+          web3Chain: 'stellar',
           extras: selectedExtras,
           extraPayments: Object.fromEntries(
-            selectedExtras.map(key => [key, { 
-              method: 'web3', 
-              amount: roomConfig.fundraisingPrices[key],
-              txHash: joinRoomResult.txHash
-            }])
+            selectedExtras.map(key => [
+              key,
+              { method: 'web3', amount: roomConfig.fundraisingPrices[key], txHash: joinRoomResult.txHash }
+            ])
           )
         },
         role: 'player'
@@ -193,13 +189,10 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
 
       localStorage.setItem(`quizPlayerId:${roomId}`, playerId);
       setPaymentStatus('success');
-      
-      // Navigate to game
+
       setTimeout(() => {
         navigate(`/quiz/game/${roomId}/${playerId}`);
-        
-      }, 1500);
-
+      }, 1200);
     } catch (err: any) {
       console.error('Web3 join failed:', err);
       setError(err.message || 'Failed to join game');
@@ -209,18 +202,12 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
 
   const getStatusDisplay = () => {
     switch (paymentStatus) {
-      case 'connecting':
-        return { icon: <Loader className="h-5 w-5 animate-spin" />, text: `Connecting ${getChainDisplayName()} wallet...`, color: 'text-blue-600' };
-      case 'paying':
-        return { icon: <Loader className="h-5 w-5 animate-spin" />, text: 'Processing payment...', color: 'text-yellow-600' };
-      case 'confirming':
-        return { icon: <Loader className="h-5 w-5 animate-spin" />, text: 'Confirming transaction...', color: 'text-orange-600' };
-      case 'joining':
-        return { icon: <Loader className="h-5 w-5 animate-spin" />, text: 'Joining game...', color: 'text-green-600' };
-      case 'success':
-        return { icon: <CheckCircle className="h-5 w-5" />, text: 'Success! Redirecting...', color: 'text-green-600' };
-      default:
-        return null;
+      case 'connecting':  return { icon: <Loader className="h-5 w-5 animate-spin" />, text: `Connecting ${getChainDisplayName()} wallet...`, color: 'text-blue-600' };
+      case 'paying':      return { icon: <Loader className="h-5 w-5 animate-spin" />, text: 'Processing payment...', color: 'text-yellow-600' };
+      case 'confirming':  return { icon: <Loader className="h-5 w-5 animate-spin" />, text: 'Confirming transaction...', color: 'text-orange-600' };
+      case 'joining':     return { icon: <Loader className="h-5 w-5 animate-spin" />, text: 'Joining game...', color: 'text-green-600' };
+      case 'success':     return { icon: <CheckCircle className="h-5 w-5" />, text: 'Success! Redirecting...', color: 'text-green-600' };
+      default:            return null;
     }
   };
 
@@ -234,13 +221,11 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
         </div>
         <div>
           <h2 className="text-fg text-xl font-bold sm:text-2xl">Web3 Payment</h2>
-          <p className="text-fg/70 text-sm sm:text-base">
-            Pay with {getChainDisplayName()} to join
-          </p>
+          <p className="text-fg/70 text-sm sm:text-base">Pay with {getChainDisplayName()} to join</p>
         </div>
       </div>
 
-      {/* Payment Summary */}
+      {/* Summary */}
       <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 mb-4">
         <div className="flex items-center justify-between">
           <div>
@@ -256,117 +241,61 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
         </div>
       </div>
 
-      {/* Selected Extras Display */}
-      {selectedExtras.length > 0 && (
-        <div className="rounded-lg border border-purple-200 bg-purple-50 p-4 mb-4">
-          <h3 className="text-purple-800 font-medium mb-3 flex items-center space-x-2">
-            <Shield className="h-4 w-4" />
-            <span>Selected Arsnal</span>
-          </h3>
-          <div className="space-y-2">
-            {selectedExtras.map(extraId => {
-              const definition = fundraisingExtraDefinitions[extraId as keyof typeof fundraisingExtraDefinitions];
-              const price = roomConfig.fundraisingPrices[extraId] || 0;
-              return (
-                <div key={extraId} className="flex items-center justify-between rounded border border-purple-200 bg-white p-2">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-base">{definition?.icon}</span>
-                    <span className="text-purple-700 font-medium text-sm">{definition?.label}</span>
-                  </div>
-                  <span className="text-purple-700 font-bold text-sm">
-                    {roomConfig.currencySymbol}{price.toFixed(2)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       {/* Wallet Status */}
       <div className="rounded-lg border border-purple-200 bg-purple-50 p-4 mb-4">
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Wallet className="h-4 w-4 text-purple-600" />
-            <span className="font-medium text-purple-800">
-              {getChainDisplayName()} Wallet Status
-            </span>
+            <span className="font-medium text-purple-800">{getChainDisplayName()} Wallet Status</span>
           </div>
-          <div
-            className={`flex items-center space-x-2 ${
-              canProceed
-                ? 'text-green-600'
-                : 'text-yellow-600'
-            }`}
-          >
-            <div
-              className={`h-2 w-2 rounded-full ${
-                canProceed
-                  ? 'bg-green-500'
-                  : 'bg-yellow-500'
-              }`}
-            />
-            <span className="text-sm font-medium">
-              {canProceed ? 'Ready' : 'Connection needed'}
-            </span>
+          <div className={`flex items-center space-x-2 ${canProceed ? 'text-green-600' : 'text-yellow-600'}`}>
+            <div className={`h-2 w-2 rounded-full ${canProceed ? 'bg-green-500' : 'bg-yellow-500'}`} />
+            <span className="text-sm font-medium">{canProceed ? 'Ready' : 'Connection needed'}</span>
           </div>
         </div>
 
-        {/* Inline wallet connection UI */}
-        {selectedChain && (
-          <div className="mb-3">
-            {!isWalletConnected ? (
-              <button
-                onClick={handleWalletConnect}
-                disabled={paymentStatus === 'connecting'}
-                className="flex w-full items-center justify-center space-x-2 rounded-lg bg-purple-600 px-4 py-3 font-medium text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {paymentStatus === 'connecting' ? (
-                  <>
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    <span>Connecting {getChainDisplayName()} Wallet...</span>
-                  </>
-                ) : (
-                  <>
-                    <Wallet className="h-4 w-4" />
-                    <span>Connect {getChainDisplayName()} Wallet</span>
-                  </>
-                )}
-              </button>
+        {!isWalletConnected ? (
+          <button
+            onClick={handleWalletConnect}
+            disabled={paymentStatus === 'connecting'}
+            className="flex w-full items-center justify-center space-x-2 rounded-lg bg-purple-600 px-4 py-3 font-medium text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {paymentStatus === 'connecting' ? (
+              <>
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                <span>Connecting {getChainDisplayName()} Wallet...</span>
+              </>
             ) : (
-              <div className="rounded-lg border border-green-200 bg-green-50 p-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                    <div>
-                      <div className="text-sm font-medium text-green-800">
-                        {getChainDisplayName()} Wallet Connected
-                      </div>
-                      <div className="font-mono text-xs text-green-600">
-                        {getFormattedAddress()}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-sm font-medium text-green-600">Ready</div>
+              <>
+                <Wallet className="h-4 w-4" />
+                <span>Connect {getChainDisplayName()} Wallet</span>
+              </>
+            )}
+          </button>
+        ) : (
+          <div className="rounded-lg border border-green-200 bg-green-50 p-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                <div>
+                  <div className="text-sm font-medium text-green-800">{getChainDisplayName()} Wallet Connected</div>
+                  <div className="font-mono text-xs text-green-600">{getFormattedAddress()}</div>
                 </div>
               </div>
-            )}
+              <div className="text-sm font-medium text-green-600">Ready</div>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Transaction Status */}
+      {/* Status */}
       {status && (
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 mb-4">
           <div className="flex items-center space-x-3">
             <div className={status.color}>{status.icon}</div>
             <span className={`font-medium ${status.color}`}>{status.text}</span>
           </div>
-          {txHash && (
-            <div className="mt-2 text-xs text-gray-600">
-              Transaction: {txHash.slice(0, 16)}...
-            </div>
-          )}
+          {txHash && <div className="mt-2 text-xs text-gray-600">Transaction: {txHash.slice(0, 16)}...</div>}
         </div>
       )}
 
@@ -388,7 +317,7 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
         </button>
         <button 
           onClick={handleWeb3Join}
-          disabled={paymentStatus !== 'idle' || !selectedChain || !canProceed}
+          disabled={paymentStatus !== 'idle' || !canProceed}
           className="flex items-center justify-center space-x-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-700 disabled:opacity-50 sm:px-6 sm:py-3 sm:text-base"
         >
           <span>
@@ -403,3 +332,4 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
     </div>
   );
 };
+

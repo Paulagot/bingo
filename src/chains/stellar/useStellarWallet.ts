@@ -257,7 +257,7 @@ if (addressResult.address) {
     publicKey: addressResult.address,
     networkPassphrase: networkResult.networkPassphrase,
     walletType: mapWalletIdToType(walletId),
-    error: null,
+    error: undefined,
   };
 
   updateStellarWallet(connectionData);
@@ -351,7 +351,7 @@ const connect = useCallback(async (): Promise<WalletConnectionResult> => {
   }
 
   try {
-    updateStellarWallet({ isConnecting: true, error: null });
+    updateStellarWallet({ isConnecting: true, error: undefined });
     
     // Standard timeout for all devices
     const connectionTimeout = 60000; // 60 seconds

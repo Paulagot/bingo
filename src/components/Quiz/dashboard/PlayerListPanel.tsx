@@ -1,6 +1,6 @@
 // src/components/Quiz/dashboard/PlayerListPanel.tsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { usePlayerStore } from '../hooks/usePlayerStore';
 import { useQuizConfig } from '../hooks/useQuizConfig';
@@ -9,23 +9,22 @@ import AddPlayerModal from './AddPlayerModal';
 import { BadgeCheck, BadgeX } from 'lucide-react';
 import { fundraisingExtras } from '../types/quiz';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';  // ✅ new socket hook
+import PlayerSearchInput from '../game/PlayerSearchInput';       // ✅ reusable search input
 
 const PlayerListPanel: React.FC = () => {
- const { config } = useQuizConfig();
+  const { config } = useQuizConfig();
+  const { roomId } = useParams();
+  const { players } = usePlayerStore();
 
-const { roomId } = useParams();
-const { players } = usePlayerStore();
+  // 👉 Derive capacity AFTER players exist, and only for Web2
+  const isWeb3 = config?.paymentMethod === 'web3' || config?.isWeb3Room;
+  const maxPlayers = isWeb3 ? Number.POSITIVE_INFINITY : (config?.roomCaps?.maxPlayers ?? 20);
+  const atCapacity = isWeb3 ? false : ((players?.length || 0) >= maxPlayers);
 
-// 👉 Derive capacity AFTER players exist, and only for Web2
-const isWeb3 = config?.paymentMethod === 'web3' || config?.isWeb3Room;
-const maxPlayers = isWeb3 ? Number.POSITIVE_INFINITY : (config?.roomCaps?.maxPlayers ?? 20);
-const atCapacity = isWeb3 ? false : ((players?.length || 0) >= maxPlayers);
-
-
-  
   const [newName, setNewName] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const { socket } = useQuizSocket();
   const debug = false;
 
@@ -44,18 +43,16 @@ const atCapacity = isWeb3 ? false : ((players?.length || 0) >= maxPlayers);
     };
   }, [roomId, socket]);
 
-
   const baseJoinUrl = `${window.location.origin}/quiz/game/${roomId}`;
 
-const allowedExtras: string[] =
-  Array.isArray(config?.roomCaps?.extrasAllowed)
-    ? config!.roomCaps!.extrasAllowed!
-    : Object.keys(config?.fundraisingOptions || {});
+  const allowedExtras: string[] =
+    Array.isArray(config?.roomCaps?.extrasAllowed)
+      ? config!.roomCaps!.extrasAllowed!
+      : Object.keys(config?.fundraisingOptions || {});
 
-const allExtras = Object.entries(config?.fundraisingOptions || {})
-  .filter(([key, enabled]) => !!enabled && allowedExtras.includes(key))
-  .map(([key]) => key);
-
+  const allExtras = Object.entries(config?.fundraisingOptions || {})
+    .filter(([key, enabled]) => !!enabled && allowedExtras.includes(key))
+    .map(([key]) => key);
 
   const toggleDisqualification = (playerId: string) => {
     usePlayerStore.setState((state) => {
@@ -87,9 +84,33 @@ const allExtras = Object.entries(config?.fundraisingOptions || {})
     });
   };
 
+  // ---------- Search logic ----------
+  const norm = (s: string) =>
+    (s || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '');
+
+  const filteredPlayers = useMemo(() => {
+    if (!searchTerm.trim()) return players;
+    const q = norm(searchTerm.trim());
+    return players.filter((p: any) => norm(p.name).includes(q));
+  }, [players, searchTerm]);
+
   return (
     <div className="bg-muted rounded-lg p-4 shadow-sm">
-      <h2 className="text-fg mb-4 text-2xl font-bold">👥 Players</h2>
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-fg text-2xl font-bold">👥 Players</h2>
+
+        {/* 🔍 Search input (always visible) */}
+        <div className="sm:w-72">
+          <PlayerSearchInput
+            value={searchTerm}
+            onChange={setSearchTerm}
+            placeholder="Search players by name…"
+          />
+        </div>
+      </div>
 
       {!isWeb3 && (
         <div className="mb-4 flex flex-col gap-2 sm:flex-row">
@@ -100,21 +121,21 @@ const allExtras = Object.entries(config?.fundraisingOptions || {})
             onChange={(e) => setNewName(e.target.value)}
             className="flex-1 rounded-md border border-gray-300 px-3 py-2 focus:ring-indigo-500"
           />
-      <button
-  onClick={() => { if (newName.trim()) setShowModal(true); }}
-  disabled={atCapacity}
-  className={`rounded-md bg-indigo-600 px-5 py-2 font-medium text-white shadow transition ${
-    atCapacity ? 'cursor-not-allowed opacity-50' : 'hover:bg-indigo-700'
-  }`}
->
-  Add
-</button>
+          <button
+            onClick={() => { if (newName.trim()) setShowModal(true); }}
+            disabled={atCapacity}
+            className={`rounded-md bg-indigo-600 px-5 py-2 font-medium text-white shadow transition ${
+              atCapacity ? 'cursor-not-allowed opacity-50' : 'hover:bg-indigo-700'
+            }`}
+          >
+            Add
+          </button>
 
-{!isWeb3 && atCapacity && (
-  <p className="mt-2 text-xs text-red-600">
-    Player limit reached ({Number.isFinite(maxPlayers) ? maxPlayers : 'limit'}). Upgrade to add more.
-  </p>
-)}
+          {!isWeb3 && atCapacity && (
+            <p className="mt-2 text-xs text-red-600">
+              Player limit reached ({Number.isFinite(maxPlayers) ? maxPlayers : 'limit'}). Upgrade to add more.
+            </p>
+          )}
         </div>
       )}
 
@@ -130,9 +151,11 @@ const allExtras = Object.entries(config?.fundraisingOptions || {})
 
       {players.length === 0 ? (
         <p className="text-fg/70">No players {isWeb3 ? 'have joined yet.' : 'added yet.'}</p>
+      ) : filteredPlayers.length === 0 ? (
+        <p className="text-fg/70">No players match “{searchTerm}”.</p>
       ) : (
         <ul className="space-y-2">
-          {players.map((player) => {
+          {filteredPlayers.map((player: any) => {
             const joinLink = `${baseJoinUrl}/${player.id}`;
             const isShowingQR = selectedPlayerId === player.id;
 
@@ -143,7 +166,9 @@ const allExtras = Object.entries(config?.fundraisingOptions || {})
                     <p className="text-fg flex items-center gap-2 font-semibold">
                       {player.name}
                       {player.disqualified && (
-                        <span className="rounded bg-red-100 px-2 py-0.5 text-xs uppercase text-red-600">Disqualified</span>
+                        <span className="rounded bg-red-100 px-2 py-0.5 text-xs uppercase text-red-600">
+                          Disqualified
+                        </span>
                       )}
                       {player.paid ? (
                         <BadgeCheck className="h-4 w-4 text-green-600" />
@@ -208,6 +233,7 @@ const allExtras = Object.entries(config?.fundraisingOptions || {})
 };
 
 export default PlayerListPanel;
+
 
 
 

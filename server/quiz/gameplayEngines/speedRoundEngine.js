@@ -1,6 +1,5 @@
 // server/quiz/gameplayEngines/speedRoundEngine.js
-// Speed Round: 90s global timer, per-player rapid progression, two options per question.
-// Uses true_false.json via QuestionService source override.
+// TARGETED FIX: Only affects speed round, leaves other round types untouched
 
 import {
   getQuizRoom,
@@ -17,20 +16,16 @@ import { SimplifiedScoringService } from './services/SimplifiedScoringService.js
 const ROUND_TYPE = 'speed_round';
 const debug = true;
 
-/* ---------------------------- Init round ---------------------------- */
 export function initRound(roomId, namespace) {
   const room = getQuizRoom(roomId);
   if (!room) return false;
 
-  // ✅ Get Q/A filters & count from QuestionService (source of truth)
   const roundIndex = (room.currentRound ?? 1) - 1;
   const { questionsPerRound, category, difficulty } =
     QuestionService.getRoundQuestionConfig(room, roundIndex);
 
-  // 🔁 Also grab the raw roundDef so we can read timer/flags
   const rd = room.config?.roundDefinitions?.[roundIndex];
 
-  // Select from true_false.json with global de-dupe
   const questions = QuestionService.loadAndFilterQuestions(
     roomId,
     ROUND_TYPE,
@@ -42,32 +37,38 @@ export function initRound(roomId, namespace) {
   );
 
   if (!questions.length) {
-    console.warn(`[speedRound] ❌ No questions available`);
+    console.warn(`[speedRound] No questions available`);
     return false;
   }
 
-  // Ensure we stage exactly questionsPerRound
   const staged = questions.slice(0, questionsPerRound);
   setQuestionsForCurrentRound(roomId, staged);
 
-  // Initialize player cursors and round tracking
   room.playerCursors = {};
   room.players.forEach(p => {
     room.playerCursors[p.id] = 0;
     SimplifiedScoringService.initializeRoundTracking(room, p.id);
   });
 
-  // ✅ Use per-round total time (fallback to 90s)
   const totalSeconds = rd?.config?.totalTimeSeconds ?? 90;
   const now = Date.now();
   room.roundStartTime = now;
   room.roundEndTime = now + totalSeconds * 1000;
 
   room.currentPhase = 'asking';
+  
+  // Initialize host speed stats tracking
+  room._hostSpeedStats = {
+    totalAnswers: 0,
+    correct: 0,
+    wrong: 0,
+    skipped: 0,
+    lastUpdate: now
+  };
+
   StatsService.calculateLiveRoundStats(roomId, namespace);
   emitRoomState(namespace, roomId);
 
-  // Emit ticks
   room._speedRoundInterval && clearInterval(room._speedRoundInterval);
   room._speedRoundInterval = setInterval(() => {
     const remaining = Math.max(0, Math.floor((room.roundEndTime - Date.now()) / 1000));
@@ -78,24 +79,17 @@ export function initRound(roomId, namespace) {
     }
   }, 1000);
 
-  // First question per player
   room.players.forEach(p => emitNextQuestionToPlayer(roomId, p.id, namespace));
 
   return true;
 }
 
-
-/* ------------------------ Per-player progression ------------------- */
 export function emitNextQuestionToPlayer(roomId, playerId, namespace) {
   const room = getQuizRoom(roomId);
   if (!room || room.currentPhase !== 'asking') return;
 
   const idx = room.playerCursors?.[playerId] ?? 0;
-  if (idx >= room.questions.length) {
-    // Out of staged questions → optionally recycle from start (without reusing ids)
-    // For now, just stop emitting to this player.
-    return;
-  }
+  if (idx >= room.questions.length) return;
 
   const q = room.questions[idx];
   const player = room.players.find(p => p.id === playerId);
@@ -104,18 +98,16 @@ export function emitNextQuestionToPlayer(roomId, playerId, namespace) {
   const sock = namespace.sockets.get(player.socketId);
   if (!sock) return;
 
-  // Emit only to this player
   sock.emit('speed_question', {
     id: q.id,
     text: q.text,
     options: Array.isArray(q.options) ? q.options.slice(0, 2) : [],
-    // UI can read remaining time from round_time_remaining ticks
   });
 
-  if (debug) console.log(`[speedRound] ➤ Sent Q#${idx + 1} to ${playerId} (qid=${q.id})`);
+  if (debug) console.log(`[speedRound] Sent Q#${idx + 1} to ${playerId} (qid=${q.id})`);
 }
 
-/* ------------------------- Answers: instant ------------------------ */
+// KEY FIX: Enhanced answer handling that distinguishes skips from wrong answers
 export function handlePlayerAnswer(roomId, playerId, payload, namespace) {
   const room = getQuizRoom(roomId);
   if (!room || room.currentPhase !== 'asking') return;
@@ -125,88 +117,153 @@ export function handlePlayerAnswer(roomId, playerId, payload, namespace) {
   const q = room.questions[cursor];
   if (!q) return;
 
-  // incoming
   const incomingId = payload?.questionId ?? q.id;
-  const submitted = (payload?.answer === '' || payload?.answer === undefined)
+  const submitted = (payload?.answer === '' || payload?.answer === undefined || payload?.answer === null)
     ? null
     : String(payload.answer);
 
-  // guard: id match (stringify to be safe)
   if (String(incomingId) !== String(q.id)) return;
 
   const key = `${q.id}_round${room.currentRound}`;
   const playerData = room.playerData[playerId] || (room.playerData[playerId] = { answers: {} });
-  if (playerData.answers[key]) return; // already answered
+  if (playerData.answers[key]) return;
 
-  // Determine correct token from question
-  const correctRaw =
-    q.correctAnswer ?? q.answer ?? q.correct ?? q.solution;
+  const correctRaw = q.correctAnswer ?? q.answer ?? q.correct ?? q.solution;
   const correctToken = correctRaw == null ? null : String(correctRaw);
 
-  // Sole source of truth for correctness
-  const isSkip = submitted === null;
-  const isCorrect = !isSkip && correctToken !== null && submitted === correctToken;
+  // CLEAR CATEGORIZATION for speed rounds
+  const isVoluntarySkip = submitted === null;  // Player chose to skip
+  const isCorrect = !isVoluntarySkip && correctToken !== null && submitted === correctToken;
+  const isWrong = !isVoluntarySkip && !isCorrect;  // Player tried but got it wrong
 
-  // Points via your service (keeps config rules), but we trust isCorrect for UI/storage
-  let result = null;
-  if (!isSkip) {
-    result = SimplifiedScoringService.processAnswer(room, playerId, q, submitted);
-  }
-
-  // Store one consistent record
-  playerData.answers[key] = {
-    submitted,                // exact string or null
-    correct: isCorrect,       // our truth
-    noAnswer: isSkip,
-    pointsDelta: result?.pointsDelta ?? 0,
-    finalized: true,
-  };
-
-  // Host ticker: use the same isCorrect/isSkip
-  const now = Date.now();
-  room._hostSpeedLastEmit = room._hostSpeedLastEmit || 0;
-
-  namespace.to(`${roomId}:host`).emit('host_speed_activity', {
-    playerId,
-    playerName: room.players.find(p => p.id === playerId)?.name || 'Player',
-    correct: isCorrect,
-    skipped: isSkip,
-    questionId: q.id,
-    ts: now
-  });
-
-  if (now - room._hostSpeedLastEmit >= 1000) {
-    room._hostSpeedLastEmit = now;
-    const all = Object.values(room.playerData || {})
-      .flatMap(pd => Object.values(pd.answers || {}));
-    const total = all.length;
-    const correct = all.filter(a => a.correct).length;
-    const skipped = all.filter(a => a.noAnswer).length;
-    const wrong = total - correct - skipped;
-
-    namespace.to(`${roomId}:host`).emit('host_speed_stats', {
-      totalAnswers: total,
-      correct,
-      wrong,
-      skipped,
-      answersPerSec: Math.round((total / Math.max(1, ((Date.now() - room.roundStartTime) / 1000))) * 10) / 10
+  if (debug) {
+    console.log(`[speedRound] ${playerId} answer:`, {
+      questionId: q.id,
+      submitted,
+      correctToken,
+      isVoluntarySkip,
+      isCorrect,
+      isWrong
     });
   }
 
-  // advance & next
+  // Points via scoring service (but speed rounds typically don't have penalties)
+  let result = null;
+  if (!isVoluntarySkip) {
+    result = SimplifiedScoringService.processAnswer(room, playerId, q, submitted);
+  }
+
+  // Store answer with clear categorization
+  playerData.answers[key] = {
+    submitted,
+    correct: isCorrect,
+    noAnswer: isVoluntarySkip,      // This means "voluntary skip" in speed rounds
+    isWrong: isWrong,              // Explicit wrong flag
+    pointsDelta: result?.pointsDelta ?? 0,
+    finalized: true,
+    // Speed round specific flags
+    voluntarySkip: isVoluntarySkip  // Makes it crystal clear this was a choice
+  };
+
+  // Host activity with correct categorization
+  const player = room.players.find(p => p.id === playerId);
+  const playerName = player?.name || 'Player';
+  
+  namespace.to(`${roomId}:host`).emit('host_speed_activity', {
+    playerId,
+    playerName,
+    correct: isCorrect,
+    wrong: isWrong,        // Explicit wrong flag
+    skipped: isVoluntarySkip,  // Explicit skip flag
+    questionId: q.id,
+    submittedAnswer: submitted,
+    correctAnswer: correctToken,
+    ts: Date.now()
+  });
+
+  // Update aggregate host stats
+  updateHostSpeedStats(room, namespace, roomId);
+
   room.playerCursors[playerId] = cursor + 1;
   emitNextQuestionToPlayer(roomId, playerId, namespace);
 
   StatsService.calculateLiveRoundStats(roomId, namespace);
 }
 
+// Helper function for consistent host stats calculation (SPEED ROUND ONLY)
+function updateHostSpeedStats(room, namespace, roomId) {
+  const now = Date.now();
+  
+  if (now - (room._hostSpeedStats?.lastUpdate || 0) < 1000) {
+    return;
+  }
 
-/* --------------------------- Finalization -------------------------- */
+  const roundTag = `_round${room.currentRound}`;
+  let totalAnswers = 0;
+  let correct = 0;
+  let wrong = 0;
+  let skipped = 0;
+
+  for (const player of room.players) {
+    const pd = room.playerData[player.id];
+    if (!pd?.answers) continue;
+
+    for (const [key, answer] of Object.entries(pd.answers)) {
+      if (!key.endsWith(roundTag)) continue;
+      
+      totalAnswers++;
+      
+      // Use speed round specific logic
+      if (answer.voluntarySkip === true || (answer.noAnswer === true && answer.submitted === null)) {
+        skipped++;
+      } else if (answer.correct === true) {
+        correct++;
+      } else {
+        wrong++;
+      }
+    }
+  }
+
+  room._hostSpeedStats = {
+    totalAnswers,
+    correct,
+    wrong,
+    skipped,
+    lastUpdate: now
+  };
+
+  const elapsed = Math.max(1, (now - room.roundStartTime) / 1000);
+  const answersPerSec = Math.round((totalAnswers / elapsed) * 10) / 10;
+
+  namespace.to(`${roomId}:host`).emit('host_speed_stats', {
+    totalAnswers,
+    correct,
+    wrong,
+    skipped,
+    answersPerSec
+  });
+
+  if (debug) {
+    console.log(`[speedRound] Host stats:`, {
+      totalAnswers,
+      correct,
+      wrong,
+      skipped,
+      answersPerSec
+    });
+  }
+}
+
 function finalizeSpeedRound(roomId, namespace) {
   const room = getQuizRoom(roomId);
   if (!room || room.currentPhase !== 'asking') return;
 
-  // Build reviewQuestions = only questions that any player answered/skipped this round
+  if (room._speedRoundInterval) {
+    clearInterval(room._speedRoundInterval);
+    room._speedRoundInterval = null;
+  }
+
+  // Build review questions from answered/skipped questions
   const answeredIds = new Set();
   const roundTag = `_round${room.currentRound}`;
 
@@ -222,19 +279,27 @@ function finalizeSpeedRound(roomId, namespace) {
     }
   }
 
-  // Preserve original order from room.questions
   room.reviewQuestions = Array.isArray(room.questions)
     ? room.questions.filter(q => answeredIds.has(Number(q.id)))
     : [];
 
-  // Start review
+  // Final stats update
+  updateHostSpeedStats(room, namespace, roomId);
+
   room.currentPhase = 'reviewing';
   room.currentReviewIndex = 0;
 
   emitRoomState(namespace, roomId);
   emitNextReviewQuestion(roomId, namespace);
-}
 
+  if (debug) {
+    console.log(`[speedRound] Round finalized:`, {
+      totalQuestions: room.questions.length,
+      reviewQuestions: room.reviewQuestions.length,
+      finalStats: room._hostSpeedStats
+    });
+  }
+}
 
 export function emitNextReviewQuestion(roomId, namespace) {
   const ref = {
