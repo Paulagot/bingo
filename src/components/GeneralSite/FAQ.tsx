@@ -3,23 +3,23 @@ import { ChevronDown, HelpCircle } from 'lucide-react';
 
 const faqData = [
   {
-    question: "What fundraising events can I run?",
-    answer: "We are starting with live or virtual fundraising quiz nights, then other games of skill. Bingo and lottery support will be available once our compliance engine is complete.",
+    question: "What transformative fundraising events can I host?",
+    answer: "Currently, we empower you to host captivating live fundraising quiz nights, with plans to expand into other engaging games of skill. Soon, we will unveil comprehensive Bingo and lottery support, complete with our advanced compliance engine.",
     gradient: "from-blue-500 to-cyan-500"
   },
   {
-    question: "Is this legally compliant?",
-    answer: "Games of skill like quizzes do not fall under gambling regulations in most jurisdictions. We're working on full legal compliance tools for regulated games coming soon.",
+    question: "Is FundRaisely\'s approach legally sound and secure?",
+    answer: "Absolutely. Games of skill like quizzes typically operate outside gambling regulations in most jurisdictions, offering you peace of mind. We are diligently developing full legal compliance tools for regulated games, ensuring your fundraising is always protected and transparent.",
     gradient: "from-green-500 to-emerald-500"
   },
   {
-    question: "Is this blockchain verified?",
-    answer: "Key event data, like financial summaries and impact - in the future will be hashed and timestamped on-chain for a transparent, tamper-resistant record.",
+    question: "How does FundRaisely ensure transparent and verifiable impact with blockchain?",
+    answer: "In the near future, key event data, including financial summaries and impact metrics, will be magically hashed and timestamped on-chain. This creates an immutable, transparent, and tamper-resistant record, transforming how you prove and share your incredible impact.",
     gradient: "from-purple-500 to-pink-500"
   },
   {
-    question: "Can I accept cash and digital payments?",
-    answer: "Oh Yes! Hosts can reconcile both, and our system helps you track who paid what - perfect for clean record-keeping and reporting.",
+    question: "Can I seamlessly manage both cash and digital payments?",
+    answer: "Yes, with effortless grace! Our intuitive system allows hosts to reconcile both cash and digital payments, meticulously tracking every contribution. This ensures perfect record-keeping and simplifies reporting, giving you complete control and clarity.",
     gradient: "from-orange-500 to-red-500"
   }
 ];
@@ -41,16 +41,16 @@ const FAQ: React.FC = () => {
         {/* Header */}
         <div className="text-center mb-12">
           <span className="inline-flex items-center gap-2 rounded-full bg-indigo-100 px-4 py-2 text-indigo-700 text-sm font-medium mb-6">
-            <HelpCircle className="h-4 w-4" /> Common Questions
+            <HelpCircle className="h-4 w-4" /> Unlocking Answers: Your Essential Guide
           </span>
           
           <h2 className="text-3xl md:text-4xl font-bold text-indigo-900 mb-4 leading-tight">
-            Frequently Asked 
-            <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"> Questions</span>
+            Your Questions, Our Clarity: 
+            <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"> Illuminating FundRaisely's Magic</span>
           </h2>
           
           <p className="mx-auto max-w-2xl text-lg text-indigo-800/70 leading-relaxed">
-            Get answers to common questions about FundRaisely and how our platform works for your organization.
+            We're here to demystify the fundraising process. Explore our most frequently asked questions to understand how FundRaisely empowers your organization with innovative solutions and unwavering support.
           </p>
         </div>
 
@@ -111,17 +111,17 @@ const FAQ: React.FC = () => {
           <div className="inline-flex items-center gap-4 rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 p-6 border border-indigo-100">
             <div>
               <h3 className="text-lg font-bold text-indigo-900 mb-1">
-                Still have questions?
+                Still Seeking Answers or a Guiding Hand?
               </h3>
               <p className="text-indigo-700/70 text-sm">
-                We're here to help you get started with your fundraising campaign
+                Our dedicated team is here to illuminate your path and provide personalized support, ensuring your fundraising journey is smooth and successful.
               </p>
             </div>
             <a
               href="/contact"
               className="group inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-white font-semibold shadow-lg hover:bg-indigo-700 hover:scale-105 transition-all duration-300 whitespace-nowrap"
             >
-              <span>Contact Us</span>
+              <span>Connect with Our Experts</span>
               <HelpCircle className="h-4 w-4 group-hover:scale-110 transition-transform duration-300" />
             </a>
           </div>

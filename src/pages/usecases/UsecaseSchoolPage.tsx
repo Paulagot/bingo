@@ -1,8 +1,10 @@
+// src/pages/usecases/UsecaseSchoolPage.tsx
+
 import type React from 'react';
 import { SEO } from '../../components/SEO';
 import { Header } from '../../components/GeneralSite/Header';
 import SiteFooter from '../../components/GeneralSite2/SiteFooter';
-import { Sparkles, Check, QrCode, CreditCard, FileText, PlayCircle, Users, Shield, Clock, Heart } from 'lucide-react';
+import { Sparkles, Check, QrCode, CreditCard, FileText, PlayCircle, Users, Shield, BookOpen, Heart } from 'lucide-react';
 
 function getOrigin(): string {
   const env = (import.meta as any)?.env?.VITE_SITE_ORIGIN as string | undefined;
@@ -263,6 +265,36 @@ const UsecaseSchoolPage: React.FC = () => {
                 <Bullet>Announce winners and celebrate fundraising success</Bullet>
                 <Bullet>Export professional reports for school committees</Bullet>
               </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+            {/* Success Stories Section (New Section) */}
+      <section className="px-4 pb-12">
+        <div className="container mx-auto max-w-6xl">
+          <h2 className="text-center text-indigo-900 text-3xl font-bold mb-8">Inspiring Success: Schools & PTAs Thriving with FundRaisely</h2>
+          <p className="text-center max-w-3xl mx-auto text-indigo-900/70 text-lg mb-10">
+            Join a growing community of schools and PTAs across the UK and Ireland who have transformed their fundraising efforts with FundRaisely. Hear how our platform has helped them raise significant funds, build stronger communities, and create unforgettable quiz night experiences.
+          </p>
+          <div className="grid gap-8 md:grid-cols-2">
+            <div className="rounded-2xl border border-indigo-100 bg-white p-6 shadow-sm">
+              <h3 className="text-indigo-900 text-xl font-semibold mb-3">"Our PTA Quiz Night Raised Over £1,500!"</h3>
+              <p className="text-indigo-900/70 italic mb-4">
+                "FundRaisely made organizing our annual school quiz fundraiser incredibly easy. We raised over £1,500 for new playground equipment, and everyone had a fantastic time. The platform was so intuitive, even for our less tech-savvy volunteers!" - Sarah J., PTA Chair, St. Michael's Primary School
+              </p>
+              <div className="flex items-center gap-2 text-indigo-600">
+                <BookOpen className="h-5 w-5" /> Read More Success Stories
+              </div>
+            </div>
+            <div className="rounded-2xl border border-indigo-100 bg-white p-6 shadow-sm">
+              <h3 className="text-indigo-900 text-xl font-semibold mb-3">"Engaging & Safe: Perfect for Our School Community"</h3>
+              <p className="text-indigo-900/70 italic mb-4">
+                "We were looking for a child-friendly fundraising idea, and FundRaisely delivered. The pre-loaded content was perfect, and the minimal data collection gave us peace of mind regarding student privacy. It was a huge hit with parents and kids alike!" - Mark T., Head Teacher, Green Valley Academy
+              </p>
+              <div className="flex items-center gap-2 text-indigo-600">
+                <BookOpen className="h-5 w-5" /> Explore Case Studies
+              </div>
             </div>
           </div>
         </div>

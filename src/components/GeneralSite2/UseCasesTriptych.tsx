@@ -4,31 +4,31 @@ import { GraduationCap, Trophy, Heart, ArrowRight, Users } from 'lucide-react';
 
 const useCases = [
   { 
-    title: 'For Schools & PTAs', 
-    copy: 'Family-friendly rounds, simple payments & clear totals for school fundraising events.',
+    title: 'For Schools & PTAs: Nurturing Community, Boosting Funds', 
+    copy: 'Effortlessly create joyful, family-friendly quiz events that unite your school community, with simple payment flows and transparent, parent-friendly reports ensuring every penny raised supports your students.',
     href: '/quiz/use-cases/schools',
     icon: GraduationCap,
     gradient: 'from-blue-500 to-cyan-500',
     bgGradient: 'from-blue-50 to-cyan-50',
-    features: ['Family-friendly content', 'Simple payment flows', 'Parent-friendly reports']
+    features: ["Joyful Family Engagement", "Simplified Payment Processing", "Transparent Parent Reports"]
   },
   { 
-    title: 'For Sports Clubs', 
-    copy: 'Competitive leaderboards and sponsor-ready callouts for club fundraising campaigns.',
+    title: 'For Sports Clubs: Ignite Rivalry, Amplify Impact', 
+    copy: 'Transform your club nights into thrilling fundraising spectacles. Our platform delivers competitive leaderboards and seamless sponsor integration, empowering you to amplify your impact and rally your members like never before.',
     href: '/quiz/use-cases/clubs',
     icon: Trophy,
     gradient: 'from-green-500 to-emerald-500',
     bgGradient: 'from-green-50 to-emerald-50',
-    features: ['Competitive scoring', 'Sponsor integration', 'Team management']
+    features: ["Dynamic Competitive Play", "Seamless Sponsor Showcases", "Effortless Team Management"]
   },
   { 
-    title: 'For Charities', 
-    copy: 'Transparent receipts and donor-friendly reporting for nonprofit fundraising initiatives.',
+    title: 'For Charities: Verifiable Impact, Compassionate Support', 
+    copy: 'Elevate your mission with transparent, donor-friendly fundraising. Soon FundRaisely will provide clear donation receipts, robust impact tracking, and comprehensive donor reporting, ensuring every act of generosity is recognized and every outcome is verifiable.',
     href: '/quiz/use-cases/charities',
     icon: Heart,
     gradient: 'from-pink-500 to-rose-500',
     bgGradient: 'from-pink-50 to-rose-50',
-    features: ['Donation receipts', 'Impact tracking', 'Donor reporting']
+    features: ["Transparent Donation Records", "Powerful Impact Tracking", "Empathetic Donor Reporting"]
   }
 ];
 
@@ -38,16 +38,16 @@ const UseCasesTriptych: React.FC = () => (
       {/* Header */}
       <div className="text-center mb-12">
         <span className="inline-flex items-center gap-2 rounded-full bg-indigo-100 px-4 py-2 text-indigo-700 text-sm font-medium mb-6">
-          <Users className="h-4 w-4" /> Perfect for Every Organization
+          <Users className="h-4 w-4" /> Empowering Every Mission: Tailored Fundraising Solutions
         </span>
         
         <h2 className="text-3xl md:text-4xl font-bold text-indigo-900 mb-4 leading-tight">
-          Who 
-          <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"> It's For</span>
+          Your Vision, Our Expertise: Fundraising Transformed for Every 
+          <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"> Cause</span>
         </h2>
         
         <p className="mx-auto max-w-2xl text-lg text-indigo-800/70 leading-relaxed">
-          Tailored flows and features designed specifically for different types of organizers and their unique needs.
+          Discover how FundRaisely thoughtfully crafts unique fundraising journeys, providing specialized tools and compassionate support designed to meet the distinct needs of every organization.
         </p>
       </div>
 
@@ -112,17 +112,17 @@ const UseCasesTriptych: React.FC = () => (
         <div className="inline-flex items-center gap-4 rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 p-6 border border-indigo-100">
           <div>
             <h3 className="text-lg font-bold text-indigo-900 mb-1">
-              Not sure which fits your organization?
+              Seeking Your Perfect Fundraising Formula?
             </h3>
             <p className="text-indigo-700/70 text-sm">
-              Get personalized recommendations based on your needs
+              Let us guide you to the ideal solution, tailored precisely to your organization's unique needs and aspirations.
             </p>
           </div>
           <a
             href="/contact"
             className="group inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-white font-semibold shadow-lg hover:bg-indigo-700 hover:scale-105 transition-all duration-300 whitespace-nowrap"
           >
-            <span>Get Guidance</span>
+            <span>Get Personalized Guidance</span>
             <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
           </a>
         </div>

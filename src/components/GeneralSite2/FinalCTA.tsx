@@ -23,18 +23,18 @@ const FinalCTA: React.FC = () => (
         <div className="relative z-10">
           {/* Badge */}
           <span className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-sm px-4 py-2 text-white/90 text-sm font-medium border border-white/20 mb-6">
-            <Rocket className="h-4 w-4" /> Ready to Launch
+            <Rocket className="h-4 w-4" /> Your Fundraising Journey Begins Now
           </span>
 
           {/* Main Heading */}
           <h3 className="text-2xl md:text-3xl font-bold text-white mb-4 leading-tight">
-            Try It Free — Launch Your First Quiz and 
-            <span className="bg-gradient-to-r from-pink-300 to-yellow-300 bg-clip-text text-transparent"> Start Fundraising Today</span>
+            Unleash Your Fundraising Potential: Launch Your First Quiz and 
+            <span className="bg-gradient-to-r from-pink-300 to-yellow-300 bg-clip-text text-transparent"> Transform Your Cause Today</span>
           </h3>
           
           {/* Subtext */}
           <p className="mt-2 text-white/85 text-lg mb-8 max-w-2xl mx-auto">
-            No long setup. Works great on mobile. Built for IE & UK organizations.
+            Experience effortless setup, seamless mobile functionality, and a platform thoughtfully designed for IE & UK organizations. Your mission, simplified.
           </p>
 
           {/* CTA Buttons */}
@@ -43,7 +43,7 @@ const FinalCTA: React.FC = () => (
               href="/free-trial" 
               className="group inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 text-indigo-900 font-bold shadow-xl hover:bg-indigo-50 hover:scale-105 transition-all duration-300"
             >
-              <span>Start Free Trial</span>
+              <span>Start Your Transformation Now</span>
               <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
             </a>
             
@@ -51,7 +51,7 @@ const FinalCTA: React.FC = () => (
               href="/pricing" 
               className="group inline-flex items-center gap-2 rounded-xl bg-indigo-700/20 backdrop-blur-sm px-8 py-4 text-white font-bold shadow-xl border border-white/20 hover:bg-indigo-700/30 hover:scale-105 transition-all duration-300"
             >
-              <span>See Pricing</span>
+              <span>Explore Plans & Unlock More Magic</span>
               <div className="h-2 w-2 rounded-full bg-white" />
             </a>
           </div>
@@ -60,15 +60,15 @@ const FinalCTA: React.FC = () => (
           <div className="mt-8 flex flex-wrap justify-center gap-4 text-white/70 text-sm">
             <div className="flex items-center gap-2">
               <div className="h-1.5 w-1.5 rounded-full bg-green-400" />
-              <span>No credit card required</span>
+              <span>No Credit Card Required: Begin Your Journey Risk-Free</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="h-1.5 w-1.5 rounded-full bg-blue-400" />
-              <span>Setup in under 5 minutes</span>
+              <span>Setup in Under 5 Minutes: Instant Impact, Effortless Start</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="h-1.5 w-1.5 rounded-full bg-purple-400" />
-              <span>Works on any device</span>
+              <span>Works on Any Device: Empowering You, Anywhere</span>
             </div>
           </div>
         </div>

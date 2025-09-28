@@ -77,7 +77,7 @@ const FundraisingLaunchPage: React.FC = () => {
         return;
       }
 
-      setSubmitMessage('✅ Community registration submitted successfully! We\'ll be in touch soon.');
+      setSubmitMessage('✅ Community registration submitted successfully! We will be in touch soon.');
 
       // Clear form
       setCommunityName('');
