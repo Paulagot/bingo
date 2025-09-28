@@ -29,6 +29,7 @@ import { initializeDatabase } from './config/database.js';
 
 import { seoRoutes } from './SeoRoutes.js';
 import { getSeoForPath } from './seoMap.js'; // ⬅️ NEW: route→SEO map (server/seoMap.js)
+import helmet from 'helmet';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,6 +37,71 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+const isProd = process.env.NODE_ENV === 'production';
+
+// Base security headers
+app.use(
+  helmet({
+    xPoweredBy: false,
+    frameguard: { action: 'sameorigin' },                     // X-Frame-Options: SAMEORIGIN
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    crossOriginOpenerPolicy: { policy: 'same-origin' },       // COOP
+    crossOriginResourcePolicy: { policy: 'same-site' },       // safe with your CDNs
+  })
+);
+
+// HSTS (HTTPS only, prod only)
+if (isProd) {
+  app.use(
+    helmet.hsts({
+      maxAge: 15552000,              // 180 days
+      includeSubDomains: true,
+      preload: false,                 // switch to true only when you’re ready to preload
+    })
+  );
+}
+
+// Content Security Policy – start in Report-Only so nothing breaks
+const cspDirectives = {
+  defaultSrc: ["'self'"],
+  baseUri: ["'self'"],
+  objectSrc: ["'none'"],
+
+  // Allow scripts from self/https; keep 'unsafe-inline' for now due to Cloudflare inline bits
+  scriptSrc: ["'self'", "https:", "'unsafe-inline'"],
+
+  // Styles typically need 'unsafe-inline' unless all libs are hashed/nonced
+  styleSrc: ["'self'", "https:", "'unsafe-inline'"],
+
+  // Assets
+  imgSrc: ["'self'", "data:", "https:"],
+  fontSrc: ["'self'", "https:", "data:"],
+  connectSrc: ["'self'", "https:", "wss:"],    // API, Socket.IO over WSS
+  frameSrc: ["'self'", "https://www.youtube.com"],
+
+  // Anti-clickjacking (also set via XFO above)
+  frameAncestors: ["'self'"],
+
+  // Auto-upgrade mixed content
+  upgradeInsecureRequests: [],
+};
+
+app.use(
+  helmet.contentSecurityPolicy({
+    directives: cspDirectives,
+    reportOnly: true,                 // <-- SAFE: observe only, do not block
+  })
+);
+
+// (Optional) Trusted Types in Report-Only to surface DOM sink usage
+app.use((req, res, next) => {
+  const existing = res.getHeader('Content-Security-Policy-Report-Only');
+  const extra = `; require-trusted-types-for 'script'`;
+  res.setHeader('Content-Security-Policy-Report-Only', String(existing || '') + extra);
+  next();
+});
+
 
 app.use((req, res, next) => {
   console.log(`📥 ${req.method} ${req.url} - Headers:`, req.headers);
