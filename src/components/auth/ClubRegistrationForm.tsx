@@ -1,11 +1,15 @@
 // client/src/components/auth/ClubRegistrationForm.tsx
 import React, { useState, useCallback } from 'react';
-import { Users, Mail, Lock, Eye, EyeOff, CheckCircle, AlertCircle, Check } from 'lucide-react';
+import { Users, Mail, Lock, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth, useUI } from '../../stores/authStore';
+
+import { useLocation, useNavigate } from 'react-router-dom';
 
 interface ClubRegisterFormProps {
   onSwitchToLogin?: () => void;
 }
+
+
 
 // InputField component (unchanged)
 const InputField = React.memo(({ 
@@ -128,6 +132,8 @@ const GDPRCheckbox = React.memo(({
 export default function ClubRegisterForm({ onSwitchToLogin }: ClubRegisterFormProps) {
   const { register } = useAuth();
   const { isLoading, error, successMessage, clearError, clearSuccessMessage } = useUI();
+  const location = useLocation();
+const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -312,12 +318,16 @@ export default function ClubRegisterForm({ onSwitchToLogin }: ClubRegisterFormPr
         marketingConsent
       });
 
-      if (result.success && onSwitchToLogin) {
-        // Small delay to show success message, then switch to login
-        setTimeout(() => {
-          onSwitchToLogin();
-        }, 2000);
-      }
+  if (result.success) {
+  const params = new URLSearchParams(location.search);
+ const returnTo = params.get('returnTo') || '/quiz/create-fundraising-quiz';
+
+  setTimeout(() => {
+   navigate(`/auth?mode=login&returnTo=${encodeURIComponent(returnTo)}`, { replace: true });
+  }, 2000);
+}
+
+
     } catch (error) {
       console.error('Registration failed:', error);
     }
@@ -554,19 +564,19 @@ export default function ClubRegisterForm({ onSwitchToLogin }: ClubRegisterFormPr
             <ul className="text-fg/70 space-y-1 text-sm">
               <li className="flex items-center">
                 <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
-                Track campaigns and events
+                4 free quiz event credits to get started
               </li>
               <li className="flex items-center">
                 <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
-                Manage supporters and volunteers
+                Full selection of quiz templates or create your own
               </li>
               <li className="flex items-center">
                 <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
-                Real-time fundraising insights
+                20 connected players/teams per event
               </li>
               <li className="flex items-center">
                 <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
-                Easy prize and task management
+                Reconsile payments with ease and download audit-ready reports
               </li>
             </ul>
           </div>

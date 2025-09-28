@@ -27,7 +27,7 @@ console.log('📦 Type:', typeof communityRegistrationApi);
 
 import { initializeDatabase } from './config/database.js';
 
-
+import { seoRoutes } from './SeoRoutes.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -114,13 +114,12 @@ app.get('/robots.txt', (req, res) => {
   });
 });
 
+
+
 // ✅ Serve static files in development
 app.use(express.static(path.join(__dirname, '../public')));
 
-// ✅ Serve pitch deck
-app.get('/pitch-deck.html', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/pitch-deck.html'));
-});
+
 
 // ✅ Serve frontend build in production with optimized cache headers
 if (process.env.NODE_ENV === 'production') {
@@ -202,6 +201,7 @@ const io = new Server(httpServer, {
   }
 });
 
+seoRoutes(app)
 setupSocketHandlers(io);
 
 // ✅ Health check

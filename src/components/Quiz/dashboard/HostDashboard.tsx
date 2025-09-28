@@ -645,8 +645,9 @@ const tabs = postGameLock
         <div className="text-fg/60 mt-1 text-lg text-center">
           Credits remaining: <strong>{ents.game_credits_remaining ?? 0}</strong> ·
           Max players: <strong>{ents.max_players_per_game}</strong> ·
-          Max rounds: <strong>{ents.max_rounds}</strong>
+                
         </div>
+        
       )}
 
   <WalletDebugPanel />

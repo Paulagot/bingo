@@ -1,36 +1,34 @@
-// src/App.tsx - Updated with Web3 fundraising route at root level
+// src/App.tsx
 import { useEffect, lazy, Suspense } from 'react';
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+
 import { Landing } from './pages/Landing';
 import { Header } from './components/GeneralSite/Header';
-import { PitchDeckContent } from './pages/PitchDeckContent';
 import ErrorBoundary from './components/bingo/ErrorBoundary';
 import WhatsNew from './pages/WhatsNew';
+import FreeTrial from './pages/FreeTrial';
+import FundraisingQuizPage from './pages/FundraisingQuizPage';
+import Pricing from './pages/PricingPage';
+import TestimonialsPage from './pages/TestimonialsPage';
 
 import { useAuthStore } from './stores/authStore';
-// src/App.tsx
 import AuthPage from './components/auth/AuthPage';
 
-
-
-
-
-// NEW: Web3 Fundraising Quiz page (direct import since it needs to be at root level)
+// Web3
 import Web3FundraisingQuizPage from './pages/Web3FundraisingQuizPage';
+import { Web3Provider } from './components/Web3Provider';
+
+// Auth wrappers
+import Login from './pages/Login';
+import Signup from './pages/Signup';
 
 // Lazy quiz bits
 const QuizRoutes = lazy(() => import('./components/Quiz/QuizRoutes'));
 const QuizSocketProvider = lazy(() =>
-  import('./components/Quiz/sockets/QuizSocketProvider').then(m => ({ default: m.QuizSocketProvider }))
+  import('./components/Quiz/sockets/QuizSocketProvider').then((m) => ({ default: m.QuizSocketProvider }))
 );
 
-// Web3 pages (direct imports are fine)
-import { Web3Provider } from './components/Web3Provider';
-import { Game } from './pages/Game';
-import { TestCampaign } from './pages/TestCampaign';
-import { PitchDeck } from './pages/PitchDeck';
-
-// ✅ Lazy-load the Web3 fundraiser page directly
+// Lazy web3 impact page
 const FundraisingLaunchPage = lazy(() => import('./pages/web3fundraiser'));
 
 const LoadingSpinner = ({
@@ -49,18 +47,22 @@ const LoadingSpinner = ({
   </div>
 );
 
+// Only the live game routes should be socket-enabled
+const isGameRoute = (pathname: string) =>
+  /^\/quiz\/(game|play|host-dashboard|host-controls|join|admin-join)\b/.test(pathname);
+
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // beforeunload guard only for game routes (was checking "/game/" previously)
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (location.pathname.startsWith('/game/')) {
+      if (isGameRoute(location.pathname)) {
         e.preventDefault();
         e.returnValue = '';
       }
     };
-
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [location]);
@@ -69,13 +71,12 @@ export default function App() {
   const { pathname } = location;
   const hideOnPaths = ['/pitch-deck-content', '/BingoBlitz'];
   const hideOnPrefixes = ['/quiz/game', '/quiz/play', '/quiz/host-dashboard', '/quiz/host-controls'];
-
   const showHeader =
     !hideOnPaths.includes(pathname) &&
     !hideOnPrefixes.some((p) => pathname === p || pathname.startsWith(p + '/'));
 
-    const initialize = useAuthStore((state) => state.initialize);
-
+  // init auth store
+  const initialize = useAuthStore((state) => state.initialize);
   useEffect(() => {
     initialize();
   }, [initialize]);
@@ -86,85 +87,59 @@ export default function App() {
         {showHeader && <Header />}
         <main className={showHeader ? 'pt-16' : ''}>
           <Routes>
-            {/* ⚡ Non-web3 routes */}
+            {/* Public marketing routes */}
             <Route path="/" element={<Landing />} />
-            <Route path="/pitch-deck-content" element={<PitchDeckContent />} />
             <Route path="/whats-new" element={<WhatsNew />} />
+            <Route path="/free-trial" element={<FreeTrial />} />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/testimonials" element={<TestimonialsPage />} />
+            <Route path="/about" element={<div>About Page (TODO)</div>} />
+            <Route path="/blog" element={<div>Blog / Resources (TODO)</div>} />
+            <Route path="/contact" element={<div>Contact / Support (TODO)</div>} />
+            <Route path="/legal/privacy" element={<div>Privacy Policy (TODO)</div>} />
+            <Route path="/legal/terms" element={<div>Terms of Service (TODO)</div>} />
+            <Route path="/legal/compliance" element={<div>Compliance Info (TODO)</div>} />
 
-               {/* ✅ GLOBAL AUTH ROUTE — this is the key line */}
+            {/* Auth routes */}
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/login" element={<Login />} />
             <Route path="/auth" element={<AuthPage />} />
 
-            {/* NEW: Web3 Fundraising Quiz page at root level */}
-            <Route path="/web3-fundraising-quiz" element={<Web3FundraisingQuizPage />} />
-
-            {/* 🎮 Quiz routes (lazy) - now only contains host quiz */}
+            {/* New canonical create page for Quiz (render page directly) */}
             <Route
-              path="/quiz/*"
+              path="/quiz/create-fundraising-quiz"
               element={
                 <Suspense fallback={<LoadingSpinner message="Loading Quiz Platform" />}>
                   <QuizSocketProvider>
-                    <QuizRoutes />
+                    <FundraisingQuizPage />
                   </QuizSocketProvider>
                 </Suspense>
               }
             />
 
-            {/* 🎲 Web3 routes */}
+            {/* Redirect base /quiz to the new create page */}
+            <Route path="/quiz" element={<Navigate to="/quiz/create-fundraising-quiz" replace />} />
+
+            {/* All /quiz/* routes — conditionally socket-enabled only for live game routes */}
             <Route
-              path="/game/:roomId"
+              path="/quiz/*"
               element={
-                <Suspense
-                  fallback={
-                    <LoadingSpinner
-                      message="Loading Bingo Game"
-                      subMessage="Initializing Web3 and game features..."
-                    />
-                  }
-                >
-                  <Web3Provider>
-                    <Game />
-                  </Web3Provider>
+                <Suspense fallback={<LoadingSpinner message="Loading Quiz Platform" />}>
+                  {isGameRoute(location.pathname) ? (
+                    <QuizSocketProvider>
+                      <QuizRoutes />
+                    </QuizSocketProvider>
+                  ) : (
+                    <QuizRoutes />
+                  )}
                 </Suspense>
               }
             />
 
-            <Route
-              path="/BingoBlitz"
-              element={
-                <Suspense
-                  fallback={
-                    <LoadingSpinner
-                      message="Loading Bingo Blitz"
-                      subMessage="Preparing campaign features..."
-                    />
-                  }
-                >
-                  <Web3Provider>
-                    <TestCampaign />
-                  </Web3Provider>
-                </Suspense>
-              }
-            />
+            {/* Web3 Fundraising Quiz landing */}
+            <Route path="/web3-fundraising-quiz" element={<Web3FundraisingQuizPage />} />
 
-            <Route
-              path="/pitch-deck"
-              element={
-                <Suspense
-                  fallback={
-                    <LoadingSpinner
-                      message="Loading Pitch Deck"
-                      subMessage="Preparing investor presentation..."
-                    />
-                  }
-                >
-                  <Web3Provider>
-                    <PitchDeck />
-                  </Web3Provider>
-                </Suspense>
-              }
-            />
-
-            {/* ✅ Web3 Impact Event (lazy page) */}
+            {/* Web3 Impact Event */}
             <Route
               path="/Web3-Impact-Event"
               element={
@@ -182,10 +157,8 @@ export default function App() {
                 </Suspense>
               }
             />
-
-            {/* Alternate casing route */}
             <Route
-              path="/Web3-impact-Event"
+              path="/web3-impact-event"
               element={
                 <Suspense fallback={<LoadingSpinner message="Loading Web3 Impact Event" />}>
                   <Web3Provider>
@@ -211,10 +184,10 @@ export default function App() {
                         Return Home
                       </button>
                       <button
-                        onClick={() => navigate('/web3-fundraising-quiz')}
+                        onClick={() => navigate('/quiz/create-fundraising-quiz')}
                         className="block w-full rounded-lg bg-green-600 px-6 py-2 text-white transition-colors hover:bg-green-700"
                       >
-                        Try Web3 Fundraising Quiz
+                        Create a Fundraising Quiz
                       </button>
                     </div>
                     <div className="text-fg/60 mt-4 text-sm">
@@ -230,5 +203,7 @@ export default function App() {
     </ErrorBoundary>
   );
 }
+
+
 
 
