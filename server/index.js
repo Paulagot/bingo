@@ -28,7 +28,7 @@ console.log('📦 Type:', typeof communityRegistrationApi);
 import { initializeDatabase } from './config/database.js';
 
 import { seoRoutes } from './SeoRoutes.js';
-import { getSeoForPath } from './seoMap.js'; // ⬅️ NEW: route→SEO map (server/seoMap.js)
+import { getSeoForPath } from './seoMap.js'; // route→SEO map (server/seoMap.js)
 import helmet from 'helmet';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -40,69 +40,69 @@ app.use(express.json());
 
 const isProd = process.env.NODE_ENV === 'production';
 
-// Base security headers
-app.use(
-  helmet({
-    xPoweredBy: false,
-    frameguard: { action: 'sameorigin' },                     // X-Frame-Options: SAMEORIGIN
-    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-    crossOriginOpenerPolicy: { policy: 'same-origin' },       // COOP
-    crossOriginResourcePolicy: { policy: 'same-site' },       // safe with your CDNs
-  })
-);
+/* ──────────────────────────────────────────────────────────
+   Security headers (safe defaults; CSP in Report-Only)
+   ────────────────────────────────────────────────────────── */
+app.use(helmet({
+  xPoweredBy: false,
+  frameguard: { action: 'sameorigin' },                       // X-Frame-Options: SAMEORIGIN
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  crossOriginOpenerPolicy: { policy: 'same-origin' },         // COOP
+  crossOriginResourcePolicy: { policy: 'same-site' },         // safe with your CDNs
+}));
 
-// HSTS (HTTPS only, prod only)
+// HSTS (prod only) — 1 year, no preload (enable later when ready)
 if (isProd) {
-  app.use(
-    helmet.hsts({
-      maxAge: 15552000,              // 180 days
-      includeSubDomains: true,
-      preload: false,                 // switch to true only when you’re ready to preload
-    })
-  );
+  app.use(helmet.hsts({
+    maxAge: 31536000,          // 1 year in seconds
+    includeSubDomains: true,
+    preload: false,            // set to true only when you’re ready to preload the domain
+  }));
 }
 
-// Content Security Policy – start in Report-Only so nothing breaks
+// CSP (Report-Only) — allow CF beacon; keep 'unsafe-inline' for now due to CF inline bits
 const cspDirectives = {
   defaultSrc: ["'self'"],
   baseUri: ["'self'"],
   objectSrc: ["'none'"],
 
-  // Allow scripts from self/https; keep 'unsafe-inline' for now due to Cloudflare inline bits
-  scriptSrc: ["'self'", "https:", "'unsafe-inline'"],
+  scriptSrc: [
+    "'self'",
+    "https://static.cloudflareinsights.com",  // CF beacon
+    "https:",                                 // other trusted CDNs if any
+    "'unsafe-inline'",                        // remove later when you can
+  ],
+  scriptSrcElem: [
+    "'self'",
+    "https://static.cloudflareinsights.com",
+    "https:",
+    "'unsafe-inline'",
+  ],
 
-  // Styles typically need 'unsafe-inline' unless all libs are hashed/nonced
   styleSrc: ["'self'", "https:", "'unsafe-inline'"],
-
-  // Assets
   imgSrc: ["'self'", "data:", "https:"],
   fontSrc: ["'self'", "https:", "data:"],
-  connectSrc: ["'self'", "https:", "wss:"],    // API, Socket.IO over WSS
+  connectSrc: ["'self'", "https:", "wss:"],   // APIs + Socket.IO over WSS
   frameSrc: ["'self'", "https://www.youtube.com"],
-
-  // Anti-clickjacking (also set via XFO above)
-  frameAncestors: ["'self'"],
-
-  // Auto-upgrade mixed content
-  upgradeInsecureRequests: [],
+  frameAncestors: ["'self'"],                 // anti-clickjacking
+  upgradeInsecureRequests: [],                // harmless in Report-Only
 };
 
-app.use(
-  helmet.contentSecurityPolicy({
-    directives: cspDirectives,
-    reportOnly: true,                 // <-- SAFE: observe only, do not block
-  })
-);
+app.use(helmet.contentSecurityPolicy({
+  directives: cspDirectives,
+  reportOnly: true,            // observe only; doesn’t block
+}));
 
-// (Optional) Trusted Types in Report-Only to surface DOM sink usage
+// Trusted Types (Report-Only) — surfaces DOM sink usage without breaking anything
 app.use((req, res, next) => {
-  const existing = res.getHeader('Content-Security-Policy-Report-Only');
-  const extra = `; require-trusted-types-for 'script'`;
-  res.setHeader('Content-Security-Policy-Report-Only', String(existing || '') + extra);
+  const existing = res.getHeader('Content-Security-Policy-Report-Only') || '';
+  res.setHeader('Content-Security-Policy-Report-Only', String(existing) + `; require-trusted-types-for 'script'`);
   next();
 });
 
-
+/* ──────────────────────────────────────────────────────────
+   Request logging
+   ────────────────────────────────────────────────────────── */
 app.use((req, res, next) => {
   console.log(`📥 ${req.method} ${req.url} - Headers:`, req.headers);
   next();
@@ -115,37 +115,26 @@ app.use('/quiz/api/community-registration', communityRegistrationApi);
 console.log('✅ Routes setup complete'); 
 
 console.log('📋 Registered routes:');
-app._router.stack.forEach((middleware) => {
-  if (middleware.route) {
-    console.log(`  ${Object.keys(middleware.route.methods)} ${middleware.route.path}`);
-  } else if (middleware.name === 'router') {
-    console.log(`  Router: ${middleware.regexp}`);
-  }
+app._router?.stack?.forEach((mw) => {
+  if (mw.route) console.log(`  ${Object.keys(mw.route.methods)} ${mw.route.path}`);
+  else if (mw.name === 'router') console.log(`  Router: ${mw.regexp}`);
 });
 
 app.get('/quiz/api/community-registration/test', (req, res) => {
   res.json({ message: 'Route is working!' });
 });
 
-// Add this BEFORE your existing static file serving
-// Dynamic sitemap and robots.txt based on domain
+/* ──────────────────────────────────────────────────────────
+   Host-based sitemap / robots
+   ────────────────────────────────────────────────────────── */
 app.get('/sitemap.xml', (req, res) => {
   const host = req.get('host');
   console.log(`🗺️ Serving sitemap for host: ${host}`);
-  
-  let sitemapFile;
-  
-  if (host?.includes('fundraisely.co.uk')) {
-    sitemapFile = 'sitemap-uk.xml';
-  } else if (host?.includes('fundraisely.ie')) {
-    sitemapFile = 'sitemap-ie.xml';
-  } else {
-    // Default to UK for localhost/development
-    sitemapFile = 'sitemap-uk.xml';
-  }
-  
+  let sitemapFile =
+    host?.includes('fundraisely.co.uk') ? 'sitemap-uk.xml'
+    : host?.includes('fundraisely.ie')   ? 'sitemap-ie.xml'
+    : 'sitemap-uk.xml';
   const sitemapPath = path.join(__dirname, '../public', sitemapFile);
-  
   res.type('application/xml');
   res.sendFile(sitemapPath, (err) => {
     if (err) {
@@ -158,19 +147,11 @@ app.get('/sitemap.xml', (req, res) => {
 app.get('/robots.txt', (req, res) => {
   const host = req.get('host');
   console.log(`🤖 Serving robots.txt for host: ${host}`);
-  
-  let robotsFile;
-  
-  if (host?.includes('fundraisely.co.uk')) {
-    robotsFile = 'robots-uk.txt';
-  } else if (host?.includes('fundraisely.ie')) {
-    robotsFile = 'robots-ie.txt';
-  } else {
-    robotsFile = 'robots-uk.txt';
-  }
-  
+  let robotsFile =
+    host?.includes('fundraisely.co.uk') ? 'robots-uk.txt'
+    : host?.includes('fundraisely.ie')   ? 'robots-ie.txt'
+    : 'robots-uk.txt';
   const robotsPath = path.join(__dirname, '../public', robotsFile);
-  
   res.type('text/plain');
   res.sendFile(robotsPath, (err) => {
     if (err) {
@@ -183,7 +164,9 @@ app.get('/robots.txt', (req, res) => {
 // ✅ Serve static files in development
 app.use(express.static(path.join(__dirname, '../public')));
 
-// ---------- SEO HEAD INJECTION HELPERS (NEW) ----------
+/* ──────────────────────────────────────────────────────────
+   SEO head injection helpers
+   ────────────────────────────────────────────────────────── */
 function escapeHtml(s) {
   return String(s)
     .replaceAll('&', '&amp;')
@@ -230,36 +213,34 @@ function buildHeadTags(seo) {
   ].filter(Boolean).join('\n    ');
 }
 
-
-// ✅ Serve frontend build in production with optimized cache headers
+/* ──────────────────────────────────────────────────────────
+   Static + SPA catch-all with SEO head injection
+   ────────────────────────────────────────────────────────── */
 if (process.env.NODE_ENV === 'production') {
-  // Serve static assets with aggressive caching
+  // Static assets with aggressive caching
   app.use('/assets', express.static(path.join(__dirname, '../dist/assets'), {
-    maxAge: '31536000000', // 1 year in milliseconds
+    maxAge: '31536000000', // 1 year
     etag: true,
     lastModified: true,
     setHeaders: (res, filePath) => {
-      // Set aggressive caching for static assets
-      if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
+      if (filePath.endsWith('.js') || filePath.endsWith('.css') || filePath.endsWith('.woff2') || filePath.endsWith('.woff')) {
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
         console.log(`💾 Setting 1-year cache for: ${path.basename(filePath)}`);
-      } else if (filePath.endsWith('.woff2') || filePath.endsWith('.woff')) {
-        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
       } else {
         res.setHeader('Cache-Control', 'public, max-age=31536000');
       }
     }
   }));
 
-  // Serve other static files with normal caching
+  // Other static files (no implicit index)
   app.use(express.static(path.join(__dirname, '../dist'), {
-    index: false,             // ⬅️ important so our catch-all below always runs
-    maxAge: '3600000', // 1 hour for other files
+    index: false,
+    maxAge: '3600000', // 1 hour
     etag: true,
     lastModified: true
   }));
 
-  // Serve HTML with server-injected <head> (no-cache for HTML)
+  // HTML with injected <head> (no-cache for HTML)
   app.get('*', (req, res) => {
     res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
 
@@ -279,10 +260,10 @@ if (process.env.NODE_ENV === 'production') {
     });
   });
 } else {
-  // Development mode - serve dist if it exists (no implicit index)
+  // Dev: static without implicit index
   app.use(express.static(path.join(__dirname, '../dist'), { index: false }));
-  
-  // Dev HTML with server-injected <head>, disable cache to avoid confusion
+
+  // Dev HTML injection (disable cache)
   app.get('*', (req, res) => {
     const indexPath = path.join(__dirname, '../dist/index.html');
     fs.readFile(indexPath, 'utf8', (err, html) => {
@@ -321,34 +302,27 @@ const io = new Server(httpServer, {
   }
 });
 
-// Host-based sitemap/robots helper (your existing module)
+// Host-based sitemap/robots helper
 seoRoutes(app);
 
 // Socket handlers
 setupSocketHandlers(io);
 
-// ✅ Health check
+// Health check
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
-// ✅ Room debug
+// Room debug
 app.get('/debug/rooms', (req, res) => {
   const roomStates = logAllRooms();
-  res.json({
-    totalRooms: roomStates.length,
-    rooms: roomStates
-  });
+  res.json({ totalRooms: roomStates.length, rooms: roomStates });
 });
 
-// Add this before starting the server
-// Replace the startServer function and the final listen call with this:
+// Startup
 async function startServer() {
   try {
-    // Initialize database connection FIRST
     await initializeDatabase();
-    
-    // THEN start the server (only once!)
     httpServer.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
@@ -360,6 +334,5 @@ async function startServer() {
     process.exit(1);
   }
 }
-
-// Call the startup function (replaces the duplicate httpServer.listen)
 startServer().catch(console.error);
+
