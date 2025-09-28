@@ -1,3 +1,4 @@
+// src/sockets/QuizSocketProvider.tsx
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 
@@ -5,28 +6,18 @@ import { usePlayerStore } from '../hooks/usePlayerStore';
 import { useAdminStore } from '../hooks/useAdminStore';
 import { useQuizConfig } from '../hooks/useQuizConfig';
 import { useRoomState } from '../hooks/useRoomState';
-
 import { useRoomIdentity } from '../hooks/useRoomIdentity';
 
-// Debug config
 const DEBUG = false;
+const log = (...a: any[]) => DEBUG && console.log('[QuizSocket]', ...a);
 
-const debugLog = {
-  info: (msg: string, ...args: any[]) => { if (DEBUG) console.log(`🔵 [QuizSocket] ${msg}`, ...args); },
-  success: (msg: string, ...args: any[]) => { if (DEBUG) console.log(`✅ [QuizSocket] ${msg}`, ...args); },
-  warning: (msg: string, ...args: any[]) => { if (DEBUG) console.log(`⚠️ [QuizSocket] ${msg}`, ...args); },
-  error: (msg: string, ...args: any[]) => { if (DEBUG) console.log(`❌ [QuizSocket] ${msg}`, ...args); },
-  event: (msg: string, ...args: any[]) => { if (DEBUG) console.log(`🎯 [QuizSocket] ${msg}`, ...args); },
-  data: (msg: string, data: any) => { if (DEBUG) { console.log(`📦 [QuizSocket] ${msg}`); console.log(data); console.groupEnd(); } },
-};
+type ConnState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
 
-// Socket context type
 interface QuizSocketContextType {
   socket: Socket | null;
   connected: boolean;
-  connectionState: 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
+  connectionState: ConnState;
   lastError: string | null;
-  
 }
 
 const QuizSocketContext = createContext<QuizSocketContextType>({
@@ -36,9 +27,20 @@ const QuizSocketContext = createContext<QuizSocketContextType>({
   lastError: null,
 });
 
+// Small helper so we can reuse this pattern elsewhere too
+function resolveSocketNamespace(): string {
+  // In prod: same-origin + namespace only → '/quiz'
+  // In dev: explicit origin from VITE_SOCKET_URL + namespace
+  if (import.meta.env.PROD) return '/quiz';
+
+  const base = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
+  // ensure exactly one slash between base and /quiz
+  return `${base.replace(/\/+$/, '')}/quiz`;
+}
+
 export const QuizSocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [connected, setConnected] = useState(false);
-  const [connectionState, setConnectionState] = useState<'disconnected' | 'connecting' | 'connected' | 'reconnecting'>('disconnected');
+  const [connectionState, setConnectionState] = useState<ConnState>('disconnected');
   const [lastError, setLastError] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const reconnectAttemptRef = useRef<number>(0);
@@ -46,135 +48,113 @@ export const QuizSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const { roomId, hostId } = useRoomIdentity();
 
   useEffect(() => {
-  if (DEBUG) console.log('🚀 QuizSocketProvider mounting');
+    log('mount');
+    if (socketRef.current) return;
 
-  if (!socketRef.current) {
-    // NEW CODE:
- const isLocalhost = window.location.hostname === 'localhost';
-const socketTarget = isLocalhost 
-  ? `${import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001'}/quiz`
-  : '/quiz';
+    const target = resolveSocketNamespace();
+    log('connecting to:', target);
 
-if (DEBUG) console.log('Connecting to Socket.IO namespace:', socketTarget);
+    const socket = io(target, {
+      path: '/socket.io',            // must match server (you’re using default)
+      transports: ['websocket', 'polling'], // prefer WS first
+      withCredentials: false,        // same-origin in prod; no cookies needed in dev
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 20000,
+      // Avoid forceNew in prod to keep a single shared manager
+      ...(import.meta.env.PROD ? {} : { forceNew: true }),
+    });
 
-const socket = io(socketTarget, {
-  ...(isLocalhost ? {} : { forceNew: true }),
-  path: '/socket.io',
-  transports: ['polling', 'websocket'],
-  reconnection: true,
-  reconnectionAttempts: 5,
-  reconnectionDelay: 1000,
-  timeout: 20000,
-});
+    socketRef.current = socket;
+    setConnectionState('connecting');
 
-      socketRef.current = socket;
-      setConnectionState('connecting');
+    // ---- server → client handlers ----
+    socket.on('room_config', (config: any) => {
+      log('room_config', config);
+      useQuizConfig.getState().setFullConfig(config);
+    });
 
-      // Hydrate quiz state from server
-      socket.on('room_config', (config: any) => {
-        debugLog.event('🎮 room_config');
-        debugLog.data('config', config);
-        useQuizConfig.getState().setFullConfig(config);
-      });
+    socket.on('player_list_updated', ({ players }: { players: any }) => {
+      log('player_list_updated', players);
+      usePlayerStore.getState().setFullPlayers(players || []);
+    });
 
-      socket.on('player_list_updated', ({ players }: { players: any }) => {
-        debugLog.event('👥 player_list_updated');
-        debugLog.data('players', players);
-        usePlayerStore.getState().setFullPlayers(players || []);
-      });
+    socket.on('admin_list_updated', ({ admins }: { admins: any }) => {
+      log('admin_list_updated', admins);
+      useAdminStore.getState().setFullAdmins(admins || []);
+    });
 
-      socket.on('admin_list_updated', ({ admins }: { admins: any }) => {
-        debugLog.event('👨‍💼 admin_list_updated');
-        debugLog.data('admins', admins);
-        useAdminStore.getState().setFullAdmins(admins || []);
-      });
+    socket.on('room_state', (state: any) => {
+      log('room_state', state);
+      useRoomState.getState().setRoomState(state);
+      if (state?.phase) {
+        useQuizConfig.getState().setQuizPhase(state.phase, state.completedAt);
+      }
+    });
 
-      socket.on('room_state', (state: any) => {
-        debugLog.event('🧩 room_state');
-        debugLog.data('state', state);
-        useRoomState.getState().setRoomState(state);
-          if (state.phase) {
-    useQuizConfig.getState().setQuizPhase(state.phase, state.completedAt);
-  }
-      });
+    socket.on('quiz_error', (data: any) => {
+      log('quiz_error', data);
+    });
 
-     socket.on('quiz_error', (data: any) => {
-  debugLog.error('quiz_error:', data);
-});
+    socket.on('quiz_cancelled', ({ message, roomId: cancelledRoomId }: { message: string; roomId: string }) => {
+      log('quiz_cancelled', message, cancelledRoomId);
+      useQuizConfig.getState().resetConfig();
+      usePlayerStore.getState().resetPlayers();
+      useAdminStore.getState().resetAdmins();
+      if (cancelledRoomId) {
+        localStorage.removeItem(`quiz_config_${cancelledRoomId}`);
+      }
+      localStorage.removeItem('current-room-id');
+      localStorage.removeItem('current-host-id');
+      setTimeout(() => { window.location.href = '/quiz'; }, 100);
+    });
 
-// ✅ NEW: Global quiz cancellation handler
-socket.on('quiz_cancelled', ({ message, roomId: cancelledRoomId }: { message: string; roomId: string }) => {
-  debugLog.warning('🚫 Quiz cancelled:', message, 'Room:', cancelledRoomId);
-  
-  // ✅ Clear all quiz state
-  useQuizConfig.getState().resetConfig();
-  usePlayerStore.getState().resetPlayers();
-  useAdminStore.getState().resetAdmins();
-  
-  // ✅ Clear localStorage
-  if (cancelledRoomId) {
-    const storageKey = `quiz_config_${cancelledRoomId}`;
-    localStorage.removeItem(storageKey);
-    localStorage.removeItem('current-room-id');
-    localStorage.removeItem('current-host-id');
-    debugLog.info(`💾 Cleared localStorage for room: ${cancelledRoomId}`);
-  }
-  
-  // ✅ Show message and redirect
-  setTimeout(() => {
-    
-    window.location.href = '/quiz'; // ✅ Force navigation to ensure clean state
-  }, 100);
-});
+    // ---- lifecycle ----
+    socket.on('connect', () => {
+      log('connected');
+      setConnected(true);
+      setConnectionState('connected');
+      setLastError(null);
+      reconnectAttemptRef.current = 0;
+      (window as any).quizSocket = socket;
 
+      if (roomId && hostId) {
+        log('auto rejoin after connect', { roomId, hostId });
+        socket.emit('join_quiz_room', { roomId, user: { id: hostId }, role: 'host' });
+      }
+    });
 
-      // Connection lifecycle
-      socket.on('connect', () => {
-        debugLog.success('🟢 Connected');
-        setConnected(true);
-        setConnectionState('connected');
-        setLastError(null);
-        reconnectAttemptRef.current = 0;
-        (window as any).quizSocket = socket;
+    socket.on('disconnect', (reason: string) => {
+      log('disconnected', reason);
+      setConnected(false);
+      setConnectionState('disconnected');
+    });
 
-        if (roomId && hostId) {
-          debugLog.info('Auto rejoining quiz room after reconnect:', roomId);
-          socket.emit('join_quiz_room', { roomId, user: { id: hostId }, role: 'host' });
-        }
-      });
+    socket.on('connect_error', (err: Error) => {
+      log('connect_error', err);
+      setLastError(err.message);
+      setConnectionState('disconnected');
+    });
 
-      socket.on('disconnect', (reason: string) => {
-        debugLog.warning('🔴 Disconnected:', reason);
-        setConnected(false);
-        setConnectionState('disconnected');
-      });
+    socket.io.on('reconnect_attempt', (attempt: number) => {
+      reconnectAttemptRef.current = attempt;
+      setConnectionState('reconnecting');
+      log('reconnect_attempt', attempt);
+    });
 
-      socket.on('connect_error', (err: Error) => {
-        debugLog.error('connect_error:', err);
-        setLastError(err.message);
-        setConnectionState('disconnected');
-      });
+    socket.io.on('reconnect', () => {
+      setConnectionState('connected');
+      log('reconnected');
+    });
 
-      // Engine-level reconnect events
-      socket.io.on('reconnect_attempt', (attempt: number) => {
-        reconnectAttemptRef.current = attempt;
-        debugLog.warning(`Reconnecting attempt ${attempt}`);
-        setConnectionState('reconnecting');
-      });
-
-      socket.io.on('reconnect', () => {
-        debugLog.success('✅ Reconnected successfully');
-        setConnectionState('connected');
-      });
-
-      socket.io.on('reconnect_failed', () => {
-        debugLog.error('❌ Reconnect failed');
-        setConnectionState('disconnected');
-      });
-    }
+    socket.io.on('reconnect_failed', () => {
+      setConnectionState('disconnected');
+      log('reconnect_failed');
+    });
 
     return () => {
-      debugLog.info('🧹 Cleaning up QuizSocketProvider');
+      log('cleanup/disconnect');
       socketRef.current?.disconnect();
       socketRef.current = null;
     };
@@ -187,16 +167,11 @@ socket.on('quiz_cancelled', ({ message, roomId: cancelledRoomId }: { message: st
     lastError,
   };
 
-  return (
-    <QuizSocketContext.Provider value={contextValue}>
-      {children}
-    </QuizSocketContext.Provider>
-  );
+  return <QuizSocketContext.Provider value={contextValue}>{children}</QuizSocketContext.Provider>;
 };
 
-export const useQuizSocket = () => {
-  return useContext(QuizSocketContext);
-};
+export const useQuizSocket = () => useContext(QuizSocketContext);
+
 
 
 
