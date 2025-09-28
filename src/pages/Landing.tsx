@@ -43,7 +43,7 @@ export function Landing() {
         title="Transform Your Fundraising: Innovative Quiz Events for Charities, Schools & Clubs | FundRaisely"        description="Unlock the full potential of your cause with FundRaisely. Our innovative platform transforms fundraising for clubs, charities, and schools through engaging, easy-to-manage quiz events, ensuring maximum impact and effortless campaign success."
         keywords="fundraising platform, charity fundraising, club events, nonprofit management, Fundraising Quiz, transformative fundraising, innovative quiz solutions, community empowerment"
         ukKeywords="fundraising quiz platform UK, charity fundraising quiz software, club events Britain, nonprofit management UK, fundraising tools United Kingdom"
-        ieKeywords="fundraising qiuz Ireland, charity events Ireland, club fundraising Ireland, nonprofit tools Ireland, community fundraising Ireland"
+        ieKeywords="fundraising quiz Ireland, charity events Ireland, club fundraising Ireland, nonprofit tools Ireland, community fundraising Ireland"
         domainStrategy="geographic"
         // Optional: page-level JSON-LD for WebPage
         structuredData={{

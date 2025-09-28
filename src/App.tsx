@@ -13,14 +13,12 @@ import TestimonialsPage from './pages/TestimonialsPage';
 
 import { useAuthStore } from './stores/authStore';
 import AuthPage from './components/auth/AuthPage';
-
-// Web3
-import Web3FundraisingQuizPage from './pages/Web3FundraisingQuizPage';
-import { Web3Provider } from './components/Web3Provider';
-
-// Auth wrappers
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+
+// ⬇️ REMOVE these static imports (they pulled web3 into the main bundle)
+// import Web3FundraisingQuizPage from './pages/Web3FundraisingQuizPage';
+// import { Web3Provider } from './components/Web3Provider';
 
 // Lazy quiz bits
 const QuizRoutes = lazy(() => import('./components/Quiz/QuizRoutes'));
@@ -28,7 +26,9 @@ const QuizSocketProvider = lazy(() =>
   import('./components/Quiz/sockets/QuizSocketProvider').then((m) => ({ default: m.QuizSocketProvider }))
 );
 
-// Lazy web3 impact page
+// ✅ Lazy web3 pieces (so they don’t hit the marketing bundle)
+const Web3FundraisingQuizPage = lazy(() => import('./pages/Web3FundraisingQuizPage'));
+const Web3ProviderLazy = lazy(() => import('./components/Web3Provider').then(m => ({ default: m.Web3Provider })));
 const FundraisingLaunchPage = lazy(() => import('./pages/web3fundraiser'));
 
 const LoadingSpinner = ({
@@ -55,7 +55,6 @@ export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // beforeunload guard only for game routes (was checking "/game/" previously)
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isGameRoute(location.pathname)) {
@@ -67,7 +66,6 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [location]);
 
-  // Header visibility rules
   const { pathname } = location;
   const hideOnPaths = ['/pitch-deck-content', '/BingoBlitz'];
   const hideOnPrefixes = ['/quiz/game', '/quiz/play', '/quiz/host-dashboard', '/quiz/host-controls'];
@@ -75,7 +73,6 @@ export default function App() {
     !hideOnPaths.includes(pathname) &&
     !hideOnPrefixes.some((p) => pathname === p || pathname.startsWith(p + '/'));
 
-  // init auth store
   const initialize = useAuthStore((state) => state.initialize);
   useEffect(() => {
     initialize();
@@ -105,7 +102,7 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/auth" element={<AuthPage />} />
 
-            {/* New canonical create page for Quiz (render page directly) */}
+            {/* Create quiz (sockets only here) */}
             <Route
               path="/quiz/create-fundraising-quiz"
               element={
@@ -117,10 +114,10 @@ export default function App() {
               }
             />
 
-            {/* Redirect base /quiz to the new create page */}
+            {/* Redirect base /quiz */}
             <Route path="/quiz" element={<Navigate to="/quiz/create-fundraising-quiz" replace />} />
 
-            {/* All /quiz/* routes — conditionally socket-enabled only for live game routes */}
+            {/* Other /quiz/* routes – sockets only for live game routes */}
             <Route
               path="/quiz/*"
               element={
@@ -137,23 +134,23 @@ export default function App() {
             />
 
             {/* Web3 Fundraising Quiz landing */}
-            <Route path="/web3-fundraising-quiz" element={<Web3FundraisingQuizPage />} />
+            <Route
+              path="/web3-fundraising-quiz"
+              element={
+                <Suspense fallback={<LoadingSpinner message="Loading Web3" />}>
+                  <Web3FundraisingQuizPage />
+                </Suspense>
+              }
+            />
 
-            {/* Web3 Impact Event */}
+            {/* Web3 Impact Event (two aliases) */}
             <Route
               path="/Web3-Impact-Event"
               element={
-                <Suspense
-                  fallback={
-                    <LoadingSpinner
-                      message="Loading Web3 Impact Event"
-                      subMessage="Connecting to blockchain features..."
-                    />
-                  }
-                >
-                  <Web3Provider>
+                <Suspense fallback={<LoadingSpinner message="Loading Web3 Impact Event" subMessage="Connecting blockchain features..." />}>
+                  <Web3ProviderLazy>
                     <FundraisingLaunchPage />
-                  </Web3Provider>
+                  </Web3ProviderLazy>
                 </Suspense>
               }
             />
@@ -161,9 +158,9 @@ export default function App() {
               path="/web3-impact-event"
               element={
                 <Suspense fallback={<LoadingSpinner message="Loading Web3 Impact Event" />}>
-                  <Web3Provider>
+                  <Web3ProviderLazy>
                     <FundraisingLaunchPage />
-                  </Web3Provider>
+                  </Web3ProviderLazy>
                 </Suspense>
               }
             />
@@ -203,6 +200,8 @@ export default function App() {
     </ErrorBoundary>
   );
 }
+
+
 
 
 
