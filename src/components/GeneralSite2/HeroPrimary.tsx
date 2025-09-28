@@ -12,9 +12,10 @@ const HeroPrimary: React.FC = () => {
           <Gamepad2 className="h-4 w-4" /> Unlock Fundraising Magic: Real Impact Awaits
         </span>
 
-        <h1 className="mt-8 bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-transparent text-4xl md:text-6xl font-bold leading-relaxed">
-          Transform Your Cause: Effortless, Transparent Quiz Fundraising for Unprecedented Impact
-        </h1>
+<h1 className="mt-8 pb-2 bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-transparent text-4xl md:text-6xl font-bold leading-relaxed">
+  Transform Your Cause: Effortless, Transparent Quiz Fundraising for Unprecedented Impact
+</h1>
+
 
         <h2 className="mt-6 text-indigo-800 text-xl md:text-2xl font-semibold leading-relaxed">
           The Dedicated Fundraising Quiz Platform Nurturing Schools, Clubs, Charities, and Communities
