@@ -31,7 +31,7 @@ export const SEO: React.FC<SEOProps> = ({
   keywords,
   ukKeywords,
   ieKeywords,
-  image = '/fundraisely-og-image.png',
+  image = '/fundraisely.png',
   type = 'website',
   domainStrategy = 'geographic',
   structuredData,

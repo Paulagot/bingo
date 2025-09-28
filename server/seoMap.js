@@ -9,7 +9,7 @@ export function getSeoForPath(reqPath, hostOrigin) {
   const common = {
     type: 'website',
     robots: 'index, follow',
-    image: ABS(hostOrigin, '/fundraisely-og-image.png'), // 1200×630 recommended
+    image: ABS(hostOrigin, '/fundraisely.png'), // 1200×630 recommended
   };
 
   const byPath = {

@@ -51,7 +51,7 @@ const DemoPage: React.FC = () => {
     name: 'FundRaisely Fundraising Quiz — Product Demo',
     description:
       'See how to set up a fundraising quiz, invite players, enable fundraising extras, and export audit-ready reports. Collect cash or instant payment links; once admins mark paid + method, reconciliation is automatic.',
-    thumbnailUrl: [thumbMax || thumbHQ || `${origin}/fundraisely-og-image.png`],
+    thumbnailUrl: [thumbMax || thumbHQ || `${origin}/fundraisely.png`],
     uploadDate: (import.meta as any)?.env?.VITE_DEMO_UPLOAD_DATE || '2025-09-01',
     duration: (import.meta as any)?.env?.VITE_DEMO_DURATION || 'PT2M',
     embedUrl: embedUrl,
@@ -59,7 +59,7 @@ const DemoPage: React.FC = () => {
     publisher: {
       '@type': 'Organization',
       name: 'FundRaisely',
-      logo: { '@type': 'ImageObject', url: `${origin}/fundraisely-og-image.png` }
+      logo: { '@type': 'ImageObject', url: `${origin}/fundraisely.png` }
     }
   };
 
