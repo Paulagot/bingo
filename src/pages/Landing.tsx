@@ -40,9 +40,8 @@ export function Landing() {
       </a>
 
       <SEO
-        title="Quiz Fundraisers for Clubs & Charities | FundRaisely"
-        description="Empower your club or charity with FundRaisely's innovative fundraising platform. Engage supporters with interactive quiz events, manage campaigns effortlessly, and maximize your fundraising impact."
-        keywords="fundraising platform, charity fundraising, club events, nonprofit management, Fundraising Quiz "
+        title="Transform Your Fundraising: Innovative Quiz Events for Charities, Schools & Clubs | FundRaisely"        description="Unlock the full potential of your cause with FundRaisely. Our innovative platform transforms fundraising for clubs, charities, and schools through engaging, easy-to-manage quiz events, ensuring maximum impact and effortless campaign success."
+        keywords="fundraising platform, charity fundraising, club events, nonprofit management, Fundraising Quiz, transformative fundraising, innovative quiz solutions, community empowerment"
         ukKeywords="fundraising quiz platform UK, charity fundraising quiz software, club events Britain, nonprofit management UK, fundraising tools United Kingdom"
         ieKeywords="fundraising qiuz Ireland, charity events Ireland, club fundraising Ireland, nonprofit tools Ireland, community fundraising Ireland"
         domainStrategy="geographic"
@@ -50,9 +49,9 @@ export function Landing() {
         structuredData={{
           '@context': 'https://schema.org',
           '@type': 'WebPage',
-          name: 'FundRaisely — Quiz Fundraisers for Clubs & Charities',
+          name: 'FundRaisely — The Transformative Platform for Fundraising Quiz Events',
           description:
-            "Empower your club or charity with interactive quiz events optimized to raise more than a tradational fundraising quiz event.",
+            "Experience the magic of effortless fundraising. FundRaisely empowers your club or charity with interactive quiz events, turning traditional challenges into opportunities for unprecedented community engagement and financial growth.",
           isPartOf: { '@type': 'WebSite', name: 'FundRaisely' }
         }}
       />
@@ -84,8 +83,13 @@ export function Landing() {
         </Suspense>
       </footer>
     </div>
-  );
+   );
 }
+
+
+
+
+
 
 
 

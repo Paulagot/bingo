@@ -19,30 +19,30 @@ const ImpactRibbon: React.FC = () => (
     <div className="container mx-auto max-w-6xl px-4 relative z-10">
       <div className="text-center text-white">
         <span className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-sm px-4 py-2 text-white/90 text-sm font-medium border border-white/20 mb-6">
-          <Globe className="h-4 w-4" /> Global Movement
+          <Globe className="h-4 w-4" /> Pioneering Global Impact
         </span>
         
         <h2 className="text-3xl md:text-4xl font-bold mb-4">
-          Web3 Impact Campaign — 
-          <span className="bg-gradient-to-r from-pink-300 to-yellow-300 bg-clip-text text-transparent"> Community Powered</span>
+          Experience the Future of Giving: Our Web3 Impact Campaign — 
+          <span className="bg-gradient-to-r from-pink-300 to-yellow-300 bg-clip-text text-transparent"> Powering Communities, Transforming Lives</span>
         </h2>
         
         <p className="mx-auto max-w-2xl text-white/85 text-lg mb-8">
-          Join a Web3 movement raising funds for real-world causes through fundraising quiz events. Engage and revive your community while you contribute to the target of $100K
+          Step into a new era of philanthropy. Join our groundbreaking Web3 movement, where innovative fundraising quiz events empower real-world causes. Engage, revive, and unite your community as we collectively work towards a shared vision of $100K in transformative impact.
         </p>
         
         <div className="flex flex-wrap justify-center gap-4 mb-8">
           <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 border border-white/20">
             <Target className="h-4 w-4 text-pink-300" />
-            <span className="text-white/90 text-sm font-medium">$100K Target</span>
+            <span className="text-white/90 text-sm font-medium">Ambitious $100K Goal: Your Contribution Matters</span>
           </div>
           <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 border border-white/20">
             <Users className="h-4 w-4 text-indigo-300" />
-            <span className="text-white/90 text-sm font-medium">Community Driven</span>
+            <span className="text-white/90 text-sm font-medium">Community-Led Transformation: Together We Thrive</span>
           </div>
           <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 border border-white/20">
             <Globe className="h-4 w-4 text-purple-300" />
-            <span className="text-white/90 text-sm font-medium">Web3 Powered</span>
+            <span className="text-white/90 text-sm font-medium">Web3 Innovation: Transparent & Verifiable Impact</span>
           </div>
         </div>
         
@@ -51,14 +51,14 @@ const ImpactRibbon: React.FC = () => (
             href="/Web3-Impact-Event" 
             className="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 font-bold text-indigo-700 shadow-xl hover:bg-indigo-50 hover:scale-105 transition-all duration-300"
           >
-            Learn More
+            Uncover the Vision
             <div className="h-2 w-2 rounded-full bg-indigo-600" />
           </a>
           <a 
             href="/web3-fundraising-quiz" 
             className="inline-flex items-center gap-2 rounded-xl bg-indigo-700/20 backdrop-blur-sm px-8 py-4 font-bold text-white shadow-xl border border-white/20 hover:bg-indigo-700/30 hover:scale-105 transition-all duration-300"
           >
-            Host or Join a Quiz
+            Join the Movement: Make a Difference
             <div className="h-2 w-2 rounded-full bg-white" />
           </a>
         </div>

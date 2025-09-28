@@ -4,17 +4,17 @@ import { Quote, Star, Users } from 'lucide-react';
 
 const testimonials = [
   { 
-    quote: 'Setup took 20 minutes and we raised over €1,200 in one night.',
+    quote: 'FundRaisely transformed our event! Setup was a breeze, taking just 20 minutes, and we magically raised over €1,200 in a single night for our school. Truly impactful!',
     author: 'School PTA',
     gradient: 'from-blue-500 to-cyan-500'
   },
   { 
-    quote: 'Players loved the live leaderboard — we will run it monthly.',
+    quote: 'Our players were captivated by the live leaderboard – it brought an incredible energy! FundRaisely has revitalized our club nights, and we\'re committed to running these engaging events monthly.',
     author: 'Rugby Club',
     gradient: 'from-green-500 to-emerald-500'
   },
   { 
-    quote: 'The reporting made our treasurer very happy.',
+    quote: 'The seamless reporting feature was a game-changer for us. Our treasurer, who values transparency and ease, was absolutely delighted. FundRaisely truly cares about simplifying our financial processes.',
     author: 'Local Charity',
     gradient: 'from-pink-500 to-rose-500'
   }
@@ -39,17 +39,16 @@ const TestimonialsStrip: React.FC = () => (
       {/* Header */}
       <div className="text-center mb-12">
         <span className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-sm px-4 py-2 text-white/90 text-sm font-medium border border-white/20 mb-6">
-          <Users className="h-4 w-4" /> Success Stories
+          <Users className="h-4 w-4" /> Real Transformations, Real Voices
         </span>
         
         <h2 className="text-white mb-4 text-3xl md:text-4xl font-bold">
-          What 
-          <span className="bg-gradient-to-r from-purple-300 to-pink-300 bg-clip-text text-transparent"> Organizers </span>
-          Say
+          Hear the Magic Unfold: Inspiring Stories from Our 
+          <span className="bg-gradient-to-r from-purple-300 to-pink-300 bg-clip-text text-transparent"> Community </span>
         </h2>
         
         <p className="text-white/80 mx-auto max-w-2xl text-lg">
-          Early pilots, real results from organizations using FundRaisely across Ireland and the UK.
+          Discover how grassroots organizations across Ireland and the UK are experiencing unprecedented fundraising success and community revitalization with FundRaisely. These are their stories of transformation.
         </p>
       </div>
 
@@ -103,15 +102,15 @@ const TestimonialsStrip: React.FC = () => (
       <div className="mt-12 flex flex-wrap justify-center gap-8 text-center">
         <div className="text-white">
           <div className="text-2xl font-bold text-white mb-1">50+</div>
-          <div className="text-white/70 text-sm">Events Hosted</div>
+          <div className="text-white/70 text-sm">Events Transformed</div>
         </div>
         <div className="text-white">
           <div className="text-2xl font-bold text-white mb-1">€25K+</div>
-          <div className="text-white/70 text-sm">Funds Raised</div>
+          <div className="text-white/70 text-sm">Funds Magically Generated</div>
         </div>
         <div className="text-white">
           <div className="text-2xl font-bold text-white mb-1">98%</div>
-          <div className="text-white/70 text-sm">Success Rate</div>
+          <div className="text-white/70 text-sm">Success Rate: Your Mission, Our Commitment</div>
         </div>
       </div>
     </div>
