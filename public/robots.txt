@@ -4,8 +4,11 @@ User-agent: *
 Allow: /
 Allow: /whats-new
 Allow: /Web3-Impact-Event
+Allow: /free-trial
+Allow: /testimonials
+Allow: /quiz/demo   # ✅ explicit exception under /quiz/
 
-# BLOCK - Private pages
+# BLOCK - Private sections
 Disallow: /game/
 Disallow: /quiz/
 Disallow: /pitch-deck
@@ -20,5 +23,7 @@ Disallow: /payment/
 Disallow: /checkout/
 Disallow: /api/
 
-Crawl-delay: 1
+# Sitemaps for THIS domain only
 Sitemap: https://fundraisely.co.uk/sitemap.xml
+
+Crawl-delay: 1

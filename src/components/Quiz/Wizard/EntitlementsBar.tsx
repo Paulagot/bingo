@@ -13,7 +13,7 @@ const EntitlementsBar: React.FC<Props> = ({ ents, className }) => {
     <div className={`text-fg/60 mt-2 text-lg ${className ?? ''}`}>
       Credits remaining: <strong>{ents.game_credits_remaining ?? 0}</strong> ·{' '}
       Max players: <strong>{ents.max_players_per_game ?? '—'}</strong> ·{' '}
-      Max rounds: <strong>{ents.max_rounds ?? '—'}</strong>
+     Launching this quiz you will cost you 1 credit.
     </div>
   );
 };

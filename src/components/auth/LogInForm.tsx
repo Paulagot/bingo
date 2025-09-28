@@ -30,7 +30,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
       // ✅ redirect after success
       const params = new URLSearchParams(location.search);
       const returnTo = params.get('returnTo');
-      navigate(returnTo || '/quiz', { replace: true });
+     navigate(returnTo || '/quiz/create-fundraising-quiz', { replace: true });
     } catch (err) {
       console.error('Login failed:', err);
     }

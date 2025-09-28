@@ -102,7 +102,7 @@ const [detectedChain, setDetectedChain] = useState<SupportedChain | null>(null);
           <div className="mb-8 grid gap-8 md:grid-cols-2">
             {/* Web3 Impact Events */}
             <div className="rounded-xl border border-green-200 bg-gradient-to-br from-green-50 to-emerald-100 p-6">
-              <h2 className="mb-4 text-2xl font-semibold text-green-800">🌟 Web3 Impact Events</h2>
+              <h2 className="mb-4 text-2xl font-semibold text-green-800">🌟 Web3 Events</h2>
               <ul className="mb-6 space-y-2 text-green-700">
                 <li className="flex items-start">
                   <span className="mr-2 text-green-500">✓</span>
@@ -128,7 +128,7 @@ const [detectedChain, setDetectedChain] = useState<SupportedChain | null>(null);
                   setShowWeb3Wizard(true);
                 }}
               >
-                🌐 Create Web3 Impact Event
+                🌐 Create Web3 Quiz Fundraising Event
               </button>
             </div>
 
@@ -168,7 +168,7 @@ const [detectedChain, setDetectedChain] = useState<SupportedChain | null>(null);
           {/* Traditional Quiz Hosting */}
           <div className="bg-muted border-border rounded-xl border p-6 shadow-lg">
             <div className="text-center">
-              <h3 className="heading-2">Host a Quiz</h3>
+              <h3 className="heading-2">Join the Web3 Impact Campaign</h3>
               <p className="text-fg/70 mb-4">
                 We are inviting all Web3 Communities, DAOs, NFT Projects & Crypto Enthusiasts to host quiz nights with their communities during our campaign periods. Our Target is $100K
               </p>

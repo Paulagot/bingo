@@ -1,6 +1,6 @@
 // client/src/components/auth/AuthGuard.tsx
 import React, { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../stores/authStore';
 import { apiService } from '../../services/apiService';
 
@@ -12,6 +12,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
   const { isAuthenticated, user, setUser, setClub } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [isCheckingAuth, setIsCheckingAuth] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
     const checkAuthStatus = async () => {
@@ -61,6 +62,11 @@ export default function AuthGuard({ children }: AuthGuardProps) {
       </div>
     );
   }
+
+  if (!isAuthenticated || !user) {
+  const returnTo = encodeURIComponent(location.pathname + location.search);
+  return <Navigate to={`/auth?returnTo=${returnTo}`} replace />;
+}
 
   // Redirect to auth page if not authenticated
   if (!isAuthenticated || !user) {
