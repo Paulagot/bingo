@@ -5,29 +5,29 @@ import { Sparkles, Gift, FileCheck2, BarChart, ArrowRight } from 'lucide-react';
 const items = [
   { 
     icon: Sparkles, 
-    title: 'Fundraising Extras', 
-    copy: 'Clues, lifelines, freeze-outs & more — optional power-ups that turn excitement into extra funds.',
+    title: 'Enchanting Fundraising Extras', 
+    copy: 'Transform engagement into vital funds with clues, lifelines, freeze-outs, and more — optional power-ups that magically boost excitement and contributions.',
     gradient: 'from-purple-500 to-pink-500',
     bgGradient: 'from-purple-50 to-pink-50'
   },
   { 
     icon: FileCheck2, 
-    title: 'Payment Reconciliation & Reports', 
-    copy: 'Match entry fees and extras (cash, card, or Web3) in one place. Export clean CSVs for your records.',
+    title: 'Effortless Financial Clarity & Reporting', 
+    copy: 'Gain complete peace of mind. Seamlessly match all entry fees and extras (cash, card, or Web3) in one intuitive place, and effortlessly export audit-ready CSVs for transparent record-keeping.',
     gradient: 'from-indigo-500 to-blue-500', 
     bgGradient: 'from-indigo-50 to-blue-50'
   },
   { 
     icon: BarChart, 
-    title: 'Live Scores & Dynamic Rounds', 
-    copy: 'Real-time scoring across General Trivia, Wipeout, Speed Round + auto tiebreakers and ready-to-run templates.',
+    title: 'Dynamic Live Quizzes: Engaging & Seamless', 
+    copy: 'Captivate your audience with real-time scoring, dynamic General Trivia, Wipeout, and Speed Rounds, complete with auto-tiebreakers and ready-to-run templates for a truly magical event experience.',
     gradient: 'from-green-500 to-teal-500',
     bgGradient: 'from-green-50 to-teal-50'
   },
   { 
     icon: Gift, 
-    title: 'Impact & Wrap-Up Screen', 
-    copy: 'Celebrate the total raised and show each team contribution at the end — transparent, motivating, repeat-worthy.',
+    title: 'Celebrate Your Impact: Transparent Success', 
+    copy: 'Witness the transformation! Celebrate the total funds raised and showcase each team\'s contribution on a transparent, motivating, and repeat-worthy wrap-up screen, inspiring future generosity.',
     gradient: 'from-orange-500 to-red-500',
     bgGradient: 'from-orange-50 to-red-50'
   }
@@ -39,17 +39,17 @@ const FeaturesHighlightGrid: React.FC = () => (
       {/* Header */}
       <div className="text-center mb-12">
         <span className="inline-flex items-center gap-2 rounded-full bg-indigo-100 px-4 py-2 text-indigo-700 text-sm font-medium mb-6">
-          <Sparkles className="h-4 w-4" /> Complete Fundraising Solution
+          <Sparkles className="h-4 w-4" /> Your Complete Fundraising Transformation
         </span>
         
         <h2 className="text-3xl md:text-4xl font-bold text-indigo-900 mb-4 leading-tight">
-          Beyond quizzes: fundraising, reporting, 
-          <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"> reconciliation </span>
-          — all included
+          Unleash Your Potential: Fundraising, Reporting, and 
+          <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"> Reconciliation </span>
+          — All Magically Integrated
         </h2>
         
         <p className="mx-auto max-w-2xl text-lg text-indigo-800/70 leading-relaxed">
-          Purpose-built so clubs, schools & charities raise more than ever before with professional-grade tools.
+          Crafted with care, our professional-grade tools empower clubs, schools, and charities to effortlessly surpass their fundraising goals and amplify their impact.
         </p>
       </div>
 
@@ -99,7 +99,7 @@ const FeaturesHighlightGrid: React.FC = () => (
           href="/features"
           className="group inline-flex items-center gap-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-8 py-4 text-white font-bold shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300"
         >
-          <span>Explore All Features</span>
+          <span>Discover All Transformative Features</span>
           <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
         </a>
         
@@ -109,7 +109,7 @@ const FeaturesHighlightGrid: React.FC = () => (
             href="/pricing" 
             className="text-indigo-600 hover:text-indigo-800 font-medium text-sm transition-colors duration-300"
           >
-            View pricing & plans →
+            Unlock Your Plan →
           </a>
         </div>
       </div>
