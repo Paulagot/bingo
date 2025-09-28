@@ -1,4 +1,3 @@
-
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -15,6 +14,7 @@ import { createServer } from 'node:http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import path from 'node:path';
+import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { setupSocketHandlers } from './socketHandler.js';
 import { PORT } from './config.js';
@@ -28,7 +28,7 @@ console.log('📦 Type:', typeof communityRegistrationApi);
 import { initializeDatabase } from './config/database.js';
 
 import { seoRoutes } from './SeoRoutes.js';
-
+import { getSeoForPath } from './seoMap.js'; // ⬅️ NEW: route→SEO map (server/seoMap.js)
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -114,12 +114,54 @@ app.get('/robots.txt', (req, res) => {
   });
 });
 
-
-
 // ✅ Serve static files in development
 app.use(express.static(path.join(__dirname, '../public')));
 
+// ---------- SEO HEAD INJECTION HELPERS (NEW) ----------
+function escapeHtml(s) {
+  return String(s)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
+}
 
+function buildHeadTags(seo) {
+  const {
+    title,
+    description,
+    image,
+    type = 'website',
+    canonical,
+    keywords,
+    robots = 'index, follow',
+  } = seo;
+
+  const lines = [
+    `<title>${escapeHtml(title)}</title>`,
+    `<meta name="description" content="${escapeHtml(description)}">`,
+    robots ? `<meta name="robots" content="${robots}">` : '',
+    keywords ? `<meta name="keywords" content="${escapeHtml(keywords)}">` : '',
+
+    // Open Graph
+    `<meta property="og:title" content="${escapeHtml(title)}">`,
+    `<meta property="og:description" content="${escapeHtml(description)}">`,
+    `<meta property="og:image" content="${escapeHtml(image)}">`,
+    `<meta property="og:type" content="${type}">`,
+    canonical ? `<meta property="og:url" content="${escapeHtml(canonical)}">` : '',
+
+    // Twitter
+    `<meta name="twitter:card" content="summary_large_image">`,
+    `<meta name="twitter:title" content="${escapeHtml(title)}">`,
+    `<meta name="twitter:description" content="${escapeHtml(description)}">`,
+    `<meta name="twitter:image" content="${escapeHtml(image)}">`,
+
+    // Canonical
+    canonical ? `<link rel="canonical" href="${escapeHtml(canonical)}">` : '',
+  ];
+
+  return lines.filter(Boolean).join('\n    ');
+}
 
 // ✅ Serve frontend build in production with optimized cache headers
 if (process.env.NODE_ENV === 'production') {
@@ -143,24 +185,93 @@ if (process.env.NODE_ENV === 'production') {
 
   // Serve other static files with normal caching
   app.use(express.static(path.join(__dirname, '../dist'), {
+    index: false,             // ⬅️ important so our catch-all below always runs
     maxAge: '3600000', // 1 hour for other files
     etag: true,
     lastModified: true
   }));
 
-  // Serve HTML with no caching
+  // Serve HTML with server-injected <head> (no-cache for HTML)
   app.get('*', (req, res) => {
     res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
-    res.sendFile(path.join(__dirname, '../dist/index.html'));
+
+    const indexPath = path.join(__dirname, '../dist/index.html');
+    fs.readFile(indexPath, 'utf8', (err, html) => {
+      if (err) {
+        console.error('❌ Failed to read index.html', err);
+        return res.status(500).send('Server error');
+      }
+      const proto = (req.headers['x-forwarded-proto']?.toString()) || (req.secure ? 'https' : 'http');
+      const origin = `${proto}://${req.get('host')}`;
+      const seo = getSeoForPath(req.path, origin);
+      const head = buildHeadTags(seo);
+
+      const out = html.replace('<!--app-head-->', head);
+      res.status(200).send(out);
+    });
   });
 } else {
-  // Development mode - serve dist if it exists
-  app.use(express.static(path.join(__dirname, '../dist')));
+  // Development mode - serve dist if it exists (no implicit index)
+  app.use(express.static(path.join(__dirname, '../dist'), { index: false }));
   
+  // Dev HTML with server-injected <head>, disable cache to avoid confusion
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../dist/index.html'));
+    const indexPath = path.join(__dirname, '../dist/index.html');
+    fs.readFile(indexPath, 'utf8', (err, html) => {
+      if (err) {
+        console.error('❌ Failed to read index.html', err);
+        return res.status(500).send('Server error');
+      }
+      const proto = (req.headers['x-forwarded-proto']?.toString()) || (req.secure ? 'https' : 'http');
+      const origin = `${proto}://${req.get('host')}`;
+      const seo = getSeoForPath(req.path, origin);
+      const head = buildHeadTags(seo);
+
+      const out = html.replace('<!--app-head-->', head);
+      res.set('Cache-Control', 'no-store');
+      res.status(200).send(out);
+    });
   });
 }
+
+const httpServer = createServer(app);
+
+const io = new Server(httpServer, {
+  cors: {
+    origin: [
+      'https://fundraisely.ie',
+      'https://www.fundraisely.ie',
+      'https://fundraisely.co.uk',
+      'https://www.fundraisely.co.uk',
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://localhost:3000',
+      'http://localhost:3001'
+    ],
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
+});
+
+// Host-based sitemap/robots helper (your existing module)
+seoRoutes(app);
+
+// Socket handlers
+setupSocketHandlers(io);
+
+// ✅ Health check
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
+// ✅ Room debug
+app.get('/debug/rooms', (req, res) => {
+  const roomStates = logAllRooms();
+  res.json({
+    totalRooms: roomStates.length,
+    rooms: roomStates
+  });
+});
 
 // Add this before starting the server
 // Replace the startServer function and the final listen call with this:
@@ -181,44 +292,6 @@ async function startServer() {
     process.exit(1);
   }
 }
-
-const httpServer = createServer(app);
-
-const io = new Server(httpServer, {
-  cors: {
-  origin: [
-  'https://fundraisely.ie',
-  'https://www.fundraisely.ie',
-  'https://fundraisely.co.uk',
-  'https://www.fundraisely.co.uk',
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://localhost:3000',
-  'http://localhost:3001'
-],
-    methods: ['GET', 'POST'],
-    credentials: true
-  }
-});
-
-seoRoutes(app)
-setupSocketHandlers(io);
-
-// ✅ Health check
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'ok' });
-});
-
-// ✅ Room debug
-app.get('/debug/rooms', (req, res) => {
-  const roomStates = logAllRooms();
-  res.json({
-    totalRooms: roomStates.length,
-    rooms: roomStates
-  });
-});
-
-
 
 // Call the startup function (replaces the duplicate httpServer.listen)
 startServer().catch(console.error);

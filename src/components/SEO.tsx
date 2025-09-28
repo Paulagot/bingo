@@ -180,7 +180,7 @@ export const SEO: React.FC<SEOProps> = ({
       '@type': 'Organization',
       name: 'FundRaisely',
       url: getCanonicalUrl(),
-      logo: `${currentDomain.includes('co.uk') ? UK_DOMAIN : IE_DOMAIN}/fundraisely-og-image.png`,
+      logo: `${currentDomain.includes('co.uk') ? UK_DOMAIN : IE_DOMAIN}/fundraisely.png`,
       areaServed: currentDomain.includes('co.uk') ? 'United Kingdom' : 'Ireland'
     });
 
