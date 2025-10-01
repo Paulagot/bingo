@@ -7,7 +7,7 @@ const JoinRoomPage = () => {
   const { roomId } = useParams<{ roomId: string }>();
   
   const handleClose = () => {
-    navigate('/quiz');
+    navigate('/');
   };
   
   return <JoinRoomFlow onClose={handleClose} prefilledRoomId={roomId} />;

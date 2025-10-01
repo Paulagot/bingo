@@ -1,7 +1,7 @@
 // src/components/Quiz/hooks/useHostStats.ts
 import { useState, useEffect, useCallback } from 'react';
-import { ActivityItem } from '../host-controls/ActivityTicker';
-import { RoundStats } from '../host-controls/RoundStatsDisplay';
+import { ActivityItem } from '../host-controls/components/ActivityTicker';
+import { RoundStats } from '../host-controls/components/RoundStatsDisplay';
 
 interface UseHostStatsParams {
   socket: any;

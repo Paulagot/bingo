@@ -48,7 +48,10 @@ export default function ReviewPanel({
             </span>
           )}
         </div>
+
+        {/* ✅ Fixed button logic */}
         <div className="flex items-center space-x-3">
+          {/* Show Round Results when last review is reached OR reviewComplete */}
           {(isLastQuestionOfRound || reviewComplete) && (
             <button
               onClick={onShowRoundResults}
@@ -58,14 +61,17 @@ export default function ReviewPanel({
               <span>Show Round Results</span>
             </button>
           )}
-          <button
-            onClick={onNextReview}
-            className="flex items-center space-x-2 rounded-lg bg-yellow-500 px-4 py-2 font-medium text-white transition hover:bg-yellow-600"
-            disabled={reviewComplete}
-          >
-            <SkipForward className="h-4 w-4" />
-            <span>{reviewComplete ? 'Review Complete' : 'Next Review'}</span>
-          </button>
+
+          {/* Next Review only while there are more reviews to go */}
+          {!isLastQuestionOfRound && !reviewComplete && (
+            <button
+              onClick={onNextReview}
+              className="flex items-center space-x-2 rounded-lg bg-yellow-500 px-4 py-2 font-medium text-white transition hover:bg-yellow-600"
+            >
+              <SkipForward className="h-4 w-4" />
+              <span>Next Review</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -107,3 +113,4 @@ export default function ReviewPanel({
     </div>
   );
 }
+

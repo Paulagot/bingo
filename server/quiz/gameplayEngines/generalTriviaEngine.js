@@ -117,6 +117,7 @@ export function startNextQuestion(roomId, namespace) {
     if (debug) console.log(`[generalTriviaEngine] 🔄 All questions complete for round ${room.currentRound}`);
     room.currentPhase = 'reviewing';
     room.currentReviewIndex = 0;
+    room.lastEmittedReviewIndex = -1;
     emitRoomState(namespace, roomId);
     emitNextReviewQuestion(roomId, namespace);
     return;

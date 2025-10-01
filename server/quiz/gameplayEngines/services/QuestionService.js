@@ -173,7 +173,12 @@ export class QuestionService {
       .map(({ value }) => value);
   }
     static buildEmittableOptions(question) {
-    const opts = Array.isArray(question.options) ? [...question.options] : [];
+     const opts = Array.isArray(question.options) ? [...question.options] : [];
+// ensure correct answer is present for MCQ questions
+  const correct = question?.correctAnswer ?? question?.answer ?? question?.solution;
+  if (correct != null && opts.length > 0 && !opts.includes(String(correct))) {
+    opts.push(String(correct));
+  }
     return QuestionService.shuffleArray(opts);
   }
 

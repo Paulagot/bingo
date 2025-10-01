@@ -70,8 +70,8 @@ export const useFundraisingData = (playerId: string): FundraisingData | null => 
     } else {
       // For Web2, prizes are fixed assets, not percentage-based
       // Charity gets most, host gets small fee
-      charityAmount = totalRaised * 0.85; // Default 85% to charity
-      hostAmount = totalRaised * 0.15;    // Default 15% to host
+      charityAmount = totalRaised * 1; // Default 85% to charity
+      hostAmount = totalRaised * 0;    // Default 15% to host
       prizeAmount = 0; // Prizes are uploaded assets, not from pool
     }
 

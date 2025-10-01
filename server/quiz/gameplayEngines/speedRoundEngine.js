@@ -98,11 +98,14 @@ export function emitNextQuestionToPlayer(roomId, playerId, namespace) {
   const sock = namespace.sockets.get(player.socketId);
   if (!sock) return;
 
-  sock.emit('speed_question', {
-    id: q.id,
-    text: q.text,
-    options: Array.isArray(q.options) ? q.options.slice(0, 2) : [],
-  });
+const shuffledOptions = QuestionService.buildEmittableOptions(q);
+// speed round shows two options; keep it robust if a question has >2 options
+const optionsForPlayer = Array.isArray(shuffledOptions) ? shuffledOptions.slice(0, 2) : [];
+sock.emit('speed_question', {
+ id: q.id,
+   text: q.text,
+   options: optionsForPlayer,                 // ← shuffled per player, per question
+ });
 
   if (debug) console.log(`[speedRound] Sent Q#${idx + 1} to ${playerId} (qid=${q.id})`);
 }
@@ -288,6 +291,7 @@ function finalizeSpeedRound(roomId, namespace) {
 
   room.currentPhase = 'reviewing';
   room.currentReviewIndex = 0;
+  room.lastEmittedReviewIndex = -1;
 
   emitRoomState(namespace, roomId);
   emitNextReviewQuestion(roomId, namespace);

@@ -10,6 +10,9 @@ import FreeTrial from './pages/FreeTrial';
 import FundraisingQuizPage from './pages/FundraisingQuizPage';
 import Pricing from './pages/PricingPage';
 import TestimonialsPage from './pages/TestimonialsPage';
+import ConfirmPasswordReset from './components/auth/ConfirmPasswordReset';
+import RequestPasswordReset from './components/auth/RequestPasswordReset';
+import ContactForm from './components/GeneralSite/ContactForm';
 
 import { useAuthStore } from './stores/authStore';
 import AuthPage from './components/auth/AuthPage';
@@ -92,15 +95,20 @@ export default function App() {
             <Route path="/testimonials" element={<TestimonialsPage />} />
             <Route path="/about" element={<div>About Page (TODO)</div>} />
             <Route path="/blog" element={<div>Blog / Resources (TODO)</div>} />
-            <Route path="/contact" element={<div>Contact / Support (TODO)</div>} />
+            <Route path="/contact" element={<ContactForm />} />
             <Route path="/legal/privacy" element={<div>Privacy Policy (TODO)</div>} />
             <Route path="/legal/terms" element={<div>Terms of Service (TODO)</div>} />
             <Route path="/legal/compliance" element={<div>Compliance Info (TODO)</div>} />
+           
+
+
 
             {/* Auth routes */}
             <Route path="/signup" element={<Signup />} />
             <Route path="/login" element={<Login />} />
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/reset-password" element={<ConfirmPasswordReset />} />
+            <Route path="/forgot-password" element={<RequestPasswordReset />} />
 
             {/* Create quiz (sockets only here) */}
             <Route

@@ -1,8 +1,9 @@
 // client/src/components/auth/LoginForm.tsx
 import React, { useState } from 'react';
-import { Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react';
-import { useAuth, useUI } from '../../stores/authStore';
+import { Eye, EyeOff, LogIn, AlertCircle, Sparkles } from 'lucide-react';
+import { useAuth, useUI, useCreditWarning } from '../../stores/authStore';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { NoCreditWarningModal } from './NoCreditWarningModal';
 
 interface LoginFormProps {
   onSwitchToRegister?: () => void;
@@ -12,25 +13,27 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
 
-  // ✅ hooks must be inside the component
   const navigate = useNavigate();
   const location = useLocation();
 
   const { login } = useAuth();
   const { isLoading, error, clearError } = useUI();
+  
+  const { showNoCreditWarning, dismissNoCreditWarning } = useCreditWarning();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.email || !formData.password) return;
 
     try {
-      // ✅ your store expects a single object with both fields
       await login({ email: formData.email, password: formData.password });
 
-      // ✅ redirect after success
       const params = new URLSearchParams(location.search);
       const returnTo = params.get('returnTo');
-     navigate(returnTo || '/quiz/create-fundraising-quiz', { replace: true });
+      
+      if (!showNoCreditWarning) {
+        navigate(returnTo || '/quiz/create-fundraising-quiz', { replace: true });
+      }
     } catch (err) {
       console.error('Login failed:', err);
     }
@@ -41,96 +44,155 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
     if (error) clearError();
   };
 
+  const handleCloseWarning = () => {
+    dismissNoCreditWarning();
+    
+    const params = new URLSearchParams(location.search);
+    const returnTo = params.get('returnTo');
+    navigate(returnTo || '/quiz/create-fundraising-quiz', { replace: true });
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="bg-muted w-full max-w-md rounded-xl p-8 shadow-lg">
-        <div className="mb-8 text-center">
-          <h1 className="text-fg mb-2 text-3xl font-bold">Welcome Back</h1>
-          <p className="text-fg/70">Sign in to your fundraising club</p>
-        </div>
+    <>
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-indigo-50 to-white p-4">
+        <div className="w-full max-w-md">
+          {/* Main Card Container */}
+          <div className="relative bg-white rounded-2xl p-8 md:p-10 shadow-lg border border-gray-100">
+            {/* Background gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-purple-50 opacity-40 rounded-2xl" />
+            
+            {/* Content */}
+            <div className="relative z-10">
+              {/* Header */}
+              <div className="text-center mb-8">
+                {/* Icon badge */}
+                <span className="inline-flex items-center gap-2 rounded-full bg-indigo-100 px-4 py-2 text-indigo-700 text-sm font-medium mb-4">
+                  <Sparkles className="h-4 w-4" /> Fundraising Platform
+                </span>
+                
+                <h1 className="text-3xl font-bold text-indigo-900 mb-3">Welcome Back</h1>
+                <p className="text-indigo-800/70 leading-relaxed">
+                  Sign in to your fundraising club
+                </p>
+              </div>
 
-        {error && (
-          <div className="mb-6 flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-4">
-            <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-500" />
-            <p className="text-sm text-red-700">{error}</p>
-          </div>
-        )}
+              {/* Error Message */}
+              {error && (
+                <div className="mb-6 rounded-2xl border border-gray-100 bg-gradient-to-br from-orange-50 to-red-50 p-4 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-red-500 shadow-lg flex-shrink-0">
+                      <AlertCircle className="h-5 w-5 text-white" />
+                    </div>
+                    <div className="pt-1">
+                      <p className="text-sm text-indigo-900 font-medium leading-relaxed">{error}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="email" className="text-fg/80 mb-2 block text-sm font-medium">
-              Email Address
-            </label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 transition-colors focus:border-transparent focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter your email"
-              disabled={isLoading}
-            />
-          </div>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Email Input */}
+                <div>
+                  <label htmlFor="email" className="block text-sm font-bold text-indigo-900 mb-2">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-indigo-900 placeholder:text-indigo-800/40 shadow-sm transition-all duration-300 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    placeholder="your.email@example.com"
+                    disabled={isLoading}
+                  />
+                </div>
 
-          <div>
-            <label htmlFor="password" className="text-fg/80 mb-2 block text-sm font-medium">
-              Password
-            </label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 pr-12 transition-colors focus:border-transparent focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter your password"
-                disabled={isLoading}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                className="text-fg/60 hover:text-fg/80 absolute right-3 top-1/2 -translate-y-1/2 transform"
-              >
-                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-              </button>
+                {/* Password Input */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label htmlFor="password" className="block text-sm font-bold text-indigo-900">
+                      Password
+                    </label>
+                    <a 
+                      href="/forgot-password" 
+                      className="text-xs text-indigo-600 hover:text-indigo-800 font-medium transition-colors duration-300"
+                    >
+                      Forgot password?
+                    </a>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      id="password"
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      required
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 pr-12 text-indigo-900 placeholder:text-indigo-800/40 shadow-sm transition-all duration-300 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                      placeholder="Enter your password"
+                      disabled={isLoading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 transform text-indigo-800/60 hover:text-indigo-900 transition-colors duration-300"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Submit Button */}
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={isLoading || !formData.email || !formData.password}
+                    className="group inline-flex items-center gap-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-8 py-4 text-white font-bold shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 w-full justify-center"
+                  >
+                    {isLoading ? (
+                      <>
+                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        <span>Signing in...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Sign In</span>
+                        <LogIn className="h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+
+              {/* Register link */}
+              <div className="mt-8 text-center">
+                <p className="text-indigo-800/70">
+                  Don't have an account?{' '}
+                  <button 
+                    onClick={onSwitchToRegister} 
+                    className="font-bold text-indigo-600 hover:text-indigo-800 transition-colors duration-300"
+                  >
+                    Register your club
+                  </button>
+                </p>
+              </div>
             </div>
+
+            {/* Hover effect overlay */}
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/0 to-white/5 opacity-0 hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
           </div>
-
-          <button
-            type="submit"
-            disabled={isLoading || !formData.email || !formData.password}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-blue-700 disabled:bg-blue-400"
-          >
-            {isLoading ? (
-              <>
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                Signing in...
-              </>
-            ) : (
-              <>
-                <LogIn className="h-5 w-5" />
-                Sign In
-              </>
-            )}
-          </button>
-        </form>
-
-        <div className="mt-8 text-center">
-          <p className="text-fg/70">
-            Don't have an account?{' '}
-            <button onClick={onSwitchToRegister} className="font-semibold text-blue-600 hover:text-blue-700">
-              Register your club
-            </button>
-          </p>
         </div>
-
-        
       </div>
-    </div>
+
+      {/* No Credit Warning Modal */}
+      <NoCreditWarningModal 
+        isOpen={showNoCreditWarning} 
+        onClose={handleCloseWarning} 
+      />
+    </>
   );
 };
 

@@ -15,6 +15,8 @@ export const TiebreakerService = {
 
     room.tiebreaker.isActive = true;
     room.currentPhase = 'tiebreaker';
+    room.tiebreaker.stage = 'start';
+
     
     // Initialize question counter
     room.tiebreaker.questionIndex = 0;
@@ -76,6 +78,7 @@ export const TiebreakerService = {
     // ✅ stash current question
     room.currentTiebreakQuestion = q;
     room.tiebreaker.questionIndex = (room.tiebreaker.questionIndex ?? 0) + 1;
+    room.tiebreaker.stage = 'question';
 
     // ✅ ensure history exists and create a record for THIS question immediately
     const tb = room.tiebreaker;
@@ -207,6 +210,16 @@ export const TiebreakerService = {
         winners: winners.length === 1 ? 'Single winner' : 'Still tied'
       });
     }
+    room.tiebreaker.stage = 'review';
+room.tiebreaker.lastReview = {
+  correctAnswer: data.correctAnswer,
+  playerAnswers: data.playerAnswers,
+  winnerIds: data.winners && data.winners.length === 1 ? data.winners : undefined,
+  stillTiedIds: data.winners && data.winners.length !== 1 ? data.winners : undefined,
+  questionText: data.questionText,
+  isFinalAnswer: (data.winners && data.winners.length === 1) ? true : false
+};
+
 
     if (winners.length === 1) {
       // Final winner review
@@ -254,6 +267,8 @@ export const TiebreakerService = {
     // 3) Close TB phase and go to standard leaderboard phase
     room.tiebreaker.isActive = false;
     room.currentPhase = 'leaderboard';
+
+    room.tiebreaker.stage = 'result';
 
     // 4) Rebuild + emit leaderboard
     const finalBoard = LeaderboardService.buildLeaderboard(room);
