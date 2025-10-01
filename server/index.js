@@ -59,7 +59,7 @@ if (isProd) {
   app.use(helmet.hsts({
     maxAge: 31536000,          // 1 year in seconds
     includeSubDomains: true,
-    preload: false,            // set to true only when you’re ready to preload the domain
+    preload: true,            // set to true only when you’re ready to preload the domain
   }));
 }
 
@@ -68,40 +68,25 @@ const cspDirectives = {
   defaultSrc: ["'self'"],
   baseUri: ["'self'"],
   objectSrc: ["'none'"],
-
-  scriptSrc: [
-    "'self'",
-    "https://static.cloudflareinsights.com",  // CF beacon
-    "https:",                                 // other trusted CDNs if any
-    "'unsafe-inline'",                        // remove later when you can
-  ],
-  scriptSrcElem: [
-    "'self'",
-    "https://static.cloudflareinsights.com",
-    "https:",
-    "'unsafe-inline'",
-  ],
-
+  scriptSrc: ["'self'", "https:", "'unsafe-inline'"],      // keep telemetry loose
+  scriptSrcElem: ["'self'", "https:", "'unsafe-inline'"],
   styleSrc: ["'self'", "https:", "'unsafe-inline'"],
   imgSrc: ["'self'", "data:", "https:"],
   fontSrc: ["'self'", "https:", "data:"],
-  connectSrc: ["'self'", "https:", "wss:"],   // APIs + Socket.IO over WSS
+  connectSrc: ["'self'", "https:", "wss:"],
   frameSrc: ["'self'", "https://www.youtube.com"],
-  frameAncestors: ["'self'"],                 // anti-clickjacking
-  upgradeInsecureRequests: [],                // harmless in Report-Only
+  frameAncestors: ["'self'"],
+  // ❌ do NOT include upgradeInsecureRequests in Report-Only
 };
+app.use(helmet.contentSecurityPolicy({ directives: cspDirectives, reportOnly: true }));
 
-app.use(helmet.contentSecurityPolicy({
-  directives: cspDirectives,
-  reportOnly: true,            // observe only; doesn’t block
-}));
 
 // Trusted Types (Report-Only) — surfaces DOM sink usage without breaking anything
-app.use((req, res, next) => {
-  const existing = res.getHeader('Content-Security-Policy-Report-Only') || '';
-  res.setHeader('Content-Security-Policy-Report-Only', String(existing) + `; require-trusted-types-for 'script'`);
-  next();
-});
+// app.use((req, res, next) => {
+//   const existing = res.getHeader('Content-Security-Policy-Report-Only') || '';
+//   res.setHeader('Content-Security-Policy-Report-Only', String(existing) + `; require-trusted-types-for 'script'`);
+//   next();
+// });
 
 /* ──────────────────────────────────────────────────────────
    Request logging
