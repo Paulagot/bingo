@@ -114,6 +114,7 @@ export function startNextQuestion(roomId, namespace) {
     if (debug) console.log(`[wipeoutEngine] 🔄 All questions complete for round ${room.currentRound}`);
     room.currentPhase = 'reviewing';
     room.currentReviewIndex = 0;
+    room.lastEmittedReviewIndex = -1;
     emitRoomState(namespace, roomId);
     emitNextReviewQuestion(roomId, namespace);
     return;
@@ -127,11 +128,13 @@ export function startNextQuestion(roomId, namespace) {
   const questionStartTime = Date.now();
   room.questionStartTime = questionStartTime;
 
+  const shuffledOptions = QuestionService.buildEmittableOptions(nextQuestion);
+
   // Unified broadcast to match generalTriviaEngine
   namespace.to(roomId).emit('question', {
     id: nextQuestion.id,
     text: nextQuestion.text,
-    options: Array.isArray(nextQuestion.options) ? nextQuestion.options : [],
+   options: shuffledOptions, 
     timeLimit,
     questionStartTime,
     questionNumber: room.currentQuestionIndex + 1,

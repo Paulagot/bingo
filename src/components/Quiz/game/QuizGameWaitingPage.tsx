@@ -1,9 +1,9 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  CheckCircle, 
-  Zap, 
-  Users, 
+import {
+  CheckCircle,
+  Zap,
+  Users,
   AlertCircle,
   Trophy,
   Play,
@@ -43,7 +43,7 @@ const QuizGameWaitingPage = () => {
   const { socket, connected } = useQuizSocket();
   const navigate = useNavigate();
   const { config } = useQuizConfig();
-  
+
   const [playerData, setPlayerData] = useState<ServerPlayer | null>(null);
   const [allPlayers, setAllPlayers] = useState<ServerPlayer[]>([]);
   const [showRounds, setShowRounds] = useState(false);
@@ -55,22 +55,114 @@ const QuizGameWaitingPage = () => {
   debugLog.data('Component params', { roomId, playerId });
   debugLog.data('Socket state', { connected, hasSocket: !!socket });
 
-  // Debug log for round definitions
+  // 🔐 Cache key
+  const STORAGE_KEY = roomId && playerId ? `fr_player:${roomId}:${playerId}` : null;
+
+  // 🔁 Central join function (mount + reconnect reuse)
+  const joinOrRejoin = () => {
+    if (!socket || !connected || !roomId || !playerId) {
+      debugLog.warning('⚠️ Missing data for joinOrRejoin', { connected, roomId, playerId });
+      return;
+    }
+  // Always do a single-shot recovery that returns the full snapshot
+  if (hasJoinedRef.current) {
+    // Idempotent: we can still re-run; server will disconnect any prior player socket
+  }
+  hasJoinedRef.current = true;
+
+  socket.emit(
+    'join_and_recover',
+    { roomId, user: { id: playerId, name: (playerData?.name || 'Player') }, role: 'player' },
+    (res?: any) => {
+      if (!res?.ok) {
+        const msg = res?.error || 'Failed to recover';
+        debugLog.error('❌ join_and_recover failed', msg);
+        navigate('/quiz');
+        return;
+      }
+      debugLog.success('✅ join_and_recover snapshot received');
+      const { snap } = res;
+      // If the game is already underway, go to play page
+      const phase = snap?.roomState?.phase;
+      if (['asking','reviewing','leaderboard','launched','tiebreaker','complete'].includes(phase)) {
+        navigate(`/quiz/play/${roomId}/${playerId}`);
+      }
+    }
+  );
+  };
+
+  // Debug: rounds
   useEffect(() => {
     if (config?.roundDefinitions) {
-     if (DEBUG) console.log('Round definitions:', config.roundDefinitions);
-     if (DEBUG) console.log('Sample round:', config.roundDefinitions[0]);
+      if (DEBUG) console.log('Round definitions:', config.roundDefinitions);
+      if (DEBUG) console.log('Sample round:', config.roundDefinitions[0]);
     }
   }, [config]);
 
-  // Listen for server events
+  // 🗄️ Hydrate from cache early
+  useEffect(() => {
+    if (!STORAGE_KEY || playerData) return;
+    try {
+      const cached = localStorage.getItem(STORAGE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached) as ServerPlayer;
+        setPlayerData(parsed);
+        debugLog.info('🗄️ Loaded player snapshot from cache');
+      }
+    } catch {}
+    if (roomId && playerId) {
+      localStorage.setItem('fr_last_room_ctx', JSON.stringify({ roomId, playerId, at: Date.now() }));
+    }
+  }, [STORAGE_KEY, playerData, roomId, playerId]);
+
+  // ✍️ Persist any fresh playerData
+  useEffect(() => {
+    if (!STORAGE_KEY || !playerData) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(playerData));
+    } catch {}
+  }, [STORAGE_KEY, playerData]);
+
+  // 🔌 Socket lifecycle: connect/reconnect
+  useEffect(() => {
+    if (!socket) return;
+
+    const onConnect = () => {
+      debugLog.lifecycle('🔌 socket connected', { id: socket.id });
+      hasJoinedRef.current = false;
+      joinOrRejoin();
+    };
+
+    const onReconnect = (attempt: number) => {
+      debugLog.lifecycle('🔄 socket reconnected', { attempt });
+      hasJoinedRef.current = false;
+      joinOrRejoin();
+    };
+
+    const onDisconnect = (reason: string) => {
+      debugLog.lifecycle('🧯 socket disconnected', { reason });
+    };
+
+    socket.on('connect', onConnect);
+    socket.on('reconnect', onReconnect);
+    socket.on('disconnect', onDisconnect);
+
+    return () => {
+      socket.off('connect', onConnect);
+      socket.off('reconnect', onReconnect);
+      socket.off('disconnect', onDisconnect);
+    };
+  }, [socket, roomId, playerId, connected]);
+
+
+
+  // 🔔 Listeners
   useEffect(() => {
     if (!socket || !connected) return;
 
     const handlePlayerListUpdated = ({ players }: { players: ServerPlayer[] }) => {
       debugLog.event('🎯 player_list_updated received', players);
       setAllPlayers(players);
-      
       const currentPlayer = players.find((p: ServerPlayer) => p.id === playerId);
       if (currentPlayer) {
         setPlayerData(currentPlayer);
@@ -80,11 +172,9 @@ const QuizGameWaitingPage = () => {
 
     const handleQuizLaunched = ({ roomId: launchedRoomId, message }: { roomId: string; message: string }) => {
       debugLog.event('🚀 Quiz launched - redirecting to play page', { launchedRoomId, message });
-      
       setTimeout(() => {
         navigate(`/quiz/play/${roomId}/${playerId}`);
       }, 1000);
-      
       debugLog.success('✅ Redirecting to game...');
     };
 
@@ -92,12 +182,9 @@ const QuizGameWaitingPage = () => {
       debugLog.event('🎯 room_config received', roomConfig);
     };
 
-    // ✅ NEW: Handle room state updates that indicate game is in progress
     const handleRoomState = (data: any) => {
       debugLog.event('🎯 room_state received in waiting page', data);
-      
-      // If we receive a room state indicating the game is active, redirect
-      if (data.phase && (data.phase === 'asking' || data.phase === 'reviewing' || data.phase === 'leaderboard')) {
+      if (data.phase && (data.phase === 'asking' || data.phase === 'reviewing' || data.phase === 'leaderboard' || data.phase === 'tiebreaker')) {
         debugLog.info('🎮 Game detected as active - redirecting to play page');
         setTimeout(() => {
           navigate(`/quiz/play/${roomId}/${playerId}`);
@@ -108,99 +195,33 @@ const QuizGameWaitingPage = () => {
     socket.on('player_list_updated', handlePlayerListUpdated);
     socket.on('room_config', handleRoomConfig);
     socket.on('quiz_launched', handleQuizLaunched);
-    socket.on('room_state', handleRoomState); // ✅ NEW
+    socket.on('room_state', handleRoomState);
 
     return () => {
       socket.off('player_list_updated', handlePlayerListUpdated);
       socket.off('room_config', handleRoomConfig);
       socket.off('quiz_launched', handleQuizLaunched);
-      socket.off('room_state', handleRoomState); // ✅ NEW
+      socket.off('room_state', handleRoomState);
     };
   }, [socket, connected, playerId, navigate, roomId]);
 
-  // ✅ UPDATED: Join room logic with reconnection support
+  // 🔑 One-shot join on mount/param change
   useEffect(() => {
-    if (!socket || !connected || !roomId || !playerId || hasJoinedRef.current) {
-      if (!socket || !connected || !roomId || !playerId) {
-        debugLog.warning('⚠️ Missing params for joinQuizRoom');
-      }
+    if (!socket || !connected || !roomId || !playerId) {
+      debugLog.warning('⚠️ Missing params for joinQuizRoom');
       return;
     }
+    joinOrRejoin();
+  }, [socket, connected, roomId, playerId]);
 
-    hasJoinedRef.current = true;
-
-    const checkPlayerExists = () => {
-      socket.emit('verify_quiz_room_and_player', { roomId, playerId });
-      
-      socket.once('quiz_room_player_verification_result', ({ roomExists, playerApproved, roomState }) => {
-        if (!roomExists) {
-          debugLog.error('❌ Room does not exist');
-          navigate('/quiz');
-          return;
-        }
-
-        if (playerApproved) {
-          // ✅ Player exists, updating socket connection
-          debugLog.info('🔄 Player exists, updating socket connection');
-          socket.emit('join_quiz_room', {
-            roomId,
-            user: { id: playerId, name: 'Player' },
-            role: 'player'
-          });
-
-          // ✅ NEW: Check if quiz is already in progress
-          if (roomState && (roomState.phase === 'asking' || roomState.phase === 'reviewing' || roomState.phase === 'leaderboard' || roomState.phase === 'launched')) {
-            debugLog.info('🎮 Quiz already in progress - redirecting to play page');
-            setTimeout(() => {
-              navigate(`/quiz/play/${roomId}/${playerId}`);
-            }, 500);
-            return;
-          }
-
-        } else {
-          // ✅ IMPROVED: More specific error handling
-          debugLog.warning('⚠️ Player not approved for this room');
-          
-          // Check if it's a mid-game reconnection issue
-          socket.emit('check_player_in_active_game', { roomId, playerId });
-          
-          socket.once('player_active_game_status', ({ isInActiveGame }) => {
-            if (isInActiveGame) {
-              debugLog.info('🔄 Player found in active game - allowing reconnection');
-              socket.emit('rejoin_active_game', { roomId, playerId });
-              setTimeout(() => {
-                navigate(`/quiz/play/${roomId}/${playerId}`);
-              }, 500);
-            } else {
-              alert('You are not registered for this quiz. Please contact the organizer.');
-              navigate('/quiz');
-            }
-          });
-          
-          return;
-        }
-
-        // ✅ Request current state after joining
-        setTimeout(() => {
-          socket.emit('request_current_state', { roomId });
-          debugLog.success('✅ Joined room and requested current state');
-        }, 100);
-      });
-    };
-
-    checkPlayerExists();
-  }, [socket, connected, roomId, playerId, navigate]);
-
-  // Helper for extra labels
+  // Helpers
   const getExtraInfo = (extraId: string) => {
     const extra = Object.values(fundraisingExtraDefinitions).find(def => {
       const defId = def.id.toLowerCase();
       const searchKey = extraId.toLowerCase();
-      return defId === searchKey || 
-             defId.includes(searchKey) ||
-             searchKey.includes(defId);
+      return defId === searchKey || defId.includes(searchKey) || searchKey.includes(defId);
     });
-    
+
     if (extra) {
       return {
         label: `${extra.icon} ${extra.label}`,
@@ -208,15 +229,11 @@ const QuizGameWaitingPage = () => {
         definition: extra
       };
     }
-    
-    return {
-      label: extraId,
-      strategy: 'No strategy information available.',
-      definition: null
-    };
+
+    return { label: extraId, strategy: 'No strategy information available.', definition: null };
   };
 
-  // Show loading state while waiting for server data
+  // Loading states
   if (!config || Object.keys(config).length === 0 || !playerData) {
     return (
       <div className="p-4 text-center sm:p-6">
@@ -226,8 +243,8 @@ const QuizGameWaitingPage = () => {
         </div>
         {DEBUG && (
           <div className="text-fg/60 mt-4 text-xs">
-            Config loaded: {!!config ? '✅' : '❌'} | 
-            Player data: {!!playerData ? '✅' : '❌'} | 
+            Config loaded: {!!config ? '✅' : '❌'} |
+            Player data: {!!playerData ? '✅' : '❌'} |
             Socket: {connected ? '🟢' : '🔴'}
           </div>
         )}
@@ -241,7 +258,6 @@ const QuizGameWaitingPage = () => {
 
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-4 sm:space-y-6">
-      {/* Mobile-optimized header */}
       <div className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 p-4 text-white sm:p-6">
         <div className="text-center">
           <div className="mb-2 text-3xl sm:text-4xl">🎉</div>
@@ -251,8 +267,7 @@ const QuizGameWaitingPage = () => {
           <p className="text-sm text-blue-100 sm:text-base">You're all set to play</p>
           <p className="mt-1 text-xs text-blue-200 sm:text-sm">Thank you for supporting this fundraiser and GOOD LUCK!</p>
         </div>
-        
-        {/* Status indicators */}
+
         <div className="mt-4 flex justify-around border-t border-blue-400 pt-4">
           <div className="text-center">
             {playerData.paid ? (
@@ -273,7 +288,6 @@ const QuizGameWaitingPage = () => {
         </div>
       </div>
 
-      {/* Warning Messages */}
       {!playerData.paid && (
         <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4">
           <div className="flex items-center space-x-2">
@@ -296,31 +310,22 @@ const QuizGameWaitingPage = () => {
         </div>
       )}
 
-      {/* No Cheating Warning */}
       <div className="rounded-xl border border-red-200 bg-red-50 p-4">
         <div className="text-sm font-semibold text-red-700">
           🚫 No Cheating — you will be disqualified if unfair play is detected.
         </div>
       </div>
 
-      {/* Your Arsenal - Collapsible */}
       {playerExtras.length > 0 && (
         <div className="rounded-lg border-l-4 border-green-400 bg-green-50 p-4">
-          <button 
-            onClick={() => setShowArsenal(!showArsenal)}
-            className="flex w-full items-center justify-between text-left"
-          >
+          <button onClick={() => setShowArsenal(!showArsenal)} className="flex w-full items-center justify-between text-left">
             <h3 className="flex items-center space-x-2 text-base font-bold text-green-800">
               <Zap className="h-5 w-5" />
               <span>Your Arsenal ({playerExtras.length} extras)</span>
             </h3>
-            {showArsenal ? (
-              <ChevronUp className="h-5 w-5 text-green-600" />
-            ) : (
-              <ChevronDown className="h-5 w-5 text-green-600" />
-            )}
+            {showArsenal ? <ChevronUp className="h-5 w-5 text-green-600" /> : <ChevronDown className="h-5 w-5 text-green-600" />}
           </button>
-          
+
           {showArsenal && (
             <div className="mt-3 space-y-3">
               {playerExtras.map((extraId: string, idx: number) => {
@@ -349,28 +354,19 @@ const QuizGameWaitingPage = () => {
         </div>
       )}
 
-      {/* Round Overview - Collapsible */}
       <div className="rounded-lg border-l-4 border-blue-400 bg-blue-50 p-4">
-        <button 
-          onClick={() => setShowRounds(!showRounds)}
-          className="flex w-full items-center justify-between text-left"
-        >
+        <button onClick={() => setShowRounds(!showRounds)} className="flex w-full items-center justify-between text-left">
           <h3 className="flex items-center space-x-2 text-base font-bold text-blue-800">
             <Play className="h-5 w-5" />
             <span>Round Overview ({config.roundDefinitions?.length || 0} rounds)</span>
           </h3>
-          {showRounds ? (
-            <ChevronUp className="h-5 w-5 text-blue-600" />
-          ) : (
-            <ChevronDown className="h-5 w-5 text-blue-600" />
-          )}
+          {showRounds ? <ChevronUp className="h-5 w-5 text-blue-600" /> : <ChevronDown className="h-5 w-5 text-blue-600" />}
         </button>
-        
+
         {showRounds && config.roundDefinitions?.length && (
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {config.roundDefinitions.map((round: any, index: number) => {
               const roundTypeDef = roundTypeDefinitions[round.roundType as RoundTypeId];
-              
               return (
                 <div key={index} className="bg-muted rounded-lg border border-blue-200 p-3">
                   <div className="text-center">
@@ -396,24 +392,16 @@ const QuizGameWaitingPage = () => {
         )}
       </div>
 
-      {/* Prizes - Collapsible */}
       {config.prizes && config.prizes.length > 0 && (
         <div className="rounded-lg border-l-4 border-yellow-400 bg-yellow-50 p-4">
-          <button 
-            onClick={() => setShowPrizes(!showPrizes)}
-            className="flex w-full items-center justify-between text-left"
-          >
+          <button onClick={() => setShowPrizes(!showPrizes)} className="flex w-full items-center justify-between text-left">
             <h3 className="flex items-center space-x-2 text-base font-bold text-yellow-800">
               <Trophy className="h-5 w-5" />
               <span>Win Up To {config.currencySymbol}{config.prizes[0]?.value}!</span>
             </h3>
-            {showPrizes ? (
-              <ChevronUp className="h-5 w-5 text-yellow-600" />
-            ) : (
-              <ChevronDown className="h-5 w-5 text-yellow-600" />
-            )}
+            {showPrizes ? <ChevronUp className="h-5 w-5 text-yellow-600" /> : <ChevronDown className="h-5 w-5 text-yellow-600" />}
           </button>
-          
+
           {showPrizes && (
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {config.prizes.map((prize: any, idx: number) => (
@@ -440,7 +428,6 @@ const QuizGameWaitingPage = () => {
         </div>
       )}
 
-      {/* Waiting Message */}
       <div className="rounded-lg bg-gray-50 p-4 text-center sm:p-6">
         <div className="text-fg/70 inline-flex items-center space-x-2">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600 sm:h-5 sm:w-5"></div>
@@ -457,3 +444,4 @@ const QuizGameWaitingPage = () => {
 };
 
 export default QuizGameWaitingPage;
+

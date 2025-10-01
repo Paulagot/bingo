@@ -50,9 +50,9 @@ export const ImpactScreen: React.FC<ImpactScreenProps> = ({
               <TrendingUp className="mx-auto mb-4 h-8 w-8 text-green-300" />
               <h4 className="mb-2 text-2xl font-bold">{currency}{fundraisingData.charityAmount.toFixed(2)}</h4>
               <p className="text-sm">
-                To Charity ({config?.paymentMethod === 'web3' && config?.web3PrizeSplit?.charity 
+                To the Cause ({config?.paymentMethod === 'web3' && config?.web3PrizeSplit?.charity 
                   ? `${config.web3PrizeSplit.charity}%` 
-                  : '85%'})
+                  : '100%'})
               </p>
             </div>
           </div>
@@ -100,7 +100,7 @@ export const ImpactScreen: React.FC<ImpactScreenProps> = ({
           {!isHost && fundraisingData.playerContribution.entryFee > 0 && fundraisingData.playerContribution.extrasUsed === 0 && (
             <div className="rounded-xl bg-gradient-to-r from-blue-400 to-green-500 p-6 text-white">
               <h3 className="mb-2 text-xl font-bold">🙏 Thank You for Contributing!</h3>
-              <p className="text-lg">Your {currency}{fundraisingData.playerContribution.entryFee.toFixed(2)} entry fee helped raise funds for charity.</p>
+              <p className="text-lg">Your {currency}{fundraisingData.playerContribution.entryFee.toFixed(2)} entry fee helped raise funds for the cause.</p>
               <p className="text-sm opacity-90 mt-2">
                 Every participant makes a difference in our fundraising efforts!
               </p>

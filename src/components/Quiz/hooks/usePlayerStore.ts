@@ -1,3 +1,4 @@
+//src/components/Quiz/hooks/usePlayerStore.ts
 import { create } from 'zustand';
 
 export interface Player {

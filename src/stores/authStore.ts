@@ -1,4 +1,4 @@
-// src/store/authStore.ts
+// src/stores/authStore.ts
 import { create } from 'zustand';
 import { apiService } from '../services/apiService';
 
@@ -16,13 +16,24 @@ interface Club {
   email: string;
 }
 
+interface Entitlements {
+  max_players_per_game: number;
+  max_rounds: number;
+  round_types_allowed: string[];
+  extras_allowed: string[];
+  concurrent_rooms: number;
+  game_credits_remaining: number;
+}
+
 interface AuthState {
   user: User | null;
   club: Club | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
-  successMessage: string | null; // New: for registration success
+  successMessage: string | null;
+  entitlements: Entitlements | null; // NEW
+  showNoCreditWarning: boolean; // NEW
 }
 
 interface AuthActions {
@@ -45,6 +56,7 @@ interface AuthActions {
   initialize: () => void;
   setUser: (user: User | null) => void;
   setClub: (club: Club | null) => void;
+  dismissNoCreditWarning: () => void; // NEW
 }
 
 type AuthStore = AuthState & AuthActions;
@@ -57,6 +69,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   isLoading: false,
   error: null,
   successMessage: null,
+  entitlements: null, // NEW
+  showNoCreditWarning: false, // NEW
 
   initialize: () => {
     const token = localStorage.getItem('auth_token');
@@ -70,7 +84,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       set({ isLoading: true, error: null, successMessage: null });
       
-      // Call API with GDPR data
       const response = await apiService.registerClub({
         name: data.name,
         email: data.email,
@@ -80,13 +93,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         marketingConsent: data.marketingConsent || false
       });
       
-      // Don't auto-authenticate - user should manually login
       const successMsg = 'Registration successful! Please check your email and login to continue.';
       set({
         isLoading: false,
         error: null,
         successMessage: successMsg,
-        // Keep authentication state as false
         user: null,
         club: null,
         isAuthenticated: false,
@@ -122,6 +133,21 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         error: null,
         successMessage: null,
       });
+
+      // 🆕 Fetch entitlements after successful login
+      try {
+        const entitlements = await apiService.getEntitlements();
+        set({ entitlements });
+
+        // 🆕 Check if credits are zero
+        if (entitlements.game_credits_remaining === 0) {
+          set({ showNoCreditWarning: true });
+        }
+      } catch (entError) {
+        // Don't fail login if entitlements fetch fails
+        console.error('Failed to fetch entitlements:', entError);
+      }
+
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Login failed';
       set({ 
@@ -146,6 +172,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       isLoading: false,
       error: null,
       successMessage: null,
+      entitlements: null, // NEW
+      showNoCreditWarning: false, // NEW
     });
   },
 
@@ -169,6 +197,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       throw error;
     }
   },
+
+  // NEW: Action to dismiss the warning
+  dismissNoCreditWarning: () => set({ showNoCreditWarning: false }),
 
   // Utility actions
   setUser: (user) => set({ user, isAuthenticated: !!user }),
@@ -202,4 +233,11 @@ export const useUI = () => useAuthStore((state) => ({
   clearError: state.clearError,
   setSuccessMessage: state.setSuccessMessage,
   clearSuccessMessage: state.clearSuccessMessage,
+}));
+
+// NEW: Selector for credit warning
+export const useCreditWarning = () => useAuthStore((state) => ({
+  showNoCreditWarning: state.showNoCreditWarning,
+  dismissNoCreditWarning: state.dismissNoCreditWarning,
+  entitlements: state.entitlements,
 }));

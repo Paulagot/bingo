@@ -61,6 +61,7 @@ const LaunchedPhase: React.FC<LaunchedPhaseProps> = ({
   const pointsLostPerWrong = roundConfig?.pointsLostPerWrong ?? defaultConfig.pointsLostPerWrong ?? 0;
   const pointsLostPerNoAnswer = roundConfig?.pointsLostPerUnanswered ?? defaultConfig.pointsLostPerUnanswered ?? 0;
   const timePerQuestion = roundConfig?.timePerQuestion || defaultConfig.timePerQuestion || 25;
+  const totalTimeSeconds = roundConfig?.totalTimeSeconds || defaultConfig.totalTimeSeconds;
   const questionsPerRound = roundConfig?.questionsPerRound || defaultConfig.questionsPerRound || 6;
   
   // Get the specific difficulty for this round
@@ -76,6 +77,9 @@ const LaunchedPhase: React.FC<LaunchedPhaseProps> = ({
   };
 
   const pointsForThisRound = getPointsForThisRound();
+
+  // Determine if this is a speed round
+  const isSpeedRound = roundTypeId === 'speed_round';
 
   return (
     <div className={`transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
@@ -128,11 +132,18 @@ const LaunchedPhase: React.FC<LaunchedPhaseProps> = ({
             <div className="text-sm opacity-80">Questions</div>
           </div>
           
-          {/* Time per question */}
-          <div className="rounded-xl bg-white/10 backdrop-blur-sm p-4 text-center text-white">
-            <div className="text-2xl font-bold text-blue-300">{timePerQuestion}s</div>
-            <div className="text-sm opacity-80">Per Question</div>
-          </div>
+          {/* Time display - conditional based on round type */}
+          {isSpeedRound && totalTimeSeconds ? (
+            <div className="rounded-xl bg-white/10 backdrop-blur-sm p-4 text-center text-white">
+              <div className="text-2xl font-bold text-blue-300">{totalTimeSeconds}s</div>
+              <div className="text-sm opacity-80">Total Time</div>
+            </div>
+          ) : (
+            <div className="rounded-xl bg-white/10 backdrop-blur-sm p-4 text-center text-white">
+              <div className="text-2xl font-bold text-blue-300">{timePerQuestion}s</div>
+              <div className="text-sm opacity-80">Per Question</div>
+            </div>
+          )}
           
           {/* Points display */}
           {pointsForThisRound !== null ? (

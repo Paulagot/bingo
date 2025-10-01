@@ -37,11 +37,15 @@ const HostRoundPreview: React.FC<HostRoundPreviewProps> = ({
   const pointsLostPerWrong = roundConfig?.pointsLostPerWrong ?? defaultConfig.pointsLostPerWrong ?? 0;
   const pointsLostPerNoAnswer = roundConfig?.pointsLostPerUnanswered ?? defaultConfig.pointsLostPerUnanswered ?? 0;
   const timePerQuestion = roundConfig?.timePerQuestion || defaultConfig.timePerQuestion || 25;
+  const totalTimeSeconds = roundConfig?.totalTimeSeconds || defaultConfig.totalTimeSeconds;
   const questionsPerRound = roundConfig?.questionsPerRound || defaultConfig.questionsPerRound || 6;
   
   const roundDifficulty = currentRoundDef.difficulty;
   const roundCategory = currentRoundDef.category;
   const pointsForThisRound = roundDifficulty ? pointsPerDifficulty[roundDifficulty] : null;
+
+  // Determine if this is a speed round
+  const isSpeedRound = roundTypeId === 'speed_round';
 
   return (
     <div className="mb-6 rounded-xl border border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50 p-8 shadow-lg">
@@ -96,8 +100,14 @@ const HostRoundPreview: React.FC<HostRoundPreviewProps> = ({
             <div className="text-sm text-blue-700">
               <strong>{questionsPerRound}</strong> questions this round
             </div>
+            
+            {/* Conditional time display based on round type */}
             <div className="text-sm text-blue-700">
-              <strong>{timePerQuestion}</strong> seconds per question
+              {isSpeedRound && totalTimeSeconds ? (
+                <><strong>{totalTimeSeconds}</strong> seconds total time</>
+              ) : (
+                <><strong>{timePerQuestion}</strong> seconds per question</>
+              )}
             </div>
             
             {pointsForThisRound !== null ? (

@@ -267,52 +267,7 @@ const ReviewPhase: React.FC<ReviewPhaseProps> = ({
           })}
         </div>
 
-        {/* Summary Section - Only for Players */}
-        {/* {!isHost && (
-          <div className="mt-6 p-4 bg-muted rounded-lg border border-border">
-            <h4 className="text-sm font-semibold text-fg/80 mb-2">Review Summary</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <div className="text-center">
-                <div className="font-medium text-fg/70">Your Answer</div>
-                <div className={`font-bold ${
-                  hasAnswered ? (isCorrect ? 'text-green-600' : 'text-red-600') : 'text-orange-600'
-                }`}>
-                  {hasAnswered ? selectedAnswer : 'No Answer'}
-                </div>
-              </div>
-              <div className="text-center">
-                <div className="font-medium text-fg/70">Correct Answer</div>
-                <div className="font-bold text-green-600">
-                  {correctAnswer || 'Not Available'}
-                </div>
-              </div>
-              <div className="text-center">
-                <div className="font-medium text-fg/70">Result</div>
-                <div className={`font-bold flex items-center justify-center space-x-1 ${styling.textColor}`}>
-                  <StatusIcon className={`w-4 h-4 ${styling.iconColor}`} />
-                  <span>
-                    {resultStatus === 'correct' && 'Correct'}
-                    {resultStatus === 'incorrect' && 'Incorrect'}
-                    {resultStatus === 'no-answer' && 'No Answer'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div> */}
-        {/* )} */}
-
-        {/* Additional Info - Only for Players
-        {!isHost && !hasAnswered && (
-          <div className="mt-4 rounded-lg border border-orange-200 bg-orange-100 p-3">
-            <div className="flex items-start space-x-2">
-              <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-orange-600" />
-              <div className="text-sm text-orange-800">
-                <p className="font-medium">Time ran out</p>
-                <p>You didn't submit an answer in time. The correct answer was: <strong>{correctAnswer}</strong></p>
-              </div>
-            </div>
-          </div>
-        )} */}
+       
       </div>
     </div>
   );

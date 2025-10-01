@@ -21,11 +21,9 @@ import { useRobinHoodAnimation } from '../hooks/useRobinHoodAnimation';
 import FreezeOverlay from './FreezeOverlay';
 import TiebreakerRound from './TiebreakerRound';
 
-// Allow the new tiebreaker phase locally without touching the global type
 type RoomPhaseWithTB = RoomPhase | 'tiebreaker';
 
-
-const debug = true; // Set to true to enable debug logs
+const debug = true;
 
 // ✅ helper to narrow server string into RoundTypeId
 const asRoundTypeId = (s?: string): RoundTypeId | undefined =>
@@ -45,7 +43,7 @@ type ServerRoomState = {
   roundTypeId: string;
   roundTypeName: string;
   totalPlayers: number;
-   phase: RoomPhaseWithTB;
+  phase: RoomPhaseWithTB;
 };
 
 type TiebreakerQuestion = {
@@ -60,18 +58,22 @@ const QuizGamePlayPage = () => {
   const { socket, connected } = useQuizSocket();
   const navigate = useNavigate();
 
-const [showFreezeOverlay, setShowFreezeOverlay] = useState(false);
-const [freezeOverlayTrigger, setFreezeOverlayTrigger] = useState(0);
+  const [showFreezeOverlay, setShowFreezeOverlay] = useState(false);
+  const [freezeOverlayTrigger, setFreezeOverlayTrigger] = useState(0);
 
   // ✅ notifications
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const showNotification = (type: NotificationType, message: string) => {
+    const id = Date.now() + Math.random();
+    setNotifications((prev) => [...prev, { id, type, message }]);
+    setTimeout(() => setNotifications((prev) => prev.filter((n) => n.id !== id)), 4000);
+  };
 
   const { robinHoodData, isAnimationActive, handleAnimationComplete } = useRobinHoodAnimation(socket);
 
   const selectedAnswerRef = useRef<string>('');
   const answerSubmittedRef = useRef<boolean>(false);
 
-  // Validate params
   if (!roomId || !playerId) {
     return (
       <div className="p-8 text-center">
@@ -87,15 +89,6 @@ const [freezeOverlayTrigger, setFreezeOverlayTrigger] = useState(0);
     );
   }
 
-  // notifications helper
-  const showNotification = (type: NotificationType, message: string) => {
-    const id = Date.now() + Math.random();
-    setNotifications((prev) => [...prev, { id, type, message }]);
-    setTimeout(() => {
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
-    }, 4000);
-  };
-
   // question/game state
   const [question, setQuestion] = useState<Question | null>(null);
   const [timerActive, setTimerActive] = useState(false);
@@ -103,6 +96,7 @@ const [freezeOverlayTrigger, setFreezeOverlayTrigger] = useState(0);
   const [answerSubmitted, setAnswerSubmitted] = useState(false);
   const [clue, setClue] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [correctAnswer, setCorrectAnswer] = useState<string | null>(null);
 
   const getCurrentQuestionId = useCallback(() => {
     return question?.id ?? currentQuestionIdRef.current;
@@ -110,16 +104,15 @@ const [freezeOverlayTrigger, setFreezeOverlayTrigger] = useState(0);
 
   // room/phase state
   const [phaseMessage, setPhaseMessage] = useState('Waiting for host to start the quiz...');
- const [roomPhase, setRoomPhase] = useState<RoomPhaseWithTB>('waiting');
+  const [roomPhase, setRoomPhase] = useState<RoomPhaseWithTB>('waiting');
 
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-
-  // round leaderboard state
   const [roundLeaderboard, setRoundLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [isShowingRoundResults, setIsShowingRoundResults] = useState(false);
   const [currentRoundNumber, setCurrentRoundNumber] = useState(1);
 
   const currentQuestionIdRef = useRef<string | null>(null);
+  const currentQuestionIndexRef = useRef<number>(-1);
 
   // server-driven room state
   const [serverRoomState, setServerRoomState] = useState<ServerRoomState>({
@@ -146,36 +139,42 @@ const [freezeOverlayTrigger, setFreezeOverlayTrigger] = useState(0);
 
   // players list + freeze state
   const [playersInRoom, setPlayersInRoom] = useState<User[]>([]);
+  const playersRef = useRef<User[]>([]);
+  useEffect(() => {
+    playersRef.current = playersInRoom;
+  }, [playersInRoom]);
+
+  const configRef = useRef(config);
+  useEffect(() => {
+    configRef.current = config;
+  }, [config]);
+
   const [freezeModalOpen, setFreezeModalOpen] = useState(false);
   const [isFrozen, setIsFrozen] = useState(false);
   const [frozenNotice, setFrozenNotice] = useState<string | null>(null);
+  const frozenForIndexRef = useRef<number | null>(null);
+  const frozenByRef = useRef<string | null>(null);
 
-  const [correctAnswer, setCorrectAnswer] = useState<string | null>(null);
   const [enhancedStats, setEnhancedStats] = useState<EnhancedPlayerStats | null>(null);
 
   // --- TIEBREAKER (client-side) ---
   const [tbCorrectAnswer, setTbCorrectAnswer] = useState<number | undefined>();
-const [tbPlayerAnswers, setTbPlayerAnswers] = useState<Record<string, number>>({});
-const [tbShowReview, setTbShowReview] = useState(false);
-const [tbQuestionNumber, setTbQuestionNumber] = useState(1);
-const [tbParticipants, setTbParticipants] = useState<string[]>([]);
-const [tbQuestion, setTbQuestion] = useState<TiebreakerQuestion | null>(null);
-const [tbStillTied, setTbStillTied] = useState<string[]>([]);
-const [tbWinners, setTbWinners] = useState<string[] | null>(null);
-const isTieBreakerParticipant = useMemo(
-  () => !!playerId && (tbParticipants || []).includes(playerId),
-  [playerId, tbParticipants]
-);
-const [tbAnswer, setTbAnswer] = useState<string>('');
+  const [tbPlayerAnswers, setTbPlayerAnswers] = useState<Record<string, number>>({});
+  const [tbShowReview, setTbShowReview] = useState(false);
+  const [tbQuestionNumber, setTbQuestionNumber] = useState(1);
+  const [tbParticipants, setTbParticipants] = useState<string[]>([]);
+  const [tbQuestion, setTbQuestion] = useState<TiebreakerQuestion | null>(null);
+  const [tbStillTied, setTbStillTied] = useState<string[]>([]);
+  const [tbWinners, setTbWinners] = useState<string[] | null>(null);
+  const isTieBreakerParticipant = useMemo(
+    () => !!playerId && (tbParticipants || []).includes(playerId),
+    [playerId, tbParticipants]
+  );
+  const [tbAnswer, setTbAnswer] = useState<string>('');
+  const [tbHasSubmitted, setTbHasSubmitted] = useState(false);
 
-  // refs
-  const currentQuestionIndexRef = useRef<number>(-1);
-  const frozenForIndexRef = useRef<number | null>(null);
-  const frozenByRef = useRef<string | null>(null);
 
   const currentRoundType = serverRoomState.roundTypeId;
-
-
   const isFrozenNow = isFrozen && frozenForIndexRef.current === currentQuestionIndexRef.current;
 
   // submit hook
@@ -215,19 +214,6 @@ const [tbAnswer, setTbAnswer] = useState<string>('');
     debug,
   });
 
-  // debug
-  // const debugInfo = useMemo(
-  //   () => ({
-  //     playerId,
-  //     availableExtras,
-  //     serverRoomState,
-  //     currentRoundType,
-  //     questionCounterDisplay,
-  //   }),
-  //   [playerId, availableExtras, serverRoomState, currentRoundType, questionCounterDisplay]
-  // );
-  // if (debug) console.log('[QuizGamePlayPage] Debug Info:', debugInfo);
-
   // keep refs in sync
   useEffect(() => {
     selectedAnswerRef.current = selectedAnswer;
@@ -236,185 +222,295 @@ const [tbAnswer, setTbAnswer] = useState<string>('');
     answerSubmittedRef.current = answerSubmitted;
   }, [answerSubmitted]);
 
-  // anti-cheat tab tracking
-  useEffect(() => {
-    if (!roomId || !playerId) return;
+  // anti-cheat tab tracking (kept as-is)
+useEffect(() => {
+  if (!roomId || !playerId) return;
 
-    const tabId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
-    sessionStorage.setItem('quiz-play-tab-id', tabId);
+  const tabId = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  sessionStorage.setItem('quiz-play-tab-id', tabId);
 
-    const existingTabId = localStorage.getItem(`quiz-active-play-${roomId}-${playerId}`);
-    const lastActiveTime = localStorage.getItem(`quiz-active-play-time-${roomId}-${playerId}`);
+  const ACTIVE_KEY = `quiz-active-play-${roomId}-${playerId}`;
+  const ACTIVE_TS  = `quiz-active-play-time-${roomId}-${playerId}`;
 
-    if (existingTabId && existingTabId !== tabId) {
-      const now = Date.now();
-      const lastActive = lastActiveTime ? parseInt(lastActiveTime) : 0;
-      const timeSinceLastActive = now - lastActive;
+  // If another tab was active, CLAIM ownership instead of navigating away.
+  const existingTabId = localStorage.getItem(ACTIVE_KEY);
+  if (existingTabId && existingTabId !== tabId) {
+    showNotification('info', 'This tab is now active. Any other tab will be signed out.');
+  }
+  localStorage.setItem(ACTIVE_KEY, tabId);
+  localStorage.setItem(ACTIVE_TS, String(Date.now()));
 
-      if (timeSinceLastActive < 10000) {
-        showNotification('error', 'This quiz is already open in another browser tab! Please close the other tab first.');
-        navigate(`/quiz/game/${roomId}/${playerId}`);
+  const activityInterval = setInterval(() => {
+    localStorage.setItem(ACTIVE_TS, String(Date.now()));
+  }, 5000);
+
+  if (socket && connected) {
+    socket.emit('player_route_change', { roomId, playerId, route: 'play', entering: true });
+  }
+
+  const handleStorageChange = (e: StorageEvent) => {
+    // Another tab took over → this tab should back out gracefully.
+    if (e.key === ACTIVE_KEY && e.newValue && e.newValue !== tabId) {
+      showNotification('warning', 'Another tab took over this quiz. Returning to the waiting page.');
+      navigate(`/quiz/game/${roomId}/${playerId}`);
+    }
+  };
+  window.addEventListener('storage', handleStorageChange);
+
+  return () => {
+    clearInterval(activityInterval);
+    window.removeEventListener('storage', handleStorageChange);
+
+    // Only clear if we still own it
+    const currentActiveTab = localStorage.getItem(ACTIVE_KEY);
+    if (currentActiveTab === tabId) {
+      localStorage.removeItem(ACTIVE_KEY);
+      localStorage.removeItem(ACTIVE_TS);
+    }
+
+    socket?.emit('player_route_change', { roomId, playerId, route: 'play', entering: false });
+  };
+}, [roomId, playerId, socket, connected, navigate, showNotification]);
+
+
+// fast join + full snapshot in one ack (replaces verify→join→request flow)
+useEffect(() => {
+  if (!socket || !connected || !roomId || !playerId) return;
+
+  setPhaseMessage('Reconnecting…');
+
+  socket.emit(
+    'join_and_recover',
+    { roomId, user: { id: playerId, name: 'Player ' + playerId }, role: 'player' },
+    (res?: any) => {
+      if (!res?.ok) {
+        const msg = res?.error || 'Failed to join';
+        if (msg.includes('Room not found') || msg.includes('Player not found')) {
+          showNotification('error', msg);
+          navigate('/quiz');
+        } else {
+          showNotification('error', msg);
+        }
         return;
       }
-    }
 
-    localStorage.setItem(`quiz-active-play-${roomId}-${playerId}`, tabId);
-    localStorage.setItem(`quiz-active-play-time-${roomId}-${playerId}`, Date.now().toString());
+      const { snap } = res;
 
-    const activityInterval = setInterval(() => {
-      localStorage.setItem(`quiz-active-play-time-${roomId}-${playerId}`, Date.now().toString());
-    }, 5000);
+      // room + phase
+      if (snap.roomState) {
+        setServerRoomState(snap.roomState);
+        setRoomPhase(snap.roomState.phase);
+      }
+      if (snap.players) setPlayersInRoom(snap.players);
 
-    if (socket && connected) {
-      socket.emit('player_route_change', {
-        roomId,
-        playerId: playerId,
-        route: 'play',
-        entering: true,
-      });
-    }
-
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === `quiz-active-play-${roomId}-${playerId}` && e.newValue !== tabId) {
-        const newTimestamp = localStorage.getItem(`quiz-active-play-time-${roomId}-${playerId}`);
-        if (newTimestamp && Date.now() - parseInt(newTimestamp) < 10000) {
-          showNotification('warning', 'Quiz opened in another tab. This tab will return to the waiting page.');
-          navigate(`/quiz/game/${roomId}/${playerId}`);
+      // asking (normal) or speed_round
+      if (snap.question) {
+        currentQuestionIdRef.current = snap.question.id;
+        setQuestion(snap.question);
+        setSelectedAnswer('');
+        setAnswerSubmitted(false);
+        setClue(null);
+        setFeedback(null);
+        setUsedExtrasThisRound({});
+        if (snap.question.questionNumber && snap.question.totalQuestions) {
+          setQuestionInRound(snap.question.questionNumber);
+          setTotalInRound(snap.question.totalQuestions);
         }
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-
-    return () => {
-      clearInterval(activityInterval);
-      window.removeEventListener('storage', handleStorageChange);
-
-      const currentActiveTab = localStorage.getItem(`quiz-active-play-${roomId}-${playerId}`);
-      if (currentActiveTab === tabId) {
-        localStorage.removeItem(`quiz-active-play-${roomId}-${playerId}`);
-        localStorage.removeItem(`quiz-active-play-time-${roomId}-${playerId}`);
+        setTimerActive((snap.question.timeLimit || 0) > 0);
+        setPhaseMessage('');
       }
 
-      if (socket) {
-        socket.emit('player_route_change', {
-          roomId,
-          playerId: playerId,
-          route: 'play',
-          entering: false,
+      if (snap.playerRecovery) {
+        const r = snap.playerRecovery;
+        setAnswerSubmitted(r.hasAnswered);
+        if (r.submittedAnswer) setSelectedAnswer(r.submittedAnswer);
+        setIsFrozen(r.isFrozen);
+        if (r.isFrozen && r.frozenBy) {
+          const frozenByName =
+            (snap.players || []).find((p: any) => p.id === r.frozenBy)?.name || 'Someone';
+          setFrozenNotice(`❄️ ${frozenByName} froze you out!!!`);
+          frozenForIndexRef.current = r.currentQuestionIndex;
+          frozenByRef.current = r.frozenBy;
+        }
+        setUsedExtras(r.usedExtras || {});
+        setUsedExtrasThisRound(r.usedExtrasThisRound || {});
+        currentQuestionIndexRef.current = r.currentQuestionIndex;
+      }
+
+      if (snap.speed) setPhaseMessage(`Speed Round — ${snap.speed.remaining}s left`);
+
+      // reviewing
+      if (snap.review) {
+        setQuestion({
+          id: snap.review.id,
+          text: snap.review.text,
+          options: snap.review.options || [],
+          timeLimit: 0,
+          difficulty: snap.review.difficulty,
+          category: snap.review.category,
         });
+        setClue(null);
+        setTimerActive(false);
+        setSelectedAnswer(snap.review.submittedAnswer || '');
+        setCorrectAnswer(snap.review.correctAnswer);
+        setPhaseMessage('Reviewing previous question…');
       }
-    };
-  }, [roomId, playerId, socket, connected, navigate]);
 
-  // join room and request state
-  useEffect(() => {
-    if (!socket || !connected) return;
+      // --- TIEBREAKER recovery ---
+if (snap.roomState?.phase === 'tiebreaker' && snap.tb) {
+  setRoomPhase('tiebreaker' as RoomPhaseWithTB);
 
-    if (debug) console.log('[Client] joining room:', roomId);
+  setTbParticipants(snap.tb.participants || []);
+  setTbQuestionNumber(snap.tb.questionNumber || 1);
 
-    socket.emit('join_quiz_room', {
-      roomId,
-      user: { id: playerId, name: 'Player ' + playerId },
-      role: 'player',
-    });
+  // Clear all TB view flags, then set based on stage
+  setTbShowReview(false);
+  setTbCorrectAnswer(undefined);
+  setTbPlayerAnswers({});
+  setTbWinners(null);
+  setTbStillTied([]);
 
-    setTimeout(() => {
-      socket.emit('request_current_state', { roomId, playerId: playerId });
-      if (debug) console.log('[Client] requested current state');
-    }, 100);
-  }, [socket, connected, roomId, playerId]);
+if (snap.tb.stage === 'question' && snap.tb.question) {
+  setTbQuestion({
+    id: snap.tb.question.id,
+    text: snap.tb.question.text,
+    timeLimit: snap.tb.question.timeLimit,
+    questionStartTime: snap.tb.question.questionStartTime
+  });
 
-  // socket handlers
+  // 👇 NEW: if server says you already answered, lock UI and show the notice
+  const submitted = snap.tb.question.submittedAnswer;
+  if (submitted !== null && submitted !== undefined) {
+    setTbAnswer(String(submitted));
+    setTbHasSubmitted(true);
+  } else {
+    setTbHasSubmitted(false);
+  }
+}
+ else if (snap.tb.stage === 'review' && snap.tb.review) {
+    setTbQuestion(null);
+    setTbShowReview(true);
+    setTbCorrectAnswer(snap.tb.review.correctAnswer);
+    setTbPlayerAnswers(snap.tb.review.playerAnswers || {});
+    if (Array.isArray(snap.tb.review.winnerIds)) {
+      setTbWinners(snap.tb.review.winnerIds);
+      setTbStillTied([]);
+    } else if (Array.isArray(snap.tb.review.stillTiedIds)) {
+      setTbStillTied(snap.tb.review.stillTiedIds);
+    }
+  } else if (snap.tb.stage === 'result' && snap.tb.result) {
+    setTbQuestion(null);
+    setTbShowReview(true);
+    setTbWinners(snap.tb.result.winnerIds || []);
+  } else {
+    // start stage, just show phase message
+    setTbQuestion(null);
+  }
+
+  setPhaseMessage('');
+}
+
+
+      // leaderboard / round results
+      if (snap.roundLeaderboard) {
+        setRoundLeaderboard(snap.roundLeaderboard);
+        setIsShowingRoundResults(true);
+        setCurrentRoundNumber(snap.roomState?.currentRound || 1);
+      } else if (snap.leaderboard) {
+        setLeaderboard(snap.leaderboard);
+        setIsShowingRoundResults(false);
+      }
+
+      setShowFreezeOverlay(false);
+    }
+  );
+}, [socket, connected, roomId, playerId]);
+
+ 
+
+  // socket handlers (registered once; use refs to access latest state)
   useEffect(() => {
     if (!socket || !connected || !roomId || !playerId) return;
 
-const handleQuestion = (data: any) => {
-  currentQuestionIdRef.current = data.id;
+    const handleQuestion = (data: any) => {
+      currentQuestionIdRef.current = data.id;
 
-  if (debug) console.log('[Client] Question:', {
-    id: data.id,
-    timeLimit: data.timeLimit,
-    questionStartTime: data.questionStartTime,
-    currentTime: Date.now(),
-  });
+      if (debug)
+        console.log('[Client] Question:', {
+          id: data.id,
+          timeLimit: data.timeLimit,
+          questionStartTime: data.questionStartTime,
+          currentTime: Date.now(),
+        });
 
-  if (data.currentQuestionIndex !== undefined) {
-    currentQuestionIndexRef.current = data.currentQuestionIndex;
-  }
+      if (typeof data.currentQuestionIndex === 'number') {
+        currentQuestionIndexRef.current = data.currentQuestionIndex;
+      }
 
-  const questionIndex =
-    data.currentQuestionIndex !== undefined
-      ? data.currentQuestionIndex
-      : currentQuestionIndexRef.current;
+      const questionIndex =
+        typeof data.currentQuestionIndex === 'number'
+          ? data.currentQuestionIndex
+          : currentQuestionIndexRef.current;
 
-  // Clear freeze state if this is a different question index
-  if (frozenForIndexRef.current !== null && frozenForIndexRef.current !== questionIndex) {
-    setIsFrozen(false);
-    setFrozenNotice(null);
-    setShowFreezeOverlay(false); // Clear freeze overlay on question change
-  }
+      // Clear freeze state if different question index
+      if (frozenForIndexRef.current !== null && frozenForIndexRef.current !== questionIndex) {
+        setIsFrozen(false);
+        setFrozenNotice(null);
+        setShowFreezeOverlay(false);
+      }
 
-  currentQuestionIdRef.current = data.id;
+      setQuestion({
+        ...data,
+        questionStartTime: data.questionStartTime,
+        timeLimit: data.timeLimit,
+      });
 
-  setQuestion({
-    ...data,
-    questionStartTime: data.questionStartTime,
-    timeLimit: data.timeLimit,
-  });
+      setSelectedAnswer('');
+      selectedAnswerRef.current = '';
+      setAnswerSubmitted(false);
+      answerSubmittedRef.current = false;
 
-  setSelectedAnswer('');
-  selectedAnswerRef.current = '';
-  setAnswerSubmitted(false);
-  answerSubmittedRef.current = false;
+      setClue(null);
+      setFeedback(null);
+      setUsedExtrasThisRound({});
 
-  setClue(null);
-  setFeedback(null);
-  setUsedExtrasThisRound({});
+      if (data.questionNumber && data.totalQuestions) {
+        setQuestionInRound(data.questionNumber);
+        setTotalInRound(data.totalQuestions);
+      }
 
-  if (data.questionNumber && data.totalQuestions) {
-    setQuestionInRound(data.questionNumber);
-    setTotalInRound(data.totalQuestions);
-  }
+      setTimerActive(true);
+      setPhaseMessage('');
+    };
 
-  setTimerActive(true);
-  setPhaseMessage('');
-};
+    // SPEED ROUND: per-player question (no per-question timer)
+    const handleSpeedQuestion = (data: { id: number | string; text: string; options: string[] }) => {
+      const qid = String(data.id);
+      currentQuestionIdRef.current = qid;
 
-      // SPEED ROUND: per-player question (no per-question timer)
-// SPEED ROUND: per-player question (no per-question timer)
-const handleSpeedQuestion = (data: { id: number | string; text: string; options: string[] }) => {
-  // ✅ store as string to satisfy your refs/types
-  const qid = String(data.id);
-  currentQuestionIdRef.current = qid;
+      setQuestion({
+        id: qid,
+        text: data.text,
+        options: Array.isArray(data.options) ? data.options.slice(0, 2) : [],
+        timeLimit: 0,
+        questionStartTime: Date.now(),
+      });
 
-  setQuestion({
-    id: qid, // ✅ keep Question.id as string
-    text: data.text,
-    options: Array.isArray(data.options) ? data.options.slice(0, 2) : [],
-    timeLimit: 0,
-    questionStartTime: Date.now(),
-  });
+      setSelectedAnswer('');
+      selectedAnswerRef.current = '';
+      setAnswerSubmitted(false);
+      answerSubmittedRef.current = false;
 
-  // reset local answer state
-  setSelectedAnswer('');
-  selectedAnswerRef.current = '';
-  setAnswerSubmitted(false);
-  answerSubmittedRef.current = false;
+      setTimerActive(false);
+      setClue(null);
+      setFeedback(null);
+      setUsedExtrasThisRound({});
+    };
 
-  // IMPORTANT: no per-question timer in speed_round
-  setTimerActive(false);
-  setClue(null);
-  setFeedback(null);
-  setUsedExtrasThisRound({});
-};
-
-
-  // SPEED ROUND: global 90s countdown
-  const handleRoundTimeRemaining = ({ remaining }: { remaining: number }) => {
-    // Show a simple banner (or store remaining if you prefer)
-    setPhaseMessage(`Speed Round — ${remaining}s left`);
-  };
-
+    // SPEED ROUND: global 90s countdown
+    const handleRoundTimeRemaining = ({ remaining }: { remaining: number }) => {
+      setPhaseMessage(`Speed Round — ${remaining}s left`);
+    };
 
     const handleReviewQuestion = (data: any) => {
       if (debug) console.log('[Client] review question:', data);
@@ -441,7 +537,7 @@ const handleSpeedQuestion = (data: { id: number | string; text: string; options:
       const hasAnswered = data.submittedAnswer !== null && data.submittedAnswer !== undefined;
       const isCorrect = hasAnswered && data.submittedAnswer === data.correctAnswer;
 
-      const currentRoundDef = config?.roundDefinitions?.[serverRoomState.currentRound - 1];
+      const currentRoundDef = configRef.current?.roundDefinitions?.[serverRoomState.currentRound - 1];
       const roundType = asRoundTypeId(serverRoomState.roundTypeId) as RoundTypeId | undefined;
       const roundMeta = roundType ? roundTypeDefinitions[roundType] : undefined;
 
@@ -490,55 +586,55 @@ const handleSpeedQuestion = (data: { id: number | string; text: string; options:
       setTimerActive(false);
     };
 
-const handleFreezeNotice = ({
-  frozenBy,
-  frozenForQuestionIndex,
-}: {
-  frozenBy: string;
-  frozenForQuestionIndex: number;
-  message?: string;
-}) => {
-  const frozenByName = playersInRoom.find((p) => p.id === frozenBy)?.name || 'Someone';
-  frozenByRef.current = frozenBy;
-  frozenForIndexRef.current = frozenForQuestionIndex;
-
-  setIsFrozen(true);
-  setFrozenNotice(`❄️ ${frozenByName} froze you out!!!`);
-
-  // Simple working approach - no complex timing logic
-  setShowFreezeOverlay(true);
-  setFreezeOverlayTrigger((prev) => prev + 1); // Critical for remount
-
-  if (debug)
-    console.log('[Client] freeze notice:', {
-      frozenBy: frozenByName,
+    const handleFreezeNotice = ({
+      frozenBy,
       frozenForQuestionIndex,
-      currentQuestionIndex: currentQuestionIndexRef.current,
-    });
-};
+    }: {
+      frozenBy: string;
+      frozenForQuestionIndex: number;
+      message?: string;
+    }) => {
+      const frozenByName =
+        playersRef.current.find((p) => p.id === frozenBy)?.name || 'Someone';
+      frozenByRef.current = frozenBy;
+      frozenForIndexRef.current = frozenForQuestionIndex;
 
-  const handleRoomState = (data: ServerRoomState) => {
-  if (debug) console.log('[Client] room_state:', data);
+      setIsFrozen(true);
+      setFrozenNotice(`❄️ ${frozenByName} froze you out!!!`);
 
-  const previousRound = serverRoomState.currentRound;
+      setShowFreezeOverlay(true);
+      setFreezeOverlayTrigger((prev) => prev + 1);
 
-  if (data.phase === 'reviewing' && roomPhase !== 'reviewing') {
-    setIsFrozen(false);
-    setFrozenNotice(null);
-    setShowFreezeOverlay(false); // Simple clear
-    frozenForIndexRef.current = null;
-    frozenByRef.current = null;
-  }
+      if (debug)
+        console.log('[Client] freeze notice:', {
+          frozenBy: frozenByName,
+          frozenForQuestionIndex,
+          currentQuestionIndex: currentQuestionIndexRef.current,
+        });
+    };
 
-  if (data.currentRound !== previousRound && data.phase) {
-    currentQuestionIndexRef.current = -1;
-    setIsShowingRoundResults(false);
-    setRoundLeaderboard([]);
-  }
+    const handleRoomState = (data: ServerRoomState) => {
+      if (debug) console.log('[Client] room_state:', data);
 
-  setRoomPhase(data.phase as RoomPhaseWithTB);
-  setServerRoomState(data);
-};
+      const previousRound = serverRoomState.currentRound;
+
+      if (data.phase === 'reviewing' && roomPhase !== 'reviewing') {
+        setIsFrozen(false);
+        setFrozenNotice(null);
+        setShowFreezeOverlay(false);
+        frozenForIndexRef.current = null;
+        frozenByRef.current = null;
+      }
+
+      if (data.currentRound !== previousRound && data.phase) {
+        currentQuestionIndexRef.current = -1;
+        setIsShowingRoundResults(false);
+        setRoundLeaderboard([]);
+      }
+
+      setRoomPhase(data.phase as RoomPhaseWithTB);
+      setServerRoomState(data);
+    };
 
     const handleRoundLeaderboard = (data: LeaderboardEntry[]) => {
       if (debug) console.log('[Client] round leaderboard:', data);
@@ -553,23 +649,23 @@ const handleFreezeNotice = ({
       setIsShowingRoundResults(false);
     };
 
-  const handleRoundEnd = ({ round }: { round: number }) => {
-  if (debug) console.log('[Client] round_end:', round);
-  setPhaseMessage(`Round ${round} complete. Waiting for next round...`);
-  setQuestion(null);
-  setTimerActive(false);
-  setIsFrozen(false);
-  setFrozenNotice(null);
-  setShowFreezeOverlay(false); // Simple clear
-};
+    const handleRoundEnd = ({ round }: { round: number }) => {
+      if (debug) console.log('[Client] round_end:', round);
+      setPhaseMessage(`Round ${round} complete. Waiting for next round...`);
+      setQuestion(null);
+      setTimerActive(false);
+      setIsFrozen(false);
+      setFrozenNotice(null);
+      setShowFreezeOverlay(false);
+    };
 
- const handleNextRound = ({ round }: { round: number }) => {
-  if (debug) console.log('[Client] next_round_starting:', round);
-  setPhaseMessage(`Starting Round ${round}...`);
-  setIsFrozen(false);
-  setFrozenNotice(null);
-  setShowFreezeOverlay(false); // Simple clear
-};
+    const handleNextRound = ({ round }: { round: number }) => {
+      if (debug) console.log('[Client] next_round_starting:', round);
+      setPhaseMessage(`Starting Round ${round}...`);
+      setIsFrozen(false);
+      setFrozenNotice(null);
+      setShowFreezeOverlay(false);
+    };
 
     const handleQuizEnd = ({ message }: { message: string }) => {
       if (debug) console.log('[Client] quiz_end:', message);
@@ -590,18 +686,18 @@ const handleFreezeNotice = ({
       }
     };
 
-    const handleQuizError = ({ message }: { message: string }) => {
-      if (debug) console.error('[Client] quiz_error:', message);
+  const handleQuizError = ({ message }: { message: string }) => {
+  if (debug) console.error('[Client] quiz_error:', message);
 
-      if (message.includes('active game session') || message.includes('already open in another tab')) {
-        showNotification('error', `⚠️ ${message}`);
-        setTimeout(() => navigate(`/quiz/game/${roomId}/${playerId}`), 2000);
-      } else if (message.includes('Room not found') || message.includes('Player not found')) {
-        navigate(`/quiz/game/${roomId}/${playerId}`);
-      } else {
-        showNotification('error', message);
-      }
-    };
+  if (message.includes('Room not found') || message.includes('Player not found')) {
+    showNotification('error', message);
+    navigate('/quiz/game');
+    return;
+  }
+  // stay on page for other errors (multi-tab, etc.)
+  showNotification('error', message);
+};
+
 
     const handleQuizNotification = ({ type, message }: { type: NotificationType; message: string }) => {
       if (debug) console.log('[Client] notification:', type, message);
@@ -611,7 +707,7 @@ const handleFreezeNotice = ({
     const handleQuizCancelled = ({ message }: { message: string }) => {
       if (debug) console.log('[Client] cancelled:', message);
       showNotification('warning', `⚠️ ${message} - Redirecting to waiting page...`);
-      setTimeout(() => navigate(`/quiz/game/${roomId}/${playerId}`), 2000);
+      setTimeout(() => navigate(`/quiz/game/${roomId}/${playerId}`), 1500);
     };
 
     const handlePlayerStateRecovery = (data: {
@@ -631,7 +727,8 @@ const handleFreezeNotice = ({
 
       setIsFrozen(data.isFrozen);
       if (data.isFrozen && data.frozenBy) {
-        const frozenByName = playersInRoom.find((p) => p.id === data.frozenBy)?.name || 'Someone';
+        const frozenByName =
+          playersRef.current.find((p) => p.id === data.frozenBy)?.name || 'Someone';
         setFrozenNotice(`❄️ ${frozenByName} froze you out!!!`);
         frozenForIndexRef.current = data.currentQuestionIndex;
         frozenByRef.current = data.frozenBy;
@@ -648,82 +745,80 @@ const handleFreezeNotice = ({
     };
 
     // --- TIEBREAKER handlers ---
-const handleTbStart = ({ participants, mode }: { participants: string[]; mode: string }) => {
-  if (debug) console.log('[Client] tiebreak:start', { participants, mode });
-  setRoomPhase('tiebreaker' as RoomPhaseWithTB);
+    const handleTbStart = ({ participants, mode }: { participants: string[]; mode: string }) => {
+      if (debug) console.log('[Client] tiebreak:start', { participants, mode });
+      setRoomPhase('tiebreaker' as RoomPhaseWithTB);
 
-  setTbParticipants(participants);
-  setTbQuestion(null);
-  setTbStillTied([]);
-  setTbWinners(null);
-  setPhaseMessage('Tie-breaker in progress…');
-};
+      setTbParticipants(participants);
+      setTbQuestion(null);
+      setTbStillTied([]);
+      setTbWinners(null);
+      setPhaseMessage('Tie-breaker in progress…');
+    };
 
-// Update your existing handleTbQuestion
-const handleTbQuestion = (q: { id: string; text: string; type: 'numeric'; timeLimit: number; questionStartTime: number }) => {
-  if (debug) console.log('[Client] tiebreak:question', q);
-  setRoomPhase('tiebreaker' as RoomPhaseWithTB);
-  
-  setTbQuestion({ 
-    id: q.id, 
-    text: q.text, 
-    timeLimit: q.timeLimit, 
-    questionStartTime: q.questionStartTime 
-  });
-  setTbAnswer('');
-  setTbShowReview(false); // Hide review when new question arrives
-  setPhaseMessage('');
-};
+ const handleTbQuestion = (q: {
+   id: string;
+   text: string;
+   type: 'numeric';
+   timeLimit: number;
+   questionStartTime: number;
+   submittedAnswer?: number | null; // present in join_and_recover
+ }) => {
+   if (debug) console.log('[Client] tiebreak:question', q);
+   setRoomPhase('tiebreaker' as RoomPhaseWithTB);
+   setTbQuestion({ id: q.id, text: q.text, timeLimit: q.timeLimit, questionStartTime: q.questionStartTime });
+   setTbAnswer('');
+ setTbShowReview(false);
+  setTbHasSubmitted(false);
+  if (q.submittedAnswer !== null && q.submittedAnswer !== undefined) {
+    setTbHasSubmitted(true);
+    setTbAnswer(String(q.submittedAnswer));
+  } else {
+    setTbHasSubmitted(false);
+ }
+   setPhaseMessage('');
+ };
 
-// Add new review handler
-const handleTbReview = (data: {
-  correctAnswer: number;
-  playerAnswers: Record<string, number>;
-  winnerIds?: string[];
-  stillTiedIds?: string[];
-  questionText: string;
-  isFinalAnswer: boolean;
-}) => {
+
+   const handleTbReview = (data: { correctAnswer: number; playerAnswers: Record<string, number>; winnerIds?: string[]; stillTiedIds?: string[]; questionText: string; isFinalAnswer: boolean; }) => {
   if (debug) console.log('[Client] tiebreak:review', data);
-  
+  setRoomPhase('tiebreaker' as RoomPhaseWithTB);
   setTbCorrectAnswer(data.correctAnswer);
   setTbPlayerAnswers(data.playerAnswers);
   setTbShowReview(true);
-  
-  if (data.winnerIds) {
-    setTbWinners(data.winnerIds);
-  } else if (data.stillTiedIds) {
-    setTbStillTied(data.stillTiedIds);
+
+  // 👇 Optional: if we see our id in answers, mark submitted
+  if (playerId && Object.prototype.hasOwnProperty.call(data.playerAnswers, playerId)) {
+    setTbHasSubmitted(true);
+    setTbAnswer(String(data.playerAnswers[playerId] ?? ''));
   }
-};
 
-// Update handleTbTieAgain to increment question counter
-const handleTbTieAgain = ({ stillTiedIds }: { stillTiedIds: string[] }) => {
-  if (debug) console.log('[Client] tiebreak:tie_again', stillTiedIds);
-  setTbStillTied(stillTiedIds);
-  setTbParticipants(stillTiedIds);
-  setTbAnswer('');
-  setTbShowReview(false);
-  setTbQuestionNumber(prev => prev + 1);
+  if (data.winnerIds) setTbWinners(data.winnerIds);
+  else if (data.stillTiedIds) setTbStillTied(data.stillTiedIds);
 };
 
 
+    const handleTbTieAgain = ({ stillTiedIds }: { stillTiedIds: string[] }) => {
+      if (debug) console.log('[Client] tiebreak:tie_again', stillTiedIds);
+      setTbStillTied(stillTiedIds);
+      setTbParticipants(stillTiedIds);
+      setTbAnswer('');
+      setTbShowReview(false);
+      setTbQuestionNumber((prev) => prev + 1);
+    };
 
-
-
-const handleTbResult = ({ winnerIds }: { winnerIds: string[] }) => {
-  if (debug) console.log('[Client] tiebreak:result', winnerIds);
-  setTbWinners(winnerIds);
-  setPhaseMessage('Tie-breaker resolved. Finalizing results…');
-};
-
+    const handleTbResult = ({ winnerIds }: { winnerIds: string[] }) => {
+      if (debug) console.log('[Client] tiebreak:result', winnerIds);
+      setTbWinners(winnerIds);
+      setPhaseMessage('Tie-breaker resolved. Finalizing results…');
+    };
 
     // register
     socket.on('tiebreak:review', handleTbReview);
     socket.on('tiebreak:start', handleTbStart);
-socket.on('tiebreak:question', handleTbQuestion);
-socket.on('tiebreak:tie_again', handleTbTieAgain);
-socket.on('tiebreak:result', handleTbResult);
+    socket.on('tiebreak:question', handleTbQuestion);
+    socket.on('tiebreak:tie_again', handleTbTieAgain);
+    socket.on('tiebreak:result', handleTbResult);
 
     socket.on('question', handleQuestion);
     socket.on('review_question', handleReviewQuestion);
@@ -744,14 +839,14 @@ socket.on('tiebreak:result', handleTbResult);
     socket.on('quiz_cancelled', handleQuizCancelled);
     socket.on('enhanced_player_stats', handleEnhancedPlayerStats);
     socket.on('speed_question', handleSpeedQuestion);
-socket.on('round_time_remaining', handleRoundTimeRemaining);
+    socket.on('round_time_remaining', handleRoundTimeRemaining);
 
     return () => {
       socket.off('tiebreak:review', handleTbReview);
       socket.off('tiebreak:start', handleTbStart);
-socket.off('tiebreak:question', handleTbQuestion);
-socket.off('tiebreak:tie_again', handleTbTieAgain);
-socket.off('tiebreak:result', handleTbResult);
+      socket.off('tiebreak:question', handleTbQuestion);
+      socket.off('tiebreak:tie_again', handleTbTieAgain);
+      socket.off('tiebreak:result', handleTbResult);
 
       socket.off('question', handleQuestion);
       socket.off('review_question', handleReviewQuestion);
@@ -771,11 +866,10 @@ socket.off('tiebreak:result', handleTbResult);
       socket.off('player_state_recovery', handlePlayerStateRecovery);
       socket.off('quiz_cancelled', handleQuizCancelled);
       socket.off('enhanced_player_stats', handleEnhancedPlayerStats);
-       socket.off('speed_question', handleSpeedQuestion);
-  socket.off('round_time_remaining', handleRoundTimeRemaining);
+      socket.off('speed_question', handleSpeedQuestion);
+      socket.off('round_time_remaining', handleRoundTimeRemaining);
     };
-  }, [socket, connected, roomId, playerId, playersInRoom, config?.roundDefinitions]
-);
+  }, [socket, connected, roomId, playerId, navigate, roomPhase, serverRoomState.currentRound]);
 
   const handleUseExtra = (extraId: string, targetPlayerId?: string) => {
     if (!socket || !roomId || !playerId) return;
@@ -823,7 +917,7 @@ socket.off('tiebreak:result', handleTbResult);
     return config?.roundDefinitions?.[serverRoomState.currentRound - 1];
   };
 
-  // ✅ build a safe config for the completion component (fixes Partial<QuizConfig> type error)
+  // ✅ safe config for completion component
   const safeConfig: QuizConfig = {
     hostName: config?.hostName ?? 'Host',
     hostId: config?.hostId ?? 'host',
@@ -865,48 +959,48 @@ socket.off('tiebreak:result', handleTbResult);
     theme: config?.theme,
     roomCaps: config?.roomCaps,
     isWeb3Room: config?.isWeb3Room,
+    reconciliation: config?.reconciliation,
   };
 
-  const submitTieBreaker = useCallback(() => {
+const submitTieBreaker = useCallback(() => {
   if (!socket || !roomId) return;
   const num = Number(tbAnswer);
   if (!Number.isFinite(num)) return;
   socket.emit('tiebreak:answer', { roomId, answer: num });
-  // Optional: lock the input after submit
+  setTbHasSubmitted(true); // 👈 mark as submitted locally
 }, [socket, roomId, tbAnswer]);
 
-  // ✅ render
+
   return (
     <div className={`p-8 ${getFlashClasses()}`}>
-   {roomPhase === 'tiebreaker' ? (
-  <TiebreakerRound
-    question={tbQuestion}
-    isTieBreakerParticipant={isTieBreakerParticipant}
-    tbParticipants={tbParticipants}
-    tbStillTied={tbStillTied}
-    tbWinners={tbWinners}
-    tbAnswer={tbAnswer}
-    setTbAnswer={setTbAnswer}
-    submitTieBreaker={submitTieBreaker}
-    currentRound={serverRoomState.currentRound}
-    timerActive={timerActive}
-    correctAnswer={tbCorrectAnswer}
-    showReview={tbShowReview}
-    playerAnswers={tbPlayerAnswers}
-    playersInRoom={playersInRoom}
-    questionNumber={tbQuestionNumber}
-    onAutoSubmit={() => {
-      // Handle auto-submit from timer
-      if (tbAnswer.trim()) {
-        submitTieBreaker();
-      }
-    }}
-  />
-) : null}
+      {roomPhase === 'tiebreaker' ? (
+        <TiebreakerRound
+          question={tbQuestion}
+          isTieBreakerParticipant={isTieBreakerParticipant}
+          tbParticipants={tbParticipants}
+          tbStillTied={tbStillTied}
+          tbWinners={tbWinners}
+          tbAnswer={tbAnswer}
+          setTbAnswer={setTbAnswer}
+          submitTieBreaker={submitTieBreaker}
+          currentRound={serverRoomState.currentRound}
+          timerActive={timerActive}
+          correctAnswer={tbCorrectAnswer}
+          showReview={tbShowReview}
+          playerAnswers={tbPlayerAnswers}
+          playersInRoom={playersInRoom}
+          questionNumber={tbQuestionNumber}
+          hasSubmitted={tbHasSubmitted} 
+          onAutoSubmit={() => {
+            if (tbAnswer.trim()) submitTieBreaker();
+          }}
+        />
+      ) : null}
+
       {roomPhase === 'complete' ? (
         <QuizCompletionCelebration
           leaderboard={leaderboard}
-          config={safeConfig} // ✅ pass safe config
+          config={safeConfig}
           playerId={playerId || ''}
           roomId={roomId || ''}
           enhancedStats={enhancedStats}
@@ -1017,7 +1111,7 @@ socket.off('tiebreak:result', handleTbResult);
               <RoundRouter
                 currentRound={serverRoomState.currentRound}
                 roomPhase={roomPhase}
-                currentRoundType={asRoundTypeId(serverRoomState.roundTypeId)} // ✅ typed
+                currentRoundType={asRoundTypeId(serverRoomState.roundTypeId)}
                 question={question}
                 timeLeft={timeLeft}
                 timerActive={timerActive && !answerSubmitted}
@@ -1030,26 +1124,20 @@ socket.off('tiebreak:result', handleTbResult);
                 isFrozen={isFrozenNow}
                 frozenNotice={frozenNotice}
                 // ✅ instant submit for speed_round
-             onSubmit={(ans?: string) => {
-  if (serverRoomState.roundTypeId === 'speed_round') {
-    // Update local UI immediately
-    setSelectedAnswer(ans ?? '');
-    setAnswerSubmitted(true);
-
-    // Send instant submission for speed round
-    socket?.emit('submit_speed_answer', {
-      roomId,
-      playerId,
-      questionId: getCurrentQuestionId(), // uses your ref fallback
-      answer: ans ?? null,                // null = skip
-    });
-
-    // NOTE: do NOT start per-question timers here
-  } else {
-    // other rounds: keep your existing timer-based flow
-  }
-}}
-
+                onSubmit={(ans?: string) => {
+                  if (serverRoomState.roundTypeId === 'speed_round') {
+                    setSelectedAnswer(ans ?? '');
+                    setAnswerSubmitted(true);
+                    socket?.emit('submit_speed_answer', {
+                      roomId,
+                      playerId,
+                      questionId: getCurrentQuestionId(),
+                      answer: ans ?? null,
+                    });
+                  } else {
+                    // other rounds: timer-based flow
+                  }
+                }}
                 roomId={roomId!}
                 playerId={playerId!}
                 roundExtras={roundExtras}
@@ -1092,10 +1180,8 @@ socket.off('tiebreak:result', handleTbResult);
       <FreezeOverlay
         key={freezeOverlayTrigger}
         isActive={showFreezeOverlay}
-        frozenBy={playersInRoom.find((p) => p.id === frozenByRef.current)?.name || 'Someone'}
-        onAnimationComplete={() => {
-          handleFreezeOverlayComplete();
-        }}
+        frozenBy={playersRef.current.find((p) => p.id === frozenByRef.current)?.name || 'Someone'}
+        onAnimationComplete={handleFreezeOverlayComplete}
         targetElement=".quiz-content, .round-router, [data-testid='question-card']"
       />
     </div>
@@ -1103,6 +1189,7 @@ socket.off('tiebreak:result', handleTbResult);
 };
 
 export default QuizGamePlayPage;
+
 
 
 

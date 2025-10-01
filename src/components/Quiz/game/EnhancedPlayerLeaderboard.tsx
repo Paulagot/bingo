@@ -1,7 +1,7 @@
 //src/components/Quiz/game/EnhancedPlayerLeaderboard.tsx
 import React, { useEffect, useState, useMemo } from 'react';
 import { 
-  Trophy, Crown, Medal, Award, Star, Sparkles, Target
+  Trophy, Crown, Medal, Award, Star, Sparkles, 
 } from 'lucide-react';
 import { LeaderboardEntry } from '../types/quiz';
 import { fundraisingExtraDefinitions } from '../constants/quizMetadata';
@@ -585,8 +585,8 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
               // Which debt number to show in this row:
               // - In round results, prefer carryDebt (from the round settlement)
               // - Otherwise, show overall penaltyDebt (carried across rounds)
-              const debtToShow =
-                (isRoundResults ? (entry.carryDebt ?? entry.penaltyDebt) : (entry.penaltyDebt ?? entry.carryDebt)) ?? 0;
+              // const debtToShow =
+              //   (isRoundResults ? (entry.carryDebt ?? entry.penaltyDebt) : (entry.penaltyDebt ?? entry.carryDebt)) ?? 0;
               
               return (
                 <div key={entry.id}>
@@ -643,7 +643,7 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
                           {entry.name}
                         </span>
 
-                        {/* Debt pill */}
+                        {/* Debt pill
                         {debtToShow > 0 && (
                           <span
                              className="ml-1 rounded-full border border-gray-200 bg-gray-100 px-2 py-0.5 text-[11px] leading-4 text-gray-700"
@@ -651,7 +651,7 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
                             >
                               Debt {debtToShow}
                             </span>
-                          )}
+                          )} */}
                         
                         {/* Position Icons with round context */}
                         {actualPosition === 0 && (

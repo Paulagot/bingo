@@ -72,6 +72,7 @@ export class ReviewService {
 
     // Advance to next question for future calls
     room.currentReviewIndex = reviewIndex + 1;
+    room.lastEmittedReviewIndex = reviewIndex
 
     if (debug) {
       console.log(`[ReviewService] ✅ Review question ${reviewIndex + 1} emitted, advanced to index ${room.currentReviewIndex}`);
@@ -280,32 +281,36 @@ export class ReviewService {
    * @param {Function} getQuizRoom - Room getter function passed from engine
    * @returns {Object|null} Current review question or null if complete/not found
    */
-  static getCurrentReviewQuestion(roomId, getQuizRoom) {
-    const room = getQuizRoom(roomId);
-    const qList = (Array.isArray(room?.reviewQuestions) && room.reviewQuestions.length > 0)
-      ? room.reviewQuestions
-      : room?.questions;
+ static getCurrentReviewQuestion(roomId, getQuizRoom) {
+  const room = getQuizRoom(roomId);
+  const qList = (Array.isArray(room?.reviewQuestions) && room.reviewQuestions.length > 0)
+    ? room.reviewQuestions
+    : room?.questions;
 
-    if (!room || !qList || room.currentReviewIndex === undefined) {
-      if (debug) {
-        console.warn(`[ReviewService] ⚠️ getCurrentReviewQuestion: No room or review data for ${roomId}`);
-      }
-      return null;
-    }
-
-    if (room.currentReviewIndex >= qList.length) {
-      if (debug) console.log(`[ReviewService] ✅ getCurrentReviewQuestion: Review complete for ${roomId}`);
-      return null;
-    }
-
-    const reviewQuestion = qList[room.currentReviewIndex];
-
+  if (!room || !qList) {
     if (debug) {
-      console.log(`[ReviewService] 📖 getCurrentReviewQuestion: Returning question ${room.currentReviewIndex + 1}/${qList.length} for ${roomId}`);
+      console.warn(`[ReviewService] ⚠️ getCurrentReviewQuestion: No room or review data for ${roomId}`);
     }
-
-    return reviewQuestion;
+    return null;
   }
+
+  const idx = room.lastEmittedReviewIndex;
+
+  // Before the first review is emitted or after review is finished
+  if (idx == null || idx < 0 || idx >= qList.length) {
+    if (debug) console.log(`[ReviewService] ℹ️ getCurrentReviewQuestion: idx=${idx}, no active review question`);
+    return null;
+  }
+
+  const reviewQuestion = qList[idx];
+
+  if (debug) {
+    console.log(`[ReviewService] 📖 getCurrentReviewQuestion: Returning question ${idx + 1}/${qList.length} for ${roomId}`);
+  }
+
+  return reviewQuestion;
+}
+
 
   /**
    * Check if review is complete for a room
