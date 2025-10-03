@@ -9,7 +9,15 @@ const publicPages = [
   { path: '/Web3-Impact-Event', priority: 0.9, changefreq: 'monthly' },
   { path: '/free-trial', priority: 0.8, changefreq: 'monthly' },
   { path: '/testimonials', priority: 0.7, changefreq: 'monthly' },
-  { path: '/quiz/demo', priority: 0.7, changefreq: 'monthly' }, // ✅ explicitly indexable
+  { path: '/quiz/demo', priority: 0.7, changefreq: 'monthly' },
+
+  // ✅ Add these:
+  { path: '/quiz/how-it-works', priority: 0.8, changefreq: 'monthly' },
+  { path: '/quiz/features', priority: 0.8, changefreq: 'monthly' },
+  { path: '/quiz/use-cases', priority: 0.7, changefreq: 'monthly' },
+  { path: '/quiz/use-cases/charities', priority: 0.8, changefreq: 'monthly' },
+  { path: '/quiz/use-cases/clubs', priority: 0.8, changefreq: 'monthly' },
+  { path: '/quiz/use-cases/schools', priority: 0.8, changefreq: 'monthly' },
 ];
 
 // Optional: page-specific lastmod map (leave empty if not needed)
@@ -65,13 +73,18 @@ Allow: /whats-new
 Allow: /Web3-Impact-Event
 Allow: /free-trial
 Allow: /testimonials
-Allow: /quiz/demo   # ✅ explicit exception under /quiz/
+Allow: /quiz/demo
+Allow: /quiz/how-it-works
+Allow: /quiz/features
+Allow: /quiz/use-cases
+Allow: /quiz/use-cases/
+Allow: /quiz/use-cases/charities
+Allow: /quiz/use-cases/clubs
+Allow: /quiz/use-cases/schools
 
 # BLOCK - Private sections
 Disallow: /game/
 Disallow: /quiz/
-Disallow: /pitch-deck
-Disallow: /pitch-deck-content
 Disallow: /BingoBlitz
 Disallow: /admin/
 Disallow: /dashboard/

@@ -1,8 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { usePlayerStore } from '../hooks/usePlayerStore';
 import { useQuizConfig } from '../hooks/useQuizConfig';
+
+
+// ⤵️ NEW: add these three lightweight components
+import ReconciliationApproval from '../payments/ReconciliationApproval';
+import ReconciliationDownloads from '../payments/ReconciliationDownloads';
+import ReconciliationLedger from '../payments/ReconciliationLedger';
 
 type MethodTotals = { entry: number; extrasAmount: number; extrasCount: number; total: number };
 
@@ -38,7 +44,9 @@ const PaymentReconciliationPanel: React.FC = () => {
   const { roomId } = useParams();
   const { socket } = useQuizSocket();
   const { players } = usePlayerStore();
-  const { config } = useQuizConfig();
+  const { config, currentPhase } = useQuizConfig();
+ const isComplete = currentPhase === 'complete';
+  const navigate = useNavigate();
 
   const currency = config?.currencySymbol || '€';
   const entryFee = parseFloat(config?.entryFee || '0');
@@ -146,7 +154,7 @@ const PaymentReconciliationPanel: React.FC = () => {
   const totalReceived = totalEntryReceived + totalExtrasAmount;
   const fmt = (n: number) => `${currency}${n.toFixed(2)}`;
 
-  // ----- Export CSV + (optional) PDF -----
+  // ----- Export CSV + (optional) PDF (legacy single-button) -----
   const exportCsvAndPdf = async () => {
     const now = new Date();
     const iso = now.toISOString();
@@ -263,6 +271,7 @@ const PaymentReconciliationPanel: React.FC = () => {
         totalReceived > 0 ? `${((d.total / totalReceived) * 100).toFixed(1)}%` : '—',
       ]);
 
+      // @ts-ignore
       autoTable(doc, {
         head: [['Payment Method', 'Entry Fees', 'Extras (count)', 'Extras (amount)', 'Total', '% of Total']],
         body: bodyRows,
@@ -270,6 +279,7 @@ const PaymentReconciliationPanel: React.FC = () => {
         headStyles: { fillColor: [240, 240, 240] },
         theme: 'grid',
         margin: { left: 40, right: 40 },
+        // @ts-ignore
         startY: (doc as any).lastAutoTable.finalY + 20,
         foot: [[
           { content: 'Total', styles: { fontStyle: 'bold' } },
@@ -282,6 +292,7 @@ const PaymentReconciliationPanel: React.FC = () => {
       });
 
       // Unpaid list
+      // @ts-ignore
       const afterY = (doc as any).lastAutoTable?.finalY || 140;
       doc.setFontSize(12);
       doc.text('Unpaid Players (Entry):', 40, afterY + 24);
@@ -290,6 +301,7 @@ const PaymentReconciliationPanel: React.FC = () => {
         doc.text('All players are paid. ✅', 40, afterY + 40);
       } else {
         const names = unpaidPlayers.map((p) => p.name || p.id).join(', ');
+        // @ts-ignore
         const lines = (doc as any).splitTextToSize(names, 515);
         doc.text(lines, 40, afterY + 40);
       }
@@ -302,17 +314,45 @@ const PaymentReconciliationPanel: React.FC = () => {
 
   return (
     <div className="bg-muted rounded-xl p-8 shadow-md">
+      {/* ⤵️ NEW: minimal additions at the very top */}
+
+ <div className="space-y-3 mb-8">
+   {!isComplete && (
+     <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+       Quiz isn’t complete yet. Reconciliation will unlock when the game ends.
+     </div>
+   )}
+<div className="space-y-6 mb-8">
+  <ReconciliationApproval />
+  <ReconciliationDownloads
+    allRoundsStats={[]}
+    onArchiveComplete={() => {
+      // End & clear room after the host confirms in the confirm bar
+      if (socket && roomId) {
+        socket.emit('delete_quiz_room', { roomId });
+      }
+      setTimeout(() => navigate('/'), 100);
+    }}
+  />
+  <ReconciliationLedger />
+</div>
+ </div>
+
       <div className="mb-6 flex items-center justify-between gap-4">
         <h2 className="text-fg text-2xl font-bold">💰 Payment Reconciliation</h2>
+
+        {/* Legacy single-button export (kept) — gated by approval */}
         <button
           onClick={exportCsvAndPdf}
-          className="rounded-xl bg-black px-4 py-2 text-white shadow hover:opacity-90"
+          disabled={!approvedAt}
+          className="rounded-xl bg-black px-4 py-2 text-white shadow hover:opacity-90 disabled:opacity-40"
+          title={approvedAt ? 'Export CSV + PDF' : 'Approve first to enable exports'}
         >
           Export CSV + PDF
         </button>
       </div>
 
-      {/* Reconciliation fields */}
+      {/* Reconciliation fields (kept as-is for backward compatibility) */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium text-fg/80">Approved by</label>
@@ -412,6 +452,7 @@ const PaymentReconciliationPanel: React.FC = () => {
 };
 
 export default PaymentReconciliationPanel;
+
 
 
 

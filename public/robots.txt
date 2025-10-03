@@ -6,13 +6,18 @@ Allow: /whats-new
 Allow: /Web3-Impact-Event
 Allow: /free-trial
 Allow: /testimonials
-Allow: /quiz/demo   # ✅ explicit exception under /quiz/
+Allow: /quiz/demo
+Allow: /quiz/how-it-works
+Allow: /quiz/features
+Allow: /quiz/use-cases
+Allow: /quiz/use-cases/
+Allow: /quiz/use-cases/charities
+Allow: /quiz/use-cases/clubs
+Allow: /quiz/use-cases/schools
 
 # BLOCK - Private sections
 Disallow: /game/
 Disallow: /quiz/
-Disallow: /pitch-deck
-Disallow: /pitch-deck-content
 Disallow: /BingoBlitz
 Disallow: /admin/
 Disallow: /dashboard/

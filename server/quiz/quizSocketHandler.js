@@ -5,6 +5,7 @@ import { setupPlayerHandlers } from './handlers/playerHandlers.js';
 import { setupSharedHandlers } from './handlers/sharedUtils.js';
 import { isRateLimited } from '../socketRateLimiter.js';
 import { setupRecoveryHandlers } from './handlers/recoveryHandlers.js';
+import { setupReconciliationHandlers } from './handlers/reconciliationHandlers.js';
 
 export function setupQuizSocketHandlers(quizNamespace) {
   console.log('📡 [quiz] Quiz socket handlers setting up');
@@ -19,6 +20,7 @@ export function setupQuizSocketHandlers(quizNamespace) {
     setupPlayerHandlers(socket, quizNamespace);
     setupSharedHandlers(socket, quizNamespace);
     setupRecoveryHandlers(socket, quizNamespace);
+     setupReconciliationHandlers(socket, quizNamespace);
 
     socket.on('disconnect', () => {
       console.log(`❌ [quiz] Client disconnected: ${socket.id}`);
