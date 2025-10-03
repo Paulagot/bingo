@@ -244,7 +244,7 @@ const FreeTrial: React.FC = () => {
                 <Users aria-hidden="true" className="h-6 w-6 text-white" />
               </div>
               <h3 className="text-white mb-2 text-lg font-bold">Admin & Player Management</h3>
-              <p className="text-white/80">Add admins (2 on trial, 4 on premium). Invite players by link or QR and manage attendance.</p>
+              <p className="text-white/80">Add admins (2 on trial, 10 on premium). Invite players by link or QR and manage attendance.</p>
             </div>
 
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300">

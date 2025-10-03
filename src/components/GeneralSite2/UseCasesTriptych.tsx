@@ -1,5 +1,4 @@
-// src/components/GeneralSite2/UseCasesTriptych.tsx
-import type React from 'react';
+import React from 'react';
 import { GraduationCap, Trophy, Heart, ArrowRight, Users } from 'lucide-react';
 
 const useCases = [
@@ -29,10 +28,19 @@ const useCases = [
     gradient: 'from-pink-500 to-rose-500',
     bgGradient: 'from-pink-50 to-rose-50',
     features: ["Transparent Donation Records", "Powerful Impact Tracking", "Empathetic Donor Reporting"]
+  },
+  { 
+    title: 'For Community Groups: Building Stronger Communities', 
+    copy: 'Fund local projects and strengthen neighborhood bonds through accessible, fun quiz events. Our platform provides transparent financial management and simple setup, making it easy for anyone to host professional fundraising events.',
+    href: '/quiz/use-cases/community-groups',
+    icon: Users,
+    gradient: 'from-amber-500 to-orange-500',
+    bgGradient: 'from-amber-50 to-orange-50',
+    features: ["Accessible Event Management", "Local Project Funding", "Transparent Financial Tracking"]
   }
 ];
 
-const UseCasesTriptych: React.FC = () => (
+const UseCasesTriptych = () => (
   <section className="px-4 pt-16 pb-8">
     <div className="container mx-auto max-w-6xl">
       {/* Header */}
@@ -52,7 +60,7 @@ const UseCasesTriptych: React.FC = () => (
       </div>
 
       {/* Use Cases Grid */}
-      <div className="grid gap-8 md:grid-cols-3 mb-12">
+      <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4 mb-12">
         {useCases.map(({ title, copy, href, icon: Icon, gradient, bgGradient, features }, index) => (
           <a 
             key={title}

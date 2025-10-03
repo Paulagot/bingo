@@ -236,7 +236,7 @@ export default function ClubRegisterForm({ onSwitchToLogin }: ClubRegisterFormPr
               </div>
               <h2 className="text-3xl font-bold text-indigo-900 mb-3">Join FundRaisely</h2>
               <p className="text-indigo-800/70 leading-relaxed">
-                Register your club and start fundraising today
+                Register your club, community group or charity and start fundraising today
               </p>
             </div>
 

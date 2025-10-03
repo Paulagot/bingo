@@ -144,7 +144,7 @@ export const SEO: React.FC<SEOProps> = ({
       /^\/dashboard\//,
       /^\/user\//,
       /^\/api\//,
-      /^\/pitch-deck/
+    
     ];
     const allowlist = ['/quiz/demo'];
 
