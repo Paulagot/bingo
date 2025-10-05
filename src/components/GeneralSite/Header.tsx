@@ -26,7 +26,8 @@ export function Header() {
   // Routes
   const ROUTES = {
     impactCampaign: '/Web3-Impact-Event', // label: Impact Campaign
-    pricing: '/pricing',
+    // pricing: '/pricing', // (replaced in nav by Founding Partner)
+    foundingPartner: '/founding-partners', // NEW: Launch offer
     blog: '/blog',
     login: '/auth',
     freeTrial: '/free-trial',
@@ -115,21 +116,21 @@ export function Header() {
             </div>
           </div>
 
-          {/* Pricing */}
-          {hideIfCurrent(ROUTES.pricing) && (
+          {/* Founding Partner (replaces Pricing) */}
+          {hideIfCurrent(ROUTES.foundingPartner) && (
             <Link
-              to={ROUTES.pricing}
-              className="text-sm font-medium text-gray-800 hover:text-indigo-700"
+              to={ROUTES.foundingPartner}
+              className="text-sm font-medium text-indigo-700 hover:text-indigo-900"
             >
-              Pricing
+              Founding Partner
             </Link>
           )}
 
-          {/* Impact Campaign (pink accent) */}
+          {/* Impact Campaign (now unified colour) */}
           {!onImpactCampaign && (
             <Link
               to={ROUTES.impactCampaign}
-              className="text-sm font-medium text-pink-600 hover:text-pink-800"
+              className="text-sm font-medium text-indigo-700 hover:text-indigo-900"
             >
               Impact Campaign
             </Link>
@@ -139,7 +140,7 @@ export function Header() {
           {hideIfCurrent(ROUTES.blog) && (
             <Link
               to={ROUTES.blog}
-              className="text-sm font-medium text-gray-800 hover:text-indigo-700"
+              className="text-sm font-medium text-indigo-700 hover:text-indigo-900"
             >
               Blog
             </Link>
@@ -149,7 +150,7 @@ export function Header() {
           {!isAuthenticated && hideIfCurrent(ROUTES.login) && (
             <Link
               to={ROUTES.login}
-              className="text-sm font-medium text-indigo-600 hover:text-indigo-800"
+              className="text-sm font-medium text-indigo-700 hover:text-indigo-900"
             >
               Login
             </Link>
@@ -228,7 +229,7 @@ export function Header() {
                 {hideIfCurrent(ROUTES.howItWorks) && (
                   <Link
                     to={ROUTES.howItWorks}
-                    className="rounded-md px-2 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     How it Works
@@ -237,7 +238,7 @@ export function Header() {
                 {hideIfCurrent(ROUTES.features) && (
                   <Link
                     to={ROUTES.features}
-                    className="rounded-md px-2 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Features
@@ -246,7 +247,7 @@ export function Header() {
                 {hideIfCurrent(ROUTES.useCases) && (
                   <Link
                     to={ROUTES.useCases}
-                    className="rounded-md px-2 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Use Cases (Schools, Clubs, Charities)
@@ -255,7 +256,7 @@ export function Header() {
                 {hideIfCurrent(ROUTES.demo) && (
                   <Link
                     to={ROUTES.demo}
-                    className="rounded-md px-2 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Demo
@@ -264,7 +265,7 @@ export function Header() {
                 {hideIfCurrent(ROUTES.testimonials) && (
                   <Link
                     to={ROUTES.testimonials}
-                    className="rounded-md px-2 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Testimonials
@@ -273,22 +274,22 @@ export function Header() {
               </div>
             )}
 
-            {/* Pricing */}
-            {hideIfCurrent(ROUTES.pricing) && (
+            {/* Founding Partner (replaces Pricing) */}
+            {hideIfCurrent(ROUTES.foundingPartner) && (
               <Link
-                to={ROUTES.pricing}
-                className="block rounded-md px-2 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
+                to={ROUTES.foundingPartner}
+                className="block rounded-md px-2 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Pricing
+                Founding Partner
               </Link>
             )}
 
-            {/* Impact Campaign (pink) */}
+            {/* Impact Campaign */}
             {!onImpactCampaign && (
               <Link
                 to={ROUTES.impactCampaign}
-                className="block rounded-md px-2 py-2 text-sm font-medium text-pink-600 hover:bg-pink-50"
+                className="block rounded-md px-2 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Impact Campaign
@@ -299,7 +300,7 @@ export function Header() {
             {hideIfCurrent(ROUTES.blog) && (
               <Link
                 to={ROUTES.blog}
-                className="block rounded-md px-2 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
+                className="block rounded-md px-2 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Blog
@@ -310,7 +311,7 @@ export function Header() {
             {!isAuthenticated && hideIfCurrent(ROUTES.login) && (
               <Link
                 to={ROUTES.login}
-                className="block rounded-md px-2 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50"
+                className="block rounded-md px-2 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Login
@@ -353,6 +354,7 @@ export function Header() {
     </header>
   );
 }
+
 
 
 

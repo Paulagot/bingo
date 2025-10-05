@@ -227,6 +227,13 @@ const QuizUsecaseIndexPage: React.FC = () => {
           </p>
           <div className="mt-7 flex flex-wrap justify-center gap-3">
             <a href="/free-trial" className="rounded-xl bg-indigo-700 px-6 py-3 text-white font-semibold shadow-md hover:bg-indigo-800 transition-colors">Run a Free Trial Quiz</a>
+               {/* New: Founding Partner CTA */}
+              <a
+                href="/founding-partners"
+                className="rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 px-8 py-4 text-white font-bold shadow-lg hover:scale-105 hover:shadow-xl transition"
+              >
+                Become a Founding Partner
+              </a>
             <a href="/quiz/demo" className="rounded-xl bg-white px-6 py-3 text-indigo-700 font-semibold shadow-md hover:bg-indigo-50 inline-flex items-center gap-2 transition-colors">
               <PlayCircle className="h-5 w-5" /> Watch the Demo
             </a>
@@ -420,7 +427,7 @@ const QuizUsecaseIndexPage: React.FC = () => {
               Join the growing community of schools, sports clubs, charities, and community groups who are transforming their fundraising with FundRaisely. Real stories of impact and success coming soon.
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
-              <a href="/free-trial" className="rounded-xl bg-indigo-700 px-6 py-3 text-white font-semibold shadow-md hover:bg-indigo-800 transition-colors">Share Your Success Story</a>
+              <a href="/contact" className="rounded-xl bg-indigo-700 px-6 py-3 text-white font-semibold shadow-md hover:bg-indigo-800 transition-colors">Share Your Success Story</a>
               <a href="/quiz/testimonials" className="rounded-xl bg-white px-6 py-3 text-indigo-700 font-semibold shadow-md hover:bg-indigo-50 border border-indigo-200 transition-colors">View Testimonials</a>
             </div>
           </div>
@@ -475,6 +482,13 @@ const QuizUsecaseIndexPage: React.FC = () => {
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <a href="/free-trial" className="rounded-xl bg-white px-8 py-4 text-indigo-700 font-semibold shadow-md hover:bg-indigo-50 transition-colors text-lg">Run a Free Trial Quiz</a>
+                 {/* New: Founding Partner CTA */}
+              <a
+                href="/founding-partners"
+                className="rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 px-8 py-4 text-white font-bold shadow-lg hover:scale-105 hover:shadow-xl transition"
+              >
+                Become a Founding Partner
+              </a>
               <a href="/pricing" className="rounded-xl bg-indigo-800 px-8 py-4 text-white font-semibold shadow-md hover:bg-indigo-900 border border-indigo-600 transition-colors text-lg">See Pricing</a>
             </div>
           </div>

@@ -4,7 +4,7 @@
 // ==========================================
 import type React from 'react';
 import {
-  Check, QrCode, CreditCard, FileText, PlayCircle, Users, Shield,
+ QrCode, CreditCard, FileText, PlayCircle, Users, Shield,
   BookOpen, Heart, TrendingUp, Clock, Zap, GraduationCap,  Award
 } from 'lucide-react';
 
@@ -12,7 +12,7 @@ import { SEO } from '../../components/SEO';
 import { Header } from '../../components/GeneralSite/Header';
 import SiteFooter from '../../components/GeneralSite2/SiteFooter';
 import OutcomePreview from '../../components/GeneralSite2/OutcomePreview';
-import { currencySymbol, formatMoney } from '../../services/currency';
+import {  formatMoney } from '../../services/currency';
 
 // -----------------------------
 // Helpers
@@ -33,12 +33,12 @@ function abs(path: string): string {
 // -----------------------------
 // UI atoms
 // -----------------------------
-const Bullet: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <li className="flex items-start gap-3">
-    <Check className="mt-1 h-5 w-5 flex-shrink-0 text-green-600" />
-    <span className="text-indigo-900/80">{children}</span>
-  </li>
-);
+// const Bullet: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+//   <li className="flex items-start gap-3">
+//     <Check className="mt-1 h-5 w-5 flex-shrink-0 text-green-600" />
+//     <span className="text-indigo-900/80">{children}</span>
+//   </li>
+// );
 
 const FeatureCard: React.FC<{ icon: React.ReactNode; title: string; desc: string }> = ({ icon, title, desc }) => (
   <div className="rounded-xl border border-blue-100 bg-white p-6 shadow-sm hover:shadow-md transition-all duration-300">
@@ -191,6 +191,13 @@ const UsecaseSchoolPage: React.FC = () => {
             <a href="/pricing" className="rounded-xl bg-white px-6 py-3 text-indigo-700 font-semibold shadow-md hover:bg-indigo-50 border border-indigo-200 transition-colors">
               See Pricing
             </a>
+                {/* New: Founding Partner CTA */}
+              <a
+                href="/founding-partners"
+                className="rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 px-8 py-4 text-white font-bold shadow-lg hover:scale-105 hover:shadow-xl transition"
+              >
+                Become a Founding Partner
+              </a>
             <a href="/quiz/demo" className="rounded-xl bg-white px-6 py-3 text-indigo-700 font-semibold shadow-md hover:bg-indigo-50 inline-flex items-center gap-2 border border-indigo-200 transition-colors">
               <PlayCircle className="h-5 w-5" /> Watch Demo
             </a>
@@ -436,6 +443,13 @@ const UsecaseSchoolPage: React.FC = () => {
             <div className="flex flex-wrap justify-center gap-4">
               <a href="/free-trial" className="rounded-xl bg-white px-8 py-4 text-indigo-700 font-semibold shadow-md hover:bg-blue-50 transition-colors text-lg">
                 Run a Free Trial Quiz
+              </a>
+                  {/* New: Founding Partner CTA */}
+              <a
+                href="/founding-partners"
+                className="rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 px-8 py-4 text-white font-bold shadow-lg hover:scale-105 hover:shadow-xl transition"
+              >
+                Become a Founding Partner
               </a>
               <a href="/pricing" className="rounded-xl bg-blue-800 px-8 py-4 text-white font-semibold shadow-md hover:bg-blue-900 border border-blue-600 transition-colors text-lg">
                 See Pricing

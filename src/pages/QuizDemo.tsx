@@ -119,6 +119,13 @@ const DemoPage: React.FC = () => {
             >
               Start Free Trial
             </a>
+                {/* New: Founding Partner CTA */}
+              <a
+                href="/founding-partners"
+                className="rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 px-8 py-4 text-white font-bold shadow-lg hover:scale-105 hover:shadow-xl transition"
+              >
+                Become a Founding Partner
+              </a>
             <a
               href="/signup?source=demo"
               className="rounded-xl bg-white px-6 py-3 text-indigo-700 font-semibold shadow-md hover:bg-indigo-50"

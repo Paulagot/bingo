@@ -268,13 +268,53 @@ export interface UseAnswerSubmissionParams {
   debug?: boolean;
 }
 
+export type PrizeAwardStatus =
+  | 'declared'
+  | 'delivered'
+  | 'unclaimed'
+  | 'refused'
+  | 'returned'
+  | 'canceled';
+
+export interface PrizeAward {
+  prizeAwardId: string;
+  prizeId?: string;
+  place?: number;
+  prizeName: string;
+  prizeType: 'cash' | 'token' | 'nft' | 'voucher' | 'goods';
+  declaredValue?: number;
+  currency?: string;
+  sponsor?: { name?: string; contact?: string; notes?: string; inKind?: boolean };
+
+  winnerPlayerId: string;
+  winnerName: string;
+
+  status: PrizeAwardStatus;
+  statusHistory: Array<{
+    status: PrizeAwardStatus;
+    at: string;               // ISO
+    byUserId: string;
+    byUserName?: string;
+    note?: string;
+  }>;
+
+  awardMethod?: 'cash' | 'card' | 'revolut' | 'web3' | 'physical' | 'other';
+  awardReference?: string;     // PSP id / tx hash / receipt
+  awardedAt?: string;          // ISO
+  note?: string;
+}
+
 export interface ReconciliationMeta  {
   approvedBy?: string;
   notes?: string;
   approvedAt?: string | null;
   updatedAt?: string | null;
   updatedBy?: string | null;
+  // NEW
+  prizeAwards?: PrizeAward[];
+  finalLeaderboard?: LeaderboardEntry[];
 };
+
 
 // Add this interface for speed round host stats
 export interface HostSpeedStats {

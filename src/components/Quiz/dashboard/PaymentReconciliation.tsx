@@ -1,11 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { usePlayerStore } from '../hooks/usePlayerStore';
 import { useQuizConfig } from '../hooks/useQuizConfig';
+import { Lock, TrendingUp, Users, DollarSign } from 'lucide-react';
 
-
-// ⤵️ NEW: add these three lightweight components
 import ReconciliationApproval from '../payments/ReconciliationApproval';
 import ReconciliationDownloads from '../payments/ReconciliationDownloads';
 import ReconciliationLedger from '../payments/ReconciliationLedger';
@@ -14,30 +13,11 @@ type MethodTotals = { entry: number; extrasAmount: number; extrasCount: number; 
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border bg-white p-3 shadow-sm">
-      <div className="text-xs text-fg/70">{label}</div>
-      <div className="text-base font-semibold">{value}</div>
+    <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
+      <div className="text-xs font-medium text-gray-600">{label}</div>
+      <div className="text-lg font-bold text-gray-900">{value}</div>
     </div>
   );
-}
-
-function escapeCsv(value: string) {
-  if (value == null) return '';
-  const s = String(value);
-  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-}
-
-function downloadBlob(blob: Blob, fileName: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fileName;
-  a.style.display = 'none';
-  document.body.appendChild(a);
-  a.click();
-  URL.revokeObjectURL(url);
-  a.remove();
 }
 
 const PaymentReconciliationPanel: React.FC = () => {
@@ -45,79 +25,24 @@ const PaymentReconciliationPanel: React.FC = () => {
   const { socket } = useQuizSocket();
   const { players } = usePlayerStore();
   const { config, currentPhase } = useQuizConfig();
- const isComplete = currentPhase === 'complete';
+  const isComplete = currentPhase === 'complete';
   const navigate = useNavigate();
+
+  // Gate: prizes must be completed before reconciliation
+  const awards = (config?.reconciliation as any)?.prizeAwards || [];
+  const prizePlaces = new Set((config?.prizes || []).map((p: any) => p.place));
+  const finalStatuses = new Set(['delivered','unclaimed','refused','returned','canceled']);
+  const declaredByPlace = new Map<number, any>();
+  for (const a of awards) if (typeof a?.place === 'number') declaredByPlace.set(a.place, a);
+  const allDeclared = prizePlaces.size > 0 && [...prizePlaces].every(pl => declaredByPlace.has(pl));
+  const allResolved = prizePlaces.size > 0 && [...prizePlaces].every(pl => finalStatuses.has(declaredByPlace.get(pl)?.status));
+  const prizesDone = allDeclared && allResolved;
 
   const currency = config?.currencySymbol || '€';
   const entryFee = parseFloat(config?.entryFee || '0');
 
-  // Reconciliation fields
-  const [approvedBy, setApprovedBy] = useState('');
-  const [notes, setNotes] = useState('');
-  const [approvedAt, setApprovedAt] = useState<string | null>(null);
-  const saveTimer = useRef<number | null>(null);
-
-  // Seed from config if present
-  useEffect(() => {
-    const rec = config?.reconciliation as any;
-    if (rec) {
-      setApprovedBy(rec.approvedBy || '');
-      setNotes(rec.notes || '');
-      setApprovedAt(rec.approvedAt || null);
-    }
-  }, [config?.reconciliation]);
-
-  // Ask server for current state when this tab opens
-  useEffect(() => {
-    if (!socket || !roomId) return;
-    socket.emit('request_reconciliation', { roomId });
-  }, [socket, roomId]);
-
-  // Apply incoming updates from other hosts
-  useEffect(() => {
-    if (!socket || !roomId) return;
-
-    const applyUpdate = ({ roomId: rid, data }: { roomId: string; data: any }) => {
-      if (rid !== roomId) return;
-      setApprovedBy(data?.approvedBy || '');
-      setNotes(data?.notes || '');
-      setApprovedAt(data?.approvedAt || null);
-      // also mirror into config so any other panels reading config see it
-      const curr = useQuizConfig.getState().config || {};
-      useQuizConfig.getState().setFullConfig({ ...(curr as any), reconciliation: data } as any);
-    };
-
-    socket.on('reconciliation_updated', applyUpdate);
-    socket.on('reconciliation_state', applyUpdate);
-
-    return () => {
-      socket.off('reconciliation_updated', applyUpdate);
-      socket.off('reconciliation_state', applyUpdate);
-    };
-  }, [socket, roomId]);
-
-  // Debounced save to server (into room.config.reconciliation)
-  const queueSave = (patch: any) => {
-    if (!socket || !roomId) return;
-    if (saveTimer.current) window.clearTimeout(saveTimer.current);
-    saveTimer.current = window.setTimeout(() => {
-      socket.emit('update_reconciliation', { roomId, patch });
-    }, 350);
-  };
-
-  const onApprovedByChange = (v: string) => {
-    setApprovedBy(v);
-    queueSave({ approvedBy: v });
-  };
-  const onNotesChange = (v: string) => {
-    setNotes(v);
-    queueSave({ notes: v });
-  };
-  const onMarkApproved = () => {
-    const t = new Date().toISOString();
-    setApprovedAt(t);
-    queueSave({ approvedAt: t });
-  };
+  // Determine if reconciliation features should be locked
+  const isLocked = !isComplete || !prizesDone;
 
   // ----- totals & breakdown -----
   const paymentData: Record<string, MethodTotals> = {};
@@ -154,299 +79,225 @@ const PaymentReconciliationPanel: React.FC = () => {
   const totalReceived = totalEntryReceived + totalExtrasAmount;
   const fmt = (n: number) => `${currency}${n.toFixed(2)}`;
 
-  // ----- Export CSV + (optional) PDF (legacy single-button) -----
-  const exportCsvAndPdf = async () => {
-    const now = new Date();
-    const iso = now.toISOString();
-    const stamp = iso.replace(/[:\-]/g, '').replace('.000Z', '').slice(0, 15);
-    const reportTitle = 'Payment Reconciliation';
-    const fileBase = `payment-reconciliation-${stamp}`;
-
-    // CSV header/meta
-    const headerLines = [
-      reportTitle,
-      `Generated At,${now.toLocaleString()}`,
-      `Approved By,${escapeCsv(approvedBy)}`,
-      `Comments/Notes,${escapeCsv(notes)}`,
-      `Approved At,${approvedAt || '—'}`,
-      '',
-    ];
-
-    // CSV summary (flat)
-    const summaryFlat = [
-      ['Entry Fee', fmt(entryFee)],
-      ['Total Players', String(totalPlayers)],
-      ['Paid Players', String(paidPlayers.length)],
-      ['Unpaid Players', String(unpaidPlayers.length)],
-      ['Extras (count)', String(totalExtrasCount)],
-      ['Extras (amount)', fmt(totalExtrasAmount)],
-      ['Received Entry', fmt(totalEntryReceived)],
-      ['Grand Total', fmt(totalReceived)],
-    ].map((r) => r.map(escapeCsv).join(','));
-
-    // CSV table
-    const tableHeader = [
-      'Payment Method',
-      'Entry Fees',
-      'Extras (count)',
-      'Extras (amount)',
-      'Total',
-      '% of Total',
-    ];
-    const tableRows = Object.entries(paymentData).map(([method, d]) => [
-      method,
-      d.entry.toFixed(2),
-      String(d.extrasCount),
-      d.extrasAmount.toFixed(2),
-      d.total.toFixed(2),
-      totalReceived > 0 ? ((d.total / totalReceived) * 100).toFixed(1) + '%' : '—',
-    ]);
-    const totalsRow = [
-      'Total',
-      totalEntryReceived.toFixed(2),
-      String(totalExtrasCount),
-      totalExtrasAmount.toFixed(2),
-      totalReceived.toFixed(2),
-      totalReceived > 0 ? '100%' : '—',
-    ];
-
-    const csvContent = [
-      ...headerLines,
-      ...summaryFlat,
-      '',
-      tableHeader.join(','),
-      ...tableRows.map((r) => r.map(escapeCsv).join(',')),
-      totalsRow.map(escapeCsv).join(','),
-      '',
-      'Unpaid Players',
-      ...(unpaidPlayers.length ? unpaidPlayers.map((p) => escapeCsv(p.name || p.id)) : ['All players are paid.']),
-    ].join('\n');
-
-    downloadBlob(new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }), `${fileBase}.csv`);
-
-    // Try PDF; if libs missing, just skip (CSV is already saved)
-    try {
-      const { default: jsPDF } = await import('jspdf');
-      const { default: autoTable } = await import('jspdf-autotable');
-
-      const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
-
-      doc.setFontSize(16);
-      doc.text(reportTitle, 40, 40);
-      doc.setFontSize(10);
-      [
-        `Generated At: ${now.toLocaleString()}`,
-        `Approved By: ${approvedBy || '—'}`,
-        `Approved At: ${approvedAt || '—'}`,
-        `Comments/Notes: ${notes || '—'}`,
-      ].forEach((line, i) => doc.text(line, 40, 60 + i * 14));
-
-      // Summary grid
-      autoTable(doc, {
-        startY: 110,
-        head: [['Metric', 'Value']],
-        body: [
-          ['Entry Fee', fmt(entryFee)],
-          ['Total Players', String(totalPlayers)],
-          ['Paid Players', String(paidPlayers.length)],
-          ['Unpaid Players', String(unpaidPlayers.length)],
-          ['Extras (count)', String(totalExtrasCount)],
-          ['Extras (amount)', fmt(totalExtrasAmount)],
-          ['Received Entry', fmt(totalEntryReceived)],
-          ['Grand Total', fmt(totalReceived)],
-        ],
-        styles: { fontSize: 10 },
-        headStyles: { fillColor: [240, 240, 240] },
-        theme: 'grid',
-        margin: { left: 40, right: 40 },
-      });
-
-      // Method breakdown (+ totals foot)
-      const bodyRows = Object.entries(paymentData).map(([method, d]) => [
-        method,
-        fmt(d.entry),
-        String(d.extrasCount),
-        fmt(d.extrasAmount),
-        fmt(d.total),
-        totalReceived > 0 ? `${((d.total / totalReceived) * 100).toFixed(1)}%` : '—',
-      ]);
-
-      // @ts-ignore
-      autoTable(doc, {
-        head: [['Payment Method', 'Entry Fees', 'Extras (count)', 'Extras (amount)', 'Total', '% of Total']],
-        body: bodyRows,
-        styles: { fontSize: 10 },
-        headStyles: { fillColor: [240, 240, 240] },
-        theme: 'grid',
-        margin: { left: 40, right: 40 },
-        // @ts-ignore
-        startY: (doc as any).lastAutoTable.finalY + 20,
-        foot: [[
-          { content: 'Total', styles: { fontStyle: 'bold' } },
-          { content: fmt(totalEntryReceived), styles: { fontStyle: 'bold' } },
-          { content: String(totalExtrasCount), styles: { fontStyle: 'bold' } },
-          { content: fmt(totalExtrasAmount), styles: { fontStyle: 'bold' } },
-          { content: fmt(totalReceived), styles: { fontStyle: 'bold' } },
-          { content: totalReceived > 0 ? '100%' : '—', styles: { fontStyle: 'bold' } },
-        ]],
-      });
-
-      // Unpaid list
-      // @ts-ignore
-      const afterY = (doc as any).lastAutoTable?.finalY || 140;
-      doc.setFontSize(12);
-      doc.text('Unpaid Players (Entry):', 40, afterY + 24);
-      doc.setFontSize(10);
-      if (unpaidPlayers.length === 0) {
-        doc.text('All players are paid. ✅', 40, afterY + 40);
-      } else {
-        const names = unpaidPlayers.map((p) => p.name || p.id).join(', ');
-        // @ts-ignore
-        const lines = (doc as any).splitTextToSize(names, 515);
-        doc.text(lines, 40, afterY + 40);
-      }
-
-      doc.save(`${fileBase}.pdf`);
-    } catch (err) {
-      console.warn('PDF export skipped (jspdf/jspdf-autotable not available).', err);
-    }
-  };
-
   return (
-    <div className="bg-muted rounded-xl p-8 shadow-md">
-      {/* ⤵️ NEW: minimal additions at the very top */}
-
- <div className="space-y-3 mb-8">
-   {!isComplete && (
-     <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-       Quiz isn’t complete yet. Reconciliation will unlock when the game ends.
-     </div>
-   )}
-<div className="space-y-6 mb-8">
-  <ReconciliationApproval />
-  <ReconciliationDownloads
-    allRoundsStats={[]}
-    onArchiveComplete={() => {
-      // End & clear room after the host confirms in the confirm bar
-      if (socket && roomId) {
-        socket.emit('delete_quiz_room', { roomId });
-      }
-      setTimeout(() => navigate('/'), 100);
-    }}
-  />
-  <ReconciliationLedger />
-</div>
- </div>
-
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <h2 className="text-fg text-2xl font-bold">💰 Payment Reconciliation</h2>
-
-        {/* Legacy single-button export (kept) — gated by approval */}
-        <button
-          onClick={exportCsvAndPdf}
-          disabled={!approvedAt}
-          className="rounded-xl bg-black px-4 py-2 text-white shadow hover:opacity-90 disabled:opacity-40"
-          title={approvedAt ? 'Export CSV + PDF' : 'Approve first to enable exports'}
-        >
-          Export CSV + PDF
-        </button>
+    <div className="bg-gray-50 rounded-xl p-6 md:p-8 shadow-md">
+      
+      {/* STATUS WARNINGS */}
+      <div className="space-y-3 mb-6">
+        {!isComplete && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+            <strong>⏳ Quiz In Progress</strong>
+            <p className="mt-1">Reconciliation will unlock when the game ends.</p>
+          </div>
+        )}
+        {isComplete && !prizesDone && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+            <strong>🏆 Complete Prize Distribution</strong>
+            <p className="mt-1">Finish prize awards before reconciling payments.</p>
+            <button
+              onClick={() => navigate(`?tab=prizes`)}
+              className="mt-2 rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-medium hover:bg-amber-100"
+            >
+              Go to Prizes →
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Reconciliation fields (kept as-is for backward compatibility) */}
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-fg/80">Approved by</label>
-          <input
-            className="w-full rounded-lg border bg-white px-3 py-2 text-sm"
-            value={approvedBy}
-            onChange={(e) => onApprovedByChange(e.target.value)}
-            placeholder="Name / Role"
-          />
-          <button onClick={onMarkApproved} className="mt-2 rounded-lg border px-3 py-1 text-xs">
-            Mark Approved
-          </button>
-          {approvedAt && (
-            <p className="mt-1 text-xs text-fg/60">Approved at: {new Date(approvedAt).toLocaleString()}</p>
+      {/* QUICK SUMMARY - Only show when locked */}
+      {isLocked && (
+        <div className="mb-6 rounded-lg border-2 border-blue-200 bg-blue-50 p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <TrendingUp className="h-5 w-5 text-blue-700" />
+            <h3 className="font-bold text-blue-900">Quick Financial Summary</h3>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="rounded-lg bg-white border border-blue-200 p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Users className="h-4 w-4 text-blue-600" />
+                <div className="text-xs font-medium text-gray-600">Players</div>
+              </div>
+              <div className="text-xl font-bold text-gray-900">{totalPlayers}</div>
+              <div className="text-xs text-green-600">{paidPlayers.length} paid</div>
+            </div>
+            <div className="rounded-lg bg-white border border-blue-200 p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <DollarSign className="h-4 w-4 text-green-600" />
+                <div className="text-xs font-medium text-gray-600">Total Received</div>
+              </div>
+              <div className="text-xl font-bold text-gray-900">{fmt(totalReceived)}</div>
+            </div>
+            <div className="rounded-lg bg-white border border-blue-200 p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <DollarSign className="h-4 w-4 text-blue-600" />
+                <div className="text-xs font-medium text-gray-600">Entry Fees</div>
+              </div>
+              <div className="text-xl font-bold text-gray-900">{fmt(totalEntryReceived)}</div>
+            </div>
+            <div className="rounded-lg bg-white border border-blue-200 p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <DollarSign className="h-4 w-4 text-purple-600" />
+                <div className="text-xs font-medium text-gray-600">Extras</div>
+              </div>
+              <div className="text-xl font-bold text-gray-900">{fmt(totalExtrasAmount)}</div>
+              <div className="text-xs text-gray-600">{totalExtrasCount} items</div>
+            </div>
+          </div>
+          {unpaidPlayers.length > 0 && (
+            <div className="mt-3 rounded-lg bg-red-50 border border-red-200 p-3">
+              <div className="text-xs font-semibold text-red-800 mb-1">
+                {unpaidPlayers.length} Unpaid Player{unpaidPlayers.length !== 1 ? 's' : ''}
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {unpaidPlayers.slice(0, 5).map((p) => (
+                  <span key={p.id} className="text-xs text-red-700 bg-red-100 rounded px-2 py-0.5">
+                    {p.name || p.id}
+                  </span>
+                ))}
+                {unpaidPlayers.length > 5 && (
+                  <span className="text-xs text-red-700">+{unpaidPlayers.length - 5} more</span>
+                )}
+              </div>
+            </div>
           )}
+          <p className="text-xs text-blue-800 mt-3">
+            Full details and reconciliation tools will be available below once the quiz is complete and prizes are distributed.
+          </p>
         </div>
+      )}
 
-        <div className="sm:col-span-2">
-          <label className="mb-1 block text-sm font-medium text-fg/80">Comments / Notes</label>
-          <textarea
-            className="w-full rounded-lg border bg-white px-3 py-2 text-sm"
-            rows={3}
-            value={notes}
-            onChange={(e) => onNotesChange(e.target.value)}
-            placeholder="Any reconciliation notes, discrepancies, or approvals…"
+      {/* TRANSACTION LEDGER - Disabled when locked */}
+      <div className={`mb-8 relative ${isLocked ? 'pointer-events-none' : ''}`}>
+        {isLocked && (
+          <div className="absolute inset-0 bg-white/60 rounded-lg z-10 flex items-center justify-center backdrop-blur-[2px]">
+            <div className="flex items-center gap-2 rounded-lg bg-amber-100 border border-amber-300 px-4 py-2 shadow-lg">
+              <Lock className="h-4 w-4 text-amber-700" />
+              <span className="text-sm font-medium text-amber-800">Complete quiz and prizes first</span>
+            </div>
+          </div>
+        )}
+        <div className={isLocked ? 'opacity-40' : ''}>
+          <ReconciliationLedger />
+        </div>
+      </div>
+
+      {/* ACTION ITEMS - Side by Side - Disabled when locked */}
+      <div className={`mb-8 relative ${isLocked ? 'pointer-events-none' : ''}`}>
+        {isLocked && (
+          <div className="absolute inset-0 bg-white/60 rounded-lg z-10 flex items-center justify-center backdrop-blur-[2px]">
+            <div className="flex items-center gap-2 rounded-lg bg-amber-100 border border-amber-300 px-4 py-2 shadow-lg">
+              <Lock className="h-4 w-4 text-amber-700" />
+              <span className="text-sm font-medium text-amber-800">Locked until quiz and prizes complete</span>
+            </div>
+          </div>
+        )}
+        <div className={`grid grid-cols-1 lg:grid-cols-2 gap-4 ${isLocked ? 'opacity-40' : ''}`}>
+          <ReconciliationApproval />
+          <ReconciliationDownloads
+            allRoundsStats={[]}
+            onArchiveComplete={() => {
+              if (socket && roomId) {
+                socket.emit('delete_quiz_room', { roomId });
+              }
+              setTimeout(() => navigate('/'), 100);
+            }}
           />
         </div>
       </div>
 
-      {/* Quick Stats */}
-      <div className="mb-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-sm">
-        <Stat label="Total Players" value={String(totalPlayers)} />
-        <Stat label="Paid" value={String(paidPlayers.length)} />
-        <Stat label="Unpaid" value={String(unpaidPlayers.length)} />
-        <Stat label="Entry Fee" value={fmt(entryFee)} />
-        <Stat label="Extras (count)" value={String(totalExtrasCount)} />
-        <Stat label="Extras (amount)" value={fmt(totalExtrasAmount)} />
+      {/* FINANCIAL OVERVIEW */}
+      <div className="mb-8">
+        <h2 className="text-xl font-bold text-gray-900 mb-4">💰 Financial Overview</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <Stat label="Total Players" value={String(totalPlayers)} />
+          <Stat label="Paid" value={String(paidPlayers.length)} />
+          <Stat label="Unpaid" value={String(unpaidPlayers.length)} />
+          <Stat label="Entry Fee" value={fmt(entryFee)} />
+          <Stat label="Extras" value={String(totalExtrasCount)} />
+          <Stat label="Total Received" value={fmt(totalReceived)} />
+        </div>
       </div>
 
-      {/* Breakdown by Payment Method */}
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold mb-2">Breakdown by Payment Method</h3>
-        <div className="overflow-auto">
-          <table className="min-w-full border text-left text-sm">
+      {/* PAYMENT METHOD BREAKDOWN */}
+      <div className="mb-8">
+        <h2 className="text-xl font-bold text-gray-900 mb-4">📊 Payment Method Breakdown</h2>
+        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+          <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-100">
               <tr>
-                <th className="border px-3 py-2">Payment Method</th>
-                <th className="border px-3 py-2">Entry Fees</th>
-                <th className="border px-3 py-2">Extras (count)</th>
-                <th className="border px-3 py-2">Extras (amount)</th>
-                <th className="border px-3 py-2">Total</th>
-                <th className="border px-3 py-2">% of Total</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Payment Method
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Entry Fees
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Extras (count)
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Extras (amount)
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Total
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  % of Total
+                </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-gray-200">
               {Object.entries(paymentData).map(([method, d]) => (
-                <tr key={method}>
-                  <td className="border px-3 py-2 capitalize">{method}</td>
-                  <td className="border px-3 py-2">{fmt(d.entry)}</td>
-                  <td className="border px-3 py-2">{d.extrasCount}</td>
-                  <td className="border px-3 py-2">{fmt(d.extrasAmount)}</td>
-                  <td className="border px-3 py-2 font-medium">{fmt(d.total)}</td>
-                  <td className="border px-3 py-2">
+                <tr key={method} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900 capitalize">{method}</td>
+                  <td className="px-4 py-3 text-sm text-gray-700">{fmt(d.entry)}</td>
+                  <td className="px-4 py-3 text-sm text-gray-700">{d.extrasCount}</td>
+                  <td className="px-4 py-3 text-sm text-gray-700">{fmt(d.extrasAmount)}</td>
+                  <td className="px-4 py-3 text-sm font-semibold text-gray-900">{fmt(d.total)}</td>
+                  <td className="px-4 py-3 text-sm text-gray-700">
                     {totalReceived > 0 ? `${((d.total / totalReceived) * 100).toFixed(1)}%` : '—'}
                   </td>
                 </tr>
               ))}
-              {/* Totals row */}
-              <tr className="bg-gray-50 font-semibold">
-                <td className="border px-3 py-2">Total</td>
-                <td className="border px-3 py-2">{fmt(totalEntryReceived)}</td>
-                <td className="border px-3 py-2">{totalExtrasCount}</td>
-                <td className="border px-3 py-2">{fmt(totalExtrasAmount)}</td>
-                <td className="border px-3 py-2">{fmt(totalReceived)}</td>
-                <td className="border px-3 py-2">{totalReceived > 0 ? '100%' : '—'}</td>
+              <tr className="bg-gray-100 font-bold">
+                <td className="px-4 py-3 text-sm text-gray-900">Total</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{fmt(totalEntryReceived)}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{totalExtrasCount}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{fmt(totalExtrasAmount)}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{fmt(totalReceived)}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">100%</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Unpaid Players */}
-      <div>
-        <h3 className="text-lg font-semibold mb-2">🚩 Unpaid Players (Entry)</h3>
-        {unpaidPlayers.length === 0 ? (
-          <p className="text-green-700">All players are paid. Ready to go! ✅</p>
-        ) : (
-          <ul className="list-disc pl-5 space-y-1 text-red-600">
-            {unpaidPlayers.map((p) => (
-              <li key={p.id}>{p.name || p.id}</li>
-            ))}
-          </ul>
-        )}
+      {/* UNPAID PLAYERS */}
+      <div className="mb-8">
+        <h2 className="text-xl font-bold text-gray-900 mb-4">🚩 Outstanding Payments</h2>
+        <div className="rounded-lg border bg-white p-4 shadow-sm">
+          {unpaidPlayers.length === 0 ? (
+            <div className="flex items-center gap-2 text-green-700">
+              <span className="text-2xl">✅</span>
+              <span className="font-medium">All players have paid their entry fees!</span>
+            </div>
+          ) : (
+            <div>
+              <p className="text-sm font-medium text-red-700 mb-3">
+                {unpaidPlayers.length} player{unpaidPlayers.length !== 1 ? 's' : ''} haven't paid entry fees:
+              </p>
+              <ul className="space-y-2">
+                {unpaidPlayers.map((p) => (
+                  <li key={p.id} className="flex items-center gap-2 text-sm text-red-600">
+                    <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                    <span className="font-medium">{p.name || p.id}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       </div>
+
     </div>
   );
 };

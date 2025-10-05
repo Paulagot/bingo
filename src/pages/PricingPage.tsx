@@ -3,7 +3,7 @@ import { SEO } from '../components/SEO';
 import { Header } from '../components/GeneralSite/Header';
 import { Suspense, lazy } from 'react';
 import {
-  BadgeCheck, Check, Sparkles, PlayCircle, Users, Star, TrendingUp, Shield, Award, Phone, Mail
+  BadgeCheck, Check, Sparkles, PlayCircle, Users,ChevronRight, TrendingUp, Shield, Award, Phone, Mail
 } from 'lucide-react';
 import { detectRegionFromUrl, currencyISO, formatMoney } from '../services/currency';
 
@@ -20,6 +20,38 @@ function abs(path: string) {
   const p = path.startsWith('/') ? path : `/${path}`;
   return `${getOrigin()}${p}`;
 }
+
+function FoundingPartnerPromo() {
+  return (
+    <div className="px-4 pb-6">
+      <div className="container mx-auto max-w-6xl">
+        <div className="rounded-2xl border border-green-200 bg-green-50/60 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white border text-green-700">
+              <Sparkles className="h-4 w-4" />
+            </div>
+            <div>
+              <div className="font-semibold text-green-900">
+                Founding Partner pricing is opening soon
+              </div>
+              <div className="text-green-900/80 text-sm">
+                Lock in our lowest-ever monthly rate for life. Limited to the first 100 clubs & charities.
+              </div>
+            </div>
+          </div>
+          <a
+            href="/founding-partners"
+            className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2 text-white font-semibold shadow-sm hover:bg-green-700"
+          >
+            Learn more
+            <ChevronRight className="h-4 w-4" />
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 const Bullet: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <li className="flex items-start gap-3">
@@ -222,6 +254,8 @@ const PricingPage: React.FC = () => {
         </div>
       </section>
 
+      <FoundingPartnerPromo />
+
       {/* Pricing tiers */}
       <main id="main">
         <section className="px-4 pb-6">
@@ -267,7 +301,8 @@ const PricingPage: React.FC = () => {
                 </div>
                 <h3 className="text-indigo-900 text-xl font-bold">Event Pass</h3>
                 <p className="text-indigo-900/70 mt-1">Perfect for one off fundraising events that needs more than the starter pack.</p>
-                <div className="mt-4 text-3xl font-extrabold text-indigo-900">{eventPassPriceText}</div>
+                {/* <div className="mt-4 text-3xl font-extrabold text-indigo-900">{eventPassPriceText}</div> */}
+                 <div className="mt-4 text-3xl font-extrabold text-indigo-900">TBA</div>
                 <p className="text-sm text-indigo-900/60 mb-4">per event</p>
                 <ul className="mt-4 space-y-2">
                   <Bullet>Everything in Starter</Bullet>
@@ -280,8 +315,8 @@ const PricingPage: React.FC = () => {
                   <Bullet>Priority email support on event day</Bullet>
                   
                 </ul>
-                <a href="/contact" className="mt-6 inline-block w-full rounded-xl bg-indigo-700 px-4 py-3 text-center font-semibold text-white hover:bg-indigo-800">
-                  Purchase Event Pass
+                <a href="/signup" className="mt-6 inline-block w-full rounded-xl bg-indigo-700 px-4 py-3 text-center font-semibold text-white hover:bg-indigo-800">
+                  Join Waitlist
                 </a>
               </div>
 
@@ -292,7 +327,8 @@ const PricingPage: React.FC = () => {
                 </div>
                 <h3 className="text-indigo-900 text-xl font-bold">Premium Subscription</h3>
                 <p className="text-indigo-900/70 mt-1">Perfect for organizations running multiple events</p>
-                <div className="mt-4 text-3xl font-extrabold text-indigo-900">{proMonthlyPriceText}</div>
+                {/* <div className="mt-4 text-3xl font-extrabold text-indigo-900">{proMonthlyPriceText}</div> */}
+                <div className="mt-4 text-3xl font-extrabold text-indigo-900">TBA</div>
                 <p className="text-sm text-indigo-900/60 mb-4">per month</p>
                 <ul className="mt-4 space-y-2">
                   <Bullet>Everything in Event Pass</Bullet>
@@ -303,8 +339,8 @@ const PricingPage: React.FC = () => {
                   <Bullet>Dedicated account management</Bullet>
                   <Bullet>Early access to new features</Bullet>
                 </ul>
-                <a href="/contact" className="mt-6 inline-block w-full rounded-xl bg-indigo-700 px-4 py-3 text-center font-semibold text-white hover:bg-indigo-800">
-                  Start Premium Subscription
+                <a href="/signup" className="mt-6 inline-block w-full rounded-xl bg-indigo-700 px-4 py-3 text-center font-semibold text-white hover:bg-indigo-800">
+                  Join Waitlist
                 </a>
               </div>
             </div>
@@ -479,7 +515,7 @@ const PricingPage: React.FC = () => {
                 Run a Free Trial Quiz
               </a>
               <a href="/contant" className="inline-flex items-center gap-2 rounded-xl bg-indigo-800 px-8 py-4 text-white font-bold shadow-lg hover:bg-indigo-900">
-                Purchase Event Pass
+                Join Waitlist
               </a>
             </div>
           </div>

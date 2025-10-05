@@ -782,7 +782,7 @@ const HostControlsCore = () => {
           paymentMethod={config?.paymentMethod}
           debug={debug}
           onReturnToDashboard={() =>
-            navigate(`/quiz/host-dashboard/${roomId}?tab=payments&lock=postgame`)
+            navigate(`/quiz/host-dashboard/${roomId}?tab=prizes&lock=postgame`)
           }
         />
       </div>

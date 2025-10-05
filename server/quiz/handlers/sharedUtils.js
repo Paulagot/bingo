@@ -26,58 +26,6 @@ export function emitRoomConfig(namespace, roomId) {
 
 export function setupSharedHandlers(socket, namespace) {
 
-  // ✅ Reconciliation: fetch current state for this room
-  socket.on('request_reconciliation', ({ roomId }) => {
-    const room = getQuizRoom(roomId);
-    if (!room) {
-      socket.emit('quiz_error', { message: 'Room not found' });
-      return;
-    }
-
-    const rec = room.config?.reconciliation || {
-      approvedBy: '',
-      notes: '',
-      approvedAt: null,
-      updatedAt: null,
-      updatedBy: null,
-    };
-
-    socket.emit('reconciliation_state', { roomId, data: rec });
-    if (debug) console.log(`[Reconciliation] Sent state for ${roomId}`, rec);
-  });
-
-  // ✅ Reconciliation: update & broadcast to all hosts in the room
-  socket.on('update_reconciliation', ({ roomId, patch }) => {
-    const room = getQuizRoom(roomId);
-    if (!room) {
-      socket.emit('quiz_error', { message: 'Room not found' });
-      return;
-    }
-
-    const base = room.config?.reconciliation || {
-      approvedBy: '',
-      notes: '',
-      approvedAt: null,
-      updatedAt: null,
-      updatedBy: null,
-    };
-
-    const rec = {
-      ...base,
-      ...patch,
-      updatedAt: new Date().toISOString(),
-    };
-
-    // Store directly on the room config you’re already using
-    room.config = { ...(room.config || {}), reconciliation: rec };
-
-    // Broadcast to the whole room (all connected hosts/admins)
-    namespace.to(roomId).emit('reconciliation_updated', { roomId, data: rec });
-
-    if (debug) console.log(`[Reconciliation] Updated for ${roomId}`, rec);
-  });
-
-
   socket.on('request_room_config', ({ roomId }) => {
     import('../quizRoomManager.js').then(({ getQuizRoom }) => {
       const room = getQuizRoom(roomId);

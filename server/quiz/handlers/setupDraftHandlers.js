@@ -6,13 +6,16 @@ const setupDrafts = new Map(); // key: setupId -> { reconciliation: {...}, updat
 
 export function setupSetupDraftHandlers(socket, namespace) {
   socket.on('request_setup_reconciliation', ({ setupId }) => {
-    const rec = setupDrafts.get(setupId)?.reconciliation || {
-      approvedBy: '',
-      notes: '',
-      approvedAt: null,
-      updatedAt: null,
-      updatedBy: null,
-    };
+  const rec = setupDrafts.get(setupId)?.reconciliation || {
+  approvedBy: '',
+  notes: '',
+  approvedAt: null,
+  updatedAt: null,
+  updatedBy: null,
+  ledger: [],
+  prizeAwards: [],
+};
+
     socket.emit('setup_reconciliation_state', { setupId, data: rec });
   });
 
@@ -21,13 +24,15 @@ export function setupSetupDraftHandlers(socket, namespace) {
     const next = {
       ...cur,
       reconciliation: {
-        ...(cur.reconciliation || {
-          approvedBy: '',
-          notes: '',
-          approvedAt: null,
-          updatedAt: null,
-          updatedBy: null,
-        }),
+    ...(cur.reconciliation || {
+  approvedBy: '',
+  notes: '',
+  approvedAt: null,
+  updatedAt: null,
+  updatedBy: null,
+  ledger: [],
+  prizeAwards: [],
+}),
         ...patch,
         updatedAt: new Date().toISOString(),
         updatedBy: updatedBy || null,
@@ -39,7 +44,15 @@ export function setupSetupDraftHandlers(socket, namespace) {
 
   socket.on('approve_setup_reconciliation', ({ setupId, approverName, updatedBy }) => {
     const cur = setupDrafts.get(setupId) || {};
-    const base = cur.reconciliation || { approvedBy: '', notes: '', approvedAt: null, updatedAt: null, updatedBy: null };
+   const base = cur.reconciliation || {
+  approvedBy: '',
+  notes: '',
+  approvedAt: null,
+  updatedAt: null,
+  updatedBy: null,
+  ledger: [],
+  prizeAwards: [],
+};
     const rec = {
       ...base,
       approvedBy: approverName || base.approvedBy || '',

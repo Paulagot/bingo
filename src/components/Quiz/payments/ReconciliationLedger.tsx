@@ -7,8 +7,12 @@ import { Plus, Trash2 } from 'lucide-react';
 
 const REASON_CODES = [
   'late_payment','method_mismatch','duplicate_charge','complimentary',
-  'dispute_refund','price_change','cash_over','cash_short','data_entry_error','other',
+  'dispute_refund','price_change','cash_over','cash_short','data_entry_error',
+  // NEW prize-related reasons
+  'prize_award_delivered','prize_unclaimed','prize_refused','prize_returned',
+  'other',
 ] as const;
+
 
 export default function ReconciliationLedger() {
   const { roomId } = useParams();

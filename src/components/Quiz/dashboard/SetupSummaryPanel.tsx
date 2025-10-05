@@ -1,32 +1,48 @@
 import React, { useState } from 'react';
 import { useQuizConfig } from '../hooks/useQuizConfig';
 import { Link } from 'react-router-dom';
-import { ChevronDown, ChevronRight, Clock, Target, Users, Zap, Globe } from 'lucide-react';
+import { 
+  ChevronDown, 
+  ChevronRight, 
+  Clock, 
+  Target, 
+  Users, 
+  Zap, 
+  Globe,
+  FileText,
+  Calendar,
+  DollarSign,
+  CreditCard,
+  Wallet,
+  Gift
+} from 'lucide-react';
 import { roundTypeDefinitions, fundraisingExtraDefinitions } from '../constants/quizMetadata';
 import { useRoomIdentity } from '../hooks/useRoomIdentity';
 import QRCodeShare from './QRCodeShare';
 
-
 const SetupSummaryPanel: React.FC = () => {
   const { config } = useQuizConfig();
- const { roomId, hostId } = useRoomIdentity();
-  const isWeb3 = config?.paymentMethod === 'web3'
+  const { roomId, hostId } = useRoomIdentity();
+  const isWeb3 = config?.paymentMethod === 'web3';
 
-  // CRITICAL: Move ALL hooks before ANY conditional returns to fix the hook order violation
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     rounds: false,
     extras: false,
     prizes: false
   });
 
-  // Show loading if config isn't loaded yet - AFTER all hooks are declared
   if (!config || !config.hostName) {
     return (
-      <div className="bg-muted space-y-6 rounded-xl p-8 shadow-md">
-        <h2 className="text-fg mb-6 text-2xl font-bold">📋 Quiz Setup Summary</h2>
+      <div className="bg-gray-50 rounded-xl p-8 shadow-md">
+        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-200">
+          <div className="rounded-lg bg-indigo-100 p-2">
+            <FileText className="h-6 w-6 text-indigo-700" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900">Quiz Setup Summary</h2>
+        </div>
         <div className="text-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-fg/60">Loading quiz configuration...</p>
+          <p className="text-gray-600">Loading quiz configuration...</p>
         </div>
       </div>
     );
@@ -66,61 +82,82 @@ const SetupSummaryPanel: React.FC = () => {
   const getDifficultyColor = (difficulty: string) => {
     const normalized = difficulty.toLowerCase();
     switch (normalized) {
-      case 'easy': return 'bg-green-100 text-green-700';
-      case 'medium': return 'bg-yellow-100 text-yellow-700';
-      case 'hard': return 'bg-red-100 text-red-700';
-      default: return 'bg-gray-100 text-fg/80';
+      case 'easy': return 'bg-green-100 text-green-700 border-green-300';
+      case 'medium': return 'bg-yellow-100 text-yellow-700 border-yellow-300';
+      case 'hard': return 'bg-red-100 text-red-700 border-red-300';
+      default: return 'bg-gray-100 text-gray-700 border-gray-300';
     }
   };
 
-  // Calculate total estimated time - improved to handle different round types
   const estimatedTime = roundDefinitions?.reduce((total, round) => {
     const config = round.config;
-    let roundTime = 2.5; // base time for transitions/setup
+    let roundTime = 2.5;
     
     if (config.totalTimeSeconds) {
-      // For speed rounds and other time-based rounds
       roundTime += config.totalTimeSeconds / 60;
     } else if (config.questionsPerRound && config.timePerQuestion) {
-      // For question-based rounds
       roundTime += (config.questionsPerRound * config.timePerQuestion) / 60;
     } else {
-      // Fallback for rounds without clear timing
-      roundTime += 5; // 5 minute fallback
+      roundTime += 5;
     }
     
     return total + roundTime;
   }, 0) || 0;
 
   return (
-    <div className="bg-muted space-y-6 rounded-xl p-8 shadow-md">
-      <h2 className="text-fg mb-6 text-2xl font-bold">📋 Quiz Setup Summary</h2>
+    <div className="bg-gray-50 rounded-xl p-6 md:p-8 shadow-md">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-200">
+        <div className="rounded-lg bg-indigo-100 p-2">
+          <FileText className="h-6 w-6 text-indigo-700" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Quiz Setup Summary</h2>
+          <p className="text-sm text-gray-600 mt-0.5">Review your quiz configuration</p>
+        </div>
+      </div>
       
       {/* Basic Info Grid */}
-      <div className="text-fg/70 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded-lg bg-gray-50 p-3">
-          <strong className="text-fg">Host Name:</strong> 
-          <div className="text-fg/80">{hostName || '—'}</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        <div className="rounded-lg border-2 border-gray-200 bg-white p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Users className="h-4 w-4 text-indigo-600" />
+            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Host</span>
+          </div>
+          <div className="font-semibold text-gray-900">{hostName || '—'}</div>
         </div>
         
-        <div className="rounded-lg bg-gray-50 p-3">
-          <strong className="text-fg">Entry Fee:</strong>
-          <div className="text-fg/80">
+        <div className="rounded-lg border-2 border-gray-200 bg-white p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <DollarSign className="h-4 w-4 text-green-600" />
+            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Entry Fee</span>
+          </div>
+          <div className="font-semibold text-gray-900">
             {entryFee ? `${currencySymbol ?? ''}${entryFee}` : 'Free'}
           </div>
         </div>
         
-        <div className="rounded-lg bg-gray-50 p-3">
-          <strong className="text-fg">Payment Method:</strong>
-          <div className="text-fg/80">
+        <div className="rounded-lg border-2 border-gray-200 bg-white p-4">
+          <div className="flex items-center gap-2 mb-2">
+            {paymentMethod === 'web3' ? (
+              <Wallet className="h-4 w-4 text-purple-600" />
+            ) : (
+              <CreditCard className="h-4 w-4 text-blue-600" />
+            )}
+            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Payment</span>
+          </div>
+          <div className="font-semibold text-gray-900">
             {paymentMethod === 'web3' ? 'Web3 Wallet' : 'Cash or Card'}
           </div>
         </div>
 
         {startTime && (
-          <div className="rounded-lg bg-gray-50 p-3">
-            <strong className="text-fg">Start Time:</strong>
-            <div className="text-fg/80">
+          <div className="rounded-lg border-2 border-gray-200 bg-white p-4 sm:col-span-2 lg:col-span-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Calendar className="h-4 w-4 text-orange-600" />
+              <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Start Time</span>
+            </div>
+            <div className="font-semibold text-gray-900">
               {new Date(startTime).toLocaleString()}
             </div>
           </div>
@@ -129,39 +166,42 @@ const SetupSummaryPanel: React.FC = () => {
 
       {/* Room Info */}
       {roomId && (
-        <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <strong className="text-indigo-800">Room ID:</strong>
-              <div className="font-mono text-indigo-700">{roomId}</div>
-            </div>
+        <div className="rounded-lg border-2 border-indigo-200 bg-indigo-50 p-4 mb-6">
+          <div className="flex items-center gap-2 mb-2">
+            <FileText className="h-4 w-4 text-indigo-700" />
+            <span className="text-xs font-semibold text-indigo-800 uppercase tracking-wider">Room ID</span>
           </div>
+          <div className="font-mono text-lg font-bold text-indigo-900">{roomId}</div>
         </div>
       )}
 
-
-
-{/* QR Code Sharing Section — only for Web3 games */}
-{isWeb3 && roomId ? (
-  <QRCodeShare
-    roomId={roomId}
-    hostName={hostName}
-    gameType={config?.gameType}
-  />
-) : null}
+      {/* QR Code Sharing Section */}
+      {isWeb3 && roomId && (
+        <div className="mb-6">
+          <QRCodeShare
+            roomId={roomId}
+            hostName={hostName}
+            gameType={config?.gameType}
+          />
+        </div>
+      )}
 
       {/* Rounds Section */}
-      <div className="border-border rounded-lg border">
+      <div className="rounded-xl border-2 border-gray-200 bg-white mb-4 overflow-hidden">
         <button
           onClick={() => toggleSection('rounds')}
           className="flex w-full items-center justify-between p-4 transition-colors hover:bg-gray-50"
         >
-          <div className="flex items-center space-x-3">
-            <Zap className="h-5 w-5 text-indigo-600" />
-            <strong className="text-fg">Quiz Rounds</strong>
-            <span className="text-fg/70 text-sm">
-              ({roundDefinitions?.length || 0} rounds, ~{Math.round(estimatedTime)} min)
-            </span>
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-indigo-100 p-1.5">
+              <Zap className="h-5 w-5 text-indigo-700" />
+            </div>
+            <div className="text-left">
+              <div className="font-bold text-gray-900">Quiz Rounds</div>
+              <div className="text-sm text-gray-600">
+                {roundDefinitions?.length || 0} rounds • ~{Math.round(estimatedTime)} min
+              </div>
+            </div>
           </div>
           {expandedSections.rounds ? (
             <ChevronDown className="h-5 w-5 text-gray-400" />
@@ -171,14 +211,12 @@ const SetupSummaryPanel: React.FC = () => {
         </button>
         
         {expandedSections.rounds && (
-          <div className="border-border space-y-3 border-t p-4">
+          <div className="border-t-2 border-gray-200 p-4 bg-gray-50">
             {roundDefinitions && roundDefinitions.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {roundDefinitions.map((round, index) => {
-                  // Get round type data from metadata instead of hardcoded object
                   const roundTypeDef = roundTypeDefinitions[round.roundType];
                   
-                  // Find applicable fundraising extras for this round
                   const applicableExtras = Object.entries(fundraisingOptions || {})
                     .filter(([_, enabled]) => enabled)
                     .map(([key]) => {
@@ -198,79 +236,81 @@ const SetupSummaryPanel: React.FC = () => {
                     });
                   
                   if (!roundTypeDef) {
-                    // Fallback for unknown round types
                     return (
-                      <div key={index} className="flex items-center justify-between rounded-lg bg-gray-50 p-3">
-                        <div className="flex items-center space-x-3">
-                          <span className="text-fg/70 text-sm font-medium">Round {round.roundNumber}</span>
-                          <span className="text-fg font-medium">Unknown Round Type</span>
+                      <div key={index} className="rounded-lg border-2 border-gray-200 bg-white p-4">
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-semibold text-gray-600">Round {round.roundNumber}</span>
+                          <span className="font-medium text-gray-900">Unknown Round Type</span>
                         </div>
                       </div>
                     );
                   }
 
                   return (
-                    <div key={index} className="space-y-2 rounded-lg bg-gray-50 p-3">
-                      {/* Round header info */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <span className="text-fg/70 text-sm font-medium">Round {round.roundNumber}</span>
-                          <div className="flex items-center space-x-2">
-                            <span className="text-lg">{roundTypeDef.icon}</span>
-                            <span className="text-fg font-medium">{roundTypeDef.name}</span>
-                            {round.difficulty && (
-                              <span className={`rounded-full px-2 py-1 text-xs ${getDifficultyColor(round.difficulty.charAt(0).toUpperCase() + round.difficulty.slice(1))}`}>
-                                {round.difficulty.charAt(0).toUpperCase() + round.difficulty.slice(1)}
-                              </span>
-                            )}
-                            {round.category && (
-                              <span className="ml-2 rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-700">
-                                {round.category}
-                              </span>
-                            )}
+                    <div key={index} className="rounded-lg border-2 border-gray-200 bg-white p-4">
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 text-sm font-bold text-indigo-700">
+                            {round.roundNumber}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-lg">{roundTypeDef.icon}</span>
+                              <span className="font-semibold text-gray-900">{roundTypeDef.name}</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {round.difficulty && (
+                                <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${getDifficultyColor(round.difficulty.charAt(0).toUpperCase() + round.difficulty.slice(1))}`}>
+                                  {round.difficulty.charAt(0).toUpperCase() + round.difficulty.slice(1)}
+                                </span>
+                              )}
+                              {round.category && (
+                                <span className="rounded-full border border-blue-300 bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                                  {round.category}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                        <div className="text-fg/70 flex items-center space-x-4 text-sm">
-                          {/* Show questions count if available */}
+                        
+                        <div className="flex flex-col gap-1.5 text-xs text-gray-600">
                           {round.config.questionsPerRound && (
-                            <span className="flex items-center space-x-1">
-                              <Target className="h-3 w-3" />
-                              <span>{round.config.questionsPerRound}q</span>
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <Target className="h-3.5 w-3.5" />
+                              <span>{round.config.questionsPerRound} questions</span>
+                            </div>
                           )}
-                          {/* Show time per question if available */}
                           {round.config.timePerQuestion && (
-                            <span className="flex items-center space-x-1">
-                              <Clock className="h-3 w-3" />
-                              <span>{round.config.timePerQuestion}s</span>
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <Clock className="h-3.5 w-3.5" />
+                              <span>{round.config.timePerQuestion}s each</span>
+                            </div>
                           )}
-                          {/* Show total time if available (for speed rounds) */}
                           {round.config.totalTimeSeconds && (
-                            <span className="flex items-center space-x-1">
-                              <Clock className="h-3 w-3" />
+                            <div className="flex items-center gap-1.5">
+                              <Clock className="h-3.5 w-3.5" />
                               <span>{Math.round(round.config.totalTimeSeconds / 60)}m total</span>
-                            </span>
+                            </div>
                           )}
-                          {/* Show answer time if available (for head-to-head) */}
                           {round.config.timeToAnswer && (
-                            <span className="flex items-center space-x-1">
-                              <Target className="h-3 w-3" />
+                            <div className="flex items-center gap-1.5">
+                              <Target className="h-3.5 w-3.5" />
                               <span>{round.config.timeToAnswer}s to answer</span>
-                            </span>
+                            </div>
                           )}
                         </div>
                       </div>
 
-                      {/* Show applicable fundraising extras */}
                       {applicableExtras.length > 0 && (
-                        <div className="border-border border-t pt-2">
-                          <div className="text-fg/70 mb-1 text-xs">Available extras:</div>
-                          <div className="flex flex-wrap gap-1">
+                        <div className="border-t border-gray-200 pt-3">
+                          <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">
+                            Available Extras
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
                             {applicableExtras.map(({ key, extraDef }, extraIdx) => {
                               const price = fundraisingPrices?.[key];
                               return (
-                                <div key={extraIdx} className="inline-flex items-center space-x-1 rounded-full bg-green-100 px-2 py-1 text-xs text-green-700">
+                                <div key={extraIdx} className="inline-flex items-center gap-1.5 rounded-full border border-green-300 bg-green-100 px-2.5 py-1 text-xs font-medium text-green-800">
                                   <span>{extraDef?.icon || '💰'}</span>
                                   <span>{extraDef?.label || key}</span>
                                   {price && <span>({currencySymbol ?? ''}{price})</span>}
@@ -285,24 +325,31 @@ const SetupSummaryPanel: React.FC = () => {
                 })}
               </div>
             ) : (
-              <div className="text-fg/60 py-4 text-center">No rounds configured</div>
+              <div className="text-center py-8">
+                <Zap className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-gray-600 text-sm">No rounds configured</p>
+              </div>
             )}
           </div>
         )}
       </div>
 
       {/* Fundraising Extras Section */}
-      <div className="border-border rounded-lg border">
+      <div className="rounded-xl border-2 border-gray-200 bg-white mb-4 overflow-hidden">
         <button
           onClick={() => toggleSection('extras')}
           className="flex w-full items-center justify-between p-4 transition-colors hover:bg-gray-50"
         >
-          <div className="flex items-center space-x-3">
-            <Users className="h-5 w-5 text-green-600" />
-            <strong className="text-fg">Fundraising Extras</strong>
-            <span className="text-fg/70 text-sm">
-              ({activeFundraising.length} selected)
-            </span>
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-green-100 p-1.5">
+              <Users className="h-5 w-5 text-green-700" />
+            </div>
+            <div className="text-left">
+              <div className="font-bold text-gray-900">Fundraising Extras</div>
+              <div className="text-sm text-gray-600">
+                {activeFundraising.length} selected
+              </div>
+            </div>
           </div>
           {expandedSections.extras ? (
             <ChevronDown className="h-5 w-5 text-gray-400" />
@@ -312,16 +359,14 @@ const SetupSummaryPanel: React.FC = () => {
         </button>
         
         {expandedSections.extras && (
-          <div className="border-border border-t p-4">
+          <div className="border-t-2 border-gray-200 p-4 bg-gray-50">
             {activeFundraising.length > 0 ? (
               <div className="space-y-3">
                 {activeFundraising.map((key, index) => {
                   const rawKey = key.toLowerCase().replace(/ /g, '');
                   const price = fundraisingPrices?.[rawKey];
                   
-                  // More robust lookup for fundraising extra definition
                   const extraDef = Object.values(fundraisingExtraDefinitions).find(def => {
-                    // Try multiple matching strategies
                     const defId = def.id.toLowerCase();
                     const defLabel = def.label.toLowerCase().replace(/ /g, '');
                     const searchKey = rawKey.toLowerCase();
@@ -332,36 +377,36 @@ const SetupSummaryPanel: React.FC = () => {
                            searchKey.includes(defId);
                   });
 
-                  console.log(`Looking for key: "${rawKey}", found:`, extraDef); // Debug log
-
                   return (
-                    <div key={index} className="space-y-2 rounded-lg bg-green-50 p-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-lg">{extraDef?.icon || '💰'}</span>
-                          <span className="text-fg font-medium">{extraDef?.label || key}</span>
+                    <div key={index} className="rounded-lg border-2 border-green-200 bg-white p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl">{extraDef?.icon || '💰'}</span>
+                          <span className="font-semibold text-gray-900">{extraDef?.label || key}</span>
                         </div>
                         {price && (
-                          <span className="font-medium text-green-700">
+                          <span className="rounded-full border border-green-300 bg-green-100 px-3 py-1 text-sm font-bold text-green-800">
                             {currencySymbol ?? ''}{price}
                           </span>
                         )}
                       </div>
                       
                       {extraDef && (
-                        <div className="text-sm">
-                          <div className="text-fg/70 mb-1">Available in:</div>
+                        <div>
+                          <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">
+                            Available In
+                          </div>
                           {extraDef.applicableTo === 'global' ? (
-                            <div className="inline-flex items-center space-x-1 rounded-full bg-purple-100 px-2 py-1 text-xs text-purple-700">
+                            <div className="inline-flex items-center gap-1.5 rounded-full border border-purple-300 bg-purple-100 px-2.5 py-1 text-xs font-medium text-purple-800">
                               <Globe className="h-3 w-3" />
                               <span>All rounds</span>
                             </div>
                           ) : (
-                            <div className="flex flex-wrap gap-1">
+                            <div className="flex flex-wrap gap-1.5">
                               {extraDef.applicableTo.map((roundType, idx) => {
                                 const roundDef = roundTypeDefinitions[roundType];
                                 return (
-                                  <div key={idx} className="inline-flex items-center space-x-1 rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-700">
+                                  <div key={idx} className="inline-flex items-center gap-1.5 rounded-full border border-blue-300 bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-800">
                                     <span>{roundDef?.icon || '❓'}</span>
                                     <span>{roundDef?.name || roundType}</span>
                                   </div>
@@ -376,26 +421,33 @@ const SetupSummaryPanel: React.FC = () => {
                 })}
               </div>
             ) : (
-              <div className="text-fg/60 py-4 text-center">No fundraising extras selected</div>
+              <div className="text-center py-8">
+                <Users className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-gray-600 text-sm">No fundraising extras selected</p>
+              </div>
             )}
           </div>
         )}
       </div>
 
       {/* Prizes Section */}
-      <div className="border-border rounded-lg border">
+      <div className="rounded-xl border-2 border-gray-200 bg-white overflow-hidden">
         <button
           onClick={() => toggleSection('prizes')}
           className="flex w-full items-center justify-between p-4 transition-colors hover:bg-gray-50"
         >
-          <div className="flex items-center space-x-3">
-            <Target className="h-5 w-5 text-yellow-600" />
-            <strong className="text-fg">Prize Setup</strong>
-            <span className="text-fg/70 text-sm">
-              ({prizeMode === 'split' ? 'Percentage Split' : 
-                prizeMode === 'assets' || prizeMode === 'cash' ? 'Custom Prizes' : 
-                'Not configured'})
-            </span>
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-yellow-100 p-1.5">
+              <Gift className="h-5 w-5 text-yellow-700" />
+            </div>
+            <div className="text-left">
+              <div className="font-bold text-gray-900">Prize Setup</div>
+              <div className="text-sm text-gray-600">
+                {prizeMode === 'split' ? 'Percentage Split' : 
+                 prizeMode === 'assets' || prizeMode === 'cash' ? 'Custom Prizes' : 
+                 'Not configured'}
+              </div>
+            </div>
           </div>
           {expandedSections.prizes ? (
             <ChevronDown className="h-5 w-5 text-gray-400" />
@@ -405,39 +457,49 @@ const SetupSummaryPanel: React.FC = () => {
         </button>
         
         {expandedSections.prizes && (
-          <div className="border-border border-t p-4">
+          <div className="border-t-2 border-gray-200 p-4 bg-gray-50">
             {prizeMode === 'split' && prizeSplits ? (
               <div className="space-y-2">
                 {Object.entries(prizeSplits).map(([place, percent]) => (
-                  <div key={place} className="flex items-center justify-between rounded-lg bg-yellow-50 p-3">
-                    <span className="text-fg font-medium capitalize">{place} place</span>
-                    <span className="font-medium text-yellow-700">{percent}%</span>
+                  <div key={place} className="flex items-center justify-between rounded-lg border-2 border-yellow-200 bg-white p-3">
+                    <span className="font-semibold text-gray-900 capitalize">{place} place</span>
+                    <span className="rounded-full border border-yellow-300 bg-yellow-100 px-3 py-1 text-sm font-bold text-yellow-800">
+                      {percent}%
+                    </span>
                   </div>
                 ))}
               </div>
             ) : (prizeMode === 'assets' || prizeMode === 'cash') && prizes ? (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {prizes.map((prize, idx) => (
-                  <div key={idx} className="rounded-lg bg-yellow-50 p-3">
-                    <div className="mb-1 flex items-center justify-between">
-                      <span className="text-fg font-medium capitalize">{prize.place} place</span>
+                  <div key={idx} className="rounded-lg border-2 border-yellow-200 bg-white p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 text-white text-xs font-bold">
+                          {prize.place}
+                        </div>
+                        <span className="font-semibold text-gray-900 capitalize">{prize.place} place</span>
+                      </div>
                       {prize.value && (
-                        <span className="font-medium text-yellow-700">
+                        <span className="rounded-full border border-yellow-300 bg-yellow-100 px-3 py-1 text-sm font-bold text-yellow-800">
                           {currencySymbol ?? ''}{prize.value}
                         </span>
                       )}
                     </div>
-                    <div className="text-fg/70 text-sm">
+                    <div className="text-sm text-gray-700">
                       {prize.description}
                       {prize.sponsor && (
-                        <span className="text-fg/60"> • Sponsored by {prize.sponsor}</span>
+                        <span className="text-purple-600"> • Sponsored by {prize.sponsor}</span>
                       )}
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-fg/60 py-4 text-center">No prizes configured</div>
+              <div className="text-center py-8">
+                <Gift className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-gray-600 text-sm">No prizes configured</p>
+              </div>
             )}
           </div>
         )}

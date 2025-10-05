@@ -236,6 +236,7 @@ export function createQuizRoom(roomId, hostId, config) {
   updatedAt: null,
   updatedBy: null,
   ledger: [], 
+  prizeAwards: [],
 };
 const finalConfig = { 
   ...config, 

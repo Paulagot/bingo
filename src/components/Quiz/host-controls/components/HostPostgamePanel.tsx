@@ -3,6 +3,7 @@ import { Loader, Trophy, Crown, Medal, Award } from 'lucide-react';
 import FinalQuizStats from '../components/FinalQuizStats';
 import { Web3PrizeDistributionRouter } from '../prizes/Web3PrizeDistributionRouter';
 
+
 type Phase =
   | 'waiting'
   | 'launched'
@@ -49,6 +50,9 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
   const isComplete = phase === 'complete';
   const isDistributing = phase === 'distributing_prizes';
   const showPrizeRouter = isComplete && paymentMethod === 'web3';
+
+
+
 
   if (!(isComplete || isDistributing)) return null;
 
@@ -145,6 +149,7 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
               </div>
             </div>
           )}
+
 
           {/* Debug block (optional) */}
           {debug && (

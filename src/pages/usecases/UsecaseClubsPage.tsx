@@ -8,7 +8,7 @@ import { SEO } from '../../components/SEO';
 import { Header } from '../../components/GeneralSite/Header';
 import SiteFooter from '../../components/GeneralSite2/SiteFooter';
 import OutcomePreview from '../../components/GeneralSite2/OutcomePreview';
-import { currencySymbol, formatMoney } from '../../services/currency';
+import {  formatMoney } from '../../services/currency';
 import {
   Sparkles, Trophy, Users, Zap, Target, TrendingUp, Check, PlayCircle,
  Gift, Heart, DollarSign, BarChart
@@ -133,6 +133,13 @@ const UsecaseClubsPage: React.FC = () => {
             <a href="/free-trial" className="rounded-xl bg-indigo-700 px-6 py-3 text-white font-semibold shadow-md hover:bg-indigo-800 transition-colors">
               Run a Free Trial Quiz
             </a>
+                {/* New: Founding Partner CTA */}
+              <a
+                href="/founding-partners"
+                className="rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 px-8 py-4 text-white font-bold shadow-lg hover:scale-105 hover:shadow-xl transition"
+              >
+                Become a Founding Partner
+              </a>
             <a
               href="/quiz/demo"
               className="rounded-xl bg-white px-6 py-3 text-indigo-700 font-semibold shadow-md hover:bg-indigo-50 inline-flex items-center gap-2 transition-colors border border-indigo-200"
@@ -292,6 +299,13 @@ const UsecaseClubsPage: React.FC = () => {
             <div className="flex flex-wrap justify-center gap-4">
               <a href="/free-trial" className="rounded-xl bg-white px-8 py-4 text-indigo-700 font-semibold shadow-md hover:bg-indigo-50 transition-colors text-lg">
                 Run a Free Trial Quiz
+              </a>
+                  {/* New: Founding Partner CTA */}
+              <a
+                href="/founding-partners"
+                className="rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 px-8 py-4 text-white font-bold shadow-lg hover:scale-105 hover:shadow-xl transition"
+              >
+                Become a Founding Partner
               </a>
               <a href="/pricing" className="rounded-xl bg-indigo-800 px-8 py-4 text-white font-semibold shadow-md hover:bg-indigo-900 border border-indigo-600 transition-colors text-lg">
                 See Pricing

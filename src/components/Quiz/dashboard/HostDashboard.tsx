@@ -12,6 +12,10 @@ import AdminListPanel from './AdminListPanel';
 import PaymentReconciliationPanel from './PaymentReconciliation';
 import AssetUploadPanel from './AssetUploadPanel';
 
+import PrizesTab from './PrizesTab';
+
+
+
 import { DynamicChainProvider } from '../../chains/DynamicChainProvider';
 import WalletDebugPanel from '../Wizard/WalletDebug';
 import useQuizChainIntegration from '../../../hooks/useQuizChainIntegration';
@@ -20,18 +24,19 @@ import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { useAdminStore } from '../hooks/useAdminStore';
 
 import {
-  Users,
+ Users,
   Shield,
   CreditCard,
   Settings,
   Rocket,
   Info,
   Upload,
+  Gift,
 } from 'lucide-react';
 
 const DEBUG = false;
 
-type TabType = 'overview' | 'assets' | 'launch' | 'players' | 'admins' | 'payments';
+type TabType = 'overview' | 'assets' | 'launch' | 'players' | 'admins' | 'prizes' | 'payments';
 
 // Core dashboard component (without providers)
 const HostDashboardCore: React.FC = () => {
@@ -64,15 +69,10 @@ const HostDashboardCore: React.FC = () => {
       setActiveTab(urlTab);
       return;
     }
-    if (postGameLock) setActiveTab('payments');
+    if (postGameLock) setActiveTab('prizes'); // default to Prizes after completion
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlTab, postGameLock]);
 
-  // Clear admin state on initial mount
-  useEffect(() => {
-    if (DEBUG) console.log('🧹 [HostDashboard] Clearing admin state on initial mount');
-    useAdminStore.getState().resetAdmins();
-  }, []);
 
   // Request current state/config once when socket connects
   useEffect(() => {
@@ -205,8 +205,19 @@ const HostDashboardCore: React.FC = () => {
 
   const canLaunch = assetUploadCheck && !isQuizComplete;
 
+    // === Prize workflow gating (Payments locked until prizes resolved) ===
+  const awards = (config?.reconciliation?.prizeAwards || []) as any[];
+  const prizePlaces = new Set((config?.prizes || []).map((p: any) => p.place));
+  const finalStatuses = new Set(['delivered','unclaimed','refused','returned','canceled']);
+  const declaredByPlace = new Map<number, any>();
+  for (const a of awards) if (typeof a?.place === 'number') declaredByPlace.set(a.place, a);
+  const allDeclared = prizePlaces.size > 0 && [...prizePlaces].every(pl => declaredByPlace.has(pl));
+  const allResolved = prizePlaces.size > 0 && [...prizePlaces].every(pl => finalStatuses.has(declaredByPlace.get(pl)?.status));
+  const prizeWorkflowComplete = allDeclared && allResolved;
+
+
   // Tabs model
-  const allTabs = useMemo(
+   const allTabs = useMemo(
     () =>
       [
         {
@@ -241,6 +252,20 @@ const HostDashboardCore: React.FC = () => {
           icon: <Users className="h-4 w-4" />,
           count: players?.length || 0,
         },
+        ...(isQuizComplete
+          ? [
+              {
+                id: 'prizes' as TabType,
+                label: 'Prizes',
+                icon: <Gift className="h-4 w-4" />,
+                // show resolved/total for quick glance
+                count:
+                  ((config?.reconciliation?.prizeAwards || []) as any[]).filter(
+                    (a: any) => ['delivered','unclaimed','refused','returned','canceled'].includes(a?.status)
+                  ).length || 0,
+              },
+            ]
+          : []),
         {
           id: 'payments' as TabType,
           label: 'Payments',
@@ -254,19 +279,116 @@ const HostDashboardCore: React.FC = () => {
           count: null,
         },
       ] as const,
-    [isWeb3, config?.prizeMode, config?.prizes, admins?.length, players?.length]
+    [isWeb3, config?.prizeMode, config?.prizes, admins?.length, players?.length, isQuizComplete, config?.reconciliation?.prizeAwards]
   );
 
+    // === Final leaderboard for the Prizes tab ===
+  // Priority: reconciliation.finalLeaderboard -> config.finalLeaderboard -> derive from players
+  const prizeLeaderboard = useMemo(() => {
+    const fromRecon = (((config?.reconciliation as any)?.finalLeaderboard) || []) as any[];
+    if (fromRecon.length) return fromRecon;
+
+    const fromConfig = ((config as any)?.finalLeaderboard || []) as any[];
+    if (fromConfig.length) return fromConfig;
+
+    // Best-effort derive from players in store
+    const list = (players || []).map((p: any) => ({
+      id: p.id,
+      name: p.name || p.id,
+      // try several common score fields, fallback to 0
+      score: typeof p.score === 'number'
+        ? p.score
+        : (typeof p.totalScore === 'number'
+          ? p.totalScore
+          : (typeof p.finalScore === 'number' ? p.finalScore : 0)),
+    }));
+
+    // Sort if we have numeric scores
+    if (list.every(l => typeof l.score === 'number')) {
+      list.sort((a, b) => (b.score || 0) - (a.score || 0));
+    }
+    return list;
+  }, [config?.reconciliation?.finalLeaderboard, (config as any)?.finalLeaderboard, players]);
+
+
   const tabs = useMemo(() => {
-    return postGameLock ? allTabs.filter((t) => t.id === 'payments') : allTabs;
+    if (!postGameLock) return allTabs;
+    // After completion: show Prizes always, and Payments too (but we’ll gate inside Payments if prizes aren’t finished)
+    return allTabs.filter((t) => t.id === 'prizes' || t.id === 'payments');
   }, [postGameLock, allTabs]);
+
+    // On first Prizes visit after completion: snapshot standings and auto-declare awards if missing
+  useEffect(() => {
+    if (!socket || !roomId) return;
+    if (!isQuizComplete) return;
+
+    const prizes = (config?.prizes || []) as any[];
+    const rec = (config?.reconciliation as any) || {};
+    const existingAwards = Array.isArray(rec.prizeAwards) ? rec.prizeAwards : [];
+    const haveAwards = existingAwards.length > 0;
+
+    // Snapshot final leaderboard if not already present
+    const needSnapshot = !(rec.finalLeaderboard && Array.isArray(rec.finalLeaderboard) && rec.finalLeaderboard.length);
+    const patch: any = {};
+
+    if (needSnapshot && prizeLeaderboard.length) {
+      patch.finalLeaderboard = prizeLeaderboard;
+    }
+
+    // If we have prizes but no awards, auto-declare top-N
+    if (prizes.length && !haveAwards && prizeLeaderboard.length) {
+      const rankByPlace = new Map<number, any>();
+      prizeLeaderboard.forEach((entry: any, idx: number) => rankByPlace.set(idx + 1, entry));
+
+      const autoAwards = prizes
+        .filter((p: any) => typeof p.place === 'number')
+        .map((p: any) => {
+          const winner = rankByPlace.get(p.place);
+          if (!winner) return null;
+          return {
+            prizeAwardId: crypto.randomUUID?.() || `${p.place}-${winner.id}-${Date.now()}`,
+            prizeId: p.place, // or a real id if you have one
+            prizeName: p.description,
+            prizeValue: typeof p.value === 'number' ? p.value : null,
+            sponsor: p.sponsor || null,
+            place: p.place,
+            winnerPlayerId: winner.id,
+            winnerName: winner.name,
+            status: 'declared',
+            declaredAt: new Date().toISOString(),
+            statusHistory: [
+              { status: 'declared', at: new Date().toISOString(), by: (config?.hostName || 'Host') }
+            ],
+          };
+        })
+        .filter(Boolean);
+
+      if (autoAwards.length) {
+        patch.prizeAwards = autoAwards;
+      }
+    }
+
+    if (Object.keys(patch).length) {
+      socket.emit('update_reconciliation', { roomId, patch });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    socket,
+    roomId,
+    isQuizComplete,
+    config?.prizes,
+    config?.reconciliation?.prizeAwards,
+    config?.reconciliation?.finalLeaderboard,
+    prizeLeaderboard
+  ]);
+
 
   // Keep activeTab valid if tabs shrink (postgame lock)
   useEffect(() => {
     const allowed = new Set(tabs.map((t) => t.id));
-    if (!allowed.has(activeTab)) setActiveTab('payments');
+    if (!allowed.has(activeTab)) setActiveTab(postGameLock ? 'prizes' : 'overview');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabs]);
+  }, [tabs, postGameLock]);
 
   const LaunchSection = () => {
     return (
@@ -622,12 +744,24 @@ const HostDashboardCore: React.FC = () => {
               </div>
             )}
 
+{activeTab === 'prizes' && (
+  <PrizesTab
+    prizeLeaderboard={prizeLeaderboard}
+    prizeWorkflowComplete={prizeWorkflowComplete}
+    lockEdits={!!(config?.reconciliation as any)?.approvedAt}
+  />
+)}
+
+
+
+
+
             {activeTab === 'payments' && (
               <div className="space-y-6">
                 <div className="mb-4 flex items-center justify-between">
                   <h3 className="heading-2">
                     <CreditCard className="h-5 w-5" />
-                    <span>Payment Management</span>
+                    <span>💰 Payment Reconciliation</span>
                   </h3>
                   <span className="text-fg/60 text-sm">
                     {config?.paymentMethod === 'web3' ? 'Web3 Payments' : 'Manual Collection'}

@@ -13,6 +13,7 @@ import TestimonialsPage from './pages/TestimonialsPage';
 import ConfirmPasswordReset from './components/auth/ConfirmPasswordReset';
 import RequestPasswordReset from './components/auth/RequestPasswordReset';
 import ContactForm from './components/GeneralSite/ContactForm';
+import FoundingPartnersPage from './pages/FoundingPartners';
 
 import { useAuthStore } from './stores/authStore';
 import AuthPage from './components/auth/AuthPage';
@@ -99,6 +100,7 @@ export default function App() {
             <Route path="/legal/privacy" element={<div>Privacy Policy (TODO)</div>} />
             <Route path="/legal/terms" element={<div>Terms of Service (TODO)</div>} />
             <Route path="/legal/compliance" element={<div>Compliance Info (TODO)</div>} />
+            <Route path="/founding-partners" element={<FoundingPartnersPage />} />
            
 
 

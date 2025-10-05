@@ -25,8 +25,9 @@ const SiteFooter: React.FC = () => (
             <li><a href="/quiz/use-cases" className="hover:text-white transition-colors">Use Cases</a></li>
             <li><a href="/quiz/demo" className="hover:text-white transition-colors">Demo Video</a></li>
             <li><a href="/pricing" className="hover:text-white transition-colors">Pricing</a></li>
-            <li><a href="/testimonials" className="hover:text-white transition-colors">Testimonials</a></li>
+            <li><a href="/founding-partners" className="hover:text-white transition-colors">Founding Partners</a></li>
             <li><a href="/free-trial" className="hover:text-white transition-colors">Free Trial</a></li>
+            <li><a href="/testimonials" className="hover:text-white transition-colors">Testimonials</a></li>
           </ul>
         </div>
 

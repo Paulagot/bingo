@@ -96,7 +96,7 @@ const FeaturesHighlightGrid: React.FC = () => (
       {/* Enhanced CTA Button */}
       <div className="text-center">
         <a
-          href="/features"
+          href="/quiz/features"
           className="group inline-flex items-center gap-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-8 py-4 text-white font-bold shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300"
         >
           <span>Discover All Transformative Features</span>
@@ -106,10 +106,10 @@ const FeaturesHighlightGrid: React.FC = () => (
         {/* Secondary link */}
         <div className="mt-4">
           <a 
-            href="/pricing" 
+            href="/founding-partners" 
             className="text-indigo-600 hover:text-indigo-800 font-medium text-sm transition-colors duration-300"
           >
-            Unlock Your Plan →
+            Unlock Your Founding Partners Plan →
           </a>
         </div>
       </div>

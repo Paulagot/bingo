@@ -6,17 +6,27 @@ import { usePlayerStore } from '../hooks/usePlayerStore';
 import { useQuizConfig } from '../hooks/useQuizConfig';
 import { QRCodeCanvas } from 'qrcode.react';
 import AddPlayerModal from './AddPlayerModal';
-import { BadgeCheck, BadgeX } from 'lucide-react';
+import { 
+  BadgeCheck, 
+  BadgeX, 
+  Users, 
+  UserPlus, 
+  QrCode, 
+  Link as LinkIcon, 
+  X,
+  AlertCircle,
+  CheckCircle2,
+  XCircle
+} from 'lucide-react';
 import { fundraisingExtras } from '../types/quiz';
-import { useQuizSocket } from '../sockets/QuizSocketProvider';  // ✅ new socket hook
-import PlayerSearchInput from '../game/PlayerSearchInput';       // ✅ reusable search input
+import { useQuizSocket } from '../sockets/QuizSocketProvider';
+import PlayerSearchInput from '../game/PlayerSearchInput';
 
 const PlayerListPanel: React.FC = () => {
   const { config } = useQuizConfig();
   const { roomId } = useParams();
   const { players } = usePlayerStore();
 
-  // 👉 Derive capacity AFTER players exist, and only for Web2
   const isWeb3 = config?.paymentMethod === 'web3' || config?.isWeb3Room;
   const maxPlayers = isWeb3 ? Number.POSITIVE_INFINITY : (config?.roomCaps?.maxPlayers ?? 20);
   const atCapacity = isWeb3 ? false : ((players?.length || 0) >= maxPlayers);
@@ -25,6 +35,7 @@ const PlayerListPanel: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const { socket } = useQuizSocket();
   const debug = false;
 
@@ -32,7 +43,7 @@ const PlayerListPanel: React.FC = () => {
     if (!roomId || !socket) return;
 
     const handlePlayerListUpdated = ({ players }: { players: any[] }) => {
-      if (debug) console.log('[Socket] 🎯 player_list_updated received:', players);
+      if (debug) console.log('[Socket] player_list_updated received:', players);
       usePlayerStore.setState({ players });
     };
 
@@ -84,7 +95,12 @@ const PlayerListPanel: React.FC = () => {
     });
   };
 
-  // ---------- Search logic ----------
+  const copyToClipboard = (text: string, playerId: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(playerId);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   const norm = (s: string) =>
     (s || '')
       .toLowerCase()
@@ -97,12 +113,26 @@ const PlayerListPanel: React.FC = () => {
     return players.filter((p: any) => norm(p.name).includes(q));
   }, [players, searchTerm]);
 
-  return (
-    <div className="bg-muted rounded-lg p-4 shadow-sm">
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-fg text-2xl font-bold">👥 Players</h2>
+  const activePlayers = filteredPlayers.filter((p: any) => !p.disqualified);
+  const disqualifiedPlayers = filteredPlayers.filter((p: any) => p.disqualified);
+  const paidCount = players.filter((p: any) => p.paid && !p.disqualified).length;
 
-        {/* 🔍 Search input (always visible) */}
+  return (
+    <div className="bg-gray-50 rounded-xl p-6 shadow-md">
+      {/* Header with Stats */}
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-200">
+        <div className="flex items-center gap-3">
+          <div className="rounded-lg bg-indigo-100 p-2">
+            <Users className="h-6 w-6 text-indigo-700" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Players</h2>
+            <p className="text-sm text-gray-600 mt-0.5">
+              {players.length} total • {paidCount} paid • {disqualifiedPlayers.length} disqualified
+            </p>
+          </div>
+        </div>
+
         <div className="sm:w-72">
           <PlayerSearchInput
             value={searchTerm}
@@ -112,29 +142,48 @@ const PlayerListPanel: React.FC = () => {
         </div>
       </div>
 
+      {/* Add Player Section (Web2 only) */}
       {!isWeb3 && (
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row">
-          <input
-            type="text"
-            placeholder="Player Name"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            className="flex-1 rounded-md border border-gray-300 px-3 py-2 focus:ring-indigo-500"
-          />
-          <button
-            onClick={() => { if (newName.trim()) setShowModal(true); }}
-            disabled={atCapacity}
-            className={`rounded-md bg-indigo-600 px-5 py-2 font-medium text-white shadow transition ${
-              atCapacity ? 'cursor-not-allowed opacity-50' : 'hover:bg-indigo-700'
-            }`}
-          >
-            Add
-          </button>
+        <div className="mb-6 rounded-lg border-2 border-indigo-200 bg-white p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <UserPlus className="h-5 w-5 text-indigo-600" />
+            <h3 className="font-semibold text-gray-900">Add New Player</h3>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="text"
+              placeholder="Enter player name..."
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && newName.trim() && !atCapacity) {
+                  setShowModal(true);
+                }
+              }}
+              className="flex-1 rounded-lg border-2 border-gray-300 px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all"
+            />
+            <button
+              onClick={() => { if (newName.trim()) setShowModal(true); }}
+              disabled={atCapacity || !newName.trim()}
+              className={`rounded-lg px-6 py-2.5 font-semibold text-white shadow-sm transition-all inline-flex items-center gap-2 ${
+                atCapacity || !newName.trim()
+                  ? 'cursor-not-allowed opacity-50 bg-gray-400'
+                  : 'bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800'
+              }`}
+            >
+              <UserPlus className="h-4 w-4" />
+              Add Player
+            </button>
+          </div>
 
-          {!isWeb3 && atCapacity && (
-            <p className="mt-2 text-xs text-red-600">
-              Player limit reached ({Number.isFinite(maxPlayers) ? maxPlayers : 'limit'}). Upgrade to add more.
-            </p>
+          {atCapacity && (
+            <div className="mt-3 flex items-start gap-2 rounded-lg bg-red-50 border border-red-200 p-3">
+              <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-red-700">
+                Player limit reached ({Number.isFinite(maxPlayers) ? maxPlayers : 'limit'}). Upgrade your plan to add more players.
+              </p>
+            </div>
           )}
         </div>
       )}
@@ -149,84 +198,167 @@ const PlayerListPanel: React.FC = () => {
         roomId={roomId || ''}
       />
 
+      {/* Empty State */}
       {players.length === 0 ? (
-        <p className="text-fg/70">No players {isWeb3 ? 'have joined yet.' : 'added yet.'}</p>
+        <div className="rounded-xl border-2 border-dashed border-gray-300 bg-white p-8 text-center">
+          <Users className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Players Yet</h3>
+          <p className="text-sm text-gray-600">
+            {isWeb3 ? 'Players will appear here when they join via wallet connection.' : 'Add your first player to get started.'}
+          </p>
+        </div>
       ) : filteredPlayers.length === 0 ? (
-        <p className="text-fg/70">No players match “{searchTerm}”.</p>
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-6 text-center">
+          <AlertCircle className="h-8 w-8 text-amber-600 mx-auto mb-2" />
+          <p className="text-sm text-amber-800">No players match "{searchTerm}"</p>
+        </div>
       ) : (
-        <ul className="space-y-2">
-          {filteredPlayers.map((player: any) => {
-            const joinLink = `${baseJoinUrl}/${player.id}`;
-            const isShowingQR = selectedPlayerId === player.id;
+        <div className="space-y-4">
+          {/* Active Players */}
+          {activePlayers.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3">
+                Active Players ({activePlayers.length})
+              </h3>
+              <ul className="space-y-2">
+                {activePlayers.map((player: any) => {
+                  const joinLink = `${baseJoinUrl}/${player.id}`;
+                  const isShowingQR = selectedPlayerId === player.id;
+                  const isCopied = copiedId === player.id;
 
-            return (
-              <li key={player.id} className="rounded-md border bg-gray-50 p-2 text-sm">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex-1">
-                    <p className="text-fg flex items-center gap-2 font-semibold">
-                      {player.name}
-                      {player.disqualified && (
-                        <span className="rounded bg-red-100 px-2 py-0.5 text-xs uppercase text-red-600">
-                          Disqualified
-                        </span>
-                      )}
-                      {player.paid ? (
-                        <BadgeCheck className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <BadgeX className="h-4 w-4 text-red-600" />
-                      )}
-                    </p>
-                    <div className="text-fg/70 mt-1 flex flex-wrap items-center gap-2">
-                      <span>Payment: {player.paid ? 'Paid' : 'Unpaid'}</span>
-                      {allExtras.map((extraKey) => {
-                        const extra = fundraisingExtras[extraKey];
-                        const hasExtra = player.extras?.includes(extraKey);
-                        return (
-                          <span
-                            key={extraKey}
-                            className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                              hasExtra ? 'bg-green-100 text-green-800' : 'text-fg/70 bg-gray-200'
-                            }`}
-                          >
-                            {extra?.label?.replace(/^Buy\s+/i, '') || extraKey.replace(/^buy/i, '')}
+                  return (
+                    <li key={player.id} className="rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-indigo-300 hover:shadow-md transition-all">
+                      <div className="flex flex-col gap-3">
+                        {/* Player Info */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h4 className="font-semibold text-gray-900">{player.name}</h4>
+                              {player.paid ? (
+                                <div className="flex items-center gap-1 rounded-full bg-green-100 border border-green-300 px-2 py-0.5">
+                                  <CheckCircle2 className="h-3 w-3 text-green-700" />
+                                  <span className="text-xs font-medium text-green-800">Paid</span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1 rounded-full bg-red-100 border border-red-300 px-2 py-0.5">
+                                  <XCircle className="h-3 w-3 text-red-700" />
+                                  <span className="text-xs font-medium text-red-800">Unpaid</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Extras */}
+                            {allExtras.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5">
+                                {allExtras.map((extraKey) => {
+                                  const extra = fundraisingExtras[extraKey];
+                                  const hasExtra = player.extras?.includes(extraKey);
+                                  return (
+                                    <span
+                                      key={extraKey}
+                                      className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-all ${
+                                        hasExtra 
+                                          ? 'bg-green-100 text-green-800 border border-green-300' 
+                                          : 'bg-gray-100 text-gray-600 border border-gray-200'
+                                      }`}
+                                    >
+                                      {extra?.label?.replace(/^Buy\s+/i, '') || extraKey.replace(/^buy/i, '')}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex flex-col gap-2">
+                            <button
+                              onClick={() => setSelectedPlayerId(isShowingQR ? null : player.id)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border-2 border-indigo-300 bg-white px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 transition-all"
+                            >
+                              <QrCode className="h-3.5 w-3.5" />
+                              {isShowingQR ? 'Hide' : 'Invite'}
+                            </button>
+                            <button
+                              onClick={() => toggleDisqualification(player.id)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border-2 border-red-300 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 transition-all"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                              Disqualify
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* QR Code Section */}
+                        {isShowingQR && (
+                          <div className="mt-2 rounded-lg bg-gray-50 border border-gray-200 p-4">
+                            <div className="flex flex-col sm:flex-row gap-4 items-center">
+                              <div className="bg-white p-3 rounded-lg border-2 border-gray-300 shadow-sm">
+                                <QRCodeCanvas value={joinLink} size={120} />
+                              </div>
+                              <div className="flex-1 w-full">
+                                <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2 block">
+                                  Join Link
+                                </label>
+                                <div className="flex gap-2">
+                                  <input
+                                    type="text"
+                                    value={joinLink}
+                                    readOnly
+                                    className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-mono text-gray-700"
+                                  />
+                                  <button
+                                    onClick={() => copyToClipboard(joinLink, player.id)}
+                                    className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 transition-all inline-flex items-center gap-1.5"
+                                  >
+                                    <LinkIcon className="h-3.5 w-3.5" />
+                                    {isCopied ? 'Copied!' : 'Copy'}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+
+          {/* Disqualified Players */}
+          {disqualifiedPlayers.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3">
+                Disqualified Players ({disqualifiedPlayers.length})
+              </h3>
+              <ul className="space-y-2">
+                {disqualifiedPlayers.map((player: any) => (
+                  <li key={player.id} className="rounded-lg border-2 border-red-200 bg-red-50 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-semibold text-gray-900">{player.name}</h4>
+                          <span className="rounded-full bg-red-100 border border-red-300 px-2.5 py-0.5 text-xs font-semibold uppercase text-red-700">
+                            Disqualified
                           </span>
-                        );
-                      })}
+                        </div>
+                      </div>
                       <button
                         onClick={() => toggleDisqualification(player.id)}
-                        className="ml-2 text-xs text-red-600 underline"
+                        className="inline-flex items-center gap-1.5 rounded-lg border-2 border-green-300 bg-white px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-50 transition-all"
                       >
-                        {player.disqualified ? 'Undo' : 'Disqualify'}
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Restore
                       </button>
                     </div>
-                  </div>
-
-                  <div className="flex flex-col items-end">
-                    <button
-                      onClick={() => setSelectedPlayerId(isShowingQR ? null : player.id)}
-                      className="text-xs font-semibold text-indigo-600 hover:underline"
-                    >
-                      🔗 Invite
-                    </button>
-
-                    {isShowingQR && (
-                      <div className="bg-muted mt-1 max-w-xs rounded-md border p-2 shadow-sm">
-                        <QRCodeCanvas value={joinLink} size={96} />
-                        <p className="text-fg/70 mt-1 break-all text-xs">{joinLink}</p>
-                        <button
-                          onClick={() => navigator.clipboard.writeText(joinLink)}
-                          className="mt-1 text-xs text-indigo-600 hover:underline"
-                        >
-                          Copy Link
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

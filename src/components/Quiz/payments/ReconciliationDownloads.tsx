@@ -49,7 +49,7 @@ export default function ReconciliationDownloads({
 
     setBusy('zip');
     try {
-      await makeArchiveZip(payload); // this should trigger the .zip download
+      await makeArchiveZip(payload); // triggers .zip download
       // Stamp archiveGeneratedAt for audit trail
       if (socket && roomId) {
         const ts = new Date().toISOString();
@@ -76,30 +76,30 @@ export default function ReconciliationDownloads({
   return (
     <div className="rounded-xl border-2 border-emerald-200 bg-white p-4">
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Downloads & Archive</h3>
+        <h3 className="text-lg font-semibold">Downloads</h3>
         <div className="text-xs text-fg/70">
           {disabled ? 'Exports unlock after approval' : 'Ready'}
         </div>
       </div>
 
       <div className="flex flex-wrap gap-3">
-        <button
+        {/* <button
           disabled={disabled || busy !== 'none'}
           onClick={() => run(() => exportCsvs(payload), 'csv')}
           className="flex items-center space-x-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
         >
           <Download className="h-4 w-4" />
           <span>Export CSVs</span>
-        </button>
+        </button> */}
 
-        <button
+        {/* <button
           disabled={disabled || busy !== 'none'}
           onClick={() => run(() => exportPdf(payload), 'pdf')}
           className="flex items-center space-x-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
         >
           <Download className="h-4 w-4" />
           <span>Export PDF</span>
-        </button>
+        </button> */}
 
         <button
           disabled={disabled || busy !== 'none'}
@@ -139,4 +139,5 @@ export default function ReconciliationDownloads({
     </div>
   );
 }
+
 
