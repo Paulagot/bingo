@@ -38,7 +38,7 @@ const HeroPrimary: React.FC = () => {
         </span>
 
         <h1 className="mt-8 pb-2 bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-transparent text-4xl md:text-6xl font-bold leading-relaxed">
-          Transform Your Cause: Effortless, Transparent Quiz Fundraising for Unprecedented Impact
+          Transform Your Cause: Frictionless Fundraising built for Impact.
         </h1>
 
         <h2 className="mt-6 text-indigo-800 text-xl md:text-2xl font-semibold leading-relaxed">
@@ -73,10 +73,7 @@ const HeroPrimary: React.FC = () => {
             <Heart className="h-4 w-4 text-pink-600" />
             <span>Audit-Ready Reporting: Transparent Impact, Effortless Accountability</span>
           </span>
-          <span className="chip bg-white shadow-sm">
-            <Users className="h-4 w-4 text-green-600" />
-            <span>Frictionless Fundraising Built for Impact</span>
-          </span>
+      
         </div>
       </div>
     </section>
