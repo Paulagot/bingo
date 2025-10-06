@@ -74,6 +74,70 @@ export function getSeoForPath(reqPath, hostOrigin) {
     canonical: ABS(hostOrigin, '/quiz/use-cases/schools'),
     keywords: 'school quiz fundraiser, PTA quiz platform, school fundraising quiz',
   },
+  // --- WEB3 HUB (evergreen) ---
+'/web3': {
+  title: 'Web3 Quiz Fundraisers — On-Chain Transparency & High-Energy Events | FundRaisely',
+  description: 'Run crypto-powered quiz fundraisers with wallets, live leaderboards, and audit-ready reports.',
+  canonical: ABS(hostOrigin, '/web3'),
+  keywords: 'web3 quiz, crypto fundraising, blockchain charity, DAO fundraising, on-chain receipts',
+  image: ABS(hostOrigin, '/og/web3-hub.png'),
+},
+'/web3/how-it-works': {
+  title: 'How Web3 Quiz Fundraisers Work | Wallets, Flows & Reporting | FundRaisely',
+  description: 'See the full flow for crypto-enabled fundraising quizzes: setup, join, gameplay, payouts, and reporting.',
+  canonical: ABS(hostOrigin, '/web3/how-it-works'),
+  keywords: 'how it works web3 fundraising, crypto quiz flow, on-chain transparency',
+  image: ABS(hostOrigin, '/og/web3-how-it-works.png'),
+},
+'/web3/features': {
+  title: 'Crypto-Powered Features — Wallets, Power-Ups, On-Chain Receipts | FundRaisely',
+  description: 'Wallet integrations, power-ups, direct-to-charity routing, and exportable audit trails.',
+  canonical: ABS(hostOrigin, '/web3/features'),
+  keywords: 'crypto quiz features, web3 features, on-chain receipts, leaderboards',
+  image: ABS(hostOrigin, '/og/web3-features.png'),
+},
+'/web3/partners': {
+  title: 'Web3 Fundraising Partners — Exchanges, Wallets & Charity Rails | FundRaisely',
+  description: 'Meet the partners powering routing to verified charities and smooth crypto UX.',
+  canonical: ABS(hostOrigin, '/web3/partners'),
+  keywords: 'web3 partners, crypto donations partner, the giving block',
+  image: ABS(hostOrigin, '/og/web3-partners.png'),
+},
+'/web3/testimonials': {
+  title: 'Crypto Fundraising Testimonials — Communities & DAOs Using FundRaisely',
+  description: 'Stories from web3 communities running transparent, high-energy fundraisers.',
+  canonical: ABS(hostOrigin, '/web3/testimonials'),
+  keywords: 'web3 testimonials, crypto fundraising reviews, DAO case studies',
+  image: ABS(hostOrigin, '/og/web3-testimonials.png'),
+},
+
+// --- WEB3 IMPACT CAMPAIGN (seasonal, canonical lives here year-round) ---
+'/web3/impact-campaign': {
+  title: 'Web3 Impact Campaign — Annual Crypto Fundraising Drive | FundRaisely',
+  description: 'Join the annual 3-month Web3 Impact Campaign. Host or participate to raise on-chain for verified charities.',
+  canonical: ABS(hostOrigin, '/web3/impact-campaign'),
+  keywords: 'web3 impact campaign, crypto fundraising event, blockchain charity event',
+  image: ABS(hostOrigin, '/og/web3-impact-campaign.png'),
+  type: 'event',
+},
+'/web3/impact-campaign/join': {
+  title: 'Join the Web3 Impact Campaign — Host or Participate | FundRaisely',
+  description: 'Pledge your community, get co-piloted support, or launch a self-serve web3 quiz fundraiser.',
+  canonical: ABS(hostOrigin, '/web3/impact-campaign/join'),
+  keywords: 'join web3 impact campaign, host crypto fundraiser',
+  image: ABS(hostOrigin, '/og/web3-impact-join.png'),
+  type: 'event',
+},
+'/web3/impact-campaign/leaderboard': {
+  title: 'Web3 Impact Campaign Leaderboard — Live Standings | FundRaisely',
+  description: 'Track participating communities, funds raised on-chain, and live standings.',
+  canonical: ABS(hostOrigin, '/web3/impact-campaign/leaderboard'),
+  keywords: 'web3 campaign leaderboard, crypto fundraising leaderboard',
+  image: ABS(hostOrigin, '/og/web3-impact-leaderboard.png'),
+  type: 'event',
+},
+
+
     // Add more marketing pages here:
     // '/quiz/how-it-works': { ... },
     // '/quiz/features': { ... },

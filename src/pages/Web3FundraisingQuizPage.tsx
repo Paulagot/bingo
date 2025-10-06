@@ -173,7 +173,7 @@ const [detectedChain, setDetectedChain] = useState<SupportedChain | null>(null);
                 We are inviting all Web3 Communities, DAOs, NFT Projects & Crypto Enthusiasts to host quiz nights with their communities during our campaign periods. Our Target is $100K
               </p>
               <button
-                onClick={() => navigate('/Web3-Impact-Event')}
+                onClick={() => navigate('/web3/impact-campaign/')}
                 className="rounded-xl bg-indigo-600 px-6 py-3 font-semibold text-white shadow transition-all duration-200 hover:bg-indigo-700"
               >
                 🎤 Find out More!

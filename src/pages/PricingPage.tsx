@@ -1,6 +1,6 @@
 import type React from 'react';
 import { SEO } from '../components/SEO';
-import { Header } from '../components/GeneralSite/Header';
+import { Header } from '../components/GeneralSite2/Header';
 import { Suspense, lazy } from 'react';
 import {
   BadgeCheck, Check, Sparkles, PlayCircle, Users,ChevronRight, TrendingUp, Shield, Award, Phone, Mail

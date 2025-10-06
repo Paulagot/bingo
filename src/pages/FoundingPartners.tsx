@@ -1,6 +1,6 @@
 import React, { lazy, Suspense, useMemo } from 'react';
 import { SEO } from '../components/SEO';
-import { Header } from '../components/GeneralSite/Header';
+import { Header } from '../components/GeneralSite2/Header';
 import {
   Check, Trophy, Users, Shield, Rocket, Sparkles, ChevronRight, HeartHandshake,
   Target, BarChart3, Award, Gamepad2, Search, FileText, Scale, Ticket,

@@ -1,4 +1,4 @@
-// client/src/components/GeneralSite/ContactForm.tsx
+// client/src/components/GeneralSite2/ContactForm.tsx
 import { useState } from "react";
 import { Send, CheckCircle, AlertCircle,  } from "lucide-react";
 

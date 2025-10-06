@@ -48,7 +48,7 @@ const ImpactRibbon: React.FC = () => (
         
         <div className="flex flex-wrap justify-center gap-4">
           <a 
-            href="/Web3-Impact-Event" 
+            href="/web3/impact-campaign/" 
             className="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 font-bold text-indigo-700 shadow-xl hover:bg-indigo-50 hover:scale-105 transition-all duration-300"
           >
             Uncover the Vision

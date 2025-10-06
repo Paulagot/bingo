@@ -1,6 +1,6 @@
 import type React from 'react';
 import { SEO } from '../components/SEO';
-import { Header } from '../components/GeneralSite/Header';
+import { Header } from '../components/GeneralSite2/Header';
 import SiteFooter from '../components/GeneralSite2/SiteFooter';
 import { Sparkles, GraduationCap, Trophy, Heart, Users, Check, PlayCircle, Zap, Target, TrendingUp, Award, Clock, Shield } from 'lucide-react';
 

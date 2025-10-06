@@ -34,20 +34,20 @@ const SiteFooter: React.FC = () => (
         <div>
           <h4 className="font-bold text-white mb-4">Web3 Quiz Fundraisers</h4>
           <ul className="mt-3 space-y-3 text-white/80 text-sm">
-            <li><a href="/web3-fundraising-quiz" className="hover:text-white transition-colors">How It Works</a></li>
-            <li><a href="/web3-fundraising-quiz/features" className="hover:text-white transition-colors">Crypto-Powered Features</a></li>
-            <li><a href="/web3-fundraising-quiz/partners" className="hover:text-white transition-colors">Web3 Fundraising Partners</a></li>
-            <li><a href="/web3-fundraising-quiz/testimonials" className="hover:text-white transition-colors">Crypto Fundraising Testimonials</a></li>
+            <li><a href="/web3/" className="hover:text-white transition-colors">Overview</a></li>
+            <li><a href="/web3/features" className="hover:text-white transition-colors">Crypto-Powered Features</a></li>
+            <li><a href="/web3/partners" className="hover:text-white transition-colors">Web3 Fundraising Partners</a></li>
+            <li><a href="/web3/testimonials" className="hover:text-white transition-colors">Crypto Fundraising Testimonials</a></li>
           </ul>
         </div>
 
         <div>
           <h4 className="font-bold text-white mb-4">Web3 Impact Campaign</h4>
           <ul className="mt-3 space-y-3 text-white/80 text-sm">
-            <li><a href="/web3-impact-event" className="hover:text-white transition-colors">Overview</a></li>
-            <li><a href="/web3-impact-event" className="hover:text-white transition-colors">Join</a></li>
-            <li><a href="/web3-impact-event/leaderboard" className="hover:text-white transition-colors">Leaderboard</a></li>
-            <li><a href="/web3-impact-event/stories" className="hover:text-white transition-colors">Stories</a></li>
+            <li><a href="web3/impact-campaign" className="hover:text-white transition-colors">Overview</a></li>
+            <li><a href="/web3/impact-campaign/join" className="hover:text-white transition-colors">Join</a></li>
+            <li><a href="/web3/impact-campaign/leaderboard" className="hover:text-white transition-colors">Leaderboard</a></li>
+            
           </ul>
         </div>
 

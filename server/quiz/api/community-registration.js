@@ -47,6 +47,8 @@ async function saveSubmission(submission) {
 
 // POST /quiz/api/community-registration
 router.post('/', async (req, res) => {
+   console.log('🟡 [JSON ROUTE HIT] POST /quiz/api/community-registration');
+     return res.status(410).json({ error: 'Deprecated. Use /quiz/api/impactcampaign/pledge' });
   try {
     const { 
       communityName, 

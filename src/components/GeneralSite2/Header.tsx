@@ -25,7 +25,7 @@ export function Header() {
 
   // Routes
   const ROUTES = {
-    impactCampaign: '/Web3-Impact-Event', // label: Impact Campaign
+    impactCampaign: '/web3/impact-campaign/', // label: Impact Campaign
     // pricing: '/pricing', // (replaced in nav by Founding Partner)
     foundingPartner: '/founding-partners', // NEW: Launch offer
     blog: '/blog',

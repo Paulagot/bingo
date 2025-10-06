@@ -3,7 +3,7 @@ import { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 
 import { Landing } from './pages/Landing';
-import { Header } from './components/GeneralSite/Header';
+import { Header } from './components/GeneralSite2/Header';
 import ErrorBoundary from './components/bingo/ErrorBoundary';
 import WhatsNew from './pages/WhatsNew';
 import FreeTrial from './pages/FreeTrial';
@@ -12,17 +12,16 @@ import Pricing from './pages/PricingPage';
 import TestimonialsPage from './pages/TestimonialsPage';
 import ConfirmPasswordReset from './components/auth/ConfirmPasswordReset';
 import RequestPasswordReset from './components/auth/RequestPasswordReset';
-import ContactForm from './components/GeneralSite/ContactForm';
+import ContactForm from './components/GeneralSite2/ContactForm';
 import FoundingPartnersPage from './pages/FoundingPartners';
 
 import { useAuthStore } from './stores/authStore';
 import AuthPage from './components/auth/AuthPage';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
-
-// ⬇️ REMOVE these static imports (they pulled web3 into the main bundle)
-// import Web3FundraisingQuizPage from './pages/Web3FundraisingQuizPage';
-// import { Web3Provider } from './components/Web3Provider';
+import Web3Features from './pages/web3/features';
+import Web3Testimonials from './pages/web3/testimonials';
+import Web3Partners from './pages/web3/partners';
 
 // Lazy quiz bits
 const QuizRoutes = lazy(() => import('./components/Quiz/QuizRoutes'));
@@ -30,10 +29,21 @@ const QuizSocketProvider = lazy(() =>
   import('./components/Quiz/sockets/QuizSocketProvider').then((m) => ({ default: m.QuizSocketProvider }))
 );
 
-// ✅ Lazy web3 pieces (so they don’t hit the marketing bundle)
-const Web3FundraisingQuizPage = lazy(() => import('./pages/Web3FundraisingQuizPage'));
-const Web3ProviderLazy = lazy(() => import('./components/Web3Provider').then(m => ({ default: m.Web3Provider })));
-const FundraisingLaunchPage = lazy(() => import('./pages/web3fundraiser'));
+// ✅ Lazy web3 pieces (kept light on the marketing bundle)
+
+const Web3ProviderLazy = lazy(() =>
+  import('./components/Web3Provider').then((m) => ({ default: m.Web3Provider }))
+);
+
+// NEW: Web3 hub + campaign
+const Web3HubPage = lazy(() => import('./pages/web3')); // /web3/
+
+
+// If/when these are ready, uncomment the imports and the routes below
+const ImpactCampaignOverview = lazy(() => import('./pages/web3/impact-campaign'));
+const ImpactCampaignJoin = lazy(() => import('./pages/web3/impact-campaign/join'));
+const ImpactCampaignLeaderboard = lazy(() => import('./pages/web3/impact-campaign/leaderboard'));
+
 
 const LoadingSpinner = ({
   message = 'Loading...',
@@ -101,9 +111,6 @@ export default function App() {
             <Route path="/legal/terms" element={<div>Terms of Service (TODO)</div>} />
             <Route path="/legal/compliance" element={<div>Compliance Info (TODO)</div>} />
             <Route path="/founding-partners" element={<FoundingPartnersPage />} />
-           
-
-
 
             {/* Auth routes */}
             <Route path="/signup" element={<Signup />} />
@@ -143,7 +150,84 @@ export default function App() {
               }
             />
 
-            {/* Web3 Fundraising Quiz landing */}
+            {/* WEB3 hub (evergreen) */}
+            <Route
+              path="/web3"
+              element={
+                <Suspense fallback={<LoadingSpinner message="Loading Web3" />}>
+                  <Web3HubPage />
+                </Suspense>
+              }
+            />
+                 <Route
+              path="/web3/features"
+              element={
+                <Suspense fallback={<LoadingSpinner message="Loading Web3" />}>
+                  <Web3Features />
+                </Suspense>
+              }
+            />
+                    <Route
+              path="/web3/testimonials"
+              element={
+                <Suspense fallback={<LoadingSpinner message="Loading Web3" />}>
+                  <Web3Testimonials/>
+                </Suspense>
+              }
+            />
+                       <Route
+              path="/web3/partners"
+              element={
+                <Suspense fallback={<LoadingSpinner message="Loading Web3" />}>
+                  <Web3Partners/>
+                </Suspense>
+              }
+            />
+
+            {/* Impact Campaign (canonical). TEMP: using existing web3fundraiser page */}
+            <Route
+              path="/web3/impact-campaign"
+              element={
+                <Suspense fallback={<LoadingSpinner message="Loading Impact Campaign" />}>
+                  <Web3ProviderLazy>
+                    <ImpactCampaignOverview />
+                  </Web3ProviderLazy>
+                </Suspense>
+              }
+            />
+
+            {/* OPTIONAL subpages (uncomment when ready) */}
+            
+            <Route
+              path="/web3/impact-campaign/join"
+              element={
+                <Suspense fallback={<LoadingSpinner message="Loading Join" />}>
+                  <Web3ProviderLazy>
+                    <ImpactCampaignJoin />
+                  </Web3ProviderLazy>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/web3/impact-campaign/leaderboard"
+              element={
+                <Suspense fallback={<LoadingSpinner message="Loading Leaderboard" />}>
+                  <Web3ProviderLazy>
+                    <ImpactCampaignLeaderboard />
+                  </Web3ProviderLazy>
+                </Suspense>
+              }
+            />
+        
+           
+
+            {/* Legacy aliases → canonical (SPA-level; server also 301s) */}
+            <Route path="/Web3-Impact-Event" element={<Navigate to="/web3/impact-campaign" replace />} />
+            <Route path="/web3-impact-event" element={<Navigate to="/web3/impact-campaign" replace />} />
+
+            {/* (Optional) If this path duplicates the hub, redirect it */}
+            <Route path="/web3-fundraising-quiz" element={<Navigate to="/web3" replace />} />
+            {/* If you still need the old page somewhere else, you can keep the route below instead of the redirect:
             <Route
               path="/web3-fundraising-quiz"
               element={
@@ -152,28 +236,7 @@ export default function App() {
                 </Suspense>
               }
             />
-
-            {/* Web3 Impact Event (two aliases) */}
-            <Route
-              path="/Web3-Impact-Event"
-              element={
-                <Suspense fallback={<LoadingSpinner message="Loading Web3 Impact Event" subMessage="Connecting blockchain features..." />}>
-                  <Web3ProviderLazy>
-                    <FundraisingLaunchPage />
-                  </Web3ProviderLazy>
-                </Suspense>
-              }
-            />
-            <Route
-              path="/web3-impact-event"
-              element={
-                <Suspense fallback={<LoadingSpinner message="Loading Web3 Impact Event" />}>
-                  <Web3ProviderLazy>
-                    <FundraisingLaunchPage />
-                  </Web3ProviderLazy>
-                </Suspense>
-              }
-            />
+            */}
 
             {/* 404 */}
             <Route
@@ -210,6 +273,7 @@ export default function App() {
     </ErrorBoundary>
   );
 }
+
 
 
 

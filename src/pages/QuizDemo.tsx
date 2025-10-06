@@ -1,7 +1,7 @@
 import type React from 'react';
 import { Suspense, lazy } from 'react';
 import { SEO } from '../components/SEO';
-import { Header } from '../components/GeneralSite/Header';
+import { Header } from '../components/GeneralSite2/Header';
 import { PlayCircle, Check, Clock, Users, Sparkles, FileText, Shield, CreditCard } from 'lucide-react';
 
 const SiteFooter = lazy(() => import('../components/GeneralSite2/SiteFooter'));

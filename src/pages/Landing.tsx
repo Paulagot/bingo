@@ -2,15 +2,15 @@ import { useEffect, lazy, Suspense } from 'react';
 // SAFE hook – no Web3/zustand imports
 import { resetGameStateForLanding } from '../hooks/useLandingGameStore';
 
-import { Header } from '../components/GeneralSite/Header';
+import { Header } from '../components/GeneralSite2/Header';
 import HeroPrimary from '../components/GeneralSite2/HeroPrimary';
 import { SEO } from '../components/SEO';
 
 // Defer below-the-fold content
-const HowItWorks   = lazy(() => import('../components/GeneralSite/HowItWorks'));
+const HowItWorks   = lazy(() => import('../components/GeneralSite2/HowitWorks'));
 // const Benefit      = lazy(() => import('../components/GeneralSite/Benefits'));
 const ImpactRibbon = lazy(() => import('../components/GeneralSite2/ImpactRibbon'));
-const FAQ          = lazy(() => import('../components/GeneralSite/FAQ'));
+const FAQ          = lazy(() => import('../components/GeneralSite2/FAQ'));
 const FinalCTA     = lazy(() => import('../components/GeneralSite2/FinalCTA'));
 const SiteFooter   = lazy(() => import('../components/GeneralSite2/SiteFooter'));
 const FeaturesHighlightGrid = lazy(() => import('../components/GeneralSite2/FeaturesHighlightGrid'));

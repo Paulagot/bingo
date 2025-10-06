@@ -22,6 +22,7 @@ import { logAllRooms } from './roomManager.js';
 import createRoomApi from './quiz/api/create-room.js';
 console.log('🔍 About to import community-registration...');
 import communityRegistrationApi from './quiz/api/community-registration.js';
+import impactCampaignPledgeApi from './quiz/api/impactcampaign-pledge.js';
 console.log('✅ Community registration imported:', communityRegistrationApi);
 console.log('📦 Type:', typeof communityRegistrationApi);
 
@@ -80,6 +81,25 @@ const cspDirectives = {
 };
 app.use(helmet.contentSecurityPolicy({ directives: cspDirectives, reportOnly: true }));
 
+/* ──────────────────────────────────────────────────────────
+   301 redirects (run BEFORE routes/static/SPA handlers)
+   ────────────────────────────────────────────────────────── */
+app.use((req, res, next) => {
+  const pathname = req.path;               // e.g. "/Web3-Impact-Event"
+  const redirects = {
+    '/Web3-Impact-Event': '/web3/impact-campaign/',
+    '/web3-impact-event': '/web3/impact-campaign/',
+  };
+
+  const target = redirects[pathname];
+  if (target) {
+    const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    return res.redirect(301, target + qs);
+  }
+  next();
+});
+
+
 
 // Trusted Types (Report-Only) — surfaces DOM sink usage without breaking anything
 // app.use((req, res, next) => {
@@ -87,6 +107,8 @@ app.use(helmet.contentSecurityPolicy({ directives: cspDirectives, reportOnly: tr
 //   res.setHeader('Content-Security-Policy-Report-Only', String(existing) + `; require-trusted-types-for 'script'`);
 //   next();
 // });
+
+
 
 /* ──────────────────────────────────────────────────────────
    Request logging
@@ -96,10 +118,13 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use('/quiz/api/community-registration', communityRegistrationApi);
+app.use('/quiz/api/impactcampaign/pledge', impactCampaignPledgeApi);
+
 console.log('🛠️ Setting up routes...');
 app.use('/quiz/api', createRoomApi);
 console.log('🔗 Setting up community registration route...');
-app.use('/quiz/api/community-registration', communityRegistrationApi);
+
 console.log('✅ Routes setup complete'); 
 
 console.log('📋 Registered routes:');
@@ -298,6 +323,7 @@ setupSocketHandlers(io);
 
 app.use('/api/contact', contactRoute);
 app.use('/api/auth/reset', passwordResetRoute);
+
 
 // server/index.js (after app.use routes)
 app.use((err, _req, res, _next) => {

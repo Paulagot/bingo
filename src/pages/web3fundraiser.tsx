@@ -1,3 +1,4 @@
+// src/pages/web3fundraiser.tsx
 import React, { useState, useCallback } from 'react';
 import { Globe, Heart, Users, DollarSign, CheckCircle, ArrowRight, Sparkles, Shield, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -112,6 +113,7 @@ const FundraisingLaunchPage: React.FC = () => {
         keywords="web3 fundraising, blockchain charity, multichain fundraising, regenerative fundraising, crypto for good, blockchain impact, charity blockchain event"
         type="event"
         domainStrategy="geographic"
+       
       />
       
       {!isAnyModalOpen && (

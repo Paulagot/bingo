@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Header } from '../components/GeneralSite/Header';
+import { Header } from '../components/GeneralSite2/Header';
 import  SiteFooter from '../components/GeneralSite2/SiteFooter';
 import { SEO } from '../components/SEO';
 
