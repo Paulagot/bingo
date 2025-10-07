@@ -20,6 +20,15 @@
     <xhtml:link rel="alternate" hreflang="x-default" href="https://fundraisely.co.uk/whats-new" />
   </url>
   <url>
+    <loc>https://fundraisely.ie/blog</loc>
+    <lastmod>2025-10-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en-GB" href="https://fundraisely.co.uk/blog" />
+    <xhtml:link rel="alternate" hreflang="en-IE" href="https://fundraisely.ie/blog" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fundraisely.co.uk/blog" />
+  </url>
+  <url>
     <loc>https://fundraisely.ie/web3/impact-campaign</loc>
     <lastmod>2025-10-07</lastmod>
     <changefreq>monthly</changefreq>
@@ -27,6 +36,24 @@
     <xhtml:link rel="alternate" hreflang="en-GB" href="https://fundraisely.co.uk/web3/impact-campaign" />
     <xhtml:link rel="alternate" hreflang="en-IE" href="https://fundraisely.ie/web3/impact-campaign" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://fundraisely.co.uk/web3/impact-campaign" />
+  </url>
+  <url>
+    <loc>https://fundraisely.ie/web3/impact-campaign/join</loc>
+    <lastmod>2025-10-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en-GB" href="https://fundraisely.co.uk/web3/impact-campaign/join" />
+    <xhtml:link rel="alternate" hreflang="en-IE" href="https://fundraisely.ie/web3/impact-campaign/join" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fundraisely.co.uk/web3/impact-campaign/join" />
+  </url>
+  <url>
+    <loc>https://fundraisely.ie/web3/impact-campaign/leaderboard</loc>
+    <lastmod>2025-10-07</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="en-GB" href="https://fundraisely.co.uk/web3/impact-campaign/leaderboard" />
+    <xhtml:link rel="alternate" hreflang="en-IE" href="https://fundraisely.ie/web3/impact-campaign/leaderboard" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fundraisely.co.uk/web3/impact-campaign/leaderboard" />
   </url>
   <url>
     <loc>https://fundraisely.ie/free-trial</loc>
@@ -108,5 +135,50 @@
     <xhtml:link rel="alternate" hreflang="en-GB" href="https://fundraisely.co.uk/quiz/use-cases/schools" />
     <xhtml:link rel="alternate" hreflang="en-IE" href="https://fundraisely.ie/quiz/use-cases/schools" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://fundraisely.co.uk/quiz/use-cases/schools" />
+  </url>
+  <url>
+    <loc>https://fundraisely.ie/web3</loc>
+    <lastmod>2025-10-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en-GB" href="https://fundraisely.co.uk/web3" />
+    <xhtml:link rel="alternate" hreflang="en-IE" href="https://fundraisely.ie/web3" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fundraisely.co.uk/web3" />
+  </url>
+  <url>
+    <loc>https://fundraisely.ie/web3/how-it-works</loc>
+    <lastmod>2025-10-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en-GB" href="https://fundraisely.co.uk/web3/how-it-works" />
+    <xhtml:link rel="alternate" hreflang="en-IE" href="https://fundraisely.ie/web3/how-it-works" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fundraisely.co.uk/web3/how-it-works" />
+  </url>
+  <url>
+    <loc>https://fundraisely.ie/web3/features</loc>
+    <lastmod>2025-10-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en-GB" href="https://fundraisely.co.uk/web3/features" />
+    <xhtml:link rel="alternate" hreflang="en-IE" href="https://fundraisely.ie/web3/features" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fundraisely.co.uk/web3/features" />
+  </url>
+  <url>
+    <loc>https://fundraisely.ie/web3/partners</loc>
+    <lastmod>2025-10-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en-GB" href="https://fundraisely.co.uk/web3/partners" />
+    <xhtml:link rel="alternate" hreflang="en-IE" href="https://fundraisely.ie/web3/partners" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fundraisely.co.uk/web3/partners" />
+  </url>
+  <url>
+    <loc>https://fundraisely.ie/web3/testimonials</loc>
+    <lastmod>2025-10-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en-GB" href="https://fundraisely.co.uk/web3/testimonials" />
+    <xhtml:link rel="alternate" hreflang="en-IE" href="https://fundraisely.ie/web3/testimonials" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://fundraisely.co.uk/web3/testimonials" />
   </url>
 </urlset>
