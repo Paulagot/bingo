@@ -275,7 +275,7 @@ export default function FoundingPartnersPage() {
         <div className="container mx-auto max-w-6xl">
           <h2 className="text-3xl font-bold text-indigo-900">What's Coming Next</h2>
         <p className="mt-3 text-indigo-900/70 text-lg leading-relaxed max-w-4xl">
-            FundRaisely is a <strong>full-stack fundraising platform</strong>: events & campaigns, games engine, CRM, reporting, and compliance. Here's our amazing roadmap. All included with your Founding Partner plan.
+            FundRaisely is a <strong>full-stack fundraising platform</strong>: events & campaigns, games engine, CRM, reporting, and compliance. Here's our amazing roadmap. All included with your Founding Partner plan. 
           </p>
 
           <div className="mt-8 grid md:grid-cols-3 gap-6">
