@@ -3,7 +3,7 @@ import { SEO } from '../components/SEO';
 import { Header } from '../components/GeneralSite2/Header';
 import {
   Check, Trophy, Users, Shield, Rocket, Sparkles, ChevronRight, HeartHandshake,
-  Target, BarChart3, Award, Gamepad2, Search, FileText, Scale, Ticket,
+  Target, BarChart3, Award, Gamepad2, Search, FileText, Scale, Ticket, Coins, Blocks,
   MessageSquare, Clock, Zap,
 } from 'lucide-react';
 
@@ -352,6 +352,20 @@ export default function FoundingPartnersPage() {
               icon={<FileText className="h-5 w-5" />}
               gradient="bg-gradient-to-br from-rose-500 to-pink-500"
             />
+               <RoadmapTile
+              status="Planned"
+              title="Crypto Donations"
+              desc="Accept Crypto (Bitcoin, stablecoins and other crypto) donations from donors and supporters "
+              icon={<Coins className="h-5 w-5" />}
+             gradient="bg-gradient-to-br from-blue-500 to-cyan-500"
+            />
+                  <RoadmapTile
+              status="Planned"
+              title="Immutable, verifiable records"
+              desc="Improve donor confidence with event and impact transparency store on blockchain"
+              icon={<Blocks className="h-5 w-5" />}
+              gradient="bg-gradient-to-br from-slate-500 to-blue-600"
+            />
             <RoadmapTile
               status="Planned"
               title="Prize Manager & Reporting"
@@ -360,7 +374,7 @@ export default function FoundingPartnersPage() {
               gradient="bg-gradient-to-br from-yellow-500 to-orange-500"
             />
             <RoadmapTile
-              status="Planned"
+              status="Planned (regulated)"
               title="Compliance Engine"
               desc="Licences, limits and audit trails for regulated activities."
               icon={<Scale className="h-5 w-5" />}

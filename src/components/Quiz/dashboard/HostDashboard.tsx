@@ -735,7 +735,7 @@ const HostDashboardCore: React.FC = () => {
                         Admins can help manage the quiz during gameplay. Admins can add players, accept payments and
                         disqualify players.
                       </p>
-                      <p>You can also add a secondary host, this gives them the same rights as the person that set up the quiz.</p>
+                      
                     </div>
                   </div>
                 </div>
