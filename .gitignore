@@ -11,7 +11,10 @@ node_modules
 dist
 dist-ssr
 _test_
-*.local
+*.local 
+
+quiz-dashboard-demo.gif
+quiz-setup-demo.gif
 
 # Editor directories and files
 .vscode/*
