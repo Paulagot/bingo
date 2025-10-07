@@ -179,18 +179,18 @@ const DemoPage: React.FC = () => {
               <Step
                 icon={<Sparkles className="h-5 w-5" />}
                 title="1) Create your quiz"
-                desc="Use the 4-step wizard. Choose a template or customise, set ticketing, extras, and capacity."
+                desc="Use the 4-step wizard. Choose a template or customise, set ticketing, extras, and prizes."
+              />
+               <Step
+                icon={<CreditCard className="h-5 w-5" />}
+                title="2) Collect & mark payments"
+                desc="Collect cash, card tap or, send an instant payment link (e.g., Revolut). Admins mark paid + method."
               />
               <Step
                 icon={<Users className="h-5 w-5" />}
-                title="2) Invite players"
+                title="3) Invite players"
                 desc="Share a join link or QR. Players connect on mobile; you manage attendance."
-              />
-              <Step
-                icon={<CreditCard className="h-5 w-5" />}
-                title="3) Collect & mark payments"
-                desc="Collect cash or send an instant payment link (e.g., Revolut). Admins mark paid + method."
-              />
+              />             
               <Step
                 icon={<Check className="h-5 w-5" />}
                 title="4) Run & export"

@@ -147,7 +147,7 @@ const SetupSummaryPanel: React.FC = () => {
             <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Payment</span>
           </div>
           <div className="font-semibold text-gray-900">
-            {paymentMethod === 'web3' ? 'Web3 Wallet' : 'Cash or Card'}
+            {paymentMethod === 'web3' ? 'Web3 Wallet' : 'Cash/Tap/Instant transfer'}
           </div>
         </div>
 

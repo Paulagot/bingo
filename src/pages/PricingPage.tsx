@@ -310,7 +310,7 @@ const PricingPage: React.FC = () => {
                   <Bullet>addational templates and round types</Bullet>
                   <Bullet>Customisable round to personalise quiz</Bullet>
                   <Bullet>Advanced sponsor showcase features</Bullet>
-                  <Bullet>5 admin users for collaborative management</Bullet>                  
+                  <Bullet>5 in game admin users for collaborative management</Bullet>                  
                   <Bullet>Schedule event</Bullet>
                   <Bullet>Priority email support on event day</Bullet>
                   
@@ -333,7 +333,7 @@ const PricingPage: React.FC = () => {
                 <ul className="mt-4 space-y-2">
                   <Bullet>Everything in Event Pass</Bullet>
                   <Bullet>200 connected devices</Bullet>
-                  <Bullet>Up to 10 admin users with role management</Bullet>
+                  <Bullet>Up to in game 10 admin users with role management</Bullet>
                   <Bullet>Email support with 24-hour response time</Bullet>
                   <Bullet>Team training</Bullet>
                   <Bullet>Dedicated account management</Bullet>

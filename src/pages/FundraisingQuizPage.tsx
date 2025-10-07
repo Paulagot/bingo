@@ -191,19 +191,19 @@ const FundraisingQuizPage = () => {
               <div className="aspect-[1874/986] overflow-hidden rounded-2xl bg-gradient-to-br from-purple-100 to-pink-100 shadow-2xl max-h-[700px] group">
                 {/* Placeholder for dashboard GIF - replace with actual GIF when ready */}
                 <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50">
-                  <div className="text-center space-y-4 p-8">
+                  {/* <div className="text-center space-y-4 p-8">
                     <div className="text-6xl">📊</div>
                     <p className="text-lg text-gray-600 font-medium">Dashboard Demo Coming Soon</p>
                     <p className="text-sm text-gray-500">Replace with /quiz-dashboard-demo.gif</p>
-                  </div>
-                </div>
-                {/* Uncomment when GIF is ready:
+                  </div> */}
+                
+                {/* Uncomment when GIF is ready: */}
                 <img
                   src="/quiz-dashboard-demo.gif"
                   alt="Quiz dashboard overview"
                   className="h-full w-full object-contain"
                 />
-                */}
+               </div>
                 
                 <button
                   onClick={() => setFullscreenGif('dashboard')}
@@ -232,8 +232,8 @@ const FundraisingQuizPage = () => {
                     1
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg">Monitor Live Participation</h3>
-                    <p className="text-gray-600">Track teams joining and real-time engagement metrics</p>
+                    <h3 className="font-semibold text-lg">Overview Tab</h3>
+                    <p className="text-gray-600">Displays the quiz setting from the setup wizard</p>
                   </div>
                 </div>
                 
@@ -242,8 +242,8 @@ const FundraisingQuizPage = () => {
                     2
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg">Control Quiz Flow</h3>
-                    <p className="text-gray-600">Start rounds, manage timing, and control the quiz pace</p>
+                    <h3 className="font-semibold text-lg">Admin Panel</h3>
+                    <p className="text-gray-600">Add admin's to help with the event. The can collect payment and add players. Share theAR code or link for them to join your quiz room</p>
                   </div>
                 </div>
                 
@@ -252,8 +252,8 @@ const FundraisingQuizPage = () => {
                     3
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg">View Leaderboards</h3>
-                    <p className="text-gray-600">Display live standings and celebrate top performers</p>
+                    <h3 className="font-semibold text-lg">Player Panel</h3>
+                    <p className="text-gray-600">Add Players, Upsell extras for in game excitement and to boost your fundraise. Select payment method - cash/tap/instant payment, and mark as paid.  Allow share unique QR code ir link so they can join.  </p>
                   </div>
                 </div>
                 
@@ -262,8 +262,17 @@ const FundraisingQuizPage = () => {
                     4
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg">Track Fundraising</h3>
-                    <p className="text-gray-600">See total raised, process payments, and manage prizes</p>
+                    <h3 className="font-semibold text-lg">Payments panel</h3>
+                    <p className="text-gray-600">Track Fundraising. See total raised. Reconciliations locked till game ends</p>
+                  </div>
+                </div>
+                   <div className="flex items-start gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-100 text-purple-600 font-bold flex-shrink-0">
+                    5
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg">Lauch</h3>
+                    <p className="text-gray-600">When all players have joined, lauch the game</p>
                   </div>
                 </div>
               </div>
@@ -275,7 +284,7 @@ const FundraisingQuizPage = () => {
             {/* Left: In-Game Steps */}
             <div className="space-y-6">
               <h2 className="text-3xl font-bold text-gray-900">
-                In-Game View
+                In-Game View - Host
               </h2>
               
               <div className="space-y-4">
@@ -284,8 +293,8 @@ const FundraisingQuizPage = () => {
                     1
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg">Submit Answers in Real-Time</h3>
-                    <p className="text-gray-600">Teams answer questions as they're presented</p>
+                    <h3 className="font-semibold text-lg">Between Round Screens</h3>
+                    <p className="text-gray-600">At the start of each quiz and before each new round, the host will see round information, such as the number of question and points.</p>
                   </div>
                 </div>
                 
@@ -294,8 +303,8 @@ const FundraisingQuizPage = () => {
                     2
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg">See Live Standings</h3>
-                    <p className="text-gray-600">Watch your team's position update after each round</p>
+                    <h3 className="font-semibold text-lg">Asking Phase</h3>
+                    <p className="text-gray-600">Questions are delivered automatically and move on at the end of the timer, The host should read each question and possible answers to the participants in a wipeout or general round.  In a speed round, the host does not see the questions, but instead a live stats board.</p>
                   </div>
                 </div>
                 
@@ -304,18 +313,47 @@ const FundraisingQuizPage = () => {
                     3
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg">Participate in Extras</h3>
-                    <p className="text-gray-600">Join fundraising games like raffle draws and auctions</p>
+                    <h3 className="font-semibold text-lg">Round Review Phase</h3>
+                    <p className="text-gray-600">Manually review each question with the participants, stats are provided for each question and then a round leaderboard</p>
+                  </div>
+                </div>
+                  <div className="flex items-start gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 font-bold flex-shrink-0">
+                    4
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg">Player Activity Notifications</h3>
+                    <p className="text-gray-600">When a player uses an extra like Restore points or steal points, the host will see a notification at the bottom of the screen</p>
                   </div>
                 </div>
                 
                 <div className="flex items-start gap-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 font-bold flex-shrink-0">
-                    4
+                    5
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg">Team Collaboration</h3>
-                    <p className="text-gray-600">Discuss answers and strategize with your teammates</p>
+                    <h3 className="font-semibold text-lg">Tie-Breaker</h3>
+                    <p className="text-gray-600">Tie breakers are automatically detected and scored, the host just needs to call the players and start the round.</p>
+                  </div>
+                </div>
+
+                    <div className="flex items-start gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 font-bold flex-shrink-0">
+                    6
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg">Leaderboard</h3>
+                    <p className="text-gray-600">There are round leaderbaords and overall leaderboards, the top players being the winenrs</p>
+                  </div>
+                </div>
+
+                       <div className="flex items-start gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 font-bold flex-shrink-0">
+                    7
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg">Game End</h3>
+                    <p className="text-gray-600">Engage the participants with detailed and fun quiz stats.</p>
                   </div>
                 </div>
               </div>
@@ -418,10 +456,20 @@ const FundraisingQuizPage = () => {
                     <p className="text-gray-600">See total funds raised, breakdown by source, and payment status</p>
                   </div>
                 </div>
+
+                        <div className="flex items-start gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-600 font-bold flex-shrink-0">
+                    3
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg">Financial Reconciliation</h3>
+                    <p className="text-gray-600">Add adjustements to fundraising summary, such as refunds or fees - making this quiz your treasurers best friend</p>
+                  </div>
+                </div>
                 
                 <div className="flex items-start gap-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-600 font-bold flex-shrink-0">
-                    3
+                    4
                   </div>
                   <div>
                     <h3 className="font-semibold text-lg">Engagement Analytics</h3>
@@ -431,11 +479,11 @@ const FundraisingQuizPage = () => {
                 
                 <div className="flex items-start gap-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-600 font-bold flex-shrink-0">
-                    4
+                    5
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg">Export & Share</h3>
-                    <p className="text-gray-600">Download reports and share results with stakeholders</p>
+                    <h3 className="font-semibold text-lg">Export Audit Ready Reports</h3>
+                    <p className="text-gray-600">Own your data. Download reports and share results with stakeholders.  The data is deleted when the room ends. </p>
                   </div>
                 </div>
               </div>
