@@ -22,6 +22,10 @@ import Signup from './pages/Signup';
 import Web3Features from './pages/web3/features';
 import Web3Testimonials from './pages/web3/testimonials';
 import Web3Partners from './pages/web3/partners';
+import TermsOfUse from './pages/nonseo/terms';
+import PrivacyPolicy from './pages/nonseo/privacy'
+import AboutFundRaisely from './pages/nonseo/aboutus'
+import BlogAndResources from './pages/blog';
 
 // Lazy quiz bits
 const QuizRoutes = lazy(() => import('./components/Quiz/QuizRoutes'));
@@ -104,12 +108,12 @@ export default function App() {
             <Route path="/free-trial" element={<FreeTrial />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/testimonials" element={<TestimonialsPage />} />
-            <Route path="/about" element={<div>About Page (TODO)</div>} />
-            <Route path="/blog" element={<div>Blog / Resources (TODO)</div>} />
+            <Route path="/about" element={<AboutFundRaisely />} />
+            <Route path="/blog" element={<BlogAndResources />} />
             <Route path="/contact" element={<ContactForm />} />
-            <Route path="/legal/privacy" element={<div>Privacy Policy (TODO)</div>} />
-            <Route path="/legal/terms" element={<div>Terms of Service (TODO)</div>} />
-            <Route path="/legal/compliance" element={<div>Compliance Info (TODO)</div>} />
+            <Route path="/legal/privacy" element={<PrivacyPolicy />} />
+            <Route path="/legal/terms" element={<TermsOfUse />} />
+            
             <Route path="/founding-partners" element={<FoundingPartnersPage />} />
 
             {/* Auth routes */}

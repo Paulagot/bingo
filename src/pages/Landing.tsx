@@ -45,6 +45,9 @@ export function Landing() {
         ukKeywords="fundraising quiz platform UK, charity fundraising quiz software, club events Britain, nonprofit management UK, fundraising tools United Kingdom"
         ieKeywords="fundraising quiz Ireland, charity events Ireland, club fundraising Ireland, nonprofit tools Ireland, community fundraising Ireland"
         domainStrategy="geographic"
+          breadcrumbs={[
+    { name: 'Home', item: '/' },
+  ]}
         // Optional: page-level JSON-LD for WebPage
         structuredData={{
           '@context': 'https://schema.org',
@@ -54,6 +57,7 @@ export function Landing() {
             "Experience the magic of effortless fundraising. FundRaisely empowers your club or charity with interactive quiz events, turning traditional challenges into opportunities for unprecedented community engagement and financial growth.",
           isPartOf: { '@type': 'WebSite', name: 'FundRaisely' }
         }}
+        
       />
 
       <header>

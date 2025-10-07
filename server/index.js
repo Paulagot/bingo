@@ -87,8 +87,8 @@ app.use(helmet.contentSecurityPolicy({ directives: cspDirectives, reportOnly: tr
 app.use((req, res, next) => {
   const pathname = req.path;               // e.g. "/Web3-Impact-Event"
   const redirects = {
-    '/Web3-Impact-Event': '/web3/impact-campaign/',
-    '/web3-impact-event': '/web3/impact-campaign/',
+    '/Web3-Impact-Event': '/web3/impact-campaign',
+    '/web3-impact-event': '/web3/impact-campaign',
   };
 
   const target = redirects[pathname];

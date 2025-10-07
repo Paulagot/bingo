@@ -127,6 +127,11 @@ const ImpactCampaignOverview: React.FC = () => {
         type="event"
         structuredData={[breadcrumbsJsonLd, eventJsonLd, faqJsonLd]}
         domainStrategy="geographic"
+        breadcrumbs={[
+  { name: 'Home', item: '/' },
+  { name: 'Web3', item: '/web3' },
+  { name: 'Impact Campaign', item: '/web3/impact-campaign' },
+]}
       />
 
       {!isAnyModalOpen && (

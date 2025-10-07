@@ -17,10 +17,14 @@ function abs(path: string) {
   return `${getOrigin()}${p}`;
 }
 
+/** Respect Vite's base for assets served from /public */
+const BASE_URL = (import.meta as any)?.env?.BASE_URL ?? '/';
+const withBase = (p: string) => `${BASE_URL}${p.replace(/^\/+/, '')}`;
+
 type Partner = {
   name: string;
   href?: string;
-  imgSrc: string;
+  imgSrc: string; // path relative to /public (e.g., 'partners/glo.svg')
   imgAlt?: string;
   tagline?: string;
 };
@@ -47,12 +51,21 @@ function LogoGrid({
           const card = (
             <div className="group relative rounded-2xl border border-gray-100 bg-white p-6 shadow-sm hover:shadow-lg transition-all duration-300 h-full flex flex-col items-center justify-center">
               <img
-                src={p.imgSrc}
+                src={withBase(p.imgSrc)}
                 alt={p.imgAlt || p.name}
                 loading="lazy"
                 width={220}
                 height={100}
                 className="h-16 w-auto object-contain mb-4"
+                onError={(e) => {
+                  // Quick visual hint if path/case is wrong
+                  (e.currentTarget as HTMLImageElement).style.display = 'none';
+                  const fallback = document.createElement('div');
+                  fallback.textContent = '⚠️ image not found';
+                  fallback.style.fontSize = '12px';
+                  fallback.style.color = '#b91c1c';
+                  e.currentTarget.parentElement?.appendChild(fallback);
+                }}
               />
               <div className="text-center">
                 <div className="text-indigo-900 font-bold mb-1">{p.name}</div>
@@ -84,29 +97,37 @@ function LogoGrid({
 
 const Web3Partners: React.FC = () => {
   const infra: Partner[] = [
-    { name: 'The Giving Block', href: 'https://www.thegivingblock.com/', imgSrc: '/assets/partners/the-giving-block.svg', tagline: 'Direct-to-charity routing' },
-    { name: 'Reown AppKit', href: 'https://reown.com/', imgSrc: '/assets/partners/reown-appkit.svg', tagline: 'Wallet & chain orchestration' },
-    { name: 'SimpleSigner', href: '#', imgSrc: '/assets/partners/simplesigner.svg', tagline: 'Wallet auth for clubs' },
-    { name: 'Stellar (Soroban)', href: 'https://soroban.stellar.org/', imgSrc: '/assets/partners/stellar-soroban.svg', tagline: 'Core fundraising contracts' },
-    { name: 'Solana', href: 'https://solana.com/', imgSrc: '/assets/partners/solana.svg', tagline: 'Low-fee, high-throughput events' },
-    { name: 'Base (EVM)', href: 'https://base.org/', imgSrc: '/assets/partners/base.svg', tagline: 'EVM rails & ERC-20 support' },
-    { name: 'Polygon (EVM)', href: 'https://polygon.technology/', imgSrc: '/assets/partners/polygon.svg', tagline: 'EVM with broad wallet coverage' },
-    { name: 'AllBridge', href: 'https://allbridge.io/', imgSrc: '/assets/partners/allbridge.svg', tagline: 'Bridge to charity payout rails' },
-    { name: 'Glo Dollar (GLO)', href: 'https://www.glodollar.org/', imgSrc: '/assets/partners/glo-dollar.svg', tagline: 'Impact-aligned stablecoin' },
-    { name: 'USDT', href: 'https://tether.to/', imgSrc: '/assets/partners/usdt.svg', tagline: 'Widely supported stablecoin' },
-    { name: 'USDC', href: 'https://www.circle.com/', imgSrc: '/assets/partners/usdc.svg', tagline: 'Stablecoin for Solana & EVM' },
+    { name: 'Glo Dollar (GLO)', href: 'https://www.glodollar.org/', imgSrc: 'partner/glo.svg', tagline: 'Impact-aligned stablecoin' },
+    { name: 'The Giving Block', href: 'https://www.thegivingblock.com/', imgSrc: 'partner/thegivingblock.webp', tagline: 'Direct-to-charity routing' },
+    { name: 'Solana', href: 'https://solana.com/', imgSrc: 'partner/Solana-Logo.png', tagline: 'Quiz fundraising contract, Low-fee, high-throughput events' },
+    { name: 'Base (EVM)', href: 'https://base.org/', imgSrc: 'partner/Base_square_blue.svg', tagline: 'Quiz fundraising contract on Base and building Base Mini-app' },
+     { name: 'Stellar (Soroban)', href: 'https://soroban.stellar.org/', imgSrc: 'partner/stellar-xlm-logo.svg', tagline: 'Quiz fundraising contract on stellar' },
+    
+    // { name: 'Reown AppKit', href: 'https://reown.com/', imgSrc: 'partner/reown-appkit.svg', tagline: 'Wallet & chain orchestration' },
+    // { name: 'SimpleSigner', href: '#', imgSrc: 'partners/simplesigner.svg', tagline: 'Wallet auth for clubs' },
+   
+    // { name: 'Polygon (EVM)', href: 'https://polygon.technology/', imgSrc: 'partner/polygon.svg', tagline: 'EVM with broad wallet coverage' },
+    // { name: 'AllBridge', href: 'https://allbridge.io/', imgSrc: 'partner/allbridge.svg', tagline: 'Bridge to charity payout rails' },
+    
+    // { name: 'USDT', href: 'https://tether.to/', imgSrc: 'partner/usdt.svg', tagline: 'Widely supported stablecoin' },
+    // { name: 'USDC', href: 'https://www.circle.com/', imgSrc: 'partners/usdc.svg', tagline: 'Stablecoin for Solana & EVM' },
   ];
 
   const media: Partner[] = [
-    { name: 'Crypto Press (Placeholder)', href: '#', imgSrc: '/assets/partners/placeholder-media-1.svg', tagline: 'Coverage & awareness' },
-    { name: 'Dev Communities (Placeholder)', href: '#', imgSrc: '/assets/partners/placeholder-media-2.svg', tagline: 'Ecosystem amplification' },
-    { name: 'Events & Hackathons (Placeholder)', href: '#', imgSrc: '/assets/partners/placeholder-media-3.svg', tagline: 'Demos & activations' },
+    { name: 'Blockleaders', href: 'https://blockleaders.io/', imgSrc: 'partner/blockleaders_logo.jpeg', tagline: 'Coverage & awareness' },
+     { name: 'Superteam Ireland', href: 'https://www.linkedin.com/company/superteam-ireland/', imgSrc: 'partner/superteam_ireland_logo.jpeg', tagline: 'Demos & amplification' },
+    { name: 'Base Ireland', href: 'https://base-community.notion.site/ireland', imgSrc: 'partner/base_irelands.jpg', tagline: 'Ecosystem amplification' },   
+    { name: 'Stellar EU', href: '#', imgSrc: 'partner/stellareu.webp', tagline: 'Demos & amplification' },
+     { name: 'WiBT Women in Blockchain Talks', href: 'https://womeninblockchaintalks.com/', imgSrc: 'partner/wibt.jpg', tagline: 'Ecosystem amplification' },
+      { name: 'Glo Dollar (GLO)', href: 'https://www.glodollar.org/', imgSrc: 'partner/glo.svg', tagline: 'Amplification' },
+    { name: 'The Giving Block', href: 'https://www.thegivingblock.com/', imgSrc: 'partner/thegivingblock.webp', tagline: 'Coverage & awareness' },
+   { name: 'Eth Dublin', href: 'https://www.ethdublin.io/', imgSrc: 'partner/ethdublin.jpeg', tagline: 'Believes in the mission ' },
   ];
 
   const earlyBackers: Partner[] = [
-    { name: 'Early Backer A (Placeholder)', href: '#', imgSrc: '/assets/partners/placeholder-backer-1.svg', tagline: 'Believed in the mission early' },
-    { name: 'Early Backer B (Placeholder)', href: '#', imgSrc: '/assets/partners/placeholder-backer-2.svg', tagline: 'Supporting transparent impact' },
-    { name: 'Early Backer C (Placeholder)', href: '#', imgSrc: '/assets/partners/placeholder-backer-3.svg', tagline: 'Powering product velocity' },
+    { name: 'Superteam Ireland', href: 'https://www.linkedin.com/company/superteam-ireland/', imgSrc: 'partner/superteam_ireland_logo.jpeg', tagline: 'Powering product velocity' },
+    { name: 'Stellar EU', href: 'https://linktr.ee/Stellarireland', imgSrc: 'partner/stellareu.webp', tagline: 'Supporting impact' },
+   
   ];
 
   // JSON-LD Structured Data
@@ -213,7 +234,7 @@ const Web3Partners: React.FC = () => {
         <div className="container mx-auto max-w-6xl">
           <LogoGrid
             title="Infrastructure Partners"
-            blurb="Wallets, smart contract platforms, bridges, and stablecoins that power FundRaisely's multi-chain fundraising architecture — including Stellar Soroban, Solana, and EVM networks."
+            blurb="Wallets, smart contract platforms, bridges, and stablecoins that power FundRaisely's multi-chain fundraising architecture "
             partners={infra}
           />
 
@@ -231,28 +252,50 @@ const Web3Partners: React.FC = () => {
         </div>
       </section>
 
-      {/* What Our Partners Enable */}
-      <section className="px-4 pb-12">
-        <div className="container mx-auto max-w-6xl">
-          <div className="rounded-2xl border border-gray-100 bg-gradient-to-br from-indigo-50 to-purple-50 p-8 shadow-sm">
-            <h2 className="text-indigo-900 text-3xl font-bold mb-4">What Our Partners Enable</h2>
-            <div className="space-y-4 text-indigo-800/80 leading-relaxed">
-              <p>
-                <strong className="text-indigo-900">Wallet & Chain Support:</strong> Reown AppKit and SimpleSigner make it easy for clubs and players to connect wallets on Stellar (Soroban), Solana, or EVM chains (Base, Polygon). No platform custody — your keys, your crypto.
-              </p>
-              <p>
-                <strong className="text-indigo-900">Stablecoins & Bridges:</strong> Accept Glo USD, USDT, and USDC where supported. AllBridge enables optional bridging for direct-to-charity payout pathways via partners like The Giving Block.
-              </p>
-              <p>
-                <strong className="text-indigo-900">Transparent Smart Contracts:</strong> Per-event Room Contracts enforce minimum charity allocations and guardrails for host and prize splits. All transactions are emitted on-chain for audit-ready reporting.
-              </p>
-              <p>
-                <strong className="text-indigo-900">Direct-to-Charity Routing:</strong> The Giving Block infrastructure ensures funds flow directly to verified charities with minimal intermediaries, maximizing impact and transparency.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+  {/* What Our Partners Enable */}
+<section className="px-4 pb-12">
+  <div className="container mx-auto max-w-6xl">
+    <div className="rounded-2xl border border-gray-100 bg-gradient-to-br from-indigo-50 to-purple-50 p-8 shadow-sm">
+      <h2 className="text-indigo-900 text-3xl font-bold mb-4">What Our Partners Enable</h2>
+      <div className="space-y-4 text-indigo-800/80 leading-relaxed">
+        <p>
+          FundRaisely is powered by a growing ecosystem of infrastructure, media, and community partners, all
+          committed to making transparent, high-impact fundraising accessible to everyone.
+        </p>
+
+        <p>
+          <strong className="text-indigo-900">Multi-Chain Infrastructure:</strong> Solana, Base, and Stellar (Soroban)
+          provide the rails for FundRaisely’s quiz fundraising smart contracts, delivering low-fee, high-throughput,
+          and transparent event flows across Web3 ecosystems.
+        </p>
+
+        <p>
+          <strong className="text-indigo-900">Stablecoins for Good:</strong> Through Glo Dollar (GLO) clubs and players can fundraise using
+          impact-aligned digital currencies. These ensure stable value and global accessibility without middlemen.          
+        </p>
+
+        <p>
+          <strong className="text-indigo-900">Direct-to-Charity Routing:</strong> The Giving Block powers seamless
+          on-chain donations to verified charities, so every fundraiser can route proceeds transparently and verifiably,
+          with no custodial holding.
+        </p>
+
+        <p>
+          <strong className="text-indigo-900">Community & Ecosystem Amplification:</strong> Media and community partners
+          like Blockleaders, Superteam Ireland, Base Ireland, Stellar EU, and Women in Blockchain Talks help us reach new
+          audiences, host demo events, and spotlight clubs making a difference.
+        </p>
+
+        <p>
+          <strong className="text-indigo-900">Early Backers & Builders:</strong> Support from partners such as Superteam
+          Ireland and Stellar EU fuels our product development and early impact initiatives - helping FundRaisely scale
+          faster and empower more fundraisers worldwide.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
 
       {/* CTA Section */}
       <section className="px-4 pb-14">
@@ -286,5 +329,6 @@ const Web3Partners: React.FC = () => {
 };
 
 export default Web3Partners;
+
 
 

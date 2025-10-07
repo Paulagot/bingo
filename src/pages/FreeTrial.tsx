@@ -93,6 +93,10 @@ const FreeTrial: React.FC = () => {
         domainStrategy="geographic"
         type="website"
         structuredData={[faqJsonLd, softwareJsonLd, breadcrumbsJsonLd]}
+          breadcrumbs={[
+    { name: 'Home', item: '/' },
+    { name: 'Free Trial', item: '/free-trial' },
+  ]}
       />
 
       {/* Hero */}

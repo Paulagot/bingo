@@ -22,6 +22,30 @@ export function getSeoForPath(reqPath, hostOrigin) {
       keywords:
         'fundraising platform, charity fundraising, club events, fundraising quiz, school quiz fundraiser',
     },
+    '/about': {
+  title: 'About FundRaisely',
+  description: 'About our mission and team.',
+  canonical: ABS(hostOrigin, '/about'),
+  robots: 'noindex, nofollow',
+},
+'/contact': {
+  title: 'Contact FundRaisely',
+  description: 'Get in touch with our team.',
+  canonical: ABS(hostOrigin, '/contact'),
+  robots: 'noindex, nofollow',
+},
+'/legal/privacy': {
+  title: 'Privacy Policy | FundRaisely',
+  description: 'How we handle your data.',
+  canonical: ABS(hostOrigin, '/legal/privacy'),
+  robots: 'noindex, nofollow',
+},
+'/legal/terms': {
+  title: 'Terms of Service | FundRaisely',
+  description: 'Terms and conditions.',
+  canonical: ABS(hostOrigin, '/legal/terms'),
+  robots: 'noindex, nofollow',
+},
     '/pricing': {
       title: 'Pricing — FundRaisely Fundraising Quiz (Coming Soon) | FundRaisely',
       description:

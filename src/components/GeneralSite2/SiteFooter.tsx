@@ -44,7 +44,7 @@ const SiteFooter: React.FC = () => (
         <div>
           <h4 className="font-bold text-white mb-4">Web3 Impact Campaign</h4>
           <ul className="mt-3 space-y-3 text-white/80 text-sm">
-            <li><a href="web3/impact-campaign" className="hover:text-white transition-colors">Overview</a></li>
+            <li><a href="/web3/impact-campaign" className="hover:text-white transition-colors">Overview</a></li>
             <li><a href="/web3/impact-campaign/join" className="hover:text-white transition-colors">Join</a></li>
             <li><a href="/web3/impact-campaign/leaderboard" className="hover:text-white transition-colors">Leaderboard</a></li>
             
@@ -68,7 +68,7 @@ const SiteFooter: React.FC = () => (
             <li><a href="/contact" className="hover:text-white transition-colors">Contact / Support</a></li>
             <li><a href="/legal/privacy" className="hover:text-white transition-colors">Privacy</a></li>
             <li><a href="/legal/terms" className="hover:text-white transition-colors">Terms</a></li>
-            <li><a href="/legal/compliance" className="hover:text-white transition-colors">Compliance Info</a></li>
+          
           </ul>
         </div>
       </div>

@@ -6,7 +6,7 @@ import { join } from 'path';
 const publicPages = [
   { path: '/', priority: 1.0, changefreq: 'weekly' },
   { path: '/whats-new', priority: 0.8, changefreq: 'weekly' },
-  { path: '/web3/impact-campaign/', priority: 0.9, changefreq: 'monthly' },
+  { path: '/web3/impact-campaign', priority: 0.9, changefreq: 'monthly' },
   { path: '/free-trial', priority: 0.8, changefreq: 'monthly' },
   { path: '/testimonials', priority: 0.7, changefreq: 'monthly' },
   { path: '/quiz/demo', priority: 0.7, changefreq: 'monthly' },
