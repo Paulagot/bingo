@@ -332,7 +332,7 @@ const JoinImpactCampaignPage: React.FC = () => {
                   <div className="aspect-[1874/986] overflow-hidden rounded-2xl bg-gradient-to-br from-purple-100 to-pink-100 shadow-2xl max-h-[700px] group">
                     <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50">
                       <img
-                        src="/quiz-dashboard-demo.gif"
+                        src="/quiz-dashboard-demo.mp4"
                         alt="Quiz dashboard overview"
                         className="h-full w-full object-contain"
                       />

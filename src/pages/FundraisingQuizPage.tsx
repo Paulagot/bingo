@@ -199,7 +199,7 @@ const FundraisingQuizPage = () => {
                 
                 {/* Uncomment when GIF is ready: */}
                 <img
-                  src="/quiz-dashboard-demo.gif"
+                  src="/quiz-dashboard-demo.mp4"
                   alt="Quiz dashboard overview"
                   className="h-full w-full object-contain"
                 />

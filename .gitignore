@@ -13,8 +13,7 @@ dist-ssr
 _test_
 *.local 
 
-quiz-dashboard-demo.gif
-quiz-setup-demo.gif
+
 
 # Editor directories and files
 .vscode/*
