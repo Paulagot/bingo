@@ -275,31 +275,33 @@ export default function FoundingPartnersPage() {
         <div className="container mx-auto max-w-6xl">
           <h2 className="text-3xl font-bold text-indigo-900">What's Coming Next</h2>
         <p className="mt-3 text-indigo-900/70 text-lg leading-relaxed max-w-4xl">
-            FundRaisely is a <strong>full-stack fundraising platform</strong>: events & campaigns, games engine, CRM, reporting, and compliance. Here's the near-term roadmap. All included with your Founding Partner plan.
+            FundRaisely is a <strong>full-stack fundraising platform</strong>: events & campaigns, games engine, CRM, reporting, and compliance. Here's our amazing roadmap. All included with your Founding Partner plan.
           </p>
 
           <div className="mt-8 grid md:grid-cols-3 gap-6">
             <RoadmapTile
-              status="Live"
+              // status="Live"
+              status="In build"
               title="Quiz App"
               desc="Host, play, report — online or in-person. Same user limits as Pro."
               icon={<Gamepad2 className="h-5 w-5" />}
               gradient="bg-gradient-to-br from-green-500 to-emerald-500"
             />
-            <RoadmapTile
-              status="Next"
-              title="Club Dashboard"
-              desc="All your events, people and results in one place."
-              icon={<BarChart3 className="h-5 w-5" />}
-              gradient="bg-gradient-to-br from-blue-500 to-cyan-500"
-            />
-            <RoadmapTile
+              <RoadmapTile
               status="In build"
               title="Campaign & Event Manager"
               desc="Plan campaigns, schedule events, and reconcile income & costs with financial reporting."
               icon={<Target className="h-5 w-5" />}
               gradient="bg-gradient-to-br from-amber-500 to-orange-500"
             />
+            <RoadmapTile
+              status="Next"
+              title="Club Dashboard"
+              desc="All your fundraising events, people and results in one place."
+              icon={<BarChart3 className="h-5 w-5" />}
+              gradient="bg-gradient-to-br from-blue-500 to-cyan-500"
+            />
+          
 
             <RoadmapTile
               status="Planned"
@@ -362,7 +364,7 @@ export default function FoundingPartnersPage() {
                   <RoadmapTile
               status="Planned"
               title="Immutable, verifiable records"
-              desc="Improve donor confidence with event and impact transparency store on blockchain"
+              desc="Improve donor confidence with event and impact transparency store on blockchain (Solana)"
               icon={<Blocks className="h-5 w-5" />}
               gradient="bg-gradient-to-br from-slate-500 to-blue-600"
             />
