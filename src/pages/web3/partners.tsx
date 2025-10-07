@@ -116,7 +116,7 @@ const Web3Partners: React.FC = () => {
   const media: Partner[] = [
     { name: 'Blockleaders', href: 'https://blockleaders.io/', imgSrc: 'partner/blockleaders_logo.jpeg', tagline: 'Coverage & awareness' },
      { name: 'Superteam Ireland', href: 'https://www.linkedin.com/company/superteam-ireland/', imgSrc: 'partner/superteam_ireland_logo.jpeg', tagline: 'Demos & amplification' },
-    { name: 'Base Ireland', href: 'https://base-community.notion.site/ireland', imgSrc: 'partner/base_irelands.jpg', tagline: 'Ecosystem amplification' },   
+    { name: 'Base Ireland', href: 'https://x.com/base_ireland', imgSrc: 'partner/base_irelands.jpg', tagline: 'Ecosystem amplification' },   
     { name: 'Stellar EU', href: '#', imgSrc: 'partner/stellareu.webp', tagline: 'Demos & amplification' },
      { name: 'WiBT Women in Blockchain Talks', href: 'https://womeninblockchaintalks.com/', imgSrc: 'partner/wibt.jpg', tagline: 'Ecosystem amplification' },
       { name: 'Glo Dollar (GLO)', href: 'https://www.glodollar.org/', imgSrc: 'partner/glo.svg', tagline: 'Amplification' },
