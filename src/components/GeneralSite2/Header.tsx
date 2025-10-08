@@ -9,6 +9,7 @@ export function Header() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileQuizOpen, setMobileQuizOpen] = useState(false);
+  const [mobilePricingOpen, setMobilePricingOpen] = useState(false);
 
   const { isAuthenticated, user, club, logout } = useAuth();
 
@@ -26,8 +27,8 @@ export function Header() {
   // Routes
   const ROUTES = {
     impactCampaign: '/web3/impact-campaign/', // label: Impact Campaign
-    // pricing: '/pricing', // (replaced in nav by Founding Partner)
-    foundingPartner: '/founding-partners', // NEW: Launch offer
+    pricing: '/pricing',
+    foundingPartner: '/founding-partners', // Launch offer
     blog: '/blog',
     login: '/auth',
     freeTrial: '/free-trial',
@@ -116,15 +117,37 @@ export function Header() {
             </div>
           </div>
 
-          {/* Founding Partner (replaces Pricing) */}
-          {hideIfCurrent(ROUTES.foundingPartner) && (
-            <Link
-              to={ROUTES.foundingPartner}
-              className="text-sm font-medium text-indigo-700 hover:text-indigo-900"
+          {/* Pricing (dropdown with Founding Partners + Pricing) */}
+          <div className="relative group">
+            <button
+              className="flex items-center gap-1 text-sm font-medium text-indigo-700 hover:text-indigo-900"
+              aria-haspopup="true"
+              aria-expanded="false"
             >
-              Founding Partner
-            </Link>
-          )}
+              Pricing
+              <ChevronDown className="h-4 w-4" />
+            </button>
+            <div className="invisible absolute left-0 top-full w-64 rounded-lg border border-gray-100 bg-white py-2 opacity-0 shadow-lg transition-all duration-150 group-hover:visible group-hover:opacity-100">
+              <div className="flex flex-col">
+                {hideIfCurrent(ROUTES.foundingPartner) && (
+                  <Link
+                    to={ROUTES.foundingPartner}
+                    className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    Founding Partners
+                  </Link>
+                )}
+                {hideIfCurrent(ROUTES.pricing) && (
+                  <Link
+                    to={ROUTES.pricing}
+                    className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    Pricing
+                  </Link>
+                )}
+              </div>
+            </div>
+          </div>
 
           {/* Impact Campaign (now unified colour) */}
           {!onImpactCampaign && (
@@ -165,7 +188,6 @@ export function Header() {
               Create Quiz
             </Link>
           ) : (
-            // Free Trial CTA — always-on conversion, hidden on /free-trial
             !onFreeTrial && (
               <Link
                 to={ROUTES.freeTrial}
@@ -274,15 +296,38 @@ export function Header() {
               </div>
             )}
 
-            {/* Founding Partner (replaces Pricing) */}
-            {hideIfCurrent(ROUTES.foundingPartner) && (
-              <Link
-                to={ROUTES.foundingPartner}
-                className="block rounded-md px-2 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Founding Partner
-              </Link>
+            {/* Pricing accordion (Founding Partners + Pricing) */}
+            <button
+              onClick={() => setMobilePricingOpen((v) => !v)}
+              className="flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-sm font-medium text-indigo-700 hover:bg-indigo-50"
+              aria-expanded={mobilePricingOpen}
+            >
+              <span>Pricing</span>
+              <ChevronDown
+                className={`h-4 w-4 transition-transform ${mobilePricingOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+            {mobilePricingOpen && (
+              <div className="ml-2 flex flex-col">
+                {hideIfCurrent(ROUTES.foundingPartner) && (
+                  <Link
+                    to={ROUTES.foundingPartner}
+                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Founding Partners
+                  </Link>
+                )}
+                {hideIfCurrent(ROUTES.pricing) && (
+                  <Link
+                    to={ROUTES.pricing}
+                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Pricing
+                  </Link>
+                )}
+              </div>
             )}
 
             {/* Impact Campaign */}
@@ -354,6 +399,7 @@ export function Header() {
     </header>
   );
 }
+
 
 
 

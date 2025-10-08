@@ -66,7 +66,7 @@ socket.on('verify_quiz_room', ({ roomId }) => {
 
     const response = {
       exists: true,
-      paymentMethod: paymentMethod || 'cash',
+      paymentMethod: paymentMethod ||'unknown',
       entryFee: Number(entryFee),
       fundraisingOptions,
       fundraisingPrices,

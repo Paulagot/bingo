@@ -1,17 +1,25 @@
-//src/components/Quiz/hooks/usePlayerStore.ts
+// src/components/Quiz/hooks/usePlayerStore.ts
 import { create } from 'zustand';
+
+export type PaymentMethod =
+  | 'cash'
+  | 'instant payment'
+  | 'card'
+  | 'web3'
+  | 'unknown';
 
 export interface Player {
   id: string;
   name: string;
   paid: boolean;
   disqualified?: boolean;
-  paymentMethod: 'cash' | 'revolut' | 'web3' | 'unknown';
+  paymentMethod: PaymentMethod;
   credits: number;
   extras?: string[];
   extraPayments?: {
     [extraKey: string]: {
-      method: 'cash' | 'revolut' | 'other';
+      // record the specific method used for the extra
+      method: PaymentMethod | 'other';
       amount: number;
     };
   };
@@ -33,6 +41,7 @@ export const usePlayerStore = create<PlayerState>((set) => ({
 
   resetPlayers: () => set({ players: [], hydrated: false }),
 }));
+
 
 
 

@@ -18,6 +18,30 @@ import { emitFullRoomState } from '../handlers/sharedUtils.js';
 
 const debug = true;
 
+// --- Payment method normalization ---
+const ALLOWED_PM = ['cash', 'instant payment', 'card', 'web3', 'unknown'];
+
+function normalizePaymentMethod(maybe) {
+  if (typeof maybe === 'string') {
+    if (ALLOWED_PM.includes(maybe)) return maybe;
+    // legacy alias
+    if (maybe === 'revolut') return 'instant payment';
+  }
+  return 'other';
+}
+
+function normalizeExtraPayments(extraPayments) {
+  if (!extraPayments || typeof extraPayments !== 'object') return {};
+  return Object.fromEntries(
+    Object.entries(extraPayments).map(([key, val]) => {
+      const method = normalizePaymentMethod(val?.method);
+      const amount = Number(val?.amount || 0);
+      return [key, { method, amount }];
+    })
+  );
+}
+
+
 function getEngine(room) {
   const roundType = room.config.roundDefinitions?.[room.currentRound - 1]?.roundType;
 
@@ -72,6 +96,7 @@ export function setupPlayerHandlers(socket, namespace) {
     // Join AFTER validation
     socket.join(roomId);
     socket.join(`${roomId}:${role}`);
+    let joinedUser = null;
 
     if (role === 'host') {
       updateHostSocketId(roomId, socket.id);
@@ -91,6 +116,19 @@ export function setupPlayerHandlers(socket, namespace) {
     } else if (role === 'player') {
       // ✅ Session housekeeping
       cleanExpiredSessions(roomId);
+
+      // Sanitize/normalize payment fields from client
+const normalizedPaymentMethod = normalizePaymentMethod(user.paymentMethod);
+const normalizedExtraPayments = normalizeExtraPayments(user.extraPayments);
+
+// Build the user object we'll store/propagate
+const sanitizedUser = {
+  ...user,
+  paymentMethod: normalizedPaymentMethod,
+  extraPayments: normalizedExtraPayments,
+  // ensure socket binding is from this connection
+  socketId: socket.id,
+};
 
       // Determine if player exists and/or has a session
       const existingPlayer = room.players.find(p => p.id === user.id);
@@ -119,27 +157,45 @@ if (prevSocketId && prevSocketId !== socket.id) {
     }
   }
 }
-
+let joinedUser;
 
       // Add or update player with current socket
-      if (!existingPlayer) {
-        addOrUpdatePlayer(roomId, { ...user, socketId: socket.id });
-        updatePlayerSocketId(roomId, user.id, socket.id);
-        updatePlayerSession(roomId, user.id, {
-          socketId: socket.id,
-          status: 'waiting',
-          inPlayRoute: false,
-          lastActive: Date.now()
-        });
-      } else {
-        updatePlayerSocketId(roomId, user.id, socket.id);
-        updatePlayerSession(roomId, user.id, {
-          socketId: socket.id,
-          status: existingSession?.status || 'waiting',
-          inPlayRoute: !!existingSession?.inPlayRoute,
-          lastActive: Date.now()
-        });
-      }
+if (!existingPlayer) {
+  // brand new player
+  addOrUpdatePlayer(roomId, sanitizedUser);
+  joinedUser = sanitizedUser;
+
+  updatePlayerSocketId(roomId, user.id, socket.id);
+  updatePlayerSession(roomId, user.id, {
+    socketId: socket.id,
+    status: 'waiting',
+    inPlayRoute: false,
+    lastActive: Date.now(),
+  });
+} else {
+  // merge onto existing to avoid blowing away prior fields
+  const mergedExisting = {
+    ...existingPlayer,
+    ...sanitizedUser,
+    // keep any previous extraPayments and overlay new ones
+    extraPayments: {
+      ...(existingPlayer.extraPayments || {}),
+      ...(sanitizedUser.extraPayments || {}),
+    },
+    socketId: socket.id,
+  };
+
+  addOrUpdatePlayer(roomId, mergedExisting);
+  joinedUser = mergedExisting;
+
+  updatePlayerSocketId(roomId, user.id, socket.id);
+  updatePlayerSession(roomId, user.id, {
+    socketId: socket.id,
+    status: existingSession?.status || 'waiting',
+    inPlayRoute: !!existingSession?.inPlayRoute,
+    lastActive: Date.now(),
+  });
+}
 
       if (debug) console.log(`[Join] 🎮 Player "${user.name}" (${user.id}) connected with socket ${socket.id}`);
 
@@ -169,7 +225,9 @@ if (prevSocketId && prevSocketId !== socket.id) {
     // Emit room state after processing join
     emitRoomState(namespace, roomId);
     emitFullRoomState(socket, namespace, roomId);
-    namespace.to(roomId).emit('user_joined', { user, role });
+   const broadcastUser = joinedUser || { ...user, socketId: socket.id };
+ namespace.to(roomId).emit('user_joined', { user: broadcastUser, role });
+
 
     setTimeout(() => {
       namespace.in(roomId).allSockets().then(clients => {
