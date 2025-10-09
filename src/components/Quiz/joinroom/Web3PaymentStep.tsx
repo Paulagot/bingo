@@ -2,13 +2,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { nanoid } from 'nanoid';
-import { ChevronLeft, AlertCircle, CheckCircle, Loader, Wallet,  } from 'lucide-react';
+import { ChevronLeft, AlertCircle, CheckCircle, Loader, Wallet } from 'lucide-react';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 
 import { useQuizChainIntegration } from '../../../hooks/useQuizChainIntegration';
-
-
-
+import { useWalletActions } from '../../../hooks/useWalletActions';
+import { useContractActions } from '../../../hooks/useContractActions';
+import type { SupportedChain } from '../../../chains/types';
 
 interface RoomConfig {
   exists: boolean;
@@ -32,100 +32,57 @@ interface Web3PaymentStepProps {
   selectedExtras: string[];
   onBack: () => void;
   onClose: () => void;
+  chainOverride?: SupportedChain; // room-driven chain (authoritative in join flow)
 }
 
 type PaymentStatus = 'idle' | 'connecting' | 'paying' | 'confirming' | 'joining' | 'success';
 
-// --- ROUTER: picks the right chain-specific component ---
-export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = (props) => {
-  const { selectedChain, getChainDisplayName } = useQuizChainIntegration();
-
-  if (selectedChain === 'stellar') {
-    return <StellarPaymentStep {...props} />;
-  }
-
-  // TODO: add EVM/Solana implementations later
-  return (
-    <div className="p-4 sm:p-6">
-      <div className="mb-6 flex items-center space-x-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-blue-600 text-lg text-white sm:h-12 sm:w-12 sm:text-xl">
-          🌐
-        </div>
-        <div>
-          <h2 className="text-fg text-xl font-bold sm:text-2xl">Web3 Payment</h2>
-          <p className="text-fg/70 text-sm sm:text-base">
-            {getChainDisplayName()} payments are not implemented yet.
-          </p>
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
-        Multichain placeholder: this room selected a chain we don’t support yet in the join flow.
-      </div>
-    </div>
-  );
-};
-
-// =======================================================
-// ===============  STELLAR SUBCOMPONENT  ================
-// =======================================================
-
-import { useQuizContract as useStellarQuizContract } from '../../../chains/stellar/useQuizContract';
-import { useStellarWalletContext } from '../../../chains/stellar/StellarWalletProvider';
-
-const StellarPaymentStep: React.FC<Web3PaymentStepProps> = ({
+export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
   roomId,
   playerName,
   roomConfig,
   selectedExtras,
   onBack,
-  onClose
+   // forwarded (unused here but kept for parity)
+  chainOverride,
 }) => {
   const { socket } = useQuizSocket();
   const navigate = useNavigate();
 
-  const {
-    selectedChain,
-    isWalletConnected,
-    walletReadiness,
-    currentWallet,
-    getChainDisplayName,
-    getFormattedAddress,
-    needsWalletConnection,
-  } = useQuizChainIntegration();
+  // Chain/readiness labels (agnostic)
+  const { selectedChain, getChainDisplayName } =
+    useQuizChainIntegration({ chainOverride });
 
-  // Stellar-only hooks (safe here because this component only renders when selectedChain==='stellar')
-  const stellarWallet = useStellarWalletContext();
-  const stellarContract = useStellarQuizContract();
+  // Generic wallet + contract actions (dispatch by chain internally)
+  const wallet = useWalletActions({ chainOverride });
+  const { joinRoom } = useContractActions({ chainOverride });
 
-  type PaymentStatus = 'idle' | 'connecting' | 'paying' | 'confirming' | 'joining' | 'success';
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('idle');
   const [error, setError] = useState('');
   const [txHash, setTxHash] = useState('');
 
-  // Compute totals
-  const extrasTotal = selectedExtras.reduce((sum, extraId) => {
-    return sum + (roomConfig.fundraisingPrices[extraId] || 0);
-  }, 0);
+  // Totals
+  const extrasTotal = selectedExtras.reduce((sum, extraId) =>
+    sum + (roomConfig.fundraisingPrices[extraId] || 0), 0);
   const totalAmount = roomConfig.entryFee + extrasTotal;
 
-  const isWalletRequired = totalAmount > 0; // in Stellar subcomponent we know chain is stellar
-  const canProceed = isWalletRequired ? isWalletConnected : true;
+  const isWalletConnected = wallet.isConnected();
+  const canProceed = totalAmount > 0 ? isWalletConnected : true;
+
+  const formatAddr = (addr: string | null, short = true) => {
+    if (!addr) return null;
+    return short && addr.length > 10 ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : addr;
+  };
 
   const handleWalletConnect = async () => {
     try {
       setError('');
       setPaymentStatus('connecting');
-
-      const result = await stellarWallet.connect();
-      if (!result.success) {
-        throw new Error(result.error?.message || 'Failed to connect Stellar wallet');
-      }
-
+      const res = await wallet.connect();
+      if (!res.success) throw new Error(res.error?.message || 'Failed to connect wallet');
       setPaymentStatus('idle');
-    } catch (err: any) {
-      console.error('Wallet connection failed:', err);
-      setError(err.message || 'Failed to connect wallet');
+    } catch (e: any) {
+      setError(e.message || 'Failed to connect wallet');
       setPaymentStatus('idle');
     }
   };
@@ -134,35 +91,32 @@ const StellarPaymentStep: React.FC<Web3PaymentStepProps> = ({
     try {
       setError('');
 
-      // Step 1: connect if needed
-      if (needsWalletConnection) {
-        await handleWalletConnect();
-        await new Promise(r => setTimeout(r, 750));
+      // Connect if needed
+      if (!wallet.isConnected()) {
+        setPaymentStatus('connecting');
+        const res = await wallet.connect();
+        if (!res.success) throw new Error(res.error?.message || 'Failed to connect wallet');
+        setPaymentStatus('idle');
+        // small pause for providers to hydrate (optional)
+        await new Promise(r => setTimeout(r, 400));
       }
 
-      // Step 2: verify wallet/contract
-      if (!stellarWallet?.wallet.isConnected || !stellarWallet.wallet.address || !stellarContract) {
-        throw new Error('Stellar wallet not connected or contract not available');
-      }
+      const address = wallet.getAddress();
+      if (!address) throw new Error('Wallet not connected');
 
-      const walletAddress = stellarContract.walletAddress;
+      // Pay / join on-chain
       setPaymentStatus('paying');
-
-      const joinRoomResult = await stellarContract.joinRoom({
+      const r = await joinRoom({
         roomId,
-        playerAddress: walletAddress!,
-        extrasAmount: extrasTotal > 0 ? extrasTotal.toString() : undefined
+        extrasAmount: extrasTotal > 0 ? extrasTotal.toString() : undefined,
       });
+      if (!r.success) throw new Error(r.error || 'Payment failed');
 
-      if (!joinRoomResult.success) {
-        throw new Error(joinRoomResult.error || 'Payment failed');
-      }
-
-      setTxHash(joinRoomResult.txHash || '');
+      setTxHash(r.txHash);
       setPaymentStatus('confirming');
-      await new Promise(r => setTimeout(r, 2000));
+      await new Promise(r => setTimeout(r, 1500));
 
-      // Step 3: join via socket
+      // Join via socket
       setPaymentStatus('joining');
       const playerId = nanoid();
 
@@ -173,14 +127,14 @@ const StellarPaymentStep: React.FC<Web3PaymentStepProps> = ({
           name: playerName,
           paid: true,
           paymentMethod: 'web3',
-          web3TxHash: joinRoomResult.txHash,
-          web3Address: walletAddress,
-          web3Chain: 'stellar',
+          web3TxHash: r.txHash,
+          web3Address: address,
+          web3Chain: selectedChain, // 'stellar' | 'evm' | 'solana'
           extras: selectedExtras,
           extraPayments: Object.fromEntries(
             selectedExtras.map(key => [
               key,
-              { method: 'web3', amount: roomConfig.fundraisingPrices[key], txHash: joinRoomResult.txHash }
+              { method: 'web3', amount: roomConfig.fundraisingPrices[key], txHash: r.txHash }
             ])
           )
         },
@@ -193,14 +147,14 @@ const StellarPaymentStep: React.FC<Web3PaymentStepProps> = ({
       setTimeout(() => {
         navigate(`/quiz/game/${roomId}/${playerId}`);
       }, 1200);
-    } catch (err: any) {
-      console.error('Web3 join failed:', err);
-      setError(err.message || 'Failed to join game');
+    } catch (e: any) {
+      console.error('Web3 join failed:', e);
+      setError(e.message || 'Failed to join game');
       setPaymentStatus('idle');
     }
   };
 
-  const getStatusDisplay = () => {
+  const status = (() => {
     switch (paymentStatus) {
       case 'connecting':  return { icon: <Loader className="h-5 w-5 animate-spin" />, text: `Connecting ${getChainDisplayName()} wallet...`, color: 'text-blue-600' };
       case 'paying':      return { icon: <Loader className="h-5 w-5 animate-spin" />, text: 'Processing payment...', color: 'text-yellow-600' };
@@ -209,9 +163,7 @@ const StellarPaymentStep: React.FC<Web3PaymentStepProps> = ({
       case 'success':     return { icon: <CheckCircle className="h-5 w-5" />, text: 'Success! Redirecting...', color: 'text-green-600' };
       default:            return null;
     }
-  };
-
-  const status = getStatusDisplay();
+  })();
 
   return (
     <div className="p-4 sm:p-6">
@@ -279,7 +231,7 @@ const StellarPaymentStep: React.FC<Web3PaymentStepProps> = ({
                 <div className="h-2 w-2 rounded-full bg-green-500"></div>
                 <div>
                   <div className="text-sm font-medium text-green-800">{getChainDisplayName()} Wallet Connected</div>
-                  <div className="font-mono text-xs text-green-600">{getFormattedAddress()}</div>
+                  <div className="font-mono text-xs text-green-600">{formatAddr(wallet.getAddress())}</div>
                 </div>
               </div>
               <div className="text-sm font-medium text-green-600">Ready</div>
@@ -306,30 +258,31 @@ const StellarPaymentStep: React.FC<Web3PaymentStepProps> = ({
         </div>
       )}
 
+      {/* Footer CTAs */}
       <div className="border-border mt-6 flex flex-col justify-end space-y-3 border-t pt-6 sm:flex-row sm:space-x-3 sm:space-y-0">
-        <button 
-          onClick={onBack} 
+        <button
+          onClick={onBack}
           disabled={paymentStatus !== 'idle'}
           className="text-fg/80 flex items-center justify-center space-x-2 rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium transition-colors hover:bg-gray-200 disabled:opacity-50 sm:px-6 sm:py-3 sm:text-base"
         >
           <ChevronLeft className="h-4 w-4" />
           <span>Back</span>
         </button>
-        <button 
-          onClick={handleWeb3Join}
-          disabled={paymentStatus !== 'idle' || !canProceed}
-          className="flex items-center justify-center space-x-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-700 disabled:opacity-50 sm:px-6 sm:py-3 sm:text-base"
-        >
-          <span>
-            {!isWalletConnected 
-              ? 'Connect & Pay' 
-              : `Pay ${roomConfig.currencySymbol}${totalAmount.toFixed(2)}`
-            }
-          </span>
-          <CheckCircle className="h-4 w-4" />
-        </button>
+
+        {/* Show Pay only once wallet is connected (avoid double CTAs) */}
+        {isWalletConnected && (
+          <button
+            onClick={handleWeb3Join}
+            disabled={paymentStatus !== 'idle' || !canProceed}
+            className="flex items-center justify-center space-x-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-700 disabled:opacity-50 sm:px-6 sm:py-3 sm:text-base"
+          >
+            <span>Pay {roomConfig.currencySymbol}{totalAmount.toFixed(2)}</span>
+            <CheckCircle className="h-4 w-4" />
+          </button>
+        )}
       </div>
     </div>
   );
 };
+
 

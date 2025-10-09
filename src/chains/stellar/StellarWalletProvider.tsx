@@ -359,6 +359,37 @@ export const StellarWalletProvider: React.FC<StellarWalletProviderProps> = ({
     canDisconnect: stellarWallet.canDisconnect,
   };
 
+  // Listen for global wallet requests (from UI components)
+// This lets StepWeb3ReviewLaunch trigger connect/disconnect via window events.
+useEffect(() => {
+  const onRequestConnect = () => {
+    // optional guard — don’t spam if already connecting/connected
+    if (stellarWallet.isConnected || stellarWallet.isConnecting) return;
+    enhancedConnect().catch((e) => console.warn('[Stellar] connect() via event failed:', e));
+  };
+
+  const onRequestDisconnect = () => {
+    if (!stellarWallet.isConnected || stellarWallet.isDisconnecting) return;
+    enhancedDisconnect().catch((e) => console.warn('[Stellar] disconnect() via event failed:', e));
+  };
+
+  window.addEventListener('stellar:request-connect', onRequestConnect);
+  window.addEventListener('stellar:request-disconnect', onRequestDisconnect);
+
+  return () => {
+    window.removeEventListener('stellar:request-connect', onRequestConnect);
+    window.removeEventListener('stellar:request-disconnect', onRequestDisconnect);
+  };
+  // Depend on the stable wrappers + minimal state to avoid re-binding every render
+}, [
+  enhancedConnect,
+  enhancedDisconnect,
+  stellarWallet.isConnected,
+  stellarWallet.isConnecting,
+  stellarWallet.isDisconnecting,
+]);
+
+
   // ===================================================================
   // LOADING STATE
   // ===================================================================

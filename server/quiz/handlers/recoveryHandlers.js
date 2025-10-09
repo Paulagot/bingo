@@ -8,6 +8,7 @@ import {
   updatePlayerSession,
   getPlayerSession,
   emitRoomState,
+  cleanExpiredSessions,
 } from '../quizRoomManager.js';
 import { emitFullRoomState } from './sharedUtils.js';
 
@@ -68,6 +69,9 @@ export function setupRecoveryHandlers(socket, namespace) {
       if (!room) {
         return sendAck({ ok: false, error: 'Room not found' });
       }
+
+       // Keep session table tidy (same as playerHandlers)
+ cleanExpiredSessions(roomId);
 
       const isPlayerRole = role === 'player';
 
@@ -176,6 +180,23 @@ export function setupRecoveryHandlers(socket, namespace) {
 
           addOrUpdatePlayer(roomId, mergedExisting);
           joinedUser = mergedExisting;
+
+                 // Mirror playerHandlers: remember web3 payout address if provided
+       if (user.web3Address && user.web3Chain) {
+         if (!room.web3AddressMap) room.web3AddressMap = new Map();
+         room.web3AddressMap.set(user.id, {
+           address: user.web3Address,
+           chain: user.web3Chain,
+           txHash: user.web3TxHash || null,
+           playerName: user.name || 'Unknown',
+         });
+         if (!room.config.web3PlayerAddresses) room.config.web3PlayerAddresses = {};
+         room.config.web3PlayerAddresses[user.id] = {
+           address: user.web3Address,
+           chain: user.web3Chain,
+           name: user.name,
+         };
+       }
 
           updatePlayerSocketId(roomId, user.id, socket.id);
           updatePlayerSession(roomId, user.id, {

@@ -1,23 +1,23 @@
-//src/components/chains/DynamicChainProvider.tsx
-
+// src/components/chains/DynamicChainProvider.tsx
 import React, { FC, Suspense, useMemo, useEffect } from 'react';
 import type { SupportedChain } from '../../chains/types';
 import { useWalletStore } from '../../stores/walletStore';
+import shallow from 'zustand/shallow'; // ✅ import shallow
 
 // Lazy load chain providers for performance
 import { StellarWalletProvider } from '../../chains/stellar/StellarWalletProvider';
 
 // Placeholder for future EVM provider
-const EvmWalletProvider = React.lazy(() => 
-  Promise.resolve({ 
-    default: ({ children }: { children: React.ReactNode }) => <>{children}</> 
+const EvmWalletProvider = React.lazy(() =>
+  Promise.resolve({
+    default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   })
 );
 
-// Placeholder for future Solana provider  
-const SolanaWalletProvider = React.lazy(() => 
-  Promise.resolve({ 
-    default: ({ children }: { children: React.ReactNode }) => <>{children}</> 
+// Placeholder for future Solana provider
+const SolanaWalletProvider = React.lazy(() =>
+  Promise.resolve({
+    default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   })
 );
 
@@ -65,10 +65,8 @@ class ChainProviderErrorBoundary extends React.Component<
       return (
         <div className="flex min-h-32 items-center justify-center">
           <div className="space-y-2 text-center">
-            <div className="text-red-600">
-              ⚠️ Failed to load {this.props.chain} wallet provider
-            </div>
-            <button 
+            <div className="text-red-600">⚠️ Failed to load {this.props.chain} wallet provider</div>
+            <button
               onClick={() => this.setState({ hasError: false })}
               className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
             >
@@ -85,84 +83,70 @@ class ChainProviderErrorBoundary extends React.Component<
 
 /**
  * Dynamic provider that conditionally loads chain-specific wallet providers
- * based on the selected chain from quiz setup configuration.
- * 
- * Features:
- * - Lazy loading for performance optimization
- * - Fallback to no-wallet mode when no chain is selected
- * - Loading states and error boundaries
- * - Integration with walletStore for state management
- * - TypeScript strict compliance
  */
-export const DynamicChainProvider: FC<DynamicChainProviderProps> = ({
-  selectedChain,
-  children
-}) => {
-  //  console.log('🔗 DynamicChainProvider render - selectedChain:', selectedChain);
-  const { setActiveChain, resetAllWallets } = useWalletStore();
+export const DynamicChainProvider: FC<DynamicChainProviderProps> = ({ selectedChain, children }) => {
+  // Only subscribe to the actions; use getState() for comparisons inside the effect
+  const { setActiveChain, resetAllWallets } = useWalletStore(
+    (s) => ({ setActiveChain: s.setActiveChain, resetAllWallets: s.resetAllWallets }),
+    shallow // ✅ avoids rerenders if actions object identity doesn't change
+  );
 
-  // Update active chain in store when selection changes
- useEffect(() => {
-  if (selectedChain) {
-    console.log('🔗 DynamicChainProvider effect -> setActiveChain:', selectedChain);
-    setActiveChain(selectedChain);
-  } else {
-    console.log('🔗 DynamicChainProvider effect -> resetAllWallets');
-    resetAllWallets();
-  }
-}, [selectedChain, setActiveChain, resetAllWallets]);
+  // Update active chain in store when selection changes (idempotent)
+  useEffect(() => {
+    const state = useWalletStore.getState(); // read synchronously without subscribing
 
+    if (selectedChain) {
+      if (state.activeChain !== selectedChain) {
+        // only write if different
+        setActiveChain(selectedChain);
+      }
+    } else {
+      const anyConnected = !!(
+        state.stellar?.isConnected || state.evm?.isConnected || state.solana?.isConnected
+      );
+      // only reset if it would actually change something
+      if (!anyConnected && state.activeChain !== null) {
+        resetAllWallets();
+      }
+    }
+  }, [selectedChain, setActiveChain, resetAllWallets]);
 
   // Memoized provider selection for performance
   const ProviderComponent = useMemo(() => {
-    console.log('🔗 DynamicChainProvider useEffect - selectedChain changed to:', selectedChain);
     switch (selectedChain) {
       case 'stellar':
-        console.log('🔗 Selecting StellarWalletProvider');
-        return StellarWalletProvider;        
+        return StellarWalletProvider;
       case 'evm':
         return EvmWalletProvider;
       case 'solana':
         return SolanaWalletProvider;
       default:
-         console.log('🔗 No provider selected');
         return null;
     }
   }, [selectedChain]);
 
   // For stellar, skip Suspense since it's not lazy loaded
-if (selectedChain === 'stellar' && ProviderComponent) {
-  return (
-    <ChainProviderErrorBoundary chain={selectedChain}>
-      <ProviderComponent>
-        <div data-testid={`${selectedChain}-wallet-mode`}>
-          {children}
-        </div>
-      </ProviderComponent>
-    </ChainProviderErrorBoundary>
-  );
-}
-
-  // No wallet mode - render children directly
-  if (!selectedChain || !ProviderComponent) {
-    // console.log('🔗 DynamicChainProvider rendering in no-wallet mode');
+  if (selectedChain === 'stellar' && ProviderComponent) {
     return (
-      <div data-testid="no-wallet-mode">
-        {children}
-      </div>
+      <ChainProviderErrorBoundary chain={selectedChain}>
+        <ProviderComponent>
+          <div data-testid={`${selectedChain}-wallet-mode`}>{children}</div>
+        </ProviderComponent>
+      </ChainProviderErrorBoundary>
     );
   }
 
-  //  console.log('🔗 DynamicChainProvider rendering with provider for:', selectedChain);
+  // No wallet mode - render children directly
+  if (!selectedChain || !ProviderComponent) {
+    return <div data-testid="no-wallet-mode">{children}</div>;
+  }
 
   // Chain-specific provider with lazy loading
   return (
     <ChainProviderErrorBoundary chain={selectedChain}>
       <Suspense fallback={<ChainProviderSuspense chain={selectedChain} />}>
         <ProviderComponent>
-          <div data-testid={`${selectedChain}-wallet-mode`}>
-            {children}
-          </div>
+          <div data-testid={`${selectedChain}-wallet-mode`}>{children}</div>
         </ProviderComponent>
       </Suspense>
     </ChainProviderErrorBoundary>
@@ -173,8 +157,17 @@ if (selectedChain === 'stellar' && ProviderComponent) {
  * Hook to get the current dynamic chain state
  */
 export const useDynamicChain = () => {
-  const { activeChain, stellar, evm, solana } = useWalletStore();
-  
+  // ✅ Use a selector + shallow so unchanged slices don't re-render consumers
+  const { activeChain, stellar, evm, solana } = useWalletStore(
+    (s) => ({
+      activeChain: s.activeChain,
+      stellar: s.stellar,
+      evm: s.evm,
+      solana: s.solana,
+    }),
+    shallow
+  );
+
   const currentWallet = useMemo(() => {
     switch (activeChain) {
       case 'stellar':
@@ -196,6 +189,7 @@ export const useDynamicChain = () => {
     walletError: currentWallet?.error ?? null,
   };
 };
+
 
 
 

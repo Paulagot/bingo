@@ -1,26 +1,31 @@
-// src/components/Quiz/host-controls/prizes/stellar/StellarPrizeDistributionPanel.tsx
+// src/components/quiz/host-controls/prizes/Web3PrizeDistributionPanel.tsx
 import * as React from 'react';
 import { Loader } from 'lucide-react';
-import { useQuizSocket } from '../../../sockets/QuizSocketProvider';
+import { useQuizSocket } from '../../sockets/QuizSocketProvider';
 
-import { useStellarWalletContext } from '../../../../../chains/stellar/StellarWalletProvider';
-import { useQuizContract as useStellarQuizContract } from '../../../../../chains/stellar/useQuizContract';
+import { useQuizChainIntegration } from '../../../../hooks/useQuizChainIntegration';
+import { useWalletActions } from '../../../../hooks/useWalletActions';
+import { useContractActions } from '../../../../hooks/useContractActions';
 
 type LeaderboardEntry = { id: string; name: string; score: number };
 
 interface Props {
   roomId: string;
   leaderboard: LeaderboardEntry[];
+  // If you want, add: chainOverride?: SupportedChain;
 }
 
-type PrizeStatus = 'idle' | 'distributing' | 'success' | 'error';
+type PrizeStatus = 'idle' | 'distributing' | 'success' | 'error' | 'connecting';
 
-export const StellarPrizeDistributionPanel: React.FC<Props> = ({ roomId }) => {
+export const Web3PrizeDistributionPanel: React.FC<Props> = ({ roomId }) => {
   const { socket } = useQuizSocket();
 
-  // Stellar-only hooks
-  const stellarWallet = useStellarWalletContext();
-  const stellarContract = useStellarQuizContract();
+  // Chain label only (keep component agnostic)
+  const { getChainDisplayName } = useQuizChainIntegration(/* { chainOverride } */);
+
+  // Generic hooks (route by chain internally)
+  const wallet = useWalletActions(/* { chainOverride } */);
+  const { distributePrizes } = useContractActions(/* { chainOverride } */);
 
   // Persisted status per room to prevent double distribution and keep UI sticky
   const DIST_KEY = React.useMemo(() => `prizesDistributed:${roomId}`, [roomId]);
@@ -40,11 +45,22 @@ export const StellarPrizeDistributionPanel: React.FC<Props> = ({ roomId }) => {
     } catch {
       // ignore JSON errors
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [DIST_KEY]);
 
-  const handleDistribute = () => {
+  // Host clicks the button → ask server to finalize winners and send us addresses
+  const handleDistributeClick = async () => {
     if (state.status === 'success') return; // hard guard
+
+    // connect wallet first (generic)
+    if (!wallet.isConnected()) {
+      setState({ status: 'connecting' });
+      const res = await wallet.connect();
+      if (!res.success) {
+        setState({ status: 'error', error: res.error?.message || 'Failed to connect wallet' });
+        return;
+      }
+    }
+
     setState({ status: 'distributing' });
     socket?.emit('end_quiz_and_distribute_prizes', { roomId });
   };
@@ -52,20 +68,25 @@ export const StellarPrizeDistributionPanel: React.FC<Props> = ({ roomId }) => {
   React.useEffect(() => {
     if (!socket) return;
 
+    // Server tells us to perform on-chain payout and provides winners (addresses)
     const handlePrizeDistribution = async (data: {
       roomId: string;
-      winners: string[];
+      winners: string[];            // ⬅️ addresses array from backend
       finalLeaderboard: any[];
       web3Chain?: string;
     }) => {
       try {
-        if (!stellarContract) throw new Error('Contract not initialized');
-        if (!stellarContract.endRoom) throw new Error('endRoom method not available');
-        if (!stellarContract.isReady) throw new Error('Wallet not connected');
+        // Build a generic winners payload for the hook (address per winner)
+        // The hook will map this to the exact Soroban shape (string[] / struct) as needed.
+        const winnersPayload = data.winners.map((addr, idx) => ({
+          playerId: addr,     // we don’t have playerId here; reuse addr (contract cares about address)
+          address: addr,
+          rank: idx + 1,
+        }));
 
-        const result = await stellarContract.endRoom({
+        const result = await distributePrizes({
           roomId: data.roomId,
-          winners: data.winners,
+          winners: winnersPayload,
         });
 
         if (result.success) {
@@ -98,6 +119,7 @@ export const StellarPrizeDistributionPanel: React.FC<Props> = ({ roomId }) => {
       }
     };
 
+    // Server confirms completion (useful if multiple hosts are watching)
     const handlePrizeDistributionCompleted = (data: {
       roomId: string;
       success: boolean;
@@ -123,50 +145,48 @@ export const StellarPrizeDistributionPanel: React.FC<Props> = ({ roomId }) => {
       socket.off('initiate_prize_distribution', handlePrizeDistribution);
       socket.off('prize_distribution_completed', handlePrizeDistributionCompleted);
     };
-  }, [socket, roomId, stellarContract, DIST_KEY]);
+  }, [socket, roomId, distributePrizes, DIST_KEY]);
 
-  const walletConnected = stellarWallet.wallet.isConnected;
-  const connecting = stellarWallet.wallet.isConnecting;
+  const connected = wallet.isConnected();
 
   return (
     <div className="mt-6">
-      {!walletConnected && (
+      {!connected && state.status !== 'connecting' && (
         <div className="mb-6 rounded-xl border-2 border-blue-200 bg-blue-50 p-6 text-center">
-          <div className="mb-2 text-xl font-bold text-blue-800">Connect Stellar Wallet</div>
+          <div className="mb-2 text-xl font-bold text-blue-800">Connect {getChainDisplayName()} Wallet</div>
           <p className="mb-4 text-blue-600">Connect your wallet to distribute prizes to winners</p>
           <button
-            onClick={() => stellarWallet.connect()}
-            disabled={connecting}
-            className="mx-auto flex items-center space-x-3 rounded-xl bg-blue-600 px-6 py-3 font-bold text-white hover:bg-blue-700 disabled:bg-gray-400"
+            onClick={handleDistributeClick}
+            className="mx-auto flex items-center space-x-3 rounded-xl bg-blue-600 px-6 py-3 font-bold text-white hover:bg-blue-700"
           >
-            {connecting ? (
-              <>
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                <span>Connecting...</span>
-              </>
-            ) : (
-              <>
-                <span>🔗</span>
-                <span>Connect Wallet</span>
-              </>
-            )}
+            <span>🔗</span>
+            <span>Connect & Start Distribution</span>
           </button>
         </div>
       )}
 
-      {walletConnected && stellarContract?.isReady && (
+      {state.status === 'connecting' && (
+        <div className="mt-4 rounded-xl border-2 border-blue-200 bg-blue-50 p-6">
+          <div className="flex items-center justify-center space-x-3 text-blue-700">
+            <Loader className="h-6 w-6 animate-spin" />
+            <span className="text-lg font-semibold">Connecting {getChainDisplayName()} wallet…</span>
+          </div>
+        </div>
+      )}
+
+      {connected && (
         <div className="text-center">
           {state.status === 'idle' && (
             <>
               <button
-                onClick={handleDistribute}
+                onClick={handleDistributeClick}
                 className="mx-auto flex items-center space-x-3 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 px-8 py-4 text-xl font-bold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:shadow-xl"
               >
                 <span>🏆</span>
                 <span>Distribute Prizes via Smart Contract</span>
               </button>
               <p className="mt-2 text-sm text-green-600">
-                This will automatically send prizes to the top players using the blockchain
+                This will ask the server for the final winners and then execute an on-chain payout.
               </p>
             </>
           )}
@@ -220,4 +240,5 @@ export const StellarPrizeDistributionPanel: React.FC<Props> = ({ roomId }) => {
     </div>
   );
 };
+
 

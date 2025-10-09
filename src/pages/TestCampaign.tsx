@@ -16,7 +16,7 @@ import { chainInfo } from '../components/bingo/constants/contractFactoryAddresse
 import SimpleHeader from '../components/bingo/SimpleHeader';
 import CreateRoomCard from '../components/bingo/CreateRoomCard';
 import JoinRoomCard from '../components/bingo/JoinRoomCard';
-import Hfooter from '../components/GeneralSite/hFooter';
+
 
 // Initialize Socket.IO client
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL;

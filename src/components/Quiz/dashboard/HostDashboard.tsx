@@ -12,9 +12,9 @@ import AdminListPanel from './AdminListPanel';
 import PaymentReconciliationPanel from './PaymentReconciliation';
 import AssetUploadPanel from './AssetUploadPanel';
 
+import BlockchainBadge from './BlockchainBadge'
+
 import PrizesTab from './PrizesTab';
-
-
 
 import { DynamicChainProvider } from '../../chains/DynamicChainProvider';
 import WalletDebugPanel from '../Wizard/WalletDebug';
@@ -622,6 +622,16 @@ const HostDashboardCore: React.FC = () => {
           <p className="text-fg/70 text-lg">
             Welcome, <strong>{config?.hostName || 'Host'}</strong> — manage your quiz event below
           </p>
+
+          {/* Add this badge */}
+{config?.isWeb3Room && (
+  <BlockchainBadge
+    chain={(config as any).web3Chain || (config as any).web3ChainConfirmed}
+    network={(config as any).network}
+    contractAddress={(config as any).contractAddress}
+    txHash={(config as any).deploymentTxHash}
+  />
+)}
           {isQuizComplete && (
             <div className="mt-2 rounded-lg border border-green-200 bg-green-50 px-4 py-2">
               <span className="text-sm font-medium text-green-800">

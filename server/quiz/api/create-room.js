@@ -1,4 +1,4 @@
-// Backend API Route - Updated with separate Web3 endpoint
+// Backend API Route - Updated with strong Web3 proof validation (multichain ready)
 import express from 'express';
 import { createQuizRoom } from '../quizRoomManager.js';
 import {
@@ -7,11 +7,130 @@ import {
   consumeCredit,
 } from '../../policy/entitlements.js';
 
-import authenticateToken from '../../middleware/auth.js'
+import authenticateToken from '../../middleware/auth.js';
 
 const router = express.Router();
 
-// WEB3 ENDPOINT - NO AUTHENTICATION REQUIRED
+/* -------------------------------------------------------------------------- */
+/*                                WEB3 HELPERS                                */
+/* -------------------------------------------------------------------------- */
+/**
+ * We validate the contract/program ID and deployment tx/signature based on chain.
+ * This prevents rooms from being created if the host didn't actually sign or
+ * signed on the wrong network. These are *format* checks; you can add optional
+ * RPC verification later.
+ */
+
+// Treat these as placeholders / non-signed results coming from the client
+const isPlaceholder = (v) =>
+  !v ||
+  v === 'pending' ||
+  v === 'transaction-submitted' ||
+  v === 'not-signed' ||
+  v === 'N/A';
+
+// ---- Stellar / Soroban (Stellar/Soroban testnet & mainnet) ----
+// Soroban contract IDs: Base32, start with "C", 56 chars total (C + 55)
+// We accept uppercase A-Z and digits 2-7.
+const looksLikeSorobanContractId = (cid) =>
+  typeof cid === 'string' && /^C[A-Z2-7]{55}$/.test(cid);
+
+// Stellar/Soroban tx hash is 64 hex chars (no 0x). We'll accept with or without 0x.
+const looksLikeStellarTxHash = (h) =>
+  typeof h === 'string' &&
+  (/^[0-9a-fA-F]{64}$/.test(h) ||
+    /^0x[0-9a-fA-F]{64}$/.test(h)); // normalize later if you want
+
+// ---- EVM (Ethereum & EVM compatibles) ----
+const looksLikeEvmAddress = (addr) =>
+  typeof addr === 'string' && /^0x[0-9a-fA-F]{40}$/.test(addr);
+
+const looksLikeEvmTxHash = (h) =>
+  typeof h === 'string' && /^0x[0-9a-fA-F]{64}$/.test(h);
+
+// ---- Solana ----
+// Program IDs are base58, typically 32-44 chars (can be a little longer for some)
+// We’ll accept 32–64 chars base58.
+const looksLikeSolanaProgramId = (pid) =>
+  typeof pid === 'string' && /^[1-9A-HJ-NP-Za-km-z]{32,64}$/.test(pid);
+
+// Transaction signatures are base58, can be 43–88 chars (varies)
+// We accept 43–96 to be safe.
+const looksLikeSolanaSignature = (sig) =>
+  typeof sig === 'string' && /^[1-9A-HJ-NP-Za-km-z]{43,96}$/.test(sig);
+
+/**
+ * Validate a (contract/program) address + tx (hash/signature) according to chain.
+ * NOTE: This is format-level validation only.
+ * @returns {{ ok: boolean, reason?: string }}
+ */
+const validateWeb3Proof = ({ chain, contractAddress, deploymentTxHash }) => {
+  const c = (chain || '').toLowerCase();
+
+  if (isPlaceholder(contractAddress) || isPlaceholder(deploymentTxHash)) {
+    return {
+      ok: false,
+      reason: 'placeholder-values',
+    };
+  }
+
+  switch (c) {
+    case 'stellar':
+    case 'soroban':
+      if (!looksLikeSorobanContractId(contractAddress)) {
+        return { ok: false, reason: 'invalid-soroban-contract-id' };
+      }
+      if (!looksLikeStellarTxHash(deploymentTxHash)) {
+        return { ok: false, reason: 'invalid-stellar-tx-hash' };
+      }
+      return { ok: true };
+
+    case 'evm':
+    case 'ethereum':
+      if (!looksLikeEvmAddress(contractAddress)) {
+        return { ok: false, reason: 'invalid-evm-contract-address' };
+      }
+      if (!looksLikeEvmTxHash(deploymentTxHash)) {
+        return { ok: false, reason: 'invalid-evm-tx-hash' };
+      }
+      return { ok: true };
+
+    case 'solana':
+      if (!looksLikeSolanaProgramId(contractAddress)) {
+        return { ok: false, reason: 'invalid-solana-program-id' };
+      }
+      if (!looksLikeSolanaSignature(deploymentTxHash)) {
+        return { ok: false, reason: 'invalid-solana-signature' };
+      }
+      return { ok: true };
+
+    // Default to Stellar/Soroban rules to be conservative
+    default:
+      if (!looksLikeSorobanContractId(contractAddress)) {
+        return { ok: false, reason: 'unknown-chain-invalid-contract' };
+      }
+      if (!looksLikeStellarTxHash(deploymentTxHash)) {
+        return { ok: false, reason: 'unknown-chain-invalid-tx' };
+      }
+      return { ok: true };
+  }
+};
+
+/* -------------------------------------------------------------------------- */
+/*                             UNAUTH WEB3 ENDPOINT                            */
+/* -------------------------------------------------------------------------- */
+/**
+ * This route is intentionally unauthenticated so hosts that are not logged in
+ * to the management system can still create on-chain rooms.
+ *
+ * SECURITY: We enforce a *strong* validation of the deployment proof, so you
+ * can't create a Web3 room unless the client provides a plausible on-chain
+ * contract/program id and a plausible deployment tx/signature for the selected
+ * chain.
+ *
+ * For production: you may also perform an RPC call here to verify the tx exists
+ * on the right network (Soroban RPC, EVM JSON-RPC, Solana RPC).
+ */
 router.post('/create-web3-room', async (req, res) => {
   const { config: setupConfig, roomId, hostId } = req.body;
 
@@ -21,7 +140,7 @@ router.post('/create-web3-room', async (req, res) => {
   console.log('[API] 📦 Contract details:', {
     contractAddress: setupConfig?.contractAddress,
     deploymentTxHash: setupConfig?.deploymentTxHash,
-    chain: setupConfig?.web3ChainConfirmed
+    chain: setupConfig?.web3ChainConfirmed || setupConfig?.web3Chain,
   });
 
   // Basic validation
@@ -30,20 +149,58 @@ router.post('/create-web3-room', async (req, res) => {
     return res.status(400).json({ error: 'roomId and hostId are required' });
   }
 
-  // Validate Web3 deployment proof
-  if (!setupConfig?.contractAddress || !setupConfig?.deploymentTxHash) {
-    console.error('[API] ❌ Missing Web3 deployment proof');
-    return res.status(400).json({ 
-      error: 'Missing contract deployment data - contractAddress and deploymentTxHash required' 
+  if (!setupConfig) {
+    console.error('[API] ❌ Missing config');
+    return res.status(400).json({ error: 'Missing config' });
+  }
+
+  // Set/force Web3 flags
+  setupConfig.isWeb3Room = true;
+  setupConfig.paymentMethod = 'web3';
+
+  const chain =
+    setupConfig.web3ChainConfirmed ||
+    setupConfig.web3Chain ||
+    'stellar'; // default to Stellar/Soroban
+
+  const contractAddress = setupConfig.contractAddress;
+  const deploymentTxHash = setupConfig.deploymentTxHash;
+
+  // Strong format validation for on-chain proof
+  const proof = validateWeb3Proof({
+    chain,
+    contractAddress,
+    deploymentTxHash,
+  });
+
+  if (!proof.ok) {
+    console.error('[API] ❌ Invalid deployment proof', {
+      reason: proof.reason,
+      chain,
+      contractAddress,
+      deploymentTxHash,
+    });
+    return res.status(400).json({
+      error:
+        'Deployment not verified: missing/invalid tx hash or contract/program id. Please sign on the correct network and try again.',
+      details: {
+        chain,
+        reason: proof.reason,
+      },
     });
   }
 
+  // (Optional, but recommended in production)
+  // TODO: Add RPC verification by chain:
+  // - Stellar/Soroban: GET /getTransaction with tx hash on Soroban RPC
+  // - EVM: eth_getTransactionReceipt
+  // - Solana: getSignatureStatuses
+  // If not found / wrong network -> 400
+
   try {
     const requestedRounds = (setupConfig?.roundDefinitions || []).length;
-    
+
     // Force Web3 configuration with generous limits
-    setupConfig.isWeb3Room = true;
-    setupConfig.paymentMethod = 'web3';
     setupConfig.roomCaps = {
       maxPlayers: setupConfig?.maxPlayers || 10000,
       maxRounds: Math.max(requestedRounds, 1),
@@ -55,20 +212,21 @@ router.post('/create-web3-room', async (req, res) => {
     if (!created) {
       console.error('[API] ❌ Failed to create Web3 quiz room');
       return res.status(400).json({
-        error: 'Failed to create room (invalid config, questions missing, or room already exists)',
+        error:
+          'Failed to create room (invalid config, questions missing, or room already exists)',
       });
     }
 
     console.log(`[API] ✅ Successfully created Web3 room ${roomId}`);
     console.log('--------------------------------------');
-    
-    return res.status(200).json({ 
-      roomId, 
-      hostId, 
-      contractAddress: setupConfig.contractAddress,
-      deploymentTxHash: setupConfig.deploymentTxHash,
+
+    return res.status(200).json({
+      roomId,
+      hostId,
+      contractAddress,
+      deploymentTxHash,
       roomCaps: setupConfig.roomCaps,
-      verified: true
+      verified: true,
     });
   } catch (err) {
     console.error('[API] ❌ Exception creating Web3 room:', err);
@@ -76,10 +234,12 @@ router.post('/create-web3-room', async (req, res) => {
   }
 });
 
-// Apply authentication to all other routes
+/* -------------------------------------------------------------------------- */
+/*                      AUTH-REQUIRED ROUTES (WEB2 FLOW)                      */
+/* -------------------------------------------------------------------------- */
 router.use(authenticateToken);
 
-// Existing authenticated routes below...
+// Entitlements
 router.get('/me/entitlements', async (req, res) => {
   const clubId = req.club_id;
   console.log(`[API] 👤 Resolved club ID: "${clubId}"`);
@@ -87,6 +247,7 @@ router.get('/me/entitlements', async (req, res) => {
   res.json(ents);
 });
 
+// Standard Web2 room creation (credits, caps, etc.)
 router.post('/create-room', async (req, res) => {
   const { config: setupConfig, roomId, hostId } = req.body;
 
@@ -116,9 +277,13 @@ router.post('/create-room', async (req, res) => {
       (ents.max_players_per_game ?? 20);
 
     const requestedRounds = (setupConfig?.roundDefinitions || []).length;
-    const roundTypes = (setupConfig?.roundDefinitions || []).map(r => r.roundType);
+    const roundTypes = (setupConfig?.roundDefinitions || []).map((r) => r.roundType);
 
-    console.log(`[API] 🎯 User "${clubId}" requests ${requestedPlayers} players, ${requestedRounds} rounds (${roundTypes.join(', ')})`);
+    console.log(
+      `[API] 🎯 User "${clubId}" requests ${requestedPlayers} players, ${requestedRounds} rounds (${roundTypes.join(
+        ', '
+      )})`
+    );
 
     const capCheck = checkCaps(ents, { requestedPlayers, requestedRounds, roundTypes });
     if (!capCheck.ok) {
@@ -160,7 +325,8 @@ router.post('/create-room', async (req, res) => {
     if (!created) {
       console.error('[API] ❌ Failed to create quiz room (WEB2)');
       return res.status(400).json({
-        error: 'Failed to create room (invalid config, questions missing, or room already exists)',
+        error:
+          'Failed to create room (invalid config, questions missing, or room already exists)',
       });
     }
 
@@ -177,6 +343,7 @@ router.post('/create-room', async (req, res) => {
 });
 
 export default router;
+
 
 
 

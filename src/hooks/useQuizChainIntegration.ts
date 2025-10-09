@@ -1,12 +1,11 @@
+// useQuizChainIntegration.ts
 import { useMemo } from 'react';
 import { useQuizSetupStore } from '../components/Quiz/hooks/useQuizSetupStore';
 import { useQuizConfig } from '../components/Quiz/hooks/useQuizConfig';
-import { useWalletStore } from '../stores/walletStore'; // ⬅️ NEW: read from store
+import { useWalletStore } from '../stores/walletStore';
 import type { SupportedChain } from '../chains/types';
 
-/**
- * Type guard to safely check if a value represents a positive amount
- */
+/** Type guard to safely check if a value represents a positive amount */
 const hasPositiveAmount = (value: unknown): boolean => {
   if (typeof value === 'number') return value > 0;
   if (typeof value === 'string') {
@@ -16,10 +15,16 @@ const hasPositiveAmount = (value: unknown): boolean => {
   return false;
 };
 
+type Options = {
+  /** 👈 Room-driven override (from verification/join flow) */
+  chainOverride?: SupportedChain | null;
+};
+
 /**
  * Hook that bridges quiz setup/config with the wallet store (room-driven)
+ * Room override > active provider > dashboard config > setup config
  */
-export const useQuizChainIntegration = () => {
+export const useQuizChainIntegration = (opts?: Options) => {
   // Quiz configuration from both stores
   const { setupConfig } = useQuizSetupStore();
   const { config } = useQuizConfig();
@@ -32,23 +37,28 @@ export const useQuizChainIntegration = () => {
     solana: s.solana,
   }));
 
-  // Normalize chain selection with clear priority:
-  // 1) active provider chain (store)  2) dashboard config  3) setup config
+  // Normalize chain selection with clear priority (now includes override)
   const selectedChain: SupportedChain | null = useMemo(() => {
+    // 1) Room override (authoritative in join flow)
+    if (opts?.chainOverride) return opts.chainOverride;
+
+    // 2) Active provider (DynamicChainProvider should sync this)
     if (activeChain) return activeChain;
 
+    // 3) Dashboard config
     const dashboardChain = (config?.web3Chain ?? config?.web3ChainConfirmed) as SupportedChain | undefined;
     if (dashboardChain === 'stellar' || dashboardChain === 'evm' || dashboardChain === 'solana') {
       return dashboardChain;
     }
 
+    // 4) Setup wizard config
     const setupChain = setupConfig?.web3Chain as SupportedChain | undefined;
     if (setupChain === 'stellar' || setupChain === 'evm' || setupChain === 'solana') {
       return setupChain;
     }
 
     return null;
-  }, [activeChain, config?.web3Chain, config?.web3ChainConfirmed, setupConfig?.web3Chain]);
+  }, [opts?.chainOverride, activeChain, config?.web3Chain, config?.web3ChainConfirmed, setupConfig?.web3Chain]);
 
   // Select current wallet slice by chain (read-only)
   const currentWallet = useMemo(() => {
@@ -156,15 +166,18 @@ export const useQuizChainIntegration = () => {
       hasEntryFee: hasPositiveAmount(config?.entryFee ?? setupConfig?.entryFee),
       configWeb3Chain: config?.web3Chain ?? config?.web3ChainConfirmed,
       setupWeb3Chain: setupConfig?.web3Chain,
-      chainSource: activeChain
-        ? 'active-provider'
-        : (config?.web3Chain || config?.web3ChainConfirmed)
-          ? 'dashboard-config'
-          : setupConfig?.web3Chain
-            ? 'setup-config'
-            : 'none',
+      chainSource: opts?.chainOverride
+        ? 'room-override'
+        : activeChain
+          ? 'active-provider'
+          : (config?.web3Chain || config?.web3ChainConfirmed)
+            ? 'dashboard-config'
+            : setupConfig?.web3Chain
+              ? 'setup-config'
+              : 'none',
     },
   };
 };
 
 export default useQuizChainIntegration;
+

@@ -1,8 +1,9 @@
+//src/components/quiz/host-controls/prizes/web3PrizeDistributionRouter.tsx
 import * as React from 'react';
 import { useQuizChainIntegration } from '../../../../hooks/useQuizChainIntegration';
 
 // chain-specific panels
-import { StellarPrizeDistributionPanel } from './stellar/StellarPrizeDistributionPanel';
+import { Web3PrizeDistributionPanel } from './Web3PrizeDistributionPanel';
 
 type LeaderboardEntry = { id: string; name: string; score: number };
 
@@ -15,7 +16,7 @@ export const Web3PrizeDistributionRouter: React.FC<PrizeRouterProps> = ({ roomId
   const { selectedChain, getChainDisplayName } = useQuizChainIntegration();
 
   if (selectedChain === 'stellar') {
-    return <StellarPrizeDistributionPanel roomId={roomId} leaderboard={leaderboard} />;
+    return <Web3PrizeDistributionPanel roomId={roomId} leaderboard={leaderboard} />;
   }
 
   // TODO: add EVM & Solana later

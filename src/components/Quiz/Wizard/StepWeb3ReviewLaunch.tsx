@@ -1,46 +1,46 @@
 // src/components/Quiz/Wizard/StepWeb3ReviewLaunch.tsx
-import { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+
 import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
 import { useQuizConfig } from '../hooks/useQuizConfig';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { useQuizChainIntegration } from '../../../hooks/useQuizChainIntegration';
-import { useStellarWalletContext } from '../../../chains/stellar/StellarWalletProvider';
-import { useQuizContract as useStellarQuizContract } from '../../../chains/stellar/useQuizContract';
-// import { WalletDebugPanel } from './WalletDebug';
 
+import { useWalletActions } from '../../../hooks/useWalletActions';
+import { useContractActions } from '../../../hooks/useContractActions';
+
+import StellarLaunchSection from './StellarLaunchSection';
 import { generateRoomId, generateHostId } from '../utils/idUtils';
+
 import { roundTypeMap } from '../constants/quiztypeconstants';
-import { fundraisingExtras } from '../types/quiz';
 import type { WizardStepProps } from './WizardStepProps';
 import type { RoundDefinition } from '../types/quiz';
 
 import {
   ChevronLeft,
   Rocket,
- 
   User,
   Calendar,
   Target,
   Trophy,
-  Heart,
-  Wallet,
   Clock,
   MapPin,
   CheckCircle,
-   ExternalLink,
+  ExternalLink,
   Shield,
   Layers,
   Users,
+  Wallet,
+  Gift,
 } from 'lucide-react';
 
-
 import ClearSetupButton from './ClearSetupButton';
+import type { DeployParams } from '../../../hooks/useContractActions';
 
 type Web3LaunchState =
   | 'ready'
   | 'generating-ids'
-  | 'connecting-wallet'
   | 'deploying-contract'
   | 'creating-room'
   | 'success'
@@ -52,7 +52,7 @@ const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) =
   const navigate = useNavigate();
   const { socket, connected } = useQuizSocket();
 
-  // Web3 integration - these hooks provide the multi-chain state
+  // Chain selection + display helpers
   const {
     selectedChain,
     isWalletConnected,
@@ -63,387 +63,255 @@ const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) =
     needsWalletConnection,
   } = useQuizChainIntegration();
 
-  // Chain-specific providers - conditionally call based on selected chain
-  // This is the proper way to handle multi-chain without violating React hooks rules
-  const stellarWallet = selectedChain === 'stellar' ? useStellarWalletContext() : null;
-  const stellarContract = selectedChain === 'stellar' ? useStellarQuizContract() : null;
-  
-  // For future chains, add similar conditional calls:
-  // const evmWallet = selectedChain === 'evm' ? useEvmWalletContext() : null;
-  // const evmContract = selectedChain === 'evm' ? useEvmQuizContract() : null;
-  // const solanaWallet = selectedChain === 'solana' ? useSolanaWalletContext() : null;
-  // const solanaContract = selectedChain === 'solana' ? useSolanaQuizContract() : null;
+  // Chain-agnostic actions
+  const walletActions = useWalletActions();
+  const contractActions = useContractActions();
 
+  // Local UI state
   const [launchState, setLaunchState] = useState<Web3LaunchState>('ready');
   const [launchError, setLaunchError] = useState<string | null>(null);
   const [contractAddress, setContractAddress] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [deploymentStep, setDeploymentStep] = useState<string>('');
+  const [deployTrigger, setDeployTrigger] = useState(0);
+  const [explorerUrl, setExplorerUrl] = useState<string | null>(null);
 
+  // Socket: success/error → navigate/reset
   useEffect(() => {
     if (!connected || !socket) return;
- const handleCreated = ({ roomId }: { roomId: string }) => {
-  setLaunchState('success');
 
-  // Clean any temp locals we may have set earlier
-  try {
-    localStorage.removeItem('current-room-id');
-    localStorage.removeItem('current-host-id');
-    localStorage.removeItem('current-contract-address');
-  } catch {} // ignore
-
-  // Nuke the entire wizard so nothing leaks into next session
-  hardReset();
-
-  // Navigate after a short UX pause
-  setTimeout(() => navigate(`/quiz/host-dashboard/${roomId}`), 600);
-};
+    const handleCreated = ({ roomId }: { roomId: string }) => {
+      setLaunchState('success');
+      try {
+        localStorage.removeItem('current-room-id');
+        localStorage.removeItem('current-host-id');
+        localStorage.removeItem('current-contract-address');
+      } catch {}
+      hardReset();
+      setTimeout(() => navigate(`/quiz/host-dashboard/${roomId}`), 600);
+    };
 
     const handleError = ({ message }: { message: string }) => {
       console.error('[Socket Error]', message);
       setLaunchError(message);
       setLaunchState('error');
     };
+
     socket.on('quiz_room_created', handleCreated);
     socket.on('quiz_error', handleError);
     return () => {
       socket.off('quiz_room_created', handleCreated);
       socket.off('quiz_error', handleError);
     };
-  }, [connected, navigate, socket]);
+  }, [connected, navigate, socket, hardReset]);
 
-  // Multi-chain wallet handlers
+  // Wallet connect/disconnect
   const handleWalletConnect = async () => {
     try {
-      switch (selectedChain) {
-        case 'stellar':
-          if (stellarWallet) {
-            await stellarWallet.connect();
-          }
-          break;
-        case 'evm':
-          // When EVM is implemented:
-          // if (evmWallet) await evmWallet.connect();
-          console.log('EVM wallet connection not implemented yet');
-          break;
-        case 'solana':
-          // When Solana is implemented:
-          // if (solanaWallet) await solanaWallet.connect();
-          console.log('Solana wallet connection not implemented yet');
-          break;
-        default:
-          console.error('Unsupported chain:', selectedChain);
-      }
-    } catch (error) {
-      console.error('Wallet connection failed:', error);
+      const res = await walletActions.connect();
+      if (!res.success) throw new Error(res.error?.message || 'Wallet connection failed');
+    } catch (err) {
+      console.error('Wallet connection failed:', err);
     }
   };
 
   const handleWalletDisconnect = async () => {
     try {
-      switch (selectedChain) {
-        case 'stellar':
-          if (stellarWallet) {
-            await stellarWallet.disconnect();
-          }
-          break;
-        case 'evm':
-          // When EVM is implemented:
-          // if (evmWallet) await evmWallet.disconnect();
-          console.log('EVM wallet disconnection not implemented yet');
-          break;
-        case 'solana':
-          // When Solana is implemented:
-          // if (solanaWallet) await solanaWallet.disconnect();
-          console.log('Solana wallet disconnection not implemented yet');
-          break;
-        default:
-          console.error('Unsupported chain:', selectedChain);
-      }
-    } catch (error) {
-      console.error('Wallet disconnection failed:', error);
+      await walletActions.disconnect();
+    } catch (err) {
+      console.error('Wallet disconnection failed:', err);
     }
   };
 
-  // Chain-specific deployment functions
-const deployQuizContractOnStellar = async (params: any) => {
-  if (!stellarWallet?.wallet.isConnected || !stellarWallet.wallet.address || !stellarContract) {
-    throw new Error('Stellar wallet not connected or contract not available');
-  }
+  const isInvalidTx = (tx?: string) =>
+    !tx || tx === 'pending' || tx === 'transaction-submitted' || tx.length < 16;
 
-  setDeploymentStep('Preparing room parameters…');
-
-  // Common parameters
-  const currency = setupConfig.web3Currency || 'XLM';
-  const entryFee = setupConfig.entryFee || '1.0';
-  const hostFeePct = setupConfig.web3PrizeSplit?.host || 0;
-  const charityName = setupConfig.web3Charity;
-
-  // Check prize mode to determine which contract function to call
-  const prizeMode = setupConfig.prizeMode;
-  
-  console.log('Prize mode detected:', prizeMode);
-  console.log('Setup config prizes:', setupConfig.prizes);
-  console.log('Setup config prize splits:', setupConfig.prizeSplits);
-
-  let result;
-
-  if (prizeMode === 'assets') {
-    // Asset-based room using init_asset_room
-    setDeploymentStep('Creating asset-based room on blockchain…');
-    
-    // Convert Prize[] array to ExpectedPrize format for contract
-    const expectedPrizes = (setupConfig.prizes || [])
-      .filter(prize => prize.tokenAddress && prize.value && prize.value > 0)
-      .map(prize => ({
-        tokenAddress: prize.tokenAddress!,
-        amount: prize.value!.toString() // Convert number to string for contract
-      }));
-
-    if (expectedPrizes.length === 0) {
-      throw new Error('No valid prizes found for asset room. At least one prize with token address and amount is required.');
-    }
-
-    console.log('Expected prizes for contract:', expectedPrizes);
-
-    result = await stellarContract.createAssetRoom({
-      roomId: params.roomId,
-      hostAddress: stellarWallet.wallet.address,
-      currency,
-      entryFee,
-      hostFeePct,
-      charityName,
-      expectedPrizes
-    });
-
-    setDeploymentStep('Asset room created successfully! Host will need to deposit assets next.');
-    
-  } else {
-    // Prize pool room using init_pool_room (default behavior)
-    setDeploymentStep('Creating prize pool room on blockchain…');
-    
-    const prizePoolPct = setupConfig.web3PrizeSplit?.prizes || 0;
-
-    // Map splits to first/second/third for chain client (if provided)
-    const prizeSplits = setupConfig.prizeSplits
-      ? {
-          first: setupConfig.prizeSplits[1] || 100,
-          second: setupConfig.prizeSplits[2],
-          third: setupConfig.prizeSplits[3],
-        }
-      : { first: 100 };
-
-    result = await stellarContract.createPoolRoom({
-      roomId: params.roomId,
-      hostAddress: stellarWallet.wallet.address,
-      currency,
-      entryFee,
-      hostFeePct,
-      prizePoolPct,
-      charityName,
-      prizeSplits,
-    });
-
-    setDeploymentStep('Prize pool room created successfully!');
-  }
-
-  return { 
-    contractAddress: result.contractAddress, 
-    txHash: result.txHash 
-  };
-};
-
-  const deployQuizContractOnEVM = async (_params: any) => {
-    setDeploymentStep('Connecting to EVM…');
-    await new Promise((r) => setTimeout(r, 500));
-    setDeploymentStep('Deploying contract…');
-    await new Promise((r) => setTimeout(r, 1500));
-    return {
-      contractAddress: `0x${Math.random().toString(16).slice(2, 42)}`,
-      txHash: `0x${Math.random().toString(16).slice(2, 66)}`,
-    };
-  };
-
-  const deployQuizContractOnSolana = async (_params: any) => {
-    setDeploymentStep('Connecting to Solana…');
-    await new Promise((r) => setTimeout(r, 500));
-    setDeploymentStep('Deploying program…');
-    await new Promise((r) => setTimeout(r, 1500));
-    return {
-      contractAddress: `SOLANA_PROGRAM_${_params.roomId}`,
-      txHash: `solana_sig_${Math.random().toString(36).slice(2, 16)}`,
-    };
-  };
-
-  const deployWeb3Contract = async (roomId: string, hostId: string) => {
-    if (!selectedChain || !currentWallet?.address) {
-      throw new Error('Wallet not connected');
-    }
-    setLaunchState('deploying-contract');
-    setDeploymentStep('Preparing contract parameters…');
-
-    const contractParams = {
-      roomId,
-      hostId,
-      entryFee: setupConfig.entryFee,
-      currency: setupConfig.web3Currency,
-      hostWallet: setupConfig.hostWallet || currentWallet.address,
-      charity: setupConfig.web3Charity,
-      prizeSplits: setupConfig.web3PrizeSplit || setupConfig.prizeSplits,
-      maxPlayers: (setupConfig as any).maxPlayers || 100,
-      hostMetadata: {
-        hostName: setupConfig.hostName,
-        eventDateTime: setupConfig.eventDateTime,
-        totalRounds: setupConfig.roundDefinitions?.length || 0,
-      },
-    };
-
-    let result;
-    switch (selectedChain) {
-      case 'stellar':
-        setDeploymentStep('Deploying Stellar contract…');
-        result = await deployQuizContractOnStellar(contractParams);
-        break;
-      case 'evm':
-        setDeploymentStep('Deploying EVM contract…');
-        result = await deployQuizContractOnEVM(contractParams);
-        break;
-      case 'solana':
-        setDeploymentStep('Deploying Solana program…');
-        result = await deployQuizContractOnSolana(contractParams);
-        break;
-      default:
-        throw new Error(`Unsupported chain: ${selectedChain}`);
-    }
-    setContractAddress(result.contractAddress);
-    setTxHash(result.txHash);
-    setDeploymentStep('Contract deployed successfully!');
-    return result;
-  };
-
- const handleWeb3Launch = async () => {
-  if (launchState !== 'ready' && launchState !== 'error') return;
-  setLaunchError(null);
-
-  // IMPORTANT: clear any prior IDs so we never re-use a failed one
-  try {
-    localStorage.removeItem('current-room-id');
-    localStorage.removeItem('current-host-id');
-    localStorage.removeItem('current-contract-address');
-  } catch {} // ignore
-  clearRoomIds();
-
-  try {
-    console.log('🚀 Starting Web3 launch process...');
-    setLaunchState('generating-ids');
-
-    // Always mint fresh IDs for each attempt (prevents smart-contract collisions)
-    const newRoomId = generateRoomId();
-    const newHostId = generateHostId();
-    setRoomIds(newRoomId, newHostId);
-
-
-      const contractData = await deployWeb3Contract(newRoomId, newHostId);
-      console.log('✅ Contract deployed:', contractData);
-
-      setLaunchState('creating-room');
-      const web3RoomConfig = {
-        ...setupConfig,
-        contractAddress: contractData.contractAddress,
-        deploymentTxHash: contractData.txHash,
-        web3ChainConfirmed: selectedChain ?? undefined,
-        hostWalletConfirmed: currentWallet?.address,
-        paymentMethod: 'web3' as const,
-        isWeb3Room: true,
-          web3PrizeStructure: {
-    firstPlace: setupConfig.prizeSplits?.[1] || 100,
-    secondPlace: setupConfig.prizeSplits?.[2] || 0,
-    thirdPlace: setupConfig.prizeSplits?.[3] || 0
-  }
-      };
-
-      console.log('🌐 Making API call to create Web3 room...');
-      const response = await fetch('/quiz/api/create-web3-room', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          config: web3RoomConfig, 
-          roomId: newRoomId, 
-          hostId: newHostId 
-        }),
-      });
-      
-      console.log('📡 API response status:', response.status);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('❌ API error:', errorData);
-        throw new Error(errorData.error || `Server error: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log('✅ API response data:', data);
-
-  if (!data.verified || !data.contractAddress) {
-  throw new Error('Room creation not verified by server');
-}
-
-// (Optional) keep these if your dashboard relies on them
-try {
-  localStorage.setItem('current-room-id', data.roomId);
-  localStorage.setItem('current-host-id', data.hostId);
-  localStorage.setItem('current-contract-address', data.contractAddress);
-} catch {} // ignore
-
-// If your dashboard needs full config immediately, keep this:
-setFullConfig({
-  ...web3RoomConfig,
-  roomId: data.roomId,
-  hostId: data.hostId,
-  web3ChainConfirmed: web3RoomConfig.web3ChainConfirmed ?? undefined,
-  hostWalletConfirmed: web3RoomConfig.hostWalletConfirmed ?? undefined,
-});
-
-// SUCCESS: wipe the wizard state so nothing persists
-hardReset();
-
-console.log('🎉 Web3 launch complete, navigating to dashboard...');
-setLaunchState('success');
-
-setTimeout(() => {
-  navigate(`/quiz/host-dashboard/${data.roomId}`);
-}, 600);
-
-      
-   } catch (err: any) {
-  console.error('[Web3 Launch Error]', err);
-
-  // Failure path: clear IDs so the next click gets brand-new ones
-  try {
-    localStorage.removeItem('current-room-id');
-    localStorage.removeItem('current-host-id');
-    localStorage.removeItem('current-contract-address');
-  } catch {} // ignore
-  clearRoomIds();
-
-  setLaunchError(err?.message || 'Unknown error');
-  setLaunchState('error');
-}
-  };
-
-  // Derived config for review UI
-  const currency = setupConfig.currencySymbol || setupConfig.web3Currency || 'USDGLO';
-  const hasHostName = !!setupConfig.hostName;
-  const hasRounds = !!(setupConfig.roundDefinitions && setupConfig.roundDefinitions.length > 0);
-  const configComplete = hasHostName && hasRounds && !!selectedChain;
-
+  // Prize/percent helpers for display + deploy mapping
   const prizeMode: 'split' | 'assets' | undefined = setupConfig.prizeMode as any;
-  const splits = setupConfig.web3PrizeSplit || undefined;
+  const splits = setupConfig.web3PrizeSplit || undefined; // { charity, host, prizes }
   const platformPct = 20;
   const hasPool = prizeMode === 'split' && splits && (splits.prizes ?? 0) > 0;
   const hasAssets = prizeMode === 'assets' && (setupConfig.prizes?.length ?? 0) > 0;
+  const currency = setupConfig.currencySymbol || setupConfig.web3Currency || 'GLOUSD';
 
-  // Helper: nicely format event datetime
+  // Fundraising extras (UI)
+  const enabledExtrasEntries = useMemo(
+    () => Object.entries(setupConfig.fundraisingOptions || {}).filter(([, v]) => v),
+    [setupConfig.fundraisingOptions]
+  );
+  const totalExtrasPerPlayer = useMemo(
+    () =>
+      enabledExtrasEntries.reduce((acc, [k]) => {
+        const price = setupConfig.fundraisingPrices?.[k];
+        return acc + (typeof price === 'number' ? price : 0);
+      }, 0),
+    [enabledExtrasEntries, setupConfig.fundraisingPrices]
+  );
+
+  // Build DeployParams for non-Stellar flows from setupConfig
+  const buildDeployParams = (
+    _roomId: string,
+    _hostId: string,
+    hostWallet: string
+  ): DeployParams => {
+    // Map splits for pool mode -> prizeSplits (1/2/3 => first/second/third)
+    const poolSplits =
+      setupConfig.prizeSplits
+        ? {
+            first: Number(setupConfig.prizeSplits[1] ?? 100),
+            second: setupConfig.prizeSplits[2],
+            third: setupConfig.prizeSplits[3],
+          }
+        : { first: 100 };
+
+    // Map asset prizes
+    const expectedPrizes =
+      (setupConfig.prizes || [])
+        .filter((p: any) => p?.tokenAddress)
+        .map((p: any) => ({
+          tokenAddress: String(p.tokenAddress),
+          amount: String(p.value ?? '1'),
+        })) || [];
+
+        const resolvedCharityName =
+  (setupConfig as any)?.web3Charity ?? (setupConfig as any)?.charityName ?? undefined;
+    return {
+      roomId: _roomId,
+      hostId: _hostId,
+      currency: setupConfig.web3Currency || setupConfig.currencySymbol || 'XLM',
+      entryFee: setupConfig.entryFee ?? '1.0',
+      hostFeePct: Number(splits?.host ?? 0),
+      prizeMode: prizeMode,
+      charityName: resolvedCharityName,
+      prizePoolPct: Number(splits?.prizes ?? 0),
+      prizeSplits: poolSplits,
+      expectedPrizes,
+      hostWallet,
+      hostMetadata: {
+        hostName: setupConfig.hostName,
+        eventDateTime: setupConfig.eventDateTime,
+        totalRounds: (setupConfig.roundDefinitions || []).length,
+      },
+    };
+  };
+
+  // Parent launch handler (EVM/Solana handled here; Stellar delegated to child)
+  const handleWeb3Launch = async () => {
+    if (launchState !== 'ready' && launchState !== 'error') return;
+    setLaunchError(null);
+
+    // Fresh attempt
+    try {
+      localStorage.removeItem('current-room-id');
+      localStorage.removeItem('current-host-id');
+      localStorage.removeItem('current-contract-address');
+    } catch {}
+    clearRoomIds();
+
+    try {
+      if (!selectedChain) throw new Error('No blockchain selected.');
+      const hostWallet = walletActions.getAddress();
+      if (!walletActions.isConnected() || !hostWallet) {
+        throw new Error(`Connect your ${getChainDisplayName()} wallet first.`);
+      }
+
+      setLaunchState('generating-ids');
+
+      // Always mint fresh IDs per attempt
+      const newRoomId = generateRoomId();
+      const newHostId = generateHostId();
+      setRoomIds(newRoomId, newHostId);
+
+      // Stellar → handled by child section
+      if (selectedChain === 'stellar') {
+        setLaunchState('deploying-contract');
+        setDeploymentStep('Deploying Stellar contract…');
+        setDeployTrigger((n) => n + 1);
+        return;
+      }
+
+      // Non-Stellar (EVM/Solana)
+      setLaunchState('deploying-contract');
+      setDeploymentStep(`Deploying ${getChainDisplayName()} contract…`);
+
+      // ✅ FIX: use contractActions.deploy (not deployContract)
+      const deployParams = buildDeployParams(newRoomId, newHostId, hostWallet);
+      const deployRes = await contractActions.deploy(deployParams);
+
+      if (!deployRes?.success || !deployRes.contractAddress || isInvalidTx(deployRes.txHash)) {
+        throw new Error('Blockchain deployment was not signed/confirmed.');
+      }
+
+      setContractAddress(deployRes.contractAddress);
+      setTxHash(deployRes.txHash);
+      setExplorerUrl(deployRes.explorerUrl || null);
+
+      // Create server room
+      setLaunchState('creating-room');
+
+      const web3RoomConfig = {
+        ...setupConfig,
+        contractAddress: deployRes.contractAddress,
+        deploymentTxHash: deployRes.txHash,
+        web3ChainConfirmed: selectedChain,
+        // ✅ FIX: coerce null→undefined for type compatibility
+        hostWalletConfirmed: hostWallet || undefined,
+        paymentMethod: 'web3' as const,
+        isWeb3Room: true,
+        web3PrizeStructure: {
+          firstPlace: setupConfig.prizeSplits?.[1] || 100,
+          secondPlace: setupConfig.prizeSplits?.[2] || 0,
+          thirdPlace: setupConfig.prizeSplits?.[3] || 0,
+        },
+      };
+
+      const response = await fetch('/quiz/api/create-web3-room', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          config: web3RoomConfig,
+          roomId: newRoomId,
+          hostId: newHostId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || `Server error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (!data.verified || !data.contractAddress) {
+        throw new Error('Room creation not verified by server');
+      }
+
+      try {
+        localStorage.setItem('current-room-id', data.roomId);
+        localStorage.setItem('current-host-id', data.hostId);
+        localStorage.setItem('current-contract-address', data.contractAddress);
+      } catch {}
+
+      setFullConfig({
+        ...web3RoomConfig,
+        roomId: data.roomId,
+        hostId: data.hostId,
+      });
+
+      setLaunchState('success');
+      setTimeout(() => navigate(`/quiz/host-dashboard/${data.roomId}`), 600);
+    } catch (err: any) {
+      console.error('[Web3 Launch Error]', err);
+      try {
+        localStorage.removeItem('current-room-id');
+        localStorage.removeItem('current-host-id');
+        localStorage.removeItem('current-contract-address');
+      } catch {}
+      clearRoomIds();
+      setLaunchError(err?.message || 'Unknown error');
+      setLaunchState('error');
+    }
+  };
+
   const formatEventDateTime = (dateTime?: string) => {
     if (!dateTime) return null;
     const date = new Date(dateTime);
@@ -463,14 +331,10 @@ setTimeout(() => {
   };
   const eventDateTime = formatEventDateTime(setupConfig.eventDateTime || '');
 
-  // Fundraising extras
-  const enabledExtras = Object.entries(setupConfig.fundraisingOptions || {}).filter(([, v]) => v);
-  const totalExtrasPerPlayer = enabledExtras.reduce((acc, [k]) => {
-    const p = setupConfig.fundraisingPrices?.[k];
-    return acc + (typeof p === 'number' ? p : 0);
-  }, 0);
+  const hasHostName = !!setupConfig.hostName;
+  const hasRounds = !!(setupConfig.roundDefinitions && setupConfig.roundDefinitions.length > 0);
+  const configComplete = hasHostName && hasRounds && !!selectedChain;
 
-  // Character copy
   const getCurrentMessage = () => {
     if (launchState === 'generating-ids') {
       return { expression: 'generating', message: 'Generating unique room and host IDs…' };
@@ -572,13 +436,13 @@ setTimeout(() => {
           <p className="text-fg/70 mt-0.5 text-xs md:text-sm">Final blockchain deployment check</p>
         </div>
         <ClearSetupButton
-  label="Start Over"
-  variant="ghost"
-  size="sm"
-  keepIds={false}
-  flow="web3"
-  onCleared={onResetToFirst}
-/>
+          label="Start Over"
+          variant="ghost"
+          size="sm"
+          keepIds={false}
+          flow="web3"
+          onCleared={onResetToFirst}
+        />
       </div>
 
       <Character {...getCurrentMessage()} />
@@ -607,8 +471,6 @@ setTimeout(() => {
           </div>
         </div>
       )}
-
-   
 
       {/* Overview: Host & Event + Template */}
       <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2">
@@ -661,9 +523,7 @@ setTimeout(() => {
                 <div>
                   <p className="text-fg/80 text-xs font-medium">Template</p>
                   <p className="text-fg">
-                    {setupConfig.selectedTemplate
-                      ? String(setupConfig.selectedTemplate)
-                      : 'Custom'}{' '}
+                    {setupConfig.selectedTemplate ? String(setupConfig.selectedTemplate) : 'Custom'}{' '}
                     {setupConfig.skipRoundConfiguration ? '(rounds auto-configured)' : ''}
                   </p>
                 </div>
@@ -696,7 +556,9 @@ setTimeout(() => {
           <div className="space-y-3 text-sm">
             <div className="flex items-center space-x-2">
               <span className="text-fg/80">Payment Method:</span>
-              <span className="text-fg font-medium">{setupConfig.paymentMethod === 'web3' ? 'Web3 Wallet' : 'Cash / Card'}</span>
+              <span className="text-fg font-medium">
+                {setupConfig.paymentMethod === 'web3' ? 'Web3 Wallet' : 'Cash / Card'}
+              </span>
             </div>
 
             <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3">
@@ -719,9 +581,7 @@ setTimeout(() => {
                   <div className="text-fg font-semibold">{platformPct}%</div>
                 </div>
               </div>
-              <div className="mt-2 text-xs text-fg/60">
-                Totals reflect your selections in the Web3 prizes step.
-              </div>
+              <div className="mt-2 text-xs text-fg/60">Totals reflect your selections in the Web3 prizes step.</div>
             </div>
 
             {hasPool && setupConfig.prizeSplits && (
@@ -744,7 +604,7 @@ setTimeout(() => {
               <div className="rounded-lg border border-green-200 bg-green-50 p-3">
                 <div className="mb-2 font-medium text-green-800">External Asset Prizes</div>
                 <div className="space-y-2">
-                  {setupConfig.prizes!.map((prize, i) => (
+                  {setupConfig.prizes!.map((prize: any, i: number) => (
                     <div key={i} className="flex items-start gap-3 rounded border border-green-200 bg-white p-2">
                       <Trophy className="h-4 w-4 text-green-700" />
                       <div className="min-w-0">
@@ -762,6 +622,34 @@ setTimeout(() => {
                 </div>
               </div>
             )}
+
+            {/* ✅ Extras summary panel restored */}
+            <div className="rounded-lg border border-purple-200 bg-purple-50 p-3">
+              <div className="mb-2 flex items-center gap-2 font-medium text-purple-900">
+                <Gift className="h-4 w-4" />
+                Fundraising Extras
+              </div>
+              {enabledExtrasEntries.length === 0 ? (
+                <div className="text-xs text-fg/60">No extras enabled.</div>
+              ) : (
+                <div className="space-y-2">
+                  {enabledExtrasEntries.map(([key]) => {
+                    const price = setupConfig.fundraisingPrices?.[key];
+                    return (
+                      <div key={key} className="flex items-center justify-between rounded bg-white p-2">
+                        <span className="text-xs text-fg/80">{key}</span>
+                        <span className="text-xs font-medium text-fg">
+                          {typeof price === 'number' ? `${price} ${currency}` : '—'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                  <div className="mt-1 text-right text-xs text-fg/70">
+                    Potential extras per player: <span className="font-semibold">{totalExtrasPerPlayer} {currency}</span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -809,52 +697,87 @@ setTimeout(() => {
         </div>
       </div>
 
-      {/* Fundraising Extras */}
-      <div className="bg-muted border-border rounded-xl border-2 p-4 shadow-sm md:p-6">
-        <div className="mb-4 flex items-center space-x-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-red-100 text-2xl">❤️</div>
-          <div className="flex-1">
-            <h3 className="text-fg text-lg font-semibold">Fundraising Extras</h3>
-            <p className="text-fg/70 text-sm">Additional fundraising options</p>
-          </div>
-          <CheckCircle className="h-5 w-5 text-green-600" />
-        </div>
+      {/* Stellar child (only when chain === 'stellar') */}
+      {selectedChain === 'stellar' && (
+        <StellarLaunchSection
+          deployTrigger={deployTrigger}
+          roomId={roomId || localStorage.getItem('current-room-id') || generateRoomId()}
+          hostId={hostId || localStorage.getItem('current-host-id') || generateHostId()}
+          setupConfig={setupConfig}
+          onDeploymentProgress={(msg) => setDeploymentStep(msg)}
+          onDeployed={async ({ contractAddress, txHash, explorerUrl }) => {
+            try {
+              setContractAddress(contractAddress);
+              setTxHash(txHash);
+              setExplorerUrl(explorerUrl || null);
 
-        {enabledExtras.length > 0 ? (
-          <div className="space-y-2">
-            {enabledExtras.map(([key]) => (
-              <div
-                key={key}
-                className="flex items-center justify-between rounded border border-green-200 bg-green-50 p-2"
-              >
-                <div className="flex items-center gap-2">
-                  <Heart className="h-4 w-4 text-green-600" />
-                  <span className="text-sm font-medium text-green-800">{fundraisingExtras[key]?.label || key}</span>
-                </div>
-                <span className="text-sm font-semibold text-green-900">
-                  
-                  {setupConfig.fundraisingPrices?.[key] ?? '0.00'}
-                  {currency}
-                </span>
-              </div>
-            ))}
-            <div className="mt-2 text-right text-xs text-fg/70">
-              Total potential per player from extras: <strong>{totalExtrasPerPlayer.toFixed(2)} {currency}</strong>
-            </div>
-          </div>
-        ) : (
-          <div className="text-fg/60 py-4 text-center">
-            <Heart className="mx-auto mb-2 h-8 w-8 text-gray-300" />
-            <p className="text-sm">No additional fundraising options selected</p>
-          </div>
-        )}
-      </div>
+              setLaunchState('creating-room');
 
-     
-     {/* <WalletDebugPanel /> */}
+              const confirmedWallet = walletActions.getAddress() || currentWallet?.address || undefined;
 
-      
-            {/* Blockchain config & wallet */}
+              const web3RoomConfig = {
+                ...setupConfig,
+                contractAddress,
+                deploymentTxHash: txHash,
+                web3ChainConfirmed: selectedChain,
+                // ✅ FIX: ensure type is string | undefined (no null)
+                hostWalletConfirmed: confirmedWallet || undefined,
+                paymentMethod: 'web3' as const,
+                isWeb3Room: true,
+                web3PrizeStructure: {
+                  firstPlace: setupConfig.prizeSplits?.[1] || 100,
+                  secondPlace: setupConfig.prizeSplits?.[2] || 0,
+                  thirdPlace: setupConfig.prizeSplits?.[3] || 0,
+                },
+              };
+
+              const response = await fetch('/quiz/api/create-web3-room', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  config: web3RoomConfig,
+                  roomId: roomId || localStorage.getItem('current-room-id'),
+                  hostId: hostId || localStorage.getItem('current-host-id'),
+                }),
+              });
+
+              if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `Server error: ${response.status}`);
+              }
+
+              const data = await response.json();
+              if (!data.verified || !data.contractAddress) {
+                throw new Error('Room creation not verified by server');
+              }
+
+              try {
+                localStorage.setItem('current-room-id', data.roomId);
+                localStorage.setItem('current-host-id', data.hostId);
+                localStorage.setItem('current-contract-address', data.contractAddress);
+              } catch {}
+
+              setFullConfig({
+                ...web3RoomConfig,
+                roomId: data.roomId,
+                hostId: data.hostId,
+              });
+
+              setLaunchState('success');
+              setTimeout(() => navigate(`/quiz/host-dashboard/${data.roomId}`), 600);
+            } catch (err: any) {
+              setLaunchError(err?.message || 'Unknown error');
+              setLaunchState('error');
+            }
+          }}
+          onError={(message) => {
+            setLaunchError(message);
+            setLaunchState('error');
+          }}
+        />
+      )}
+
+      {/* Blockchain config & wallet */}
       <div className="rounded-xl border border-purple-200 bg-gradient-to-r from-purple-50 to-indigo-50 p-4">
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -910,14 +833,14 @@ setTimeout(() => {
           )}
         </div>
 
-        {/* Multi-chain wallet connection UI */}
+        {/* Wallet connect/disconnect (chain-agnostic) */}
         {selectedChain && (
           <div className="mb-3">
             {needsWalletConnection ? (
               <button
                 onClick={handleWalletConnect}
                 disabled={walletReadiness.status === 'connecting'}
-                className="flex w-full items-center justify-center space-x-2 rounded-lg bg-purple-600 px-4 py-3 font-medium text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex w/full items-center justify-center space-x-2 rounded-lg bg-purple-600 px-4 py-3 font-medium text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {walletReadiness.status === 'connecting' ? (
                   <>
@@ -940,14 +863,12 @@ setTimeout(() => {
                       <div className="text-sm font-medium text-green-800">
                         {getChainDisplayName()} Wallet Connected
                       </div>
-                      <div className="font-mono text-xs text-green-600">
-                        {getFormattedAddress()}
-                      </div>
+                      <div className="font-mono text-xs text-green-600">{getFormattedAddress()}</div>
                     </div>
                   </div>
                   <button
                     onClick={handleWalletDisconnect}
-                    disabled={currentWallet?.isDisconnecting}
+                    disabled={!!currentWallet?.isDisconnecting}
                     className="rounded border border-red-200 px-3 py-1 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
                   >
                     {currentWallet?.isDisconnecting ? 'Disconnecting...' : 'Disconnect'}
@@ -969,7 +890,7 @@ setTimeout(() => {
                 <div className="flex items-center justify-between">
                   <span className="text-purple-700">Deployment Tx:</span>
                   <a
-                    href="#"
+                    href={explorerUrl || '#'}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center space-x-1 font-mono text-xs text-purple-900 hover:underline"
@@ -1001,14 +922,14 @@ setTimeout(() => {
         </button>
 
         <div className="flex items-center gap-3">
-        <ClearSetupButton
-  label="Start Over"
-  variant="ghost"
-  size="sm"
-  keepIds={false}
-  flow="web3"
-  onCleared={onResetToFirst}
-/>
+          <ClearSetupButton
+            label="Start Over"
+            variant="ghost"
+            size="sm"
+            keepIds={false}
+            flow="web3"
+            onCleared={onResetToFirst}
+          />
           <button
             type="button"
             onClick={handleWeb3Launch}
@@ -1041,3 +962,4 @@ setTimeout(() => {
 };
 
 export default StepWeb3ReviewLaunch;
+

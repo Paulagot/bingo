@@ -7,15 +7,11 @@ import type {
 } from '../chains/types';
 
 interface WalletState {
-  // Chain-specific wallet states
   stellar: StellarWalletConnection;
   evm: EvmWalletConnection;
   solana: SolanaWalletConnection;
-
-  // Current active chain
   activeChain: SupportedChain | null;
 
-  // Actions
   setActiveChain: (chain: SupportedChain | null) => void;
   updateStellarWallet: (updates: Partial<StellarWalletConnection>) => void;
   updateEvmWallet: (updates: Partial<EvmWalletConnection>) => void;
@@ -28,7 +24,7 @@ const createInitialStellarState = (): StellarWalletConnection => ({
   address: null,
   isConnected: false,
   isConnecting: false,
-  isDisconnecting: false, // ✅ required by your types
+  isDisconnecting: false,
   chain: 'stellar',
   error: null,
   publicKey: undefined,
@@ -39,7 +35,7 @@ const createInitialEvmState = (): EvmWalletConnection => ({
   address: null,
   isConnected: false,
   isConnecting: false,
-  isDisconnecting: false, // ✅
+  isDisconnecting: false,
   chain: 'evm',
   error: null,
   chainId: undefined,
@@ -50,50 +46,92 @@ const createInitialSolanaState = (): SolanaWalletConnection => ({
   address: null,
   isConnected: false,
   isConnecting: false,
-  isDisconnecting: false, // ✅
+  isDisconnecting: false,
   chain: 'solana',
   error: null,
   publicKey: undefined,
   cluster: undefined,
 });
 
-export const useWalletStore = create<WalletState>((set) => ({
+// shallow equality helper (enough for our flat wallet slices)
+const shallowEqual = <T extends object>(a: T, b: T): boolean => {
+  if (a === b) return true;
+  const aKeys = Object.keys(a) as (keyof T)[];
+  const bKeys = Object.keys(b) as (keyof T)[];
+  if (aKeys.length !== bKeys.length) return false;
+  for (const k of aKeys) {
+    if (a[k] !== b[k]) return false;
+  }
+  return true;
+};
+
+export const useWalletStore = create<WalletState>()((set, get) => ({
   stellar: createInitialStellarState(),
   evm: createInitialEvmState(),
   solana: createInitialSolanaState(),
   activeChain: null,
 
-  setActiveChain: (chain) => set({ activeChain: chain }),
+  // ✅ Idempotent: only set if value actually changes
+  setActiveChain: (chain) => {
+    if (get().activeChain === chain) return;
+    set({ activeChain: chain });
+  },
 
-  updateStellarWallet: (updates) =>
-    set((state) => ({ stellar: { ...state.stellar, ...updates } })),
+  // ✅ Idempotent updates: only write if merged slice is different
+  updateStellarWallet: (updates) => {
+    const next = { ...get().stellar, ...updates };
+    if (!shallowEqual(get().stellar, next)) set({ stellar: next });
+  },
 
-  updateEvmWallet: (updates) =>
-    set((state) => ({ evm: { ...state.evm, ...updates } })),
+  updateEvmWallet: (updates) => {
+    const next = { ...get().evm, ...updates };
+    if (!shallowEqual(get().evm, next)) set({ evm: next });
+  },
 
-  updateSolanaWallet: (updates) =>
-    set((state) => ({ solana: { ...state.solana, ...updates } })),
+  updateSolanaWallet: (updates) => {
+    const next = { ...get().solana, ...updates };
+    if (!shallowEqual(get().solana, next)) set({ solana: next });
+  },
 
-  resetWallet: (chain) =>
-    set((state) => {
-      switch (chain) {
-        case 'stellar':
-          return { ...state, stellar: createInitialStellarState() };
-        case 'evm':
-          return { ...state, evm: createInitialEvmState() };
-        case 'solana':
-          return { ...state, solana: createInitialSolanaState() };
-        default:
-          return state;
+  resetWallet: (chain) => {
+    switch (chain) {
+      case 'stellar': {
+        const fresh = createInitialStellarState();
+        if (!shallowEqual(get().stellar, fresh)) set({ stellar: fresh });
+        break;
       }
-    }),
+      case 'evm': {
+        const fresh = createInitialEvmState();
+        if (!shallowEqual(get().evm, fresh)) set({ evm: fresh });
+        break;
+      }
+      case 'solana': {
+        const fresh = createInitialSolanaState();
+        if (!shallowEqual(get().solana, fresh)) set({ solana: fresh });
+        break;
+      }
+    }
+  },
 
-  resetAllWallets: () =>
-    set({
+  // ✅ No-op if everything is already reset
+  resetAllWallets: () => {
+    const fresh = {
       stellar: createInitialStellarState(),
       evm: createInitialEvmState(),
       solana: createInitialSolanaState(),
-      activeChain: null,
-    }),
+      activeChain: null as SupportedChain | null,
+    };
+    const s = get();
+    if (
+      s.activeChain === null &&
+      shallowEqual(s.stellar, fresh.stellar) &&
+      shallowEqual(s.evm, fresh.evm) &&
+      shallowEqual(s.solana, fresh.solana)
+    ) {
+      return; // nothing to do
+    }
+    set(fresh);
+  },
 }));
+
 

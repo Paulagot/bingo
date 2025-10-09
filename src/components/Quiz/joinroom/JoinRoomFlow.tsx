@@ -10,6 +10,7 @@ import { DynamicChainProvider } from '../../chains/DynamicChainProvider';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import WalletDebugPanel from '../Wizard/WalletDebug';
 
+
 // Use consistent RoomConfig interface matching what verification returns
 interface RoomConfig {
   exists: boolean;
@@ -68,6 +69,7 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
       
       const handleVerification = (data: any) => {
         console.log('Room verification response:', data);
+        console.log('verify result web3Chain:', data.web3Chain);
         
         if (!data.exists) {
           // Room doesn't exist, fall back to manual entry
@@ -85,6 +87,8 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
         setRoomConfig(normalizedConfig);
 
 const normalized = normalizeChain(data.web3Chain);
+
+console.log('normalized chain:', normalized);
 if (normalized) setDetectedChain(normalized);
 
         if (data.demoMode) {
@@ -213,6 +217,7 @@ setDetectedChain(normalized);
           {paymentFlow === 'web3' && (
   detectedChain ? (
     <Web3PaymentStep
+     chainOverride={detectedChain}   // ✅ room-driven, authoritative
       roomId={roomId}
       playerName={playerName}
       roomConfig={roomConfig}

@@ -12,6 +12,8 @@ class ApiService {
     };
   }
 
+  
+
   private async request<T>(endpoint: string, options: RequestInit = {}, useManagementAPI: boolean = false): Promise<T> {
     const baseURL = useManagementAPI ? MGMT_API_BASE_URL : QUIZ_API_BASE_URL;
     const url = `${baseURL}${endpoint}`;
