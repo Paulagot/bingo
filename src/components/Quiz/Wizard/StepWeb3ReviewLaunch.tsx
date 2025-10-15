@@ -58,10 +58,13 @@ const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) =
     isWalletConnected,
     walletReadiness,
     currentWallet,
-    getChainDisplayName,
+    
     getFormattedAddress,
-    needsWalletConnection,
+ 
+     getNetworkDisplayName, 
   } = useQuizChainIntegration();
+
+  const needsWalletConnection = !isWalletConnected;
 
   // Chain-agnostic actions
   const walletActions = useWalletActions();
@@ -212,7 +215,7 @@ const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) =
       if (!selectedChain) throw new Error('No blockchain selected.');
       const hostWallet = walletActions.getAddress();
       if (!walletActions.isConnected() || !hostWallet) {
-        throw new Error(`Connect your ${getChainDisplayName()} wallet first.`);
+        throw new Error(`Connect your ${getNetworkDisplayName()} wallet first.`);
       }
 
       setLaunchState('generating-ids');
@@ -232,7 +235,7 @@ const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) =
 
       // Non-Stellar (EVM/Solana)
       setLaunchState('deploying-contract');
-      setDeploymentStep(`Deploying ${getChainDisplayName()} contract…`);
+      setDeploymentStep(`Deploying ${getNetworkDisplayName()} contract…`);
 
       // ✅ FIX: use contractActions.deploy (not deployContract)
       const deployParams = buildDeployParams(newRoomId, newHostId, hostWallet);
@@ -342,7 +345,7 @@ const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) =
     if (launchState === 'deploying-contract') {
       return {
         expression: 'deploying',
-        message: deploymentStep || `Deploying quiz contract on ${getChainDisplayName()}…`,
+        message: deploymentStep || `Deploying quiz contract on ${getNetworkDisplayName()}…`,
       };
     }
     if (launchState === 'creating-room') {
@@ -367,12 +370,12 @@ const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) =
     if (!isWalletConnected) {
       return {
         expression: 'wallet',
-        message: `Connect your ${getChainDisplayName()} wallet to deploy.`,
+        message: `Connect your ${getNetworkDisplayName()} wallet to deploy.`,
       };
     }
     return {
       expression: 'ready',
-      message: `All set! You're ready to deploy on ${getChainDisplayName()}. Review everything below, then deploy.`,
+      message: `All set! You're ready to deploy on ${getNetworkDisplayName()}. Review everything below, then deploy.`,
     };
   };
 
@@ -809,7 +812,7 @@ const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) =
         <div className="mb-4 grid grid-cols-2 gap-4 text-sm">
           <div>
             <span className="text-purple-700">Blockchain:</span>
-            <span className="ml-2 font-medium text-purple-900">{getChainDisplayName()}</span>
+            <span className="ml-2 font-medium text-purple-900">{getNetworkDisplayName()}</span>
           </div>
           <div>
             <span className="text-purple-700">Token:</span>
@@ -845,12 +848,12 @@ const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) =
                 {walletReadiness.status === 'connecting' ? (
                   <>
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    <span>Connecting {getChainDisplayName()} Wallet...</span>
+                    <span>Connecting {getNetworkDisplayName()} Wallet...</span>
                   </>
                 ) : (
                   <>
                     <Wallet className="h-4 w-4" />
-                    <span>Connect {getChainDisplayName()} Wallet</span>
+                    <span>Connect {getNetworkDisplayName()} Wallet</span>
                   </>
                 )}
               </button>
@@ -861,7 +864,7 @@ const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) =
                     <div className="h-2 w-2 rounded-full bg-green-500"></div>
                     <div>
                       <div className="text-sm font-medium text-green-800">
-                        {getChainDisplayName()} Wallet Connected
+                        {getNetworkDisplayName()} Wallet Connected
                       </div>
                       <div className="font-mono text-xs text-green-600">{getFormattedAddress()}</div>
                     </div>

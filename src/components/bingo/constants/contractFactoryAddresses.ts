@@ -1,3 +1,5 @@
+//src/components/bingo/constants/contractfactoryaddresses
+
 interface ChainInfo {
   factoryAddress: string;
   explorerBaseUrl: string;

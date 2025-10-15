@@ -9,7 +9,6 @@ import {
   Sparkles,
   Wallet,
   Heart,
-
   Trophy,
 } from 'lucide-react';
 import { WizardStepProps } from './WizardStepProps';
@@ -19,17 +18,18 @@ import ClearSetupButton from './ClearSetupButton';
 
 interface StepWeb3QuizSetupProps extends WizardStepProps {
   onChainUpdate?: (chain: SupportedChain) => void;
-  /** NEW: allows the clear button to jump back to the first step in the Web3 wizard */
   onResetToFirst?: () => void;
 }
 
 const Character = ({ message }: { message: string }) => {
-  const getBubbleColor = (): string => {
-    if (message.includes('Perfect!') || message.includes('🎉')) return 'bg-green-50 border-green-200';
-    if (message.includes('Excellent!') || message.includes('choice!')) return 'bg-blue-50 border-blue-200';
-    if (message.includes('ready') || message.includes('configured')) return 'bg-indigo-50 border-indigo-200';
-    return 'bg-gray-50 border-border';
-  };
+  const color =
+    message.includes('Perfect!') || message.includes('🎉')
+      ? 'bg-green-50 border-green-200'
+      : message.includes('Excellent!') || message.includes('choice!')
+      ? 'bg-blue-50 border-blue-200'
+      : message.includes('ready') || message.includes('configured')
+      ? 'bg-indigo-50 border-indigo-200'
+      : 'bg-gray-50 border-border';
 
   return (
     <div className="mb-3 flex items-center gap-2 sm:mb-6 sm:gap-4">
@@ -38,43 +38,66 @@ const Character = ({ message }: { message: string }) => {
           <span className="text-fg/60 text-xs font-medium sm:text-sm">IMG</span>
         </div>
       </div>
-      <div className={`relative flex-1 rounded-lg border p-2 shadow-lg sm:rounded-2xl sm:p-4 ${getBubbleColor()}`}>
+      <div className={`relative flex-1 rounded-lg border p-2 shadow-lg sm:rounded-2xl sm:p-4 ${color}`}>
         <p className="text-fg/80 text-xs leading-tight sm:text-sm sm:leading-normal">{message}</p>
       </div>
     </div>
   );
 };
 
-// Only include chains supported by your provider
-const CHAINS = [
-  { value: 'stellar', label: 'Stellar', description: 'Fast, low-cost payments' },
-  // { value: 'evm', label: 'Ethereum', description: 'Most popular smart contract platform' },
-  // { value: 'solana', label: 'Solana', description: 'High-speed, low-fee blockchain' },
+/** Single dropdown: Stellar, Base, Base Sepolia, Polygon, Solana (Mainnet|Devnet) */
+type ChoiceValue = 'stellar' | 'base' | 'baseSepolia' | 'polygon' | 'solanaMainnet' | 'solanaDevnet';
+type EvmNetwork = 'base' | 'baseSepolia' | 'polygon';
+type SolanaCluster = 'mainnet' | 'devnet';
+
+const CHOICES: Array<{
+  value: ChoiceValue;
+  label: string;
+  description: string;
+  kind: 'stellar' | 'evm' | 'solana';
+  evmNetwork?: EvmNetwork;
+  solanaCluster?: SolanaCluster;
+}> = [
+  { value: 'stellar', label: 'Stellar', description: 'Fast, low-cost payments', kind: 'stellar' },
+  { value: 'base', label: 'Base', description: 'EVM · Coinbase L2 (mainnet)', kind: 'evm', evmNetwork: 'base' },
+  { value: 'baseSepolia', label: 'Base Sepolia', description: 'EVM · Base testnet', kind: 'evm', evmNetwork: 'baseSepolia' },
+  // { value: 'polygon', label: 'Polygon', description: 'EVM · low fees (mainnet)', kind: 'evm', evmNetwork: 'polygon' },
+  { value: 'solanaMainnet', label: 'Solana (Mainnet)', description: 'High-speed, low-fee mainnet', kind: 'solana', solanaCluster: 'mainnet' },
+  { value: 'solanaDevnet', label: 'Solana (Devnet)', description: 'Developer test network', kind: 'solana', solanaCluster: 'devnet' },
 ];
 
-const getTokensForChain = (chain: string) => {
-  switch (chain) {
-    case 'stellar':
-      return [
-        { value: 'XLM', label: 'XLM ' },
-        // { value: 'USDGLO', label: 'Glo USD' },
-        // { value: 'USDC', label: 'USDC' },
-      ];
-    case 'evm':
-      return [
-        { value: 'ETH', label: 'ETH (Native)' },
-        { value: 'USDC', label: 'USDC' },
-        { value: 'USDGLO', label: 'Glo USD' },
-      ];
-    case 'solana':
-      return [
-        { value: 'SOL', label: 'SOL (Native)' },
-        { value: 'USDC', label: 'USDC' },
-        { value: 'USDGLO', label: 'Glo USD' },
-      ];
-    default:
-      return [{ value: 'USDGLO', label: 'Glo USD' }];
+/** Derive initial dropdown value from persisted setupConfig */
+const deriveChoiceFromConfig = (
+  web3Chain?: string | null,
+  evmNetwork?: string | null,
+  solanaCluster?: string | null
+): ChoiceValue => {
+  if (web3Chain === 'stellar') return 'stellar';
+  if (web3Chain === 'solana') {
+    return solanaCluster === 'devnet' ? 'solanaDevnet' : 'solanaMainnet';
   }
+  if (web3Chain === 'evm') {
+    if (evmNetwork === 'baseSepolia') return 'baseSepolia';
+    if (evmNetwork === 'polygon') return 'polygon';
+    return 'base';
+  }
+  return 'stellar';
+};
+
+const getTokensForChoice = (choice: ChoiceValue) => {
+  if (choice === 'stellar') return [{ value: 'XLM', label: 'XLM' }];
+  if (choice === 'solanaMainnet' || choice === 'solanaDevnet') {
+    return [
+      { value: 'SOL', label: 'SOL' },
+      { value: 'USDC', label: 'USDC' },
+      { value: 'USDGLO', label: 'Glo USD' },
+    ];
+  }
+  // EVM choices
+  return [
+    { value: 'USDC', label: 'USDC' },
+    { value: 'USDGLO', label: 'Glo USD' },
+  ];
 };
 
 const CHARITIES = [
@@ -85,118 +108,108 @@ const CHARITIES = [
 
 const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUpdate, onResetToFirst }) => {
   const { setupConfig, updateSetupConfig, setFlow } = useQuizSetupStore();
-
-  // Ensure store flow reflects we are in web3 wizard (useful for persistence)
-  useEffect(() => {
-    setFlow('web3');
-  }, [setFlow]);
+  useEffect(() => { setFlow('web3'); }, [setFlow]);
 
   // Host
   const [hostName, setHostName] = useState(setupConfig.hostName || '');
 
+  // Initial dropdown choice from saved config
+  const initialChoice = deriveChoiceFromConfig(
+    setupConfig.web3Chain,
+    (setupConfig as any).evmNetwork,
+    (setupConfig as any).solanaCluster
+  );
+  const [choice, setChoice] = useState<ChoiceValue>(initialChoice);
+
   // Web3 fields
-  const [chain, setChain] = useState(setupConfig.web3Chain || 'stellar');
   const [currency, setCurrency] = useState(setupConfig.web3Currency || 'USDGLO');
   const [charity, setCharity] = useState(setupConfig.web3Charity || '');
   const [entryFee, setEntryFee] = useState(setupConfig.entryFee || '');
 
-  const availableTokens = useMemo(() => getTokensForChain(chain), [chain]);
+  const availableTokens = useMemo(() => getTokensForChoice(choice), [choice]);
 
   useEffect(() => {
     const tokenValues = availableTokens.map((t) => t.value);
-    if (!tokenValues.includes(currency)) {
-      setCurrency(availableTokens[0]?.value || 'USDGLO');
-    }
-  }, [chain, availableTokens, currency]);
+    const fallback =
+      choice === 'stellar' ? 'XLM' :
+      choice === 'solanaMainnet' || choice === 'solanaDevnet' ? 'SOL' :
+      'USDGLO';
+    if (!tokenValues.includes(currency)) setCurrency(availableTokens[0]?.value || fallback);
+  }, [choice, availableTokens, currency]);
 
   const [error, setError] = useState('');
 
   const completedSections = useMemo(() => {
     const host = hostName.trim().length >= 2;
     const feeOk = !!entryFee && !Number.isNaN(parseFloat(entryFee)) && parseFloat(entryFee) > 0;
-    const web3 = Boolean(chain && currency && charity && feeOk);
+    const web3 = Boolean(choice && currency && charity && feeOk);
     return { host, web3 };
-  }, [hostName, chain, currency, charity, entryFee]);
+  }, [hostName, choice, currency, charity, entryFee]);
 
   const allSectionsComplete = completedSections.host && completedSections.web3;
+  const selectedInfo = CHOICES.find((c) => c.value === choice);
 
   const getCurrentMessage = () => {
-    if (allSectionsComplete) {
-      return '🎉 Perfect! Your Web3 quiz is configured—host set, chain and token picked, charity chosen, and entry fee set!';
-    }
-    if (!completedSections.host) {
-      return "Hi there! Let's set up your quiz together. Start with your host display name.";
-    }
-    return 'Great! Now configure your Web3 payments: choose chain, token, charity and the crypto entry fee.';
+    const network = selectedInfo?.label || 'your network';
+    if (allSectionsComplete)
+      return `🎉 Perfect! Your Web3 quiz is configured—host set, ${network} selected, token chosen, and entry fee set.`;
+    if (!completedSections.host) return "Hi there! Let's set up your quiz together. Start with your host display name.";
+    return `Great! Now configure your Web3 payments on ${network}: choose token, charity, and the crypto entry fee.`;
   };
 
   const handleSubmit = () => {
-    if (!completedSections.host) {
-      setError('Please enter a host name with at least 2 characters.');
-      return;
-    }
+    if (!completedSections.host) return setError('Please enter a host name with at least 2 characters.');
     const parsed = Number.parseFloat(entryFee.trim());
-    if (Number.isNaN(parsed) || parsed <= 0) {
-      setError('Please enter a valid entry fee greater than 0.');
-      return;
-    }
-    if (!charity) {
-      setError('Please select a charity.');
-      return;
-    }
+    if (Number.isNaN(parsed) || parsed <= 0) return setError('Please enter a valid entry fee greater than 0.');
+    if (!charity) return setError('Please select a charity.');
+
+    const meta = selectedInfo!;
+    const web3Chain: SupportedChain = meta.kind; // 'stellar' | 'evm' | 'solana'
+    const evmNetwork = meta.kind === 'evm' ? meta.evmNetwork : undefined;
+    const solanaCluster = meta.kind === 'solana' ? meta.solanaCluster : undefined;
 
     updateSetupConfig({
       hostName: hostName.trim(),
       entryFee: entryFee.trim(),
       paymentMethod: 'web3',
-      currencySymbol: currency, // reused for symbol display
-      web3Chain: chain,
+      currencySymbol: currency,
+      web3Chain,                 // 'stellar' | 'evm' | 'solana'
       web3Currency: currency,
       web3Charity: charity,
-    });
+      evmNetwork,                // only for EVM
+      solanaCluster,             // only for Solana
+    } as any);
 
     setError('');
-    onChainUpdate?.(chain as SupportedChain);
+    onChainUpdate?.(web3Chain);
     onNext?.();
   };
 
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
-
-  const selectedChainInfo = CHAINS.find((c) => c.value === chain);
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, []);
 
   return (
     <div className="w-full space-y-3 px-2 pb-4 sm:space-y-6 sm:px-4">
-      {/* Header with Start Over */}
+      {/* Header */}
       <div className="mb-2 flex items-center justify-between px-1">
         <div>
           <h2 className="heading-2">Step 1 of 4: Web3 Quiz Setup</h2>
-         
           <div className="text-fg/70 mt-0.5 text-xs sm:text-sm">Configure host + Web3 payments</div>
         </div>
         <ClearSetupButton
           label="Start Over"
           variant="link"
-            flow="web3" 
+          flow="web3"
           keepIds={false}
-          onCleared={onResetToFirst} // <-- jump wizard to first step
+          onCleared={onResetToFirst}
         />
       </div>
 
-      {/* Character Guide */}
       <Character message={getCurrentMessage()} />
 
-      {/* Section 1: Host Information */}
-      <div
-        className={`bg-muted rounded-lg border-2 p-4 shadow-sm transition-all sm:rounded-xl sm:p-6 ${
-          completedSections.host ? 'border-green-300 bg-green-50' : 'border-border'
-        }`}
-      >
+      {/* Host */}
+      <div className={`bg-muted rounded-lg border-2 p-4 shadow-sm transition-all sm:rounded-xl sm:p-6 ${completedSections.host ? 'border-green-300 bg-green-50' : 'border-border'}`}>
         <div className="mb-3 flex items-start gap-3 sm:mb-4">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-blue-100 text-xl sm:h-12 sm:w-12 sm:text-2xl">
-            👤
-          </div>
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-blue-100 text-xl sm:h-12 sm:w-12 sm:text-2xl">👤</div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-fg text-sm font-semibold sm:text-base">Host Information</h3>
@@ -209,18 +222,13 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
         <div className="space-y-2">
           <label className="text-fg/80 flex items-center gap-2 text-xs font-medium sm:text-sm">
             <Users className="h-4 w-4" />
-            <span>
-              Host Display Name <span className="text-red-500">*</span>
-            </span>
+            <span>Host Display Name <span className="text-red-500">*</span></span>
           </label>
           <div className="relative">
             <input
               type="text"
               value={hostName}
-              onChange={(e) => {
-                setHostName(e.target.value);
-                setError('');
-              }}
+              onChange={(e) => { setHostName(e.target.value); setError(''); }}
               placeholder="e.g., Quiz Master Sarah, The Pub Quiz"
               className={`w-full rounded-lg border-2 px-3 py-2.5 pr-12 text-sm outline-none transition focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3 sm:pr-16 sm:text-base ${
                 completedSections.host ? 'border-green-300 bg-green-50 focus:border-green-500' : 'border-border focus:border-indigo-500'
@@ -236,17 +244,11 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
         </div>
       </div>
 
-      {/* Section 2: Web3 Payment Configuration */}
-      <div
-        className={`bg-muted rounded-lg border-2 p-4 shadow-sm transition-all sm:rounded-xl sm:p-6 ${
-          completedSections.web3 ? 'border-green-300 bg-green-50' : 'border-border'
-        }`}
-      >
+      {/* Chain + Token */}
+      <div className={`bg-muted rounded-lg border-2 p-4 shadow-sm transition-all sm:rounded-xl sm:p-6 ${completedSections.web3 ? 'border-green-300 bg-green-50' : 'border-border'}`}>
         <div className="mb-3 flex items-start gap-3 sm:mb-4">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-xl sm:h-12 sm:w-12 sm:text-2xl">
-            🔗
-          </div>
-        <div className="min-w-0 flex-1">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-xl sm:h-12 sm:w-12 sm:text-2xl">🔗</div>
+          <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-fg text-sm font-semibold sm:text-base">Web3 Payments</h3>
               {completedSections.web3 && <Check className="h-4 w-4 text-green-600 sm:h-5 sm:w-5" />}
@@ -261,32 +263,28 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
             <span className="text-sm font-medium text-indigo-800 md:text-base">Web3 Payment Collection</span>
           </div>
           <div className="text-xs text-indigo-700 md:text-sm">
-            Select a network, token, charity, and set your crypto entry fee. Smart contracts will verify payments automatically.
+            Select a blockchain, token, charity, and set your crypto entry fee. Smart contracts verify payments automatically.
           </div>
         </div>
 
-        {/* Chain + Token */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <label className="text-fg/80 flex items-center gap-2 text-xs font-medium sm:text-sm">
               <Wallet className="h-4 w-4" />
-              <span>Blockchain Network</span>
+              <span>Blockchain</span>
             </label>
             <select
-              value={chain}
-              onChange={(e) => {
-                setChain(e.target.value);
-                setError('');
-              }}
+              value={choice}
+              onChange={(e) => { setChoice(e.target.value as ChoiceValue); setError(''); }}
               className="border-border w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3 sm:text-base"
             >
-              {CHAINS.map((c) => (
+              {CHOICES.map((c) => (
                 <option key={c.value} value={c.value}>
-                  {c.label} - {c.description}
+                  {c.label} — {c.description}
                 </option>
               ))}
             </select>
-            {selectedChainInfo && <p className="text-fg/60 text-xs">{selectedChainInfo.description}</p>}
+            <p className="text-fg/60 text-xs">{CHOICES.find(c => c.value === choice)?.description}</p>
           </div>
 
           <div className="space-y-2">
@@ -296,29 +294,26 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
             </label>
             <select
               value={currency}
-              onChange={(e) => {
-                setCurrency(e.target.value);
-                setError('');
-              }}
+              onChange={(e) => { setCurrency(e.target.value); setError(''); }}
               className="border-border w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3 sm:text-base"
             >
               {availableTokens.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
+                <option key={t.value} value={t.value}>{t.label}</option>
               ))}
             </select>
-            <p className="text-fg/60 text-xs">Available tokens on {selectedChainInfo?.label}</p>
+            <p className="text-fg/60 text-xs">Available tokens on {CHOICES.find(c => c.value === choice)?.label}</p>
           </div>
         </div>
 
-        {currency === 'USDGLO' && (
+        {currency === 'USDGLO' && choice !== 'stellar' && (
           <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3">
             <div className="mb-1 flex items-center space-x-2">
               <Sparkles className="h-4 w-4 text-green-600" />
               <span className="text-sm font-medium text-green-800">About Glo USD</span>
             </div>
-            <p className="text-xs text-green-700">Glo USD helps fund global public goods through their unique reserve model.</p>
+            <p className="text-xs text-green-700">
+              Glo USD helps fund global public goods through their unique reserve model.
+            </p>
           </div>
         )}
 
@@ -326,48 +321,27 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
         <div className="mt-4 space-y-2">
           <label className="text-fg/80 flex items-center gap-2 text-xs font-medium sm:text-sm">
             <Heart className="h-4 w-4 text-red-500" />
-            <span>
-              Choose a Charity <span className="text-red-500">*</span>
-            </span>
+            <span>Choose a Charity <span className="text-red-500">*</span></span>
           </label>
           <select
             value={charity}
-            onChange={(e) => {
-              setCharity(e.target.value);
-              setError('');
-            }}
+            onChange={(e) => { setCharity(e.target.value); setError(''); }}
             className={`w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3 sm:text-base ${
               charity ? 'border-green-300 bg-green-50 focus:border-green-500' : 'border-border focus:border-indigo-500'
             }`}
           >
             <option value="">Select a charity...</option>
             {CHARITIES.map((ch) => (
-              <option key={ch.value} value={ch.value}>
-                {ch.label}
-              </option>
+              <option key={ch.value} value={ch.value}>{ch.label}</option>
             ))}
           </select>
           <p className="text-fg/60 text-xs italic">Powered by The Giving Block and Coala Pay</p>
-
-          {charity && (
-            <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3">
-              <div className="mb-1 flex items-center space-x-2">
-                <Heart className="h-4 w-4 text-red-600" />
-                <span className="text-sm font-medium text-red-800">Charity Selected</span>
-              </div>
-              <p className="text-sm text-red-700">
-                Supporting <strong>{CHARITIES.find((c) => c.value === charity)?.label ?? charity}</strong> with a portion of quiz proceeds
-              </p>
-            </div>
-          )}
         </div>
 
         {/* Entry Fee */}
         <div className="mt-4">
           <div className="mb-3 flex items-start gap-3 sm:mb-4">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-green-100 text-xl sm:h-12 sm:w-12 sm:text-2xl">
-              💰
-            </div>
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-green-100 text-xl sm:h-12 sm:w-12 sm:text-2xl">💰</div>
             <div className="min-w-0 flex-1">
               <h3 className="text-fg text-sm font-semibold sm:text-base">Entry Fee Amount</h3>
               <p className="text-fg/70 text-xs sm:text-sm">Set the cryptocurrency entry fee</p>
@@ -377,23 +351,16 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
           <div className="space-y-2">
             <label className="text-fg/80 flex items-center gap-2 text-xs font-medium sm:text-sm">
               <DollarSign className="h-4 w-4" />
-              <span>
-                Entry Fee ({currency}) <span className="text-red-500">*</span>
-              </span>
+              <span>Entry Fee ({currency}) <span className="text-red-500">*</span></span>
             </label>
             <div className="relative">
-              <span className="text-fg/60 absolute left-3 top-1/2 -translate-y-1/2 transform text-sm font-medium sm:text-base">
-                {currency}
-              </span>
+              <span className="text-fg/60 absolute left-3 top-1/2 -translate-y-1/2 transform text-sm font-medium sm:text-base">{currency}</span>
               <input
                 type="number"
                 min="0"
                 step="0.01"
                 value={entryFee}
-                onChange={(e) => {
-                  setEntryFee(e.target.value);
-                  setError('');
-                }}
+                onChange={(e) => { setEntryFee(e.target.value); setError(''); }}
                 placeholder="5.00"
                 className="border-border w-full rounded-lg border-2 py-2.5 pl-16 pr-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 sm:py-3 sm:pl-20 sm:pr-4 sm:text-base"
               />
@@ -438,3 +405,6 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
 };
 
 export default StepWeb3QuizSetup;
+
+
+

@@ -1,3 +1,4 @@
+//src/components/infolist
 import { useEffect } from 'react'
 import {
     useAppKitState,

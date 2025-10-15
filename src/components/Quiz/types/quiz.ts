@@ -84,7 +84,7 @@ export interface RoomCaps {
   extrasAllowed?: string[] | '*';
 }
 
-//src/components/quiz/types/quiz.ts
+
 
 export interface QuizConfig {
   hostName: string;

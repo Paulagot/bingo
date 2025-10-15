@@ -1,4 +1,4 @@
-// src/components/chains/WalletConnectionButtonV2.tsx
+// src/components/chains/WalletConnectionButton.tsx
 import React from 'react';
 import { Wallet, RefreshCw, Zap, AlertCircle } from 'lucide-react';
 import { useWalletActions } from '../../hooks/useWalletActions';

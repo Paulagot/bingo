@@ -7,6 +7,26 @@ import { useQuizContract as useStellarQuizContract } from '../chains/stellar/use
 
 import type { SupportedChain } from '../chains/types';
 
+/* ------------------------- NEW: EVM imports (Step 4) ------------------------- */
+import { writeContract, waitForTransactionReceipt, getChainId } from 'wagmi/actions';
+import { config as wagmiConfig } from '../config';
+import {
+  resolveEvmTarget,
+  explorerFor,
+  isEvmAddress,
+  isEvmTxHash,
+} from '../chains/evm/utils/evmSelect';
+import {
+  POOL_FACTORY,
+  PoolFactoryABI,
+} from '../chains/evm/config/contracts.pool';
+import {
+  ASSET_FACTORY,
+  AssetFactoryABI,
+} from '../chains/evm/config/contracts.asset';
+
+const DEBUG_WEB3 = true;
+
 /** ---------- Types ---------- */
 export type DeployParams = {
   roomId: string;
@@ -121,8 +141,8 @@ export function useContractActions(opts?: Options) {
       switch (effectiveChain) {
         case 'stellar':
           return stellarCtx.wallet.address ?? '';
-        // case 'evm': return evmCtx.address ?? '';
-        // case 'solana': return solanaCtx.address ?? '';
+        // case 'evm': return evmAddress ?? '';
+        // case 'solana': return solanaAddress ?? '';
         default:
           return fallback;
       }
@@ -177,27 +197,23 @@ export function useContractActions(opts?: Options) {
     });
   }, [effectiveChain, stellarContract]);
 
-  /** ---------------- Host: prize distribution (NEW) ---------------- */
+  /** ---------------- Host: prize distribution (Stellar) ---------------- */
   const distributePrizes = useMemo(() => {
     if (effectiveChain === 'stellar') {
       return async ({ roomId, winners }: DistributeArgs): Promise<DistributeResult> => {
         if (!stellarContract) return { success: false, error: 'Stellar contract not ready' };
 
-      
-             // Soroban contract expects a simple array of addresses (string[])
-      // Convert our generic winners payload -> string[]
-       const addrList = winners.map(w => {
-         if (!w.address || typeof w.address !== 'string' || w.address.length === 0) {
-           throw new Error(`Missing or invalid address for winner ${w.playerId ?? '(unknown)'}`);
-         }
-         return w.address;
-       });
+        // Soroban expects string[] of addresses
+        const addrList = winners.map(w => {
+          if (!w.address || typeof w.address !== 'string' || w.address.length === 0) {
+            throw new Error(`Missing or invalid address for winner ${w.playerId ?? '(unknown)'}`);
+          }
+          return w.address;
+        });
 
-       // Call the concrete method with the addresses array
-       // (Your previous working flow called endRoom({ roomId, winners: string[] }))
-       const res =
-         await (stellarContract as any).endRoom?.({ roomId, winners: addrList }) ??
-         await (stellarContract as any).distributePrizes?.({ roomId, winners: addrList })
+        const res =
+          await (stellarContract as any).endRoom?.({ roomId, winners: addrList }) ??
+          await (stellarContract as any).distributePrizes?.({ roomId, winners: addrList });
 
         if (!res?.success) return { success: false, error: res?.error || 'Distribution failed' };
 
@@ -221,7 +237,98 @@ export function useContractActions(opts?: Options) {
     });
   }, [effectiveChain, stellarContract]);
 
-  /** ---------------- Host: deploy (existing) ---------------- */
+  /* ------------------------ NEW: Internal EVM deployer ------------------------ */
+  const deployEvm = useCallback(
+    async (p: DeployParams, which: 'pool' | 'asset'): Promise<DeployResult> => {
+      // Resolve current chain (selected in UI or wallet)
+      let runtimeChainId: number | null = null;
+      try {
+        runtimeChainId = await getChainId(wagmiConfig);
+      } catch {
+        runtimeChainId = null;
+      }
+      const setupKey = (JSON.parse(localStorage.getItem('setupConfig') || '{}')?.evmNetwork) as string | undefined;
+      const target = resolveEvmTarget({ setupKey, runtimeChainId });
+      const explorer = explorerFor(target.key);
+
+      const isPool = which === 'pool';
+      const factory =
+        (isPool ? (POOL_FACTORY as any)[target.key] : (ASSET_FACTORY as any)[target.key]) as string | undefined;
+      const abi = isPool ? PoolFactoryABI : AssetFactoryABI;
+
+      if (DEBUG_WEB3) {
+        console.log('[EVM][DEPLOY] target', target);
+        console.log('[EVM][DEPLOY] prizeMode ->', which.toUpperCase());
+        console.log('[EVM][DEPLOY] factory @', factory);
+      }
+
+      if (!factory || !/^0x[0-9a-fA-F]{40}$/.test(factory)) {
+        throw new Error(`No factory configured for ${target.key} (${target.id}).`);
+      }
+
+      // Prepare args for your factory’s function
+      const entryFee6 = BigInt(Math.round(parseFloat(String(p.entryFee ?? '0')) * 10 ** 6));
+      const hostPct = Number(p.hostFeePct ?? 0);
+      const prizesPct = Number(p.prizePoolPct ?? 0);
+      const charityPct = Math.max(0, 100 - (hostPct + prizesPct)); // adjust to your business rules
+
+      const args = isPool
+        // createPoolRoom(roomId, hostId, hostWallet, entryFeeUSDC6, hostPct, prizesPct, charityPct, charityName)
+        ? [p.roomId, p.hostId, p.hostWallet, entryFee6, hostPct, prizesPct, charityPct, (p.charityName ?? '')]
+        // createAssetRoom(roomId, hostId, hostWallet, entryFeeUSDC6, expectedPrizes, charityName)
+        : [p.roomId, p.hostId, p.hostWallet, entryFee6, (p.expectedPrizes ?? []), (p.charityName ?? '')];
+
+      if (DEBUG_WEB3) {
+        console.log('[EVM][DEPLOY] writeContract', {
+          chainId: target.id,
+          factory,
+          functionName: isPool ? 'createPoolRoom' : 'createAssetRoom',
+          argsPreview: args.slice(0, 4),
+        });
+      }
+
+      const hash = await writeContract(wagmiConfig, {
+        address: factory as `0x${string}`,
+        abi,
+        functionName: isPool ? 'createPoolRoom' : 'createAssetRoom', // set to your actual names
+        args,
+        chainId: target.id,
+      });
+
+      if (DEBUG_WEB3) console.log('[EVM][DEPLOY] tx submitted', hash);
+
+      const receipt = await waitForTransactionReceipt(wagmiConfig, { hash, chainId: target.id });
+      if (DEBUG_WEB3) console.log('[EVM][DEPLOY] receipt', receipt);
+
+      // Try to extract room/program address from logs (update once you have event ABI)
+      let roomAddress: string | null = null;
+      try {
+        // TODO: decode specific RoomCreated event with viem’s decodeEventLog when you know it
+        // For now fall back to the log’s address (factory emits room as a created contract address in some patterns)
+        roomAddress = (receipt.logs?.[0] as any)?.address ?? null;
+      } catch (e) {
+        if (DEBUG_WEB3) console.warn('[EVM][DEPLOY] room address decode failed', e);
+      }
+
+      const okHash = isEvmTxHash(typeof hash === 'string' ? hash : null);
+      const okRoom = isEvmAddress(roomAddress);
+
+      if (DEBUG_WEB3) console.log('[EVM][DEPLOY] parsed', { okHash, okRoom, roomAddress, tx: hash });
+
+      if (!okHash) throw new Error('Deployment returned invalid tx hash');
+      if (!okRoom) throw new Error('Deployment succeeded but could not resolve room address (update log decoder)');
+
+      return {
+        success: true,
+        contractAddress: roomAddress!,
+        txHash: hash as `0x${string}`,
+        explorerUrl: `${explorer}/tx/${hash}`,
+      };
+    },
+    []
+  );
+
+  /** ---------------- Host: deploy (POOL) ---------------- */
   const createPoolRoom = useCallback(
     async (p: {
       roomId: string;
@@ -255,12 +362,21 @@ export function useContractActions(opts?: Options) {
           };
         }
         case 'evm': {
-          // TODO: replace with real EVM client
-          return {
-            success: true,
-            contractAddress: `0x${Math.random().toString(16).slice(2, 42)}`,
-            txHash: `0x${Math.random().toString(16).slice(2, 66)}`,
-          };
+          // Use the shared EVM deployer
+          const result = await deployEvm(
+            {
+              roomId: p.roomId,
+              hostId: '', // optional for factory args above; we pass p.roomId, p.hostId in deploy()
+              entryFee: p.entryFee,
+              hostFeePct: p.hostFeePct,
+              prizePoolPct: p.prizePoolPct,
+              charityName: p.charityName,
+              prizeMode: 'split',
+              hostWallet: p.hostAddress,
+            },
+            'pool'
+          );
+          return result;
         }
         case 'solana': {
           // TODO: replace with real Solana client
@@ -274,9 +390,10 @@ export function useContractActions(opts?: Options) {
           throw new Error('No chain selected');
       }
     },
-    [effectiveChain, stellarContract]
+    [effectiveChain, stellarContract, deployEvm]
   );
 
+  /** ---------------- Host: deploy (ASSET) ---------------- */
   const createAssetRoom = useCallback(
     async (p: {
       roomId: string;
@@ -308,12 +425,20 @@ export function useContractActions(opts?: Options) {
           };
         }
         case 'evm': {
-          // TODO: replace with real EVM client
-          return {
-            success: true,
-            contractAddress: `0x${Math.random().toString(16).slice(2, 42)}`,
-            txHash: `0x${Math.random().toString(16).slice(2, 66)}`,
-          };
+          const result = await deployEvm(
+            {
+              roomId: p.roomId,
+              hostId: '', // optional for factory args above
+              entryFee: p.entryFee,
+              hostFeePct: p.hostFeePct,
+              charityName: p.charityName,
+              prizeMode: 'assets',
+              expectedPrizes: p.expectedPrizes,
+              hostWallet: p.hostAddress,
+            },
+            'asset'
+          );
+          return result;
         }
         case 'solana': {
           // TODO: replace with real Solana client
@@ -327,9 +452,10 @@ export function useContractActions(opts?: Options) {
           throw new Error('No chain selected');
       }
     },
-    [effectiveChain, stellarContract]
+    [effectiveChain, stellarContract, deployEvm]
   );
 
+  /** ---------------- Orchestrator: deploy ---------------- */
   const deploy = useCallback(
     async (params: DeployParams): Promise<DeployResult> => {
       const hostAddress = getHostAddress(params.hostWallet);
@@ -373,12 +499,12 @@ export function useContractActions(opts?: Options) {
     [getHostAddress, createAssetRoom, createPoolRoom]
   );
 
-  // 👇 IMPORTANT: include distributePrizes in the returned object
   return { deploy, joinRoom, distributePrizes };
 }
 
 // Optional: export a typed alias if you want to reuse the shape elsewhere
 export type ContractActions = ReturnType<typeof useContractActions>;
+
 
 
 

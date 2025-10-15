@@ -1,3 +1,4 @@
+//src/components/MintUSDCButton
 import { useState } from 'react';
 import { useAccount, useWriteContract } from 'wagmi';
 import { chainInfo } from './bingo/constants/contractFactoryAddresses'; // Import chainInfo

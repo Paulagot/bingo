@@ -112,6 +112,14 @@ export const EVM_CHAINS: Record<string, EvmChainConfig> = {
     rpcUrls: ['https://forno.celo.org'],
     blockExplorerUrls: ['https://explorer.celo.org'],
   },
+
+  baseSepolia: {
+  chainId: 84532,
+  chainName: 'Base Sepolia',
+  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+  rpcUrls: ['https://sepolia.base.org'],
+  blockExplorerUrls: ['https://sepolia.basescan.org'],
+},
 };
 
 // ===================================================================

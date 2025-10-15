@@ -1,4 +1,4 @@
-// src/hooks/useRoomVerification.ts
+//src/components/bingo/hooks/useRoomVerification.ts
 import { useState, useEffect, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import type { Socket } from 'socket.io-client';

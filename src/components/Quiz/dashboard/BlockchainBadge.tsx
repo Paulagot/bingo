@@ -21,13 +21,17 @@ const getExplorerUrls = (chain?: string, network?: string, addr?: string, tx?: s
     };
   }
   if (chain === 'evm') {
-    // adjust for your network (etherscan, polygonscan, etc.)
-    const base = 'https://etherscan.io';
-    return {
-      addrUrl: addr ? `${base}/address/${addr}` : undefined,
-      txUrl: tx ? `${base}/tx/${tx}` : undefined,
-    };
-  }
+  const net = (network || '').toLowerCase();
+  const base = net.includes('base-sepolia') || net.includes('sepolia')
+    ? 'https://sepolia.basescan.org'
+    : net.includes('base')
+    ? 'https://basescan.org'
+    : 'https://etherscan.io'; // default
+  return {
+    addrUrl: addr ? `${base}/address/${addr}` : undefined,
+    txUrl: tx ? `${base}/tx/${tx}` : undefined,
+  };
+}
   if (chain === 'solana') {
     const cluster = network === 'mainnet' ? '' : '?cluster=devnet';
     return {
