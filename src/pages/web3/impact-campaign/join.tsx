@@ -146,7 +146,11 @@ const JoinImpactCampaignPage: React.FC = () => {
                     Pick a chain, set your splits, add prizes, and go live. Your funds route on-chain with a minimum 40% to charity, up to 40% host-controlled (prizes + optional host take).
                   </p>
 
-                  {/* Chain picker */}
+                     <p className="text-indigo-900/80 mb-6 leading-relaxed">
+                    We are now live on Base Sepolia and Avalanche Fuji.  Solana testnet coming soon. We are going live on mainnet on Solana, Base and Avalanche for the campaign launch in November.
+                  </p>
+
+                  {/* Chain picker
                   <div className="mb-6">
                     <h3 className="text-indigo-900 mb-3 text-sm font-semibold">Choose Your Chain</h3>
                     <div className="grid gap-3">
@@ -169,7 +173,7 @@ const JoinImpactCampaignPage: React.FC = () => {
                         </button>
                       ))}
                     </div>
-                  </div>
+                  </div> */}
 
                   <div className="flex flex-wrap gap-3">
                     <button
@@ -396,7 +400,7 @@ const JoinImpactCampaignPage: React.FC = () => {
                       </div>
                       <div>
                         <h3 className="font-semibold text-lg">Payments panel</h3>
-                        <p className="text-gray-600">Track fundraising. See total raised. Reconciliations locked till game ends</p>
+                        <p className="text-gray-600">Track fundraising. See total raised. Reconciliations only availabe in web2 mode, web3 has blockchain.</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
@@ -562,7 +566,7 @@ const JoinImpactCampaignPage: React.FC = () => {
                 {/* Right: Reporting Steps */}
                 <div className="space-y-6">
                   <h2 className="text-3xl font-bold text-gray-900">
-                    End of Game Reporting
+                    End of Game Screen and Prize distribution
                   </h2>
 
                   <div className="space-y-4">
@@ -586,35 +590,28 @@ const JoinImpactCampaignPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-600 font-bold flex-shrink-0">
-                        3
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-lg">Financial Reconciliation</h3>
-                        <p className="text-gray-600">Add adjustments to fundraising summary, such as refunds or fees — making this quiz your treasurer’s best friend</p>
-                      </div>
-                    </div>
+           
 
                     <div className="flex items-start gap-3">
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-600 font-bold flex-shrink-0">
-                        4
+                        3
                       </div>
                       <div>
                         <h3 className="font-semibold text-lg">Engagement Analytics</h3>
                         <p className="text-gray-600">Review participation stats, round performance, and team insights</p>
                       </div>
                     </div>
-
-                    <div className="flex items-start gap-3">
+                        <div className="flex items-start gap-3">
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-600 font-bold flex-shrink-0">
-                        5
+                        4
                       </div>
                       <div>
-                        <h3 className="font-semibold text-lg">Export Audit Ready Reports</h3>
-                        <p className="text-gray-600">Own your data. Download reports and share results with stakeholders. The data is deleted when the room ends. Of course its all on chain and you can check out the impact campaign leaderboard</p>
+                        <h3 className="font-semibold text-lg">Distribute prizes via smart contract</h3>
+                        <p className="text-gray-600">Host distributes the prizes locked in the smart contract</p>
                       </div>
                     </div>
+
+                    
                   </div>
                 </div>
               </div>
@@ -681,11 +678,11 @@ const JoinImpactCampaignPage: React.FC = () => {
                   <div>
                     <div className="flex items-center gap-3 mb-2">
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-sm shadow-md">
-                        XLM
+                        AVAX
                       </div>
-                      <h3 className="text-indigo-900 font-bold text-lg">Stellar</h3>
+                      <h3 className="text-indigo-900 font-bold text-lg">Avalanche</h3>
                     </div>
-                    <p className="text-sm text-indigo-900/70">XLM · USDC · USDGLO</p>
+                    <p className="text-sm text-indigo-900/70"> USDC · USDGLO</p>
                   </div>
                   <div>
                     <div className="flex items-center gap-3 mb-2">

@@ -73,6 +73,16 @@ type EvmNetwork =
 
 type SolanaCluster = 'mainnet' | 'devnet';
 
+/**
+ * ✅ ENABLED choices for now
+ * To re-enable others later, just uncomment the commented entries in CHOICES below.
+ */
+const ENABLED_CHOICES: ChoiceValue[] = ['baseSepolia', 'avalancheFuji'];
+
+/**
+ * Only Base Sepolia and Avalanche Fuji are active in the dropdown.
+ * The rest are kept here and commented out for easy re-enable later.
+ */
 const CHOICES: Array<{
   value: ChoiceValue;
   label: string;
@@ -81,27 +91,30 @@ const CHOICES: Array<{
   evmNetwork?: EvmNetwork;
   solanaCluster?: SolanaCluster;
 }> = [
-  { value: 'stellar', label: 'Stellar', description: 'Fast, low-cost payments', kind: 'stellar' },
-
-  // EVM — Base
-  { value: 'base', label: 'Base', description: 'EVM · Coinbase L2 (mainnet)', kind: 'evm', evmNetwork: 'base' },
+  // ----- ENABLED -----
   { value: 'baseSepolia', label: 'Base Sepolia', description: 'EVM · Base testnet', kind: 'evm', evmNetwork: 'baseSepolia' },
-
-  // EVM — BSC
-  { value: 'bsc', label: 'BNB Smart Chain', description: 'EVM · BSC mainnet', kind: 'evm', evmNetwork: 'bsc' },
-  { value: 'bscTestnet', label: 'BNB Smart Chain Testnet', description: 'EVM · BSC testnet', kind: 'evm', evmNetwork: 'bscTestnet' },
-
-  // EVM — Avalanche
-  { value: 'avalanche', label: 'Avalanche C-Chain', description: 'EVM · Avalanche mainnet', kind: 'evm', evmNetwork: 'avalanche' },
   { value: 'avalancheFuji', label: 'Avalanche Fuji', description: 'EVM · Avalanche testnet', kind: 'evm', evmNetwork: 'avalancheFuji' },
 
-  // EVM — Optimism
-  { value: 'optimism', label: 'OP Mainnet', description: 'EVM · Optimism mainnet', kind: 'evm', evmNetwork: 'optimism' },
-  { value: 'optimismSepolia', label: 'OP Sepolia', description: 'EVM · Optimism testnet', kind: 'evm', evmNetwork: 'optimismSepolia' },
+  // ----- COMMENTED OUT (uncomment when ready) -----
+  // { value: 'stellar', label: 'Stellar', description: 'Fast, low-cost payments', kind: 'stellar' },
 
-  // Solana
-  { value: 'solanaMainnet', label: 'Solana (Mainnet)', description: 'High-speed, low-fee mainnet', kind: 'solana', solanaCluster: 'mainnet' },
-  { value: 'solanaDevnet', label: 'Solana (Devnet)', description: 'Developer test network', kind: 'solana', solanaCluster: 'devnet' },
+  // // EVM — Base
+  // { value: 'base', label: 'Base', description: 'EVM · Coinbase L2 (mainnet)', kind: 'evm', evmNetwork: 'base' },
+
+  // // EVM — BSC
+  // { value: 'bsc', label: 'BNB Smart Chain', description: 'EVM · BSC mainnet', kind: 'evm', evmNetwork: 'bsc' },
+  // { value: 'bscTestnet', label: 'BNB Smart Chain Testnet', description: 'EVM · BSC testnet', kind: 'evm', evmNetwork: 'bscTestnet' },
+
+  // // EVM — Avalanche
+  // { value: 'avalanche', label: 'Avalanche C-Chain', description: 'EVM · Avalanche mainnet', kind: 'evm', evmNetwork: 'avalanche' },
+
+  // // EVM — Optimism
+  // { value: 'optimism', label: 'OP Mainnet', description: 'EVM · Optimism mainnet', kind: 'evm', evmNetwork: 'optimism' },
+  // { value: 'optimismSepolia', label: 'OP Sepolia', description: 'EVM · Optimism testnet', kind: 'evm', evmNetwork: 'optimismSepolia' },
+
+  // // Solana
+  // { value: 'solanaMainnet', label: 'Solana (Mainnet)', description: 'High-speed, low-fee mainnet', kind: 'solana', solanaCluster: 'mainnet' },
+  // { value: 'solanaDevnet', label: 'Solana (Devnet)', description: 'Developer test network', kind: 'solana', solanaCluster: 'devnet' },
 ];
 
 /** Derive initial dropdown value from persisted setupConfig */
@@ -155,12 +168,17 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
   const [hostName, setHostName] = useState(setupConfig.hostName || '');
 
   // Initial dropdown choice from saved config
-  const initialChoice = deriveChoiceFromConfig(
+  const derived = deriveChoiceFromConfig(
     setupConfig.web3Chain,
     (setupConfig as any).evmNetwork,
     (setupConfig as any).solanaCluster
   );
-  const [choice, setChoice] = useState<ChoiceValue>(initialChoice);
+
+  // If derived choice isn't currently enabled, fall back to baseSepolia (safe default)
+  const enabledSet = useMemo(() => new Set(ENABLED_CHOICES), []);
+  const safeInitialChoice: ChoiceValue = enabledSet.has(derived) ? derived : 'baseSepolia';
+
+  const [choice, setChoice] = useState<ChoiceValue>(safeInitialChoice);
 
   // Web3 fields
   const [currency, setCurrency] = useState(setupConfig.web3Currency || 'USDGLO');
@@ -324,7 +342,7 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
             >
               {CHOICES.map((c) => (
                 <option key={c.value} value={c.value}>
-                  {c.label} — {c.description}
+                  {c.label} 
                 </option>
               ))}
             </select>
@@ -353,10 +371,10 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
           <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3">
             <div className="mb-1 flex items-center space-x-2">
               <Sparkles className="h-4 w-4 text-green-600" />
-              <span className="text-sm font-medium text-green-800">About Glo USD</span>
+              <span className="text-sm font-medium text-green-800">About Glo Dollar</span>
             </div>
             <p className="text-xs text-green-700">
-              Glo USD helps fund global public goods through their unique reserve model.
+              Glo Dollar helps fund global public goods through their unique reserve model.
             </p>
           </div>
         )}
@@ -462,6 +480,7 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
 };
 
 export default StepWeb3QuizSetup;
+
 
 
 
