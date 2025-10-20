@@ -48,21 +48,23 @@ socket.on('verify_quiz_room', ({ roomId }) => {
     }
 
     // pull everything the client will need
-    const {
-      entryFee    = '0',
-      fundraisingOptions = {},
-      fundraisingPrices  = {},
-      paymentMethod,
-      demoMode    = false,
-      // Add Web3-specific fields
-      web3Chain,
-      web3Currency,
-      web3ContractAddress,
-      hostName,
-      gameType,
-      roundDefinitions,
-      currencySymbol
-    } = room.config;
+const {
+  entryFee    = '0',
+  fundraisingOptions = {},
+  fundraisingPrices  = {},
+  paymentMethod,
+  demoMode    = false,
+  // Add Web3-specific fields
+  web3Chain,
+  web3Currency,
+  roomContractAddress,   // ✅ CORRECT - this is what setup saves!
+  evmNetwork,
+  solanaCluster,   
+  hostName,
+  gameType,
+  roundDefinitions,
+  currencySymbol
+} = room.config;
 
     const response = {
       exists: true,
@@ -79,11 +81,13 @@ socket.on('verify_quiz_room', ({ roomId }) => {
     };
 
     // Add Web3-specific fields if it's a Web3 room
-    if (paymentMethod === 'web3') {
-      response.web3Chain = web3Chain || 'stellar';
-      response.web3Currency = web3Currency || 'XLM';
-      response.web3ContractAddress = web3ContractAddress;
-    }
+if (paymentMethod === 'web3') {
+  response.web3Chain = web3Chain  || 'stellar';
+  response.web3Currency = web3Currency || 'XLM';
+  response.roomContractAddress = roomContractAddress || null;  // ✅ Use the canonical field directly
+  response.evmNetwork = evmNetwork || null;
+  response.solanaCluster = solanaCluster || null;
+}
 
     socket.emit('quiz_room_verification_result', response);
     if (debug) console.log(`[SharedUtils] 🔍 Room verification for ${roomId}:`, response);

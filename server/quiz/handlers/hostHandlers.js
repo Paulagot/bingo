@@ -554,177 +554,162 @@ socket.on('tiebreak:proceed_to_completion', ({ roomId }) => {
 
 
   // ✅ end_quiz_and_distribute_prizes (unchanged from your version)
-  socket.on('end_quiz_and_distribute_prizes', ({ roomId }) => {
-    if (debug) console.log(`[Host] 🏆 end_quiz_and_distribute_prizes for ${roomId}`);
+// ONLY SHOWING THE CHANGED SECTION - insert this into your hostHandlers.js
 
-    const room = getQuizRoom(roomId);
-    if (!room) {
-      socket.emit('quiz_error', { message: 'Room not found' });
-      return;
-    }
+socket.on('end_quiz_and_distribute_prizes', ({ roomId }) => {
+  if (debug) console.log(`[Host] 🏆 end_quiz_and_distribute_prizes for ${roomId}`);
 
-    if (debug) {
-      console.log(`[Host] 🔍 Room config debug:`, {
-        paymentMethod: room.config?.paymentMethod,
-        isWeb3Room: room.config?.isWeb3Room,
-        web3ContractAddress: room.config?.web3ContractAddress,
-        web3Chain: room.config?.web3Chain,
-        web3PrizeStructure: room.config?.web3PrizeStructure,
-        hasWeb3AddressMap: !!room.web3AddressMap,
-        web3AddressMapKeys: room.web3AddressMap ? Object.keys(room.web3AddressMap) : []
-      });
-      console.log('[Host] 🔍 Web3 Address Map Debug:', {
-        hasWeb3AddressMap: !!(room.web3AddressMap && room.web3AddressMap.size > 0),
-        web3AddressMapSize: room.web3AddressMap ? room.web3AddressMap.size : 0,
-        web3AddressEntries: room.web3AddressMap ? Array.from(room.web3AddressMap.entries()) : [],
-        configAddresses: room.config?.web3PlayerAddresses || {}
-      })
-    }
+  const room = getQuizRoom(roomId);
+  if (!room) {
+    socket.emit('quiz_error', { message: 'Room not found' });
+    return;
+  }
 
-    if (room.hostSocketId !== socket.id) {
-      socket.emit('quiz_error', { message: 'Only the host can end the quiz and distribute prizes' });
-      return;
-    }
+  if (room.hostSocketId !== socket.id) {
+    socket.emit('quiz_error', { message: 'Only the host can end the quiz and distribute prizes' });
+    return;
+  }
 
-    const isWeb3Room = room.config?.paymentMethod === 'web3' || room.config?.isWeb3Room;
+  const isWeb3Room = room.config?.paymentMethod === 'web3' || room.config?.isWeb3Room;
+  if (debug) {
+    console.log(`[Host] 🔍 Room config debug:`, {
+      paymentMethod: room.config?.paymentMethod,
+      isWeb3Room: room.config?.isWeb3Room,
+      roomContractAddress: room.config?.roomContractAddress,
+      web3ContractAddress: room.config?.web3ContractAddress,
+      web3Chain: room.config?.web3Chain,
+      evmNetwork: room.config?.evmNetwork,
+      web3PrizeStructure: room.config?.web3PrizeStructure,
+      hasWeb3AddressMap: !!room.web3AddressMap,
+      web3AddressMapKeys: room.web3AddressMap ? Array.from(room.web3AddressMap.keys()) : []
+    });
+  }
 
-    if (debug) console.log(`[Host] 🌐 Web3 room check: paymentMethod=${room.config?.paymentMethod}, isWeb3Room=${room.config?.isWeb3Room}, result=${isWeb3Room}`);
-    if (!isWeb3Room) {
-      socket.emit('quiz_error', { message: 'Prize distribution is only available for Web3 rooms' });
-      return;
-    }
+  if (!isWeb3Room) {
+    socket.emit('quiz_error', { message: 'Prize distribution is only available for Web3 rooms' });
+    return;
+  }
 
-    if (!room.web3AddressMap) {
-      socket.emit('quiz_error', { message: 'No Web3 address mapping found. Players may not have joined properly.' });
-      return;
-    }
+  if (!room.web3AddressMap || room.web3AddressMap.size === 0) {
+    socket.emit('quiz_error', { message: 'No Web3 address mapping found. Players may not have joined properly.' });
+    return;
+  }
 
-    const finalLeaderboard = calculateOverallLeaderboard(roomId);
-    if (finalLeaderboard.length === 0) {
-      socket.emit('quiz_error', { message: 'No players found for prize distribution' });
-      return;
-    }
+  const finalLeaderboard = calculateOverallLeaderboard(roomId);
+  if (!finalLeaderboard.length) {
+    socket.emit('quiz_error', { message: 'No players found for prize distribution' });
+    return;
+  }
 
-    const { web3PrizeStructure } = room.config;
-    const hasSecondPrize = web3PrizeStructure?.secondPlace && web3PrizeStructure.secondPlace > 0;
-    const hasThirdPrize = web3PrizeStructure?.thirdPlace && web3PrizeStructure.thirdPlace > 0;
+  const { web3PrizeStructure } = room.config;
+  const hasSecondPrize = web3PrizeStructure?.secondPlace && web3PrizeStructure.secondPlace > 0;
+  const hasThirdPrize  = web3PrizeStructure?.thirdPlace  && web3PrizeStructure.thirdPlace  > 0;
 
-    const winnerAddresses = [];
-    const winnerPlayerIds = [];
+  // Decide how many winners to pay (1–3)
+  const prizeCount = 1 + (hasSecondPrize ? 1 : 0) + (hasThirdPrize ? 1 : 0);
 
-    if (debug) console.log('[Host] 🔍 Winner mapping debug:', {
-      winners: finalLeaderboard.slice(0, 3).map(p => p.name),
+  const winnerAddresses = [];
+  const winnerPlayerIds = [];
+  const winnersDetailed = []; // optional: richer payload for the host UI
+  const missing = [];         // collect any missing address issues
+
+  if (debug) {
+    console.log('[Host] 🔍 Winner mapping debug:', {
+      winnersPreview: finalLeaderboard.slice(0, prizeCount).map(p => ({ id: p.id, name: p.name, score: p.score })),
       allPlayers: room.players.map(p => ({ id: p.id, name: p.name })),
       web3AddressMap: Array.from(room.web3AddressMap?.entries() || []).map(([id, info]) => ({
-        playerId: id,
-        playerName: info.playerName,
-        address: info.address
+        playerId: id, playerName: info.playerName, address: info.address
       }))
     });
+  }
 
-    // 1st
-    if (finalLeaderboard[0]) {
-      const playerObj = room.players.find(p => p.name === finalLeaderboard[0].name);
-      if (!playerObj) {
-        socket.emit('quiz_error', { message: `Cannot find player data for winner: ${finalLeaderboard[0].name}` });
-        return;
-      }
-      const playerId = playerObj.id;
-      const addressInfo = room.web3AddressMap?.get(playerId);
-      if (!addressInfo || !addressInfo.address) {
-        socket.emit('quiz_error', { message: `Cannot find Web3 address for winner: ${finalLeaderboard[0].name}` });
-        return;
-      }
-      winnerAddresses.push(addressInfo.address);
-      winnerPlayerIds.push(playerId);
-      if (debug) console.log(`[Host] 🥇 First place: ${finalLeaderboard[0].name} -> ${addressInfo.address.slice(0, 8)}...`);
+  // Iterate top N and map by ID
+  for (let rank = 0; rank < prizeCount; rank++) {
+    const entry = finalLeaderboard[rank];
+    if (!entry) break;
+
+    const playerId = entry.id;          // <- stable ID from leaderboard
+    const playerName = entry.name;      // <- keep for UI and logs
+    const addressInfo = room.web3AddressMap.get(playerId);
+
+    if (!addressInfo?.address) {
+      missing.push({ playerId, playerName, rank: rank + 1 });
+      continue; // don't abort entire flow; we’ll handle below
     }
 
-    // 2nd
-    if (hasSecondPrize && finalLeaderboard[1]) {
-      const playerObj = room.players.find(p => p.name === finalLeaderboard[1].name);
-      if (playerObj) {
-        const playerId = playerObj.id;
-        const addressInfo = room.web3AddressMap?.get(playerId);
-        if (addressInfo && addressInfo.address) {
-          winnerAddresses.push(addressInfo.address);
-          winnerPlayerIds.push(playerId);
-          if (debug) console.log(`[Host] 🥈 Second place: ${finalLeaderboard[1].name} -> ${addressInfo.address.slice(0, 8)}...`);
-        } else {
-          console.warn(`[Host] ⚠️ No Web3 address found for second place: ${finalLeaderboard[1].name}`);
-        }
-      }
-    }
-
-    // 3rd
-    if (hasThirdPrize && finalLeaderboard[2]) {
-      const playerObj = room.players.find(p => p.name === finalLeaderboard[2].name);
-      if (playerObj) {
-        const playerId = playerObj.id;
-        const addressInfo = room.web3AddressMap?.get(playerId);
-        if (addressInfo && addressInfo.address) {
-          winnerAddresses.push(addressInfo.address);
-          winnerPlayerIds.push(playerId);
-          if (debug) console.log(`[Host] 🥉 Third place: ${finalLeaderboard[2].name} -> ${addressInfo.address.slice(0, 8)}...`);
-        } else {
-          console.warn(`[Host] ⚠️ No Web3 address found for third place: ${finalLeaderboard[2].name}`);
-        }
-      }
-    }
-
-    if (debug) {
-  console.log(`[Host] 🔍 Winner collection debug:`, {
-    expectedWinners: hasSecondPrize && hasThirdPrize ? 3 : hasSecondPrize ? 2 : 1,
-    actualWinners: winnerAddresses.length,
-    hasSecondPrize,
-    hasThirdPrize,
-    finalLeaderboard: finalLeaderboard.slice(0, 3).map(p => p.name),
-    winnerAddresses: winnerAddresses.map(addr => addr.slice(0, 8) + '...')
-  });
-}
-
-    if (winnerAddresses.length === 0) {
-      socket.emit('quiz_error', { message: 'No valid winner addresses found for prize distribution' });
-      return;
-    }
-
-    const winners = winnerAddresses;
-
-    room.finalWinners = winners;
-    room.finalLeaderboard = finalLeaderboard;
-    room.prizeDistributionStatus = 'initiated';
-    room.currentPhase = 'distributing_prizes';
-
-    if (debug) {
-      console.log(`[Host] 🎯 Prize distribution initiated:`);
-      console.log(`  - Room: ${roomId}`);
-      console.log(`  - Winners: ${winners.length}`);
-      console.log(`  - Contract: ${room.config.web3ContractAddress}`);
-      finalLeaderboard.slice(0, 3).forEach((player, idx) => {
-        const address = room.web3AddressMap[player.id] || room.web3AddressMap[player.name];
-        console.log(`    ${idx + 1}. ${player.name} (${player.score} pts) -> ${address}`);
-      });
-    }
-
-    socket.emit('initiate_prize_distribution', {
-      roomId,
-      winners,
-      finalLeaderboard: finalLeaderboard.slice(0, 5),
-      prizeStructure: web3PrizeStructure,
-      web3Chain: room.config.web3Chain || 'stellar'
+    winnerAddresses.push(addressInfo.address);
+    winnerPlayerIds.push(playerId);
+    winnersDetailed.push({
+      playerId,
+      playerName,
+      address: addressInfo.address,
+      rank: rank + 1,
+      score: entry.score
     });
 
-    namespace.to(roomId).emit('prize_distribution_started', {
-      message: 'Prize distribution has begun! Please wait...',
-      finalLeaderboard: finalLeaderboard.slice(0, 5)
+    if (debug) {
+      console.log(`[Host] 🏅 Rank ${rank + 1}: ${playerName} -> ${addressInfo.address.slice(0, 10)}...`);
+    }
+  }
+
+  // If we’re missing any addresses, fail (or you could choose to continue if not 1st place)
+  if (missing.length) {
+    const firstMissing = missing[0];
+    socket.emit('quiz_error', {
+      message: `Cannot find Web3 address for winner: ${firstMissing.playerName} (rank ${firstMissing.rank}).`
     });
+    return;
+  }
 
-    emitRoomState(namespace, roomId);
+  if (!winnerAddresses.length) {
+    socket.emit('quiz_error', { message: 'No valid winner addresses found for prize distribution' });
+    return;
+  }
 
-    if (debug) console.log(`[Host] ✅ Prize distribution data sent to host for contract execution`);
+  const winners = winnerAddresses;
+
+  room.finalWinners = winners;
+  room.finalLeaderboard = finalLeaderboard;
+  room.prizeDistributionStatus = 'initiated';
+  room.currentPhase = 'distributing_prizes';
+
+  if (debug) {
+    console.log(`[Host] 🎯 Prize distribution initiated:`);
+    console.log(`  - Room: ${roomId}`);
+    console.log(`  - Winners: ${winners.length}`);
+    console.log(`  - Contract: ${room.config.roomContractAddress || room.config.web3ContractAddress}`);
+    winnersDetailed.forEach(w => {
+      console.log(`    ${w.rank}. ${w.playerName} (${w.score} pts) -> ${w.address}`);
+    });
+  }
+
+  // You can keep sending only `winners` if that’s what your frontend expects
+  // but including winnersDetailed can help the host UI.
+  socket.emit('initiate_prize_distribution', {
+    roomId,
+    winners,
+    winnersDetailed, // optional, safe to keep
+    finalLeaderboard: finalLeaderboard.slice(0, 5),
+    prizeStructure: web3PrizeStructure,
+    web3Chain: room.config.web3Chain || 'stellar',
+    evmNetwork: room.config.evmNetwork,
+    roomAddress: room.config.roomContractAddress || room.config.web3ContractAddress,
+    charityOrgId: room.config.web3CharityId,
+    charityName: room.config.web3CharityName,
+    charityAddress: room.config.web3CharityAddress,
   });
 
-  // ✅ prize_distribution_completed (unchanged)
+  namespace.to(roomId).emit('prize_distribution_started', {
+    message: 'Prize distribution has begun! Please wait...',
+    finalLeaderboard: finalLeaderboard.slice(0, 5)
+  });
+
+  emitRoomState(namespace, roomId);
+  if (debug) console.log(`[Host] ✅ Prize distribution data sent to host for contract execution`);
+});
+
+
+
 
 // ✅ prize_distribution_completed (FIXED VERSION)
 socket.on('prize_distribution_completed', ({ roomId, success, txHash, error }) => {
@@ -954,6 +939,7 @@ socket.on('prize_distribution_completed', ({ roomId, success, txHash, error }) =
     room.currentRoundResults = roundLeaderboard;
     room.currentRoundStats = currentRoundStats;
     room.currentPhase = 'leaderboard';
+console.log('[NameCheck:round]', room.players.map(p => ({ id: p.id, name: p.name })));
 
     namespace.to(roomId).emit('round_leaderboard', roundLeaderboard);
 
@@ -1034,6 +1020,113 @@ socket.on('prize_distribution_completed', ({ roomId, success, txHash, error }) =
       }
     }, 2000);
   });
+
+  /**
+ * 🧹 End Quiz Cleanup - Called after successful completion (e.g., after prize distribution)
+ * This is different from cancel/delete - it's for clean, successful completion
+ */
+socket.on('end_quiz_cleanup', ({ roomId }) => {
+  if (debug) console.log(`[Host] 🧹 end_quiz_cleanup for ${roomId}`);
+
+  const room = getQuizRoom(roomId);
+  if (!room) {
+    console.warn(`[Host] ⚠️ Room ${roomId} not found for cleanup`);
+    return;
+  }
+
+  // Only allow host to trigger cleanup
+  if (room.hostSocketId !== socket.id) {
+    socket.emit('quiz_error', { message: 'Only the host can end the quiz' });
+    return;
+  }
+
+  // Mark as complete if not already
+  if (room.currentPhase !== 'complete') {
+    room.currentPhase = 'complete';
+  }
+
+  // 🎯 Determine if this is a Web3 room
+  const isWeb3Room = room.config?.paymentMethod === 'web3' || room.config?.isWeb3Room;
+
+  // Notify all participants that quiz is fully done
+  // Include isWeb3Room flag so frontend knows where to redirect
+  namespace.to(roomId).emit('quiz_cleanup_complete', {
+    message: isWeb3Room 
+      ? 'Quiz has ended. Thank you for your contribution!' 
+      : 'Quiz has ended. Thank you for playing!',
+    roomId,
+    isWeb3Room, // 👈 Frontend uses this to determine redirect
+  });
+
+  if (debug) {
+    console.log(`[Host] 📢 Sent cleanup completion notice to room ${roomId}`);
+    console.log(`[Host] 🌐 isWeb3Room: ${isWeb3Room}, will redirect to ${isWeb3Room ? '/web3/impact-campaign/' : '/quiz'}`);
+  }
+
+  // Small delay so clients receive the message before cleanup
+  setTimeout(() => {
+    const removed = removeQuizRoom(roomId);
+    
+    if (removed) {
+      // Remove all sockets from room channels
+      namespace.in(roomId).socketsLeave(roomId);
+      namespace.in(`${roomId}:host`).socketsLeave(`${roomId}:host`);
+      namespace.in(`${roomId}:admin`).socketsLeave(`${roomId}:admin`);
+      namespace.in(`${roomId}:player`).socketsLeave(`${roomId}:player`);
+      
+      if (debug) console.log(`[Host] ✅ Room ${roomId} cleaned up successfully`);
+    }
+  }, 2000); // 2 second delay
+});// Add this NEW handler to your hostHandlers.js
+// Place it right after the delete_quiz_room handler (around line 762)
+
+/**
+ * 🧹 End Quiz Cleanup - Called after successful completion (e.g., after prize distribution)
+ * This is different from cancel/delete - it's for clean, successful completion
+ */
+socket.on('end_quiz_cleanup', ({ roomId }) => {
+  if (debug) console.log(`[Host] 🧹 end_quiz_cleanup for ${roomId}`);
+
+  const room = getQuizRoom(roomId);
+  if (!room) {
+    console.warn(`[Host] ⚠️ Room ${roomId} not found for cleanup`);
+    return;
+  }
+
+  // Only allow host to trigger cleanup
+  if (room.hostSocketId !== socket.id) {
+    socket.emit('quiz_error', { message: 'Only the host can end the quiz' });
+    return;
+  }
+
+  // Mark as complete if not already
+  if (room.currentPhase !== 'complete') {
+    room.currentPhase = 'complete';
+  }
+
+  // Notify all participants that quiz is fully done
+  namespace.to(roomId).emit('quiz_cleanup_complete', {
+    message: 'Quiz has ended. Thank you for playing!',
+    roomId
+  });
+
+  if (debug) console.log(`[Host] 📢 Sent cleanup completion notice to room ${roomId}`);
+
+  // Small delay so clients receive the message before cleanup
+  setTimeout(() => {
+    const removed = removeQuizRoom(roomId);
+    
+    if (removed) {
+      // Remove all sockets from room channels
+      namespace.in(roomId).socketsLeave(roomId);
+      namespace.in(`${roomId}:host`).socketsLeave(`${roomId}:host`);
+      namespace.in(`${roomId}:admin`).socketsLeave(`${roomId}:admin`);
+      namespace.in(`${roomId}:player`).socketsLeave(`${roomId}:player`);
+      
+      if (debug) console.log(`[Host] ✅ Room ${roomId} cleaned up successfully`);
+    }
+  }, 2000); // 2 second delay
+});
 
   // ✅ Launch quiz
   socket.on('launch_quiz', ({ roomId }) => {

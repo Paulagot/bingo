@@ -1,15 +1,65 @@
-// src/components/Quiz/joinroom/Web3PaymentStep.tsx
-import React, { useState } from 'react';
+//src/components/Quiz/joinroom/Web3PaymentStep.tsx
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { nanoid } from 'nanoid';
-import { ChevronLeft, AlertCircle, CheckCircle, Loader, Wallet } from 'lucide-react';
-import { useQuizSocket } from '../sockets/QuizSocketProvider';
+import { ChevronLeft, AlertCircle, CheckCircle, Loader, Wallet, PlugZap, Unplug, X } from 'lucide-react';
 
+import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { useQuizChainIntegration } from '../../../hooks/useQuizChainIntegration';
 import { useWalletActions } from '../../../hooks/useWalletActions';
 import { useContractActions } from '../../../hooks/useContractActions';
 import type { SupportedChain } from '../../../chains/types';
 
+import { getMetaByKey, type EvmNetworkKey } from '../../../chains/evm/config/networks';
+
+/* ---------- Optional: wagmi chainId hook ---------- */
+let useWagmiChainId: (() => number) | null = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const wagmi = require('wagmi');
+  useWagmiChainId = wagmi.useChainId as () => number;
+} catch {
+  useWagmiChainId = null;
+}
+
+/* ---------- Optional: AppKit (guarded) ---------- */
+let useAppKit: any = null;
+let useAppKitAccount: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const mod = require('@reown/appkit/react');
+  useAppKit = mod.useAppKit;
+  useAppKitAccount = mod.useAppKitAccount;
+} catch {
+  /* AppKit not installed – safe to ignore */
+}
+
+/* ---------- Known EVM networks ---------- */
+/* ---------- Import centralized network config ---------- */
+
+
+function getChainLabel(roomConfig: RoomConfig, fallback: string) {
+  if (roomConfig?.web3Chain === 'evm') {
+    const key = (roomConfig as any)?.evmNetwork as string | undefined;
+    const meta = getMetaByKey(key);
+    return meta?.name || 'EVM';
+  }
+  if (roomConfig?.web3Chain === 'stellar') return 'Stellar';
+  if (roomConfig?.web3Chain === 'solana') {
+    const cluster = (roomConfig as any)?.solanaCluster;
+    return cluster === 'devnet' ? 'Solana Devnet' : 'Solana Mainnet';
+  }
+  return fallback;
+}
+
+function getTargetChainId(roomConfig: RoomConfig): number | undefined {
+  if (roomConfig?.web3Chain !== 'evm') return undefined;
+  const key = (roomConfig as any)?.evmNetwork as string | undefined;
+  const meta = getMetaByKey(key);
+  return meta?.id;
+}
+
+// In JoinRoomFlow.tsx AND Web3PaymentStep.tsx
 interface RoomConfig {
   exists: boolean;
   paymentMethod: 'web3' | 'cash' | 'revolut' | string;
@@ -18,7 +68,17 @@ interface RoomConfig {
   fundraisingOptions: Record<string, boolean>;
   fundraisingPrices: Record<string, number>;
   currencySymbol: string;
+  
+  // Web3 fields
   web3Chain?: string;
+  evmNetwork?: string;           // ✅ ADD THIS
+  solanaCluster?: string;        // ✅ ADD THIS
+  stellarNetwork?: string;       // ✅ ADD THIS for completeness
+  roomContractAddress?: string;
+  deploymentTxHash?: string;
+  web3Currency?: string;         // ✅ ADD THIS too
+  
+  // Room info
   hostName?: string;
   gameType?: string;
   roundDefinitions?: Array<{ roundType: string }>;
@@ -32,7 +92,7 @@ interface Web3PaymentStepProps {
   selectedExtras: string[];
   onBack: () => void;
   onClose: () => void;
-  chainOverride?: SupportedChain; // room-driven chain (authoritative in join flow)
+  chainOverride?: SupportedChain;
 }
 
 type PaymentStatus = 'idle' | 'connecting' | 'paying' | 'confirming' | 'joining' | 'success';
@@ -43,17 +103,14 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
   roomConfig,
   selectedExtras,
   onBack,
-   // forwarded (unused here but kept for parity)
+  onClose,
   chainOverride,
 }) => {
   const { socket } = useQuizSocket();
   const navigate = useNavigate();
 
-  // Chain/readiness labels (agnostic)
-  const { selectedChain, getChainDisplayName } =
-    useQuizChainIntegration({ chainOverride });
+  const { selectedChain } = useQuizChainIntegration({ chainOverride });
 
-  // Generic wallet + contract actions (dispatch by chain internally)
   const wallet = useWalletActions({ chainOverride });
   const { joinRoom } = useContractActions({ chainOverride });
 
@@ -61,29 +118,220 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
   const [error, setError] = useState('');
   const [txHash, setTxHash] = useState('');
 
-  // Totals
-  const extrasTotal = selectedExtras.reduce((sum, extraId) =>
-    sum + (roomConfig.fundraisingPrices[extraId] || 0), 0);
+  /* ---------- AppKit (if present) ---------- */
+  const appkit = useAppKit ? useAppKit() : null;
+  const appkitAcc = useAppKitAccount ? useAppKitAccount({ namespace: 'eip155' }) : { address: undefined as string | undefined };
+
+  // Costs
+  const extrasTotal = selectedExtras.reduce(
+    (sum, id) => sum + (roomConfig.fundraisingPrices[id] || 0),
+    0
+  );
   const totalAmount = roomConfig.entryFee + extrasTotal;
 
-  const isWalletConnected = wallet.isConnected();
-  const canProceed = totalAmount > 0 ? isWalletConnected : true;
+  // Chain label and target chain id for EVM rooms
+  const chainLabel = useMemo(
+    () => getChainLabel(roomConfig, selectedChain || 'Web3'),
+    [roomConfig, selectedChain]
+  );
+  const targetChainId = useMemo(() => getTargetChainId(roomConfig), [roomConfig]);
 
-  const formatAddr = (addr: string | null, short = true) => {
-    if (!addr) return null;
-    return short && addr.length > 10 ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : addr;
+  // Address + connected (treat AppKit OR wagmi as connected like in setup step)
+  const evmAddr = wallet.getAddress();
+  const appkitAddr = appkitAcc?.address as string | undefined;
+  const addr = (evmAddr ?? appkitAddr) || null;
+
+  // If EVM: consider connected when either source has an address
+  const isEvm = roomConfig?.web3Chain === 'evm';
+  const baseConnected = isEvm ? Boolean(evmAddr || appkitAddr) : wallet.isConnected();
+
+  // Track current chain id (event-driven)
+  const [currentChainId, setCurrentChainId] = useState<number | undefined>(undefined);
+  const [evmTick, setEvmTick] = useState(0);
+
+  useEffect(() => {
+    const readChainId = async () => {
+      let cid: number | undefined = undefined;
+
+      if (typeof useWagmiChainId === 'function') {
+        try {
+          const hookCid = useWagmiChainId();
+          if (typeof hookCid === 'number') cid = hookCid;
+        } catch { /* noop */ }
+      }
+
+      if (!cid && (window as any)?.ethereum?.request) {
+        try {
+          const hex = await (window as any).ethereum.request({ method: 'eth_chainId' });
+          if (typeof hex === 'string') {
+            const p = parseInt(hex, 16);
+            if (!Number.isNaN(p)) cid = p;
+          }
+        } catch { /* noop */ }
+      }
+
+      setCurrentChainId(cid);
+    };
+
+    // initial
+    readChainId();
+
+    // subscribe to wallet events
+    const eth = (window as any)?.ethereum;
+    const onChainChanged = (hex: string) => {
+      const parsed = parseInt(hex, 16);
+      setCurrentChainId(Number.isNaN(parsed) ? undefined : parsed);
+    };
+    const onAccountsChanged = () => setEvmTick((t) => t + 1);
+
+    if (eth?.on) {
+      eth.on('chainChanged', onChainChanged);
+      eth.on('accountsChanged', onAccountsChanged);
+    }
+
+    return () => {
+      if (eth?.removeListener) {
+        eth.removeListener('chainChanged', onChainChanged);
+        eth.removeListener('accountsChanged', onAccountsChanged);
+      }
+    };
+  }, []);
+
+  // Must be connected; for EVM also must be on the target network
+  const networkOk =
+    isEvm
+      ? baseConnected && (!targetChainId || currentChainId === targetChainId)
+      : baseConnected;
+
+  const canProceed = totalAmount > 0 ? networkOk : true;
+
+  // Debug logs
+  useEffect(() => {
+    console.log('[JOIN][UI] chain:', selectedChain, 'addr(evm/appkit):', { evmAddr, appkitAddr, shown: addr });
+    console.log('[JOIN][UI] amounts:', {
+      entryFee: roomConfig.entryFee,
+      extrasTotal,
+      totalAmount,
+      currency: roomConfig.currencySymbol,
+    });
+    console.log('[JOIN][UI] targetChainId:', targetChainId, 'currentChainId:', currentChainId, 'networkOk:', networkOk);
+    console.log('[JOIN][UI][evm]', {
+      baseConnected,
+      targetChainId,
+      currentChainId,
+      switchAvail: typeof (wallet as any)?.switchChain === 'function',
+      getChainIdAvail: typeof wallet.getChainId === 'function',
+      evmTick,
+      appkitStatus: appkit ? 'present' : 'absent',
+    });
+  }, [
+    selectedChain,
+    evmAddr,
+    appkitAddr,
+    addr,
+    roomConfig.entryFee,
+    extrasTotal,
+    totalAmount,
+    roomConfig.currencySymbol,
+    targetChainId,
+    currentChainId,
+    networkOk,
+    baseConnected,
+    wallet,
+    evmTick,
+    appkit,
+  ]);
+
+  // Auto-clear stale errors when state becomes healthy
+  useEffect(() => {
+    if (isEvm) {
+      if (baseConnected && targetChainId && currentChainId === targetChainId && error) {
+        setError('');
+      }
+    } else if (baseConnected && error) {
+      setError('');
+    }
+  }, [baseConnected, currentChainId, targetChainId, isEvm, error]);
+
+  // ✅ NEW: Store room's network config for EvmWalletProvider to read
+useEffect(() => {
+  if (roomConfig?.web3Chain === 'evm' && roomConfig.evmNetwork) {
+    console.log('[Web3PaymentStep] Setting active EVM network for provider:', roomConfig.evmNetwork);
+    sessionStorage.setItem('active-evm-network', roomConfig.evmNetwork);
+    
+    if (roomConfig.roomContractAddress) {
+      sessionStorage.setItem('active-room-contract', roomConfig.roomContractAddress);
+    }
+  }
+  
+  // Cleanup when component unmounts or room changes
+  return () => {
+    sessionStorage.removeItem('active-evm-network');
+    sessionStorage.removeItem('active-room-contract');
+  };
+}, [roomConfig?.web3Chain, roomConfig?.evmNetwork, roomConfig?.roomContractAddress]);
+
+  const formatAddr = (a: string | null, short = true) => {
+    if (!a) return null;
+    return short && a.length > 10 ? `${a.slice(0, 6)}...${a.slice(-4)}` : a;
   };
 
+  /* ---------- Connect: AppKit modal first (if present), then wagmi connect, then switch ---------- */
   const handleWalletConnect = async () => {
     try {
       setError('');
       setPaymentStatus('connecting');
+
+      if (isEvm && appkit?.open) {
+        // mirror setup step: use AppKit for the connection UX
+        await appkit.open({ view: 'Connect', namespace: 'eip155' });
+      }
+
+      // ensure our provider side (wagmi) syncs
       const res = await wallet.connect();
-      if (!res.success) throw new Error(res.error?.message || 'Failed to connect wallet');
+      if (!res.success && !appkitAddr) throw new Error(res.error?.message || 'Failed to connect wallet');
+
+      // best-effort switch to room's target chain
+      if (isEvm && targetChainId && typeof (wallet as any)?.switchChain === 'function') {
+        try {
+          await (wallet as any).switchChain(targetChainId);
+        } catch {
+          // show wrong-network banner if still wrong
+        }
+      }
+
       setPaymentStatus('idle');
     } catch (e: any) {
-      setError(e.message || 'Failed to connect wallet');
       setPaymentStatus('idle');
+      setError(e.message || 'Failed to connect wallet');
+    }
+  };
+
+  const [switchTried, setSwitchTried] = useState(false);
+  useEffect(() => {
+    (async () => {
+      if (switchTried) return;
+      if (!isEvm) return;
+      if (!baseConnected) return;
+      if (!targetChainId || !currentChainId) return;
+      if (currentChainId === targetChainId) return;
+      if (typeof (wallet as any)?.switchChain !== 'function') return;
+
+      try {
+        setSwitchTried(true);
+        await (wallet as any).switchChain(targetChainId);
+      } catch {
+        // banner will instruct user
+      }
+    })();
+  }, [isEvm, baseConnected, targetChainId, currentChainId, wallet, switchTried]);
+
+  const handleDisconnect = async () => {
+    try {
+      setError('');
+      await wallet.disconnect?.();
+    } catch (e: any) {
+      setError(e.message || 'Failed to disconnect wallet');
     }
   };
 
@@ -92,29 +340,49 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
       setError('');
 
       // Connect if needed
-      if (!wallet.isConnected()) {
-        setPaymentStatus('connecting');
-        const res = await wallet.connect();
-        if (!res.success) throw new Error(res.error?.message || 'Failed to connect wallet');
-        setPaymentStatus('idle');
-        // small pause for providers to hydrate (optional)
-        await new Promise(r => setTimeout(r, 400));
+      if (!baseConnected) {
+        await handleWalletConnect();
+        if (!((wallet.isConnected() && wallet.getAddress()) || appkitAcc?.address)) {
+          throw new Error('Failed to connect wallet');
+        }
       }
 
-      const address = wallet.getAddress();
+      // Enforce correct network for EVM
+      if (isEvm && targetChainId && currentChainId !== targetChainId) {
+        if (typeof (wallet as any)?.switchChain === 'function') {
+          try {
+            await (wallet as any).switchChain(targetChainId);
+          } catch {
+            /* fallthrough */
+          }
+        }
+        if (currentChainId !== targetChainId) {
+         const key = (roomConfig as any)?.evmNetwork || '';
+const meta = getMetaByKey(key);
+throw new Error(`Wrong network. Please switch to ${meta?.name || 'the correct network'}.`);
+        }
+      }
+
+      const address = addr;
       if (!address) throw new Error('Wallet not connected');
 
       // Pay / join on-chain
       setPaymentStatus('paying');
-      const r = await joinRoom({
-        roomId,
-        extrasAmount: extrasTotal > 0 ? extrasTotal.toString() : undefined,
-      });
+const roomAddrFromConfig = (roomConfig as any).roomContractAddress || undefined;
+
+console.log('[JOIN][UI] Using room address from config:', roomAddrFromConfig ?? '(none)');
+
+const r = await joinRoom({
+  roomId,
+  feeAmount: roomConfig.entryFee,
+  extrasAmount: extrasTotal > 0 ? extrasTotal.toString() : undefined,
+  roomAddress: roomAddrFromConfig, // undefined triggers fallback
+});
       if (!r.success) throw new Error(r.error || 'Payment failed');
 
       setTxHash(r.txHash);
       setPaymentStatus('confirming');
-      await new Promise(r => setTimeout(r, 1500));
+      await new Promise((r2) => setTimeout(r2, 1000));
 
       // Join via socket
       setPaymentStatus('joining');
@@ -132,13 +400,13 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
           web3Chain: selectedChain, // 'stellar' | 'evm' | 'solana'
           extras: selectedExtras,
           extraPayments: Object.fromEntries(
-            selectedExtras.map(key => [
+            selectedExtras.map((key) => [
               key,
-              { method: 'web3', amount: roomConfig.fundraisingPrices[key], txHash: r.txHash }
+              { method: 'web3', amount: roomConfig.fundraisingPrices[key], txHash: r.txHash },
             ])
-          )
+          ),
         },
-        role: 'player'
+        role: 'player',
       });
 
       localStorage.setItem(`quizPlayerId:${roomId}`, playerId);
@@ -156,49 +424,102 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
 
   const status = (() => {
     switch (paymentStatus) {
-      case 'connecting':  return { icon: <Loader className="h-5 w-5 animate-spin" />, text: `Connecting ${getChainDisplayName()} wallet...`, color: 'text-blue-600' };
-      case 'paying':      return { icon: <Loader className="h-5 w-5 animate-spin" />, text: 'Processing payment...', color: 'text-yellow-600' };
-      case 'confirming':  return { icon: <Loader className="h-5 w-5 animate-spin" />, text: 'Confirming transaction...', color: 'text-orange-600' };
-      case 'joining':     return { icon: <Loader className="h-5 w-5 animate-spin" />, text: 'Joining game...', color: 'text-green-600' };
-      case 'success':     return { icon: <CheckCircle className="h-5 w-5" />, text: 'Success! Redirecting...', color: 'text-green-600' };
-      default:            return null;
+      case 'connecting':
+        return { icon: <Loader className="h-5 w-5 animate-spin" />, text: `Connecting ${chainLabel} wallet...`, color: 'text-blue-600' };
+      case 'paying':
+        return { icon: <Loader className="h-5 w-5 animate-spin" />, text: 'Processing payment...', color: 'text-yellow-600' };
+      case 'confirming':
+        return { icon: <Loader className="h-5 w-5 animate-spin" />, text: 'Confirming transaction...', color: 'text-orange-600' };
+      case 'joining':
+        return { icon: <Loader className="h-5 w-5 animate-spin" />, text: 'Joining game...', color: 'text-green-600' };
+      case 'success':
+        return { icon: <CheckCircle className="h-5 w-5" />, text: 'Success! Redirecting...', color: 'text-green-600' };
+      default:
+        return null;
     }
   })();
 
+  const showWrongNet =
+    isEvm &&
+    targetChainId !== undefined &&
+    baseConnected &&
+    currentChainId !== undefined &&
+    currentChainId !== targetChainId;
+
+    useEffect(() => {
+  const eth = (window as any)?.ethereum;
+  const list = eth?.providers || [eth].filter(Boolean);
+  (async () => {
+    const reports = await Promise.all(
+      (list || []).map(async (p: any, i: number) => {
+        let id: number | undefined;
+        try {
+          const hex = await p.request({ method: 'eth_chainId' });
+          id = parseInt(hex, 16);
+        } catch {}
+        return {
+          i,
+          flags: {
+            isMetaMask: !!p.isMetaMask,
+            isCoinbaseWallet: !!p.isCoinbaseWallet,
+            isBrave: !!p.isBraveWallet,
+            isRabby: !!p.isRabby,
+          },
+          chainId: id,
+        };
+      })
+    );
+    console.log('[EVM][providers]', reports);
+  })();
+}, []);
+
+
   return (
     <div className="p-4 sm:p-6">
-      <div className="mb-6 flex items-center space-x-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-blue-600 text-lg text-white sm:h-12 sm:w-12 sm:text-xl">
-          🌐
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-blue-600 text-lg text-white sm:h-12 sm:w-12 sm:text-xl">
+            🌐
+          </div>
+          <div>
+            <h2 className="text-fg text-xl font-bold sm:text-2xl">Web3 Payment</h2>
+            <p className="text-fg/70 text-sm sm:text-base">Pay with {chainLabel} to join</p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-fg text-xl font-bold sm:text-2xl">Web3 Payment</h2>
-          <p className="text-fg/70 text-sm sm:text-base">Pay with {getChainDisplayName()} to join</p>
-        </div>
+        <button
+          onClick={onClose}
+          className="inline-flex items-center space-x-1 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm hover:bg-gray-50"
+          title="Close"
+        >
+          <X className="h-4 w-4" />
+          <span>Close</span>
+        </button>
       </div>
 
       {/* Summary */}
-      <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 mb-4">
+      <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
         <div className="flex items-center justify-between">
           <div>
             <div className="text-fg font-medium">Total Cost</div>
             <div className="text-fg/70 text-sm">
-              Entry: {roomConfig.currencySymbol}{roomConfig.entryFee.toFixed(2)}
+              Entry: {roomConfig.currencySymbol}
+              {roomConfig.entryFee.toFixed(2)}
               {extrasTotal > 0 && ` + Extras: ${roomConfig.currencySymbol}${extrasTotal.toFixed(2)}`}
             </div>
           </div>
           <div className="text-xl font-bold text-blue-900">
-            {roomConfig.currencySymbol}{totalAmount.toFixed(2)}
+            {roomConfig.currencySymbol}
+            {totalAmount.toFixed(2)}
           </div>
         </div>
       </div>
 
       {/* Wallet Status */}
-      <div className="rounded-lg border border-purple-200 bg-purple-50 p-4 mb-4">
+      <div className="mb-4 rounded-lg border border-purple-200 bg-purple-50 p-4">
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Wallet className="h-4 w-4 text-purple-600" />
-            <span className="font-medium text-purple-800">{getChainDisplayName()} Wallet Status</span>
+            <span className="font-medium text-purple-800">{chainLabel} Wallet Status</span>
           </div>
           <div className={`flex items-center space-x-2 ${canProceed ? 'text-green-600' : 'text-yellow-600'}`}>
             <div className={`h-2 w-2 rounded-full ${canProceed ? 'bg-green-500' : 'bg-yellow-500'}`} />
@@ -206,7 +527,7 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
           </div>
         </div>
 
-        {!isWalletConnected ? (
+        {!baseConnected ? (
           <button
             onClick={handleWalletConnect}
             disabled={paymentStatus === 'connecting'}
@@ -215,34 +536,72 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
             {paymentStatus === 'connecting' ? (
               <>
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                <span>Connecting {getChainDisplayName()} Wallet...</span>
+                <span>Connecting {chainLabel} Wallet...</span>
               </>
             ) : (
               <>
-                <Wallet className="h-4 w-4" />
-                <span>Connect {getChainDisplayName()} Wallet</span>
+                <PlugZap className="h-4 w-4" />
+                <span>Connect {chainLabel} Wallet</span>
               </>
             )}
           </button>
         ) : (
-          <div className="rounded-lg border border-green-200 bg-green-50 p-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                <div>
-                  <div className="text-sm font-medium text-green-800">{getChainDisplayName()} Wallet Connected</div>
-                  <div className="font-mono text-xs text-green-600">{formatAddr(wallet.getAddress())}</div>
+          <>
+            <div className="rounded-lg border border-green-200 bg-green-50 p-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <div className={`h-2 w-2 rounded-full ${networkOk ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                  <div>
+                    <div className="text-sm font-medium text-green-800">
+                      {chainLabel} Wallet {networkOk ? 'Connected' : 'Connected (Wrong Network)'}
+                    </div>
+                    <div className="font-mono text-xs text-green-600">{formatAddr(addr)}</div>
+                  </div>
+                </div>
+                <button
+                  onClick={handleDisconnect}
+                  className="flex items-center space-x-1 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
+                >
+                  <Unplug className="h-3 w-3" />
+                  <span>Disconnect</span>
+                </button>
+              </div>
+            </div>
+
+            {showWrongNet && (
+              <div className="mt-3 rounded-md border border-yellow-300 bg-yellow-50 p-3 text-sm text-yellow-800">
+                <div className="flex items-center justify-between">
+                  <div>
+                    Wrong network detected. Please switch to{' '}
+<strong>
+  {getMetaByKey((roomConfig as any)?.evmNetwork)?.name || 'the correct network'}
+</strong>.
+                  </div>
+                  {typeof (wallet as any)?.switchChain === 'function' && (
+                    <button
+                      onClick={async () => {
+                        setError('');
+                        try {
+                          await (wallet as any).switchChain(targetChainId!);
+                        } catch (e: any) {
+                          setError(e?.message || 'Failed to switch network');
+                        }
+                      }}
+                      className="ml-3 rounded-md border border-yellow-300 bg-yellow-100 px-2 py-1 text-xs font-medium hover:bg-yellow-200"
+                    >
+                      Switch network
+                    </button>
+                  )}
                 </div>
               </div>
-              <div className="text-sm font-medium text-green-600">Ready</div>
-            </div>
-          </div>
+            )}
+          </>
         )}
       </div>
 
       {/* Status */}
       {status && (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 mb-4">
+        <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
           <div className="flex items-center space-x-3">
             <div className={status.color}>{status.icon}</div>
             <span className={`font-medium ${status.color}`}>{status.text}</span>
@@ -269,8 +628,7 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
           <span>Back</span>
         </button>
 
-        {/* Show Pay only once wallet is connected (avoid double CTAs) */}
-        {isWalletConnected && (
+        {baseConnected && networkOk && (
           <button
             onClick={handleWeb3Join}
             disabled={paymentStatus !== 'idle' || !canProceed}
@@ -284,5 +642,12 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
     </div>
   );
 };
+
+
+
+
+
+
+
 
 

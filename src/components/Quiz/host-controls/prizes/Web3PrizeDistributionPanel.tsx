@@ -9,23 +9,28 @@ import { useContractActions } from '../../../../hooks/useContractActions';
 
 type LeaderboardEntry = { id: string; name: string; score: number };
 
+type PrizeRouterStatus = 'idle' | 'running' | 'success' | 'failed';
+
 interface Props {
   roomId: string;
   leaderboard: LeaderboardEntry[];
-  // If you want, add: chainOverride?: SupportedChain;
+  onStatusChange?: (s: PrizeRouterStatus) => void;
 }
 
 type PrizeStatus = 'idle' | 'distributing' | 'success' | 'error' | 'connecting';
 
-export const Web3PrizeDistributionPanel: React.FC<Props> = ({ roomId }) => {
+export const Web3PrizeDistributionPanel: React.FC<Props> = ({ 
+  roomId,
+  onStatusChange 
+}) => {
   const { socket } = useQuizSocket();
 
   // Chain label only (keep component agnostic)
-  const { getChainDisplayName } = useQuizChainIntegration(/* { chainOverride } */);
+  const { getChainDisplayName } = useQuizChainIntegration();
 
   // Generic hooks (route by chain internally)
-  const wallet = useWalletActions(/* { chainOverride } */);
-  const { distributePrizes } = useContractActions(/* { chainOverride } */);
+  const wallet = useWalletActions();
+  const { distributePrizes } = useContractActions();
 
   // Persisted status per room to prevent double distribution and keep UI sticky
   const DIST_KEY = React.useMemo(() => `prizesDistributed:${roomId}`, [roomId]);
@@ -47,6 +52,20 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({ roomId }) => {
     }
   }, [DIST_KEY]);
 
+  // Call onStatusChange whenever status changes
+  React.useEffect(() => {
+    if (!onStatusChange) return;
+    
+    // Map internal status to router status
+    const routerStatus: PrizeRouterStatus = 
+      state.status === 'distributing' || state.status === 'connecting' ? 'running' :
+      state.status === 'success' ? 'success' :
+      state.status === 'error' ? 'failed' :
+      'idle';
+    
+    onStatusChange(routerStatus);
+  }, [state.status, onStatusChange]);
+
   // Host clicks the button → ask server to finalize winners and send us addresses
   const handleDistributeClick = async () => {
     if (state.status === 'success') return; // hard guard
@@ -65,57 +84,108 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({ roomId }) => {
     socket?.emit('end_quiz_and_distribute_prizes', { roomId });
   };
 
+  // Socket listeners for prize distribution
   React.useEffect(() => {
     if (!socket) return;
 
     // Server tells us to perform on-chain payout and provides winners (addresses)
-    const handlePrizeDistribution = async (data: {
-      roomId: string;
-      winners: string[];            // ⬅️ addresses array from backend
-      finalLeaderboard: any[];
-      web3Chain?: string;
-    }) => {
-      try {
-        // Build a generic winners payload for the hook (address per winner)
-        // The hook will map this to the exact Soroban shape (string[] / struct) as needed.
-        const winnersPayload = data.winners.map((addr, idx) => ({
-          playerId: addr,     // we don’t have playerId here; reuse addr (contract cares about address)
-          address: addr,
-          rank: idx + 1,
-        }));
+  const handlePrizeDistribution = async (data: {
+  roomId: string;
+  winners: string[];
+  finalLeaderboard: any[];
+  web3Chain?: string;
+  evmNetwork?: string;
+  roomAddress?: string;
+  charityOrgId?: string;        // ✅ ADD
+  charityName?: string;          // ✅ ADD
+  charityAddress?: string;       // ✅ ADD
+}) => {
+  console.log('🎯 [Frontend] Received initiate_prize_distribution:', data);
+  
+  try {
+    // Map winners to the format expected by distributePrizes
+    const winnersPayload = data.winners.map((addr, idx) => ({
+      playerId: addr, // Using address as playerId for now
+      address: addr,
+      rank: idx + 1,
+    }));
 
-        const result = await distributePrizes({
-          roomId: data.roomId,
-          winners: winnersPayload,
-        });
+    console.log('🏆 [Frontend] Calling distributePrizes with:', {
+      roomId: data.roomId,
+      winnersCount: winnersPayload.length,
+      roomAddress: data.roomAddress,
+      charityInfo: {                          // ✅ ADD
+        orgId: data.charityOrgId,             // ✅ ADD
+        name: data.charityName,               // ✅ ADD
+        address: data.charityAddress,         // ✅ ADD
+      },
+    });
 
+    // Call the contract action
+    const result = await distributePrizes({
+      roomId: data.roomId,
+      winners: winnersPayload,
+      roomAddress: data.roomAddress,
+      charityOrgId: data.charityOrgId,       // ✅ ADD
+      charityName: data.charityName,         // ✅ ADD
+      charityAddress: data.charityAddress,   // ✅ ADD
+    });
+
+        console.log('📊 [Frontend] distributePrizes result:', result);
+
+        // Type-safe success check
         if (result.success) {
+          // TypeScript now knows result has txHash
+          const txHash = 'txHash' in result ? result.txHash : undefined;
+          
+          if (!txHash) {
+            throw new Error('Success returned but no transaction hash provided');
+          }
+
+          console.log('✅ [Frontend] Prize distribution successful:', txHash);
+
+          // Notify backend of success
           socket.emit('prize_distribution_completed', {
             roomId: data.roomId,
             success: true,
-            txHash: result.txHash,
+            txHash: txHash,
           });
-          setState({ status: 'success', txHash: result.txHash });
+
+          // Update UI state
+          setState({ status: 'success', txHash: txHash });
+
+          // Persist to localStorage
           try {
-            localStorage.setItem(DIST_KEY, JSON.stringify({ txHash: result.txHash }));
-          } catch {
-            // ignore storage write errors
+            localStorage.setItem(DIST_KEY, JSON.stringify({ txHash: txHash }));
+          } catch (err) {
+            console.warn('Failed to save to localStorage:', err);
           }
         } else {
+          // Handle failure case
+          const errorMsg = 'error' in result ? result.error : 'Unknown error occurred';
+          
+          console.error('❌ [Frontend] Prize distribution failed:', errorMsg);
+
           socket.emit('prize_distribution_completed', {
             roomId: data.roomId,
             success: false,
-            error: result.error || 'Unknown error occurred',
+            error: errorMsg,
           });
-          setState({ status: 'error', error: result.error || 'Contract call failed' });
+
+          setState({ status: 'error', error: errorMsg });
         }
       } catch (err: any) {
+        console.error('❌ [Frontend] Exception during prize distribution:', err);
+        
+        const errorMessage = err?.message || 'Contract call failed';
+        
         socket.emit('prize_distribution_completed', {
           roomId: data.roomId,
           success: false,
-          error: err?.message || 'Contract call failed',
+          error: errorMessage,
         });
-        setState({ status: 'error', error: err?.message || 'Contract call failed' });
+
+        setState({ status: 'error', error: errorMessage });
       }
     };
 
@@ -127,7 +197,10 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({ roomId }) => {
       error?: string;
     }) => {
       if (!data || data.roomId !== roomId) return;
-      if (data.success) {
+      
+      console.log('📢 [Frontend] Received prize_distribution_completed:', data);
+      
+      if (data.success && data.txHash) {
         setState({ status: 'success', txHash: data.txHash });
         try {
           localStorage.setItem(DIST_KEY, JSON.stringify({ txHash: data.txHash }));
@@ -141,6 +214,7 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({ roomId }) => {
 
     socket.on('initiate_prize_distribution', handlePrizeDistribution);
     socket.on('prize_distribution_completed', handlePrizeDistributionCompleted);
+    
     return () => {
       socket.off('initiate_prize_distribution', handlePrizeDistribution);
       socket.off('prize_distribution_completed', handlePrizeDistributionCompleted);
@@ -214,7 +288,7 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({ roomId }) => {
                   Transaction Hash: <code className="bg-green-100 px-2 py-1 rounded">{state.txHash}</code>
                 </p>
               )}
-              <p className="mt-2 text-xs text-green-700">You can’t distribute again for this room.</p>
+              <p className="mt-2 text-xs text-green-700">You can't distribute again for this room.</p>
             </div>
           )}
 
@@ -240,5 +314,3 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({ roomId }) => {
     </div>
   );
 };
-
-

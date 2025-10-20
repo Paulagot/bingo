@@ -23,6 +23,17 @@ function normalizePaymentMethod(maybe) {
   return 'other';
 }
 
+function isPlaceholderName(name, id) {
+  if (!name) return true;
+  const n = String(name).trim();
+  return (
+    n.toLowerCase() === 'player' ||
+    n === id ||
+    n.startsWith('Player ')
+  );
+}
+
+
 function normalizeExtraPayments(extraPayments) {
   if (!extraPayments || typeof extraPayments !== 'object') return {};
   return Object.fromEntries(
@@ -139,45 +150,66 @@ export function setupRecoveryHandlers(socket, namespace) {
       // ✅ Only treat as a player if role === 'player'
       if (isPlayerRole) {
         // Normalize payment fields from the client
-        const normalizedPaymentMethod = normalizePaymentMethod(
-          user.paymentMethod
-        );
-        const normalizedExtraPayments = normalizeExtraPayments(
-          user.extraPayments
-        );
+       // Normalize fields
+const normalizedPaymentMethod = normalizePaymentMethod(user.paymentMethod);
+const normalizedExtraPayments = normalizeExtraPayments(user.extraPayments);
 
-        const sanitizedUser = {
-          ...user,
-          paymentMethod: normalizedPaymentMethod,
-          extraPayments: normalizedExtraPayments,
-          socketId: socket.id,
-        };
+const sanitizedUser = {
+  ...user,
+  paymentMethod: normalizedPaymentMethod,
+  extraPayments: normalizedExtraPayments,
+  socketId: socket.id,
+};
 
-        if (!existingPlayer) {
-          // brand new player
-          addOrUpdatePlayer(roomId, sanitizedUser);
-          joinedUser = sanitizedUser;
+// --- name guard helpers ---
+function isPlaceholderName(name, id) {
+  if (!name) return true;
+  const n = String(name).trim();
+  return n.toLowerCase() === 'player' || n === id || n.startsWith('Player ');
+}
 
-          updatePlayerSocketId(roomId, user.id, socket.id);
-          updatePlayerSession(roomId, user.id, {
-            socketId: socket.id,
-            status: 'waiting',
-            inPlayRoute: false,
-            lastActive: Date.now(),
-          });
-        } else {
-          // merge onto existing to avoid blowing away prior fields
-          const mergedExisting = {
-            ...existingPlayer,
-            ...sanitizedUser,
-            // keep any previous extraPayments and overlay new ones
-            extraPayments: {
-              ...(existingPlayer.extraPayments || {}),
-              ...(sanitizedUser.extraPayments || {}),
-            },
-            socketId: socket.id,
-          };
+// Decide which name to keep (protect real names from placeholder overwrites)
+const incomingName = sanitizedUser.name;
+const existingName = existingPlayer?.name;
+let nameToUse;
 
+if (!existingPlayer) {
+  // brand new player
+  nameToUse = !isPlaceholderName(incomingName, user.id)
+    ? incomingName
+    : `Player ${user.id}`; // harmless fallback, UI won’t use if it doesn’t show placeholders
+} else {
+  // existing player: keep the existing real name; only upgrade from placeholder → real
+  if (!isPlaceholderName(incomingName, user.id) && isPlaceholderName(existingName, user.id)) {
+    nameToUse = incomingName; // promote
+  } else {
+    nameToUse = existingName || incomingName;
+  }
+}
+
+if (!existingPlayer) {
+  addOrUpdatePlayer(roomId, { ...sanitizedUser, name: nameToUse });
+  joinedUser = { ...sanitizedUser, name: nameToUse };
+
+  updatePlayerSocketId(roomId, user.id, socket.id);
+  updatePlayerSession(roomId, user.id, {
+    socketId: socket.id,
+    status: 'waiting',
+    inPlayRoute: false,
+    lastActive: Date.now(),
+  });
+} else {
+  const mergedExisting = {
+    ...existingPlayer,
+    ...sanitizedUser,
+    // keep previous extraPayments & overlay
+    extraPayments: {
+      ...(existingPlayer.extraPayments || {}),
+      ...(sanitizedUser.extraPayments || {}),
+    },
+    name: nameToUse,   // <- guard name AFTER spreads
+    socketId: socket.id,
+  };
           addOrUpdatePlayer(roomId, mergedExisting);
           joinedUser = mergedExisting;
 
@@ -426,7 +458,14 @@ export function setupRecoveryHandlers(socket, namespace) {
 
       // Keep user_joined event (clients can ignore non-players if they want)
       const broadcastUser = joinedUser || { ...user, socketId: socket.id };
-      namespace.to(roomId).emit('user_joined', { user: broadcastUser, role });
+     if (role === 'player') {
+  namespace.to(roomId).emit('user_joined', { user: broadcastUser, role: 'player' });
+} else if (role === 'host') {
+  namespace.to(roomId).emit('host_joined', { user: { id: user.id, name: room.config?.hostName || user.name }, role: 'host' });
+} else if (role === 'admin') {
+  namespace.to(roomId).emit('admin_joined', { user: { id: user.id, name: user.name }, role: 'admin' });
+}
+
 
       // Also push current players list to everyone (optional but handy)
       namespace.to(roomId).emit('player_list_updated', { players: playersLite });

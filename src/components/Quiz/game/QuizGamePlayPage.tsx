@@ -279,10 +279,17 @@ useEffect(() => {
 
   setPhaseMessage('Reconnecting…');
 
-  socket.emit(
-    'join_and_recover',
-    { roomId, user: { id: playerId, name: 'Player ' + playerId }, role: 'player' },
-    (res?: any) => {
+ const knownPlayerName =
+   (players.find(p => p.id === playerId)?.name) || undefined;
+
+ socket.emit(
+   'join_and_recover',
+   {
+     roomId,
+     user: { id: playerId, ...(knownPlayerName ? { name: knownPlayerName } : {}) },
+     role: 'player'
+   },
+   (res?: any) =>  {
       if (!res?.ok) {
         const msg = res?.error || 'Failed to join';
         if (msg.includes('Room not found') || msg.includes('Player not found')) {

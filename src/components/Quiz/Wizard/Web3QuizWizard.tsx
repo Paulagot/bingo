@@ -128,7 +128,7 @@ if (chainForProvider && isWalletStep) {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      {/* {DEBUG && (
+      {DEBUG && (
         <div className="fixed right-4 top-16 z-50 max-w-xs rounded bg-purple-900 p-2 font-mono text-xs text-white">
           <div>Wizard Render: #{renderCountRef.current}</div>
           <div>Step: {currentStepIndex + 1}/{steps.length}</div>
@@ -137,7 +137,7 @@ if (chainForProvider && isWalletStep) {
           <div>Hook Chain: {hookSelectedChain || 'null'}</div>
           <div>Provider Chain: {chainForProvider || 'null'}</div>
         </div>
-      )} */}
+      )}
 
       {/* If you keep the panel here, it shows store state but NOT Stellar Context */}
       {/* <WalletDebugPanel /> */}

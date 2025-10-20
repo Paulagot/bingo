@@ -625,12 +625,16 @@ const HostDashboardCore: React.FC = () => {
 
           {/* Add this badge */}
 {config?.isWeb3Room && (
-  <BlockchainBadge
-    chain={(config as any).web3Chain || (config as any).web3ChainConfirmed}
-    network={(config as any).network}
-    contractAddress={(config as any).contractAddress}
-    txHash={(config as any).deploymentTxHash}
-  />
+<BlockchainBadge
+  chain={(config as any).web3Chain}
+  network={
+    (config as any).evmNetwork ||
+    (config as any).solanaCluster ||
+    (config as any).stellarNetwork
+  }
+  contractAddress={(config as any).roomContractAddress}
+  txHash={(config as any).deploymentTxHash}
+/>
 )}
           {isQuizComplete && (
             <div className="mt-2 rounded-lg border border-green-200 bg-green-50 px-4 py-2">
@@ -657,7 +661,7 @@ const HostDashboardCore: React.FC = () => {
           </div>
         )}
 
-        <WalletDebugPanel />
+        {/* <WalletDebugPanel /> */}
 
         {/* Tab Navigation */}
         <div className="bg-muted border-border mb-6 rounded-xl border shadow-sm">

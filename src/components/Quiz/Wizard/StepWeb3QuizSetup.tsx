@@ -16,6 +16,8 @@ import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
 import type { SupportedChain } from '../../../chains/types';
 import ClearSetupButton from './ClearSetupButton';
 
+import { CHARITIES as CHARITY_DIR } from '../../../chains/evm/config/charities';
+
 interface StepWeb3QuizSetupProps extends WizardStepProps {
   onChainUpdate?: (chain: SupportedChain) => void;
   onResetToFirst?: () => void;
@@ -45,9 +47,30 @@ const Character = ({ message }: { message: string }) => {
   );
 };
 
-/** Single dropdown: Stellar, Base, Base Sepolia, Polygon, Solana (Mainnet|Devnet) */
-type ChoiceValue = 'stellar' | 'base' | 'baseSepolia' | 'polygon' | 'solanaMainnet' | 'solanaDevnet';
-type EvmNetwork = 'base' | 'baseSepolia' | 'polygon';
+/** Single dropdown: Stellar, Base, Base Sepolia, BSC, BSC Testnet, Avalanche, Fuji, Optimism, OP Sepolia, Solana (Mainnet|Devnet) */
+type ChoiceValue =
+  | 'stellar'
+  | 'base'
+  | 'baseSepolia'
+  | 'bsc'
+  | 'bscTestnet'
+  | 'avalanche'
+  | 'avalancheFuji'
+  | 'optimism'
+  | 'optimismSepolia'
+  | 'solanaMainnet'
+  | 'solanaDevnet';
+
+type EvmNetwork =
+  | 'base'
+  | 'baseSepolia'
+  | 'bsc'
+  | 'bscTestnet'
+  | 'avalanche'
+  | 'avalancheFuji'
+  | 'optimism'
+  | 'optimismSepolia';
+
 type SolanaCluster = 'mainnet' | 'devnet';
 
 const CHOICES: Array<{
@@ -59,9 +82,24 @@ const CHOICES: Array<{
   solanaCluster?: SolanaCluster;
 }> = [
   { value: 'stellar', label: 'Stellar', description: 'Fast, low-cost payments', kind: 'stellar' },
+
+  // EVM — Base
   { value: 'base', label: 'Base', description: 'EVM · Coinbase L2 (mainnet)', kind: 'evm', evmNetwork: 'base' },
   { value: 'baseSepolia', label: 'Base Sepolia', description: 'EVM · Base testnet', kind: 'evm', evmNetwork: 'baseSepolia' },
-  // { value: 'polygon', label: 'Polygon', description: 'EVM · low fees (mainnet)', kind: 'evm', evmNetwork: 'polygon' },
+
+  // EVM — BSC
+  { value: 'bsc', label: 'BNB Smart Chain', description: 'EVM · BSC mainnet', kind: 'evm', evmNetwork: 'bsc' },
+  { value: 'bscTestnet', label: 'BNB Smart Chain Testnet', description: 'EVM · BSC testnet', kind: 'evm', evmNetwork: 'bscTestnet' },
+
+  // EVM — Avalanche
+  { value: 'avalanche', label: 'Avalanche C-Chain', description: 'EVM · Avalanche mainnet', kind: 'evm', evmNetwork: 'avalanche' },
+  { value: 'avalancheFuji', label: 'Avalanche Fuji', description: 'EVM · Avalanche testnet', kind: 'evm', evmNetwork: 'avalancheFuji' },
+
+  // EVM — Optimism
+  { value: 'optimism', label: 'OP Mainnet', description: 'EVM · Optimism mainnet', kind: 'evm', evmNetwork: 'optimism' },
+  { value: 'optimismSepolia', label: 'OP Sepolia', description: 'EVM · Optimism testnet', kind: 'evm', evmNetwork: 'optimismSepolia' },
+
+  // Solana
   { value: 'solanaMainnet', label: 'Solana (Mainnet)', description: 'High-speed, low-fee mainnet', kind: 'solana', solanaCluster: 'mainnet' },
   { value: 'solanaDevnet', label: 'Solana (Devnet)', description: 'Developer test network', kind: 'solana', solanaCluster: 'devnet' },
 ];
@@ -77,9 +115,18 @@ const deriveChoiceFromConfig = (
     return solanaCluster === 'devnet' ? 'solanaDevnet' : 'solanaMainnet';
   }
   if (web3Chain === 'evm') {
-    if (evmNetwork === 'baseSepolia') return 'baseSepolia';
-    if (evmNetwork === 'polygon') return 'polygon';
-    return 'base';
+    switch (evmNetwork) {
+      case 'baseSepolia': return 'baseSepolia';
+      case 'bsc': return 'bsc';
+      case 'bscTestnet': return 'bscTestnet';
+      case 'avalanche': return 'avalanche';
+      case 'avalancheFuji': return 'avalancheFuji';
+      case 'optimism': return 'optimism';
+      case 'optimismSepolia': return 'optimismSepolia';
+      case 'base':
+      default:
+        return 'base';
+    }
   }
   return 'stellar';
 };
@@ -90,24 +137,18 @@ const getTokensForChoice = (choice: ChoiceValue) => {
     return [
       { value: 'SOL', label: 'SOL' },
       { value: 'USDC', label: 'USDC' },
-      { value: 'USDGLO', label: 'Glo USD' },
+      { value: 'USDGLO', label: 'Glo Dollar' },
     ];
   }
   // EVM choices
   return [
     { value: 'USDC', label: 'USDC' },
-    { value: 'USDGLO', label: 'Glo USD' },
+    { value: 'USDGLO', label: 'Glo Dollar' },
   ];
 };
 
-const CHARITIES = [
-  { value: 'redcross', label: 'Red Cross' },
-  { value: 'unicef', label: 'UNICEF' },
-  { value: 'wateraid', label: 'WaterAid' },
-];
-
 const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUpdate, onResetToFirst }) => {
-  const { setupConfig, updateSetupConfig, setFlow } = useQuizSetupStore();
+  const { setupConfig, updateSetupConfig, setFlow, setWeb3CharityById } = useQuizSetupStore();
   useEffect(() => { setFlow('web3'); }, [setFlow]);
 
   // Host
@@ -123,7 +164,8 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
 
   // Web3 fields
   const [currency, setCurrency] = useState(setupConfig.web3Currency || 'USDGLO');
-  const [charity, setCharity] = useState(setupConfig.web3Charity || '');
+  const [charityId, setCharityId] = useState<string>((setupConfig as any).web3CharityId || '');
+
   const [entryFee, setEntryFee] = useState(setupConfig.entryFee || '');
 
   const availableTokens = useMemo(() => getTokensForChoice(choice), [choice]);
@@ -142,9 +184,10 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
   const completedSections = useMemo(() => {
     const host = hostName.trim().length >= 2;
     const feeOk = !!entryFee && !Number.isNaN(parseFloat(entryFee)) && parseFloat(entryFee) > 0;
-    const web3 = Boolean(choice && currency && charity && feeOk);
+    const hasCharityAddr = !!(setupConfig as any).web3CharityAddress;
+    const web3 = Boolean(choice && currency && hasCharityAddr && feeOk);
     return { host, web3 };
-  }, [hostName, choice, currency, charity, entryFee]);
+  }, [hostName, choice, currency, entryFee, setupConfig]);
 
   const allSectionsComplete = completedSections.host && completedSections.web3;
   const selectedInfo = CHOICES.find((c) => c.value === choice);
@@ -161,7 +204,8 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
     if (!completedSections.host) return setError('Please enter a host name with at least 2 characters.');
     const parsed = Number.parseFloat(entryFee.trim());
     if (Number.isNaN(parsed) || parsed <= 0) return setError('Please enter a valid entry fee greater than 0.');
-    if (!charity) return setError('Please select a charity.');
+    const addrOk = !!(setupConfig as any).web3CharityAddress;
+    if (!addrOk) return setError('Please select a charity.');
 
     const meta = selectedInfo!;
     const web3Chain: SupportedChain = meta.kind; // 'stellar' | 'evm' | 'solana'
@@ -175,7 +219,7 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
       currencySymbol: currency,
       web3Chain,                 // 'stellar' | 'evm' | 'solana'
       web3Currency: currency,
-      web3Charity: charity,
+
       evmNetwork,                // only for EVM
       solanaCluster,             // only for Solana
     } as any);
@@ -324,17 +368,30 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
             <span>Choose a Charity <span className="text-red-500">*</span></span>
           </label>
           <select
-            value={charity}
-            onChange={(e) => { setCharity(e.target.value); setError(''); }}
+            value={charityId}
+            onChange={(e) => {
+              const id = e.target.value || '';
+              setCharityId(id);
+              setWeb3CharityById(id || null);   // writes id+name+wallet into setupConfig
+              setError('');
+            }}
             className={`w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3 sm:text-base ${
-              charity ? 'border-green-300 bg-green-50 focus:border-green-500' : 'border-border focus:border-indigo-500'
+              charityId ? 'border-green-300 bg-green-50 focus:border-green-500' : 'border-border focus:border-indigo-500'
             }`}
           >
             <option value="">Select a charity...</option>
-            {CHARITIES.map((ch) => (
-              <option key={ch.value} value={ch.value}>{ch.label}</option>
+            {CHARITY_DIR.map((ch) => (
+              <option key={ch.id} value={ch.id}>{ch.name}</option>
             ))}
           </select>
+
+          {/* Optional: show the mapped wallet when selected */}
+          {charityId && (setupConfig as any).web3CharityAddress && (
+            <div className="rounded-md border border-indigo-200 bg-indigo-50 p-2 text-[11px] text-indigo-800 break-all">
+              Wallet: {(setupConfig as any).web3CharityAddress}
+            </div>
+          )}
+
           <p className="text-fg/60 text-xs italic">Powered by The Giving Block and Coala Pay</p>
         </div>
 
@@ -405,6 +462,7 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
 };
 
 export default StepWeb3QuizSetup;
+
 
 
 

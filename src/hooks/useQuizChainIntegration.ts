@@ -5,19 +5,8 @@ import { useQuizConfig } from '../components/Quiz/hooks/useQuizConfig';
 import { useWalletStore } from '../stores/walletStore';
 import type { SupportedChain } from '../chains/types';
 
-const EVM_NAME_BY_ID: Record<number, string> = {
-  8453: 'Base',
-  84532: 'Base Sepolia',
-  137: 'Polygon',
-  80002: 'Polygon Amoy', // optional testnet
-  // add any others you support…
-};
-
-const EVM_NAME_BY_KEY: Record<string, string> = {
-  base: 'Base',
-  baseSepolia: 'Base Sepolia',
-  polygon: 'Polygon',
-};
+// ✅ Use the central networks config to avoid drift
+import { getMetaByKey, getKeyById, type EvmNetworkKey } from '../chains/evm/config/networks';
 
 const SOLANA_NAME_BY_CLUSTER: Record<string, string> = {
   mainnet: 'Solana',
@@ -42,10 +31,11 @@ export const useQuizChainIntegration = (opts?: Options) => {
   const { activeChain, stellar, evm, solana } = useWalletStore((s) => ({
     activeChain: s.activeChain as SupportedChain | null,
     stellar: s.stellar,
-    evm: s.evm,          // ⬅️ should include .chainId if your EvmWalletProvider syncs it
-    solana: s.solana,    // ⬅️ can include .cluster if/when you wire Solana
+    evm: s.evm,       // should include .chainId if your EvmWalletProvider syncs it
+    solana: s.solana, // may include .cluster if wired
   }));
 
+  // Coarse chain kind ('stellar' | 'evm' | 'solana')
   const selectedChain: SupportedChain | null = useMemo(() => {
     if (opts?.chainOverride) return opts.chainOverride;
     if (activeChain) return activeChain;
@@ -73,30 +63,41 @@ export const useQuizChainIntegration = (opts?: Options) => {
   const walletError        = currentWallet?.error;
   const walletAddress      = currentWallet?.address;
 
-  // 👇 NEW: network-aware display helpers
+  // 🔹 The selected EVM subnetwork key (e.g., 'base', 'optimismSepolia', etc.)
+  const selectedEvmNetwork = (setupConfig as any)?.evmNetwork as EvmNetworkKey | undefined;
+
+  // Network-aware display name, sourced from networks.ts
   const getNetworkDisplayName = (chain?: SupportedChain | null): string => {
     const c = chain ?? selectedChain;
     if (!c) return 'No blockchain';
 
-    if (c === 'stellar') return 'Stellar';
+    if (c === 'stellar') {
+      const stellarNet = (setupConfig as any)?.stellarNetwork; // 'public' | 'testnet' (if present)
+      return stellarNet === 'public' ? 'Stellar (Mainnet)'
+           : stellarNet === 'testnet' ? 'Stellar (Testnet)'
+           : 'Stellar';
+    }
 
     if (c === 'solana') {
       const cluster = (setupConfig as any)?.solanaCluster || (solana as any)?.cluster || 'mainnet';
       return SOLANA_NAME_BY_CLUSTER[cluster] ?? 'Solana';
     }
 
-    // EVM
-    const key = (setupConfig as any)?.evmNetwork as string | undefined;
-    if (key && EVM_NAME_BY_KEY[key]) return EVM_NAME_BY_KEY[key];
+    // EVM: prefer the configured network key, otherwise fall back to the connected chainId
+    const metaFromKey = getMetaByKey(selectedEvmNetwork);
+    if (metaFromKey?.name) return metaFromKey.name;
 
-    const id = (evm as any)?.chainId as number | undefined;
-    if (typeof id === 'number' && EVM_NAME_BY_ID[id]) return EVM_NAME_BY_ID[id];
+    const chainId = (evm as any)?.chainId as number | undefined;
+    if (typeof chainId === 'number') {
+      const keyFromId = getKeyById(chainId);
+      const metaFromId = getMetaByKey(keyFromId);
+      if (metaFromId?.name) return metaFromId.name;
+    }
 
-    // Fallback if we really don't know which EVM network
     return 'EVM';
   };
 
-  // (keep the old getChainDisplayName if you still need the family label)
+  // Family label only
   const getChainDisplayName = (chain?: SupportedChain | null): string => {
     const c = chain ?? selectedChain;
     if (!c) return 'No blockchain';
@@ -148,6 +149,7 @@ export const useQuizChainIntegration = (opts?: Options) => {
   return {
     // selection
     selectedChain,
+    selectedEvmNetwork, // 🔹 expose for debug/consumers
     activeChain,
 
     // wallet state
@@ -163,22 +165,23 @@ export const useQuizChainIntegration = (opts?: Options) => {
 
     // helpers
     isUsingChain,
-    getChainDisplayName,     // family ("EVM", "Stellar", "Solana")
-    getNetworkDisplayName,   // 👈 network-aware ("Base", "Base Sepolia", "Polygon", "Solana (Devnet)")
+    getChainDisplayName,    // family ("EVM", "Stellar", "Solana")
+    getNetworkDisplayName,  // network-aware ("Base", "OP Sepolia", "Avalanche Fuji", etc.)
     getFormattedAddress,
 
-    // debug
+    // debug (handy in overlays)
     debugInfo: {
       setupConfig,
       config,
       activeChain,
       evmChainId: (evm as any)?.chainId,
-      evmNetworkKey: (setupConfig as any)?.evmNetwork,
+      evmNetworkKey: selectedEvmNetwork,
       solanaCluster: (setupConfig as any)?.solanaCluster,
     },
   };
 };
 
 export default useQuizChainIntegration;
+
 
 

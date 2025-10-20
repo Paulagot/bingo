@@ -96,6 +96,8 @@ export function setupPlayerHandlers(socket, namespace) {
     // Join AFTER validation
     socket.join(roomId);
     socket.join(`${roomId}:${role}`);
+    
+    // ✅ FIX: Declare joinedUser in outer scope ONCE
     let joinedUser = null;
 
     if (role === 'host') {
@@ -113,108 +115,119 @@ export function setupPlayerHandlers(socket, namespace) {
       updateAdminSocketId(roomId, user.id, socket.id);
       if (debug) console.log(`[Join] 🛠️ Admin "${user.name || user.id}" joined with socket ${socket.id}`);
 
-    } else if (role === 'player') {
-      // ✅ Session housekeeping
-      cleanExpiredSessions(roomId);
+     } else if (role === 'player') {
+  // ✅ Session housekeeping
+  cleanExpiredSessions(roomId);
 
-      // Sanitize/normalize payment fields from client
-const normalizedPaymentMethod = normalizePaymentMethod(user.paymentMethod);
-const normalizedExtraPayments = normalizeExtraPayments(user.extraPayments);
+  // Sanitize/normalize payment fields from client
+  const normalizedPaymentMethod = normalizePaymentMethod(user.paymentMethod);
+  const normalizedExtraPayments = normalizeExtraPayments(user.extraPayments);
 
-// Build the user object we'll store/propagate
-const sanitizedUser = {
-  ...user,
-  paymentMethod: normalizedPaymentMethod,
-  extraPayments: normalizedExtraPayments,
-  // ensure socket binding is from this connection
-  socketId: socket.id,
-};
+  // 🔎 Determine if player exists and/or has a session (DECLARE FIRST!)
+  const existingPlayer = room.players.find(p => p.id === user.id);
+  const existingSession = getPlayerSession(roomId, user.id);
 
-      // Determine if player exists and/or has a session
-      const existingPlayer = room.players.find(p => p.id === user.id);
-      const existingSession = getPlayerSession(roomId, user.id);
-
-      // ──────────────────────────────────────────────────────────────
-      // 🔒 ENFORCE UNIQUENESS: disconnect any previous socket
-      // New join replaces the old socket (best UX for refresh/reconnect)
-      // ──────────────────────────────────────────────────────────────
-   const prevSocketId = existingSession?.socketId || existingPlayer?.socketId;
-if (prevSocketId && prevSocketId !== socket.id) {
-  const prevSocket = namespace.sockets.get(prevSocketId);
-  if (prevSocket && prevSocket.connected) {
-    // ✅ Only boot if the old socket is actually a PLAYER in this room
-    const isPrevPlayerSocket =
-      prevSocket.rooms.has(roomId) && prevSocket.rooms.has(`${roomId}:player`) && !prevSocket.rooms.has(`${roomId}:host`);
-
-    if (isPrevPlayerSocket) {
-      prevSocket.emit('quiz_error', {
-        message: 'You were signed in from another tab. This session is now active.',
-      });
-      try { prevSocket.disconnect(true); } catch {}
-    } else {
-      // Extra safety: don’t touch hosts/admins
-      if (debug) console.warn('[Join] Skipping disconnect of non-player socket:', { prevSocketId, rooms: [...prevSocket.rooms] });
-    }
-  }
-}
-let joinedUser;
-
-      // Add or update player with current socket
-if (!existingPlayer) {
-  // brand new player
-  addOrUpdatePlayer(roomId, sanitizedUser);
-  joinedUser = sanitizedUser;
-
-  updatePlayerSocketId(roomId, user.id, socket.id);
-  updatePlayerSession(roomId, user.id, {
-    socketId: socket.id,
-    status: 'waiting',
-    inPlayRoute: false,
-    lastActive: Date.now(),
-  });
-} else {
-  // merge onto existing to avoid blowing away prior fields
-  const mergedExisting = {
-    ...existingPlayer,
-    ...sanitizedUser,
-    // keep any previous extraPayments and overlay new ones
-    extraPayments: {
-      ...(existingPlayer.extraPayments || {}),
-      ...(sanitizedUser.extraPayments || {}),
-    },
+  // Build the user object we'll store/propagate
+  const sanitizedUser = {
+    ...user,
+    paymentMethod: normalizedPaymentMethod,
+    extraPayments: normalizedExtraPayments,
+    // ensure socket binding is from this connection
     socketId: socket.id,
   };
 
-  addOrUpdatePlayer(roomId, mergedExisting);
-  joinedUser = mergedExisting;
+  // ✅ Preserve an existing real name if incoming is blank/placeholder
+  if (existingPlayer?.name && existingPlayer.name !== 'Player') {
+    if (!user.name || user.name === 'Player') {
+      sanitizedUser.name = existingPlayer.name;
+    }
+  }
 
-  updatePlayerSocketId(roomId, user.id, socket.id);
-  updatePlayerSession(roomId, user.id, {
-    socketId: socket.id,
-    status: existingSession?.status || 'waiting',
-    inPlayRoute: !!existingSession?.inPlayRoute,
-    lastActive: Date.now(),
-  });
-}
+  // ──────────────────────────────────────────────────────────────
+  // 🔒 ENFORCE UNIQUENESS: disconnect any previous PLAYER socket
+  // ──────────────────────────────────────────────────────────────
+  const prevSocketId = existingSession?.socketId || existingPlayer?.socketId;
+  if (prevSocketId && prevSocketId !== socket.id) {
+    const prevSocket = namespace.sockets.get(prevSocketId);
+    if (prevSocket && prevSocket.connected) {
+      // ✅ Only boot if the old socket is actually a PLAYER in this room
+      const isPrevPlayerSocket =
+        prevSocket.rooms.has(roomId) &&
+        prevSocket.rooms.has(`${roomId}:player`) &&
+        !prevSocket.rooms.has(`${roomId}:host`);
 
-      if (debug) console.log(`[Join] 🎮 Player "${user.name}" (${user.id}) connected with socket ${socket.id}`);
-
-      // OPTIONAL: store Web3 wallet details for payouts (players only)
-      if (user.web3Address && user.web3Chain) {
-        if (!room.web3AddressMap) room.web3AddressMap = new Map();
-        room.web3AddressMap.set(user.id, {
-          address: user.web3Address,
-          chain: user.web3Chain,
-          txHash: user.web3TxHash || null,
-          playerName: user.name || 'Unknown'
+      if (isPrevPlayerSocket) {
+        prevSocket.emit('quiz_error', {
+          message: 'You were signed in from another tab. This session is now active.',
         });
-        if (!room.config.web3PlayerAddresses) room.config.web3PlayerAddresses = {};
-        room.config.web3PlayerAddresses[user.id] = {
-          address: user.web3Address,
-          chain: user.web3Chain,
-          name: user.name
-        };
+        try { prevSocket.disconnect(true); } catch {}
+      } else if (debug) {
+        console.warn('[Join] Skipping disconnect of non-player socket:', {
+          prevSocketId,
+          rooms: [...prevSocket.rooms]
+        });
       }
+    }
+  }
+
+  // Add or update player + session
+
+  if (!existingPlayer) {
+    // brand new player
+    addOrUpdatePlayer(roomId, sanitizedUser);
+    joinedUser = sanitizedUser;
+
+    updatePlayerSocketId(roomId, user.id, socket.id);
+    updatePlayerSession(roomId, user.id, {
+      socketId: socket.id,
+      status: 'waiting',
+      inPlayRoute: false,
+      lastActive: Date.now(),
+    });
+  } else {
+    // merge onto existing to avoid blowing away prior fields
+    const mergedExisting = {
+      ...existingPlayer,
+      ...sanitizedUser,
+      // keep any previous extraPayments and overlay new ones
+      extraPayments: {
+        ...(existingPlayer.extraPayments || {}),
+        ...(sanitizedUser.extraPayments || {}),
+      },
+      socketId: socket.id,
+    };
+
+    addOrUpdatePlayer(roomId, mergedExisting);
+    joinedUser = mergedExisting;
+
+    updatePlayerSocketId(roomId, user.id, socket.id);
+    updatePlayerSession(roomId, user.id, {
+      socketId: socket.id,
+      status: existingSession?.status || 'waiting',
+      inPlayRoute: !!existingSession?.inPlayRoute,
+      lastActive: Date.now(),
+    });
+  }
+
+  if (debug) console.log(`[Join] 🎮 Player "${joinedUser?.name || user.name}" (${user.id}) connected with socket ${socket.id}`);
+
+  // OPTIONAL: store Web3 wallet details for payouts (players only)
+  if (user.web3Address && user.web3Chain) {
+    if (!room.web3AddressMap) room.web3AddressMap = new Map();
+    room.web3AddressMap.set(user.id, {
+      address: user.web3Address,
+      chain: user.web3Chain,
+      txHash: user.web3TxHash || null,
+      playerName: joinedUser?.name || user.name || 'Unknown'
+    });
+    if (!room.config.web3PlayerAddresses) room.config.web3PlayerAddresses = {};
+    room.config.web3PlayerAddresses[user.id] = {
+      address: user.web3Address,
+      chain: user.web3Chain,
+      name: joinedUser?.name || user.name
+    };
+  }
+
 
     } else {
       if (debug) console.error(`[Join] ❌ Unknown role: "${role}"`);
@@ -225,8 +238,16 @@ if (!existingPlayer) {
     // Emit room state after processing join
     emitRoomState(namespace, roomId);
     emitFullRoomState(socket, namespace, roomId);
-   const broadcastUser = joinedUser || { ...user, socketId: socket.id };
- namespace.to(roomId).emit('user_joined', { user: broadcastUser, role });
+    
+    // ✅ FIX: Now joinedUser will have the correct player data
+    const broadcastUser = joinedUser || { ...user, socketId: socket.id };
+    if (role === 'player') {
+  namespace.to(roomId).emit('user_joined', { user: broadcastUser, role: 'player' });
+} else if (role === 'host') {
+  namespace.to(roomId).emit('host_joined', { user: { id: user.id, name: room.config?.hostName || user.name }, role: 'host' });
+} else if (role === 'admin') {
+  namespace.to(roomId).emit('admin_joined', { user: { id: user.id, name: user.name }, role: 'admin' });
+}
 
 
     setTimeout(() => {
@@ -252,30 +273,27 @@ if (!existingPlayer) {
   });
 
   // ✅ NEW: Route change tracking for anti-cheat
-  socket.on('player_route_change', ({ roomId, playerId, route, entering }) => {
-    if (!roomId || !playerId || !route) {
-      console.error(`[RouteChange] ❌ Missing data:`, { roomId, playerId, route, entering });
-      return;
-    }
+socket.on('player_route_change', ({ roomId, playerId, route, entering }) => {
+  if (!roomId || !playerId || !route) {
+    console.error(`[RouteChange] ❌ Missing data:`, { roomId, playerId, route, entering });
+    return;
+  }
 
-    if (route === 'play') {
-      if (entering) {
-        updatePlayerSession(roomId, playerId, {
-          socketId: socket.id,
-          status: 'playing',
-          inPlayRoute: true
-        });
-        if (debug) console.log(`[RouteChange] ✅ Player ${playerId} entered play route`);
-      } else {
-        updatePlayerSession(roomId, playerId, {
-          socketId: socket.id,
-          status: 'waiting',
-          inPlayRoute: false
-        });
-        if (debug) console.log(`[RouteChange] ⬅️ Player ${playerId} left play route`);
-      }
+  if (route === 'play') {
+    updatePlayerSession(roomId, playerId, {
+      socketId: socket.id,
+      status: entering ? 'playing' : 'waiting',
+      inPlayRoute: !!entering
+    });
+
+    if (debug) {
+      console.log(
+        `[RouteChange] ${entering ? '✅' : '⬅️'} Player ${playerId} ${entering ? 'entered' : 'left'} play route`
+      );
     }
-  });
+  }
+});
+
 
   socket.on('add_admin', ({ roomId, admin }) => {
     if (debug) console.log(`[AddAdmin] 🛠️ Host adding admin "${admin.name}" to room ${roomId}`);

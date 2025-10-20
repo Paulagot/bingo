@@ -50,7 +50,7 @@ const looksLikeEvmTxHash = (h) =>
 
 // ---- Solana ----
 // Program IDs are base58, typically 32-44 chars (can be a little longer for some)
-// We’ll accept 32–64 chars base58.
+// We'll accept 32–64 chars base58.
 const looksLikeSolanaProgramId = (pid) =>
   typeof pid === 'string' && /^[1-9A-HJ-NP-Za-km-z]{32,64}$/.test(pid);
 
@@ -137,10 +137,28 @@ router.post('/create-web3-room', async (req, res) => {
   console.log('--------------------------------------');
   console.log('[API] 🔗 Received Web3 room creation request');
   console.log(`[API] 🆔 Using provided roomId=${roomId} hostId=${hostId}`);
+
+  // ✅ CHANGED: Accept all three possible field names for contract address
+  const contractAddress = 
+    setupConfig?.roomContractAddress ||      // ✅ Canonical field (NEW)
+    setupConfig?.web3ContractAddress ||      // Legacy field
+    setupConfig?.contractAddress;            // Old field
+
+  const deploymentTxHash = setupConfig?.deploymentTxHash;
+
+  const chain =
+    setupConfig?.web3ChainConfirmed ||
+    setupConfig?.web3Chain ||
+    'stellar'; // default to Stellar/Soroban
+
+  // ✅ CHANGED: Enhanced logging to show all possible field names
   console.log('[API] 📦 Contract details:', {
-    contractAddress: setupConfig?.contractAddress,
-    deploymentTxHash: setupConfig?.deploymentTxHash,
-    chain: setupConfig?.web3ChainConfirmed || setupConfig?.web3Chain,
+    roomContractAddress: setupConfig?.roomContractAddress,   // What we expect
+    web3ContractAddress: setupConfig?.web3ContractAddress,   // Fallback 1
+    contractAddress: setupConfig?.contractAddress,           // Fallback 2
+    resolved: contractAddress,                               // What we're using
+    deploymentTxHash: deploymentTxHash,
+    chain: chain,
   });
 
   // Basic validation
@@ -154,17 +172,19 @@ router.post('/create-web3-room', async (req, res) => {
     return res.status(400).json({ error: 'Missing config' });
   }
 
+  // ✅ NEW: Validate we actually got a contract address
+  if (!contractAddress) {
+    console.error('[API] ❌ No contract address found in request');
+    console.error('[API] 📋 Available config keys:', Object.keys(setupConfig));
+    return res.status(400).json({ 
+      error: 'Contract address missing. Deployment may have failed.',
+      hint: 'Check that roomContractAddress is being sent in the config'
+    });
+  }
+
   // Set/force Web3 flags
   setupConfig.isWeb3Room = true;
   setupConfig.paymentMethod = 'web3';
-
-  const chain =
-    setupConfig.web3ChainConfirmed ||
-    setupConfig.web3Chain ||
-    'stellar'; // default to Stellar/Soroban
-
-  const contractAddress = setupConfig.contractAddress;
-  const deploymentTxHash = setupConfig.deploymentTxHash;
 
   // Strong format validation for on-chain proof
   const proof = validateWeb3Proof({
@@ -188,6 +208,21 @@ router.post('/create-web3-room', async (req, res) => {
         reason: proof.reason,
       },
     });
+  }
+
+  // --- Normalize & persist canonical Web3 fields ---
+  // ✅ UNCHANGED: This section was already correct
+  // 1) Canonical contract key used everywhere in the app:
+  setupConfig.roomContractAddress = contractAddress;
+  // 2) Keep legacy keys for any older UI bits:
+  setupConfig.web3ContractAddress = contractAddress;
+  setupConfig.contractAddress = contractAddress;
+  setupConfig.deploymentTxHash = deploymentTxHash;
+  // 3) Make chain explicit (prefer confirmed):
+  setupConfig.web3Chain = setupConfig.web3ChainConfirmed || setupConfig.web3Chain || chain;
+  // 4) Ensure EVM metadata is carried if relevant (leave as-is if already set)
+  if (setupConfig.web3Chain === 'evm') {
+    setupConfig.evmNetwork = setupConfig.evmNetwork || req.body?.config?.evmNetwork || null;
   }
 
   // (Optional, but recommended in production)
@@ -218,12 +253,16 @@ router.post('/create-web3-room', async (req, res) => {
     }
 
     console.log(`[API] ✅ Successfully created Web3 room ${roomId}`);
+    console.log(`[API] 📍 Contract: ${contractAddress}`);
+    console.log(`[API] 📝 Tx Hash: ${deploymentTxHash}`);
     console.log('--------------------------------------');
 
+    // ✅ CHANGED: Return both field names for backward compatibility
     return res.status(200).json({
       roomId,
       hostId,
-      contractAddress,
+      contractAddress,                       // Legacy field
+      roomContractAddress: contractAddress,  // ✅ Canonical field
       deploymentTxHash,
       roomCaps: setupConfig.roomCaps,
       verified: true,

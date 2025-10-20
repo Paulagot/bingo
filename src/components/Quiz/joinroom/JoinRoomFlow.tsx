@@ -19,8 +19,18 @@ interface RoomConfig {
   entryFee: number;
   fundraisingOptions: Record<string, boolean>;
   fundraisingPrices: Record<string, number>;
-  currencySymbol: string; // Make required to fix type conflict
+  currencySymbol: string;
+  
+  // Web3 fields
   web3Chain?: string;
+  evmNetwork?: string;           // ✅ ADD THIS
+  solanaCluster?: string;        // ✅ ADD THIS
+  stellarNetwork?: string;       // ✅ ADD THIS for completeness
+  roomContractAddress?: string;
+  deploymentTxHash?: string;
+  web3Currency?: string;         // ✅ ADD THIS too
+  
+  // Room info
   hostName?: string;
   gameType?: string;
   roundDefinitions?: Array<{ roundType: string }>;
@@ -177,7 +187,7 @@ setDetectedChain(normalized);
             />
           )}
 
-          <WalletDebugPanel />
+          {/* <WalletDebugPanel /> */}
           
           {step === 'name-entry' && roomConfig && (
             <NameEntryStep

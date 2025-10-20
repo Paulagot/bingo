@@ -176,6 +176,10 @@ const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) =
           amount: String(p.value ?? '1'),
         })) || [];
 
+        const resolvedCharityAddress =
+  (setupConfig as any)?.web3CharityAddress ?? undefined;
+
+
         const resolvedCharityName =
   (setupConfig as any)?.web3Charity ?? (setupConfig as any)?.charityName ?? undefined;
     return {
@@ -186,6 +190,7 @@ const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) =
       hostFeePct: Number(splits?.host ?? 0),
       prizeMode: prizeMode,
       charityName: resolvedCharityName,
+      charityAddress: resolvedCharityAddress,
       prizePoolPct: Number(splits?.prizes ?? 0),
       prizeSplits: poolSplits,
       expectedPrizes,
@@ -252,21 +257,26 @@ const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) =
       // Create server room
       setLaunchState('creating-room');
 
-      const web3RoomConfig = {
-        ...setupConfig,
-        contractAddress: deployRes.contractAddress,
-        deploymentTxHash: deployRes.txHash,
-        web3ChainConfirmed: selectedChain,
-        // ✅ FIX: coerce null→undefined for type compatibility
-        hostWalletConfirmed: hostWallet || undefined,
-        paymentMethod: 'web3' as const,
-        isWeb3Room: true,
-        web3PrizeStructure: {
-          firstPlace: setupConfig.prizeSplits?.[1] || 100,
-          secondPlace: setupConfig.prizeSplits?.[2] || 0,
-          thirdPlace: setupConfig.prizeSplits?.[3] || 0,
-        },
-      };
+    const web3RoomConfig = {
+  ...setupConfig,
+  deploymentTxHash: deployRes.txHash,
+  hostWalletConfirmed: hostWallet || undefined,
+  paymentMethod: 'web3' as const,
+  isWeb3Room: true,
+  web3PrizeStructure: {
+    firstPlace: setupConfig.prizeSplits?.[1] || 100,
+    secondPlace: setupConfig.prizeSplits?.[2] || 0,
+    thirdPlace: setupConfig.prizeSplits?.[3] || 0,
+  },
+  web3Chain: selectedChain,
+  evmNetwork: (setupConfig as any)?.evmNetwork,
+  solanaCluster: (setupConfig as any)?.solanaCluster,
+  roomContractAddress: deployRes.contractAddress,  // ✅ Only canonical field
+
+   web3CharityId: (setupConfig as any)?.web3CharityId,           // TGB orgId
+  web3CharityName: (setupConfig as any)?.web3Charity,           // Display name
+  web3CharityAddress: (setupConfig as any)?.web3CharityAddress, //
+};
 
       const response = await fetch('/quiz/api/create-web3-room', {
         method: 'POST',
@@ -717,23 +727,26 @@ const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) =
               setLaunchState('creating-room');
 
               const confirmedWallet = walletActions.getAddress() || currentWallet?.address || undefined;
+const web3RoomConfig = {
+  ...setupConfig,
+  deploymentTxHash: txHash,
+  hostWalletConfirmed: confirmedWallet || undefined,
+  paymentMethod: 'web3' as const,
+  isWeb3Room: true,
+  web3PrizeStructure: {
+    firstPlace: setupConfig.prizeSplits?.[1] || 100,
+    secondPlace: setupConfig.prizeSplits?.[2] || 0,
+    thirdPlace: setupConfig.prizeSplits?.[3] || 0,
+  },
+  web3Chain: selectedChain,
+  evmNetwork: (setupConfig as any)?.evmNetwork,
+  solanaCluster: (setupConfig as any)?.solanaCluster,
+  roomContractAddress: contractAddress,  // ✅ Only canonical field
 
-              const web3RoomConfig = {
-                ...setupConfig,
-                contractAddress,
-                deploymentTxHash: txHash,
-                web3ChainConfirmed: selectedChain,
-                // ✅ FIX: ensure type is string | undefined (no null)
-                hostWalletConfirmed: confirmedWallet || undefined,
-                paymentMethod: 'web3' as const,
-                isWeb3Room: true,
-                web3PrizeStructure: {
-                  firstPlace: setupConfig.prizeSplits?.[1] || 100,
-                  secondPlace: setupConfig.prizeSplits?.[2] || 0,
-                  thirdPlace: setupConfig.prizeSplits?.[3] || 0,
-                },
-              };
-
+   web3CharityId: (setupConfig as any)?.web3CharityId,           // TGB orgId
+  web3CharityName: (setupConfig as any)?.web3Charity,           // Display name
+  web3CharityAddress: (setupConfig as any)?.web3CharityAddress, //
+};
               const response = await fetch('/quiz/api/create-web3-room', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

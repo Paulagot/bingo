@@ -1,160 +1,232 @@
-// src/hooks/useWalletActions.ts
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { useQuizChainIntegration } from './useQuizChainIntegration';
-import type { SupportedChain, WalletConnectionResult, NetworkInfo, TransactionResult } from '../chains/types';
-import type { StellarWalletContextType } from '../chains/stellar/StellarWalletProvider';
+import { useWalletStore } from '../stores/walletStore';
+import type {
+  SupportedChain,
+  WalletConnectionResult,
+  NetworkInfo,
+} from '../chains/types';
 
-import { useStellarWalletContext } from '../chains/stellar/StellarWalletProvider';
-import { useEvmProvider } from '../chains/evm/EvmWalletProvider';
-
-// helper: call a hook, but if its provider isn't mounted, return a stub instead of throwing
-function useSafe<T>(hook: () => T, stub: T): T {
-  try { return hook(); } catch { return stub; }
-}
-
+/** Public shape this hook returns to callers */
 export interface WalletActions {
   chain: SupportedChain | null;
+
+  // lifecycle
   connect: () => Promise<WalletConnectionResult>;
   disconnect: () => Promise<void>;
   isConnected: () => boolean;
   getAddress: () => string | null;
+
+  // info
   getNetworkInfo: () => NetworkInfo | undefined;
+
+  // optional EVM-only helpers (feature-detect when calling)
+  switchChain?: (toChainId: number) => Promise<boolean>;
+  getChainId?: () => Promise<number | undefined>;
 }
 
 type Options = { chainOverride?: SupportedChain | null };
 
-/** FULLY-TYPED STELLAR STUB (matches StellarWalletContextType) */
-const STELLAR_STUB: StellarWalletContextType = {
-  // connection state
-  wallet: {
-    address: null,
-    isConnected: false,
-    isConnecting: false,
-    isDisconnecting: false,
-    chain: 'stellar',
-    error: null,
-    balance: '0',
-    lastConnected: undefined,
-    publicKey: undefined,
-    networkPassphrase: undefined as any,
-    walletType: undefined,
-  },
-  isInitialized: true,
-  currentNetwork: 'testnet',
-  balances: [],
-
-  // connection methods
-  connect: async () => ({ success: false, address: null }),
-  disconnect: async () => {},
-  reconnect: async () => {},
-
-  // tx methods
-  sendPayment: async (): Promise<TransactionResult> => ({ success: false }),
-  getBalance: async () => '0',
-
-  // network methods
-  switchNetwork: async () => false,
-  getSupportedAssets: () => [],
-
-  // utils
-  formatAddress: (a: string) => a,
-  getExplorerUrl: () => '',
-  isWalletInstalled: () => false,
-
-  // flags
-  canConnect: false,
-  canDisconnect: false,
-};
-
-/** EVM STUB (shape of your EVM context; we only use a few fields) */
-const EVM_STUB = {
-  connect: async () => ({ success: false, address: null } as WalletConnectionResult),
-  disconnect: async () => {},
-  isConnected: false,
-  address: null as string | null,
-
-  // EvmChainProvider base methods referenced optionally
-  getChainId: async () => 0,
-} as any;
-
+/**
+ * ✅ STORE-BASED WALLET ACTIONS
+ * 
+ * This version reads from the global wallet store instead of contexts,
+ * so it can be safely called anywhere without provider mounting issues.
+ */
 export function useWalletActions(opts?: Options): WalletActions {
   const { selectedChain } = useQuizChainIntegration({ chainOverride: opts?.chainOverride });
   const effectiveChain = (opts?.chainOverride ?? selectedChain) as SupportedChain | null;
 
-  // Always call hooks (rules of hooks), but safely — return stubs if the provider isn't mounted.
-  const stellar = useSafe(useStellarWalletContext, STELLAR_STUB);
-  const evm     = useSafe(useEvmProvider, EVM_STUB);
+  // ✅ Read from store, not contexts
+  const { stellar, evm, solana } = useWalletStore((s) => ({
+    stellar: s.stellar,
+    evm: s.evm,
+    solana: s.solana,
+  }));
 
-  return useMemo<WalletActions>(() => {
-    // --- STELLAR (unchanged from your original logic) ---
-    const stellarActions: WalletActions = {
-      chain: 'stellar',
-      connect: () => stellar.connect(),
-      disconnect: () => stellar.disconnect(),
-      isConnected: () => !!stellar.wallet.isConnected && !!stellar.wallet.address,
-      getAddress: () => stellar.wallet.address ?? null,
-      getNetworkInfo: (): NetworkInfo | undefined => {
-        if (!stellar.wallet.networkPassphrase) return undefined;
-        return {
-          chainId: stellar.wallet.networkPassphrase,
-          name: stellar.currentNetwork,
-          isTestnet: stellar.currentNetwork === 'testnet',
+  // Connection handlers dispatch to window events that providers listen to
+  const stellarConnect = useCallback(async (): Promise<WalletConnectionResult> => {
+    console.log('[useWalletActions] Dispatching stellar:request-connect');
+    window.dispatchEvent(new CustomEvent('stellar:request-connect'));
+    
+    // Wait a bit for provider to respond
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    const state = useWalletStore.getState().stellar;
+    if (state?.isConnected && state.address) {
+      return {
+        success: true,
+        address: state.address,
+        networkInfo: {
+          chainId: state.networkPassphrase || 'stellar',
+          name: 'Stellar',
+          isTestnet: true,
           rpcUrl: '',
           blockExplorer: '',
-        };
+        },
+      };
+    }
+    
+    return {
+      success: false,
+      address: null,
+      error: {
+        code: 'WALLET_CONNECTION_FAILED' as any,
+        message: 'Stellar connection failed',
+        timestamp: new Date(),
       },
     };
+  }, []);
 
-    // --- EVM via EvmWalletProvider ---
-    const evmActions: WalletActions = {
-      chain: 'evm',
-      connect: () => evm.connect(),
-      disconnect: () => evm.disconnect(),
-      isConnected: () => !!evm.isConnected,
-      getAddress: () => evm.address ?? null,
-      getNetworkInfo: () => undefined, // optional: mirror chainId in a store if you need it here
+  const stellarDisconnect = useCallback(async (): Promise<void> => {
+    console.log('[useWalletActions] Dispatching stellar:request-disconnect');
+    window.dispatchEvent(new CustomEvent('stellar:request-disconnect'));
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }, []);
+
+  const evmConnect = useCallback(async (): Promise<WalletConnectionResult> => {
+    console.log('[useWalletActions] Dispatching evm:request-connect');
+    window.dispatchEvent(new CustomEvent('evm:request-connect'));
+    
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    const state = useWalletStore.getState().evm;
+    if (state?.isConnected && state.address) {
+      return {
+        success: true,
+        address: state.address,
+        networkInfo: {
+          chainId: state.chainId?.toString() || 'evm',
+          name: 'EVM',
+          isTestnet: false,
+          rpcUrl: '',
+          blockExplorer: '',
+        },
+      };
+    }
+    
+    return {
+      success: false,
+      address: null,
+      error: {
+        code: 'WALLET_CONNECTION_FAILED' as any,
+        message: 'EVM connection failed',
+        timestamp: new Date(),
+      },
     };
+  }, []);
 
-    // --- Solana placeholder ---
-    const solanaActions: WalletActions = {
-      chain: 'solana',
+  const evmDisconnect = useCallback(async (): Promise<void> => {
+    console.log('[useWalletActions] Dispatching evm:request-disconnect');
+    window.dispatchEvent(new CustomEvent('evm:request-disconnect'));
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }, []);
+
+  return useMemo<WalletActions>(() => {
+    // ========== STELLAR ==========
+    if (effectiveChain === 'stellar') {
+      return {
+        chain: 'stellar',
+        connect: stellarConnect,
+        disconnect: stellarDisconnect,
+        isConnected: () => !!(stellar?.isConnected && stellar?.address),
+        getAddress: () => stellar?.address ?? null,
+        getNetworkInfo: (): NetworkInfo | undefined => {
+          if (!stellar?.networkPassphrase) return undefined;
+          return {
+            chainId: stellar.networkPassphrase,
+            name: 'Stellar',
+            isTestnet: true,
+            rpcUrl: '',
+            blockExplorer: '',
+          };
+        },
+      };
+    }
+
+    // ========== EVM ==========
+    if (effectiveChain === 'evm') {
+      return {
+        chain: 'evm',
+        connect: evmConnect,
+        disconnect: evmDisconnect,
+        isConnected: () => !!(evm?.isConnected && evm?.address),
+        getAddress: () => evm?.address ?? null,
+        getNetworkInfo: () => ({
+          chainId: evm?.chainId?.toString() || 'evm',
+          name: 'EVM',
+          isTestnet: false,
+          rpcUrl: '',
+          blockExplorer: '',
+        }),
+        // ✅ EVM-specific helpers
+        switchChain: async (toChainId: number) => {
+          window.dispatchEvent(new CustomEvent('evm:request-switch-chain', { 
+            detail: { chainId: toChainId } 
+          }));
+          await new Promise(resolve => setTimeout(resolve, 500));
+          return useWalletStore.getState().evm?.chainId === toChainId;
+        },
+        getChainId: async () => {
+          return useWalletStore.getState().evm?.chainId;
+        },
+      };
+    }
+
+    // ========== SOLANA ==========
+    if (effectiveChain === 'solana') {
+      return {
+        chain: 'solana',
+        connect: async () => ({
+          success: false,
+          address: null,
+          error: {
+            code: 'WALLET_NOT_FOUND' as any,
+            message: 'Solana wallet not implemented',
+            timestamp: new Date(),
+          },
+        }),
+        disconnect: async () => {},
+        isConnected: () => !!(solana?.isConnected && solana?.address),
+        getAddress: () => solana?.address ?? null,
+        getNetworkInfo: () => undefined,
+      };
+    }
+
+    // ========== NO CHAIN ==========
+    return {
+      chain: null,
       connect: async () => ({
         success: false,
         address: null,
-        error: { code: 'WALLET_NOT_FOUND' as any, message: 'Solana wallet not implemented', timestamp: new Date() }
+        error: {
+          code: 'WALLET_CONNECTION_FAILED' as any,
+          message: 'No chain selected',
+          timestamp: new Date(),
+        },
       }),
       disconnect: async () => {},
       isConnected: () => false,
       getAddress: () => null,
       getNetworkInfo: () => undefined,
     };
-
-    switch (effectiveChain) {
-      case 'stellar': return stellarActions;
-      case 'evm':     return evmActions;
-      case 'solana':  return solanaActions;
-      default:
-        return {
-          chain: null,
-          connect: async () => ({
-            success: false, address: null,
-            error: { code: 'CONNECTION_FAILED' as any, message: 'No chain selected', timestamp: new Date() }
-          }),
-          disconnect: async () => {},
-          isConnected: () => false,
-          getAddress: () => null,
-          getNetworkInfo: () => undefined,
-        };
-    }
   }, [
     effectiveChain,
-    // deps used in the memo:
-    stellar.wallet.isConnected,
-    stellar.wallet.address,
-    stellar.wallet.networkPassphrase,
-    stellar.currentNetwork,
-    evm.isConnected,
-    evm.address,
+    stellar?.isConnected,
+    stellar?.address,
+    stellar?.networkPassphrase,
+    evm?.isConnected,
+    evm?.address,
+    evm?.chainId,
+    solana?.isConnected,
+    solana?.address,
+    stellarConnect,
+    stellarDisconnect,
+    evmConnect,
+    evmDisconnect,
   ]);
 }
+
+
+
 
