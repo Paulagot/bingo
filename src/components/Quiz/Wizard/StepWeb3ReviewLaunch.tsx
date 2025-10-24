@@ -277,6 +277,8 @@ const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) =
   web3CharityName: (setupConfig as any)?.web3Charity,           // Display name
   web3CharityAddress: (setupConfig as any)?.web3CharityAddress, //
 };
+// Prevent accidental Web3 caps coming from the client
+delete (web3RoomConfig as any).maxPlayers;
 
       const response = await fetch('/quiz/api/create-web3-room', {
         method: 'POST',
@@ -747,6 +749,9 @@ const web3RoomConfig = {
   web3CharityName: (setupConfig as any)?.web3Charity,           // Display name
   web3CharityAddress: (setupConfig as any)?.web3CharityAddress, //
 };
+
+// Prevent accidental Web3 caps coming from the client
+delete (web3RoomConfig as any).maxPlayers;
               const response = await fetch('/quiz/api/create-web3-room', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

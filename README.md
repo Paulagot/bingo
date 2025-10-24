@@ -13,7 +13,7 @@ A real-time multiplayer quiz game built with React, TypeScript, and Socket.io, a
 ## Prerequisites (not ready yet)
 
 - **testnet tokens to mint and play with**: inlcuding mint button for testnet USD Glo
-- **requires testnet XLM to launch smart contract and game**: host requies testnet XLM to launch a game.
+- **requires testnet ETH/SOL/AVAX to launch smart contract and game**: host requies testnet ETH/SOL/AVAX to launch a game.
 Ensure you have the following installed:  
 - [Node.js](https://nodejs.org/)
 - [npm](https://www.npmjs.com/)  
@@ -73,7 +73,7 @@ By default, the app will run at `http://localhost:5173`.
 - **Frontend**: React, TypeScript, CSS Modules  
 - **Backend**: Node.js, Express, Socket.io  
 - **Styling**: Tailwind CSS  
-- **Blockchain**: Stellar
+- **Blockchain**: Solana, Base, Avalalche
 
 
 ---

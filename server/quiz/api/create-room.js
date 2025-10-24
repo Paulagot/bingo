@@ -237,7 +237,7 @@ router.post('/create-web3-room', async (req, res) => {
 
     // Force Web3 configuration with generous limits
     setupConfig.roomCaps = {
-      maxPlayers: setupConfig?.maxPlayers || 10000,
+      maxPlayers: 10000,
       maxRounds: Math.max(requestedRounds, 1),
       roundTypesAllowed: '*',
       extrasAllowed: '*',
