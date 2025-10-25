@@ -196,8 +196,11 @@ function buildHeadTags(seo) {
     type = 'website',
     canonical,
     keywords,
-    robots = 'index, follow',
+    robots: robotsFromSeo = 'index, follow',
   } = seo;
+
+   const isStaging = process.env.APP_ENV === 'staging';
+  const robots = isStaging ? 'noindex, nofollow' : robotsFromSeo;
 
   return [
     `<title>${escapeHtml(title)}</title>`,
@@ -308,7 +311,8 @@ const io = new Server(httpServer, {
       'http://localhost:5173',
       'http://localhost:5174',
       'http://localhost:3000',
-      'http://localhost:3001'
+      'http://localhost:3001',
+      'https://fundraisely-staging.up.railway.app'
     ],
     methods: ['GET', 'POST'],
     credentials: true

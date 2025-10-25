@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'   # match Railway
+          cache: 'npm'
+
+      - name: Install deps (ci)
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+      - name: Tests (if you want them gating)
+        run: npm run test:run
