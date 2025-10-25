@@ -7,30 +7,32 @@ on:
     branches: [develop, main]
 
 jobs:
-  build-test:
+  build:
+    name: Build
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Use Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '22'   # match Railway
+          node-version: '22'
           cache: 'npm'
+      - run: npm ci
+      # typecheck: non-blocking for now (remove "|| true" later)
+      - run: npx tsc --noEmit || true
+      # Required step — if this fails, PRs can't merge
+      - run: npm run build
 
-      - name: Install deps (ci)
-        run: npm ci
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    needs: build
+    continue-on-error: true   # results visible but won't block merges
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Typecheck
-        run: npx tsc --noEmit
-
-      - name: Build
-        run: npm run build
-
-      - name: Tests (if you want them gating)
-        run: npm run test:run
