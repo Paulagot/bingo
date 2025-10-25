@@ -57,12 +57,37 @@ app.use(
     changeOrigin: true,
     secure: true,
     pathRewrite: { '^/mgmt/api': '/api' }, // /mgmt/api/foo -> <MGMT_TARGET>/api/foo
+
+    // prevent 5-minute hangs
+    timeout: 20000,
+    proxyTimeout: 20000,
+    followRedirects: true,
+    ws: false,
+    logLevel: 'info',
+
     onProxyReq: (proxyReq, req) => {
-      // if you need to forward auth headers/cookies later, do it here
-      // e.g., proxyReq.setHeader('x-forwarded-host', req.get('host') || '');
+      // e.g. proxyReq.setHeader('x-forwarded-host', req.get('host') || '');
+    },
+
+    onError: (err, req, res) => {
+      console.error('❌ MGMT proxy error:', {
+        message: err.message,
+        code: err.code,
+        target: MGMT_TARGET,
+        url: req.url,
+      });
+      if (!res.headersSent) {
+        res.status(502).json({
+          error: 'Management API upstream error',
+          code: err.code || 'UPSTREAM_ERROR',
+        });
+      } else {
+        try { res.end(); } catch {}
+      }
     },
   })
 );
+
 
 /* ──────────────────────────────────────────────────────────
    Security headers (safe defaults; CSP in Report-Only)
@@ -94,7 +119,7 @@ const cspDirectives = {
   styleSrc: ["'self'", "https:", "'unsafe-inline'"],
   imgSrc: ["'self'", "data:", "https:"],
   fontSrc: ["'self'", "https:", "data:"],
-  connectSrc: ["'self'", "https:", "wss:"],
+  connectSrc: ["'self'", "https:", "wss:", "https://mgtsystem-production.up.railway.app"],
   frameSrc: ["'self'", "https://www.youtube.com"],
   frameAncestors: ["'self'"],
   // ❌ do NOT include upgradeInsecureRequests in Report-Only
