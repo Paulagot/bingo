@@ -48,6 +48,7 @@ const isProd = process.env.NODE_ENV === 'production';
 
 // configurable target so you can change it per environment without code changes
 const MGMT_TARGET = process.env.MGMT_TARGET ?? 'https://mgtsystem-production.up.railway.app'; // no trailing /api
+console.log('🛰️ MGMT proxy target =', MGMT_TARGET);
 
 app.use(
   '/mgmt/api',
@@ -100,23 +101,42 @@ const cspDirectives = {
 };
 app.use(helmet.contentSecurityPolicy({ directives: cspDirectives, reportOnly: true }));
 
-/* ──────────────────────────────────────────────────────────
-   301 redirects (run BEFORE routes/static/SPA handlers)
-   ────────────────────────────────────────────────────────── */
+// ──────────────────────────────────────────────────────────
+// 301 redirects (run BEFORE routes/static/SPA handlers)
+// ──────────────────────────────────────────────────────────
 app.use((req, res, next) => {
-  const pathname = req.path;               // e.g. "/Web3-Impact-Event"
-  const redirects = {
-    '/Web3-Impact-Event': '/web3/impact-campaign',
-    '/web3-impact-event': '/web3/impact-campaign',
-  };
+  const { path: p } = req;
 
-  const target = redirects[pathname];
-  if (target) {
+  // helper to redirect with preserved querystring
+  const redirect = (target) => {
     const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
     return res.redirect(301, target + qs);
+  };
+
+  // Collapse accidental double /web3/web3/*
+  if (/^\/web3\/web3(\/.*)?$/i.test(p)) {
+    const tail = p.replace(/^\/web3\/web3/i, '/web3');
+    return redirect(tail);
   }
+
+  // Legacy: /web3-impact-event[/...]*  → /web3/impact-campaign[/...]*
+  const m1 = p.match(/^\/web3-impact-event(?:\/(.*))?$/i) || p.match(/^\/Web3-Impact-Event(?:\/(.*))?$/);
+  if (m1) return redirect('/web3/impact-campaign' + (m1[1] ? '/' + m1[1] : ''));
+
+  // Legacy: /impact[/...]* → /web3/impact-campaign[/...]*
+  const m2 = p.match(/^\/impact(?:\/(.*))?$/i);
+  if (m2) return redirect('/web3/impact-campaign' + (m2[1] ? '/' + m2[1] : ''));
+
+  // Legacy: /web3-fundraising-quiz[/...]* → /web3[/...]*
+  const m3 = p.match(/^\/web3-fundraising-quiz(?:\/(.*))?$/i);
+  if (m3) return redirect('/web3' + (m3[1] ? '/' + m3[1] : ''));
+
+  // Convenience: /uk or /ireland → /
+  if (/^\/(uk|ireland)\/?$/i.test(p)) return redirect('/');
+
   next();
 });
+
 
 
 
