@@ -1,3 +1,4 @@
+// eslint.config.ts
 import js from '@eslint/js'
 import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
@@ -6,16 +7,19 @@ import tseslint from 'typescript-eslint'
 import tailwind from 'eslint-plugin-tailwindcss'
 
 export default tseslint.config(
-  { ignores: ['dist', 'build', 'node_modules'] },
+  // ---- Global ignores
+  { ignores: ['dist', 'build', 'node_modules', 'coverage'] },
 
-  // TypeScript/TSX
+  // ---- TypeScript / TSX (browser + React)
   {
     files: ['**/*.{ts,tsx}'],
     extends: [...tseslint.configs.recommended],
     languageOptions: {
       ecmaVersion: 2020,
       sourceType: 'module',
-      globals: globals.browser,
+      globals: {
+        ...globals.browser, // default: browser for src/**
+      },
     },
     plugins: {
       'react-hooks': reactHooks,
@@ -24,32 +28,29 @@ export default tseslint.config(
     },
     settings: {
       tailwindcss: {
-        // helps the plugin understand helper fns you use for classNames
         callees: ['cn', 'clsx', 'cva', 'twMerge'],
-        // point to your Tailwind config if not default
         config: 'tailwind.config.ts',
       },
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
-
-      // Tailwind consistency
       'tailwindcss/classnames-order': 'warn',
       'tailwindcss/no-contradicting-classname': 'error',
-      // keep OFF so custom utilities like "section", "btn" don’t error
       'tailwindcss/no-custom-classname': 'off',
     },
   },
 
-  // JavaScript/JSX (if you have any)
+  // ---- JavaScript / JSX (browser + React)
   {
     files: ['**/*.{js,jsx}'],
     extends: [js.configs.recommended],
     languageOptions: {
       ecmaVersion: 2020,
       sourceType: 'module',
-      globals: globals.browser,
+      globals: {
+        ...globals.browser,
+      },
     },
     plugins: {
       'react-hooks': reactHooks,
@@ -69,6 +70,40 @@ export default tseslint.config(
       'tailwindcss/no-contradicting-classname': 'error',
       'tailwindcss/no-custom-classname': 'off',
     },
-  }
+  },
+
+  // ---- Node overrides (server, scripts, configs)
+  {
+    files: [
+      'server/**/*.{js,ts,mjs,cjs}',
+      'scripts/**/*.{js,ts,mjs,cjs}',
+      'vite.config.*',
+      'vitest*.config.*',
+      'eslint.config.*',
+    ],
+    languageOptions: {
+      ecmaVersion: 2020,
+      sourceType: 'module',
+      globals: {
+        ...globals.node, // <-- fixes 'process' / __dirname / require etc.
+      },
+    },
+    rules: {
+      // you can add node-specific rules here later
+    },
+  },
+
+  // ---- Optional: relax fast-refresh rule only on providers
+  {
+    files: [
+      'src/chains/stellar/StellarWalletProvider.tsx',
+      'src/chains/evm/EvmWalletProvider.tsx',
+    ],
+    rules: {
+      // these files export helpers + components; warn only
+      'react-refresh/only-export-components': 'warn',
+    },
+  },
 )
+
 
