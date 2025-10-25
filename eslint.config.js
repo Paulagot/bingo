@@ -72,7 +72,7 @@ export default tseslint.config(
     },
   },
 
-  // ---- Node overrides (server, scripts, configs)
+  // ---- Node overrides (server, scripts, config files)
   {
     files: [
       'server/**/*.{js,ts,mjs,cjs}',
@@ -85,25 +85,30 @@ export default tseslint.config(
       ecmaVersion: 2020,
       sourceType: 'module',
       globals: {
-        ...globals.node, // <-- fixes 'process' / __dirname / require etc.
+        ...globals.node, // <-- fixes 'process' / __dirname etc.
       },
     },
     rules: {
-      // you can add node-specific rules here later
+      // Be lenient with unused vars in server routes/handlers
+      'no-unused-vars': ['warn', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      }],
     },
   },
 
-  // ---- Optional: relax fast-refresh rule only on providers
+  // ---- Optional: relax fast-refresh warnings only on provider files
   {
     files: [
       'src/chains/stellar/StellarWalletProvider.tsx',
       'src/chains/evm/EvmWalletProvider.tsx',
     ],
     rules: {
-      // these files export helpers + components; warn only
       'react-refresh/only-export-components': 'warn',
     },
   },
 )
+
 
 

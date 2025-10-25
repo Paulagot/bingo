@@ -17,7 +17,7 @@ import { TimerService } from './services/TimerService.js';
 import { LeaderboardService } from './services/LeaderboardService.js';
 import { ReviewService } from './services/ReviewService.js';
 import { SimplifiedScoringService } from './services/SimplifiedScoringService.js';
-import { getRoundScoring, isQuestionWindowOpen } from '../handlers/scoringUtils.js';
+import { _getRoundScoring, isQuestionWindowOpen } from '../handlers/scoringUtils.js';
 
 let timerService = null;
 const debug = false;
@@ -170,7 +170,7 @@ export function startNextQuestion(roomId, namespace) {
 /* ------------------------- Handle an answer ------------------------- */
 
 // CORRECTED handlePlayerAnswer for both engines:
-export function handlePlayerAnswer(roomId, playerId, payload, namespace) {
+export function handlePlayerAnswer(roomId, playerId, payload, _namespace) {
   const room = getQuizRoom(roomId);
   const question = getCurrentQuestion(roomId);
   if (!room || !question) return;

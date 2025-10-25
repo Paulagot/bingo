@@ -6,6 +6,7 @@ import type { WalletConnectionResult, TransactionResult } from '../types';
 import { stellarStorageKeys } from './config';
 import { useWalletStore } from '../../stores/walletStore';
 
+/* eslint-disable react-refresh/only-export-components */
 
 
 // ===================================================================
