@@ -48,6 +48,7 @@ const isProd = process.env.NODE_ENV === 'production';
 
 // configurable target so you can change it per environment without code changes
 const MGMT_TARGET = process.env.MGMT_TARGET ?? 'https://mgtsystem-production.up.railway.app'; // no trailing /api
+console.log('🛰️ MGMT proxy target =', MGMT_TARGET);
 
 app.use(
   '/mgmt/api',

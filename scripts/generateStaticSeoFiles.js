@@ -1,4 +1,4 @@
-// scripts/generateStaticSeoFiles.js
+
 // scripts/generateStaticSeoFiles.js
 import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
