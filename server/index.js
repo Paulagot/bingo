@@ -124,7 +124,7 @@ const cspDirectives = {
   frameAncestors: ["'self'"],
   // ❌ do NOT include upgradeInsecureRequests in Report-Only
 };
-app.use(helmet.contentSecurityPolicy({ directives: cspDirectives, reportOnly: true }));
+app.use(helmet.contentSecurityPolicy({ directives: cspDirectives, reportOnly: false }));
 
 // ──────────────────────────────────────────────────────────
 // 301 redirects (run BEFORE routes/static/SPA handlers)
