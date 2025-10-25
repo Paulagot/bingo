@@ -17,7 +17,7 @@ import { TimerService } from './services/TimerService.js';
 import { LeaderboardService } from './services/LeaderboardService.js';
 import { ReviewService } from './services/ReviewService.js';
 import { SimplifiedScoringService } from './services/SimplifiedScoringService.js';
-import { _getRoundScoring, isQuestionWindowOpen } from '../handlers/scoringUtils.js';
+import { isQuestionWindowOpen } from '../handlers/scoringUtils.js';
 
 let timerService = null;
 const debug = false;
