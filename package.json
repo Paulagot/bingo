@@ -48,6 +48,7 @@
     "framer-motion": "^11.0.8",
     "git-filter-repo": "^0.0.30",
     "helmet": "^8.1.0",
+    "http-proxy-middleware": "^3.0.5",
     "install": "^0.13.0",
     "jsonwebtoken": "^9.0.2",
     "jspdf": "^3.0.3",

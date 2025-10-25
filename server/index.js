@@ -38,11 +38,30 @@ import helmet from 'helmet';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+import { createProxyMiddleware } from 'http-proxy-middleware';
+
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '100kb' }));
 
 const isProd = process.env.NODE_ENV === 'production';
+
+// configurable target so you can change it per environment without code changes
+const MGMT_TARGET = process.env.MGMT_TARGET ?? 'https://mgtsystem-production.up.railway.app'; // no trailing /api
+
+app.use(
+  '/mgmt/api',
+  createProxyMiddleware({
+    target: MGMT_TARGET,
+    changeOrigin: true,
+    secure: true,
+    pathRewrite: { '^/mgmt/api': '/api' }, // /mgmt/api/foo -> <MGMT_TARGET>/api/foo
+    onProxyReq: (proxyReq, req) => {
+      // if you need to forward auth headers/cookies later, do it here
+      // e.g., proxyReq.setHeader('x-forwarded-host', req.get('host') || '');
+    },
+  })
+);
 
 /* ──────────────────────────────────────────────────────────
    Security headers (safe defaults; CSP in Report-Only)
