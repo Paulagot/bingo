@@ -96,12 +96,12 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
           </div>
 
           {/* Escape hatch */}
-          <button
+          {/* <button
             className="mt-6 rounded-lg border border-orange-300 bg-white/70 px-4 py-2 text-orange-700 hover:bg-white"
             onClick={() => onPhaseChange?.('complete')}
           >
             Cancel & Return to Results
-          </button>
+          </button> */}
         </div>
       )}
 

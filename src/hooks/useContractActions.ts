@@ -1,4 +1,3 @@
-// src/hooks/useContractActions.ts
 import { useCallback, useMemo } from 'react';
 import { useQuizChainIntegration } from './useQuizChainIntegration';
 
@@ -9,6 +8,9 @@ import { useQuizChainIntegration } from './useQuizChainIntegration';
 import type { SupportedChain } from '../chains/types';
 import { keccak256, stringToHex } from 'viem';
 import { getAccount } from 'wagmi/actions';
+
+// If you placed tgbNetworks elsewhere, update this import path accordingly.
+import { getTgbNetworkLabel } from '../chains/tgbNetworks';
 
 /* ------------------------- EVM imports ------------------------- */
 import { writeContract, waitForTransactionReceipt, getChainId, readContract } from 'wagmi/actions';
@@ -94,7 +96,16 @@ type DistributeResult =
 
 type Options = { chainOverride?: SupportedChain | null };
 
-/** ---------- Hook ---------- */
+/* ---------- Helpers ---------- */
+function bigintToDecimalString(value: bigint, decimals: number) {
+  const s = value.toString().padStart(decimals + 1, '0');
+  const i = s.length - decimals;
+  const whole = s.slice(0, i);
+  const frac = s.slice(i).replace(/0+$/, ''); // trim trailing zeros
+  return frac ? `${whole}.${frac}` : whole;
+}
+
+/* ---------------- Main hook ---------------- */
 export function useContractActions(opts?: Options) {
   const { selectedChain } = useQuizChainIntegration({ chainOverride: opts?.chainOverride });
   const effectiveChain = (opts?.chainOverride ?? selectedChain) as SupportedChain | null;
@@ -310,12 +321,12 @@ export function useContractActions(opts?: Options) {
             account: account as `0x${string}`,
           });
           // Wait for lock confirmation
-await waitForTransactionReceipt(wagmiConfig, {
-  hash: lockTxHash,
-  chainId: target.id,
-  confirmations: 1,
-});
-console.log('✅ [EVM] Room locked successfully:', lockTxHash);
+          await waitForTransactionReceipt(wagmiConfig, {
+            hash: lockTxHash,
+            chainId: target.id,
+            confirmations: 1,
+          });
+          console.log('✅ [EVM] Room locked successfully:', lockTxHash);
 
           console.log('🔍 [EVM] Reading charity payout preview from contract...');
 
@@ -357,16 +368,76 @@ console.log('✅ [EVM] Room locked successfully:', lockTxHash);
             throw new Error('previewCharityPayout did not return expected values');
           }
 
-          const charityWallet = (rest as any)?.charityAddress;
+          // ------------------- TGB deposit address (non-breaking) -------------------
+          // We try to fetch a TGB deposit address ONLY if the room setup has a TGB orgId.
+          // If not present, we fall back to the old charityWallet path to avoid breaking behavior.
+          const setup = JSON.parse(localStorage.getItem('setupConfig') || '{}');
+          const tgbOrgId = (setup?.web3CharityOrgId as string | undefined) || (rest as any)?.charityOrgId;
 
-          console.log('🔍 [EVM] Charity info from room config:', {
-            wallet: charityWallet,
-          });
+          let recipientAddressForFinalize: `0x${string}` | null = null;
 
-          if (!charityWallet || !/^0x[0-9a-fA-F]{40}$/.test(charityWallet)) {
-            console.error('❌ [EVM] Invalid charity wallet:', charityWallet);
-            throw new Error('Invalid charity wallet address. Room configuration may be incomplete.');
+          if (tgbOrgId) {
+            try {
+              // Currency symbol from setup (or default to USDC)
+              const currencySym = (setup?.currencySymbol || setup?.web3Currency || 'USDC').toUpperCase();
+
+              // Derive TGB network label centrally (no hard-coded switches here)
+              const tgbNetwork = getTgbNetworkLabel({
+                web3Chain: 'evm',
+                evmTargetKey: target.key,
+                solanaCluster: null,
+              });
+
+              // Convert bigint -> decimal string for amount
+              const decimals = (await readContract(wagmiConfig, {
+                address: token,
+                abi: ERC20_ABI,
+                functionName: 'decimals',
+                chainId: target.id,
+              })) as number;
+
+              const charityAmtDecimal = bigintToDecimalString(charityAmt, decimals);
+
+              const mockParam = process.env.NODE_ENV !== 'production' ? '?mock=1' : '';
+              const resp = await fetch(`/api/tgb/create-deposit-address${mockParam}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  organizationId: tgbOrgId,
+                  currency: currencySym,       // e.g., "USDC"
+                  network: tgbNetwork,         // e.g., "base"
+                  amount: charityAmtDecimal,   // exact amount (human-readable)
+                  metadata: { roomId: _roomId }
+                }),
+              });
+
+              const dep = await resp.json();
+              if (!resp.ok || !dep?.ok || !dep?.depositAddress) {
+                console.error('TGB deposit address request failed:', dep);
+                throw new Error(dep?.error || 'Could not get The Giving Block deposit address');
+              }
+
+              recipientAddressForFinalize = dep.depositAddress as `0x${string}`;
+              console.log('✅ [TGB] Using deposit address for finalize:', recipientAddressForFinalize);
+            } catch (tgbErr: any) {
+              console.warn('⚠️ [TGB] Falling back to configured charity wallet due to error:', tgbErr?.message || tgbErr);
+              recipientAddressForFinalize = null; // fallback will be handled below
+            }
           }
+
+          // Fallback (legacy path): use the pre-configured charity wallet if TGB path is not available
+          if (!recipientAddressForFinalize) {
+            const charityWallet = (rest as any)?.charityAddress;
+            console.log('🔍 [EVM] Charity info from room config (fallback):', { wallet: charityWallet });
+
+            if (!charityWallet || !/^0x[0-9a-fA-F]{40}$/.test(charityWallet)) {
+              console.error('❌ [EVM] Invalid charity wallet:', charityWallet);
+              throw new Error('Invalid charity wallet address. Room configuration may be incomplete.');
+            }
+
+            recipientAddressForFinalize = charityWallet as `0x${string}`;
+          }
+          // ------------------- End TGB + fallback -------------------
 
           const offchainIntentId = `FR-${_roomId}-${Date.now()}`;
           const intentIdHash = keccak256(stringToHex(offchainIntentId, { size: 32 }));
@@ -377,7 +448,7 @@ console.log('✅ [EVM] Room locked successfully:', lockTxHash);
             address: roomAddress as `0x${string}`,
             abi: PoolRoomABI,
             functionName: 'finalize',
-            args: [addrs as `0x${string}`[], charityWallet as `0x${string}`, intentIdHash],
+            args: [addrs as `0x${string}`[], recipientAddressForFinalize, intentIdHash],
             chainId: target.id,
             account: account as `0x${string}`,
           });
@@ -477,10 +548,10 @@ console.log('✅ [EVM] Room locked successfully:', lockTxHash);
     }
 
     if (isPool) {
-      const charity = (p.charityAddress || '').trim();
-      if (!/^0x[0-9a-fA-F]{40}$/.test(charity)) {
-        throw new Error('Please select a charity (missing wallet address).');
-      }
+      // const charity = (p.charityAddress || '').trim();
+      // if (!/^0x[0-9a-fA-F]{40}$/.test(charity)) {
+      //   throw new Error('Please select a charity (missing wallet address).');
+      // }
 
       const token = getErc20ForCurrency(p.currency, target.key);
       const host = p.hostWallet;
@@ -624,6 +695,7 @@ console.log('✅ [EVM] Room locked successfully:', lockTxHash);
 
   return { deploy, joinRoom, distributePrizes };
 }
+
 
 
 

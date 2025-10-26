@@ -28,6 +28,9 @@ console.log('📦 Type:', typeof communityRegistrationApi);
 
 import { initializeDatabase } from './config/database.js';
 
+import createDepositAddress from './tgb/api/create-deposit-address.js';
+import tgbWebhookHandler from './tgb/api/webhook.js';
+
 import contactRoute from './routes/contact.js';
 import passwordResetRoute from './routes/passwordReset.js';
 
@@ -45,6 +48,9 @@ app.use(cors());
 app.use(express.json({ limit: '100kb' }));
 
 const isProd = process.env.NODE_ENV === 'production';
+
+app.post('/api/tgb/create-deposit-address', createDepositAddress);
+app.post('/api/tgb/webhook', tgbWebhookHandler);
 
 // configurable target so you can change it per environment without code changes
 const MGMT_TARGET = process.env.MGMT_TARGET ?? 'https://mgtsystem-production.up.railway.app'; // no trailing /api

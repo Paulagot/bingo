@@ -1,6 +1,6 @@
 User-agent: *
 
-# ALLOW - Public pages
+# ALLOW — Public pages
 Allow: /
 Allow: /whats-new
 Allow: /blog
@@ -26,10 +26,10 @@ Allow: /quiz/use-cases/charities
 Allow: /quiz/use-cases/clubs
 Allow: /quiz/use-cases/schools
 
-# BLOCK - Private sections
+# BLOCK — Private / thin / system routes
+Disallow: /search
 Disallow: /game/
-Disallow: /quiz/           # app/private quiz routes are blocked...
-                           # ...but explicit Allows above keep the marketing pages open
+Disallow: /quiz/
 Disallow: /BingoBlitz
 Disallow: /admin/
 Disallow: /dashboard/
@@ -39,8 +39,12 @@ Disallow: /signup
 Disallow: /payment/
 Disallow: /checkout/
 Disallow: /api/
+Disallow: /mgmt/
+Disallow: /socket.io/
+Disallow: /debug/
 
 # Sitemap for THIS domain only
 Sitemap: https://fundraisely.co.uk/sitemap.xml
 
+# Note: Google ignores Crawl-delay
 Crawl-delay: 1
