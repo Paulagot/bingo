@@ -609,7 +609,7 @@ const handleEndGame = useCallback(() => {
     if (config?.paymentMethod === 'web3' || config?.isWeb3Room) {
       navigate('/web3/impact-campaign/');
     } else {
-      navigate('/quiz');
+      navigate('/');
     }
     return;
   }
@@ -635,7 +635,7 @@ const handleEndGame = useCallback(() => {
     if (config?.paymentMethod === 'web3' || config?.isWeb3Room) {
       navigate('/web3/impact-campaign/');
     } else {
-      navigate('/quiz');
+      navigate('/');
     }
   }
 }, [socket, roomId, navigate, config?.paymentMethod, config?.isWeb3Room]);

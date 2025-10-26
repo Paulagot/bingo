@@ -294,7 +294,7 @@ useEffect(() => {
         const msg = res?.error || 'Failed to join';
         if (msg.includes('Room not found') || msg.includes('Player not found')) {
           showNotification('error', msg);
-          navigate('/quiz');
+          navigate('/');
         } else {
           showNotification('error', msg);
         }
