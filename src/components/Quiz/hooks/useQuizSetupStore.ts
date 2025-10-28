@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { QuizConfig, RoundDefinition } from '../types/quiz';
+import { getCharityById } from '../../../chains/evm/config/gbcharities';
 
 type WizardStep = 'setup' | 'templates' | 'rounds' | 'fundraising' | 'stepPrizes' | 'review';
 type WizardFlow = 'web2' | 'web3';
@@ -47,6 +48,7 @@ interface QuizSetupState {
   setCurrencySymbol: (symbol: string) => void;
   setPaymentMethod: (method: QuizConfig['paymentMethod']) => void;
   setEventDateTime: (iso: string | undefined) => void;
+  setWeb3CharityById: (orgId: string) => void;
 
   setTemplate: (templateId: string | 'custom', opts?: { skipRounds?: boolean }) => void;
 
@@ -114,6 +116,23 @@ export const useQuizSetupStore = create<QuizSetupState>()(
 
       setEventDateTime: (iso) =>
         set((s) => ({ setupConfig: { ...s.setupConfig, eventDateTime: iso }, lastSavedAt: Date.now() })),
+
+      setWeb3CharityById: (orgId) => {
+        const charity = getCharityById(orgId);
+        if (!charity) {
+          console.warn(`[useQuizSetupStore] Charity not found for orgId: ${orgId}`);
+          return;
+        }
+        set((s) => ({
+          setupConfig: {
+            ...s.setupConfig,
+            web3Charity: orgId,           // Keep for backwards compat
+            web3CharityOrgId: orgId,
+            web3CharityName: charity.name,
+          },
+          lastSavedAt: Date.now(),
+        }));
+      },
 
       setTemplate: (templateId, opts) =>
         set((s) => ({

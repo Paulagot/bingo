@@ -16,6 +16,7 @@ import { WizardStepProps } from './WizardStepProps';
 import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
 import type { SupportedChain } from '../../../chains/types';
 import ClearSetupButton from './ClearSetupButton';
+import { CHARITIES, searchCharities } from '../../../chains/evm/config/gbcharities';
 
 interface StepWeb3QuizSetupProps extends WizardStepProps {
   onChainUpdate?: (chain: SupportedChain) => void;
@@ -49,7 +50,7 @@ const Character = ({ message }: { message: string }) => {
 const CHAINS = [
   { value: 'stellar', label: 'Stellar', description: 'Fast, low-cost payments' },
   // { value: 'evm', label: 'Ethereum', description: 'Most popular smart contract platform' },
-  // { value: 'solana', label: 'Solana', description: 'High-speed, low-fee blockchain' },
+  { value: 'solana', label: 'Solana', description: 'High-speed, low-fee blockchain' },
 ];
 
 const getTokensForChain = (chain: string) => {
@@ -77,14 +78,8 @@ const getTokensForChain = (chain: string) => {
   }
 };
 
-const CHARITIES = [
-  { value: 'redcross', label: 'Red Cross' },
-  { value: 'unicef', label: 'UNICEF' },
-  { value: 'wateraid', label: 'WaterAid' },
-];
-
 const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUpdate, onResetToFirst }) => {
-  const { setupConfig, updateSetupConfig, setFlow } = useQuizSetupStore();
+  const { setupConfig, updateSetupConfig, setFlow, setWeb3CharityById } = useQuizSetupStore();
 
   // Ensure store flow reflects we are in web3 wizard (useful for persistence)
   useEffect(() => {
@@ -97,7 +92,7 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
   // Web3 fields
   const [chain, setChain] = useState(setupConfig.web3Chain || 'stellar');
   const [currency, setCurrency] = useState(setupConfig.web3Currency || 'USDGLO');
-  const [charity, setCharity] = useState(setupConfig.web3Charity || '');
+  const [charity, setCharity] = useState(setupConfig.web3CharityOrgId || setupConfig.web3Charity || '');
   const [entryFee, setEntryFee] = useState(setupConfig.entryFee || '');
 
   const availableTokens = useMemo(() => getTokensForChain(chain), [chain]);
@@ -145,6 +140,9 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
       return;
     }
 
+    // Use the new helper to set TGB charity fields
+    setWeb3CharityById(charity);
+
     updateSetupConfig({
       hostName: hostName.trim(),
       entryFee: entryFee.trim(),
@@ -152,7 +150,6 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
       currencySymbol: currency, // reused for symbol display
       web3Chain: chain,
       web3Currency: currency,
-      web3Charity: charity,
     });
 
     setError('');
@@ -342,12 +339,22 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
           >
             <option value="">Select a charity...</option>
             {CHARITIES.map((ch) => (
-              <option key={ch.value} value={ch.value}>
-                {ch.label}
+              <option key={ch.id} value={ch.id}>
+                {ch.name}
               </option>
             ))}
           </select>
-          <p className="text-fg/60 text-xs italic">Powered by The Giving Block and Coala Pay</p>
+          <p className="text-fg/60 text-xs italic">
+            Powered by{' '}
+            <a
+              href="https://thegivingblock.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-indigo-600 hover:underline"
+            >
+              The Giving Block
+            </a>
+          </p>
 
           {charity && (
             <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3">
@@ -356,7 +363,7 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
                 <span className="text-sm font-medium text-red-800">Charity Selected</span>
               </div>
               <p className="text-sm text-red-700">
-                Supporting <strong>{CHARITIES.find((c) => c.value === charity)?.label ?? charity}</strong> with a portion of quiz proceeds
+                Supporting <strong>{CHARITIES.find((c) => c.id === charity)?.name ?? charity}</strong> with a portion of quiz proceeds
               </p>
             </div>
           )}

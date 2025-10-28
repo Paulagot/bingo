@@ -6,16 +6,10 @@ import shallow from 'zustand/shallow'; // ✅ import shallow
 
 // Lazy load chain providers for performance
 import { StellarWalletProvider } from '../../chains/stellar/StellarWalletProvider';
+import { SolanaWalletProvider } from '../../chains/solana/SolanaWalletProvider';
 
 // Placeholder for future EVM provider
 const EvmWalletProvider = React.lazy(() =>
-  Promise.resolve({
-    default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  })
-);
-
-// Placeholder for future Solana provider
-const SolanaWalletProvider = React.lazy(() =>
   Promise.resolve({
     default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   })
@@ -125,8 +119,8 @@ export const DynamicChainProvider: FC<DynamicChainProviderProps> = ({ selectedCh
     }
   }, [selectedChain]);
 
-  // For stellar, skip Suspense since it's not lazy loaded
-  if (selectedChain === 'stellar' && ProviderComponent) {
+  // For stellar and solana, skip Suspense since they're not lazy loaded
+  if ((selectedChain === 'stellar' || selectedChain === 'solana') && ProviderComponent) {
     return (
       <ChainProviderErrorBoundary chain={selectedChain}>
         <ProviderComponent>

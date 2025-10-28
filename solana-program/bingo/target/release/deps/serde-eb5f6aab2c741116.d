@@ -1,0 +1,14 @@
+\\?\C:\Users\isich\bingo\solana-program\bingo\target\release\deps\libserde-eb5f6aab2c741116.rmeta: C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde-1.0.228\src\lib.rs C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde-1.0.228\src\integer128.rs C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde-1.0.228\src\private\mod.rs C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde-1.0.228\src\private\de.rs C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde-1.0.228\src\private\ser.rs \\?\C:\Users\isich\bingo\solana-program\bingo\target\release\build\serde-4de0cff3a78b610e\out\private.rs
+
+\\?\C:\Users\isich\bingo\solana-program\bingo\target\release\deps\libserde-eb5f6aab2c741116.rlib: C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde-1.0.228\src\lib.rs C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde-1.0.228\src\integer128.rs C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde-1.0.228\src\private\mod.rs C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde-1.0.228\src\private\de.rs C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde-1.0.228\src\private\ser.rs \\?\C:\Users\isich\bingo\solana-program\bingo\target\release\build\serde-4de0cff3a78b610e\out\private.rs
+
+\\?\C:\Users\isich\bingo\solana-program\bingo\target\release\deps\serde-eb5f6aab2c741116.d: C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde-1.0.228\src\lib.rs C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde-1.0.228\src\integer128.rs C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde-1.0.228\src\private\mod.rs C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde-1.0.228\src\private\de.rs C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde-1.0.228\src\private\ser.rs \\?\C:\Users\isich\bingo\solana-program\bingo\target\release\build\serde-4de0cff3a78b610e\out\private.rs
+
+C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde-1.0.228\src\lib.rs:
+C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde-1.0.228\src\integer128.rs:
+C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde-1.0.228\src\private\mod.rs:
+C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde-1.0.228\src\private\de.rs:
+C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\serde-1.0.228\src\private\ser.rs:
+\\?\C:\Users\isich\bingo\solana-program\bingo\target\release\build\serde-4de0cff3a78b610e\out\private.rs:
+
+# env-dep:OUT_DIR=\\\\?\\C:\\Users\\isich\\bingo\\solana-program\\bingo\\target\\release\\build\\serde-4de0cff3a78b610e\\out

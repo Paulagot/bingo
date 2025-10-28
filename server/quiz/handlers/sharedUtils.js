@@ -37,6 +37,40 @@ export function setupSharedHandlers(socket, namespace) {
     });
   });
 
+  // NEW: Handler for getting room config (for TGB integration)
+  socket.on('get_room_config', ({ roomId }) => {
+    import('../quizRoomManager.js').then(({ getQuizRoom }) => {
+      const room = getQuizRoom(roomId);
+      if (!room) {
+        socket.emit('room_config', { roomId, error: 'Room not found' });
+        return;
+      }
+
+      const {
+        entryFee = '0',
+        web3Chain,
+        web3Currency,
+        web3CharityOrgId,
+        web3CharityName,
+        web3CharityAddress,
+        web3PrizeSplit,
+      } = room.config;
+
+      socket.emit('room_config', {
+        roomId,
+        entryFee,
+        web3Chain,
+        web3Currency,
+        web3CharityOrgId,
+        web3CharityName,
+        web3CharityAddress,
+        web3PrizeSplit,
+      });
+
+      if (debug) console.log(`[SharedUtils] 📡 Sent room_config for ${roomId}`);
+    });
+  });
+
 socket.on('verify_quiz_room', ({ roomId }) => {
   import('../quizRoomManager.js').then(({ getQuizRoom }) => {
     const room = getQuizRoom(roomId);

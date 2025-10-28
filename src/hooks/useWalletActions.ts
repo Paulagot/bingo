@@ -2,6 +2,7 @@
 import { useMemo } from 'react';
 import { useQuizChainIntegration } from './useQuizChainIntegration';
 import { useStellarWalletContext } from '../chains/stellar/StellarWalletProvider';
+import { useSolanaWalletContext } from '../chains/solana/SolanaWalletProvider';
 import type { SupportedChain, WalletConnectionResult, NetworkInfo } from '../chains/types';
 
 export interface WalletActions {
@@ -19,8 +20,25 @@ export function useWalletActions(opts?: Options): WalletActions {
   const { selectedChain } = useQuizChainIntegration({ chainOverride: opts?.chainOverride });
   const effectiveChain = (opts?.chainOverride ?? selectedChain) as SupportedChain | null;
 
-  // Always mount Stellar context; we’ll read from it when chain === 'stellar'
-  const stellar = useStellarWalletContext();
+  // Try to get contexts - they'll throw if provider not mounted, so we catch and set to null
+  let stellar: ReturnType<typeof useStellarWalletContext> | null = null;
+  let solana: ReturnType<typeof useSolanaWalletContext> | null = null;
+
+  // Note: This violates rules of hooks if called conditionally, so we use the pattern
+  // where we always call the hook but handle the error if provider isn't mounted
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    stellar = useStellarWalletContext();
+  } catch (e) {
+    // Stellar provider not mounted, that's ok
+  }
+
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    solana = useSolanaWalletContext();
+  } catch (e) {
+    // Solana provider not mounted, that's ok
+  }
 
   return useMemo<WalletActions>(() => {
     const stellarActions: WalletActions = {
@@ -52,11 +70,20 @@ export function useWalletActions(opts?: Options): WalletActions {
 
     const solanaActions: WalletActions = {
       chain: 'solana',
-      connect: async () => ({ success: false, address: null, error: { code: 'WALLET_NOT_FOUND' as any, message: 'Solana wallet not implemented', timestamp: new Date() } }),
-      disconnect: async () => {},
-      isConnected: () => false,
-      getAddress: () => null,
-      getNetworkInfo: () => undefined,
+      connect: () => solana ? solana.connect() : Promise.resolve({ success: false, address: null, error: { code: 'WALLET_NOT_FOUND' as any, message: 'Solana provider not mounted', timestamp: new Date() } }),
+      disconnect: () => solana ? solana.disconnect() : Promise.resolve(),
+      isConnected: () => solana ? !!solana.wallet.isConnected && !!solana.wallet.address : false,
+      getAddress: () => solana ? solana.wallet.address ?? null : null,
+      getNetworkInfo: (): NetworkInfo | undefined => {
+        if (!solana || !solana.wallet.cluster) return undefined;
+        return {
+          chainId: solana.wallet.cluster,
+          name: solana.currentCluster,
+          isTestnet: solana.currentCluster === 'devnet' || solana.currentCluster === 'testnet',
+          rpcUrl: '',
+          blockExplorer: '',
+        };
+      },
     };
 
     switch (effectiveChain) {
@@ -73,8 +100,18 @@ export function useWalletActions(opts?: Options): WalletActions {
           getNetworkInfo: () => undefined,
         };
     }
-  // keep deps lean; stellar values are fine here
-  }, [effectiveChain, stellar.wallet.isConnected, stellar.wallet.address, stellar.wallet.networkPassphrase, stellar.currentNetwork]);
+  // Include both stellar and solana dependencies
+  }, [
+    effectiveChain,
+    stellar?.wallet.isConnected,
+    stellar?.wallet.address,
+    stellar?.wallet.networkPassphrase,
+    stellar?.currentNetwork,
+    solana?.wallet.isConnected,
+    solana?.wallet.address,
+    solana?.wallet.cluster,
+    solana?.currentCluster,
+  ]);
 }
 
 
