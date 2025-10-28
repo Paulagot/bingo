@@ -5,7 +5,7 @@ const DUMMY_ADDR = '0x1111111111111111111111111111111111111111' as const;
 
 export const ASSET_FACTORY = {
   // --- Base ---
-  baseSepolia: '0x2222222222222222222222222222222222222222' as const, // TODO: test addr (existing)
+  baseSepolia: '0x7775A6c38347FE7284be1298FCdDB291F1A24CCe' as const, // TODO: test addr (existing)
   base:        '0x3333333333333333333333333333333333333333' as const, // TODO: mainnet (existing)
 
   // --- BNB Smart Chain ---
