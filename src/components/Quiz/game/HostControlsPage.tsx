@@ -91,7 +91,7 @@ const HostControlsCore = () => {
   const { roomId } = useParams<{ roomId: string }>();
   const { socket, connected } = useQuizSocket();
   const { config } = useQuizConfig();
-  const [timerActive, setTimerActive] = useState(false);
+  const [_timerActive, setTimerActive] = useState(false);
   const [playersInRoom, setPlayersInRoom] = useState<User[]>([]);
 
   const [roomState, setRoomState] = useState<RoomStatePayload>({
@@ -550,7 +550,7 @@ const HostControlsCore = () => {
   };
 
   // --- CTA label logic for overall leaderboard ---
-  const isFinalRound = roomState.currentRound >= roomState.totalRounds;
+ 
   const prizeCount = computePrizeCount(config);
   const prizeBoundaryTies =
     roomState.phase === 'leaderboard' && !isShowingRoundResults
@@ -609,7 +609,7 @@ const handleEndGame = useCallback(() => {
     if (config?.paymentMethod === 'web3' || config?.isWeb3Room) {
       navigate('/web3/impact-campaign/');
     } else {
-      navigate('/quiz');
+      navigate('/');
     }
     return;
   }
@@ -635,7 +635,7 @@ const handleEndGame = useCallback(() => {
     if (config?.paymentMethod === 'web3' || config?.isWeb3Room) {
       navigate('/web3/impact-campaign/');
     } else {
-      navigate('/quiz');
+      navigate('/');
     }
   }
 }, [socket, roomId, navigate, config?.paymentMethod, config?.isWeb3Room]);

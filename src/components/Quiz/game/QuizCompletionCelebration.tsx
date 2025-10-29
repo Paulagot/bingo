@@ -2,7 +2,7 @@
 // FIXED: Correct import paths based on your folder structure
 
 import React, { useState, useEffect } from 'react';
-import { Share2, Twitter, Linkedin, Instagram, Facebook, Copy } from 'lucide-react';
+
 
 // FIXED: Import screen components from correct paths
 import CelebrationScreen from './completion/CelebrationScreen';

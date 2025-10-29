@@ -22,6 +22,7 @@ export interface Prize {
   uploadStatus?: 'pending' | 'uploading' | 'completed' | 'failed';
   transactionHash?: string;
   uploadedAt?: string;
+  tokenId?: string | number;
 }
 
 export type RoundTypeId =

@@ -1,8 +1,8 @@
 // server/policy/entitlements.js
-import jwt from 'jsonwebtoken';
+
 import { connection } from '../config/database.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-dev-secret';
+const _JWT_SECRET = process.env.JWT_SECRET || 'fallback-dev-secret';
 
 
 
@@ -16,7 +16,7 @@ const FALLBACK_FREE_PLAN = {
   game_credits_remaining: 2,
 };
 
-const FALLBACK_DEV_PLAN = {
+const _FALLBACK_DEV_PLAN = {
   max_players_per_game: 20,
   max_rounds: 8,
   round_types_allowed: ['general_trivia', 'wipeout', 'speed_round'],

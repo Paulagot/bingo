@@ -32,6 +32,9 @@ import tgbWebhookHandler from './tgb/api/webhook.js';
 
 import { initializeDatabase } from './config/database.js';
 
+import createDepositAddress from './tgb/api/create-deposit-address.js';
+import tgbWebhookHandler from './tgb/api/webhook.js';
+
 import contactRoute from './routes/contact.js';
 import passwordResetRoute from './routes/passwordReset.js';
 import clubsRoute from './routes/clubs.js';
@@ -43,11 +46,59 @@ import helmet from 'helmet';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+import { createProxyMiddleware } from 'http-proxy-middleware';
+
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '100kb' }));
 
 const isProd = process.env.NODE_ENV === 'production';
+
+app.post('/api/tgb/create-deposit-address', createDepositAddress);
+app.post('/api/tgb/webhook', tgbWebhookHandler);
+
+// configurable target so you can change it per environment without code changes
+const MGMT_TARGET = process.env.MGMT_TARGET ?? 'https://mgtsystem-production.up.railway.app'; // no trailing /api
+console.log('🛰️ MGMT proxy target =', MGMT_TARGET);
+
+app.use(
+  '/mgmt/api',
+  createProxyMiddleware({
+    target: MGMT_TARGET,
+    changeOrigin: true,
+    secure: true,
+    pathRewrite: { '^/mgmt/api': '/api' }, // /mgmt/api/foo -> <MGMT_TARGET>/api/foo
+
+    // prevent 5-minute hangs
+    timeout: 20000,
+    proxyTimeout: 20000,
+    followRedirects: true,
+    ws: false,
+    logLevel: 'info',
+
+    onProxyReq: (proxyReq, req) => {
+      // e.g. proxyReq.setHeader('x-forwarded-host', req.get('host') || '');
+    },
+
+    onError: (err, req, res) => {
+      console.error('❌ MGMT proxy error:', {
+        message: err.message,
+        code: err.code,
+        target: MGMT_TARGET,
+        url: req.url,
+      });
+      if (!res.headersSent) {
+        res.status(502).json({
+          error: 'Management API upstream error',
+          code: err.code || 'UPSTREAM_ERROR',
+        });
+      } else {
+        try { res.end(); } catch {}
+      }
+    },
+  })
+);
+
 
 /* ──────────────────────────────────────────────────────────
    Security headers (safe defaults; CSP in Report-Only)
@@ -79,30 +130,49 @@ const cspDirectives = {
   styleSrc: ["'self'", "https:", "'unsafe-inline'"],
   imgSrc: ["'self'", "data:", "https:"],
   fontSrc: ["'self'", "https:", "data:"],
-  connectSrc: ["'self'", "https:", "wss:"],
+  connectSrc: ["'self'", "https:", "wss:", "https://mgtsystem-production.up.railway.app"],
   frameSrc: ["'self'", "https://www.youtube.com"],
   frameAncestors: ["'self'"],
   // ❌ do NOT include upgradeInsecureRequests in Report-Only
 };
-app.use(helmet.contentSecurityPolicy({ directives: cspDirectives, reportOnly: true }));
+app.use(helmet.contentSecurityPolicy({ directives: cspDirectives, reportOnly: false }));
 
-/* ──────────────────────────────────────────────────────────
-   301 redirects (run BEFORE routes/static/SPA handlers)
-   ────────────────────────────────────────────────────────── */
+// ──────────────────────────────────────────────────────────
+// 301 redirects (run BEFORE routes/static/SPA handlers)
+// ──────────────────────────────────────────────────────────
 app.use((req, res, next) => {
-  const pathname = req.path;               // e.g. "/Web3-Impact-Event"
-  const redirects = {
-    '/Web3-Impact-Event': '/web3/impact-campaign',
-    '/web3-impact-event': '/web3/impact-campaign',
-  };
+  const { path: p } = req;
 
-  const target = redirects[pathname];
-  if (target) {
+  // helper to redirect with preserved querystring
+  const redirect = (target) => {
     const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
     return res.redirect(301, target + qs);
+  };
+
+  // Collapse accidental double /web3/web3/*
+  if (/^\/web3\/web3(\/.*)?$/i.test(p)) {
+    const tail = p.replace(/^\/web3\/web3/i, '/web3');
+    return redirect(tail);
   }
+
+  // Legacy: /web3-impact-event[/...]*  → /web3/impact-campaign[/...]*
+  const m1 = p.match(/^\/web3-impact-event(?:\/(.*))?$/i) || p.match(/^\/Web3-Impact-Event(?:\/(.*))?$/);
+  if (m1) return redirect('/web3/impact-campaign' + (m1[1] ? '/' + m1[1] : ''));
+
+  // Legacy: /impact[/...]* → /web3/impact-campaign[/...]*
+  const m2 = p.match(/^\/impact(?:\/(.*))?$/i);
+  if (m2) return redirect('/web3/impact-campaign' + (m2[1] ? '/' + m2[1] : ''));
+
+  // Legacy: /web3-fundraising-quiz[/...]* → /web3[/...]*
+  const m3 = p.match(/^\/web3-fundraising-quiz(?:\/(.*))?$/i);
+  if (m3) return redirect('/web3' + (m3[1] ? '/' + m3[1] : ''));
+
+  // Convenience: /uk or /ireland → /
+  if (/^\/(uk|ireland)\/?$/i.test(p)) return redirect('/');
+
   next();
 });
+
 
 
 
@@ -206,8 +276,11 @@ function buildHeadTags(seo) {
     type = 'website',
     canonical,
     keywords,
-    robots = 'index, follow',
+    robots: robotsFromSeo = 'index, follow',
   } = seo;
+
+   const isStaging = process.env.APP_ENV === 'staging';
+  const robots = isStaging ? 'noindex, nofollow' : robotsFromSeo;
 
   return [
     `<title>${escapeHtml(title)}</title>`,
@@ -318,7 +391,8 @@ const io = new Server(httpServer, {
       'http://localhost:5173',
       'http://localhost:5174',
       'http://localhost:3000',
-      'http://localhost:3001'
+      'http://localhost:3001',
+      'https://fundraisely-staging.up.railway.app'
     ],
     methods: ['GET', 'POST'],
     credentials: true

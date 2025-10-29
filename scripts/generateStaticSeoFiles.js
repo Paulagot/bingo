@@ -1,14 +1,15 @@
+
 // scripts/generateStaticSeoFiles.js
 import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 
-// PUBLIC PAGES YOU WANT INDEXED
+// PUBLIC PAGES YOU WANT INDEXED (no trailing slash for canonical consistency)
 const publicPages = [
   { path: '/', priority: 1.0, changefreq: 'weekly' },
   { path: '/whats-new', priority: 0.8, changefreq: 'weekly' },
   { path: '/blog', priority: 0.7, changefreq: 'weekly' },
 
-  // Impact Campaign (no trailing slash for canonical consistency)
+  // Impact Campaign
   { path: '/web3/impact-campaign', priority: 0.9, changefreq: 'monthly' },
   { path: '/web3/impact-campaign/join', priority: 0.8, changefreq: 'weekly' },
   { path: '/web3/impact-campaign/leaderboard', priority: 0.6, changefreq: 'daily' },
@@ -49,14 +50,14 @@ function dateFor(path) {
   return lastmodMap[path] || new Date().toISOString().split('T')[0];
 }
 
-function altHreflangLinks(domain, path) {
+function altHreflangLinks(_domain, path) {
+  // Always emit alternates for both domains and an x-default.
   const ukUrl = `https://${UK_HOST}${path}`;
   const ieUrl = `https://${IE_HOST}${path}`;
-  // Emit both alternates + x-default on EVERY url entry (in BOTH sitemaps)
   return [
     `    <xhtml:link rel="alternate" hreflang="en-GB" href="${ukUrl}" />`,
     `    <xhtml:link rel="alternate" hreflang="en-IE" href="${ieUrl}" />`,
-    `    <xhtml:link rel="alternate" hreflang="x-default" href="${ukUrl}" />` // choose UK as x-default (swap if IE is your default)
+    `    <xhtml:link rel="alternate" hreflang="x-default" href="${ukUrl}" />`
   ].join('\n');
 }
 
@@ -79,7 +80,7 @@ ${altHreflangLinks(domain, page.path)}
 function generateRobotsTxt(domain) {
   return `User-agent: *
 
-# ALLOW - Public pages
+# ALLOW — Public pages
 Allow: /
 Allow: /whats-new
 Allow: /blog
@@ -105,10 +106,10 @@ Allow: /quiz/use-cases/charities
 Allow: /quiz/use-cases/clubs
 Allow: /quiz/use-cases/schools
 
-# BLOCK - Private sections
+# BLOCK — Private / thin / system routes
+Disallow: /search
 Disallow: /game/
-Disallow: /quiz/           # app/private quiz routes are blocked...
-                           # ...but explicit Allows above keep the marketing pages open
+Disallow: /quiz/
 Disallow: /BingoBlitz
 Disallow: /admin/
 Disallow: /dashboard/
@@ -118,10 +119,14 @@ Disallow: /signup
 Disallow: /payment/
 Disallow: /checkout/
 Disallow: /api/
+Disallow: /mgmt/
+Disallow: /socket.io/
+Disallow: /debug/
 
 # Sitemap for THIS domain only
 Sitemap: https://${domain}/sitemap.xml
 
+# Note: Google ignores Crawl-delay
 Crawl-delay: 1
 `;
 }
@@ -142,7 +147,7 @@ try {
   writeFileSync(join('public', 'sitemap-ie.xml'), ieSitemap);
   writeFileSync(join('public', 'robots-ie.txt'), ieRobots);
 
-  // Default copies based on env (so the correct one is served as /sitemap.xml & /robots.txt)
+  // Defaults based on env
   if (DEFAULT_DOMAIN === 'ie') {
     writeFileSync(join('public', 'sitemap.xml'), ieSitemap);
     writeFileSync(join('public', 'robots.txt'), ieRobots);
@@ -158,4 +163,5 @@ try {
 } catch (error) {
   console.error('❌ Error generating static SEO files:', error);
 }
+
 

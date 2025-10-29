@@ -1,4 +1,3 @@
-// src/hooks/useContractActions.ts
 import { useCallback, useMemo } from 'react';
 import { useQuizChainIntegration } from './useQuizChainIntegration';
 
@@ -292,8 +291,43 @@ export function useContractActions(opts?: Options) {
           console.error('[Solana Join] Error:', error);
           return { success: false, error: error.message || 'Join room failed' };
         }
-      };
+      } catch { /* ignore */ }
+
+      // Approve ERC-20 if any amount needs paying
+      if (total > 0n) {
+        const approveHash = await writeContract(wagmiConfig, {
+          address: tokenAddr,
+          abi: ERC20_ABI,
+          functionName: 'approve',
+          args: [roomAddr, total],
+          chainId,
+        });
+        await waitForTransactionReceipt(wagmiConfig, { hash: approveHash, chainId });
+      }
+
+      // Call the correct join (same signature in both ABIs)
+      const joinHash = await writeContract(wagmiConfig, {
+        address: roomAddr,
+        abi: RoomABI,
+        functionName: 'join', // (feePaid, extrasPaid)
+        args: [feePaid, extrasPaid],
+        chainId,
+      });
+      await waitForTransactionReceipt(wagmiConfig, { hash: joinHash, chainId });
+
+      return { success: true, txHash: joinHash as `0x${string}` };
+    } catch (e: any) {
+      let msg = e?.message || 'join failed';
+      if (/need 1st/i.test(msg)) {
+        msg = 'Join blocked: first prize (place #1) must be uploaded. Configure and call uploadPrize(1).';
+      } else if (/execution reverted/i.test(msg)) {
+        msg = `Contract reverted: ${msg.replace('execution reverted: ', '')}`;
+      }
+      return { success: false, error: msg };
     }
+  };
+}
+
 
     // TODO: implement EVM join
     return async (_args: JoinArgs): Promise<JoinResult> => ({
@@ -485,6 +519,7 @@ export function useContractActions(opts?: Options) {
           if (!solanaContract || !solanaContract.isReady) {
             throw new Error('Solana contract not ready');
           }
+          // ------------------- End TGB + fallback -------------------
 
           if (!solanaContract.publicKey) {
             throw new Error('Wallet not connected');
@@ -697,6 +732,7 @@ export function useContractActions(opts?: Options) {
 
 // Optional: export a typed alias if you want to reuse the shape elsewhere
 export type ContractActions = ReturnType<typeof useContractActions>;
+
 
 
 
