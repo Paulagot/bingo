@@ -113,7 +113,11 @@ export interface QuizConfig {
   totalTimeSeconds?: number;
   web3Chain?: string;
   web3Currency?: string;
-  web3Charity?: string; 
+  web3Charity?: string;  // OLD: charity slug/ID (keep for backwards compat)
+  // NEW: TGB (The Giving Block) integration fields
+  web3CharityOrgId?: string;      // TGB organization ID (e.g., 'org_abc123')
+  web3CharityName?: string;       // Display name (e.g., 'Red Cross')
+  web3CharityAddress?: string;    // Deposit address from TGB API (generated on-demand)
   web3PrizeSplit?: {
     charity: number; // min 50
     host: number;    // max 5

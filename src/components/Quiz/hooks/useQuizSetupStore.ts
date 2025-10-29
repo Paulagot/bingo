@@ -2,8 +2,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { QuizConfig, RoundDefinition } from '../types/quiz';
-import { getCharityById } from '../../../chains/evm/config/charities';
-
+import { getCharityById } from '../../../chains/evm/config/gbcharities';
 
 type WizardStep = 'setup' | 'templates' | 'rounds' | 'fundraising' | 'stepPrizes' | 'review';
 type WizardFlow = 'web2' | 'web3';
@@ -49,6 +48,7 @@ interface QuizSetupState {
   setCurrencySymbol: (symbol: string) => void;
   setPaymentMethod: (method: QuizConfig['paymentMethod']) => void;
   setEventDateTime: (iso: string | undefined) => void;
+  setWeb3CharityById: (orgId: string) => void;
 
   setTemplate: (templateId: string | 'custom', opts?: { skipRounds?: boolean }) => void;
 
@@ -66,7 +66,6 @@ interface QuizSetupState {
 
   purgePersist: (opts?: { keepIds?: boolean }) => void; // fully clear persistence
   hardReset: (opts?: { flow?: WizardFlow; keepIds?: boolean }) => void;
-  setWeb3CharityById: (id: string | null) => void;
 }
 
 export const useQuizSetupStore = create<QuizSetupState>()(
@@ -117,6 +116,23 @@ export const useQuizSetupStore = create<QuizSetupState>()(
 
       setEventDateTime: (iso) =>
         set((s) => ({ setupConfig: { ...s.setupConfig, eventDateTime: iso }, lastSavedAt: Date.now() })),
+
+      setWeb3CharityById: (orgId) => {
+        const charity = getCharityById(orgId);
+        if (!charity) {
+          console.warn(`[useQuizSetupStore] Charity not found for orgId: ${orgId}`);
+          return;
+        }
+        set((s) => ({
+          setupConfig: {
+            ...s.setupConfig,
+            web3Charity: orgId,           // Keep for backwards compat
+            web3CharityOrgId: orgId,
+            web3CharityName: charity.name,
+          },
+          lastSavedAt: Date.now(),
+        }));
+      },
 
       setTemplate: (templateId, opts) =>
         set((s) => ({
@@ -175,22 +191,6 @@ export const useQuizSetupStore = create<QuizSetupState>()(
             lastSavedAt: Date.now(),
           };
         }),
-
-        setWeb3CharityById: (id) =>
-  set((s) => {
-    // lazy import avoids bundler cycles
-        const c = id ? getCharityById(id) : undefined;
-    return {
-      setupConfig: {
-        ...s.setupConfig,
-        web3CharityId: c?.id,
-        web3Charity: c?.name,                  // display name (for UI)
-        web3CharityAddress: c?.wallet as any,  // EVM address (for deploy)
-      },
-      lastSavedAt: Date.now(),
-    };
-  }),
-
 
       setExtraPrice: (key, price) =>
         set((state) => {

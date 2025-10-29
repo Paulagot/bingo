@@ -1,4 +1,4 @@
-// server/api/tgb/create-deposit-address.js
+// server/tgb/api/create-deposit-address.js
 import { getAccessToken, tgbBaseUrl } from '../auth.js';
 
 function assertString(name, val) {
@@ -113,5 +113,3 @@ export default async function createDepositAddress(req, res) {
     return res.status(500).json({ ok: false, error: err?.message ?? 'Server error' });
   }
 }
-
-

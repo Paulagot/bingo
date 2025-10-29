@@ -1,4 +1,4 @@
-// server/api/tgb/webhook.js
+// server/tgb/api/webhook.js
 import crypto from 'node:crypto';
 
 /**
@@ -36,7 +36,7 @@ export default async function tgbWebhookHandler(req, res) {
 
     if (!keyB64 || !ivB64) {
       return res.status(500).json({ ok: false, error: 'Webhook AES key/iv not configured' });
-      }
+    }
 
     const key = Buffer.from(keyB64, 'base64'); // 32 bytes
     const iv = Buffer.from(ivB64, 'base64');   // 16 bytes

@@ -1,4 +1,4 @@
-// src/chains/shared/tgbNetworks.ts
+// src/chains/tgbNetworks.ts
 /**
  * Single source of truth for The Giving Block network labels.
  * Keep this tiny table updated with the same keys you already use in resolveEvmTarget(...) and Solana cluster.
@@ -37,7 +37,7 @@ const MAP: Record<string, TgbNetwork> = {
 };
 
 /**
- * Returns the TGB label from your app’s network keys.
+ * Returns the TGB label from your app's network keys.
  * Safe fallback: returns `solana` if chain says solana; else returns input key.
  */
 export function getTgbNetworkLabel(opts: {

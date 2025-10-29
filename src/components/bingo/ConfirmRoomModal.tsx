@@ -7,7 +7,6 @@ import { decodeEventLog } from 'viem';
 import { useSupportedNetworks } from './hooks/useSupportedNetworks';
 import type { SupportedNetwork } from './hooks/useSupportedNetworks';
 import { chainInfo } from './constants/contractFactoryAddresses';
-import { checkServerHealth } from './utils/checkServerHealth';
 import { CreateSolanaRoom } from './createsolanaroom';
 
 
@@ -83,13 +82,7 @@ const ConfirmRoomModal: React.FC<ConfirmRoomModalProps> = ({
     setStatus('');
     console.log('🚀 handleConfirm called');
 
-    const serverAlive = await checkServerHealth();
-    console.log('✅ Server health:', serverAlive);
-    if (!serverAlive) {
-      setError('🚨 Server unavailable. Try again later.');
-      setServerHealthy(false);
-      return;
-    }
+    // Backend health check removed - not required for core functionality
     setServerHealthy(true);
 
     if (!isConnected || !address) {
