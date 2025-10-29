@@ -1,3 +1,5 @@
+//src/components/bingo/constants/fundraiselybingoroom
+
 export const FUNDRAISELY_BINGO_ROOM_ABI = [
   {
     "inputs": [],

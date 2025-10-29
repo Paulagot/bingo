@@ -1,4 +1,4 @@
-// src/hooks/useReownRoomPayments.ts
+//src/components/bingo/hooks/useReownRoomPayments.ts
 import { useState } from 'react';
 import { useAppKitAccount, useAppKitState, useAppKitNetwork } from '@reown/appkit/react';
 import { usePublicClient, useWriteContract } from 'wagmi';

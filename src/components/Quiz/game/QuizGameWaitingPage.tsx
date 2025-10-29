@@ -15,7 +15,7 @@ import { useQuizConfig } from '../hooks/useQuizConfig';
 import { fundraisingExtraDefinitions, roundTypeDefinitions } from '../constants/quizMetadata';
 import type { RoundTypeId } from '../types/quiz';
 
-const DEBUG = false;
+const DEBUG = true;
 
 const debugLog = {
   info: (message: string, ...args: any[]) => { if (DEBUG) console.log(`🔵 [WaitingPage] ${message}`, ...args); },
@@ -64,31 +64,41 @@ const QuizGameWaitingPage = () => {
       debugLog.warning('⚠️ Missing data for joinOrRejoin', { connected, roomId, playerId });
       return;
     }
-  // Always do a single-shot recovery that returns the full snapshot
-  if (hasJoinedRef.current) {
-    // Idempotent: we can still re-run; server will disconnect any prior player socket
-  }
-  hasJoinedRef.current = true;
 
-  socket.emit(
-    'join_and_recover',
-    { roomId, user: { id: playerId, name: (playerData?.name || 'Player') }, role: 'player' },
-    (res?: any) => {
-      if (!res?.ok) {
-        const msg = res?.error || 'Failed to recover';
-        debugLog.error('❌ join_and_recover failed', msg);
-        navigate('/quiz');
-        return;
-      }
-      debugLog.success('✅ join_and_recover snapshot received');
-      const { snap } = res;
-      // If the game is already underway, go to play page
-      const phase = snap?.roomState?.phase;
-      if (['asking','reviewing','leaderboard','launched','tiebreaker','complete'].includes(phase)) {
-        navigate(`/quiz/play/${roomId}/${playerId}`);
-      }
+    if (hasJoinedRef.current) {
+      // Idempotent: we can still re-run; server will disconnect any prior player socket
     }
-  );
+    hasJoinedRef.current = true;
+
+    // ✅ FIX: Build user object conditionally - only include name if we have valid data
+    const userPayload: { id: string; name?: string } = { id: playerId };
+    
+    // Only include name if we have actual player data loaded (not the default 'Player')
+    if (playerData?.name && playerData.name !== 'Player') {
+      userPayload.name = playerData.name;
+    }
+    
+    debugLog.info('🔄 Joining/rejoining with payload:', userPayload);
+
+    socket.emit(
+      'join_and_recover',
+      { roomId, user: userPayload, role: 'player' },
+      (res?: any) => {
+        if (!res?.ok) {
+          const msg = res?.error || 'Failed to recover';
+          debugLog.error('❌ join_and_recover failed', msg);
+          navigate('/quiz');
+          return;
+        }
+        debugLog.success('✅ join_and_recover snapshot received');
+        const { snap } = res;
+        // If the game is already underway, go to play page
+        const phase = snap?.roomState?.phase;
+        if (['asking','reviewing','leaderboard','launched','tiebreaker','complete'].includes(phase)) {
+          navigate(`/quiz/play/${roomId}/${playerId}`);
+        }
+      }
+    );
   };
 
   // Debug: rounds
@@ -99,28 +109,35 @@ const QuizGameWaitingPage = () => {
     }
   }, [config]);
 
-  // 🗄️ Hydrate from cache early
+  // 🗄️ Hydrate from cache early - BEFORE any join attempts
   useEffect(() => {
-    if (!STORAGE_KEY || playerData) return;
+    if (!STORAGE_KEY) return;
+    
     try {
       const cached = localStorage.getItem(STORAGE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached) as ServerPlayer;
         setPlayerData(parsed);
-        debugLog.info('🗄️ Loaded player snapshot from cache');
+        debugLog.info('🗄️ Loaded player snapshot from cache:', parsed.name);
       }
-    } catch {}
+    } catch (err) {
+      debugLog.error('Failed to load from cache', err);
+    }
+    
     if (roomId && playerId) {
       localStorage.setItem('fr_last_room_ctx', JSON.stringify({ roomId, playerId, at: Date.now() }));
     }
-  }, [STORAGE_KEY, playerData, roomId, playerId]);
+  }, [STORAGE_KEY, roomId, playerId]);
 
   // ✍️ Persist any fresh playerData
   useEffect(() => {
     if (!STORAGE_KEY || !playerData) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(playerData));
-    } catch {}
+      debugLog.info('💾 Persisted player data to cache:', playerData.name);
+    } catch (err) {
+      debugLog.error('Failed to persist to cache', err);
+    }
   }, [STORAGE_KEY, playerData]);
 
   // 🔌 Socket lifecycle: connect/reconnect
@@ -152,9 +169,7 @@ const QuizGameWaitingPage = () => {
       socket.off('reconnect', onReconnect);
       socket.off('disconnect', onDisconnect);
     };
-  }, [socket, roomId, playerId, connected]);
-
-
+  }, [socket, roomId, playerId, connected, playerData]);
 
   // 🔔 Listeners
   useEffect(() => {
@@ -205,13 +220,19 @@ const QuizGameWaitingPage = () => {
     };
   }, [socket, connected, playerId, navigate, roomId]);
 
-  // 🔑 One-shot join on mount/param change
+  // 🔑 One-shot join on mount/param change - ONLY after cache is checked
   useEffect(() => {
     if (!socket || !connected || !roomId || !playerId) {
       debugLog.warning('⚠️ Missing params for joinQuizRoom');
       return;
     }
-    joinOrRejoin();
+    
+    // Small delay to ensure cache has been read first
+    const timer = setTimeout(() => {
+      joinOrRejoin();
+    }, 100);
+    
+    return () => clearTimeout(timer);
   }, [socket, connected, roomId, playerId]);
 
   // Helpers
@@ -245,6 +266,7 @@ const QuizGameWaitingPage = () => {
           <div className="text-fg/60 mt-4 text-xs">
             Config loaded: {!!config ? '✅' : '❌'} |
             Player data: {!!playerData ? '✅' : '❌'} |
+            Player name: {playerData?.name || 'N/A'} |
             Socket: {connected ? '🟢' : '🔴'}
           </div>
         )}
@@ -253,7 +275,7 @@ const QuizGameWaitingPage = () => {
   }
 
   const playerExtras = playerData.extras || [];
-  const playerName = playerData.name;
+  const playerName = playerData.name || 'Player';
   const totalPlayers = allPlayers.length;
 
   return (
@@ -435,7 +457,7 @@ const QuizGameWaitingPage = () => {
         </div>
         {DEBUG && (
           <div className="mt-2 text-xs text-gray-400">
-            Player ID: {playerId} | Socket: {connected ? '🟢 Connected' : '🔴 Disconnected'}
+            Player ID: {playerId} | Name: {playerData.name} | Socket: {connected ? '🟢 Connected' : '🔴 Disconnected'}
           </div>
         )}
       </div>

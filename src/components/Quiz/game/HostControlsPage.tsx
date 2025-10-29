@@ -593,6 +593,57 @@ const HostControlsCore = () => {
     },
   });
 
+  /**
+ * 🧹 End Game Cleanup Handler
+ * 
+ * Called after successful Web3 prize distribution.
+ * Emits cleanup signal to backend, which then notifies all clients.
+ * Frontend (QuizSocketProvider) handles the actual redirect based on isWeb3Room flag.
+ */
+const handleEndGame = useCallback(() => {
+  console.log('🧹 [Host] Starting end game cleanup...');
+  
+  if (!socket || !roomId) {
+    console.warn('⚠️ [Host] No socket or roomId available');
+    // Fallback: redirect directly based on payment method
+    if (config?.paymentMethod === 'web3' || config?.isWeb3Room) {
+      navigate('/web3/impact-campaign/');
+    } else {
+      navigate('/quiz');
+    }
+    return;
+  }
+
+  try {
+    // Send cleanup signal to backend
+    // Backend will determine if Web3 room and notify all clients with appropriate flag
+    socket.emit('end_quiz_cleanup', { roomId });
+    
+    console.log('✅ [Host] End game cleanup signal sent to backend');
+    console.log('⏳ [Host] Waiting for backend to complete cleanup...');
+    
+    // The rest happens automatically:
+    // 1. Backend checks if Web3 room
+    // 2. Backend emits quiz_cleanup_complete with isWeb3Room flag
+    // 3. QuizSocketProvider receives event and redirects based on flag
+    //    - Web3: /web3/impact-campaign/
+    //    - Web2: /quiz
+    
+  } catch (error) {
+    console.error('❌ [Host] Error during cleanup:', error);
+    // Fallback: navigate directly if socket fails
+    if (config?.paymentMethod === 'web3' || config?.isWeb3Room) {
+      navigate('/web3/impact-campaign/');
+    } else {
+      navigate('/quiz');
+    }
+  }
+}, [socket, roomId, navigate, config?.paymentMethod, config?.isWeb3Room]);
+
+
+
+
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
       {/* Countdown Effect Overlay */}
@@ -771,20 +822,22 @@ const HostControlsCore = () => {
           />
         )}
 
-        {/* ⤵️ Post-game content (complete + distributing) */}
-        <HostPostgamePanel
-          phase={roomState.phase}
-          leaderboard={leaderboard}
-          totalPlayers={roomState.totalPlayers || 0}
-          hasFinalStats={hasFinalStats}
-          allRoundsStats={allRoundsStats}
-          roomId={roomId!}
-          paymentMethod={config?.paymentMethod}
-          debug={debug}
-          onReturnToDashboard={() =>
-            navigate(`/quiz/host-dashboard/${roomId}?tab=prizes&lock=postgame`)
-          }
-        />
+      
+     {/* ⤵️ Post-game content (complete + distributing) */}
+<HostPostgamePanel
+  phase={roomState.phase}
+  leaderboard={leaderboard}
+  totalPlayers={roomState.totalPlayers || 0}
+  hasFinalStats={hasFinalStats}
+  allRoundsStats={allRoundsStats}
+  roomId={roomId!}
+  paymentMethod={config?.paymentMethod}
+  debug={debug}
+  onReturnToDashboard={() =>
+    navigate(`/quiz/host-dashboard/${roomId}?tab=prizes&lock=postgame`)
+  }
+  onEndGame={handleEndGame} 
+/>
       </div>
     </div>
   );

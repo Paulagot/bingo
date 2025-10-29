@@ -1,4 +1,4 @@
-// src/hooks/useSupportedNetworks.ts
+//src/components/bingo/hooks/useSupportedNetworks.ts
 import { useAppKitState, useAppKitNetwork } from '@reown/appkit/react';
 import { networks } from '../../../config';
 

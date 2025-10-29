@@ -1,4 +1,4 @@
-// src/constants/networks.js
+//src/components/bingo/constants/networks.js
 export const networks = [
   // EVM-Compatible Chains
   {

@@ -14,7 +14,7 @@ import UsecaseSchoolPage from '../../pages/usecases/UsecaseSchoolPage';
 import UsecaseClubsPage from '../../pages/usecases/UsecaseClubsPage';
 import UsecaseCharitiesPage from '../../pages/usecases/UsecaseCharitiesPage';
 import UsecaseCommunityGroupsPage from '../../pages/usecases/UsecaseCommunityGroupsPage';
-
+import HowItWorksPage from '../../pages/HowItWorks'
 export default function QuizRoutes() {
   return (
     <Routes>
@@ -34,6 +34,7 @@ export default function QuizRoutes() {
       <Route path="use-cases/clubs" element={<UsecaseClubsPage />} />
       <Route path="use-cases/charities" element={<UsecaseCharitiesPage />} />
       <Route path="use-cases/community-groups" element={<UsecaseCommunityGroupsPage />} />
+      <Route path ="how-it-works" element={<HowItWorksPage/>}   /> 
     
     </Routes>
   );

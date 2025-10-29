@@ -193,15 +193,11 @@ const PaymentReconciliationPanel: React.FC = () => {
         )}
         <div className={`grid grid-cols-1 lg:grid-cols-2 gap-4 ${isLocked ? 'opacity-40' : ''}`}>
           <ReconciliationApproval />
-          <ReconciliationDownloads
-            allRoundsStats={[]}
-            onArchiveComplete={() => {
-              if (socket && roomId) {
-                socket.emit('delete_quiz_room', { roomId });
-              }
-              setTimeout(() => navigate('/'), 100);
-            }}
-          />
+          {/* 
+            🔴 REMOVED: onArchiveComplete callback
+            The component now handles cleanup internally via socket
+          */}
+          <ReconciliationDownloads allRoundsStats={[]} />
         </div>
       </div>
 

@@ -67,7 +67,7 @@ interface StellarWalletProviderProps {
 
 export const StellarWalletProvider: React.FC<StellarWalletProviderProps> = ({
   children,
-  autoConnect = true,
+  autoConnect = false,
   onConnectionChange,
   onError,
 }) => {

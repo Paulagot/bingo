@@ -84,7 +84,7 @@ export interface RoomCaps {
   extrasAllowed?: string[] | '*';
 }
 
-//src/components/quiz/types/quiz.ts
+
 
 export interface QuizConfig {
   hostName: string;
@@ -142,6 +142,11 @@ export interface QuizConfig {
   roomCaps?: RoomCaps;
   isWeb3Room?: boolean;
   reconciliation?: ReconciliationMeta;
+  
+  evmNetwork?: 'base' | 'baseSepolia' | 'polygon' | 'polygonAmoy';  // ✅ add
+  solanaCluster?: 'mainnet' | 'devnet';                              // optional, nice for symmetry
+  stellarNetwork?: 'public' | 'testnet';                             // optional
+  
 }
 
 export type ExtrasPanelProps = {

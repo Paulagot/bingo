@@ -1,4 +1,4 @@
-// src/components/Quiz/.../AddPlayerModal.tsx
+// src/components/Quiz/dashboard/AddPlayerModal.tsx
 import React, { useState, useEffect } from 'react';
 import { Dialog } from '@headlessui/react';
 import { usePlayerStore, type PaymentMethod } from '../hooks/usePlayerStore';

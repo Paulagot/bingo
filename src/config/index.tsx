@@ -1,3 +1,4 @@
+//src/config/index
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 import { SolanaAdapter } from '@reown/appkit-adapter-solana/react';
 import {
@@ -18,7 +19,9 @@ import {
   solana,
   solanaDevnet,
   solanaTestnet,
-  mainnet,  
+  mainnet, 
+  polygon,            // 👈 add
+  polygonAmoy,         
   
 } from '@reown/appkit/networks';
 import type { AppKitNetwork } from '@reown/appkit/networks';
@@ -46,6 +49,7 @@ export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [
   bscTestnet,
   avalancheFuji,
   seiTestnet,
+  polygonAmoy,
   // Mainnets
   bsc,
   sei,
@@ -54,6 +58,7 @@ export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [
   optimism,
   arbitrum,  
   mainnet,
+  polygon, 
 
   //non-evm
   solana,

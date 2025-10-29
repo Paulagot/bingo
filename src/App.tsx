@@ -27,6 +27,7 @@ import PrivacyPolicy from './pages/nonseo/privacy'
 import AboutFundRaisely from './pages/nonseo/aboutus'
 import BlogAndResources from './pages/blog';
 
+
 // Lazy quiz bits
 const QuizRoutes = lazy(() => import('./components/Quiz/QuizRoutes'));
 const QuizSocketProvider = lazy(() =>
@@ -114,6 +115,7 @@ export default function App() {
             <Route path="/legal/privacy" element={<PrivacyPolicy />} />
             <Route path="/legal/terms" element={<TermsOfUse />} />
             
+
             <Route path="/founding-partners" element={<FoundingPartnersPage />} />
 
             {/* Auth routes */}

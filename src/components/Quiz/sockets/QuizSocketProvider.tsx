@@ -107,8 +107,69 @@ export const QuizSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
       localStorage.removeItem('current-room-id');
       localStorage.removeItem('current-host-id');
-      setTimeout(() => { window.location.href = '/quiz'; }, 100);
+      setTimeout(() => { window.location.href = '/'; }, 100);
     });
+
+socket.on('quiz_cleanup_complete', ({ 
+  message, 
+  roomId: cleanupRoomId,
+  isWeb3Room 
+}: { 
+  message: string; 
+  roomId: string;
+  isWeb3Room?: boolean;
+}) => {
+  log('quiz_cleanup_complete', message, cleanupRoomId, 'isWeb3Room:', isWeb3Room);
+  
+  // Same cleanup for everyone
+  useQuizConfig.getState().resetConfig();
+  usePlayerStore.getState().resetPlayers();
+  useAdminStore.getState().resetAdmins();
+  
+  if (cleanupRoomId) {
+    localStorage.removeItem(`quiz_config_${cleanupRoomId}`);
+    localStorage.removeItem(`prizesDistributed:${cleanupRoomId}`);
+    localStorage.removeItem(`quiz_rejoin_${cleanupRoomId}`);
+  }
+  
+  localStorage.removeItem('current-room-id');
+  localStorage.removeItem('current-host-id');
+  
+  // 🎯 DIFFERENT REDIRECT FOR WEB3 vs WEB2
+  setTimeout(() => {
+    if (isWeb3Room) {
+      // Web3 flow: Everyone goes to impact campaign
+      window.location.href = '/web3/impact-campaign/';
+    } else {
+      // Web2 flow: Everyone goes to quiz home
+      window.location.href = '/';
+    }
+  }, 100);
+});// Add this listener to your QuizSocketProvider.tsx
+// Place it right after the existing quiz_cancelled handler (around line 96)
+
+socket.on('quiz_cleanup_complete', ({ message, roomId: cleanupRoomId }: { message: string; roomId: string }) => {
+  log('quiz_cleanup_complete', message, cleanupRoomId);
+  
+  // Same cleanup as quiz_cancelled, but for successful completion
+  useQuizConfig.getState().resetConfig();
+  usePlayerStore.getState().resetPlayers();
+  useAdminStore.getState().resetAdmins();
+  
+  if (cleanupRoomId) {
+    localStorage.removeItem(`quiz_config_${cleanupRoomId}`);
+    localStorage.removeItem(`prizesDistributed:${cleanupRoomId}`);
+    localStorage.removeItem(`quiz_rejoin_${cleanupRoomId}`);
+  }
+  
+  localStorage.removeItem('current-room-id');
+  localStorage.removeItem('current-host-id');
+  
+  // Redirect to dashboard after successful completion
+  setTimeout(() => { 
+    window.location.href = '/'; 
+  }, 100);
+});
 
     // ---- lifecycle ----
     socket.on('connect', () => {
