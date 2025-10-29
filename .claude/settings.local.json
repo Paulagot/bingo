@@ -45,7 +45,11 @@
       "Bash(awk:*)",
       "Bash(git checkout:*)",
       "Bash(npm run build:*)",
-      "Bash(tasklist:*)"
+      "Bash(tasklist:*)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(git merge:*)",
+      "Bash(gh pr create:*)"
     ],
     "deny": [],
     "ask": []
