@@ -30,6 +30,7 @@ import { USDC } from '../chains/evm/config/tokens';
 
 import PoolRoomABI from '../abis/quiz/BaseQuizPoolRoom2.json';
 import { erc20Abi as ERC20_ABI } from 'viem';
+import AssetRoomABI from '../abis/quiz/BaseQuizAssetRoom.json';
 
 const DEBUG_WEB3 = true;
 
@@ -105,6 +106,30 @@ function bigintToDecimalString(value: bigint, decimals: number) {
   return frac ? `${whole}.${frac}` : whole;
 }
 
+async function assertFirstPrizeUploaded(params: {
+  roomAddress: `0x${string}`;
+  chainId: number;
+}) {
+  const { roomAddress, chainId } = params;
+
+  const [places, _types, _assets, _amounts, _tokenIds, uploaded] =
+    await readContract(wagmiConfig, {
+      address: roomAddress,
+      abi: AssetRoomABI,
+      functionName: 'getAllPrizes',
+      chainId,
+    }) as [number[], number[], `0x${string}`[], bigint[], bigint[], boolean[]];
+
+  const idx = places.findIndex((p) => Number(p) === 1);
+  if (idx === -1) {
+    throw new Error('First prize (place 1) not configured yet. Configure it before opening joins.');
+  }
+  if (!uploaded[idx]) {
+    throw new Error('First prize (place 1) is configured but not uploaded. Call uploadPrize(1) first.');
+  }
+}
+
+
 /* ---------------- Main hook ---------------- */
 export function useContractActions(opts?: Options) {
   const { selectedChain } = useQuizChainIntegration({ chainOverride: opts?.chainOverride });
@@ -135,77 +160,109 @@ export function useContractActions(opts?: Options) {
       };
     }
 
-    if (effectiveChain === 'evm') {
-      return async ({ roomId, feeAmount, extrasAmount, roomAddress }: JoinArgs): Promise<JoinResult> => {
-        try {
-          console.log('🎮 [EVM] Joining room:', roomId, 'at contract:', roomAddress); // ← Use it here
-          if (!roomAddress || typeof roomAddress !== 'string') {
-            return { success: false, error: 'Missing room contract address' };
-          }
+ if (effectiveChain === 'evm') {
+  return async ({ roomId, feeAmount, extrasAmount, roomAddress }: JoinArgs): Promise<JoinResult> => {
+    try {
+      if (!roomAddress || typeof roomAddress !== 'string') {
+        return { success: false, error: 'Missing room contract address' };
+      }
 
-          let runtimeChainId: number | null = null;
-          try {
-            runtimeChainId = await getChainId(wagmiConfig);
-          } catch {
-            runtimeChainId = null;
-          }
-          const setupKey = (JSON.parse(localStorage.getItem('setupConfig') || '{}')?.evmNetwork) as
-            | string
-            | undefined;
-          const target = resolveEvmTarget({ setupKey, runtimeChainId });
+      const setup = JSON.parse(localStorage.getItem('setupConfig') || '{}');
+      const prizeMode: 'assets' | 'split' | 'pool' | undefined = setup?.prizeMode;
 
-          const tokenAddr = (await readContract(wagmiConfig, {
-            address: roomAddress as `0x${string}`,
-            abi: PoolRoomABI,
-            functionName: 'TOKEN',
-            chainId: target.id,
-          })) as `0x${string}`;
+      let runtimeChainId: number | null = null;
+      try { runtimeChainId = await getChainId(wagmiConfig); } catch { runtimeChainId = null; }
+      const setupKey = (setup?.evmNetwork) as string | undefined;
+      const target = resolveEvmTarget({ setupKey, runtimeChainId });
+      const chainId = target.id;
+      const roomAddr = roomAddress as `0x${string}`;
 
-          const decimals = (await readContract(wagmiConfig, {
-            address: tokenAddr,
-            abi: ERC20_ABI,
-            functionName: 'decimals',
-            chainId: target.id,
-          })) as number;
+      // Use your real JSON ABIs here:
+      const isAssetRoom = prizeMode === 'assets';
+      const RoomABI = isAssetRoom ? AssetRoomABI : PoolRoomABI;
 
-          const toUnits = (x: any) => {
-            const n = Number(x || 0);
-            const mul = 10 ** (decimals || 6);
-            return BigInt(Math.round(n * mul));
-          };
+      // Read token + decimals (both ABIs expose TOKEN)
+      const tokenAddr = await readContract(wagmiConfig, {
+        address: roomAddr,
+        abi: RoomABI,
+        functionName: 'TOKEN',
+        chainId,
+      }) as `0x${string}`;
 
-          const feePaid = toUnits(feeAmount ?? 0);
-          const extrasPaid = toUnits(extrasAmount ?? 0);
-          const total = feePaid + extrasPaid;
+      const decimals = await readContract(wagmiConfig, {
+        address: tokenAddr,
+        abi: ERC20_ABI,
+        functionName: 'decimals',
+        chainId,
+      }) as number;
 
-          try {
-            const approveHash = await writeContract(wagmiConfig, {
-              address: tokenAddr,
-              abi: ERC20_ABI,
-              functionName: 'approve',
-              args: [roomAddress as `0x${string}`, total],
-              chainId: target.id,
-            });
-            await waitForTransactionReceipt(wagmiConfig, { hash: approveHash, chainId: target.id });
-          } catch (e: any) {
-            return { success: false, error: e?.message || 'ERC-20 approve failed' };
-          }
-
-          const joinHash = await writeContract(wagmiConfig, {
-            address: roomAddress as `0x${string}`,
-            abi: PoolRoomABI,
-            functionName: 'join',
-            args: [feePaid, extrasPaid],
-            chainId: target.id,
-          });
-          await waitForTransactionReceipt(wagmiConfig, { hash: joinHash, chainId: target.id });
-
-          return { success: true, txHash: joinHash as `0x${string}` };
-        } catch (e: any) {
-          return { success: false, error: e?.message || 'join failed' };
-        }
+      const toUnits = (x: any) => {
+        const n = Number(x || 0);
+        const mul = 10 ** (decimals || 6);
+        return BigInt(Math.round(n * mul));
       };
+
+      const feePaid    = toUnits(feeAmount ?? 0);
+      const extrasPaid = toUnits(extrasAmount ?? 0);
+      const total      = feePaid + extrasPaid;
+
+      // AssetRoom precondition: prize #1 must be uploaded
+      if (isAssetRoom) {
+        await assertFirstPrizeUploaded({ roomAddress: roomAddr, chainId });
+      }
+
+      // (Optional) prevent double join
+      try {
+        const acct = getAccount(wagmiConfig)?.address as `0x${string}` | undefined;
+        if (acct) {
+          const already = await readContract(wagmiConfig, {
+            address: roomAddr,
+            abi: RoomABI,
+            functionName: 'joined',
+            args: [acct],
+            chainId,
+          }) as boolean;
+          if (already) {
+            return { success: true, txHash: '0x' as `0x${string}` };
+          }
+        }
+      } catch { /* ignore */ }
+
+      // Approve ERC-20 if any amount needs paying
+      if (total > 0n) {
+        const approveHash = await writeContract(wagmiConfig, {
+          address: tokenAddr,
+          abi: ERC20_ABI,
+          functionName: 'approve',
+          args: [roomAddr, total],
+          chainId,
+        });
+        await waitForTransactionReceipt(wagmiConfig, { hash: approveHash, chainId });
+      }
+
+      // Call the correct join (same signature in both ABIs)
+      const joinHash = await writeContract(wagmiConfig, {
+        address: roomAddr,
+        abi: RoomABI,
+        functionName: 'join', // (feePaid, extrasPaid)
+        args: [feePaid, extrasPaid],
+        chainId,
+      });
+      await waitForTransactionReceipt(wagmiConfig, { hash: joinHash, chainId });
+
+      return { success: true, txHash: joinHash as `0x${string}` };
+    } catch (e: any) {
+      let msg = e?.message || 'join failed';
+      if (/need 1st/i.test(msg)) {
+        msg = 'Join blocked: first prize (place #1) must be uploaded. Configure and call uploadPrize(1).';
+      } else if (/execution reverted/i.test(msg)) {
+        msg = `Contract reverted: ${msg.replace('execution reverted: ', '')}`;
+      }
+      return { success: false, error: msg };
     }
+  };
+}
+
 
     return async (_args: JoinArgs): Promise<JoinResult> => ({
       success: false,
@@ -653,9 +710,89 @@ export function useContractActions(opts?: Options) {
       };
     }
 
-    throw new Error(
-      'Asset room deployment for EVM is not wired yet. Please provide the AssetFactory ABI and the exact create function signature/params.'
-    );
+  // ---------------- ASSET room deployment ----------------
+if (!isPool) {
+  // p = DeployParams with prizeMode === 'assets'
+  const token = getErc20ForCurrency(p.currency, target.key);
+  const host = p.hostWallet;
+
+  if (!/^0x[0-9a-fA-F]{40}$/.test(host)) {
+    throw new Error('Host wallet is not a valid EVM address.');
+  }
+
+  const hostPayBps = toBps16(p.hostFeePct ?? 0);
+
+  const args = [
+    p.roomId,
+    token as `0x${string}`,
+    host as `0x${string}`,
+    hostPayBps,
+  ] as const;
+
+  if (DEBUG_WEB3) {
+    console.log('[EVM][DEPLOY] target', target);
+    console.log('[EVM][DEPLOY] prizeMode -> ASSETS');
+    console.log('[EVM][DEPLOY] factory @', factory);
+    console.log('[EVM][DEPLOY] writeContract', {
+      chainId: target.id,
+      factory,
+      functionName: 'createAssetRoom',
+      argsPreview: args,
+    });
+  }
+
+  const hash = await writeContract(wagmiConfig, {
+    address: factory as `0x${string}`,
+    abi,
+    functionName: 'createAssetRoom', // ← from AssetFactory ABI you provided
+    args,
+    chainId: target.id,
+  });
+
+  const receipt = await waitForTransactionReceipt(wagmiConfig, { hash, chainId: target.id });
+
+  // Try to decode RoomCreated event to get the room address
+  let roomAddress: string | null = null;
+  try {
+    for (const log of receipt.logs || []) {
+      try {
+        const decoded = decodeEventLog({
+          abi,
+          data: log.data,
+          topics: log.topics as any,
+        });
+        if (decoded.eventName === 'RoomCreated') {
+          const room = (decoded.args as any)?.room as string | undefined;
+          if (room && /^0x[0-9a-fA-F]{40}$/.test(room)) {
+            roomAddress = room;
+            break;
+          }
+        }
+      } catch {
+        // ignore decode errors on unrelated logs
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  if (!roomAddress) {
+    // Fallback: some toolchains also put the new room address as the log's "address"
+    roomAddress = (receipt.logs?.[0] as any)?.address ?? null;
+  }
+
+  if (!roomAddress || !/^0x[0-9a-fA-F]{40}$/.test(roomAddress)) {
+    throw new Error('Deployment succeeded but could not resolve asset room address from logs.');
+  }
+
+  return {
+    success: true,
+    contractAddress: roomAddress,
+    txHash: hash as `0x${string}`,
+    explorerUrl: `${explorer}/tx/${hash}`,
+  };
+}
+    throw new Error('Invalid deployment type specified.');
   }, []);
 
   const deploy = useCallback(

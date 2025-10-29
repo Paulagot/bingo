@@ -1,4 +1,4 @@
-//src/components/Quiz/joinroom/Web3PaymentStep.tsx
+// src/components/Quiz/joinroom/Web3PaymentStep.tsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { nanoid } from 'nanoid';
@@ -10,7 +10,14 @@ import { useWalletActions } from '../../../hooks/useWalletActions';
 import { useContractActions } from '../../../hooks/useContractActions';
 import type { SupportedChain } from '../../../chains/types';
 
-import { getMetaByKey, type EvmNetworkKey } from '../../../chains/evm/config/networks';
+// Use your real AssetRoom ABI JSON
+import AssetRoomABI from '../../../abis/quiz/BaseQuizAssetRoom.json';
+
+import { getMetaByKey } from '../../../chains/evm/config/networks';
+
+// ✅ viem/wagmi reads for the debug helper
+import { readContract, getChainId } from 'wagmi/actions';
+import { config as wagmiConfig } from '../../../config';
 
 /* ---------- Optional: wagmi chainId hook ---------- */
 let useWagmiChainId: (() => number) | null = null;
@@ -34,10 +41,7 @@ try {
   /* AppKit not installed – safe to ignore */
 }
 
-/* ---------- Known EVM networks ---------- */
-/* ---------- Import centralized network config ---------- */
-
-
+/* -------------------- RoomConfig + helpers -------------------- */
 function getChainLabel(roomConfig: RoomConfig, fallback: string) {
   if (roomConfig?.web3Chain === 'evm') {
     const key = (roomConfig as any)?.evmNetwork as string | undefined;
@@ -68,16 +72,16 @@ interface RoomConfig {
   fundraisingOptions: Record<string, boolean>;
   fundraisingPrices: Record<string, number>;
   currencySymbol: string;
-  
+
   // Web3 fields
   web3Chain?: string;
-  evmNetwork?: string;           // ✅ ADD THIS
-  solanaCluster?: string;        // ✅ ADD THIS
-  stellarNetwork?: string;       // ✅ ADD THIS for completeness
+  evmNetwork?: string;           // ✅ used for target chain metadata
+  solanaCluster?: string;        // ✅ for completeness
+  stellarNetwork?: string;       // ✅ for completeness
   roomContractAddress?: string;
   deploymentTxHash?: string;
-  web3Currency?: string;         // ✅ ADD THIS too
-  
+  web3Currency?: string;         // ✅ currency symbol (e.g., USDC)
+
   // Room info
   hostName?: string;
   gameType?: string;
@@ -97,6 +101,63 @@ interface Web3PaymentStepProps {
 
 type PaymentStatus = 'idle' | 'connecting' | 'paying' | 'confirming' | 'joining' | 'success';
 
+/* -------------------- SAFE DEBUG HELPER -------------------- */
+async function safeDebugAssetRoom(roomAddress?: string) {
+  try {
+    if (!roomAddress || !/^0x[0-9a-fA-F]{40}$/.test(roomAddress)) {
+      console.warn('[AssetRoom][debug] No valid room address to debug:', roomAddress);
+      return;
+    }
+    const chainId = await getChainId(wagmiConfig);
+
+    const [prizeCount, allPrizesUploaded, state] = await Promise.all([
+      readContract(wagmiConfig, { address: roomAddress as `0x${string}`, abi: AssetRoomABI as any, functionName: 'prizeCount', args: [], chainId }),
+      readContract(wagmiConfig, { address: roomAddress as `0x${string}`, abi: AssetRoomABI as any, functionName: 'allPrizesUploaded', args: [], chainId }),
+      readContract(wagmiConfig, { address: roomAddress as `0x${string}`, abi: AssetRoomABI as any, functionName: 'state', args: [], chainId }),
+    ]);
+
+    const [places, types_, assets, amounts, tokenIds, uploaded] =
+      await readContract(wagmiConfig, {
+        address: roomAddress as `0x${string}`,
+        abi: AssetRoomABI as any,
+        functionName: 'getAllPrizes',
+        args: [],
+        chainId,
+      }) as [number[], number[], `0x${string}`[], bigint[], bigint[], boolean[]];
+
+    const prizeRows = (places || []).map((p, i) => ({
+      place: Number(p),
+      type: Number(types_[i]),
+      asset: assets[i],
+      amount: amounts[i]?.toString(),
+      tokenId: tokenIds[i]?.toString(),
+      uploaded: Boolean(uploaded[i]),
+    }));
+
+    console.log('🧪 AssetRoom debug', {
+      chainId,
+      roomAddress,
+      prizeCount,
+      allPrizesUploaded,
+      state,
+      prizes: prizeRows,
+    });
+
+    const i1 = (places || []).findIndex((p) => Number(p) === 1);
+    if (i1 === -1) {
+      console.warn('❌ [AssetRoom] No entry with place=1 in getAllPrizes(). Did you configure prize #1?');
+    } else if (!uploaded[i1]) {
+      console.warn('❌ [AssetRoom] prize #1 exists but uploaded=false. Did you call uploadPrize(1) on THIS room/chain?');
+    } else {
+      console.log('✅ [AssetRoom] prize #1 is uploaded=true. Join should not be blocked by "need 1st".');
+    }
+  } catch (e) {
+    // swallow to avoid red UI; log for inspection
+    console.warn('[AssetRoom][debug] failed:', e);
+  }
+}
+
+/* -------------------- Component -------------------- */
 export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
   roomId,
   playerName,
@@ -254,22 +315,22 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
   }, [baseConnected, currentChainId, targetChainId, isEvm, error]);
 
   // ✅ NEW: Store room's network config for EvmWalletProvider to read
-useEffect(() => {
-  if (roomConfig?.web3Chain === 'evm' && roomConfig.evmNetwork) {
-    console.log('[Web3PaymentStep] Setting active EVM network for provider:', roomConfig.evmNetwork);
-    sessionStorage.setItem('active-evm-network', roomConfig.evmNetwork);
-    
-    if (roomConfig.roomContractAddress) {
-      sessionStorage.setItem('active-room-contract', roomConfig.roomContractAddress);
+  useEffect(() => {
+    if (roomConfig?.web3Chain === 'evm' && roomConfig.evmNetwork) {
+      console.log('[Web3PaymentStep] Setting active EVM network for provider:', roomConfig.evmNetwork);
+      sessionStorage.setItem('active-evm-network', roomConfig.evmNetwork);
+
+      if (roomConfig.roomContractAddress) {
+        sessionStorage.setItem('active-room-contract', roomConfig.roomContractAddress);
+      }
     }
-  }
-  
-  // Cleanup when component unmounts or room changes
-  return () => {
-    sessionStorage.removeItem('active-evm-network');
-    sessionStorage.removeItem('active-room-contract');
-  };
-}, [roomConfig?.web3Chain, roomConfig?.evmNetwork, roomConfig?.roomContractAddress]);
+
+    // Cleanup when component unmounts or room changes
+    return () => {
+      sessionStorage.removeItem('active-evm-network');
+      sessionStorage.removeItem('active-room-contract');
+    };
+  }, [roomConfig?.web3Chain, roomConfig?.evmNetwork, roomConfig?.roomContractAddress]);
 
   const formatAddr = (a: string | null, short = true) => {
     if (!a) return null;
@@ -357,9 +418,9 @@ useEffect(() => {
           }
         }
         if (currentChainId !== targetChainId) {
-         const key = (roomConfig as any)?.evmNetwork || '';
-const meta = getMetaByKey(key);
-throw new Error(`Wrong network. Please switch to ${meta?.name || 'the correct network'}.`);
+          const key = (roomConfig as any)?.evmNetwork || '';
+          const meta = getMetaByKey(key);
+          throw new Error(`Wrong network. Please switch to ${meta?.name || 'the correct network'}.`);
         }
       }
 
@@ -368,16 +429,19 @@ throw new Error(`Wrong network. Please switch to ${meta?.name || 'the correct ne
 
       // Pay / join on-chain
       setPaymentStatus('paying');
-const roomAddrFromConfig = (roomConfig as any).roomContractAddress || undefined;
+      const roomAddrFromConfig = (roomConfig as any).roomContractAddress || undefined;
 
-console.log('[JOIN][UI] Using room address from config:', roomAddrFromConfig ?? '(none)');
+      console.log('[JOIN][UI] Using room address from config:', roomAddrFromConfig ?? '(none)');
 
-const r = await joinRoom({
-  roomId,
-  feeAmount: roomConfig.entryFee,
-  extrasAmount: extrasTotal > 0 ? extrasTotal.toString() : undefined,
-  roomAddress: roomAddrFromConfig, // undefined triggers fallback
-});
+      // 🔍 Run safe on-chain debug just before calling join
+      await safeDebugAssetRoom(roomAddrFromConfig);
+
+      const r = await joinRoom({
+        roomId,
+        feeAmount: roomConfig.entryFee,
+        extrasAmount: extrasTotal > 0 ? extrasTotal.toString() : undefined,
+        roomAddress: roomAddrFromConfig, // undefined triggers fallback in joinRoom
+      });
       if (!r.success) throw new Error(r.error || 'Payment failed');
 
       setTxHash(r.txHash);
@@ -446,33 +510,32 @@ const r = await joinRoom({
     currentChainId !== undefined &&
     currentChainId !== targetChainId;
 
-    useEffect(() => {
-  const eth = (window as any)?.ethereum;
-  const list = eth?.providers || [eth].filter(Boolean);
-  (async () => {
-    const reports = await Promise.all(
-      (list || []).map(async (p: any, i: number) => {
-        let id: number | undefined;
-        try {
-          const hex = await p.request({ method: 'eth_chainId' });
-          id = parseInt(hex, 16);
-        } catch {}
-        return {
-          i,
-          flags: {
-            isMetaMask: !!p.isMetaMask,
-            isCoinbaseWallet: !!p.isCoinbaseWallet,
-            isBrave: !!p.isBraveWallet,
-            isRabby: !!p.isRabby,
-          },
-          chainId: id,
-        };
-      })
-    );
-    console.log('[EVM][providers]', reports);
-  })();
-}, []);
-
+  useEffect(() => {
+    const eth = (window as any)?.ethereum;
+    const list = eth?.providers || [eth].filter(Boolean);
+    (async () => {
+      const reports = await Promise.all(
+        (list || []).map(async (p: any, i: number) => {
+          let id: number | undefined;
+          try {
+            const hex = await p.request({ method: 'eth_chainId' });
+            id = parseInt(hex, 16);
+          } catch {}
+          return {
+            i,
+            flags: {
+              isMetaMask: !!p.isMetaMask,
+              isCoinbaseWallet: !!p.isCoinbaseWallet,
+              isBrave: !!p.isBraveWallet,
+              isRabby: !!p.isRabby,
+            },
+            chainId: id,
+          };
+        })
+      );
+      console.log('[EVM][providers]', reports);
+    })();
+  }, []);
 
   return (
     <div className="p-4 sm:p-6">
@@ -573,9 +636,9 @@ const r = await joinRoom({
                 <div className="flex items-center justify-between">
                   <div>
                     Wrong network detected. Please switch to{' '}
-<strong>
-  {getMetaByKey((roomConfig as any)?.evmNetwork)?.name || 'the correct network'}
-</strong>.
+                    <strong>
+                      {getMetaByKey((roomConfig as any)?.evmNetwork)?.name || 'the correct network'}
+                    </strong>.
                   </div>
                   {typeof (wallet as any)?.switchChain === 'function' && (
                     <button
@@ -642,6 +705,7 @@ const r = await joinRoom({
     </div>
   );
 };
+
 
 
 
