@@ -5,6 +5,11 @@ import { useQuizChainIntegration } from './useQuizChainIntegration';
 // import { useStellarWalletContext } from '../chains/stellar/StellarWalletProvider';
 // import { useQuizContract as useStellarQuizContract } from '../chains/stellar/useQuizContract';
 
+// ✅ Solana imports (needed for deployment)
+import { useSolanaContract } from '../chains/solana/useSolanaContract';
+import { BN } from '@coral-xyz/anchor';
+import { type PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
+
 import type { SupportedChain } from '../chains/types';
 import { keccak256, stringToHex } from 'viem';
 import { getAccount } from 'wagmi/actions';
@@ -138,6 +143,9 @@ export function useContractActions(opts?: Options) {
   // ✅ FIXED: Don't call Stellar hooks here - they throw when provider isn't mounted
   // Instead, we'll dynamically import and use them only in the Stellar branches
 
+  // ✅ Call Solana hook (safe to call always, won't throw)
+  const solanaContract = useSolanaContract();
+
   const getHostAddress = useCallback(
     (fallback: string) => {
       // For Stellar, the StellarLaunchSection component handles this
@@ -263,12 +271,65 @@ export function useContractActions(opts?: Options) {
   };
 }
 
+    // ========== SOLANA ==========
+    if (effectiveChain === 'solana') {
+      return async ({ roomId, extrasAmount, roomAddress }: JoinArgs): Promise<JoinResult> => {
+        try {
+          if (!solanaContract || !solanaContract.isReady) {
+            return { success: false, error: 'Solana wallet not connected' };
+          }
+
+          console.log('[Solana Join] Joining room:', { roomId, extrasAmount, roomAddress });
+
+          // Use provided roomAddress (PDA) - it should have been stored when room was created
+          if (!roomAddress) {
+            return { success: false, error: 'roomAddress is required for Solana rooms' };
+          }
+
+          const { PublicKey } = await import('@solana/web3.js');
+          const roomPDA = new PublicKey(roomAddress);
+
+          // Get room info to fetch host pubkey and fee token
+          const roomInfo = await solanaContract.getRoomInfo(roomPDA);
+
+          if (!roomInfo) {
+            return { success: false, error: 'Room not found on Solana' };
+          }
+
+          // Parse extras amount
+          const extras = new BN(parseFloat(extrasAmount || '0') * LAMPORTS_PER_SOL);
+
+          console.log('[Solana Join] Room info:', {
+            host: roomInfo.host.toBase58(),
+            feeTokenMint: roomInfo.feeTokenMint.toBase58(),
+            entryFee: roomInfo.entryFee.toString(),
+            extras: extras.toString(),
+          });
+
+          const res = await solanaContract.joinRoom({
+            roomId,
+            hostPubkey: roomInfo.host,
+            extrasAmount: extras,
+            feeTokenMint: roomInfo.feeTokenMint,
+          });
+
+          if (!res?.signature) {
+            return { success: false, error: 'Solana joinRoom failed - no signature' };
+          }
+
+          return { success: true, txHash: res.signature };
+        } catch (error: any) {
+          console.error('[Solana Join] Error:', error);
+          return { success: false, error: error?.message || 'Failed to join Solana room' };
+        }
+      };
+    }
 
     return async (_args: JoinArgs): Promise<JoinResult> => ({
       success: false,
       error: `joinRoom not implemented for ${effectiveChain || 'unknown'} chain`,
     });
-  }, [effectiveChain]);
+  }, [effectiveChain, solanaContract]);
 
   /** ---------------- Prize Distribution ---------------- */
   const distributePrizes = useMemo(() => {
@@ -556,8 +617,68 @@ export function useContractActions(opts?: Options) {
       };
     }
 
+    // ========== SOLANA ==========
+    if (effectiveChain === 'solana') {
+      return async ({ roomId, winners, roomAddress }: DistributeArgs & { roomAddress?: string }): Promise<DistributeResult> => {
+        try {
+          if (!solanaContract || !solanaContract.isReady || !solanaContract.publicKey) {
+            return { success: false, error: 'Solana wallet not connected' };
+          }
+
+          console.log('[Solana Distribute] Starting prize distribution:', { roomId, winners, roomAddress });
+
+          // Get room info to fetch fee token mint
+          if (!roomAddress) {
+            return { success: false, error: 'roomAddress is required for Solana prize distribution' };
+          }
+
+          const { PublicKey } = await import('@solana/web3.js');
+          const roomPDA = new PublicKey(roomAddress);
+          const roomInfo = await solanaContract.getRoomInfo(roomPDA);
+
+          if (!roomInfo) {
+            return { success: false, error: 'Room not found on Solana' };
+          }
+
+          // Convert winner addresses to PublicKeys
+          const winnerPubkeys = winners
+            .filter(w => w.address)
+            .map(w => new PublicKey(w.address as string));
+
+          if (winnerPubkeys.length === 0) {
+            return { success: false, error: 'No valid winner addresses' };
+          }
+
+          console.log('[Solana Distribute] Declaring winners...');
+          await solanaContract.declareWinners({
+            roomId,
+            hostPubkey: solanaContract.publicKey,
+            winners: winnerPubkeys,
+          });
+
+          // Then, end room and distribute prizes
+          console.log('[Solana Distribute] Ending room and distributing prizes...');
+          const res = await solanaContract.endRoom({
+            roomId,
+            hostPubkey: solanaContract.publicKey,
+            winners: winnerPubkeys,
+            feeTokenMint: roomInfo.feeTokenMint,
+          });
+
+          if (!res?.signature) {
+            return { success: false, error: 'Solana prize distribution failed - no signature' };
+          }
+
+          return { success: true, txHash: res.signature };
+        } catch (error: any) {
+          console.error('[Solana Distribute] Error:', error);
+          return { success: false, error: error?.message || 'Failed to distribute prizes on Solana' };
+        }
+      };
+    }
+
     return async () => ({ success: false, error: 'Prize distribution not implemented for this chain' });
-  }, [effectiveChain]);
+  }, [effectiveChain, solanaContract]);
 
   /* ------------------------ EVM helpers & deployer ------------------------ */
   const toBps16 = (pct?: number) => {
@@ -802,6 +923,92 @@ if (!isPool) {
         throw new Error('Stellar deployment must be handled through StellarLaunchSection component');
       }
 
+      // ✅ For Solana, deploy using Solana contract
+      if (effectiveChain === 'solana') {
+        if (!solanaContract || !solanaContract.isReady) {
+          throw new Error('Solana contract not ready - connect wallet first');
+        }
+
+        if (!solanaContract.publicKey) {
+          throw new Error('Solana wallet not connected');
+        }
+
+        const { PublicKey } = await import('@solana/web3.js');
+        const NATIVE_SOL_MINT = new PublicKey('So11111111111111111111111111111111111111112');
+
+        const entryFeeLamports = new BN(parseFloat(String(params.entryFee || '1.0')) * LAMPORTS_PER_SOL);
+        const charityWallet = solanaContract.publicKey; // Temporary - should get from TGB
+
+        console.log('[Solana Deploy] Room params:', {
+          roomId: params.roomId,
+          entryFee: params.entryFee,
+          entryFeeLamports: entryFeeLamports.toString(),
+          hostFeePct: params.hostFeePct,
+          prizePoolPct: params.prizePoolPct,
+        });
+
+        // Check if room already exists by deriving PDA first
+        try {
+          const [roomPDA] = solanaContract.deriveRoomPDA(solanaContract.publicKey!, params.roomId);
+          const existingRoom = await solanaContract.getRoomInfo(roomPDA);
+          if (existingRoom) {
+            console.log('[Solana Deploy] Room already exists, returning existing room');
+            return {
+              success: true,
+              contractAddress: roomPDA.toBase58(),
+              txHash: 'already-deployed',
+              explorerUrl: undefined,
+            };
+          }
+        } catch (e) {
+          // Room doesn't exist, continue with creation
+          console.log('[Solana Deploy] Room does not exist yet, creating new room');
+        }
+
+        try {
+          const res = await solanaContract.createPoolRoom({
+            roomId: params.roomId,
+            charityWallet,
+            entryFee: entryFeeLamports,
+            maxPlayers: 100,
+            hostFeeBps: (params.hostFeePct || 0) * 100,
+            prizePoolBps: (params.prizePoolPct || 0) * 100,
+            firstPlacePct: params.prizeSplits?.first || 100,
+            secondPlacePct: params.prizeSplits?.second || 0,
+            thirdPlacePct: params.prizeSplits?.third || 0,
+            charityMemo: params.charityName?.substring(0, 28) || 'Quiz charity',
+            feeTokenMint: NATIVE_SOL_MINT,
+          });
+
+          // Note: createPoolRoom returns { signature, room }, not { success, roomAddress }
+          if (!res?.signature || !res?.room) {
+            throw new Error('Solana createPoolRoom failed - invalid response');
+          }
+
+          const explorerUrl = `https://explorer.solana.com/tx/${res.signature}?cluster=devnet`;
+
+          return {
+            success: true,
+            contractAddress: res.room,
+            txHash: res.signature,
+            explorerUrl,
+          };
+        } catch (error: any) {
+          // Handle "already processed" error gracefully
+          const errorMsg = error?.message || error?.toString() || '';
+          if (errorMsg.includes('already been processed') || errorMsg.includes('This transaction has already been processed')) {
+            const [roomPDA] = solanaContract.deriveRoomPDA(solanaContract.publicKey!, params.roomId);
+            return {
+              success: true,
+              contractAddress: roomPDA.toBase58(),
+              txHash: 'already-deployed',
+              explorerUrl: undefined,
+            };
+          }
+          throw error;
+        }
+      }
+
       // ✅ For EVM, proceed with deployment
       if (effectiveChain === 'evm') {
         const hostAddress = getHostAddress(params.hostWallet);
@@ -827,7 +1034,7 @@ if (!isPool) {
 
       throw new Error(`Deployment not implemented for ${effectiveChain} chain`);
     },
-    [effectiveChain, getHostAddress, deployEvm]
+    [effectiveChain, getHostAddress, deployEvm, solanaContract]
   );
 
   return { deploy, joinRoom, distributePrizes };

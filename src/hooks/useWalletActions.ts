@@ -29,7 +29,7 @@ type Options = { chainOverride?: SupportedChain | null };
 
 /**
  * ✅ STORE-BASED WALLET ACTIONS
- * 
+ *
  * This version reads from the global wallet store instead of contexts,
  * so it can be safely called anywhere without provider mounting issues.
  */
@@ -48,10 +48,10 @@ export function useWalletActions(opts?: Options): WalletActions {
   const stellarConnect = useCallback(async (): Promise<WalletConnectionResult> => {
     console.log('[useWalletActions] Dispatching stellar:request-connect');
     window.dispatchEvent(new CustomEvent('stellar:request-connect'));
-    
+
     // Wait a bit for provider to respond
     await new Promise(resolve => setTimeout(resolve, 100));
-    
+
     const state = useWalletStore.getState().stellar;
     if (state?.isConnected && state.address) {
       return {
@@ -66,7 +66,7 @@ export function useWalletActions(opts?: Options): WalletActions {
         },
       };
     }
-    
+
     return {
       success: false,
       address: null,
@@ -87,9 +87,9 @@ export function useWalletActions(opts?: Options): WalletActions {
   const evmConnect = useCallback(async (): Promise<WalletConnectionResult> => {
     console.log('[useWalletActions] Dispatching evm:request-connect');
     window.dispatchEvent(new CustomEvent('evm:request-connect'));
-    
+
     await new Promise(resolve => setTimeout(resolve, 100));
-    
+
     const state = useWalletStore.getState().evm;
     if (state?.isConnected && state.address) {
       return {
@@ -104,7 +104,7 @@ export function useWalletActions(opts?: Options): WalletActions {
         },
       };
     }
-    
+
     return {
       success: false,
       address: null,
@@ -119,6 +119,44 @@ export function useWalletActions(opts?: Options): WalletActions {
   const evmDisconnect = useCallback(async (): Promise<void> => {
     console.log('[useWalletActions] Dispatching evm:request-disconnect');
     window.dispatchEvent(new CustomEvent('evm:request-disconnect'));
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }, []);
+
+  const solanaConnect = useCallback(async (): Promise<WalletConnectionResult> => {
+    console.log('[useWalletActions] Dispatching solana:request-connect');
+    window.dispatchEvent(new CustomEvent('solana:request-connect'));
+
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    const state = useWalletStore.getState().solana;
+    if (state?.isConnected && state.address) {
+      return {
+        success: true,
+        address: state.address,
+        networkInfo: {
+          chainId: state.cluster || 'solana',
+          name: 'Solana',
+          isTestnet: state.cluster === 'devnet' || state.cluster === 'testnet',
+          rpcUrl: '',
+          blockExplorer: '',
+        },
+      };
+    }
+
+    return {
+      success: false,
+      address: null,
+      error: {
+        code: 'WALLET_CONNECTION_FAILED' as any,
+        message: 'Solana connection failed',
+        timestamp: new Date(),
+      },
+    };
+  }, []);
+
+  const solanaDisconnect = useCallback(async (): Promise<void> => {
+    console.log('[useWalletActions] Dispatching solana:request-disconnect');
+    window.dispatchEvent(new CustomEvent('solana:request-disconnect'));
     await new Promise(resolve => setTimeout(resolve, 100));
   }, []);
 
@@ -161,8 +199,8 @@ export function useWalletActions(opts?: Options): WalletActions {
         }),
         // ✅ EVM-specific helpers
         switchChain: async (toChainId: number) => {
-          window.dispatchEvent(new CustomEvent('evm:request-switch-chain', { 
-            detail: { chainId: toChainId } 
+          window.dispatchEvent(new CustomEvent('evm:request-switch-chain', {
+            detail: { chainId: toChainId }
           }));
           await new Promise(resolve => setTimeout(resolve, 500));
           return useWalletStore.getState().evm?.chainId === toChainId;
@@ -177,19 +215,20 @@ export function useWalletActions(opts?: Options): WalletActions {
     if (effectiveChain === 'solana') {
       return {
         chain: 'solana',
-        connect: async () => ({
-          success: false,
-          address: null,
-          error: {
-            code: 'WALLET_NOT_FOUND' as any,
-            message: 'Solana wallet not implemented',
-            timestamp: new Date(),
-          },
-        }),
-        disconnect: async () => {},
+        connect: solanaConnect,
+        disconnect: solanaDisconnect,
         isConnected: () => !!(solana?.isConnected && solana?.address),
         getAddress: () => solana?.address ?? null,
-        getNetworkInfo: () => undefined,
+        getNetworkInfo: (): NetworkInfo | undefined => {
+          if (!solana?.cluster) return undefined;
+          return {
+            chainId: solana.cluster,
+            name: 'Solana',
+            isTestnet: solana.cluster === 'devnet' || solana.cluster === 'testnet',
+            rpcUrl: '',
+            blockExplorer: '',
+          };
+        },
       };
     }
 
@@ -220,13 +259,12 @@ export function useWalletActions(opts?: Options): WalletActions {
     evm?.chainId,
     solana?.isConnected,
     solana?.address,
+    solana?.cluster,
     stellarConnect,
     stellarDisconnect,
     evmConnect,
     evmDisconnect,
+    solanaConnect,
+    solanaDisconnect,
   ]);
 }
-
-
-
-

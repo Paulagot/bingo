@@ -77,7 +77,7 @@ type SolanaCluster = 'mainnet' | 'devnet';
  * ✅ ENABLED choices for now
  * To re-enable others later, just uncomment the commented entries in CHOICES below.
  */
-const ENABLED_CHOICES: ChoiceValue[] = ['baseSepolia', 'avalancheFuji'];
+const ENABLED_CHOICES: ChoiceValue[] = ['baseSepolia', 'avalancheFuji', 'solanaDevnet'];
 
 /**
  * Only Base Sepolia and Avalanche Fuji are active in the dropdown.
@@ -112,9 +112,9 @@ const CHOICES: Array<{
   // { value: 'optimism', label: 'OP Mainnet', description: 'EVM · Optimism mainnet', kind: 'evm', evmNetwork: 'optimism' },
   // { value: 'optimismSepolia', label: 'OP Sepolia', description: 'EVM · Optimism testnet', kind: 'evm', evmNetwork: 'optimismSepolia' },
 
-  // // Solana
+  // Solana
+  { value: 'solanaDevnet', label: 'Solana (Devnet)', description: 'Developer test network', kind: 'solana', solanaCluster: 'devnet' },
   // { value: 'solanaMainnet', label: 'Solana (Mainnet)', description: 'High-speed, low-fee mainnet', kind: 'solana', solanaCluster: 'mainnet' },
-  // { value: 'solanaDevnet', label: 'Solana (Devnet)', description: 'Developer test network', kind: 'solana', solanaCluster: 'devnet' },
 ];
 
 /** Derive initial dropdown value from persisted setupConfig */
