@@ -45,13 +45,6 @@ const CHAINS: Array<{
     badge: 'XLM • USDC • USDGLO',
     gradient: 'from-blue-500 to-cyan-500',
   },
-  {
-    id: 'solana' as SupportedChain,
-    name: 'Solana Devnet',
-    blurb: 'High-speed, low-fee blockchain.',
-    badge: 'SOL • USDC',
-    gradient: 'from-purple-500 to-pink-500',
-  },
 ];
 
 const JoinImpactCampaignPage: React.FC = () => {

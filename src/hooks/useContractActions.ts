@@ -1,14 +1,38 @@
 import { useCallback, useMemo } from 'react';
 import { useQuizChainIntegration } from './useQuizChainIntegration';
 
-import { useStellarWalletContext } from '../chains/stellar/StellarWalletProvider';
-import { useQuizContract as useStellarQuizContract } from '../chains/stellar/useQuizContract';
-import { useSolanaWalletContext } from '../chains/solana/SolanaWalletProvider';
-import { useSolanaContract } from '../chains/solana/useSolanaContract';
-import { BN } from '@coral-xyz/anchor';
-import { type PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
+// ✅ REMOVED: Don't import Stellar hooks at the top level
+// import { useStellarWalletContext } from '../chains/stellar/StellarWalletProvider';
+// import { useQuizContract as useStellarQuizContract } from '../chains/stellar/useQuizContract';
 
 import type { SupportedChain } from '../chains/types';
+import { keccak256, stringToHex } from 'viem';
+import { getAccount } from 'wagmi/actions';
+
+// If you placed tgbNetworks elsewhere, update this import path accordingly.
+import { getTgbNetworkLabel } from '../chains/tgbNetworks';
+
+/* ------------------------- EVM imports ------------------------- */
+import { writeContract, waitForTransactionReceipt, getChainId, readContract } from 'wagmi/actions';
+import { config as wagmiConfig } from '../config';
+import { resolveEvmTarget, explorerFor } from '../chains/evm/utils/evmSelect';
+import {
+  POOL_FACTORY,
+  PoolFactoryABI,
+} from '../chains/evm/config/contracts.pool';
+import {
+  ASSET_FACTORY,
+  AssetFactoryABI,
+} from '../chains/evm/config/contracts.asset';
+
+import { decodeEventLog } from 'viem';
+import { USDC } from '../chains/evm/config/tokens';
+
+import PoolRoomABI from '../abis/quiz/BaseQuizPoolRoom2.json';
+import { erc20Abi as ERC20_ABI } from 'viem';
+import AssetRoomABI from '../abis/quiz/BaseQuizAssetRoom.json';
+
+const DEBUG_WEB3 = true;
 
 /** ---------- Types ---------- */
 export type DeployParams = {
@@ -20,15 +44,13 @@ export type DeployParams = {
 
   prizeMode?: 'split' | 'assets';
   charityName?: string;
+  charityAddress?: string;
 
-  // split / pool mode
   prizePoolPct?: number;
   prizeSplits?: { first: number; second?: number; third?: number };
 
-  // asset mode
   expectedPrizes?: Array<{ tokenAddress: string; amount: string }>;
 
-  // meta
   hostWallet: string;
   hostMetadata?: {
     hostName?: string;
@@ -45,10 +67,10 @@ export type DeployResult = {
 };
 
 type JoinArgs = {
-  /** Room being joined */
   roomId: string;
-  /** Optional extras total (display units / string) */
   extrasAmount?: string;
+  feeAmount?: any;
+  roomAddress?: any;
 };
 
 type JoinResult =
@@ -57,239 +79,152 @@ type JoinResult =
 
 type DistributeArgs = {
   roomId: string;
+  roomAddress?: string;
   winners: Array<{
     playerId: string;
     address?: string | null;
     rank?: number;
     amount?: string;
   }>;
+  charityOrgId?: string;
+  charityName?: string;
+  charityAddress?: string;
 };
 
 type DistributeResult =
-  | { success: true; txHash: string }
-  | { success: false; error: string };
-
-type DeclareWinnersArgs = {
-  roomId: string;
-  winners: Array<{
-    playerId: string;
-    address?: string | null;
-    rank?: number;
-  }>;
-};
-
-type DeclareWinnersResult =
-  | { success: true; txHash: string }
+  | { success: true; txHash: string; explorerUrl?: string }
   | { success: false; error: string };
 
 type Options = { chainOverride?: SupportedChain | null };
 
-/** ---------- Safe stubs when provider isn’t mounted ---------- */
-const STELLAR_WALLET_STUB = {
-  isConnected: false,
-  isConnecting: false,
-  isDisconnecting: false,
-  address: null as string | null,
-  networkPassphrase: undefined as string | undefined,
-};
+/* ---------- Helpers ---------- */
+function bigintToDecimalString(value: bigint, decimals: number) {
+  const s = value.toString().padStart(decimals + 1, '0');
+  const i = s.length - decimals;
+  const whole = s.slice(0, i);
+  const frac = s.slice(i).replace(/0+$/, ''); // trim trailing zeros
+  return frac ? `${whole}.${frac}` : whole;
+}
 
-const STELLAR_CTX_STUB = {
-  wallet: STELLAR_WALLET_STUB,
-  currentNetwork: 'public' as 'public' | 'testnet',
-  connect: async () => ({
-    success: false as const,
-    address: null,
-    error: {
-      code: 'NO_PROVIDER' as any,
-      message: 'Stellar wallet provider not mounted',
-      timestamp: new Date(),
-    },
-  }),
-  disconnect: async () => {},
-  formatAddress: (addr?: string | null) =>
-    !addr ? '' : addr.length > 10 ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : addr,
-};
+async function assertFirstPrizeUploaded(params: {
+  roomAddress: `0x${string}`;
+  chainId: number;
+}) {
+  const { roomAddress, chainId } = params;
 
-/** ---------- Hook ---------- */
+  const [places, _types, _assets, _amounts, _tokenIds, uploaded] =
+    await readContract(wagmiConfig, {
+      address: roomAddress,
+      abi: AssetRoomABI,
+      functionName: 'getAllPrizes',
+      chainId,
+    }) as [number[], number[], `0x${string}`[], bigint[], bigint[], boolean[]];
+
+  const idx = places.findIndex((p) => Number(p) === 1);
+  if (idx === -1) {
+    throw new Error('First prize (place 1) not configured yet. Configure it before opening joins.');
+  }
+  if (!uploaded[idx]) {
+    throw new Error('First prize (place 1) is configured but not uploaded. Call uploadPrize(1) first.');
+  }
+}
+
+
+/* ---------------- Main hook ---------------- */
 export function useContractActions(opts?: Options) {
-  // Room-driven override takes priority over store
   const { selectedChain } = useQuizChainIntegration({ chainOverride: opts?.chainOverride });
   const effectiveChain = (opts?.chainOverride ?? selectedChain) as SupportedChain | null;
 
-  // Try to read Stellar contexts; fall back to stubs if not mounted
-  let stellarCtx = STELLAR_CTX_STUB;
-  try {
-    stellarCtx = useStellarWalletContext() as typeof STELLAR_CTX_STUB;
-  } catch {
-    // keep stub
-  }
+  // ✅ FIXED: Don't call Stellar hooks here - they throw when provider isn't mounted
+  // Instead, we'll dynamically import and use them only in the Stellar branches
 
-  let stellarContract: ReturnType<typeof useStellarQuizContract> | null = null;
-  try {
-    stellarContract = useStellarQuizContract() as any;
-  } catch {
-    stellarContract = null;
-  }
-
-  // Try to read Solana contexts
-  let solanaCtx: ReturnType<typeof useSolanaWalletContext> | null = null;
-  try {
-    solanaCtx = useSolanaWalletContext();
-  } catch {
-    // Solana provider not mounted
-  }
-
-  let solanaContract: ReturnType<typeof useSolanaContract> | null = null;
-  try {
-    solanaContract = useSolanaContract();
-  } catch {
-    // Solana contract not available
-  }
-
-  /** Resolve host/player address for current chain */
   const getHostAddress = useCallback(
     (fallback: string) => {
-      switch (effectiveChain) {
-        case 'stellar':
-          return stellarCtx.wallet.address ?? '';
-        case 'solana':
-          return solanaCtx?.wallet.address ?? '';
-        // case 'evm': return evmCtx.address ?? '';
-        default:
-          return fallback;
-      }
+      // For Stellar, the StellarLaunchSection component handles this
+      // For EVM, we get it from Wagmi
+      // This is just a fallback
+      return fallback;
     },
-    [effectiveChain, stellarCtx.wallet.address, solanaCtx?.wallet.address]
+    []
   );
 
   /** ---------------- Player: joinRoom ---------------- */
   const joinRoom = useMemo(() => {
     if (effectiveChain === 'stellar') {
-      return async ({ roomId, extrasAmount }: JoinArgs): Promise<JoinResult> => {
-        if (!stellarContract?.joinRoom) {
-          return { success: false, error: 'Stellar contract not ready' };
-        }
-        // Wallet/contract guards (narrow to string)
-        const playerAddressMaybe =
-          (stellarContract as any).walletAddress as string | undefined;
-        if (!playerAddressMaybe || playerAddressMaybe.length === 0) {
-          return { success: false, error: 'Stellar wallet not connected' };
-        }
-        const playerAddress: string = playerAddressMaybe;
-
-        const res = await stellarContract.joinRoom({
-          roomId,
-          playerAddress,
-          extrasAmount, // optional
-        });
-
-        if (!res?.success) {
-          return { success: false, error: res?.error || 'Payment failed' };
-        }
-
-        // Normalize transaction hash
-        const txHashRaw =
-          (res as any).txHash ??
-          (res as any).transactionHash ??
-          (res as any).hash;
-
-        if (typeof txHashRaw !== 'string' || txHashRaw.length === 0) {
-          return { success: false, error: 'Payment succeeded but no transaction hash was returned' };
-        }
-
-        const txHash: string = txHashRaw;
-        return { success: true, txHash };
+      // ✅ Return async function that throws error - Stellar must use StellarLaunchSection
+      return async (_args: JoinArgs): Promise<JoinResult> => {
+        return {
+          success: false,
+          error: 'Stellar join must be handled through StellarLaunchSection component',
+        };
       };
     }
 
-    if (effectiveChain === 'solana') {
-      return async ({ roomId }: JoinArgs): Promise<JoinResult> => {
-        console.log('🔵 [Solana Join] START - roomId:', roomId, 'length:', roomId.length);
+ if (effectiveChain === 'evm') {
+  return async ({ roomId, feeAmount, extrasAmount, roomAddress }: JoinArgs): Promise<JoinResult> => {
+    try {
+      if (!roomAddress || typeof roomAddress !== 'string') {
+        return { success: false, error: 'Missing room contract address' };
+      }
 
-        if (!solanaContract || !solanaContract.isReady) {
-          return { success: false, error: 'Solana contract not ready' };
-        }
-        if (!solanaCtx?.wallet.address) {
-          return { success: false, error: 'Solana wallet not connected' };
-        }
+      const setup = JSON.parse(localStorage.getItem('setupConfig') || '{}');
+      const prizeMode: 'assets' | 'split' | 'pool' | undefined = setup?.prizeMode;
 
-        try {
-          const { PublicKey } = await import('@solana/web3.js');
-          const NATIVE_SOL_MINT = new PublicKey('So11111111111111111111111111111111111111112');
+      let runtimeChainId: number | null = null;
+      try { runtimeChainId = await getChainId(wagmiConfig); } catch { runtimeChainId = null; }
+      const setupKey = (setup?.evmNetwork) as string | undefined;
+      const target = resolveEvmTarget({ setupKey, runtimeChainId });
+      const chainId = target.id;
+      const roomAddr = roomAddress as `0x${string}`;
 
-          // Query all rooms on-chain to find the one with matching roomId
-          // The host pubkey is stored in the room account
-          console.log('[Solana Join] Fetching room account for roomId:', roomId);
+      // Use your real JSON ABIs here:
+      const isAssetRoom = prizeMode === 'assets';
+      const RoomABI = isAssetRoom ? AssetRoomABI : PoolRoomABI;
 
-          if (!solanaContract.program) {
-            return { success: false, error: 'Solana program not available' };
+      // Read token + decimals (both ABIs expose TOKEN)
+      const tokenAddr = await readContract(wagmiConfig, {
+        address: roomAddr,
+        abi: RoomABI,
+        functionName: 'TOKEN',
+        chainId,
+      }) as `0x${string}`;
+
+      const decimals = await readContract(wagmiConfig, {
+        address: tokenAddr,
+        abi: ERC20_ABI,
+        functionName: 'decimals',
+        chainId,
+      }) as number;
+
+      const toUnits = (x: any) => {
+        const n = Number(x || 0);
+        const mul = 10 ** (decimals || 6);
+        return BigInt(Math.round(n * mul));
+      };
+
+      const feePaid    = toUnits(feeAmount ?? 0);
+      const extrasPaid = toUnits(extrasAmount ?? 0);
+      const total      = feePaid + extrasPaid;
+
+      // AssetRoom precondition: prize #1 must be uploaded
+      if (isAssetRoom) {
+        await assertFirstPrizeUploaded({ roomAddress: roomAddr, chainId });
+      }
+
+      // (Optional) prevent double join
+      try {
+        const acct = getAccount(wagmiConfig)?.address as `0x${string}` | undefined;
+        if (acct) {
+          const already = await readContract(wagmiConfig, {
+            address: roomAddr,
+            abi: RoomABI,
+            functionName: 'joined',
+            args: [acct],
+            chainId,
+          }) as boolean;
+          if (already) {
+            return { success: true, txHash: '0x' as `0x${string}` };
           }
-
-          // Fetch all room accounts and find the one with matching roomId
-          const rooms = await solanaContract.program.account.room.all();
-          console.log(`[Solana Join] Found ${rooms.length} total rooms on-chain`);
-
-          const matchingRoom = rooms.find((r: any) => r.account.roomId === roomId);
-
-          if (!matchingRoom) {
-            console.error('[Solana Join] Room not found. Available rooms:');
-            rooms.forEach((r: any) => {
-              console.error(`  - Room ID: "${r.account.roomId}" (length: ${r.account.roomId.length})`);
-            });
-            return { success: false, error: `Room "${roomId}" not found on-chain` };
-          }
-
-          const hostPubkey = matchingRoom.account.host;
-          const actualRoomPDA = matchingRoom.publicKey;
-
-          console.log('[Solana Join] Found room host:', hostPubkey.toBase58());
-          console.log('[Solana Join] Actual room PDA from chain:', actualRoomPDA.toBase58());
-          console.log('[Solana Join] Room ID:', roomId, 'Length:', roomId.length);
-          console.log('[Solana Join] Room ID bytes:', Buffer.from(roomId).toString('hex'));
-          console.log('[Solana Join] Stored room ID bytes:', Buffer.from(matchingRoom.account.roomId).toString('hex'));
-
-          // Verify PDA derivation matches
-          const { PublicKey: PK } = await import('@solana/web3.js');
-          const [derivedRoomPDA] = PK.findProgramAddressSync(
-            [
-              Buffer.from('room'),
-              hostPubkey.toBuffer(),
-              Buffer.from(roomId)
-            ],
-            solanaContract.program.programId
-          );
-
-          console.log('[Solana Join] Derived room PDA:', derivedRoomPDA.toBase58());
-          const pdaMatch = derivedRoomPDA.equals(actualRoomPDA);
-          console.log('[Solana Join] PDA Match:', pdaMatch);
-
-          if (!pdaMatch) {
-            console.error('[Solana Join] PDA MISMATCH! This will cause error 3012');
-            console.error('[Solana Join] Using actualRoomPDA from chain instead of derived PDA');
-          }
-
-          // CRITICAL: Solana program requires roomId ≤ 32 chars
-          if (roomId.length > 32) {
-            return {
-              success: false,
-              error: `Room ID too long (${roomId.length} chars, max 32). Room ID: "${roomId}"`
-            };
-          }
-
-          // Use the ACTUAL room PDA from the chain query, not the derived one
-          // This ensures we're passing the correct PDA that matches what's on-chain
-          const res = await solanaContract.joinRoom({
-            roomId,
-            hostPubkey,
-            feeTokenMint: NATIVE_SOL_MINT,
-            extrasAmount: new BN(0), // TODO: Calculate extras if needed
-            roomPDA: actualRoomPDA, // Pass the actual PDA
-          });
-
-          return { success: true, txHash: res.signature };
-        } catch (error: any) {
-          console.error('[Solana Join] Error:', error);
-          return { success: false, error: error.message || 'Join room failed' };
         }
       } catch { /* ignore */ }
 
@@ -329,413 +264,574 @@ export function useContractActions(opts?: Options) {
 }
 
 
-    // TODO: implement EVM join
     return async (_args: JoinArgs): Promise<JoinResult> => ({
       success: false,
       error: `joinRoom not implemented for ${effectiveChain || 'unknown'} chain`,
     });
-  }, [effectiveChain, stellarContract, solanaContract, solanaCtx]);
+  }, [effectiveChain]);
 
-  /** ---------------- Host: declare winners (NEW) ---------------- */
-  const declareWinners = useMemo(() => {
-    if (effectiveChain === 'stellar') {
-      // Stellar doesn't have a separate declare step
-      return async (_: DeclareWinnersArgs): Promise<DeclareWinnersResult> => ({
-        success: true,
-        txHash: 'stellar-no-separate-declare',
-      });
-    }
-
-    if (effectiveChain === 'solana') {
-      return async ({ roomId, winners }: DeclareWinnersArgs): Promise<DeclareWinnersResult> => {
-        if (!solanaContract || !solanaContract.isReady) {
-          return { success: false, error: 'Solana contract not ready' };
-        }
-
-        try {
-          // Fetch all rooms to find the matching one (same pattern as joinRoom)
-          if (!solanaContract.program) {
-            return { success: false, error: 'Solana program not available' };
-          }
-
-          const rooms = await solanaContract.program.account.room.all();
-          const matchingRoom = rooms.find((r: any) => r.account.roomId === roomId);
-
-          if (!matchingRoom) {
-            return { success: false, error: `Room "${roomId}" not found on-chain` };
-          }
-
-          const hostPubkey = matchingRoom.account.host;
-
-          // Convert winner addresses to PublicKeys
-          const { PublicKey } = await import('@solana/web3.js');
-          const winnerPublicKeys = winners.map((w) => {
-            if (!w.address) {
-              throw new Error(`Missing address for winner ${w.playerId}`);
-            }
-            return new PublicKey(w.address);
-          });
-
-          const res = await solanaContract.declareWinners({
-            roomId,
-            hostPubkey,
-            winners: winnerPublicKeys,
-          });
-
-          return { success: true, txHash: res.signature };
-        } catch (error: any) {
-          console.error('[declareWinners] Error:', error);
-          return { success: false, error: error.message || 'Declare winners failed' };
-        }
-      };
-    }
-
-    // Default stub
-    return async (_: DeclareWinnersArgs): Promise<DeclareWinnersResult> => ({
-      success: false,
-      error: `declareWinners not implemented for ${effectiveChain || 'unknown'} chain`,
-    });
-  }, [effectiveChain, solanaContract]);
-
-  /** ---------------- Host: prize distribution (NEW) ---------------- */
+  /** ---------------- Prize Distribution ---------------- */
   const distributePrizes = useMemo(() => {
     if (effectiveChain === 'stellar') {
-      return async ({ roomId, winners }: DistributeArgs): Promise<DistributeResult> => {
-        if (!stellarContract) return { success: false, error: 'Stellar contract not ready' };
-
-      
-             // Soroban contract expects a simple array of addresses (string[])
-      // Convert our generic winners payload -> string[]
-       const addrList = winners.map(w => {
-         if (!w.address || typeof w.address !== 'string' || w.address.length === 0) {
-           throw new Error(`Missing or invalid address for winner ${w.playerId ?? '(unknown)'}`);
-         }
-         return w.address;
-       });
-
-       // Call the concrete method with the addresses array
-       // (Your previous working flow called endRoom({ roomId, winners: string[] }))
-       const res =
-         await (stellarContract as any).endRoom?.({ roomId, winners: addrList }) ??
-         await (stellarContract as any).distributePrizes?.({ roomId, winners: addrList })
-
-        if (!res?.success) return { success: false, error: res?.error || 'Distribution failed' };
-
-        const txHashRaw =
-          (res as any).txHash ??
-          (res as any).transactionHash ??
-          (res as any).hash;
-
-        if (typeof txHashRaw !== 'string' || txHashRaw.length === 0) {
-          return { success: false, error: 'No transaction hash returned' };
-        }
-
-        return { success: true, txHash: txHashRaw };
+      return async (): Promise<DistributeResult> => {
+        return {
+          success: false,
+          error: 'Stellar prize distribution must be handled through StellarLaunchSection component',
+        };
       };
     }
 
-    if (effectiveChain === 'solana') {
-      return async ({ roomId, winners }: DistributeArgs): Promise<DistributeResult> => {
-        if (!solanaContract || !solanaContract.isReady) {
-          return { success: false, error: 'Solana contract not ready' };
-        }
-
+    if (effectiveChain === 'evm') {
+      return async ({
+        roomId: _roomId,
+        winners,
+        ...rest
+      }: DistributeArgs & { roomAddress?: string }): Promise<DistributeResult> => {
         try {
-          // Convert winner addresses to PublicKeys
-          const winnerPublicKeys = winners.map((w) => {
-            if (!w.address) {
-              throw new Error(`Missing address for winner ${w.playerId}`);
+          console.log('🎯 [EVM] Starting prize distribution:', { winners });
+
+          const runtimeChainId = getChainId(wagmiConfig);
+
+          if (!runtimeChainId) {
+            throw new Error('No active chain detected. Please connect your wallet.');
+          }
+
+          console.log('✅ [EVM] Chain ID confirmed:', runtimeChainId);
+
+          const setupKey = (JSON.parse(localStorage.getItem('setupConfig') || '{}')?.evmNetwork) as
+            | string
+            | undefined;
+          const target = resolveEvmTarget({ setupKey, runtimeChainId });
+
+          console.log('🔍 [EVM] Resolved target:', target);
+
+          const roomAddress = (rest as any)?.roomAddress;
+
+          if (!roomAddress || !/^0x[0-9a-fA-F]{40}$/.test(roomAddress)) {
+            console.error('❌ [EVM] Invalid room address:', roomAddress);
+            return { success: false, error: 'Missing or invalid EVM room contract address' };
+          }
+
+          console.log('📍 [EVM] Room contract:', roomAddress);
+
+          const addrs = winners
+            .map((w) => w.address)
+            .filter((addr): addr is string => {
+              if (!addr) return false;
+              if (!/^0x[0-9a-fA-F]{40}$/.test(addr)) {
+                console.warn('⚠️ [EVM] Invalid winner address:', addr);
+                return false;
+              }
+              return true;
+            });
+
+          if (addrs.length === 0) {
+            console.error('❌ [EVM] No valid winner addresses found');
+            return { success: false, error: 'No valid winner addresses' };
+          }
+
+          console.log('🏆 [EVM] Winner addresses:', addrs);
+
+          console.log('🔒 [EVM] Locking room for settlement...');
+
+          const accountInfo = getAccount(wagmiConfig);
+          console.log('🔍 [EVM] Account info:', accountInfo);
+
+          if (!accountInfo.address) {
+            throw new Error('No wallet address found. Please reconnect your wallet.');
+          }
+
+          const account = accountInfo.address;
+          console.log('🔍 [EVM] Using account for transaction:', account);
+
+          try {
+            const contractHost = await readContract(wagmiConfig, {
+              address: roomAddress as `0x${string}`,
+              abi: PoolRoomABI,
+              functionName: 'HOST',
+              chainId: target.id,
+            });
+
+            console.log('🔍 [EVM] Contract HOST address:', contractHost);
+            console.log('🔍 [EVM] Current wallet address:', account);
+            console.log(
+              '🔍 [EVM] Do they match?',
+              String(contractHost).toLowerCase() === String(account).toLowerCase()
+            );
+
+            if (String(contractHost).toLowerCase() !== String(account).toLowerCase()) {
+              throw new Error(
+                `Wrong wallet connected. Need HOST wallet: ${contractHost}, but connected with: ${account}`
+              );
             }
-            return new (require('@solana/web3.js').PublicKey)(w.address);
+          } catch (e) {
+            console.error('❌ Failed to verify HOST:', e);
+            throw e;
+          }
+
+          const lockTxHash = await writeContract(wagmiConfig, {
+            address: roomAddress as `0x${string}`,
+            abi: PoolRoomABI,
+            functionName: 'lockForSettlement',
+            args: [],
+            chainId: target.id,
+            account: account as `0x${string}`,
           });
-
-          // TODO: Get host pubkey and fee token mint from room metadata
-          const hostPubkey = solanaContract.publicKey!; // Placeholder
-          const feeTokenMint = solanaContract.publicKey!; // Placeholder
-
-          const res = await solanaContract.endRoom({
-            roomId,
-            hostPubkey,
-            winners: winnerPublicKeys,
-            feeTokenMint,
+          // Wait for lock confirmation
+          await waitForTransactionReceipt(wagmiConfig, {
+            hash: lockTxHash,
+            chainId: target.id,
+            confirmations: 1,
           });
+          console.log('✅ [EVM] Room locked successfully:', lockTxHash);
 
-          return { success: true, txHash: res.signature };
-        } catch (error: any) {
-          return { success: false, error: error.message || 'Distribution failed' };
-        }
-      };
-    }
+          console.log('🔍 [EVM] Reading charity payout preview from contract...');
 
-    // TODO: implement EVM
-    return async (_: DistributeArgs): Promise<DistributeResult> => ({
-      success: false,
-      error: `Prize distribution not implemented for ${effectiveChain || 'unknown'} chain`,
-    });
-  }, [effectiveChain, stellarContract, solanaContract]);
+          let preview: unknown;
+          try {
+            preview = await readContract(wagmiConfig, {
+              address: roomAddress as `0x${string}`,
+              abi: PoolRoomABI,
+              functionName: 'previewCharityPayout',
+              chainId: target.id,
+            });
 
-  /** ---------------- Host: deploy (existing) ---------------- */
-  const createPoolRoom = useCallback(
-    async (p: {
-      roomId: string;
-      currency: string;
-      entryFee: string | number;
-      hostFeePct: number;
-      prizePoolPct: number;
-      charityName?: string;
-      prizeSplits: { first: number; second?: number; third?: number };
-      hostAddress: string;
-    }): Promise<DeployResult> => {
-      switch (effectiveChain) {
-        case 'stellar': {
-          if (!stellarContract) throw new Error('Stellar contract not ready');
-          const res = await stellarContract.createPoolRoom({
-            roomId: p.roomId,
-            hostAddress: p.hostAddress,
-            currency: p.currency || 'XLM',
-            entryFee: String(p.entryFee ?? '1.0'),
-            hostFeePct: p.hostFeePct ?? 0,
-            prizePoolPct: p.prizePoolPct ?? 0,
-            charityName: p.charityName,
-            prizeSplits: p.prizeSplits ?? { first: 100 },
-          });
-          if (!res?.success) throw new Error('Stellar createPoolRoom failed');
-          return {
-            success: true,
-            contractAddress: res.contractAddress,
-            txHash: res.txHash,
-            explorerUrl: (res as any).explorerUrl,
-          };
-        }
-        case 'evm': {
-          // TODO: replace with real EVM client
-          return {
-            success: true,
-            contractAddress: `0x${Math.random().toString(16).slice(2, 42)}`,
-            txHash: `0x${Math.random().toString(16).slice(2, 66)}`,
-          };
-        }
-        case 'solana': {
-          if (!solanaContract || !solanaContract.isReady) {
-            throw new Error('Solana contract not ready');
+            console.log('📦 [EVM] Raw preview response:', preview);
+          } catch (readError: any) {
+            console.error('❌ [EVM] Failed to read previewCharityPayout:', readError);
+            throw new Error(`Failed to read charity payout preview: ${readError.message}`);
+          }
+
+          if (!preview) {
+            throw new Error('previewCharityPayout returned null/undefined');
+          }
+
+          let charityAmt: bigint;
+          let token: `0x${string}`;
+
+          if (Array.isArray(preview)) {
+            token = preview[0] as `0x${string}`;
+            charityAmt = preview[2] as bigint;
+          } else if (typeof preview === 'object' && preview !== null) {
+            const previewObj = preview as any;
+            token = previewObj.token || previewObj[0];
+            charityAmt = previewObj.charityAmt || previewObj[2];
+          } else {
+            throw new Error(`Unexpected preview format: ${typeof preview}`);
+          }
+
+          if (!token || !charityAmt) {
+            console.error('❌ [EVM] Missing required values from preview:', { token, charityAmt });
+            throw new Error('previewCharityPayout did not return expected values');
+          }
+
+          // ------------------- TGB deposit address (non-breaking) -------------------
+          // We try to fetch a TGB deposit address ONLY if the room setup has a TGB orgId.
+          // If not present, we fall back to the old charityWallet path to avoid breaking behavior.
+          const setup = JSON.parse(localStorage.getItem('setupConfig') || '{}');
+          const tgbOrgId = (setup?.web3CharityOrgId as string | undefined) || (rest as any)?.charityOrgId;
+
+          let recipientAddressForFinalize: `0x${string}` | null = null;
+
+          if (tgbOrgId) {
+            try {
+              // Currency symbol from setup (or default to USDC)
+              const currencySym = (setup?.currencySymbol || setup?.web3Currency || 'USDC').toUpperCase();
+
+              // Derive TGB network label centrally (no hard-coded switches here)
+              const tgbNetwork = getTgbNetworkLabel({
+                web3Chain: 'evm',
+                evmTargetKey: target.key,
+                solanaCluster: null,
+              });
+
+              // Convert bigint -> decimal string for amount
+              const decimals = (await readContract(wagmiConfig, {
+                address: token,
+                abi: ERC20_ABI,
+                functionName: 'decimals',
+                chainId: target.id,
+              })) as number;
+
+              const charityAmtDecimal = bigintToDecimalString(charityAmt, decimals);
+
+              const mockParam = process.env.NODE_ENV !== 'production' ? '?mock=1' : '';
+              const resp = await fetch(`/api/tgb/create-deposit-address${mockParam}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  organizationId: tgbOrgId,
+                  currency: currencySym,       // e.g., "USDC"
+                  network: tgbNetwork,         // e.g., "base"
+                  amount: charityAmtDecimal,   // exact amount (human-readable)
+                  metadata: { roomId: _roomId }
+                }),
+              });
+
+              const dep = await resp.json();
+              if (!resp.ok || !dep?.ok || !dep?.depositAddress) {
+                console.error('TGB deposit address request failed:', dep);
+                throw new Error(dep?.error || 'Could not get The Giving Block deposit address');
+              }
+
+              recipientAddressForFinalize = dep.depositAddress as `0x${string}`;
+              console.log('✅ [TGB] Using deposit address for finalize:', recipientAddressForFinalize);
+            } catch (tgbErr: any) {
+              console.warn('⚠️ [TGB] Falling back to configured charity wallet due to error:', tgbErr?.message || tgbErr);
+              recipientAddressForFinalize = null; // fallback will be handled below
+            }
+          }
+
+          // Fallback (legacy path): use the pre-configured charity wallet if TGB path is not available
+          if (!recipientAddressForFinalize) {
+            const charityWallet = (rest as any)?.charityAddress;
+            console.log('🔍 [EVM] Charity info from room config (fallback):', { wallet: charityWallet });
+
+            if (!charityWallet || !/^0x[0-9a-fA-F]{40}$/.test(charityWallet)) {
+              console.error('❌ [EVM] Invalid charity wallet:', charityWallet);
+              throw new Error('Invalid charity wallet address. Room configuration may be incomplete.');
+            }
+
+            recipientAddressForFinalize = charityWallet as `0x${string}`;
           }
           // ------------------- End TGB + fallback -------------------
 
-          if (!solanaContract.publicKey) {
-            throw new Error('Wallet not connected');
+          const offchainIntentId = `FR-${_roomId}-${Date.now()}`;
+          const intentIdHash = keccak256(stringToHex(offchainIntentId, { size: 32 }));
+
+          console.log('🎁 [EVM] Calling finalize on contract...');
+
+          const hash = await writeContract(wagmiConfig, {
+            address: roomAddress as `0x${string}`,
+            abi: PoolRoomABI,
+            functionName: 'finalize',
+            args: [addrs as `0x${string}`[], recipientAddressForFinalize, intentIdHash],
+            chainId: target.id,
+            account: account as `0x${string}`,
+          });
+
+          console.log('📝 [EVM] Finalize transaction submitted:', hash);
+
+          const receipt = await waitForTransactionReceipt(wagmiConfig, {
+            hash,
+            chainId: target.id,
+            confirmations: 1,
+          });
+
+          console.log('✅ [EVM] Transaction confirmed:', {
+            hash,
+            blockNumber: receipt.blockNumber,
+            status: receipt.status,
+          });
+
+          if (receipt.status !== 'success') {
+            throw new Error('Transaction reverted on-chain');
           }
 
-          // Native SOL mint address (wrapped SOL SPL token)
-          const { PublicKey } = await import('@solana/web3.js');
-          const NATIVE_SOL_MINT = new PublicKey('So11111111111111111111111111111111111111112');
+          const explorerUrl = explorerFor(target.key);
 
-          // Convert entry fee to lamports
-          const entryFeeLamports = new BN(parseFloat(String(p.entryFee)) * LAMPORTS_PER_SOL);
-
-          // TODO: Get actual charity wallet from TGB API or charity selection
-          // For now, using host wallet as charity for testing
-          const charityWallet = solanaContract.publicKey;
-
-          console.log('[Solana Deploy] Room params:', {
-            roomId: p.roomId,
-            entryFee: p.entryFee,
-            entryFeeLamports: entryFeeLamports.toString(),
-            hostFeePct: p.hostFeePct,
-            prizePoolPct: p.prizePoolPct,
-          });
-
-          const res = await solanaContract.createPoolRoom({
-            roomId: p.roomId,
-            charityWallet,
-            entryFee: entryFeeLamports,
-            maxPlayers: 100,
-            hostFeeBps: p.hostFeePct * 100,
-            prizePoolBps: p.prizePoolPct * 100,
-            firstPlacePct: p.prizeSplits.first,
-            secondPlacePct: p.prizeSplits.second,
-            thirdPlacePct: p.prizeSplits.third,
-            charityMemo: p.charityName?.substring(0, 28) || 'Quiz charity',
-            feeTokenMint: NATIVE_SOL_MINT,
-          });
-
-          // res.room is already a base58 string from useSolanaContract
           return {
             success: true,
-            contractAddress: res.room,
-            txHash: res.signature,
+            txHash: hash as `0x${string}`,
+            explorerUrl: `${explorerUrl}/tx/${hash}`,
+          };
+        } catch (e: any) {
+          console.error('❌ [EVM] Prize distribution error:', e);
+
+          let errorMessage = e?.message || 'EVM finalize failed';
+
+          if (errorMessage.includes('user rejected')) {
+            errorMessage = 'Transaction was rejected by user';
+          } else if (errorMessage.includes('insufficient funds')) {
+            errorMessage = 'Insufficient funds for gas fees';
+          } else if (errorMessage.includes('execution reverted')) {
+            errorMessage = 'Contract execution reverted. Check if prizes can be distributed.';
+          }
+
+          return {
+            success: false,
+            error: errorMessage,
           };
         }
-        default:
-          throw new Error('No chain selected');
+      };
+    }
+
+    return async () => ({ success: false, error: 'Prize distribution not implemented for this chain' });
+  }, [effectiveChain]);
+
+  /* ------------------------ EVM helpers & deployer ------------------------ */
+  const toBps16 = (pct?: number) => {
+    const n = Number.isFinite(pct as any) ? Number(pct) : 0;
+    const clamped = Math.max(0, Math.min(100, n));
+    const bps = Math.round(clamped * 100);
+    return Math.min(65535, bps);
+  };
+
+  function getErc20ForCurrency(currency: string | undefined, targetKey: string): `0x${string}` {
+    const sym = (currency || 'USDC').toUpperCase();
+
+    if (sym === 'USDC') {
+      const addr = (USDC as any)[targetKey];
+      if (addr && /^0x[0-9a-fA-F]{40}$/.test(addr)) return addr;
+      throw new Error(`USDC address not configured for ${targetKey}`);
+    }
+
+    if (sym === 'USDGLO' || sym === 'GLOUSD' || sym === 'GLO') {
+      throw new Error('Glo Dollar token address is not configured yet for this network');
+    }
+
+    throw new Error(`Unsupported token: ${sym}`);
+  }
+
+  const deployEvm = useCallback(async (p: DeployParams, which: 'pool' | 'asset'): Promise<DeployResult> => {
+    let runtimeChainId: number | null = null;
+    try {
+      runtimeChainId = await getChainId(wagmiConfig);
+    } catch {
+      runtimeChainId = null;
+    }
+    const setupKey = (JSON.parse(localStorage.getItem('setupConfig') || '{}')?.evmNetwork) as string | undefined;
+    const target = resolveEvmTarget({ setupKey, runtimeChainId });
+    const explorer = explorerFor(target.key);
+
+    const isPool = which === 'pool';
+    const factory = (isPool ? (POOL_FACTORY as any)[target.key] : (ASSET_FACTORY as any)[target.key]) as
+      | string
+      | undefined;
+    const abi = isPool ? PoolFactoryABI : AssetFactoryABI;
+
+    if (!factory || !/^0x[0-9a-fA-F]{40}$/.test(factory)) {
+      throw new Error(`No factory configured for ${target.key} (${target.id}).`);
+    }
+
+    if (isPool) {
+      // const charity = (p.charityAddress || '').trim();
+      // if (!/^0x[0-9a-fA-F]{40}$/.test(charity)) {
+      //   throw new Error('Please select a charity (missing wallet address).');
+      // }
+
+      const token = getErc20ForCurrency(p.currency, target.key);
+      const host = p.hostWallet;
+
+      if (!/^0x[0-9a-fA-F]{40}$/.test(host)) {
+        throw new Error('Host wallet is not a valid EVM address.');
       }
-    },
-    [effectiveChain, stellarContract, solanaContract]
-  );
 
-  const createAssetRoom = useCallback(
-    async (p: {
-      roomId: string;
-      currency: string;
-      entryFee: string | number;
-      hostFeePct: number;
-      charityName?: string;
-      expectedPrizes: Array<{ tokenAddress: string; amount: string }>;
-      hostAddress: string;
-    }): Promise<DeployResult> => {
-      switch (effectiveChain) {
-        case 'stellar': {
-          if (!stellarContract) throw new Error('Stellar contract not ready');
-          const res = await stellarContract.createAssetRoom({
-            roomId: p.roomId,
-            hostAddress: p.hostAddress,
-            currency: p.currency || 'XLM',
-            entryFee: String(p.entryFee ?? '1.0'),
-            hostFeePct: p.hostFeePct ?? 0,
-            charityName: p.charityName,
-            expectedPrizes: p.expectedPrizes ?? [],
-          });
-          if (!res?.success) throw new Error('Stellar createAssetRoom failed');
-          return {
-            success: true,
-            contractAddress: res.contractAddress,
-            txHash: res.txHash,
-            explorerUrl: (res as any).explorerUrl,
-          };
-        }
-        case 'evm': {
-          // TODO: replace with real EVM client
-          return {
-            success: true,
-            contractAddress: `0x${Math.random().toString(16).slice(2, 42)}`,
-            txHash: `0x${Math.random().toString(16).slice(2, 66)}`,
-          };
-        }
-        case 'solana': {
-          if (!solanaContract || !solanaContract.isReady) {
-            throw new Error('Solana contract not ready');
-          }
+      const hostPayPct = Number(p.hostFeePct ?? 0);
+      const prizePoolPct = Number(p.prizePoolPct ?? 0);
 
-          if (!solanaContract.publicKey) {
-            throw new Error('Wallet not connected');
-          }
+      const hostTotalBps = toBps16(hostPayPct + prizePoolPct);
+      const hostPayBps = toBps16(hostPayPct);
 
-          const { PublicKey } = await import('@solana/web3.js');
-          const NATIVE_SOL_MINT = new PublicKey('So11111111111111111111111111111111111111112');
-
-          // Convert entry fee to lamports
-          const entryFeeLamports = new BN(parseFloat(String(p.entryFee)) * LAMPORTS_PER_SOL);
-
-          // Validate we have at least 1 prize
-          if (!p.expectedPrizes || p.expectedPrizes.length === 0) {
-            throw new Error('Asset room requires at least 1 prize');
-          }
-
-          // Parse prize data (max 3 prizes supported)
-          const prizes = p.expectedPrizes.slice(0, 3);
-          const prize1 = prizes[0];
-          const prize2 = prizes.length > 1 ? prizes[1] : undefined;
-          const prize3 = prizes.length > 2 ? prizes[2] : undefined;
-
-          // Convert prize addresses to PublicKeys and amounts to BN
-          const prize1Mint = new PublicKey(prize1.tokenAddress);
-          const prize1Amount = new BN(prize1.amount);
-          const prize2Mint = prize2 ? new PublicKey(prize2.tokenAddress) : undefined;
-          const prize2Amount = prize2 ? new BN(prize2.amount) : undefined;
-          const prize3Mint = prize3 ? new PublicKey(prize3.tokenAddress) : undefined;
-          const prize3Amount = prize3 ? new BN(prize3.amount) : undefined;
-
-          // Get charity wallet (use host for now, should come from TGB API)
-          const charityWallet = solanaContract.publicKey;
-
-          console.log('[Solana Asset Room] Creating with prizes:', {
-            prize1: { mint: prize1Mint.toBase58(), amount: prize1Amount.toString() },
-            prize2: prize2Mint ? { mint: prize2Mint.toBase58(), amount: prize2Amount?.toString() } : null,
-            prize3: prize3Mint ? { mint: prize3Mint.toBase58(), amount: prize3Amount?.toString() } : null,
-          });
-
-          // Call the createAssetRoom function from useSolanaContract
-          const res = await solanaContract.createAssetRoom({
-            roomId: p.roomId,
-            charityWallet,
-            entryFee: entryFeeLamports,
-            maxPlayers: 100,
-            hostFeeBps: p.hostFeePct * 100,
-            charityMemo: p.charityName?.substring(0, 28) || 'Asset room',
-            feeTokenMint: NATIVE_SOL_MINT,
-            prize1Mint,
-            prize1Amount,
-            prize2Mint,
-            prize2Amount,
-            prize3Mint,
-            prize3Amount,
-          });
-
-          return {
-            success: true,
-            contractAddress: res.room,
-            txHash: res.signature,
-          };
-        }
-        default:
-          throw new Error('No chain selected');
+      if (hostTotalBps <= hostPayBps) {
+        throw new Error('Your selections leave 0% for prizes. Increase prize pool or decrease host pay.');
       }
-    },
-    [effectiveChain, stellarContract, solanaContract]
-  );
+      const charityPct = 100 - 20 - (hostPayPct + prizePoolPct);
+      if (charityPct < 0) {
+        throw new Error(
+          'Your selections exceed 100% after platform (20%). Reduce host pay or prize pool.'
+        );
+      }
 
-  const deploy = useCallback(
-    async (params: DeployParams): Promise<DeployResult> => {
-      const hostAddress = getHostAddress(params.hostWallet);
+      const split1 = toBps16(p.prizeSplits?.first ?? 100);
+      const split2 = toBps16(p.prizeSplits?.second ?? 0);
+      const split3 = toBps16(p.prizeSplits?.third ?? 0);
 
-      // Normalize required fields so types are exact (no undefined)
-      const currency: string = params.currency ?? 'XLM';
-      const entryFee: string | number = params.entryFee ?? '1.0';
-      const hostFeePct: number = params.hostFeePct ?? 0;
-      const charityName: string | undefined = params.charityName;
+      const args = [
+        p.roomId,
+        token as `0x${string}`,
+        host as `0x${string}`,
+        hostTotalBps,
+        hostPayBps,
+        split1,
+        split2,
+        split3,
+      ] as const;
 
-      if (params.prizeMode === 'assets') {
-        if (!params.expectedPrizes?.length) {
-          throw new Error('expectedPrizes required for asset-based room');
-        }
-        return createAssetRoom({
-          roomId: params.roomId,
-          currency,
-          entryFee,
-          hostFeePct,
-          charityName,
-          expectedPrizes: params.expectedPrizes,
-          hostAddress,
+      if (DEBUG_WEB3) {
+        console.log('[EVM][DEPLOY] target', target);
+        console.log('[EVM][DEPLOY] prizeMode -> POOL');
+        console.log('[EVM][DEPLOY] factory @', factory);
+        console.log('[EVM][DEPLOY] writeContract', {
+          chainId: target.id,
+          factory,
+          functionName: 'createPoolRoom',
+          argsPreview: args,
         });
       }
 
-      // default → split/pool mode
-      const prizeSplits = params.prizeSplits ?? { first: 100 };
-      const prizePoolPct = params.prizePoolPct ?? 0;
-
-      return createPoolRoom({
-        roomId: params.roomId,
-        currency,
-        entryFee,
-        hostFeePct,
-        prizePoolPct,
-        charityName,
-        prizeSplits,
-        hostAddress,
+      const hash = await writeContract(wagmiConfig, {
+        address: factory as `0x${string}`,
+        abi,
+        functionName: 'createPoolRoom',
+        args,
+        chainId: target.id,
       });
+
+      const receipt = await waitForTransactionReceipt(wagmiConfig, { hash, chainId: target.id });
+
+      let roomAddress: string | null = null;
+      try {
+        for (const log of receipt.logs || []) {
+          try {
+            const decoded = decodeEventLog({
+              abi,
+              data: log.data,
+              topics: log.topics as any,
+            });
+            if (decoded.eventName === 'RoomCreated') {
+              const room = (decoded.args as any)?.room as string | undefined;
+              if (room && /^0x[0-9a-fA-F]{40}$/.test(room)) {
+                roomAddress = room;
+                break;
+              }
+            }
+          } catch {
+            // ignore
+          }
+        }
+      } catch {
+        // ignore
+      }
+
+      if (!roomAddress) {
+        roomAddress = (receipt.logs?.[0] as any)?.address ?? null;
+      }
+
+      if (!roomAddress || !/^0x[0-9a-fA-F]{40}$/.test(roomAddress)) {
+        throw new Error('Deployment succeeded but could not resolve room address from logs.');
+      }
+
+      return {
+        success: true,
+        contractAddress: roomAddress,
+        txHash: hash as `0x${string}`,
+        explorerUrl: `${explorer}/tx/${hash}`,
+      };
+    }
+
+  // ---------------- ASSET room deployment ----------------
+if (!isPool) {
+  // p = DeployParams with prizeMode === 'assets'
+  const token = getErc20ForCurrency(p.currency, target.key);
+  const host = p.hostWallet;
+
+  if (!/^0x[0-9a-fA-F]{40}$/.test(host)) {
+    throw new Error('Host wallet is not a valid EVM address.');
+  }
+
+  const hostPayBps = toBps16(p.hostFeePct ?? 0);
+
+  const args = [
+    p.roomId,
+    token as `0x${string}`,
+    host as `0x${string}`,
+    hostPayBps,
+  ] as const;
+
+  if (DEBUG_WEB3) {
+    console.log('[EVM][DEPLOY] target', target);
+    console.log('[EVM][DEPLOY] prizeMode -> ASSETS');
+    console.log('[EVM][DEPLOY] factory @', factory);
+    console.log('[EVM][DEPLOY] writeContract', {
+      chainId: target.id,
+      factory,
+      functionName: 'createAssetRoom',
+      argsPreview: args,
+    });
+  }
+
+  const hash = await writeContract(wagmiConfig, {
+    address: factory as `0x${string}`,
+    abi,
+    functionName: 'createAssetRoom', // ← from AssetFactory ABI you provided
+    args,
+    chainId: target.id,
+  });
+
+  const receipt = await waitForTransactionReceipt(wagmiConfig, { hash, chainId: target.id });
+
+  // Try to decode RoomCreated event to get the room address
+  let roomAddress: string | null = null;
+  try {
+    for (const log of receipt.logs || []) {
+      try {
+        const decoded = decodeEventLog({
+          abi,
+          data: log.data,
+          topics: log.topics as any,
+        });
+        if (decoded.eventName === 'RoomCreated') {
+          const room = (decoded.args as any)?.room as string | undefined;
+          if (room && /^0x[0-9a-fA-F]{40}$/.test(room)) {
+            roomAddress = room;
+            break;
+          }
+        }
+      } catch {
+        // ignore decode errors on unrelated logs
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  if (!roomAddress) {
+    // Fallback: some toolchains also put the new room address as the log's "address"
+    roomAddress = (receipt.logs?.[0] as any)?.address ?? null;
+  }
+
+  if (!roomAddress || !/^0x[0-9a-fA-F]{40}$/.test(roomAddress)) {
+    throw new Error('Deployment succeeded but could not resolve asset room address from logs.');
+  }
+
+  return {
+    success: true,
+    contractAddress: roomAddress,
+    txHash: hash as `0x${string}`,
+    explorerUrl: `${explorer}/tx/${hash}`,
+  };
+}
+    throw new Error('Invalid deployment type specified.');
+  }, []);
+
+  const deploy = useCallback(
+    async (params: DeployParams): Promise<DeployResult> => {
+      // ✅ For Stellar, throw error - must use StellarLaunchSection
+      if (effectiveChain === 'stellar') {
+        throw new Error('Stellar deployment must be handled through StellarLaunchSection component');
+      }
+
+      // ✅ For EVM, proceed with deployment
+      if (effectiveChain === 'evm') {
+        const hostAddress = getHostAddress(params.hostWallet);
+        const currency: string = params.currency ?? 'XLM';
+        const entryFee: string | number = params.entryFee ?? '1.0';
+        const hostFeePct: number = params.hostFeePct ?? 0;
+        const prizePoolPct = params.prizePoolPct ?? 0;
+        const prizeSplits = params.prizeSplits ?? { first: 100 };
+
+        return deployEvm(
+          {
+            ...params,
+            currency,
+            entryFee,
+            hostFeePct,
+            prizePoolPct,
+            prizeSplits,
+            hostWallet: hostAddress,
+          },
+          params.prizeMode === 'assets' ? 'asset' : 'pool'
+        );
+      }
+
+      throw new Error(`Deployment not implemented for ${effectiveChain} chain`);
     },
-    [getHostAddress, createAssetRoom, createPoolRoom, solanaContract]
+    [effectiveChain, getHostAddress, deployEvm]
   );
 
-  // 👇 IMPORTANT: include distributePrizes and declareWinners in the returned object
-  return { deploy, joinRoom, declareWinners, distributePrizes };
+  return { deploy, joinRoom, distributePrizes };
 }
-
-// Optional: export a typed alias if you want to reuse the shape elsewhere
-export type ContractActions = ReturnType<typeof useContractActions>;
-
-
-
-
 
 
 

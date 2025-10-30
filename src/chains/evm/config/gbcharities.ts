@@ -15,7 +15,7 @@ export type Charity = {
 export const CHARITIES: Charity[] = [
   // EXAMPLES — replace with real orgIds & names from TGB
   { id: 'org_abc123', name: 'Bright Horizons Foundation', logoUrl: '' },
-  { id: 'org_def456', name: "Little Oaks Children's Fund", logoUrl: '' },
+  { id: 'org_def456', name: 'Little Oaks Children’s Fund', logoUrl: '' },
   { id: 'org_ghi789', name: 'RiverAid Clean Water', logoUrl: '' },
   // ...
 ];
