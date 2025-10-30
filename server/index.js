@@ -26,10 +26,6 @@ import impactCampaignPledgeApi from './quiz/api/impactcampaign-pledge.js';
 console.log('✅ Community registration imported:', communityRegistrationApi);
 console.log('📦 Type:', typeof communityRegistrationApi);
 
-// The Giving Block (TGB) API integration
-import createDepositAddress from './tgb/api/create-deposit-address.js';
-import tgbWebhookHandler from './tgb/api/webhook.js';
-
 import { initializeDatabase } from './config/database.js';
 
 import createDepositAddress from './tgb/api/create-deposit-address.js';
@@ -37,7 +33,6 @@ import tgbWebhookHandler from './tgb/api/webhook.js';
 
 import contactRoute from './routes/contact.js';
 import passwordResetRoute from './routes/passwordReset.js';
-import clubsRoute from './routes/clubs.js';
 
 import { seoRoutes } from './SeoRoutes.js';
 import { getSeoForPath } from './seoMap.js'; // route→SEO map (server/seoMap.js)
@@ -199,11 +194,6 @@ app.use('/quiz/api/impactcampaign/pledge', impactCampaignPledgeApi);
 console.log('🛠️ Setting up routes...');
 app.use('/quiz/api', createRoomApi);
 console.log('🔗 Setting up community registration route...');
-
-// The Giving Block API routes
-app.post('/api/tgb/create-deposit-address', createDepositAddress);
-app.post('/api/tgb/webhook', tgbWebhookHandler);
-console.log('🎁 TGB API routes registered');
 
 console.log('✅ Routes setup complete'); 
 
@@ -407,8 +397,6 @@ setupSocketHandlers(io);
 
 app.use('/api/contact', contactRoute);
 app.use('/api/auth/reset', passwordResetRoute);
-app.use('/api/clubs', clubsRoute);
-console.log('👥 Clubs authentication routes registered');
 
 
 // server/index.js (after app.use routes)
@@ -435,25 +423,12 @@ app.get('/debug/rooms', (req, res) => {
 // Startup
 async function startServer() {
   try {
-    // Try to initialize database, but don't fail if it's not available
-    let dbConnected = false;
-    try {
-      await initializeDatabase();
-      dbConnected = true;
-      console.log('✅ Database connected');
-    } catch (dbError) {
-      console.warn('⚠️ Database not available - running in demo mode');
-      console.warn('⚠️ Some features (user accounts, quiz persistence) will be limited');
-      console.warn('⚠️ TGB integration and Solana features will still work!');
-    }
-
+    await initializeDatabase();
     httpServer.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`💾 Cache headers: ${process.env.NODE_ENV === 'production' ? 'Optimized (1 year)' : 'Development mode'}`);
-      console.log(`🗄️ Database: ${dbConnected ? 'Connected' : 'Demo mode (in-memory only)'}`);
-      console.log(`🎁 TGB API: Ready (mock mode: ${process.env.TGB_FORCE_MOCK === 'true'})`);
-      console.log(`⛓️ Solana Program: ${process.env.VITE_SOLANA_PROGRAM_ID || 'Not configured'}`);
+      console.log(`🗄️ Database connected`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);
