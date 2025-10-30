@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(timeout 180 anchor build:*)",
+      "Bash(solana-keygen new:*)",
+      "Bash(/c/Users/isich/.local/share/solana/install/active_release/bin/solana-keygen:*)",
+      "Bash(/c/Users/isich/.cargo/bin/solana-keygen new:*)",
+      "Bash(~/.cargo/bin/solana.exe:*)",
+      "Bash(cat:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run dev:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(git checkout:*)",
+      "Bash(git stash:*)",
+      "Bash(git add:*)",
+      "Read(//c/tmp/**)",
+      "Read(//tmp/**)",
+      "Bash(git commit:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
