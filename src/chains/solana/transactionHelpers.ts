@@ -33,6 +33,12 @@ export async function simulateTransaction(
   transaction: Transaction | VersionedTransaction
 ): Promise<SimulationResult> {
   try {
+    // Add recent blockhash if not already set (required for simulation)
+    if (transaction instanceof Transaction && !transaction.recentBlockhash) {
+      const { blockhash } = await connection.getLatestBlockhash('finalized');
+      transaction.recentBlockhash = blockhash;
+    }
+
     const simulation = transaction instanceof Transaction
       ? await connection.simulateTransaction(transaction)
       : await connection.simulateTransaction(transaction);

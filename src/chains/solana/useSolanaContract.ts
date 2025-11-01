@@ -45,6 +45,7 @@ import type { Idl } from '@coral-xyz/anchor';
 import {
   createAssetRoom as createAssetRoomImpl,
   depositPrizeAsset as depositPrizeAssetImpl,
+  deriveTokenRegistryPDA,
   type CreateAssetRoomParams,
   type DepositPrizeAssetParams,
 } from './solana-asset-room';
@@ -70,9 +71,10 @@ export interface CreatePoolRoomParams {
 
 export interface JoinRoomParams {
   roomId: string; // Room identifier
-  hostPubkey: PublicKey; // Room host's pubkey (needed for PDA derivation)
-  extrasAmount: BN; // Additional donation beyond entry fee (optional)
-  feeTokenMint: PublicKey; // SPL token mint (must match room's mint)
+  hostPubkey?: PublicKey; // Room host's pubkey (optional - will be fetched from room data if not provided)
+  entryFee?: BN; // Entry fee amount (optional - will be fetched from room data if not provided)
+  extrasAmount?: BN; // Additional donation beyond entry fee (optional)
+  feeTokenMint?: PublicKey; // SPL token mint (optional - will be fetched from room data if not provided)
   roomPDA?: PublicKey; // Optional: Use this room PDA instead of deriving it (avoids PDA mismatch errors)
 }
 
@@ -275,6 +277,240 @@ export function useSolanaContract() {
    *
    * @see {@link https://explorer.solana.com} - View transaction on explorer
    */
+
+  /**
+   * Initializes the global config (one-time setup)
+   *
+   * The global config must be initialized before creating any rooms.
+   * This sets the platform and charity wallet addresses.
+   *
+   * @param platformWallet - Wallet to receive platform fees
+   * @param charityWallet - Wallet to receive charity donations
+   * @returns Transaction signature
+   */
+  const initializeGlobalConfig = useCallback(
+    async (platformWallet: PublicKey, charityWallet: PublicKey): Promise<{ signature: string }> => {
+      console.log('[initializeGlobalConfig] Starting global config initialization');
+
+      if (!publicKey || !provider) {
+        throw new Error('Wallet not connected');
+      }
+
+      if (!program) {
+        throw new Error('Program not initialized');
+      }
+
+      const [globalConfig] = deriveGlobalConfigPDA();
+
+      console.log('[initializeGlobalConfig] Global config PDA:', globalConfig.toBase58());
+      console.log('[initializeGlobalConfig] Platform wallet:', platformWallet.toBase58());
+      console.log('[initializeGlobalConfig] Charity wallet:', charityWallet.toBase58());
+
+      // Check if already initialized
+      try {
+        const configAccount = await connection.getAccountInfo(globalConfig);
+        if (configAccount && configAccount.owner.toBase58() === program.programId.toBase58()) {
+          console.log('[initializeGlobalConfig] Global config already initialized');
+          return { signature: 'already-initialized' };
+        }
+      } catch (error) {
+        console.log('[initializeGlobalConfig] Config not found, will initialize');
+      }
+
+      // Build initialization instruction
+      const ix = await program.methods
+        .initialize(platformWallet, charityWallet)
+        .accounts({
+          globalConfig,
+          admin: publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .instruction();
+
+      // Build and send transaction
+      const tx = new Transaction().add(ix);
+      tx.feePayer = publicKey;
+      const { blockhash } = await connection.getLatestBlockhash('finalized');
+      tx.recentBlockhash = blockhash;
+
+      const signature = await provider.sendAndConfirm(tx, [], {
+        skipPreflight: false,
+        commitment: 'confirmed',
+      });
+
+      console.log('✅ Global config initialized:', signature);
+
+      return { signature };
+    },
+    [publicKey, provider, program, connection, deriveGlobalConfigPDA]
+  );
+
+  /**
+   * Initializes the token registry (one-time setup)
+   *
+   * The token registry must be initialized before creating any rooms.
+   * This is a one-time operation that creates the registry PDA account.
+   *
+   * @returns Transaction signature
+   */
+  const initializeTokenRegistry = useCallback(
+    async (): Promise<{ signature: string }> => {
+      console.log('[initializeTokenRegistry] Starting token registry initialization');
+
+      if (!publicKey || !provider) {
+        throw new Error('Wallet not connected');
+      }
+
+      if (!program) {
+        throw new Error('Program not initialized');
+      }
+
+      // Derive token registry PDA
+      const [tokenRegistry, bump] = deriveTokenRegistryPDA();
+
+      console.log('[initializeTokenRegistry] Token registry PDA:', tokenRegistry.toBase58());
+      console.log('[initializeTokenRegistry] Bump:', bump);
+      console.log('[initializeTokenRegistry] Program ID:', program.programId.toBase58());
+      console.log('[initializeTokenRegistry] Seed used:', 'token-registry-v4');
+
+      // Check if already initialized
+      try {
+        const registryAccount = await connection.getAccountInfo(tokenRegistry);
+        if (registryAccount) {
+          // Check if it's owned by the correct program
+          if (registryAccount.owner.toBase58() === program.programId.toBase58()) {
+            console.log('[initializeTokenRegistry] Token registry already initialized');
+            return { signature: 'already-initialized' };
+          } else {
+            console.warn('[initializeTokenRegistry] ⚠️ Token registry exists but owned by old program:', {
+              oldOwner: registryAccount.owner.toBase58(),
+              currentProgram: program.programId.toBase58(),
+            });
+            throw new Error(
+              `⚠️ DEVNET CLEANUP NEEDED: Token registry was created by old program deployment.\n\n` +
+              `To fix this, run in your bingo-solana-contracts repo:\n` +
+              `cd C:\\Users\\isich\\bingo-solana-contracts\n` +
+              `anchor clean && anchor build && anchor deploy\n\n` +
+              `Or manually close the old account:\n` +
+              `solana program close ${registryAccount.owner.toBase58()} --url devnet`
+            );
+          }
+        }
+      } catch (error: any) {
+        if (error.message?.includes('DEVNET CLEANUP')) {
+          throw error; // Re-throw our custom error
+        }
+        console.log('[initializeTokenRegistry] Registry not found, will initialize');
+      }
+
+      // Build initialization instruction
+      // Fixed: Program now has synchronized declare_id! and keypair, so Anchor auto-derivation works
+      console.log('[initializeTokenRegistry] 🏗️ Building instruction with Anchor...');
+      console.log('[initializeTokenRegistry] Program object:', program.programId.toString());
+      console.log('[initializeTokenRegistry] Passing tokenRegistry:', tokenRegistry.toBase58());
+
+      const ix = await program.methods
+        .initializeTokenRegistry()
+        .accounts({
+          tokenRegistry,
+          admin: publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .instruction();
+
+      console.log('[initializeTokenRegistry] ✅ Instruction built successfully');
+      console.log('[initializeTokenRegistry] Instruction programId:', ix.programId.toBase58());
+      console.log('[initializeTokenRegistry] Instruction keys:', ix.keys.map(k => ({
+        pubkey: k.pubkey.toBase58(),
+        isSigner: k.isSigner,
+        isWritable: k.isWritable
+      })));
+
+      // Build transaction
+      const tx = new Transaction().add(ix);
+      tx.feePayer = publicKey;
+      const { blockhash } = await connection.getLatestBlockhash('finalized');
+      tx.recentBlockhash = blockhash;
+
+      console.log('[initializeTokenRegistry] 📤 Transaction ready to send');
+      console.log('[initializeTokenRegistry] Transaction accounts:', tx.instructions[0].keys.map(k => k.pubkey.toBase58()));
+
+      // Send and confirm
+      const signature = await provider.sendAndConfirm(tx, [], {
+        skipPreflight: false,
+        commitment: 'confirmed',
+      });
+
+      console.log('✅ Token registry initialized:', signature);
+
+      return { signature };
+    },
+    [publicKey, provider, program, connection]
+  );
+
+  /**
+   * Add an approved token to the token registry
+   *
+   * @param tokenMint - The mint address of the token to approve
+   * @returns Transaction signature
+   */
+  const addApprovedToken = useCallback(
+    async (tokenMint: PublicKey): Promise<{ signature: string }> => {
+      console.log('[addApprovedToken] Adding token:', tokenMint.toBase58());
+
+      if (!publicKey || !provider) {
+        throw new Error('Wallet not connected');
+      }
+
+      if (!program) {
+        throw new Error('Program not initialized');
+      }
+
+      const [tokenRegistry] = deriveTokenRegistryPDA();
+
+      console.log('[addApprovedToken] Token registry PDA:', tokenRegistry.toBase58());
+      console.log('[addApprovedToken] Token to approve:', tokenMint.toBase58());
+
+      // Check if token is already approved
+      try {
+        const registryAccount = await program.account.tokenRegistry.fetch(tokenRegistry);
+        const approvedTokens = registryAccount.approvedTokens as PublicKey[];
+
+        if (approvedTokens.some(t => t.equals(tokenMint))) {
+          console.log('[addApprovedToken] Token already approved');
+          return { signature: 'already-approved' };
+        }
+      } catch (error) {
+        console.log('[addApprovedToken] Could not check approved tokens, will attempt to add');
+      }
+
+      // Build add token instruction
+      const ix = await program.methods
+        .addApprovedToken(tokenMint)
+        .accounts({
+          tokenRegistry,
+          admin: publicKey,
+        })
+        .instruction();
+
+      // Build and send transaction
+      const tx = new Transaction().add(ix);
+      tx.feePayer = publicKey;
+      const { blockhash } = await connection.getLatestBlockhash('finalized');
+      tx.recentBlockhash = blockhash;
+
+      const signature = await provider.sendAndConfirm(tx, [], {
+        skipPreflight: false,
+        commitment: 'confirmed',
+      });
+
+      console.log('✅ Token approved:', signature);
+
+      return { signature };
+    },
+    [publicKey, provider, program, connection, deriveTokenRegistryPDA]
+  );
+
   const createPoolRoom = useCallback(
     async (params: CreatePoolRoomParams) => {
       console.log('[createPoolRoom] Starting room creation with params:', {
@@ -293,6 +529,61 @@ export function useSolanaContract() {
 
       if (!program) {
         throw new Error('Program not deployed yet. Run: cd solana-program/bingo && anchor deploy');
+      }
+
+      // Auto-initialize global config and token registry if needed
+      console.log('[createPoolRoom] Checking if global config is initialized...');
+      try {
+        await initializeGlobalConfig(publicKey, params.charityWallet);
+      } catch (error: any) {
+        // Only fail if it's not already initialized
+        const isAlreadyInit = error.message?.includes('already-initialized') ||
+                             error.message?.includes('already been processed') ||
+                             error.message?.includes('custom program error: 0x0'); // Account already initialized
+        if (!isAlreadyInit) {
+          console.error('[createPoolRoom] Failed to initialize global config:', error);
+          throw error;
+        }
+        console.log('[createPoolRoom] Global config already initialized (caught expected error)');
+      }
+
+      console.log('[createPoolRoom] Checking if token registry is initialized...');
+      try {
+        await initializeTokenRegistry();
+      } catch (error: any) {
+        // Get full transaction logs if available
+        if (error.getLogs && typeof error.getLogs === 'function') {
+          const logs = await error.getLogs();
+          console.error('[createPoolRoom] Full transaction logs:', logs);
+        }
+
+        // Log complete error details
+        console.error('[createPoolRoom] Full error object:', {
+          message: error.message,
+          name: error.name,
+          stack: error.stack,
+          logs: error.logs,
+        });
+
+        // Only fail if it's not already initialized
+        if (!error.message?.includes('already-initialized')) {
+          console.error('[createPoolRoom] Failed to initialize token registry:', error);
+          throw new Error(`Token registry initialization failed: ${error.message}`);
+        }
+      }
+
+      // Auto-approve the fee token if needed
+      console.log('[createPoolRoom] Checking if fee token is approved...');
+      try {
+        await addApprovedToken(params.feeTokenMint);
+      } catch (error: any) {
+        const isAlreadyApproved = error.message?.includes('already-approved') ||
+                                 error.message?.includes('already been processed');
+        if (!isAlreadyApproved) {
+          console.error('[createPoolRoom] Failed to approve token:', error);
+          throw error;
+        }
+        console.log('[createPoolRoom] Token already approved (caught expected error)');
       }
 
       // Validate inputs before building transaction
@@ -346,11 +637,13 @@ export function useSolanaContract() {
       const [globalConfig] = deriveGlobalConfigPDA();
       const [room] = deriveRoomPDA(publicKey, params.roomId);
       const [roomVault] = deriveRoomVaultPDA(room);
+      const [tokenRegistry] = deriveTokenRegistryPDA();
 
       console.log('[createPoolRoom] PDAs derived:', {
         globalConfig: globalConfig.toBase58(),
         room: room.toBase58(),
         roomVault: roomVault.toBase58(),
+        tokenRegistry: tokenRegistry.toBase58(),
       });
 
       // Build instruction using Anchor's methods API
@@ -372,6 +665,7 @@ export function useSolanaContract() {
           room,
           roomVault,
           feeTokenMint: params.feeTokenMint,
+          tokenRegistry,
           globalConfig,
           host: publicKey,
           systemProgram: SystemProgram.programId,
@@ -461,7 +755,7 @@ export function useSolanaContract() {
 
       return { signature, room: room.toBase58() };
     },
-    [publicKey, program, provider, connection, deriveGlobalConfigPDA, deriveRoomPDA, deriveRoomVaultPDA]
+    [publicKey, program, provider, connection, deriveGlobalConfigPDA, deriveRoomPDA, deriveRoomVaultPDA, initializeGlobalConfig, initializeTokenRegistry, addApprovedToken]
   );
 
   // ============================================================================
@@ -577,9 +871,10 @@ export function useSolanaContract() {
     console.log('[joinRoom] Called with params:', {
       roomId: params.roomId,
       roomIdLength: params.roomId.length,
-      hostPubkey: params.hostPubkey.toBase58(),
-      feeTokenMint: params.feeTokenMint.toBase58(),
+      hostPubkey: params.hostPubkey?.toBase58(),
+      feeTokenMint: params.feeTokenMint?.toBase58(),
       extrasAmount: params.extrasAmount?.toString(),
+      entryFee: params.entryFee?.toString(),
     });
 
     if (!publicKey || !provider) {
@@ -595,21 +890,55 @@ export function useSolanaContract() {
       throw new Error(`Room ID too long: ${params.roomId.length} chars (max 32). RoomId: "${params.roomId}"`);
     }
 
+    // If host pubkey or fee token mint not provided, we need to find the room
+    // by searching all possible host addresses
+    let hostPubkey = params.hostPubkey;
+    let feeTokenMint = params.feeTokenMint;
+    let roomPDA = params.roomPDA;
+
+    if (!hostPubkey || !feeTokenMint) {
+      console.log('[joinRoom] Missing hostPubkey or feeTokenMint, searching for room...');
+
+      // Try to fetch all rooms and find the one with matching roomId
+      // This is a workaround - ideally the UI should pass these parameters
+      const rooms = await program.account.room.all();
+      const matchingRoom = rooms.find((r: any) => {
+        const roomData = r.account;
+        const roomIdStr = Buffer.from(roomData.roomId).toString('utf8').replace(/\0/g, '');
+        return roomIdStr === params.roomId;
+      });
+
+      if (!matchingRoom) {
+        throw new Error(`Room not found with ID: ${params.roomId}`);
+      }
+
+      const roomData = matchingRoom.account;
+      hostPubkey = roomData.host as PublicKey;
+      feeTokenMint = roomData.feeTokenMint as PublicKey;
+      roomPDA = matchingRoom.publicKey;
+
+      console.log('[joinRoom] Found room:', {
+        host: hostPubkey.toBase58(),
+        feeTokenMint: feeTokenMint.toBase58(),
+        roomPDA: roomPDA.toBase58(),
+      });
+    }
+
     // Derive PDAs - use provided roomPDA if available to avoid mismatch
     const [globalConfig] = deriveGlobalConfigPDA();
-    const room = params.roomPDA || deriveRoomPDA(params.hostPubkey, params.roomId)[0];
-    const roomBump = params.roomPDA ? undefined : deriveRoomPDA(params.hostPubkey, params.roomId)[1];
+    const room = roomPDA || deriveRoomPDA(hostPubkey, params.roomId)[0];
+    const roomBump = roomPDA ? undefined : deriveRoomPDA(hostPubkey, params.roomId)[1];
     const [roomVault] = deriveRoomVaultPDA(room);
     const [playerEntry] = derivePlayerEntryPDA(room, publicKey);
 
     // Get player's Associated Token Account
     const playerTokenAccount = await getAssociatedTokenAddress(
-      params.feeTokenMint,
+      feeTokenMint,
       publicKey
     );
 
     console.log('[joinRoom] PDA Derivation:', {
-      hostPubkey: params.hostPubkey.toBase58(),
+      hostPubkey: hostPubkey.toBase58(),
       roomId: params.roomId,
       roomIdBytes: Buffer.from(params.roomId).toString('hex'),
       derivedRoom: room.toBase58(),
@@ -635,15 +964,15 @@ export function useSolanaContract() {
         storedHost: roomAccount.host.toBase58(),
         feeTokenMint: roomAccount.feeTokenMint.toBase58(),
         entryFee: roomAccount.entryFee.toString(),
-        matchesProvidedHost: roomAccount.host.equals(params.hostPubkey),
+        matchesProvidedHost: roomAccount.host.equals(hostPubkey),
         matchesProvidedRoomId: roomAccount.roomId === params.roomId,
-        matchesProvidedMint: roomAccount.feeTokenMint.equals(params.feeTokenMint),
+        matchesProvidedMint: roomAccount.feeTokenMint.equals(feeTokenMint),
       });
 
       // CRITICAL: Verify the fee token mint matches
-      if (!roomAccount.feeTokenMint.equals(params.feeTokenMint)) {
+      if (!roomAccount.feeTokenMint.equals(feeTokenMint)) {
         throw new Error(
-          `Token mint mismatch! Room expects ${roomAccount.feeTokenMint.toBase58()} but got ${params.feeTokenMint.toBase58()}`
+          `Token mint mismatch! Room expects ${roomAccount.feeTokenMint.toBase58()} but got ${feeTokenMint.toBase58()}`
         );
       }
     } catch (err) {
@@ -664,7 +993,7 @@ export function useSolanaContract() {
     }
 
     // For native SOL, verify player has enough balance in their main wallet
-    const isNativeSOL = params.feeTokenMint.equals(NATIVE_MINT);
+    const isNativeSOL = feeTokenMint.equals(NATIVE_MINT);
     if (isNativeSOL) {
       const totalNeeded = roomAccount.entryFee.add(params.extrasAmount || new BN(0));
       const walletBalance = await connection.getBalance(publicKey);
@@ -698,13 +1027,13 @@ export function useSolanaContract() {
         publicKey, // payer
         playerTokenAccount, // ata
         publicKey, // owner
-        params.feeTokenMint // mint
+        feeTokenMint // mint
       );
       instructions.push(createATAIx);
 
       // For native SOL, we need to fund the new account
       if (isNativeSOL) {
-        const totalNeeded = roomAccount.entryFee.add(params.extrasAmount);
+        const totalNeeded = roomAccount.entryFee.add(params.extrasAmount || new BN(0));
         console.log('[joinRoom] Native SOL - funding new token account with', totalNeeded.toString(), 'lamports');
 
         // Transfer SOL to the newly created token account
@@ -721,7 +1050,7 @@ export function useSolanaContract() {
       }
     } else if (isNativeSOL) {
       // Account exists - check if it has enough wrapped SOL balance
-      const totalNeeded = roomAccount.entryFee.add(params.extrasAmount).toNumber();
+      const totalNeeded = roomAccount.entryFee.add(params.extrasAmount || new BN(0)).toNumber();
 
       // For wrapped SOL, we need to check the token account's amount, not the lamports
       let currentTokenBalance = 0;
@@ -769,9 +1098,9 @@ export function useSolanaContract() {
         mint: tokenAccountData.mint.toBase58(),
         amount: tokenAccountData.amount.toString(),
         expectedOwner: publicKey.toBase58(),
-        expectedMint: params.feeTokenMint.toBase58(),
+        expectedMint: feeTokenMint.toBase58(),
         ownerMatches: tokenAccountData.owner.equals(publicKey),
-        mintMatches: tokenAccountData.mint.equals(params.feeTokenMint),
+        mintMatches: tokenAccountData.mint.equals(feeTokenMint),
       });
 
       // Verify ownership
@@ -782,9 +1111,9 @@ export function useSolanaContract() {
       }
 
       // Verify mint
-      if (!tokenAccountData.mint.equals(params.feeTokenMint)) {
+      if (!tokenAccountData.mint.equals(feeTokenMint)) {
         throw new Error(
-          `Token account mint mismatch! Expected ${params.feeTokenMint.toBase58()} but got ${tokenAccountData.mint.toBase58()}`
+          `Token account mint mismatch! Expected ${feeTokenMint.toBase58()} but got ${tokenAccountData.mint.toBase58()}`
         );
       }
 
@@ -817,14 +1146,14 @@ export function useSolanaContract() {
         owner: vaultTokenAccount.owner.toBase58(),
         mint: vaultTokenAccount.mint.toBase58(),
         amount: vaultTokenAccount.amount.toString(),
-        expectedMint: params.feeTokenMint.toBase58(),
-        mintMatches: vaultTokenAccount.mint.equals(params.feeTokenMint),
+        expectedMint: feeTokenMint.toBase58(),
+        mintMatches: vaultTokenAccount.mint.equals(feeTokenMint),
       });
 
       // Verify vault mint matches room's fee token mint
-      if (!vaultTokenAccount.mint.equals(params.feeTokenMint)) {
+      if (!vaultTokenAccount.mint.equals(feeTokenMint)) {
         throw new Error(
-          `Vault mint mismatch! Expected ${params.feeTokenMint.toBase58()} but got ${vaultTokenAccount.mint.toBase58()}`
+          `Vault mint mismatch! Expected ${feeTokenMint.toBase58()} but got ${vaultTokenAccount.mint.toBase58()}`
         );
       }
     } catch (err: any) {
@@ -1020,9 +1349,14 @@ export function useSolanaContract() {
 
       // Build transaction and simulate
       const tx = new Transaction().add(ix);
+      tx.feePayer = publicKey;
       const simResult = await simulateTransaction(connection, tx);
 
       if (!simResult.success) {
+        console.error('[declareWinners] Simulation failed:', {
+          error: simResult.error,
+          logs: simResult.logs,
+        });
         throw new Error(formatTransactionError(simResult.error));
       }
 
@@ -1204,6 +1538,7 @@ export function useSolanaContract() {
 
       // Build transaction and simulate
       const tx = new Transaction().add(ix);
+      tx.feePayer = publicKey;
       const simResult = await simulateTransaction(connection, tx);
 
       if (!simResult.success) {
@@ -1360,9 +1695,14 @@ export function useSolanaContract() {
         .instruction();
 
       const tx = new Transaction().add(ix);
+      tx.feePayer = publicKey;
       const simResult = await simulateTransaction(connection, tx);
 
       if (!simResult.success) {
+        console.error('[closeJoining] Simulation failed:', {
+          error: simResult.error,
+          logs: simResult.logs,
+        });
         throw new Error(formatTransactionError(simResult.error));
       }
 
@@ -1416,6 +1756,7 @@ export function useSolanaContract() {
         .instruction();
 
       const tx = new Transaction().add(ix);
+      tx.feePayer = publicKey;
       const simResult = await simulateTransaction(connection, tx);
 
       if (!simResult.success) {
@@ -1436,6 +1777,29 @@ export function useSolanaContract() {
   );
 
   // ============================================================================
+  // Composite Functions (convenience wrappers)
+  // ============================================================================
+
+  /**
+   * Distributes prizes to winners (ASSET ROOMS ONLY)
+   *
+   * NOTE: This function only works with asset-based rooms created via createAssetRoom().
+   * Pool rooms (created via createPoolRoom()) do not support on-chain prize distribution.
+   * For pool rooms, prizes must be distributed off-chain by the host.
+   */
+  const distributePrizes = useCallback(
+    async (params: { roomId: string; winners: string[] }): Promise<{ signature: string }> => {
+      // Throw a clear error since pool rooms don't support prize distribution
+      throw new Error(
+        'On-chain prize distribution is only available for Asset Rooms. ' +
+        'Pool rooms require manual/off-chain prize distribution by the host. ' +
+        'Asset rooms pre-deposit prizes and distribute them automatically on-chain.'
+      );
+    },
+    [publicKey, provider, program, declareWinners, endRoom]
+  );
+
+  // ============================================================================
   // Return Hook Interface
   // ============================================================================
 
@@ -1445,6 +1809,9 @@ export function useSolanaContract() {
     publicKey,
     isReady: !!publicKey && !!program,
     // Instructions
+    initializeGlobalConfig,
+    initializeTokenRegistry,
+    addApprovedToken,
     createPoolRoom,
     createAssetRoom,
     joinRoom,
@@ -1454,6 +1821,8 @@ export function useSolanaContract() {
     setEmergencyPause,
     closeJoining,
     cleanupRoom,
+    // Composite functions
+    distributePrizes,
     // Queries
     getRoomInfo,
     getPlayerEntry,

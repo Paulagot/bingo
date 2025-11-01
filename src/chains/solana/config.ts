@@ -12,10 +12,20 @@
 
 import { PublicKey, type Cluster } from '@solana/web3.js';
 
-// Program IDs - Updated with deployed devnet program ID (with new features: emergency_pause, close_joining, cleanup_room)
-export const PROGRAM_ID = new PublicKey(
-  import.meta.env.VITE_SOLANA_PROGRAM_ID || 'AcUg72jFLTnKs478qaNpu2AWU3pBtqV1kmrkXaqjwjeK'
-);
+// Program IDs - HARDCODED - Nov 1, 2025 13:51
+// BYPASSING import.meta.env DUE TO AGGRESSIVE BROWSER CACHING
+const HARDCODED_PROGRAM_ID = '8W83G9mSeoQ6Ljcz5QJHYPjH2vQgw94YeVCnpY6KFt7i';
+
+console.log('═══════════════════════════════════════════════════════');
+console.log('🔧 SOLANA CONFIG MODULE LOADING - HARDCODED MODE');
+console.log('═══════════════════════════════════════════════════════');
+console.log('[Config] HARDCODED_PROGRAM_ID:', HARDCODED_PROGRAM_ID);
+
+export const PROGRAM_ID = new PublicKey(HARDCODED_PROGRAM_ID);
+
+console.log('[Config] ✅ PROGRAM_ID PublicKey created:', PROGRAM_ID.toString());
+console.log('[Config] Match:', PROGRAM_ID.toString() === HARDCODED_PROGRAM_ID ? '✅ CORRECT' : '❌ MISMATCH!!!');
+console.log('═══════════════════════════════════════════════════════');
 
 // Network configuration
 export const NETWORK = (import.meta.env.VITE_SOLANA_NETWORK || 'devnet') as Cluster;

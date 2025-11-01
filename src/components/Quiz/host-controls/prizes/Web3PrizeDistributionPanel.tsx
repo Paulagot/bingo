@@ -163,16 +163,34 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
         } else {
           // Handle failure case
           const errorMsg = 'error' in result ? result.error : 'Unknown error occurred';
-          
-          console.error('❌ [Frontend] Prize distribution failed:', errorMsg);
 
-          socket.emit('prize_distribution_completed', {
-            roomId: data.roomId,
-            success: false,
-            error: errorMsg,
-          });
+          // Check if this is a Solana pool room (not supported for on-chain distribution)
+          if (errorMsg.includes('only available for Asset Rooms')) {
+            console.log('ℹ️ [Frontend] Solana pool room - manual distribution required');
 
-          setState({ status: 'error', error: errorMsg });
+            // For Solana pool rooms, just mark as success and show info message
+            socket.emit('prize_distribution_completed', {
+              roomId: data.roomId,
+              success: true,
+              txHash: 'manual-distribution-required',
+            });
+
+            setState({
+              status: 'success',
+              txHash: 'manual-distribution-required',
+              error: 'Pool room: Winners displayed above. Host should distribute prizes manually.'
+            });
+          } else {
+            console.error('❌ [Frontend] Prize distribution failed:', errorMsg);
+
+            socket.emit('prize_distribution_completed', {
+              roomId: data.roomId,
+              success: false,
+              error: errorMsg,
+            });
+
+            setState({ status: 'error', error: errorMsg });
+          }
         }
       } catch (err: any) {
         console.error('❌ [Frontend] Exception during prize distribution:', err);
@@ -281,13 +299,29 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
             <div className="mt-4 rounded-xl border-2 border-green-200 bg-green-50 p-6">
               <div className="mb-3 text-center">
                 <div className="text-4xl">✅</div>
-                <h3 className="text-xl font-bold text-green-800">Prizes Distributed Successfully!</h3>
+                <h3 className="text-xl font-bold text-green-800">
+                  {state.txHash === 'manual-distribution-required'
+                    ? 'Quiz Complete - Manual Distribution Required'
+                    : 'Prizes Distributed Successfully!'}
+                </h3>
               </div>
-              {state.txHash && (
+              {state.txHash === 'manual-distribution-required' ? (
+                <div className="text-center">
+                  <p className="text-sm text-green-700 mb-2">
+                    This is a <strong>Pool Room</strong> (entry fee based).
+                  </p>
+                  <p className="text-sm text-green-600">
+                    Winners are displayed above. As the host, please distribute prizes manually to the winners.
+                  </p>
+                  <p className="mt-2 text-xs text-green-600 italic">
+                    Note: Asset rooms support automatic on-chain distribution.
+                  </p>
+                </div>
+              ) : state.txHash ? (
                 <p className="text-center text-sm text-green-600">
                   Transaction Hash: <code className="bg-green-100 px-2 py-1 rounded">{state.txHash}</code>
                 </p>
-              )}
+              ) : null}
               <p className="mt-2 text-xs text-green-700">You can't distribute again for this room.</p>
             </div>
           )}

@@ -58,10 +58,24 @@ export function deriveGlobalConfigPDA(): [PublicKey, number] {
 }
 
 export function deriveTokenRegistryPDA(): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync(
-    [Buffer.from('token-registry')],
+  const seed = 'token-registry-v4';
+  console.log('[deriveTokenRegistryPDA] Input - Seed:', seed, 'Program:', PROGRAM_ID.toString());
+  const result = PublicKey.findProgramAddressSync(
+    [Buffer.from(seed)],
     PROGRAM_ID
   );
+  console.log('[deriveTokenRegistryPDA] Output - PDA:', result[0].toString(), 'Bump:', result[1]);
+
+  // Verify it matches expected
+  const expected = '3csDix6xeVKY6Pxxrm2mnScpA9zcyxX4twatFLVeQ8Ur';
+  if (result[0].toString() !== expected) {
+    console.error('[deriveTokenRegistryPDA] ❌ MISMATCH! Got:', result[0].toString(), 'Expected:', expected);
+    console.error('[deriveTokenRegistryPDA] This means PROGRAM_ID is wrong:', PROGRAM_ID.toString());
+  } else {
+    console.log('[deriveTokenRegistryPDA] ✅ Correct PDA derived');
+  }
+
+  return result;
 }
 
 export function deriveRoomVaultPDA(room: PublicKey): [PublicKey, number] {
