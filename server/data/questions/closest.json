@@ -1,6 +1,118 @@
 [
-  { "id": "tb001", "text": "How many total squares are on a standard chessboard?", "answerNumber": 204 },
-  { "id": "tb002", "text": "In meters, what is the official marathon distance?", "answerNumber": 42195 },
-  { "id": "tb003", "text": "In what year did the first email get sent?", "answerNumber": 1971 },
-  { "id": "tb004", "text": "How many bones are in the adult human body?", "answerNumber": 206 }
+  {
+    "id": "tb001","text": "What is the average distance from Earth to the Moon (answer in kilometres)?","answerNumber": 384400},
+  {
+    "id": "tb002",
+    "text": "What is the average distance from Earth to the Sun (1 AU, answer in kilometres)?",
+    "answerNumber": 149597870
+ 
+  },
+  {
+    "id": "tb003",
+    "text": "What is Earth’s equatorial circumference (answer in kilometres)?",
+    "answerNumber": 40075
+ 
+  },
+  {
+    "id": "tb004",
+    "text": "What is Earth’s equatorial diameter (answer in kilometres)?",
+    "answerNumber": 12756
+
+  },
+  {
+    "id": "tb005",
+    "text": "What is the height of Mount Everest above sea level (answer in metres)?",
+    "answerNumber": 8849
+  
+  },
+  {
+    "id": "tb006",
+    "text": "What is the depth of the Challenger Deep, the deepest known point in the oceans (answer in metres)?",
+    "answerNumberr": 10935
+  
+  },
+  {
+    "id": "tb007",
+    "text": "What is the total length of the Great Wall of China, including all branches (answer in kilometres)?",
+    "answerNumber": 21196
+ 
+  },
+  {
+    "id": "tb008",
+    "text": "What is the height of the Burj Khalifa (answer in metres)?",
+    "answerNumber": 828
+ 
+  },
+  {
+    "id": "tb009",
+    "text": "What is the land area of Australia (answer in square kilometres)?",
+    "answerNumber": 7692024
+  
+  },
+  {
+    "id": "tb010",
+    "text": "What is the total surface area of Earth (land + water, answer in square kilometres)?",
+    "answerNumber": 510072000
+ 
+  },
+  {
+    "id": "tb011",
+    "text": "How many bones are there in an average adult human skeleton (enter a whole number)?",
+    "answerNumber": 206
+
+  },
+  {
+    "id": "tb012",
+    "text": "How many member states are there in the United Nations (enter a whole number)?",
+    "answerNumber": 193
+  
+  },
+  {
+    "id": "tb013",
+    "text": "What is the length of the Nile River (answer in kilometres)?",
+    "answerNumber": 6650
+  
+  },
+  {
+    "id": "tb014",
+    "text": "What is the total height of Angel Falls in Venezuela (answer in metres)?",
+    "answerNumber": 979
+   
+  },
+  {
+    "id": "tb015",
+    "text": "What is the maximum depth of Lake Baikal (answer in metres)?",
+    "answerNumber": 1642
+    
+  },
+  {
+    "id": "tb016",
+    "text": "What is the height of Mount Kilimanjaro (Uhuru Peak) above sea level (answer in metres)?",
+    "answerNumber": 5895
+   
+  },
+  {
+    "id": "tb017",
+    "text": "What is the age of the universe according to modern cosmology (answer in years)?",
+    "answerNumber": 13800000000
+   
+  },
+  {
+    "id": "tb018",
+    "text": "What is the speed of light in vacuum (answer in kilometres per second)?",
+    "answerNumber": 299792.458
+   
+  },
+  {
+    "id": "tb019",
+    "text": "How many keys are on a standard full-size piano (enter a whole number)?",
+    "answerNumber": 88
+   
+  },
+  {
+    "id": "tb020",
+    "text": "What is the distance along Earth’s surface from the Equator to the North Pole (answer in kilometres)?",
+    "answerNumber": 10002
+
+  }
 ]

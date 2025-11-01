@@ -33,9 +33,9 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
   questionsPerRound: 6,
   timePerQuestion: 30,
   pointsPerDifficulty: {
-    easy: 2,
-    medium: 3,
-    hard: 4
+    easy: 4,
+    medium: 5,
+    hard: 6
   }
 },
     extras: ['Hint', 'Freeze-out-Team'],// ✅ Optional extras
@@ -74,12 +74,12 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     difficulty: 'Easy',
     bestFor: 'Mixed groups, competitive play, family events',
     defaultConfig:   {
-     questionsPerRound: 6,
+     questionsPerRound: 8,
       timePerQuestion: 22,
       pointsPerDifficulty: {
-  easy: 3,
-  medium: 4,
-  hard: 5},},
+  easy: 6,
+  medium: 7,
+  hard: 8},},
     extras: ['Hint', 'Freeze-out-Team', 'Restore Points'],
     videoId: 'YOUR_YOUTUBE_VIDEO_ID'
   },
@@ -194,8 +194,8 @@ export const fundraisingExtraDefinitions = {
 export const availableDifficulties = ['easy', 'medium', 'hard'] as const;
 
 export const availableCategories: Record<RoundTypeId, string[]> = {
-  general_trivia: ['General Knowledge','Olympic Sports', 'Pop Music', 'History', 'World Capitals', 'Pop Culture', 'Web3'],
-  wipeout: ['General Knowledge','Olympic Sports', 'Pop Music', 'History', 'World Capitals', 'Pop Culture', 'Web3'],
+  general_trivia: ['General Knowledge','Olympic Sports', 'Pop Music', 'History', 'World Capitals', 'Pop Culture', 'Web3', 'Children'],
+  wipeout: ['General Knowledge','Olympic Sports', 'Pop Music', 'History', 'World Capitals', 'Pop Culture', 'Web3', 'Children'],
   speed_round: ['Math', 'Emojis', 'Pop Music', 'Sport', 'family movies'],
   // media_puzzle: [...],
   // head_to_head: [...]

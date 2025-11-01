@@ -26,6 +26,7 @@
     "@headlessui/react": "^2.2.2",
     "@keystonehq/sdk": "^0.22.1",
     "@project-serum/anchor": "^0.26.0",
+    "@radix-ui/react-select": "^2.2.6",
     "@rainbow-me/rainbowkit": "^2.2.4",
     "@reown/appkit": "1.7.5",
     "@reown/appkit-adapter-solana": "1.7.5",
