@@ -6,6 +6,7 @@ import {
   checkCaps,
   consumeCredit,
 } from '../../policy/entitlements.js';
+import { canUseTemplate } from '../../policy/entitlements.js';
 
 import authenticateToken from '../../middleware/auth.js';
 
@@ -309,6 +310,20 @@ router.post('/create-room', async (req, res) => {
 
     const ents = await resolveEntitlements({ userId: clubId });
 
+    // ── Identify the selected template (support both shapes) ────────────────
+    const templateId =
+      setupConfig?.templateId ||
+      setupConfig?.template?.id ||
+      null;
+
+    // ── Dev-only guard for "demo-quiz" ─────────────────────────────────────
+    if (templateId && !canUseTemplate(ents, templateId)) {
+      return res.status(403).json({
+        error: 'TEMPLATE_NOT_ALLOWED',
+        reason: 'The "demo-quiz" template is available on the Dev plan only.',
+        templateId,
+      });
+    }
     const requestedPlayers =
       setupConfig?.maxPlayers ??
       setupConfig?.playerLimit ??

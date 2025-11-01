@@ -91,6 +91,8 @@ async registerClub(data: {
       extras_allowed: string[];
       concurrent_rooms: number;
       game_credits_remaining: number;
+        plan_id: number | null;          // ✅ expose plan_id from backend entitlements
+     plan_code?: string; 
     }>('/quiz/api/me/entitlements');
   }
 // Add this method to your ApiService class in apiService.ts

@@ -25,7 +25,13 @@ const _FALLBACK_DEV_PLAN = {
   game_credits_remaining: 9999,
 };
 
-
+/** Tiny helper: only Dev plan (id=2) can use demo-quiz */
+export function canUseTemplate(entitlements, templateId) {
+  if (templateId === 'demo-quiz') {
+    return entitlements?.plan_id === 2 || entitlements?.plan_code === 'DEV';
+  }
+  return true; // all other templates allowed
+}
 
 /**
  * Resolve entitlements for a club from database
@@ -40,7 +46,8 @@ export async function resolveEntitlements({ userId: clubId }) {
         c.id as club_id,
         c.name as club_name,
         c.email as club_email,
-        p.code as plan_code,
+        p.id   as plan_id,          -- ✅ add this
+        p.code as plan_code,        -- ✅ already selected, keep
         p.name as plan_name,
         p.max_players_per_game,
         p.max_rounds,
@@ -51,21 +58,20 @@ export async function resolveEntitlements({ userId: clubId }) {
         cp.overrides
       FROM fundraisely_clubs c
       LEFT JOIN fundraisely_club_plan cp ON c.id = cp.club_id
-      LEFT JOIN fundraisely_plans p ON cp.plan_id = p.id
+      LEFT JOIN fundraisely_plans     p ON cp.plan_id = p.id
       WHERE c.id = ?
     `, [clubId]);
 
     if (!Array.isArray(planRows) || planRows.length === 0) {
       console.warn(`[Entitlements] ⚠️ Club "${clubId}" not found in database, using fallback FREE_PLAN`);
-      return { ...FALLBACK_FREE_PLAN };
+      return { ...FALLBACK_FREE_PLAN, plan_id: null, plan_code: 'FREE_FALLBACK' };
     }
 
     const clubData = planRows[0];
 
-    // If no plan assigned, use fallback
     if (!clubData.plan_code) {
       console.warn(`[Entitlements] ⚠️ Club "${clubId}" (${clubData.club_name}) has no plan assigned, using fallback FREE_PLAN`);
-      return { ...FALLBACK_FREE_PLAN };
+      return { ...FALLBACK_FREE_PLAN, plan_id: null, plan_code: 'FREE_FALLBACK' };
     }
 
     console.log('[Debug] Raw round_types_allowed:', clubData.round_types_allowed);
@@ -74,6 +80,8 @@ console.log('[Debug] Type of round_types_allowed:', typeof clubData.round_types_
 
     // Build entitlements from database
  const entitlements = {
+    plan_id: clubData.plan_id,          // ✅ expose plan_id
+      plan_code: clubData.plan_code,      // ✅ keep plan_code
   max_players_per_game: clubData.max_players_per_game,
   max_rounds: clubData.max_rounds,
   // ✅ Fix: Check if already parsed, if not then parse
@@ -98,7 +106,8 @@ console.log('[Debug] Type of round_types_allowed:', typeof clubData.round_types_
 
   } catch (error) {
     console.error(`[Entitlements] ❌ Database error for club "${clubId}":`, error);
-    return { ...FALLBACK_FREE_PLAN };
+  return { ...FALLBACK_FREE_PLAN, plan_id: null, plan_code: 'FREE_FALLBACK' };
+
   }
 }
 
