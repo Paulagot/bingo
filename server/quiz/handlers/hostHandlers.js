@@ -1077,55 +1077,6 @@ socket.on('end_quiz_cleanup', ({ roomId }) => {
       if (debug) console.log(`[Host] ✅ Room ${roomId} cleaned up successfully`);
     }
   }, 2000); // 2 second delay
-});// Add this NEW handler to your hostHandlers.js
-// Place it right after the delete_quiz_room handler (around line 762)
-
-/**
- * 🧹 End Quiz Cleanup - Called after successful completion (e.g., after prize distribution)
- * This is different from cancel/delete - it's for clean, successful completion
- */
-socket.on('end_quiz_cleanup', ({ roomId }) => {
-  if (debug) console.log(`[Host] 🧹 end_quiz_cleanup for ${roomId}`);
-
-  const room = getQuizRoom(roomId);
-  if (!room) {
-    console.warn(`[Host] ⚠️ Room ${roomId} not found for cleanup`);
-    return;
-  }
-
-  // Only allow host to trigger cleanup
-  if (room.hostSocketId !== socket.id) {
-    socket.emit('quiz_error', { message: 'Only the host can end the quiz' });
-    return;
-  }
-
-  // Mark as complete if not already
-  if (room.currentPhase !== 'complete') {
-    room.currentPhase = 'complete';
-  }
-
-  // Notify all participants that quiz is fully done
-  namespace.to(roomId).emit('quiz_cleanup_complete', {
-    message: 'Quiz has ended. Thank you for playing!',
-    roomId
-  });
-
-  if (debug) console.log(`[Host] 📢 Sent cleanup completion notice to room ${roomId}`);
-
-  // Small delay so clients receive the message before cleanup
-  setTimeout(() => {
-    const removed = removeQuizRoom(roomId);
-    
-    if (removed) {
-      // Remove all sockets from room channels
-      namespace.in(roomId).socketsLeave(roomId);
-      namespace.in(`${roomId}:host`).socketsLeave(`${roomId}:host`);
-      namespace.in(`${roomId}:admin`).socketsLeave(`${roomId}:admin`);
-      namespace.in(`${roomId}:player`).socketsLeave(`${roomId}:player`);
-      
-      if (debug) console.log(`[Host] ✅ Room ${roomId} cleaned up successfully`);
-    }
-  }, 2000); // 2 second delay
 });
 
   // ✅ Launch quiz

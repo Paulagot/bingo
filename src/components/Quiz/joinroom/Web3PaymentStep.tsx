@@ -481,7 +481,20 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
       }, 1200);
     } catch (e: any) {
       console.error('Web3 join failed:', e);
-      setError(e.message || 'Failed to join game');
+
+      // Check for specific error codes
+      let errorMessage = e.message || 'Failed to join game';
+
+      // Solana error code 6038 = JoiningClosed
+      if (e.message?.includes('6038') || e.message?.toLowerCase().includes('joining closed') || e.message?.toLowerCase().includes('no longer accepting')) {
+        errorMessage = 'This room is no longer accepting new players. The host has closed joining.';
+      } else if (e.message?.includes('6014') || e.message?.toLowerCase().includes('max players')) {
+        errorMessage = 'This room is full. Please try another room.';
+      } else if (e.message?.includes('6012') || e.message?.toLowerCase().includes('room expired')) {
+        errorMessage = 'This room has expired. Please try another room.';
+      }
+
+      setError(errorMessage);
       setPaymentStatus('idle');
     }
   };

@@ -1,15 +1,21 @@
 // vite.config.ts
 import { defineConfig } from 'vitest/config';
+import { loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
-export default defineConfig({
-  // Define polyfills for Node.js modules used by Web3 libraries
+export default defineConfig(({ mode }) => {
+  // Load env file based on `mode` in the current working directory.
+  const env = loadEnv(mode, process.cwd(), '');
+
+  return {
+    // Define polyfills for Node.js modules used by Web3 libraries
     base: '/',
-  define: {
-    global: 'globalThis',
-    'process.env': {},
-  },
+    define: {
+      global: 'globalThis',
+      'process.env.VITE_SOLANA_PROGRAM_ID': JSON.stringify(env.VITE_SOLANA_PROGRAM_ID),
+      'process.env.VITE_SOLANA_NETWORK': JSON.stringify(env.VITE_SOLANA_NETWORK),
+    },
   
   plugins: [
     react(),
@@ -125,4 +131,5 @@ export default defineConfig({
       '@': '/src',
     },
   },
+};
 });

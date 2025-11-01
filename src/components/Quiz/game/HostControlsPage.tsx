@@ -21,8 +21,11 @@ import SpeedRoundHostPanel from '../host-controls/components/SpeedRoundHostPanel
 import { useHostRecovery } from '../hooks/useHostRecovery';
 import HostPostgamePanel from '../host-controls/components/HostPostgamePanel';
 
-import { Eye, Timer } from 'lucide-react';
+import { Eye, Timer, Lock } from 'lucide-react';
 import { useQuizTimer } from '../hooks/useQuizTimer';
+import { useSolanaContract } from '@/chains/solana/useSolanaContract';
+import { PublicKey } from '@solana/web3.js';
+import { toast } from 'sonner';
 
 const debug = false;
 
@@ -93,6 +96,11 @@ const HostControlsCore = () => {
   const { config } = useQuizConfig();
   const [_timerActive, setTimerActive] = useState(false);
   const [playersInRoom, setPlayersInRoom] = useState<User[]>([]);
+  const [joiningClosed, setJoiningClosed] = useState(false);
+  const [closingJoining, setClosingJoining] = useState(false);
+
+  // Solana contract hook (only used if web3 room)
+  const solanaContract = useSolanaContract();
 
   const [roomState, setRoomState] = useState<RoomStatePayload>({
     currentRound: 1,
@@ -549,6 +557,59 @@ const HostControlsCore = () => {
     socket?.emit('continue_to_overall_leaderboard', { roomId });
   };
 
+  // Close joining for Web3 rooms (Solana)
+  const handleCloseJoining = async () => {
+    if (!config?.isWeb3Room || config?.web3Chain !== 'solana') {
+      toast.error('Close joining is only available for Solana rooms');
+      return;
+    }
+
+    if (!config?.contractAddress || !roomId) {
+      toast.error('Missing room information');
+      return;
+    }
+
+    if (!solanaContract.publicKey) {
+      toast.error('Please connect your wallet first');
+      return;
+    }
+
+    try {
+      setClosingJoining(true);
+
+      // Parse host pubkey from contract address (this is the room PDA)
+      // We need to get the host pubkey from the room account
+      const roomPDA = new PublicKey(config.contractAddress);
+      const roomInfo = await solanaContract.getRoomInfo(roomPDA);
+
+      if (!roomInfo) {
+        throw new Error('Could not fetch room information');
+      }
+
+      // Verify current user is the host
+      if (!solanaContract.publicKey.equals(roomInfo.host)) {
+        throw new Error('Only the room host can close joining');
+      }
+
+      const result = await solanaContract.closeJoining({
+        roomId,
+        hostPubkey: roomInfo.host,
+      });
+
+      setJoiningClosed(true);
+      toast.success('Joining closed! No more players can join this room.', {
+        description: `Transaction: ${result.signature.slice(0, 8)}...`,
+      });
+    } catch (error: any) {
+      console.error('Failed to close joining:', error);
+      toast.error('Failed to close joining', {
+        description: error.message || 'Please try again',
+      });
+    } finally {
+      setClosingJoining(false);
+    }
+  };
+
   // --- CTA label logic for overall leaderboard ---
  
   const prizeCount = computePrizeCount(config);
@@ -600,9 +661,9 @@ const HostControlsCore = () => {
  * Emits cleanup signal to backend, which then notifies all clients.
  * Frontend (QuizSocketProvider) handles the actual redirect based on isWeb3Room flag.
  */
-const handleEndGame = useCallback(() => {
+const handleEndGame = useCallback(async () => {
   console.log('🧹 [Host] Starting end game cleanup...');
-  
+
   if (!socket || !roomId) {
     console.warn('⚠️ [Host] No socket or roomId available');
     // Fallback: redirect directly based on payment method
@@ -615,20 +676,54 @@ const handleEndGame = useCallback(() => {
   }
 
   try {
+    // 🔗 For Solana Web3 rooms, call cleanup_room on-chain first
+    if (config?.isWeb3Room && config?.web3Chain === 'solana' && config?.contractAddress && solanaContract.publicKey) {
+      try {
+        console.log('🧹 [Solana] Calling cleanup_room on-chain...');
+
+        const roomPDA = new PublicKey(config.contractAddress);
+        const roomInfo = await solanaContract.getRoomInfo(roomPDA);
+
+        if (roomInfo && solanaContract.publicKey.equals(roomInfo.host)) {
+          const result = await solanaContract.cleanupRoom({
+            roomId: roomId!,
+            hostPubkey: roomInfo.host,
+          });
+
+          console.log('✅ [Solana] Room cleaned up on-chain:', {
+            signature: result.signature,
+            rentReclaimed: result.rentReclaimed / 1e9,
+          });
+
+          toast.success(`Room cleaned up! ${(result.rentReclaimed / 1e9).toFixed(4)} SOL reclaimed`, {
+            description: `TX: ${result.signature.slice(0, 8)}...`,
+          });
+        } else {
+          console.warn('⚠️ [Solana] Not host or room not found, skipping on-chain cleanup');
+        }
+      } catch (cleanupError: any) {
+        console.error('❌ [Solana] On-chain cleanup failed:', cleanupError);
+        // Don't block backend cleanup if on-chain cleanup fails
+        toast.error('On-chain cleanup failed', {
+          description: cleanupError.message || 'Room will be cleaned up on backend',
+        });
+      }
+    }
+
     // Send cleanup signal to backend
     // Backend will determine if Web3 room and notify all clients with appropriate flag
     socket.emit('end_quiz_cleanup', { roomId });
-    
+
     console.log('✅ [Host] End game cleanup signal sent to backend');
     console.log('⏳ [Host] Waiting for backend to complete cleanup...');
-    
+
     // The rest happens automatically:
     // 1. Backend checks if Web3 room
     // 2. Backend emits quiz_cleanup_complete with isWeb3Room flag
     // 3. QuizSocketProvider receives event and redirects based on flag
     //    - Web3: /web3/impact-campaign/
     //    - Web2: /quiz
-    
+
   } catch (error) {
     console.error('❌ [Host] Error during cleanup:', error);
     // Fallback: navigate directly if socket fails
@@ -638,7 +733,7 @@ const handleEndGame = useCallback(() => {
       navigate('/');
     }
   }
-}, [socket, roomId, navigate, config?.paymentMethod, config?.isWeb3Room]);
+}, [socket, roomId, navigate, config?.paymentMethod, config?.isWeb3Room, config?.web3Chain, config?.contractAddress, solanaContract]);
 
 
 
@@ -687,6 +782,44 @@ const handleEndGame = useCallback(() => {
 
         {/* Activity Ticker */}
         <ActivityTicker activities={activities} onClearActivity={clearActivity} maxVisible={8} />
+
+        {/* Close Joining Button for Web3/Solana Rooms */}
+        {(roomState.phase === 'waiting' || roomState.phase === 'launched') &&
+         config?.isWeb3Room &&
+         config?.web3Chain === 'solana' &&
+         !joiningClosed && (
+          <div className="mb-6 rounded-xl border border-purple-200 bg-gradient-to-br from-orange-50 to-red-50 p-6 shadow-lg">
+            <div className="text-center">
+              <h3 className="mb-2 text-lg font-bold text-orange-900">
+                Room Management
+              </h3>
+              <p className="mb-4 text-sm text-orange-700">
+                {roomState.totalPlayers || 0} players joined. Close joining early to prevent new players from entering.
+              </p>
+              <button
+                onClick={handleCloseJoining}
+                disabled={closingJoining}
+                className="inline-flex items-center space-x-2 rounded-lg bg-orange-600 px-6 py-3 font-semibold text-white shadow-md transition-all hover:bg-orange-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Lock className="h-5 w-5" />
+                <span>{closingJoining ? 'Closing...' : 'Close Joining'}</span>
+              </button>
+              <p className="mt-2 text-xs text-orange-600">
+                ⚠️ This action cannot be reversed
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Joining Closed Badge */}
+        {joiningClosed && (
+          <div className="mb-6 rounded-xl border border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 p-4 shadow-lg">
+            <div className="flex items-center justify-center space-x-2 text-green-800">
+              <Lock className="h-5 w-5" />
+              <span className="font-semibold">Joining Closed - No new players can join</span>
+            </div>
+          </div>
+        )}
 
         {/* Round Info / Launch */}
         {(roomState.phase === 'waiting' || roomState.phase === 'launched') && (
