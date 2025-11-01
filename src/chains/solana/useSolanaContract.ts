@@ -1084,47 +1084,52 @@ export function useSolanaContract() {
       }
     }
 
-    // ADD THIS: Validate token account ownership and mint (but not balance, since top-up happens in transaction)
-    try {
-      const tokenAccountData = await getAccount(
-        connection,
-        playerTokenAccount,
-        'confirmed',
-        TOKEN_PROGRAM_ID
-      );
-
-      console.log('[joinRoom] Token account validation:', {
-        owner: tokenAccountData.owner.toBase58(),
-        mint: tokenAccountData.mint.toBase58(),
-        amount: tokenAccountData.amount.toString(),
-        expectedOwner: publicKey.toBase58(),
-        expectedMint: feeTokenMint.toBase58(),
-        ownerMatches: tokenAccountData.owner.equals(publicKey),
-        mintMatches: tokenAccountData.mint.equals(feeTokenMint),
-      });
-
-      // Verify ownership
-      if (!tokenAccountData.owner.equals(publicKey)) {
-        throw new Error(
-          `Token account owner mismatch! Expected ${publicKey.toBase58()} but got ${tokenAccountData.owner.toBase58()}`
+    // Validate token account ownership and mint (but not balance, since top-up happens in transaction)
+    // ONLY validate if the account already exists (not being created in this transaction)
+    if (accountInfo) {
+      try {
+        const tokenAccountData = await getAccount(
+          connection,
+          playerTokenAccount,
+          'confirmed',
+          TOKEN_PROGRAM_ID
         );
-      }
 
-      // Verify mint
-      if (!tokenAccountData.mint.equals(feeTokenMint)) {
-        throw new Error(
-          `Token account mint mismatch! Expected ${feeTokenMint.toBase58()} but got ${tokenAccountData.mint.toBase58()}`
-        );
-      }
+        console.log('[joinRoom] Token account validation:', {
+          owner: tokenAccountData.owner.toBase58(),
+          mint: tokenAccountData.mint.toBase58(),
+          amount: tokenAccountData.amount.toString(),
+          expectedOwner: publicKey.toBase58(),
+          expectedMint: feeTokenMint.toBase58(),
+          ownerMatches: tokenAccountData.owner.equals(publicKey),
+          mintMatches: tokenAccountData.mint.equals(feeTokenMint),
+        });
 
-      // NOTE: We don't validate balance here because:
-      // 1. The token account may be empty initially (amount = 0)
-      // 2. Top-up instructions are added to the transaction (lines 700-718)
-      // 3. Those instructions execute BEFORE the joinRoom instruction in the same transaction
-      // 4. The on-chain program will validate sufficient balance when it executes
-    } catch (err: any) {
-      console.error('[joinRoom] Token account validation failed:', err);
-      throw err;
+        // Verify ownership
+        if (!tokenAccountData.owner.equals(publicKey)) {
+          throw new Error(
+            `Token account owner mismatch! Expected ${publicKey.toBase58()} but got ${tokenAccountData.owner.toBase58()}`
+          );
+        }
+
+        // Verify mint
+        if (!tokenAccountData.mint.equals(feeTokenMint)) {
+          throw new Error(
+            `Token account mint mismatch! Expected ${feeTokenMint.toBase58()} but got ${tokenAccountData.mint.toBase58()}`
+          );
+        }
+
+        // NOTE: We don't validate balance here because:
+        // 1. The token account may be empty initially (amount = 0)
+        // 2. Top-up instructions are added to the transaction (lines 700-718)
+        // 3. Those instructions execute BEFORE the joinRoom instruction in the same transaction
+        // 4. The on-chain program will validate sufficient balance when it executes
+      } catch (err: any) {
+        console.error('[joinRoom] Token account validation failed:', err);
+        throw err;
+      }
+    } else {
+      console.log('[joinRoom] Skipping token account validation - account will be created in this transaction');
     }
 
     // ADD THIS: Validate room vault exists and is correct
