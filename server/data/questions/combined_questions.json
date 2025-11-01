@@ -5811,6 +5811,5407 @@
     "clue": "Its CEO Alex Mashinsky promoted 'unbank yourself' before the platform collapsed.",
     "difficulty": "hard",
     "category": "Web3"
+  },
+
+   {
+    "id": 2000,
+    "text": "What is 5 + 3?",
+    "options": ["6", "7", "8", "9"],
+    "correctAnswer": "8",
+    "clue": "Add the numbers together.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2001,
+    "text": "What colour do you get if you mix blue and yellow?",
+    "options": ["Green", "Purple", "Orange", "Brown"],
+    "correctAnswer": "Green",
+    "clue": "It's a colour you often see on grass.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2002,
+    "text": "How many legs does a spider have?",
+    "options": ["6", "8", "10", "12"],
+    "correctAnswer": "8",
+    "clue": "Think of how many legs an arachnid has.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2003,
+    "text": "What is the capital city of England?",
+    "options": ["London", "Manchester", "Liverpool", "Birmingham"],
+    "correctAnswer": "London",
+    "clue": "The Queen once lived there.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2004,
+    "text": "Which planet do we live on?",
+    "options": ["Mars", "Venus", "Earth", "Jupiter"],
+    "correctAnswer": "Earth",
+    "clue": "It’s the third planet from the Sun.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2005,
+    "text": "What do caterpillars turn into?",
+    "options": ["Butterflies", "Beetles", "Spiders", "Frogs"],
+    "correctAnswer": "Butterflies",
+    "clue": "They grow wings and can fly.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2006,
+    "text": "How many days are there in one week?",
+    "options": ["5", "6", "7", "8"],
+    "correctAnswer": "7",
+    "clue": "It starts with Monday and ends with Sunday.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2007,
+    "text": "Which shape has three sides?",
+    "options": ["Square", "Triangle", "Circle", "Rectangle"],
+    "correctAnswer": "Triangle",
+    "clue": "The name starts with 'Tri'.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2008,
+    "text": "What do bees make?",
+    "options": ["Milk", "Honey", "Butter", "Jam"],
+    "correctAnswer": "Honey",
+    "clue": "It's sweet and golden.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2009,
+    "text": "Which part of your body helps you see?",
+    "options": ["Ears", "Eyes", "Hands", "Nose"],
+    "correctAnswer": "Eyes",
+    "clue": "You need them to read this question.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2010,
+    "text": "What is the main language spoken in Ireland?",
+    "options": ["English", "Irish", "French", "German"],
+    "correctAnswer": "English",
+    "clue": "It’s also spoken in the UK and the USA.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2011,
+    "text": "What do you call the baby of a dog?",
+    "options": ["Kitten", "Puppy", "Cub", "Foal"],
+    "correctAnswer": "Puppy",
+    "clue": "They are playful and wag their tails.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2012,
+    "text": "How many hours are there in one day?",
+    "options": ["12", "24", "36", "48"],
+    "correctAnswer": "24",
+    "clue": "It’s how long it takes for the Earth to spin once.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2013,
+    "text": "What is the freezing point of water in degrees Celsius?",
+    "options": ["0°C", "10°C", "50°C", "100°C"],
+    "correctAnswer": "0°C",
+    "clue": "It’s when water turns to ice.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2014,
+    "text": "Which animal says 'Moo'?",
+    "options": ["Cow", "Sheep", "Horse", "Pig"],
+    "correctAnswer": "Cow",
+    "clue": "It gives us milk.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2015,
+    "text": "What do we breathe in to stay alive?",
+    "options": ["Oxygen", "Carbon dioxide", "Nitrogen", "Helium"],
+    "correctAnswer": "Oxygen",
+    "clue": "It makes up about one-fifth of the air.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2016,
+    "text": "What is 10 minus 6?",
+    "options": ["2", "3", "4", "5"],
+    "correctAnswer": "4",
+    "clue": "Count back from 10.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2017,
+    "text": "Which day comes after Tuesday?",
+    "options": ["Monday", "Wednesday", "Thursday", "Friday"],
+    "correctAnswer": "Wednesday",
+    "clue": "It’s the middle of the week.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2018,
+    "text": "What shape is a football?",
+    "options": ["Sphere", "Cube", "Cylinder", "Pyramid"],
+    "correctAnswer": "Sphere",
+    "clue": "It’s perfectly round.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2019,
+    "text": "Which planet is closest to the Sun?",
+    "options": ["Mercury", "Venus", "Earth", "Mars"],
+    "correctAnswer": "Mercury",
+    "clue": "It’s the smallest planet in our Solar System.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2020,
+    "text": "Which season comes after spring?",
+    "options": ["Summer", "Autumn", "Winter", "Spring"],
+    "correctAnswer": "Summer",
+    "clue": "It’s the warmest season of the year.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2021,
+    "text": "What instrument has black and white keys?",
+    "options": ["Piano", "Guitar", "Drum", "Flute"],
+    "correctAnswer": "Piano",
+    "clue": "It’s a popular choice for music lessons.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2022,
+    "text": "Which month comes after December?",
+    "options": ["January", "February", "March", "April"],
+    "correctAnswer": "January",
+    "clue": "It’s the start of the new year.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2023,
+    "text": "What colour are emeralds?",
+    "options": ["Green", "Red", "Blue", "Yellow"],
+    "correctAnswer": "Green",
+    "clue": "It’s the same colour as grass.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2024,
+    "text": "Which animal is known for its long trunk?",
+    "options": ["Elephant", "Giraffe", "Rhino", "Camel"],
+    "correctAnswer": "Elephant",
+    "clue": "It uses its trunk to drink water.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2025,
+    "text": "What is 20 divided by 4?",
+    "options": ["4", "5", "6", "8"],
+    "correctAnswer": "5",
+    "clue": "4 times what equals 20?",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2026,
+    "text": "What type of animal is Nemo in the film 'Finding Nemo'?",
+    "options": ["Clownfish", "Shark", "Octopus", "Turtle"],
+    "correctAnswer": "Clownfish",
+    "clue": "It’s an orange and white tropical fish.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2027,
+    "text": "What do plants need to grow?",
+    "options": ["Water, sunlight, and soil", "Milk and sugar", "Sand and paint", "Wind and snow"],
+    "correctAnswer": "Water, sunlight, and soil",
+    "clue": "Three simple things found in nature.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2028,
+    "text": "What do we call a young frog?",
+    "options": ["Tadpole", "Calf", "Cub", "Chick"],
+    "correctAnswer": "Tadpole",
+    "clue": "It starts life in the water.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2029,
+    "text": "Which country is famous for the pyramids?",
+    "options": ["Egypt", "France", "Mexico", "China"],
+    "correctAnswer": "Egypt",
+    "clue": "They were built beside the River Nile.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2030,
+    "text": "What is the name of the closest star to Earth?",
+    "options": ["The Sun", "Polaris", "Sirius", "The Moon"],
+    "correctAnswer": "The Sun",
+    "clue": "It gives us light and warmth every day.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2031,
+    "text": "What is the name of the fairy in Peter Pan?",
+    "options": ["Tinker Bell", "Cinderella", "Ariel", "Snow White"],
+    "correctAnswer": "Tinker Bell",
+    "clue": "She has wings and a wand that sparkles.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2032,
+    "text": "How many sides does a square have?",
+    "options": ["3", "4", "5", "6"],
+    "correctAnswer": "4",
+    "clue": "All its sides are the same length.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2033,
+    "text": "What do you use to write on a blackboard?",
+    "options": ["Chalk", "Pen", "Paint", "Crayon"],
+    "correctAnswer": "Chalk",
+    "clue": "It can be wiped away easily.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2034,
+    "text": "Which animal lives in a hive and makes honey?",
+    "options": ["Bee", "Ant", "Butterfly", "Fly"],
+    "correctAnswer": "Bee",
+    "clue": "It buzzes and pollinates flowers.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2035,
+    "text": "How many months are there in a year?",
+    "options": ["10", "11", "12", "13"],
+    "correctAnswer": "12",
+    "clue": "It starts with January and ends with December.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2036,
+    "text": "What is the largest planet in our solar system?",
+    "options": ["Jupiter", "Saturn", "Earth", "Mars"],
+    "correctAnswer": "Jupiter",
+    "clue": "It’s known for its big red spot.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2037,
+    "text": "Which animal is known as 'man's best friend'?",
+    "options": ["Dog", "Cat", "Rabbit", "Hamster"],
+    "correctAnswer": "Dog",
+    "clue": "They love walks and wagging tails.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2038,
+    "text": "Which ocean is the largest?",
+    "options": ["Pacific Ocean", "Atlantic Ocean", "Indian Ocean", "Arctic Ocean"],
+    "correctAnswer": "Pacific Ocean",
+    "clue": "It covers more than one-third of the Earth.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2039,
+    "text": "What is the name of Harry Potter’s school?",
+    "options": ["Hogwarts", "Camelot", "Narnia", "Avalon"],
+    "correctAnswer": "Hogwarts",
+    "clue": "It has four houses: Gryffindor, Hufflepuff, Ravenclaw and Slytherin.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2040,
+    "text": "What number comes after 99?",
+    "options": ["100", "101", "90", "98"],
+    "correctAnswer": "100",
+    "clue": "It’s three digits long.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2041,
+    "text": "What is the opposite of 'up'?",
+    "options": ["Down", "Over", "Left", "Back"],
+    "correctAnswer": "Down",
+    "clue": "Think of gravity!",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2042,
+    "text": "Which day comes before Saturday?",
+    "options": ["Friday", "Sunday", "Thursday", "Monday"],
+    "correctAnswer": "Friday",
+    "clue": "It’s often the last day of the school week.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2043,
+    "text": "Which instrument has strings and is played with a bow?",
+    "options": ["Violin", "Piano", "Flute", "Drum"],
+    "correctAnswer": "Violin",
+    "clue": "It’s held under the chin when played.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2044,
+    "text": "What shape is a stop sign?",
+    "options": ["Octagon", "Triangle", "Square", "Circle"],
+    "correctAnswer": "Octagon",
+    "clue": "It has eight sides.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2045,
+    "text": "What gas do plants take in from the air?",
+    "options": ["Carbon dioxide", "Oxygen", "Nitrogen", "Helium"],
+    "correctAnswer": "Carbon dioxide",
+    "clue": "They use it during photosynthesis.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2046,
+    "text": "How many letters are in the English alphabet?",
+    "options": ["24", "25", "26", "27"],
+    "correctAnswer": "26",
+    "clue": "It starts with A and ends with Z.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2047,
+    "text": "What is the name of the largest mammal in the world?",
+    "options": ["Blue whale", "Elephant", "Shark", "Giraffe"],
+    "correctAnswer": "Blue whale",
+    "clue": "It lives in the ocean.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2048,
+    "text": "How many minutes are there in one hour?",
+    "options": ["60", "50", "100", "30"],
+    "correctAnswer": "60",
+    "clue": "There are 24 of these in a day.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2049,
+    "text": "What is the name of the red planet?",
+    "options": ["Mars", "Jupiter", "Venus", "Saturn"],
+    "correctAnswer": "Mars",
+    "clue": "It’s the fourth planet from the Sun.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2050,
+    "text": "What do you call a shape with four equal sides and four right angles?",
+    "options": ["Square", "Rectangle", "Circle", "Triangle"],
+    "correctAnswer": "Square",
+    "clue": "It looks the same from any side.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2051,
+    "text": "What is the main ingredient in bread?",
+    "options": ["Flour", "Sugar", "Salt", "Rice"],
+    "correctAnswer": "Flour",
+    "clue": "It’s made from wheat.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2052,
+    "text": "What colour are bananas when they are ripe?",
+    "options": ["Yellow", "Green", "Brown", "Red"],
+    "correctAnswer": "Yellow",
+    "clue": "They’re this colour when ready to eat.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2053,
+    "text": "How many wheels does a tricycle have?",
+    "options": ["3", "2", "4", "5"],
+    "correctAnswer": "3",
+    "clue": "The prefix ‘tri’ means three.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2054,
+    "text": "What do you use to brush your teeth?",
+    "options": ["Toothbrush", "Comb", "Spoon", "Ruler"],
+    "correctAnswer": "Toothbrush",
+    "clue": "It keeps your smile clean.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2055,
+    "text": "What is 12 divided by 3?",
+    "options": ["3", "4", "5", "6"],
+    "correctAnswer": "4",
+    "clue": "Think of how many 3s fit into 12.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2056,
+    "text": "Which planet has rings around it?",
+    "options": ["Saturn", "Mars", "Venus", "Earth"],
+    "correctAnswer": "Saturn",
+    "clue": "Its rings are made of ice and rock.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2057,
+    "text": "Which sense do we use to taste food?",
+    "options": ["Taste", "Smell", "Sight", "Touch"],
+    "correctAnswer": "Taste",
+    "clue": "Your tongue helps with this.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2058,
+    "text": "What is the capital of Scotland?",
+    "options": ["Edinburgh", "Glasgow", "Aberdeen", "Inverness"],
+    "correctAnswer": "Edinburgh",
+    "clue": "It’s home to a famous castle on a hill.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2059,
+    "text": "What do you call a baby sheep?",
+    "options": ["Lamb", "Calf", "Foal", "Kid"],
+    "correctAnswer": "Lamb",
+    "clue": "It’s soft, fluffy and white.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2060,
+    "text": "What is the name of the shape with five sides?",
+    "options": ["Pentagon", "Hexagon", "Triangle", "Square"],
+    "correctAnswer": "Pentagon",
+    "clue": "The prefix ‘penta’ means five.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2061,
+    "text": "What is the main source of light for Earth?",
+    "options": ["The Sun", "The Moon", "Electricity", "Fire"],
+    "correctAnswer": "The Sun",
+    "clue": "It rises every morning in the east.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2062,
+    "text": "What type of animal lays eggs and has feathers?",
+    "options": ["Bird", "Fish", "Mammal", "Reptile"],
+    "correctAnswer": "Bird",
+    "clue": "Many of them can fly.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2063,
+    "text": "What do you call the person who teaches you at school?",
+    "options": ["Teacher", "Doctor", "Firefighter", "Chef"],
+    "correctAnswer": "Teacher",
+    "clue": "They help you learn new things.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2064,
+    "text": "What is 15 minus 7?",
+    "options": ["7", "8", "9", "10"],
+    "correctAnswer": "8",
+    "clue": "Count backwards from 15.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2065,
+    "text": "Which part of the plant grows underground?",
+    "options": ["Roots", "Leaves", "Stem", "Flowers"],
+    "correctAnswer": "Roots",
+    "clue": "They help the plant take in water.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2066,
+    "text": "What is the name of the coldest place on Earth?",
+    "options": ["Antarctica", "Greenland", "Alaska", "Iceland"],
+    "correctAnswer": "Antarctica",
+    "clue": "It’s covered in ice and snow all year round.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2067,
+    "text": "How many legs does an insect have?",
+    "options": ["6", "8", "4", "10"],
+    "correctAnswer": "6",
+    "clue": "It’s the same number as the sides of a hexagon.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2068,
+    "text": "Which country is home to the kangaroo?",
+    "options": ["Australia", "Canada", "Brazil", "India"],
+    "correctAnswer": "Australia",
+    "clue": "It’s also known for koalas and the outback.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2069,
+    "text": "What number is halfway between 10 and 20?",
+    "options": ["15", "12", "14", "18"],
+    "correctAnswer": "15",
+    "clue": "Add 5 to 10.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2070,
+    "text": "What is the colour of the sky on a clear day?",
+    "options": ["Blue", "Green", "Red", "Yellow"],
+    "correctAnswer": "Blue",
+    "clue": "It’s also the colour of the sea.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2071,
+    "text": "How many legs does a human have?",
+    "options": ["2", "4", "6", "8"],
+    "correctAnswer": "2",
+    "clue": "We stand on them every day.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2072,
+    "text": "Which continent is the UK part of?",
+    "options": ["Europe", "Asia", "Africa", "Australia"],
+    "correctAnswer": "Europe",
+    "clue": "It’s also home to France, Spain and Germany.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2073,
+    "text": "Which fruit keeps the doctor away if eaten every day?",
+    "options": ["Apple", "Banana", "Orange", "Pear"],
+    "correctAnswer": "Apple",
+    "clue": "There’s a saying about it and doctors.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2074,
+    "text": "What is the name of the river that flows through London?",
+    "options": ["Thames", "Seine", "Clyde", "Liffey"],
+    "correctAnswer": "Thames",
+    "clue": "It runs under Tower Bridge.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2075,
+    "text": "Which sport uses a racket, a net and a shuttlecock?",
+    "options": ["Badminton", "Tennis", "Squash", "Cricket"],
+    "correctAnswer": "Badminton",
+    "clue": "You can play it indoors or in the garden.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2076,
+    "text": "What is the name of the instrument with keys and foot pedals found in churches?",
+    "options": ["Organ", "Piano", "Violin", "Flute"],
+    "correctAnswer": "Organ",
+    "clue": "It’s often very large and loud.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2077,
+    "text": "What is the name of the planet famous for its red colour?",
+    "options": ["Mars", "Venus", "Jupiter", "Neptune"],
+    "correctAnswer": "Mars",
+    "clue": "Named after the Roman god of war.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2078,
+    "text": "How many zeroes are there in one hundred?",
+    "options": ["2", "3", "1", "4"],
+    "correctAnswer": "2",
+    "clue": "Write it as digits to see.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2079,
+    "text": "Which bird is known for saying 'Twit-twoo'?",
+    "options": ["Owl", "Crow", "Eagle", "Swan"],
+    "correctAnswer": "Owl",
+    "clue": "It often comes out at night.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2080,
+    "text": "What is the main ingredient in an omelette?",
+    "options": ["Eggs", "Flour", "Butter", "Milk"],
+    "correctAnswer": "Eggs",
+    "clue": "They come from hens.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2081,
+    "text": "Which animal has a mane and is known as the 'king of the jungle'?",
+    "options": ["Lion", "Tiger", "Leopard", "Cheetah"],
+    "correctAnswer": "Lion",
+    "clue": "It’s featured on many national emblems.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2082,
+    "text": "Which natural satellite orbits the Earth?",
+    "options": ["The Moon", "Mars", "Venus", "Jupiter"],
+    "correctAnswer": "The Moon",
+    "clue": "It changes shape in the night sky.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2083,
+    "text": "What do cows drink?",
+    "options": ["Water", "Milk", "Juice", "Tea"],
+    "correctAnswer": "Water",
+    "clue": "It’s the same thing we drink most often.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2084,
+    "text": "How many continents are there on Earth?",
+    "options": ["7", "5", "6", "8"],
+    "correctAnswer": "7",
+    "clue": "Africa and Europe are two of them.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2085,
+    "text": "What shape is a traffic light?",
+    "options": ["Rectangle", "Square", "Triangle", "Circle"],
+    "correctAnswer": "Rectangle",
+    "clue": "It’s tall and narrow with coloured lights.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2086,
+    "text": "Which organ pumps blood around your body?",
+    "options": ["Heart", "Lungs", "Liver", "Brain"],
+    "correctAnswer": "Heart",
+    "clue": "It beats faster when you run.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2087,
+    "text": "What is the name of the process by which plants make food?",
+    "options": ["Photosynthesis", "Breathing", "Digestion", "Evaporation"],
+    "correctAnswer": "Photosynthesis",
+    "clue": "It uses sunlight and carbon dioxide.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2088,
+    "text": "Which month has 28 days in most years?",
+    "options": ["February", "January", "March", "April"],
+    "correctAnswer": "February",
+    "clue": "It has 29 days in a leap year.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2089,
+    "text": "What is the name of the storybook character who left a glass slipper behind?",
+    "options": ["Cinderella", "Sleeping Beauty", "Rapunzel", "Snow White"],
+    "correctAnswer": "Cinderella",
+    "clue": "She went to a royal ball.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2090,
+    "text": "How many teeth does an adult human normally have?",
+    "options": ["32", "28", "30", "26"],
+    "correctAnswer": "32",
+    "clue": "That includes wisdom teeth.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2091,
+    "text": "Which animal lives in the Arctic and has white fur?",
+    "options": ["Polar bear", "Lion", "Tiger", "Cheetah"],
+    "correctAnswer": "Polar bear",
+    "clue": "It’s an excellent swimmer.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2092,
+    "text": "Which instrument has six strings and is played by strumming or plucking?",
+    "options": ["Guitar", "Violin", "Flute", "Piano"],
+    "correctAnswer": "Guitar",
+    "clue": "It’s popular in rock and pop bands.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2093,
+    "text": "What colour are the stars on the flag of the European Union?",
+    "options": ["Yellow", "Red", "White", "Blue"],
+    "correctAnswer": "Yellow",
+    "clue": "They sit in a circle on a blue background.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2094,
+    "text": "What is the name of the largest continent?",
+    "options": ["Asia", "Africa", "Europe", "North America"],
+    "correctAnswer": "Asia",
+    "clue": "It includes China and India.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2095,
+    "text": "Which planet is known for its Great Red Spot?",
+    "options": ["Jupiter", "Neptune", "Mars", "Earth"],
+    "correctAnswer": "Jupiter",
+    "clue": "It’s the biggest planet in our solar system.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2096,
+    "text": "What is 9 multiplied by 5?",
+    "options": ["45", "40", "50", "35"],
+    "correctAnswer": "45",
+    "clue": "It’s in the nine times table.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2097,
+    "text": "Which animal can change its colour to hide from danger?",
+    "options": ["Chameleon", "Elephant", "Frog", "Snake"],
+    "correctAnswer": "Chameleon",
+    "clue": "It’s a type of lizard.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2098,
+    "text": "Which country is shaped like a boot?",
+    "options": ["Italy", "Spain", "Greece", "Portugal"],
+    "correctAnswer": "Italy",
+    "clue": "It’s found in southern Europe.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2099,
+    "text": "Which gas do we breathe out?",
+    "options": ["Carbon dioxide", "Oxygen", "Nitrogen", "Hydrogen"],
+    "correctAnswer": "Carbon dioxide",
+    "clue": "Plants use it to make food.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2100,
+    "text": "What is the capital city of Ireland?",
+    "options": ["Dublin", "Cork", "Galway", "Belfast"],
+    "correctAnswer": "Dublin",
+    "clue": "It’s on the River Liffey.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2101,
+    "text": "What is 9 + 6?",
+    "options": ["14", "15", "16", "17"],
+    "correctAnswer": "15",
+    "clue": "Add nine and six together.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2102,
+    "text": "Which planet is known as the Blue Planet?",
+    "options": ["Earth", "Neptune", "Mars", "Venus"],
+    "correctAnswer": "Earth",
+    "clue": "It looks blue from space because of its oceans.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2103,
+    "text": "What shape has four equal sides and four right angles?",
+    "options": ["Square", "Rectangle", "Triangle", "Rhombus"],
+    "correctAnswer": "Square",
+    "clue": "All sides are the same length.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2104,
+    "text": "Which ocean is the smallest?",
+    "options": ["Arctic Ocean", "Atlantic Ocean", "Indian Ocean", "Pacific Ocean"],
+    "correctAnswer": "Arctic Ocean",
+    "clue": "It’s near the North Pole.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2105,
+    "text": "How many days are there in February in a leap year?",
+    "options": ["29", "28", "30", "31"],
+    "correctAnswer": "29",
+    "clue": "An extra day is added every four years.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2106,
+    "text": "What do cows give us to drink?",
+    "options": ["Milk", "Water", "Juice", "Lemonade"],
+    "correctAnswer": "Milk",
+    "clue": "It’s white and used in cereal.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2107,
+    "text": "What is 7 × 3?",
+    "options": ["20", "21", "24", "27"],
+    "correctAnswer": "21",
+    "clue": "Think of the seven times table.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2108,
+    "text": "Which animal is famous for its black and white stripes?",
+    "options": ["Zebra", "Tiger", "Cow", "Skunk"],
+    "correctAnswer": "Zebra",
+    "clue": "It lives on the grasslands of Africa.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2109,
+    "text": "Which fruit do we get raisins from?",
+    "options": ["Grapes", "Apples", "Plums", "Cherries"],
+    "correctAnswer": "Grapes",
+    "clue": "They are dried versions of this fruit.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2110,
+    "text": "Which sense do we use to hear sounds?",
+    "options": ["Hearing", "Sight", "Taste", "Smell"],
+    "correctAnswer": "Hearing",
+    "clue": "We use our ears.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2111,
+    "text": "Which country is famous for tulips and windmills?",
+    "options": ["Netherlands", "France", "Spain", "Italy"],
+    "correctAnswer": "Netherlands",
+    "clue": "Its capital city is Amsterdam.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2112,
+    "text": "What is the name of the process where ice turns into water?",
+    "options": ["Melting", "Freezing", "Boiling", "Condensing"],
+    "correctAnswer": "Melting",
+    "clue": "It happens when the temperature rises above 0°C.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2113,
+    "text": "Which animal produces wool?",
+    "options": ["Sheep", "Cow", "Goat", "Dog"],
+    "correctAnswer": "Sheep",
+    "clue": "Their fleece is used to make jumpers.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2114,
+    "text": "Which body part pumps blood around your body?",
+    "options": ["Heart", "Lungs", "Brain", "Liver"],
+    "correctAnswer": "Heart",
+    "clue": "It beats faster when you exercise.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2115,
+    "text": "How many centimetres are there in one metre?",
+    "options": ["100", "10", "1,000", "50"],
+    "correctAnswer": "100",
+    "clue": "It’s part of the metric system.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2116,
+    "text": "What colour do you get by mixing red and blue paint?",
+    "options": ["Purple", "Green", "Orange", "Yellow"],
+    "correctAnswer": "Purple",
+    "clue": "It’s the colour often linked with royalty.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2117,
+    "text": "Which season is the coldest?",
+    "options": ["Winter", "Summer", "Spring", "Autumn"],
+    "correctAnswer": "Winter",
+    "clue": "It often snows during this season.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2118,
+    "text": "What do we call a baby cow?",
+    "options": ["Calf", "Lamb", "Foal", "Piglet"],
+    "correctAnswer": "Calf",
+    "clue": "It grows into a cow or bull.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2119,
+    "text": "Which of these animals can fly?",
+    "options": ["Bird", "Fish", "Frog", "Horse"],
+    "correctAnswer": "Bird",
+    "clue": "It has wings and feathers.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2120,
+    "text": "Which planet is closest to the Sun?",
+    "options": ["Mercury", "Venus", "Earth", "Mars"],
+    "correctAnswer": "Mercury",
+    "clue": "It completes its orbit fastest.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2121,
+    "text": "How many months have 31 days?",
+    "options": ["7", "6", "5", "8"],
+    "correctAnswer": "7",
+    "clue": "You can count them using your knuckles.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2122,
+    "text": "What do we use to measure temperature?",
+    "options": ["Thermometer", "Barometer", "Compass", "Scale"],
+    "correctAnswer": "Thermometer",
+    "clue": "It shows the temperature in °C.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2123,
+    "text": "Which country is home to the Eiffel Tower?",
+    "options": ["France", "Spain", "Italy", "Germany"],
+    "correctAnswer": "France",
+    "clue": "It’s found in Paris.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2124,
+    "text": "Which part of the plant makes food?",
+    "options": ["Leaves", "Roots", "Stem", "Flowers"],
+    "correctAnswer": "Leaves",
+    "clue": "They use sunlight to create energy.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2125,
+    "text": "What do you call frozen water?",
+    "options": ["Ice", "Snow", "Steam", "Frost"],
+    "correctAnswer": "Ice",
+    "clue": "It melts into water when warm.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2126,
+    "text": "Which shape has six sides?",
+    "options": ["Hexagon", "Pentagon", "Octagon", "Square"],
+    "correctAnswer": "Hexagon",
+    "clue": "It’s the shape of honeycomb cells.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2127,
+    "text": "Which famous nurse worked during the Crimean War?",
+    "options": ["Florence Nightingale", "Marie Curie", "Mary Seacole", "Edith Cavell"],
+    "correctAnswer": "Florence Nightingale",
+    "clue": "She’s known as 'The Lady with the Lamp'.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2128,
+    "text": "How many planets are in our Solar System?",
+    "options": ["8", "7", "9", "10"],
+    "correctAnswer": "8",
+    "clue": "Pluto is no longer counted as one.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2129,
+    "text": "Which day comes before Monday?",
+    "options": ["Sunday", "Saturday", "Tuesday", "Friday"],
+    "correctAnswer": "Sunday",
+    "clue": "It’s often a day for rest or family.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2130,
+    "text": "Which bird can swim but cannot fly?",
+    "options": ["Penguin", "Ostrich", "Duck", "Eagle"],
+    "correctAnswer": "Penguin",
+    "clue": "It lives in cold places and looks like it wears a tuxedo.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2131,
+    "text": "Which famous ship sank in 1912 after hitting an iceberg?",
+    "options": ["Titanic", "Mayflower", "Endeavour", "Bismarck"],
+    "correctAnswer": "Titanic",
+    "clue": "It was on its first voyage to New York.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2132,
+    "text": "What do you call an animal that eats only plants?",
+    "options": ["Herbivore", "Carnivore", "Omnivore", "Scavenger"],
+    "correctAnswer": "Herbivore",
+    "clue": "Cows and rabbits are examples.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2133,
+    "text": "How many continents are there on Earth?",
+    "options": ["7", "5", "6", "8"],
+    "correctAnswer": "7",
+    "clue": "Europe and Asia are two of them.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2134,
+    "text": "Which animal can live both on land and in water?",
+    "options": ["Frog", "Snake", "Elephant", "Giraffe"],
+    "correctAnswer": "Frog",
+    "clue": "It starts life as a tadpole.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2135,
+    "text": "What colour are sapphires?",
+    "options": ["Blue", "Green", "Red", "Yellow"],
+    "correctAnswer": "Blue",
+    "clue": "They are the colour of the sky.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2136,
+    "text": "How many players are there in a football team on the pitch?",
+    "options": ["11", "10", "12", "9"],
+    "correctAnswer": "11",
+    "clue": "That includes the goalkeeper.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2137,
+    "text": "What is the name of the red fruit often used to make ketchup?",
+    "options": ["Tomato", "Strawberry", "Cherry", "Apple"],
+    "correctAnswer": "Tomato",
+    "clue": "It’s a fruit, though many think it’s a vegetable.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2138,
+    "text": "Which continent is Egypt in?",
+    "options": ["Africa", "Asia", "Europe", "Australia"],
+    "correctAnswer": "Africa",
+    "clue": "It’s known for the River Nile and pyramids.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2139,
+    "text": "Which organ helps you breathe?",
+    "options": ["Lungs", "Heart", "Stomach", "Liver"],
+    "correctAnswer": "Lungs",
+    "clue": "You have two of them inside your chest.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2140,
+    "text": "Which city is home to Big Ben?",
+    "options": ["London", "Manchester", "Bristol", "Leeds"],
+    "correctAnswer": "London",
+    "clue": "It’s part of the Houses of Parliament.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2141,
+    "text": "Which shape has eight sides?",
+    "options": ["Octagon", "Heptagon", "Hexagon", "Pentagon"],
+    "correctAnswer": "Octagon",
+    "clue": "A stop sign has this shape.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2142,
+    "text": "Which metal is used to make aluminium foil?",
+    "options": ["Aluminium", "Steel", "Copper", "Tin"],
+    "correctAnswer": "Aluminium",
+    "clue": "It’s very light and shiny.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2143,
+    "text": "Which animal is the tallest in the world?",
+    "options": ["Giraffe", "Elephant", "Camel", "Horse"],
+    "correctAnswer": "Giraffe",
+    "clue": "It uses its long neck to eat leaves.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2144,
+    "text": "Which country is home to the Taj Mahal?",
+    "options": ["India", "Pakistan", "Nepal", "China"],
+    "correctAnswer": "India",
+    "clue": "It’s a white marble palace in Agra.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2145,
+    "text": "What is the main gas that humans need to breathe?",
+    "options": ["Oxygen", "Carbon dioxide", "Hydrogen", "Nitrogen"],
+    "correctAnswer": "Oxygen",
+    "clue": "Plants make it during photosynthesis.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2146,
+    "text": "Which country is famous for sushi?",
+    "options": ["Japan", "China", "Thailand", "Korea"],
+    "correctAnswer": "Japan",
+    "clue": "Its capital city is Tokyo.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2147,
+    "text": "Which sport uses bats, balls, and wickets?",
+    "options": ["Cricket", "Baseball", "Hockey", "Golf"],
+    "correctAnswer": "Cricket",
+    "clue": "It’s very popular in the UK and India.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2148,
+    "text": "Which fruit is known as the 'king of fruits' in many tropical countries?",
+    "options": ["Mango", "Banana", "Pineapple", "Papaya"],
+    "correctAnswer": "Mango",
+    "clue": "It’s juicy and orange inside.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2149,
+    "text": "How many legs does a crab have?",
+    "options": ["10", "8", "6", "12"],
+    "correctAnswer": "10",
+    "clue": "It has five pairs, including claws.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2150,
+    "text": "What is the tallest mountain in the world?",
+    "options": ["Mount Everest", "K2", "Ben Nevis", "Mount Kilimanjaro"],
+    "correctAnswer": "Mount Everest",
+    "clue": "It’s in the Himalayas.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2151,
+    "text": "What do we call baby cats?",
+    "options": ["Kittens", "Puppies", "Cubs", "Foals"],
+    "correctAnswer": "Kittens",
+    "clue": "They purr and meow.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2152,
+    "text": "How many colours are there in a rainbow?",
+    "options": ["7", "6", "8", "9"],
+    "correctAnswer": "7",
+    "clue": "They include red and violet.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2153,
+    "text": "What is the name of the fairy tale girl who had very long hair?",
+    "options": ["Rapunzel", "Cinderella", "Snow White", "Aurora"],
+    "correctAnswer": "Rapunzel",
+    "clue": "She lived in a tower.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2154,
+    "text": "Which planet is known as the Red Planet?",
+    "options": ["Mars", "Venus", "Earth", "Mercury"],
+    "correctAnswer": "Mars",
+    "clue": "Its surface has iron oxide dust.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2155,
+    "text": "What animal is known for saying 'neigh'?",
+    "options": ["Horse", "Cow", "Dog", "Pig"],
+    "correctAnswer": "Horse",
+    "clue": "It wears a saddle.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2156,
+    "text": "How many hours are in two days?",
+    "options": ["48", "24", "36", "60"],
+    "correctAnswer": "48",
+    "clue": "Multiply 24 by 2.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2157,
+    "text": "Which fruit is yellow and shaped like a crescent?",
+    "options": ["Banana", "Mango", "Pear", "Apple"],
+    "correctAnswer": "Banana",
+    "clue": "Monkeys love them.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2158,
+    "text": "Which part of your body lets you smell things?",
+    "options": ["Nose", "Ears", "Mouth", "Eyes"],
+    "correctAnswer": "Nose",
+    "clue": "It’s in the middle of your face.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2159,
+    "text": "Which day of the week comes after Friday?",
+    "options": ["Saturday", "Sunday", "Thursday", "Monday"],
+    "correctAnswer": "Saturday",
+    "clue": "It’s often the first day of the weekend.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2160,
+    "text": "What is 20 + 15?",
+    "options": ["35", "25", "30", "40"],
+    "correctAnswer": "35",
+    "clue": "Add the tens and then the ones.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2161,
+    "text": "What is the name of the large body of salt water on Earth?",
+    "options": ["Ocean", "Lake", "River", "Stream"],
+    "correctAnswer": "Ocean",
+    "clue": "There are five of them on Earth.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2162,
+    "text": "Which sport involves kicking a ball into a goal?",
+    "options": ["Football", "Tennis", "Rugby", "Basketball"],
+    "correctAnswer": "Football",
+    "clue": "It’s also called soccer in some countries.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2163,
+    "text": "How many bones are in the human body?",
+    "options": ["206", "210", "250", "180"],
+    "correctAnswer": "206",
+    "clue": "There are over two hundred of them!",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2164,
+    "text": "Which shape has no corners?",
+    "options": ["Circle", "Square", "Triangle", "Rectangle"],
+    "correctAnswer": "Circle",
+    "clue": "It’s perfectly round.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2165,
+    "text": "What do bees collect from flowers?",
+    "options": ["Nectar", "Seeds", "Leaves", "Bark"],
+    "correctAnswer": "Nectar",
+    "clue": "They use it to make honey.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2166,
+    "text": "Which animal lives in the ocean and has eight arms?",
+    "options": ["Octopus", "Squid", "Jellyfish", "Crab"],
+    "correctAnswer": "Octopus",
+    "clue": "It squirts ink to hide.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2167,
+    "text": "What is 100 divided by 10?",
+    "options": ["10", "20", "5", "15"],
+    "correctAnswer": "10",
+    "clue": "Ten tens make one hundred.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2168,
+    "text": "Which country is home to the kangaroo?",
+    "options": ["Australia", "India", "South Africa", "Brazil"],
+    "correctAnswer": "Australia",
+    "clue": "It’s also home to the Great Barrier Reef.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2169,
+    "text": "Which city is the capital of Scotland?",
+    "options": ["Edinburgh", "Glasgow", "Aberdeen", "Dundee"],
+    "correctAnswer": "Edinburgh",
+    "clue": "It has a castle on a hill.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2170,
+    "text": "What type of animal is a goldfish?",
+    "options": ["Fish", "Bird", "Reptile", "Mammal"],
+    "correctAnswer": "Fish",
+    "clue": "It lives in water and breathes through gills.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2171,
+    "text": "Which part of a plant holds it in the ground?",
+    "options": ["Roots", "Stem", "Leaves", "Flowers"],
+    "correctAnswer": "Roots",
+    "clue": "They take in water and minerals.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2172,
+    "text": "What is the main language spoken in France?",
+    "options": ["French", "Spanish", "German", "Italian"],
+    "correctAnswer": "French",
+    "clue": "Bonjour means hello in this language.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2173,
+    "text": "What do you use to eat soup?",
+    "options": ["Spoon", "Fork", "Knife", "Chopsticks"],
+    "correctAnswer": "Spoon",
+    "clue": "It’s round at one end.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2174,
+    "text": "Which country’s flag has a red circle on a white background?",
+    "options": ["Japan", "China", "Denmark", "Switzerland"],
+    "correctAnswer": "Japan",
+    "clue": "The circle represents the sun.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2175,
+    "text": "How many strings does a violin have?",
+    "options": ["4", "5", "6", "8"],
+    "correctAnswer": "4",
+    "clue": "It’s played with a bow.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2176,
+    "text": "Which colour is made by mixing red and yellow?",
+    "options": ["Orange", "Green", "Purple", "Brown"],
+    "correctAnswer": "Orange",
+    "clue": "It’s the colour of pumpkins.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2177,
+    "text": "How many legs does a butterfly have?",
+    "options": ["6", "4", "8", "10"],
+    "correctAnswer": "6",
+    "clue": "It’s an insect.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2178,
+    "text": "Which planet has the most moons?",
+    "options": ["Saturn", "Earth", "Mars", "Venus"],
+    "correctAnswer": "Saturn",
+    "clue": "It has over 80 known moons.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2179,
+    "text": "What is the name of the largest animal on Earth?",
+    "options": ["Blue whale", "Elephant", "Shark", "Giraffe"],
+    "correctAnswer": "Blue whale",
+    "clue": "It lives in the ocean.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2180,
+    "text": "Which season comes after autumn?",
+    "options": ["Winter", "Spring", "Summer", "Autumn"],
+    "correctAnswer": "Winter",
+    "clue": "It’s usually the coldest time of year.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2181,
+    "text": "What is the name of the part of the eye that controls how much light enters?",
+    "options": ["Pupil", "Lens", "Retina", "Cornea"],
+    "correctAnswer": "Pupil",
+    "clue": "It gets bigger in the dark.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2182,
+    "text": "Which type of bird is a symbol of peace?",
+    "options": ["Dove", "Eagle", "Owl", "Crow"],
+    "correctAnswer": "Dove",
+    "clue": "It’s often shown carrying an olive branch.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2183,
+    "text": "What is the capital of France?",
+    "options": ["Paris", "Lyon", "Nice", "Marseille"],
+    "correctAnswer": "Paris",
+    "clue": "It’s known as the city of love.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2184,
+    "text": "What type of animal is a dolphin?",
+    "options": ["Mammal", "Fish", "Reptile", "Amphibian"],
+    "correctAnswer": "Mammal",
+    "clue": "It breathes air through a blowhole.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2185,
+    "text": "Which food do pandas mainly eat?",
+    "options": ["Bamboo", "Grass", "Leaves", "Fruits"],
+    "correctAnswer": "Bamboo",
+    "clue": "They eat it for most of the day.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2186,
+    "text": "Which part of the human body helps you think?",
+    "options": ["Brain", "Heart", "Liver", "Stomach"],
+    "correctAnswer": "Brain",
+    "clue": "It controls everything you do.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2187,
+    "text": "Which planet is the largest in our solar system?",
+    "options": ["Jupiter", "Saturn", "Neptune", "Earth"],
+    "correctAnswer": "Jupiter",
+    "clue": "It has a Great Red Spot.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2188,
+    "text": "Which insect makes a buzzing sound and can sting?",
+    "options": ["Bee", "Butterfly", "Ant", "Beetle"],
+    "correctAnswer": "Bee",
+    "clue": "It helps plants grow by spreading pollen.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2189,
+    "text": "Which instrument has black and white keys and is played with both hands?",
+    "options": ["Piano", "Violin", "Drum", "Flute"],
+    "correctAnswer": "Piano",
+    "clue": "It can play both melody and harmony.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2190,
+    "text": "What is 8 × 5?",
+    "options": ["40", "35", "45", "50"],
+    "correctAnswer": "40",
+    "clue": "Think of the five times table.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2191,
+    "text": "Which part of your body helps you to see?",
+    "options": ["Eyes", "Ears", "Nose", "Mouth"],
+    "correctAnswer": "Eyes",
+    "clue": "They are sensitive to light.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2192,
+    "text": "Which type of energy comes from the Sun?",
+    "options": ["Solar energy", "Wind energy", "Nuclear energy", "Sound energy"],
+    "correctAnswer": "Solar energy",
+    "clue": "It can power solar panels.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2193,
+    "text": "Which country is home to the Great Wall?",
+    "options": ["China", "India", "Japan", "Mongolia"],
+    "correctAnswer": "China",
+    "clue": "It’s one of the longest structures ever built.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2194,
+    "text": "Which animal gives us eggs?",
+    "options": ["Chicken", "Cow", "Pig", "Sheep"],
+    "correctAnswer": "Chicken",
+    "clue": "They live in coops.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2195,
+    "text": "How many hours are there in half a day?",
+    "options": ["12", "6", "10", "8"],
+    "correctAnswer": "12",
+    "clue": "Half of 24.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2196,
+    "text": "Which fruit is known for keeping doctors away?",
+    "options": ["Apple", "Orange", "Banana", "Pear"],
+    "correctAnswer": "Apple",
+    "clue": "There’s a saying about eating one every day.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2197,
+    "text": "Which country is known for pizza and pasta?",
+    "options": ["Italy", "France", "Greece", "Spain"],
+    "correctAnswer": "Italy",
+    "clue": "Its capital city is Rome.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2198,
+    "text": "Which sea creature has a hard shell and claws?",
+    "options": ["Crab", "Shark", "Whale", "Seal"],
+    "correctAnswer": "Crab",
+    "clue": "It walks sideways.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2199,
+    "text": "Which planet do we live on?",
+    "options": ["Earth", "Mars", "Venus", "Jupiter"],
+    "correctAnswer": "Earth",
+    "clue": "It’s the only planet with known life.",
+    "difficulty": "easy",
+    "category": "Children"
+  },
+  {
+    "id": 2200,
+    "text": "What is the largest planet in our solar system?",
+    "options": ["Jupiter", "Saturn", "Earth", "Neptune"],
+    "correctAnswer": "Jupiter",
+    "clue": "It’s known for its Great Red Spot.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2201,
+    "text": "Who wrote the play 'Romeo and Juliet'?",
+    "options": ["William Shakespeare", "Jane Austen", "Charles Dickens", "Roald Dahl"],
+    "correctAnswer": "William Shakespeare",
+    "clue": "He was born in Stratford-upon-Avon.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2202,
+    "text": "What is the process called when a liquid turns into a gas?",
+    "options": ["Evaporation", "Condensation", "Freezing", "Melting"],
+    "correctAnswer": "Evaporation",
+    "clue": "It happens when puddles dry up in the sun.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2203,
+    "text": "In what year did World War II end?",
+    "options": ["1945", "1939", "1918", "1950"],
+    "correctAnswer": "1945",
+    "clue": "It ended after six years of fighting.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2204,
+    "text": "Which element has the chemical symbol 'O'?",
+    "options": ["Oxygen", "Osmium", "Oxide", "Ozone"],
+    "correctAnswer": "Oxygen",
+    "clue": "It makes up about 21% of the air we breathe.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2205,
+    "text": "What is the square root of 81?",
+    "options": ["9", "8", "7", "10"],
+    "correctAnswer": "9",
+    "clue": "A number multiplied by itself to get 81.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2206,
+    "text": "Who was the first man to walk on the Moon?",
+    "options": ["Neil Armstrong", "Buzz Aldrin", "Yuri Gagarin", "Michael Collins"],
+    "correctAnswer": "Neil Armstrong",
+    "clue": "He took his famous ‘small step’ in 1969.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2207,
+    "text": "What gas do plants release during photosynthesis?",
+    "options": ["Oxygen", "Carbon dioxide", "Nitrogen", "Hydrogen"],
+    "correctAnswer": "Oxygen",
+    "clue": "It’s the gas we breathe in.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2208,
+    "text": "What is the longest river in the world by most measurements?",
+    "options": ["Nile", "Amazon", "Yangtze", "Mississippi"],
+    "correctAnswer": "Nile",
+    "clue": "It flows through Egypt into the Mediterranean Sea.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2209,
+    "text": "Which part of the human body controls the nervous system?",
+    "options": ["Brain", "Spinal cord", "Heart", "Lungs"],
+    "correctAnswer": "Brain",
+    "clue": "It sends messages through the body.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2210,
+    "text": "What is 15 × 12?",
+    "options": ["180", "160", "175", "200"],
+    "correctAnswer": "180",
+    "clue": "15 × 10 plus 15 × 2.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2211,
+    "text": "Which planet is famous for its rings?",
+    "options": ["Saturn", "Jupiter", "Uranus", "Neptune"],
+    "correctAnswer": "Saturn",
+    "clue": "Its rings are made of ice and rock.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2212,
+    "text": "Who painted the Mona Lisa?",
+    "options": ["Leonardo da Vinci", "Michelangelo", "Pablo Picasso", "Claude Monet"],
+    "correctAnswer": "Leonardo da Vinci",
+    "clue": "He was also an inventor and scientist.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2213,
+    "text": "Which part of a plant carries water from roots to leaves?",
+    "options": ["Stem", "Flower", "Seed", "Petal"],
+    "correctAnswer": "Stem",
+    "clue": "It also helps the plant stand upright.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2214,
+    "text": "What is the capital city of Spain?",
+    "options": ["Madrid", "Barcelona", "Seville", "Valencia"],
+    "correctAnswer": "Madrid",
+    "clue": "Located near the centre of the country.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2215,
+    "text": "How many sides does an octagon have?",
+    "options": ["8", "6", "7", "9"],
+    "correctAnswer": "8",
+    "clue": "The same number as a stop sign’s sides.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2216,
+    "text": "Which scientist is linked to the law of gravity?",
+    "options": ["Isaac Newton", "Albert Einstein", "Charles Darwin", "Stephen Hawking"],
+    "correctAnswer": "Isaac Newton",
+    "clue": "Legend says an apple helped the idea.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2217,
+    "text": "What is the freezing point of water in Celsius?",
+    "options": ["0°C", "10°C", "32°C", "-5°C"],
+    "correctAnswer": "0°C",
+    "clue": "The temperature at which water turns to ice.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2218,
+    "text": "What is the capital city of Italy?",
+    "options": ["Rome", "Venice", "Milan", "Florence"],
+    "correctAnswer": "Rome",
+    "clue": "Home to the Colosseum.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2219,
+    "text": "Which blood type is known as the universal donor?",
+    "options": ["O negative", "A positive", "B negative", "AB positive"],
+    "correctAnswer": "O negative",
+    "clue": "It can be given to any other blood group.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2220,
+    "text": "Which natural disaster is measured using the Richter scale?",
+    "options": ["Earthquake", "Tornado", "Hurricane", "Flood"],
+    "correctAnswer": "Earthquake",
+    "clue": "It measures ground shaking.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2221,
+    "text": "What is 50% of 200?",
+    "options": ["100", "50", "150", "75"],
+    "correctAnswer": "100",
+    "clue": "Half of 200.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2222,
+    "text": "Which country contains most of the Amazon rainforest?",
+    "options": ["Brazil", "Peru", "Colombia", "Argentina"],
+    "correctAnswer": "Brazil",
+    "clue": "The largest country in South America.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2223,
+    "text": "What is the smallest bone in the human body?",
+    "options": ["Stapes", "Femur", "Radius", "Ulna"],
+    "correctAnswer": "Stapes",
+    "clue": "It’s in the middle ear.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2224,
+    "text": "What is the capital city of Canada?",
+    "options": ["Ottawa", "Toronto", "Vancouver", "Montreal"],
+    "correctAnswer": "Ottawa",
+    "clue": "It sits on the river of the same name.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2225,
+    "text": "What is the main gas in the air we breathe?",
+    "options": ["Nitrogen", "Oxygen", "Carbon dioxide", "Hydrogen"],
+    "correctAnswer": "Nitrogen",
+    "clue": "Roughly 78% of the atmosphere.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2226,
+    "text": "Who proposed the theory of evolution by natural selection?",
+    "options": ["Charles Darwin", "Isaac Newton", "Marie Curie", "Nikola Tesla"],
+    "correctAnswer": "Charles Darwin",
+    "clue": "He studied finches in the Galápagos.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2227,
+    "text": "What type of angle is less than 90 degrees?",
+    "options": ["Acute angle", "Right angle", "Obtuse angle", "Reflex angle"],
+    "correctAnswer": "Acute angle",
+    "clue": "Smaller than a right angle.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2228,
+    "text": "What is the chemical symbol for gold?",
+    "options": ["Au", "Ag", "Gd", "Go"],
+    "correctAnswer": "Au",
+    "clue": "From the Latin ‘aurum’.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2229,
+    "text": "Which country gifted the Statue of Liberty to the USA?",
+    "options": ["France", "Italy", "Spain", "Germany"],
+    "correctAnswer": "France",
+    "clue": "A gift of friendship in the 19th century.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2230,
+    "text": "What is 9 squared?",
+    "options": ["81", "72", "64", "90"],
+    "correctAnswer": "81",
+    "clue": "9 multiplied by itself.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2231,
+    "text": "Which planet is second closest to the Sun?",
+    "options": ["Venus", "Earth", "Mars", "Mercury"],
+    "correctAnswer": "Venus",
+    "clue": "Often called Earth’s twin.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2232,
+    "text": "Who discovered penicillin?",
+    "options": ["Alexander Fleming", "Louis Pasteur", "Marie Curie", "Edward Jenner"],
+    "correctAnswer": "Alexander Fleming",
+    "clue": "He discovered it by accident in 1928.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2233,
+    "text": "Which famous building in Italy leans to one side?",
+    "options": ["Leaning Tower of Pisa", "Colosseum", "Duomo", "Pantheon"],
+    "correctAnswer": "Leaning Tower of Pisa",
+    "clue": "A popular tourist photo spot.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2234,
+    "text": "How many continents are there on Earth?",
+    "options": ["7", "6", "5", "8"],
+    "correctAnswer": "7",
+    "clue": "Europe and Asia are two of them.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2235,
+    "text": "What is the main language spoken in Brazil?",
+    "options": ["Portuguese", "Spanish", "English", "French"],
+    "correctAnswer": "Portuguese",
+    "clue": "Different from most of its neighbours.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2236,
+    "text": "Which scientist developed the theory of relativity?",
+    "options": ["Albert Einstein", "Isaac Newton", "Nikola Tesla", "Charles Darwin"],
+    "correctAnswer": "Albert Einstein",
+    "clue": "Famous for E = mc².",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2237,
+    "text": "Which country has a maple leaf on its flag?",
+    "options": ["Canada", "USA", "Denmark", "Sweden"],
+    "correctAnswer": "Canada",
+    "clue": "Its flag is red and white.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2238,
+    "text": "What is the capital city of Australia?",
+    "options": ["Canberra", "Sydney", "Melbourne", "Perth"],
+    "correctAnswer": "Canberra",
+    "clue": "Often mistaken for Sydney.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2239,
+    "text": "What is the boiling point of water in Celsius?",
+    "options": ["100°C", "90°C", "80°C", "120°C"],
+    "correctAnswer": "100°C",
+    "clue": "Where bubbles appear steadily.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2240,
+    "text": "Animals that eat both plants and meat are called what?",
+    "options": ["Omnivores", "Herbivores", "Carnivores", "Insectivores"],
+    "correctAnswer": "Omnivores",
+    "clue": "Humans are examples.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2241,
+    "text": "How many degrees are in a full circle?",
+    "options": ["360", "180", "90", "270"],
+    "correctAnswer": "360",
+    "clue": "A complete turn.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2242,
+    "text": "Which British city is nicknamed the 'Steel City'?",
+    "options": ["Sheffield", "Manchester", "Leeds", "Birmingham"],
+    "correctAnswer": "Sheffield",
+    "clue": "It was famous for cutlery production.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2243,
+    "text": "Which ocean is the largest?",
+    "options": ["Pacific Ocean", "Atlantic Ocean", "Indian Ocean", "Arctic Ocean"],
+    "correctAnswer": "Pacific Ocean",
+    "clue": "It covers over one-third of Earth.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2244,
+    "text": "What is the fastest land animal?",
+    "options": ["Cheetah", "Lion", "Horse", "Leopard"],
+    "correctAnswer": "Cheetah",
+    "clue": "It can sprint over 60 mph.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2245,
+    "text": "Which ocean lies between Africa and Australia?",
+    "options": ["Indian Ocean", "Pacific Ocean", "Atlantic Ocean", "Southern Ocean"],
+    "correctAnswer": "Indian Ocean",
+    "clue": "It borders India and Indonesia.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2246,
+    "text": "What is 25% of 200?",
+    "options": ["50", "25", "75", "100"],
+    "correctAnswer": "50",
+    "clue": "One quarter of 200.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2247,
+    "text": "Which British monarch has the longest reign?",
+    "options": ["Queen Elizabeth II", "Queen Victoria", "King George III", "Henry VIII"],
+    "correctAnswer": "Queen Elizabeth II",
+    "clue": "She reigned for 70 years.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2248,
+    "text": "Which two numbers multiply to give 56 and add to make 15?",
+    "options": ["7 and 8", "6 and 9", "5 and 11", "4 and 14"],
+    "correctAnswer": "7 and 8",
+    "clue": "Think factor pairs of 56.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2249,
+    "text": "Which British city does the River Liffey flow through?",
+    "options": ["None – it flows through Dublin", "London", "Belfast", "Cardiff"],
+    "correctAnswer": "None – it flows through Dublin",
+    "clue": "It’s the capital of Ireland, not the UK.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2250,
+    "text": "What is the main source of energy for the Earth?",
+    "options": ["The Sun", "The Moon", "Electricity", "Wind"],
+    "correctAnswer": "The Sun",
+    "clue": "It provides heat and light.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2251,
+    "text": "How many continents are there on Earth?",
+    "options": ["7", "6", "5", "8"],
+    "correctAnswer": "7",
+    "clue": "Europe, Africa, and Asia are some of them.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2252,
+    "text": "What is the capital city of Germany?",
+    "options": ["Berlin", "Munich", "Hamburg", "Frankfurt"],
+    "correctAnswer": "Berlin",
+    "clue": "It was once divided by a wall.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2253,
+    "text": "Which organ in the human body filters blood?",
+    "options": ["Kidneys", "Lungs", "Heart", "Liver"],
+    "correctAnswer": "Kidneys",
+    "clue": "They remove waste from your blood.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2254,
+    "text": "Which British scientist discovered gravity?",
+    "options": ["Isaac Newton", "Albert Einstein", "Stephen Hawking", "Charles Darwin"],
+    "correctAnswer": "Isaac Newton",
+    "clue": "He’s linked to a falling apple.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2255,
+    "text": "Which country is known as the Land of the Rising Sun?",
+    "options": ["Japan", "China", "Korea", "Thailand"],
+    "correctAnswer": "Japan",
+    "clue": "Its flag has a red circle on a white background.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2256,
+    "text": "How many teeth does an adult human usually have?",
+    "options": ["32", "30", "28", "26"],
+    "correctAnswer": "32",
+    "clue": "That includes the wisdom teeth.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2257,
+    "text": "Which metal is liquid at room temperature?",
+    "options": ["Mercury", "Iron", "Copper", "Aluminium"],
+    "correctAnswer": "Mercury",
+    "clue": "It’s used in thermometers.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2258,
+    "text": "Which part of the cell contains genetic information?",
+    "options": ["Nucleus", "Cytoplasm", "Cell wall", "Membrane"],
+    "correctAnswer": "Nucleus",
+    "clue": "It’s the 'brain' of the cell.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2259,
+    "text": "What is the largest ocean on Earth?",
+    "options": ["Pacific Ocean", "Atlantic Ocean", "Indian Ocean", "Arctic Ocean"],
+    "correctAnswer": "Pacific Ocean",
+    "clue": "It’s between Asia and the Americas.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2260,
+    "text": "Which famous Greek philosopher taught Alexander the Great?",
+    "options": ["Aristotle", "Plato", "Socrates", "Pythagoras"],
+    "correctAnswer": "Aristotle",
+    "clue": "He studied under Plato.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2261,
+    "text": "Which number is a prime: 11, 12, 14 or 15?",
+    "options": ["11", "12", "14", "15"],
+    "correctAnswer": "11",
+    "clue": "It can only be divided by 1 and itself.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2262,
+    "text": "Which gas do humans exhale when they breathe out?",
+    "options": ["Carbon dioxide", "Oxygen", "Hydrogen", "Nitrogen"],
+    "correctAnswer": "Carbon dioxide",
+    "clue": "Plants use it for photosynthesis.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2263,
+    "text": "What is 3/4 written as a decimal?",
+    "options": ["0.75", "0.5", "0.25", "0.8"],
+    "correctAnswer": "0.75",
+    "clue": "It’s between 0.5 and 1.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2264,
+    "text": "What is the chemical symbol for iron?",
+    "options": ["Fe", "Ir", "In", "I"],
+    "correctAnswer": "Fe",
+    "clue": "From the Latin word 'ferrum'.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2265,
+    "text": "How many players are there in a rugby union team on the field?",
+    "options": ["15", "13", "11", "10"],
+    "correctAnswer": "15",
+    "clue": "There are more players than in football.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2266,
+    "text": "Who was the first British woman in space?",
+    "options": ["Helen Sharman", "Sally Ride", "Mae Jemison", "Valentina Tereshkova"],
+    "correctAnswer": "Helen Sharman",
+    "clue": "She flew on a Soviet mission in 1991.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2267,
+    "text": "What is the capital city of the United States?",
+    "options": ["Washington, D.C.", "New York", "Los Angeles", "Chicago"],
+    "correctAnswer": "Washington, D.C.",
+    "clue": "It’s named after the first president.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2268,
+    "text": "What is the main ingredient in guacamole?",
+    "options": ["Avocado", "Tomato", "Pepper", "Cucumber"],
+    "correctAnswer": "Avocado",
+    "clue": "It’s green and creamy.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2269,
+    "text": "How many edges does a cube have?",
+    "options": ["12", "8", "6", "10"],
+    "correctAnswer": "12",
+    "clue": "Each face has four edges.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2270,
+    "text": "Which natural resource is used to make paper?",
+    "options": ["Wood", "Plastic", "Metal", "Stone"],
+    "correctAnswer": "Wood",
+    "clue": "It comes from trees.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2271,
+    "text": "Which country is the largest by area?",
+    "options": ["Russia", "Canada", "China", "USA"],
+    "correctAnswer": "Russia",
+    "clue": "It spans Europe and Asia.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2272,
+    "text": "What is the chemical symbol for water?",
+    "options": ["H₂O", "O₂", "CO₂", "NaCl"],
+    "correctAnswer": "H₂O",
+    "clue": "Two hydrogen atoms and one oxygen.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2273,
+    "text": "Which city hosted the 2012 Summer Olympics?",
+    "options": ["London", "Beijing", "Rio de Janeiro", "Athens"],
+    "correctAnswer": "London",
+    "clue": "It was the city’s third time hosting.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2274,
+    "text": "What is the largest desert in the world?",
+    "options": ["Antarctica", "Sahara", "Arabian", "Gobi"],
+    "correctAnswer": "Antarctica",
+    "clue": "It’s covered in ice, not sand.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2275,
+    "text": "Which language has the most native speakers worldwide?",
+    "options": ["Mandarin Chinese", "English", "Spanish", "Hindi"],
+    "correctAnswer": "Mandarin Chinese",
+    "clue": "It’s spoken by over a billion people.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2276,
+    "text": "How many planets are in our solar system?",
+    "options": ["8", "7", "9", "10"],
+    "correctAnswer": "8",
+    "clue": "Pluto was reclassified in 2006.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2277,
+    "text": "Which part of the human body is affected by conjunctivitis?",
+    "options": ["Eyes", "Ears", "Nose", "Skin"],
+    "correctAnswer": "Eyes",
+    "clue": "It’s also called 'pink eye'.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2278,
+    "text": "What is 8 × 9?",
+    "options": ["72", "81", "64", "69"],
+    "correctAnswer": "72",
+    "clue": "It’s in the 9 times table.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2279,
+    "text": "Who invented the telephone?",
+    "options": ["Alexander Graham Bell", "Thomas Edison", "Nikola Tesla", "James Watt"],
+    "correctAnswer": "Alexander Graham Bell",
+    "clue": "He was born in Scotland.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2280,
+    "text": "What is the capital city of Norway?",
+    "options": ["Oslo", "Stockholm", "Copenhagen", "Helsinki"],
+    "correctAnswer": "Oslo",
+    "clue": "It begins with the letter O.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2281,
+    "text": "Which animal is the largest land mammal?",
+    "options": ["Elephant", "Hippopotamus", "Rhino", "Giraffe"],
+    "correctAnswer": "Elephant",
+    "clue": "It has a trunk.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2282,
+    "text": "What is the smallest prime number?",
+    "options": ["2", "1", "3", "5"],
+    "correctAnswer": "2",
+    "clue": "It’s the only even prime.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2283,
+    "text": "Which country invented paper?",
+    "options": ["China", "Egypt", "Greece", "India"],
+    "correctAnswer": "China",
+    "clue": "It was first made around 100 BCE.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2284,
+    "text": "What is the main ingredient in bread?",
+    "options": ["Flour", "Sugar", "Butter", "Rice"],
+    "correctAnswer": "Flour",
+    "clue": "It’s made from ground wheat.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2285,
+    "text": "Which force keeps us on the ground?",
+    "options": ["Gravity", "Magnetism", "Friction", "Inertia"],
+    "correctAnswer": "Gravity",
+    "clue": "It pulls everything toward the Earth.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2286,
+    "text": "Which instrument measures air pressure?",
+    "options": ["Barometer", "Thermometer", "Compass", "Anemometer"],
+    "correctAnswer": "Barometer",
+    "clue": "It helps forecast the weather.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2287,
+    "text": "How many degrees are there in a triangle?",
+    "options": ["180", "90", "270", "360"],
+    "correctAnswer": "180",
+    "clue": "Add up all three angles.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2288,
+    "text": "Which ocean lies between Africa and South America?",
+    "options": ["Atlantic Ocean", "Pacific Ocean", "Indian Ocean", "Southern Ocean"],
+    "correctAnswer": "Atlantic Ocean",
+    "clue": "It’s where the Titanic sank.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2289,
+    "text": "Which British scientist discovered penicillin?",
+    "options": ["Alexander Fleming", "Louis Pasteur", "Marie Curie", "Edward Jenner"],
+    "correctAnswer": "Alexander Fleming",
+    "clue": "He discovered it by accident.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2290,
+    "text": "Which planet has the shortest year?",
+    "options": ["Mercury", "Mars", "Venus", "Earth"],
+    "correctAnswer": "Mercury",
+    "clue": "It’s the closest planet to the Sun.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2291,
+    "text": "What type of rock is formed from cooled lava?",
+    "options": ["Igneous", "Sedimentary", "Metamorphic", "Fossil"],
+    "correctAnswer": "Igneous",
+    "clue": "It’s formed from magma or lava.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2292,
+    "text": "Which blood cells help fight infection?",
+    "options": ["White blood cells", "Red blood cells", "Platelets", "Plasma"],
+    "correctAnswer": "White blood cells",
+    "clue": "They are part of your immune system.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2293,
+    "text": "Which country has the capital city Ottawa?",
+    "options": ["Canada", "USA", "Australia", "New Zealand"],
+    "correctAnswer": "Canada",
+    "clue": "It’s north of the United States.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2294,
+    "text": "Which unit is used to measure electric current?",
+    "options": ["Ampere", "Volt", "Ohm", "Watt"],
+    "correctAnswer": "Ampere",
+    "clue": "Named after André-Marie Ampère.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2295,
+    "text": "What is 7 cubed?",
+    "options": ["343", "49", "64", "512"],
+    "correctAnswer": "343",
+    "clue": "Multiply 7 × 7 × 7.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2296,
+    "text": "Which scientist is known as the 'Father of Modern Physics'?",
+    "options": ["Albert Einstein", "Isaac Newton", "Galileo Galilei", "Stephen Hawking"],
+    "correctAnswer": "Galileo Galilei",
+    "clue": "He improved the telescope and studied planets.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2297,
+    "text": "What does DNA stand for?",
+    "options": ["Deoxyribonucleic acid", "Dynamic nitrogen atom", "Double nerve array", "Data nucleus agent"],
+    "correctAnswer": "Deoxyribonucleic acid",
+    "clue": "It carries genetic information.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2298,
+    "text": "Which metal is most commonly used to make coins?",
+    "options": ["Copper", "Iron", "Aluminium", "Gold"],
+    "correctAnswer": "Copper",
+    "clue": "It gives coins a reddish colour.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2299,
+    "text": "Which planet is known as the 'Morning Star'?",
+    "options": ["Venus", "Mars", "Mercury", "Jupiter"],
+    "correctAnswer": "Venus",
+    "clue": "It appears bright before sunrise.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2300,
+    "text": "What is the largest internal organ in the human body?",
+    "options": ["Liver", "Heart", "Lungs", "Brain"],
+    "correctAnswer": "Liver",
+    "clue": "It helps clean toxins from your blood.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2301,
+    "text": "What is 15 squared?",
+    "options": ["225", "200", "250", "300"],
+    "correctAnswer": "225",
+    "clue": "Multiply 15 by itself.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2302,
+    "text": "Which scientist discovered the laws of motion?",
+    "options": ["Isaac Newton", "Albert Einstein", "Galileo Galilei", "Marie Curie"],
+    "correctAnswer": "Isaac Newton",
+    "clue": "He’s linked with gravity too.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2303,
+    "text": "Which country is known for the Eiffel Tower?",
+    "options": ["France", "Spain", "Italy", "Germany"],
+    "correctAnswer": "France",
+    "clue": "Its capital city is Paris.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2304,
+    "text": "Which planet is known as the Blue Planet?",
+    "options": ["Earth", "Neptune", "Uranus", "Venus"],
+    "correctAnswer": "Earth",
+    "clue": "It’s covered in oceans.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2305,
+    "text": "Which part of the cell controls activities and contains DNA?",
+    "options": ["Nucleus", "Cytoplasm", "Cell wall", "Chloroplast"],
+    "correctAnswer": "Nucleus",
+    "clue": "It acts like the brain of the cell.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2306,
+    "text": "Which continent is the Sahara Desert located on?",
+    "options": ["Africa", "Asia", "Australia", "South America"],
+    "correctAnswer": "Africa",
+    "clue": "It’s the hottest desert on Earth.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2307,
+    "text": "What is the chemical formula for carbon dioxide?",
+    "options": ["CO₂", "O₂", "H₂O", "CH₄"],
+    "correctAnswer": "CO₂",
+    "clue": "It contains one carbon and two oxygen atoms.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2308,
+    "text": "Which number is a factor of both 18 and 24?",
+    "options": ["6", "8", "9", "4"],
+    "correctAnswer": "6",
+    "clue": "It’s part of both times tables.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2309,
+    "text": "Who was the first woman to win a Nobel Prize?",
+    "options": ["Marie Curie", "Rosalind Franklin", "Ada Lovelace", "Dorothy Hodgkin"],
+    "correctAnswer": "Marie Curie",
+    "clue": "She discovered radium and polonium.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2310,
+    "text": "Which layer of the Earth is liquid?",
+    "options": ["Outer core", "Inner core", "Crust", "Mantle"],
+    "correctAnswer": "Outer core",
+    "clue": "It’s made mostly of molten iron.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2311,
+    "text": "What is 2⁵ (two to the power of five)?",
+    "options": ["32", "16", "64", "25"],
+    "correctAnswer": "32",
+    "clue": "It’s 2 multiplied by itself five times.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2312,
+    "text": "Which ocean is between North America and Europe?",
+    "options": ["Atlantic Ocean", "Pacific Ocean", "Arctic Ocean", "Indian Ocean"],
+    "correctAnswer": "Atlantic Ocean",
+    "clue": "The Titanic sank in it.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2313,
+    "text": "Who wrote the book 'Harry Potter and the Philosopher’s Stone'?",
+    "options": ["J.K. Rowling", "C.S. Lewis", "Roald Dahl", "Suzanne Collins"],
+    "correctAnswer": "J.K. Rowling",
+    "clue": "She’s from the UK.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2314,
+    "text": "What is the process of water vapour turning into liquid called?",
+    "options": ["Condensation", "Evaporation", "Freezing", "Melting"],
+    "correctAnswer": "Condensation",
+    "clue": "It forms droplets on windows.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2315,
+    "text": "How many players are there in a cricket team?",
+    "options": ["11", "10", "12", "9"],
+    "correctAnswer": "11",
+    "clue": "Same as in football.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2316,
+    "text": "What is the chemical symbol for sodium?",
+    "options": ["Na", "S", "Sn", "So"],
+    "correctAnswer": "Na",
+    "clue": "It comes from the Latin word 'natrium'.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2317,
+    "text": "Who was the first President of the United States?",
+    "options": ["George Washington", "Abraham Lincoln", "Thomas Jefferson", "John Adams"],
+    "correctAnswer": "George Washington",
+    "clue": "He appears on the $1 bill.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2318,
+    "text": "What is 20% of 250?",
+    "options": ["50", "40", "60", "45"],
+    "correctAnswer": "50",
+    "clue": "One fifth of 250.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2319,
+    "text": "Which type of blood cells carry oxygen?",
+    "options": ["Red blood cells", "White blood cells", "Platelets", "Plasma"],
+    "correctAnswer": "Red blood cells",
+    "clue": "They contain haemoglobin.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2320,
+    "text": "Which Shakespeare play features the characters Macbeth and Lady Macbeth?",
+    "options": ["Macbeth", "Hamlet", "Othello", "King Lear"],
+    "correctAnswer": "Macbeth",
+    "clue": "It’s about ambition and fate.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2321,
+    "text": "How many legs does a spider have?",
+    "options": ["8", "6", "10", "12"],
+    "correctAnswer": "8",
+    "clue": "It’s an arachnid, not an insect.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2322,
+    "text": "Which country invented pizza?",
+    "options": ["Italy", "France", "Greece", "Spain"],
+    "correctAnswer": "Italy",
+    "clue": "Naples is said to be its birthplace.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2323,
+    "text": "Which unit is used to measure force?",
+    "options": ["Newton", "Joule", "Watt", "Volt"],
+    "correctAnswer": "Newton",
+    "clue": "Named after a famous scientist.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2324,
+    "text": "Which gas do humans need to survive?",
+    "options": ["Oxygen", "Carbon dioxide", "Nitrogen", "Hydrogen"],
+    "correctAnswer": "Oxygen",
+    "clue": "Plants release it.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2325,
+    "text": "Who was known as the Maid of Orléans?",
+    "options": ["Joan of Arc", "Queen Elizabeth I", "Marie Antoinette", "Florence Nightingale"],
+    "correctAnswer": "Joan of Arc",
+    "clue": "She led French forces in the 1400s.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2326,
+    "text": "What is the main language spoken in Argentina?",
+    "options": ["Spanish", "Portuguese", "English", "French"],
+    "correctAnswer": "Spanish",
+    "clue": "It’s the same as in most of South America.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2327,
+    "text": "Which metal is used to make steel?",
+    "options": ["Iron", "Copper", "Silver", "Zinc"],
+    "correctAnswer": "Iron",
+    "clue": "It’s combined with carbon to form steel.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2328,
+    "text": "What is ¾ of 200?",
+    "options": ["150", "100", "175", "125"],
+    "correctAnswer": "150",
+    "clue": "Half of 200 is 100, add another quarter.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2329,
+    "text": "Which river flows through London?",
+    "options": ["Thames", "Severn", "Mersey", "Trent"],
+    "correctAnswer": "Thames",
+    "clue": "It passes the Houses of Parliament.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2330,
+    "text": "Which part of the flower produces seeds?",
+    "options": ["Ovary", "Petal", "Stem", "Root"],
+    "correctAnswer": "Ovary",
+    "clue": "It’s inside the pistil.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2331,
+    "text": "Who was the first man to circumnavigate the globe?",
+    "options": ["Ferdinand Magellan", "Christopher Columbus", "James Cook", "Marco Polo"],
+    "correctAnswer": "Ferdinand Magellan",
+    "clue": "His crew completed the journey after he died.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2332,
+    "text": "Which is the smallest planet in our solar system?",
+    "options": ["Mercury", "Mars", "Venus", "Pluto"],
+    "correctAnswer": "Mercury",
+    "clue": "It’s also the closest to the Sun.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2333,
+    "text": "What is the process called when plants make their own food?",
+    "options": ["Photosynthesis", "Respiration", "Transpiration", "Germination"],
+    "correctAnswer": "Photosynthesis",
+    "clue": "It uses sunlight and carbon dioxide.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2334,
+    "text": "How many sides does a hexagon have?",
+    "options": ["6", "5", "7", "8"],
+    "correctAnswer": "6",
+    "clue": "Think of honeycomb cells.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2335,
+    "text": "Which famous leader gave the speech 'I Have a Dream'?",
+    "options": ["Martin Luther King Jr.", "Nelson Mandela", "Barack Obama", "Malcolm X"],
+    "correctAnswer": "Martin Luther King Jr.",
+    "clue": "He was a civil rights activist.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2336,
+    "text": "What is 1 kilometre equal to in metres?",
+    "options": ["1000", "100", "10", "10,000"],
+    "correctAnswer": "1000",
+    "clue": "It’s part of the metric system.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2337,
+    "text": "What do you call a word that has the opposite meaning of another word?",
+    "options": ["Antonym", "Synonym", "Homonym", "Acronym"],
+    "correctAnswer": "Antonym",
+    "clue": "The opposite of 'hot' is 'cold'.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2338,
+    "text": "Who discovered electricity by flying a kite in a storm?",
+    "options": ["Benjamin Franklin", "Thomas Edison", "Nikola Tesla", "James Watt"],
+    "correctAnswer": "Benjamin Franklin",
+    "clue": "He was also a Founding Father of the USA.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2339,
+    "text": "Which animal is the symbol of the World Wildlife Fund (WWF)?",
+    "options": ["Panda", "Elephant", "Tiger", "Whale"],
+    "correctAnswer": "Panda",
+    "clue": "It’s black and white.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2340,
+    "text": "What is the main language spoken in Austria?",
+    "options": ["German", "French", "Italian", "Dutch"],
+    "correctAnswer": "German",
+    "clue": "It’s the same as in Germany.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2341,
+    "text": "Which famous ship sank on its first voyage in 1912?",
+    "options": ["Titanic", "Lusitania", "Mayflower", "Bismarck"],
+    "correctAnswer": "Titanic",
+    "clue": "It hit an iceberg.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2342,
+    "text": "Which part of the human skeleton protects the brain?",
+    "options": ["Skull", "Rib cage", "Spine", "Pelvis"],
+    "correctAnswer": "Skull",
+    "clue": "It’s made up of several bones fused together.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2343,
+    "text": "What is the currency of Japan?",
+    "options": ["Yen", "Won", "Dollar", "Yuan"],
+    "correctAnswer": "Yen",
+    "clue": "Its symbol looks like a Y with two lines.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2344,
+    "text": "Which planet is famous for its Great Red Spot?",
+    "options": ["Jupiter", "Mars", "Saturn", "Venus"],
+    "correctAnswer": "Jupiter",
+    "clue": "It’s a huge storm larger than Earth.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2345,
+    "text": "What is the process by which caterpillars become butterflies?",
+    "options": ["Metamorphosis", "Pollination", "Photosynthesis", "Regeneration"],
+    "correctAnswer": "Metamorphosis",
+    "clue": "It happens inside a chrysalis.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2346,
+    "text": "Which is the largest bone in the human body?",
+    "options": ["Femur", "Humerus", "Tibia", "Skull"],
+    "correctAnswer": "Femur",
+    "clue": "It’s in your upper leg.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2347,
+    "text": "Who was the British Prime Minister during World War II?",
+    "options": ["Winston Churchill", "Neville Chamberlain", "Clement Attlee", "Harold Wilson"],
+    "correctAnswer": "Winston Churchill",
+    "clue": "He delivered the 'We shall fight on the beaches' speech.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2348,
+    "text": "Which sea separates Europe from Africa?",
+    "options": ["Mediterranean Sea", "Red Sea", "Black Sea", "Baltic Sea"],
+    "correctAnswer": "Mediterranean Sea",
+    "clue": "It borders Spain, Italy, and Greece.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2349,
+    "text": "Which part of speech describes an action or state?",
+    "options": ["Verb", "Noun", "Adjective", "Adverb"],
+    "correctAnswer": "Verb",
+    "clue": "Examples include 'run' and 'think'.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2350,
+    "text": "What is the main function of red blood cells?",
+    "options": ["To carry oxygen", "To fight infection", "To digest food", "To clot blood"],
+    "correctAnswer": "To carry oxygen",
+    "clue": "They contain haemoglobin.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2351,
+    "text": "Which planet has the shortest day?",
+    "options": ["Jupiter", "Mars", "Earth", "Saturn"],
+    "correctAnswer": "Jupiter",
+    "clue": "It spins very quickly on its axis.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2352,
+    "text": "Which country is famous for inventing the printing press?",
+    "options": ["Germany", "France", "Italy", "England"],
+    "correctAnswer": "Germany",
+    "clue": "Johannes Gutenberg invented it around 1440.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2353,
+    "text": "In what year did the Titanic sink?",
+    "options": ["1912", "1905", "1918", "1921"],
+    "correctAnswer": "1912",
+    "clue": "It sank on its first voyage to New York.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2354,
+    "text": "What is the value of pi to two decimal places?",
+    "options": ["3.14", "3.15", "3.13", "3.12"],
+    "correctAnswer": "3.14",
+    "clue": "It’s used to calculate the circumference of a circle.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2355,
+    "text": "Which scientist first proposed that lightning is electricity?",
+    "options": ["Benjamin Franklin", "Isaac Newton", "Michael Faraday", "Thomas Edison"],
+    "correctAnswer": "Benjamin Franklin",
+    "clue": "He used a kite in his famous experiment.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2356,
+    "text": "What is the process of breaking food into smaller pieces in the mouth called?",
+    "options": ["Chewing", "Swallowing", "Digesting", "Absorbing"],
+    "correctAnswer": "Chewing",
+    "clue": "It’s the first stage of digestion.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2357,
+    "text": "Which ocean borders the west coast of the United States?",
+    "options": ["Pacific Ocean", "Atlantic Ocean", "Arctic Ocean", "Indian Ocean"],
+    "correctAnswer": "Pacific Ocean",
+    "clue": "It’s the largest ocean on Earth.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2358,
+    "text": "Who is the Greek god of the sea?",
+    "options": ["Poseidon", "Zeus", "Apollo", "Hades"],
+    "correctAnswer": "Poseidon",
+    "clue": "He’s often shown holding a trident.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2359,
+    "text": "What is the currency used in France?",
+    "options": ["Euro", "Franc", "Pound", "Lira"],
+    "correctAnswer": "Euro",
+    "clue": "It’s shared by many European countries.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2360,
+    "text": "What is the main language spoken in Brazil?",
+    "options": ["Portuguese", "Spanish", "English", "French"],
+    "correctAnswer": "Portuguese",
+    "clue": "It’s the only South American country that speaks it.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2361,
+    "text": "How many bones are there in the adult human body?",
+    "options": ["206", "210", "200", "198"],
+    "correctAnswer": "206",
+    "clue": "Children have more, as some fuse as they grow.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2362,
+    "text": "What is the capital city of Japan?",
+    "options": ["Tokyo", "Osaka", "Kyoto", "Nagoya"],
+    "correctAnswer": "Tokyo",
+    "clue": "It’s one of the world’s most populated cities.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2363,
+    "text": "What part of speech describes a noun?",
+    "options": ["Adjective", "Verb", "Adverb", "Pronoun"],
+    "correctAnswer": "Adjective",
+    "clue": "It tells you what something is like.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2364,
+    "text": "What is 15% of 400?",
+    "options": ["60", "40", "80", "55"],
+    "correctAnswer": "60",
+    "clue": "10% of 400 is 40, then add half of that.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2365,
+    "text": "Who wrote the novel 'Oliver Twist'?",
+    "options": ["Charles Dickens", "Jane Austen", "Mark Twain", "William Shakespeare"],
+    "correctAnswer": "Charles Dickens",
+    "clue": "He also wrote 'A Christmas Carol'.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2366,
+    "text": "Which country’s flag features a red maple leaf?",
+    "options": ["Canada", "Denmark", "Norway", "Finland"],
+    "correctAnswer": "Canada",
+    "clue": "It’s red and white.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2367,
+    "text": "What is the boiling point of water in Fahrenheit?",
+    "options": ["212°F", "200°F", "180°F", "220°F"],
+    "correctAnswer": "212°F",
+    "clue": "It’s 100°C on the Celsius scale.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2368,
+    "text": "Which British scientist discovered penicillin?",
+    "options": ["Alexander Fleming", "Isaac Newton", "Charles Darwin", "James Watt"],
+    "correctAnswer": "Alexander Fleming",
+    "clue": "He discovered it by accident in 1928.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2369,
+    "text": "What do we call the planets beyond Mars?",
+    "options": ["Outer planets", "Inner planets", "Minor planets", "Dwarf planets"],
+    "correctAnswer": "Outer planets",
+    "clue": "They include Jupiter and Saturn.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2370,
+    "text": "Which type of rock is formed from magma cooling?",
+    "options": ["Igneous", "Sedimentary", "Metamorphic", "Fossil"],
+    "correctAnswer": "Igneous",
+    "clue": "Basalt and granite are examples.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2371,
+    "text": "Who was the first British monarch of the House of Windsor?",
+    "options": ["George V", "Edward VII", "George VI", "Elizabeth II"],
+    "correctAnswer": "George V",
+    "clue": "He changed the family name during World War I.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2372,
+    "text": "What is 0.5 as a fraction?",
+    "options": ["1/2", "1/3", "2/3", "1/4"],
+    "correctAnswer": "1/2",
+    "clue": "It’s equal to 50%.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2373,
+    "text": "What is the smallest unit of life?",
+    "options": ["Cell", "Atom", "Organ", "Molecule"],
+    "correctAnswer": "Cell",
+    "clue": "All living things are made up of them.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2374,
+    "text": "Which planet has a day longer than its year?",
+    "options": ["Venus", "Mercury", "Mars", "Earth"],
+    "correctAnswer": "Venus",
+    "clue": "It spins very slowly on its axis.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2375,
+    "text": "Which continent is the driest on Earth?",
+    "options": ["Antarctica", "Africa", "Australia", "Asia"],
+    "correctAnswer": "Antarctica",
+    "clue": "It’s technically a desert made of ice.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2376,
+    "text": "What is the name of the largest bone in your arm?",
+    "options": ["Humerus", "Radius", "Ulna", "Clavicle"],
+    "correctAnswer": "Humerus",
+    "clue": "It connects the shoulder to the elbow.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2377,
+    "text": "Who was the first female Prime Minister of the UK?",
+    "options": ["Margaret Thatcher", "Theresa May", "Liz Truss", "Harriet Harman"],
+    "correctAnswer": "Margaret Thatcher",
+    "clue": "She served from 1979 to 1990.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2378,
+    "text": "What gas do living creatures need to survive?",
+    "options": ["Oxygen", "Carbon dioxide", "Hydrogen", "Nitrogen"],
+    "correctAnswer": "Oxygen",
+    "clue": "We breathe it in every second.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2379,
+    "text": "What is the capital city of Greece?",
+    "options": ["Athens", "Thessaloniki", "Crete", "Patras"],
+    "correctAnswer": "Athens",
+    "clue": "It’s one of the oldest cities in the world.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2380,
+    "text": "Which force slows objects down when they rub together?",
+    "options": ["Friction", "Gravity", "Magnetism", "Inertia"],
+    "correctAnswer": "Friction",
+    "clue": "It produces heat when surfaces touch.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2381,
+    "text": "Which ocean is located between Africa and Australia?",
+    "options": ["Indian Ocean", "Pacific Ocean", "Atlantic Ocean", "Southern Ocean"],
+    "correctAnswer": "Indian Ocean",
+    "clue": "It borders India and Indonesia.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2382,
+    "text": "Who was the first man to orbit the Earth?",
+    "options": ["Yuri Gagarin", "John Glenn", "Neil Armstrong", "Buzz Aldrin"],
+    "correctAnswer": "Yuri Gagarin",
+    "clue": "He was a Soviet cosmonaut in 1961.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2383,
+    "text": "Which instrument has keys, pedals, and strings?",
+    "options": ["Piano", "Violin", "Drum", "Flute"],
+    "correctAnswer": "Piano",
+    "clue": "It’s both a string and percussion instrument.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2384,
+    "text": "What is the main gas in the Sun?",
+    "options": ["Hydrogen", "Oxygen", "Helium", "Nitrogen"],
+    "correctAnswer": "Hydrogen",
+    "clue": "It fuses to form helium, releasing energy.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2385,
+    "text": "Which British scientist developed the theory of evolution?",
+    "options": ["Charles Darwin", "Gregor Mendel", "Louis Pasteur", "Francis Crick"],
+    "correctAnswer": "Charles Darwin",
+    "clue": "He wrote 'On the Origin of Species'.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2386,
+    "text": "Which is the smallest planet in our solar system?",
+    "options": ["Mercury", "Mars", "Venus", "Earth"],
+    "correctAnswer": "Mercury",
+    "clue": "It’s the closest planet to the Sun.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2387,
+    "text": "Who invented the World Wide Web?",
+    "options": ["Tim Berners-Lee", "Bill Gates", "Steve Jobs", "Mark Zuckerberg"],
+    "correctAnswer": "Tim Berners-Lee",
+    "clue": "He’s a British computer scientist.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2388,
+    "text": "Which country is home to Mount Fuji?",
+    "options": ["Japan", "China", "Nepal", "India"],
+    "correctAnswer": "Japan",
+    "clue": "It’s an active volcano and a national symbol.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2389,
+    "text": "Which organ helps humans to breathe?",
+    "options": ["Lungs", "Heart", "Liver", "Brain"],
+    "correctAnswer": "Lungs",
+    "clue": "They exchange oxygen and carbon dioxide.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2390,
+    "text": "What is the chemical symbol for carbon?",
+    "options": ["C", "Ca", "Co", "Cr"],
+    "correctAnswer": "C",
+    "clue": "It’s the basis of all organic life.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2391,
+    "text": "What is the hardest natural substance on Earth?",
+    "options": ["Diamond", "Gold", "Iron", "Quartz"],
+    "correctAnswer": "Diamond",
+    "clue": "It’s made of carbon atoms arranged in a crystal.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2392,
+    "text": "Which country invented paper?",
+    "options": ["China", "Egypt", "India", "Greece"],
+    "correctAnswer": "China",
+    "clue": "It dates back to around 100 BCE.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2393,
+    "text": "What is the square root of 49?",
+    "options": ["7", "6", "8", "9"],
+    "correctAnswer": "7",
+    "clue": "Multiply it by itself to get 49.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2394,
+    "text": "Who was the first person to walk on the Moon?",
+    "options": ["Neil Armstrong", "Buzz Aldrin", "Michael Collins", "Yuri Gagarin"],
+    "correctAnswer": "Neil Armstrong",
+    "clue": "He said it was 'one small step for man'.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2395,
+    "text": "What is the capital city of Italy?",
+    "options": ["Rome", "Venice", "Milan", "Florence"],
+    "correctAnswer": "Rome",
+    "clue": "It’s home to the Colosseum.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2396,
+    "text": "What is the largest organ in the human body?",
+    "options": ["Skin", "Liver", "Heart", "Lungs"],
+    "correctAnswer": "Skin",
+    "clue": "It protects you from germs and sunlight.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2397,
+    "text": "Which scientist developed the laws of motion?",
+    "options": ["Isaac Newton", "Albert Einstein", "Galileo Galilei", "Stephen Hawking"],
+    "correctAnswer": "Isaac Newton",
+    "clue": "He also studied gravity.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2398,
+    "text": "Which country is home to the Pyramids of Giza?",
+    "options": ["Egypt", "Morocco", "Sudan", "Tunisia"],
+    "correctAnswer": "Egypt",
+    "clue": "They are ancient wonders near Cairo.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2399,
+    "text": "Which element do all living things contain?",
+    "options": ["Carbon", "Iron", "Sodium", "Sulphur"],
+    "correctAnswer": "Carbon",
+    "clue": "It’s the backbone of organic chemistry.",
+    "difficulty": "medium",
+    "category": "Children"
+  },
+  {
+    "id": 2400,
+    "text": "What is the smallest prime number greater than 100?",
+    "options": ["101", "103", "107", "109"],
+    "correctAnswer": "101",
+    "clue": "It comes right after a perfect square.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2401,
+    "text": "Which gas makes up most of the Earth's atmosphere?",
+    "options": ["Nitrogen", "Oxygen", "Carbon dioxide", "Hydrogen"],
+    "correctAnswer": "Nitrogen",
+    "clue": "It makes up about 78% of the air.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2402,
+    "text": "Who discovered penicillin?",
+    "options": ["Alexander Fleming", "Louis Pasteur", "Marie Curie", "Robert Koch"],
+    "correctAnswer": "Alexander Fleming",
+    "clue": "He noticed mould killing bacteria on a dish.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2403,
+    "text": "What is the square root of 256?",
+    "options": ["16", "14", "18", "20"],
+    "correctAnswer": "16",
+    "clue": "Multiply it by itself to get 256.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2404,
+    "text": "Which planet has the most moons?",
+    "options": ["Saturn", "Jupiter", "Uranus", "Neptune"],
+    "correctAnswer": "Saturn",
+    "clue": "It recently overtook Jupiter for the record.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2405,
+    "text": "Who was the first President of the United States?",
+    "options": ["George Washington", "Thomas Jefferson", "John Adams", "Benjamin Franklin"],
+    "correctAnswer": "George Washington",
+    "clue": "He served from 1789 to 1797.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2406,
+    "text": "What is the value of pi to three decimal places?",
+    "options": ["3.142", "3.141", "3.145", "3.149"],
+    "correctAnswer": "3.142",
+    "clue": "It’s a non-repeating decimal number.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2407,
+    "text": "What is the capital city of Canada?",
+    "options": ["Ottawa", "Toronto", "Vancouver", "Montreal"],
+    "correctAnswer": "Ottawa",
+    "clue": "It’s not the biggest city but is the capital.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2408,
+    "text": "Which scientist proposed the three laws of motion?",
+    "options": ["Isaac Newton", "Albert Einstein", "Nikola Tesla", "Galileo Galilei"],
+    "correctAnswer": "Isaac Newton",
+    "clue": "He also studied gravity and light.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2409,
+    "text": "What is the chemical symbol for potassium?",
+    "options": ["K", "P", "Pt", "Po"],
+    "correctAnswer": "K",
+    "clue": "It comes from the Latin word 'kalium'.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2410,
+    "text": "Which process separates liquids based on boiling point?",
+    "options": ["Distillation", "Filtration", "Evaporation", "Chromatography"],
+    "correctAnswer": "Distillation",
+    "clue": "It’s used to purify alcohol or water.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2411,
+    "text": "Who developed the periodic table?",
+    "options": ["Dmitri Mendeleev", "Antoine Lavoisier", "John Dalton", "Marie Curie"],
+    "correctAnswer": "Dmitri Mendeleev",
+    "clue": "He predicted elements that hadn’t been discovered yet.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2412,
+    "text": "What is the speed of light in a vacuum?",
+    "options": ["300,000 km/s", "150,000 km/s", "250,000 km/s", "100,000 km/s"],
+    "correctAnswer": "300,000 km/s",
+    "clue": "It’s represented by the letter 'c' in physics.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2413,
+    "text": "Which Shakespeare play features the characters Rosencrantz and Guildenstern?",
+    "options": ["Hamlet", "Macbeth", "Othello", "King Lear"],
+    "correctAnswer": "Hamlet",
+    "clue": "It’s about a Danish prince seeking revenge.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2414,
+    "text": "Which ocean is the deepest on Earth?",
+    "options": ["Pacific Ocean", "Atlantic Ocean", "Indian Ocean", "Southern Ocean"],
+    "correctAnswer": "Pacific Ocean",
+    "clue": "It contains the Mariana Trench.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2415,
+    "text": "Who wrote the novel 'Animal Farm'?",
+    "options": ["George Orwell", "Aldous Huxley", "J.R.R. Tolkien", "John Steinbeck"],
+    "correctAnswer": "George Orwell",
+    "clue": "It’s an allegory about power and corruption.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2416,
+    "text": "What part of the brain controls balance and coordination?",
+    "options": ["Cerebellum", "Cerebrum", "Brainstem", "Medulla"],
+    "correctAnswer": "Cerebellum",
+    "clue": "It’s located at the back of the brain.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2417,
+    "text": "What is the largest desert in the world?",
+    "options": ["Antarctica", "Sahara", "Gobi", "Arabian"],
+    "correctAnswer": "Antarctica",
+    "clue": "It’s frozen rather than sandy.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2418,
+    "text": "Which organ produces insulin?",
+    "options": ["Pancreas", "Liver", "Kidneys", "Stomach"],
+    "correctAnswer": "Pancreas",
+    "clue": "It helps regulate blood sugar levels.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2419,
+    "text": "What is the atomic symbol for gold?",
+    "options": ["Au", "Ag", "Gd", "Go"],
+    "correctAnswer": "Au",
+    "clue": "It’s from the Latin 'aurum'.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2420,
+    "text": "Who painted 'The Starry Night'?",
+    "options": ["Vincent van Gogh", "Claude Monet", "Pablo Picasso", "Leonardo da Vinci"],
+    "correctAnswer": "Vincent van Gogh",
+    "clue": "He painted it while in a mental asylum in 1889.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2421,
+    "text": "What is the capital city of Finland?",
+    "options": ["Helsinki", "Oslo", "Stockholm", "Copenhagen"],
+    "correctAnswer": "Helsinki",
+    "clue": "It lies on the Baltic Sea.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2422,
+    "text": "Which scientist proposed that all matter is made of atoms?",
+    "options": ["John Dalton", "Ernest Rutherford", "Niels Bohr", "Robert Hooke"],
+    "correctAnswer": "John Dalton",
+    "clue": "His theory dates to the early 1800s.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2423,
+    "text": "Which river runs through Baghdad?",
+    "options": ["Tigris", "Euphrates", "Nile", "Jordan"],
+    "correctAnswer": "Tigris",
+    "clue": "It flows parallel to the Euphrates.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2424,
+    "text": "Which British monarch reigned the longest before Queen Elizabeth II?",
+    "options": ["Queen Victoria", "George III", "Henry VIII", "Elizabeth I"],
+    "correctAnswer": "Queen Victoria",
+    "clue": "Her reign lasted 63 years.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2425,
+    "text": "What is the name of the nearest galaxy to the Milky Way?",
+    "options": ["Andromeda", "Triangulum", "Whirlpool", "Sombrero"],
+    "correctAnswer": "Andromeda",
+    "clue": "It’s on a collision course with ours.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2426,
+    "text": "Which composer became deaf later in life?",
+    "options": ["Ludwig van Beethoven", "Johann Bach", "Wolfgang Mozart", "Franz Schubert"],
+    "correctAnswer": "Ludwig van Beethoven",
+    "clue": "He composed his Ninth Symphony while deaf.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2427,
+    "text": "What is the chemical symbol for lead?",
+    "options": ["Pb", "Ld", "Pd", "Pl"],
+    "correctAnswer": "Pb",
+    "clue": "It comes from the Latin 'plumbum'.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2428,
+    "text": "Which law states that energy cannot be created or destroyed?",
+    "options": ["Law of Conservation of Energy", "Newton’s Third Law", "Ohm’s Law", "Boyle’s Law"],
+    "correctAnswer": "Law of Conservation of Energy",
+    "clue": "It’s a fundamental rule of physics.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2429,
+    "text": "Who developed the theory of evolution by natural selection?",
+    "options": ["Charles Darwin", "Gregor Mendel", "Carl Linnaeus", "Louis Pasteur"],
+    "correctAnswer": "Charles Darwin",
+    "clue": "He wrote 'On the Origin of Species'.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2430,
+    "text": "Which war ended with the signing of the Treaty of Versailles?",
+    "options": ["World War I", "World War II", "Boer War", "Crimean War"],
+    "correctAnswer": "World War I",
+    "clue": "It ended in 1919.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2431,
+    "text": "What is the powerhouse organelle in plant cells?",
+    "options": ["Mitochondria", "Chloroplast", "Ribosome", "Nucleus"],
+    "correctAnswer": "Mitochondria",
+    "clue": "It generates energy from glucose.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2432,
+    "text": "Which element has the chemical symbol Na?",
+    "options": ["Sodium", "Nitrogen", "Nickel", "Neon"],
+    "correctAnswer": "Sodium",
+    "clue": "It reacts violently with water.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2433,
+    "text": "Which British scientist discovered the electron?",
+    "options": ["J.J. Thomson", "Rutherford", "Dalton", "Bohr"],
+    "correctAnswer": "J.J. Thomson",
+    "clue": "He worked with cathode rays.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2434,
+    "text": "What is the capital city of South Africa?",
+    "options": ["Pretoria", "Cape Town", "Johannesburg", "Durban"],
+    "correctAnswer": "Pretoria",
+    "clue": "It’s one of three capitals of the country.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2435,
+    "text": "What part of the plant is responsible for photosynthesis?",
+    "options": ["Leaves", "Roots", "Stem", "Flower"],
+    "correctAnswer": "Leaves",
+    "clue": "They contain chlorophyll.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2436,
+    "text": "Who formulated the three laws of planetary motion?",
+    "options": ["Johannes Kepler", "Galileo", "Newton", "Copernicus"],
+    "correctAnswer": "Johannes Kepler",
+    "clue": "He showed that orbits are elliptical.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2437,
+    "text": "What is the longest river in Asia?",
+    "options": ["Yangtze", "Mekong", "Ganges", "Yellow River"],
+    "correctAnswer": "Yangtze",
+    "clue": "It flows through China.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2438,
+    "text": "Which British nurse founded modern nursing?",
+    "options": ["Florence Nightingale", "Mary Seacole", "Clara Barton", "Edith Cavell"],
+    "correctAnswer": "Florence Nightingale",
+    "clue": "She worked during the Crimean War.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2439,
+    "text": "What type of rock is formed under extreme heat and pressure?",
+    "options": ["Metamorphic", "Sedimentary", "Igneous", "Volcanic"],
+    "correctAnswer": "Metamorphic",
+    "clue": "Marble is an example.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2440,
+    "text": "Which layer of Earth's atmosphere contains the ozone layer?",
+    "options": ["Stratosphere", "Troposphere", "Mesosphere", "Thermosphere"],
+    "correctAnswer": "Stratosphere",
+    "clue": "It’s above where planes usually fly.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2441,
+    "text": "Who was the first woman to win a Nobel Prize?",
+    "options": ["Marie Curie", "Dorothy Hodgkin", "Rosalind Franklin", "Ada Lovelace"],
+    "correctAnswer": "Marie Curie",
+    "clue": "She won it for her work on radioactivity.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2442,
+    "text": "What is the most common blood type in humans?",
+    "options": ["O positive", "A positive", "B positive", "AB negative"],
+    "correctAnswer": "O positive",
+    "clue": "It’s considered a universal donor type.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2443,
+    "text": "Which planet spins on its side?",
+    "options": ["Uranus", "Neptune", "Venus", "Mars"],
+    "correctAnswer": "Uranus",
+    "clue": "Its tilt is about 98 degrees.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2444,
+    "text": "What is the powerhouse of an animal cell?",
+    "options": ["Mitochondrion", "Nucleus", "Golgi body", "Vacuole"],
+    "correctAnswer": "Mitochondrion",
+    "clue": "It produces energy through respiration.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2445,
+    "text": "What is the largest internal organ in the human body?",
+    "options": ["Liver", "Heart", "Lungs", "Brain"],
+    "correctAnswer": "Liver",
+    "clue": "It filters toxins from your blood.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2446,
+    "text": "Which scientist discovered that the Earth orbits the Sun?",
+    "options": ["Copernicus", "Galileo", "Newton", "Kepler"],
+    "correctAnswer": "Copernicus",
+    "clue": "He proposed the heliocentric model.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2447,
+    "text": "What is the chemical formula for water?",
+    "options": ["H₂O", "O₂", "CO₂", "H₂O₂"],
+    "correctAnswer": "H₂O",
+    "clue": "It has two hydrogen atoms and one oxygen atom.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2448,
+    "text": "Which element has the symbol Fe?",
+    "options": ["Iron", "Fluorine", "Francium", "Fermium"],
+    "correctAnswer": "Iron",
+    "clue": "It’s used to make steel.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2449,
+    "text": "Who was the first person to propose gravity’s inverse square law?",
+    "options": ["Isaac Newton", "Galileo Galilei", "Albert Einstein", "Johannes Kepler"],
+    "correctAnswer": "Isaac Newton",
+    "clue": "His law showed how force decreases with distance.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2450,
+    "text": "What is the name of the process by which plants lose water through their leaves?",
+    "options": ["Transpiration", "Photosynthesis", "Evaporation", "Respiration"],
+    "correctAnswer": "Transpiration",
+    "clue": "It happens through tiny pores called stomata.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2451,
+    "text": "Which organ in the human body produces bile?",
+    "options": ["Liver", "Pancreas", "Stomach", "Gallbladder"],
+    "correctAnswer": "Liver",
+    "clue": "The bile is stored in the gallbladder.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2452,
+    "text": "What is the largest planet in our solar system?",
+    "options": ["Jupiter", "Saturn", "Neptune", "Earth"],
+    "correctAnswer": "Jupiter",
+    "clue": "It has a Great Red Spot visible through telescopes.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2453,
+    "text": "Who discovered the laws of planetary motion?",
+    "options": ["Johannes Kepler", "Isaac Newton", "Galileo Galilei", "Copernicus"],
+    "correctAnswer": "Johannes Kepler",
+    "clue": "He showed that planets move in ellipses.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2454,
+    "text": "Which scientist invented the first electric battery?",
+    "options": ["Alessandro Volta", "Michael Faraday", "Thomas Edison", "Nikola Tesla"],
+    "correctAnswer": "Alessandro Volta",
+    "clue": "The unit of electric potential is named after him.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2455,
+    "text": "What is the term for a solid changing directly into a gas?",
+    "options": ["Sublimation", "Condensation", "Deposition", "Evaporation"],
+    "correctAnswer": "Sublimation",
+    "clue": "Dry ice does this at room temperature.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2456,
+    "text": "Which British city is known as the 'Steel City'?",
+    "options": ["Sheffield", "Birmingham", "Manchester", "Liverpool"],
+    "correctAnswer": "Sheffield",
+    "clue": "It was famous for cutlery production.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2457,
+    "text": "What is the largest moon of Saturn?",
+    "options": ["Titan", "Europa", "Ganymede", "Io"],
+    "correctAnswer": "Titan",
+    "clue": "It has a thick atmosphere of nitrogen.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2458,
+    "text": "What is the chemical formula for methane?",
+    "options": ["CH₄", "CO₂", "C₂H₆", "NH₃"],
+    "correctAnswer": "CH₄",
+    "clue": "It’s a major greenhouse gas.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2459,
+    "text": "What is the longest river in Africa?",
+    "options": ["Nile", "Congo", "Zambezi", "Niger"],
+    "correctAnswer": "Nile",
+    "clue": "It flows north into the Mediterranean Sea.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2460,
+    "text": "Who was the first man to reach the South Pole?",
+    "options": ["Roald Amundsen", "Robert Falcon Scott", "Ernest Shackleton", "Edmund Hillary"],
+    "correctAnswer": "Roald Amundsen",
+    "clue": "He was Norwegian and arrived in 1911.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2461,
+    "text": "What is the largest island in the world?",
+    "options": ["Greenland", "Borneo", "Madagascar", "New Guinea"],
+    "correctAnswer": "Greenland",
+    "clue": "It’s an autonomous territory of Denmark.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2462,
+    "text": "What is the value of 9 squared minus 4 squared?",
+    "options": ["65", "45", "77", "81"],
+    "correctAnswer": "65",
+    "clue": "Use the difference of squares formula: (a² - b²) = (a + b)(a - b).",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2463,
+    "text": "Which vitamin helps with blood clotting?",
+    "options": ["Vitamin K", "Vitamin D", "Vitamin C", "Vitamin A"],
+    "correctAnswer": "Vitamin K",
+    "clue": "It’s found in leafy greens.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2464,
+    "text": "What is the capital city of Switzerland?",
+    "options": ["Bern", "Zurich", "Geneva", "Basel"],
+    "correctAnswer": "Bern",
+    "clue": "It’s the political centre, not the largest city.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2465,
+    "text": "Who discovered the law of gravity?",
+    "options": ["Isaac Newton", "Albert Einstein", "Galileo Galilei", "Kepler"],
+    "correctAnswer": "Isaac Newton",
+    "clue": "He famously observed a falling apple.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2466,
+    "text": "Which natural disaster is measured using the Richter scale?",
+    "options": ["Earthquake", "Tornado", "Hurricane", "Flood"],
+    "correctAnswer": "Earthquake",
+    "clue": "It measures seismic wave strength.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2467,
+    "text": "What is the only even prime number?",
+    "options": ["2", "4", "6", "8"],
+    "correctAnswer": "2",
+    "clue": "Every other even number is divisible by two.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2468,
+    "text": "Which layer of the Earth is solid and made mostly of iron and nickel?",
+    "options": ["Inner core", "Outer core", "Mantle", "Crust"],
+    "correctAnswer": "Inner core",
+    "clue": "It’s under immense pressure.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2469,
+    "text": "Who developed the vaccine for smallpox?",
+    "options": ["Edward Jenner", "Louis Pasteur", "Alexander Fleming", "Robert Koch"],
+    "correctAnswer": "Edward Jenner",
+    "clue": "He used cowpox to protect against disease.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2470,
+    "text": "Which famous equation expresses the relationship between energy and mass?",
+    "options": ["E = mc²", "F = ma", "V = IR", "P = IV"],
+    "correctAnswer": "E = mc²",
+    "clue": "It was proposed by Albert Einstein.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2471,
+    "text": "What type of star is the Sun?",
+    "options": ["Yellow dwarf", "Red giant", "White dwarf", "Neutron star"],
+    "correctAnswer": "Yellow dwarf",
+    "clue": "It’s a main-sequence star.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2472,
+    "text": "Which country is known as the Land of the Rising Sun?",
+    "options": ["Japan", "China", "South Korea", "Vietnam"],
+    "correctAnswer": "Japan",
+    "clue": "Its flag has a red circle.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2473,
+    "text": "What is the powerhouse of the cell?",
+    "options": ["Mitochondria", "Nucleus", "Ribosome", "Chloroplast"],
+    "correctAnswer": "Mitochondria",
+    "clue": "It generates energy for the cell.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2474,
+    "text": "Which British author created Sherlock Holmes?",
+    "options": ["Arthur Conan Doyle", "Agatha Christie", "Ian Fleming", "Charles Dickens"],
+    "correctAnswer": "Arthur Conan Doyle",
+    "clue": "He was also a trained doctor.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2475,
+    "text": "What is the capital city of Iceland?",
+    "options": ["Reykjavik", "Oslo", "Copenhagen", "Stockholm"],
+    "correctAnswer": "Reykjavik",
+    "clue": "It’s the northernmost capital in the world.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2476,
+    "text": "What is the main component of natural gas?",
+    "options": ["Methane", "Ethane", "Propane", "Butane"],
+    "correctAnswer": "Methane",
+    "clue": "Its chemical formula is CH₄.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2477,
+    "text": "Who painted the 'Mona Lisa'?",
+    "options": ["Leonardo da Vinci", "Michelangelo", "Raphael", "Donatello"],
+    "correctAnswer": "Leonardo da Vinci",
+    "clue": "It hangs in the Louvre in Paris.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2478,
+    "text": "Which continent is the largest by land area?",
+    "options": ["Asia", "Africa", "North America", "Europe"],
+    "correctAnswer": "Asia",
+    "clue": "It contains over 4 billion people.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2479,
+    "text": "What is the term for a triangle with all sides of different lengths?",
+    "options": ["Scalene", "Isosceles", "Equilateral", "Right-angled"],
+    "correctAnswer": "Scalene",
+    "clue": "No sides are equal.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2480,
+    "text": "Who wrote 'Romeo and Juliet'?",
+    "options": ["William Shakespeare", "Jane Austen", "Charles Dickens", "Oscar Wilde"],
+    "correctAnswer": "William Shakespeare",
+    "clue": "It’s one of his most famous tragedies.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2481,
+    "text": "Which gas is essential for photosynthesis?",
+    "options": ["Carbon dioxide", "Oxygen", "Nitrogen", "Hydrogen"],
+    "correctAnswer": "Carbon dioxide",
+    "clue": "Plants absorb it from the air.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2482,
+    "text": "What is the hardest naturally occurring substance on Earth?",
+    "options": ["Diamond", "Quartz", "Iron", "Graphite"],
+    "correctAnswer": "Diamond",
+    "clue": "It’s made entirely of carbon.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2483,
+    "text": "What is the main gas found in volcanic eruptions?",
+    "options": ["Water vapour", "Carbon dioxide", "Sulphur dioxide", "Methane"],
+    "correctAnswer": "Water vapour",
+    "clue": "It’s released as steam.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2484,
+    "text": "Which country built the Great Wall?",
+    "options": ["China", "Japan", "India", "Mongolia"],
+    "correctAnswer": "China",
+    "clue": "It stretches over 13,000 miles.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2485,
+    "text": "Who invented the first telephone?",
+    "options": ["Alexander Graham Bell", "Thomas Edison", "Nikola Tesla", "Samuel Morse"],
+    "correctAnswer": "Alexander Graham Bell",
+    "clue": "He made the first call in 1876.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2486,
+    "text": "What is the process of water turning into vapour called?",
+    "options": ["Evaporation", "Condensation", "Freezing", "Melting"],
+    "correctAnswer": "Evaporation",
+    "clue": "It happens when heat is applied to water.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2487,
+    "text": "What is the name for animals that eat only plants?",
+    "options": ["Herbivores", "Carnivores", "Omnivores", "Scavengers"],
+    "correctAnswer": "Herbivores",
+    "clue": "Examples include cows and rabbits.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2488,
+    "text": "Which planet is known as the Red Planet?",
+    "options": ["Mars", "Venus", "Mercury", "Jupiter"],
+    "correctAnswer": "Mars",
+    "clue": "It gets its colour from iron oxide dust.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2489,
+    "text": "Which ancient civilisation built the pyramids of Giza?",
+    "options": ["Egyptians", "Romans", "Greeks", "Persians"],
+    "correctAnswer": "Egyptians",
+    "clue": "They were built over 4,000 years ago.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2490,
+    "text": "What is the smallest country in the world?",
+    "options": ["Vatican City", "Monaco", "San Marino", "Liechtenstein"],
+    "correctAnswer": "Vatican City",
+    "clue": "It’s inside Rome.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2491,
+    "text": "What is 144 divided by 12?",
+    "options": ["12", "10", "14", "11"],
+    "correctAnswer": "12",
+    "clue": "It’s the same as 12 squared.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2492,
+    "text": "Who was the British Prime Minister during World War II?",
+    "options": ["Winston Churchill", "Neville Chamberlain", "Clement Attlee", "Harold Wilson"],
+    "correctAnswer": "Winston Churchill",
+    "clue": "He gave the 'We shall fight on the beaches' speech.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2493,
+    "text": "Which river flows through London?",
+    "options": ["Thames", "Severn", "Mersey", "Tyne"],
+    "correctAnswer": "Thames",
+    "clue": "It passes the Houses of Parliament.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2494,
+    "text": "What is the term for molten rock beneath the Earth's surface?",
+    "options": ["Magma", "Lava", "Basalt", "Granite"],
+    "correctAnswer": "Magma",
+    "clue": "When it reaches the surface, it becomes lava.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2495,
+    "text": "Which blood cells help fight infection?",
+    "options": ["White blood cells", "Red blood cells", "Platelets", "Plasma"],
+    "correctAnswer": "White blood cells",
+    "clue": "They defend against bacteria and viruses.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2496,
+    "text": "Which scientist developed the theory of special relativity?",
+    "options": ["Albert Einstein", "Isaac Newton", "Niels Bohr", "Galileo Galilei"],
+    "correctAnswer": "Albert Einstein",
+    "clue": "It includes the equation E = mc².",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2497,
+    "text": "What is the process called when a liquid turns into a solid?",
+    "options": ["Freezing", "Condensation", "Melting", "Evaporation"],
+    "correctAnswer": "Freezing",
+    "clue": "It happens when the temperature drops below 0°C for water.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2498,
+    "text": "What is the atomic number of oxygen?",
+    "options": ["8", "6", "10", "12"],
+    "correctAnswer": "8",
+    "clue": "It sits between nitrogen and fluorine on the periodic table.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2499,
+    "text": "Who discovered the law of reflection?",
+    "options": ["Euclid", "Galileo", "Newton", "Descartes"],
+    "correctAnswer": "Euclid",
+    "clue": "He was an ancient Greek mathematician.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2500,
+    "text": "What is the smallest bone in the human body?",
+    "options": ["Stapes", "Ulna", "Fibula", "Radius"],
+    "correctAnswer": "Stapes",
+    "clue": "It’s found inside the ear.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2501,
+    "text": "What is the speed of light in a vacuum?",
+    "options": ["300,000 km/s", "150,000 km/s", "500,000 km/s", "200,000 km/s"],
+    "correctAnswer": "300,000 km/s",
+    "clue": "Represented by the letter c.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2502,
+    "text": "Who wrote 'The Canterbury Tales'?",
+    "options": ["Geoffrey Chaucer", "William Shakespeare", "John Milton", "Charles Dickens"],
+    "correctAnswer": "Geoffrey Chaucer",
+    "clue": "He’s often called the father of English literature.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2503,
+    "text": "Which gas do humans exhale when breathing out?",
+    "options": ["Carbon dioxide", "Oxygen", "Nitrogen", "Helium"],
+    "correctAnswer": "Carbon dioxide",
+    "clue": "Plants use it during photosynthesis.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2504,
+    "text": "What is the square root of 225?",
+    "options": ["15", "20", "18", "25"],
+    "correctAnswer": "15",
+    "clue": "Multiply the answer by itself to get 225.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2505,
+    "text": "Which planet is known for its rings?",
+    "options": ["Saturn", "Neptune", "Jupiter", "Uranus"],
+    "correctAnswer": "Saturn",
+    "clue": "Its rings are made of ice and rock.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2506,
+    "text": "Who developed the theory of general relativity?",
+    "options": ["Albert Einstein", "Isaac Newton", "Niels Bohr", "Max Planck"],
+    "correctAnswer": "Albert Einstein",
+    "clue": "It redefined gravity as spacetime curvature.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2507,
+    "text": "What is the capital of Canada?",
+    "options": ["Ottawa", "Toronto", "Vancouver", "Montreal"],
+    "correctAnswer": "Ottawa",
+    "clue": "It lies on the river of the same name.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2508,
+    "text": "Which scientist discovered radioactivity?",
+    "options": ["Henri Becquerel", "Marie Curie", "Rutherford", "Dalton"],
+    "correctAnswer": "Henri Becquerel",
+    "clue": "He found it while studying uranium salts.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2509,
+    "text": "What is the chemical formula for carbon dioxide?",
+    "options": ["CO₂", "C₂O", "CO", "C₂O₂"],
+    "correctAnswer": "CO₂",
+    "clue": "It contains one carbon and two oxygen atoms.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2510,
+    "text": "What is the largest desert in the world?",
+    "options": ["Antarctica", "Sahara", "Gobi", "Arabian"],
+    "correctAnswer": "Antarctica",
+    "clue": "It’s a cold desert, not a hot one.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2511,
+    "text": "Who discovered penicillin?",
+    "options": ["Alexander Fleming", "Louis Pasteur", "Edward Jenner", "Robert Koch"],
+    "correctAnswer": "Alexander Fleming",
+    "clue": "He noticed mould killing bacteria on a petri dish.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2512,
+    "text": "Which blood type is the universal donor?",
+    "options": ["O negative", "A positive", "B negative", "AB positive"],
+    "correctAnswer": "O negative",
+    "clue": "It can be given to anyone in emergencies.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2513,
+    "text": "What is the capital city of Iceland?",
+    "options": ["Reykjavik", "Oslo", "Copenhagen", "Stockholm"],
+    "correctAnswer": "Reykjavik",
+    "clue": "It’s the northernmost capital in the world.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2514,
+    "text": "Which ocean is the largest by surface area?",
+    "options": ["Pacific Ocean", "Atlantic Ocean", "Indian Ocean", "Arctic Ocean"],
+    "correctAnswer": "Pacific Ocean",
+    "clue": "It covers more than 30% of Earth’s surface.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2515,
+    "text": "Who was the first British Prime Minister?",
+    "options": ["Robert Walpole", "William Pitt", "Benjamin Disraeli", "Winston Churchill"],
+    "correctAnswer": "Robert Walpole",
+    "clue": "He served in the early 18th century.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2516,
+    "text": "Which element has the chemical symbol Na?",
+    "options": ["Sodium", "Nitrogen", "Nickel", "Neon"],
+    "correctAnswer": "Sodium",
+    "clue": "It reacts violently with water.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2517,
+    "text": "Who invented the telephone?",
+    "options": ["Alexander Graham Bell", "Thomas Edison", "Nikola Tesla", "Michael Faraday"],
+    "correctAnswer": "Alexander Graham Bell",
+    "clue": "He made the first call in 1876.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2518,
+    "text": "Which gas is essential for respiration?",
+    "options": ["Oxygen", "Nitrogen", "Carbon dioxide", "Hydrogen"],
+    "correctAnswer": "Oxygen",
+    "clue": "Humans inhale it to survive.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2519,
+    "text": "Which famous nurse improved hygiene during the Crimean War?",
+    "options": ["Florence Nightingale", "Mary Seacole", "Clara Barton", "Edith Cavell"],
+    "correctAnswer": "Florence Nightingale",
+    "clue": "She was known as the 'Lady with the Lamp'.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2520,
+    "text": "What is the capital of Australia?",
+    "options": ["Canberra", "Sydney", "Melbourne", "Brisbane"],
+    "correctAnswer": "Canberra",
+    "clue": "It was chosen as a compromise between Sydney and Melbourne.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2521,
+    "text": "What is the process of liquid water turning into gas?",
+    "options": ["Evaporation", "Condensation", "Sublimation", "Freezing"],
+    "correctAnswer": "Evaporation",
+    "clue": "It happens faster when heat is applied.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2522,
+    "text": "What is 8³ (eight cubed)?",
+    "options": ["512", "216", "256", "128"],
+    "correctAnswer": "512",
+    "clue": "Multiply 8 by itself three times.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2523,
+    "text": "Which gas makes up about 78% of Earth's atmosphere?",
+    "options": ["Nitrogen", "Oxygen", "Argon", "Carbon dioxide"],
+    "correctAnswer": "Nitrogen",
+    "clue": "It’s colourless, odourless, and non-reactive.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2524,
+    "text": "Which scientist discovered gravity after observing a falling apple?",
+    "options": ["Isaac Newton", "Albert Einstein", "Galileo Galilei", "Johannes Kepler"],
+    "correctAnswer": "Isaac Newton",
+    "clue": "He wrote 'Principia Mathematica'.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2525,
+    "text": "Who was the first woman to win a Nobel Prize?",
+    "options": ["Marie Curie", "Dorothy Hodgkin", "Rosalind Franklin", "Ada Lovelace"],
+    "correctAnswer": "Marie Curie",
+    "clue": "She won it for physics in 1903.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2526,
+    "text": "Which metal is liquid at room temperature?",
+    "options": ["Mercury", "Bromine", "Gallium", "Lead"],
+    "correctAnswer": "Mercury",
+    "clue": "It’s silver and used in thermometers.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2527,
+    "text": "What is the most abundant metal in Earth's crust?",
+    "options": ["Aluminium", "Iron", "Copper", "Zinc"],
+    "correctAnswer": "Aluminium",
+    "clue": "It’s lightweight and corrosion-resistant.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2528,
+    "text": "Which country is both an island and a continent?",
+    "options": ["Australia", "Greenland", "New Zealand", "Madagascar"],
+    "correctAnswer": "Australia",
+    "clue": "It’s the smallest continent.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2529,
+    "text": "Who discovered that Earth orbits the Sun?",
+    "options": ["Nicolaus Copernicus", "Galileo Galilei", "Isaac Newton", "Kepler"],
+    "correctAnswer": "Nicolaus Copernicus",
+    "clue": "He proposed the heliocentric model.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2530,
+    "text": "What is the chemical formula for water?",
+    "options": ["H₂O", "CO₂", "NaCl", "O₂"],
+    "correctAnswer": "H₂O",
+    "clue": "It contains hydrogen and oxygen.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2531,
+    "text": "Which element has the atomic number 6?",
+    "options": ["Carbon", "Oxygen", "Nitrogen", "Sulphur"],
+    "correctAnswer": "Carbon",
+    "clue": "It forms the basis of all life on Earth.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2532,
+    "text": "What is the capital of Turkey?",
+    "options": ["Ankara", "Istanbul", "Izmir", "Antalya"],
+    "correctAnswer": "Ankara",
+    "clue": "It replaced Istanbul as the capital in 1923.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2533,
+    "text": "Who discovered the structure of DNA?",
+    "options": ["Watson and Crick", "Darwin and Wallace", "Curie and Becquerel", "Newton and Leibniz"],
+    "correctAnswer": "Watson and Crick",
+    "clue": "Their model was a double helix.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2534,
+    "text": "Which continent has the most countries?",
+    "options": ["Africa", "Asia", "Europe", "South America"],
+    "correctAnswer": "Africa",
+    "clue": "It has 54 recognised nations.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2535,
+    "text": "Which branch of science studies earthquakes?",
+    "options": ["Seismology", "Geology", "Meteorology", "Volcanology"],
+    "correctAnswer": "Seismology",
+    "clue": "It uses seismographs to detect tremors.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2536,
+    "text": "What is 7 factorial (7!)?",
+    "options": ["5040", "720", "40320", "120"],
+    "correctAnswer": "5040",
+    "clue": "Multiply all whole numbers from 1 to 7.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2537,
+    "text": "Which planet has the largest moon, Ganymede?",
+    "options": ["Jupiter", "Saturn", "Neptune", "Uranus"],
+    "correctAnswer": "Jupiter",
+    "clue": "It’s also the biggest planet in our system.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2538,
+    "text": "Which metal has the symbol Fe?",
+    "options": ["Iron", "Fluorine", "Francium", "Fermium"],
+    "correctAnswer": "Iron",
+    "clue": "It’s used to make steel.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2539,
+    "text": "What is the study of living organisms called?",
+    "options": ["Biology", "Chemistry", "Physics", "Zoology"],
+    "correctAnswer": "Biology",
+    "clue": "It covers plants, animals, and humans.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2540,
+    "text": "What is 12 × 12?",
+    "options": ["144", "124", "132", "156"],
+    "correctAnswer": "144",
+    "clue": "It’s a common times-table fact.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2541,
+    "text": "Who invented the light bulb?",
+    "options": ["Thomas Edison", "Nikola Tesla", "Michael Faraday", "James Watt"],
+    "correctAnswer": "Thomas Edison",
+    "clue": "He patented it in 1879.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2542,
+    "text": "Which country is home to the River Amazon?",
+    "options": ["Brazil", "Peru", "Colombia", "Venezuela"],
+    "correctAnswer": "Brazil",
+    "clue": "It flows through the world’s largest rainforest.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2543,
+    "text": "What is the term for molten rock beneath Earth's surface?",
+    "options": ["Magma", "Lava", "Basalt", "Granite"],
+    "correctAnswer": "Magma",
+    "clue": "It becomes lava when it erupts.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2544,
+    "text": "Which gas do plants absorb from the air?",
+    "options": ["Carbon dioxide", "Oxygen", "Nitrogen", "Hydrogen"],
+    "correctAnswer": "Carbon dioxide",
+    "clue": "They need it for photosynthesis.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2545,
+    "text": "Which blood cells carry oxygen?",
+    "options": ["Red blood cells", "White blood cells", "Platelets", "Plasma"],
+    "correctAnswer": "Red blood cells",
+    "clue": "They contain haemoglobin.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2546,
+    "text": "Which organ in the human body produces bile?",
+    "options": ["Liver", "Pancreas", "Kidney", "Stomach"],
+    "correctAnswer": "Liver",
+    "clue": "It helps digest fats.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2547,
+    "text": "What is the main language spoken in Brazil?",
+    "options": ["Portuguese", "Spanish", "French", "English"],
+    "correctAnswer": "Portuguese",
+    "clue": "It’s the only South American country to speak it.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2548,
+    "text": "Who was the first human to travel into space?",
+    "options": ["Yuri Gagarin", "Neil Armstrong", "Alan Shepard", "Buzz Aldrin"],
+    "correctAnswer": "Yuri Gagarin",
+    "clue": "He orbited Earth in 1961.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2549,
+    "text": "Which British city is nicknamed 'The Steel City'?",
+    "options": ["Sheffield", "Manchester", "Birmingham", "Leeds"],
+    "correctAnswer": "Sheffield",
+    "clue": "It was famous for steel production.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2550,
+    "text": "Which planet has the fastest rotation speed?",
+    "options": ["Jupiter", "Earth", "Mars", "Saturn"],
+    "correctAnswer": "Jupiter",
+    "clue": "It spins once every 10 hours.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2551,
+    "text": "Who developed the vaccine for polio?",
+    "options": ["Jonas Salk", "Louis Pasteur", "Edward Jenner", "Alexander Fleming"],
+    "correctAnswer": "Jonas Salk",
+    "clue": "He introduced it in 1955.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2552,
+    "text": "What is the hardest natural substance on Earth?",
+    "options": ["Diamond", "Quartz", "Obsidian", "Corundum"],
+    "correctAnswer": "Diamond",
+    "clue": "It’s made entirely of carbon atoms.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2553,
+    "text": "Which Shakespeare play includes the characters Rosencrantz and Guildenstern?",
+    "options": ["Hamlet", "Macbeth", "Othello", "King Lear"],
+    "correctAnswer": "Hamlet",
+    "clue": "It’s set in Denmark.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2554,
+    "text": "What is the chemical formula for ammonia?",
+    "options": ["NH₃", "H₂O", "CO₂", "CH₄"],
+    "correctAnswer": "NH₃",
+    "clue": "It’s made from nitrogen and hydrogen.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2555,
+    "text": "Who was the first President of the United States?",
+    "options": ["George Washington", "John Adams", "Thomas Jefferson", "Benjamin Franklin"],
+    "correctAnswer": "George Washington",
+    "clue": "He served from 1789 to 1797.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2556,
+    "text": "Which part of the cell contains genetic material?",
+    "options": ["Nucleus", "Cytoplasm", "Mitochondria", "Ribosome"],
+    "correctAnswer": "Nucleus",
+    "clue": "It’s often called the control centre of the cell.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2557,
+    "text": "What is the main gas found in Earth’s atmosphere?",
+    "options": ["Nitrogen", "Oxygen", "Carbon dioxide", "Argon"],
+    "correctAnswer": "Nitrogen",
+    "clue": "It makes up around 78% of the air we breathe.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2558,
+    "text": "Which mountain range forms a natural border between Europe and Asia?",
+    "options": ["Ural Mountains", "Alps", "Carpathians", "Pyrenees"],
+    "correctAnswer": "Ural Mountains",
+    "clue": "They stretch through Russia.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2559,
+    "text": "What is 15% of 200?",
+    "options": ["30", "25", "20", "15"],
+    "correctAnswer": "30",
+    "clue": "Divide by 100 then multiply by 15.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2560,
+    "text": "Who painted 'The Starry Night'?",
+    "options": ["Vincent van Gogh", "Claude Monet", "Pablo Picasso", "Leonardo da Vinci"],
+    "correctAnswer": "Vincent van Gogh",
+    "clue": "He painted it in 1889 while in a mental asylum.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2561,
+    "text": "Which organ in the human body filters blood?",
+    "options": ["Kidneys", "Liver", "Lungs", "Pancreas"],
+    "correctAnswer": "Kidneys",
+    "clue": "They remove waste to form urine.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2562,
+    "text": "Who invented the World Wide Web?",
+    "options": ["Tim Berners-Lee", "Bill Gates", "Steve Jobs", "Alan Turing"],
+    "correctAnswer": "Tim Berners-Lee",
+    "clue": "He’s a British computer scientist.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2563,
+    "text": "Which element has the atomic symbol 'O'?",
+    "options": ["Oxygen", "Osmium", "Oganesson", "Opium"],
+    "correctAnswer": "Oxygen",
+    "clue": "It supports life on Earth.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2564,
+    "text": "What is the square of 14?",
+    "options": ["196", "184", "200", "176"],
+    "correctAnswer": "196",
+    "clue": "Multiply 14 by 14.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2565,
+    "text": "Who was the first person to walk on the Moon?",
+    "options": ["Neil Armstrong", "Buzz Aldrin", "Michael Collins", "Yuri Gagarin"],
+    "correctAnswer": "Neil Armstrong",
+    "clue": "He took 'one small step for man' in 1969.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2566,
+    "text": "What is the capital of Finland?",
+    "options": ["Helsinki", "Oslo", "Stockholm", "Copenhagen"],
+    "correctAnswer": "Helsinki",
+    "clue": "It’s a coastal city on the Baltic Sea.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2567,
+    "text": "Which part of a plant carries water from the roots to the leaves?",
+    "options": ["Xylem", "Phloem", "Stomata", "Pollen"],
+    "correctAnswer": "Xylem",
+    "clue": "It’s a type of vascular tissue.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2568,
+    "text": "What is the largest planet in our solar system?",
+    "options": ["Jupiter", "Saturn", "Neptune", "Uranus"],
+    "correctAnswer": "Jupiter",
+    "clue": "It has a Great Red Spot.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2569,
+    "text": "Which British monarch ruled for 63 years before Queen Elizabeth II?",
+    "options": ["Queen Victoria", "George III", "Henry VIII", "Elizabeth I"],
+    "correctAnswer": "Queen Victoria",
+    "clue": "Her reign was known as a great industrial age.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2570,
+    "text": "What is the chemical symbol for silver?",
+    "options": ["Ag", "Au", "Si", "Sn"],
+    "correctAnswer": "Ag",
+    "clue": "It comes from the Latin 'argentum'.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2571,
+    "text": "Who discovered electricity by experimenting with lightning?",
+    "options": ["Benjamin Franklin", "Thomas Edison", "Michael Faraday", "Nikola Tesla"],
+    "correctAnswer": "Benjamin Franklin",
+    "clue": "He flew a kite during a storm.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2572,
+    "text": "Which scientist discovered the three laws of planetary motion?",
+    "options": ["Johannes Kepler", "Galileo Galilei", "Isaac Newton", "Copernicus"],
+    "correctAnswer": "Johannes Kepler",
+    "clue": "He described elliptical orbits.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2573,
+    "text": "What is the boiling point of water at sea level in Celsius?",
+    "options": ["100°C", "90°C", "80°C", "110°C"],
+    "correctAnswer": "100°C",
+    "clue": "It’s equivalent to 212°F.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2574,
+    "text": "Which gas do humans need to survive?",
+    "options": ["Oxygen", "Nitrogen", "Carbon dioxide", "Helium"],
+    "correctAnswer": "Oxygen",
+    "clue": "We inhale it with every breath.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2575,
+    "text": "Who discovered the circulation of blood in the human body?",
+    "options": ["William Harvey", "Edward Jenner", "Louis Pasteur", "Robert Hooke"],
+    "correctAnswer": "William Harvey",
+    "clue": "He proved blood is pumped by the heart.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2576,
+    "text": "What is the capital of Switzerland?",
+    "options": ["Bern", "Zurich", "Geneva", "Basel"],
+    "correctAnswer": "Bern",
+    "clue": "It’s not the largest city but is the political capital.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2577,
+    "text": "Which natural resource is used to make glass?",
+    "options": ["Sand", "Limestone", "Clay", "Salt"],
+    "correctAnswer": "Sand",
+    "clue": "It’s melted at high temperatures.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2578,
+    "text": "Who discovered the planet Uranus?",
+    "options": ["William Herschel", "Galileo Galilei", "Johannes Kepler", "Edwin Hubble"],
+    "correctAnswer": "William Herschel",
+    "clue": "He discovered it in 1781 using a telescope.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2579,
+    "text": "Which river runs through Paris?",
+    "options": ["Seine", "Loire", "Rhone", "Garonne"],
+    "correctAnswer": "Seine",
+    "clue": "It flows under many famous bridges.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2580,
+    "text": "What is the capital city of South Africa?",
+    "options": ["Pretoria", "Cape Town", "Johannesburg", "Durban"],
+    "correctAnswer": "Pretoria",
+    "clue": "It’s one of three official capitals.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2581,
+    "text": "What is 9 squared?",
+    "options": ["81", "72", "64", "90"],
+    "correctAnswer": "81",
+    "clue": "Multiply 9 by itself.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2582,
+    "text": "Which British monarch had six wives?",
+    "options": ["Henry VIII", "Elizabeth I", "James I", "Charles I"],
+    "correctAnswer": "Henry VIII",
+    "clue": "He founded the Church of England.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2583,
+    "text": "Which planet is known as the Evening Star?",
+    "options": ["Venus", "Mars", "Mercury", "Jupiter"],
+    "correctAnswer": "Venus",
+    "clue": "It’s the brightest planet in the sky.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2584,
+    "text": "What is the currency of Japan?",
+    "options": ["Yen", "Won", "Yuan", "Dollar"],
+    "correctAnswer": "Yen",
+    "clue": "Its symbol is ¥.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2585,
+    "text": "Who developed the telephone system used today?",
+    "options": ["Alexander Graham Bell", "Thomas Edison", "Guglielmo Marconi", "Samuel Morse"],
+    "correctAnswer": "Alexander Graham Bell",
+    "clue": "He patented it in 1876.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2586,
+    "text": "Which scientist discovered that atoms have a nucleus?",
+    "options": ["Ernest Rutherford", "Niels Bohr", "J.J. Thomson", "Marie Curie"],
+    "correctAnswer": "Ernest Rutherford",
+    "clue": "He conducted the gold foil experiment.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2587,
+    "text": "What is the chemical formula for table salt?",
+    "options": ["NaCl", "H₂O", "CO₂", "KCl"],
+    "correctAnswer": "NaCl",
+    "clue": "It’s made of sodium and chlorine.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2588,
+    "text": "What is the capital of Sweden?",
+    "options": ["Stockholm", "Oslo", "Copenhagen", "Helsinki"],
+    "correctAnswer": "Stockholm",
+    "clue": "It’s built on many islands.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2589,
+    "text": "Which scientist formulated the laws of motion?",
+    "options": ["Isaac Newton", "Albert Einstein", "Galileo Galilei", "Kepler"],
+    "correctAnswer": "Isaac Newton",
+    "clue": "His laws explain how objects move.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2590,
+    "text": "Which gas causes acid rain along with nitrogen oxides?",
+    "options": ["Sulphur dioxide", "Oxygen", "Carbon dioxide", "Methane"],
+    "correctAnswer": "Sulphur dioxide",
+    "clue": "It’s produced by burning coal.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2591,
+    "text": "What is the main language spoken in Argentina?",
+    "options": ["Spanish", "Portuguese", "French", "English"],
+    "correctAnswer": "Spanish",
+    "clue": "It’s the official language of most South American nations.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2592,
+    "text": "Who was the first person to propose that atoms are indivisible particles?",
+    "options": ["Democritus", "Dalton", "Rutherford", "Bohr"],
+    "correctAnswer": "Democritus",
+    "clue": "He was an ancient Greek philosopher.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2593,
+    "text": "What is the largest internal organ in the human body?",
+    "options": ["Liver", "Heart", "Lungs", "Kidneys"],
+    "correctAnswer": "Liver",
+    "clue": "It helps remove toxins and stores nutrients.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2594,
+    "text": "What is the capital of Egypt?",
+    "options": ["Cairo", "Alexandria", "Luxor", "Giza"],
+    "correctAnswer": "Cairo",
+    "clue": "It’s close to the Pyramids of Giza.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2595,
+    "text": "Which ocean surrounds Antarctica?",
+    "options": ["Southern Ocean", "Pacific Ocean", "Atlantic Ocean", "Indian Ocean"],
+    "correctAnswer": "Southern Ocean",
+    "clue": "It’s the newest named ocean.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2596,
+    "text": "What is the capital of India?",
+    "options": ["New Delhi", "Mumbai", "Kolkata", "Bangalore"],
+    "correctAnswer": "New Delhi",
+    "clue": "It’s home to India’s government buildings.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2597,
+    "text": "Who discovered that all cells come from pre-existing cells?",
+    "options": ["Rudolf Virchow", "Robert Hooke", "Anton van Leeuwenhoek", "Louis Pasteur"],
+    "correctAnswer": "Rudolf Virchow",
+    "clue": "He expanded cell theory in 1855.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2598,
+    "text": "Which British scientist discovered penicillin?",
+    "options": ["Alexander Fleming", "Joseph Lister", "Edward Jenner", "Louis Pasteur"],
+    "correctAnswer": "Alexander Fleming",
+    "clue": "He made the discovery in 1928.",
+    "difficulty": "hard",
+    "category": "Children"
+  },
+  {
+    "id": 2599,
+    "text": "Which scientist developed the periodic table?",
+    "options": ["Dmitri Mendeleev", "Antoine Lavoisier", "John Dalton", "Marie Curie"],
+    "correctAnswer": "Dmitri Mendeleev",
+    "clue": "He arranged elements by atomic mass.",
+    "difficulty": "hard",
+    "category": "Children"
   }
 
 ]
