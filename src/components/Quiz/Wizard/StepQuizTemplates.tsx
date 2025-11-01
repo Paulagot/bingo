@@ -1,5 +1,5 @@
 // src/components/Quiz/Wizard/StepQuizTemplates.tsx
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Clock, Trophy, CheckCircle, X, Filter as FilterIcon, Sparkles } from 'lucide-react';
 import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
 import type { RoundTypeId, RoundConfig } from '../types/quiz';
@@ -7,6 +7,7 @@ import { roundTypeDefaults, roundTypeMap } from '../constants/quiztypeconstants'
 import ClearSetupButton from './ClearSetupButton';
 import type { WizardStepProps } from './WizardStepProps';
 import quizTemplates, { type QuizTemplate } from '../constants/templates';
+import apiService from '../../../services/apiService';
 
 // shadcn/ui Select
 import {
@@ -16,6 +17,14 @@ import {
   SelectContent,
   SelectItem,
 } from '../Wizard/select';
+
+const Debug = true; 
+
+if (Debug) {
+  const ids = quizTemplates.map(t => t.id);
+  console.log('[Templates] All template IDs from constants:', ids);
+}
+
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Duration model + breaks
@@ -154,6 +163,23 @@ function pickMostPopular(templates: QuizTemplate[], max = 8) {
 const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst }) => {
   const { setupConfig, setTemplate, updateSetupConfig, flow } = useQuizSetupStore();
 
+   // ── Entitlements load (logged-in users only). If unauth (web3-only), this fails → not Dev.
+  const [ents, setEnts] = useState<any | null>(null);
+  const [entsLoaded, setEntsLoaded] = useState(false);
+
+  useEffect(() => {
+    apiService
+      .getEntitlements()
+      .then((e) => setEnts(e))
+      .catch(() => setEnts(null))
+      .finally(() => setEntsLoaded(true));
+  }, []);
+
+   const isDevPlan =
+    ents?.plan_id === 2 ||
+    ents?.plan_id === '2' ||
+    (typeof ents?.plan_code === 'string' && ents.plan_code.toUpperCase() === 'DEV');
+
   const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterState>({
     audience: 'All',
@@ -164,7 +190,20 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
 
   const selectedTemplate = setupConfig.selectedTemplate ?? null;
 
-  const filterOptions = useMemo(() => collectFilterOptions(quizTemplates), []);
+   // Base list excludes demo-quiz unless Dev
+  const baseTemplates = useMemo(() => {
+    const list = isDevPlan
+      ? [...quizTemplates]
+      : quizTemplates.filter((t) => t.id !== 'demo-quiz');
+    // If Dev, feature demo-quiz first
+    if (isDevPlan) {
+      list.sort((a, b) => (a.id === 'demo-quiz' ? -1 : b.id === 'demo-quiz' ? 1 : 0));
+    }
+    if (Debug) console.log('[Templates] isDevPlan:', isDevPlan, 'baseTemplates ids:', list.map(t => t.id));
+    return list;
+  }, [isDevPlan]);
+
+  const filterOptions = useMemo(() => collectFilterOptions(baseTemplates), [baseTemplates]);
   const anyFilterActive =
     filters.audience !== 'All' || filters.topic !== 'All' || filters.difficulty !== 'All' || filters.duration !== 'All';
 
@@ -172,7 +211,22 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
     const active =
       filters.audience !== 'All' || filters.topic !== 'All' || filters.difficulty !== 'All' || filters.duration !== 'All';
 
-    const list = (active ? quizTemplates : pickMostPopular(quizTemplates, 8)).filter((t) => {
+     // Start with either all (when filtering) or the "popular" slice
+  let start = active ? baseTemplates : pickMostPopular(baseTemplates, 8);
+
+  // Force-include demo-quiz for Dev in the unfiltered view (put it first)
+  if (!active && isDevPlan) {
+    const hasDemo = start.some(t => t.id === 'demo-quiz');
+    if (!hasDemo) {
+      const demo = baseTemplates.find(t => t.id === 'demo-quiz');
+      if (demo) start = [demo, ...start].slice(0, 8);
+    } else {
+      // ensure it's first if present
+      start = [ ...start.filter(t => t.id === 'demo-quiz'), ...start.filter(t => t.id !== 'demo-quiz') ];
+    }
+  }
+
+  const list = start.filter((t) => {
       const hasAudience = filters.audience === 'All' || t.tags.some((tag) => tag === `Audience: ${filters.audience}`);
       const hasTopic = filters.topic === 'All' || t.tags.some((tag) => tag === `Topic: ${filters.topic}`);
       const hasDifficulty = filters.difficulty === 'All' || t.difficulty === filters.difficulty;
@@ -180,8 +234,13 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
       return hasAudience && hasTopic && hasDifficulty && hasDuration;
     });
 
+      if (Debug) {
+   console.log('[Templates] anyFilterActive:', active);
+    console.log('[Templates] filteredTemplates ids:', list.map(t => t.id));
+  }
+
     return list;
-  }, [filters]);
+  }, [filters, baseTemplates, isDevPlan]);
 
   const getRoundTypeInfo = (type: RoundTypeId, customConfig?: Partial<RoundConfig>) => {
     const roundType = roundTypeMap[type];
@@ -205,9 +264,14 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
   };
 
   const handleTemplateSelect = (templateId: string) => {
+     // Guard: if not Dev, block selecting demo-quiz (UI belt & braces)
+  if (templateId === 'demo-quiz' && !isDevPlan) {
+if (Debug) console.warn('[Templates] Blocked selecting demo-quiz (not Dev plan)');
+  return;
+}
     setTemplate(templateId);
 
-    const template = quizTemplates.find((t) => t.id === templateId);
+    const template = baseTemplates.find((t) => t.id === templateId);
     if (!template) return;
 
     const roundDefinitions = template.rounds.map((round, index) => {
@@ -255,7 +319,7 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
   const getCurrentMessage = () => {
     if (!selectedTemplate) return 'Choose a ready-made quiz to get started quickly.';
     if (selectedTemplate === 'custom') return "Perfect! You'll be able to build your quiz exactly how you want it.";
-    const template = quizTemplates.find((t) => t.id === selectedTemplate);
+    const template = baseTemplates.find((t) => t.id === selectedTemplate);
     return `Excellent choice! "${template?.name}" is ready to go. Just a few more steps!`;
   };
 
