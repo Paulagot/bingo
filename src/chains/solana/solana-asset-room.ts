@@ -197,14 +197,31 @@ export async function createAssetRoom(
   // Build and send transaction
   const tx = new Transaction().add(ix);
   tx.feePayer = publicKey;
-  const { blockhash } = await connection.getLatestBlockhash('finalized');
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
   tx.recentBlockhash = blockhash;
+  tx.lastValidBlockHeight = lastValidBlockHeight;
 
   console.log('[createAssetRoom] Sending transaction...');
-  const signature = await provider.sendAndConfirm(tx, [], {
+
+  // Sign and send with same blockhash to avoid expiration
+  const signedTx = await provider.wallet.signTransaction(tx);
+  const rawTx = signedTx.serialize();
+
+  const signature = await connection.sendRawTransaction(rawTx, {
     skipPreflight: false,
-    commitment: 'confirmed',
+    maxRetries: 3,
   });
+
+  // Wait for confirmation
+  const confirmation = await connection.confirmTransaction({
+    signature,
+    blockhash,
+    lastValidBlockHeight,
+  }, 'confirmed');
+
+  if (confirmation.value.err) {
+    throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+  }
 
   console.log('✅ Asset room created:', {
     signature,
@@ -287,14 +304,31 @@ export async function depositPrizeAsset(
   // Build and send transaction
   const tx = new Transaction().add(ix);
   tx.feePayer = publicKey;
-  const { blockhash } = await connection.getLatestBlockhash('finalized');
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
   tx.recentBlockhash = blockhash;
+  tx.lastValidBlockHeight = lastValidBlockHeight;
 
   console.log('[depositPrizeAsset] Sending transaction...');
-  const signature = await provider.sendAndConfirm(tx, [], {
+
+  // Sign and send with same blockhash to avoid expiration
+  const signedTx = await provider.wallet.signTransaction(tx);
+  const rawTx = signedTx.serialize();
+
+  const signature = await connection.sendRawTransaction(rawTx, {
     skipPreflight: false,
-    commitment: 'confirmed',
+    maxRetries: 3,
   });
+
+  // Wait for confirmation
+  const confirmation = await connection.confirmTransaction({
+    signature,
+    blockhash,
+    lastValidBlockHeight,
+  }, 'confirmed');
+
+  if (confirmation.value.err) {
+    throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+  }
 
   console.log('✅ Prize asset deposited:', {
     signature,

@@ -1188,10 +1188,11 @@ export function useSolanaContract() {
       // Build transaction and simulate
       const tx = new Transaction().add(...instructions);
 
-      // Set fee payer and get FRESH recent blockhash
+      // Set fee payer and get FRESH recent blockhash with validity window
       tx.feePayer = publicKey;
-      const { blockhash } = await connection.getLatestBlockhash('finalized');
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
       tx.recentBlockhash = blockhash;
+      tx.lastValidBlockHeight = lastValidBlockHeight;
 
       console.log('[joinRoom] Transaction prepared with', instructions.length, 'instructions:',
         instructions.map((ix, i) => `${i}: ${ix.programId.toBase58().slice(0, 8)}...`).join(', '));
@@ -1215,11 +1216,26 @@ export function useSolanaContract() {
 
       console.log('[joinRoom] Simulation successful, sending transaction...');
 
-      // Send and confirm
-      const signature = await provider.sendAndConfirm(tx, [], {
-        skipPreflight: false,
-        commitment: 'confirmed',
+      // Send transaction with the SAME blockhash we simulated with
+      // Don't use provider.sendAndConfirm as it might fetch a new blockhash
+      const signedTx = await provider.wallet.signTransaction(tx);
+      const rawTx = signedTx.serialize();
+
+      const signature = await connection.sendRawTransaction(rawTx, {
+        skipPreflight: true, // We already simulated, skip preflight
+        maxRetries: 3,
       });
+
+      // Wait for confirmation
+      const confirmation = await connection.confirmTransaction({
+        signature,
+        blockhash,
+        lastValidBlockHeight,
+      }, 'confirmed');
+
+      if (confirmation.value.err) {
+        throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+      }
 
       console.log('✅ Player joined room successfully:', {
         signature,
