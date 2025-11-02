@@ -44,9 +44,9 @@ export const getRpcEndpoint = (network: Cluster = NETWORK): string => {
 
 // Known token mints (devnet addresses)
 export const TOKEN_MINTS = {
-  USDC: new PublicKey('Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr'), // Devnet USDC
+  USDC: new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU'), // Circle's Devnet USDC (mintable at faucet.circle.com)
   USDT: new PublicKey('EJwZgeZrdC8TXTQbQBoL6bfuAnFUUy1PVCMB4DYPzVaS'), // Devnet USDT
-  SOL: new PublicKey('So11111111111111111111111111111111111111112'), // Wrapped SOL
+  SOL: new PublicKey('So11111111111111111111111111111111111111112'), // Wrapped SOL (native mint)
 };
 
 // PDA seeds (must match program - using underscores as per Rust code)
