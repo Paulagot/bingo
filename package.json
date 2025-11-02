@@ -22,11 +22,7 @@
     "test:quiz": "vitest --config vitest.integration.config.ts src/test/integration/quizGameIntegration.test.ts",
     "test:quiz-watch": "vitest --config vitest.integration.config.ts src/test/integration/quizGameIntegration.test.ts --watch",
     "test:quiz-answers": "vitest --config vitest.integration.config.ts src/test/integration/playerAnswerTesting.test.ts",
-    "test:quiz-all": "vitest --config vitest.integration.config.ts src/test/integration/*.test.ts",
-    "docker:build": "docker build -t fundraisely-bingo .",
-    "docker:dev": "docker-compose up",
-    "docker:prod": "docker-compose -f docker-compose.prod.yml up",
-    "docker:stop": "docker-compose down"
+    "test:quiz-all": "vitest --config vitest.integration.config.ts src/test/integration/*.test.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.30.1",

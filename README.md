@@ -51,61 +51,11 @@ Then edit `.env` with your specific values. See `.env.example` for all available
 
 ## Running the App
 
-### Option 1: Local Development (Traditional)
-
 ```bash
 npm run dev
 ```
 
 By default, the app will run at `http://localhost:5173`.
-
-### Option 2: Docker Development (Recommended)
-
-Docker ensures consistent environments across all systems and includes a local MySQL database.
-
-#### Prerequisites
-- [Docker](https://www.docker.com/get-started)
-- [Docker Compose](https://docs.docker.com/compose/install/)
-
-#### Quick Start with Docker
-
-```bash
-# Start all services (app + database)
-npm run docker:dev
-
-# Or use docker-compose directly
-docker-compose up
-```
-
-The app will be available at:
-- Frontend: `http://localhost:5173`
-- Backend API: `http://localhost:3001`
-- Health check: `http://localhost:3001/health`
-
-#### Stop Docker Services
-
-```bash
-npm run docker:stop
-
-# Or use docker-compose directly
-docker-compose down
-```
-
-#### Build Docker Image
-
-```bash
-npm run docker:build
-
-# Or use docker directly
-docker build -t fundraisely-bingo .
-```
-
-### Docker Benefits
-
-- **Consistent Environment**: Same Node.js version (22.18.0) everywhere
-- **No Setup Required**: Includes MySQL database automatically
-- **Faster Onboarding**: New developers can start with just `docker-compose up`
-- **Production Parity**: Development environment matches production deployment
 
 ---
 
@@ -115,11 +65,6 @@ docker build -t fundraisely-bingo .
 - `npm run dev`: Starts the development server (frontend + backend)
 - `npm run build`: Builds the React app for production
 - `npm start`: Starts the production server
-
-### Docker
-- `npm run docker:dev`: Start development with Docker Compose
-- `npm run docker:build`: Build the Docker image
-- `npm run docker:stop`: Stop Docker Compose services
 
 ### Testing
 - `npm test`: Run all tests
