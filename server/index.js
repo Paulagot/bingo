@@ -61,6 +61,75 @@ app.get('/health', (req, res) => {
 app.post('/api/tgb/create-deposit-address', createDepositAddress);
 app.post('/api/tgb/webhook', tgbWebhookHandler);
 
+// Development auth bypass (only in development mode)
+if (!isProd) {
+  console.log('🔧 Development mode: Adding auth bypass endpoints');
+
+  // Mock login endpoint
+  app.post('/mgmt/api/clubs/login', (req, res) => {
+    console.log('📝 DEV: Mock login request:', req.body.email);
+    res.json({
+      message: 'Login successful (dev mode)',
+      token: 'dev_token_12345',
+      user: {
+        id: 'dev_user_1',
+        club_id: 'dev_club_1',
+        name: 'Dev User',
+        email: req.body.email,
+        role: 'admin'
+      },
+      club: {
+        id: 'dev_club_1',
+        name: 'Dev Test Club',
+        email: req.body.email
+      }
+    });
+  });
+
+  // Mock register endpoint
+  app.post('/mgmt/api/clubs/register', (req, res) => {
+    console.log('📝 DEV: Mock register request:', req.body.email);
+    res.json({
+      message: 'Registration successful (dev mode)',
+      success: true
+    });
+  });
+
+  // Mock me endpoint
+  app.get('/mgmt/api/clubs/me', (req, res) => {
+    console.log('📝 DEV: Mock /me request');
+    res.json({
+      user: {
+        id: 'dev_user_1',
+        club_id: 'dev_club_1',
+        name: 'Dev User',
+        email: 'dev@test.local',
+        role: 'admin'
+      },
+      club: {
+        id: 'dev_club_1',
+        name: 'Dev Test Club',
+        email: 'dev@test.local'
+      }
+    });
+  });
+
+  // Mock entitlements endpoint
+  app.get('/quiz/api/me/entitlements', (req, res) => {
+    console.log('📝 DEV: Mock entitlements request');
+    res.json({
+      max_players_per_game: 100,
+      max_rounds: 20,
+      round_types_allowed: ['general_trivia', 'speed_round', 'wipeout'],
+      extras_allowed: ['double_or_nothing', 'lifelines'],
+      concurrent_rooms: 10,
+      game_credits_remaining: 999,
+      plan_id: 3,
+      plan_code: 'premium'
+    });
+  });
+}
+
 // configurable target so you can change it per environment without code changes
 const MGMT_TARGET = process.env.MGMT_TARGET ?? 'https://mgtsystem-production.up.railway.app'; // no trailing /api
 console.log('🛰️ MGMT proxy target =', MGMT_TARGET);

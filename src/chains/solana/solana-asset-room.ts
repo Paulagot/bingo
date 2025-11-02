@@ -6,7 +6,7 @@
  */
 
 import { Connection, PublicKey, Transaction, SystemProgram, SYSVAR_RENT_PUBKEY } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
+import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction } from '@solana/spl-token';
 import { Program, AnchorProvider, BN } from '@coral-xyz/anchor';
 import { PROGRAM_ID } from './config';
 
@@ -204,22 +204,53 @@ export async function createAssetRoom(
   console.log('[createAssetRoom] Sending transaction...');
 
   // Sign and send with same blockhash to avoid expiration
-  const signedTx = await provider.wallet.signTransaction(tx);
-  const rawTx = signedTx.serialize();
+  let signedTx;
+  try {
+    signedTx = await provider.wallet.signTransaction(tx);
+    console.log('[createAssetRoom] Transaction signed successfully');
+  } catch (signError: any) {
+    console.error('[createAssetRoom] Signing failed:', signError);
+    if (signError?.message?.includes('User rejected')) {
+      throw new Error('Transaction rejected by user');
+    }
+    throw new Error(`Failed to sign transaction: ${signError?.message || 'Unknown error'}`);
+  }
 
-  const signature = await connection.sendRawTransaction(rawTx, {
-    skipPreflight: false,
-    maxRetries: 3,
-  });
+  const rawTx = signedTx.serialize();
+  console.log('[createAssetRoom] Transaction serialized, sending to network...');
+
+  let signature;
+  try {
+    signature = await connection.sendRawTransaction(rawTx, {
+      skipPreflight: false,
+      maxRetries: 3,
+    });
+    console.log('[createAssetRoom] Transaction sent:', signature);
+  } catch (sendError: any) {
+    console.error('[createAssetRoom] Send failed:', sendError);
+    if (sendError?.message?.includes('Blockhash not found')) {
+      throw new Error('Transaction expired. Please try again and approve quickly.');
+    }
+    throw new Error(`Failed to send transaction: ${sendError?.message || 'Unknown error'}`);
+  }
 
   // Wait for confirmation
-  const confirmation = await connection.confirmTransaction({
-    signature,
-    blockhash,
-    lastValidBlockHeight,
-  }, 'confirmed');
+  console.log('[createAssetRoom] Waiting for confirmation...');
+  let confirmation;
+  try {
+    confirmation = await connection.confirmTransaction({
+      signature,
+      blockhash,
+      lastValidBlockHeight,
+    }, 'confirmed');
+    console.log('[createAssetRoom] Confirmation received:', confirmation);
+  } catch (confirmError: any) {
+    console.error('[createAssetRoom] Confirmation failed:', confirmError);
+    throw new Error(`Transaction confirmation failed: ${confirmError?.message || 'Unknown error'}`);
+  }
 
   if (confirmation.value.err) {
+    console.error('[createAssetRoom] Transaction error:', confirmation.value.err);
     throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
   }
 
@@ -272,7 +303,14 @@ export async function depositPrizeAsset(
 
   // Derive PDAs
   const [room] = deriveRoomPDA(params.hostPubkey, params.roomId);
-  const [prizeVault] = derivePrizeVaultPDA(room, params.prizeIndex);
+
+  // ✅ FIX: Prize vault should be an Associated Token Account (ATA) for the room PDA
+  // The room PDA is the owner (so the program can control it), not derived from seeds
+  const prizeVault = await getAssociatedTokenAddress(
+    params.prizeMint,
+    room,
+    true // allowOwnerOffCurve = true (room is a PDA, not a keypair)
+  );
 
   // Get host's token account
   const hostTokenAccount = await getAssociatedTokenAddress(
@@ -284,10 +322,43 @@ export async function depositPrizeAsset(
     room: room.toBase58(),
     prizeVault: prizeVault.toBase58(),
     hostTokenAccount: hostTokenAccount.toBase58(),
+    prizeMint: params.prizeMint.toBase58(),
   });
 
+  // ✅ Check if prize vault exists, create if needed
+  const vaultInfo = await connection.getAccountInfo(prizeVault);
+  const hostTokenInfo = await connection.getAccountInfo(hostTokenAccount);
+  const instructions = [];
+
+  if (!vaultInfo) {
+    console.log('[depositPrizeAsset] Prize vault does not exist, creating ATA...');
+    const createAtaIx = createAssociatedTokenAccountInstruction(
+      publicKey,      // payer
+      prizeVault,     // ata address
+      room,           // owner (room PDA)
+      params.prizeMint // mint
+    );
+    instructions.push(createAtaIx);
+  } else {
+    console.log('[depositPrizeAsset] Prize vault already exists');
+  }
+
+  // ✅ Check if host's token account exists, create if needed
+  if (!hostTokenInfo) {
+    console.log('[depositPrizeAsset] Host token account does not exist, creating ATA...');
+    const createHostAtaIx = createAssociatedTokenAccountInstruction(
+      publicKey,           // payer
+      hostTokenAccount,    // ata address
+      publicKey,           // owner (host wallet)
+      params.prizeMint     // mint
+    );
+    instructions.push(createHostAtaIx);
+  } else {
+    console.log('[depositPrizeAsset] Host token account already exists');
+  }
+
   // Build add_prize_asset instruction
-  const ix = await program.methods
+  const addPrizeIx = await program.methods
     .addPrizeAsset(params.roomId, params.prizeIndex)
     .accounts({
       room,
@@ -297,12 +368,15 @@ export async function depositPrizeAsset(
       host: publicKey,
       systemProgram: SystemProgram.programId,
       tokenProgram: TOKEN_PROGRAM_ID,
+      associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
       rent: SYSVAR_RENT_PUBKEY,
     })
     .instruction();
 
+  instructions.push(addPrizeIx);
+
   // Build and send transaction
-  const tx = new Transaction().add(ix);
+  const tx = new Transaction().add(...instructions);
   tx.feePayer = publicKey;
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
   tx.recentBlockhash = blockhash;

@@ -1,7 +1,7 @@
 // src/services/apiService.ts
-const MGMT_API_BASE_URL = import.meta.env.VITE_MGMT_API_URL || 'http://localhost:3001/api';
+const MGMT_API_BASE_URL = import.meta.env.VITE_MGMT_API_URL || 'http://localhost:3001/mgmt/api';
 const QUIZ_API_BASE_URL = import.meta.env.VITE_QUIZ_API_URL || 'http://localhost:3001';
-const Debug = false; // Set to true to enable debug logs
+const Debug = true; // Set to true to enable debug logs
 
 class ApiService {
   private getAuthHeaders() {

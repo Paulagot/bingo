@@ -244,7 +244,38 @@ const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) =
 
       // ✅ FIX: use contractActions.deploy (not deployContract)
       const deployParams = buildDeployParams(newRoomId, newHostId, hostWallet);
-      const deployRes = await contractActions.deploy(deployParams);
+      let deployRes;
+
+      try {
+        deployRes = await contractActions.deploy(deployParams);
+      } catch (deployError: any) {
+        console.error('[Web3 Launch] Deployment error:', deployError);
+
+        // Solana duplicate transaction detection (network-level, not program-level)
+        if (deployError?.message?.includes('This transaction has already been processed')) {
+          console.warn('[Web3 Launch] Solana detected duplicate transaction signature');
+          console.log('[Web3 Launch] Waiting 2 seconds and retrying with fresh blockhash...');
+
+          // Wait for blockhash to change, then retry ONCE
+          await new Promise(r => setTimeout(r, 2000));
+
+          try {
+            console.log('[Web3 Launch] Retrying deployment with fresh IDs...');
+            const retryRoomId = generateRoomId();
+            const retryHostId = generateHostId();
+            setRoomIds(retryRoomId, retryHostId);
+            const retryParams = buildDeployParams(retryRoomId, retryHostId, hostWallet);
+            deployRes = await contractActions.deploy(retryParams);
+            console.log('[Web3 Launch] Retry succeeded!');
+          } catch (retryError: any) {
+            console.error('[Web3 Launch] Retry also failed:', retryError);
+            throw new Error(`Deployment failed after retry: ${retryError?.message || 'Unknown error'}`);
+          }
+        } else {
+          // Other errors - just throw
+          throw deployError;
+        }
+      }
 
       if (!deployRes?.success || !deployRes.contractAddress || isInvalidTx(deployRes.txHash)) {
         throw new Error('Blockchain deployment was not signed/confirmed.');

@@ -190,15 +190,11 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
 
   const selectedTemplate = setupConfig.selectedTemplate ?? null;
 
-   // Base list excludes demo-quiz unless Dev
+   // Base list - ALWAYS include demo-quiz for development/testing
   const baseTemplates = useMemo(() => {
-    const list = isDevPlan
-      ? [...quizTemplates]
-      : quizTemplates.filter((t) => t.id !== 'demo-quiz');
-    // If Dev, feature demo-quiz first
-    if (isDevPlan) {
-      list.sort((a, b) => (a.id === 'demo-quiz' ? -1 : b.id === 'demo-quiz' ? 1 : 0));
-    }
+    const list = [...quizTemplates];
+    // Feature demo-quiz first for easy access
+    list.sort((a, b) => (a.id === 'demo-quiz' ? -1 : b.id === 'demo-quiz' ? 1 : 0));
     if (Debug) console.log('[Templates] isDevPlan:', isDevPlan, 'baseTemplates ids:', list.map(t => t.id));
     return list;
   }, [isDevPlan]);
@@ -211,22 +207,22 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
     const active =
       filters.audience !== 'All' || filters.topic !== 'All' || filters.difficulty !== 'All' || filters.duration !== 'All';
 
-     // Start with either all (when filtering) or the "popular" slice
-  let start = active ? baseTemplates : pickMostPopular(baseTemplates, 8);
+    // Start with either all (when filtering) or the "popular" slice
+    let start = active ? baseTemplates : pickMostPopular(baseTemplates, 8);
 
-  // Force-include demo-quiz for Dev in the unfiltered view (put it first)
-  if (!active && isDevPlan) {
-    const hasDemo = start.some(t => t.id === 'demo-quiz');
-    if (!hasDemo) {
-      const demo = baseTemplates.find(t => t.id === 'demo-quiz');
-      if (demo) start = [demo, ...start].slice(0, 8);
-    } else {
-      // ensure it's first if present
-      start = [ ...start.filter(t => t.id === 'demo-quiz'), ...start.filter(t => t.id !== 'demo-quiz') ];
+    // Always force-include demo-quiz in the unfiltered view (put it first)
+    if (!active) {
+      const hasDemo = start.some(t => t.id === 'demo-quiz');
+      if (!hasDemo) {
+        const demo = baseTemplates.find(t => t.id === 'demo-quiz');
+        if (demo) start = [demo, ...start].slice(0, 8);
+      } else {
+        // ensure it's first if present
+        start = [ ...start.filter(t => t.id === 'demo-quiz'), ...start.filter(t => t.id !== 'demo-quiz') ];
+      }
     }
-  }
 
-  const list = start.filter((t) => {
+    const list = start.filter((t) => {
       const hasAudience = filters.audience === 'All' || t.tags.some((tag) => tag === `Audience: ${filters.audience}`);
       const hasTopic = filters.topic === 'All' || t.tags.some((tag) => tag === `Topic: ${filters.topic}`);
       const hasDifficulty = filters.difficulty === 'All' || t.difficulty === filters.difficulty;
@@ -234,10 +230,10 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
       return hasAudience && hasTopic && hasDifficulty && hasDuration;
     });
 
-      if (Debug) {
-   console.log('[Templates] anyFilterActive:', active);
-    console.log('[Templates] filteredTemplates ids:', list.map(t => t.id));
-  }
+    if (Debug) {
+      console.log('[Templates] anyFilterActive:', active);
+      console.log('[Templates] filteredTemplates ids:', list.map(t => t.id));
+    }
 
     return list;
   }, [filters, baseTemplates, isDevPlan]);
@@ -264,11 +260,7 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
   };
 
   const handleTemplateSelect = (templateId: string) => {
-     // Guard: if not Dev, block selecting demo-quiz (UI belt & braces)
-  if (templateId === 'demo-quiz' && !isDevPlan) {
-if (Debug) console.warn('[Templates] Blocked selecting demo-quiz (not Dev plan)');
-  return;
-}
+    // Demo quiz now available to everyone for testing
     setTemplate(templateId);
 
     const template = baseTemplates.find((t) => t.id === templateId);
