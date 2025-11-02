@@ -49,6 +49,15 @@ app.use(express.json({ limit: '100kb' }));
 
 const isProd = process.env.NODE_ENV === 'production';
 
+// Health check endpoint for Docker and monitoring
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
 app.post('/api/tgb/create-deposit-address', createDepositAddress);
 app.post('/api/tgb/webhook', tgbWebhookHandler);
 
@@ -346,8 +355,16 @@ if (process.env.NODE_ENV === 'production') {
     });
   });
 } else {
-  // Dev: static without implicit index
-  app.use(express.static(path.join(__dirname, '../dist'), { index: false }));
+  // Dev: static without implicit index and no caching
+  app.use(express.static(path.join(__dirname, '../dist'), {
+    index: false,
+    setHeaders: (res) => {
+      // Disable caching in development to prevent stale code issues
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }));
 
   // Dev HTML injection (disable cache)
   app.get('*', (req, res) => {
@@ -363,7 +380,9 @@ if (process.env.NODE_ENV === 'production') {
       const head = buildHeadTags(seo);
 
       const out = html.replace('<!--app-head-->', head);
-      res.set('Cache-Control', 'no-store');
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
       res.status(200).send(out);
     });
   });

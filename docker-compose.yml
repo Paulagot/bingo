@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+      - "5173:5173"
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=db
+      - DB_USER=root
+      - DB_PASSWORD=dev_password
+      - DB_NAME=fundraisely_db
+      - DB_PORT=3306
+      - PORT=3001
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # Mount source code for hot reloading in development
+      - ./src:/app/src
+      - ./server:/app/server
+      - ./public:/app/public
+    command: npm run dev
+    networks:
+      - bingo-network
+
+  db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=dev_password
+      - MYSQL_DATABASE=fundraisely_db
+      - MYSQL_USER=bingo_user
+      - MYSQL_PASSWORD=bingo_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pdev_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - bingo-network
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  bingo-network:
+    driver: bridge
