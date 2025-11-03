@@ -601,12 +601,32 @@ socket.on('end_quiz_and_distribute_prizes', ({ roomId }) => {
     return;
   }
 
-  const { web3PrizeStructure } = room.config;
-  const hasSecondPrize = web3PrizeStructure?.secondPlace && web3PrizeStructure.secondPlace > 0;
-  const hasThirdPrize  = web3PrizeStructure?.thirdPlace  && web3PrizeStructure.thirdPlace  > 0;
+  const { web3PrizeStructure, web3Chain } = room.config;
 
-  // Decide how many winners to pay (1–3)
-  const prizeCount = 1 + (hasSecondPrize ? 1 : 0) + (hasThirdPrize ? 1 : 0);
+  // Determine actual number of winners based on game logic:
+  // - If 1-3 players: all players are winners (everyone gets a prize)
+  // - If 4+ players: top 3 from leaderboard are winners
+  const playerCount = finalLeaderboard.length;
+  let actualWinnerCount;
+
+  if (playerCount <= 3) {
+    // All players are winners by default
+    actualWinnerCount = playerCount;
+    if (debug) {
+      console.log(`[Host] 🏆 ${playerCount} player(s) joined - all are winners by default`);
+    }
+  } else {
+    // 4+ players: use leaderboard rankings for top 3
+    const hasSecondPrize = web3PrizeStructure?.secondPlace && web3PrizeStructure.secondPlace > 0;
+    const hasThirdPrize  = web3PrizeStructure?.thirdPlace  && web3PrizeStructure.thirdPlace  > 0;
+    actualWinnerCount = 1 + (hasSecondPrize ? 1 : 0) + (hasThirdPrize ? 1 : 0);
+    if (debug) {
+      console.log(`[Host] 🏆 ${playerCount} players joined - using leaderboard for top ${actualWinnerCount} winners`);
+    }
+  }
+
+  // For Solana, we need to pad the winners array to 3 addresses to match the on-chain prize_distribution
+  const prizeCount = (web3Chain === 'solana') ? 3 : actualWinnerCount;
 
   const winnerAddresses = [];
   const winnerPlayerIds = [];
@@ -626,7 +646,21 @@ socket.on('end_quiz_and_distribute_prizes', ({ roomId }) => {
   // Iterate top N and map by ID
   for (let rank = 0; rank < prizeCount; rank++) {
     const entry = finalLeaderboard[rank];
-    if (!entry) break;
+
+    // If no player exists at this rank, we still need to fill the slot for Solana
+    // Solana requires winners.len() == prize_distribution.len()
+    if (!entry) {
+      // Pad with the first winner's address (they get that portion too)
+      // Or use a zero/null address - but duplicating first winner is simpler
+      if (winnerAddresses.length > 0) {
+        const firstWinnerAddress = winnerAddresses[0];
+        winnerAddresses.push(firstWinnerAddress);
+        if (debug) {
+          console.log(`[Host] 🏅 Rank ${rank + 1}: NO PLAYER - padding with first winner`);
+        }
+      }
+      continue;
+    }
 
     const playerId = entry.id;          // <- stable ID from leaderboard
     const playerName = entry.name;      // <- keep for UI and logs
@@ -634,7 +668,7 @@ socket.on('end_quiz_and_distribute_prizes', ({ roomId }) => {
 
     if (!addressInfo?.address) {
       missing.push({ playerId, playerName, rank: rank + 1 });
-      continue; // don't abort entire flow; we’ll handle below
+      continue; // don't abort entire flow; we'll handle below
     }
 
     winnerAddresses.push(addressInfo.address);
@@ -683,7 +717,7 @@ socket.on('end_quiz_and_distribute_prizes', ({ roomId }) => {
     });
   }
 
-  // You can keep sending only `winners` if that’s what your frontend expects
+  // You can keep sending only `winners` if that's what your frontend expects
   // but including winnersDetailed can help the host UI.
   socket.emit('initiate_prize_distribution', {
     roomId,
@@ -694,6 +728,9 @@ socket.on('end_quiz_and_distribute_prizes', ({ roomId }) => {
     web3Chain: room.config.web3Chain || 'stellar',
     evmNetwork: room.config.evmNetwork,
     roomAddress: room.config.roomContractAddress || room.config.web3ContractAddress,
+
+    // Charity info: Used by Stellar/EVM chains
+    // NOTE: Solana uses GlobalConfig.charity_wallet from on-chain state instead
     charityOrgId: room.config.web3CharityId,
     charityName: room.config.web3CharityName,
     charityAddress: room.config.web3CharityAddress,
