@@ -73,7 +73,14 @@
       "Bash(cmd //c \"spl-token mint D55UpMC1mcBAi96PNuz4tdynYHEgubn5cCzXm3wwExGo 1000 C48gmshkEL8UdCe8GcpZKGwrEfCLbWWq4zk23tHmNDcE\")",
       "Bash(gh pr create:*)",
       "Bash(winget install:*)",
-      "Bash(git update-ref:*)"
+      "Bash(git update-ref:*)",
+      "Bash(start http://localhost:5173)",
+      "Bash(cmd //c \"taskkill /F /PID 7376\")",
+      "Bash(start http://localhost:5174)",
+      "Bash(npx ts-node:*)",
+      "Bash(anchor run:*)",
+      "Bash(export ANCHOR_PROVIDER_URL=\"https://api.devnet.solana.com\")",
+      "Bash(export ANCHOR_WALLET=\"$HOME/.config/solana/id.json\")"
     ],
     "deny": [],
     "ask": []
