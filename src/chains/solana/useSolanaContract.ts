@@ -1357,11 +1357,57 @@ export function useSolanaContract() {
         return playerEntry;
       });
 
-      console.log('[declareWinners] Declaring winners:', {
-        room: room.toBase58(),
-        winners: params.winners.map(w => w.toBase58()),
-        playerEntries: playerEntryPDAs.map(p => p.toBase58()),
+      console.log('═══════════════════════════════════════════');
+      console.log('[declareWinners] PRE-FLIGHT CHECK');
+      console.log('═══════════════════════════════════════════');
+      console.log('[declareWinners] Room PDA:', room.toBase58());
+      console.log('[declareWinners] Calling wallet:', publicKey.toBase58());
+      console.log('[declareWinners] Expected host:', params.hostPubkey.toBase58());
+      console.log('[declareWinners] Winners count:', params.winners.length);
+      console.log('[declareWinners] Winners:');
+      params.winners.forEach((w, i) => {
+        console.log(`  [${i}]:`, w.toBase58());
       });
+      console.log('[declareWinners] PlayerEntry PDAs:');
+      playerEntryPDAs.forEach((p, i) => {
+        console.log(`  [${i}]:`, p.toBase58());
+      });
+
+      // Fetch and validate room state
+      try {
+        // @ts-ignore - Account types available after program deployment
+        const roomAccount = await program.account.room.fetch(room);
+        console.log('[declareWinners] Room state:');
+        console.log('  Host:', roomAccount.host.toBase58());
+        console.log('  Status:', roomAccount.status);
+        console.log('  Ended:', roomAccount.ended);
+        console.log('  Player count:', roomAccount.playerCount);
+        console.log('  Current winners:', roomAccount.winners);
+
+        // Validation checks
+        if (roomAccount.host.toBase58() !== params.hostPubkey.toBase58()) {
+          console.error('[declareWinners] ⚠️ WARNING: Host mismatch!');
+          console.error('  Expected:', params.hostPubkey.toBase58());
+          console.error('  Actual:', roomAccount.host.toBase58());
+        }
+
+        if (roomAccount.ended) {
+          console.error('[declareWinners] ⚠️ WARNING: Room already ended!');
+        }
+
+        if (roomAccount.status !== 1 && roomAccount.status?.toString() !== 'Active') {
+          console.error('[declareWinners] ⚠️ WARNING: Room not active! Status:', roomAccount.status);
+        }
+
+        if (roomAccount.winners && roomAccount.winners.length > 0) {
+          console.error('[declareWinners] ⚠️ WARNING: Winners already declared!', roomAccount.winners);
+        }
+      } catch (e: any) {
+        console.error('[declareWinners] ❌ Failed to fetch room account:', e);
+        throw new Error('Cannot fetch room account: ' + e.message);
+      }
+
+      console.log('═══════════════════════════════════════════');
 
       // Build instruction with PlayerEntry PDAs as remaining_accounts
       const ix = await program.methods
@@ -1385,10 +1431,32 @@ export function useSolanaContract() {
       const simResult = await simulateTransaction(connection, tx);
 
       if (!simResult.success) {
-        console.error('[declareWinners] Simulation failed:', {
-          error: simResult.error,
-          logs: simResult.logs,
-        });
+        console.error('═══════════════════════════════════════════');
+        console.error('[declareWinners] SIMULATION FAILED');
+        console.error('═══════════════════════════════════════════');
+        console.error('[declareWinners] Error type:', typeof simResult.error);
+        console.error('[declareWinners] Error object:', simResult.error);
+        console.error('[declareWinners] Error string:', String(simResult.error));
+
+        try {
+          console.error('[declareWinners] Error JSON:', JSON.stringify(simResult.error, null, 2));
+        } catch (e) {
+          console.error('[declareWinners] Error cannot be stringified');
+        }
+
+        console.error('─────────────────────────────────────────');
+        console.error('[declareWinners] SIMULATION LOGS:');
+
+        if (simResult.logs && simResult.logs.length > 0) {
+          simResult.logs.forEach((log, idx) => {
+            console.error(`  [Log ${idx}]:`, log);
+          });
+        } else {
+          console.error('  No logs available');
+        }
+
+        console.error('═══════════════════════════════════════════');
+
         throw new Error(formatTransactionError(simResult.error));
       }
 
@@ -1574,6 +1642,32 @@ export function useSolanaContract() {
       const simResult = await simulateTransaction(connection, tx);
 
       if (!simResult.success) {
+        console.error('═══════════════════════════════════════════');
+        console.error('[endRoom] SIMULATION FAILED');
+        console.error('═══════════════════════════════════════════');
+        console.error('[endRoom] Error type:', typeof simResult.error);
+        console.error('[endRoom] Error object:', simResult.error);
+        console.error('[endRoom] Error string:', String(simResult.error));
+
+        try {
+          console.error('[endRoom] Error JSON:', JSON.stringify(simResult.error, null, 2));
+        } catch (e) {
+          console.error('[endRoom] Error cannot be stringified');
+        }
+
+        console.error('─────────────────────────────────────────');
+        console.error('[endRoom] SIMULATION LOGS:');
+
+        if (simResult.logs && simResult.logs.length > 0) {
+          simResult.logs.forEach((log, idx) => {
+            console.error(`  [Log ${idx}]:`, log);
+          });
+        } else {
+          console.error('  No logs available');
+        }
+
+        console.error('═══════════════════════════════════════════');
+
         throw new Error(formatTransactionError(simResult.error));
       }
 
@@ -1820,11 +1914,42 @@ export function useSolanaContract() {
    * 2. Declaring winners on-chain
    * 3. Ending the room, which triggers automatic distribution:
    *    - Platform fee: 20% to platform wallet
-   * - Host fee: 0-5% to host
+   *    - Host fee: 0-5% to host
    *    - Prize pool: distributed to winners based on room.prize_distribution percentages
    *    - Charity: Minimum 40% + any remaining allocation goes to charity
    *
    * All distributions happen atomically in a single transaction.
+   *
+   * **IMPORTANT: Charity Address for Solana**
+   *
+   * Unlike Stellar/EVM chains, Solana does NOT use the charityAddress parameter
+   * passed from the frontend. Instead, the charity wallet is read from the
+   * on-chain GlobalConfig account.
+   *
+   * The charity address comes from GlobalConfig.charity_wallet, which is set during
+   * program initialization or can be updated using the update_global_config instruction.
+   *
+   * To check or update the charity address for Solana:
+   *
+   * ```typescript
+   * // Check current charity wallet
+   * const [globalConfig] = deriveGlobalConfigPDA();
+   * const config = await program.account.globalConfig.fetch(globalConfig);
+   * console.log('Current charity wallet:', config.charityWallet.toBase58());
+   *
+   * // Update charity wallet (admin/upgrade authority only)
+   * await program.methods.updateGlobalConfig(
+   *   null,                    // platform_wallet (no change)
+   *   new PublicKey('...'),    // charity_wallet (new address)
+   *   null,                    // platform_fee_bps (no change)
+   *   null,                    // max_host_fee_bps (no change)
+   *   null,                    // max_prize_pool_bps (no change)
+   *   null                     // min_charity_bps (no change)
+   * ).rpc();
+   * ```
+   *
+   * Valid Solana addresses are base58-encoded public keys, typically 43-44 characters.
+   * Example: 7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU
    */
   const distributePrizes = useCallback(
     async (params: { roomId: string; winners: string[]; roomAddress?: string }): Promise<{ signature: string }> => {
