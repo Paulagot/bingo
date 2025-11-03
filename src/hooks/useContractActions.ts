@@ -969,11 +969,17 @@ if (!isPool) {
 
           const prizes = params.expectedPrizes.slice(0, 3);
           const prize1Mint = new PublicKey(prizes[0].tokenAddress);
-          const prize1Amount = new BN(prizes[0].amount);
+
+          // Convert prize amounts from human-readable to raw token units (assumes 6 decimals for USDC/USDT)
+          // TODO: Fetch actual decimals for each prize token mint
+          const prizeDecimals = 6; // USDC/USDT standard
+          const prizeMultiplier = Math.pow(10, prizeDecimals);
+
+          const prize1Amount = new BN(parseFloat(prizes[0].amount) * prizeMultiplier);
           const prize2Mint = prizes[1] ? new PublicKey(prizes[1].tokenAddress) : undefined;
-          const prize2Amount = prizes[1] ? new BN(prizes[1].amount) : undefined;
+          const prize2Amount = prizes[1] ? new BN(parseFloat(prizes[1].amount) * prizeMultiplier) : undefined;
           const prize3Mint = prizes[2] ? new PublicKey(prizes[2].tokenAddress) : undefined;
-          const prize3Amount = prizes[2] ? new BN(prizes[2].amount) : undefined;
+          const prize3Amount = prizes[2] ? new BN(parseFloat(prizes[2].amount) * prizeMultiplier) : undefined;
 
           const res = await solanaContract.createAssetRoom({
             roomId: params.roomId,
