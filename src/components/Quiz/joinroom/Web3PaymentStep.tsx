@@ -445,6 +445,7 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
         feeAmount: roomConfig.entryFee,
         extrasAmount: extrasTotal > 0 ? extrasTotal.toString() : undefined,
         roomAddress: roomAddrFromConfig, // undefined triggers fallback in joinRoom
+        currency: roomConfig.currencySymbol,
       });
       if (!r.success) throw new Error(r.error || 'Payment failed');
 

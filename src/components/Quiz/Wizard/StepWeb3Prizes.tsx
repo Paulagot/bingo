@@ -667,9 +667,9 @@ const StepWeb3Prizes: FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst })
             <div className="text-sm text-blue-800">
               <p className="mb-1 font-medium">Prize Pool Guidelines</p>
               <ul className="space-y-1 text-xs">
-                <li>• Minimum 35% always goes to charity</li>
+                <li>• Minimum 40% always goes to charity</li>
                 <li>• Platform reserves 20%</li>
-                <li>• Remaining 45% is yours to allocate (personal up to 5%, and/or prizes up to 40%)</li>
+                <li>• Remaining 40% is yours to allocate (personal up to 5%, and/or prizes up to 40% combined)</li>
                 <li>• Any unused allocation goes to charity</li>
                 <li>• External assets are provided separately from the fund pool</li>
               </ul>

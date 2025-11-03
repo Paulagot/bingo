@@ -78,6 +78,7 @@ type JoinArgs = {
   extrasAmount?: string;
   feeAmount?: any;
   roomAddress?: any;
+  currency?: string;
 };
 
 type JoinResult =
@@ -181,7 +182,7 @@ export function useContractActions(opts?: Options) {
     }
 
     if (effectiveChain === 'solana') {
-      return async ({ roomId, feeAmount, extrasAmount }: JoinArgs): Promise<JoinResult> => {
+      return async ({ roomId, feeAmount, extrasAmount, currency }: JoinArgs): Promise<JoinResult> => {
         try {
           if (!solanaContract || !solanaContract.isReady) {
             return { success: false, error: 'Solana contract not ready' };
@@ -190,12 +191,19 @@ export function useContractActions(opts?: Options) {
             return { success: false, error: 'Wallet not connected' };
           }
 
-          const entryFeeLamports = new BN(parseFloat(String(feeAmount ?? '0')) * LAMPORTS_PER_SOL);
-          const extrasLamports = extrasAmount ? new BN(parseFloat(String(extrasAmount)) * LAMPORTS_PER_SOL) : new BN(0);
+          // Get correct decimals for the token (SOL = 9, USDC/USDT = 6)
+          const curr = (currency ?? 'SOL').toUpperCase();
+          const decimals = curr === 'SOL' ? 9 : 6;
+          const multiplier = Math.pow(10, decimals);
+
+          const entryFeeLamports = new BN(parseFloat(String(feeAmount ?? '0')) * multiplier);
+          const extrasLamports = extrasAmount ? new BN(parseFloat(String(extrasAmount)) * multiplier) : new BN(0);
 
           console.log('[useContractActions] Solana joinRoom:', {
             roomId,
             feeAmount,
+            currency: curr,
+            decimals,
             entryFeeLamports: entryFeeLamports.toString(),
             extrasAmount,
             extrasLamports: extrasLamports.toString(),
@@ -943,9 +951,13 @@ if (!isPool) {
           currency === 'USDT' ? TOKEN_MINTS.USDT :
           TOKEN_MINTS.SOL; // Default to SOL
 
-        console.log('[deploy] Solana currency:', currency, 'mint:', feeTokenMint.toBase58());
+        // Get correct decimals for the token (SOL = 9, USDC/USDT = 6)
+        const decimals = currency === 'SOL' ? 9 : 6;
+        const multiplier = Math.pow(10, decimals);
 
-        const entryFeeLamports = new BN(parseFloat(String(params.entryFee ?? '1.0')) * LAMPORTS_PER_SOL);
+        console.log('[deploy] Solana currency:', currency, 'mint:', feeTokenMint.toBase58(), 'decimals:', decimals);
+
+        const entryFeeLamports = new BN(parseFloat(String(params.entryFee ?? '1.0')) * multiplier);
         const charityWallet = solanaContract.publicKey; // TODO: Get from TGB API
 
         if (params.prizeMode === 'assets') {
