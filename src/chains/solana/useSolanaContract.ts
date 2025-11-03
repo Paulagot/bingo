@@ -1993,16 +1993,28 @@ export function useSolanaContract() {
       // Convert winner addresses to PublicKey objects
       const winnerPubkeys = params.winners.map(w => new PublicKey(w));
 
-      console.log('[distributePrizes] Declaring winners...');
+      // Fetch full room account to check if winners are already declared
+      // @ts-ignore - Account types available after program deployment
+      const roomAccount = await program.account.room.fetch(roomPDA);
+      const declaredWinners = roomAccount.winners as PublicKey[];
+      const winnersAlreadyDeclared = declaredWinners && declaredWinners.length > 0 && declaredWinners[0] !== null;
 
-      // Step 1: Declare winners
-      await declareWinners({
-        roomId: params.roomId,
-        hostPubkey: roomInfo.host,
-        winners: winnerPubkeys,
-      });
+      if (winnersAlreadyDeclared) {
+        console.log('[distributePrizes] Winners already declared, skipping to endRoom...');
+      } else {
+        console.log('[distributePrizes] Declaring winners...');
 
-      console.log('[distributePrizes] Winners declared, ending room...');
+        // Step 1: Declare winners
+        await declareWinners({
+          roomId: params.roomId,
+          hostPubkey: roomInfo.host,
+          winners: winnerPubkeys,
+        });
+
+        console.log('[distributePrizes] Winners declared!');
+      }
+
+      console.log('[distributePrizes] Ending room...');
 
       // Step 2: End room (triggers all distributions)
       const result = await endRoom({
