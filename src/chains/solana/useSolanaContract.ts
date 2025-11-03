@@ -1827,7 +1827,7 @@ export function useSolanaContract() {
    * All distributions happen atomically in a single transaction.
    */
   const distributePrizes = useCallback(
-    async (params: { roomId: string; winners: string[] }): Promise<{ signature: string }> => {
+    async (params: { roomId: string; winners: string[]; roomAddress?: string }): Promise<{ signature: string }> => {
       if (!publicKey || !provider || !program) {
         throw new Error('Wallet not connected or program not initialized');
       }
@@ -1835,14 +1835,24 @@ export function useSolanaContract() {
       console.log('[distributePrizes] Starting distribution:', {
         roomId: params.roomId,
         winners: params.winners,
+        roomAddress: params.roomAddress,
       });
 
+      // Use provided room address or derive it
+      let roomPDA: PublicKey;
+      if (params.roomAddress) {
+        roomPDA = new PublicKey(params.roomAddress);
+        console.log('[distributePrizes] Using provided room address:', roomPDA.toBase58());
+      } else {
+        [roomPDA] = deriveRoomPDA(publicKey, params.roomId);
+        console.log('[distributePrizes] Derived room PDA:', roomPDA.toBase58());
+      }
+
       // Fetch room info to get host and token mint
-      const [roomPDA] = deriveRoomPDA(publicKey, params.roomId);
       const roomInfo = await getRoomInfo(roomPDA);
 
       if (!roomInfo) {
-        throw new Error('Room not found');
+        throw new Error('Room not found at address: ' + roomPDA.toBase58());
       }
 
       console.log('[distributePrizes] Room info:', {

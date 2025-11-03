@@ -348,7 +348,7 @@ export function useContractActions(opts?: Options) {
     }
 
     if (effectiveChain === 'solana') {
-      return async ({ roomId, winners }: DistributeArgs): Promise<DistributeResult> => {
+      return async ({ roomId, winners, roomAddress }: DistributeArgs): Promise<DistributeResult> => {
         try {
           if (!solanaContract || !solanaContract.isReady) {
             return { success: false, error: 'Solana contract not ready' };
@@ -357,7 +357,7 @@ export function useContractActions(opts?: Options) {
             return { success: false, error: 'Wallet not connected' };
           }
 
-          console.log('🎯 [Solana] Starting prize distribution:', { roomId, winners });
+          console.log('🎯 [Solana] Starting prize distribution:', { roomId, winners, roomAddress });
 
           // Extract winner addresses (Solana public keys)
           const winnerAddresses = winners
@@ -374,6 +374,7 @@ export function useContractActions(opts?: Options) {
           const res = await solanaContract.distributePrizes({
             roomId,
             winners: winnerAddresses,
+            roomAddress, // Pass room PDA address from backend
           });
 
           console.log('✅ [Solana] Prize distribution successful:', res.signature);
