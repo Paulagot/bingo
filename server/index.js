@@ -42,12 +42,37 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 import { createProxyMiddleware } from 'http-proxy-middleware';
+import { v4 as uuidv4 } from 'uuid';
+import { logger, loggers, logRequest, logResponse } from './config/logging.js';
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '100kb' }));
 
 const isProd = process.env.NODE_ENV === 'production';
+
+// Request ID and logging middleware
+app.use((req, res, next) => {
+  req.requestId = uuidv4();
+  req.startTime = Date.now();
+
+  // Log incoming requests
+  if (process.env.LOG_LEVEL === 'debug') {
+    logRequest(loggers.server, req);
+  }
+
+  // Log response when finished
+  const originalSend = res.send;
+  res.send = function(data) {
+    const duration = Date.now() - req.startTime;
+    if (process.env.LOG_LEVEL === 'debug') {
+      logResponse(loggers.server, req, res, duration);
+    }
+    return originalSend.call(this, data);
+  };
+
+  next();
+});
 
 // Health check endpoint for Docker and monitoring
 app.get('/health', (req, res) => {

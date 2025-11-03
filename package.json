@@ -65,6 +65,8 @@
     "mysql2": "^3.15.1",
     "nanoid": "^5.1.5",
     "nodemailer": "^7.0.6",
+    "pino": "^10.1.0",
+    "pino-pretty": "^13.1.2",
     "qr": "^0.4.2",
     "qrcode.react": "^4.2.0",
     "react": "^18.3.1",

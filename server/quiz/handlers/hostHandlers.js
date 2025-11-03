@@ -16,6 +16,7 @@ import { getRoundScoring } from './scoringUtils.js';
 import { StatsService } from '../gameplayEngines/services/StatsService.js'
 import { TiebreakerService } from '../gameplayEngines/services/TiebreakerService.js';
 
+import { logPrizeDistributionInitiated, logPrizeDistributionSuccess, logPrizeDistributionFailure, logWeb3RoomConfig, logWinnerAddressMapping } from './blockchainLoggingHelper.js';
 const debug = true;
 
 export function setupHostHandlers(socket, namespace) {
@@ -571,6 +572,10 @@ socket.on('end_quiz_and_distribute_prizes', ({ roomId }) => {
   }
 
   const isWeb3Room = room.config?.paymentMethod === 'web3' || room.config?.isWeb3Room;
+
+  // Structured logging for Web3 room configuration
+  logWeb3RoomConfig(roomId, room.config);
+
   if (debug) {
     console.log(`[Host] 🔍 Room config debug:`, {
       paymentMethod: room.config?.paymentMethod,
@@ -686,7 +691,10 @@ socket.on('end_quiz_and_distribute_prizes', ({ roomId }) => {
     }
   }
 
-  // If we’re missing any addresses, fail (or you could choose to continue if not 1st place)
+  // Log winner address mapping (includes missing addresses if any)
+  logWinnerAddressMapping(roomId, winnersDetailed, missing);
+
+  // If we're missing any addresses, fail (or you could choose to continue if not 1st place)
   if (missing.length) {
     const firstMissing = missing[0];
     socket.emit('quiz_error', {
@@ -706,6 +714,15 @@ socket.on('end_quiz_and_distribute_prizes', ({ roomId }) => {
   room.finalLeaderboard = finalLeaderboard;
   room.prizeDistributionStatus = 'initiated';
   room.currentPhase = 'distributing_prizes';
+
+  // Structured logging for prize distribution initiation
+  logPrizeDistributionInitiated(
+    roomId,
+    winners,
+    room.config.roomContractAddress || room.config.web3ContractAddress,
+    room.config.web3Chain,
+    winnersDetailed
+  );
 
   if (debug) {
     console.log(`[Host] 🎯 Prize distribution initiated:`);
@@ -749,7 +766,7 @@ socket.on('end_quiz_and_distribute_prizes', ({ roomId }) => {
 
 
 // ✅ prize_distribution_completed (FIXED VERSION)
-socket.on('prize_distribution_completed', ({ roomId, success, txHash, error }) => {
+socket.on('prize_distribution_completed', ({ roomId, success, txHash, error, confirmations, blockNumber }) => {
   if (debug) console.log(`[Host] 💰 Prize distribution result: ${success ? 'SUCCESS' : 'FAILED'}`);
 
   const room = getQuizRoom(roomId);
@@ -759,6 +776,15 @@ socket.on('prize_distribution_completed', ({ roomId, success, txHash, error }) =
     room.prizeDistributionStatus = 'completed';
     room.prizeDistributionTxHash = txHash;
     room.currentPhase = 'complete';
+
+    // Structured logging for successful prize distribution
+    logPrizeDistributionSuccess(
+      roomId,
+      room.config.web3Chain,
+      txHash,
+      confirmations,
+      blockNumber
+    );
 
     namespace.to(roomId).emit('prize_distribution_success', {
       message: 'Prizes have been distributed successfully!',
@@ -782,6 +808,18 @@ socket.on('prize_distribution_completed', ({ roomId, success, txHash, error }) =
   } else {
     room.prizeDistributionStatus = 'failed';
     room.prizeDistributionError = error;
+
+    // Structured logging for failed prize distribution
+    logPrizeDistributionFailure(
+      roomId,
+      room.config.web3Chain,
+      error,
+      txHash,
+      {
+        winners: room.finalWinners,
+        contract: room.config.roomContractAddress || room.config.web3ContractAddress
+      }
+    );
 
     namespace.to(roomId).emit('prize_distribution_failed', {
       message: 'Prize distribution failed. Please contact support.',
