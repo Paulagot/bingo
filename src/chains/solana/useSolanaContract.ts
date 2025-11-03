@@ -1813,22 +1813,75 @@ export function useSolanaContract() {
   // ============================================================================
 
   /**
-   * Distributes prizes to winners (ASSET ROOMS ONLY)
+   * Distributes prizes to winners (for both Pool and Asset rooms)
    *
-   * NOTE: This function only works with asset-based rooms created via createAssetRoom().
-   * Pool rooms (created via createPoolRoom()) do not support on-chain prize distribution.
-   * For pool rooms, prizes must be distributed off-chain by the host.
+   * This function handles prize distribution for all room types by:
+   * 1. Fetching room information to get host and token mint
+   * 2. Declaring winners on-chain
+   * 3. Ending the room, which triggers automatic distribution:
+   *    - Platform fee: 20% to platform wallet
+   * - Host fee: 0-5% to host
+   *    - Prize pool: distributed to winners based on room.prize_distribution percentages
+   *    - Charity: Minimum 40% + any remaining allocation goes to charity
+   *
+   * All distributions happen atomically in a single transaction.
    */
   const distributePrizes = useCallback(
     async (params: { roomId: string; winners: string[] }): Promise<{ signature: string }> => {
-      // Throw a clear error since pool rooms don't support prize distribution
-      throw new Error(
-        'On-chain prize distribution is only available for Asset Rooms. ' +
-        'Pool rooms require manual/off-chain prize distribution by the host. ' +
-        'Asset rooms pre-deposit prizes and distribute them automatically on-chain.'
-      );
+      if (!publicKey || !provider || !program) {
+        throw new Error('Wallet not connected or program not initialized');
+      }
+
+      console.log('[distributePrizes] Starting distribution:', {
+        roomId: params.roomId,
+        winners: params.winners,
+      });
+
+      // Fetch room info to get host and token mint
+      const [roomPDA] = deriveRoomPDA(publicKey, params.roomId);
+      const roomInfo = await getRoomInfo(roomPDA);
+
+      if (!roomInfo) {
+        throw new Error('Room not found');
+      }
+
+      console.log('[distributePrizes] Room info:', {
+        host: roomInfo.host.toBase58(),
+        feeTokenMint: roomInfo.feeTokenMint.toBase58(),
+        ended: roomInfo.ended,
+      });
+
+      if (roomInfo.ended) {
+        throw new Error('Room already ended');
+      }
+
+      // Convert winner addresses to PublicKey objects
+      const winnerPubkeys = params.winners.map(w => new PublicKey(w));
+
+      console.log('[distributePrizes] Declaring winners...');
+
+      // Step 1: Declare winners
+      await declareWinners({
+        roomId: params.roomId,
+        hostPubkey: roomInfo.host,
+        winners: winnerPubkeys,
+      });
+
+      console.log('[distributePrizes] Winners declared, ending room...');
+
+      // Step 2: End room (triggers all distributions)
+      const result = await endRoom({
+        roomId: params.roomId,
+        hostPubkey: roomInfo.host,
+        winners: winnerPubkeys,
+        feeTokenMint: roomInfo.feeTokenMint,
+      });
+
+      console.log('[distributePrizes] Distribution complete:', result.signature);
+
+      return result;
     },
-    [publicKey, provider, program, declareWinners, endRoom]
+    [publicKey, provider, program, declareWinners, endRoom, deriveRoomPDA, getRoomInfo]
   );
 
   // ============================================================================
