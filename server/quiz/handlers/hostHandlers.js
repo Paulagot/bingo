@@ -601,12 +601,32 @@ socket.on('end_quiz_and_distribute_prizes', ({ roomId }) => {
     return;
   }
 
-  const { web3PrizeStructure } = room.config;
-  const hasSecondPrize = web3PrizeStructure?.secondPlace && web3PrizeStructure.secondPlace > 0;
-  const hasThirdPrize  = web3PrizeStructure?.thirdPlace  && web3PrizeStructure.thirdPlace  > 0;
+  const { web3PrizeStructure, web3Chain } = room.config;
 
-  // Decide how many winners to pay (1–3)
-  const prizeCount = 1 + (hasSecondPrize ? 1 : 0) + (hasThirdPrize ? 1 : 0);
+  // Determine actual number of winners based on game logic:
+  // - If 1-3 players: all players are winners (everyone gets a prize)
+  // - If 4+ players: top 3 from leaderboard are winners
+  const playerCount = finalLeaderboard.length;
+  let actualWinnerCount;
+
+  if (playerCount <= 3) {
+    // All players are winners by default
+    actualWinnerCount = playerCount;
+    if (debug) {
+      console.log(`[Host] 🏆 ${playerCount} player(s) joined - all are winners by default`);
+    }
+  } else {
+    // 4+ players: use leaderboard rankings for top 3
+    const hasSecondPrize = web3PrizeStructure?.secondPlace && web3PrizeStructure.secondPlace > 0;
+    const hasThirdPrize  = web3PrizeStructure?.thirdPlace  && web3PrizeStructure.thirdPlace  > 0;
+    actualWinnerCount = 1 + (hasSecondPrize ? 1 : 0) + (hasThirdPrize ? 1 : 0);
+    if (debug) {
+      console.log(`[Host] 🏆 ${playerCount} players joined - using leaderboard for top ${actualWinnerCount} winners`);
+    }
+  }
+
+  // For Solana, we need to pad the winners array to 3 addresses to match the on-chain prize_distribution
+  const prizeCount = (web3Chain === 'solana') ? 3 : actualWinnerCount;
 
   const winnerAddresses = [];
   const winnerPlayerIds = [];
