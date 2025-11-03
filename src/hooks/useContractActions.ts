@@ -35,6 +35,7 @@ import AssetRoomABI from '../abis/quiz/BaseQuizAssetRoom.json';
 /* ------------------------- Solana imports ------------------------- */
 import { useSolanaWalletContext } from '../chains/solana/SolanaWalletProvider';
 import { useSolanaContract } from '../chains/solana/useSolanaContract';
+import { TOKEN_MINTS } from '../chains/solana/config';
 import { BN } from '@coral-xyz/anchor';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 
@@ -934,7 +935,16 @@ if (!isPool) {
         }
 
         const { PublicKey } = await import('@solana/web3.js');
-        const NATIVE_SOL_MINT = new PublicKey('So11111111111111111111111111111111111111112');
+
+        // Map currency to token mint
+        const currency = (params.currency ?? 'SOL').toUpperCase();
+        const feeTokenMint =
+          currency === 'USDC' ? TOKEN_MINTS.USDC :
+          currency === 'USDT' ? TOKEN_MINTS.USDT :
+          TOKEN_MINTS.SOL; // Default to SOL
+
+        console.log('[deploy] Solana currency:', currency, 'mint:', feeTokenMint.toBase58());
+
         const entryFeeLamports = new BN(parseFloat(String(params.entryFee ?? '1.0')) * LAMPORTS_PER_SOL);
         const charityWallet = solanaContract.publicKey; // TODO: Get from TGB API
 
@@ -959,7 +969,7 @@ if (!isPool) {
             maxPlayers: 100,
             hostFeeBps: (params.hostFeePct ?? 0) * 100,
             charityMemo: params.charityName?.substring(0, 28) || 'Asset room',
-            feeTokenMint: NATIVE_SOL_MINT,
+            feeTokenMint,
             prize1Mint,
             prize1Amount,
             prize2Mint,
@@ -986,7 +996,7 @@ if (!isPool) {
             secondPlacePct: params.prizeSplits?.second,
             thirdPlacePct: params.prizeSplits?.third,
             charityMemo: params.charityName?.substring(0, 28) || 'Quiz charity',
-            feeTokenMint: NATIVE_SOL_MINT,
+            feeTokenMint,
           });
 
           return {

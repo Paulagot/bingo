@@ -403,6 +403,10 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
       // Connect if needed
       if (!baseConnected) {
         await handleWalletConnect();
+
+        // Give wallet state time to update (especially for Solana)
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         if (!((wallet.isConnected() && wallet.getAddress()) || appkitAcc?.address)) {
           throw new Error('Failed to connect wallet');
         }

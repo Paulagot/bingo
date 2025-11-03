@@ -89,16 +89,16 @@ const StepWeb3Prizes: FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst })
 
   // Constants
   const platformPct = 20; // fixed
-  // Allocatable bucket is 40%, minus personalTake → max prize pool available
-  const maxPrizePool = useMemo(() => Math.max(0, 40 - (personalTake || 0)), [personalTake]);
+  // Allocatable bucket is 45%, minus personalTake → max prize pool available
+  const maxPrizePool = useMemo(() => Math.max(0, 45 - (personalTake || 0)), [personalTake]);
 
-  // Charity = base 40 + any unallocated from allocatable bucket
+  // Charity = base 35 + any unallocated from allocatable bucket (45%)
   const charityPct = useMemo(
     () =>
-      40 +
+      35 +
       Math.max(
         0,
-        40 - (personalTake || 0) - (prizeSource === 'pool' ? prizePoolPct || 0 : 0)
+        45 - (personalTake || 0) - (prizeSource === 'pool' ? prizePoolPct || 0 : 0)
       ),
     [personalTake, prizePoolPct, prizeSource]
   );
@@ -667,9 +667,10 @@ const StepWeb3Prizes: FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst })
             <div className="text-sm text-blue-800">
               <p className="mb-1 font-medium">Prize Pool Guidelines</p>
               <ul className="space-y-1 text-xs">
-                <li>• Minimum 40% always goes to charity</li>
+                <li>• Minimum 35% always goes to charity</li>
                 <li>• Platform reserves 20%</li>
-                <li>• Remaining 40% is yours to allocate (personal up to 5%, and/or prizes)</li>
+                <li>• Remaining 45% is yours to allocate (personal up to 5%, and/or prizes up to 40%)</li>
+                <li>• Any unused allocation goes to charity</li>
                 <li>• External assets are provided separately from the fund pool</li>
               </ul>
             </div>
