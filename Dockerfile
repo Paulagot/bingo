@@ -3,6 +3,9 @@ FROM node:22.18.0-alpine AS builder
 
 WORKDIR /app
 
+# Install Python and build tools for native modules
+RUN apk add --no-cache python3 make g++
+
 # Copy package files
 COPY package*.json ./
 
@@ -23,8 +26,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install only production dependencies
-RUN npm ci --omit=dev
+# Copy node_modules from builder (includes compiled native modules)
+COPY --from=builder /app/node_modules ./node_modules
 
 # Copy built assets from builder stage
 COPY --from=builder /app/dist ./dist
