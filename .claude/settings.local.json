@@ -70,7 +70,10 @@
       "Bash(echo:*)",
       "Bash(tasklist:*)",
       "Bash(spl-token mint:*)",
-      "Bash(cmd //c \"spl-token mint D55UpMC1mcBAi96PNuz4tdynYHEgubn5cCzXm3wwExGo 1000 C48gmshkEL8UdCe8GcpZKGwrEfCLbWWq4zk23tHmNDcE\")"
+      "Bash(cmd //c \"spl-token mint D55UpMC1mcBAi96PNuz4tdynYHEgubn5cCzXm3wwExGo 1000 C48gmshkEL8UdCe8GcpZKGwrEfCLbWWq4zk23tHmNDcE\")",
+      "Bash(gh pr create:*)",
+      "Bash(winget install:*)",
+      "Bash(git update-ref:*)"
     ],
     "deny": [],
     "ask": []
