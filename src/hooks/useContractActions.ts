@@ -180,7 +180,7 @@ export function useContractActions(opts?: Options) {
     }
 
     if (effectiveChain === 'solana') {
-      return async ({ roomId, feeAmount }: JoinArgs): Promise<JoinResult> => {
+      return async ({ roomId, feeAmount, extrasAmount }: JoinArgs): Promise<JoinResult> => {
         try {
           if (!solanaContract || !solanaContract.isReady) {
             return { success: false, error: 'Solana contract not ready' };
@@ -190,9 +190,20 @@ export function useContractActions(opts?: Options) {
           }
 
           const entryFeeLamports = new BN(parseFloat(String(feeAmount ?? '0')) * LAMPORTS_PER_SOL);
+          const extrasLamports = extrasAmount ? new BN(parseFloat(String(extrasAmount)) * LAMPORTS_PER_SOL) : new BN(0);
+
+          console.log('[useContractActions] Solana joinRoom:', {
+            roomId,
+            feeAmount,
+            entryFeeLamports: entryFeeLamports.toString(),
+            extrasAmount,
+            extrasLamports: extrasLamports.toString(),
+          });
+
           const res = await solanaContract.joinRoom({
             roomId,
             entryFee: entryFeeLamports,
+            extrasAmount: extrasLamports,
           });
 
           return {

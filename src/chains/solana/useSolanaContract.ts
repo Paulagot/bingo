@@ -1125,18 +1125,29 @@ export function useSolanaContract() {
         // 3. Those instructions execute BEFORE the joinRoom instruction in the same transaction
         // 4. The on-chain program will validate sufficient balance when it executes
       } catch (err: any) {
-        console.error('[joinRoom] Token account validation failed:', err);
-        throw err;
+        // If account exists but isn't a valid token account yet, and we're creating it in this tx, that's fine
+        if (err.name === 'TokenAccountNotFoundError' && instructions.length > 0) {
+          console.log('[joinRoom] Token account exists but not initialized yet - will be created/initialized in this transaction');
+        } else {
+          console.error('[joinRoom] Token account validation failed:', err);
+          throw err;
+        }
       }
     } else {
       console.log('[joinRoom] Skipping token account validation - account will be created in this transaction');
     }
 
-    // ADD THIS: Validate room vault exists and is correct
+    // Validate room vault exists and is correct
+    // Note: The vault is created by the Solana program during room initialization
     try {
       const vaultAccountInfo = await connection.getAccountInfo(roomVault);
       if (!vaultAccountInfo) {
-        throw new Error(`Room vault account does not exist at ${roomVault.toBase58()}`);
+        console.error('[joinRoom] Room vault account does not exist at', roomVault.toBase58());
+        throw new Error(
+          `Room vault not found. This room may not have been properly deployed on-chain. ` +
+          `Room PDA: ${room.toBase58()}, Vault PDA: ${roomVault.toBase58()}. ` +
+          `Please create a new room instead of trying to join this one.`
+        );
       }
 
       const vaultTokenAccount = await getAccount(
@@ -1188,10 +1199,11 @@ export function useSolanaContract() {
       // Build transaction and simulate
       const tx = new Transaction().add(...instructions);
 
-      // Set fee payer and get FRESH recent blockhash
+      // Set fee payer and get FRESH recent blockhash with validity window
       tx.feePayer = publicKey;
-      const { blockhash } = await connection.getLatestBlockhash('finalized');
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
       tx.recentBlockhash = blockhash;
+      tx.lastValidBlockHeight = lastValidBlockHeight;
 
       console.log('[joinRoom] Transaction prepared with', instructions.length, 'instructions:',
         instructions.map((ix, i) => `${i}: ${ix.programId.toBase58().slice(0, 8)}...`).join(', '));
@@ -1215,11 +1227,26 @@ export function useSolanaContract() {
 
       console.log('[joinRoom] Simulation successful, sending transaction...');
 
-      // Send and confirm
-      const signature = await provider.sendAndConfirm(tx, [], {
-        skipPreflight: false,
-        commitment: 'confirmed',
+      // Send transaction with the SAME blockhash we simulated with
+      // Don't use provider.sendAndConfirm as it might fetch a new blockhash
+      const signedTx = await provider.wallet.signTransaction(tx);
+      const rawTx = signedTx.serialize();
+
+      const signature = await connection.sendRawTransaction(rawTx, {
+        skipPreflight: true, // We already simulated, skip preflight
+        maxRetries: 3,
       });
+
+      // Wait for confirmation
+      const confirmation = await connection.confirmTransaction({
+        signature,
+        blockhash,
+        lastValidBlockHeight,
+      }, 'confirmed');
+
+      if (confirmation.value.err) {
+        throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+      }
 
       console.log('✅ Player joined room successfully:', {
         signature,

@@ -1,0 +1,10 @@
+{
+  "tokenMint": "D55UpMC1mcBAi96PNuz4tdynYHEgubn5cCzXm3wwExGo",
+  "tokenAccount": "3wrS1bSo6mJeWMwLaVqL6bBFkU7uZKtzxPHCNXf6ops1",
+  "owner": "C1vn2MT7tZotZPjUJQDf9oo3dpZZ2tr7NxYLg8jTYgkw",
+  "decimals": 9,
+  "initialSupply": 1000,
+  "cluster": "devnet",
+  "explorerUrl": "https://explorer.solana.com/address/D55UpMC1mcBAi96PNuz4tdynYHEgubn5cCzXm3wwExGo?cluster=devnet",
+  "createdAt": "2025-11-02T11:36:50.857Z"
+}

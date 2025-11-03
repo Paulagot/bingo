@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { useQuizChainIntegration } from './useQuizChainIntegration';
 import { useStellarWalletContext } from '../chains/stellar/StellarWalletProvider';
 import { useSolanaWalletContext } from '../chains/solana/SolanaWalletProvider';
+import { useEvmProvider } from '../chains/evm/EvmWalletProvider';
 import type { SupportedChain, WalletConnectionResult, NetworkInfo } from '../chains/types';
 
 export interface WalletActions {
@@ -23,6 +24,7 @@ export function useWalletActions(opts?: Options): WalletActions {
   // Try to get contexts - they'll throw if provider not mounted, so we catch and set to null
   let stellar: ReturnType<typeof useStellarWalletContext> | null = null;
   let solana: ReturnType<typeof useSolanaWalletContext> | null = null;
+  let evm: ReturnType<typeof useEvmProvider> | null = null;
 
   // Note: This violates rules of hooks if called conditionally, so we use the pattern
   // where we always call the hook but handle the error if provider isn't mounted
@@ -38,6 +40,13 @@ export function useWalletActions(opts?: Options): WalletActions {
     solana = useSolanaWalletContext();
   } catch (e) {
     // Solana provider not mounted, that's ok
+  }
+
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    evm = useEvmProvider();
+  } catch (e) {
+    // EVM provider not mounted, that's ok
   }
 
   return useMemo<WalletActions>(() => {
@@ -61,11 +70,11 @@ export function useWalletActions(opts?: Options): WalletActions {
 
     const evmActions: WalletActions = {
       chain: 'evm',
-      connect: async () => ({ success: false, address: null, error: { code: 'WALLET_NOT_FOUND' as any, message: 'EVM wallet not implemented', timestamp: new Date() } }),
-      disconnect: async () => {},
-      isConnected: () => false,
-      getAddress: () => null,
-      getNetworkInfo: () => undefined,
+      connect: () => evm ? evm.connect() : Promise.resolve({ success: false, address: null, error: { code: 'WALLET_NOT_FOUND' as any, message: 'EVM provider not mounted', timestamp: new Date() } }),
+      disconnect: () => evm ? evm.disconnect() : Promise.resolve(),
+      isConnected: () => evm ? evm.isConnected : false,
+      getAddress: () => evm ? evm.address : null,
+      getNetworkInfo: () => evm?.getNetworkInfo?.() ?? undefined,
     };
 
     const solanaActions: WalletActions = {
