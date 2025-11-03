@@ -1386,6 +1386,92 @@
           "type": "bool"
         }
       ]
+    },
+    {
+      "name": "update_global_config",
+      "docs": [
+        "Update global configuration parameters (admin only)"
+      ],
+      "discriminator": [
+        164,
+        84,
+        130,
+        189,
+        111,
+        58,
+        250,
+        200
+      ],
+      "accounts": [
+        {
+          "name": "global_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  45,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "platform_wallet",
+          "type": {
+            "option": "pubkey"
+          }
+        },
+        {
+          "name": "charity_wallet",
+          "type": {
+            "option": "pubkey"
+          }
+        },
+        {
+          "name": "platform_fee_bps",
+          "type": {
+            "option": "u16"
+          }
+        },
+        {
+          "name": "max_host_fee_bps",
+          "type": {
+            "option": "u16"
+          }
+        },
+        {
+          "name": "max_prize_pool_bps",
+          "type": {
+            "option": "u16"
+          }
+        },
+        {
+          "name": "min_charity_bps",
+          "type": {
+            "option": "u16"
+          }
+        }
+      ]
     }
   ],
   "accounts": [
