@@ -80,7 +80,10 @@
       "Bash(npx ts-node:*)",
       "Bash(anchor run:*)",
       "Bash(export ANCHOR_PROVIDER_URL=\"https://api.devnet.solana.com\")",
-      "Bash(export ANCHOR_WALLET=\"$HOME/.config/solana/id.json\")"
+      "Bash(export ANCHOR_WALLET=\"$HOME/.config/solana/id.json\")",
+      "Bash(git reset:*)",
+      "Bash(start https://github.com/Paulagot/bingo/compare/develop...tino-solana-develop)",
+      "Bash(cmd //c \"cd /d C:\\Users\\isich\\bingo-solana-contracts\\bingo && anchor run update-charity\")"
     ],
     "deny": [],
     "ask": []
