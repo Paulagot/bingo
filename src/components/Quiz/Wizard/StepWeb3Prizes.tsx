@@ -89,16 +89,16 @@ const StepWeb3Prizes: FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst })
 
   // Constants
   const platformPct = 20; // fixed
-  // Allocatable bucket is 45%, minus personalTake → max prize pool available
-  const maxPrizePool = useMemo(() => Math.max(0, 45 - (personalTake || 0)), [personalTake]);
+  // Allocatable bucket is 40%, minus personalTake → max prize pool available
+  const maxPrizePool = useMemo(() => Math.max(0, 40 - (personalTake || 0)), [personalTake]);
 
-  // Charity = base 35 + any unallocated from allocatable bucket (45%)
+  // Charity = base 40 + any unallocated from allocatable bucket (40%)
   const charityPct = useMemo(
     () =>
-      35 +
+      40 +
       Math.max(
         0,
-        45 - (personalTake || 0) - (prizeSource === 'pool' ? prizePoolPct || 0 : 0)
+        40 - (personalTake || 0) - (prizeSource === 'pool' ? prizePoolPct || 0 : 0)
       ),
     [personalTake, prizePoolPct, prizeSource]
   );
