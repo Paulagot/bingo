@@ -1,5 +1,7 @@
 // server/api/tgb/create-deposit-address.js
 import { getAccessToken, tgbBaseUrl } from '../auth.js';
+import { loggers, logExternalApi, logError } from '../../config/logging.js';
+const tgbLogger = loggers.tgb;
 
 function assertString(name, val) {
   if (typeof val !== 'string' || !val.trim()) {
@@ -39,6 +41,15 @@ export default async function createDepositAddress(req, res) {
     // ---------- MOCK SHORT-CIRCUIT (safe for testing) ----------
     // If mock mode is enabled, we skip all external calls and return a stable shape.
     if (isMockEnabled(req)) {
+      tgbLogger.warn({
+        requestId: req.requestId,
+        organizationId,
+        currency,
+        network,
+        amount,
+        mockMode: true
+      }, 'TGB API call running in MOCK MODE');
+
       // Feel free to tweak the address format to match your EVM/Solana testing needs
       // Example returns an EVM-like address; uncomment the Solana example if you prefer.
       const mock = {
@@ -46,7 +57,7 @@ export default async function createDepositAddress(req, res) {
         // EVM-looking test address:
         depositAddress: '0xb7ACd1159dBed96B955C4d856fc001De9be59844',
         // Or Solana-looking test address for SPL testing:
-        // depositAddress: '7q1Z6dQexV9HcZ7q1Z6dQexV9HcZ7q1Z6dQexV9HcZ7',
+        depositAddress: '7q1Z6dQexV9HcZ7q1Z6dQexV9HcZ7q1Z6dQexV9HcZ7',
         depositTag: null,
         id: 'tgb-mock-deposit-id',
         requestId: 'tgb-mock-req-1',
@@ -69,6 +80,15 @@ export default async function createDepositAddress(req, res) {
     // NOTE: If you want to avoid *any* network traffic while testing, you can
     // comment out the fetch block below. Keeping it here but behind the mock flag
     // means you won't need to toggle code later—just switch env/param.
+
+    const startTime = Date.now();
+    tgbLogger.info({
+      requestId: req.requestId,
+      method: 'POST',
+      url,
+      payload: { organizationId, currency, network, amount, hasDonor: !!donor }
+    }, 'TGB API request: create deposit address');
+
     const tgbRes = await fetch(url, {
       method: 'POST',
       headers: {
@@ -78,8 +98,19 @@ export default async function createDepositAddress(req, res) {
       body: JSON.stringify(payload)
     });
 
+    const duration = Date.now() - startTime;
     const text = await tgbRes.text();
+
     if (!tgbRes.ok) {
+      logExternalApi(tgbLogger, {
+        method: 'POST',
+        url,
+        duration,
+        statusCode: tgbRes.status,
+        requestId: req.requestId,
+        error: { message: 'TGB API failed', code: tgbRes.status }
+      });
+
       return res.status(tgbRes.status).json({
         ok: false,
         error: 'TGB create deposit address failed',
@@ -89,6 +120,14 @@ export default async function createDepositAddress(req, res) {
     }
 
     const data = tryParse(text);
+
+    logExternalApi(tgbLogger, {
+      method: 'POST',
+      url,
+      duration,
+      statusCode: tgbRes.status,
+      requestId: req.requestId
+    });
 
     const out = {
       ok: true,
@@ -100,6 +139,12 @@ export default async function createDepositAddress(req, res) {
     };
 
     if (!out.depositAddress) {
+      tgbLogger.error({
+        requestId: req.requestId,
+        error: 'No depositAddress in TGB response',
+        tgbResponse: data
+      }, 'TGB API returned invalid response');
+
       return res.status(502).json({
         ok: false,
         error: 'No depositAddress returned by TGB.',
@@ -107,9 +152,19 @@ export default async function createDepositAddress(req, res) {
       });
     }
 
+    tgbLogger.info({
+      requestId: req.requestId,
+      depositAddress: out.depositAddress,
+      depositId: out.id
+    }, 'TGB deposit address created successfully');
+
     return res.json(out);
   } catch (err) {
-    console.error('create-deposit-address error:', err);
+    logError(tgbLogger, err, {
+      requestId: req.requestId,
+      endpoint: 'create-deposit-address',
+      organizationId: req.body?.organizationId
+    });
     return res.status(500).json({ ok: false, error: err?.message ?? 'Server error' });
   }
 }
