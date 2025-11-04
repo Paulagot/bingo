@@ -90,7 +90,7 @@ app.post('/api/tgb/webhook', tgbWebhookHandler);
 if (!isProd) {
   console.log('🔧 Development mode: Adding auth bypass endpoints');
 
-  // Mock login endpoint
+  // login endpoint
   app.post('/mgmt/api/clubs/login', (req, res) => {
     console.log('📝 DEV: Mock login request:', req.body.email);
     res.json({
@@ -111,7 +111,7 @@ if (!isProd) {
     });
   });
 
-  // Mock register endpoint
+  // register endpoint
   app.post('/mgmt/api/clubs/register', (req, res) => {
     console.log('📝 DEV: Mock register request:', req.body.email);
     res.json({
@@ -120,7 +120,7 @@ if (!isProd) {
     });
   });
 
-  // Mock me endpoint
+  //  me endpoint
   app.get('/mgmt/api/clubs/me', (req, res) => {
     console.log('📝 DEV: Mock /me request');
     res.json({
@@ -139,7 +139,7 @@ if (!isProd) {
     });
   });
 
-  // Mock entitlements endpoint
+  // entitlements endpoint
   app.get('/quiz/api/me/entitlements', (req, res) => {
     console.log('📝 DEV: Mock entitlements request');
     res.json({
@@ -229,7 +229,7 @@ const cspDirectives = {
   imgSrc: ["'self'", "data:", "https:"],
   fontSrc: ["'self'", "https:", "data:"],
   connectSrc: ["'self'", "https:", "wss:", "https://mgtsystem-production.up.railway.app"],
-  frameSrc: ["'self'", "https://www.youtube.com"],
+  frameSrc: ["'self'", "https://www.youtube.com", "https://www.youtube-nocookie.com"],
   frameAncestors: ["'self'"],
   // ❌ do NOT include upgradeInsecureRequests in Report-Only
 };
