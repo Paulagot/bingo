@@ -36,8 +36,8 @@ export const roundTypes: RoundTypeDefinition[] = [
       questionsPerRound: 8,
       timePerQuestion: 22,
       pointsPerDifficulty: { easy: 6, medium: 7, hard: 8 },
-      pointsLostPerWrong: 2,
-      pointsLostPerUnanswered: 3,
+      pointsLostPerWrong: 3,
+      pointsLostPerUnanswered: 4,
     },
   },
 ];

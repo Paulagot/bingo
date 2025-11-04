@@ -9,6 +9,7 @@ import { roundTypeDefinitions, fundraisingExtraDefinitions } from '../quiz/quizM
 import { handleGlobalExtra } from './handlers/globalExtrasHandler.js';
 import { resetGlobalExtrasForNewRound } from './handlers/globalExtrasHandler.js';
 import { FreezeService } from '../quiz/gameplayEngines/services/FreezeServices.js';
+import { describeScoringForUI } from './handlers/scoringUtils.js';
 
 const quizRooms = new Map();
 const debug = false;
@@ -301,23 +302,44 @@ export function emitRoomState(namespace, roomId) {
     return;
   }
 
-  const totalRounds = room.config.roundDefinitions?.length || 1;
-  const roundIndex = room.currentRound - 1;
-  const roundTypeId = room.config.roundDefinitions?.[roundIndex]?.roundType || '';
+  const totalRounds   = room.config.roundDefinitions?.length || 1;
+  const roundIndex    = (room.currentRound || 1) - 1;
+  const roundTypeId   = room.config.roundDefinitions?.[roundIndex]?.roundType || '';
   const roundTypeName = roundTypeDefinitions[roundTypeId]?.name || roundTypeId || '';
 
-  namespace.to(roomId).emit('room_state', {
+  // ✅ Server-truth scoring summary for this round (merges defaults + overrides)
+  let scoringSummary = null;
+  try {
+    scoringSummary = describeScoringForUI(room, roundIndex);
+  } catch (e) {
+    console.error('[quizRoomManager] scoringSummary error:', e?.message);
+  }
+
+  const payload = {
+    roomId,
     currentRound: room.currentRound,
     totalRounds,
     roundTypeId,
     roundTypeName,
     totalPlayers: room.players.length,
     phase: room.currentPhase,
-    caps: room.roomCaps
-  });
+    caps: room.roomCaps,
+    // 👇 add it here
+    scoringSummary, 
+  };
 
-  if (debug) console.log(`[quizRoomManager] ✅ Emitted room_state for ${roomId}: Round ${room.currentRound}/${totalRounds}, Type: ${roundTypeName}, Players: ${room.players.length}, Phase: ${room.currentPhase}`);
+  namespace.to(roomId).emit('room_state', payload);
+
+  if (debug) {
+    console.log(
+      `[quizRoomManager] ✅ Emitted room_state for ${roomId}: ` +
+      `Round ${room.currentRound}/${totalRounds}, Type: ${roundTypeName}, ` +
+      `Players: ${room.players.length}, Phase: ${room.currentPhase}`
+    );
+  }
 }
+
+
 
 export function addOrUpdatePlayer(roomId, player) {
   const room = quizRooms.get(roomId);

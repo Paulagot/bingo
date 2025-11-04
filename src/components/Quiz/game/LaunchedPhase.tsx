@@ -26,7 +26,7 @@ const LaunchedPhase: React.FC<LaunchedPhaseProps> = ({
   const roundMetadata = roundTypeDefinitions[roundTypeId];
 
   const isInitialLaunch = roomPhase === 'launched';
-  const isBetweenRounds = roomPhase === 'waiting' && currentRound > 1;
+ 
 
   useEffect(() => {
     const timer = setTimeout(() => setIsVisible(true), 100);

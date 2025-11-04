@@ -50,6 +50,7 @@ const QuizGameWaitingPage = () => {
   const [showPrizes, setShowPrizes] = useState(false);
   const [showArsenal, setShowArsenal] = useState(false);
   const hasJoinedRef = useRef(false);
+  const [serverScoring, setServerScoring] = useState<any | null>(null);
 
   debugLog.lifecycle('🚀 QuizGameWaitingPage mount');
   debugLog.data('Component params', { roomId, playerId });
@@ -197,15 +198,17 @@ const QuizGameWaitingPage = () => {
       debugLog.event('🎯 room_config received', roomConfig);
     };
 
-    const handleRoomState = (data: any) => {
-      debugLog.event('🎯 room_state received in waiting page', data);
-      if (data.phase && (data.phase === 'asking' || data.phase === 'reviewing' || data.phase === 'leaderboard' || data.phase === 'tiebreaker')) {
-        debugLog.info('🎮 Game detected as active - redirecting to play page');
-        setTimeout(() => {
-          navigate(`/quiz/play/${roomId}/${playerId}`);
-        }, 500);
-      }
-    };
+  const handleRoomState = (data: any) => {
+  debugLog.event('🎯 room_state received in waiting page', data);
+  if (data?.scoringSummary) setServerScoring(data.scoringSummary);
+
+  if (data.phase && (data.phase === 'asking' || data.phase === 'reviewing' || data.phase === 'leaderboard' || data.phase === 'tiebreaker')) {
+    debugLog.info('🎮 Game detected as active - redirecting to play page');
+    setTimeout(() => {
+      navigate(`/quiz/play/${roomId}/${playerId}`);
+    }, 500);
+  }
+};
 
     socket.on('player_list_updated', handlePlayerListUpdated);
     socket.on('room_config', handleRoomConfig);

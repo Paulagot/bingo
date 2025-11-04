@@ -42,9 +42,9 @@ const quizTemplates: QuizTemplate[] = [
         customConfig: {
           questionsPerRound: 4,
           timePerQuestion: 10,
-          pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
-          pointsLostPerWrong: 2,
-          pointsLostPerUnanswered: 3,
+          pointsPerDifficulty: { easy: 6, medium: 7, hard: 8 },
+          pointsLostPerWrong: 3,
+          pointsLostPerUnanswered: 4,
         },
       },
       {
@@ -53,9 +53,9 @@ const quizTemplates: QuizTemplate[] = [
         difficulty: 'hard',
         customConfig: {
           questionsPerRound: 40,
-          totalTimeSeconds: 75,
+          totalTimeSeconds: 25,
           skipAllowed: true,
-          pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
+          pointsPerDifficulty: { easy: 1, medium: 2, hard: 3 },
           pointsLostPerWrong: 0,
           pointsLostPerUnanswered: 0,
         },

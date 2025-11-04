@@ -47,7 +47,7 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     id: 'speed_round',
     name: 'Speed Round',
     icon: '⚡',
-    description: 'Answer as many True/False as possible in 75 seconds. You can skip.',
+    description: 'Answer as many questions as possible in 75 seconds. You can skip.',
     gameplay: 'Host starts → 75s global timer → tap answer 1 / answer 2/ Skip → instant scoring → Review → Round Leaderboard.',
     pros: ['Fast-paced', 'Mobile-friendly', 'High engagement'],
     timing: '75 seconds',
