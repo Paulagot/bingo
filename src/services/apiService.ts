@@ -1,67 +1,121 @@
 // src/services/apiService.ts
-const MGMT_API_BASE_URL = import.meta.env.VITE_MGMT_API_URL || 'http://localhost:3001/mgmt/api';
-const QUIZ_API_BASE_URL = import.meta.env.VITE_QUIZ_API_URL || 'http://localhost:3001';
-const Debug = true; // Set to true to enable debug logs
+
+function stripTrailingSlash(s: string) {
+  return s.replace(/\/+$/, '');
+}
+function ensureLeadingSlash(s: string) {
+  return s.startsWith('/') ? s : `/${s}`;
+}
+
+/** 🔧 Resolve bases at build time (no localhost fallback in prod/staging) */
+const MGMT_API_BASE_URL = (() => {
+  const v = import.meta.env.VITE_MGMT_API_URL?.trim();
+  if (!v) throw new Error('VITE_MGMT_API_URL is missing at build time');
+  return stripTrailingSlash(v);
+})();
+
+const QUIZ_API_BASE_URL = (() => {
+  const v = import.meta.env.VITE_QUIZ_API_URL?.trim();
+  if (!v) throw new Error('VITE_QUIZ_API_URL is missing at build time');
+  return stripTrailingSlash(v);
+})();
+
+/** 🔎 One-time boot logs (safe to keep on staging) */
+(() => {
+  // Don’t log anything secret; just the bases + mode
+  // eslint-disable-next-line no-console
+  console.info(
+    `[api] MODE=${import.meta.env.MODE} | MGMT_BASE=${MGMT_API_BASE_URL} | QUIZ_BASE=${QUIZ_API_BASE_URL}`
+  );
+})();
+
+const Debug = true;
 
 class ApiService {
   private getAuthHeaders() {
     const token = localStorage.getItem('auth_token');
     return {
       'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` })
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
   }
 
-  
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {},
+    useManagementAPI = false
+  ): Promise<T> {
+    const base = useManagementAPI ? MGMT_API_BASE_URL : QUIZ_API_BASE_URL;
+    const url = `${base}${ensureLeadingSlash(endpoint)}`;
 
-  private async request<T>(endpoint: string, options: RequestInit = {}, useManagementAPI: boolean = false): Promise<T> {
-    const baseURL = useManagementAPI ? MGMT_API_BASE_URL : QUIZ_API_BASE_URL;
-    const url = `${baseURL}${endpoint}`;
-    
-    const config: RequestInit = {
-      headers: this.getAuthHeaders(),
-      ...options,
-    };
-
-   if (Debug) console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
-
-    try {
-      const response = await fetch(url, config);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-     if (Debug) console.error(`💥 API Error (${endpoint}):`, error);
-      throw error;
+    if (Debug) {
+      // eslint-disable-next-line no-console
+      console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
     }
+
+    const res = await fetch(url, {
+      credentials: 'include',
+      ...options,
+      headers: {
+        ...this.getAuthHeaders(),
+        ...(options.headers || {}),
+      },
+    });
+
+    if (!res.ok) {
+      let errorPayload: any = {};
+      try {
+        errorPayload = await res.json();
+      } catch {
+        /* ignore JSON parse errors */
+      }
+      const message =
+        errorPayload?.error ||
+        errorPayload?.message ||
+        `HTTP ${res.status} ${res.statusText}`;
+      if (Debug) {
+        // eslint-disable-next-line no-console
+        console.error(`💥 API Error (${endpoint}):`, {
+          status: res.status,
+          statusText: res.statusText,
+          message,
+        });
+      }
+      throw new Error(message);
+    }
+
+    const data = (await res.json()) as T;
+    return data;
   }
 
-  // 🔐 AUTHENTICATION (calls management system)
-async registerClub(data: { 
-  name: string; 
-  email: string; 
-  password: string;
-  gdprConsent: boolean;
-  privacyPolicyAccepted: boolean;
-  marketingConsent?: boolean;
-}) {
-  return this.request('/clubs/register', {
-    method: 'POST',
-    body: JSON.stringify({
-      name: data.name,
-      email: data.email,
-      password: data.password,
-      gdprConsent: data.gdprConsent,
-      privacyPolicyAccepted: data.privacyPolicyAccepted,
-      marketingConsent: data.marketingConsent || false
-    }),
-  }, true); // Add this parameter to use management API
-}
+  // ─────────────────────────────────────────────────────────
+  // 🔐 MANAGEMENT API (uses MGMT_API_BASE_URL)
+  // ─────────────────────────────────────────────────────────
 
+  async registerClub(data: {
+    name: string;
+    email: string;
+    password: string;
+    gdprConsent: boolean;
+    privacyPolicyAccepted: boolean;
+    marketingConsent?: boolean;
+  }) {
+    return this.request(
+      '/clubs/register',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          name: data.name,
+          email: data.email,
+          password: data.password,
+          gdprConsent: data.gdprConsent,
+          privacyPolicyAccepted: data.privacyPolicyAccepted,
+          marketingConsent: !!data.marketingConsent,
+        }),
+      },
+      true
+    );
+  }
 
   async loginClub(credentials: { email: string; password: string }) {
     return this.request<{
@@ -69,20 +123,28 @@ async registerClub(data: {
       token: string;
       user: any;
       club: any;
-    }>('/clubs/login', {
-      method: 'POST',
-      body: JSON.stringify(credentials),
-    }, true); // Use management API
+    }>(
+      '/clubs/login',
+      {
+        method: 'POST',
+        body: JSON.stringify(credentials),
+      },
+      true
+    );
   }
 
   async getCurrentUser() {
-    return this.request<{
-      user: any;
-      club: any;
-    }>('/clubs/me', {}, true); // Use management API
+    return this.request<{ user: any; club: any }>(
+      '/clubs/me',
+      {},
+      true
+    );
   }
 
-  // 🎯 QUIZ SPECIFIC (calls quiz API)
+  // ─────────────────────────────────────────────────────────
+  // 🎯 QUIZ API (uses QUIZ_API_BASE_URL)
+  // ─────────────────────────────────────────────────────────
+
   async getEntitlements() {
     return this.request<{
       max_players_per_game: number;
@@ -91,25 +153,25 @@ async registerClub(data: {
       extras_allowed: string[];
       concurrent_rooms: number;
       game_credits_remaining: number;
-        plan_id: number | null;          // ✅ expose plan_id from backend entitlements
-     plan_code?: string; 
+      plan_id: number | null;
+      plan_code?: string;
     }>('/quiz/api/me/entitlements');
   }
-// Add this method to your ApiService class in apiService.ts
 
-async createWeb3Room(roomData: { config: any; roomId: string; hostId: string }) {
-  return this.request<{
-    roomId: string;
-    hostId: string;
-    contractAddress: string;
-    deploymentTxHash: string;
-    roomCaps: any;
-    verified: boolean;
-  }>('/quiz/api/create-web3-room', {
-    method: 'POST',
-    body: JSON.stringify(roomData),
-  });
-}
+  async createWeb3Room(roomData: { config: any; roomId: string; hostId: string }) {
+    return this.request<{
+      roomId: string;
+      hostId: string;
+      contractAddress: string;
+      deploymentTxHash: string;
+      roomCaps: any;
+      verified: boolean;
+    }>('/quiz/api/create-web3-room', {
+      method: 'POST',
+      body: JSON.stringify(roomData),
+    });
+  }
+
   async createRoom(roomData: { config: any; roomId: string; hostId: string }) {
     return this.request<{
       roomId: string;

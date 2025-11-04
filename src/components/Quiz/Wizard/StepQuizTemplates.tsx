@@ -165,7 +165,7 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
 
    // ── Entitlements load (logged-in users only). If unauth (web3-only), this fails → not Dev.
   const [ents, setEnts] = useState<any | null>(null);
-  const [entsLoaded, setEntsLoaded] = useState(false);
+  const [_entsLoaded, setEntsLoaded] = useState(false);
 
   useEffect(() => {
     apiService
@@ -269,7 +269,9 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
     const roundDefinitions = template.rounds.map((round, index) => {
       let cfg = { ...roundTypeDefaults[round.type], ...(round.customConfig ?? {}) };
 
-      if (templateId === 'demo-quiz' && round.type === 'wipeout') {
+    // ---- Demo-specific hard overrides (authoritative) ----
+    if (templateId === 'demo-quiz') {
+      if (round.type === 'wipeout') {
         cfg = {
           questionsPerRound: 4,
           timePerQuestion: 10,
@@ -278,21 +280,34 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
           pointsLostPerUnanswered: 3,
         } as RoundConfig;
       }
+      if (round.type === 'speed_round') {
+        // Make the speed round explicit too
+        cfg = {
+          ...cfg,                       // keep any fields your RoundConfig requires
+          questionsPerRound: 40,        // you already set this in the template; repeat to be explicit
+          totalTimeSeconds: 20,
+          skipAllowed: true,
+          pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
+          pointsLostPerWrong: 0,
+          pointsLostPerUnanswered: 0,
+        } as RoundConfig;
+      }
+    }
 
-      return {
-        roundNumber: index + 1,
-        roundType: round.type,
-        category: round.category,
-        difficulty: round.difficulty,
-        config: cfg,
-        enabledExtras: {},
-      };
-    });
+    return {
+      roundNumber: index + 1,
+      roundType: round.type,
+      category: round.category,
+      difficulty: round.difficulty,
+      config: cfg,
+      enabledExtras: {},
+    };
+  });
 
-    updateSetupConfig({
-      roundDefinitions,
-      skipRoundConfiguration: templateId !== 'custom',
-    });
+  updateSetupConfig({
+    roundDefinitions,
+    skipRoundConfiguration: templateId !== 'custom',
+  });
   };
 
   const getDifficultyBadge = (difficulty: 'Easy' | 'Medium' | 'Hard') => {
