@@ -44,6 +44,7 @@
     "@solana/web3.js": "^1.98.2",
     "@stellar/stellar-sdk": "^14.1.0",
     "@tanstack/react-query": "^5.74.4",
+    "@wagmi/core": "^2.22.1",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
     "bs58": "^6.0.0",
@@ -74,7 +75,7 @@
     "react-router-dom": "^6.22.2",
     "sonner": "^2.0.7",
     "uuid": "^11.1.0",
-    "viem": "^2.26.3",
+    "viem": "^2",
     "wagmi": "^2.15.3",
     "zod": "^3.25.76",
     "zustand": "^4.5.7"
@@ -131,5 +132,6 @@
     "@walletconnect/solana-adapter": {
       "@reown/appkit": "1.7.5"
     }
-  }
+  },
+  "packageManager": "pnpm@10.18.2+sha512.9fb969fa749b3ade6035e0f109f0b8a60b5d08a1a87fdf72e337da90dcc93336e2280ca4e44f2358a649b83c17959e9993e777c2080879f3801e6f0d999ad3dd"
 }
