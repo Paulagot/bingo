@@ -11,9 +11,9 @@ import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { LAMPORTS_PER_SOL, type Cluster } from '@solana/web3.js';
 import { useWalletStore } from '../../stores/walletStore';
-import type { WalletConnectionResult, TransactionResult, WalletError } from '../types';
+import type { WalletConnectionResult,WalletError } from '../types';
 import { WalletErrorCode } from '../types';
-import { solanaStorageKeys, NETWORK, getRpcEndpoint } from './config';
+import { solanaStorageKeys, NETWORK } from './config';
 
 export const useSolanaWallet = () => {
   // ===================================================================
@@ -23,7 +23,7 @@ export const useSolanaWallet = () => {
   const solanaWallet = useWallet();
   const { connection } = useConnection();
   const { setVisible } = useWalletModal();
-  const { solana: solanaState, updateSolanaWallet, resetWallet, setActiveChain } = useWalletStore();
+  const { solana: solanaState, updateSolanaWallet,  setActiveChain } = useWalletStore();
 
   const [isInitialized, setIsInitialized] = useState(false);
   const [currentCluster, setCurrentCluster] = useState<Cluster>(NETWORK);
@@ -171,7 +171,7 @@ export const useSolanaWallet = () => {
                 success: false,
                 address: null,
                 error: createWalletError(
-                  WalletErrorCode.USER_REJECTED,
+                  WalletErrorCode.CONNECTION_FAILED,
                   'Wallet connection timed out or was cancelled'
                 ),
               });
@@ -222,7 +222,7 @@ export const useSolanaWallet = () => {
 
       updateSolanaWallet({
         isConnecting: false,
-        error: walletError.message,
+        error: walletError
       });
 
       console.error('❌ Solana connection failed:', error);
