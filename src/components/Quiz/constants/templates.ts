@@ -53,7 +53,7 @@ const quizTemplates: QuizTemplate[] = [
         difficulty: 'hard',
         customConfig: {
           questionsPerRound: 40,
-          totalTimeSeconds: 75,
+          totalTimeSeconds: 20,
           skipAllowed: true,
           pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
           pointsLostPerWrong: 0,

@@ -231,7 +231,7 @@ const JoinImpactCampaignPage: React.FC = () => {
                   </p>
 
                   <p className="text-indigo-900/80 mb-6 leading-relaxed">
-                    We are now live on Base Sepolia and Avalanche Fuji. Solana testnet coming soon. We are going live on mainnet on Solana, Base and Avalanche for the campaign launch in November.
+                    We are now live on Base Sepolia and Avalanche Fuji and Solana Devent. We are going live on mainnet on Solana, Base and Avalanche for the campaign launch in November.
                   </p>
 
                   <div className="flex flex-wrap gap-3">
@@ -570,7 +570,7 @@ const JoinImpactCampaignPage: React.FC = () => {
                       </div>
                       <h3 className="text-indigo-900 font-bold text-lg">Solana</h3>
                     </div>
-                    <p className="text-sm text-indigo-900/70">SOL · USDC · PYUSD</p>
+                    <p className="text-sm text-indigo-900/70"> · USDC · PYUSD</p>
                   </div>
                   <div>
                     <div className="flex items-center gap-3 mb-2">
