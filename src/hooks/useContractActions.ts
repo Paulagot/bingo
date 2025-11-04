@@ -97,6 +97,8 @@ type DistributeArgs = {
   charityOrgId?: string;
   charityName?: string;
   charityAddress?: string;
+   web3Chain?: string;     // 👈 add
+  evmNetwork?: string,
 };
 
 type DistributeResult =

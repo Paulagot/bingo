@@ -128,7 +128,9 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
       roomAddress: data.roomAddress,
       charityOrgId: data.charityOrgId,       // ✅ ADD
       charityName: data.charityName,         // ✅ ADD
-      charityAddress: data.charityAddress,   // ✅ ADD
+      charityAddress: data.charityAddress,
+       web3Chain: data.web3Chain,     // 👈 add
+  evmNetwork: data.evmNetwork,   // ✅ ADD
     });
 
         console.log('📊 [Frontend] distributePrizes result:', result);

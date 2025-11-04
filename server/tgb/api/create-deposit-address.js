@@ -1,4 +1,3 @@
-// server/api/tgb/create-deposit-address.js
 import { getAccessToken, tgbBaseUrl } from '../auth.js';
 import { loggers, logExternalApi, logError } from '../../config/logging.js';
 const tgbLogger = loggers.tgb;
@@ -13,6 +12,50 @@ function tryParse(s) {
   try { return JSON.parse(s); } catch { return s; }
 }
 
+// ---------- Network helpers ----------
+function normalizeNetwork(n) {
+  const s = String(n || '').toLowerCase().trim();
+
+  // common aliases
+  if (['eth', 'ethereum', 'mainnet'].includes(s)) return 'ethereum';
+  if (s.startsWith('base')) return 'base';               // base, base-sepolia
+  if (s.startsWith('polygon') || s === 'matic') return 'polygon';
+  if (s.startsWith('arbitrum')) return 'arbitrum';
+  if (s.startsWith('optimism') || s === 'op') return 'optimism';
+  if (s === 'bsc' || s.includes('binance')) return 'bsc';
+  if (s.includes('sol')) return 'solana';
+  if (s.includes('stellar') || s === 'xlm') return 'stellar';
+  if (s.includes('xrp') || s.includes('ripple')) return 'xrp';
+
+  return s; // fallback
+}
+
+function isEvmLike(n) {
+  const s = normalizeNetwork(n);
+  return ['ethereum', 'base', 'polygon', 'arbitrum', 'optimism', 'bsc'].includes(s);
+}
+
+// ---------- Address validators (soft) ----------
+const looksEvm = (s) => /^0x[a-fA-F0-9]{40}$/.test(s);
+const looksSol = (s) => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s);   // base58-ish
+const looksStellar = (s) => /^G[A-Z2-7]{55}$/.test(s);
+
+// ---------- Mock address makers ----------
+function mockEvmAddress() {
+  // deterministic-ish but obviously fake
+  return '0xb7ACd1159dBed96B955C4d856fc001De9be59844';
+}
+function mockSolAddress() {
+  return '7q1Z6dQexV9HcZ7q1Z6dQexV9HcZ7q1Z6dQexV9HcZ7';
+}
+function mockStellarAddress() {
+  return 'GCF3Z7C6WJ6QX5M3Q7C7J2E6YJ5N4M2Q1P8R7T6U5S4R3Q2P1O';
+}
+function mockXrpAddress() {
+  // xrp classic address (not x-address), just for format
+  return 'rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe';
+}
+
 // Small helper: check multiple ways to enable mock mode
 function isMockEnabled(req) {
   if (process.env.TGB_FORCE_MOCK === 'true') return true;
@@ -25,12 +68,12 @@ export default async function createDepositAddress(req, res) {
   try {
     const {
       organizationId,
-      currency,     // e.g. "USDC" | "SOL"
-      network,      // e.g. "solana" | "ethereum" | "base" | "polygon"
+      currency,     // e.g. "USDC" | "SOL" | "XLM"
+      network,      // e.g. "solana" | "ethereum" | "base" | "polygon" | "stellar"
       amount,       // decimal string, e.g. "25.00"
       donor,        // { email?, name? } optional
       metadata      // optional
-      // mock?: true  // optional flag if you want to drive mock per-request
+      // mock?: true
     } = req.body || {};
 
     assertString('organizationId', organizationId);
@@ -38,55 +81,63 @@ export default async function createDepositAddress(req, res) {
     assertString('network', network);
     assertString('amount', amount);
 
-    // ---------- MOCK SHORT-CIRCUIT (safe for testing) ----------
-    // If mock mode is enabled, we skip all external calls and return a stable shape.
+    const netNorm = normalizeNetwork(network);
+
+    // ---------- MOCK SHORT-CIRCUIT ----------
     if (isMockEnabled(req)) {
       tgbLogger.warn({
         requestId: req.requestId,
         organizationId,
         currency,
         network,
+        netNorm,
         amount,
         mockMode: true
       }, 'TGB API call running in MOCK MODE');
 
-      // Feel free to tweak the address format to match your EVM/Solana testing needs
-      // Example returns an EVM-like address; uncomment the Solana example if you prefer.
+      let depositAddress = '';
+      let depositTag = null;
+
+      if (isEvmLike(netNorm)) {
+        depositAddress = mockEvmAddress();
+      } else if (netNorm === 'solana') {
+        depositAddress = mockSolAddress();
+      } else if (netNorm === 'stellar') {
+        depositAddress = mockStellarAddress();
+      } else if (netNorm === 'xrp') {
+        depositAddress = mockXrpAddress();
+        depositTag = '123456'; // example for tag-based chains
+      } else {
+        // default to EVM style if unknown
+        depositAddress = mockEvmAddress();
+      }
+
       const mock = {
         ok: true,
-        // EVM-looking test address:
-        depositAddress: '0xb7ACd1159dBed96B955C4d856fc001De9be59844',
-        // Or Solana-looking test address for SPL testing:
-        depositAddress: '7q1Z6dQexV9HcZ7q1Z6dQexV9HcZ7q1Z6dQexV9HcZ7',
-        depositTag: null,
+        depositAddress,
+        depositTag,
         id: 'tgb-mock-deposit-id',
         requestId: 'tgb-mock-req-1',
-        // qrCodeImageBase64: '<optional base64 png>',
-        // Echo back a bit of context for your logs/UI while testing:
-        _debug: { organizationId, currency, network, amount, donor, metadata, source: 'mock' }
+        _debug: { organizationId, currency, network, netNorm, amount, donor, metadata, source: 'mock' }
       };
       return res.json(mock);
     }
     // ---------- END MOCK SHORT-CIRCUIT ----------
 
-    // REAL CALL (kept intact but only runs when mock is off)
+    // REAL CALL
     const token = await getAccessToken();
-    const url = `${tgbBaseUrl()}/v1/deposit-address`; // endpoint name per mapping
+    const url = `${tgbBaseUrl()}/v1/deposit-address`;
 
-    const payload = { organizationId, currency, network, amount };
+    const payload = { organizationId, currency, network: netNorm, amount };
     if (donor) payload.donor = donor;
     if (metadata) payload.metadata = metadata;
-
-    // NOTE: If you want to avoid *any* network traffic while testing, you can
-    // comment out the fetch block below. Keeping it here but behind the mock flag
-    // means you won't need to toggle code later—just switch env/param.
 
     const startTime = Date.now();
     tgbLogger.info({
       requestId: req.requestId,
       method: 'POST',
       url,
-      payload: { organizationId, currency, network, amount, hasDonor: !!donor }
+      payload: { ...payload, hasDonor: !!donor }
     }, 'TGB API request: create deposit address');
 
     const tgbRes = await fetch(url, {
@@ -132,7 +183,7 @@ export default async function createDepositAddress(req, res) {
     const out = {
       ok: true,
       depositAddress: data?.depositAddress ?? data?.address ?? '',
-      depositTag: data?.depositTag ?? null,          // only for tag-based chains (e.g. XRP)
+      depositTag: data?.depositTag ?? null,
       id: data?.id ?? data?.depositId ?? undefined,
       requestId: data?.requestId ?? undefined,
       qrCodeImageBase64: data?.qrCodeBase64 ?? undefined
@@ -152,10 +203,30 @@ export default async function createDepositAddress(req, res) {
       });
     }
 
+    // Soft-validate returned address shape vs requested network & log if odd
+    const addr = out.depositAddress;
+    let valid = true, expect = 'any';
+    if (isEvmLike(netNorm)) {
+      valid = looksEvm(addr); expect = 'EVM 0x…';
+    } else if (netNorm === 'solana') {
+      valid = looksSol(addr); expect = 'Solana base58';
+    } else if (netNorm === 'stellar') {
+      valid = looksStellar(addr); expect = 'Stellar G…';
+    }
+    if (!valid) {
+      tgbLogger.warn({
+        requestId: req.requestId,
+        networkRequested: netNorm,
+        depositAddress: addr,
+        expectedShape: expect
+      }, 'TGB address shape mismatch with requested network');
+    }
+
     tgbLogger.info({
       requestId: req.requestId,
       depositAddress: out.depositAddress,
-      depositId: out.id
+      depositId: out.id,
+      network: netNorm
     }, 'TGB deposit address created successfully');
 
     return res.json(out);
@@ -168,5 +239,6 @@ export default async function createDepositAddress(req, res) {
     return res.status(500).json({ ok: false, error: err?.message ?? 'Server error' });
   }
 }
+
 
 
