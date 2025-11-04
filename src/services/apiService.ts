@@ -7,29 +7,33 @@ function ensureLeadingSlash(s: string) {
   return s.startsWith('/') ? s : `/${s}`;
 }
 
-/** 🔧 Resolve bases at build time (no localhost fallback in prod/staging) */
+/**
+ * ✅ Use same-origin defaults so staging/prod need NO Vite envs.
+ * - MGMT calls hit '/mgmt/api/*' → your Node server proxies to MGMT_TARGET.
+ * - QUIZ calls use '' (same origin) → '/quiz/api/*' on your app.
+ * You can still override in local dev with Vite envs if you want.
+ */
 const MGMT_API_BASE_URL = (() => {
   const v = import.meta.env.VITE_MGMT_API_URL?.trim();
-  if (!v) throw new Error('VITE_MGMT_API_URL is missing at build time');
-  return stripTrailingSlash(v);
+  // Default to same-origin proxy
+  return stripTrailingSlash(v || '/mgmt/api');
 })();
 
 const QUIZ_API_BASE_URL = (() => {
   const v = import.meta.env.VITE_QUIZ_API_URL?.trim();
-  if (!v) throw new Error('VITE_QUIZ_API_URL is missing at build time');
-  return stripTrailingSlash(v);
-})();
-
-/** 🔎 One-time boot logs (safe to keep on staging) */
-(() => {
-  // Don’t log anything secret; just the bases + mode
-  // eslint-disable-next-line no-console
-  console.info(
-    `[api] MODE=${import.meta.env.MODE} | MGMT_BASE=${MGMT_API_BASE_URL} | QUIZ_BASE=${QUIZ_API_BASE_URL}`
-  );
+  // Default to same-origin
+  return stripTrailingSlash(v || '');
 })();
 
 const Debug = true;
+
+// One-time boot log
+(() => {
+  // eslint-disable-next-line no-console
+  console.info(
+    `[api] MODE=${import.meta.env.MODE} | MGMT_BASE=${MGMT_API_BASE_URL || '(relative /mgmt/api)'} | QUIZ_BASE=${QUIZ_API_BASE_URL || '(relative)'}`
+  );
+})();
 
 class ApiService {
   private getAuthHeaders() {
@@ -63,16 +67,10 @@ class ApiService {
     });
 
     if (!res.ok) {
-      let errorPayload: any = {};
-      try {
-        errorPayload = await res.json();
-      } catch {
-        /* ignore JSON parse errors */
-      }
+      let payload: any = {};
+      try { payload = await res.json(); } catch { /* ignore */ }
       const message =
-        errorPayload?.error ||
-        errorPayload?.message ||
-        `HTTP ${res.status} ${res.statusText}`;
+        payload?.error || payload?.message || `HTTP ${res.status} ${res.statusText}`;
       if (Debug) {
         // eslint-disable-next-line no-console
         console.error(`💥 API Error (${endpoint}):`, {
@@ -84,14 +82,10 @@ class ApiService {
       throw new Error(message);
     }
 
-    const data = (await res.json()) as T;
-    return data;
+    return (await res.json()) as T;
   }
 
-  // ─────────────────────────────────────────────────────────
-  // 🔐 MANAGEMENT API (uses MGMT_API_BASE_URL)
-  // ─────────────────────────────────────────────────────────
-
+  // ───────────── MANAGEMENT (proxied by server) ─────────────
   async registerClub(data: {
     name: string;
     email: string;
@@ -125,10 +119,7 @@ class ApiService {
       club: any;
     }>(
       '/clubs/login',
-      {
-        method: 'POST',
-        body: JSON.stringify(credentials),
-      },
+      { method: 'POST', body: JSON.stringify(credentials) },
       true
     );
   }
@@ -141,10 +132,7 @@ class ApiService {
     );
   }
 
-  // ─────────────────────────────────────────────────────────
-  // 🎯 QUIZ API (uses QUIZ_API_BASE_URL)
-  // ─────────────────────────────────────────────────────────
-
+  // ─────────────────── QUIZ API (same origin) ───────────────────
   async getEntitlements() {
     return this.request<{
       max_players_per_game: number;
@@ -186,3 +174,4 @@ class ApiService {
 
 export const apiService = new ApiService();
 export default apiService;
+
