@@ -41,7 +41,6 @@ import helmet from 'helmet';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-import { createProxyMiddleware } from 'http-proxy-middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { logger, loggers, logRequest, logResponse } from './config/logging.js';
 
@@ -85,49 +84,6 @@ app.get('/health', (req, res) => {
 
 app.post('/api/tgb/create-deposit-address', createDepositAddress);
 app.post('/api/tgb/webhook', tgbWebhookHandler);
-
-// configurable target so you can change it per environment without code changes
-const MGMT_TARGET = process.env.MGMT_TARGET ?? 'https://mgtsystem-production.up.railway.app'; // no trailing /api
-console.log('🛰️ MGMT proxy target =', MGMT_TARGET);
-
-app.use(
-  '/mgmt/api',
-  createProxyMiddleware({
-    target: MGMT_TARGET,
-    changeOrigin: true,
-    secure: true,
-    pathRewrite: { '^/mgmt/api': '/api' }, // /mgmt/api/foo -> <MGMT_TARGET>/api/foo
-
-    // prevent 5-minute hangs
-    timeout: 20000,
-    proxyTimeout: 20000,
-    followRedirects: true,
-    ws: false,
-    logLevel: 'info',
-
-    onProxyReq: (proxyReq, req) => {
-      // e.g. proxyReq.setHeader('x-forwarded-host', req.get('host') || '');
-    },
-
-    onError: (err, req, res) => {
-      console.error('❌ MGMT proxy error:', {
-        message: err.message,
-        code: err.code,
-        target: MGMT_TARGET,
-        url: req.url,
-      });
-      if (!res.headersSent) {
-        res.status(502).json({
-          error: 'Management API upstream error',
-          code: err.code || 'UPSTREAM_ERROR',
-        });
-      } else {
-        try { res.end(); } catch {}
-      }
-    },
-  })
-);
-
 
 /* ──────────────────────────────────────────────────────────
    Security headers (safe defaults; CSP in Report-Only)
