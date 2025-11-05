@@ -218,7 +218,6 @@ use anchor_lang::prelude::*;
 use crate::state::{RoomStatus, PrizeMode};
 use crate::errors::BingoError;
 use crate::events::RoomCreated;
-use crate::security::{EmergencyGuard, InputValidator, AmountValidator};
 
 /// Create a pool-based room where prizes come from entry fee pool
 pub fn handler(
@@ -235,12 +234,16 @@ pub fn handler(
     charity_memo: String,
     expiration_slots: Option<u64>,
 ) -> Result<()> {
-    // Security checks
-    EmergencyGuard::check_not_paused(ctx.accounts.global_config.emergency_pause)?;
-    InputValidator::validate_room_id(&room_id)?;
-    InputValidator::validate_charity_memo(&charity_memo)?;
-    InputValidator::validate_max_players(max_players)?;
-    AmountValidator::validate_entry_fee(entry_fee)?;
+    // Check emergency pause
+    require!(
+        !ctx.accounts.global_config.emergency_pause,
+        BingoError::EmergencyPause
+    );
+
+    // Basic validation
+    require!(!room_id.is_empty(), BingoError::InvalidInput);
+    require!(max_players > 0 && max_players <= 1000, BingoError::InvalidInput);
+    require!(entry_fee > 0, BingoError::InvalidAmount);
 
     // Initialize vault if it doesn't exist
     if ctx.accounts.room_vault.data_is_empty() {

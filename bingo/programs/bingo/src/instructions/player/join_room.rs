@@ -272,7 +272,6 @@ use anchor_lang::prelude::*;
 use crate::state::RoomStatus;
 use crate::errors::BingoError;
 use crate::events::PlayerJoined;
-use crate::security::{EmergencyGuard, AmountValidator, ReentrancyGuard};
 
 /// Join a room by paying entry fee
 pub fn handler(
@@ -283,12 +282,18 @@ pub fn handler(
     let room = &mut ctx.accounts.room;
     let current_slot = Clock::get()?.slot;
 
-    // Security checks
-    EmergencyGuard::check_not_paused(ctx.accounts.global_config.emergency_pause)?;
-    ReentrancyGuard::check_room_not_ended(room.ended)?;
+    // Check emergency pause
+    require!(
+        !ctx.accounts.global_config.emergency_pause,
+        BingoError::EmergencyPause
+    );
+
+    // Check room not ended
+    require!(!room.ended, BingoError::RoomAlreadyEnded);
 
     // Validate amounts
-    let total_payment = AmountValidator::validate_total_payment(room.entry_fee, extras_amount)?;
+    let total_payment = room.entry_fee.checked_add(extras_amount)
+        .ok_or(BingoError::InvalidAmount)?;
 
     // Check if room has expired
     require!(

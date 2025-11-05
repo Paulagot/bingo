@@ -7,7 +7,6 @@ use crate::state::{RoomStatus, PrizeMode};
 use crate::errors::BingoError;
 use crate::events::RoomEnded;
 use crate::instructions::utils::calculate_bps;
-use crate::security::{ReentrancyGuard, EmergencyGuard};
 
 /// End room and distribute prizes to winners
 pub fn handler<'info>(
@@ -15,8 +14,8 @@ pub fn handler<'info>(
     _room_id: String,
     winners: Vec<Pubkey>,
 ) -> Result<()> {
-    // REENTRANCY PROTECTION: Check and set flags FIRST before any external calls
-    ReentrancyGuard::check_room_not_ended(ctx.accounts.room.ended)?;
+    // Check room not ended
+    require!(!ctx.accounts.room.ended, BingoError::RoomAlreadyEnded);
 
     require!(
         ctx.accounts.room.status == RoomStatus::Active,
@@ -24,11 +23,8 @@ pub fn handler<'info>(
     );
 
     // Set ended flag immediately to prevent reentrancy
-    ReentrancyGuard::set_ended_flag(
-        &mut ctx.accounts.room.ended,
-        &mut ctx.accounts.room.status,
-        RoomStatus::Ended,
-    )?;
+    ctx.accounts.room.ended = true;
+    ctx.accounts.room.status = RoomStatus::Ended;
 
     // Read room data and validate
     let current_slot = Clock::get()?.slot;
