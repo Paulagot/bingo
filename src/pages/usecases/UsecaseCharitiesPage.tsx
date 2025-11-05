@@ -264,7 +264,7 @@ const UsecaseCharitiesPage: React.FC = () => {
               title="Create Your Quiz Event"
               points={[
                 'Quick 4‑step wizard',
-                'Choose templates or customise rounds',
+                'Choose templates',
                 'Add fundraising extras & prizes with sponsor recognition'
               ]}
             />

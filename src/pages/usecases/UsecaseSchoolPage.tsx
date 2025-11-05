@@ -111,7 +111,7 @@ const UsecaseSchoolPage: React.FC = () => {
         acceptedAnswer: {
           '@type': 'Answer',
           text:
-            "FundRaisely offers pre-loaded family-friendly and child-freindly templates. Simply select the appropriate template during setup, or customise your own quiz questions to suit your school's needs.",
+            "FundRaisely offers pre-loaded family-friendly and child-freindly templates. Simply select the appropriate template during setup.",
         },
       },
       {
@@ -393,7 +393,7 @@ const UsecaseSchoolPage: React.FC = () => {
           <div className="grid gap-6 md:grid-cols-2">
             <FAQItem
               question="How can we ensure child-friendly content in our school fundraising quiz?"
-              answer="FundRaisely offers pre-loaded family-friendly and child-freindly templates. Simply select the appropriate template during setup, or customise your own quiz questions to suit your school's needs. "
+              answer="FundRaisely offers pre-loaded family-friendly and child-freindly templates. Simply select the appropriate template during setup. "
             />
             <FAQItem
               question="Is it easy for PTA volunteers to manage a fundraising quiz event?"

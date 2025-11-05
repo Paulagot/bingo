@@ -304,7 +304,7 @@ const QuizFeaturesPage: React.FC = () => {
               <FeatureCard
                 icon={<Sparkles className="h-5 w-5" />}
                 title="Professional Quiz Templates"
-                desc="Choose from expertly crafted quiz templates or create fully customized rounds tailored to your community's interests and knowledge base."
+                desc="Choose from expertly crafted quiz templates tailored to your community's interests and knowledge base."
                 gradient="from-rose-500 to-pink-500"
               />
               <FeatureCard
