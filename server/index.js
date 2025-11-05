@@ -85,7 +85,6 @@ app.get('/health', (req, res) => {
 app.post('/api/tgb/create-deposit-address', createDepositAddress);
 app.post('/api/tgb/webhook', tgbWebhookHandler);
 
-
 /* ──────────────────────────────────────────────────────────
    Security headers (safe defaults; CSP in Report-Only)
    ────────────────────────────────────────────────────────── */

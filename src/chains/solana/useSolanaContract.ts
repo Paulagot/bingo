@@ -812,7 +812,7 @@ export function useSolanaContract() {
    *
    * **Payment Breakdown:**
    * - Entry Fee: Goes to prize pool (distributed at end)
-   * - Extras: 100% to charity (immediate or at distribution)
+   * - Extras: Added to total pool, distributed proportionally among platform, host, prize pool, and charity (same split as entry fees)
    *
    * **Account Structure Created:**
    * - PlayerEntry PDA: Records player wallet, fees paid, join timestamp
@@ -1139,42 +1139,97 @@ export function useSolanaContract() {
 
     // Validate room vault exists and is correct
     // Note: The vault is created by the Solana program during room initialization
+    // Try multiple commitment levels to handle RPC timing issues
     try {
-      const vaultAccountInfo = await connection.getAccountInfo(roomVault);
+      let vaultAccountInfo = await connection.getAccountInfo(roomVault, 'confirmed');
       if (!vaultAccountInfo) {
-        console.error('[joinRoom] Room vault account does not exist at', roomVault.toBase58());
-        throw new Error(
-          `Room vault not found. This room may not have been properly deployed on-chain. ` +
-          `Room PDA: ${room.toBase58()}, Vault PDA: ${roomVault.toBase58()}. ` +
-          `Please create a new room instead of trying to join this one.`
-        );
+        // Retry with finalized commitment in case of RPC lag
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('[joinRoom] Vault not found at confirmed, trying finalized...');
+        }
+        vaultAccountInfo = await connection.getAccountInfo(roomVault, 'finalized');
       }
 
-      const vaultTokenAccount = await getAccount(
-        connection,
-        roomVault,
-        'confirmed',
-        TOKEN_PROGRAM_ID
-      );
+      if (!vaultAccountInfo) {
+        // Check if account might exist but not be indexed yet
+        let isRecentlyCreated = false;
+        try {
+          const recentSignatures = await connection.getSignaturesForAddress(room, { limit: 5 });
+          isRecentlyCreated = recentSignatures.length > 0;
+        } catch (e) {
+          // Ignore signature check errors
+        }
 
-      console.log('[joinRoom] Room vault validation:', {
-        address: roomVault.toBase58(),
-        owner: vaultTokenAccount.owner.toBase58(),
-        mint: vaultTokenAccount.mint.toBase58(),
-        amount: vaultTokenAccount.amount.toString(),
-        expectedMint: feeTokenMint.toBase58(),
-        mintMatches: vaultTokenAccount.mint.equals(feeTokenMint),
-      });
+        // Log minimal info for debugging (no sensitive PDAs in production)
+        if (process.env.NODE_ENV !== 'production') {
+          console.error('[joinRoom] Room vault account does not exist');
+          console.error('[joinRoom] Room account exists:', !!roomAccount);
+        }
+
+        const errorMessage = isRecentlyCreated
+          ? 'Room vault not found. The room was recently created and the vault may not be indexed yet. Please try again in a moment.'
+          : 'Room vault not found. This room may not have been properly deployed on-chain. Please create a new room instead.';
+
+        throw new Error(errorMessage);
+      }
+
+      // Validate it's a token account
+      if (!vaultAccountInfo.owner.equals(TOKEN_PROGRAM_ID)) {
+        throw new Error('Room vault is not a valid token account');
+      }
+
+      // Try to get token account details - use confirmed first, then finalized
+      let vaultTokenAccount;
+      try {
+        vaultTokenAccount = await getAccount(
+          connection,
+          roomVault,
+          'confirmed',
+          TOKEN_PROGRAM_ID
+        );
+      } catch (e: any) {
+        // If confirmed fails, try finalized (for very new accounts)
+        if (e.message?.includes('not found') || e.message?.includes('does not exist')) {
+          if (process.env.NODE_ENV !== 'production') {
+            console.log('[joinRoom] Token account not found at confirmed, trying finalized...');
+          }
+          vaultTokenAccount = await getAccount(
+            connection,
+            roomVault,
+            'finalized',
+            TOKEN_PROGRAM_ID
+          );
+        } else {
+          throw e;
+        }
+      }
+
+      // Log validation details only in development
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[joinRoom] Room vault validation successful');
+      }
 
       // Verify vault mint matches room's fee token mint
       if (!vaultTokenAccount.mint.equals(feeTokenMint)) {
-        throw new Error(
-          `Vault mint mismatch! Expected ${feeTokenMint.toBase58()} but got ${vaultTokenAccount.mint.toBase58()}`
-        );
+        throw new Error('Vault token mint does not match room configuration');
       }
     } catch (err: any) {
-      console.error('[joinRoom] Room vault validation failed:', err);
-      throw err;
+      // Log detailed error only in development
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('[joinRoom] Room vault validation failed:', err);
+      }
+      
+      // If it's our custom error, re-throw as-is
+      if (err.message?.includes('Room vault not found') || 
+          err.message?.includes('Vault mint mismatch') ||
+          err.message?.includes('not a token account') ||
+          err.message?.includes('not be indexed yet') ||
+          err.message?.includes('not a valid token account') ||
+          err.message?.includes('token mint does not match')) {
+        throw err;
+      }
+      // Otherwise, wrap it in a generic error (no sensitive details)
+      throw new Error('Room vault validation failed. This room may not have been properly deployed on-chain.');
     }
 
 
@@ -1497,7 +1552,7 @@ export function useSolanaContract() {
    * Platform Fee = (entryFee * playerCount) * platformBps / 10000
    * Host Fee = (entryFee * playerCount) * hostBps / 10000
    * Prize Pool = (entryFee * playerCount) * prizeBps / 10000
-   * Charity = Remainder + ALL extras (100% of extras to charity)
+   * Charity = Remainder (extras are added to total pool and distributed proportionally, not 100% to charity)
    *
    * Prize distribution (from Prize Pool):
    * - First place: Prize Pool * firstPlacePct / 100
