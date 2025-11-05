@@ -811,8 +811,9 @@ export function useSolanaContract() {
    * 7. Increments room player count
    *
    * **Payment Breakdown:**
-   * - Entry Fee: Goes to prize pool (distributed at end)
-   * - Extras: Added to total pool, distributed proportionally among platform, host, prize pool, and charity (same split as entry fees)
+   * - Entry Fee: Added to total pool (pool = total income from entry fees + extras)
+   * - Extras: Added to total pool (same as entry fees)
+   * - Total Pool Distribution: Split proportionally among host payment (<5%), prize pool, platform wallet, and charity
    *
    * **Account Structure Created:**
    * - PlayerEntry PDA: Records player wallet, fees paid, join timestamp
@@ -1139,47 +1140,13 @@ export function useSolanaContract() {
 
     // Validate room vault exists and is correct
     // Note: The vault is created by the Solana program during room initialization
-    // Try multiple commitment levels to handle RPC timing issues
+    // For token accounts, use getAccount from @solana/spl-token first (more reliable)
+    // Then fall back to getAccountInfo if needed
     try {
-      let vaultAccountInfo = await connection.getAccountInfo(roomVault, 'confirmed');
-      if (!vaultAccountInfo) {
-        // Retry with finalized commitment in case of RPC lag
-        if (process.env.NODE_ENV !== 'production') {
-          console.log('[joinRoom] Vault not found at confirmed, trying finalized...');
-        }
-        vaultAccountInfo = await connection.getAccountInfo(roomVault, 'finalized');
-      }
-
-      if (!vaultAccountInfo) {
-        // Check if account might exist but not be indexed yet
-        let isRecentlyCreated = false;
-        try {
-          const recentSignatures = await connection.getSignaturesForAddress(room, { limit: 5 });
-          isRecentlyCreated = recentSignatures.length > 0;
-        } catch (e) {
-          // Ignore signature check errors
-        }
-
-        // Log minimal info for debugging (no sensitive PDAs in production)
-        if (process.env.NODE_ENV !== 'production') {
-          console.error('[joinRoom] Room vault account does not exist');
-          console.error('[joinRoom] Room account exists:', !!roomAccount);
-        }
-
-        const errorMessage = isRecentlyCreated
-          ? 'Room vault not found. The room was recently created and the vault may not be indexed yet. Please try again in a moment.'
-          : 'Room vault not found. This room may not have been properly deployed on-chain. Please create a new room instead.';
-
-        throw new Error(errorMessage);
-      }
-
-      // Validate it's a token account
-      if (!vaultAccountInfo.owner.equals(TOKEN_PROGRAM_ID)) {
-        throw new Error('Room vault is not a valid token account');
-      }
-
-      // Try to get token account details - use confirmed first, then finalized
       let vaultTokenAccount;
+      let vaultAccountInfo;
+      
+      // Try getAccount first (SPL token library is more reliable for token accounts)
       try {
         vaultTokenAccount = await getAccount(
           connection,
@@ -1187,18 +1154,95 @@ export function useSolanaContract() {
           'confirmed',
           TOKEN_PROGRAM_ID
         );
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('[joinRoom] Vault token account found at confirmed:', {
+            mint: vaultTokenAccount.mint.toBase58(),
+            owner: vaultTokenAccount.owner.toBase58(),
+            amount: vaultTokenAccount.amount.toString(),
+          });
+        }
       } catch (e: any) {
-        // If confirmed fails, try finalized (for very new accounts)
-        if (e.message?.includes('not found') || e.message?.includes('does not exist')) {
+        // If getAccount fails, try finalized commitment
+        if (e.message?.includes('not found') || e.message?.includes('does not exist') || e.name === 'TokenAccountNotFoundError') {
           if (process.env.NODE_ENV !== 'production') {
-            console.log('[joinRoom] Token account not found at confirmed, trying finalized...');
+            console.log('[joinRoom] Vault not found at confirmed, trying finalized...');
           }
-          vaultTokenAccount = await getAccount(
-            connection,
-            roomVault,
-            'finalized',
-            TOKEN_PROGRAM_ID
-          );
+          try {
+            vaultTokenAccount = await getAccount(
+              connection,
+              roomVault,
+              'finalized',
+              TOKEN_PROGRAM_ID
+            );
+            if (process.env.NODE_ENV !== 'production') {
+              console.log('[joinRoom] Vault token account found at finalized');
+            }
+          } catch (e2: any) {
+            // If getAccount fails at both commitment levels, try getAccountInfo as fallback
+            if (process.env.NODE_ENV !== 'production') {
+              console.log('[joinRoom] getAccount failed, trying getAccountInfo as fallback...');
+            }
+            vaultAccountInfo = await connection.getAccountInfo(roomVault, 'confirmed');
+            if (!vaultAccountInfo) {
+              vaultAccountInfo = await connection.getAccountInfo(roomVault, 'finalized');
+            }
+            
+            if (!vaultAccountInfo) {
+              // Check if account might exist but not be indexed yet
+              let isRecentlyCreated = false;
+              try {
+                const recentSignatures = await connection.getSignaturesForAddress(room, { limit: 5 });
+                isRecentlyCreated = recentSignatures.length > 0;
+              } catch (sigErr) {
+                // Ignore signature check errors
+              }
+
+              // Log detailed info for debugging
+              if (process.env.NODE_ENV !== 'production') {
+                console.error('[joinRoom] Room vault account does not exist at', roomVault.toBase58());
+                console.error('[joinRoom] Room account exists:', !!roomAccount);
+                console.error('[joinRoom] Room PDA:', room.toBase58());
+                console.error('[joinRoom] Error from getAccount:', e2.message);
+              }
+
+              const errorMessage = isRecentlyCreated
+                ? `Room vault not found. The room was recently created and the vault may not be indexed yet. Room PDA: ${room.toBase58()}, Vault PDA: ${roomVault.toBase58()}. Please try again in a moment.`
+                : `Room vault not found. This room may not have been properly deployed on-chain. Room PDA: ${room.toBase58()}, Vault PDA: ${roomVault.toBase58()}. Please create a new room instead of trying to join this one.`;
+
+              throw new Error(errorMessage);
+            }
+
+            // Validate it's a token account
+            if (!vaultAccountInfo.owner.equals(TOKEN_PROGRAM_ID)) {
+              throw new Error('Room vault is not a valid token account');
+            }
+            
+            // If we have accountInfo but not tokenAccount, try getAccount one more time
+            // Sometimes getAccountInfo finds it but getAccount fails due to timing
+            if (!vaultTokenAccount && vaultAccountInfo) {
+              if (process.env.NODE_ENV !== 'production') {
+                console.log('[joinRoom] Account exists but getAccount failed, retrying with delay...');
+              }
+              // Small delay to allow RPC to catch up
+              await new Promise(resolve => setTimeout(resolve, 500));
+              try {
+                vaultTokenAccount = await getAccount(
+                  connection,
+                  roomVault,
+                  'confirmed',
+                  TOKEN_PROGRAM_ID
+                );
+                if (process.env.NODE_ENV !== 'production') {
+                  console.log('[joinRoom] Successfully retrieved vault token account on retry');
+                }
+              } catch (retryErr) {
+                // If retry fails, we'll throw the original error below
+                if (process.env.NODE_ENV !== 'production') {
+                  console.error('[joinRoom] Retry failed:', retryErr);
+                }
+              }
+            }
+          }
         } else {
           throw e;
         }
@@ -1210,8 +1254,15 @@ export function useSolanaContract() {
       }
 
       // Verify vault mint matches room's fee token mint
-      if (!vaultTokenAccount.mint.equals(feeTokenMint)) {
-        throw new Error('Vault token mint does not match room configuration');
+      // Note: vaultTokenAccount should always be set if validation passed
+      if (vaultTokenAccount) {
+        if (!vaultTokenAccount.mint.equals(feeTokenMint)) {
+          throw new Error('Vault token mint does not match room configuration');
+        }
+      } else {
+        // If we somehow don't have vaultTokenAccount but validation passed,
+        // this shouldn't happen but we'll throw a clear error
+        throw new Error('Vault token account validation incomplete');
       }
     } catch (err: any) {
       // Log detailed error only in development
@@ -1547,12 +1598,18 @@ export function useSolanaContract() {
    *
    * **Fund Distribution Breakdown (BINGO):**
    * ```
-   * Total Collected = (entryFee * playerCount) + sum(allExtras)
+   * Total Pool = (entryFee * playerCount) + sum(allExtras)
+   * 
+   * Note: Both entry fees and extras are added to the total pool.
+   * The total pool is then split proportionally among all recipients.
    *
-   * Platform Fee = (entryFee * playerCount) * platformBps / 10000
-   * Host Fee = (entryFee * playerCount) * hostBps / 10000
-   * Prize Pool = (entryFee * playerCount) * prizeBps / 10000
-   * Charity = Remainder (extras are added to total pool and distributed proportionally, not 100% to charity)
+   * Platform Fee = Total Pool * platformBps / 10000
+   * Host Fee = Total Pool * hostBps / 10000 (<5%)
+   * Prize Pool = Total Pool * prizeBps / 10000
+   * Charity = Total Pool * charityBps / 10000
+   * 
+   * All recipients (host, prize pool, platform, charity) share proportionally 
+   * in both entry fees and extras - extras are NOT 100% to charity.
    *
    * Prize distribution (from Prize Pool):
    * - First place: Prize Pool * firstPlacePct / 100
