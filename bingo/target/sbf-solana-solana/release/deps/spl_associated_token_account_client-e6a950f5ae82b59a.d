@@ -1,0 +1,9 @@
+\\?\C:\Users\isich\bingo-solana-contracts\bingo\target\sbf-solana-solana\release\deps\libspl_associated_token_account_client-e6a950f5ae82b59a.rmeta: C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\spl-associated-token-account-client-2.0.0\src\lib.rs C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\spl-associated-token-account-client-2.0.0\src\address.rs C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\spl-associated-token-account-client-2.0.0\src\instruction.rs
+
+\\?\C:\Users\isich\bingo-solana-contracts\bingo\target\sbf-solana-solana\release\deps\libspl_associated_token_account_client-e6a950f5ae82b59a.rlib: C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\spl-associated-token-account-client-2.0.0\src\lib.rs C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\spl-associated-token-account-client-2.0.0\src\address.rs C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\spl-associated-token-account-client-2.0.0\src\instruction.rs
+
+\\?\C:\Users\isich\bingo-solana-contracts\bingo\target\sbf-solana-solana\release\deps\spl_associated_token_account_client-e6a950f5ae82b59a.d: C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\spl-associated-token-account-client-2.0.0\src\lib.rs C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\spl-associated-token-account-client-2.0.0\src\address.rs C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\spl-associated-token-account-client-2.0.0\src\instruction.rs
+
+C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\spl-associated-token-account-client-2.0.0\src\lib.rs:
+C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\spl-associated-token-account-client-2.0.0\src\address.rs:
+C:\Users\isich\.cargo\registry\src\index.crates.io-6f17d22bba15001f\spl-associated-token-account-client-2.0.0\src\instruction.rs:

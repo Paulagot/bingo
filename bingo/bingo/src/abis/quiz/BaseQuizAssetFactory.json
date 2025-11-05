@@ -1,0 +1,52 @@
+[
+  { "type": "function", "stateMutability": "view", "name": "PLATFORM_WALLET", "inputs": [], "outputs": [{ "name": "", "type": "address" }] },
+  { "type": "function", "stateMutability": "view", "name": "allowedToken", "inputs": [{ "name": "token", "type": "address" }], "outputs": [{ "name": "", "type": "bool" }] },
+  { "type": "function", "stateMutability": "view", "name": "roomKeyOf", "inputs": [{ "name": "roomId", "type": "string" }], "outputs": [{ "name": "", "type": "bytes32" }] },
+  { "type": "function", "stateMutability": "view", "name": "roomOf", "inputs": [{ "name": "roomKey", "type": "bytes32" }], "outputs": [{ "name": "", "type": "address" }] },
+
+  {
+    "type": "function",
+    "stateMutability": "nonpayable",
+    "name": "createAssetRoom",
+    "inputs": [
+      { "name": "roomId",      "type": "string"  },
+      { "name": "token",       "type": "address" },
+      { "name": "host",        "type": "address" },
+      { "name": "hostPayBps",  "type": "uint16"  }
+    ],
+    "outputs": [ { "name": "room", "type": "address" } ]
+  },
+
+  { "type": "function", "stateMutability": "nonpayable", "name": "setAllowedToken", "inputs": [ { "name": "token", "type": "address" }, { "name": "allowed", "type": "bool" } ], "outputs": [] },
+  { "type": "function", "stateMutability": "nonpayable", "name": "adminCloseAndRefund", "inputs": [ { "name": "room", "type": "address" } ], "outputs": [] },
+
+  {
+    "type": "event",
+    "name": "TokenAllowed",
+    "inputs": [
+      { "name": "token", "type": "address", "indexed": false },
+      { "name": "allowed", "type": "bool", "indexed": false }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RoomCreated",
+    "inputs": [
+      { "name": "roomKey", "type": "bytes32", "indexed": true },
+      { "name": "roomId",  "type": "string",  "indexed": false },
+      { "name": "room",    "type": "address", "indexed": false },
+      { "name": "token",   "type": "address", "indexed": false },
+      { "name": "host",    "type": "address", "indexed": false }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RoomClosedByAdmin",
+    "inputs": [
+      { "name": "room", "type": "address", "indexed": false }
+    ],
+    "anonymous": false
+  }
+]

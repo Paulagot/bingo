@@ -1,0 +1,42 @@
+[
+  {"type":"function","stateMutability":"view","name":"PLATFORM_WALLET","inputs":[],"outputs":[{"name":"","type":"address"}]},
+  {"type":"function","stateMutability":"view","name":"TOKEN","inputs":[],"outputs":[{"name":"","type":"address"}]},
+  {"type":"function","stateMutability":"view","name":"HOST","inputs":[],"outputs":[{"name":"","type":"address"}]},
+  {"type":"function","stateMutability":"view","name":"CHARITY","inputs":[],"outputs":[{"name":"","type":"address"}]},
+  {"type":"function","stateMutability":"view","name":"totalIntake","inputs":[],"outputs":[{"name":"","type":"uint256"}]},
+
+  {"type":"function","stateMutability":"nonpayable","name":"join","inputs":[
+    {"name":"feePaid","type":"uint256"},
+    {"name":"extrasPaid","type":"uint256"}],"outputs":[]},
+
+  {"type":"function","stateMutability":"nonpayable","name":"addExtras","inputs":[
+    {"name":"extrasPaid","type":"uint256"}],"outputs":[]},
+
+  {"type":"function","stateMutability":"nonpayable","name":"settle","inputs":[
+    {"name":"winners","type":"address[]"}],"outputs":[]},
+
+  {"type":"function","stateMutability":"nonpayable","name":"adminCloseAndRefund","inputs":[],"outputs":[]},
+  {"type":"function","stateMutability":"nonpayable","name":"refundBatch","inputs":[{"name":"users","type":"address[]"}],"outputs":[]},
+
+  {"type":"event","name":"Joined","inputs":[
+    {"name":"player","type":"address","indexed":true},
+    {"name":"feePaid","type":"uint256","indexed":false},
+    {"name":"extrasPaid","type":"uint256","indexed":false}]},
+
+  {"type":"event","name":"ExtrasAdded","inputs":[
+    {"name":"player","type":"address","indexed":true},
+    {"name":"extrasPaid","type":"uint256","indexed":false}]},
+
+  {"type":"event","name":"RoomSettled","inputs":[
+    {"name":"totalIntake","type":"uint256","indexed":false},
+    {"name":"platformPaid","type":"uint256","indexed":false},
+    {"name":"hostPaid","type":"uint256","indexed":false},
+    {"name":"charityPaid","type":"uint256","indexed":false},
+    {"name":"prizesPaid","type":"uint256","indexed":false},
+    {"name":"winners","type":"address[3]","indexed":false},
+    {"name":"prizesPerWinner","type":"uint256[3]","indexed":false}]},
+
+  {"type":"event","name":"AdminRefunded","inputs":[
+    {"name":"totalRefundablePool","type":"uint256","indexed":false},
+    {"name":"platformCut","type":"uint256","indexed":false}]}
+]

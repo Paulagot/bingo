@@ -1,0 +1,8 @@
+[variables]
+NODE_VERSION = "22"
+
+[phases.setup]
+nixPkgs = ["nodejs_22", "python3", "gcc", "gnumake", "pkg-config", "systemd.dev", "udev"]
+
+
+
