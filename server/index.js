@@ -468,12 +468,22 @@ app.get('/debug/rooms', (req, res) => {
 // Startup
 async function startServer() {
   try {
-    await initializeDatabase();
+    // Try to initialize database, but don't fail if it's not available (for local dev)
+    try {
+      await initializeDatabase();
+      console.log(`🗄️ Database connected`);
+    } catch (dbError) {
+      console.warn('⚠️ Database connection failed, but continuing without it...');
+      console.warn('⚠️ This is OK for local development if you only need Web3 rooms (in-memory)');
+      console.warn('⚠️ Database features will not be available');
+      console.warn(`⚠️ Error: ${dbError.message}`);
+      // Don't exit - allow server to start for Web3/in-memory features
+    }
+    
     httpServer.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`💾 Cache headers: ${process.env.NODE_ENV === 'production' ? 'Optimized (1 year)' : 'Development mode'}`);
-      console.log(`🗄️ Database connected`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);

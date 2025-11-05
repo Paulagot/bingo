@@ -2430,7 +2430,7 @@
             "name": "charity_wallet",
             "docs": [
               "Charity wallet address (per-room, from The Giving Block or custom)",
-              "Receives the charity portion of entry fees + 100% of extras"
+              "Receives the charity portion of the total pool (entry fees + extras are added to pool, then split proportionally among host, prize pool, platform, and charity)"
             ],
             "type": "pubkey"
           },
