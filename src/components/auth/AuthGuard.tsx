@@ -33,13 +33,11 @@ export default function AuthGuard({ children }: AuthGuardProps) {
         setIsCheckingAuth(true);
         const response = await apiService.getCurrentUser();
         
-        // ✅ Fixed: Response is { user: any; club: any } directly, no .data wrapper
         setUser(response.user);
         setClub(response.club);
         
       } catch (error) {
         // Token is invalid, clear it
-        // ✅ Fixed: Use 'auth_token' to match your app_store.ts
         localStorage.removeItem('auth_token');
         console.error('Auth check failed:', error);
       } finally {
@@ -64,13 +62,8 @@ export default function AuthGuard({ children }: AuthGuardProps) {
   }
 
   if (!isAuthenticated || !user) {
-  const returnTo = encodeURIComponent(location.pathname + location.search);
-  return <Navigate to={`/auth?returnTo=${returnTo}`} replace />;
-}
-
-  // Redirect to auth page if not authenticated
-  if (!isAuthenticated || !user) {
-    return <Navigate to="/auth" replace />;
+    const returnTo = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/auth?returnTo=${returnTo}`} replace />;
   }
 
   // Render protected content

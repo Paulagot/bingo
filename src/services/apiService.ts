@@ -8,17 +8,9 @@ function ensureLeadingSlash(s: string) {
 }
 
 /**
- * ✅ Use same-origin defaults so staging/prod need NO Vite envs.
- * - MGMT calls hit '/mgmt/api/*' → your Node server proxies to MGMT_TARGET.
+ * ✅ Quiz API configuration
  * - QUIZ calls use '' (same origin) → '/quiz/api/*' on your app.
- * You can still override in local dev with Vite envs if you want.
  */
-const MGMT_API_BASE_URL = (() => {
-  const v = import.meta.env.VITE_MGMT_API_URL?.trim();
-  // Default to same-origin proxy
-  return stripTrailingSlash(v || '/mgmt/api');
-})();
-
 const QUIZ_API_BASE_URL = (() => {
   const v = import.meta.env.VITE_QUIZ_API_URL?.trim();
   // Default to same-origin
@@ -31,7 +23,7 @@ const Debug = true;
 (() => {
   // eslint-disable-next-line no-console
   console.info(
-    `[api] MODE=${import.meta.env.MODE} | MGMT_BASE=${MGMT_API_BASE_URL || '(relative /mgmt/api)'} | QUIZ_BASE=${QUIZ_API_BASE_URL || '(relative)'}`
+    `[api] MODE=${import.meta.env.MODE} | QUIZ_BASE=${QUIZ_API_BASE_URL || '(relative)'}`
   );
 })();
 
@@ -46,11 +38,9 @@ class ApiService {
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {},
-    useManagementAPI = false
+    options: RequestInit = {}
   ): Promise<T> {
-    const base = useManagementAPI ? MGMT_API_BASE_URL : QUIZ_API_BASE_URL;
-    const url = `${base}${ensureLeadingSlash(endpoint)}`;
+    const url = `${QUIZ_API_BASE_URL}${ensureLeadingSlash(endpoint)}`;
 
     if (Debug) {
       // eslint-disable-next-line no-console
@@ -85,7 +75,7 @@ class ApiService {
     return (await res.json()) as T;
   }
 
-  // ───────────── MANAGEMENT (proxied by server) ─────────────
+  // ─────────────────── AUTH API (same origin) ───────────────────
   async registerClub(data: {
     name: string;
     email: string;
@@ -94,21 +84,17 @@ class ApiService {
     privacyPolicyAccepted: boolean;
     marketingConsent?: boolean;
   }) {
-    return this.request(
-      '/clubs/register',
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          name: data.name,
-          email: data.email,
-          password: data.password,
-          gdprConsent: data.gdprConsent,
-          privacyPolicyAccepted: data.privacyPolicyAccepted,
-          marketingConsent: !!data.marketingConsent,
-        }),
-      },
-      true
-    );
+    return this.request('/clubs/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        gdprConsent: data.gdprConsent,
+        privacyPolicyAccepted: data.privacyPolicyAccepted,
+        marketingConsent: !!data.marketingConsent,
+      }),
+    });
   }
 
   async loginClub(credentials: { email: string; password: string }) {
@@ -117,19 +103,14 @@ class ApiService {
       token: string;
       user: any;
       club: any;
-    }>(
-      '/clubs/login',
-      { method: 'POST', body: JSON.stringify(credentials) },
-      true
-    );
+    }>('/clubs/login', {
+      method: 'POST',
+      body: JSON.stringify(credentials),
+    });
   }
 
   async getCurrentUser() {
-    return this.request<{ user: any; club: any }>(
-      '/clubs/me',
-      {},
-      true
-    );
+    return this.request<{ user: any; club: any }>('/clubs/me', {});
   }
 
   // ─────────────────── QUIZ API (same origin) ───────────────────
