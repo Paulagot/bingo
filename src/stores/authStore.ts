@@ -134,12 +134,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         successMessage: null,
       });
 
-      // 🆕 Fetch entitlements after successful login
+      // Fetch entitlements after successful login
       try {
         const entitlements = await apiService.getEntitlements();
         set({ entitlements });
 
-        // 🆕 Check if credits are zero
+        // Check if credits are zero
         if (entitlements.game_credits_remaining === 0) {
           set({ showNoCreditWarning: true });
         }
