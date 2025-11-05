@@ -1188,28 +1188,73 @@ export function useSolanaContract() {
             }
             
             if (!vaultAccountInfo) {
-              // Check if account might exist but not be indexed yet
-              let isRecentlyCreated = false;
-              try {
-                const recentSignatures = await connection.getSignaturesForAddress(room, { limit: 5 });
-                isRecentlyCreated = recentSignatures.length > 0;
-              } catch (sigErr) {
-                // Ignore signature check errors
+              // If room exists but vault can't be found, try retrying with longer delays
+              // This handles RPC indexing delays that can occur after room creation
+              if (roomAccount) {
+                if (process.env.NODE_ENV !== 'production') {
+                  console.log('[joinRoom] Room exists but vault not found, retrying with longer delays...');
+                }
+                
+                // Try multiple retries with increasing delays
+                let vaultFound = false;
+                for (let attempt = 0; attempt < 3; attempt++) {
+                  const delay = 1000 * (attempt + 1); // 1s, 2s, 3s
+                  await new Promise(resolve => setTimeout(resolve, delay));
+                  
+                  try {
+                    vaultAccountInfo = await connection.getAccountInfo(roomVault, 'finalized');
+                    if (vaultAccountInfo) {
+                      vaultFound = true;
+                      if (process.env.NODE_ENV !== 'production') {
+                        console.log(`[joinRoom] Vault found on retry attempt ${attempt + 1}`);
+                      }
+                      break;
+                    }
+                  } catch (retryErr) {
+                    // Continue to next attempt
+                  }
+                }
+                
+                if (!vaultFound) {
+                  // Final retry: try getAccount with longer delay (sometimes RPC needs more time)
+                  await new Promise(resolve => setTimeout(resolve, 2000));
+                  try {
+                    vaultTokenAccount = await getAccount(
+                      connection,
+                      roomVault,
+                      'finalized',
+                      TOKEN_PROGRAM_ID
+                    );
+                    // If getAccount succeeds, vault exists
+                    vaultFound = true;
+                    vaultAccountInfo = await connection.getAccountInfo(roomVault, 'finalized');
+                    if (process.env.NODE_ENV !== 'production') {
+                      console.log('[joinRoom] Vault found on final retry using getAccount');
+                    }
+                  } catch (finalErr) {
+                    // Final retry failed
+                    if (process.env.NODE_ENV !== 'production') {
+                      console.error('[joinRoom] Final retry failed:', finalErr);
+                    }
+                  }
+                }
+                
+                if (!vaultFound) {
+                  // Room exists but vault can't be found after all retries
+                  // This is likely an RPC indexing delay - provide helpful error message
+                  throw new Error(
+                    `Room vault not found after multiple retries. This may be an RPC indexing delay. ` +
+                    `Room PDA: ${room.toBase58()}, Vault PDA: ${roomVault.toBase58()}. ` +
+                    `The vault exists on-chain but may not be indexed yet. ` +
+                    `Please wait a moment and try again, or check the vault on Solana Explorer: ` +
+                    `https://explorer.solana.com/address/${roomVault.toBase58()}`
+                  );
+                }
+              } else {
+                // Room doesn't exist either
+                const errorMessage = `Room vault not found. This room may not have been properly deployed on-chain. Room PDA: ${room.toBase58()}, Vault PDA: ${roomVault.toBase58()}. Please create a new room instead of trying to join this one.`;
+                throw new Error(errorMessage);
               }
-
-              // Log detailed info for debugging
-              if (process.env.NODE_ENV !== 'production') {
-                console.error('[joinRoom] Room vault account does not exist at', roomVault.toBase58());
-                console.error('[joinRoom] Room account exists:', !!roomAccount);
-                console.error('[joinRoom] Room PDA:', room.toBase58());
-                console.error('[joinRoom] Error from getAccount:', e2.message);
-              }
-
-              const errorMessage = isRecentlyCreated
-                ? `Room vault not found. The room was recently created and the vault may not be indexed yet. Room PDA: ${room.toBase58()}, Vault PDA: ${roomVault.toBase58()}. Please try again in a moment.`
-                : `Room vault not found. This room may not have been properly deployed on-chain. Room PDA: ${room.toBase58()}, Vault PDA: ${roomVault.toBase58()}. Please create a new room instead of trying to join this one.`;
-
-              throw new Error(errorMessage);
             }
 
             // Validate it's a token account
