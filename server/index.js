@@ -33,7 +33,6 @@ import tgbWebhookHandler from './tgb/api/webhook.js';
 
 import contactRoute from './routes/contact.js';
 import passwordResetRoute from './routes/passwordReset.js';
-import authRoute from './routes/auth.js';
 
 import { seoRoutes } from './SeoRoutes.js';
 import { getSeoForPath } from './seoMap.js'; // route→SEO map (server/seoMap.js)
@@ -398,17 +397,61 @@ setupSocketHandlers(io);
 
 app.use('/api/contact', contactRoute);
 app.use('/api/auth/reset', passwordResetRoute);
-app.use('/clubs', authRoute);
 
 
 // server/index.js (after app.use routes)
-app.use((err, _req, res, _next) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({ error: 'Internal error' });
+app.use((err, req, res, next) => {
+  console.error('❌ Unhandled error middleware:', err);
+  console.error('❌ Error name:', err?.name);
+  console.error('❌ Error message:', err?.message);
+  console.error('❌ Error stack:', err?.stack);
+  console.error('❌ Request path:', req.path);
+  console.error('❌ Request method:', req.method);
+  
+  if (!res.headersSent) {
+    try {
+      res.status(500).json({ 
+        error: 'Internal error',
+        ...(process.env.NODE_ENV !== 'production' && { 
+          details: err?.message,
+          stack: err?.stack 
+        })
+      });
+    } catch (sendErr) {
+      console.error('❌ Failed to send error response:', sendErr);
+      // Last resort
+      try {
+        if (!res.headersSent) {
+          res.status(500).type('text/plain').send('Internal server error');
+        }
+      } catch {
+        console.error('❌❌ Cannot send any response');
+      }
+    }
+  } else {
+    console.error('❌ Response already sent, cannot send error');
+  }
 });
 
-process.on('unhandledRejection', r => console.error('unhandledRejection:', r));
-process.on('uncaughtException', e => console.error('uncaughtException:', e));
+// Process-level error handlers to catch unhandled errors
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise);
+  console.error('❌ Reason:', reason);
+  if (reason instanceof Error) {
+    console.error('❌ Error stack:', reason.stack);
+  }
+  // Don't exit the process, just log it
+  // In production, you might want to send this to a logging service
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  console.error('❌ Error stack:', error.stack);
+  // For uncaught exceptions, we should exit the process
+  // but log it first and give a graceful shutdown message
+  console.error('❌ Server will exit due to uncaught exception');
+  process.exit(1);
+});
 
 
 // Health check

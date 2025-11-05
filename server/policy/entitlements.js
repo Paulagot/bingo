@@ -37,7 +37,29 @@ export function canUseTemplate(entitlements, templateId) {
  * Resolve entitlements for a club from database
  */
 export async function resolveEntitlements({ userId: clubId }) {
+  // Add null check
+  if (!clubId) {
+    console.warn('[Entitlements] ⚠️ No clubId provided, using fallback FREE_PLAN');
+    return { ...FALLBACK_FREE_PLAN, plan_id: null, plan_code: 'FREE_FALLBACK' };
+  }
 
+  // Check database connection
+  if (!connection) {
+    console.error('[Entitlements] ❌ Database connection not available');
+    return { ...FALLBACK_FREE_PLAN, plan_id: null, plan_code: 'FREE_FALLBACK' };
+  }
+
+  // Safe JSON parsing helper
+  const parseSafe = (value, fallback) => {
+    if (Array.isArray(value)) return value;
+    if (!value) return fallback;
+    try {
+      return JSON.parse(value);
+    } catch (e) {
+      console.warn('[Entitlements] ⚠️ Failed to parse JSON:', e.message);
+      return fallback;
+    }
+  };
 
   try {
     // Query club with plan information
@@ -75,30 +97,29 @@ export async function resolveEntitlements({ userId: clubId }) {
     }
 
     console.log('[Debug] Raw round_types_allowed:', clubData.round_types_allowed);
-console.log('[Debug] Raw extras_allowed:', clubData.extras_allowed);
-console.log('[Debug] Type of round_types_allowed:', typeof clubData.round_types_allowed);
+    console.log('[Debug] Raw extras_allowed:', clubData.extras_allowed);
+    console.log('[Debug] Type of round_types_allowed:', typeof clubData.round_types_allowed);
 
-    // Build entitlements from database
- const entitlements = {
-    plan_id: clubData.plan_id,          // ✅ expose plan_id
+    // Build entitlements from database with safe JSON parsing
+    const entitlements = {
+      plan_id: clubData.plan_id,          // ✅ expose plan_id
       plan_code: clubData.plan_code,      // ✅ keep plan_code
-  max_players_per_game: clubData.max_players_per_game,
-  max_rounds: clubData.max_rounds,
-  // ✅ Fix: Check if already parsed, if not then parse
-  round_types_allowed: Array.isArray(clubData.round_types_allowed) 
-    ? clubData.round_types_allowed 
-    : JSON.parse(clubData.round_types_allowed),
-  extras_allowed: Array.isArray(clubData.extras_allowed) 
-    ? clubData.extras_allowed 
-    : JSON.parse(clubData.extras_allowed),
-  concurrent_rooms: clubData.concurrent_rooms,
-  game_credits_remaining: clubData.game_credits_remaining || 0,
-};
+      max_players_per_game: clubData.max_players_per_game,
+      max_rounds: clubData.max_rounds,
+      round_types_allowed: parseSafe(clubData.round_types_allowed, []),
+      extras_allowed: parseSafe(clubData.extras_allowed, []),
+      concurrent_rooms: clubData.concurrent_rooms,
+      game_credits_remaining: clubData.game_credits_remaining || 0,
+    };
 
-    // Apply any overrides
+    // Apply any overrides with safe parsing
     if (clubData.overrides) {
-      const overrides = JSON.parse(clubData.overrides);
-      Object.assign(entitlements, overrides);
+      try {
+        const overrides = parseSafe(clubData.overrides, {});
+        Object.assign(entitlements, overrides);
+      } catch (overrideError) {
+        console.warn('[Entitlements] ⚠️ Failed to parse overrides:', overrideError.message);
+      }
     }
 
     console.log(`[Entitlements] 👤 Club "${clubId}" (${clubData.club_name}) on "${clubData.plan_code}" plan - ${entitlements.game_credits_remaining} credits remaining`);
@@ -106,8 +127,8 @@ console.log('[Debug] Type of round_types_allowed:', typeof clubData.round_types_
 
   } catch (error) {
     console.error(`[Entitlements] ❌ Database error for club "${clubId}":`, error);
-  return { ...FALLBACK_FREE_PLAN, plan_id: null, plan_code: 'FREE_FALLBACK' };
-
+    console.error('[Entitlements] ❌ Error stack:', error.stack);
+    return { ...FALLBACK_FREE_PLAN, plan_id: null, plan_code: 'FREE_FALLBACK' };
   }
 }
 

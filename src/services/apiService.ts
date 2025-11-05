@@ -1,101 +1,89 @@
 // src/services/apiService.ts
-
 function stripTrailingSlash(s: string) {
   return s.replace(/\/+$/, '');
 }
-function ensureLeadingSlash(s: string) {
-  return s.startsWith('/') ? s : `/${s}`;
-}
 
-/**
- * ✅ Quiz API configuration
- * - QUIZ calls use '' (same origin) → '/quiz/api/*' on your app.
- */
+const MGMT_API_BASE_URL = import.meta.env.VITE_MGMT_API_URL || 'https://mgtsystem-production.up.railway.app/api';
 const QUIZ_API_BASE_URL = (() => {
   const v = import.meta.env.VITE_QUIZ_API_URL?.trim();
-  // Default to same-origin
+  // Default to same-origin (empty string = relative paths)
   return stripTrailingSlash(v || '');
 })();
-
-const Debug = true;
-
-// One-time boot log
-(() => {
-  // eslint-disable-next-line no-console
-  console.info(
-    `[api] MODE=${import.meta.env.MODE} | QUIZ_BASE=${QUIZ_API_BASE_URL || '(relative)'}`
-  );
-})();
+const Debug = false; // Set to true to enable debug logs
 
 class ApiService {
   private getAuthHeaders() {
     const token = localStorage.getItem('auth_token');
     return {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(token && { Authorization: `Bearer ${token}` })
     };
   }
 
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const url = `${QUIZ_API_BASE_URL}${ensureLeadingSlash(endpoint)}`;
+  
 
-    if (Debug) {
-      // eslint-disable-next-line no-console
-      console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
-    }
-
-    const res = await fetch(url, {
-      credentials: 'include',
+  private async request<T>(endpoint: string, options: RequestInit = {}, useManagementAPI: boolean = false): Promise<T> {
+    const baseURL = useManagementAPI ? MGMT_API_BASE_URL : QUIZ_API_BASE_URL;
+    const url = baseURL ? `${baseURL}${endpoint}` : endpoint;
+    
+    const config: RequestInit = {
+      headers: this.getAuthHeaders(),
       ...options,
-      headers: {
-        ...this.getAuthHeaders(),
-        ...(options.headers || {}),
-      },
-    });
+    };
 
-    if (!res.ok) {
-      let payload: any = {};
-      try { payload = await res.json(); } catch { /* ignore */ }
-      const message =
-        payload?.error || payload?.message || `HTTP ${res.status} ${res.statusText}`;
-      if (Debug) {
-        // eslint-disable-next-line no-console
-        console.error(`💥 API Error (${endpoint}):`, {
-          status: res.status,
-          statusText: res.statusText,
-          message,
-        });
+   if (Debug) {
+     console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
+     console.log(`   Using: ${useManagementAPI ? 'Management API' : 'Quiz API'}`);
+     console.log(`   Base URL: ${baseURL}`);
+   }
+
+    try {
+      const response = await fetch(url, config);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || errorData.message || `HTTP error! status: ${response.status}`;
+        if (Debug) {
+          console.error(`💥 API Error (${endpoint}):`, {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorMessage,
+            url,
+            response: errorData
+          });
+        }
+        throw new Error(errorMessage);
       }
-      throw new Error(message);
+
+      return await response.json();
+    } catch (error) {
+     if (Debug) console.error(`💥 API Error (${endpoint}):`, error);
+      throw error;
     }
-
-    return (await res.json()) as T;
   }
 
-  // ─────────────────── AUTH API (same origin) ───────────────────
-  async registerClub(data: {
-    name: string;
-    email: string;
-    password: string;
-    gdprConsent: boolean;
-    privacyPolicyAccepted: boolean;
-    marketingConsent?: boolean;
-  }) {
-    return this.request('/clubs/register', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: data.name,
-        email: data.email,
-        password: data.password,
-        gdprConsent: data.gdprConsent,
-        privacyPolicyAccepted: data.privacyPolicyAccepted,
-        marketingConsent: !!data.marketingConsent,
-      }),
-    });
-  }
+  // 🔐 AUTHENTICATION (calls management system)
+async registerClub(data: { 
+  name: string; 
+  email: string; 
+  password: string;
+  gdprConsent: boolean;
+  privacyPolicyAccepted: boolean;
+  marketingConsent?: boolean;
+}) {
+  return this.request('/clubs/register', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: data.name,
+      email: data.email,
+      password: data.password,
+      gdprConsent: data.gdprConsent,
+      privacyPolicyAccepted: data.privacyPolicyAccepted,
+      marketingConsent: data.marketingConsent || false
+    }),
+  }, true); // Add this parameter to use management API
+}
+
 
   async loginClub(credentials: { email: string; password: string }) {
     return this.request<{
@@ -106,11 +94,14 @@ class ApiService {
     }>('/clubs/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
-    });
+    }, true); // Use management API
   }
 
   async getCurrentUser() {
-    return this.request<{ user: any; club: any }>('/clubs/me', {});
+    return this.request<{
+      user: any;
+      club: any;
+    }>('/clubs/me', {}, true); // Use management API
   }
 
   // ─────────────────── QUIZ API (same origin) ───────────────────
