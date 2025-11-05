@@ -1,0 +1,44 @@
+# Rust
+target/
+**/*.rs.bk
+Cargo.lock
+
+# Anchor
+.anchor/
+target/
+
+# Node
+node_modules/
+package-lock.json
+pnpm-lock.yaml
+
+# IDL
+target/idl/
+target/types/
+
+# Keys
+**/*keypair.json
+**/*.key
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Reference repos (don't commit these)
+ref/
+
+# Build artifacts
+*.so
+*.wasm
+
