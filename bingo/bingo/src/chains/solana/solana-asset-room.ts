@@ -8,7 +8,7 @@
 import { Connection, PublicKey, Transaction, SystemProgram, SYSVAR_RENT_PUBKEY } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction } from '@solana/spl-token';
 import { Program, AnchorProvider, BN } from '@coral-xyz/anchor';
-import { PROGRAM_ID } from './config';
+import { PROGRAM_ID, getTokenMints } from './config';
 
 // ============================================================================
 // Types
@@ -136,6 +136,19 @@ export async function createAssetRoom(
 
   if (params.hostFeeBps > 500) {
     throw new Error('Host fee cannot exceed 5% (500 basis points)');
+  }
+
+  // Validate that fee token is USDC or PYUSD only (room fees restriction)
+  const TOKEN_MINTS = getTokenMints();
+  const isUSDC = params.feeTokenMint.equals(TOKEN_MINTS.USDC);
+  const isPYUSD = params.feeTokenMint.equals(TOKEN_MINTS.PYUSD);
+  
+  if (!isUSDC && !isPYUSD) {
+    throw new Error(
+      `Room fees are restricted to USDC and PYUSD only. ` +
+      `Received: ${params.feeTokenMint.toBase58()}. ` +
+      `Note: Prize tokens have no restrictions and can be any token.`
+    );
   }
 
   // Derive PDAs - Use helper functions to ensure consistency with Anchor's automatic derivation

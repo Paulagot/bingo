@@ -965,13 +965,14 @@ if (!isPool) {
         const { PublicKey } = await import('@solana/web3.js');
 
         // Map currency to token mint
-        const currency = (params.currency ?? 'SOL').toUpperCase();
+        const currency = (params.currency ?? 'USDC').toUpperCase();
         const feeTokenMint =
           currency === 'USDC' ? TOKEN_MINTS.USDC :
+          currency === 'PYUSD' ? TOKEN_MINTS.PYUSD :
           currency === 'USDT' ? TOKEN_MINTS.USDT :
-          TOKEN_MINTS.SOL; // Default to SOL
+          TOKEN_MINTS.USDC; // Default to USDC (room fees restricted to USDC/PYUSD)
 
-        // Get correct decimals for the token (SOL = 9, USDC/USDT = 6)
+        // Get correct decimals for the token (SOL = 9, USDC/PYUSD/USDT = 6)
         const decimals = currency === 'SOL' ? 9 : 6;
         const multiplier = Math.pow(10, decimals);
 

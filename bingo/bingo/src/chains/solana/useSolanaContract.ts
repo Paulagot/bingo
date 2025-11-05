@@ -30,7 +30,7 @@ import {
   NATIVE_MINT,
   createSyncNativeInstruction,
 } from '@solana/spl-token';
-import { PROGRAM_ID, PDA_SEEDS, TX_CONFIG } from './config';
+import { PROGRAM_ID, PDA_SEEDS, TX_CONFIG, getTokenMints } from './config';
 import {
   simulateTransaction,
   validateTransactionInputs,
@@ -570,6 +570,19 @@ export function useSolanaContract() {
           console.error('[createPoolRoom] Failed to initialize token registry:', error);
           throw new Error(`Token registry initialization failed: ${error.message}`);
         }
+      }
+
+      // Validate that fee token is USDC or PYUSD only (room fees restriction)
+      const TOKEN_MINTS = getTokenMints();
+      const isUSDC = params.feeTokenMint.equals(TOKEN_MINTS.USDC);
+      const isPYUSD = params.feeTokenMint.equals(TOKEN_MINTS.PYUSD);
+      
+      if (!isUSDC && !isPYUSD) {
+        throw new Error(
+          `Room fees are restricted to USDC and PYUSD only. ` +
+          `Received: ${params.feeTokenMint.toBase58()}. ` +
+          `Note: Prize tokens have no restrictions and can be any token.`
+        );
       }
 
       // Auto-approve the fee token if needed
