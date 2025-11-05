@@ -1,0 +1,5954 @@
+[
+  {
+    "id": 1000,
+    "text": "2 + 2 = 4",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1001,
+    "text": "5 is greater than 10",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1002,
+    "text": "7 - 3 = 4",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1003,
+    "text": "10 ÷ 2 = 3",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1004,
+    "text": "9 × 1 = 9",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1005,
+    "text": "The number zero is even",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1006,
+    "text": "15 + 5 = 25",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1007,
+    "text": "12 - 7 = 5",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1008,
+    "text": "Multiplying any number by 0 equals 0",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1009,
+    "text": "100 is less than 50",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1010,
+    "text": "3 × 3 = 6",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1011,
+    "text": "20 ÷ 4 = 5",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1012,
+    "text": "1 is a prime number",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1013,
+    "text": "8 + 2 = 11",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1014,
+    "text": "A triangle has 3 sides",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1015,
+    "text": "A square has 5 sides",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1016,
+    "text": "50 + 25 = 75",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1017,
+    "text": "9 - 9 = 1",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1018,
+    "text": "An even number is divisible by 2",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1019,
+    "text": "7 × 2 = 14",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1020,
+    "text": "The number 11 is an even number",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1021,
+    "text": "4 × 5 = 25",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1022,
+    "text": "25 ÷ 5 = 5",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1023,
+    "text": "A rectangle has four right angles",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1024,
+    "text": "A circle has corners",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1025,
+    "text": "6 + 7 = 13",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1026,
+    "text": "100 ÷ 10 = 20",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1027,
+    "text": "2 × 6 = 12",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1028,
+    "text": "9 + 9 = 18",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1029,
+    "text": "3 × 4 = 10",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1030,
+    "text": "The number 100 is greater than 99",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1031,
+    "text": "7 + 8 = 14",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1032,
+    "text": "2 is the only even prime number",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1033,
+    "text": "12 × 2 = 24",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1034,
+    "text": "20 - 5 = 10",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1035,
+    "text": "A cube has 6 faces",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1036,
+    "text": "A hexagon has 8 sides",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1037,
+    "text": "5 + 15 = 20",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1038,
+    "text": "50 ÷ 5 = 15",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1039,
+    "text": "An octagon has 8 sides",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "easy",
+    "category": "Math"
+  },
+  {
+    "id": 1040,
+    "text": "15 + 27 = 42",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1041,
+    "text": "Half of 50 is 25",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1042,
+    "text": "The fraction 2/4 is equal to 1/2",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1043,
+    "text": "The number 81 is a perfect square",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1044,
+    "text": "A rectangle with length 6 and width 4 has an area of 20",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1045,
+    "text": "20% of 200 is 40",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1046,
+    "text": "The average of 4, 6, 8, 10 is 7",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1047,
+    "text": "A right triangle has one angle equal to 90 degrees",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1048,
+    "text": "A cube has 8 edges",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1049,
+    "text": "The perimeter of a square with side length 5 is 20",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1050,
+    "text": "The factors of 12 are 1, 2, 3, 4, 6, 12",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1051,
+    "text": "The sum of the angles in a quadrilateral is 180 degrees",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1052,
+    "text": "The product of 12 × 12 is 124",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1053,
+    "text": "The decimal 0.5 is equal to 50%",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1054,
+    "text": "The square of 15 is 225",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1055,
+    "text": "A hexagon has 5 sides",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1056,
+    "text": "75% of 200 is 150",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1057,
+    "text": "The greatest common divisor of 8 and 12 is 4",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1058,
+    "text": "The number 37 is even",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1059,
+    "text": "The perimeter of a triangle with sides 3, 4, 5 is 12",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1060,
+    "text": "A parallelogram always has opposite sides equal",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1061,
+    "text": "The square root of 64 is 9",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1062,
+    "text": "The smallest prime number is 2",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1063,
+    "text": "The average of 2, 4, 6 is 5",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1064,
+    "text": "The volume of a cube with side 3 is 27",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1065,
+    "text": "A right angle measures 180 degrees",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1066,
+    "text": "The sum of the first 5 odd numbers is 25",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1067,
+    "text": "The number 50 is divisible by 3",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1068,
+    "text": "The perimeter of a rectangle with sides 10 and 5 is 30",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1069,
+    "text": "The number 144 is a square number",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1070,
+    "text": "The decimal 0.25 is equal to 1/5",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1071,
+    "text": "The factors of 16 include 8",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1072,
+    "text": "60% of 50 is 25",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1073,
+    "text": "The number 19 is prime",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1074,
+    "text": "The product of 9 × 11 is 100",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1075,
+    "text": "The sum of the angles in a pentagon is 540 degrees",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1076,
+    "text": "The cube of 5 is 120",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1077,
+    "text": "The median of 3, 7, 9 is 7",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1078,
+    "text": "The perimeter of a circle is called the circumference",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1079,
+    "text": "The number 121 is a square number",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "medium",
+    "category": "Math"
+  },
+  {
+    "id": 1080,
+    "text": "The square root of 49 is 7",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1081,
+    "text": "The number 121 is a prime number",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1082,
+    "text": "The sum of the angles in a triangle is 180 degrees",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1083,
+    "text": "The fraction 3/4 is equal to 0.75",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1084,
+    "text": "An isosceles triangle has all three sides equal",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1085,
+    "text": "Pi is exactly equal to 3.14",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1086,
+    "text": "The greatest common divisor of 12 and 18 is 6",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1087,
+    "text": "A right angle measures 60 degrees",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1088,
+    "text": "The area of a rectangle with length 8 and width 5 is 40",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1089,
+    "text": "The perimeter of a square with side length 4 is 12",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1090,
+    "text": "10 squared is equal to 100",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1091,
+    "text": "The number 0 has no reciprocal",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1092,
+    "text": "A pentagon has 6 sides",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1093,
+    "text": "The mean of the numbers 2, 4, 6, 8 is 5",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1094,
+    "text": "The product of two negative numbers is positive",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1095,
+    "text": "The circumference of a circle is given by 2 × π × radius",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1096,
+    "text": "The decimal 0.333... is equal to 1/4",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1097,
+    "text": "The sum of the first 10 natural numbers is 55",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1098,
+    "text": "Every square is also a rectangle",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1099,
+    "text": "The number 2 is both prime and even",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1100,
+    "text": "A heptagon has 7 sides",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1101,
+    "text": "The cube of 3 is 6",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1102,
+    "text": "The absolute value of -12 is 12",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1103,
+    "text": "In probability, the sum of all possible outcomes is always 0",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1104,
+    "text": "The diagonals of a rectangle are always equal",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1105,
+    "text": "The sum of the interior angles of a square is 360 degrees",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1106,
+    "text": "The number 0.5 is greater than 2/3",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1107,
+    "text": "There are infinitely many prime numbers",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1108,
+    "text": "The area of a triangle is base × height",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1109,
+    "text": "A negative number squared is positive",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1110,
+    "text": "The decimal 0.25 is equal to 1/3",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1111,
+    "text": "A rhombus has all sides of equal length",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1112,
+    "text": "The factorial of 4 is 24",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1113,
+    "text": "An obtuse angle is greater than 90 degrees",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1114,
+    "text": "The number 101 is divisible by 2",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1115,
+    "text": "The sum of the first 5 even numbers is 30",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1116,
+    "text": "Every parallelogram is also a trapezium",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "False",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1117,
+    "text": "The square root of 1 is both 1 and -1",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1118,
+    "text": "The mode is the most frequently occurring number in a dataset",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1119,
+    "text": "The number 144 is a perfect square",
+    "options": [
+      "True",
+      "False"
+    ],
+    "correctAnswer": "True",
+    "difficulty": "hard",
+    "category": "Math"
+  },
+  {
+    "id": 1120,
+    "text": "Which one is a fruit?",
+    "options": [
+      "🍎",
+      "🚗"
+    ],
+    "correctAnswer": "🍎",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1121,
+    "text": "Which one is an animal?",
+    "options": [
+      "🐶",
+      "🍰"
+    ],
+    "correctAnswer": "🐶",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1122,
+    "text": "Which one is for sleeping?",
+    "options": [
+      "😴",
+      "⚽"
+    ],
+    "correctAnswer": "😴",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1123,
+    "text": "Which one is a vegetable?",
+    "options": [
+      "🥕",
+      "🐱"
+    ],
+    "correctAnswer": "🥕",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1124,
+    "text": "Which one is a hot drink?",
+    "options": [
+      "☕",
+      "🏀"
+    ],
+    "correctAnswer": "☕",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1125,
+    "text": "Which one is used for writing?",
+    "options": [
+      "✏️",
+      "🍌"
+    ],
+    "correctAnswer": "✏️",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1126,
+    "text": "Which one is a sport?",
+    "options": [
+      "⚽",
+      "🍩"
+    ],
+    "correctAnswer": "⚽",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1127,
+    "text": "Which one is food?",
+    "options": [
+      "🍕",
+      "🚲"
+    ],
+    "correctAnswer": "🍕",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1128,
+    "text": "Which one is for music?",
+    "options": [
+      "🎵",
+      "🐘"
+    ],
+    "correctAnswer": "🎵",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1129,
+    "text": "Which one is a flower?",
+    "options": [
+      "🌹",
+      "📱"
+    ],
+    "correctAnswer": "🌹",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1130,
+    "text": "Which one shows love?",
+    "options": [
+      "❤️",
+      "🍟"
+    ],
+    "correctAnswer": "❤️",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1131,
+    "text": "Which one is for cold weather?",
+    "options": [
+      "❄️",
+      "🔥"
+    ],
+    "correctAnswer": "❄️",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1132,
+    "text": "Which one is a bird?",
+    "options": [
+      "🐦",
+      "🍔"
+    ],
+    "correctAnswer": "🐦",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1133,
+    "text": "Which one is a fruit?",
+    "options": [
+      "🍊",
+      "🚀"
+    ],
+    "correctAnswer": "🍊",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1134,
+    "text": "Which one is for reading?",
+    "options": [
+      "📚",
+      "🍪"
+    ],
+    "correctAnswer": "📚",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1135,
+    "text": "Which one is a vehicle?",
+    "options": [
+      "🚗",
+      "🍓"
+    ],
+    "correctAnswer": "🚗",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1136,
+    "text": "Which one is an insect?",
+    "options": [
+      "🐝",
+      "🍩"
+    ],
+    "correctAnswer": "🐝",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1137,
+    "text": "Which one is the sun?",
+    "options": [
+      "☀️",
+      "🍋"
+    ],
+    "correctAnswer": "☀️",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1138,
+    "text": "Which one is for phones?",
+    "options": [
+      "📱",
+      "🥕"
+    ],
+    "correctAnswer": "📱",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1139,
+    "text": "Which one is a tree?",
+    "options": [
+      "🌳",
+      "🍿"
+    ],
+    "correctAnswer": "🌳",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1140,
+    "text": "Which one is a dessert?",
+    "options": [
+      "🍰",
+      "🚦"
+    ],
+    "correctAnswer": "🍰",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1141,
+    "text": "Which one is a fish?",
+    "options": [
+      "🐟",
+      "🍇"
+    ],
+    "correctAnswer": "🐟",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1142,
+    "text": "Which one is used for time?",
+    "options": [
+      "⏰",
+      "🍍"
+    ],
+    "correctAnswer": "⏰",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1143,
+    "text": "Which one is the moon?",
+    "options": [
+      "🌙",
+      "🍒"
+    ],
+    "correctAnswer": "🌙",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1144,
+    "text": "Which one is for money?",
+    "options": [
+      "💰",
+      "🍦"
+    ],
+    "correctAnswer": "💰",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1145,
+    "text": "Which one is for rain?",
+    "options": [
+      "🌧️",
+      "🍎"
+    ],
+    "correctAnswer": "🌧️",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1146,
+    "text": "Which one is a fruit?",
+    "options": [
+      "🍌",
+      "🚲"
+    ],
+    "correctAnswer": "🍌",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1147,
+    "text": "Which one is for music?",
+    "options": [
+      "🎸",
+      "🥗"
+    ],
+    "correctAnswer": "🎸",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1148,
+    "text": "Which one is for travel?",
+    "options": [
+      "✈️",
+      "🍕"
+    ],
+    "correctAnswer": "✈️",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1149,
+    "text": "Which one is ice cream?",
+    "options": [
+      "🍦",
+      "🎩"
+    ],
+    "correctAnswer": "🍦",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1150,
+    "text": "Which one is for school?",
+    "options": [
+      "🎒",
+      "🍩"
+    ],
+    "correctAnswer": "🎒",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1151,
+    "text": "Which one is a fruit?",
+    "options": [
+      "🍇",
+      "🚀"
+    ],
+    "correctAnswer": "🍇",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1152,
+    "text": "Which one is for fire?",
+    "options": [
+      "🔥",
+      "🍵"
+    ],
+    "correctAnswer": "🔥",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1153,
+    "text": "Which one is a cat?",
+    "options": [
+      "🐱",
+      "🍒"
+    ],
+    "correctAnswer": "🐱",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1154,
+    "text": "Which one is a dog?",
+    "options": [
+      "🐶",
+      "🍉"
+    ],
+    "correctAnswer": "🐶",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1155,
+    "text": "Which one is a car?",
+    "options": [
+      "🚗",
+      "🍍"
+    ],
+    "correctAnswer": "🚗",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1156,
+    "text": "Which one is a book?",
+    "options": [
+      "📖",
+      "🍩"
+    ],
+    "correctAnswer": "📖",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1157,
+    "text": "Which one is a ball?",
+    "options": [
+      "🏀",
+      "🍎"
+    ],
+    "correctAnswer": "🏀",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1158,
+    "text": "Which one is for sleeping?",
+    "options": [
+      "🛏️",
+      "🍇"
+    ],
+    "correctAnswer": "🛏️",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1159,
+    "text": "Which one is for mail?",
+    "options": [
+      "✉️",
+      "🍪"
+    ],
+    "correctAnswer": "✉️",
+    "difficulty": "easy",
+    "category": "Emojis"
+  },
+  {
+    "id": 1160,
+    "text": "For breakfast, I like to eat ___ with butter.",
+    "options": [
+      "🥖",
+      "🐟"
+    ],
+    "correctAnswer": "🥖",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1161,
+    "text": "On a farm, the farmer feeds the ___ in the morning.",
+    "options": [
+      "🐄",
+      "🚗"
+    ],
+    "correctAnswer": "🐄",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1162,
+    "text": "To get to school, I ride the ___ every day.",
+    "options": [
+      "🚌",
+      "🚀"
+    ],
+    "correctAnswer": "🚌",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1163,
+    "text": "On a rainy day, I carry my ___ to stay dry.",
+    "options": [
+      "☂️",
+      "🧊"
+    ],
+    "correctAnswer": "☂️",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1164,
+    "text": "The cat chased the little ___ around the house.",
+    "options": [
+      "🐭",
+      "🐬"
+    ],
+    "correctAnswer": "🐭",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1165,
+    "text": "At night, I sleep in my warm ___",
+    "options": [
+      "🛏️",
+      "🚴"
+    ],
+    "correctAnswer": "🛏️",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1166,
+    "text": "We decorated the Christmas tree with lights and ___",
+    "options": [
+      "🎁",
+      "⚽"
+    ],
+    "correctAnswer": "🎁",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1167,
+    "text": "The teacher writes on the board with a ___",
+    "options": [
+      "✏️",
+      "🍪"
+    ],
+    "correctAnswer": "✏️",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1168,
+    "text": "In the garden, a buzzing ___ landed on a flower.",
+    "options": [
+      "🐝",
+      "🐟"
+    ],
+    "correctAnswer": "🐝",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1169,
+    "text": "We drink fresh ___ with cookies.",
+    "options": [
+      "🥛",
+      "🌽"
+    ],
+    "correctAnswer": "🥛",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1170,
+    "text": "The soccer player kicked the ___ into the goal.",
+    "options": [
+      "⚽",
+      "🥕"
+    ],
+    "correctAnswer": "⚽",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1171,
+    "text": "At the zoo, we saw a giant ___ eating bamboo.",
+    "options": [
+      "🐼",
+      "🐸"
+    ],
+    "correctAnswer": "🐼",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1172,
+    "text": "On my birthday, I blew out candles on my ___",
+    "options": [
+      "🎂",
+      "🎃"
+    ],
+    "correctAnswer": "🎂",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1173,
+    "text": "When it’s hot, I cool down with an ice ___",
+    "options": [
+      "🍦",
+      "📖"
+    ],
+    "correctAnswer": "🍦",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1174,
+    "text": "The baby drank milk from a ___",
+    "options": [
+      "🍼",
+      "🎩"
+    ],
+    "correctAnswer": "🍼",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1175,
+    "text": "We use a ___ to see in the dark.",
+    "options": [
+      "🔦",
+      "🔒"
+    ],
+    "correctAnswer": "🔦",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1176,
+    "text": "The baker made a loaf of fresh ___",
+    "options": [
+      "🍞",
+      "🍓"
+    ],
+    "correctAnswer": "🍞",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1177,
+    "text": "For lunch, I ate a slice of ___",
+    "options": [
+      "🍕",
+      "🎸"
+    ],
+    "correctAnswer": "🍕",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1178,
+    "text": "When it’s cold, I wear gloves and a ___",
+    "options": [
+      "🧣",
+      "🍇"
+    ],
+    "correctAnswer": "🧣",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1179,
+    "text": "In spring, the garden is full of blooming ___",
+    "options": [
+      "🌷",
+      "🥨"
+    ],
+    "correctAnswer": "🌷",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1180,
+    "text": "On the highway, the red ___ drove very fast.",
+    "options": [
+      "🚗",
+      "🚌"
+    ],
+    "correctAnswer": "🚗",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1181,
+    "text": "We played cards and rolled the ___",
+    "options": [
+      "🎲",
+      "🍋"
+    ],
+    "correctAnswer": "🎲",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1182,
+    "text": "In winter, children build a ___",
+    "options": [
+      "⛄",
+      "🎩"
+    ],
+    "correctAnswer": "⛄",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1183,
+    "text": "The fisherman caught a shiny ___",
+    "options": [
+      "🐟",
+      "🐦"
+    ],
+    "correctAnswer": "🐟",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1184,
+    "text": "The clown carried a bunch of colorful ___",
+    "options": [
+      "🎈",
+      "🐙"
+    ],
+    "correctAnswer": "🎈",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1185,
+    "text": "At the party, everyone danced to loud ___",
+    "options": [
+      "🎵",
+      "🥗"
+    ],
+    "correctAnswer": "🎵",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1186,
+    "text": "The farmer harvested ears of ___ from the field.",
+    "options": [
+      "🌽",
+      "🐐"
+    ],
+    "correctAnswer": "🌽",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1187,
+    "text": "We roasted marshmallows over a ___",
+    "options": [
+      "🔥",
+      "💧"
+    ],
+    "correctAnswer": "🔥",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1188,
+    "text": "To see the time, I look at my ___",
+    "options": [
+      "⌚",
+      "🧊"
+    ],
+    "correctAnswer": "⌚",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1189,
+    "text": "At the circus, we saw a huge ___ balancing on a ball.",
+    "options": [
+      "🐘",
+      "🐭"
+    ],
+    "correctAnswer": "🐘",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1190,
+    "text": "The little girl hugged her favorite ___ toy.",
+    "options": [
+      "🧸",
+      "🧄"
+    ],
+    "correctAnswer": "🧸",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1191,
+    "text": "At night, sailors navigate by the shining ___",
+    "options": [
+      "⭐",
+      "🍪"
+    ],
+    "correctAnswer": "⭐",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1192,
+    "text": "In summer, I cool down by swimming in the ___",
+    "options": [
+      "🌊",
+      "🏜️"
+    ],
+    "correctAnswer": "🌊",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1193,
+    "text": "The chef chopped an onion and a red ___",
+    "options": [
+      "🌶️",
+      "🦀"
+    ],
+    "correctAnswer": "🌶️",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1194,
+    "text": "At Easter, children look for hidden ___",
+    "options": [
+      "🥚",
+      "🍩"
+    ],
+    "correctAnswer": "🥚",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1195,
+    "text": "The gardener watered the green ___",
+    "options": [
+      "🌱",
+      "📦"
+    ],
+    "correctAnswer": "🌱",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1196,
+    "text": "On the map, we marked our location with a red ___",
+    "options": [
+      "📍",
+      "🔑"
+    ],
+    "correctAnswer": "📍",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1197,
+    "text": "For dessert, I ate a slice of sweet ___",
+    "options": [
+      "🍉",
+      "🚜"
+    ],
+    "correctAnswer": "🍉",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1198,
+    "text": "The knight held a shining ___",
+    "options": [
+      "🗡️",
+      "🧩"
+    ],
+    "correctAnswer": "🗡️",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1199,
+    "text": "The pilot flew the ___ through the clouds.",
+    "options": [
+      "✈️",
+      "🚂"
+    ],
+    "correctAnswer": "✈️",
+    "difficulty": "medium",
+    "category": "Emojis"
+  },
+  {
+    "id": 1200,
+    "text": "He laughed so hard that tears of ___ ran down his face.",
+    "options": [
+      "😂",
+      "😭"
+    ],
+    "correctAnswer": "😂",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1201,
+    "text": "After running a marathon, she was completely out of ___",
+    "options": [
+      "💨",
+      "🔥"
+    ],
+    "correctAnswer": "💨",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1202,
+    "text": "In the fairy tale, the witch flew away on her ___",
+    "options": [
+      "🧹",
+      "🪄"
+    ],
+    "correctAnswer": "🧹",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1203,
+    "text": "He invested all his money hoping it would go to the ___",
+    "options": [
+      "🌕",
+      "🌞"
+    ],
+    "correctAnswer": "🌕",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1204,
+    "text": "The politician gave a long speech at the ___",
+    "options": [
+      "🎤",
+      "📖"
+    ],
+    "correctAnswer": "🎤",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1205,
+    "text": "She was so cold her teeth started to ___",
+    "options": [
+      "🥶",
+      "🥵"
+    ],
+    "correctAnswer": "🥶",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1206,
+    "text": "In a game of chess, the most powerful piece is the ___",
+    "options": [
+      "👑",
+      "🏰"
+    ],
+    "correctAnswer": "👑",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1207,
+    "text": "They cheered loudly and waved the national ___",
+    "options": [
+      "🏳️",
+      "🇮🇪"
+    ],
+    "correctAnswer": "🏳️",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1208,
+    "text": "At midnight on New Year’s Eve, people set off ___",
+    "options": [
+      "🎆",
+      "🕛"
+    ],
+    "correctAnswer": "🎆",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1209,
+    "text": "She finally put the puzzle ___ together.",
+    "options": [
+      "🧩",
+      "📦"
+    ],
+    "correctAnswer": "🧩",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1210,
+    "text": "To show that the plan was dangerous, he raised a red ___",
+    "options": [
+      "🚩",
+      "🎈"
+    ],
+    "correctAnswer": "🚩",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1211,
+    "text": "The judge’s decision hit him like a ___",
+    "options": [
+      "⚖️",
+      "🔨"
+    ],
+    "correctAnswer": "🔨",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1212,
+    "text": "The detective followed the trail of ___ to solve the case.",
+    "options": [
+      "🩸",
+      "🧩"
+    ],
+    "correctAnswer": "🧩",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1213,
+    "text": "When nervous, he felt butterflies in his ___",
+    "options": [
+      "🦋",
+      "🫀"
+    ],
+    "correctAnswer": "🦋",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1214,
+    "text": "She signed the contract with a fountain ___",
+    "options": [
+      "✒️",
+      "🖌️"
+    ],
+    "correctAnswer": "✒️",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1215,
+    "text": "The pirate’s treasure was hidden in a wooden ___",
+    "options": [
+      "🪙",
+      "🪵"
+    ],
+    "correctAnswer": "🪙",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1216,
+    "text": "To apologize, he brought a bouquet of ___",
+    "options": [
+      "🌹",
+      "🌻"
+    ],
+    "correctAnswer": "🌹",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1217,
+    "text": "The baby slept peacefully in the ___",
+    "options": [
+      "🛏️",
+      "🍼"
+    ],
+    "correctAnswer": "🛏️",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1218,
+    "text": "After the storm, the streets were covered with ___",
+    "options": [
+      "💧",
+      "🍂"
+    ],
+    "correctAnswer": "🍂",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1219,
+    "text": "He guarded the castle with a sharp ___",
+    "options": [
+      "🗡️",
+      "🏹"
+    ],
+    "correctAnswer": "🗡️",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1220,
+    "text": "The scientist recorded his results in a ___",
+    "options": [
+      "📓",
+      "📊"
+    ],
+    "correctAnswer": "📓",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1221,
+    "text": "The angry customer left a one-star ___",
+    "options": [
+      "⭐",
+      "💬"
+    ],
+    "correctAnswer": "⭐",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1222,
+    "text": "In the fairytale, the princess lost her glass ___",
+    "options": [
+      "👠",
+      "👑"
+    ],
+    "correctAnswer": "👠",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1223,
+    "text": "The climber reached the peak of the ___",
+    "options": [
+      "⛰️",
+      "🏝️"
+    ],
+    "correctAnswer": "⛰️",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1224,
+    "text": "She ended the message with a smiling ___",
+    "options": [
+      "😊",
+      "😡"
+    ],
+    "correctAnswer": "😊",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1225,
+    "text": "The knight defended himself with a ___",
+    "options": [
+      "🛡️",
+      "🧤"
+    ],
+    "correctAnswer": "🛡️",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1226,
+    "text": "When she was bored, she started twirling her ___",
+    "options": [
+      "💇",
+      "👂"
+    ],
+    "correctAnswer": "💇",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1227,
+    "text": "On the treasure map, X marked the ___",
+    "options": [
+      "📍",
+      "❌"
+    ],
+    "correctAnswer": "❌",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1228,
+    "text": "The samurai carried a sharp ___",
+    "options": [
+      "⚔️",
+      "🗡️"
+    ],
+    "correctAnswer": "⚔️",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1229,
+    "text": "After the win, the team lifted the golden ___",
+    "options": [
+      "🏆",
+      "🥇"
+    ],
+    "correctAnswer": "🏆",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1230,
+    "text": "He kept all his money hidden in a ___",
+    "options": [
+      "💼",
+      "💰"
+    ],
+    "correctAnswer": "💰",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1231,
+    "text": "The detective lit his pipe and put on his ___",
+    "options": [
+      "🕵️",
+      "🎩"
+    ],
+    "correctAnswer": "🕵️",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1232,
+    "text": "The magician pulled a rabbit out of a ___",
+    "options": [
+      "🎩",
+      "🧙"
+    ],
+    "correctAnswer": "🎩",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1233,
+    "text": "The stormy clouds lit up with flashes of ___",
+    "options": [
+      "⚡",
+      "🔥"
+    ],
+    "correctAnswer": "⚡",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1234,
+    "text": "He looked through the telescope at the red planet ___",
+    "options": [
+      "🔭",
+      "🪐"
+    ],
+    "correctAnswer": "🪐",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1235,
+    "text": "She made a wish and blew out the ___",
+    "options": [
+      "🕯️",
+      "🔥"
+    ],
+    "correctAnswer": "🕯️",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1236,
+    "text": "The warrior rode into battle on a fierce ___",
+    "options": [
+      "🐎",
+      "🐂"
+    ],
+    "correctAnswer": "🐎",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1237,
+    "text": "The poet ended the letter with a red ___",
+    "options": [
+      "❤️",
+      "💔"
+    ],
+    "correctAnswer": "❤️",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1238,
+    "text": "The scientist looked at the cells through a ___",
+    "options": [
+      "🔬",
+      "🔭"
+    ],
+    "correctAnswer": "🔬",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  {
+    "id": 1239,
+    "text": "He got down on one knee and offered her a ___",
+    "options": [
+      "💍",
+      "🎁"
+    ],
+    "correctAnswer": "💍",
+    "difficulty": "hard",
+    "category": "Emojis"
+  },
+  
+  {
+    "id": 1239,
+    "text": "Who sang 'Bad Guy'?",
+    "options": [
+      "Billie Eilish",
+      "Katy Perry"
+    ],
+    "correctAnswer": "Billie Eilish",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1240,
+    "text": "Which group sang 'Dynamite'?",
+    "options": [
+      "BTS",
+      "One Direction"
+    ],
+    "correctAnswer": "BTS",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1241,
+    "text": "Who released the album 'SOUR'?",
+    "options": [
+      "Olivia Rodrigo",
+      "Adele"
+    ],
+    "correctAnswer": "Olivia Rodrigo",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1242,
+    "text": "Who sang 'Shake It Off'?",
+    "options": [
+      "Taylor Swift",
+      "Selena Gomez"
+    ],
+    "correctAnswer": "Taylor Swift",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1243,
+    "text": "Which singer is known for 'Peaches'?",
+    "options": [
+      "Justin Bieber",
+      "Ed Sheeran"
+    ],
+    "correctAnswer": "Justin Bieber",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1244,
+    "text": "Who is part of BLACKPINK?",
+    "options": [
+      "Lisa",
+      "Miley Cyrus"
+    ],
+    "correctAnswer": "Lisa",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1245,
+    "text": "Which artist sang 'As It Was'?",
+    "options": [
+      "Harry Styles",
+      "Shawn Mendes"
+    ],
+    "correctAnswer": "Harry Styles",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1246,
+    "text": "Who sang 'Levitating'?",
+    "options": [
+      "Dua Lipa",
+      "Katy Perry"
+    ],
+    "correctAnswer": "Dua Lipa",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1247,
+    "text": "Which singer is known for 'drivers license'?",
+    "options": [
+      "Olivia Rodrigo",
+      "Ariana Grande"
+    ],
+    "correctAnswer": "Olivia Rodrigo",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1248,
+    "text": "Who sang 'Havana'?",
+    "options": [
+      "Camila Cabello",
+      "Billie Eilish"
+    ],
+    "correctAnswer": "Camila Cabello",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1249,
+    "text": "Which group sang 'What Makes You Beautiful'?",
+    "options": [
+      "One Direction",
+      "BTS"
+    ],
+    "correctAnswer": "One Direction",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1250,
+    "text": "Who sang 'Baby'?",
+    "options": [
+      "Justin Bieber",
+      "Shawn Mendes"
+    ],
+    "correctAnswer": "Justin Bieber",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1251,
+    "text": "Which artist sang 'Shape of You'?",
+    "options": [
+      "Ed Sheeran",
+      "Charlie Puth"
+    ],
+    "correctAnswer": "Ed Sheeran",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1252,
+    "text": "Who sang '7 rings'?",
+    "options": [
+      "Ariana Grande",
+      "Billie Eilish"
+    ],
+    "correctAnswer": "Ariana Grande",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1253,
+    "text": "Which artist is known for 'Watermelon Sugar'?",
+    "options": [
+      "Harry Styles",
+      "Niall Horan"
+    ],
+    "correctAnswer": "Harry Styles",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1254,
+    "text": "Who sang 'Wrecking Ball'?",
+    "options": [
+      "Miley Cyrus",
+      "Demi Lovato"
+    ],
+    "correctAnswer": "Miley Cyrus",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1255,
+    "text": "Which band sang 'Counting Stars'?",
+    "options": [
+      "OneRepublic",
+      "Coldplay"
+    ],
+    "correctAnswer": "OneRepublic",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1256,
+    "text": "Who sang 'Call Me Maybe'?",
+    "options": [
+      "Carly Rae Jepsen",
+      "Katy Perry"
+    ],
+    "correctAnswer": "Carly Rae Jepsen",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1257,
+    "text": "Which artist sang 'Bad Habits'?",
+    "options": [
+      "Ed Sheeran",
+      "Shawn Mendes"
+    ],
+    "correctAnswer": "Ed Sheeran",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1258,
+    "text": "Who sang 'Problem'?",
+    "options": [
+      "Ariana Grande",
+      "Selena Gomez"
+    ],
+    "correctAnswer": "Ariana Grande",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1259,
+    "text": "Which band sang 'Sugar'?",
+    "options": [
+      "Maroon 5",
+      "Coldplay"
+    ],
+    "correctAnswer": "Maroon 5",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1260,
+    "text": "Who sang 'Roar'?",
+    "options": [
+      "Katy Perry",
+      "Rihanna"
+    ],
+    "correctAnswer": "Katy Perry",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1261,
+    "text": "Which singer is known for 'Good 4 U'?",
+    "options": [
+      "Olivia Rodrigo",
+      "Billie Eilish"
+    ],
+    "correctAnswer": "Olivia Rodrigo",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1262,
+    "text": "Who sang 'Sorry Not Sorry'?",
+    "options": [
+      "Demi Lovato",
+      "Miley Cyrus"
+    ],
+    "correctAnswer": "Demi Lovato",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1263,
+    "text": "Which artist sang 'Shivers'?",
+    "options": [
+      "Ed Sheeran",
+      "Charlie Puth"
+    ],
+    "correctAnswer": "Ed Sheeran",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1264,
+    "text": "Who sang 'Blinding Lights'?",
+    "options": [
+      "The Weeknd",
+      "Drake"
+    ],
+    "correctAnswer": "The Weeknd",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1265,
+    "text": "Which group sang 'Butter'?",
+    "options": [
+      "BTS",
+      "BLACKPINK"
+    ],
+    "correctAnswer": "BTS",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1266,
+    "text": "Who sang 'We Don't Talk Anymore'?",
+    "options": [
+      "Charlie Puth",
+      "Shawn Mendes"
+    ],
+    "correctAnswer": "Charlie Puth",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1267,
+    "text": "Which singer sang 'Break Free'?",
+    "options": [
+      "Ariana Grande",
+      "Selena Gomez"
+    ],
+    "correctAnswer": "Ariana Grande",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1268,
+    "text": "Who sang 'Funky Town' remix in 2020s?",
+    "options": [
+      "Lipps Inc.",
+      "BTS"
+    ],
+    "correctAnswer": "BTS",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1269,
+    "text": "Which singer sang 'Stitches'?",
+    "options": [
+      "Shawn Mendes",
+      "Justin Bieber"
+    ],
+    "correctAnswer": "Shawn Mendes",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1270,
+    "text": "Who sang 'Smile'?",
+    "options": [
+      "Katy Perry",
+      "Lady Gaga"
+    ],
+    "correctAnswer": "Katy Perry",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1271,
+    "text": "Which singer sang 'Kings & Queens'?",
+    "options": [
+      "Ava Max",
+      "Dua Lipa"
+    ],
+    "correctAnswer": "Ava Max",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1272,
+    "text": "Who sang 'Don't Start Now'?",
+    "options": [
+      "Dua Lipa",
+      "Miley Cyrus"
+    ],
+    "correctAnswer": "Dua Lipa",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1273,
+    "text": "Which group sang 'Cool for the Summer'?",
+    "options": [
+      "Demi Lovato",
+      "BLACKPINK"
+    ],
+    "correctAnswer": "Demi Lovato",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1274,
+    "text": "Who sang 'Señorita'?",
+    "options": [
+      "Shawn Mendes",
+      "Justin Timberlake"
+    ],
+    "correctAnswer": "Shawn Mendes",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1275,
+    "text": "Which artist sang 'Tik Tok'?",
+    "options": [
+      "Kesha",
+      "Miley Cyrus"
+    ],
+    "correctAnswer": "Kesha",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1276,
+    "text": "Who sang 'Grenade'?",
+    "options": [
+      "Bruno Mars",
+      "Drake"
+    ],
+    "correctAnswer": "Bruno Mars",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1277,
+    "text": "Which band sang 'Viva La Vida'?",
+    "options": [
+      "Coldplay",
+      "Imagine Dragons"
+    ],
+    "correctAnswer": "Coldplay",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1278,
+    "text": "Who sang 'Believer'?",
+    "options": [
+      "Imagine Dragons",
+      "Maroon 5"
+    ],
+    "correctAnswer": "Imagine Dragons",
+    "difficulty": "easy",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1279,
+    "text": "Who released 'Teenage Dream'?",
+    "options": [
+      "Katy Perry",
+      "Rihanna"
+    ],
+    "correctAnswer": "Katy Perry",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1280,
+    "text": "Which artist sang 'Umbrella'?",
+    "options": [
+      "Rihanna",
+      "Beyoncé"
+    ],
+    "correctAnswer": "Rihanna",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1281,
+    "text": "Who sang 'Poker Face'?",
+    "options": [
+      "Lady Gaga",
+      "Katy Perry"
+    ],
+    "correctAnswer": "Lady Gaga",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1282,
+    "text": "Which artist sang 'Uptown Funk'?",
+    "options": [
+      "Bruno Mars",
+      "The Weeknd"
+    ],
+    "correctAnswer": "Bruno Mars",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1283,
+    "text": "Who sang 'Halo'?",
+    "options": [
+      "Beyoncé",
+      "Rihanna"
+    ],
+    "correctAnswer": "Beyoncé",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1284,
+    "text": "Which artist sang 'Love Story'?",
+    "options": [
+      "Taylor Swift",
+      "Selena Gomez"
+    ],
+    "correctAnswer": "Taylor Swift",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1285,
+    "text": "Who sang 'Yeah!'?",
+    "options": [
+      "Usher",
+      "Chris Brown"
+    ],
+    "correctAnswer": "Usher",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1286,
+    "text": "Which band sang 'Viva La Vida'?",
+    "options": [
+      "Coldplay",
+      "Maroon 5"
+    ],
+    "correctAnswer": "Coldplay",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1287,
+    "text": "Who sang 'Rolling in the Deep'?",
+    "options": [
+      "Adele",
+      "Beyoncé"
+    ],
+    "correctAnswer": "Adele",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1288,
+    "text": "Which artist released 'Future Nostalgia'?",
+    "options": [
+      "Dua Lipa",
+      "Billie Eilish"
+    ],
+    "correctAnswer": "Dua Lipa",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1289,
+    "text": "Who sang 'Tik Tok'?",
+    "options": [
+      "Kesha",
+      "Katy Perry"
+    ],
+    "correctAnswer": "Kesha",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1290,
+    "text": "Which artist sang 'Sorry'?",
+    "options": [
+      "Justin Bieber",
+      "Shawn Mendes"
+    ],
+    "correctAnswer": "Justin Bieber",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1291,
+    "text": "Who sang 'Hotline Bling'?",
+    "options": [
+      "Drake",
+      "The Weeknd"
+    ],
+    "correctAnswer": "Drake",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1292,
+    "text": "Which band sang 'Radioactive'?",
+    "options": [
+      "Imagine Dragons",
+      "Coldplay"
+    ],
+    "correctAnswer": "Imagine Dragons",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1293,
+    "text": "Who sang 'Teenage Dirtbag'?",
+    "options": [
+      "Wheatus",
+      "Blink-182"
+    ],
+    "correctAnswer": "Wheatus",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1294,
+    "text": "Which artist sang 'Rehab'?",
+    "options": [
+      "Amy Winehouse",
+      "Adele"
+    ],
+    "correctAnswer": "Amy Winehouse",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1295,
+    "text": "Who sang 'Apologize'?",
+    "options": [
+      "OneRepublic",
+      "Maroon 5"
+    ],
+    "correctAnswer": "OneRepublic",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1296,
+    "text": "Which singer sang 'Unwritten'?",
+    "options": [
+      "Natasha Bedingfield",
+      "Kelly Clarkson"
+    ],
+    "correctAnswer": "Natasha Bedingfield",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1297,
+    "text": "Who sang 'Since U Been Gone'?",
+    "options": [
+      "Kelly Clarkson",
+      "P!nk"
+    ],
+    "correctAnswer": "Kelly Clarkson",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1298,
+    "text": "Which band sang 'Sugar, We're Goin Down'?",
+    "options": [
+      "Fall Out Boy",
+      "Paramore"
+    ],
+    "correctAnswer": "Fall Out Boy",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1299,
+    "text": "Who sang 'Complicated'?",
+    "options": [
+      "Avril Lavigne",
+      "P!nk"
+    ],
+    "correctAnswer": "Avril Lavigne",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1300,
+    "text": "Which band sang 'Bring Me to Life'?",
+    "options": [
+      "Evanescence",
+      "Linkin Park"
+    ],
+    "correctAnswer": "Evanescence",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1301,
+    "text": "Who sang 'It's My Life'?",
+    "options": [
+      "Bon Jovi",
+      "U2"
+    ],
+    "correctAnswer": "Bon Jovi",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1302,
+    "text": "Which singer sang 'Beautiful'?",
+    "options": [
+      "Christina Aguilera",
+      "Mariah Carey"
+    ],
+    "correctAnswer": "Christina Aguilera",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1303,
+    "text": "Who sang 'Family Affair'?",
+    "options": [
+      "Mary J. Blige",
+      "Rihanna"
+    ],
+    "correctAnswer": "Mary J. Blige",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1304,
+    "text": "Which artist sang 'Cry Me a River'?",
+    "options": [
+      "Justin Timberlake",
+      "Usher"
+    ],
+    "correctAnswer": "Justin Timberlake",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1305,
+    "text": "Who sang 'So What'?",
+    "options": [
+      "P!nk",
+      "Kelly Clarkson"
+    ],
+    "correctAnswer": "P!nk",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1306,
+    "text": "Which singer sang 'Bleeding Love'?",
+    "options": [
+      "Leona Lewis",
+      "Adele"
+    ],
+    "correctAnswer": "Leona Lewis",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1307,
+    "text": "Who sang 'Rock Your Body'?",
+    "options": [
+      "Justin Timberlake",
+      "Ne-Yo"
+    ],
+    "correctAnswer": "Justin Timberlake",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1308,
+    "text": "Which artist sang 'Empire State of Mind'?",
+    "options": [
+      "Alicia Keys",
+      "Rihanna"
+    ],
+    "correctAnswer": "Alicia Keys",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1309,
+    "text": "Who sang 'Crazy in Love'?",
+    "options": [
+      "Beyoncé",
+      "Rihanna"
+    ],
+    "correctAnswer": "Beyoncé",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1310,
+    "text": "Which band sang 'Boulevard of Broken Dreams'?",
+    "options": [
+      "Green Day",
+      "Fall Out Boy"
+    ],
+    "correctAnswer": "Green Day",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1311,
+    "text": "Who sang 'Numb'?",
+    "options": [
+      "Linkin Park",
+      "Coldplay"
+    ],
+    "correctAnswer": "Linkin Park",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1312,
+    "text": "Which band sang 'Mr. Brightside'?",
+    "options": [
+      "The Killers",
+      "Arctic Monkeys"
+    ],
+    "correctAnswer": "The Killers",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1313,
+    "text": "Who sang 'Chasing Cars'?",
+    "options": [
+      "Snow Patrol",
+      "Coldplay"
+    ],
+    "correctAnswer": "Snow Patrol",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1314,
+    "text": "Which artist sang 'Just Dance'?",
+    "options": [
+      "Lady Gaga",
+      "Kesha"
+    ],
+    "correctAnswer": "Lady Gaga",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1315,
+    "text": "Who sang 'Stronger'?",
+    "options": [
+      "Kanye West",
+      "Jay-Z"
+    ],
+    "correctAnswer": "Kanye West",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1316,
+    "text": "Which artist sang 'Work'?",
+    "options": [
+      "Rihanna",
+      "Nicki Minaj"
+    ],
+    "correctAnswer": "Rihanna",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1317,
+    "text": "Who sang 'Happy'?",
+    "options": [
+      "Pharrell Williams",
+      "Bruno Mars"
+    ],
+    "correctAnswer": "Pharrell Williams",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1318,
+    "text": "Which singer sang 'All of Me'?",
+    "options": [
+      "John Legend",
+      "Alicia Keys"
+    ],
+    "correctAnswer": "John Legend",
+    "difficulty": "medium",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1319,
+    "text": "Who produced 'SexyBack'?",
+    "options": [
+      "Timbaland",
+      "Pharrell"
+    ],
+    "correctAnswer": "Timbaland",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1320,
+    "text": "Which band released 'Clocks'?",
+    "options": [
+      "Coldplay",
+      "Radiohead"
+    ],
+    "correctAnswer": "Coldplay",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1321,
+    "text": "Who sang 'Hung Up'?",
+    "options": [
+      "Madonna",
+      "Kylie Minogue"
+    ],
+    "correctAnswer": "Madonna",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1322,
+    "text": "Which artist sang 'Music'?",
+    "options": [
+      "Madonna",
+      "Lady Gaga"
+    ],
+    "correctAnswer": "Madonna",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1323,
+    "text": "Who sang 'Rehab' in 2006?",
+    "options": [
+      "Amy Winehouse",
+      "Duffy"
+    ],
+    "correctAnswer": "Amy Winehouse",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1324,
+    "text": "Which singer released 'Confessions on a Dance Floor'?",
+    "options": [
+      "Madonna",
+      "Beyoncé"
+    ],
+    "correctAnswer": "Madonna",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1325,
+    "text": "Who sang 'Clumsy'?",
+    "options": [
+      "Fergie",
+      "Christina Aguilera"
+    ],
+    "correctAnswer": "Fergie",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1326,
+    "text": "Which singer sang 'Milkshake'?",
+    "options": [
+      "Kelis",
+      "Ciara"
+    ],
+    "correctAnswer": "Kelis",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1327,
+    "text": "Who sang 'Promiscuous'?",
+    "options": [
+      "Nelly Furtado",
+      "Shakira"
+    ],
+    "correctAnswer": "Nelly Furtado",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1328,
+    "text": "Which band released 'Speed of Sound'?",
+    "options": [
+      "Coldplay",
+      "Radiohead"
+    ],
+    "correctAnswer": "Coldplay",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1329,
+    "text": "Who sang 'Gold Digger'?",
+    "options": [
+      "Kanye West",
+      "Jay-Z"
+    ],
+    "correctAnswer": "Kanye West",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1330,
+    "text": "Which band released 'Somebody Told Me'?",
+    "options": [
+      "The Killers",
+      "The Strokes"
+    ],
+    "correctAnswer": "The Killers",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1331,
+    "text": "Who sang 'Cry Me a River'?",
+    "options": [
+      "Justin Timberlake",
+      "Usher"
+    ],
+    "correctAnswer": "Justin Timberlake",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1332,
+    "text": "Which band sang 'Fix You'?",
+    "options": [
+      "Coldplay",
+      "U2"
+    ],
+    "correctAnswer": "Coldplay",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1333,
+    "text": "Who released 'No One'?",
+    "options": [
+      "Alicia Keys",
+      "Mary J. Blige"
+    ],
+    "correctAnswer": "Alicia Keys",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1334,
+    "text": "Who sang 'Say My Name'?",
+    "options": [
+      "Destiny's Child",
+      "Spice Girls"
+    ],
+    "correctAnswer": "Destiny's Child",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1335,
+    "text": "Which singer sang 'Dirrty'?",
+    "options": [
+      "Christina Aguilera",
+      "Britney Spears"
+    ],
+    "correctAnswer": "Christina Aguilera",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1336,
+    "text": "Who sang 'Genie in a Bottle'?",
+    "options": [
+      "Christina Aguilera",
+      "Britney Spears"
+    ],
+    "correctAnswer": "Christina Aguilera",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1337,
+    "text": "Who sang 'Toxic'?",
+    "options": [
+      "Britney Spears",
+      "Kylie Minogue"
+    ],
+    "correctAnswer": "Britney Spears",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1338,
+    "text": "Which band sang 'This Love'?",
+    "options": [
+      "Maroon 5",
+      "OneRepublic"
+    ],
+    "correctAnswer": "Maroon 5",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1339,
+    "text": "Who sang 'By Your Side'?",
+    "options": [
+      "Sade",
+      "Dido"
+    ],
+    "correctAnswer": "Sade",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1340,
+    "text": "Which band sang 'Yellow'?",
+    "options": [
+      "Coldplay",
+      "Snow Patrol"
+    ],
+    "correctAnswer": "Coldplay",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1341,
+    "text": "Who sang 'White Flag'?",
+    "options": [
+      "Dido",
+      "Norah Jones"
+    ],
+    "correctAnswer": "Dido",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1342,
+    "text": "Which singer sang 'Back to Black'?",
+    "options": [
+      "Amy Winehouse",
+      "Adele"
+    ],
+    "correctAnswer": "Amy Winehouse",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1343,
+    "text": "Who sang 'Don't Stop the Music'?",
+    "options": [
+      "Rihanna",
+      "Beyoncé"
+    ],
+    "correctAnswer": "Rihanna",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1344,
+    "text": "Who sang 'Falling'?",
+    "options": [
+      "Alicia Keys",
+      "Mary J. Blige"
+    ],
+    "correctAnswer": "Alicia Keys",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1345,
+    "text": "Which band sang 'Clocks'?",
+    "options": [
+      "Coldplay",
+      "Radiohead"
+    ],
+    "correctAnswer": "Coldplay",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1346,
+    "text": "Who sang 'Feel Good Inc.'?",
+    "options": [
+      "Gorillaz",
+      "Outkast"
+    ],
+    "correctAnswer": "Gorillaz",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1347,
+    "text": "Who sang 'Ms. Jackson'?",
+    "options": [
+      "Outkast",
+      "Black Eyed Peas"
+    ],
+    "correctAnswer": "Outkast",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1348,
+    "text": "Who sang 'Hey Ya!'?",
+    "options": [
+      "Outkast",
+      "Gnarls Barkley"
+    ],
+    "correctAnswer": "Outkast",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1349,
+    "text": "Which band sang 'American Idiot'?",
+    "options": [
+      "Green Day",
+      "Blink-182"
+    ],
+    "correctAnswer": "Green Day",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1350,
+    "text": "Who sang 'My Humps'?",
+    "options": [
+      "Black Eyed Peas",
+      "Destiny's Child"
+    ],
+    "correctAnswer": "Black Eyed Peas",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1351,
+    "text": "Who sang 'Don't Cha'?",
+    "options": [
+      "The Pussycat Dolls",
+      "Spice Girls"
+    ],
+    "correctAnswer": "The Pussycat Dolls",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1352,
+    "text": "Who sang 'Beautiful Day'?",
+    "options": [
+      "U2",
+      "Coldplay"
+    ],
+    "correctAnswer": "U2",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1353,
+    "text": "Which band sang 'Seven Nation Army'?",
+    "options": [
+      "The White Stripes",
+      "The Black Keys"
+    ],
+    "correctAnswer": "The White Stripes",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1354,
+    "text": "Who sang 'Maps'?",
+    "options": [
+      "Yeah Yeah Yeahs",
+      "No Doubt"
+    ],
+    "correctAnswer": "Yeah Yeah Yeahs",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1355,
+    "text": "Who sang 'Hips Don't Lie'?",
+    "options": [
+      "Shakira",
+      "Jennifer Lopez"
+    ],
+    "correctAnswer": "Shakira",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1356,
+    "text": "Who sang 'Whenever, Wherever'?",
+    "options": [
+      "Shakira",
+      "Rihanna"
+    ],
+    "correctAnswer": "Shakira",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1357,
+    "text": "Which band sang 'Mr. Brightside'?",
+    "options": [
+      "The Killers",
+      "Oasis"
+    ],
+    "correctAnswer": "The Killers",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  },
+  {
+    "id": 1358,
+    "text": "Who sang 'Crazy'?",
+    "options": [
+      "Gnarls Barkley",
+      "Outkast"
+    ],
+    "correctAnswer": "Gnarls Barkley",
+    "difficulty": "hard",
+    "category": "Pop Music"
+  }
+,
+  {
+    "id": 1359,
+    "text": "Who won the 2018 FIFA World Cup (soccer)?",
+    "options": [
+      "France",
+      "Croatia"
+    ],
+    "correctAnswer": "France",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1360,
+    "text": "Which player is nicknamed 'CR7'?",
+    "options": [
+      "Cristiano Ronaldo",
+      "Lionel Messi"
+    ],
+    "correctAnswer": "Cristiano Ronaldo",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1361,
+    "text": "Which country hosted the 2014 FIFA World Cup (soccer)?",
+    "options": [
+      "Brazil",
+      "Germany"
+    ],
+    "correctAnswer": "Brazil",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1362,
+    "text": "Who won the 2010 FIFA World Cup (soccer)?",
+    "options": [
+      "Spain",
+      "Netherlands"
+    ],
+    "correctAnswer": "Spain",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1363,
+    "text": "Which country is nicknamed the 'Three Lions' in soccer?",
+    "options": [
+      "England",
+      "Italy"
+    ],
+    "correctAnswer": "England",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1364,
+    "text": "Which country hosted the 2022 FIFA World Cup (soccer)?",
+    "options": [
+      "Qatar",
+      "Russia"
+    ],
+    "correctAnswer": "Qatar",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1365,
+    "text": "Who won the Golden Boot at the 2018 FIFA World Cup (soccer)?",
+    "options": [
+      "Harry Kane",
+      "Antoine Griezmann"
+    ],
+    "correctAnswer": "Harry Kane",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1366,
+    "text": "Which country won the first FIFA Women’s World Cup (soccer) in 1991?",
+    "options": [
+      "USA",
+      "Germany"
+    ],
+    "correctAnswer": "USA",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1367,
+    "text": "Who is known as 'El Pibe de Oro' in soccer?",
+    "options": [
+      "Diego Maradona",
+      "Pelé"
+    ],
+    "correctAnswer": "Diego Maradona",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1368,
+    "text": "Which country won the 2002 FIFA World Cup (soccer)?",
+    "options": [
+      "Brazil",
+      "Germany"
+    ],
+    "correctAnswer": "Brazil",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1369,
+    "text": "Who scored the winning goal for Spain in the 2010 FIFA World Cup (soccer) final?",
+    "options": [
+      "Andrés Iniesta",
+      "Fernando Torres"
+    ],
+    "correctAnswer": "Andrés Iniesta",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1370,
+    "text": "Which team beat Brazil 7–1 in the 2014 FIFA World Cup (soccer) semi‑final?",
+    "options": [
+      "Germany",
+      "Argentina"
+    ],
+    "correctAnswer": "Germany",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1371,
+    "text": "Who won the Golden Ball (best player) at the 2014 FIFA World Cup (soccer)?",
+    "options": [
+      "Lionel Messi",
+      "Thomas Müller"
+    ],
+    "correctAnswer": "Lionel Messi",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1372,
+    "text": "Which African nation reached the FIFA World Cup (soccer) quarterfinals in 2010?",
+    "options": [
+      "Ghana",
+      "Cameroon"
+    ],
+    "correctAnswer": "Ghana",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1373,
+    "text": "Who managed Germany at the 2014 FIFA World Cup (soccer)?",
+    "options": [
+      "Joachim Löw",
+      "Jürgen Klopp"
+    ],
+    "correctAnswer": "Joachim Löw",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1374,
+    "text": "Which country won the 2006 FIFA World Cup (soccer)?",
+    "options": [
+      "Italy",
+      "France"
+    ],
+    "correctAnswer": "Italy",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1375,
+    "text": "Which country won the 1998 FIFA World Cup (soccer)?",
+    "options": [
+      "France",
+      "Brazil"
+    ],
+    "correctAnswer": "France",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1376,
+    "text": "Who is Spain’s all‑time top men’s scorer in soccer?",
+    "options": [
+      "David Villa",
+      "Fernando Torres"
+    ],
+    "correctAnswer": "David Villa",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1377,
+    "text": "Who scored a hat‑trick in the 2022 FIFA World Cup (soccer) final?",
+    "options": [
+      "Kylian Mbappé",
+      "Lionel Messi"
+    ],
+    "correctAnswer": "Kylian Mbappé",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1378,
+    "text": "Who captained France at the 1998 FIFA World Cup (soccer)?",
+    "options": [
+      "Didier Deschamps",
+      "Zinedine Zidane"
+    ],
+    "correctAnswer": "Didier Deschamps",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1379,
+    "text": "Which country hosted the first FIFA World Cup (soccer) in 1930?",
+    "options": [
+      "Uruguay",
+      "Argentina"
+    ],
+    "correctAnswer": "Uruguay",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1380,
+    "text": "Who scored the famous 'Hand of God' goal in soccer?",
+    "options": [
+      "Diego Maradona",
+      "Pelé"
+    ],
+    "correctAnswer": "Diego Maradona",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1381,
+    "text": "Which nation won the 1958 FIFA World Cup (soccer)?",
+    "options": [
+      "Brazil",
+      "France"
+    ],
+    "correctAnswer": "Brazil",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1382,
+    "text": "Which goalkeeper started for Italy in the 2006 FIFA World Cup (soccer) final?",
+    "options": [
+      "Gianluigi Buffon",
+      "Fabien Barthez"
+    ],
+    "correctAnswer": "Gianluigi Buffon",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1383,
+    "text": "Who scored Brazil’s iconic fourth goal in the 1970 FIFA World Cup (soccer) final?",
+    "options": [
+      "Carlos Alberto",
+      "Pelé"
+    ],
+    "correctAnswer": "Carlos Alberto",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1384,
+    "text": "Which team won the 1978 FIFA World Cup (soccer)?",
+    "options": [
+      "Argentina",
+      "Netherlands"
+    ],
+    "correctAnswer": "Argentina",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1385,
+    "text": "Who was joint top scorer in the 1994 FIFA World Cup (soccer)?",
+    "options": [
+      "Hristo Stoichkov",
+      "Romário"
+    ],
+    "correctAnswer": "Hristo Stoichkov",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1386,
+    "text": "Which country won the 1954 FIFA World Cup (soccer)?",
+    "options": [
+      "West Germany",
+      "Hungary"
+    ],
+    "correctAnswer": "West Germany",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1387,
+    "text": "Which African country hosted the 2010 FIFA World Cup (soccer)?",
+    "options": [
+      "South Africa",
+      "Nigeria"
+    ],
+    "correctAnswer": "South Africa",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1388,
+    "text": "Who scored the fastest goal at the 2002 FIFA World Cup (soccer)?",
+    "options": [
+      "Hakan Şükür",
+      "Rivaldo"
+    ],
+    "correctAnswer": "Hakan Şükür",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1389,
+    "text": "Which country is known as the All Blacks in rugby?",
+    "options": [
+      "New Zealand",
+      "Australia"
+    ],
+    "correctAnswer": "New Zealand",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1390,
+    "text": "Which trophy is awarded at the Rugby World Cup?",
+    "options": [
+      "Webb Ellis Cup",
+      "Calcutta Cup"
+    ],
+    "correctAnswer": "Webb Ellis Cup",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1391,
+    "text": "Who won the 2019 Rugby World Cup?",
+    "options": [
+      "South Africa",
+      "England"
+    ],
+    "correctAnswer": "South Africa",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1392,
+    "text": "Which country hosted the 2015 Rugby World Cup?",
+    "options": [
+      "England",
+      "Japan"
+    ],
+    "correctAnswer": "England",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1393,
+    "text": "Which team won the first Rugby World Cup in 1987?",
+    "options": [
+      "New Zealand",
+      "Australia"
+    ],
+    "correctAnswer": "New Zealand",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1394,
+    "text": "Which team is nicknamed the Springboks in rugby?",
+    "options": [
+      "South Africa",
+      "Ireland"
+    ],
+    "correctAnswer": "South Africa",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1395,
+    "text": "Who won the 2003 Rugby World Cup?",
+    "options": [
+      "England",
+      "Australia"
+    ],
+    "correctAnswer": "England",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1396,
+    "text": "Which legendary winger is 'Jonah' in rugby?",
+    "options": [
+      "Jonah Lomu",
+      "Brian O’Driscoll"
+    ],
+    "correctAnswer": "Jonah Lomu",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1397,
+    "text": "Which country hosted the 2019 Rugby World Cup?",
+    "options": [
+      "Japan",
+      "France"
+    ],
+    "correctAnswer": "Japan",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1398,
+    "text": "Which country won the Six Nations Grand Slam in 2023?",
+    "options": [
+      "Ireland",
+      "France"
+    ],
+    "correctAnswer": "Ireland",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1399,
+    "text": "Who captained England to the 2003 Rugby World Cup title?",
+    "options": [
+      "Martin Johnson",
+      "Jonny Wilkinson"
+    ],
+    "correctAnswer": "Martin Johnson",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1400,
+    "text": "Who kicked the winning drop goal in the 2003 Rugby World Cup final?",
+    "options": [
+      "Jonny Wilkinson",
+      "Dan Carter"
+    ],
+    "correctAnswer": "Jonny Wilkinson",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1401,
+    "text": "Which country won the 1995 Rugby World Cup?",
+    "options": [
+      "South Africa",
+      "New Zealand"
+    ],
+    "correctAnswer": "South Africa",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1402,
+    "text": "Who captained South Africa at the 2019 Rugby World Cup?",
+    "options": [
+      "Siya Kolisi",
+      "Victor Matfield"
+    ],
+    "correctAnswer": "Siya Kolisi",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1403,
+    "text": "Which team won the 2011 Rugby World Cup?",
+    "options": [
+      "New Zealand",
+      "France"
+    ],
+    "correctAnswer": "New Zealand",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1404,
+    "text": "Which country hosted the 2007 Rugby World Cup?",
+    "options": [
+      "France",
+      "Wales"
+    ],
+    "correctAnswer": "France",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1405,
+    "text": "Which Irish player is nicknamed 'BOD' in rugby?",
+    "options": [
+      "Brian O’Driscoll",
+      "Ronan O’Gara"
+    ],
+    "correctAnswer": "Brian O’Driscoll",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1406,
+    "text": "Who holds Wales’ men’s try record in rugby?",
+    "options": [
+      "Shane Williams",
+      "George North"
+    ],
+    "correctAnswer": "Shane Williams",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1407,
+    "text": "Which nation had the most Rugby World Cup titles as of 2019?",
+    "options": [
+      "New Zealand",
+      "South Africa"
+    ],
+    "correctAnswer": "New Zealand",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1408,
+    "text": "Which fly‑half is known by the initials 'DC' in rugby?",
+    "options": [
+      "Dan Carter",
+      "David Campese"
+    ],
+    "correctAnswer": "Dan Carter",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1409,
+    "text": "Which country won the 1991 Rugby World Cup?",
+    "options": [
+      "Australia",
+      "England"
+    ],
+    "correctAnswer": "Australia",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1410,
+    "text": "Who captained South Africa at the 1995 Rugby World Cup?",
+    "options": [
+      "Francois Pienaar",
+      "Joost van der Westhuizen"
+    ],
+    "correctAnswer": "Francois Pienaar",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1411,
+    "text": "Which country won the 1999 Rugby World Cup?",
+    "options": [
+      "Australia",
+      "France"
+    ],
+    "correctAnswer": "Australia",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1412,
+    "text": "Which team did Japan famously beat at the 2015 Rugby World Cup?",
+    "options": [
+      "South Africa",
+      "England"
+    ],
+    "correctAnswer": "South Africa",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1413,
+    "text": "Who captained New Zealand at the 2011 Rugby World Cup?",
+    "options": [
+      "Richie McCaw",
+      "Dan Carter"
+    ],
+    "correctAnswer": "Richie McCaw",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1414,
+    "text": "Which country hosted the 1999 Rugby World Cup?",
+    "options": [
+      "Wales",
+      "France"
+    ],
+    "correctAnswer": "Wales",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1415,
+    "text": "Who is the all‑time points leader at the Rugby World Cup?",
+    "options": [
+      "Jonny Wilkinson",
+      "Dan Carter"
+    ],
+    "correctAnswer": "Jonny Wilkinson",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1416,
+    "text": "Which winger was nicknamed the 'Pocket Rocket' in rugby?",
+    "options": [
+      "Shane Williams",
+      "David Campese"
+    ],
+    "correctAnswer": "Shane Williams",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1417,
+    "text": "Which country won the 2007 Rugby World Cup?",
+    "options": [
+      "South Africa",
+      "England"
+    ],
+    "correctAnswer": "South Africa",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1418,
+    "text": "Which two countries co‑hosted the first Rugby World Cup in 1987?",
+    "options": [
+      "New Zealand",
+      "Australia"
+    ],
+    "correctAnswer": "New Zealand",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1419,
+    "text": "Who has won the most men’s Grand Slam titles in tennis?",
+    "options": [
+      "Novak Djokovic",
+      "Rafael Nadal"
+    ],
+    "correctAnswer": "Novak Djokovic",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1420,
+    "text": "Which female tennis legend is Serena’s sister?",
+    "options": [
+      "Venus Williams",
+      "Naomi Osaka"
+    ],
+    "correctAnswer": "Venus Williams",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1421,
+    "text": "Who is known as the 'King of Clay' in tennis?",
+    "options": [
+      "Rafael Nadal",
+      "Novak Djokovic"
+    ],
+    "correctAnswer": "Rafael Nadal",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1422,
+    "text": "Which tennis Grand Slam is played on grass?",
+    "options": [
+      "Wimbledon",
+      "French Open"
+    ],
+    "correctAnswer": "Wimbledon",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1423,
+    "text": "Who defeated Federer in the 2008 Wimbledon tennis final?",
+    "options": [
+      "Rafael Nadal",
+      "Andy Murray"
+    ],
+    "correctAnswer": "Rafael Nadal",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1424,
+    "text": "Which player is nicknamed 'FedEx' in tennis?",
+    "options": [
+      "Roger Federer",
+      "Novak Djokovic"
+    ],
+    "correctAnswer": "Roger Federer",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1425,
+    "text": "Who won the 2021 US Open men’s singles in tennis?",
+    "options": [
+      "Daniil Medvedev",
+      "Novak Djokovic"
+    ],
+    "correctAnswer": "Daniil Medvedev",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1426,
+    "text": "Which country hosts the Australian Open tennis tournament?",
+    "options": [
+      "Australia",
+      "USA"
+    ],
+    "correctAnswer": "Australia",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1427,
+    "text": "Who won the 2019 Wimbledon women’s singles in tennis?",
+    "options": [
+      "Simona Halep",
+      "Serena Williams"
+    ],
+    "correctAnswer": "Simona Halep",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1428,
+    "text": "Which Japanese tennis star has won multiple Grand Slams?",
+    "options": [
+      "Naomi Osaka",
+      "Iga Świątek"
+    ],
+    "correctAnswer": "Naomi Osaka",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1429,
+    "text": "Who won Wimbledon in 2013 men’s singles?",
+    "options": [
+      "Andy Murray",
+      "Novak Djokovic"
+    ],
+    "correctAnswer": "Andy Murray",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1430,
+    "text": "Which female player has 23 Grand Slam titles in tennis?",
+    "options": [
+      "Serena Williams",
+      "Steffi Graf"
+    ],
+    "correctAnswer": "Serena Williams",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1431,
+    "text": "Who won the 2020 US Open men’s singles in tennis?",
+    "options": [
+      "Dominic Thiem",
+      "Daniil Medvedev"
+    ],
+    "correctAnswer": "Dominic Thiem",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1432,
+    "text": "Which female tennis player won Wimbledon in 2004?",
+    "options": [
+      "Maria Sharapova",
+      "Serena Williams"
+    ],
+    "correctAnswer": "Maria Sharapova",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1433,
+    "text": "Who won the 2009 French Open men’s singles in tennis?",
+    "options": [
+      "Roger Federer",
+      "Rafael Nadal"
+    ],
+    "correctAnswer": "Roger Federer",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1434,
+    "text": "Which country hosts the French Open tennis tournament?",
+    "options": [
+      "France",
+      "Italy"
+    ],
+    "correctAnswer": "France",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1435,
+    "text": "Who won the 2021 Wimbledon women’s singles in tennis?",
+    "options": [
+      "Ashleigh Barty",
+      "Simona Halep"
+    ],
+    "correctAnswer": "Ashleigh Barty",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1436,
+    "text": "Which tennis Grand Slam is played on hard court?",
+    "options": [
+      "US Open",
+      "French Open"
+    ],
+    "correctAnswer": "US Open",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1437,
+    "text": "Which tennis player is nicknamed 'The Djoker'?",
+    "options": [
+      "Novak Djokovic",
+      "Nick Kyrgios"
+    ],
+    "correctAnswer": "Novak Djokovic",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1438,
+    "text": "Which Polish tennis player has won multiple Slams in the 2020s?",
+    "options": [
+      "Iga Świątek",
+      "Agnieszka Radwańska"
+    ],
+    "correctAnswer": "Iga Świątek",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1439,
+    "text": "Who won the 1985 Wimbledon men’s singles in tennis?",
+    "options": [
+      "Boris Becker",
+      "Ivan Lendl"
+    ],
+    "correctAnswer": "Boris Becker",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1440,
+    "text": "Which female tennis player had 22 Grand Slam titles before Serena passed her?",
+    "options": [
+      "Steffi Graf",
+      "Martina Navratilova"
+    ],
+    "correctAnswer": "Steffi Graf",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1441,
+    "text": "Who defeated Federer in the 2009 US Open men’s final in tennis?",
+    "options": [
+      "Juan Martín del Potro",
+      "Rafael Nadal"
+    ],
+    "correctAnswer": "Juan Martín del Potro",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1442,
+    "text": "Which Croatian tennis player won Wimbledon in 2001?",
+    "options": [
+      "Goran Ivanišević",
+      "Marat Safin"
+    ],
+    "correctAnswer": "Goran Ivanišević",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1443,
+    "text": "Who won the first Wimbledon tennis tournament in 1877?",
+    "options": [
+      "Spencer Gore",
+      "William Renshaw"
+    ],
+    "correctAnswer": "Spencer Gore",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1444,
+    "text": "Which female tennis star was stabbed on court in 1993?",
+    "options": [
+      "Monica Seles",
+      "Steffi Graf"
+    ],
+    "correctAnswer": "Monica Seles",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1445,
+    "text": "Which Swedish tennis legend won 11 Grand Slams?",
+    "options": [
+      "Björn Borg",
+      "Mats Wilander"
+    ],
+    "correctAnswer": "Björn Borg",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1446,
+    "text": "Who won the 1996 US Open men’s singles in tennis?",
+    "options": [
+      "Pete Sampras",
+      "Andre Agassi"
+    ],
+    "correctAnswer": "Pete Sampras",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1447,
+    "text": "Who won the 2019 French Open women’s singles in tennis?",
+    "options": [
+      "Ashleigh Barty",
+      "Simona Halep"
+    ],
+    "correctAnswer": "Ashleigh Barty",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1448,
+    "text": "Which country hosts Wimbledon tennis tournament?",
+    "options": [
+      "UK",
+      "USA"
+    ],
+    "correctAnswer": "UK",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1449,
+    "text": "Which golfer is nicknamed 'Tiger'?",
+    "options": [
+      "Tiger Woods",
+      "Phil Mickelson"
+    ],
+    "correctAnswer": "Tiger Woods",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1450,
+    "text": "In which country is The Masters golf tournament played?",
+    "options": [
+      "USA",
+      "UK"
+    ],
+    "correctAnswer": "USA",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1451,
+    "text": "Which golfer is from Northern Ireland?",
+    "options": [
+      "Rory McIlroy",
+      "Jordan Spieth"
+    ],
+    "correctAnswer": "Rory McIlroy",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1452,
+    "text": "Which trophy is contested between Europe and USA in golf?",
+    "options": [
+      "Ryder Cup",
+      "Claret Jug"
+    ],
+    "correctAnswer": "Ryder Cup",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1453,
+    "text": "Which golfer is nicknamed 'Lefty'?",
+    "options": [
+      "Phil Mickelson",
+      "Tiger Woods"
+    ],
+    "correctAnswer": "Phil Mickelson",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1454,
+    "text": "Which major golf tournament is held at St Andrews?",
+    "options": [
+      "The Open Championship",
+      "The Masters"
+    ],
+    "correctAnswer": "The Open Championship",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1455,
+    "text": "Who co‑holds most PGA Tour wins with Tiger Woods?",
+    "options": [
+      "Sam Snead",
+      "Jack Nicklaus"
+    ],
+    "correctAnswer": "Sam Snead",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1456,
+    "text": "Which major golf tournament is played every April?",
+    "options": [
+      "The Masters",
+      "US Open"
+    ],
+    "correctAnswer": "The Masters",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1457,
+    "text": "Who won the 2019 Masters golf tournament?",
+    "options": [
+      "Tiger Woods",
+      "Rory McIlroy"
+    ],
+    "correctAnswer": "Tiger Woods",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1458,
+    "text": "Which major golf tournament is usually played in June?",
+    "options": [
+      "US Open",
+      "PGA Championship"
+    ],
+    "correctAnswer": "US Open",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1459,
+    "text": "Who won the 2010 US Open golf tournament?",
+    "options": [
+      "Graeme McDowell",
+      "Tiger Woods"
+    ],
+    "correctAnswer": "Graeme McDowell",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1460,
+    "text": "Which golfer has 5 Masters titles (as of 2019)?",
+    "options": [
+      "Tiger Woods",
+      "Jack Nicklaus"
+    ],
+    "correctAnswer": "Tiger Woods",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1461,
+    "text": "Who won the 2012 PGA Championship in golf?",
+    "options": [
+      "Rory McIlroy",
+      "Phil Mickelson"
+    ],
+    "correctAnswer": "Rory McIlroy",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1462,
+    "text": "Which Spanish golfer won the Masters in 2017?",
+    "options": [
+      "Sergio Garcia",
+      "Jon Rahm"
+    ],
+    "correctAnswer": "Sergio Garcia",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1463,
+    "text": "Who won the 2016 Open Championship in golf?",
+    "options": [
+      "Henrik Stenson",
+      "Phil Mickelson"
+    ],
+    "correctAnswer": "Henrik Stenson",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1464,
+    "text": "Which golfer is nicknamed 'The Golden Bear'?",
+    "options": [
+      "Jack Nicklaus",
+      "Arnold Palmer"
+    ],
+    "correctAnswer": "Jack Nicklaus",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1465,
+    "text": "Who won the 2008 US Open golf tournament?",
+    "options": [
+      "Tiger Woods",
+      "Padraig Harrington"
+    ],
+    "correctAnswer": "Tiger Woods",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1466,
+    "text": "Where in Europe is the Ryder Cup in golf hosted?",
+    "options": [
+      "Various venues",
+      "Only UK"
+    ],
+    "correctAnswer": "Various venues",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1467,
+    "text": "Who won the 2021 US Open golf tournament?",
+    "options": [
+      "Jon Rahm",
+      "Dustin Johnson"
+    ],
+    "correctAnswer": "Jon Rahm",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1468,
+    "text": "Which golfer was nicknamed 'Arnie'?",
+    "options": [
+      "Arnold Palmer",
+      "Gary Player"
+    ],
+    "correctAnswer": "Arnold Palmer",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1469,
+    "text": "Who won the first Masters golf tournament in 1934?",
+    "options": [
+      "Horton Smith",
+      "Bobby Jones"
+    ],
+    "correctAnswer": "Horton Smith",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1470,
+    "text": "Which golfer has 18 men’s major titles?",
+    "options": [
+      "Jack Nicklaus",
+      "Tiger Woods"
+    ],
+    "correctAnswer": "Jack Nicklaus",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1471,
+    "text": "Who won the famous 1977 Open 'Duel in the Sun' in golf?",
+    "options": [
+      "Tom Watson",
+      "Jack Nicklaus"
+    ],
+    "correctAnswer": "Tom Watson",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1472,
+    "text": "Which golfer co‑designed Augusta National?",
+    "options": [
+      "Bobby Jones",
+      "Ben Hogan"
+    ],
+    "correctAnswer": "Bobby Jones",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1473,
+    "text": "Who won the 1999 Open Championship in golf?",
+    "options": [
+      "Paul Lawrie",
+      "Jean van de Velde"
+    ],
+    "correctAnswer": "Paul Lawrie",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1474,
+    "text": "Which golfer has the most Ryder Cup appearances?",
+    "options": [
+      "Phil Mickelson",
+      "Tiger Woods"
+    ],
+    "correctAnswer": "Phil Mickelson",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1475,
+    "text": "Who completed the 'Tiger Slam' in 2001 in golf?",
+    "options": [
+      "Tiger Woods",
+      "Ernie Els"
+    ],
+    "correctAnswer": "Tiger Woods",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1476,
+    "text": "Who won the 2010 Open Championship in golf?",
+    "options": [
+      "Louis Oosthuizen",
+      "Lee Westwood"
+    ],
+    "correctAnswer": "Louis Oosthuizen",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1477,
+    "text": "Which golfer is nicknamed 'The Big Easy'?",
+    "options": [
+      "Ernie Els",
+      "Gary Player"
+    ],
+    "correctAnswer": "Ernie Els",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1478,
+    "text": "Who won the 2004 Masters golf tournament?",
+    "options": [
+      "Phil Mickelson",
+      "Tiger Woods"
+    ],
+    "correctAnswer": "Phil Mickelson",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1479,
+    "text": "Who is nicknamed 'The Notorious' in MMA?",
+    "options": [
+      "Conor McGregor",
+      "Khabib Nurmagomedov"
+    ],
+    "correctAnswer": "Conor McGregor",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1480,
+    "text": "Which boxer was nicknamed 'Iron Mike'?",
+    "options": [
+      "Mike Tyson",
+      "Evander Holyfield"
+    ],
+    "correctAnswer": "Mike Tyson",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1481,
+    "text": "Who fought Floyd Mayweather in a 2017 crossover boxing/MMA bout?",
+    "options": [
+      "Conor McGregor",
+      "Manny Pacquiao"
+    ],
+    "correctAnswer": "Conor McGregor",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1482,
+    "text": "Which boxer is nicknamed 'Money'?",
+    "options": [
+      "Floyd Mayweather",
+      "Manny Pacquiao"
+    ],
+    "correctAnswer": "Floyd Mayweather",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1483,
+    "text": "Which British heavyweight is nicknamed 'The Gypsy King'?",
+    "options": [
+      "Tyson Fury",
+      "Anthony Joshua"
+    ],
+    "correctAnswer": "Tyson Fury",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1484,
+    "text": "Who defeated Conor McGregor for the UFC lightweight title in 2018?",
+    "options": [
+      "Khabib Nurmagomedov",
+      "Nate Diaz"
+    ],
+    "correctAnswer": "Khabib Nurmagomedov",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1485,
+    "text": "Which boxer is nicknamed 'Pacman'?",
+    "options": [
+      "Manny Pacquiao",
+      "Floyd Mayweather"
+    ],
+    "correctAnswer": "Manny Pacquiao",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1486,
+    "text": "Who was known as 'The Greatest' in boxing?",
+    "options": [
+      "Muhammad Ali",
+      "George Foreman"
+    ],
+    "correctAnswer": "Muhammad Ali",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1487,
+    "text": "Who is nicknamed 'AJ'?",
+    "options": [
+      "Anthony Joshua",
+      "Andy Ruiz Jr"
+    ],
+    "correctAnswer": "Anthony Joshua",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1488,
+    "text": "Who beat Deontay Wilder in their 2020 heavyweight boxing fight?",
+    "options": [
+      "Tyson Fury",
+      "Anthony Joshua"
+    ],
+    "correctAnswer": "Tyson Fury",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1489,
+    "text": "Who fought Muhammad Ali in the 'Rumble in the Jungle' boxing match?",
+    "options": [
+      "George Foreman",
+      "Joe Frazier"
+    ],
+    "correctAnswer": "George Foreman",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1490,
+    "text": "Who defeated Muhammad Ali in the 'Fight of the Century' (1971)?",
+    "options": [
+      "Joe Frazier",
+      "Sonny Liston"
+    ],
+    "correctAnswer": "Joe Frazier",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1491,
+    "text": "Which legendary boxing fight was called the 'Thrilla in Manila'?",
+    "options": [
+      "Ali vs Frazier",
+      "Ali vs Foreman"
+    ],
+    "correctAnswer": "Ali vs Frazier",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1492,
+    "text": "Who did Manny Pacquiao fight in the 2015 'Fight of the Century' in boxing?",
+    "options": [
+      "Floyd Mayweather",
+      "Miguel Cotto"
+    ],
+    "correctAnswer": "Floyd Mayweather",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1493,
+    "text": "Who was the UFC’s first simultaneous two‑division champion?",
+    "options": [
+      "Conor McGregor",
+      "Daniel Cormier"
+    ],
+    "correctAnswer": "Conor McGregor",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1494,
+    "text": "Which fighter was the first female UFC megastar?",
+    "options": [
+      "Ronda Rousey",
+      "Holly Holm"
+    ],
+    "correctAnswer": "Ronda Rousey",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1495,
+    "text": "Who is nicknamed 'Bones' in UFC?",
+    "options": [
+      "Jon Jones",
+      "Daniel Cormier"
+    ],
+    "correctAnswer": "Jon Jones",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1496,
+    "text": "Which boxer won super‑heavyweight gold at the 1996 Olympics?",
+    "options": [
+      "Wladimir Klitschko",
+      "Floyd Mayweather"
+    ],
+    "correctAnswer": "Wladimir Klitschko",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1497,
+    "text": "Whose ear did Mike Tyson bite in a 1997 boxing fight?",
+    "options": [
+      "Evander Holyfield",
+      "Lennox Lewis"
+    ],
+    "correctAnswer": "Evander Holyfield",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1498,
+    "text": "Which boxer was nicknamed 'Hitman'?",
+    "options": [
+      "Thomas Hearns",
+      "Roberto Durán"
+    ],
+    "correctAnswer": "Thomas Hearns",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1499,
+    "text": "Who won the first UFC tournament in 1993?",
+    "options": [
+      "Royce Gracie",
+      "Ken Shamrock"
+    ],
+    "correctAnswer": "Royce Gracie",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1500,
+    "text": "Who fought in the first UFC women’s title fight?",
+    "options": [
+      "Ronda Rousey",
+      "Liz Carmouche"
+    ],
+    "correctAnswer": "Ronda Rousey",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1501,
+    "text": "Which boxing champion was nicknamed 'Marvelous'?",
+    "options": [
+      "Marvin Hagler",
+      "Sugar Ray Leonard"
+    ],
+    "correctAnswer": "Marvin Hagler",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1502,
+    "text": "Who ended Ronda Rousey’s unbeaten UFC run in 2015?",
+    "options": [
+      "Holly Holm",
+      "Miesha Tate"
+    ],
+    "correctAnswer": "Holly Holm",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1503,
+    "text": "Who unified the heavyweight boxing titles by beating Wladimir Klitschko in 2015?",
+    "options": [
+      "Tyson Fury",
+      "Anthony Joshua"
+    ],
+    "correctAnswer": "Tyson Fury",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1504,
+    "text": "Which boxer was nicknamed 'The Brown Bomber'?",
+    "options": [
+      "Joe Louis",
+      "Rocky Marciano"
+    ],
+    "correctAnswer": "Joe Louis",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1505,
+    "text": "Who was the first UFC lightweight champion?",
+    "options": [
+      "Jens Pulver",
+      "BJ Penn"
+    ],
+    "correctAnswer": "Jens Pulver",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1506,
+    "text": "Who did Leon Edwards knock out to win the UFC welterweight title in 2022?",
+    "options": [
+      "Kamaru Usman",
+      "Colby Covington"
+    ],
+    "correctAnswer": "Kamaru Usman",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1507,
+    "text": "Which boxer retired undefeated with a 50–0 record?",
+    "options": [
+      "Floyd Mayweather",
+      "Manny Pacquiao"
+    ],
+    "correctAnswer": "Floyd Mayweather",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1508,
+    "text": "Who defeated Conor McGregor twice at welterweight (2016 & 2021)?",
+    "options": [
+      "Nate Diaz",
+      "Dustin Poirier"
+    ],
+    "correctAnswer": "Nate Diaz",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1509,
+    "text": "Which country won the 2011 Cricket World Cup?",
+    "options": [
+      "India",
+      "Sri Lanka"
+    ],
+    "correctAnswer": "India",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1510,
+    "text": "Who captained India to the 2011 Cricket World Cup win?",
+    "options": [
+      "MS Dhoni",
+      "Virat Kohli"
+    ],
+    "correctAnswer": "MS Dhoni",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1511,
+    "text": "Which cricket format is 20 overs per side?",
+    "options": [
+      "T20",
+      "Test"
+    ],
+    "correctAnswer": "T20",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1512,
+    "text": "Which player is nicknamed 'King Kohli' in cricket?",
+    "options": [
+      "Virat Kohli",
+      "Rohit Sharma"
+    ],
+    "correctAnswer": "Virat Kohli",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1513,
+    "text": "Which country contests the Ashes with England in cricket?",
+    "options": [
+      "Australia",
+      "India"
+    ],
+    "correctAnswer": "Australia",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1514,
+    "text": "Which cricket team is called the Black Caps?",
+    "options": [
+      "New Zealand",
+      "South Africa"
+    ],
+    "correctAnswer": "New Zealand",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1515,
+    "text": "Which country won the 2019 Cricket World Cup?",
+    "options": [
+      "England",
+      "New Zealand"
+    ],
+    "correctAnswer": "England",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1516,
+    "text": "Which player is known for the 'helicopter shot' in cricket?",
+    "options": [
+      "MS Dhoni",
+      "AB de Villiers"
+    ],
+    "correctAnswer": "MS Dhoni",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1517,
+    "text": "Which cricket team is nicknamed the Men in Blue?",
+    "options": [
+      "India",
+      "Sri Lanka"
+    ],
+    "correctAnswer": "India",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1518,
+    "text": "Which ball color is used in day‑night Test cricket?",
+    "options": [
+      "Pink",
+      "Red"
+    ],
+    "correctAnswer": "Pink",
+    "difficulty": "easy",
+    "category": "Sport"
+  },
+  {
+    "id": 1519,
+    "text": "Who scored the first double century in ODI cricket?",
+    "options": [
+      "Sachin Tendulkar",
+      "Virender Sehwag"
+    ],
+    "correctAnswer": "Sachin Tendulkar",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1520,
+    "text": "Which Pakistani bowler is called the 'Sultan of Swing'?",
+    "options": [
+      "Wasim Akram",
+      "Waqar Younis"
+    ],
+    "correctAnswer": "Wasim Akram",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1521,
+    "text": "Who hit six sixes in an over in the 2007 T20 Cricket World Cup?",
+    "options": [
+      "Yuvraj Singh",
+      "Chris Gayle"
+    ],
+    "correctAnswer": "Yuvraj Singh",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1522,
+    "text": "Which country won the 1996 Cricket World Cup?",
+    "options": [
+      "Sri Lanka",
+      "Australia"
+    ],
+    "correctAnswer": "Sri Lanka",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1523,
+    "text": "Who captained England in their 2019 Cricket World Cup win?",
+    "options": [
+      "Eoin Morgan",
+      "Joe Root"
+    ],
+    "correctAnswer": "Eoin Morgan",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1524,
+    "text": "Which batter is nicknamed 'Mr. 360' in cricket?",
+    "options": [
+      "AB de Villiers",
+      "Glenn Maxwell"
+    ],
+    "correctAnswer": "AB de Villiers",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1525,
+    "text": "Which countries contest the Border–Gavaskar Trophy in cricket?",
+    "options": [
+      "India and Australia",
+      "India and Pakistan"
+    ],
+    "correctAnswer": "India and Australia",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1526,
+    "text": "Who holds the record for most Test runs in cricket?",
+    "options": [
+      "Sachin Tendulkar",
+      "Ricky Ponting"
+    ],
+    "correctAnswer": "Sachin Tendulkar",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1527,
+    "text": "Which country won the inaugural T20 Cricket World Cup in 2007?",
+    "options": [
+      "India",
+      "Pakistan"
+    ],
+    "correctAnswer": "India",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1528,
+    "text": "Which wicketkeeper‑batter nicknamed 'Baz' later coached England?",
+    "options": [
+      "Brendon McCullum",
+      "Adam Gilchrist"
+    ],
+    "correctAnswer": "Brendon McCullum",
+    "difficulty": "medium",
+    "category": "Sport"
+  },
+  {
+    "id": 1529,
+    "text": "Who took 800 Test wickets in cricket?",
+    "options": [
+      "Muttiah Muralitharan",
+      "Shane Warne"
+    ],
+    "correctAnswer": "Muttiah Muralitharan",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1530,
+    "text": "Which batter scored 400 not out in a Test innings?",
+    "options": [
+      "Brian Lara",
+      "Chris Gayle"
+    ],
+    "correctAnswer": "Brian Lara",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1531,
+    "text": "Who was the first bowler to reach 500 Test wickets in cricket?",
+    "options": [
+      "Courtney Walsh",
+      "Glenn McGrath"
+    ],
+    "correctAnswer": "Courtney Walsh",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1532,
+    "text": "Which Cricket World Cup final ended in a tie and boundary countback?",
+    "options": [
+      "England vs New Zealand 2019",
+      "Australia vs India 2003"
+    ],
+    "correctAnswer": "England vs New Zealand 2019",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1533,
+    "text": "Who captained Pakistan to the 1992 Cricket World Cup title?",
+    "options": [
+      "Imran Khan",
+      "Wasim Akram"
+    ],
+    "correctAnswer": "Imran Khan",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1534,
+    "text": "Which Australian spinner was nicknamed 'The King' in cricket?",
+    "options": [
+      "Shane Warne",
+      "Nathan Lyon"
+    ],
+    "correctAnswer": "Shane Warne",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1535,
+    "text": "Which Indian pacer is nicknamed 'Boom' in cricket?",
+    "options": [
+      "Jasprit Bumrah",
+      "Mohammed Shami"
+    ],
+    "correctAnswer": "Jasprit Bumrah",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1536,
+    "text": "Which South African wicketkeeper‑batter was famous for quick glovework?",
+    "options": [
+      "Mark Boucher",
+      "AB de Villiers"
+    ],
+    "correctAnswer": "Mark Boucher",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1537,
+    "text": "Who scored 149 on ODI debut for England in 2018?",
+    "options": [
+      "Jason Roy",
+      "Jonny Bairstow"
+    ],
+    "correctAnswer": "Jason Roy",
+    "difficulty": "hard",
+    "category": "Sport"
+  },
+  {
+    "id": 1538,
+    "text": "Which country won the first Cricket World Cup in 1975?",
+    "options": [
+      "West Indies",
+      "Australia"
+    ],
+    "correctAnswer": "West Indies",
+    "difficulty": "hard",
+    "category": "Sport"
+  }
+]
+
+
+
+
+
+
+
+
+
+
