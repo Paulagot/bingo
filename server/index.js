@@ -33,7 +33,6 @@ import tgbWebhookHandler from './tgb/api/webhook.js';
 
 import contactRoute from './routes/contact.js';
 import passwordResetRoute from './routes/passwordReset.js';
-import authRoute from './routes/auth.js';
 
 import { seoRoutes } from './SeoRoutes.js';
 import { getSeoForPath } from './seoMap.js'; // route→SEO map (server/seoMap.js)
@@ -398,7 +397,6 @@ setupSocketHandlers(io);
 
 app.use('/api/contact', contactRoute);
 app.use('/api/auth/reset', passwordResetRoute);
-app.use('/clubs', authRoute);
 
 
 // server/index.js (after app.use routes)
