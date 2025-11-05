@@ -322,6 +322,15 @@ const handleWeb3Launch = async () => {
     // Prevent accidental caps coming from client
     delete (web3RoomConfig as any).maxPlayers;
 
+    console.log('[Web3 Launch] 📤 Sending room creation request to server...');
+    console.log('[Web3 Launch] 📋 Request payload:', {
+      roomId: newRoomId,
+      hostId: newHostId,
+      contractAddress: web3RoomConfig.roomContractAddress,
+      deploymentTxHash: web3RoomConfig.deploymentTxHash,
+      chain: web3RoomConfig.web3Chain,
+    });
+
     const response = await fetch('/quiz/api/create-web3-room', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -332,21 +341,100 @@ const handleWeb3Launch = async () => {
       }),
     });
 
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      throw new Error(errData.error || `Server error: ${response.status}`);
+    console.log('[Web3 Launch] 📥 Response received:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      contentType: response.headers.get('content-type'),
+    });
+
+    // Parse response once - store it for reuse
+    let data: any = null;
+    try {
+      // Clone response to allow reading it multiple times if needed
+      const contentType = response.headers.get('content-type');
+      const text = await response.clone().text();
+      
+      if (!text || text.trim().length === 0) {
+        console.error('[Web3 Launch] ❌ Empty response body from server');
+        // If response is not ok and body is empty, provide a better error
+        if (!response.ok) {
+          throw new Error(`Server returned empty response with status ${response.status}`);
+        }
+        throw new Error(`Server returned empty response (${response.status})`);
+      }
+
+      if (contentType && contentType.includes('application/json')) {
+        try {
+          data = JSON.parse(text);
+          console.log('[Web3 Launch] 📦 Response data:', data);
+        } catch (parseError: any) {
+          console.error('[Web3 Launch] ❌ Failed to parse response JSON:', parseError);
+          console.error('[Web3 Launch] 📄 Response text:', text.substring(0, 500));
+          throw new Error(`Invalid JSON response from server: ${parseError.message}`);
+        }
+      } else {
+        console.error('[Web3 Launch] ❌ Unexpected content type:', contentType);
+        console.error('[Web3 Launch] 📄 Response text:', text.substring(0, 500));
+        throw new Error(`Unexpected response type: ${contentType || 'unknown'}`);
+      }
+    } catch (parseError: any) {
+      // If response is not ok, we might still have error data
+      if (!response.ok && data) {
+        const errorMessage = data?.error || data?.details || `Server error: ${response.status}`;
+        console.error('[Web3 Launch] ❌ Server returned error:', {
+          status: response.status,
+          error: data?.error,
+          details: data?.details,
+          stack: data?.stack,
+        });
+        throw new Error(errorMessage);
+      }
+      
+      // If it's already our custom error, re-throw it
+      if (parseError.message && (parseError.message.includes('Server') || parseError.message.includes('Invalid JSON'))) {
+        throw parseError;
+      }
+      console.error('[Web3 Launch] ❌ Failed to parse response:', parseError);
+      throw new Error(`Failed to parse server response (${response.status}): ${parseError.message || 'Unknown error'}`);
     }
 
-    const data = await response.json();
+    if (!response.ok) {
+      const errorMessage = data?.error || data?.details || `Server error: ${response.status}`;
+      console.error('[Web3 Launch] ❌ Server returned error:', {
+        status: response.status,
+        error: data?.error,
+        details: data?.details,
+        stack: data?.stack,
+      });
+      throw new Error(errorMessage);
+    }
+
     if (!data.verified || !data.contractAddress) {
+      console.error('[Web3 Launch] ❌ Room creation not verified by server:', {
+        verified: data.verified,
+        contractAddress: data.contractAddress,
+        data,
+      });
       throw new Error('Room creation not verified by server');
     }
+
+    console.log('[Web3 Launch] ✅ Room creation successful!');
+    console.log('[Web3 Launch] 🎉 Room details:', {
+      roomId: data.roomId,
+      hostId: data.hostId,
+      contractAddress: data.contractAddress,
+      verified: data.verified,
+    });
 
     try {
       localStorage.setItem('current-room-id', data.roomId);
       localStorage.setItem('current-host-id', data.hostId);
       localStorage.setItem('current-contract-address', data.contractAddress);
-    } catch {}
+      console.log('[Web3 Launch] 💾 Saved room details to localStorage');
+    } catch (storageError) {
+      console.warn('[Web3 Launch] ⚠️ Failed to save to localStorage:', storageError);
+    }
 
     setFullConfig({
       ...web3RoomConfig,
@@ -354,18 +442,31 @@ const handleWeb3Launch = async () => {
       hostId: data.hostId,
     });
 
+    console.log('[Web3 Launch] 🎯 Setting launch state to success');
     setLaunchState('success');
-    setTimeout(() => navigate(`/quiz/host-dashboard/${data.roomId}`), 600);
+    setTimeout(() => {
+      console.log('[Web3 Launch] 🚀 Navigating to host dashboard:', data.roomId);
+      navigate(`/quiz/host-dashboard/${data.roomId}`);
+    }, 600);
   } catch (err: any) {
-    console.error('[Web3 Launch Error]', err);
+    console.error('[Web3 Launch] ❌ Error during room creation:', err);
+    console.error('[Web3 Launch] ❌ Error name:', err?.name);
+    console.error('[Web3 Launch] ❌ Error message:', err?.message);
+    console.error('[Web3 Launch] ❌ Error stack:', err?.stack);
+    
     try {
       localStorage.removeItem('current-room-id');
       localStorage.removeItem('current-host-id');
       localStorage.removeItem('current-contract-address');
-    } catch {}
+      console.log('[Web3 Launch] 🧹 Cleaned up localStorage');
+    } catch (cleanupError) {
+      console.warn('[Web3 Launch] ⚠️ Failed to cleanup localStorage:', cleanupError);
+    }
+    
     clearRoomIds();
     setLaunchError(err?.message || 'Unknown error');
     setLaunchState('error');
+    console.error('[Web3 Launch] ❌ Launch failed, state set to error');
   }
 };
 

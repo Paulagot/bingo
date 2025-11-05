@@ -1,7 +1,15 @@
 // src/services/apiService.ts
+function stripTrailingSlash(s: string) {
+  return s.replace(/\/+$/, '');
+}
+
 const MGMT_API_BASE_URL = import.meta.env.VITE_MGMT_API_URL || 'https://mgtsystem-production.up.railway.app/api';
-const QUIZ_API_BASE_URL = import.meta.env.VITE_QUIZ_API_URL || 'http://localhost:3001';
-const Debug = true; // Set to true to enable debug logs
+const QUIZ_API_BASE_URL = (() => {
+  const v = import.meta.env.VITE_QUIZ_API_URL?.trim();
+  // Default to same-origin (empty string = relative paths)
+  return stripTrailingSlash(v || '');
+})();
+const Debug = false; // Set to true to enable debug logs
 
 class ApiService {
   private getAuthHeaders() {
@@ -16,7 +24,7 @@ class ApiService {
 
   private async request<T>(endpoint: string, options: RequestInit = {}, useManagementAPI: boolean = false): Promise<T> {
     const baseURL = useManagementAPI ? MGMT_API_BASE_URL : QUIZ_API_BASE_URL;
-    const url = `${baseURL}${endpoint}`;
+    const url = baseURL ? `${baseURL}${endpoint}` : endpoint;
     
     const config: RequestInit = {
       headers: this.getAuthHeaders(),
