@@ -69,6 +69,8 @@ pub fn handler<'info>(
     // Apply percentage splits to entry fees only
     let platform_fee = calculate_bps(entry_fees_total, ctx.accounts.global_config.platform_fee_bps)?;
     let host_fee = calculate_bps(entry_fees_total, ctx.accounts.room.host_fee_bps)?;
+    // Calculate prize pool amount from entry fees (NOT from total_collected)
+    // prize_amount is the pool that will be split among winners
     let prize_amount = calculate_bps(entry_fees_total, ctx.accounts.room.prize_pool_bps)?;
 
     // Charity gets remainder of entry fees PLUS all extras
@@ -170,6 +172,9 @@ pub fn handler<'info>(
                 }
 
                 // Calculate this position's prize amount
+                // BUG FIX: Ensure we're using prize_amount (prize pool), not entry_fees_total (total pool)
+                // prize_amount is already calculated as: entry_fees_total * prize_pool_bps / 10000
+                // So we apply winner_distribution (0-100) to prize_amount, not to entry_fees_total
                 let mut total_amount = (prize_amount as u128 * winner_distribution as u128 / 100) as u64;
 
                 // Aggregate any duplicate entries for this winner (same pubkey in other positions)

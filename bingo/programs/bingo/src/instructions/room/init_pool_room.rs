@@ -241,9 +241,9 @@ pub fn handler(
     );
 
     // Basic validation
-    require!(!room_id.is_empty(), BingoError::InvalidInput);
-    require!(max_players > 0 && max_players <= 1000, BingoError::InvalidInput);
-    require!(entry_fee > 0, BingoError::InvalidAmount);
+    require!(!room_id.is_empty(), BingoError::InvalidRoomId);
+    require!(max_players > 0 && max_players <= 1000, BingoError::InvalidMaxPlayers);
+    require!(entry_fee > 0, BingoError::InvalidEntryFee);
 
     // Initialize vault if it doesn't exist
     if ctx.accounts.room_vault.data_is_empty() {

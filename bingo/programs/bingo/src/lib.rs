@@ -72,7 +72,7 @@ pub use errors::*;
 pub use events::*;
 
 // Program ID - Updated with deployed program ID
-declare_id!("AcUg72jFLTnKs478qaNpu2AWU3pBtqV1kmrkXaqjwjeK");
+declare_id!("8W83G9mSeoQ6Ljcz5QJHYPjH2vQgw94YeVCnpY6KFt7i");
 
 /// Fundraisely Program
 ///
@@ -214,6 +214,27 @@ mod bingo {
         room_id: String,
     ) -> Result<()> {
         crate::instructions::admin::recover_room::handler(ctx, room_id)
+    }
+
+    /// Update global configuration (admin only)
+    pub fn update_global_config(
+        ctx: Context<UpdateGlobalConfig>,
+        platform_wallet: Option<Pubkey>,
+        charity_wallet: Option<Pubkey>,
+        platform_fee_bps: Option<u16>,
+        max_host_fee_bps: Option<u16>,
+        max_prize_pool_bps: Option<u16>,
+        min_charity_bps: Option<u16>,
+    ) -> Result<()> {
+        crate::instructions::admin::update_global_config::handler(
+            ctx,
+            platform_wallet,
+            charity_wallet,
+            platform_fee_bps,
+            max_host_fee_bps,
+            max_prize_pool_bps,
+            min_charity_bps,
+        )
     }
 
     /// Set emergency pause (admin only)
@@ -529,6 +550,20 @@ pub struct RecoverRoom<'info> {
     pub admin: Signer<'info>,
 
     pub token_program: Program<'info, anchor_spl::token::Token>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateGlobalConfig<'info> {
+    #[account(
+        mut,
+        seeds = [b"global-config"],
+        bump = global_config.bump,
+        has_one = admin @ BingoError::Unauthorized
+    )]
+    pub global_config: Account<'info, GlobalConfig>,
+
+    #[account(mut)]
+    pub admin: Signer<'info>,
 }
 
 #[derive(Accounts)]

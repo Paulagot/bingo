@@ -293,7 +293,7 @@ pub fn handler(
 
     // Validate amounts
     let total_payment = room.entry_fee.checked_add(extras_amount)
-        .ok_or(BingoError::InvalidAmount)?;
+        .ok_or(BingoError::InvalidEntryFee)?;
 
     // Check if room has expired
     require!(
