@@ -234,6 +234,9 @@ app.get('/robots.txt', (req, res) => {
   });
 });
 
+// ✅ Serve static files in development
+app.use(express.static(path.join(__dirname, '../public')));
+
 /* ──────────────────────────────────────────────────────────
    SEO head injection helpers
    ────────────────────────────────────────────────────────── */
@@ -290,14 +293,6 @@ function buildHeadTags(seo) {
    Static + SPA catch-all with SEO head injection
    ────────────────────────────────────────────────────────── */
 if (process.env.NODE_ENV === 'production') {
-  // Serve public folder for static assets (images, etc.) - these are copied to dist during build
-  app.use(express.static(path.join(__dirname, '../dist'), {
-    index: false,
-    maxAge: '3600000', // 1 hour for non-asset files
-    etag: true,
-    lastModified: true
-  }));
-  
   // Static assets with aggressive caching
   app.use('/assets', express.static(path.join(__dirname, '../dist/assets'), {
     maxAge: '31536000000', // 1 year
@@ -306,10 +301,19 @@ if (process.env.NODE_ENV === 'production') {
     setHeaders: (res, filePath) => {
       if (filePath.endsWith('.js') || filePath.endsWith('.css') || filePath.endsWith('.woff2') || filePath.endsWith('.woff')) {
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        console.log(`💾 Setting 1-year cache for: ${path.basename(filePath)}`);
       } else {
         res.setHeader('Cache-Control', 'public, max-age=31536000');
       }
     }
+  }));
+
+  // Other static files (no implicit index)
+  app.use(express.static(path.join(__dirname, '../dist'), {
+    index: false,
+    maxAge: '3600000', // 1 hour
+    etag: true,
+    lastModified: true
   }));
 
   // HTML with injected <head> (no-cache for HTML)
@@ -332,35 +336,24 @@ if (process.env.NODE_ENV === 'production') {
     });
   });
 } else {
-  // Dev: Serve public folder for static assets (images, etc.)
-  app.use(express.static(path.join(__dirname, '../public')));
-  
-  // Dev: In development, Vite handles serving the frontend
-  // Only serve index.html for API routes that don't match (for health checks, etc.)
-  // The catch-all is handled by Vite, not the Express server
-  app.get('*', (req, res, next) => {
-    // Skip HTML serving for API routes - let Vite handle the frontend
-    // Only serve if it's explicitly requested and not an API route
-    if (req.path.startsWith('/api') || 
-        req.path.startsWith('/quiz/api') || 
-        req.path.startsWith('/socket.io') ||
-        req.path.startsWith('/health') ||
-        req.path.startsWith('/debug')) {
-      return next(); // Continue to next middleware (404 or error handler)
+  // Dev: static without implicit index and no caching
+  app.use(express.static(path.join(__dirname, '../dist'), {
+    index: false,
+    setHeaders: (res) => {
+      // Disable caching in development to prevent stale code issues
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
     }
-    
-    // Try to serve from root index.html (Vite's source) if dist doesn't exist
-    const distIndexPath = path.join(__dirname, '../dist/index.html');
-    const rootIndexPath = path.join(__dirname, '../index.html');
-    
-    // Prefer root index.html in dev (Vite serves from here)
-    const indexPath = fs.existsSync(rootIndexPath) ? rootIndexPath : distIndexPath;
-    
+  }));
+
+  // Dev HTML injection (disable cache)
+  app.get('*', (req, res) => {
+    const indexPath = path.join(__dirname, '../dist/index.html');
     fs.readFile(indexPath, 'utf8', (err, html) => {
       if (err) {
-        // In dev, if index.html doesn't exist, that's OK - Vite will handle it
-        console.warn('⚠️ Dev mode: index.html not found, Vite will serve the frontend');
-        return next(); // Let it fall through - Vite will handle it
+        console.error('❌ Failed to read index.html', err);
+        return res.status(500).send('Server error');
       }
       const proto = (req.headers['x-forwarded-proto']?.toString()) || (req.secure ? 'https' : 'http');
       const origin = `${proto}://${req.get('host')}`;

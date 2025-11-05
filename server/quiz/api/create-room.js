@@ -179,14 +179,6 @@ router.post('/create-web3-room', async (req, res) => {
       setupConfig?.web3Chain ||
       'stellar'; // default to Stellar/Soroban
 
-    console.log('[API] 🔗 Chain detection:', {
-      web3ChainConfirmed: setupConfig?.web3ChainConfirmed,
-      web3Chain: setupConfig?.web3Chain,
-      resolved: chain,
-      contractAddress,
-      deploymentTxHash
-    });
-
     // ✅ NEW: Validate we actually got a contract address
     if (!contractAddress) {
       console.error('[API] ❌ No contract address found in request');
@@ -206,14 +198,6 @@ router.post('/create-web3-room', async (req, res) => {
       chain,
       contractAddress,
       deploymentTxHash,
-    });
-    
-    console.log('[API] ✅ Validation result:', {
-      ok: proof.ok,
-      reason: proof.reason,
-      chain,
-      contractAddressLength: contractAddress?.length,
-      txHashLength: deploymentTxHash?.length
     });
 
     if (!proof.ok) {
