@@ -1,0 +1,10 @@
+C:\Users\isich\bingo-solana-contracts\bingo\target\debug\deps\polyval-b46e3cdf5bcb0ec0.d: C:\Users\isich\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\polyval-0.6.2\src\lib.rs C:\Users\isich\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\polyval-0.6.2\src\backend.rs C:\Users\isich\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\polyval-0.6.2\src\backend\soft64.rs C:\Users\isich\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\polyval-0.6.2\src\mulx.rs C:\Users\isich\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\polyval-0.6.2\src\backend\autodetect.rs C:\Users\isich\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\polyval-0.6.2\src\backend\clmul.rs
+
+C:\Users\isich\bingo-solana-contracts\bingo\target\debug\deps\libpolyval-b46e3cdf5bcb0ec0.rmeta: C:\Users\isich\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\polyval-0.6.2\src\lib.rs C:\Users\isich\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\polyval-0.6.2\src\backend.rs C:\Users\isich\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\polyval-0.6.2\src\backend\soft64.rs C:\Users\isich\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\polyval-0.6.2\src\mulx.rs C:\Users\isich\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\polyval-0.6.2\src\backend\autodetect.rs C:\Users\isich\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\polyval-0.6.2\src\backend\clmul.rs
+
+C:\Users\isich\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\polyval-0.6.2\src\lib.rs:
+C:\Users\isich\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\polyval-0.6.2\src\backend.rs:
+C:\Users\isich\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\polyval-0.6.2\src\backend\soft64.rs:
+C:\Users\isich\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\polyval-0.6.2\src\mulx.rs:
+C:\Users\isich\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\polyval-0.6.2\src\backend\autodetect.rs:
+C:\Users\isich\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\polyval-0.6.2\src\backend\clmul.rs:
