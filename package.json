@@ -22,7 +22,9 @@
     "test:quiz": "vitest --config vitest.integration.config.ts src/test/integration/quizGameIntegration.test.ts",
     "test:quiz-watch": "vitest --config vitest.integration.config.ts src/test/integration/quizGameIntegration.test.ts --watch",
     "test:quiz-answers": "vitest --config vitest.integration.config.ts src/test/integration/playerAnswerTesting.test.ts",
-    "test:quiz-all": "vitest --config vitest.integration.config.ts src/test/integration/*.test.ts"
+    "test:quiz-all": "vitest --config vitest.integration.config.ts src/test/integration/*.test.ts",
+    "test:deposit-prize": "vitest --config vitest.integration.config.ts src/test/integration/depositPrizeAsset.test.ts",
+    "fetch-idl": "ts-node scripts/fetchIdl.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.30.1",

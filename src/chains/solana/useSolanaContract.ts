@@ -46,8 +46,11 @@ import {
   createAssetRoom as createAssetRoomImpl,
   depositPrizeAsset as depositPrizeAssetImpl,
   deriveTokenRegistryPDA,
+  createTokenMint as createTokenMintImpl,
   type CreateAssetRoomParams,
   type DepositPrizeAssetParams,
+  type CreateTokenMintParams,
+  type CreateTokenMintResult,
 } from './solana-asset-room';
 
 // ============================================================================
@@ -862,6 +865,34 @@ export function useSolanaContract() {
       return depositPrizeAssetImpl(program, provider, connection, publicKey, params);
     },
     [publicKey, provider, program, connection]
+  );
+
+  // ============================================================================
+  // Utility: Create Token Mint
+  // ============================================================================
+
+  /**
+   * Creates a new SPL token mint using your Phantom wallet.
+   * Use this to create test tokens for prize assets.
+   */
+  const createTokenMint = useCallback(
+    async (params?: Omit<CreateTokenMintParams, 'connection' | 'publicKey' | 'signTransaction'>): Promise<CreateTokenMintResult> => {
+      if (!publicKey || !signTransaction) {
+        throw new Error('Wallet not connected');
+      }
+
+      const signTx = async (tx: Transaction) => {
+        return signTransaction(tx);
+      };
+
+      return createTokenMintImpl({
+        connection,
+        publicKey,
+        signTransaction: signTx,
+        ...params,
+      });
+    },
+    [publicKey, signTransaction, connection]
   );
 
   // ============================================================================
@@ -2444,6 +2475,8 @@ export function useSolanaContract() {
     cleanupRoom,
     // Composite functions
     distributePrizes,
+    // Utilities
+    createTokenMint,
     // Queries
     getRoomInfo,
     getPlayerEntry,
