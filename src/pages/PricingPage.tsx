@@ -271,10 +271,10 @@ const PricingPage: React.FC = () => {
                 <h3 className="text-indigo-900 text-xl font-bold">Starter Plan (Free Trial)</h3>
                 <p className="text-indigo-900/70 mt-1">Perfect for first-time organizers and small community groups</p>
                 <div className="mt-4 text-3xl font-extrabold text-indigo-900">Free</div>
-                <p className="text-sm text-indigo-900/60 mb-4">2 Free Quiz credits.</p>
+                <p className="text-sm text-indigo-900/60 mb-4">3 Free Quiz credits.</p>
                 <ul className="mt-4 space-y-2">
                   <Bullet>
-                  Run two real fundraising quiz with up to 20 participants</Bullet>
+                  Run 3 real fundraising quiz with up to 20 participants</Bullet>
                   <Bullet>4-step setup wizard with templates</Bullet>
                   <Bullet>General, Wipeout & Speed rounds plus tiebreakers</Bullet>
                   <Bullet>Fundraising extras: Clue, Freeze, RobinHood, Restore</Bullet>
