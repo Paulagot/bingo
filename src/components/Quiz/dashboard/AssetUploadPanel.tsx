@@ -1081,6 +1081,43 @@ const SolanaAssetUploadPlaceholder: React.FC<{ chainName: string }> = ({ chainNa
       }
     } catch (e: any) {
       console.error('[Solana] Prize deposit failed:', e);
+      
+      // Get full logs if SendTransactionError
+      if (e && typeof e.getLogs === 'function') {
+        try {
+          const logs = await e.getLogs();
+          console.error('[Solana] Full transaction logs:', logs);
+          
+          // Parse Anchor error from logs for better diagnostics
+          const logString = logs.join('\n');
+          const anchorErrorMatch = logString.match(/AnchorError caused by account: (\w+)\. Error Code: (\w+)\. Error Number: (\d+)\. Error Message: ([^.]+)/);
+          
+          if (anchorErrorMatch) {
+            const [, account, errorCode, errorNumber, errorMessage] = anchorErrorMatch;
+            console.error('[Solana] Anchor Error:', {
+              account,
+              errorCode,
+              errorNumber,
+              errorMessage,
+              fullLogs: logs,
+            });
+            
+            // Provide user-friendly error message for common errors
+            if (errorCode === 'AccountNotInitialized' && account === 'prize_vault') {
+              console.error('[Solana] Issue: Prize vault PDA token account not initialized. The contract should create it automatically.');
+            }
+          }
+          
+          console.error('[Solana] Error details:', {
+            message: e.message,
+            name: e.name,
+            logs: logs,
+          });
+        } catch (logError) {
+          console.error('[Solana] Failed to get logs:', logError);
+        }
+      }
+      
       updatePrizeStatus(prizeIndex, 'failed');
     }
   };
