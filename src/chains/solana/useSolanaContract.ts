@@ -2214,6 +2214,12 @@ export function useSolanaContract() {
             // Check if prize vault exists and is empty
             try {
               const prizeVaultAccount = await getAccount(connection, prizeVault);
+              console.log(`[cleanupRoom] Prize vault ${prizeIndex}:`, {
+                address: prizeVault.toBase58(),
+                amount: prizeVaultAccount.amount.toString(),
+                isEmpty: prizeVaultAccount.amount === 0n,
+              });
+
               if (prizeVaultAccount.amount === 0n) {
                 const prizeVaultInfo = await connection.getAccountInfo(prizeVault);
                 if (prizeVaultInfo) {
@@ -2223,13 +2229,28 @@ export function useSolanaContract() {
                     isSigner: false,
                     isWritable: true,
                   });
+                  console.log(`[cleanupRoom] Adding prize vault ${prizeIndex} to cleanup (empty)`);
                 }
               } else {
-                throw new Error(`Prize vault ${prizeIndex} is not empty. Distribute prizes first.`);
+                console.error(`[cleanupRoom] Prize vault ${prizeIndex} is not empty:`, {
+                  address: prizeVault.toBase58(),
+                  amount: prizeVaultAccount.amount.toString(),
+                });
+                throw new Error(`Prize vault ${prizeIndex} (${prizeVault.toBase58()}) has ${prizeVaultAccount.amount} tokens. Prizes were not fully distributed.`);
               }
             } catch (error: any) {
-              // Prize vault might not exist if prize wasn't deposited
-              // Add placeholder to maintain array structure
+              // If getAccount fails, vault doesn't exist (was never created or already closed)
+              if (error.message && error.message.includes('could not find account')) {
+                console.log(`[cleanupRoom] Prize vault ${prizeIndex} doesn't exist (never created or already closed)`);
+                // Don't add to remaining accounts if it doesn't exist
+              } else if (error.message && error.message.includes('Prize vault')) {
+                // Re-throw our own error about non-empty vault
+                throw error;
+              } else {
+                console.warn(`[cleanupRoom] Error checking prize vault ${prizeIndex}:`, error);
+              }
+
+              // Add placeholder to maintain array structure (contract expects 3 accounts)
               remainingAccounts.push({
                 pubkey: PublicKey.default,
                 isSigner: false,
@@ -2264,6 +2285,14 @@ export function useSolanaContract() {
       const simResult = await simulateTransaction(connection, tx);
 
       if (!simResult.success) {
+        console.error('[cleanupRoom] Simulation failed:', {
+          error: simResult.error,
+          logs: simResult.logs,
+          remainingAccountsCount: remainingAccounts.length,
+          isAssetBased,
+          roomEnded: roomAccount.ended,
+          vaultBalance: vaultAccount.amount.toString(),
+        });
         throw new Error(formatTransactionError(simResult.error));
       }
 
