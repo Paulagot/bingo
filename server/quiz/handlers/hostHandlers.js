@@ -766,7 +766,7 @@ socket.on('end_quiz_and_distribute_prizes', ({ roomId }) => {
 
 
 // ✅ prize_distribution_completed (FIXED VERSION)
-socket.on('prize_distribution_completed', ({ roomId, success, txHash, error, confirmations, blockNumber }) => {
+socket.on('prize_distribution_completed', ({ roomId, success, txHash, error, confirmations, blockNumber, charityAmount }) => {
   if (debug) console.log(`[Host] 💰 Prize distribution result: ${success ? 'SUCCESS' : 'FAILED'}`);
 
   const room = getQuizRoom(roomId);
@@ -776,6 +776,16 @@ socket.on('prize_distribution_completed', ({ roomId, success, txHash, error, con
     room.prizeDistributionStatus = 'completed';
     room.prizeDistributionTxHash = txHash;
     room.currentPhase = 'complete';
+    
+    // Store exact charity amount from on-chain event
+    // This ensures the amount reported to The Giving Block matches what was actually transferred
+    if (charityAmount) {
+      room.charityAmount = charityAmount; // Store as string (from BN.toString())
+      if (debug) console.log(`[Host] 💰 Charity amount from RoomEnded event: ${charityAmount}`);
+      if (debug) console.log(`[Host] ⚠️ IMPORTANT: Use this exact charityAmount when reporting to The Giving Block`);
+    } else {
+      if (debug) console.warn(`[Host] ⚠️ No charityAmount provided. Frontend calculation may differ from on-chain amount.`);
+    }
 
     // Structured logging for successful prize distribution
     logPrizeDistributionSuccess(
@@ -783,7 +793,8 @@ socket.on('prize_distribution_completed', ({ roomId, success, txHash, error, con
       room.config.web3Chain,
       txHash,
       confirmations,
-      blockNumber
+      blockNumber,
+      charityAmount // Include charity amount in logging
     );
 
     namespace.to(roomId).emit('prize_distribution_success', {

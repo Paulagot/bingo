@@ -54,7 +54,7 @@ export function logPrizeDistributionSubmitted(roomId, chain, txHash, txData) {
   }, 'submitting', 'pending');
 }
 
-export function logPrizeDistributionSuccess(roomId, chain, txHash, confirmations, blockNumber) {
+export function logPrizeDistributionSuccess(roomId, chain, txHash, confirmations, blockNumber, charityAmount) {
   blockchainLogger.info({
     roomId,
     stage: 'completed',
@@ -62,8 +62,9 @@ export function logPrizeDistributionSuccess(roomId, chain, txHash, confirmations
     chain,
     txHash,
     confirmations,
-    blockNumber
-  }, `Prize distribution completed successfully on ${chain}`);
+    blockNumber,
+    charityAmount: charityAmount || null // Exact amount sent to charity (from on-chain event)
+  }, `Prize distribution completed successfully on ${chain}${charityAmount ? ` - Charity amount: ${charityAmount}` : ''}`);
 
   logBlockchainTx(blockchainLogger, {
     txHash,

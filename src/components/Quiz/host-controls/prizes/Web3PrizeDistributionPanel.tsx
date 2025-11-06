@@ -146,6 +146,17 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
 
           console.log('✅ [Frontend] Prize distribution successful:', txHash);
 
+          // Extract charity amount from on-chain event (exact amount sent to charity)
+          // This ensures the amount reported to The Giving Block matches what was actually transferred
+          const charityAmount = 'charityAmount' in result ? result.charityAmount : undefined;
+          
+          if (charityAmount) {
+            console.log('💰 [Frontend] Charity amount from RoomEnded event:', charityAmount);
+            console.log('⚠️ [Frontend] IMPORTANT: This exact amount must be used when reporting to The Giving Block');
+          } else {
+            console.warn('⚠️ [Frontend] Could not parse charityAmount from RoomEnded event. Frontend calculation may differ from on-chain amount.');
+          }
+
           // Check if PDA cleanup (rent reclamation) succeeded
           const cleanupTxHash = 'cleanupTxHash' in result ? result.cleanupTxHash : undefined;
           const rentReclaimed = 'rentReclaimed' in result ? result.rentReclaimed : undefined;
@@ -158,11 +169,12 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
             console.warn('⚠️ [Frontend] Prize distribution succeeded but PDA cleanup failed:', cleanupError);
           }
 
-          // Notify backend of success
+          // Notify backend of success with exact charity amount from on-chain event
           socket.emit('prize_distribution_completed', {
             roomId: data.roomId,
             success: true,
             txHash: txHash,
+            charityAmount: charityAmount, // Exact amount sent to charity (from on-chain event)
           });
 
           // Update UI state - include cleanup info if available

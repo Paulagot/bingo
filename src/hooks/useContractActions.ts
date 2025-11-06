@@ -102,7 +102,7 @@ type DistributeArgs = {
 };
 
 type DistributeResult =
-  | { success: true; txHash: string; explorerUrl?: string; cleanupTxHash?: string; rentReclaimed?: number; error?: string }
+  | { success: true; txHash: string; explorerUrl?: string; cleanupTxHash?: string; rentReclaimed?: number; error?: string; charityAmount?: string }
   | { success: false; error: string };
 
 type Options = { chainOverride?: SupportedChain | null };
@@ -380,6 +380,14 @@ export function useContractActions(opts?: Options) {
           });
 
           console.log('✅ [Solana] Prize distribution successful:', res.signature);
+          
+          // Log charity amount from on-chain event (exact amount sent to charity)
+          if (res.charityAmount) {
+            console.log('💰 [Solana] Charity amount from RoomEnded event:', res.charityAmount.toString());
+            console.log('⚠️ [Solana] IMPORTANT: Use this exact charityAmount when reporting to The Giving Block');
+          } else {
+            console.warn('⚠️ [Solana] Could not parse charityAmount from RoomEnded event. Frontend calculation may differ from on-chain amount.');
+          }
 
           // Check if cleanup (PDA closing) succeeded
           if (res.cleanupError) {
@@ -389,6 +397,7 @@ export function useContractActions(opts?: Options) {
               success: true,
               txHash: res.signature as `0x${string}`,
               error: `Prizes distributed but PDA cleanup failed: ${res.cleanupError}. Rent can be reclaimed manually.`,
+              charityAmount: res.charityAmount?.toString(), // Pass through exact charity amount
             };
           }
 
@@ -401,6 +410,7 @@ export function useContractActions(opts?: Options) {
             txHash: res.signature as `0x${string}`,
             cleanupTxHash: res.cleanupSignature as `0x${string}` | undefined,
             rentReclaimed: res.rentReclaimed,
+            charityAmount: res.charityAmount?.toString(), // Exact amount sent to charity (from on-chain event)
           };
         } catch (e: any) {
           console.error('[Solana distributePrizes error]', e);
