@@ -64,6 +64,19 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
   // 🆕 SAFEGUARD: Only show post-game panel if we're on the final round
   const isFinalRound = currentRound && totalRounds && currentRound >= totalRounds;
 
+  // Debug logging to understand why safeguard might not be working
+  if (debug && (isComplete || isDistributing)) {
+    console.log('[HostPostgamePanel] Phase check:', {
+      phase,
+      currentRound,
+      totalRounds,
+      isFinalRound,
+      isComplete,
+      isDistributing,
+      willHide: !isFinalRound,
+    });
+  }
+
   // If phase says "complete" but we're not on final round, don't show this panel
   // This prevents stale phase state from showing post-game UI during intermediate rounds
   if ((isComplete || isDistributing) && !isFinalRound) {

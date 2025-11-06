@@ -2190,15 +2190,16 @@ export function useSolanaContract() {
       let rentReclaimed = roomRent + vaultRent;
 
       // Check if room is asset-based and get prize vaults
-      const isAssetBased = roomAccount.prizeMode && 
-        ((roomAccount.prizeMode as any).assetBased !== undefined || 
+      const isAssetBased = roomAccount.prizeMode &&
+        ((roomAccount.prizeMode as any).assetBased !== undefined ||
          (roomAccount.prizeMode as any).AssetBased !== undefined);
-      
+
       const remainingAccounts = [];
       if (isAssetBased && roomAccount.prizeAssets) {
-        console.log('[cleanupRoom] Asset-based room detected, adding prize vaults...');
-        
+        console.log('[cleanupRoom] Asset-based room detected, checking prize vaults...');
+
         // Derive prize vault PDAs for each prize (up to 3)
+        // Only add vaults that exist and are empty - contract will handle them gracefully
         for (let prizeIndex = 0; prizeIndex < 3; prizeIndex++) {
           const prizeAsset = roomAccount.prizeAssets[prizeIndex];
           if (prizeAsset && prizeAsset.deposited) {
@@ -2210,10 +2211,16 @@ export function useSolanaContract() {
               ],
               program.programId
             );
-            
+
             // Check if prize vault exists and is empty
             try {
               const prizeVaultAccount = await getAccount(connection, prizeVault);
+              console.log(`[cleanupRoom] Prize vault ${prizeIndex}:`, {
+                address: prizeVault.toBase58(),
+                amount: prizeVaultAccount.amount.toString(),
+                isEmpty: prizeVaultAccount.amount === 0n,
+              });
+
               if (prizeVaultAccount.amount === 0n) {
                 const prizeVaultInfo = await connection.getAccountInfo(prizeVault);
                 if (prizeVaultInfo) {
@@ -2223,28 +2230,36 @@ export function useSolanaContract() {
                     isSigner: false,
                     isWritable: true,
                   });
+                  console.log(`[cleanupRoom] Added prize vault ${prizeIndex} to cleanup (empty)`);
                 }
               } else {
-                throw new Error(`Prize vault ${prizeIndex} is not empty. Distribute prizes first.`);
+                console.error(`[cleanupRoom] Prize vault ${prizeIndex} is not empty:`, {
+                  address: prizeVault.toBase58(),
+                  amount: prizeVaultAccount.amount.toString(),
+                });
+                throw new Error(`Prize vault ${prizeIndex} (${prizeVault.toBase58()}) has ${prizeVaultAccount.amount} tokens. Prizes were not fully distributed.`);
               }
             } catch (error: any) {
-              // Prize vault might not exist if prize wasn't deposited
-              // Add placeholder to maintain array structure
-              remainingAccounts.push({
-                pubkey: PublicKey.default,
-                isSigner: false,
-                isWritable: false,
-              });
+              // If getAccount fails, vault doesn't exist (was never created or already closed)
+              if (error.message && error.message.includes('could not find account')) {
+                console.log(`[cleanupRoom] Prize vault ${prizeIndex} doesn't exist (never created or already closed) - skipping`);
+                // Don't add to remaining accounts if it doesn't exist
+              } else if (error.message && error.message.includes('Prize vault')) {
+                // Re-throw our own error about non-empty vault
+                throw error;
+              } else {
+                console.warn(`[cleanupRoom] Error checking prize vault ${prizeIndex}:`, error);
+                // Don't add to remaining accounts on error
+              }
             }
           } else {
-            // Add placeholder for non-deposited prizes to maintain array structure
-            remainingAccounts.push({
-              pubkey: PublicKey.default,
-              isSigner: false,
-              isWritable: false,
-            });
+            console.log(`[cleanupRoom] Prize ${prizeIndex} not deposited - skipping`);
           }
         }
+
+        console.log(`[cleanupRoom] Total prize vaults to clean: ${remainingAccounts.length}`);
+      } else {
+        console.log('[cleanupRoom] Pool-based room, no prize vaults to clean');
       }
 
       const ix = await program.methods
@@ -2264,6 +2279,14 @@ export function useSolanaContract() {
       const simResult = await simulateTransaction(connection, tx);
 
       if (!simResult.success) {
+        console.error('[cleanupRoom] Simulation failed:', {
+          error: simResult.error,
+          logs: simResult.logs,
+          remainingAccountsCount: remainingAccounts.length,
+          isAssetBased,
+          roomEnded: roomAccount.ended,
+          vaultBalance: vaultAccount.amount.toString(),
+        });
         throw new Error(formatTransactionError(simResult.error));
       }
 
