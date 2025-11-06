@@ -33,9 +33,13 @@ interface HostPostgamePanelProps {
   debug?: boolean;
   onReturnToDashboard?: () => void;
   onPhaseChange?: (p: Phase) => void;
-  
+
   // 🆕 NEW: callback to trigger cleanup/end game
   onEndGame?: () => void;
+
+  // 🆕 NEW: current/total rounds to prevent showing post-game during intermediate rounds
+  currentRound?: number;
+  totalRounds?: number;
 }
 
 const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
@@ -50,11 +54,28 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
   onReturnToDashboard,
   onPhaseChange,
   onEndGame, // 🆕 NEW
+  currentRound,
+  totalRounds,
 }) => {
   const isComplete = phase === 'complete';
   const isDistributing = phase === 'distributing_prizes';
   const isWeb3Flow = paymentMethod === 'web3';
-  
+
+  // 🆕 SAFEGUARD: Only show post-game panel if we're on the final round
+  const isFinalRound = currentRound && totalRounds && currentRound >= totalRounds;
+
+  // If phase says "complete" but we're not on final round, don't show this panel
+  // This prevents stale phase state from showing post-game UI during intermediate rounds
+  if ((isComplete || isDistributing) && !isFinalRound) {
+    console.warn('[HostPostgamePanel] Phase is complete/distributing but not on final round. Hiding post-game panel.', {
+      phase,
+      currentRound,
+      totalRounds,
+      isFinalRound,
+    });
+    return null;
+  }
+
   // 🆕 NEW: Track when prizes are successfully distributed
   const [prizeDistributionComplete, setPrizeDistributionComplete] = React.useState(false);
 

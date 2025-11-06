@@ -969,7 +969,9 @@ const handleEndGame = useCallback(async () => {
   onReturnToDashboard={() =>
     navigate(`/quiz/host-dashboard/${roomId}?tab=prizes&lock=postgame`)
   }
-  onEndGame={handleEndGame} 
+  onEndGame={handleEndGame}
+  currentRound={roomState.currentRound}
+  totalRounds={roomState.totalRounds}
 />
       </div>
     </div>
@@ -982,7 +984,7 @@ const HostControlsPage: React.FC = () => {
 
   if (!config || Object.keys(config).length === 0) {
     return (
-      <div className="min-h-screen grid place-items-center">
+      <div className="grid min-h-screen place-items-center">
         <div className="text-center text-sm text-gray-600">Loading host controls…</div>
       </div>
     );
