@@ -2190,15 +2190,16 @@ export function useSolanaContract() {
       let rentReclaimed = roomRent + vaultRent;
 
       // Check if room is asset-based and get prize vaults
-      const isAssetBased = roomAccount.prizeMode && 
-        ((roomAccount.prizeMode as any).assetBased !== undefined || 
+      const isAssetBased = roomAccount.prizeMode &&
+        ((roomAccount.prizeMode as any).assetBased !== undefined ||
          (roomAccount.prizeMode as any).AssetBased !== undefined);
-      
+
       const remainingAccounts = [];
       if (isAssetBased && roomAccount.prizeAssets) {
-        console.log('[cleanupRoom] Asset-based room detected, adding prize vaults...');
-        
+        console.log('[cleanupRoom] Asset-based room detected, checking prize vaults...');
+
         // Derive prize vault PDAs for each prize (up to 3)
+        // Only add vaults that exist and are empty - contract will handle them gracefully
         for (let prizeIndex = 0; prizeIndex < 3; prizeIndex++) {
           const prizeAsset = roomAccount.prizeAssets[prizeIndex];
           if (prizeAsset && prizeAsset.deposited) {
@@ -2210,7 +2211,7 @@ export function useSolanaContract() {
               ],
               program.programId
             );
-            
+
             // Check if prize vault exists and is empty
             try {
               const prizeVaultAccount = await getAccount(connection, prizeVault);
@@ -2229,7 +2230,7 @@ export function useSolanaContract() {
                     isSigner: false,
                     isWritable: true,
                   });
-                  console.log(`[cleanupRoom] Adding prize vault ${prizeIndex} to cleanup (empty)`);
+                  console.log(`[cleanupRoom] Added prize vault ${prizeIndex} to cleanup (empty)`);
                 }
               } else {
                 console.error(`[cleanupRoom] Prize vault ${prizeIndex} is not empty:`, {
@@ -2241,31 +2242,24 @@ export function useSolanaContract() {
             } catch (error: any) {
               // If getAccount fails, vault doesn't exist (was never created or already closed)
               if (error.message && error.message.includes('could not find account')) {
-                console.log(`[cleanupRoom] Prize vault ${prizeIndex} doesn't exist (never created or already closed)`);
+                console.log(`[cleanupRoom] Prize vault ${prizeIndex} doesn't exist (never created or already closed) - skipping`);
                 // Don't add to remaining accounts if it doesn't exist
               } else if (error.message && error.message.includes('Prize vault')) {
                 // Re-throw our own error about non-empty vault
                 throw error;
               } else {
                 console.warn(`[cleanupRoom] Error checking prize vault ${prizeIndex}:`, error);
+                // Don't add to remaining accounts on error
               }
-
-              // Add placeholder to maintain array structure (contract expects 3 accounts)
-              remainingAccounts.push({
-                pubkey: PublicKey.default,
-                isSigner: false,
-                isWritable: false,
-              });
             }
           } else {
-            // Add placeholder for non-deposited prizes to maintain array structure
-            remainingAccounts.push({
-              pubkey: PublicKey.default,
-              isSigner: false,
-              isWritable: false,
-            });
+            console.log(`[cleanupRoom] Prize ${prizeIndex} not deposited - skipping`);
           }
         }
+
+        console.log(`[cleanupRoom] Total prize vaults to clean: ${remainingAccounts.length}`);
+      } else {
+        console.log('[cleanupRoom] Pool-based room, no prize vaults to clean');
       }
 
       const ix = await program.methods
