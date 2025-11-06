@@ -850,10 +850,14 @@ export async function depositPrizeAsset(
   }
 
   // Wait for confirmation
+  // Get fresh blockhash for confirmation (blockhash from sendWithRetry is not in scope)
+  const { blockhash: confirmBlockhash, lastValidBlockHeight: confirmLastValidBlockHeight } = 
+    await connection.getLatestBlockhash('finalized');
+  
   const confirmation = await connection.confirmTransaction({
     signature,
-    blockhash,
-    lastValidBlockHeight,
+    blockhash: confirmBlockhash,
+    lastValidBlockHeight: confirmLastValidBlockHeight,
   }, 'confirmed');
 
   if (confirmation.value.err) {

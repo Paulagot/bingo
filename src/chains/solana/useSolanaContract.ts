@@ -1945,13 +1945,46 @@ export function useSolanaContract() {
       // Send and confirm
       const signature = await provider.sendAndConfirm(tx);
 
+      // Parse RoomEnded event to get exact charity_amount that was sent
+      // This ensures the amount reported to The Giving Block matches what was actually transferred
+      let charityAmount: BN | undefined;
+      try {
+        const txDetails = await connection.getTransaction(signature, {
+          commitment: 'confirmed',
+          maxSupportedTransactionVersion: 0,
+        });
+
+        if (txDetails?.meta?.logMessages) {
+          // Parse events from transaction logs
+          const events = program.coder.events.parseLogs(txDetails.meta.logMessages);
+          const roomEndedEvent = events.find((e: any) => e.name === 'RoomEnded');
+          
+          if (roomEndedEvent) {
+            charityAmount = new BN(roomEndedEvent.data.charityAmount.toString());
+            console.log('[endRoom] Parsed RoomEnded event:', {
+              charityAmount: charityAmount.toString(),
+              platformAmount: roomEndedEvent.data.platformAmount.toString(),
+              hostAmount: roomEndedEvent.data.hostAmount.toString(),
+              prizeAmount: roomEndedEvent.data.prizeAmount.toString(),
+            });
+          }
+        }
+      } catch (eventParseError) {
+        console.warn('[endRoom] Failed to parse RoomEnded event:', eventParseError);
+        // Continue without event data - the transaction still succeeded
+      }
+
       console.log('Room ended successfully:', {
         signature,
         room: room.toBase58(),
         winners: params.winners.map(w => w.toBase58()),
+        charityAmount: charityAmount?.toString(),
       });
 
-      return { signature };
+      return { 
+        signature,
+        charityAmount, // Exact amount sent to charity (from on-chain event)
+      };
     },
     [publicKey, program, provider, connection, deriveGlobalConfigPDA, deriveRoomPDA, deriveRoomVaultPDA]
   );
@@ -2178,6 +2211,234 @@ export function useSolanaContract() {
     [publicKey, provider, program, connection, deriveGlobalConfigPDA, deriveRoomPDA, deriveRoomVaultPDA]
   );
 
+  /**
+   * Recover abandoned room and refund players (admin only)
+   * 
+   * Emergency function for when a host disappears mid-game. Refunds 90% of collected
+   * funds to players and takes 10% platform fee. This prevents funds from being
+   * locked if a host abandons a room before ending it.
+   * 
+   * **How it works:**
+   * 1. Verifies caller is platform admin
+   * 2. Fetches all PlayerEntry accounts for the room
+   * 3. Gets token accounts for each player
+   * 4. Calculates refund per player: (total_collected * 90%) / player_count
+   * 5. Transfers 10% to platform wallet
+   * 6. Refunds each player their share
+   * 7. Marks room as ended
+   * 
+   * **Prerequisites:**
+   * - Only admin can call (enforced on-chain)
+   * - Room must not be already ended
+   * - Room must have collected funds (total_collected > 0)
+   * - All players must have token accounts for the fee token mint
+   * 
+   * **Security:**
+   * - Admin-only access prevents abuse
+   * - Room must not be ended (prevents double recovery)
+   * - All refunds happen atomically in single transaction
+   * - Room marked as ended after recovery (prevents further operations)
+   * 
+   * @param params - Recovery parameters
+   * @param params.roomId - Room identifier
+   * @param params.hostPubkey - Host's Solana public key (for PDA derivation)
+   * @param params.roomAddress - Optional: Use this room PDA instead of deriving it
+   * 
+   * @returns Promise resolving to recovery result
+   * @returns result.signature - Solana transaction signature
+   * @returns result.playersRefunded - Number of players refunded
+   * @returns result.totalRefunded - Total amount refunded to players
+   * @returns result.platformFee - Platform fee amount (10%)
+   * 
+   * @throws {Error} 'Wallet not connected' - If publicKey or provider is null
+   * @throws {Error} 'Only platform admin can recover rooms' - If caller is not admin
+   * @throws {Error} 'Room already ended' - If room.ended is true
+   * @throws {Error} 'Room has no funds to recover' - If total_collected is 0
+   * @throws {Error} 'No players found' - If no PlayerEntry accounts exist for room
+   * 
+   * @example
+   * ```typescript
+   * const { recoverRoom } = useSolanaContract();
+   * 
+   * // Recover abandoned room and refund all players
+   * const result = await recoverRoom({
+   *   roomId: 'bingo-night-2024',
+   *   hostPubkey: new PublicKey('Host...'),
+   * });
+   * 
+   * console.log('Recovery complete:', {
+   *   signature: result.signature,
+   *   playersRefunded: result.playersRefunded,
+   *   totalRefunded: result.totalRefunded / 1e6, // Convert to USDC
+   *   platformFee: result.platformFee / 1e6,
+   * });
+   * ```
+   */
+  const recoverRoom = useCallback(
+    async (params: { roomId: string; hostPubkey: PublicKey; roomAddress?: PublicKey }): Promise<{
+      signature: string;
+      playersRefunded: number;
+      totalRefunded: BN;
+      platformFee: BN;
+    }> => {
+      if (!publicKey || !provider || !program) {
+        throw new Error('Wallet not connected');
+      }
+
+      // Use provided room address or derive it
+      let roomPDA: PublicKey;
+      if (params.roomAddress) {
+        roomPDA = params.roomAddress;
+        console.log('[recoverRoom] Using provided room address:', roomPDA.toBase58());
+      } else {
+        [roomPDA] = deriveRoomPDA(params.hostPubkey, params.roomId);
+        console.log('[recoverRoom] Derived room PDA:', roomPDA.toBase58());
+      }
+
+      // Verify caller is admin
+      const [globalConfig] = deriveGlobalConfigPDA();
+      const globalConfigAccount = await program.account.globalConfig.fetch(globalConfig);
+      if (!globalConfigAccount.admin.equals(publicKey)) {
+        throw new Error('Only platform admin can recover rooms');
+      }
+
+      // Fetch room info
+      const roomInfo = await getRoomInfo(roomPDA);
+      if (!roomInfo) {
+        throw new Error('Room not found at address: ' + roomPDA.toBase58());
+      }
+
+      // Verify room is not ended
+      if (roomInfo.ended) {
+        throw new Error('Room already ended');
+      }
+
+      // Verify room has funds
+      if (roomInfo.totalCollected.eq(new BN(0))) {
+        throw new Error('Room has no funds to recover');
+      }
+
+      console.log('[recoverRoom] Room info:', {
+        roomId: params.roomId,
+        playerCount: roomInfo.playerCount,
+        totalCollected: roomInfo.totalCollected.toString(),
+        feeTokenMint: roomInfo.feeTokenMint.toBase58(),
+      });
+
+      // Query all PlayerEntry accounts for this room
+      // Filter by room pubkey (offset 40 = discriminator 8 + player 32)
+      // @ts-ignore - Account types available after program deployment
+      const allPlayerEntries = await program.account.playerEntry.all([
+        {
+          memcmp: {
+            offset: 8 + 32, // Skip discriminator (8) + player (32), room is next at offset 40
+            bytes: roomPDA.toBase58(), // Anchor memcmp expects base58 string for Pubkeys
+          },
+        },
+      ]);
+
+      if (allPlayerEntries.length === 0) {
+        throw new Error('No players found in room');
+      }
+
+      console.log('[recoverRoom] Found', allPlayerEntries.length, 'player entries');
+
+      // Get token accounts for all players
+      const playerAccounts: Array<{ player: PublicKey; tokenAccount: PublicKey }> = [];
+      
+      for (const entry of allPlayerEntries) {
+        const playerPubkey = entry.account.player as PublicKey;
+        const tokenAccount = await getAssociatedTokenAddress(
+          roomInfo.feeTokenMint,
+          playerPubkey
+        );
+        playerAccounts.push({
+          player: playerPubkey,
+          tokenAccount,
+        });
+      }
+
+      console.log('[recoverRoom] Prepared', playerAccounts.length, 'player token accounts');
+
+      // Get platform token account
+      const platformTokenAccount = await getAssociatedTokenAddress(
+        roomInfo.feeTokenMint,
+        globalConfigAccount.platformWallet as PublicKey
+      );
+
+      // Get room vault PDA
+      const [roomVault] = deriveRoomVaultPDA(roomPDA);
+
+      // Build remaining_accounts: [player1_pubkey, player1_token_account, player2_pubkey, player2_token_account, ...]
+      // The Rust code uses odd indices (token accounts) but we pass pairs for completeness
+      const remainingAccounts = playerAccounts.flatMap(({ player, tokenAccount }) => [
+        {
+          pubkey: player,
+          isSigner: false,
+          isWritable: false, // Player pubkey is read-only
+        },
+        {
+          pubkey: tokenAccount,
+          isSigner: false,
+          isWritable: true, // Token account is writable (receives refund)
+        },
+      ]);
+
+      // Build recover_room instruction
+      const ix = await program.methods
+        .recoverRoom(params.roomId)
+        .accounts({
+          room: roomPDA,
+          roomVault,
+          globalConfig,
+          platformTokenAccount,
+          admin: publicKey,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        })
+        .remainingAccounts(remainingAccounts)
+        .instruction();
+
+      const tx = new Transaction().add(ix);
+      tx.feePayer = publicKey;
+
+      // Simulate transaction
+      console.log('[recoverRoom] Simulating transaction...');
+      const simResult = await simulateTransaction(connection, tx);
+
+      if (!simResult.success) {
+        console.error('[recoverRoom] Simulation failed:', {
+          error: simResult.error,
+          logs: simResult.logs,
+        });
+        throw new Error(formatTransactionError(simResult.error));
+      }
+
+      // Send and confirm transaction
+      console.log('[recoverRoom] Sending transaction...');
+      const signature = await provider.sendAndConfirm(tx);
+
+      // Calculate amounts for return value
+      const totalCollected = roomInfo.totalCollected;
+      const platformFee = totalCollected.mul(new BN(10)).div(new BN(100)); // 10%
+      const totalRefunded = totalCollected.sub(platformFee); // 90%
+
+      console.log('[recoverRoom] ✅ Recovery complete:', {
+        signature,
+        playersRefunded: playerAccounts.length,
+        totalRefunded: totalRefunded.toString(),
+        platformFee: platformFee.toString(),
+      });
+
+      return {
+        signature,
+        playersRefunded: playerAccounts.length,
+        totalRefunded,
+        platformFee,
+      };
+    },
+    [publicKey, provider, program, connection, deriveGlobalConfigPDA, deriveRoomPDA, deriveRoomVaultPDA, getRoomInfo]
+  );
+
   // ============================================================================
   // Composite Functions (convenience wrappers)
   // ============================================================================
@@ -2231,7 +2492,7 @@ export function useSolanaContract() {
    * Example: 7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU
    */
   const distributePrizes = useCallback(
-    async (params: { roomId: string; winners: string[]; roomAddress?: string }): Promise<{ signature: string; cleanupSignature?: string; rentReclaimed?: number; cleanupError?: string }> => {
+    async (params: { roomId: string; winners: string[]; roomAddress?: string }): Promise<{ signature: string; cleanupSignature?: string; rentReclaimed?: number; cleanupError?: string; charityAmount?: BN }> => {
       if (!publicKey || !provider || !program) {
         throw new Error('Wallet not connected or program not initialized');
       }
@@ -2412,6 +2673,35 @@ export function useSolanaContract() {
       console.log('[distributePrizes] ✅ Merged transaction successful:', signature);
       console.log('[distributePrizes] Distribution complete:', signature);
 
+      // Parse RoomEnded event to get exact charity_amount that was sent
+      // This ensures the amount reported to The Giving Block matches what was actually transferred
+      let charityAmount: BN | undefined;
+      try {
+        const txDetails = await connection.getTransaction(signature, {
+          commitment: 'confirmed',
+          maxSupportedTransactionVersion: 0,
+        });
+
+        if (txDetails?.meta?.logMessages) {
+          // Parse events from transaction logs
+          const events = program.coder.events.parseLogs(txDetails.meta.logMessages);
+          const roomEndedEvent = events.find((e: any) => e.name === 'RoomEnded');
+          
+          if (roomEndedEvent) {
+            charityAmount = new BN(roomEndedEvent.data.charityAmount.toString());
+            console.log('[distributePrizes] Parsed RoomEnded event:', {
+              charityAmount: charityAmount.toString(),
+              platformAmount: roomEndedEvent.data.platformAmount.toString(),
+              hostAmount: roomEndedEvent.data.hostAmount.toString(),
+              prizeAmount: roomEndedEvent.data.prizeAmount.toString(),
+            });
+          }
+        }
+      } catch (eventParseError) {
+        console.warn('[distributePrizes] Failed to parse RoomEnded event:', eventParseError);
+        // Continue without event data - the transaction still succeeded
+      }
+
       // Step 3: Close PDA and return rent to host
       // This is critical - the room PDA must be closed to return rent to the host
       console.log('[distributePrizes] Closing PDA and reclaiming rent...');
@@ -2435,6 +2725,7 @@ export function useSolanaContract() {
           signature,
           cleanupSignature: cleanupResult.signature,
           rentReclaimed: cleanupResult.rentReclaimed,
+          charityAmount, // Exact amount sent to charity (from on-chain event)
         };
       } catch (cleanupError: any) {
         console.error('[distributePrizes] ❌ Failed to close PDA and reclaim rent:', cleanupError);
@@ -2445,6 +2736,7 @@ export function useSolanaContract() {
         return {
           signature,
           cleanupError: cleanupError.message || 'Failed to close PDA and reclaim rent',
+          charityAmount, // Exact amount sent to charity (from on-chain event)
         };
       }
     },
@@ -2473,6 +2765,7 @@ export function useSolanaContract() {
     setEmergencyPause,
     closeJoining,
     cleanupRoom,
+    recoverRoom,
     // Composite functions
     distributePrizes,
     // Utilities
