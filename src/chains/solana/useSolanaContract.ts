@@ -108,6 +108,12 @@ export interface RoomInfo {
   hostFeeBps: number;
   prizePoolBps: number;
   charityBps: number;
+  prizeMode?: any; // PrizeMode enum (PoolSplit | AssetBased)
+  prizeAssets?: Array<{
+    mint: PublicKey;
+    amount: BN;
+    deposited: boolean;
+  } | null>; // [Option<PrizeAsset>; 3]
 }
 
 export interface PlayerEntryInfo {
@@ -2018,6 +2024,12 @@ export function useSolanaContract() {
           hostFeeBps: roomAccount.hostFeeBps as number,
           prizePoolBps: roomAccount.prizePoolBps as number,
           charityBps: roomAccount.charityBps as number,
+          prizeMode: roomAccount.prizeMode,
+          prizeAssets: roomAccount.prizeAssets as Array<{
+            mint: PublicKey;
+            amount: BN;
+            deposited: boolean;
+          } | null> | undefined,
         };
       } catch (error) {
         console.error('[getRoomInfo] Failed:', error);
@@ -2170,12 +2182,70 @@ export function useSolanaContract() {
         throw new Error('Vault must be empty before cleanup. Distribute prizes first.');
       }
 
-      // Get rent before closing for return value (from both room and vault PDAs)
+      // Get rent before closing for return value (from room, vault, and prize vaults)
       const roomAccountInfo = await connection.getAccountInfo(room);
       const vaultAccountInfo = await connection.getAccountInfo(roomVault);
       const roomRent = roomAccountInfo?.lamports || 0;
       const vaultRent = vaultAccountInfo?.lamports || 0;
-      const rentReclaimed = roomRent + vaultRent;
+      let rentReclaimed = roomRent + vaultRent;
+
+      // Check if room is asset-based and get prize vaults
+      const isAssetBased = roomAccount.prizeMode && 
+        ((roomAccount.prizeMode as any).assetBased !== undefined || 
+         (roomAccount.prizeMode as any).AssetBased !== undefined);
+      
+      const remainingAccounts = [];
+      if (isAssetBased && roomAccount.prizeAssets) {
+        console.log('[cleanupRoom] Asset-based room detected, adding prize vaults...');
+        
+        // Derive prize vault PDAs for each prize (up to 3)
+        for (let prizeIndex = 0; prizeIndex < 3; prizeIndex++) {
+          const prizeAsset = roomAccount.prizeAssets[prizeIndex];
+          if (prizeAsset && prizeAsset.deposited) {
+            const [prizeVault] = PublicKey.findProgramAddressSync(
+              [
+                Buffer.from('prize-vault'),
+                room.toBuffer(),
+                Buffer.from([prizeIndex]),
+              ],
+              program.programId
+            );
+            
+            // Check if prize vault exists and is empty
+            try {
+              const prizeVaultAccount = await getAccount(connection, prizeVault);
+              if (prizeVaultAccount.amount === 0n) {
+                const prizeVaultInfo = await connection.getAccountInfo(prizeVault);
+                if (prizeVaultInfo) {
+                  rentReclaimed += prizeVaultInfo.lamports;
+                  remainingAccounts.push({
+                    pubkey: prizeVault,
+                    isSigner: false,
+                    isWritable: true,
+                  });
+                }
+              } else {
+                throw new Error(`Prize vault ${prizeIndex} is not empty. Distribute prizes first.`);
+              }
+            } catch (error: any) {
+              // Prize vault might not exist if prize wasn't deposited
+              // Add placeholder to maintain array structure
+              remainingAccounts.push({
+                pubkey: PublicKey.default,
+                isSigner: false,
+                isWritable: false,
+              });
+            }
+          } else {
+            // Add placeholder for non-deposited prizes to maintain array structure
+            remainingAccounts.push({
+              pubkey: PublicKey.default,
+              isSigner: false,
+              isWritable: false,
+            });
+          }
+        }
+      }
 
       const ix = await program.methods
         .cleanupRoom(params.roomId)
@@ -2186,6 +2256,7 @@ export function useSolanaContract() {
           caller: publicKey,
           tokenProgram: TOKEN_PROGRAM_ID,
         })
+        .remainingAccounts(remainingAccounts)
         .instruction();
 
       const tx = new Transaction().add(ix);
@@ -2607,6 +2678,91 @@ export function useSolanaContract() {
         )
       );
 
+      // Build remaining accounts array
+      // For asset-based rooms, the structure is:
+      // [0..winners_count] = winner token accounts for fee_token_mint
+      // [winners_count..winners_count*2] = winner token accounts for prize assets
+      // [winners_count*2..winners_count*2+3] = prize vault accounts
+      let remainingAccounts = winnerTokenAccounts.map(account => ({
+        pubkey: account,
+        isSigner: false,
+        isWritable: true,
+      }));
+
+      // Check if room is asset-based
+      // Anchor serializes enums as objects with variant name as key
+      // PrizeMode::AssetBased becomes { assetBased: {} } or { AssetBased: {} }
+      const isAssetBased = roomInfo.prizeMode && 
+        ((roomInfo.prizeMode as any).assetBased !== undefined || 
+         (roomInfo.prizeMode as any).AssetBased !== undefined);
+
+      if (isAssetBased && roomInfo.prizeAssets) {
+        console.log('[distributePrizes] Asset-based room detected, building prize accounts...');
+        
+        // Get winner token accounts for prize assets (one per winner for their prize mint)
+        const winnerPrizeTokenAccounts = await Promise.all(
+          winnerPubkeys.slice(0, 3).map(async (winner, index) => {
+            const prizeAsset = roomInfo.prizeAssets?.[index];
+            if (prizeAsset && prizeAsset.deposited) {
+              return await getAssociatedTokenAddress(
+                prizeAsset.mint,
+                winner
+              );
+            }
+            // If no prize for this position, use fee token mint as placeholder
+            // (won't be used but needed to maintain array structure)
+            return await getAssociatedTokenAddress(roomInfo.feeTokenMint, winner);
+          })
+        );
+
+        // Add winner prize token accounts to remaining accounts
+        remainingAccounts = remainingAccounts.concat(
+          winnerPrizeTokenAccounts.map(account => ({
+            pubkey: account,
+            isSigner: false,
+            isWritable: true,
+          }))
+        );
+
+        // Derive prize vault PDAs for each prize (up to 3)
+        const prizeVaultAccounts = [];
+        for (let prizeIndex = 0; prizeIndex < 3; prizeIndex++) {
+          const prizeAsset = roomInfo.prizeAssets[prizeIndex];
+          if (prizeAsset && prizeAsset.deposited) {
+            const [prizeVault] = PublicKey.findProgramAddressSync(
+              [
+                Buffer.from('prize-vault'),
+                roomPDA.toBuffer(),
+                Buffer.from([prizeIndex]),
+              ],
+              program.programId
+            );
+            prizeVaultAccounts.push({
+              pubkey: prizeVault,
+              isSigner: false,
+              isWritable: true,
+            });
+          } else {
+            // Add placeholder (won't be used but needed to maintain array structure)
+            prizeVaultAccounts.push({
+              pubkey: PublicKey.default,
+              isSigner: false,
+              isWritable: false,
+            });
+          }
+        }
+
+        // Add prize vault accounts to remaining accounts
+        remainingAccounts = remainingAccounts.concat(prizeVaultAccounts);
+
+        console.log('[distributePrizes] Remaining accounts structure:', {
+          winnerTokenAccounts: winnerTokenAccounts.length,
+          winnerPrizeTokenAccounts: winnerPrizeTokenAccounts.length,
+          prizeVaultAccounts: prizeVaultAccounts.length,
+          total: remainingAccounts.length,
+        });
+      }
+
       // Build endRoom instruction
       const endRoomIx = await program.methods
         .endRoom(params.roomId, winnerPubkeys)
@@ -2620,13 +2776,7 @@ export function useSolanaContract() {
           host: publicKey,
           tokenProgram: TOKEN_PROGRAM_ID,
         })
-        .remainingAccounts(
-          winnerTokenAccounts.map(account => ({
-            pubkey: account,
-            isSigner: false,
-            isWritable: true,
-          }))
-        )
+        .remainingAccounts(remainingAccounts)
         .instruction();
 
       tx.add(endRoomIx);
