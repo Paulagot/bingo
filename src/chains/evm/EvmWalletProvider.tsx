@@ -20,6 +20,9 @@ import { useQuizSetupStore } from '../../components/Quiz/hooks/useQuizSetupStore
 // ✅ Import the single source of truth
 import { EVM_NETWORKS, getMetaByKey, getKeyById, type EvmNetworkKey } from './config/networks';
 
+/* eslint-disable react-refresh/only-export-components */
+
+
 // ✅ Build lookup maps dynamically from networks.ts
 const buildChainIdMap = () => {
   const map: Record<string, number> = {};

@@ -15,24 +15,24 @@ interface PrizeRouterProps {
   onStatusChange?: (s: PrizeRouterStatus) => void; // ✅ Added
 }
 
-export const Web3PrizeDistributionRouter: React.FC<PrizeRouterProps> = ({ 
-  roomId, 
+export const Web3PrizeDistributionRouter: React.FC<PrizeRouterProps> = ({
+  roomId,
   leaderboard,
   onStatusChange // ✅ Added
 }) => {
   const { selectedChain,  getNetworkDisplayName } = useQuizChainIntegration();
 
-  if (selectedChain === 'stellar' || selectedChain === 'evm') {
+  if (selectedChain === 'stellar' || selectedChain === 'evm' || selectedChain === 'solana') {
     return (
-      <Web3PrizeDistributionPanel 
-        roomId={roomId} 
+      <Web3PrizeDistributionPanel
+        roomId={roomId}
         leaderboard={leaderboard}
         onStatusChange={onStatusChange} // ✅ Pass through
       />
     );
   }
 
-  // TODO: add Solana later
+  // Fallback for unsupported chains
   return (
     <div className="mt-6 rounded-xl border-2 border-yellow-200 bg-yellow-50 p-6 text-center">
       <div className="mb-2 text-xl font-bold text-yellow-800">

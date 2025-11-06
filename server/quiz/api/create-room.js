@@ -6,6 +6,7 @@ import {
   checkCaps,
   consumeCredit,
 } from '../../policy/entitlements.js';
+import { canUseTemplate } from '../../policy/entitlements.js';
 
 import authenticateToken from '../../middleware/auth.js';
 
@@ -132,108 +133,104 @@ const validateWeb3Proof = ({ chain, contractAddress, deploymentTxHash }) => {
  * on the right network (Soroban RPC, EVM JSON-RPC, Solana RPC).
  */
 router.post('/create-web3-room', async (req, res) => {
-  const { config: setupConfig, roomId, hostId } = req.body;
+  // Add timeout to ensure response is always sent
+  const timeout = setTimeout(() => {
+    if (!res.headersSent) {
+      console.error('[API] ⚠️ Request timeout - sending error response');
+      res.status(500).json({ error: 'Request timeout' });
+    }
+  }, 30000); // 30 second timeout
 
-  console.log('--------------------------------------');
-  console.log('[API] 🔗 Received Web3 room creation request');
-  console.log(`[API] 🆔 Using provided roomId=${roomId} hostId=${hostId}`);
+  try {
+    console.log('--------------------------------------');
+    console.log('[API] 🔗 Received Web3 room creation request');
+    console.log('[API] 📋 Request body exists:', !!req.body);
+    
+    if (!req.body) {
+      clearTimeout(timeout);
+      return res.status(400).json({ error: 'Request body is required' });
+    }
+    
+    const { config: setupConfig, roomId, hostId } = req.body;
 
-  // ✅ CHANGED: Accept all three possible field names for contract address
-  const contractAddress = 
-    setupConfig?.roomContractAddress ||      // ✅ Canonical field (NEW)
-    setupConfig?.web3ContractAddress ||      // Legacy field
-    setupConfig?.contractAddress;            // Old field
+    // Basic validation
+    if (!roomId || !hostId) {
+      console.error('[API] ❌ Missing roomId or hostId in request');
+      clearTimeout(timeout);
+      return res.status(400).json({ error: 'roomId and hostId are required' });
+    }
 
-  const deploymentTxHash = setupConfig?.deploymentTxHash;
+    if (!setupConfig) {
+      console.error('[API] ❌ Missing config');
+      clearTimeout(timeout);
+      return res.status(400).json({ error: 'Missing config' });
+    }
 
-  const chain =
-    setupConfig?.web3ChainConfirmed ||
-    setupConfig?.web3Chain ||
-    'stellar'; // default to Stellar/Soroban
+    // ✅ CHANGED: Accept all three possible field names for contract address
+    const contractAddress = 
+      setupConfig?.roomContractAddress ||      // ✅ Canonical field (NEW)
+      setupConfig?.web3ContractAddress ||      // Legacy field
+      setupConfig?.contractAddress;            // Old field
 
-  // ✅ CHANGED: Enhanced logging to show all possible field names
-  console.log('[API] 📦 Contract details:', {
-    roomContractAddress: setupConfig?.roomContractAddress,   // What we expect
-    web3ContractAddress: setupConfig?.web3ContractAddress,   // Fallback 1
-    contractAddress: setupConfig?.contractAddress,           // Fallback 2
-    resolved: contractAddress,                               // What we're using
-    deploymentTxHash: deploymentTxHash,
-    chain: chain,
-  });
+    const deploymentTxHash = setupConfig?.deploymentTxHash;
 
-  // Basic validation
-  if (!roomId || !hostId) {
-    console.error('[API] ❌ Missing roomId or hostId in request');
-    return res.status(400).json({ error: 'roomId and hostId are required' });
-  }
+    const chain =
+      setupConfig?.web3ChainConfirmed ||
+      setupConfig?.web3Chain ||
+      'stellar'; // default to Stellar/Soroban
 
-  if (!setupConfig) {
-    console.error('[API] ❌ Missing config');
-    return res.status(400).json({ error: 'Missing config' });
-  }
+    // ✅ NEW: Validate we actually got a contract address
+    if (!contractAddress) {
+      console.error('[API] ❌ No contract address found in request');
+      clearTimeout(timeout);
+      return res.status(400).json({ 
+        error: 'Contract address missing. Deployment may have failed.',
+        hint: 'Check that roomContractAddress is being sent in the config'
+      });
+    }
 
-  // ✅ NEW: Validate we actually got a contract address
-  if (!contractAddress) {
-    console.error('[API] ❌ No contract address found in request');
-    console.error('[API] 📋 Available config keys:', Object.keys(setupConfig));
-    return res.status(400).json({ 
-      error: 'Contract address missing. Deployment may have failed.',
-      hint: 'Check that roomContractAddress is being sent in the config'
-    });
-  }
+    // Set/force Web3 flags
+    setupConfig.isWeb3Room = true;
+    setupConfig.paymentMethod = 'web3';
 
-  // Set/force Web3 flags
-  setupConfig.isWeb3Room = true;
-  setupConfig.paymentMethod = 'web3';
-
-  // Strong format validation for on-chain proof
-  const proof = validateWeb3Proof({
-    chain,
-    contractAddress,
-    deploymentTxHash,
-  });
-
-  if (!proof.ok) {
-    console.error('[API] ❌ Invalid deployment proof', {
-      reason: proof.reason,
+    // Strong format validation for on-chain proof
+    const proof = validateWeb3Proof({
       chain,
       contractAddress,
       deploymentTxHash,
     });
-    return res.status(400).json({
-      error:
-        'Deployment not verified: missing/invalid tx hash or contract/program id. Please sign on the correct network and try again.',
-      details: {
-        chain,
+
+    if (!proof.ok) {
+      console.error('[API] ❌ Invalid deployment proof', {
         reason: proof.reason,
-      },
-    });
-  }
+        chain,
+        contractAddress,
+        deploymentTxHash,
+      });
+      clearTimeout(timeout);
+      return res.status(400).json({ 
+        error: 'Deployment not verified: missing/invalid tx hash or contract/program id. Please sign on the correct network and try again.',
+        details: {
+          chain,
+          reason: proof.reason,
+        },
+      });
+    }
 
-  // --- Normalize & persist canonical Web3 fields ---
-  // ✅ UNCHANGED: This section was already correct
-  // 1) Canonical contract key used everywhere in the app:
-  setupConfig.roomContractAddress = contractAddress;
-  // 2) Keep legacy keys for any older UI bits:
-  setupConfig.web3ContractAddress = contractAddress;
-  setupConfig.contractAddress = contractAddress;
-  setupConfig.deploymentTxHash = deploymentTxHash;
-  // 3) Make chain explicit (prefer confirmed):
-  setupConfig.web3Chain = setupConfig.web3ChainConfirmed || setupConfig.web3Chain || chain;
-  // 4) Ensure EVM metadata is carried if relevant (leave as-is if already set)
-  if (setupConfig.web3Chain === 'evm') {
-    setupConfig.evmNetwork = setupConfig.evmNetwork || req.body?.config?.evmNetwork || null;
-  }
+    // --- Normalize & persist canonical Web3 fields ---
+    setupConfig.roomContractAddress = contractAddress;
+    setupConfig.web3ContractAddress = contractAddress;
+    setupConfig.contractAddress = contractAddress;
+    setupConfig.deploymentTxHash = deploymentTxHash;
+    setupConfig.web3Chain = setupConfig.web3ChainConfirmed || setupConfig.web3Chain || chain;
+    
+    if (setupConfig.web3Chain === 'evm') {
+      setupConfig.evmNetwork = setupConfig.evmNetwork || req.body?.config?.evmNetwork || null;
+    }
 
-  // (Optional, but recommended in production)
-  // TODO: Add RPC verification by chain:
-  // - Stellar/Soroban: GET /getTransaction with tx hash on Soroban RPC
-  // - EVM: eth_getTransactionReceipt
-  // - Solana: getSignatureStatuses
-  // If not found / wrong network -> 400
-
-  try {
+    console.log('[API] 🔄 Starting room creation process...');
     const requestedRounds = (setupConfig?.roundDefinitions || []).length;
+    console.log(`[API] 📊 Requested rounds: ${requestedRounds}`);
 
     // Force Web3 configuration with generous limits
     setupConfig.roomCaps = {
@@ -243,22 +240,37 @@ router.post('/create-web3-room', async (req, res) => {
       extrasAllowed: '*',
     };
 
-    const created = createQuizRoom(roomId, hostId, setupConfig);
+    console.log('[API] 🎯 Calling createQuizRoom...');
+    
+    let created = false;
+    try {
+      created = createQuizRoom(roomId, hostId, setupConfig);
+    } catch (roomErr) {
+      console.error('[API] ❌ Error in createQuizRoom:', roomErr);
+      console.error('[API] ❌ Error stack:', roomErr?.stack);
+      clearTimeout(timeout);
+      return res.status(500).json({ 
+        error: 'Failed to create room',
+        ...(process.env.NODE_ENV !== 'production' && { details: roomErr?.message })
+      });
+    }
+    
     if (!created) {
       console.error('[API] ❌ Failed to create Web3 quiz room');
-      return res.status(400).json({
-        error:
-          'Failed to create room (invalid config, questions missing, or room already exists)',
+      clearTimeout(timeout);
+      return res.status(400).json({ 
+        error: 'Failed to create room (invalid config, questions missing, or room already exists)' 
       });
     }
 
-    console.log(`[API] ✅ Successfully created Web3 room ${roomId}`);
+    console.log('[API] ✅ Successfully created Web3 room in memory');
+    console.log(`[API] 🆔 Room ID: ${roomId}`);
+    console.log(`[API] 👤 Host ID: ${hostId}`);
     console.log(`[API] 📍 Contract: ${contractAddress}`);
-    console.log(`[API] 📝 Tx Hash: ${deploymentTxHash}`);
     console.log('--------------------------------------');
 
-    // ✅ CHANGED: Return both field names for backward compatibility
-    return res.status(200).json({
+    // Return both field names for backward compatibility
+    const responseData = {
       roomId,
       hostId,
       contractAddress,                       // Legacy field
@@ -266,10 +278,38 @@ router.post('/create-web3-room', async (req, res) => {
       deploymentTxHash,
       roomCaps: setupConfig.roomCaps,
       verified: true,
-    });
+    };
+
+    console.log('[API] 📤 Sending success response to client');
+    clearTimeout(timeout);
+    res.status(200).json(responseData);
+    
   } catch (err) {
+    clearTimeout(timeout);
     console.error('[API] ❌ Exception creating Web3 room:', err);
-    return res.status(500).json({ error: 'internal_error' });
+    console.error('[API] ❌ Error name:', err?.name);
+    console.error('[API] ❌ Error message:', err?.message);
+    console.error('[API] ❌ Error stack:', err?.stack);
+    
+    if (!res.headersSent) {
+      try {
+        res.status(500).json({ 
+          error: 'internal_error',
+          ...(process.env.NODE_ENV !== 'production' && { 
+            details: err?.message,
+            stack: err?.stack 
+          })
+        });
+      } catch (sendErr) {
+        console.error('[API] ❌ Failed to send error response:', sendErr);
+        // Last resort
+        try {
+          res.status(500).send('Internal server error');
+        } catch {
+          console.error('[API] ❌❌ Complete failure to send response');
+        }
+      }
+    }
   }
 });
 
@@ -280,10 +320,47 @@ router.use(authenticateToken);
 
 // Entitlements
 router.get('/me/entitlements', async (req, res) => {
-  const clubId = req.club_id;
-  console.log(`[API] 👤 Resolved club ID: "${clubId}"`);
-  const ents = await resolveEntitlements({ userId: clubId });
-  res.json(ents);
+  try {
+    const clubId = req.club_id;
+    
+    if (!clubId) {
+      console.error('[API] ❌ Missing club_id in request');
+      return res.status(401).json({ 
+        error: 'Authentication required',
+        details: 'club_id not found in request'
+      });
+    }
+    
+    console.log(`[API] 👤 Resolved club ID: "${clubId}"`);
+    
+    try {
+      const ents = await resolveEntitlements({ userId: clubId });
+      return res.json(ents);
+    } catch (entError) {
+      console.error('[API] ❌ resolveEntitlements error:', entError);
+      console.error('[API] ❌ Error stack:', entError.stack);
+      return res.status(500).json({ 
+        error: 'Failed to resolve entitlements',
+        ...(process.env.NODE_ENV !== 'production' && { 
+          details: entError.message,
+          stack: entError.stack 
+        })
+      });
+    }
+  } catch (error) {
+    console.error('[API] ❌ Entitlements endpoint error:', error);
+    console.error('[API] ❌ Error stack:', error.stack);
+    
+    if (!res.headersSent) {
+      return res.status(500).json({ 
+        error: 'Internal server error',
+        ...(process.env.NODE_ENV !== 'production' && { 
+          details: error.message,
+          stack: error.stack 
+        })
+      });
+    }
+  }
 });
 
 // Standard Web2 room creation (credits, caps, etc.)
@@ -309,6 +386,20 @@ router.post('/create-room', async (req, res) => {
 
     const ents = await resolveEntitlements({ userId: clubId });
 
+    // ── Identify the selected template (support both shapes) ────────────────
+    const templateId =
+      setupConfig?.templateId ||
+      setupConfig?.template?.id ||
+      null;
+
+    // ── Dev-only guard for "demo-quiz" ─────────────────────────────────────
+    if (templateId && !canUseTemplate(ents, templateId)) {
+      return res.status(403).json({
+        error: 'TEMPLATE_NOT_ALLOWED',
+        reason: 'The "demo-quiz" template is available on the Dev plan only.',
+        templateId,
+      });
+    }
     const requestedPlayers =
       setupConfig?.maxPlayers ??
       setupConfig?.playerLimit ??

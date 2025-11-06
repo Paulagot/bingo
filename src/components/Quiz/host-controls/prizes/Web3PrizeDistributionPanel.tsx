@@ -128,7 +128,9 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
       roomAddress: data.roomAddress,
       charityOrgId: data.charityOrgId,       // ✅ ADD
       charityName: data.charityName,         // ✅ ADD
-      charityAddress: data.charityAddress,   // ✅ ADD
+      charityAddress: data.charityAddress,
+       web3Chain: data.web3Chain,     // 👈 add
+  evmNetwork: data.evmNetwork,   // ✅ ADD
     });
 
         console.log('📊 [Frontend] distributePrizes result:', result);
@@ -144,35 +146,85 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
 
           console.log('✅ [Frontend] Prize distribution successful:', txHash);
 
-          // Notify backend of success
+          // Extract charity amount from on-chain event (exact amount sent to charity)
+          // This ensures the amount reported to The Giving Block matches what was actually transferred
+          const charityAmount = 'charityAmount' in result ? result.charityAmount : undefined;
+          
+          if (charityAmount) {
+            console.log('💰 [Frontend] Charity amount from RoomEnded event:', charityAmount);
+            console.log('⚠️ [Frontend] IMPORTANT: This exact amount must be used when reporting to The Giving Block');
+          } else {
+            console.warn('⚠️ [Frontend] Could not parse charityAmount from RoomEnded event. Frontend calculation may differ from on-chain amount.');
+          }
+
+          // Check if PDA cleanup (rent reclamation) succeeded
+          const cleanupTxHash = 'cleanupTxHash' in result ? result.cleanupTxHash : undefined;
+          const rentReclaimed = 'rentReclaimed' in result ? result.rentReclaimed : undefined;
+          const cleanupError = 'error' in result && result.error?.includes('PDA cleanup failed') ? result.error : undefined;
+
+          if (cleanupTxHash) {
+            console.log('✅ [Frontend] PDA closed and rent reclaimed:', cleanupTxHash);
+            console.log(`💰 [Frontend] Rent reclaimed: ${rentReclaimed ? (rentReclaimed / 1e9).toFixed(4) : 'N/A'} SOL`);
+          } else if (cleanupError) {
+            console.warn('⚠️ [Frontend] Prize distribution succeeded but PDA cleanup failed:', cleanupError);
+          }
+
+          // Notify backend of success with exact charity amount from on-chain event
           socket.emit('prize_distribution_completed', {
             roomId: data.roomId,
             success: true,
             txHash: txHash,
+            charityAmount: charityAmount, // Exact amount sent to charity (from on-chain event)
           });
 
-          // Update UI state
-          setState({ status: 'success', txHash: txHash });
+          // Update UI state - include cleanup info if available
+          setState({ 
+            status: 'success', 
+            txHash: txHash,
+            error: cleanupError, // Show cleanup warning if present
+          });
 
           // Persist to localStorage
           try {
-            localStorage.setItem(DIST_KEY, JSON.stringify({ txHash: txHash }));
+            localStorage.setItem(DIST_KEY, JSON.stringify({ 
+              txHash: txHash,
+              cleanupTxHash: cleanupTxHash,
+              rentReclaimed: rentReclaimed,
+            }));
           } catch (err) {
             console.warn('Failed to save to localStorage:', err);
           }
         } else {
           // Handle failure case
           const errorMsg = 'error' in result ? result.error : 'Unknown error occurred';
-          
-          console.error('❌ [Frontend] Prize distribution failed:', errorMsg);
 
-          socket.emit('prize_distribution_completed', {
-            roomId: data.roomId,
-            success: false,
-            error: errorMsg,
-          });
+          // Check if this is a Solana pool room (not supported for on-chain distribution)
+          if (errorMsg.includes('only available for Asset Rooms')) {
+            console.log('ℹ️ [Frontend] Solana pool room - manual distribution required');
 
-          setState({ status: 'error', error: errorMsg });
+            // For Solana pool rooms, just mark as success and show info message
+            socket.emit('prize_distribution_completed', {
+              roomId: data.roomId,
+              success: true,
+              txHash: 'manual-distribution-required',
+            });
+
+            setState({
+              status: 'success',
+              txHash: 'manual-distribution-required',
+              error: 'Pool room: Winners displayed above. Host should distribute prizes manually.'
+            });
+          } else {
+            console.error('❌ [Frontend] Prize distribution failed:', errorMsg);
+
+            socket.emit('prize_distribution_completed', {
+              roomId: data.roomId,
+              success: false,
+              error: errorMsg,
+            });
+
+            setState({ status: 'error', error: errorMsg });
+          }
         }
       } catch (err: any) {
         console.error('❌ [Frontend] Exception during prize distribution:', err);
@@ -281,13 +333,40 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
             <div className="mt-4 rounded-xl border-2 border-green-200 bg-green-50 p-6">
               <div className="mb-3 text-center">
                 <div className="text-4xl">✅</div>
-                <h3 className="text-xl font-bold text-green-800">Prizes Distributed Successfully!</h3>
+                <h3 className="text-xl font-bold text-green-800">
+                  {state.txHash === 'manual-distribution-required'
+                    ? 'Quiz Complete - Manual Distribution Required'
+                    : 'Prizes Distributed Successfully!'}
+                </h3>
               </div>
-              {state.txHash && (
-                <p className="text-center text-sm text-green-600">
-                  Transaction Hash: <code className="bg-green-100 px-2 py-1 rounded">{state.txHash}</code>
-                </p>
-              )}
+              {state.txHash === 'manual-distribution-required' ? (
+                <div className="text-center">
+                  <p className="text-sm text-green-700 mb-2">
+                    This is a <strong>Pool Room</strong> (entry fee based).
+                  </p>
+                  <p className="text-sm text-green-600">
+                    Winners are displayed above. As the host, please distribute prizes manually to the winners.
+                  </p>
+                  <p className="mt-2 text-xs text-green-600 italic">
+                    Note: Asset rooms support automatic on-chain distribution.
+                  </p>
+                </div>
+              ) : state.txHash ? (
+                <div className="text-center space-y-2">
+                  <p className="text-sm text-green-600">
+                    <strong>Distribution:</strong> <code className="bg-green-100 px-2 py-1 rounded">{state.txHash}</code>
+                  </p>
+                  {state.error && state.error.includes('PDA cleanup failed') && (
+                    <div className="mt-3 rounded-lg border-2 border-orange-200 bg-orange-50 p-3">
+                      <p className="text-sm text-orange-800 font-semibold mb-1">⚠️ PDA Cleanup Failed</p>
+                      <p className="text-xs text-orange-700">{state.error}</p>
+                      <p className="text-xs text-orange-600 mt-2 italic">
+                        The PDA was not closed automatically. You can manually close it to reclaim rent later.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : null}
               <p className="mt-2 text-xs text-green-700">You can't distribute again for this room.</p>
             </div>
           )}

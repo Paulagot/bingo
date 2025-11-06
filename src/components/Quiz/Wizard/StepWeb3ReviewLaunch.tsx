@@ -204,128 +204,272 @@ const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) =
   };
 
   // Parent launch handler (EVM/Solana handled here; Stellar delegated to child)
-  const handleWeb3Launch = async () => {
-    if (launchState !== 'ready' && launchState !== 'error') return;
-    setLaunchError(null);
+const handleWeb3Launch = async () => {
+  if (launchState !== 'ready' && launchState !== 'error') return;
+  setLaunchError(null);
 
-    // Fresh attempt
+  // Fresh attempt
+  try {
+    localStorage.removeItem('current-room-id');
+    localStorage.removeItem('current-host-id');
+    localStorage.removeItem('current-contract-address');
+  } catch {}
+  clearRoomIds();
+
+  try {
+    if (!selectedChain) throw new Error('No blockchain selected.');
+
+    // Prefer chain integration state (mirrors EvmWalletProvider store).
+    // Fall back to walletActions for other chains.
+    const hostWalletMaybe =
+      currentWallet?.address ?? walletActions.getAddress?.() ?? null;
+
+    const connectedNow =
+      walletReadiness?.status === 'ready' ||
+      walletActions.isConnected?.() === true ||
+      !!hostWalletMaybe;
+
+    // helpful debug
+    console.log('[Web3Launch preflight]', {
+      selectedChain,
+      readiness: walletReadiness,
+      hostWalletMaybe,
+      wa_isConnected: walletActions.isConnected?.(),
+    });
+
+    if (!connectedNow || !hostWalletMaybe) {
+      throw new Error(`Connect your ${getNetworkDisplayName()} wallet first.`);
+    }
+
+    // ✅ From here on, it's a real string
+    const hostWallet: string = hostWalletMaybe;
+
+    setLaunchState('generating-ids');
+
+    // Always mint fresh IDs per attempt
+    const newRoomId = generateRoomId();
+    const newHostId = generateHostId();
+    setRoomIds(newRoomId, newHostId);
+
+    // Stellar → handled by child section
+    if (selectedChain === 'stellar') {
+      setLaunchState('deploying-contract');
+      setDeploymentStep('Deploying Stellar contract…');
+      setDeployTrigger((n) => n + 1);
+      return;
+    }
+
+    // Non-Stellar (EVM/Solana)
+    setLaunchState('deploying-contract');
+    setDeploymentStep(`Deploying ${getNetworkDisplayName()} contract…`);
+
+    // ✅ use contractActions.deploy
+    const deployParams = buildDeployParams(newRoomId, newHostId, hostWallet);
+    let deployRes;
+
+    try {
+      deployRes = await contractActions.deploy(deployParams);
+    } catch (deployError: any) {
+      console.error('[Web3 Launch] Deployment error:', deployError);
+
+      // Solana duplicate Tx detection (network-level)
+      if (deployError?.message?.includes('This transaction has already been processed')) {
+        console.warn('[Web3 Launch] Duplicate signature; retrying with fresh IDs...');
+        await new Promise((r) => setTimeout(r, 2000));
+
+        const retryRoomId = generateRoomId();
+        const retryHostId = generateHostId();
+        setRoomIds(retryRoomId, retryHostId);
+
+        const retryParams = buildDeployParams(retryRoomId, retryHostId, hostWallet); // still string
+        deployRes = await contractActions.deploy(retryParams);
+        console.log('[Web3 Launch] Retry succeeded!');
+      } else {
+        throw deployError;
+      }
+    }
+
+    if (!deployRes?.success || !deployRes.contractAddress || isInvalidTx(deployRes.txHash)) {
+      throw new Error('Blockchain deployment was not signed/confirmed.');
+    }
+
+    setContractAddress(deployRes.contractAddress);
+    setTxHash(deployRes.txHash);
+    setExplorerUrl(deployRes.explorerUrl || null);
+
+    // Create server room
+    setLaunchState('creating-room');
+
+    const web3RoomConfig = {
+      ...setupConfig,
+      deploymentTxHash: deployRes.txHash,
+      hostWalletConfirmed: hostWallet, // ✅ string
+      paymentMethod: 'web3' as const,
+      isWeb3Room: true,
+      web3PrizeStructure: {
+        firstPlace: setupConfig.prizeSplits?.[1] || 100,
+        secondPlace: setupConfig.prizeSplits?.[2] || 0,
+        thirdPlace: setupConfig.prizeSplits?.[3] || 0,
+      },
+      web3Chain: selectedChain,
+      evmNetwork: (setupConfig as any)?.evmNetwork,
+      solanaCluster: (setupConfig as any)?.solanaCluster,
+      roomContractAddress: deployRes.contractAddress, // canonical
+      web3CharityId: (setupConfig as any)?.web3CharityId,
+      web3CharityName: (setupConfig as any)?.web3Charity,
+      web3CharityAddress: (setupConfig as any)?.web3CharityAddress,
+    };
+    // Prevent accidental caps coming from client
+    delete (web3RoomConfig as any).maxPlayers;
+
+    console.log('[Web3 Launch] 📤 Sending room creation request to server...');
+    console.log('[Web3 Launch] 📋 Request payload:', {
+      roomId: newRoomId,
+      hostId: newHostId,
+      contractAddress: web3RoomConfig.roomContractAddress,
+      deploymentTxHash: web3RoomConfig.deploymentTxHash,
+      chain: web3RoomConfig.web3Chain,
+    });
+
+    const response = await fetch('/quiz/api/create-web3-room', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        config: web3RoomConfig,
+        roomId: newRoomId,
+        hostId: newHostId,
+      }),
+    });
+
+    console.log('[Web3 Launch] 📥 Response received:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      contentType: response.headers.get('content-type'),
+    });
+
+    // Parse response once - store it for reuse
+    let data: any = null;
+    try {
+      // Clone response to allow reading it multiple times if needed
+      const contentType = response.headers.get('content-type');
+      const text = await response.clone().text();
+      
+      if (!text || text.trim().length === 0) {
+        console.error('[Web3 Launch] ❌ Empty response body from server');
+        // If response is not ok and body is empty, provide a better error
+        if (!response.ok) {
+          throw new Error(`Server returned empty response with status ${response.status}`);
+        }
+        throw new Error(`Server returned empty response (${response.status})`);
+      }
+
+      if (contentType && contentType.includes('application/json')) {
+        try {
+          data = JSON.parse(text);
+          console.log('[Web3 Launch] 📦 Response data:', data);
+        } catch (parseError: any) {
+          console.error('[Web3 Launch] ❌ Failed to parse response JSON:', parseError);
+          console.error('[Web3 Launch] 📄 Response text:', text.substring(0, 500));
+          throw new Error(`Invalid JSON response from server: ${parseError.message}`);
+        }
+      } else {
+        console.error('[Web3 Launch] ❌ Unexpected content type:', contentType);
+        console.error('[Web3 Launch] 📄 Response text:', text.substring(0, 500));
+        throw new Error(`Unexpected response type: ${contentType || 'unknown'}`);
+      }
+    } catch (parseError: any) {
+      // If response is not ok, we might still have error data
+      if (!response.ok && data) {
+        const errorMessage = data?.error || data?.details || `Server error: ${response.status}`;
+        console.error('[Web3 Launch] ❌ Server returned error:', {
+          status: response.status,
+          error: data?.error,
+          details: data?.details,
+          stack: data?.stack,
+        });
+        throw new Error(errorMessage);
+      }
+      
+      // If it's already our custom error, re-throw it
+      if (parseError.message && (parseError.message.includes('Server') || parseError.message.includes('Invalid JSON'))) {
+        throw parseError;
+      }
+      console.error('[Web3 Launch] ❌ Failed to parse response:', parseError);
+      throw new Error(`Failed to parse server response (${response.status}): ${parseError.message || 'Unknown error'}`);
+    }
+
+    if (!response.ok) {
+      const errorMessage = data?.error || data?.details || `Server error: ${response.status}`;
+      console.error('[Web3 Launch] ❌ Server returned error:', {
+        status: response.status,
+        error: data?.error,
+        details: data?.details,
+        stack: data?.stack,
+      });
+      throw new Error(errorMessage);
+    }
+
+    if (!data.verified || !data.contractAddress) {
+      console.error('[Web3 Launch] ❌ Room creation not verified by server:', {
+        verified: data.verified,
+        contractAddress: data.contractAddress,
+        data,
+      });
+      throw new Error('Room creation not verified by server');
+    }
+
+    console.log('[Web3 Launch] ✅ Room creation successful!');
+    console.log('[Web3 Launch] 🎉 Room details:', {
+      roomId: data.roomId,
+      hostId: data.hostId,
+      contractAddress: data.contractAddress,
+      verified: data.verified,
+    });
+
+    try {
+      localStorage.setItem('current-room-id', data.roomId);
+      localStorage.setItem('current-host-id', data.hostId);
+      localStorage.setItem('current-contract-address', data.contractAddress);
+      console.log('[Web3 Launch] 💾 Saved room details to localStorage');
+    } catch (storageError) {
+      console.warn('[Web3 Launch] ⚠️ Failed to save to localStorage:', storageError);
+    }
+
+    setFullConfig({
+      ...web3RoomConfig,
+      roomId: data.roomId,
+      hostId: data.hostId,
+    });
+
+    console.log('[Web3 Launch] 🎯 Setting launch state to success');
+    setLaunchState('success');
+    setTimeout(() => {
+      console.log('[Web3 Launch] 🚀 Navigating to host dashboard:', data.roomId);
+      navigate(`/quiz/host-dashboard/${data.roomId}`);
+    }, 600);
+  } catch (err: any) {
+    console.error('[Web3 Launch] ❌ Error during room creation:', err);
+    console.error('[Web3 Launch] ❌ Error name:', err?.name);
+    console.error('[Web3 Launch] ❌ Error message:', err?.message);
+    console.error('[Web3 Launch] ❌ Error stack:', err?.stack);
+    
     try {
       localStorage.removeItem('current-room-id');
       localStorage.removeItem('current-host-id');
       localStorage.removeItem('current-contract-address');
-    } catch {}
-    clearRoomIds();
-
-    try {
-      if (!selectedChain) throw new Error('No blockchain selected.');
-      const hostWallet = walletActions.getAddress();
-      if (!walletActions.isConnected() || !hostWallet) {
-        throw new Error(`Connect your ${getNetworkDisplayName()} wallet first.`);
-      }
-
-      setLaunchState('generating-ids');
-
-      // Always mint fresh IDs per attempt
-      const newRoomId = generateRoomId();
-      const newHostId = generateHostId();
-      setRoomIds(newRoomId, newHostId);
-
-      // Stellar → handled by child section
-      if (selectedChain === 'stellar') {
-        setLaunchState('deploying-contract');
-        setDeploymentStep('Deploying Stellar contract…');
-        setDeployTrigger((n) => n + 1);
-        return;
-      }
-
-      // Non-Stellar (EVM/Solana)
-      setLaunchState('deploying-contract');
-      setDeploymentStep(`Deploying ${getNetworkDisplayName()} contract…`);
-
-      // ✅ FIX: use contractActions.deploy (not deployContract)
-      const deployParams = buildDeployParams(newRoomId, newHostId, hostWallet);
-      const deployRes = await contractActions.deploy(deployParams);
-
-      if (!deployRes?.success || !deployRes.contractAddress || isInvalidTx(deployRes.txHash)) {
-        throw new Error('Blockchain deployment was not signed/confirmed.');
-      }
-
-      setContractAddress(deployRes.contractAddress);
-      setTxHash(deployRes.txHash);
-      setExplorerUrl(deployRes.explorerUrl || null);
-
-      // Create server room
-      setLaunchState('creating-room');
-
-    const web3RoomConfig = {
-  ...setupConfig,
-  deploymentTxHash: deployRes.txHash,
-  hostWalletConfirmed: hostWallet || undefined,
-  paymentMethod: 'web3' as const,
-  isWeb3Room: true,
-  web3PrizeStructure: {
-    firstPlace: setupConfig.prizeSplits?.[1] || 100,
-    secondPlace: setupConfig.prizeSplits?.[2] || 0,
-    thirdPlace: setupConfig.prizeSplits?.[3] || 0,
-  },
-  web3Chain: selectedChain,
-  evmNetwork: (setupConfig as any)?.evmNetwork,
-  solanaCluster: (setupConfig as any)?.solanaCluster,
-  roomContractAddress: deployRes.contractAddress,  // ✅ Only canonical field
-
-   web3CharityId: (setupConfig as any)?.web3CharityId,           // TGB orgId
-  web3CharityName: (setupConfig as any)?.web3Charity,           // Display name
-  web3CharityAddress: (setupConfig as any)?.web3CharityAddress, //
-};
-// Prevent accidental Web3 caps coming from the client
-delete (web3RoomConfig as any).maxPlayers;
-
-      const response = await fetch('/quiz/api/create-web3-room', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          config: web3RoomConfig,
-          roomId: newRoomId,
-          hostId: newHostId,
-        }),
-      });
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || `Server error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      if (!data.verified || !data.contractAddress) {
-        throw new Error('Room creation not verified by server');
-      }
-
-      try {
-        localStorage.setItem('current-room-id', data.roomId);
-        localStorage.setItem('current-host-id', data.hostId);
-        localStorage.setItem('current-contract-address', data.contractAddress);
-      } catch {}
-
-      setFullConfig({
-        ...web3RoomConfig,
-        roomId: data.roomId,
-        hostId: data.hostId,
-      });
-
-      setLaunchState('success');
-      setTimeout(() => navigate(`/quiz/host-dashboard/${data.roomId}`), 600);
-    } catch (err: any) {
-      console.error('[Web3 Launch Error]', err);
-      try {
-        localStorage.removeItem('current-room-id');
-        localStorage.removeItem('current-host-id');
-        localStorage.removeItem('current-contract-address');
-      } catch {}
-      clearRoomIds();
-      setLaunchError(err?.message || 'Unknown error');
-      setLaunchState('error');
+      console.log('[Web3 Launch] 🧹 Cleaned up localStorage');
+    } catch (cleanupError) {
+      console.warn('[Web3 Launch] ⚠️ Failed to cleanup localStorage:', cleanupError);
     }
-  };
+    
+    clearRoomIds();
+    setLaunchError(err?.message || 'Unknown error');
+    setLaunchState('error');
+    console.error('[Web3 Launch] ❌ Launch failed, state set to error');
+  }
+};
+
 
   const formatEventDateTime = (dateTime?: string) => {
     if (!dateTime) return null;
@@ -437,6 +581,13 @@ delete (web3RoomConfig as any).maxPlayers;
       </div>
     );
   };
+
+  const resolvedRoomId: string =
+  roomId ?? localStorage.getItem('current-room-id') ?? generateRoomId();
+
+const resolvedHostId: string =
+  hostId ?? localStorage.getItem('current-host-id') ?? generateHostId();
+
 
   // Render
   const isLaunching = launchState !== 'ready' && launchState !== 'error';
@@ -716,8 +867,8 @@ delete (web3RoomConfig as any).maxPlayers;
       {selectedChain === 'stellar' && (
         <StellarLaunchSection
           deployTrigger={deployTrigger}
-          roomId={roomId || localStorage.getItem('current-room-id') || generateRoomId()}
-          hostId={hostId || localStorage.getItem('current-host-id') || generateHostId()}
+    roomId={resolvedRoomId}
+     hostId={resolvedHostId}
           setupConfig={setupConfig}
           onDeploymentProgress={(msg) => setDeploymentStep(msg)}
           onDeployed={async ({ contractAddress, txHash, explorerUrl }) => {

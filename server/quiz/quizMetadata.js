@@ -1,8 +1,5 @@
 // server/quiz/quizMetadata.js
 
-
-
-
 export const roundTypeDefinitions = {
   general_trivia: {
     id: 'general_trivia',

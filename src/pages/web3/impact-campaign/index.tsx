@@ -191,7 +191,7 @@ const ImpactCampaignOverview: React.FC = () => {
                   <h3 className="text-indigo-900 mb-4 text-xl font-bold">🤝 Pledge to Host — Get Full Support</h3>
                   <p className="text-indigo-900/80 mb-6 leading-relaxed">
                     Perfect for communities hosting their first fundraising quiz. We'll coach your team,
-                    provide templates and media assets, and help you go live on Solana, Stellar or Base.
+                    provide templates and media assets, and help you go live on Solana, Base or Avalanche.
                   </p>
                   <ul className="space-y-3">
                     <Bullet>Hands-on setup &amp; training session</Bullet>
@@ -333,59 +333,51 @@ const ImpactCampaignOverview: React.FC = () => {
             </div>
           </section>
 
-          {/* Supported Chains & Tokens */}
-          <section className="px-4 py-12 bg-gradient-to-r from-purple-50 to-indigo-50">
-            <div className="container mx-auto max-w-6xl">
-              <div className="text-center mb-10">
-                <h2 className="text-indigo-900 text-3xl md:text-4xl font-bold mb-4">Supported Chains &amp; Tokens (2025)</h2>
-                <p className="text-indigo-900/70 text-lg max-w-3xl mx-auto leading-relaxed">
-                  Launch your fundraising campaign on leading blockchain networks with support for major tokens and stablecoins.
-                </p>
-              </div>
-
-              <div className="grid gap-8 md:grid-cols-3 mb-6">
-                <div className="rounded-2xl border border-indigo-100 bg-white p-8 shadow-sm hover:shadow-md transition-all duration-300">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold shadow-lg">
-                      SOL
+        {/* Supported chains & tokens */}
+                <section className="px-4 py-12 bg-gradient-to-r from-purple-50 to-indigo-50">
+                  <div className="container mx-auto max-w-6xl">
+                    <div className="rounded-2xl border border-indigo-100 bg-white p-8 shadow-sm">
+                      <h2 className="text-indigo-900 mb-6 text-2xl font-bold">Supported Chains & Tokens (2025)</h2>
+                      <div className="grid gap-8 md:grid-cols-3 mb-6">
+                        <div>
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                              SOL
+                            </div>
+                            <h3 className="text-indigo-900 font-bold text-lg">Solana</h3>
+                          </div>
+                          <p className="text-sm text-indigo-900/70"> USDC · PYUSD</p>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                              AVAX
+                            </div>
+                            <h3 className="text-indigo-900 font-bold text-lg">Avalanche</h3>
+                          </div>
+                          <p className="text-sm text-indigo-900/70">USDC · USDGLO</p>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                              BASE
+                            </div>
+                            <h3 className="text-indigo-900 font-bold text-lg">Base</h3>
+                          </div>
+                          <p className="text-sm text-indigo-900/70">USDC (native) · USDGLO</p>
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <div className="inline-flex items-center gap-2 rounded-full bg-amber-50 border border-amber-200 px-4 py-2 text-sm text-amber-800">
+                          <Trophy className="h-4 w-4" />
+                          <span>
+                            Using <strong>Glo Dollar (USDGLO)</strong> doubles your quiz points on the campaign leaderboard
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <h3 className="text-indigo-900 font-bold text-xl">Solana</h3>
                   </div>
-                  <p className="text-indigo-900/80 mb-2 leading-relaxed">Primary tokens: <strong>SOL</strong>, <strong>USDC</strong>, <strong>PYUSD</strong>.</p>
-                  <p className="text-sm text-indigo-900/60">Low fees, fast finality - ideal for live events.</p>
-                </div>
-
-                <div className="rounded-2xl border border-indigo-100 bg-white p-8 shadow-sm hover:shadow-md transition-all duration-300">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold shadow-lg">
-                      XLM
-                    </div>
-                    <h3 className="text-indigo-900 font-bold text-xl">Stellar</h3>
-                  </div>
-                  <p className="text-indigo-900/80 mb-2 leading-relaxed">Primary tokens: <strong>XLM</strong>, <strong>USDC</strong>, <strong>Glo Dollar (USDGLO)</strong>.</p>
-                  <p className="text-sm text-indigo-900/60">Great for direct-to-charity flows and cross-border payouts.</p>
-                </div>
-
-                <div className="rounded-2xl border border-indigo-100 bg-white p-8 shadow-sm hover:shadow-md transition-all duration-300">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold shadow-lg">
-                      BASE
-                    </div>
-                    <h3 className="text-indigo-900 font-bold text-xl">Base</h3>
-                  </div>
-                  <p className="text-indigo-900/80 mb-2 leading-relaxed">Primary tokens: <strong>USDC (native)</strong>, <strong>Glo Dollar (USDGLO)</strong>.</p>
-                  <p className="text-sm text-indigo-900/60">For simplicity, we recommend USDC/USDGLO on Base.</p>
-                </div>
-              </div>
-
-              <div className="text-center">
-                <div className="inline-flex items-center gap-2 rounded-full bg-amber-50 border border-amber-200 px-4 py-2 text-sm text-amber-800">
-                  <Wallet className="h-4 w-4" />
-                  <span>Double points apply when a quiz uses <strong>Glo Dollar (USDGLO)</strong></span>
-                </div>
-              </div>
-            </div>
-          </section>
+                </section>
 
           {/* Partners */}
           <section className="px-4 py-12">

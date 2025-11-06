@@ -32,7 +32,22 @@ export const authenticateToken = async (req, res, next) => {
     next();
   } catch (error) {
     console.error('[Auth] Token verification failed:', error);
-    return res.status(403).json({ error: 'Invalid token' });
+    console.error('[Auth] Error details:', {
+      message: error.message,
+      name: error.name,
+      stack: error.stack
+    });
+    
+    // Return appropriate status based on error type
+    if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+      return res.status(403).json({ error: 'Invalid token' });
+    }
+    
+    // For other errors (like database errors), return 500
+    return res.status(500).json({ 
+      error: 'Authentication failed',
+      ...(process.env.NODE_ENV !== 'production' && { details: error.message })
+    });
   }
 };
 

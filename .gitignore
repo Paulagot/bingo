@@ -36,3 +36,14 @@ roomState.json
 roomState.json.bak
 
 *.zone.identifier
+
+# Temporary files
+temp_*.txt
+temp_*.ts
+temp_*.js
+
+# Redundant files from develop
+bingo/bingo/
+pnpm-lock.yaml
+test-aws-db.js
+test-token-config.json

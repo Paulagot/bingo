@@ -16,7 +16,7 @@ import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
 import type { SupportedChain } from '../../../chains/types';
 import ClearSetupButton from './ClearSetupButton';
 
-import { CHARITIES as CHARITY_DIR } from '../../../chains/evm/config/charities';
+import { CHARITIES as CHARITY_DIR, getCharityById as getGbCharityById } from '../../../chains/evm/config/gbcharities';
 
 interface StepWeb3QuizSetupProps extends WizardStepProps {
   onChainUpdate?: (chain: SupportedChain) => void;
@@ -77,7 +77,7 @@ type SolanaCluster = 'mainnet' | 'devnet';
  * ✅ ENABLED choices for now
  * To re-enable others later, just uncomment the commented entries in CHOICES below.
  */
-const ENABLED_CHOICES: ChoiceValue[] = ['baseSepolia', 'avalancheFuji'];
+const ENABLED_CHOICES: ChoiceValue[] = ['baseSepolia', 'avalancheFuji', 'solanaDevnet'];
 
 /**
  * Only Base Sepolia and Avalanche Fuji are active in the dropdown.
@@ -94,6 +94,9 @@ const CHOICES: Array<{
   // ----- ENABLED -----
   { value: 'baseSepolia', label: 'Base Sepolia', description: 'EVM · Base testnet', kind: 'evm', evmNetwork: 'baseSepolia' },
   { value: 'avalancheFuji', label: 'Avalanche Fuji', description: 'EVM · Avalanche testnet', kind: 'evm', evmNetwork: 'avalancheFuji' },
+
+  // ----- ENABLED SOLANA -----
+  { value: 'solanaDevnet', label: 'Solana Devnet', description: 'Solana · Developer test network', kind: 'solana', solanaCluster: 'devnet' },
 
   // ----- COMMENTED OUT (uncomment when ready) -----
   // { value: 'stellar', label: 'Stellar', description: 'Fast, low-cost payments', kind: 'stellar' },
@@ -114,7 +117,6 @@ const CHOICES: Array<{
 
   // // Solana
   // { value: 'solanaMainnet', label: 'Solana (Mainnet)', description: 'High-speed, low-fee mainnet', kind: 'solana', solanaCluster: 'mainnet' },
-  // { value: 'solanaDevnet', label: 'Solana (Devnet)', description: 'Developer test network', kind: 'solana', solanaCluster: 'devnet' },
 ];
 
 /** Derive initial dropdown value from persisted setupConfig */
@@ -148,9 +150,8 @@ const getTokensForChoice = (choice: ChoiceValue) => {
   if (choice === 'stellar') return [{ value: 'XLM', label: 'XLM' }];
   if (choice === 'solanaMainnet' || choice === 'solanaDevnet') {
     return [
-      { value: 'SOL', label: 'SOL' },
       { value: 'USDC', label: 'USDC' },
-      { value: 'USDGLO', label: 'Glo Dollar' },
+      { value: 'PYUSD', label: 'PYUSD' },
     ];
   }
   // EVM choices
@@ -161,7 +162,7 @@ const getTokensForChoice = (choice: ChoiceValue) => {
 };
 
 const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUpdate, onResetToFirst }) => {
-  const { setupConfig, updateSetupConfig, setFlow, setWeb3CharityById } = useQuizSetupStore();
+  const { setupConfig, updateSetupConfig, setFlow } = useQuizSetupStore();
   useEffect(() => { setFlow('web3'); }, [setFlow]);
 
   // Host
@@ -182,7 +183,7 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
 
   // Web3 fields
   const [currency, setCurrency] = useState(setupConfig.web3Currency || 'USDGLO');
-  const [charityId, setCharityId] = useState<string>((setupConfig as any).web3CharityId || '');
+ const [charityId, setCharityId] = useState<string>((setupConfig as any).web3CharityOrgId || '');
 
   const [entryFee, setEntryFee] = useState(setupConfig.entryFee || '');
 
@@ -192,7 +193,7 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
     const tokenValues = availableTokens.map((t) => t.value);
     const fallback =
       choice === 'stellar' ? 'XLM' :
-      choice === 'solanaMainnet' || choice === 'solanaDevnet' ? 'SOL' :
+      choice === 'solanaMainnet' || choice === 'solanaDevnet' ? 'USDC' :
       'USDGLO';
     if (!tokenValues.includes(currency)) setCurrency(availableTokens[0]?.value || fallback);
   }, [choice, availableTokens, currency]);
@@ -202,8 +203,9 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
   const completedSections = useMemo(() => {
     const host = hostName.trim().length >= 2;
     const feeOk = !!entryFee && !Number.isNaN(parseFloat(entryFee)) && parseFloat(entryFee) > 0;
-    const hasCharityAddr = !!(setupConfig as any).web3CharityAddress;
-    const web3 = Boolean(choice && currency && hasCharityAddr && feeOk);
+    // ✅ With TGB, we require an orgId, not a static wallet
+    const hasCharity = Boolean((setupConfig as any).web3CharityOrgId);
+    const web3 = Boolean(choice && currency && hasCharity && feeOk);
     return { host, web3 };
   }, [hostName, choice, currency, entryFee, setupConfig]);
 
@@ -222,8 +224,8 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
     if (!completedSections.host) return setError('Please enter a host name with at least 2 characters.');
     const parsed = Number.parseFloat(entryFee.trim());
     if (Number.isNaN(parsed) || parsed <= 0) return setError('Please enter a valid entry fee greater than 0.');
-    const addrOk = !!(setupConfig as any).web3CharityAddress;
-    if (!addrOk) return setError('Please select a charity.');
+   const orgOk = Boolean((setupConfig as any).web3CharityOrgId);
+   if (!orgOk) return setError('Please select a charity.');
 
     const meta = selectedInfo!;
     const web3Chain: SupportedChain = meta.kind; // 'stellar' | 'evm' | 'solana'
@@ -390,7 +392,15 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
             onChange={(e) => {
               const id = e.target.value || '';
               setCharityId(id);
-              setWeb3CharityById(id || null);   // writes id+name+wallet into setupConfig
+                 // 🔁 Update setupConfig with TGB orgId + name (and keep backward compat fields)
+     const c = getGbCharityById(id || undefined);
+     updateSetupConfig({
+       web3CharityOrgId: id || null,
+       web3CharityName: c?.name || null,
+       // legacy fields you might still read elsewhere:
+       web3CharityId: id || null,
+       web3CharityAddress: null, // TGB gives deposit addresses per donation; no static wallet needed
+     } as any);   // writes id+name+wallet into setupConfig
               setError('');
             }}
             className={`w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3 sm:text-base ${
@@ -404,11 +414,11 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
           </select>
 
           {/* Optional: show the mapped wallet when selected */}
-          {charityId && (setupConfig as any).web3CharityAddress && (
-            <div className="rounded-md border border-indigo-200 bg-indigo-50 p-2 text-[11px] text-indigo-800 break-all">
-              Wallet: {(setupConfig as any).web3CharityAddress}
-            </div>
-          )}
+         {charityId && (
+   <div className="rounded-md border border-indigo-200 bg-indigo-50 p-2 text-[11px] text-indigo-800 break-words">
+     TGB Org ID: {(setupConfig as any).web3CharityOrgId}
+   </div>
+ )}
 
           <p className="text-fg/60 text-xs italic">Powered by The Giving Block and Coala Pay</p>
         </div>

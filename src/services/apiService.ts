@@ -1,6 +1,14 @@
 // src/services/apiService.ts
-const MGMT_API_BASE_URL = import.meta.env.VITE_MGMT_API_URL || 'http://localhost:3001/api';
-const QUIZ_API_BASE_URL = import.meta.env.VITE_QUIZ_API_URL || 'http://localhost:3001';
+function stripTrailingSlash(s: string) {
+  return s.replace(/\/+$/, '');
+}
+
+const MGMT_API_BASE_URL = import.meta.env.VITE_MGMT_API_URL || 'https://mgtsystem-production.up.railway.app/api';
+const QUIZ_API_BASE_URL = (() => {
+  const v = import.meta.env.VITE_QUIZ_API_URL?.trim();
+  // Default to same-origin (empty string = relative paths)
+  return stripTrailingSlash(v || '');
+})();
 const Debug = false; // Set to true to enable debug logs
 
 class ApiService {
@@ -16,21 +24,35 @@ class ApiService {
 
   private async request<T>(endpoint: string, options: RequestInit = {}, useManagementAPI: boolean = false): Promise<T> {
     const baseURL = useManagementAPI ? MGMT_API_BASE_URL : QUIZ_API_BASE_URL;
-    const url = `${baseURL}${endpoint}`;
+    const url = baseURL ? `${baseURL}${endpoint}` : endpoint;
     
     const config: RequestInit = {
       headers: this.getAuthHeaders(),
       ...options,
     };
 
-   if (Debug) console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
+   if (Debug) {
+     console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
+     console.log(`   Using: ${useManagementAPI ? 'Management API' : 'Quiz API'}`);
+     console.log(`   Base URL: ${baseURL}`);
+   }
 
     try {
       const response = await fetch(url, config);
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        const errorMessage = errorData.error || errorData.message || `HTTP error! status: ${response.status}`;
+        if (Debug) {
+          console.error(`💥 API Error (${endpoint}):`, {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorMessage,
+            url,
+            response: errorData
+          });
+        }
+        throw new Error(errorMessage);
       }
 
       return await response.json();
@@ -82,7 +104,7 @@ async registerClub(data: {
     }>('/clubs/me', {}, true); // Use management API
   }
 
-  // 🎯 QUIZ SPECIFIC (calls quiz API)
+  // ─────────────────── QUIZ API (same origin) ───────────────────
   async getEntitlements() {
     return this.request<{
       max_players_per_game: number;
@@ -91,23 +113,25 @@ async registerClub(data: {
       extras_allowed: string[];
       concurrent_rooms: number;
       game_credits_remaining: number;
+      plan_id: number | null;
+      plan_code?: string;
     }>('/quiz/api/me/entitlements');
   }
-// Add this method to your ApiService class in apiService.ts
 
-async createWeb3Room(roomData: { config: any; roomId: string; hostId: string }) {
-  return this.request<{
-    roomId: string;
-    hostId: string;
-    contractAddress: string;
-    deploymentTxHash: string;
-    roomCaps: any;
-    verified: boolean;
-  }>('/quiz/api/create-web3-room', {
-    method: 'POST',
-    body: JSON.stringify(roomData),
-  });
-}
+  async createWeb3Room(roomData: { config: any; roomId: string; hostId: string }) {
+    return this.request<{
+      roomId: string;
+      hostId: string;
+      contractAddress: string;
+      deploymentTxHash: string;
+      roomCaps: any;
+      verified: boolean;
+    }>('/quiz/api/create-web3-room', {
+      method: 'POST',
+      body: JSON.stringify(roomData),
+    });
+  }
+
   async createRoom(roomData: { config: any; roomId: string; hostId: string }) {
     return this.request<{
       roomId: string;
@@ -122,3 +146,4 @@ async createWeb3Room(roomData: { config: any; roomId: string; hostId: string }) 
 
 export const apiService = new ApiService();
 export default apiService;
+

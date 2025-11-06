@@ -5,6 +5,7 @@ import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-
 import { Landing } from './pages/Landing';
 import { Header } from './components/GeneralSite2/Header';
 import ErrorBoundary from './components/bingo/ErrorBoundary';
+import { Game } from './pages/Game';
 import WhatsNew from './pages/WhatsNew';
 import FreeTrial from './pages/FreeTrial';
 import FundraisingQuizPage from './pages/FundraisingQuizPage';
@@ -14,6 +15,8 @@ import ConfirmPasswordReset from './components/auth/ConfirmPasswordReset';
 import RequestPasswordReset from './components/auth/RequestPasswordReset';
 import ContactForm from './components/GeneralSite2/ContactForm';
 import FoundingPartnersPage from './pages/FoundingPartners';
+import BlogPost from './pages/BlogPost';
+
 
 import { useAuthStore } from './stores/authStore';
 import AuthPage from './components/auth/AuthPage';
@@ -125,6 +128,16 @@ export default function App() {
             <Route path="/reset-password" element={<ConfirmPasswordReset />} />
             <Route path="/forgot-password" element={<RequestPasswordReset />} />
 
+            <Route
+  path="/blog/:slug"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading blog post" />}>
+      <BlogPost />
+    </Suspense>
+  }
+/>
+
+
             {/* Create quiz (sockets only here) */}
             <Route
               path="/quiz/create-fundraising-quiz"
@@ -139,6 +152,9 @@ export default function App() {
 
             {/* Redirect base /quiz */}
             <Route path="/quiz" element={<Navigate to="/quiz/create-fundraising-quiz" replace />} />
+
+            {/* Bingo Game Route */}
+            <Route path="/game/:roomId" element={<Game />} />
 
             {/* Other /quiz/* routes – sockets only for live game routes */}
             <Route

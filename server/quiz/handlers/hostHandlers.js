@@ -16,6 +16,7 @@ import { getRoundScoring } from './scoringUtils.js';
 import { StatsService } from '../gameplayEngines/services/StatsService.js'
 import { TiebreakerService } from '../gameplayEngines/services/TiebreakerService.js';
 
+import { logPrizeDistributionInitiated, logPrizeDistributionSuccess, logPrizeDistributionFailure, logWeb3RoomConfig, logWinnerAddressMapping } from './blockchainLoggingHelper.js';
 const debug = true;
 
 export function setupHostHandlers(socket, namespace) {
@@ -571,6 +572,10 @@ socket.on('end_quiz_and_distribute_prizes', ({ roomId }) => {
   }
 
   const isWeb3Room = room.config?.paymentMethod === 'web3' || room.config?.isWeb3Room;
+
+  // Structured logging for Web3 room configuration
+  logWeb3RoomConfig(roomId, room.config);
+
   if (debug) {
     console.log(`[Host] 🔍 Room config debug:`, {
       paymentMethod: room.config?.paymentMethod,
@@ -601,12 +606,32 @@ socket.on('end_quiz_and_distribute_prizes', ({ roomId }) => {
     return;
   }
 
-  const { web3PrizeStructure } = room.config;
-  const hasSecondPrize = web3PrizeStructure?.secondPlace && web3PrizeStructure.secondPlace > 0;
-  const hasThirdPrize  = web3PrizeStructure?.thirdPlace  && web3PrizeStructure.thirdPlace  > 0;
+  const { web3PrizeStructure, web3Chain } = room.config;
 
-  // Decide how many winners to pay (1–3)
-  const prizeCount = 1 + (hasSecondPrize ? 1 : 0) + (hasThirdPrize ? 1 : 0);
+  // Determine actual number of winners based on game logic:
+  // - If 1-3 players: all players are winners (everyone gets a prize)
+  // - If 4+ players: top 3 from leaderboard are winners
+  const playerCount = finalLeaderboard.length;
+  let actualWinnerCount;
+
+  if (playerCount <= 3) {
+    // All players are winners by default
+    actualWinnerCount = playerCount;
+    if (debug) {
+      console.log(`[Host] 🏆 ${playerCount} player(s) joined - all are winners by default`);
+    }
+  } else {
+    // 4+ players: use leaderboard rankings for top 3
+    const hasSecondPrize = web3PrizeStructure?.secondPlace && web3PrizeStructure.secondPlace > 0;
+    const hasThirdPrize  = web3PrizeStructure?.thirdPlace  && web3PrizeStructure.thirdPlace  > 0;
+    actualWinnerCount = 1 + (hasSecondPrize ? 1 : 0) + (hasThirdPrize ? 1 : 0);
+    if (debug) {
+      console.log(`[Host] 🏆 ${playerCount} players joined - using leaderboard for top ${actualWinnerCount} winners`);
+    }
+  }
+
+  // For Solana, we need to pad the winners array to 3 addresses to match the on-chain prize_distribution
+  const prizeCount = (web3Chain === 'solana') ? 3 : actualWinnerCount;
 
   const winnerAddresses = [];
   const winnerPlayerIds = [];
@@ -626,7 +651,21 @@ socket.on('end_quiz_and_distribute_prizes', ({ roomId }) => {
   // Iterate top N and map by ID
   for (let rank = 0; rank < prizeCount; rank++) {
     const entry = finalLeaderboard[rank];
-    if (!entry) break;
+
+    // If no player exists at this rank, we still need to fill the slot for Solana
+    // Solana requires winners.len() == prize_distribution.len()
+    if (!entry) {
+      // Pad with the first winner's address (they get that portion too)
+      // Or use a zero/null address - but duplicating first winner is simpler
+      if (winnerAddresses.length > 0) {
+        const firstWinnerAddress = winnerAddresses[0];
+        winnerAddresses.push(firstWinnerAddress);
+        if (debug) {
+          console.log(`[Host] 🏅 Rank ${rank + 1}: NO PLAYER - padding with first winner`);
+        }
+      }
+      continue;
+    }
 
     const playerId = entry.id;          // <- stable ID from leaderboard
     const playerName = entry.name;      // <- keep for UI and logs
@@ -634,7 +673,7 @@ socket.on('end_quiz_and_distribute_prizes', ({ roomId }) => {
 
     if (!addressInfo?.address) {
       missing.push({ playerId, playerName, rank: rank + 1 });
-      continue; // don't abort entire flow; we’ll handle below
+      continue; // don't abort entire flow; we'll handle below
     }
 
     winnerAddresses.push(addressInfo.address);
@@ -652,7 +691,10 @@ socket.on('end_quiz_and_distribute_prizes', ({ roomId }) => {
     }
   }
 
-  // If we’re missing any addresses, fail (or you could choose to continue if not 1st place)
+  // Log winner address mapping (includes missing addresses if any)
+  logWinnerAddressMapping(roomId, winnersDetailed, missing);
+
+  // If we're missing any addresses, fail (or you could choose to continue if not 1st place)
   if (missing.length) {
     const firstMissing = missing[0];
     socket.emit('quiz_error', {
@@ -673,6 +715,15 @@ socket.on('end_quiz_and_distribute_prizes', ({ roomId }) => {
   room.prizeDistributionStatus = 'initiated';
   room.currentPhase = 'distributing_prizes';
 
+  // Structured logging for prize distribution initiation
+  logPrizeDistributionInitiated(
+    roomId,
+    winners,
+    room.config.roomContractAddress || room.config.web3ContractAddress,
+    room.config.web3Chain,
+    winnersDetailed
+  );
+
   if (debug) {
     console.log(`[Host] 🎯 Prize distribution initiated:`);
     console.log(`  - Room: ${roomId}`);
@@ -683,7 +734,7 @@ socket.on('end_quiz_and_distribute_prizes', ({ roomId }) => {
     });
   }
 
-  // You can keep sending only `winners` if that’s what your frontend expects
+  // You can keep sending only `winners` if that's what your frontend expects
   // but including winnersDetailed can help the host UI.
   socket.emit('initiate_prize_distribution', {
     roomId,
@@ -694,6 +745,9 @@ socket.on('end_quiz_and_distribute_prizes', ({ roomId }) => {
     web3Chain: room.config.web3Chain || 'stellar',
     evmNetwork: room.config.evmNetwork,
     roomAddress: room.config.roomContractAddress || room.config.web3ContractAddress,
+
+    // Charity info: Used by Stellar/EVM chains
+    // NOTE: Solana uses GlobalConfig.charity_wallet from on-chain state instead
     charityOrgId: room.config.web3CharityId,
     charityName: room.config.web3CharityName,
     charityAddress: room.config.web3CharityAddress,
@@ -712,7 +766,7 @@ socket.on('end_quiz_and_distribute_prizes', ({ roomId }) => {
 
 
 // ✅ prize_distribution_completed (FIXED VERSION)
-socket.on('prize_distribution_completed', ({ roomId, success, txHash, error }) => {
+socket.on('prize_distribution_completed', ({ roomId, success, txHash, error, confirmations, blockNumber, charityAmount }) => {
   if (debug) console.log(`[Host] 💰 Prize distribution result: ${success ? 'SUCCESS' : 'FAILED'}`);
 
   const room = getQuizRoom(roomId);
@@ -722,6 +776,26 @@ socket.on('prize_distribution_completed', ({ roomId, success, txHash, error }) =
     room.prizeDistributionStatus = 'completed';
     room.prizeDistributionTxHash = txHash;
     room.currentPhase = 'complete';
+    
+    // Store exact charity amount from on-chain event
+    // This ensures the amount reported to The Giving Block matches what was actually transferred
+    if (charityAmount) {
+      room.charityAmount = charityAmount; // Store as string (from BN.toString())
+      if (debug) console.log(`[Host] 💰 Charity amount from RoomEnded event: ${charityAmount}`);
+      if (debug) console.log(`[Host] ⚠️ IMPORTANT: Use this exact charityAmount when reporting to The Giving Block`);
+    } else {
+      if (debug) console.warn(`[Host] ⚠️ No charityAmount provided. Frontend calculation may differ from on-chain amount.`);
+    }
+
+    // Structured logging for successful prize distribution
+    logPrizeDistributionSuccess(
+      roomId,
+      room.config.web3Chain,
+      txHash,
+      confirmations,
+      blockNumber,
+      charityAmount // Include charity amount in logging
+    );
 
     namespace.to(roomId).emit('prize_distribution_success', {
       message: 'Prizes have been distributed successfully!',
@@ -745,6 +819,18 @@ socket.on('prize_distribution_completed', ({ roomId, success, txHash, error }) =
   } else {
     room.prizeDistributionStatus = 'failed';
     room.prizeDistributionError = error;
+
+    // Structured logging for failed prize distribution
+    logPrizeDistributionFailure(
+      roomId,
+      room.config.web3Chain,
+      error,
+      txHash,
+      {
+        winners: room.finalWinners,
+        contract: room.config.roomContractAddress || room.config.web3ContractAddress
+      }
+    );
 
     namespace.to(roomId).emit('prize_distribution_failed', {
       message: 'Prize distribution failed. Please contact support.',
@@ -1062,55 +1148,6 @@ socket.on('end_quiz_cleanup', ({ roomId }) => {
     console.log(`[Host] 📢 Sent cleanup completion notice to room ${roomId}`);
     console.log(`[Host] 🌐 isWeb3Room: ${isWeb3Room}, will redirect to ${isWeb3Room ? '/web3/impact-campaign/' : '/quiz'}`);
   }
-
-  // Small delay so clients receive the message before cleanup
-  setTimeout(() => {
-    const removed = removeQuizRoom(roomId);
-    
-    if (removed) {
-      // Remove all sockets from room channels
-      namespace.in(roomId).socketsLeave(roomId);
-      namespace.in(`${roomId}:host`).socketsLeave(`${roomId}:host`);
-      namespace.in(`${roomId}:admin`).socketsLeave(`${roomId}:admin`);
-      namespace.in(`${roomId}:player`).socketsLeave(`${roomId}:player`);
-      
-      if (debug) console.log(`[Host] ✅ Room ${roomId} cleaned up successfully`);
-    }
-  }, 2000); // 2 second delay
-});// Add this NEW handler to your hostHandlers.js
-// Place it right after the delete_quiz_room handler (around line 762)
-
-/**
- * 🧹 End Quiz Cleanup - Called after successful completion (e.g., after prize distribution)
- * This is different from cancel/delete - it's for clean, successful completion
- */
-socket.on('end_quiz_cleanup', ({ roomId }) => {
-  if (debug) console.log(`[Host] 🧹 end_quiz_cleanup for ${roomId}`);
-
-  const room = getQuizRoom(roomId);
-  if (!room) {
-    console.warn(`[Host] ⚠️ Room ${roomId} not found for cleanup`);
-    return;
-  }
-
-  // Only allow host to trigger cleanup
-  if (room.hostSocketId !== socket.id) {
-    socket.emit('quiz_error', { message: 'Only the host can end the quiz' });
-    return;
-  }
-
-  // Mark as complete if not already
-  if (room.currentPhase !== 'complete') {
-    room.currentPhase = 'complete';
-  }
-
-  // Notify all participants that quiz is fully done
-  namespace.to(roomId).emit('quiz_cleanup_complete', {
-    message: 'Quiz has ended. Thank you for playing!',
-    roomId
-  });
-
-  if (debug) console.log(`[Host] 📢 Sent cleanup completion notice to room ${roomId}`);
 
   // Small delay so clients receive the message before cleanup
   setTimeout(() => {

@@ -4,6 +4,7 @@ import { TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction, getAssociate
 import { BN } from 'bn.js';
 import { useAppKitConnection } from '@reown/appkit-adapter-solana/react';
 import { useAppKitAccount, useAppKitProvider } from '@reown/appkit/react';
+import { TOKEN_MINTS, NETWORK, getExplorerUrl } from '@/chains/solana/config';
 
 interface SolanaWalletProvider {
   signTransaction: (tx: any) => Promise<any>;
@@ -67,9 +68,10 @@ export const CreateSolanaRoom: React.FC<CreateSolanaRoomProps> = ({
         // Step 2: Setup program and constants
         console.log('🎯 Step 2: Setting up program...');
         const programId = new PublicKey('Ev3D1mV3m1HZFZAJb8r68VoURxUxJq1o9vtcajZKXgDo');
-        const usdcMint = new PublicKey('4UM2Qtb6mY9eyxFwnSy8X3nv5azk3JYHA1arsEgyrEid'); // Devnet USDC
+        const usdcMint = TOKEN_MINTS.USDC; // Network-aware USDC mint
         console.log('✅ Program ID:', programId.toBase58());
         console.log('✅ USDC mint:', usdcMint.toBase58());
+        console.log('✅ Network:', NETWORK);
 
         // Step 3: Parse parameters
         console.log('📊 Step 3: Parsing parameters...');
@@ -193,7 +195,8 @@ export const CreateSolanaRoom: React.FC<CreateSolanaRoomProps> = ({
           }
         );
         console.log('🚀 Transaction sent with ID:', txid);
-        console.log('🔗 View on explorer:', `https://explorer.solana.com/tx/${txid}?cluster=devnet`);
+        const explorerUrl = getExplorerUrl('tx', txid, NETWORK);
+        console.log('🔗 View on explorer:', explorerUrl);
 
         // Don't wait for confirmation to avoid timeout - just return the txid
         sendTxId(txid);

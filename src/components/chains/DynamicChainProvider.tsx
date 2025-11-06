@@ -6,13 +6,8 @@ import { shallow } from 'zustand/shallow';
 
 import { StellarWalletProvider } from '../../chains/stellar/StellarWalletProvider';
 import { EvmWalletProvider } from '../../chains/evm/EvmWalletProvider';
+import { SolanaWalletProvider } from '../../chains/solana/SolanaWalletProvider';
 import { Web3Provider } from '../Web3Provider'; // ✅ use your Wagmi+Query wrapper
-
-const SolanaWalletProvider = React.lazy(() =>
-  Promise.resolve({
-    default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  })
-);
 
 interface DynamicChainProviderProps {
   selectedChain: SupportedChain | null;
@@ -111,7 +106,7 @@ export const DynamicChainProvider: FC<DynamicChainProviderProps> = ({ selectedCh
     );
   }
 
-  // Stellar: provider doesn’t need Wagmi
+  // Stellar: provider doesn't need Wagmi
   if (selectedChain === 'stellar' && ProviderComponent) {
     return (
       <ChainProviderErrorBoundary chain={selectedChain}>
@@ -122,12 +117,23 @@ export const DynamicChainProvider: FC<DynamicChainProviderProps> = ({ selectedCh
     );
   }
 
+  // Solana: provider doesn't need Wagmi
+  if (selectedChain === 'solana' && ProviderComponent) {
+    return (
+      <ChainProviderErrorBoundary chain={selectedChain}>
+        <ProviderComponent>
+          <div data-testid="solana-wallet-mode">{children}</div>
+        </ProviderComponent>
+      </ChainProviderErrorBoundary>
+    );
+  }
+
   // No wallet mode
   if (!selectedChain || !ProviderComponent) {
     return <div data-testid="no-wallet-mode">{children}</div>;
   }
 
-  // Solana placeholder (lazy)
+  // Fallback for any other chain
   return (
     <ChainProviderErrorBoundary chain={selectedChain}>
       <Suspense fallback={<ChainProviderSuspense chain={selectedChain} />}>

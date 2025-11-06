@@ -338,7 +338,7 @@ export const isValidAmount = (amount: string): boolean => {
   return !isNaN(num) && num > 0 && isFinite(num);
 };
 
-export const formatBalance = (balance: string, chainDecimals: number = 18): string => {
+export const formatBalance = (balance: string, _chainDecimals: number = 18): string => {
   const num = parseFloat(balance);
   if (isNaN(num)) return '0';
   

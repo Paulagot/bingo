@@ -28,6 +28,9 @@ console.log('📦 Type:', typeof communityRegistrationApi);
 
 import { initializeDatabase } from './config/database.js';
 
+import createDepositAddress from './tgb/api/create-deposit-address.js';
+import tgbWebhookHandler from './tgb/api/webhook.js';
+
 import contactRoute from './routes/contact.js';
 import passwordResetRoute from './routes/passwordReset.js';
 
@@ -38,11 +41,49 @@ import helmet from 'helmet';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+import { v4 as uuidv4 } from 'uuid';
+import { logger, loggers, logRequest, logResponse } from './config/logging.js';
+
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '100kb' }));
 
 const isProd = process.env.NODE_ENV === 'production';
+
+// Request ID and logging middleware
+app.use((req, res, next) => {
+  req.requestId = uuidv4();
+  req.startTime = Date.now();
+
+  // Log incoming requests
+  if (process.env.LOG_LEVEL === 'debug') {
+    logRequest(loggers.server, req);
+  }
+
+  // Log response when finished
+  const originalSend = res.send;
+  res.send = function(data) {
+    const duration = Date.now() - req.startTime;
+    if (process.env.LOG_LEVEL === 'debug') {
+      logResponse(loggers.server, req, res, duration);
+    }
+    return originalSend.call(this, data);
+  };
+
+  next();
+});
+
+// Health check endpoint for Docker and monitoring
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+app.post('/api/tgb/create-deposit-address', createDepositAddress);
+app.post('/api/tgb/webhook', tgbWebhookHandler);
 
 /* ──────────────────────────────────────────────────────────
    Security headers (safe defaults; CSP in Report-Only)
@@ -74,30 +115,49 @@ const cspDirectives = {
   styleSrc: ["'self'", "https:", "'unsafe-inline'"],
   imgSrc: ["'self'", "data:", "https:"],
   fontSrc: ["'self'", "https:", "data:"],
-  connectSrc: ["'self'", "https:", "wss:"],
-  frameSrc: ["'self'", "https://www.youtube.com"],
+  connectSrc: ["'self'", "https:", "wss:", "https://mgtsystem-production.up.railway.app"],
+  frameSrc: ["'self'", "https://www.youtube.com", "https://www.youtube-nocookie.com"],
   frameAncestors: ["'self'"],
   // ❌ do NOT include upgradeInsecureRequests in Report-Only
 };
-app.use(helmet.contentSecurityPolicy({ directives: cspDirectives, reportOnly: true }));
+app.use(helmet.contentSecurityPolicy({ directives: cspDirectives, reportOnly: false }));
 
-/* ──────────────────────────────────────────────────────────
-   301 redirects (run BEFORE routes/static/SPA handlers)
-   ────────────────────────────────────────────────────────── */
+// ──────────────────────────────────────────────────────────
+// 301 redirects (run BEFORE routes/static/SPA handlers)
+// ──────────────────────────────────────────────────────────
 app.use((req, res, next) => {
-  const pathname = req.path;               // e.g. "/Web3-Impact-Event"
-  const redirects = {
-    '/Web3-Impact-Event': '/web3/impact-campaign',
-    '/web3-impact-event': '/web3/impact-campaign',
-  };
+  const { path: p } = req;
 
-  const target = redirects[pathname];
-  if (target) {
+  // helper to redirect with preserved querystring
+  const redirect = (target) => {
     const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
     return res.redirect(301, target + qs);
+  };
+
+  // Collapse accidental double /web3/web3/*
+  if (/^\/web3\/web3(\/.*)?$/i.test(p)) {
+    const tail = p.replace(/^\/web3\/web3/i, '/web3');
+    return redirect(tail);
   }
+
+  // Legacy: /web3-impact-event[/...]*  → /web3/impact-campaign[/...]*
+  const m1 = p.match(/^\/web3-impact-event(?:\/(.*))?$/i) || p.match(/^\/Web3-Impact-Event(?:\/(.*))?$/);
+  if (m1) return redirect('/web3/impact-campaign' + (m1[1] ? '/' + m1[1] : ''));
+
+  // Legacy: /impact[/...]* → /web3/impact-campaign[/...]*
+  const m2 = p.match(/^\/impact(?:\/(.*))?$/i);
+  if (m2) return redirect('/web3/impact-campaign' + (m2[1] ? '/' + m2[1] : ''));
+
+  // Legacy: /web3-fundraising-quiz[/...]* → /web3[/...]*
+  const m3 = p.match(/^\/web3-fundraising-quiz(?:\/(.*))?$/i);
+  if (m3) return redirect('/web3' + (m3[1] ? '/' + m3[1] : ''));
+
+  // Convenience: /uk or /ireland → /
+  if (/^\/(uk|ireland)\/?$/i.test(p)) return redirect('/');
+
   next();
 });
+
 
 
 
@@ -196,8 +256,11 @@ function buildHeadTags(seo) {
     type = 'website',
     canonical,
     keywords,
-    robots = 'index, follow',
+    robots: robotsFromSeo = 'index, follow',
   } = seo;
+
+   const isStaging = process.env.APP_ENV === 'staging';
+  const robots = isStaging ? 'noindex, nofollow' : robotsFromSeo;
 
   return [
     `<title>${escapeHtml(title)}</title>`,
@@ -273,8 +336,16 @@ if (process.env.NODE_ENV === 'production') {
     });
   });
 } else {
-  // Dev: static without implicit index
-  app.use(express.static(path.join(__dirname, '../dist'), { index: false }));
+  // Dev: static without implicit index and no caching
+  app.use(express.static(path.join(__dirname, '../dist'), {
+    index: false,
+    setHeaders: (res) => {
+      // Disable caching in development to prevent stale code issues
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }));
 
   // Dev HTML injection (disable cache)
   app.get('*', (req, res) => {
@@ -290,7 +361,9 @@ if (process.env.NODE_ENV === 'production') {
       const head = buildHeadTags(seo);
 
       const out = html.replace('<!--app-head-->', head);
-      res.set('Cache-Control', 'no-store');
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
       res.status(200).send(out);
     });
   });
@@ -308,7 +381,8 @@ const io = new Server(httpServer, {
       'http://localhost:5173',
       'http://localhost:5174',
       'http://localhost:3000',
-      'http://localhost:3001'
+      'http://localhost:3001',
+      'https://fundraisely-staging.up.railway.app'
     ],
     methods: ['GET', 'POST'],
     credentials: true
@@ -326,13 +400,58 @@ app.use('/api/auth/reset', passwordResetRoute);
 
 
 // server/index.js (after app.use routes)
-app.use((err, _req, res, _next) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({ error: 'Internal error' });
+app.use((err, req, res, next) => {
+  console.error('❌ Unhandled error middleware:', err);
+  console.error('❌ Error name:', err?.name);
+  console.error('❌ Error message:', err?.message);
+  console.error('❌ Error stack:', err?.stack);
+  console.error('❌ Request path:', req.path);
+  console.error('❌ Request method:', req.method);
+  
+  if (!res.headersSent) {
+    try {
+      res.status(500).json({ 
+        error: 'Internal error',
+        ...(process.env.NODE_ENV !== 'production' && { 
+          details: err?.message,
+          stack: err?.stack 
+        })
+      });
+    } catch (sendErr) {
+      console.error('❌ Failed to send error response:', sendErr);
+      // Last resort
+      try {
+        if (!res.headersSent) {
+          res.status(500).type('text/plain').send('Internal server error');
+        }
+      } catch {
+        console.error('❌❌ Cannot send any response');
+      }
+    }
+  } else {
+    console.error('❌ Response already sent, cannot send error');
+  }
 });
 
-process.on('unhandledRejection', r => console.error('unhandledRejection:', r));
-process.on('uncaughtException', e => console.error('uncaughtException:', e));
+// Process-level error handlers to catch unhandled errors
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise);
+  console.error('❌ Reason:', reason);
+  if (reason instanceof Error) {
+    console.error('❌ Error stack:', reason.stack);
+  }
+  // Don't exit the process, just log it
+  // In production, you might want to send this to a logging service
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  console.error('❌ Error stack:', error.stack);
+  // For uncaught exceptions, we should exit the process
+  // but log it first and give a graceful shutdown message
+  console.error('❌ Server will exit due to uncaught exception');
+  process.exit(1);
+});
 
 
 // Health check
@@ -349,12 +468,22 @@ app.get('/debug/rooms', (req, res) => {
 // Startup
 async function startServer() {
   try {
-    await initializeDatabase();
+    // Try to initialize database, but don't fail if it's not available (for local dev)
+    try {
+      await initializeDatabase();
+      console.log(`🗄️ Database connected`);
+    } catch (dbError) {
+      console.warn('⚠️ Database connection failed, but continuing without it...');
+      console.warn('⚠️ This is OK for local development if you only need Web3 rooms (in-memory)');
+      console.warn('⚠️ Database features will not be available');
+      console.warn(`⚠️ Error: ${dbError.message}`);
+      // Don't exit - allow server to start for Web3/in-memory features
+    }
+    
     httpServer.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`💾 Cache headers: ${process.env.NODE_ENV === 'production' ? 'Optimized (1 year)' : 'Development mode'}`);
-      console.log(`🗄️ Database connected`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);

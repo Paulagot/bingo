@@ -7,9 +7,9 @@ export const roundTypes: RoundTypeDefinition[] = [
     name: 'General Trivia',
     description: 'Standard multiple choice format with hints and reviews.',
     defaultConfig: {
-      questionsPerRound: 4,
-      timePerQuestion: 15,
-      pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
+      questionsPerRound: 6,
+      timePerQuestion: 30,
+      pointsPerDifficulty: { easy: 4, medium: 5, hard: 6 },
     },
   },
   {
@@ -35,7 +35,7 @@ export const roundTypes: RoundTypeDefinition[] = [
     defaultConfig: {
       questionsPerRound: 8,
       timePerQuestion: 22,
-      pointsPerDifficulty: { easy: 3, medium: 4, hard: 5 },
+      pointsPerDifficulty: { easy: 6, medium: 7, hard: 8 },
       pointsLostPerWrong: 2,
       pointsLostPerUnanswered: 3,
     },

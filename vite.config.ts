@@ -1,15 +1,21 @@
 // vite.config.ts
 import { defineConfig } from 'vitest/config';
+import { loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
-export default defineConfig({
-  // Define polyfills for Node.js modules used by Web3 libraries
+export default defineConfig(({ mode }) => {
+  // Load env file based on `mode` in the current working directory.
+  const env = loadEnv(mode, process.cwd(), '');
+
+  return {
+    // Define polyfills for Node.js modules used by Web3 libraries
     base: '/',
-  define: {
-    global: 'globalThis',
-    'process.env': {},
-  },
+    define: {
+      global: 'globalThis',
+      'process.env.VITE_SOLANA_PROGRAM_ID': JSON.stringify(env.VITE_SOLANA_PROGRAM_ID),
+      'process.env.VITE_SOLANA_NETWORK': JSON.stringify(env.VITE_SOLANA_NETWORK),
+    },
   
   plugins: [
     react(),
@@ -27,9 +33,35 @@ export default defineConfig({
   
   // Build optimizations
   build: {
+    commonjsOptions: {
+      transformMixedEsModules: true,
+      requireReturnsDefault: 'auto',
+    },
     // Code splitting configuration
     rollupOptions: {
+      plugins: [
+        {
+          name: 'stub-core-js',
+          resolveId(id) {
+            if (id.startsWith('core-js/modules/')) {
+              return '\0stub:' + id; // Virtual module
+            }
+            return null;
+          },
+          load(id) {
+            if (id.startsWith('\0stub:core-js/modules/')) {
+              return 'export {};'; // Empty module stub
+            }
+            return null;
+          }
+        }
+      ],
       output: {
+        format: 'es',
+        preserveModules: false,
+        generatedCode: {
+          constBindings: false,
+        },
         manualChunks: {
           // Separate vendor chunks
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
@@ -72,7 +104,12 @@ export default defineConfig({
     minify: 'esbuild',
     
     // Target modern browsers for better optimization
-    target: 'esnext'
+    target: 'esnext',
+    
+    // Disable module preload warnings for circular deps
+    modulePreload: {
+      polyfill: false,
+    }
   },
 
   optimizeDeps: {
@@ -83,7 +120,8 @@ export default defineConfig({
       '@solana/web3.js',
       'wagmi',
       'ethers',
-      'zustand'
+      'zustand',
+      'core-js'
     ],
     exclude: ['lucide-react'],
   },
@@ -125,4 +163,5 @@ export default defineConfig({
       '@': '/src',
     },
   },
+};
 });
