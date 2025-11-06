@@ -350,7 +350,7 @@ export default function ClubRegisterForm({ onSwitchToLogin }: ClubRegisterFormPr
               <ul className="space-y-2 text-sm text-indigo-800/70">
                 <li className="flex items-center">
                   <CheckCircle className="mr-2 h-4 w-4 text-green-600 flex-shrink-0" />
-                  4 free quiz event credits to get started
+                  3 free quiz event credits to get started
                 </li>
                 <li className="flex items-center">
                   <CheckCircle className="mr-2 h-4 w-4 text-green-600 flex-shrink-0" />

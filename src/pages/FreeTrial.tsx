@@ -44,7 +44,7 @@ const FreeTrial: React.FC = () => {
         name: 'What do I get with the free trial?',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: 'You get 2 free quiz credits, the 4-step setup wizard, prebuilt templates or custom rounds, General/Wipeout/Speed round types plus tiebreakers, fundraising extras (Clue, Freeze, RobinHood/RobPoints, Restore), 2 admin seats, player management, automatic reconciliation once marked paid, audit-ready gameplay and payment reports, and basic sponsor showcase features.',
+          text: 'You get 3 free quiz credits, the 4-step setup wizard, prebuilt templates or custom rounds, General/Wipeout/Speed round types plus tiebreakers, fundraising extras (Clue, Freeze, RobinHood/RobPoints, Restore), 2 admin seats, player management, automatic reconciliation once marked paid, audit-ready gameplay and payment reports, and basic sponsor showcase features.',
         },
       },
     ],
@@ -158,7 +158,7 @@ const FreeTrial: React.FC = () => {
                 <Users className="h-4 w-4 text-emerald-300" /> Up to 20 devices
               </div>
               <div className="inline-flex items-center gap-2 text-white/90">
-                <Clock className="h-4 w-4 text-emerald-300" /> 2 trial credits
+                <Clock className="h-4 w-4 text-emerald-300" /> 3 FULL credits
               </div>
             </div>
 
@@ -214,8 +214,8 @@ const FreeTrial: React.FC = () => {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg">
                 <Shield aria-hidden="true" className="h-6 w-6 text-white" />
               </div>
-              <h3 className="text-white mb-2 text-lg font-bold">Templates or Custom</h3>
-              <p className="text-white/80">Pick from prebuilt quiz templates or customise rounds and questions.</p>
+              <h3 className="text-white mb-2 text-lg font-bold">Templates</h3>
+              <p className="text-white/80">Pick from prebuilt quiz templates.</p>
             </div>
 
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300">
@@ -309,7 +309,7 @@ const FreeTrial: React.FC = () => {
           <div className="mb-12 text-center">
             <h2 className="text-indigo-900 mb-4 text-3xl font-bold">How to get the most from your free trial</h2>
             <p className="text-indigo-900/70 mx-auto max-w-2xl text-lg">
-              Two credits, two wins: one rehearsal, one real fundraiser.
+              Three credits, two wins: one rehearsal, two real fundraisers.
             </p>
           </div>
 

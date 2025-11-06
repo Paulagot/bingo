@@ -13,7 +13,7 @@ const FALLBACK_FREE_PLAN = {
   round_types_allowed: ['general_trivia', 'wipeout', 'speed_round'],
   extras_allowed: ['buyHint', 'restorePoints', 'freezeOutTeam', 'robPoints'],
   concurrent_rooms: 1,
-  game_credits_remaining: 2,
+  game_credits_remaining: 3,
 };
 
 const _FALLBACK_DEV_PLAN = {

@@ -15,7 +15,7 @@ import {
   Info,
   Target,
   Trophy,
-  Wallet,
+ 
   Goal
 } from 'lucide-react';
 
@@ -104,7 +104,7 @@ const ImpactCampaignOverview: React.FC = () => {
         name: 'What chains and tokens are supported?',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: '2025 launch chains: Solana, Stellar, Base. Tokens include SOL, XLM, USDC, PYUSD (on Solana), and USDGLO (Glo Dollar) where available.'
+          text: '2025 launch chains: Solana, Avalanche and Base. Tokens include  USDC, PYUSD (on Solana), and USDGLO (Glo Dollar) where available.'
         }
       },
       {
@@ -155,7 +155,7 @@ const ImpactCampaignOverview: React.FC = () => {
               </p>
 
               <p className="mx-auto mt-4 max-w-3xl text-indigo-900/70 text-lg md:text-xl leading-relaxed">
-                Unite the Web3 world for real-world impact. From November to January,
+                Unite the Web3 world for real-world impact. From November 14th to February 14th,
                 DAOs, dApps, NFT &amp; meme communities host quizzes and route funds
                 on-chain directly to verified charities — with transparent reports and a global leaderboard.
               </p>
@@ -230,7 +230,7 @@ const ImpactCampaignOverview: React.FC = () => {
                   </div>
                   <h3 className="mb-2 text-indigo-900 text-lg font-bold">A global, on-chain charity drive</h3>
                   <p className="text-sm text-indigo-900/80 leading-relaxed">
-                    A 3-month fundraising campaign (Nov–Jan) where Web3 communities host quiz nights and raise funds
+                    A 3-month fundraising campaign (Nov 14th–Feb 14th) where Web3 communities host quiz nights and raise funds
                     directly to verified charities — no custodians, no middlemen, transparent by default.
                   </p>
                 </div>
@@ -322,8 +322,8 @@ const ImpactCampaignOverview: React.FC = () => {
                     From setup to celebration, our platform guides you through every step of hosting successful on-chain fundraising events.
                   </p>
                   <ol className="list-decimal space-y-3 pl-5 text-indigo-900/80 leading-relaxed">
-                    <li>Pick a date &amp; format (in-person or online) between <strong>November and January</strong></li>
-                    <li>Choose your chain and tokens; connect wallets or route donations to charity partners</li>
+                    <li>Pick a date &amp; format (in-person or online) between <strong>November 14th and February 14th</strong></li>
+                    <li>Choose your chain and tokens; Select a charity, connect your wallet</li>
                     <li>Host your quiz with live scoring, power-ups, and on-chain receipts</li>
                     <li>Smart contracts split funds: <strong>≥40% charity</strong>, <strong>≤40% host-controlled</strong>, <strong>20% platform</strong></li>
                     <li>Publish audit-ready reports and watch your project move up the leaderboard</li>
@@ -385,7 +385,7 @@ const ImpactCampaignOverview: React.FC = () => {
               <div className="rounded-2xl border border-indigo-100 bg-white p-8 shadow-sm">
                 <h2 className="text-indigo-900 mb-4 text-2xl md:text-3xl font-bold">Partners &amp; Charity Network</h2>
                 <p className="text-indigo-900/80 mb-6 leading-relaxed">
-                  We're partnering with <strong>The Giving Block</strong> (20 featured charities this year) and
+                  We're partnering with <strong>The Giving Block</strong> (12 featured charities this year) and
                   <strong> Glo Dollar</strong> to enable transparent, purpose-driven fundraising rails.  But thats not all, we have Infrastructure Partners, Media & Community Partners and Early Backers.  Check our our Partners page.
                 </p>
                 <div className="mt-7 flex flex-wrap justify-center gap-3">
