@@ -53,7 +53,7 @@
                   121,
                   45,
                   118,
-                  52
+                  50
                 ]
               }
             ]
@@ -116,6 +116,11 @@
         },
         {
           "name": "prize_vault",
+          "docs": [
+            "Prize vault PDA - will be created manually in handler (like room_vault)",
+            "Using UncheckedAccount to skip Anchor's initialization validation",
+            "The handler will derive the PDA manually and validate it"
+          ],
           "writable": true
         },
         {
@@ -128,8 +133,19 @@
           "signer": true
         },
         {
+          "name": "prize_mint"
+        },
+        {
           "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
         }
       ],
       "args": [
@@ -518,6 +534,7 @@
         },
         {
           "name": "room_vault",
+          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -568,7 +585,7 @@
                   121,
                   45,
                   118,
-                  52
+                  50
                 ]
               }
             ]
@@ -781,7 +798,7 @@
                   121,
                   45,
                   118,
-                  52
+                  50
                 ]
               }
             ]
@@ -986,7 +1003,7 @@
                   121,
                   45,
                   118,
-                  52
+                  50
                 ]
               }
             ]
@@ -1313,7 +1330,7 @@
                   121,
                   45,
                   118,
-                  52
+                  50
                 ]
               }
             ]
@@ -1390,7 +1407,7 @@
     {
       "name": "update_global_config",
       "docs": [
-        "Update global configuration parameters (admin only)"
+        "Update global configuration (admin only)"
       ],
       "discriminator": [
         164,
@@ -1431,7 +1448,11 @@
         },
         {
           "name": "admin",
-          "signer": true
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "global_config"
+          ]
         }
       ],
       "args": [
@@ -2430,7 +2451,7 @@
             "name": "charity_wallet",
             "docs": [
               "Charity wallet address (per-room, from The Giving Block or custom)",
-              "Receives the charity portion of entry fees + 100% of extras"
+              "Receives the charity portion of total pool (entry fees + extras, split proportionally)"
             ],
             "type": "pubkey"
           },
@@ -2759,7 +2780,7 @@
           {
             "name": "charity_amount",
             "docs": [
-              "Amount sent to charity (includes all extras)"
+              "Amount sent to charity (calculated from total pool proportionally, including extras)"
             ],
             "type": "u64"
           },

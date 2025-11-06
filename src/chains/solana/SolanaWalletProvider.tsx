@@ -375,12 +375,16 @@ export const SolanaWalletProvider: React.FC<SolanaWalletProviderProps> = ({
   ...props
 }) => {
   // Get network from environment or default to devnet
+  // FORCE devnet for development (public mainnet RPC is rate-limited)
   const network = useMemo(() => {
-    const envNetwork = import.meta.env.VITE_SOLANA_NETWORK as Cluster | undefined;
-    if (envNetwork === 'mainnet-beta' || envNetwork === 'testnet' || envNetwork === 'devnet') {
-      return envNetwork;
-    }
-    return 'devnet';
+    // Force devnet for development
+    return 'devnet' as Cluster;
+    // Uncomment below to allow env override:
+    // const envNetwork = import.meta.env.VITE_SOLANA_NETWORK as Cluster | undefined;
+    // if (envNetwork === 'mainnet-beta' || envNetwork === 'testnet' || envNetwork === 'devnet') {
+    //   return envNetwork;
+    // }
+    // return 'devnet';
   }, []);
 
   // Get RPC endpoint

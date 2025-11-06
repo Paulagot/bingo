@@ -5,6 +5,7 @@ import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-
 import { Landing } from './pages/Landing';
 import { Header } from './components/GeneralSite2/Header';
 import ErrorBoundary from './components/bingo/ErrorBoundary';
+import { Game } from './pages/Game';
 import WhatsNew from './pages/WhatsNew';
 import FreeTrial from './pages/FreeTrial';
 import FundraisingQuizPage from './pages/FundraisingQuizPage';
@@ -151,6 +152,9 @@ export default function App() {
 
             {/* Redirect base /quiz */}
             <Route path="/quiz" element={<Navigate to="/quiz/create-fundraising-quiz" replace />} />
+
+            {/* Bingo Game Route */}
+            <Route path="/game/:roomId" element={<Game />} />
 
             {/* Other /quiz/* routes – sockets only for live game routes */}
             <Route

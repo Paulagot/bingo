@@ -33,9 +33,35 @@ export default defineConfig(({ mode }) => {
   
   // Build optimizations
   build: {
+    commonjsOptions: {
+      transformMixedEsModules: true,
+      requireReturnsDefault: 'auto',
+    },
     // Code splitting configuration
     rollupOptions: {
+      plugins: [
+        {
+          name: 'stub-core-js',
+          resolveId(id) {
+            if (id.startsWith('core-js/modules/')) {
+              return '\0stub:' + id; // Virtual module
+            }
+            return null;
+          },
+          load(id) {
+            if (id.startsWith('\0stub:core-js/modules/')) {
+              return 'export {};'; // Empty module stub
+            }
+            return null;
+          }
+        }
+      ],
       output: {
+        format: 'es',
+        preserveModules: false,
+        generatedCode: {
+          constBindings: false,
+        },
         manualChunks: {
           // Separate vendor chunks
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
@@ -78,7 +104,12 @@ export default defineConfig(({ mode }) => {
     minify: 'esbuild',
     
     // Target modern browsers for better optimization
-    target: 'esnext'
+    target: 'esnext',
+    
+    // Disable module preload warnings for circular deps
+    modulePreload: {
+      polyfill: false,
+    }
   },
 
   optimizeDeps: {
@@ -89,7 +120,8 @@ export default defineConfig(({ mode }) => {
       '@solana/web3.js',
       'wagmi',
       'ethers',
-      'zustand'
+      'zustand',
+      'core-js'
     ],
     exclude: ['lucide-react'],
   },

@@ -102,7 +102,7 @@ type DistributeArgs = {
 };
 
 type DistributeResult =
-  | { success: true; txHash: string; explorerUrl?: string }
+  | { success: true; txHash: string; explorerUrl?: string; cleanupTxHash?: string; rentReclaimed?: number; error?: string; charityAmount?: string }
   | { success: false; error: string };
 
 type Options = { chainOverride?: SupportedChain | null };
@@ -380,10 +380,37 @@ export function useContractActions(opts?: Options) {
           });
 
           console.log('✅ [Solana] Prize distribution successful:', res.signature);
+          
+          // Log charity amount from on-chain event (exact amount sent to charity)
+          if (res.charityAmount) {
+            console.log('💰 [Solana] Charity amount from RoomEnded event:', res.charityAmount.toString());
+            console.log('⚠️ [Solana] IMPORTANT: Use this exact charityAmount when reporting to The Giving Block');
+          } else {
+            console.warn('⚠️ [Solana] Could not parse charityAmount from RoomEnded event. Frontend calculation may differ from on-chain amount.');
+          }
+
+          // Check if cleanup (PDA closing) succeeded
+          if (res.cleanupError) {
+            console.error('⚠️ [Solana] Prize distribution succeeded but PDA cleanup failed:', res.cleanupError);
+            // Return success for distribution, but include cleanup error for user awareness
+            return {
+              success: true,
+              txHash: res.signature as `0x${string}`,
+              error: `Prizes distributed but PDA cleanup failed: ${res.cleanupError}. Rent can be reclaimed manually.`,
+              charityAmount: res.charityAmount?.toString(), // Pass through exact charity amount
+            };
+          }
+
+          if (res.cleanupSignature) {
+            console.log('✅ [Solana] PDA closed and rent reclaimed:', res.cleanupSignature);
+          }
 
           return {
             success: true,
             txHash: res.signature as `0x${string}`,
+            cleanupTxHash: res.cleanupSignature as `0x${string}` | undefined,
+            rentReclaimed: res.rentReclaimed,
+            charityAmount: res.charityAmount?.toString(), // Exact amount sent to charity (from on-chain event)
           };
         } catch (e: any) {
           console.error('[Solana distributePrizes error]', e);
@@ -948,13 +975,14 @@ if (!isPool) {
         const { PublicKey } = await import('@solana/web3.js');
 
         // Map currency to token mint
-        const currency = (params.currency ?? 'SOL').toUpperCase();
+        const currency = (params.currency ?? 'USDC').toUpperCase();
         const feeTokenMint =
           currency === 'USDC' ? TOKEN_MINTS.USDC :
+          currency === 'PYUSD' ? TOKEN_MINTS.PYUSD :
           currency === 'USDT' ? TOKEN_MINTS.USDT :
-          TOKEN_MINTS.SOL; // Default to SOL
+          TOKEN_MINTS.USDC; // Default to USDC (room fees restricted to USDC/PYUSD)
 
-        // Get correct decimals for the token (SOL = 9, USDC/USDT = 6)
+        // Get correct decimals for the token (SOL = 9, USDC/PYUSD/USDT = 6)
         const decimals = currency === 'SOL' ? 9 : 6;
         const multiplier = Math.pow(10, decimals);
 

@@ -28,7 +28,8 @@ console.log('[Config] Match:', PROGRAM_ID.toString() === HARDCODED_PROGRAM_ID ? 
 console.log('═══════════════════════════════════════════════════════');
 
 // Network configuration
-export const NETWORK = (import.meta.env.VITE_SOLANA_NETWORK || 'devnet') as Cluster;
+// FORCE devnet for development (public mainnet RPC is rate-limited)
+export const NETWORK = 'devnet' as Cluster;
 
 // RPC endpoints
 export const RPC_ENDPOINTS = {
@@ -42,12 +43,41 @@ export const getRpcEndpoint = (network: Cluster = NETWORK): string => {
   return RPC_ENDPOINTS[network] || RPC_ENDPOINTS.devnet;
 };
 
-// Known token mints (devnet addresses)
-export const TOKEN_MINTS = {
-  USDC: new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU'), // Circle's Devnet USDC (mintable at faucet.circle.com)
-  USDT: new PublicKey('EJwZgeZrdC8TXTQbQBoL6bfuAnFUUy1PVCMB4DYPzVaS'), // Devnet USDT
-  SOL: new PublicKey('So11111111111111111111111111111111111111112'), // Wrapped SOL (native mint)
+// Known token mints (network-specific addresses)
+const TOKEN_MINTS_BY_NETWORK = {
+  'mainnet-beta': {
+    USDC: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // Mainnet USDC (Circle)
+    PYUSD: '2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo', // Mainnet PYUSD (PayPal USD)
+    USDT: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', // Mainnet USDT (Tether)
+    SOL: 'So11111111111111111111111111111111111111112', // Wrapped SOL (native mint)
+  },
+  'devnet': {
+    USDC: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU', // Circle's Devnet USDC (mintable at faucet.circle.com)
+    PYUSD: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU', // Devnet PYUSD (using same as USDC for devnet - update when available)
+    USDT: 'EJwZgeZrdC8TXTQbQBoL6bfuAnFUUy1PVCMB4DYPzVaS', // Devnet USDT
+    SOL: 'So11111111111111111111111111111111111111112', // Wrapped SOL (native mint)
+  },
+  'testnet': {
+    USDC: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU', // Testnet USDC (same as devnet)
+    PYUSD: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU', // Testnet PYUSD (using same as USDC for testnet - update when available)
+    USDT: 'EJwZgeZrdC8TXTQbQBoL6bfuAnFUUy1PVCMB4DYPzVaS', // Testnet USDT (same as devnet)
+    SOL: 'So11111111111111111111111111111111111111112', // Wrapped SOL (native mint)
+  },
+} as const;
+
+// Get token mints for current network
+export const getTokenMints = (network: Cluster = NETWORK) => {
+  const mints = TOKEN_MINTS_BY_NETWORK[network] || TOKEN_MINTS_BY_NETWORK.devnet;
+  return {
+    USDC: new PublicKey(mints.USDC),
+    PYUSD: new PublicKey(mints.PYUSD),
+    USDT: new PublicKey(mints.USDT),
+    SOL: new PublicKey(mints.SOL),
+  };
 };
+
+// Legacy export for backwards compatibility (uses current network)
+export const TOKEN_MINTS = getTokenMints();
 
 // PDA seeds (must match program - using underscores as per Rust code)
 export const PDA_SEEDS = {

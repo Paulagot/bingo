@@ -120,8 +120,9 @@ export const chainInfo: Record<string, ChainInfo> = {
     factoryAddress: 'Ev3D1mV3m1HZFZAJb8r68VoURxUxJq1o9vtcajZKXgDo',
     explorerBaseUrl: 'https://explorer.solana.com?cluster=devnet',
     chainName: 'Solana Devnet',
-    usdcAddress: '4UM2Qtb6mY9eyxFwnSy8X3nv5azk3JYHA1arsEgyrEid',
+    usdcAddress: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU', // Devnet USDC
   },
+  // Solana Mainnet USDC: EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
   '4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z': {
     factoryAddress: 'YourSolanaTestnetProgramID',
     explorerBaseUrl: 'https://explorer.solana.com?cluster=testnet',

@@ -28,6 +28,12 @@ import type { AppKitNetwork } from '@reown/appkit/networks';
 
 export const projectId = import.meta.env.VITE_PROJECT_ID || 'b56e18d47c72ab683b10814fe9495694';
 
+// Validate project ID - warn if it looks like a placeholder
+if (!projectId || projectId.includes('your_project_id') || projectId.includes('your-project-id')) {
+  console.warn('⚠️ WalletConnect Project ID appears to be a placeholder. Please set VITE_PROJECT_ID in your .env file.');
+  console.warn('⚠️ Get a project ID from https://cloud.walletconnect.com/');
+}
+
 if (!projectId) {
   throw new Error('Project ID is not defined');
 }

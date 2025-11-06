@@ -150,9 +150,8 @@ const getTokensForChoice = (choice: ChoiceValue) => {
   if (choice === 'stellar') return [{ value: 'XLM', label: 'XLM' }];
   if (choice === 'solanaMainnet' || choice === 'solanaDevnet') {
     return [
-      { value: 'SOL', label: 'SOL' },
       { value: 'USDC', label: 'USDC' },
-      { value: 'USDGLO', label: 'Glo Dollar' },
+      { value: 'PYUSD', label: 'PYUSD' },
     ];
   }
   // EVM choices
@@ -194,7 +193,7 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
     const tokenValues = availableTokens.map((t) => t.value);
     const fallback =
       choice === 'stellar' ? 'XLM' :
-      choice === 'solanaMainnet' || choice === 'solanaDevnet' ? 'SOL' :
+      choice === 'solanaMainnet' || choice === 'solanaDevnet' ? 'USDC' :
       'USDGLO';
     if (!tokenValues.includes(currency)) setCurrency(availableTokens[0]?.value || fallback);
   }, [choice, availableTokens, currency]);

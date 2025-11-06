@@ -30,7 +30,7 @@ import {
   NATIVE_MINT,
   createSyncNativeInstruction,
 } from '@solana/spl-token';
-import { PROGRAM_ID, PDA_SEEDS, TX_CONFIG } from './config';
+import { PROGRAM_ID, PDA_SEEDS, TX_CONFIG, getTokenMints } from './config';
 import {
   simulateTransaction,
   validateTransactionInputs,
@@ -46,8 +46,11 @@ import {
   createAssetRoom as createAssetRoomImpl,
   depositPrizeAsset as depositPrizeAssetImpl,
   deriveTokenRegistryPDA,
+  createTokenMint as createTokenMintImpl,
   type CreateAssetRoomParams,
   type DepositPrizeAssetParams,
+  type CreateTokenMintParams,
+  type CreateTokenMintResult,
 } from './solana-asset-room';
 
 // ============================================================================
@@ -105,6 +108,12 @@ export interface RoomInfo {
   hostFeeBps: number;
   prizePoolBps: number;
   charityBps: number;
+  prizeMode?: any; // PrizeMode enum (PoolSplit | AssetBased)
+  prizeAssets?: Array<{
+    mint: PublicKey;
+    amount: BN;
+    deposited: boolean;
+  } | null>; // [Option<PrizeAsset>; 3]
 }
 
 export interface PlayerEntryInfo {
@@ -371,7 +380,7 @@ export function useSolanaContract() {
       console.log('[initializeTokenRegistry] Token registry PDA:', tokenRegistry.toBase58());
       console.log('[initializeTokenRegistry] Bump:', bump);
       console.log('[initializeTokenRegistry] Program ID:', program.programId.toBase58());
-      console.log('[initializeTokenRegistry] Seed used:', 'token-registry-v4');
+      console.log('[initializeTokenRegistry] Seed used:', 'token-registry-v2');
 
       // Check if already initialized
       try {
@@ -389,7 +398,7 @@ export function useSolanaContract() {
             throw new Error(
               `⚠️ DEVNET CLEANUP NEEDED: Token registry was created by old program deployment.\n\n` +
               `To fix this, run in your bingo-solana-contracts repo:\n` +
-              `cd C:\\Users\\isich\\bingo-solana-contracts\n` +
+              `cd <path-to-bingo-solana-contracts>\n` +
               `anchor clean && anchor build && anchor deploy\n\n` +
               `Or manually close the old account:\n` +
               `solana program close ${registryAccount.owner.toBase58()} --url devnet`
@@ -572,6 +581,19 @@ export function useSolanaContract() {
         }
       }
 
+      // Validate that fee token is USDC or PYUSD only (room fees restriction)
+      const TOKEN_MINTS = getTokenMints();
+      const isUSDC = params.feeTokenMint.equals(TOKEN_MINTS.USDC);
+      const isPYUSD = params.feeTokenMint.equals(TOKEN_MINTS.PYUSD);
+      
+      if (!isUSDC && !isPYUSD) {
+        throw new Error(
+          `Room fees are restricted to USDC and PYUSD only. ` +
+          `Received: ${params.feeTokenMint.toBase58()}. ` +
+          `Note: Prize tokens have no restrictions and can be any token.`
+        );
+      }
+
       // Auto-approve the fee token if needed
       console.log('[createPoolRoom] Checking if fee token is approved...');
       try {
@@ -647,6 +669,8 @@ export function useSolanaContract() {
       });
 
       // Build instruction using Anchor's methods API
+      // Note: tokenRegistry is NOT passed - Anchor will auto-derive it from IDL constraint
+      // This prevents ConstraintSeeds validation errors (see createAssetRoom for reference)
       const ix = await program.methods
         .initPoolRoom(
           params.roomId,
@@ -665,8 +689,9 @@ export function useSolanaContract() {
           room,
           roomVault,
           feeTokenMint: params.feeTokenMint,
-          tokenRegistry,
           globalConfig,
+          // tokenRegistry is NOT passed - Anchor will auto-derive it from IDL constraint
+          // This prevents ConstraintSeeds validation errors
           host: publicKey,
           systemProgram: SystemProgram.programId,
           tokenProgram: TOKEN_PROGRAM_ID,
@@ -771,9 +796,63 @@ export function useSolanaContract() {
       if (!publicKey || !provider || !program) {
         throw new Error('Wallet not connected');
       }
+
+      // Auto-initialize global config and token registry if needed
+      console.log('[createAssetRoom] Checking if global config is initialized...');
+      try {
+        await initializeGlobalConfig(publicKey, params.charityWallet);
+      } catch (error: any) {
+        // Only fail if it's not already initialized
+        const isAlreadyInit = error.message?.includes('already-initialized') ||
+                             error.message?.includes('already been processed') ||
+                             error.message?.includes('custom program error: 0x0'); // Account already initialized
+        if (!isAlreadyInit) {
+          console.error('[createAssetRoom] Failed to initialize global config:', error);
+          throw error;
+        }
+        console.log('[createAssetRoom] Global config already initialized (caught expected error)');
+      }
+
+      console.log('[createAssetRoom] Checking if token registry is initialized...');
+      try {
+        await initializeTokenRegistry();
+      } catch (error: any) {
+        // Get full transaction logs if available
+        if (error.getLogs && typeof error.getLogs === 'function') {
+          const logs = await error.getLogs();
+          console.error('[createAssetRoom] Full transaction logs:', logs);
+        }
+
+        // Log complete error details
+        console.error('[createAssetRoom] Full error object:', {
+          message: error.message,
+          name: error.name,
+          stack: error.stack,
+          logs: error.logs,
+        });
+
+        // Only fail if it's not already initialized
+        if (!error.message?.includes('already-initialized')) {
+          console.error('[createAssetRoom] Failed to initialize token registry:', error);
+          throw new Error(`Token registry initialization failed: ${error.message}`);
+        }
+      }
+
+      // Auto-approve the fee token if needed
+      console.log('[createAssetRoom] Checking if fee token is approved...');
+      try {
+        await addApprovedToken(params.feeTokenMint);
+      } catch (error: any) {
+        // Only fail if it's not already approved
+        if (!error.message?.includes('already-approved')) {
+          console.error('[createAssetRoom] Failed to approve fee token:', error);
+          throw new Error(`Fee token approval failed: ${error.message}`);
+        }
+      }
+
       return createAssetRoomImpl(program, provider, connection, publicKey, params);
     },
-    [publicKey, provider, program, connection]
+    [publicKey, provider, program, connection, initializeGlobalConfig, initializeTokenRegistry, addApprovedToken]
   );
 
   // ============================================================================
@@ -792,6 +871,34 @@ export function useSolanaContract() {
       return depositPrizeAssetImpl(program, provider, connection, publicKey, params);
     },
     [publicKey, provider, program, connection]
+  );
+
+  // ============================================================================
+  // Utility: Create Token Mint
+  // ============================================================================
+
+  /**
+   * Creates a new SPL token mint using your Phantom wallet.
+   * Use this to create test tokens for prize assets.
+   */
+  const createTokenMint = useCallback(
+    async (params?: Omit<CreateTokenMintParams, 'connection' | 'publicKey' | 'signTransaction'>): Promise<CreateTokenMintResult> => {
+      if (!publicKey || !signTransaction) {
+        throw new Error('Wallet not connected');
+      }
+
+      const signTx = async (tx: Transaction) => {
+        return signTransaction(tx);
+      };
+
+      return createTokenMintImpl({
+        connection,
+        publicKey,
+        signTransaction: signTx,
+        ...params,
+      });
+    },
+    [publicKey, signTransaction, connection]
   );
 
   // ============================================================================
@@ -1188,28 +1295,73 @@ export function useSolanaContract() {
             }
             
             if (!vaultAccountInfo) {
-              // Check if account might exist but not be indexed yet
-              let isRecentlyCreated = false;
-              try {
-                const recentSignatures = await connection.getSignaturesForAddress(room, { limit: 5 });
-                isRecentlyCreated = recentSignatures.length > 0;
-              } catch (sigErr) {
-                // Ignore signature check errors
+              // If room exists but vault can't be found, try retrying with longer delays
+              // This handles RPC indexing delays that can occur after room creation
+              if (roomAccount) {
+                if (process.env.NODE_ENV !== 'production') {
+                  console.log('[joinRoom] Room exists but vault not found, retrying with longer delays...');
+                }
+                
+                // Try multiple retries with increasing delays
+                let vaultFound = false;
+                for (let attempt = 0; attempt < 3; attempt++) {
+                  const delay = 1000 * (attempt + 1); // 1s, 2s, 3s
+                  await new Promise(resolve => setTimeout(resolve, delay));
+                  
+                  try {
+                    vaultAccountInfo = await connection.getAccountInfo(roomVault, 'finalized');
+                    if (vaultAccountInfo) {
+                      vaultFound = true;
+                      if (process.env.NODE_ENV !== 'production') {
+                        console.log(`[joinRoom] Vault found on retry attempt ${attempt + 1}`);
+                      }
+                      break;
+                    }
+                  } catch (retryErr) {
+                    // Continue to next attempt
+                  }
+                }
+                
+                if (!vaultFound) {
+                  // Final retry: try getAccount with longer delay (sometimes RPC needs more time)
+                  await new Promise(resolve => setTimeout(resolve, 2000));
+                  try {
+                    vaultTokenAccount = await getAccount(
+                      connection,
+                      roomVault,
+                      'finalized',
+                      TOKEN_PROGRAM_ID
+                    );
+                    // If getAccount succeeds, vault exists
+                    vaultFound = true;
+                    vaultAccountInfo = await connection.getAccountInfo(roomVault, 'finalized');
+                    if (process.env.NODE_ENV !== 'production') {
+                      console.log('[joinRoom] Vault found on final retry using getAccount');
+                    }
+                  } catch (finalErr) {
+                    // Final retry failed
+                    if (process.env.NODE_ENV !== 'production') {
+                      console.error('[joinRoom] Final retry failed:', finalErr);
+                    }
+                  }
+                }
+                
+                if (!vaultFound) {
+                  // Room exists but vault can't be found after all retries
+                  // This is likely an RPC indexing delay - provide helpful error message
+                  throw new Error(
+                    `Room vault not found after multiple retries. This may be an RPC indexing delay. ` +
+                    `Room PDA: ${room.toBase58()}, Vault PDA: ${roomVault.toBase58()}. ` +
+                    `The vault exists on-chain but may not be indexed yet. ` +
+                    `Please wait a moment and try again, or check the vault on Solana Explorer: ` +
+                    `https://explorer.solana.com/address/${roomVault.toBase58()}`
+                  );
+                }
+              } else {
+                // Room doesn't exist either
+                const errorMessage = `Room vault not found. This room may not have been properly deployed on-chain. Room PDA: ${room.toBase58()}, Vault PDA: ${roomVault.toBase58()}. Please create a new room instead of trying to join this one.`;
+                throw new Error(errorMessage);
               }
-
-              // Log detailed info for debugging
-              if (process.env.NODE_ENV !== 'production') {
-                console.error('[joinRoom] Room vault account does not exist at', roomVault.toBase58());
-                console.error('[joinRoom] Room account exists:', !!roomAccount);
-                console.error('[joinRoom] Room PDA:', room.toBase58());
-                console.error('[joinRoom] Error from getAccount:', e2.message);
-              }
-
-              const errorMessage = isRecentlyCreated
-                ? `Room vault not found. The room was recently created and the vault may not be indexed yet. Room PDA: ${room.toBase58()}, Vault PDA: ${roomVault.toBase58()}. Please try again in a moment.`
-                : `Room vault not found. This room may not have been properly deployed on-chain. Room PDA: ${room.toBase58()}, Vault PDA: ${roomVault.toBase58()}. Please create a new room instead of trying to join this one.`;
-
-              throw new Error(errorMessage);
             }
 
             // Validate it's a token account
@@ -1618,6 +1770,19 @@ export function useSolanaContract() {
    * - ... up to 10 winners for bingo
    * ```
    *
+   * **⚠️ BUG FIX REQUIRED IN SOLANA PROGRAM:**
+   * The Rust program currently calculates prize amounts incorrectly:
+   * - WRONG: First place = Total Pool * firstPlacePct / 100
+   * - CORRECT: First place = Prize Pool * firstPlacePct / 100
+   *
+   * Example with 6 USDC total, 35% prize pool, 80%/20% splits:
+   * - Prize Pool = 6 * 0.35 = 2.1 USDC
+   * - First place should be: 2.1 * 0.80 = 1.68 USDC
+   * - Currently calculates: 6 * 0.80 = 4.8 USDC (WRONG!)
+   * 
+   * The bug is in the end_room instruction in the Solana program.
+   * Fix: Calculate prize_pool first, then apply firstPlacePct to prize_pool, not total_collected.
+   *
    * **Atomicity Guarantee:**
    * ALL transfers happen in a single transaction. Either:
    * - All succeed (platform, charity, host, all winners get paid)
@@ -1786,13 +1951,46 @@ export function useSolanaContract() {
       // Send and confirm
       const signature = await provider.sendAndConfirm(tx);
 
+      // Parse RoomEnded event to get exact charity_amount that was sent
+      // This ensures the amount reported to The Giving Block matches what was actually transferred
+      let charityAmount: BN | undefined;
+      try {
+        const txDetails = await connection.getTransaction(signature, {
+          commitment: 'confirmed',
+          maxSupportedTransactionVersion: 0,
+        });
+
+        if (txDetails?.meta?.logMessages) {
+          // Parse events from transaction logs
+          const events = program.coder.events.parseLogs(txDetails.meta.logMessages);
+          const roomEndedEvent = events.find((e: any) => e.name === 'RoomEnded');
+          
+          if (roomEndedEvent) {
+            charityAmount = new BN(roomEndedEvent.data.charityAmount.toString());
+            console.log('[endRoom] Parsed RoomEnded event:', {
+              charityAmount: charityAmount.toString(),
+              platformAmount: roomEndedEvent.data.platformAmount.toString(),
+              hostAmount: roomEndedEvent.data.hostAmount.toString(),
+              prizeAmount: roomEndedEvent.data.prizeAmount.toString(),
+            });
+          }
+        }
+      } catch (eventParseError) {
+        console.warn('[endRoom] Failed to parse RoomEnded event:', eventParseError);
+        // Continue without event data - the transaction still succeeded
+      }
+
       console.log('Room ended successfully:', {
         signature,
         room: room.toBase58(),
         winners: params.winners.map(w => w.toBase58()),
+        charityAmount: charityAmount?.toString(),
       });
 
-      return { signature };
+      return { 
+        signature,
+        charityAmount, // Exact amount sent to charity (from on-chain event)
+      };
     },
     [publicKey, program, provider, connection, deriveGlobalConfigPDA, deriveRoomPDA, deriveRoomVaultPDA]
   );
@@ -1826,6 +2024,12 @@ export function useSolanaContract() {
           hostFeeBps: roomAccount.hostFeeBps as number,
           prizePoolBps: roomAccount.prizePoolBps as number,
           charityBps: roomAccount.charityBps as number,
+          prizeMode: roomAccount.prizeMode,
+          prizeAssets: roomAccount.prizeAssets as Array<{
+            mint: PublicKey;
+            amount: BN;
+            deposited: boolean;
+          } | null> | undefined,
         };
       } catch (error) {
         console.error('[getRoomInfo] Failed:', error);
@@ -1978,9 +2182,85 @@ export function useSolanaContract() {
         throw new Error('Vault must be empty before cleanup. Distribute prizes first.');
       }
 
-      // Get rent before closing for return value
+      // Get rent before closing for return value (from room, vault, and prize vaults)
+      const roomAccountInfo = await connection.getAccountInfo(room);
       const vaultAccountInfo = await connection.getAccountInfo(roomVault);
-      const rentReclaimed = vaultAccountInfo?.lamports || 0;
+      const roomRent = roomAccountInfo?.lamports || 0;
+      const vaultRent = vaultAccountInfo?.lamports || 0;
+      let rentReclaimed = roomRent + vaultRent;
+
+      // Check if room is asset-based and get prize vaults
+      const isAssetBased = roomAccount.prizeMode &&
+        ((roomAccount.prizeMode as any).assetBased !== undefined ||
+         (roomAccount.prizeMode as any).AssetBased !== undefined);
+
+      const remainingAccounts = [];
+      if (isAssetBased && roomAccount.prizeAssets) {
+        console.log('[cleanupRoom] Asset-based room detected, checking prize vaults...');
+
+        // Derive prize vault PDAs for each prize (up to 3)
+        // Only add vaults that exist and are empty - contract will handle them gracefully
+        for (let prizeIndex = 0; prizeIndex < 3; prizeIndex++) {
+          const prizeAsset = roomAccount.prizeAssets[prizeIndex];
+          if (prizeAsset && prizeAsset.deposited) {
+            const [prizeVault] = PublicKey.findProgramAddressSync(
+              [
+                Buffer.from('prize-vault'),
+                room.toBuffer(),
+                Buffer.from([prizeIndex]),
+              ],
+              program.programId
+            );
+
+            // Check if prize vault exists and is empty
+            try {
+              const prizeVaultAccount = await getAccount(connection, prizeVault);
+              console.log(`[cleanupRoom] Prize vault ${prizeIndex}:`, {
+                address: prizeVault.toBase58(),
+                amount: prizeVaultAccount.amount.toString(),
+                isEmpty: prizeVaultAccount.amount === 0n,
+              });
+
+              if (prizeVaultAccount.amount === 0n) {
+                const prizeVaultInfo = await connection.getAccountInfo(prizeVault);
+                if (prizeVaultInfo) {
+                  rentReclaimed += prizeVaultInfo.lamports;
+                  remainingAccounts.push({
+                    pubkey: prizeVault,
+                    isSigner: false,
+                    isWritable: true,
+                  });
+                  console.log(`[cleanupRoom] Added prize vault ${prizeIndex} to cleanup (empty)`);
+                }
+              } else {
+                console.error(`[cleanupRoom] Prize vault ${prizeIndex} is not empty:`, {
+                  address: prizeVault.toBase58(),
+                  amount: prizeVaultAccount.amount.toString(),
+                });
+                throw new Error(`Prize vault ${prizeIndex} (${prizeVault.toBase58()}) has ${prizeVaultAccount.amount} tokens. Prizes were not fully distributed.`);
+              }
+            } catch (error: any) {
+              // If getAccount fails, vault doesn't exist (was never created or already closed)
+              if (error.message && error.message.includes('could not find account')) {
+                console.log(`[cleanupRoom] Prize vault ${prizeIndex} doesn't exist (never created or already closed) - skipping`);
+                // Don't add to remaining accounts if it doesn't exist
+              } else if (error.message && error.message.includes('Prize vault')) {
+                // Re-throw our own error about non-empty vault
+                throw error;
+              } else {
+                console.warn(`[cleanupRoom] Error checking prize vault ${prizeIndex}:`, error);
+                // Don't add to remaining accounts on error
+              }
+            }
+          } else {
+            console.log(`[cleanupRoom] Prize ${prizeIndex} not deposited - skipping`);
+          }
+        }
+
+        console.log(`[cleanupRoom] Total prize vaults to clean: ${remainingAccounts.length}`);
+      } else {
+        console.log('[cleanupRoom] Pool-based room, no prize vaults to clean');
+      }
 
       const ix = await program.methods
         .cleanupRoom(params.roomId)
@@ -1991,6 +2271,7 @@ export function useSolanaContract() {
           caller: publicKey,
           tokenProgram: TOKEN_PROGRAM_ID,
         })
+        .remainingAccounts(remainingAccounts)
         .instruction();
 
       const tx = new Transaction().add(ix);
@@ -1998,6 +2279,14 @@ export function useSolanaContract() {
       const simResult = await simulateTransaction(connection, tx);
 
       if (!simResult.success) {
+        console.error('[cleanupRoom] Simulation failed:', {
+          error: simResult.error,
+          logs: simResult.logs,
+          remainingAccountsCount: remainingAccounts.length,
+          isAssetBased,
+          roomEnded: roomAccount.ended,
+          vaultBalance: vaultAccount.amount.toString(),
+        });
         throw new Error(formatTransactionError(simResult.error));
       }
 
@@ -2007,11 +2296,241 @@ export function useSolanaContract() {
         roomId: params.roomId,
         signature,
         rentReclaimed: rentReclaimed / 1e9, // Convert to SOL
+        roomRent: roomRent / 1e9, // Convert to SOL
+        vaultRent: vaultRent / 1e9, // Convert to SOL
       });
 
       return { signature, rentReclaimed };
     },
     [publicKey, provider, program, connection, deriveGlobalConfigPDA, deriveRoomPDA, deriveRoomVaultPDA]
+  );
+
+  /**
+   * Recover abandoned room and refund players (admin only)
+   * 
+   * Emergency function for when a host disappears mid-game. Refunds 90% of collected
+   * funds to players and takes 10% platform fee. This prevents funds from being
+   * locked if a host abandons a room before ending it.
+   * 
+   * **How it works:**
+   * 1. Verifies caller is platform admin
+   * 2. Fetches all PlayerEntry accounts for the room
+   * 3. Gets token accounts for each player
+   * 4. Calculates refund per player: (total_collected * 90%) / player_count
+   * 5. Transfers 10% to platform wallet
+   * 6. Refunds each player their share
+   * 7. Marks room as ended
+   * 
+   * **Prerequisites:**
+   * - Only admin can call (enforced on-chain)
+   * - Room must not be already ended
+   * - Room must have collected funds (total_collected > 0)
+   * - All players must have token accounts for the fee token mint
+   * 
+   * **Security:**
+   * - Admin-only access prevents abuse
+   * - Room must not be ended (prevents double recovery)
+   * - All refunds happen atomically in single transaction
+   * - Room marked as ended after recovery (prevents further operations)
+   * 
+   * @param params - Recovery parameters
+   * @param params.roomId - Room identifier
+   * @param params.hostPubkey - Host's Solana public key (for PDA derivation)
+   * @param params.roomAddress - Optional: Use this room PDA instead of deriving it
+   * 
+   * @returns Promise resolving to recovery result
+   * @returns result.signature - Solana transaction signature
+   * @returns result.playersRefunded - Number of players refunded
+   * @returns result.totalRefunded - Total amount refunded to players
+   * @returns result.platformFee - Platform fee amount (10%)
+   * 
+   * @throws {Error} 'Wallet not connected' - If publicKey or provider is null
+   * @throws {Error} 'Only platform admin can recover rooms' - If caller is not admin
+   * @throws {Error} 'Room already ended' - If room.ended is true
+   * @throws {Error} 'Room has no funds to recover' - If total_collected is 0
+   * @throws {Error} 'No players found' - If no PlayerEntry accounts exist for room
+   * 
+   * @example
+   * ```typescript
+   * const { recoverRoom } = useSolanaContract();
+   * 
+   * // Recover abandoned room and refund all players
+   * const result = await recoverRoom({
+   *   roomId: 'bingo-night-2024',
+   *   hostPubkey: new PublicKey('Host...'),
+   * });
+   * 
+   * console.log('Recovery complete:', {
+   *   signature: result.signature,
+   *   playersRefunded: result.playersRefunded,
+   *   totalRefunded: result.totalRefunded / 1e6, // Convert to USDC
+   *   platformFee: result.platformFee / 1e6,
+   * });
+   * ```
+   */
+  const recoverRoom = useCallback(
+    async (params: { roomId: string; hostPubkey: PublicKey; roomAddress?: PublicKey }): Promise<{
+      signature: string;
+      playersRefunded: number;
+      totalRefunded: BN;
+      platformFee: BN;
+    }> => {
+      if (!publicKey || !provider || !program) {
+        throw new Error('Wallet not connected');
+      }
+
+      // Use provided room address or derive it
+      let roomPDA: PublicKey;
+      if (params.roomAddress) {
+        roomPDA = params.roomAddress;
+        console.log('[recoverRoom] Using provided room address:', roomPDA.toBase58());
+      } else {
+        [roomPDA] = deriveRoomPDA(params.hostPubkey, params.roomId);
+        console.log('[recoverRoom] Derived room PDA:', roomPDA.toBase58());
+      }
+
+      // Verify caller is admin
+      const [globalConfig] = deriveGlobalConfigPDA();
+      const globalConfigAccount = await program.account.globalConfig.fetch(globalConfig);
+      if (!globalConfigAccount.admin.equals(publicKey)) {
+        throw new Error('Only platform admin can recover rooms');
+      }
+
+      // Fetch room info
+      const roomInfo = await getRoomInfo(roomPDA);
+      if (!roomInfo) {
+        throw new Error('Room not found at address: ' + roomPDA.toBase58());
+      }
+
+      // Verify room is not ended
+      if (roomInfo.ended) {
+        throw new Error('Room already ended');
+      }
+
+      // Verify room has funds
+      if (roomInfo.totalCollected.eq(new BN(0))) {
+        throw new Error('Room has no funds to recover');
+      }
+
+      console.log('[recoverRoom] Room info:', {
+        roomId: params.roomId,
+        playerCount: roomInfo.playerCount,
+        totalCollected: roomInfo.totalCollected.toString(),
+        feeTokenMint: roomInfo.feeTokenMint.toBase58(),
+      });
+
+      // Query all PlayerEntry accounts for this room
+      // Filter by room pubkey (offset 40 = discriminator 8 + player 32)
+      // @ts-ignore - Account types available after program deployment
+      const allPlayerEntries = await program.account.playerEntry.all([
+        {
+          memcmp: {
+            offset: 8 + 32, // Skip discriminator (8) + player (32), room is next at offset 40
+            bytes: roomPDA.toBase58(), // Anchor memcmp expects base58 string for Pubkeys
+          },
+        },
+      ]);
+
+      if (allPlayerEntries.length === 0) {
+        throw new Error('No players found in room');
+      }
+
+      console.log('[recoverRoom] Found', allPlayerEntries.length, 'player entries');
+
+      // Get token accounts for all players
+      const playerAccounts: Array<{ player: PublicKey; tokenAccount: PublicKey }> = [];
+      
+      for (const entry of allPlayerEntries) {
+        const playerPubkey = entry.account.player as PublicKey;
+        const tokenAccount = await getAssociatedTokenAddress(
+          roomInfo.feeTokenMint,
+          playerPubkey
+        );
+        playerAccounts.push({
+          player: playerPubkey,
+          tokenAccount,
+        });
+      }
+
+      console.log('[recoverRoom] Prepared', playerAccounts.length, 'player token accounts');
+
+      // Get platform token account
+      const platformTokenAccount = await getAssociatedTokenAddress(
+        roomInfo.feeTokenMint,
+        globalConfigAccount.platformWallet as PublicKey
+      );
+
+      // Get room vault PDA
+      const [roomVault] = deriveRoomVaultPDA(roomPDA);
+
+      // Build remaining_accounts: [player1_pubkey, player1_token_account, player2_pubkey, player2_token_account, ...]
+      // The Rust code uses odd indices (token accounts) but we pass pairs for completeness
+      const remainingAccounts = playerAccounts.flatMap(({ player, tokenAccount }) => [
+        {
+          pubkey: player,
+          isSigner: false,
+          isWritable: false, // Player pubkey is read-only
+        },
+        {
+          pubkey: tokenAccount,
+          isSigner: false,
+          isWritable: true, // Token account is writable (receives refund)
+        },
+      ]);
+
+      // Build recover_room instruction
+      const ix = await program.methods
+        .recoverRoom(params.roomId)
+        .accounts({
+          room: roomPDA,
+          roomVault,
+          globalConfig,
+          platformTokenAccount,
+          admin: publicKey,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        })
+        .remainingAccounts(remainingAccounts)
+        .instruction();
+
+      const tx = new Transaction().add(ix);
+      tx.feePayer = publicKey;
+
+      // Simulate transaction
+      console.log('[recoverRoom] Simulating transaction...');
+      const simResult = await simulateTransaction(connection, tx);
+
+      if (!simResult.success) {
+        console.error('[recoverRoom] Simulation failed:', {
+          error: simResult.error,
+          logs: simResult.logs,
+        });
+        throw new Error(formatTransactionError(simResult.error));
+      }
+
+      // Send and confirm transaction
+      console.log('[recoverRoom] Sending transaction...');
+      const signature = await provider.sendAndConfirm(tx);
+
+      // Calculate amounts for return value
+      const totalCollected = roomInfo.totalCollected;
+      const platformFee = totalCollected.mul(new BN(10)).div(new BN(100)); // 10%
+      const totalRefunded = totalCollected.sub(platformFee); // 90%
+
+      console.log('[recoverRoom] ✅ Recovery complete:', {
+        signature,
+        playersRefunded: playerAccounts.length,
+        totalRefunded: totalRefunded.toString(),
+        platformFee: platformFee.toString(),
+      });
+
+      return {
+        signature,
+        playersRefunded: playerAccounts.length,
+        totalRefunded,
+        platformFee,
+      };
+    },
+    [publicKey, provider, program, connection, deriveGlobalConfigPDA, deriveRoomPDA, deriveRoomVaultPDA, getRoomInfo]
   );
 
   // ============================================================================
@@ -2029,8 +2548,11 @@ export function useSolanaContract() {
    *    - Host fee: 0-5% to host
    *    - Prize pool: distributed to winners based on room.prize_distribution percentages
    *    - Charity: Minimum 40% + any remaining allocation goes to charity
+   * 4. Closing the room PDA and vault PDA, returning rent to the host
    *
    * All distributions happen atomically in a single transaction.
+   * After prizes are distributed, the room and vault PDAs are closed and their
+   * rent (storage fees) are automatically returned to the host.
    *
    * **IMPORTANT: Charity Address for Solana**
    *
@@ -2064,7 +2586,7 @@ export function useSolanaContract() {
    * Example: 7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU
    */
   const distributePrizes = useCallback(
-    async (params: { roomId: string; winners: string[]; roomAddress?: string }): Promise<{ signature: string }> => {
+    async (params: { roomId: string; winners: string[]; roomAddress?: string }): Promise<{ signature: string; cleanupSignature?: string; rentReclaimed?: number; cleanupError?: string; charityAmount?: BN }> => {
       if (!publicKey || !provider || !program) {
         throw new Error('Wallet not connected or program not initialized');
       }
@@ -2111,36 +2633,287 @@ export function useSolanaContract() {
       const declaredWinners = roomAccount.winners as PublicKey[];
       const winnersAlreadyDeclared = declaredWinners && declaredWinners.length > 0 && declaredWinners[0] !== null;
 
-      if (winnersAlreadyDeclared) {
-        console.log('[distributePrizes] Winners already declared, skipping to endRoom...');
-      } else {
-        console.log('[distributePrizes] Declaring winners...');
+      // Build transaction with merged instructions
+      const tx = new Transaction();
+      tx.feePayer = publicKey;
 
-        // Step 1: Declare winners
-        await declareWinners({
-          roomId: params.roomId,
-          hostPubkey: roomInfo.host,
-          winners: winnerPubkeys,
+      if (!winnersAlreadyDeclared) {
+        console.log('[distributePrizes] Building declareWinners instruction...');
+
+        // Derive PlayerEntry PDAs for each winner (to verify they actually joined)
+        const playerEntryPDAs = winnerPubkeys.map(winner => {
+          const [playerEntry] = derivePlayerEntryPDA(roomPDA, winner);
+          return playerEntry;
         });
 
-        console.log('[distributePrizes] Winners declared!');
+        // Build declareWinners instruction
+        const declareWinnersIx = await program.methods
+          .declareWinners(params.roomId, winnerPubkeys)
+          .accounts({
+            room: roomPDA,
+            host: publicKey,
+          })
+          .remainingAccounts(
+            playerEntryPDAs.map(playerEntry => ({
+              pubkey: playerEntry,
+              isSigner: false,
+              isWritable: false, // Read-only, just verifying they exist
+            }))
+          )
+          .instruction();
+
+        tx.add(declareWinnersIx);
+        console.log('[distributePrizes] declareWinners instruction added to transaction');
+      } else {
+        console.log('[distributePrizes] Winners already declared, skipping declareWinners instruction');
       }
 
-      console.log('[distributePrizes] Ending room...');
+      console.log('[distributePrizes] Building endRoom instruction...');
 
-      // Step 2: End room (triggers all distributions)
-      const result = await endRoom({
-        roomId: params.roomId,
-        hostPubkey: roomInfo.host,
-        winners: winnerPubkeys,
-        feeTokenMint: roomInfo.feeTokenMint,
-      });
+      // Build endRoom instruction
+      const [globalConfig] = deriveGlobalConfigPDA();
+      const [roomVault] = deriveRoomVaultPDA(roomPDA);
 
-      console.log('[distributePrizes] Distribution complete:', result.signature);
+      // Fetch global config to get platform and charity wallets
+      // @ts-ignore - Account types available after program deployment
+      const globalConfigAccount = await program.account.globalConfig.fetch(globalConfig);
+      const platformWallet = globalConfigAccount.platformWallet as PublicKey;
+      const charityWallet = globalConfigAccount.charityWallet as PublicKey;
 
-      return result;
+      // Get token accounts for all recipients
+      const platformTokenAccount = await getAssociatedTokenAddress(
+        roomInfo.feeTokenMint,
+        platformWallet
+      );
+      const charityTokenAccount = await getAssociatedTokenAddress(
+        roomInfo.feeTokenMint,
+        charityWallet
+      );
+      const hostTokenAccount = await getAssociatedTokenAddress(
+        roomInfo.feeTokenMint,
+        roomInfo.host
+      );
+
+      // Get winner token accounts (must be passed as remaining accounts)
+      const winnerTokenAccounts = await Promise.all(
+        winnerPubkeys.map(winner =>
+          getAssociatedTokenAddress(roomInfo.feeTokenMint, winner)
+        )
+      );
+
+      // Build remaining accounts array
+      // For asset-based rooms, the structure is:
+      // [0..winners_count] = winner token accounts for fee_token_mint
+      // [winners_count..winners_count*2] = winner token accounts for prize assets
+      // [winners_count*2..winners_count*2+3] = prize vault accounts
+      let remainingAccounts = winnerTokenAccounts.map(account => ({
+        pubkey: account,
+        isSigner: false,
+        isWritable: true,
+      }));
+
+      // Check if room is asset-based
+      // Anchor serializes enums as objects with variant name as key
+      // PrizeMode::AssetBased becomes { assetBased: {} } or { AssetBased: {} }
+      const isAssetBased = roomInfo.prizeMode && 
+        ((roomInfo.prizeMode as any).assetBased !== undefined || 
+         (roomInfo.prizeMode as any).AssetBased !== undefined);
+
+      if (isAssetBased && roomInfo.prizeAssets) {
+        console.log('[distributePrizes] Asset-based room detected, building prize accounts...');
+        
+        // Get winner token accounts for prize assets (one per winner for their prize mint)
+        const winnerPrizeTokenAccounts = await Promise.all(
+          winnerPubkeys.slice(0, 3).map(async (winner, index) => {
+            const prizeAsset = roomInfo.prizeAssets?.[index];
+            if (prizeAsset && prizeAsset.deposited) {
+              return await getAssociatedTokenAddress(
+                prizeAsset.mint,
+                winner
+              );
+            }
+            // If no prize for this position, use fee token mint as placeholder
+            // (won't be used but needed to maintain array structure)
+            return await getAssociatedTokenAddress(roomInfo.feeTokenMint, winner);
+          })
+        );
+
+        // Add winner prize token accounts to remaining accounts
+        remainingAccounts = remainingAccounts.concat(
+          winnerPrizeTokenAccounts.map(account => ({
+            pubkey: account,
+            isSigner: false,
+            isWritable: true,
+          }))
+        );
+
+        // Derive prize vault PDAs for each prize (up to 3)
+        const prizeVaultAccounts = [];
+        for (let prizeIndex = 0; prizeIndex < 3; prizeIndex++) {
+          const prizeAsset = roomInfo.prizeAssets[prizeIndex];
+          if (prizeAsset && prizeAsset.deposited) {
+            const [prizeVault] = PublicKey.findProgramAddressSync(
+              [
+                Buffer.from('prize-vault'),
+                roomPDA.toBuffer(),
+                Buffer.from([prizeIndex]),
+              ],
+              program.programId
+            );
+            prizeVaultAccounts.push({
+              pubkey: prizeVault,
+              isSigner: false,
+              isWritable: true,
+            });
+          } else {
+            // Add placeholder (won't be used but needed to maintain array structure)
+            prizeVaultAccounts.push({
+              pubkey: PublicKey.default,
+              isSigner: false,
+              isWritable: false,
+            });
+          }
+        }
+
+        // Add prize vault accounts to remaining accounts
+        remainingAccounts = remainingAccounts.concat(prizeVaultAccounts);
+
+        console.log('[distributePrizes] Remaining accounts structure:', {
+          winnerTokenAccounts: winnerTokenAccounts.length,
+          winnerPrizeTokenAccounts: winnerPrizeTokenAccounts.length,
+          prizeVaultAccounts: prizeVaultAccounts.length,
+          total: remainingAccounts.length,
+        });
+      }
+
+      // Build endRoom instruction
+      const endRoomIx = await program.methods
+        .endRoom(params.roomId, winnerPubkeys)
+        .accounts({
+          room: roomPDA,
+          roomVault,
+          globalConfig,
+          platformTokenAccount,
+          charityTokenAccount,
+          hostTokenAccount,
+          host: publicKey,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        })
+        .remainingAccounts(remainingAccounts)
+        .instruction();
+
+      tx.add(endRoomIx);
+      console.log('[distributePrizes] endRoom instruction added to transaction');
+
+      // Simulate transaction before sending
+      console.log('[distributePrizes] Simulating merged transaction...');
+      const simResult = await simulateTransaction(connection, tx);
+
+      if (!simResult.success) {
+        console.error('═══════════════════════════════════════════');
+        console.error('[distributePrizes] SIMULATION FAILED');
+        console.error('═══════════════════════════════════════════');
+        console.error('[distributePrizes] Error type:', typeof simResult.error);
+        console.error('[distributePrizes] Error object:', simResult.error);
+        console.error('[distributePrizes] Error string:', String(simResult.error));
+
+        try {
+          console.error('[distributePrizes] Error JSON:', JSON.stringify(simResult.error, null, 2));
+        } catch (e) {
+          console.error('[distributePrizes] Error cannot be stringified');
+        }
+
+        console.error('─────────────────────────────────────────');
+        console.error('[distributePrizes] SIMULATION LOGS:');
+
+        if (simResult.logs && simResult.logs.length > 0) {
+          simResult.logs.forEach((log, idx) => {
+            console.error(`  [Log ${idx}]:`, log);
+          });
+        } else {
+          console.error('  No logs available');
+        }
+
+        console.error('═══════════════════════════════════════════');
+
+        throw new Error(formatTransactionError(simResult.error));
+      }
+
+      // Send and confirm merged transaction
+      console.log('[distributePrizes] Sending merged transaction (declareWinners + endRoom)...');
+      const signature = await provider.sendAndConfirm(tx);
+
+      console.log('[distributePrizes] ✅ Merged transaction successful:', signature);
+      console.log('[distributePrizes] Distribution complete:', signature);
+
+      // Parse RoomEnded event to get exact charity_amount that was sent
+      // This ensures the amount reported to The Giving Block matches what was actually transferred
+      let charityAmount: BN | undefined;
+      try {
+        const txDetails = await connection.getTransaction(signature, {
+          commitment: 'confirmed',
+          maxSupportedTransactionVersion: 0,
+        });
+
+        if (txDetails?.meta?.logMessages) {
+          // Parse events from transaction logs
+          const events = program.coder.events.parseLogs(txDetails.meta.logMessages);
+          const roomEndedEvent = events.find((e: any) => e.name === 'RoomEnded');
+          
+          if (roomEndedEvent) {
+            charityAmount = new BN(roomEndedEvent.data.charityAmount.toString());
+            console.log('[distributePrizes] Parsed RoomEnded event:', {
+              charityAmount: charityAmount.toString(),
+              platformAmount: roomEndedEvent.data.platformAmount.toString(),
+              hostAmount: roomEndedEvent.data.hostAmount.toString(),
+              prizeAmount: roomEndedEvent.data.prizeAmount.toString(),
+            });
+          }
+        }
+      } catch (eventParseError) {
+        console.warn('[distributePrizes] Failed to parse RoomEnded event:', eventParseError);
+        // Continue without event data - the transaction still succeeded
+      }
+
+      // Step 3: Close PDA and return rent to host
+      // This is critical - the room PDA must be closed to return rent to the host
+      console.log('[distributePrizes] Closing PDA and reclaiming rent...');
+      
+      // Wait a moment to ensure the endRoom transaction is fully confirmed on-chain
+      // This prevents race conditions where the room state hasn't updated yet
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      try {
+        const cleanupResult = await cleanupRoom({
+          roomId: params.roomId,
+          hostPubkey: roomInfo.host,
+        });
+
+        console.log('[distributePrizes] ✅ PDA closed successfully, rent reclaimed:', {
+          cleanupSignature: cleanupResult.signature,
+          rentReclaimed: cleanupResult.rentReclaimed / 1e9, // Convert to SOL
+        });
+
+        return {
+          signature,
+          cleanupSignature: cleanupResult.signature,
+          rentReclaimed: cleanupResult.rentReclaimed,
+          charityAmount, // Exact amount sent to charity (from on-chain event)
+        };
+      } catch (cleanupError: any) {
+        console.error('[distributePrizes] ❌ Failed to close PDA and reclaim rent:', cleanupError);
+        console.error('[distributePrizes] This is a critical error - rent will remain locked until manual cleanup');
+        
+        // Return the error so the frontend can inform the user
+        // The prizes are distributed, but the host needs to manually close the PDA
+        return {
+          signature,
+          cleanupError: cleanupError.message || 'Failed to close PDA and reclaim rent',
+          charityAmount, // Exact amount sent to charity (from on-chain event)
+        };
+      }
     },
-    [publicKey, provider, program, declareWinners, endRoom, deriveRoomPDA, getRoomInfo]
+    [publicKey, provider, program, connection, cleanupRoom, deriveRoomPDA, deriveGlobalConfigPDA, deriveRoomVaultPDA, derivePlayerEntryPDA, getRoomInfo]
   );
 
   // ============================================================================
@@ -2165,8 +2938,11 @@ export function useSolanaContract() {
     setEmergencyPause,
     closeJoining,
     cleanupRoom,
+    recoverRoom,
     // Composite functions
     distributePrizes,
+    // Utilities
+    createTokenMint,
     // Queries
     getRoomInfo,
     getPlayerEntry,
