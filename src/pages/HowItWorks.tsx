@@ -1,11 +1,11 @@
-import React, { lazy, Suspense, useMemo } from 'react';
+import React, { lazy,  useMemo } from 'react';
 import { SEO } from '../components/SEO';
 import { Header } from '../components/GeneralSite2/Header';
 import {
   Check, Trophy, Users, Zap, Target, CreditCard, BarChart3, 
   CheckCircle, ArrowRight, PlayCircle, Settings, Share2, 
   DollarSign, Clock, ShieldCheck, Sparkles, UserPlus, Gift,
-  Award, TrendingUp, QrCode, Coins
+  Award, TrendingUp, QrCode,
 } from 'lucide-react';
 
 const SiteFooter = lazy(() => import('../components/GeneralSite2/SiteFooter'));
@@ -315,9 +315,7 @@ export default function HowItWorksPage() {
                   </div>
                 </div>
                 <p className="text-indigo-900/70 leading-relaxed">
-                  Choose from our pre-configured round types like General Trivia, Wipeout, or Speed Round. You can select a ready-made 
-                  quiz template or customise your own by picking and arranging various round types to keep your participants engaged. 
-                  The demo video showed how easy it is to select and configure rounds.
+                  Choose from our pre-configured round types like General Trivia, Wipeout, or Speed Round. You can select a pre configured quiz from the quiz templates .
                 </p>
               </div>
 

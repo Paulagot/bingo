@@ -18,13 +18,12 @@ import {
   SelectItem,
 } from '../Wizard/select';
 
-const Debug = true; 
+const Debug = true;
 
 if (Debug) {
   const ids = quizTemplates.map(t => t.id);
   console.log('[Templates] All template IDs from constants:', ids);
 }
-
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Duration model + breaks
@@ -163,7 +162,7 @@ function pickMostPopular(templates: QuizTemplate[], max = 8) {
 const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst }) => {
   const { setupConfig, setTemplate, updateSetupConfig, flow } = useQuizSetupStore();
 
-   // ── Entitlements load (logged-in users only). If unauth (web3-only), this fails → not Dev.
+  // ── Entitlements load (logged-in users only). If unauth (web3-only), this fails → not Dev.
   const [ents, setEnts] = useState<any | null>(null);
   const [_entsLoaded, setEntsLoaded] = useState(false);
 
@@ -175,7 +174,7 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
       .finally(() => setEntsLoaded(true));
   }, []);
 
-   const isDevPlan =
+  const isDevPlan =
     ents?.plan_id === 2 ||
     ents?.plan_id === '2' ||
     (typeof ents?.plan_code === 'string' && ents.plan_code.toUpperCase() === 'DEV');
@@ -190,11 +189,18 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
 
   const selectedTemplate = setupConfig.selectedTemplate ?? null;
 
-   // Base list - ALWAYS include demo-quiz for development/testing
+  // Base list — hide demo for non-devs; prioritise for devs
   const baseTemplates = useMemo(() => {
-    const list = [...quizTemplates];
-    // Feature demo-quiz first for easy access
+    let list = [...quizTemplates];
+
+    // Hide demo unless Dev plan
+    if (!isDevPlan) {
+      list = list.filter(t => t.id !== 'demo-quiz');
+    }
+
+    // Ensure demo-quiz appears first only if present (i.e., devs)
     list.sort((a, b) => (a.id === 'demo-quiz' ? -1 : b.id === 'demo-quiz' ? 1 : 0));
+
     if (Debug) console.log('[Templates] isDevPlan:', isDevPlan, 'baseTemplates ids:', list.map(t => t.id));
     return list;
   }, [isDevPlan]);
@@ -210,15 +216,17 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
     // Start with either all (when filtering) or the "popular" slice
     let start = active ? baseTemplates : pickMostPopular(baseTemplates, 8);
 
-    // Always force-include demo-quiz in the unfiltered view (put it first)
-    if (!active) {
+    // Only force/prioritise demo in the unfiltered view for Dev plan
+    if (!active && isDevPlan) {
       const hasDemo = start.some(t => t.id === 'demo-quiz');
       if (!hasDemo) {
         const demo = baseTemplates.find(t => t.id === 'demo-quiz');
         if (demo) start = [demo, ...start].slice(0, 8);
       } else {
-        // ensure it's first if present
-        start = [ ...start.filter(t => t.id === 'demo-quiz'), ...start.filter(t => t.id !== 'demo-quiz') ];
+        start = [
+          ...start.filter(t => t.id === 'demo-quiz'),
+          ...start.filter(t => t.id !== 'demo-quiz'),
+        ];
       }
     }
 
@@ -260,7 +268,13 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
   };
 
   const handleTemplateSelect = (templateId: string) => {
-    // Demo quiz now available to everyone for testing
+    // 🚫 hard block demo for non-devs (defence in depth)
+    if (templateId === 'demo-quiz' && !isDevPlan) {
+      console.warn('[Templates] Blocked non-dev from selecting demo-quiz');
+      // Optionally show a toast here
+      return;
+    }
+
     setTemplate(templateId);
 
     const template = baseTemplates.find((t) => t.id === templateId);
@@ -269,45 +283,44 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
     const roundDefinitions = template.rounds.map((round, index) => {
       let cfg = { ...roundTypeDefaults[round.type], ...(round.customConfig ?? {}) };
 
-    // ---- Demo-specific hard overrides (authoritative) ----
-    if (templateId === 'demo-quiz') {
-      if (round.type === 'wipeout') {
-        cfg = {
-          questionsPerRound: 4,
-          timePerQuestion: 10,
-          pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
-          pointsLostPerWrong: 2,
-          pointsLostPerUnanswered: 3,
-        } as RoundConfig;
+      // ---- Demo-specific hard overrides (authoritative) ----
+      if (templateId === 'demo-quiz') {
+        if (round.type === 'wipeout') {
+          cfg = {
+            questionsPerRound: 4,
+            timePerQuestion: 10,
+            pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
+            pointsLostPerWrong: 2,
+            pointsLostPerUnanswered: 3,
+          } as RoundConfig;
+        }
+        if (round.type === 'speed_round') {
+          cfg = {
+            ...cfg,
+            questionsPerRound: 40,
+            totalTimeSeconds: 20,
+            skipAllowed: true,
+            pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
+            pointsLostPerWrong: 0,
+            pointsLostPerUnanswered: 0,
+          } as RoundConfig;
+        }
       }
-      if (round.type === 'speed_round') {
-        // Make the speed round explicit too
-        cfg = {
-          ...cfg,                       // keep any fields your RoundConfig requires
-          questionsPerRound: 40,        // you already set this in the template; repeat to be explicit
-          totalTimeSeconds: 20,
-          skipAllowed: true,
-          pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
-          pointsLostPerWrong: 0,
-          pointsLostPerUnanswered: 0,
-        } as RoundConfig;
-      }
-    }
 
-    return {
-      roundNumber: index + 1,
-      roundType: round.type,
-      category: round.category,
-      difficulty: round.difficulty,
-      config: cfg,
-      enabledExtras: {},
-    };
-  });
+      return {
+        roundNumber: index + 1,
+        roundType: round.type,
+        category: round.category,
+        difficulty: round.difficulty,
+        config: cfg,
+        enabledExtras: {},
+      };
+    });
 
-  updateSetupConfig({
-    roundDefinitions,
-    skipRoundConfiguration: templateId !== 'custom',
-  });
+    updateSetupConfig({
+      roundDefinitions,
+      skipRoundConfiguration: templateId !== 'custom',
+    });
   };
 
   const getDifficultyBadge = (difficulty: 'Easy' | 'Medium' | 'Hard') => {
@@ -709,6 +722,7 @@ function SelectField({
     </div>
   );
 }
+
 
 
 

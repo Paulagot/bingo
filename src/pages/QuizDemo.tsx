@@ -179,7 +179,7 @@ const DemoPage: React.FC = () => {
               <Step
                 icon={<Sparkles className="h-5 w-5" />}
                 title="1) Create your quiz"
-                desc="Use the 4-step wizard. Choose a template or customise, set ticketing, extras, and prizes."
+                desc="Use the 4-step wizard. Choose a template, set ticketing, extras, and prizes."
               />
                <Step
                 icon={<CreditCard className="h-5 w-5" />}
@@ -247,7 +247,7 @@ const DemoPage: React.FC = () => {
                 <summary className="cursor-pointer text-fg font-semibold">Show placeholder transcript</summary>
                 <div className="mt-3 text-fg/80 space-y-3">
                   <p><strong>Intro:</strong> Welcome to FundRaisely’s fundraising quiz. In this demo, we’ll set up an event, invite players, and show reporting.</p>
-                  <p><strong>Setup:</strong> The 4-step wizard guides ticketing, extras, and capacity. Choose a template or customise rounds.</p>
+                  <p><strong>Setup:</strong> The 4-step wizard guides ticketing, extras, and capacity and quiz templates.</p>
                   <p><strong>Payments:</strong> Collect cash or an instant link; admins mark paid and choose method; reconciliation updates automatically.</p>
                   <p><strong>Gameplay & reports:</strong> Live scoring, leaderboards, winner logs, and exportable audit-ready reconciliation.</p>
                 </div>

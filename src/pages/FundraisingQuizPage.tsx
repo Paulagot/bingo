@@ -52,7 +52,7 @@ const YouTubeBlock: React.FC<YouTubeBlockProps> = ({ title, youtubeUrlOrId, clas
 };
 
 /** Replace these with your real YouTube IDs or full URLs */
-const SETUP_VIDEO_ID = 'SETUPVIDEO1D_';      // e.g. 'AbCdEfGhIJK'
+const SETUP_VIDEO_ID = '804_uzaROzI';      // e.g. 'AbCdEfGhIJK'
 const DASHBOARD_VIDEO_ID = 'DASHBOARD1D_';
 const INGAME_VIDEO_ID = 'INGAMEVID01_';
 const REPORTING_VIDEO_ID = 'REPORTING01_';
@@ -162,7 +162,7 @@ const FundraisingQuizPage = () => {
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 font-bold flex-shrink-0">2</div>
                   <div>
                     <h3 className="font-semibold text-lg">Configure Rounds</h3>
-                    <p className="text-gray-600">Select a preconfigured quiz or customise your own</p>
+                    <p className="text-gray-600">Select a preconfigured quiz</p>
                   </div>
                 </div>
 

@@ -1,10 +1,12 @@
+// src/components/blogs/privacy-preserving-donations.tsx
 import React from 'react';
 import { SEO } from '../../components/SEO';
 import { Header } from '../../components/GeneralSite2/Header';
-import { 
+import {
   Lock, Heart, Shield, CheckCircle, AlertCircle, Sparkles, ExternalLink,
-  Eye, EyeOff,  Users, Target, 
+  Eye, EyeOff, Users, Target,
 } from 'lucide-react';
+import SiteFooter from '../../components/GeneralSite2/SiteFooter';
 
 /**
  * Privacy-Preserving Donations Blog Post
@@ -18,8 +20,8 @@ const PrototypeNotice = () => (
       <div>
         <div className="font-bold text-amber-900 text-lg mb-2">Prototype Notice</div>
         <p className="text-sm text-amber-900/80 leading-relaxed">
-          This post describes a hackathon-stage prototype of FundRaisely's Privacy-Preserving Donations. 
-          It is not production software, legal advice, or a fundraising solicitation. Features, controls, 
+          This post describes a hackathon-stage prototype of FundRaisely's Privacy-Preserving Donations on a public blockchain (Solana), using Arcium for of chain multi party comoutation (MPC) to issue privacy-preserving receipts.
+          It is not production software, legal advice, or a fundraising solicitation. Features, controls,
           and integrations will evolve with audits, regulatory input, and partner feedback.
         </p>
       </div>
@@ -27,11 +29,11 @@ const PrototypeNotice = () => (
   </div>
 );
 
-const InfoBox = ({ 
-  type = 'info', 
+const InfoBox = ({
+  type = 'info',
   title,
-  children 
-}: { 
+  children
+}: {
   type?: 'info' | 'caregiver' | 'magician';
   title?: string;
   children: React.ReactNode;
@@ -41,7 +43,7 @@ const InfoBox = ({
     caregiver: { border: 'border-pink-200', bg: 'bg-pink-50/50', icon: 'text-pink-600' },
     magician: { border: 'border-purple-200', bg: 'bg-purple-50/50', icon: 'text-purple-600' },
   };
-  
+
   const icons = {
     info: <AlertCircle className="h-5 w-5" />,
     caregiver: <Heart className="h-5 w-5" />,
@@ -90,43 +92,60 @@ const FeatureHighlight = ({
 );
 
 export default function PrivacyPreservingDonationsBlog() {
-  const title = "Anonymous Donations in 2025: How FundRaisely Brings Cash-Like Privacy to Digital Giving";
-  const description = "Cash is fading, but dignity in giving shouldn't. See how FundRaisely's hackathon prototype uses privacy-preserving receipts to protect donors while keeping charities confident and compliant.";
-  const canonical = "/blog/anonymous-donations-privacy-preserving-digital-giving";
+  const title =
+    "Anonymous Donations in 2025: How FundRaisely Brings Cash-Like Privacy to Digital Giving";
+  const description =
+    "Cash is fading, but dignity in giving shouldn't. See how FundRaisely's hackathon prototype on a public Blockchain uses privacy-preserving receipts to protect donors while keeping charities confident and compliant.";
 
+  // Build absolute URLs for JSON-LD (SEO component will handle canonical/hreflang itself)
+  const slug = "anonymous-donations-privacy-preserving-digital-giving";
+  const origin =
+    typeof window !== 'undefined' && window.location?.origin
+      ? window.location.origin
+      : "https://www.fundraisely.ie"; // SSR fallback; change if UK is your x-default
+
+  const canonical = `${origin}/blog/${slug}`;
+  const ogImage = `${origin}/images/blog/privacy/hero-privacy-preserving-donations.jpg`;
+
+  // Optional: surface breadcrumbs via SEO (it already knows how to render BreadcrumbList JSON-LD)
+  const breadcrumbs = [
+    { name: 'Blog', item: '/blog' },
+    { name: title, item: `/blog/${slug}` },
+  ];
+
+  // Keep absolute URLs inside Article JSON-LD
   const structuredData = {
     "@context": "https://schema.org",
     "@graph": [
       {
-        "@type": "BreadcrumbList",
-        itemListElement: [
-          { "@type": "ListItem", position: 1, name: "Blog", item: "/blog" },
-          {
-            "@type": "ListItem",
-            position: 2,
-            name: "Privacy-Preserving Donations",
-            item: canonical,
-          },
-        ],
-      },
-      {
         "@type": "Article",
         headline: title,
         description,
+        url: canonical,
+        mainEntityOfPage: canonical,
+        inLanguage: "en",
+        image: {
+          "@type": "ImageObject",
+          url: ogImage,
+          width: 1200,
+          height: 630,
+        },
         author: { "@type": "Organization", name: "FundRaisely" },
         publisher: {
           "@type": "Organization",
           name: "FundRaisely",
           logo: {
             "@type": "ImageObject",
-            url: "/images/brand/fundraisely-og.png",
+            url: `${origin}/images/brand/fundraisely-og.png`,
+            width: 512,
+            height: 512,
           },
         },
-        mainEntityOfPage: canonical,
         datePublished: "2025-10-25",
         dateModified: "2025-10-25",
         articleSection: "Privacy, Product R&D",
-        keywords: "anonymous donations, donor privacy, privacy-preserving receipts, digital giving, blockchain privacy, charitable giving, MPC receipts, cash alternatives",
+        keywords:
+          "anonymous donations, donor privacy, privacy-preserving receipts, digital giving, blockchain privacy, charitable giving, MPC receipts, cash alternatives",
       },
     ],
   };
@@ -136,11 +155,30 @@ export default function PrivacyPreservingDonationsBlog() {
       <SEO
         title={title}
         description={description}
-        // canonical={canonical}
+        type="article"
+        image={ogImage}
+        article={{
+          publishedTime: "2025-10-25",
+          modifiedTime: "2025-10-25",
+          section: "Privacy, Product R&D",
+          tags: [
+            "anonymous donations",
+            "donor privacy",
+            "privacy-preserving receipts",
+            "digital giving",
+            "blockchain privacy",
+            "charitable giving",
+            "MPC receipts",
+            "cash alternatives",
+          ],
+        }}
+        breadcrumbs={breadcrumbs}
         structuredData={structuredData}
       />
 
       <Header />
+
+
 
       {/* HERO */}
       <section className="px-4 pt-20 pb-12 bg-gradient-to-br from-indigo-50 via-purple-50 to-cyan-50">
@@ -150,9 +188,13 @@ export default function PrivacyPreservingDonationsBlog() {
           </h1>
           
           <p className="text-xl text-indigo-900/70 leading-relaxed mb-8">
-            Cash is fading, but dignity in giving shouldn't. See how FundRaisely's hackathon prototype 
+            Cash is fading, but dignity in giving shouldn't.  See how FundRaisely's hackathon prototype on a public Blockchain 
             uses privacy-preserving receipts to protect donors while keeping charities confident and compliant.
           </p>
+
+            <InfoBox type="caregiver">
+              FundRaisely is committed to building tech for good, tech that will help clubs, charities, and communities thrive.  We are innovating with care, balancing privacy with compliance, and always putting people first.
+            </InfoBox>
 
           <PrototypeNotice />
 
@@ -210,7 +252,7 @@ export default function PrivacyPreservingDonationsBlog() {
             <p className="text-indigo-900/80 leading-relaxed">
               FundRaisely's hackathon prototype explores a path forward: <strong className="text-indigo-900">
               Privacy-Preserving Donations</strong> that keep donors out of the spotlight while preserving 
-              what matters to charities — authenticity, totals, and responsible stewardship.
+              what matters to charities — authenticity, and responsible stewardship.
             </p>
           </section>
 
@@ -246,6 +288,12 @@ export default function PrivacyPreservingDonationsBlog() {
                 title="Privacy has ethical dimension"
                 description="In the Caregiver spirit, privacy respects people as ends in themselves, not lists in a CRM. Recognition can be wonderful; it should never be mandatory."
               />
+
+                   <FeatureHighlight
+                icon={<Shield className="h-6 w-6" />}
+                title="Privacy preserves dignity"
+                description="Smaller donors often give in proportion to their means. Publicising small gifts can inadvertently shame or pressure them. Privacy lets everyone give according to their values, without spotlighting their wallet."
+              />
             </div>
           </section>
 
@@ -261,7 +309,7 @@ export default function PrivacyPreservingDonationsBlog() {
               As digital payments dominate, governments now legislate to preserve access to cash, acknowledging 
               its role for inclusion and choice. Ireland's Finance (Provision of Access to Cash Infrastructure) 
               Act 2025 exists precisely because cash use has been declining while still remaining important for 
-              many consumers — including for privacy.
+              many consumers - including for privacy.
             </p>
 
             <p className="text-indigo-900/80 leading-relaxed mb-6">
@@ -323,12 +371,12 @@ export default function PrivacyPreservingDonationsBlog() {
           {/* Blockchain Transparency */}
           <section className="mb-12">
             <h2 className="text-3xl font-bold text-indigo-900 mb-6">
-              "But blockchains are transparent" — yes, and that's both strength and challenge
+              "But blockchains are transparent" - yes, and that's both strength and challenge
             </h2>
 
             <p className="text-indigo-900/80 leading-relaxed mb-6">
               Public ledgers make totals auditable and time-stamped. That's valuable. But they also make 
-              addresses and flows observable, which can be reconstructed into behavioural profiles — great 
+              addresses and flows observable, which can be reconstructed into behavioural profiles - great 
               for reconciling program wallets, not great for donor privacy.
             </p>
 
@@ -354,8 +402,7 @@ export default function PrivacyPreservingDonationsBlog() {
                 <div>
                   <div className="font-bold text-indigo-900 text-xl mb-2">Goal</div>
                   <p className="text-indigo-900/80 leading-relaxed">
-                    Enable cash-like discretion for donors and a verifiable receipt for charities — without 
-                    publicly linking a donor's wallet to the donation.
+                   Enable a streamlined donation flow that issues a privacy-preserving receipt proving your tier (Bronze/Silver/Gold/Platinum) — enough to unlock benefits, without revealing your exact amount or tying the receipt to your identity in public UIs. Organisers get aggregate insights in the Impact Dashboard; donors redeem benefits via a simple Claims Portal.
                   </p>
                 </div>
               </div>
@@ -399,7 +446,7 @@ export default function PrivacyPreservingDonationsBlog() {
                 <ul className="space-y-2">
                   {[
                     'The donor\'s public wallet address',
-                    'Any linkable on-chain identity'
+                    'Actual amount donated (beyond tier checks)',
                   ].map((item, i) => (
                     <li key={i} className="flex items-start gap-2">
                       <div className="h-1.5 w-1.5 rounded-full bg-indigo-600 flex-shrink-0 mt-2" />
@@ -462,7 +509,7 @@ export default function PrivacyPreservingDonationsBlog() {
                 },
                 {
                   title: 'Opt-ins over assumptions',
-                  desc: 'If a donor wants follow-up or to claim tax treatment, they can opt-in to share more — deliberately, not automatically.'
+                  desc: 'If a donor wants follow-up or to claim tax treatment, they can opt-in to share more - deliberately, not automatically.'
                 }
               ].map((item, i) => (
                 <div key={i} className="rounded-xl border border-indigo-100 bg-white p-5 shadow-sm">
@@ -475,68 +522,7 @@ export default function PrivacyPreservingDonationsBlog() {
 
           <SectionDivider />
 
-          {/* Real-World Flows */}
-          <section className="mb-12">
-            <h2 className="text-3xl font-bold text-indigo-900 mb-6">
-              Real-world flows: public, semi-private, fully private
-            </h2>
 
-            <p className="text-indigo-900/80 leading-relaxed mb-6">
-              Different donors want different levels of discretion. Our approach is mode-flexible:
-            </p>
-
-            <div className="space-y-4">
-              <div className="rounded-xl border-2 border-green-200 bg-green-50/50 p-6">
-                <div className="flex items-start gap-3">
-                  <div className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 text-white text-lg font-bold flex-shrink-0">
-                    1
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-indigo-900 text-lg mb-2">Public</h4>
-                    <p className="text-sm text-indigo-900/70 leading-relaxed">
-                      Donor is happy to be known. Charity can attribute openly. Ledger flows may remain public.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-xl border-2 border-blue-200 bg-blue-50/50 p-6">
-                <div className="flex items-start gap-3">
-                  <div className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 text-white text-lg font-bold flex-shrink-0">
-                    2
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-indigo-900 text-lg mb-2">Semi-private</h4>
-                    <p className="text-sm text-indigo-900/70 leading-relaxed">
-                      Donor shares an email or off-chain contact for perks, but not a public wallet. The 
-                      privacy computation confirms a valid donation; the charity grants benefits accordingly.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-xl border-2 border-purple-200 bg-purple-50/50 p-6">
-                <div className="flex items-start gap-3">
-                  <div className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-indigo-500 text-white text-lg font-bold flex-shrink-0">
-                    3
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-indigo-900 text-lg mb-2">
-                      Fully private <span className="text-sm font-normal text-purple-600">(future, KYC-gated)</span>
-                    </h4>
-                    <p className="text-sm text-indigo-900/70 leading-relaxed">
-                      For high-sensitivity use cases, a KYC-gated full anonymity mode could let a regulated 
-                      partner vet legitimacy off-chain while the charity (and public) never see identity — 
-                      unless a lawful trigger applies. This is not live; it is a roadmap direction contingent 
-                      on legal, security, and partner work.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <SectionDivider />
 
           {/* Charity Playbook */}
           <section className="mb-12">
@@ -594,7 +580,7 @@ export default function PrivacyPreservingDonationsBlog() {
                   content: (
                     <p>
                       Your policy should state what information is required to process a refund when donor identity is 
-                      private. The privacy receipt can act as a cryptographic claim ticket — enough to validate that this 
+                      private. The privacy receipt can act as a cryptographic claim ticket - enough to validate that this 
                       donor made that gift, without outing them publicly.
                     </p>
                   )
@@ -650,9 +636,9 @@ export default function PrivacyPreservingDonationsBlog() {
               <h3 className="font-bold text-indigo-900 text-xl mb-4">What this demo does today</h3>
               <ul className="space-y-2">
                 {[
-                  'Lets you make a privacy-preserving donation (your public wallet isn\'t linked in a way that\'s exposed to others)',
+                  'Lets you make a privacy-preserving donation (your public wallet isn\'t linked in the receipt)',
                   'Issues a privacy-preserving receipt that proves a valid donation occurred (and, if applicable, met a tier)',
-                  'Lets you vote for a charity to receive a free FundRaisely subscription when the pooled fund crosses a threshold'
+                  'Let\'s you claim tier based benefits, in this example it lets you vote for a charity to receive a free FundRaisely subscription when the pooled fund crosses a threshold'
                 ].map((item, i) => (
                   <li key={i} className="flex items-start gap-3">
                     <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
@@ -681,8 +667,8 @@ export default function PrivacyPreservingDonationsBlog() {
                   )
                 },
                 {
-                  step: 'Pick your flow',
-                  detail: 'Privacy-Preserving Donation (recommended): proof without public exposure. Or Simple Donation (for comparison): a basic, non-private transfer.'
+                  step: 'Select Donate Now',
+                  detail: 'For this prototype, we\'re focusing on the donation flow. Click "Donate Now" to begin.'
                 },
                 {
                   step: 'Enter your amount',
@@ -702,7 +688,11 @@ export default function PrivacyPreservingDonationsBlog() {
                 },
                 {
                   step: 'Cast your vote (optional, recommended)',
-                  detail: 'Choose a charity to receive a free FundRaisely subscription once the pooled balance reaches the threshold. Your vote helps direct impact.'
+                  detail: 'In this demo you can choose a charity to receive a free FundRaisely subscription once the pooled balance reaches the threshold. Your vote helps direct impact. The chartity doesnt need to worry about crypto complexity; we handle it on their behalf.'
+                },
+                  {
+                  step: 'Check out the Impact Dashboard',
+                  detail: 'The impact dashboard shows aggregate totals and tier breakdowns without exposing individual donors. This is what a charity would see to reconcile funds.'
                 }
               ].map((item, i) => (
                 <div key={i} className="flex gap-4 items-start rounded-xl border border-indigo-100 bg-white p-4 shadow-sm">
@@ -786,7 +776,7 @@ export default function PrivacyPreservingDonationsBlog() {
                 },
                 {
                   title: 'Donor-side clarity',
-                  desc: 'Cleaner explanations of privacy vs tax uplift trade-offs (Caregiver language). Friction-free opt-in for perks delivery (email or alt contact), still unlinking public wallet data. More accessible error messages and refund guidance using the privacy receipt as a claim token.',
+                  desc: 'Cleaner explanations of privacy vs tax uplift trade-offs. Friction-free opt-in for perks delivery (email or alt contact), still unlinking public wallet data. More accessible error messages and refund guidance using the privacy receipt as a claim token.',
                   color: 'from-teal-500 to-green-500'
                 },
                 {
@@ -933,7 +923,7 @@ export default function PrivacyPreservingDonationsBlog() {
                 Book a Walkthrough
               </a>
               <a
-                href="/waitlist"
+                href="/signup"
                 className="inline-flex items-center justify-center rounded-xl border-2 border-indigo-200 bg-white px-6 py-4 text-indigo-900 font-semibold hover:bg-indigo-50 transition-all duration-300 shadow-sm text-lg"
               >
                 Join the Waitlist
@@ -942,6 +932,8 @@ export default function PrivacyPreservingDonationsBlog() {
           </div>
         </div>
       </section>
+
+   <SiteFooter />
     </>
   );
 }

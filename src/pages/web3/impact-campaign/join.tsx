@@ -318,7 +318,7 @@ const JoinImpactCampaignPage: React.FC = () => {
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 font-bold flex-shrink-0">2</div>
                       <div>
                         <h3 className="font-semibold text-lg">Configure Rounds</h3>
-                        <p className="text-gray-600">Select a preconfigured quiz or customise your own</p>
+                        <p className="text-gray-600">Select a preconfigured quiz</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
