@@ -1,9 +1,9 @@
-import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useQuizSocket } from '../sockets/QuizSocketProvider';
+import React from 'react'; 
+import { useNavigate } from 'react-router-dom';
+
 import { usePlayerStore } from '../hooks/usePlayerStore';
 import { useQuizConfig } from '../hooks/useQuizConfig';
-import { Lock, TrendingUp, Users, DollarSign } from 'lucide-react';
+import { Lock, TrendingUp, Users, DollarSign, Scale } from 'lucide-react';
 
 import ReconciliationApproval from '../payments/ReconciliationApproval';
 import ReconciliationDownloads from '../payments/ReconciliationDownloads';
@@ -21,8 +21,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 const PaymentReconciliationPanel: React.FC = () => {
-  const { roomId } = useParams();
-  const { socket } = useQuizSocket();
+
   const { players } = usePlayerStore();
   const { config, currentPhase } = useQuizConfig();
   const isComplete = currentPhase === 'complete';
@@ -44,7 +43,7 @@ const PaymentReconciliationPanel: React.FC = () => {
   // Determine if reconciliation features should be locked
   const isLocked = !isComplete || !prizesDone;
 
-  // ----- totals & breakdown -----
+  // ----- totals & breakdown (StartingReceived) -----
   const paymentData: Record<string, MethodTotals> = {};
   const activePlayers = players.filter((p) => !p.disqualified);
   const paidPlayers = activePlayers.filter((p) => p.paid);
@@ -76,7 +75,29 @@ const PaymentReconciliationPanel: React.FC = () => {
   const totalEntryReceived = paidPlayers.length * entryFee;
   const totalExtrasAmount = Object.values(paymentData).reduce((s, v) => s + v.extrasAmount, 0);
   const totalExtrasCount = Object.values(paymentData).reduce((s, v) => s + v.extrasCount, 0);
-  const totalReceived = totalEntryReceived + totalExtrasAmount;
+  const startingReceived = totalEntryReceived + totalExtrasAmount;
+
+  // ----- Net Adjustments from Ledger -----
+  const rec = (config?.reconciliation as any) || {};
+  const ledger = (rec.ledger as any[]) || [];
+
+  // Helper: sum by predicate
+  const sumIf = (fn: (l: any) => boolean) =>
+    ledger.reduce((acc, l) => acc + (fn(l) ? Number(l.amount || 0) : 0), 0);
+
+  const adjReceived = sumIf((l) => l.type === 'received'); // +
+  const adjRefunds  = sumIf((l) => l.type === 'refund');   // -
+  const adjFees     = sumIf((l) => l.type === 'fee');      // -
+  const adjPrize    = sumIf((l) => l.type === 'prize_payout'); // -
+  const adjCashOver = sumIf((l) => l.type === 'cash_over_short' && l.reasonCode === 'cash_over'); // +
+  const adjCashShort= sumIf((l) => l.type === 'cash_over_short' && l.reasonCode === 'cash_short'); // -
+
+  const increases = adjReceived + adjCashOver;
+  const reductions = adjRefunds + adjFees + adjPrize + adjCashShort;
+  const netAdjustments = increases - reductions;
+
+  const reconciledTotal = startingReceived + netAdjustments;
+
   const fmt = (n: number) => `${currency}${n.toFixed(2)}`;
 
   return (
@@ -123,24 +144,23 @@ const PaymentReconciliationPanel: React.FC = () => {
             <div className="rounded-lg bg-white border border-blue-200 p-3">
               <div className="flex items-center gap-2 mb-1">
                 <DollarSign className="h-4 w-4 text-green-600" />
-                <div className="text-xs font-medium text-gray-600">Total Received</div>
+                <div className="text-xs font-medium text-gray-600">Starting Received</div>
               </div>
-              <div className="text-xl font-bold text-gray-900">{fmt(totalReceived)}</div>
+              <div className="text-xl font-bold text-gray-900">{fmt(startingReceived)}</div>
             </div>
             <div className="rounded-lg bg-white border border-blue-200 p-3">
               <div className="flex items-center gap-2 mb-1">
-                <DollarSign className="h-4 w-4 text-blue-600" />
-                <div className="text-xs font-medium text-gray-600">Entry Fees</div>
+                <Scale className="h-4 w-4 text-blue-600" />
+                <div className="text-xs font-medium text-gray-600">Net Adjustments</div>
               </div>
-              <div className="text-xl font-bold text-gray-900">{fmt(totalEntryReceived)}</div>
+              <div className="text-xl font-bold text-gray-900">{fmt(netAdjustments)}</div>
             </div>
             <div className="rounded-lg bg-white border border-blue-200 p-3">
               <div className="flex items-center gap-2 mb-1">
                 <DollarSign className="h-4 w-4 text-purple-600" />
-                <div className="text-xs font-medium text-gray-600">Extras</div>
+                <div className="text-xs font-medium text-gray-600">Reconciled Total</div>
               </div>
-              <div className="text-xl font-bold text-gray-900">{fmt(totalExtrasAmount)}</div>
-              <div className="text-xs text-gray-600">{totalExtrasCount} items</div>
+              <div className="text-xl font-bold text-gray-900">{fmt(reconciledTotal)}</div>
             </div>
           </div>
           {unpaidPlayers.length > 0 && (
@@ -193,10 +213,6 @@ const PaymentReconciliationPanel: React.FC = () => {
         )}
         <div className={`grid grid-cols-1 lg:grid-cols-2 gap-4 ${isLocked ? 'opacity-40' : ''}`}>
           <ReconciliationApproval />
-          {/* 
-            🔴 REMOVED: onArchiveComplete callback
-            The component now handles cleanup internally via socket
-          */}
           <ReconciliationDownloads allRoundsStats={[]} />
         </div>
       </div>
@@ -204,13 +220,14 @@ const PaymentReconciliationPanel: React.FC = () => {
       {/* FINANCIAL OVERVIEW */}
       <div className="mb-8">
         <h2 className="text-xl font-bold text-gray-900 mb-4">💰 Financial Overview</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
           <Stat label="Total Players" value={String(totalPlayers)} />
           <Stat label="Paid" value={String(paidPlayers.length)} />
           <Stat label="Unpaid" value={String(unpaidPlayers.length)} />
           <Stat label="Entry Fee" value={fmt(entryFee)} />
           <Stat label="Extras" value={String(totalExtrasCount)} />
-          <Stat label="Total Received" value={fmt(totalReceived)} />
+          <Stat label="Starting Received" value={fmt(startingReceived)} />
+          <Stat label="Reconciled Total" value={fmt(reconciledTotal)} />
         </div>
       </div>
 
@@ -237,7 +254,7 @@ const PaymentReconciliationPanel: React.FC = () => {
                   Total
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                  % of Total
+                  % of Starting
                 </th>
               </tr>
             </thead>
@@ -250,7 +267,7 @@ const PaymentReconciliationPanel: React.FC = () => {
                   <td className="px-4 py-3 text-sm text-gray-700">{fmt(d.extrasAmount)}</td>
                   <td className="px-4 py-3 text-sm font-semibold text-gray-900">{fmt(d.total)}</td>
                   <td className="px-4 py-3 text-sm text-gray-700">
-                    {totalReceived > 0 ? `${((d.total / totalReceived) * 100).toFixed(1)}%` : '—'}
+                    {startingReceived > 0 ? `${((d.total / startingReceived) * 100).toFixed(1)}%` : '—'}
                   </td>
                 </tr>
               ))}
@@ -259,7 +276,7 @@ const PaymentReconciliationPanel: React.FC = () => {
                 <td className="px-4 py-3 text-sm text-gray-900">{fmt(totalEntryReceived)}</td>
                 <td className="px-4 py-3 text-sm text-gray-900">{totalExtrasCount}</td>
                 <td className="px-4 py-3 text-sm text-gray-900">{fmt(totalExtrasAmount)}</td>
-                <td className="px-4 py-3 text-sm text-gray-900">{fmt(totalReceived)}</td>
+                <td className="px-4 py-3 text-sm text-gray-900">{fmt(startingReceived)}</td>
                 <td className="px-4 py-3 text-sm text-gray-900">100%</td>
               </tr>
             </tbody>
@@ -299,6 +316,7 @@ const PaymentReconciliationPanel: React.FC = () => {
 };
 
 export default PaymentReconciliationPanel;
+
 
 
 

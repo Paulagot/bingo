@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+// src/components/Quiz/dashboard/SetupSummaryPanel.tsx
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuizConfig } from '../hooks/useQuizConfig';
 import { Link } from 'react-router-dom';
 
@@ -21,15 +22,48 @@ import {
 import { roundTypeDefinitions, fundraisingExtraDefinitions } from '../constants/quizMetadata';
 import { useRoomIdentity } from '../hooks/useRoomIdentity';
 
+// ---------- DIAGNOSTIC LOGS ----------
+console.count('%cSetupSummaryPanel render' );
+
 const SetupSummaryPanel: React.FC = () => {
   const { config } = useQuizConfig();
   const { roomId } = useRoomIdentity();
+
+  useEffect(() => {
+    console.log('[SetupSummaryPanel] mount');
+    return () => console.log('[SetupSummaryPanel] unmount');
+  }, []);
+
+  useEffect(() => {
+    console.log('[SetupSummaryPanel] roomId changed:', roomId);
+  }, [roomId]);
+
+  useEffect(() => {
+    // do *not* set state from here; this is just a snapshot log
+    if (config) {
+      const snap = {
+        hostName: config.hostName,
+        entryFee: config.entryFee,
+        paymentMethod: config.paymentMethod,
+        prizeMode: config.prizeMode,
+        rounds: Array.isArray(config.roundDefinitions) ? config.roundDefinitions.length : 0,
+      };
+      console.log('[SetupSummaryPanel] config snapshot:', snap);
+    } else {
+      console.log('[SetupSummaryPanel] config is null/undefined');
+    }
+  }, [config]);
 
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     rounds: false,
     extras: false,
     prizes: false
   });
+
+  const toggleSection = (section: string) => {
+    console.log('[SetupSummaryPanel] toggleSection:', section);
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
 
   if (!config || !config.hostName) {
     return (
@@ -80,39 +114,27 @@ const SetupSummaryPanel: React.FC = () => {
         )
     : [];
 
-  const toggleSection = (section: string) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
-  };
+  const estimatedTime = useMemo(() => {
+    const minutes =
+      roundDefinitions?.reduce((total: number, round: any) => {
+        const cfg = round.config;
+        let roundTime = 2.5; // buffer
 
-  const getDifficultyColor = (difficulty: string) => {
-    const normalized = difficulty.toLowerCase();
-    switch (normalized) {
-      case 'easy': return 'bg-green-100 text-green-700 border-green-300';
-      case 'medium': return 'bg-yellow-100 text-yellow-700 border-yellow-300';
-      case 'hard': return 'bg-red-100 text-red-700 border-red-300';
-      default: return 'bg-gray-100 text-gray-700 border-gray-300';
-    }
-  };
+        if (cfg.totalTimeSeconds) {
+          roundTime += cfg.totalTimeSeconds / 60;
+        } else if (cfg.questionsPerRound && cfg.timePerQuestion) {
+          roundTime += (cfg.questionsPerRound * cfg.timePerQuestion) / 60;
+        } else {
+          roundTime += 5;
+        }
 
-  const estimatedTime =
-    roundDefinitions?.reduce((total: number, round: any) => {
-      const cfg = round.config;
-      let roundTime = 2.5; // buffer
+        return total + roundTime;
+      }, 0) || 0;
+    console.log('[SetupSummaryPanel] estimatedTime recomputed:', minutes);
+    return minutes;
+  }, [roundDefinitions]);
 
-      if (cfg.totalTimeSeconds) {
-        roundTime += cfg.totalTimeSeconds / 60;
-      } else if (cfg.questionsPerRound && cfg.timePerQuestion) {
-        roundTime += (cfg.questionsPerRound * cfg.timePerQuestion) / 60;
-      } else {
-        roundTime += 5;
-      }
-
-      return total + roundTime;
-    }, 0) || 0;
-
+  // ---- UI ----
   return (
     <div className="bg-gray-50 rounded-xl p-6 md:p-8 shadow-md">
       {/* Header */}
@@ -126,7 +148,18 @@ const SetupSummaryPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* 🔒 Asset-room gating notice (Web3 + prizeMode==='assets' AND assets not fully uploaded) */}
+      {/* Room Info */}
+      {roomId && (
+        <div className="rounded-lg border-2 border-indigo-200 bg-indigo-50 p-4 mb-6">
+          <div className="flex items-center gap-2 mb-2">
+            <FileText className="h-4 w-4 text-indigo-700" />
+            <span className="text-xs font-semibold text-indigo-800 uppercase tracking-wider">Room ID</span>
+          </div>
+          <div className="font-mono text-lg font-bold text-indigo-900">{roomId}</div>
+        </div>
+      )}
+
+      {/* 🔒 Asset-room gating notice */}
       {showAssetsNotReadyBanner && (
         <div className="mb-6 rounded-xl border-2 border-amber-300 bg-amber-50 p-4">
           <div className="flex items-start gap-3">
@@ -148,6 +181,7 @@ const SetupSummaryPanel: React.FC = () => {
                 <Link
                   to="?tab=assets"
                   className="inline-flex items-center rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700"
+                  onClick={() => console.log('[SetupSummaryPanel] click → Go to Asset Upload')}
                 >
                   Go to Asset Upload
                 </Link>
@@ -204,30 +238,6 @@ const SetupSummaryPanel: React.FC = () => {
         )}
       </div>
 
-      {/* Room Info */}
-      {roomId && (
-        <div className="rounded-lg border-2 border-indigo-200 bg-indigo-50 p-4 mb-6">
-          <div className="flex items-center gap-2 mb-2">
-            <FileText className="h-4 w-4 text-indigo-700" />
-            <span className="text-xs font-semibold text-indigo-800 uppercase tracking-wider">Room ID</span>
-          </div>
-          <div className="font-mono text-lg font-bold text-indigo-900">{roomId}</div>
-        </div>
-      )}
-
-      {/* QR Code Sharing Section (moved to Players tab; keep commented for reference) */}
-      {/*
-      {isWeb3Room && roomId && (
-        <div className="mb-6">
-          <QRCodeShare
-            roomId={roomId}
-            hostName={hostName}
-            gameType={config?.gameType}
-          />
-        </div>
-      )}
-      */}
-
       {/* Rounds Section */}
       <div className="rounded-xl border-2 border-gray-200 bg-white mb-4 overflow-hidden">
         <button
@@ -257,7 +267,6 @@ const SetupSummaryPanel: React.FC = () => {
             {roundDefinitions && roundDefinitions.length > 0 ? (
               <div className="space-y-3">
                 {roundDefinitions.map((round: any, index: number) => {
-                  // Narrow the key used to index roundTypeDefinitions
                   const roundTypeKey = round?.roundType as keyof typeof roundTypeDefinitions;
                   const roundTypeDef = roundTypeDefinitions[roundTypeKey];
 
@@ -275,8 +284,6 @@ const SetupSummaryPanel: React.FC = () => {
                     })
                     .filter(({ extraDef }) => {
                       if (!extraDef) return false;
-
-                      // If specific round types are listed, ensure we compare with a narrowed key
                       if (Array.isArray(extraDef.applicableTo)) {
                         return extraDef.applicableTo.includes(roundTypeKey as any);
                       }
@@ -308,7 +315,17 @@ const SetupSummaryPanel: React.FC = () => {
                             </div>
                             <div className="flex flex-wrap gap-2">
                               {round.difficulty && (
-                                <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${getDifficultyColor(round.difficulty.charAt(0).toUpperCase() + round.difficulty.slice(1))}`}>
+                                <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                                  (() => {
+                                    const d = round.difficulty.toLowerCase();
+                                    switch (d) {
+                                      case 'easy': return 'bg-green-100 text-green-700 border-green-300';
+                                      case 'medium': return 'bg-yellow-100 text-yellow-700 border-yellow-300';
+                                      case 'hard': return 'bg-red-100 text-red-700 border-red-300';
+                                      default: return 'bg-gray-100 text-gray-700 border-gray-300';
+                                    }
+                                  })()
+                                }`}>
                                   {round.difficulty.charAt(0).toUpperCase() + round.difficulty.slice(1)}
                                 </span>
                               )}
@@ -358,7 +375,10 @@ const SetupSummaryPanel: React.FC = () => {
                             {applicableExtras.map(({ key, extraDef }, extraIdx) => {
                               const price = fundraisingPrices?.[key];
                               return (
-                                <div key={extraIdx} className="inline-flex items-center gap-1.5 rounded-full border border-green-300 bg-green-100 px-2.5 py-1 text-xs font-medium text-green-800">
+                                <div
+                                  key={extraIdx}
+                                  className="inline-flex items-center gap-1.5 rounded-full border border-green-300 bg-green-100 px-2.5 py-1 text-xs font-medium text-green-800"
+                                >
                                   <span>{extraDef?.icon || '💰'}</span>
                                   <span>{extraDef?.label || key}</span>
                                   {price && <span>({currencySymbol ?? ''}{price})</span>}
@@ -558,6 +578,7 @@ const SetupSummaryPanel: React.FC = () => {
 };
 
 export default SetupSummaryPanel;
+
 
 
 

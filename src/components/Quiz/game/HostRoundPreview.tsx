@@ -15,7 +15,7 @@ interface HostRoundPreviewProps {
 
 const HostRoundPreview: React.FC<HostRoundPreviewProps> = ({
   currentRound,
-  totalRounds,
+
   config,
   roomPhase,
   totalPlayers,
