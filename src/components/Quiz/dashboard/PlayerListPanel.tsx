@@ -1,14 +1,13 @@
-// src/components/Quiz/dashboard/PlayerListPanel.tsx
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { usePlayerStore } from '../hooks/usePlayerStore';
 import { useQuizConfig } from '../hooks/useQuizConfig';
 import { QRCodeCanvas } from 'qrcode.react';
 import AddPlayerModal from './AddPlayerModal';
+import { useRoomIdentity } from '../hooks/useRoomIdentity';
+import QRCodeShare from './QRCodeShare';
 import { 
-  BadgeCheck, 
-  BadgeX, 
+  
   Users, 
   UserPlus, 
   QrCode, 
@@ -16,7 +15,8 @@ import {
   X,
   AlertCircle,
   CheckCircle2,
-  XCircle
+  XCircle,
+  AlertTriangle
 } from 'lucide-react';
 import { fundraisingExtras } from '../types/quiz';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
@@ -24,12 +24,27 @@ import PlayerSearchInput from '../game/PlayerSearchInput';
 
 const PlayerListPanel: React.FC = () => {
   const { config } = useQuizConfig();
-  const { roomId } = useParams();
+  // Prefer canonical room id from identity, fallback to route param
+  const { roomId: identityRoomId } = useRoomIdentity();
+  const { roomId: routeRoomId } = useParams();
+  const roomId = identityRoomId || routeRoomId || '';
+
   const { players } = usePlayerStore();
 
   const isWeb3 = config?.paymentMethod === 'web3' || config?.isWeb3Room;
   const maxPlayers = isWeb3 ? Number.POSITIVE_INFINITY : (config?.roomCaps?.maxPlayers ?? 20);
   const atCapacity = isWeb3 ? false : ((players?.length || 0) >= maxPlayers);
+
+  // Asset room gating for room-level QR
+  const isAssetRoom = isWeb3 && config?.prizeMode === 'assets';
+  const assetPrizes = useMemo(
+    () => (Array.isArray(config?.prizes) ? config!.prizes! : []).filter((p: any) => p?.tokenAddress),
+    [config?.prizes]
+  );
+  const allAssetsUploaded =
+    assetPrizes.length > 0 &&
+    assetPrizes.every((p: any) => p?.uploadStatus === 'completed');
+  const showRoomQR = isWeb3 && (!isAssetRoom || allAssetsUploaded);
 
   const [newName, setNewName] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -142,6 +157,34 @@ const PlayerListPanel: React.FC = () => {
         </div>
       </div>
 
+      {/* Room-level QR (Web3 only). For asset rooms, require all assets uploaded first. */}
+      {isWeb3 && roomId && (
+        showRoomQR ? (
+          <div className="mb-6">
+            <QRCodeShare
+              roomId={roomId}
+              hostName={config?.hostName}
+              gameType={config?.gameType}
+            />
+          </div>
+        ) : isAssetRoom ? (
+          <div className="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
+              <div className="text-sm text-yellow-800">
+                <p className="font-medium">QR joining is locked for asset rooms.</p>
+                <p className="mt-1">
+                  Add and upload all digital prize assets first.{' '}
+                  {assetPrizes.length === 0
+                    ? 'No assets configured yet.'
+                    : `Uploaded ${assetPrizes.filter((p: any) => p?.uploadStatus === 'completed').length}/${assetPrizes.length}.`}
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : null
+      )}
+
       {/* Add Player Section (Web2 only) */}
       {!isWeb3 && (
         <div className="mb-6 rounded-lg border-2 border-indigo-200 bg-white p-4">
@@ -195,7 +238,7 @@ const PlayerListPanel: React.FC = () => {
           setNewName('');
         }}
         initialName={newName}
-        roomId={roomId || ''}
+        roomId={roomId}
       />
 
       {/* Empty State */}
@@ -365,6 +408,7 @@ const PlayerListPanel: React.FC = () => {
 };
 
 export default PlayerListPanel;
+
 
 
 

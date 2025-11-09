@@ -88,39 +88,79 @@ app.post('/api/tgb/webhook', tgbWebhookHandler);
 /* ──────────────────────────────────────────────────────────
    Security headers (safe defaults; CSP in Report-Only)
    ────────────────────────────────────────────────────────── */
+// Security headers (safe defaults)
 app.use(helmet({
   xPoweredBy: false,
-  frameguard: { action: 'sameorigin' },                       // X-Frame-Options: SAMEORIGIN
+  // Coinbase Smart Wallet: COOP must NOT be 'same-origin'.
+  // Use 'same-origin-allow-popups' globally, or disable on wallet routes.
+  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-  crossOriginOpenerPolicy: { policy: 'same-origin' },         // COOP
-  crossOriginResourcePolicy: { policy: 'same-site' },         // safe with your CDNs
+  // Keep resource policy conservative; adjust if you serve from multiple domains.
+  crossOriginResourcePolicy: { policy: 'same-site' },
 }));
 
-// HSTS (prod only) — 1 year, no preload (enable later when ready)
-if (isProd) {
-  app.use(helmet.hsts({
-    maxAge: 31536000,          // 1 year in seconds
-    includeSubDomains: true,
-    preload: true,            // set to true only when you’re ready to preload the domain
-  }));
-}
+// Build scalable allowlists from env
+const ALLOWED_CONNECT = [
+  "'self'",
+  "https:",
+  "wss:",
+  // API
+  "https://mgtsystem-production.up.railway.app",
+  // WalletConnect & RPCs (wildcards where possible)
+  "https://rpc.walletconnect.org",
+  "https://*.walletconnect.com",
+  "wss://*.walletconnect.com",
+  // Base
+  "https://mainnet.base.org",
+  "https://sepolia.base.org",
+  // Avalanche
+  "https://api.avax.network",
+  "https://api.avax-test.network",
+  "https://avalanche-fuji-c-chain.publicnode.com",
+  "https://*.publicnode.com",
+  "https://*.ankr.com",
+  "https://*.llamarpc.com",
+  "wss://avalanche-fuji.drpc.org",
+  // Add more chains via env (comma-separated)
+  ...(process.env.CSP_CONNECT_EXTRA?.split(',').map(s => s.trim()).filter(Boolean) ?? []),
+];
 
-// CSP (Report-Only) — allow CF beacon; keep 'unsafe-inline' for now due to CF inline bits
 const cspDirectives = {
   defaultSrc: ["'self'"],
   baseUri: ["'self'"],
   objectSrc: ["'none'"],
-  scriptSrc: ["'self'", "https:", "'unsafe-inline'"],      // keep telemetry loose
+
+  // Scripts/styles: keep 'unsafe-inline' if you must (Cloudflare/snippets). Remove when you can.
+  scriptSrc: ["'self'", "https:", "'unsafe-inline'"],
   scriptSrcElem: ["'self'", "https:", "'unsafe-inline'"],
+  // Block inline event handlers from attributes
+  scriptSrcAttr: ["'none'"],
   styleSrc: ["'self'", "https:", "'unsafe-inline'"],
-  imgSrc: ["'self'", "data:", "https:"],
+
+  // Media & workers (nice to be explicit)
+  imgSrc: ["'self'", "data:", "blob:", "https:", "https://images.walletconnect.com", "https://static.walletconnect.com"],
   fontSrc: ["'self'", "https:", "data:"],
-  connectSrc: ["'self'", "https:", "wss:", "https://mgtsystem-production.up.railway.app"],
-  frameSrc: ["'self'", "https://www.youtube.com", "https://www.youtube-nocookie.com"],
+  mediaSrc: ["'self'", "https:"],
+  workerSrc: ["'self'", "blob:"],
+  manifestSrc: ["'self'"],
+
+  // ✅ Allow iframes (YouTube + nocookie; add Vimeo if you ever embed it)
+  frameSrc: ["'self'", "https://www.youtube.com", "https://www.youtube-nocookie.com", "https://player.vimeo.com"],
+  // Who may embed *your* site
   frameAncestors: ["'self'"],
-  // ❌ do NOT include upgradeInsecureRequests in Report-Only
+
+  // RPCs, sockets, APIs (scalable)
+  connectSrc: ALLOWED_CONNECT,
+
+  // If you rely on CF to upgrade mixed content, set this too; otherwise omit.
+  upgradeInsecureRequests: [],
 };
-app.use(helmet.contentSecurityPolicy({ directives: cspDirectives, reportOnly: false }));
+
+app.use(helmet.contentSecurityPolicy({
+  directives: cspDirectives,
+  reportOnly: false, // You can flip to true temporarily to test
+}));
+
 
 // ──────────────────────────────────────────────────────────
 // 301 redirects (run BEFORE routes/static/SPA handlers)

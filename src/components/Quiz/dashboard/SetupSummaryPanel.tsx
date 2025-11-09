@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuizConfig } from '../hooks/useQuizConfig';
 import { Link } from 'react-router-dom';
+
 import { 
   ChevronDown, 
   ChevronRight, 
@@ -14,16 +15,15 @@ import {
   DollarSign,
   CreditCard,
   Wallet,
-  Gift
+  Gift,
+  AlertTriangle
 } from 'lucide-react';
 import { roundTypeDefinitions, fundraisingExtraDefinitions } from '../constants/quizMetadata';
 import { useRoomIdentity } from '../hooks/useRoomIdentity';
-import QRCodeShare from './QRCodeShare';
 
 const SetupSummaryPanel: React.FC = () => {
   const { config } = useQuizConfig();
-  const { roomId, hostId } = useRoomIdentity();
-  const isWeb3 = config?.paymentMethod === 'web3';
+  const { roomId } = useRoomIdentity();
 
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     rounds: false,
@@ -62,6 +62,14 @@ const SetupSummaryPanel: React.FC = () => {
     roundDefinitions
   } = config;
 
+  // Determine if this is a Web3 room and whether it's an Asset room
+  const isWeb3Room = config?.isWeb3Room || paymentMethod === 'web3';
+  const assetPrizes = (Array.isArray(prizes) ? prizes : []).filter((p: any) => p?.tokenAddress);
+  const totalAssets = assetPrizes.length;
+  const completedAssets = assetPrizes.filter((p: any) => p?.uploadStatus === 'completed').length;
+  const isAssetRoom = isWeb3Room && prizeMode === 'assets';
+  const showAssetsNotReadyBanner = isAssetRoom && (totalAssets === 0 || completedAssets < totalAssets);
+
   const activeFundraising = fundraisingOptions
     ? Object.entries(fundraisingOptions)
         .filter(([_, enabled]) => enabled)
@@ -89,20 +97,21 @@ const SetupSummaryPanel: React.FC = () => {
     }
   };
 
-  const estimatedTime = roundDefinitions?.reduce((total, round) => {
-    const config = round.config;
-    let roundTime = 2.5;
-    
-    if (config.totalTimeSeconds) {
-      roundTime += config.totalTimeSeconds / 60;
-    } else if (config.questionsPerRound && config.timePerQuestion) {
-      roundTime += (config.questionsPerRound * config.timePerQuestion) / 60;
-    } else {
-      roundTime += 5;
-    }
-    
-    return total + roundTime;
-  }, 0) || 0;
+  const estimatedTime =
+    roundDefinitions?.reduce((total: number, round: any) => {
+      const cfg = round.config;
+      let roundTime = 2.5; // buffer
+
+      if (cfg.totalTimeSeconds) {
+        roundTime += cfg.totalTimeSeconds / 60;
+      } else if (cfg.questionsPerRound && cfg.timePerQuestion) {
+        roundTime += (cfg.questionsPerRound * cfg.timePerQuestion) / 60;
+      } else {
+        roundTime += 5;
+      }
+
+      return total + roundTime;
+    }, 0) || 0;
 
   return (
     <div className="bg-gray-50 rounded-xl p-6 md:p-8 shadow-md">
@@ -116,6 +125,37 @@ const SetupSummaryPanel: React.FC = () => {
           <p className="text-sm text-gray-600 mt-0.5">Review your quiz configuration</p>
         </div>
       </div>
+
+      {/* 🔒 Asset-room gating notice (Web3 + prizeMode==='assets' AND assets not fully uploaded) */}
+      {showAssetsNotReadyBanner && (
+        <div className="mb-6 rounded-xl border-2 border-amber-300 bg-amber-50 p-4">
+          <div className="flex items-start gap-3">
+            <div className="rounded-lg bg-amber-200 p-2">
+              <AlertTriangle className="h-5 w-5 text-amber-800" />
+            </div>
+            <div className="flex-1 text-amber-900">
+              <div className="font-bold">Players can’t join yet — prize assets not deposited</div>
+              <div className="mt-1 text-sm">
+                This is an <strong>Asset Room</strong>. Before sharing the join QR/link, you must deposit all
+                prize assets to the room’s smart contract.
+                {totalAssets === 0 ? (
+                  <> <br />No prize assets are configured yet.</>
+                ) : (
+                  <> <br />Progress: <strong>{completedAssets}</strong> / <strong>{totalAssets}</strong> uploaded.</>
+                )}
+              </div>
+              <div className="mt-3">
+                <Link
+                  to="?tab=assets"
+                  className="inline-flex items-center rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700"
+                >
+                  Go to Asset Upload
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Basic Info Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
@@ -175,8 +215,9 @@ const SetupSummaryPanel: React.FC = () => {
         </div>
       )}
 
-      {/* QR Code Sharing Section */}
-      {isWeb3 && roomId && (
+      {/* QR Code Sharing Section (moved to Players tab; keep commented for reference) */}
+      {/*
+      {isWeb3Room && roomId && (
         <div className="mb-6">
           <QRCodeShare
             roomId={roomId}
@@ -185,6 +226,7 @@ const SetupSummaryPanel: React.FC = () => {
           />
         </div>
       )}
+      */}
 
       {/* Rounds Section */}
       <div className="rounded-xl border-2 border-gray-200 bg-white mb-4 overflow-hidden">
@@ -214,9 +256,11 @@ const SetupSummaryPanel: React.FC = () => {
           <div className="border-t-2 border-gray-200 p-4 bg-gray-50">
             {roundDefinitions && roundDefinitions.length > 0 ? (
               <div className="space-y-3">
-                {roundDefinitions.map((round, index) => {
-                  const roundTypeDef = roundTypeDefinitions[round.roundType];
-                  
+                {roundDefinitions.map((round: any, index: number) => {
+                  // Narrow the key used to index roundTypeDefinitions
+                  const roundTypeKey = round?.roundType as keyof typeof roundTypeDefinitions;
+                  const roundTypeDef = roundTypeDefinitions[roundTypeKey];
+
                   const applicableExtras = Object.entries(fundraisingOptions || {})
                     .filter(([_, enabled]) => enabled)
                     .map(([key]) => {
@@ -231,8 +275,12 @@ const SetupSummaryPanel: React.FC = () => {
                     })
                     .filter(({ extraDef }) => {
                       if (!extraDef) return false;
-                      return extraDef.applicableTo === 'global' || 
-                             (Array.isArray(extraDef.applicableTo) && extraDef.applicableTo.includes(round.roundType));
+
+                      // If specific round types are listed, ensure we compare with a narrowed key
+                      if (Array.isArray(extraDef.applicableTo)) {
+                        return extraDef.applicableTo.includes(roundTypeKey as any);
+                      }
+                      return extraDef.applicableTo === 'global';
                     });
                   
                   if (!roundTypeDef) {
@@ -403,12 +451,13 @@ const SetupSummaryPanel: React.FC = () => {
                             </div>
                           ) : (
                             <div className="flex flex-wrap gap-1.5">
-                              {extraDef.applicableTo.map((roundType, idx) => {
-                                const roundDef = roundTypeDefinitions[roundType];
+                              {extraDef.applicableTo.map((rt, idx) => {
+                                const rtKey = rt as keyof typeof roundTypeDefinitions;
+                                const roundDef = roundTypeDefinitions[rtKey];
                                 return (
                                   <div key={idx} className="inline-flex items-center gap-1.5 rounded-full border border-blue-300 bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-800">
                                     <span>{roundDef?.icon || '❓'}</span>
-                                    <span>{roundDef?.name || roundType}</span>
+                                    <span>{roundDef?.name || String(rt)}</span>
                                   </div>
                                 );
                               })}
@@ -471,7 +520,7 @@ const SetupSummaryPanel: React.FC = () => {
               </div>
             ) : (prizeMode === 'assets' || prizeMode === 'cash') && prizes ? (
               <div className="space-y-3">
-                {prizes.map((prize, idx) => (
+                {prizes.map((prize: any, idx: number) => (
                   <div key={idx} className="rounded-lg border-2 border-yellow-200 bg-white p-4">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
@@ -509,6 +558,8 @@ const SetupSummaryPanel: React.FC = () => {
 };
 
 export default SetupSummaryPanel;
+
+
 
 
 
