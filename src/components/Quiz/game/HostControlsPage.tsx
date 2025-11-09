@@ -23,7 +23,7 @@ import HostPostgamePanel from '../host-controls/components/HostPostgamePanel';
 
 import { Eye, Timer, Lock } from 'lucide-react';
 import { useQuizTimer } from '../hooks/useQuizTimer';
-import { useSolanaContract } from '@/chains/solana/useSolanaContract';
+import { useSolanaContract } from '../../../chains/solana/useSolanaContract';
 import { PublicKey } from '@solana/web3.js';
 import { toast } from 'sonner';
 
