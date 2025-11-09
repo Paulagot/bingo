@@ -12,19 +12,17 @@ import AdminListPanel from './AdminListPanel';
 import PaymentReconciliationPanel from './PaymentReconciliation';
 import AssetUploadPanel from './AssetUploadPanel';
 
-import BlockchainBadge from './BlockchainBadge'
-
+import BlockchainBadge from './BlockchainBadge';
 import PrizesTab from './PrizesTab';
 
 import { DynamicChainProvider } from '../../chains/DynamicChainProvider';
-import WalletDebugPanel from '../Wizard/WalletDebug';
 import useQuizChainIntegration from '../../../hooks/useQuizChainIntegration';
 
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { useAdminStore } from '../hooks/useAdminStore';
 
 import {
- Users,
+  Users,
   Shield,
   CreditCard,
   Settings,
@@ -38,6 +36,11 @@ const DEBUG = false;
 
 type TabType = 'overview' | 'assets' | 'launch' | 'players' | 'admins' | 'prizes' | 'payments';
 
+const uuid = () =>
+  (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+    ? crypto.randomUUID()
+    : `uuid-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+
 // Core dashboard component (without providers)
 const HostDashboardCore: React.FC = () => {
   const { config, setFullConfig, currentPhase, completedAt } = useQuizConfig();
@@ -48,13 +51,12 @@ const HostDashboardCore: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const requestedOnceRef = useRef(false);
 
-  // URL params (e.g., ?tab=payments&lock=postgame)
   const location = useLocation();
-  const params = new URLSearchParams(location.search);
-  const urlTab = (params.get('tab') as TabType | null) || null;
-  const lockParam = params.get('lock') === 'postgame';
-
   const navigate = useNavigate();
+  const searchParams = new URLSearchParams(location.search);
+  const urlTab = (searchParams.get('tab') as TabType | null) || null;
+  const lockParam = searchParams.get('lock') === 'postgame';
+
   const { socket, connected } = useQuizSocket();
   const { roomId, hostId } = useRoomIdentity();
 
@@ -63,7 +65,7 @@ const HostDashboardCore: React.FC = () => {
   const postGameLock = lockParam || isQuizComplete;
   const completedTime = completedAt ? new Date(completedAt).toLocaleString() : null;
 
-  // Default/selected tab behavior
+  // Default/selected tab behavior (initial)
   useEffect(() => {
     if (urlTab) {
       setActiveTab(urlTab);
@@ -73,11 +75,18 @@ const HostDashboardCore: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlTab, postGameLock]);
 
+  // Keep the URL in sync when the user changes tabs
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (activeTab) {
+      params.set('tab', activeTab);
+      navigate({ search: params.toString() }, { replace: true });
+    }
+  }, [activeTab, location.search, navigate]);
 
   // Request current state/config once when socket connects
   useEffect(() => {
     if (!socket || !connected || !roomId) return;
-
     if (DEBUG) console.log('✅ [HostDashboard] Socket connected, requesting current state/config');
 
     if (!requestedOnceRef.current) {
@@ -94,8 +103,11 @@ const HostDashboardCore: React.FC = () => {
     const handleRoomConfig = (incoming: any) => {
       if (DEBUG) console.log('📋 [HostDashboard] Received room config from socket:', incoming);
 
-      // merge with existing to preserve reconciliation if missing (and late fields)
       const existing = useQuizConfig.getState().config || {};
+      const mergedRecon =
+        typeof incoming?.reconciliation === 'object'
+          ? { ...(existing as any).reconciliation, ...incoming.reconciliation }
+          : (existing as any).reconciliation;
 
       const enhancedConfig = {
         ...existing,
@@ -103,10 +115,10 @@ const HostDashboardCore: React.FC = () => {
         roomId,
         hostId:
           incoming?.hostId ||
-          new URLSearchParams(window.location.search).get('hostId') ||
-          localStorage.getItem('current-host-id') ||
+          (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('hostId') : null) ||
+          (typeof localStorage !== 'undefined' ? localStorage.getItem('current-host-id') : null) ||
           (existing as any).hostId,
-        reconciliation: incoming?.reconciliation ?? (existing as any)?.reconciliation,
+        reconciliation: mergedRecon,
       };
 
       setFullConfig(enhancedConfig);
@@ -114,11 +126,9 @@ const HostDashboardCore: React.FC = () => {
 
     const handleSocketError = (error: { message: string }) => {
       console.error('❌ [HostDashboard] Socket error:', error);
-
-      // If room not found, redirect to home
-      if (error.message.includes('Room not found') || error.message.includes('not found')) {
+      if (error.message?.toLowerCase().includes('not found')) {
         console.warn('🏠 Room not found, redirecting to home');
-        navigate('/');
+        navigate('/', { replace: true });
       }
     };
 
@@ -159,7 +169,7 @@ const HostDashboardCore: React.FC = () => {
     const handleQuizCancelled = () => {
       console.warn('🚫 Quiz was cancelled. Resetting local state.');
       fullQuizReset();
-      navigate('/');
+      navigate('/', { replace: true });
     };
 
     socket.on('quiz_cancelled', handleQuizCancelled);
@@ -181,56 +191,61 @@ const HostDashboardCore: React.FC = () => {
     }
   };
 
-  // Entitlements (unchanged)
+  // Entitlements
   const [ents, setEnts] = useState<any>(null);
   useEffect(() => {
-    import('../../../services/apiService').then(({ apiService }) => {
-      apiService
-        .getEntitlements()
-        .then(setEnts)
-        .catch(() => setEnts(null));
-    });
+    let cancelled = false;
+    import('../../../services/apiService')
+      .then(({ apiService }) => apiService.getEntitlements())
+      .then((data) => {
+        if (!cancelled) setEnts(data);
+      })
+      .catch(() => {
+        if (!cancelled) setEnts(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Derived UI data
   const assetUploadCheck = useMemo(() => {
     if (!(isWeb3 && config?.prizeMode === 'assets')) return true;
-    return config?.prizes?.every((p: any) => !p.tokenAddress || p.uploadStatus === 'completed') !== false;
+    const prizes = Array.isArray(config?.prizes) ? config.prizes : [];
+    const tokenPrizes = prizes.filter((p: any) => p?.tokenAddress);
+    if (tokenPrizes.length === 0) return true; // nothing to upload
+    return tokenPrizes.every((p: any) => p.uploadStatus === 'completed');
   }, [isWeb3, config?.prizeMode, config?.prizes]);
 
   const assetUploadIssues = useMemo(() => {
     if (!(isWeb3 && config?.prizeMode === 'assets')) return [];
-    return config?.prizes?.filter((p: any) => p.tokenAddress && p.uploadStatus !== 'completed') || [];
+    const prizes = Array.isArray(config?.prizes) ? config.prizes : [];
+    return prizes.filter((p: any) => p?.tokenAddress && p.uploadStatus !== 'completed');
   }, [isWeb3, config?.prizeMode, config?.prizes]);
 
   const canLaunch = assetUploadCheck && !isQuizComplete;
 
-    // === Prize workflow gating (Payments locked until prizes resolved) ===
+  // === Prize workflow gating (Payments locked until prizes resolved) ===
   const awards = (config?.reconciliation?.prizeAwards || []) as any[];
   const prizePlaces = new Set((config?.prizes || []).map((p: any) => p.place));
-  const finalStatuses = new Set(['delivered','unclaimed','refused','returned','canceled']);
+  const finalStatuses = new Set(['delivered', 'unclaimed', 'refused', 'returned', 'canceled']);
   const declaredByPlace = new Map<number, any>();
   for (const a of awards) if (typeof a?.place === 'number') declaredByPlace.set(a.place, a);
-  const allDeclared = prizePlaces.size > 0 && [...prizePlaces].every(pl => declaredByPlace.has(pl));
-  const allResolved = prizePlaces.size > 0 && [...prizePlaces].every(pl => finalStatuses.has(declaredByPlace.get(pl)?.status));
+  const allDeclared = prizePlaces.size > 0 && [...prizePlaces].every((pl) => declaredByPlace.has(pl));
+  const allResolved =
+    prizePlaces.size > 0 && [...prizePlaces].every((pl) => finalStatuses.has(declaredByPlace.get(pl)?.status));
   const prizeWorkflowComplete = allDeclared && allResolved;
 
-
   // Tabs model
-   const allTabs = useMemo(
+  const allTabs = useMemo(
     () =>
       [
-        {
-          id: 'overview' as TabType,
-          label: 'Overview',
-          icon: <Settings className="h-4 w-4" />,
-          count: null,
-        },
+        { id: 'overview' as TabType, label: 'Overview', icon: <Settings className="h-4 w-4" />, count: null },
         ...(isWeb3 && config?.prizeMode === 'assets'
           ? [
               {
                 id: 'assets' as TabType,
-                label: 'Upload Assets',
+                label: 'Add Prizes to Contract',
                 icon: <Upload className="h-4 w-4" />,
                 count: config?.prizes?.filter((p: any) => p.uploadStatus === 'completed').length || 0,
               },
@@ -246,22 +261,16 @@ const HostDashboardCore: React.FC = () => {
               },
             ]
           : []),
-        {
-          id: 'players' as TabType,
-          label: 'Players',
-          icon: <Users className="h-4 w-4" />,
-          count: players?.length || 0,
-        },
+        { id: 'players' as TabType, label: 'Players', icon: <Users className="h-4 w-4" />, count: players?.length || 0 },
         ...(isQuizComplete
           ? [
               {
                 id: 'prizes' as TabType,
                 label: 'Prizes',
                 icon: <Gift className="h-4 w-4" />,
-                // show resolved/total for quick glance
                 count:
-                  ((config?.reconciliation?.prizeAwards || []) as any[]).filter(
-                    (a: any) => ['delivered','unclaimed','refused','returned','canceled'].includes(a?.status)
+                  ((config?.reconciliation?.prizeAwards || []) as any[]).filter((a: any) =>
+                    ['delivered', 'unclaimed', 'refused', 'returned', 'canceled'].includes(a?.status),
                   ).length || 0,
               },
             ]
@@ -272,52 +281,53 @@ const HostDashboardCore: React.FC = () => {
           icon: <CreditCard className="h-4 w-4" />,
           count: null,
         },
-        {
-          id: 'launch' as TabType,
-          label: 'Launch',
-          icon: <Rocket className="h-4 w-4" />,
-          count: null,
-        },
+        { id: 'launch' as TabType, label: 'Launch', icon: <Rocket className="h-4 w-4" />, count: null },
       ] as const,
-    [isWeb3, config?.prizeMode, config?.prizes, admins?.length, players?.length, isQuizComplete, config?.reconciliation?.prizeAwards]
+    [
+      isWeb3,
+      config?.prizeMode,
+      config?.prizes,
+      admins?.length,
+      players?.length,
+      isQuizComplete,
+      config?.reconciliation?.prizeAwards,
+    ],
   );
 
-    // === Final leaderboard for the Prizes tab ===
-  // Priority: reconciliation.finalLeaderboard -> config.finalLeaderboard -> derive from players
+  // === Final leaderboard for the Prizes tab ===
   const prizeLeaderboard = useMemo(() => {
-    const fromRecon = (((config?.reconciliation as any)?.finalLeaderboard) || []) as any[];
+    const fromRecon = ((config?.reconciliation as any)?.finalLeaderboard || []) as any[];
     if (fromRecon.length) return fromRecon;
 
     const fromConfig = ((config as any)?.finalLeaderboard || []) as any[];
     if (fromConfig.length) return fromConfig;
 
-    // Best-effort derive from players in store
     const list = (players || []).map((p: any) => ({
       id: p.id,
       name: p.name || p.id,
-      // try several common score fields, fallback to 0
-      score: typeof p.score === 'number'
-        ? p.score
-        : (typeof p.totalScore === 'number'
+      score:
+        typeof p.score === 'number'
+          ? p.score
+          : typeof p.totalScore === 'number'
           ? p.totalScore
-          : (typeof p.finalScore === 'number' ? p.finalScore : 0)),
+          : typeof p.finalScore === 'number'
+          ? p.finalScore
+          : 0,
     }));
 
-    // Sort if we have numeric scores
-    if (list.every(l => typeof l.score === 'number')) {
+    if (list.every((l) => typeof l.score === 'number')) {
       list.sort((a, b) => (b.score || 0) - (a.score || 0));
     }
     return list;
   }, [config?.reconciliation?.finalLeaderboard, (config as any)?.finalLeaderboard, players]);
 
-
   const tabs = useMemo(() => {
     if (!postGameLock) return allTabs;
-    // After completion: show Prizes always, and Payments too (but we’ll gate inside Payments if prizes aren’t finished)
+    // After completion: show Prizes always, and Payments too (but we gate Payments inside)
     return allTabs.filter((t) => t.id === 'prizes' || t.id === 'payments');
   }, [postGameLock, allTabs]);
 
-    // On first Prizes visit after completion: snapshot standings and auto-declare awards if missing
+  // On first Prizes visit after completion: snapshot standings and auto-declare awards if missing
   useEffect(() => {
     if (!socket || !roomId) return;
     if (!isQuizComplete) return;
@@ -327,15 +337,13 @@ const HostDashboardCore: React.FC = () => {
     const existingAwards = Array.isArray(rec.prizeAwards) ? rec.prizeAwards : [];
     const haveAwards = existingAwards.length > 0;
 
-    // Snapshot final leaderboard if not already present
-    const needSnapshot = !(rec.finalLeaderboard && Array.isArray(rec.finalLeaderboard) && rec.finalLeaderboard.length);
+    const needSnapshot =
+      !(rec.finalLeaderboard && Array.isArray(rec.finalLeaderboard) && rec.finalLeaderboard.length) &&
+      prizeLeaderboard.length;
+
     const patch: any = {};
+    if (needSnapshot) patch.finalLeaderboard = prizeLeaderboard;
 
-    if (needSnapshot && prizeLeaderboard.length) {
-      patch.finalLeaderboard = prizeLeaderboard;
-    }
-
-    // If we have prizes but no awards, auto-declare top-N
     if (prizes.length && !haveAwards && prizeLeaderboard.length) {
       const rankByPlace = new Map<number, any>();
       prizeLeaderboard.forEach((entry: any, idx: number) => rankByPlace.set(idx + 1, entry));
@@ -346,8 +354,8 @@ const HostDashboardCore: React.FC = () => {
           const winner = rankByPlace.get(p.place);
           if (!winner) return null;
           return {
-            prizeAwardId: crypto.randomUUID?.() || `${p.place}-${winner.id}-${Date.now()}`,
-            prizeId: p.place, // or a real id if you have one
+            prizeAwardId: uuid(),
+            prizeId: p.place, // or your real prize id
             prizeName: p.description,
             prizeValue: typeof p.value === 'number' ? p.value : null,
             sponsor: p.sponsor || null,
@@ -356,9 +364,7 @@ const HostDashboardCore: React.FC = () => {
             winnerName: winner.name,
             status: 'declared',
             declaredAt: new Date().toISOString(),
-            statusHistory: [
-              { status: 'declared', at: new Date().toISOString(), by: (config?.hostName || 'Host') }
-            ],
+            statusHistory: [{ status: 'declared', at: new Date().toISOString(), by: config?.hostName || 'Host' }],
           };
         })
         .filter(Boolean);
@@ -371,7 +377,6 @@ const HostDashboardCore: React.FC = () => {
     if (Object.keys(patch).length) {
       socket.emit('update_reconciliation', { roomId, patch });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     socket,
     roomId,
@@ -379,9 +384,9 @@ const HostDashboardCore: React.FC = () => {
     config?.prizes,
     config?.reconciliation?.prizeAwards,
     config?.reconciliation?.finalLeaderboard,
-    prizeLeaderboard
+    prizeLeaderboard,
+    config?.hostName,
   ]);
-
 
   // Keep activeTab valid if tabs shrink (postgame lock)
   useEffect(() => {
@@ -389,6 +394,8 @@ const HostDashboardCore: React.FC = () => {
     if (!allowed.has(activeTab)) setActiveTab(postGameLock ? 'prizes' : 'overview');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabs, postGameLock]);
+
+  const paymentsLocked = postGameLock && !prizeWorkflowComplete;
 
   const LaunchSection = () => {
     return (
@@ -522,9 +529,7 @@ const HostDashboardCore: React.FC = () => {
                       assetUploadCheck ? 'bg-green-100' : 'bg-yellow-100'
                     }`}
                   >
-                    <span
-                      className={`text-sm ${assetUploadCheck ? 'text-green-600' : 'text-yellow-600'}`}
-                    >
+                    <span className={`text-sm ${assetUploadCheck ? 'text-green-600' : 'text-yellow-600'}`}>
                       {assetUploadCheck ? '✓' : '!'}
                     </span>
                   </div>
@@ -608,6 +613,7 @@ const HostDashboardCore: React.FC = () => {
     });
   }
 
+  // UI
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
       <div className="container mx-auto max-w-6xl px-4 py-8">
@@ -623,33 +629,31 @@ const HostDashboardCore: React.FC = () => {
             Welcome, <strong>{config?.hostName || 'Host'}</strong> — manage your quiz event below
           </p>
 
-          {/* Add this badge */}
-{config?.isWeb3Room && (
-<BlockchainBadge
-  chain={(config as any).web3Chain}
-  network={
-    (config as any).evmNetwork ||
-    (config as any).solanaCluster ||
-    (config as any).stellarNetwork
-  }
-  contractAddress={(config as any).roomContractAddress}
-  txHash={(config as any).deploymentTxHash}
-/>
-)}
+          {config?.isWeb3Room && (
+            <BlockchainBadge
+              chain={(config as any).web3Chain}
+              network={(config as any).evmNetwork || (config as any).solanaCluster || (config as any).stellarNetwork}
+              contractAddress={(config as any).roomContractAddress}
+              txHash={(config as any).deploymentTxHash}
+            />
+          )}
+
           {isQuizComplete && (
             <div className="mt-2 rounded-lg border border-green-200 bg-green-50 px-4 py-2">
               <span className="text-sm font-medium text-green-800">
-                ✅ Quiz completed successfully{completedTime && ` on ${completedTime}`}. Please reconcile payments and generate the archive when ready.
+                ✅ Quiz completed successfully{completedTime && ` on ${completedTime}`}. Please reconcile payments and
+                generate the archive when ready.
               </span>
             </div>
           )}
+
           {DEBUG && (
             <div className="mt-2 text-xs text-gray-400">
               Room: {roomId} | Socket: {connected ? '🟢' : '🔴'} | Config: {!!config?.roomId ? '✅' : '⏳'} | Players:{' '}
               {players?.length || 0} | Admins: {admins?.length || 0} | Assets:{' '}
               {config?.prizes?.filter((p: any) => p.uploadStatus === 'completed').length || 0}/
-              {config?.prizes?.filter((p: any) => p.tokenAddress).length || 0} | Phase:{' '}
-              {currentPhase || 'unknown'} | Complete: {isQuizComplete ? '✅' : '❌'}
+              {config?.prizes?.filter((p: any) => p.tokenAddress).length || 0} | Phase: {currentPhase || 'unknown'} |
+              Complete: {isQuizComplete ? '✅' : '❌'}
             </div>
           )}
         </div>
@@ -661,34 +665,37 @@ const HostDashboardCore: React.FC = () => {
           </div>
         )}
 
-        {/* <WalletDebugPanel /> */}
-
         {/* Tab Navigation */}
         <div className="bg-muted border-border mb-6 rounded-xl border shadow-sm">
           <div className="border-border flex flex-wrap border-b">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`relative flex items-center space-x-2 px-4 py-4 text-sm font-medium transition-colors md:px-6 ${
-                  activeTab === tab.id
-                    ? 'border-b-2 border-indigo-600 bg-indigo-50 text-indigo-600'
-                    : 'text-fg/60 hover:text-fg/80 hover:bg-gray-50'
-                }`}
-              >
-                {tab.icon}
-                <span>{tab.label}</span>
-                {tab.count !== null && (
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      activeTab === tab.id ? 'bg-indigo-100 text-indigo-800' : 'text-fg/70 bg-gray-100'
-                    }`}
-                  >
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            ))}
+            {tabs.map((tab) => {
+              const disabled = tab.id === 'payments' && paymentsLocked;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => !disabled && setActiveTab(tab.id)}
+                  className={`relative flex items-center space-x-2 px-4 py-4 text-sm font-medium transition-colors md:px-6 ${
+                    activeTab === tab.id
+                      ? 'border-b-2 border-indigo-600 bg-indigo-50 text-indigo-600'
+                      : 'text-fg/60 hover:text-fg/80 hover:bg-gray-50'
+                  } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  aria-disabled={disabled}
+                  title={disabled ? 'Finish prize declarations & resolutions to unlock Payments' : undefined}
+                >
+                  {tab.icon}
+                  <span>{tab.label}</span>
+                  {tab.count !== null && (
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                        activeTab === tab.id ? 'bg-indigo-100 text-indigo-800' : 'text-fg/70 bg-gray-100'
+                      }`}
+                    >
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
           {/* Tab Content */}
@@ -749,7 +756,6 @@ const HostDashboardCore: React.FC = () => {
                         Admins can help manage the quiz during gameplay. Admins can add players, accept payments and
                         disqualify players.
                       </p>
-                      
                     </div>
                   </div>
                 </div>
@@ -758,17 +764,13 @@ const HostDashboardCore: React.FC = () => {
               </div>
             )}
 
-{activeTab === 'prizes' && (
-  <PrizesTab
-    prizeLeaderboard={prizeLeaderboard}
-    prizeWorkflowComplete={prizeWorkflowComplete}
-    lockEdits={!!(config?.reconciliation as any)?.approvedAt}
-  />
-)}
-
-
-
-
+            {activeTab === 'prizes' && (
+              <PrizesTab
+                prizeLeaderboard={prizeLeaderboard}
+                prizeWorkflowComplete={prizeWorkflowComplete}
+                lockEdits={!!(config?.reconciliation as any)?.approvedAt}
+              />
+            )}
 
             {activeTab === 'payments' && (
               <div className="space-y-6">
@@ -781,7 +783,23 @@ const HostDashboardCore: React.FC = () => {
                     {config?.paymentMethod === 'web3' ? 'Web3 Payments' : 'Manual Collection'}
                   </span>
                 </div>
-                <PaymentReconciliationPanel />
+
+                {paymentsLocked && (
+                  <div className="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+                    <div className="flex items-start space-x-2">
+                      <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-yellow-600" />
+                      <div className="text-sm text-yellow-800">
+                        <p className="mb-1 font-medium">Finish prizes first</p>
+                        <p>
+                          Payments are locked until all prizes are <strong>declared</strong> and marked as{' '}
+                          <strong>delivered / unclaimed / refused / returned / canceled</strong>.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {!paymentsLocked && <PaymentReconciliationPanel />}
               </div>
             )}
           </div>
@@ -823,7 +841,7 @@ const HostDashboard: React.FC = () => {
   // Web3 room: only mount provider if chain is resolved
   if (!selectedChain) {
     console.log(
-      'Web3 room but no chain resolved yet — rendering without provider (UI still works, debug panel will indicate)'
+      'Web3 room but no chain resolved yet — rendering without provider (UI still works, debug panel will indicate)',
     );
     return <HostDashboardCore />;
   }
@@ -837,4 +855,6 @@ const HostDashboard: React.FC = () => {
 };
 
 export default HostDashboard;
+
+
 
