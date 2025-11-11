@@ -881,8 +881,7 @@ export function useSolanaContract() {
         totalRequired: ((totalRentRequired + TRANSACTION_FEE_BUFFER) / 1e9).toFixed(4),
       });
 
-      // Derive all required PDAs
-      const [globalConfig] = deriveGlobalConfigPDA();
+      // Derive all required PDAs (globalConfig already declared above on line 758)
       const [room] = deriveRoomPDA(publicKey, params.roomId);
       const [roomVault] = deriveRoomVaultPDA(room);
       const [tokenRegistry] = deriveTokenRegistryPDA();
