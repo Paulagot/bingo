@@ -4,42 +4,330 @@ Ethereum Virtual Machine compatible wallet integration for quiz platform.
 
 ## Overview
 
-This module handles EVM-compatible wallet connections for multiple networks including Ethereum, Polygon, Base, Avalanche, and others.
+This module handles EVM-compatible wallet connections for multiple networks including Ethereum, Polygon, Base, Avalanche, and others. It provides a complete interface for creating fundraising rooms, joining games, and distributing prizes through deployed smart contracts.
+
+## Status
+
+✅ **Partially Implemented**
+
+Implemented features:
+- ✅ Basic infrastructure (existing Web3Provider)
+- ✅ Multi-network configuration (Base, Polygon)
+- ✅ Wallet connection (MetaMask, WalletConnect, Coinbase Wallet)
+- ✅ Pool room deployment
+- ✅ Asset room deployment
+- ✅ Factory pattern for room creation
+- ✅ Transaction handling
+- ✅ Error management
+
+In progress:
+- 🚧 Enhanced error handling
+- 🚧 Transaction simulation
+- 🚧 Event listening and indexing
 
 ## Features
 
-- **Multi-Network Support**: Ethereum, Polygon, Base, Avalanche, Celo
-- **Wallet Compatibility**: MetaMask, WalletConnect, Coinbase Wallet
-- **Token Support**: ETH, USDC, and other ERC-20 tokens
-- **Network Switching**: Automatic network detection and switching
-- **Transaction Management**: Entry fees and prize distribution
+### Multi-Network Support
+- **Base**: Base mainnet and Base Sepolia testnet
+- **Polygon**: Polygon mainnet and Polygon Amoy testnet
+- **Ethereum**: Ethereum mainnet and Sepolia testnet (planned)
+- **Avalanche**: Avalanche C-Chain (planned)
+- **Celo**: Celo mainnet (planned)
+
+### Wallet Compatibility
+- **MetaMask**: Most popular Ethereum wallet
+- **WalletConnect**: Multi-wallet support
+- **Coinbase Wallet**: Coinbase's official wallet
+- **RainbowKit**: Unified wallet connection UI
+
+### Token Support
+- **ETH**: Native Ethereum token
+- **USDC**: USD Coin (ERC-20)
+- **Custom ERC-20 Tokens**: Any ERC-20 token
+
+### Contract Integration
+- **PoolFactory**: Factory contract for creating pool-based rooms
+- **AssetFactory**: Factory contract for creating asset-based rooms
+- **PoolRoom**: Individual pool room contract
+- **AssetRoom**: Individual asset room contract
+
+## Contract Architecture
+
+### Factory Pattern
+
+The EVM implementation uses a factory pattern for room creation:
+
+#### PoolFactory
+- **Purpose**: Creates pool-based fundraising rooms
+- **Function**: `createPoolRoom(roomId, host, entryFee, hostFeeBps, prizePoolBps, ...)`
+- **Returns**: Address of deployed PoolRoom contract
+
+#### AssetFactory
+- **Purpose**: Creates asset-based fundraising rooms
+- **Function**: `createAssetRoom(roomId, host, prizeAssets, ...)`
+- **Returns**: Address of deployed AssetRoom contract
+
+### Room Contracts
+
+#### PoolRoom
+- **Purpose**: Manages pool-based fundraising room
+- **Features**:
+  - Entry fee collection
+  - Player management
+  - Prize distribution
+  - Fund splitting (platform, host, charity, winners)
+
+#### AssetRoom
+- **Purpose**: Manages asset-based fundraising room
+- **Features**:
+  - Prize asset deposits
+  - Player management
+  - Asset distribution to winners
+  - Fund splitting (platform, host, charity)
+
+## Network Configuration
+
+### Base
+- **Mainnet**: Chain ID 8453
+- **Testnet (Sepolia)**: Chain ID 84532
+- **RPC**: Configurable via environment variables
+- **Explorer**: https://basescan.org
+
+### Polygon
+- **Mainnet**: Chain ID 137
+- **Testnet (Amoy)**: Chain ID 80002
+- **RPC**: Configurable via environment variables
+- **Explorer**: https://polygonscan.com
+
+### Token Addresses
+
+#### Base
+- **USDC**: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` (mainnet)
+- **USDC**: Testnet address (configurable)
+
+#### Polygon
+- **USDC**: `0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359` (mainnet)
+- **USDC**: Testnet address (configurable)
+
+## Contract Integration
+
+### Room Creation
+
+```typescript
+import { useContractActions } from '../../hooks/useContractActions';
+
+function CreateRoom() {
+  const { deploy } = useContractActions();
+
+  const handleCreateRoom = async () => {
+    try {
+      const result = await deploy({
+        roomId: 'my-room-123',
+        hostId: 'host-address',
+        entryFee: '1.0',
+        hostFeePct: 1,
+        prizePoolPct: 39,
+        web3Chain: 'base',
+        web3Currency: 'USDC',
+      });
+      console.log('Room created:', result.contractAddress);
+    } catch (error) {
+      console.error('Failed to create room:', error);
+    }
+  };
+
+  return <button onClick={handleCreateRoom}>Create Room</button>;
+}
+```
+
+### Joining a Room
+
+```typescript
+import { useContractActions } from '../../hooks/useContractActions';
+
+function JoinRoom() {
+  const { joinRoom } = useContractActions();
+
+  const handleJoinRoom = async () => {
+    try {
+      const result = await joinRoom({
+        roomId: 'my-room-123',
+        contractAddress: roomAddress,
+        entryFee: '1.0',
+      });
+      console.log('Joined room:', result.transactionHash);
+    } catch (error) {
+      console.error('Failed to join room:', error);
+    }
+  };
+
+  return <button onClick={handleJoinRoom}>Join Room</button>;
+}
+```
+
+### Prize Distribution
+
+```typescript
+import { useContractActions } from '../../hooks/useContractActions';
+
+function DistributePrizes() {
+  const { distributePrizes } = useContractActions();
+
+  const handleDistributePrizes = async () => {
+    try {
+      const result = await distributePrizes({
+        roomId: 'my-room-123',
+        contractAddress: roomAddress,
+        winners: ['winner1...', 'winner2...', 'winner3...'],
+      });
+      console.log('Prizes distributed:', result.transactionHash);
+    } catch (error) {
+      console.error('Failed to distribute prizes:', error);
+    }
+  };
+
+  return <button onClick={handleDistributePrizes}>Distribute Prizes</button>;
+}
+```
+
+## Transaction Flow
+
+### Room Creation Flow
+
+1. Validate inputs (entry fee, host fee, prize pool)
+2. Check wallet connection
+3. Get factory contract address
+4. Build transaction to create room
+5. Estimate gas
+6. Send transaction
+7. Wait for confirmation
+8. Return room contract address
+
+### Joining Room Flow
+
+1. Validate inputs (room ID, entry fee)
+2. Check wallet connection
+3. Get room contract address
+4. Approve token transfer (if ERC-20)
+5. Build transaction to join room
+6. Estimate gas
+7. Send transaction
+8. Wait for confirmation
+9. Return transaction hash
+
+### Prize Distribution Flow
+
+1. Validate inputs (room ID, winners)
+2. Check wallet connection
+3. Get room contract address
+4. Build transaction to distribute prizes
+5. Estimate gas
+6. Send transaction
+7. Wait for confirmation
+8. Return transaction hash
+
+## Error Handling
+
+### Common Errors
+
+- **InsufficientFunds**: User doesn't have enough tokens or ETH
+- **RoomFull**: Room has reached max players
+- **RoomEnded**: Room has already ended
+- **InvalidWinner**: Winner is not a player in the room
+- **TransactionFailed**: Transaction reverted (check error message)
+
+### Error Formatting
+
+```typescript
+try {
+  await deploy({...});
+} catch (error) {
+  if (error.code === 'INSUFFICIENT_FUNDS') {
+    console.error('Insufficient funds for transaction');
+  } else if (error.code === 'TRANSACTION_REVERTED') {
+    console.error('Transaction reverted:', error.message);
+  } else {
+    console.error('Unknown error:', error);
+  }
+}
+```
 
 ## Dependencies
 
 - `wagmi` - React hooks for Ethereum
 - `@reown/appkit` - Wallet connection UI
 - `viem` - TypeScript Ethereum library
+- `ethers` - Ethereum library (legacy support)
+
+## Configuration
+
+### Factory Contracts
+
+```typescript
+// Base
+export const POOL_FACTORY = {
+  'base': '0x...', // Base mainnet
+  'baseSepolia': '0x...', // Base Sepolia testnet
+};
+
+export const ASSET_FACTORY = {
+  'base': '0x...', // Base mainnet
+  'baseSepolia': '0x...', // Base Sepolia testnet
+};
+```
+
+### RPC Endpoints
+
+```typescript
+export const RPC_ENDPOINTS = {
+  'base': 'https://mainnet.base.org',
+  'baseSepolia': 'https://sepolia.base.org',
+  'polygon': 'https://polygon-rpc.com',
+  'polygonAmoy': 'https://rpc-amoy.polygon.technology',
+};
+```
 
 ## Integration Notes
 
-The quiz platform already has an existing `Web3Provider.tsx` that handles EVM connections for non-quiz pages. This module will:
+The quiz platform already has an existing `Web3Provider.tsx` that handles EVM connections for non-quiz pages. This module:
 
-1. **Extend** the existing provider for quiz-specific functionality
-2. **Reuse** existing wallet connection logic
-3. **Add** quiz-specific transaction methods
-4. **Maintain** backward compatibility
+1. **Extends** the existing provider for quiz-specific functionality
+2. **Reuses** existing wallet connection logic
+3. **Adds** quiz-specific transaction methods
+4. **Maintains** backward compatibility
 
-## Implementation Status
+## Usage
 
-- [x] Basic infrastructure (existing Web3Provider)
-- [ ] Quiz-specific integration
-- [ ] Multi-network configuration
-- [ ] Transaction handling
-- [ ] Error management
+```typescript
+import { useContractActions } from '../../hooks/useContractActions';
+
+function QuizPayment() {
+  const { 
+    deploy,
+    joinRoom,
+    distributePrizes,
+    isConnected,
+    address
+  } = useContractActions();
+  
+  // Implementation
+}
+```
 
 ## Migration Plan
 
-1. Extract reusable logic from existing `Web3Provider`
-2. Create `useEvmWallet` hook for quiz functionality
-3. Update `DynamicChainProvider` to use existing EVM setup
-4. Maintain existing functionality for non-quiz pages
+1. ✅ Extract reusable logic from existing `Web3Provider`
+2. ✅ Create `useContractActions` hook for quiz functionality
+3. ✅ Update `DynamicChainProvider` to use existing EVM setup
+4. ✅ Maintain existing functionality for non-quiz pages
+5. 🚧 Add enhanced error handling
+6. 🚧 Add transaction simulation
+7. 🚧 Add event listening and indexing
+
+## Reference Documentation
+
+- [Wagmi Documentation](https://wagmi.sh/)
+- [Viem Documentation](https://viem.sh/)
+- [RainbowKit Documentation](https://rainbowkit.com/)
+- [Base Documentation](https://docs.base.org/)
+- [Polygon Documentation](https://docs.polygon.technology/)

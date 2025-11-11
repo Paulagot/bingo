@@ -1,3 +1,78 @@
+/**
+ * Multi-Chain Contract Actions Hook
+ *
+ * Provides a unified interface for deploying and managing fundraising rooms across multiple
+ * blockchain networks (Solana, EVM chains, Stellar). Handles chain-specific contract deployment,
+ * room creation, joining, and prize distribution with consistent API across all supported chains.
+ *
+ * ## Key Features
+ *
+ * ### Multi-Chain Support
+ * - **Solana**: Anchor program integration with PDA-based rooms
+ * - **EVM**: Factory pattern for Base, Polygon, and other EVM chains
+ * - **Stellar**: Soros contract integration for Stellar network
+ *
+ * ### Charity Wallet Handling
+ *
+ * The charity wallet is determined using the following priority:
+ * 1. **GlobalConfig (Solana)**: If GlobalConfig is initialized, use charity wallet from it
+ * 2. **Params**: Use charity wallet provided in params.charityAddress
+ * 3. **Error**: If neither is available, throw an error (prevents incorrect default)
+ *
+ * This ensures that the charity wallet is always valid and matches the platform configuration.
+ * For Solana, the system prioritizes on-chain configuration over parameters to maintain consistency.
+ *
+ * ### Room Deployment
+ *
+ * - **Pool Rooms**: Prize pool from collected entry fees
+ * - **Asset Rooms**: Pre-deposited prize assets (NFTs, tokens, etc.)
+ * - **Fee Structure**: Platform (20%), Host (0-5%), Prizes (0-35%), Charity (40%+)
+ * - **Validation**: Input validation before deployment
+ * - **Error Handling**: Chain-specific error formatting
+ *
+ * ### Prize Distribution
+ *
+ * - **Multi-Chain**: Supports prize distribution on all chains
+ * - **Winner Declaration**: Declare winners before distribution
+ * - **Token Account Creation**: Automatic creation of missing token accounts (Solana)
+ * - **Transaction Simulation**: Pre-flight simulation to prevent failures
+ *
+ * ## Usage
+ *
+ * ```typescript
+ * const { deploy, joinRoom, distributePrizes } = useContractActions();
+ *
+ * // Deploy a room
+ * const result = await deploy({
+ *   roomId: 'my-room-123',
+ *   hostId: 'host-address',
+ *   entryFee: '1.0',
+ *   hostFeePct: 1,
+ *   prizePoolPct: 39,
+ *   web3Chain: 'solana',
+ *   web3Currency: 'USDC',
+ *   charityAddress: 'charity-address',
+ * });
+ *
+ * // Join a room
+ * await joinRoom({
+ *   roomId: 'my-room-123',
+ *   contractAddress: result.contractAddress,
+ *   entryFee: '1.0',
+ * });
+ *
+ * // Distribute prizes
+ * await distributePrizes({
+ *   roomId: 'my-room-123',
+ *   contractAddress: result.contractAddress,
+ *   winners: ['winner1...', 'winner2...', 'winner3...'],
+ * });
+ * ```
+ *
+ * Used by quiz creation wizard and room management components to deploy and manage fundraising
+ * rooms across multiple blockchain networks. Integrates with chain-specific hooks and providers
+ * to provide a unified interface for Web3 operations.
+ */
 import { useCallback, useMemo } from 'react';
 import { useQuizChainIntegration } from './useQuizChainIntegration';
 
@@ -35,9 +110,9 @@ import AssetRoomABI from '../abis/quiz/BaseQuizAssetRoom.json';
 /* ------------------------- Solana imports ------------------------- */
 import { useSolanaWalletContext } from '../chains/solana/SolanaWalletProvider';
 import { useSolanaContract } from '../chains/solana/useSolanaContract';
-import { TOKEN_MINTS } from '../chains/solana/config';
+import { TOKEN_MINTS, PROGRAM_ID, PDA_SEEDS } from '../chains/solana/config';
 import { BN } from '@coral-xyz/anchor';
-import { LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
 
 const DEBUG_WEB3 = true;
 
@@ -933,6 +1008,67 @@ if (!isPool) {
     throw new Error('Invalid deployment type specified.');
   }, []);
 
+  /**
+   * Deploys a fundraising room on the selected blockchain
+   *
+   * This function handles room deployment across multiple chains (Solana, EVM, Stellar).
+   * It automatically selects the appropriate deployment method based on the chain and
+   * handles chain-specific configuration and validation.
+   *
+   * ## Charity Wallet Handling (Solana)
+   *
+   * For Solana deployments, the charity wallet is determined using the following priority:
+   * 1. **GlobalConfig**: If GlobalConfig is initialized, use charity wallet from it
+   * 2. **Params**: Use charity wallet provided in params.charityAddress
+   * 3. **Error**: If neither is available, throw an error (prevents incorrect default)
+   *
+   * This ensures that the charity wallet is always valid and matches the platform configuration.
+   * The system prioritizes on-chain configuration over parameters to maintain consistency.
+   *
+   * ## Chain-Specific Behavior
+   *
+   * - **Solana**: Uses Anchor program with PDA-based rooms, automatic GlobalConfig initialization
+   * - **EVM**: Uses factory pattern (PoolFactory or AssetFactory) based on prize mode
+   * - **Stellar**: Throws error (must use StellarLaunchSection component)
+   *
+   * ## Fee Structure
+   *
+   * - Platform Fee: 20% (fixed)
+   * - Host Fee: 0-5% (configurable)
+   * - Prize Pool: 0-35% (calculated as 40% - host fee)
+   * - Charity: Minimum 40% (calculated remainder)
+   *
+   * @param params - Deployment parameters
+   * @param params.roomId - Unique room identifier
+   * @param params.hostId - Host identifier
+   * @param params.hostWallet - Host wallet address
+   * @param params.currency - Currency for entry fees (USDC, PYUSD, USDT, SOL for Solana)
+   * @param params.entryFee - Entry fee amount
+   * @param params.hostFeePct - Host fee percentage (0-5%)
+   * @param params.prizePoolPct - Prize pool percentage (0-35%, max = 40% - host fee)
+   * @param params.prizeMode - Prize mode ('split' for pool, 'assets' for asset-based)
+   * @param params.charityAddress - Charity wallet address (used if GlobalConfig not initialized for Solana)
+   * @param params.charityName - Charity name (optional)
+   * @param params.prizeSplits - Prize distribution percentages (first, second, third)
+   * @returns Deployment result with contract address and transaction hash
+   * @throws Error if chain not supported, wallet not connected, or deployment fails
+   *
+   * @example
+   * ```typescript
+   * const result = await deploy({
+   *   roomId: 'my-room-123',
+   *   hostId: 'host-address',
+   *   hostWallet: 'host-wallet-address',
+   *   currency: 'USDC',
+   *   entryFee: '1.0',
+   *   hostFeePct: 1,
+   *   prizePoolPct: 39,
+   *   prizeMode: 'split',
+   *   charityAddress: 'charity-wallet-address',
+   * });
+   * console.log('Room deployed:', result.contractAddress);
+   * ```
+   */
   const deploy = useCallback(
     async (params: DeployParams): Promise<DeployResult> => {
       // ✅ For Stellar, throw error - must use StellarLaunchSection
@@ -972,8 +1108,6 @@ if (!isPool) {
           throw new Error('Wallet not connected');
         }
 
-        const { PublicKey } = await import('@solana/web3.js');
-
         // Map currency to token mint
         const currency = (params.currency ?? 'USDC').toUpperCase();
         const feeTokenMint =
@@ -989,7 +1123,68 @@ if (!isPool) {
         console.log('[deploy] Solana currency:', currency, 'mint:', feeTokenMint.toBase58(), 'decimals:', decimals);
 
         const entryFeeLamports = new BN(parseFloat(String(params.entryFee ?? '1.0')) * multiplier);
-        const charityWallet = solanaContract.publicKey; // TODO: Get from TGB API
+        
+        // Get charity wallet: Try GlobalConfig first, then params, then fallback
+        let charityWallet: PublicKey;
+        try {
+          // Step 1: Try to fetch from existing GlobalConfig (if initialized)
+          if (solanaContract.program) {
+            const [globalConfigPDA] = PublicKey.findProgramAddressSync(
+              [Buffer.from(PDA_SEEDS.GLOBAL_CONFIG)],
+              PROGRAM_ID
+            );
+            
+            try {
+              // @ts-ignore - Account types available after program deployment
+              const globalConfigAccount = await solanaContract.program.account.globalConfig.fetch(globalConfigPDA);
+              charityWallet = globalConfigAccount.charityWallet as PublicKey;
+              console.log('[deploy] ✅ Using charity wallet from GlobalConfig:', charityWallet.toBase58());
+              
+              // Warn if charity wallet is the user's wallet (likely wrong)
+              if (charityWallet.equals(solanaContract.publicKey!)) {
+                console.warn('[deploy] ⚠️ WARNING: GlobalConfig charity wallet is the user\'s wallet. This may be incorrect.');
+              }
+            } catch (fetchError: any) {
+              // GlobalConfig doesn't exist or fetch failed
+              console.log('[deploy] GlobalConfig not found or not initialized:', fetchError.message);
+              
+              // Step 2: Try to use charity address from params
+              if (params.charityAddress) {
+                try {
+                  charityWallet = new PublicKey(params.charityAddress);
+                  console.log('[deploy] ✅ Using charity wallet from params:', charityWallet.toBase58());
+                } catch (pubkeyError: any) {
+                  throw new Error(`Invalid charity address in params: ${pubkeyError.message}`);
+                }
+              } else {
+                // Step 3: No fallback - require charity address
+                // GlobalConfig doesn't exist and no charity address provided
+                // We cannot use a fallback because it would initialize GlobalConfig with wrong address
+                throw new Error(
+                  'Charity wallet is required. Please provide charityAddress in params. ' +
+                  'GlobalConfig is not initialized and no charity address was provided. ' +
+                  'This will be resolved when The Giving Block API integration is complete.'
+                );
+              }
+            }
+          } else {
+            // Program not available, try params or throw error
+            if (params.charityAddress) {
+              charityWallet = new PublicKey(params.charityAddress);
+              console.log('[deploy] ✅ Using charity wallet from params:', charityWallet.toBase58());
+            } else {
+              throw new Error(
+                'Charity wallet not available. Please provide charityAddress in params or ensure GlobalConfig is initialized.'
+              );
+            }
+          }
+        } catch (error: any) {
+          console.error('[deploy] ❌ Failed to get charity wallet:', error);
+          throw new Error(
+            `Failed to get charity wallet: ${error.message}. ` +
+            `Please ensure GlobalConfig is initialized or provide charityAddress in params.`
+          );
+        }
 
         if (params.prizeMode === 'assets') {
           // Asset room deployment

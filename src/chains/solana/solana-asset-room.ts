@@ -3,6 +3,42 @@
  *
  * Implements createAssetRoom() and depositPrizeAsset() for the Solana blockchain.
  * These functions work with the deployed Anchor program's init_asset_room and add_prize_asset instructions.
+ *
+ * ## Asset-Based Rooms
+ *
+ * Asset-based rooms allow hosts to pre-deposit prize assets (NFTs, tokens, etc.) that
+ * are distributed to winners at the end of the game. This is different from pool-based
+ * rooms where prizes come from collected entry fees.
+ *
+ * ## Room Lifecycle
+ *
+ * 1. **Create Room**: Host calls `createAssetRoom()` to create a room in AwaitingFunding state
+ * 2. **Deposit Prizes**: Host calls `depositPrizeAsset()` for each prize (up to 3 prizes)
+ * 3. **Room Ready**: Once all prizes are deposited, room status changes to Ready
+ * 4. **Players Join**: Players can join the room by paying entry fees
+ * 5. **End Room**: Host calls `endRoom()` to distribute prizes to winners
+ *
+ * ## Fee Distribution (Asset Mode)
+ *
+ * - Platform: 20% (fixed)
+ * - Host: 0-5% (configurable)
+ * - Charity: 75-80% (remainder, calculated as 100% - platform - host)
+ * - Prizes: Pre-deposited assets (no percentage allocation)
+ *
+ * ## Prize Assets
+ *
+ * - Up to 3 prizes can be deposited
+ * - Each prize can be any SPL token (NFTs, fungible tokens, etc.)
+ * - Prizes are stored in prize vault PDAs
+ * - Prize vaults are created automatically when prizes are deposited
+ *
+ * ## Token Account Creation
+ *
+ * The system automatically creates missing token accounts for:
+ * - Prize vaults (for storing prize assets)
+ * - Winner token accounts (for receiving prizes)
+ *
+ * Used by `useSolanaContract` and `useContractActions` to create and manage asset-based rooms.
  */
 
 import { Connection, PublicKey, Transaction, SystemProgram, SYSVAR_RENT_PUBKEY, Keypair } from '@solana/web3.js';
@@ -93,19 +129,76 @@ export function derivePrizeVaultPDA(room: PublicKey, prizeIndex: number): [Publi
 // ============================================================================
 
 /**
- * Creates an asset-based room where prizes are pre-deposited SPL tokens.
+ * Creates an asset-based room where prizes are pre-deposited SPL tokens
  *
- * **Flow:**
- * 1. Room created with status: AwaitingFunding
- * 2. Host must call depositPrizeAsset() for each prize
- * 3. Once all prizes deposited, status changes to Ready
- * 4. Players can then join
+ * This function creates a new asset-based fundraising room on Solana. Unlike pool-based rooms,
+ * asset-based rooms require hosts to pre-deposit prize assets before players can join.
  *
- * **Fee Distribution (Asset Mode):**
- * - Platform: 20% (fixed)
- * - Host: 0-5% (configurable)
- * - Charity: 75-80% (remainder)
- * - No prize pool percentage (prizes are pre-deposited assets)
+ * ## Room Lifecycle
+ *
+ * 1. **Create Room**: Room is created in AwaitingFunding state
+ * 2. **Deposit Prizes**: Host must call `depositPrizeAsset()` for each prize (up to 3)
+ * 3. **Room Ready**: Once all prizes are deposited, room status changes to Ready
+ * 4. **Players Join**: Players can join the room by paying entry fees
+ * 5. **End Room**: Host calls `endRoom()` to distribute prizes to winners
+ *
+ * ## Fee Distribution (Asset Mode)
+ *
+ * - **Platform**: 20% (fixed)
+ * - **Host**: 0-5% (configurable)
+ * - **Charity**: 75-80% (remainder, calculated as 100% - platform - host)
+ * - **Prizes**: Pre-deposited assets (no percentage allocation from entry fees)
+ *
+ * ## Prize Configuration
+ *
+ * - Up to 3 prizes can be configured
+ * - Each prize consists of a token mint and amount
+ * - Prizes are stored in prize vault PDAs
+ * - Prize vaults are created automatically when prizes are deposited
+ *
+ * ## Token Restrictions
+ *
+ * - Room fees are restricted to USDC and PYUSD only
+ * - Prize tokens have no restrictions (can be any SPL token)
+ *
+ * @param program - Anchor program instance
+ * @param provider - Anchor provider instance
+ * @param connection - Solana connection
+ * @param publicKey - Host public key
+ * @param params - Asset room creation parameters
+ * @param params.roomId - Unique room identifier
+ * @param params.charityWallet - Charity wallet address
+ * @param params.entryFee - Entry fee in token base units
+ * @param params.maxPlayers - Maximum number of players
+ * @param params.hostFeeBps - Host fee in basis points (0-500 = 0-5%)
+ * @param params.charityMemo - Charity memo/name
+ * @param params.expirationSlots - Optional expiration slots
+ * @param params.feeTokenMint - Token mint for entry fees (must be USDC or PYUSD)
+ * @param params.prize1Mint - First prize token mint
+ * @param params.prize1Amount - First prize amount
+ * @param params.prize2Mint - Second prize token mint (optional)
+ * @param params.prize2Amount - Second prize amount (optional)
+ * @param params.prize3Mint - Third prize token mint (optional)
+ * @param params.prize3Amount - Third prize amount (optional)
+ * @returns Room creation result with room PDA and transaction signature
+ * @throws Error if validation fails or room creation fails
+ *
+ * @example
+ * ```typescript
+ * const result = await createAssetRoom(program, provider, connection, publicKey, {
+ *   roomId: 'my-asset-room-123',
+ *   charityWallet: charityAddress,
+ *   entryFee: new BN(1000000), // 1 USDC
+ *   maxPlayers: 100,
+ *   hostFeeBps: 100, // 1%
+ *   charityMemo: 'Charity Name',
+ *   feeTokenMint: USDC_MINT,
+ *   prize1Mint: nftMint1,
+ *   prize1Amount: new BN(1),
+ *   prize2Mint: tokenMint,
+ *   prize2Amount: new BN(1000),
+ * });
+ * ```
  */
 export async function createAssetRoom(
   program: Program,
@@ -368,20 +461,63 @@ export async function createAssetRoom(
 // ============================================================================
 
 /**
- * Deposits a prize asset into an asset-based room.
+ * Deposits a prize asset into an asset-based room
  *
- * **Flow:**
- * 1. Host creates asset room (status: AwaitingFunding)
- * 2. Host calls this for prize index 0 (1st place)
- * 3. Host calls this for prize index 1 (2nd place) - optional
- * 4. Host calls this for prize index 2 (3rd place) - optional
- * 5. Once all configured prizes deposited, status → Ready
+ * This function allows hosts to deposit prize assets (NFTs, tokens, etc.) into
+ * an asset-based room. Prizes must be deposited before players can join the room.
  *
- * **Requirements:**
+ * ## Deposit Flow
+ *
+ * 1. **Create Room**: Host creates asset room (status: AwaitingFunding)
+ * 2. **Deposit Prize 1**: Host calls this for prize index 0 (1st place)
+ * 3. **Deposit Prize 2**: Host calls this for prize index 1 (2nd place) - optional
+ * 4. **Deposit Prize 3**: Host calls this for prize index 2 (3rd place) - optional
+ * 5. **Room Ready**: Once all configured prizes deposited, status → Ready
+ *
+ * ## Prize Vault
+ *
+ * - Prize vaults are PDA token accounts managed by the program
+ * - Vaults are created automatically by the contract when prizes are deposited
+ * - Each prize has its own vault (prize vault 0, 1, 2)
+ * - Assets are locked in vaults until room ends
+ *
+ * ## Token Account Creation
+ *
+ * The system automatically creates missing token accounts for:
+ * - Host token account (for source of prize assets)
+ * - Prize vault (created by contract, not frontend)
+ *
+ * ## Validation
+ *
+ * - Room must exist and be in AwaitingFunding state
+ * - Prize index must be valid (0, 1, or 2)
+ * - Prize mint must match room configuration
+ * - Host must have sufficient balance of prize token
+ * - Prize must not already be deposited
  * - Caller must be room host
- * - Room must be asset-based mode
- * - Prize not already deposited
- * - Host must have sufficient token balance
+ *
+ * @param program - Anchor program instance
+ * @param provider - Anchor provider instance
+ * @param connection - Solana connection
+ * @param publicKey - Host public key
+ * @param params - Prize asset deposit parameters
+ * @param params.roomId - Room identifier
+ * @param params.hostPubkey - Host public key
+ * @param params.prizeIndex - Prize index (0, 1, or 2)
+ * @param params.prizeMint - Prize token mint
+ * @returns Deposit result with transaction signature
+ * @throws Error if validation fails or deposit fails
+ *
+ * @example
+ * ```typescript
+ * const result = await depositPrizeAsset(program, provider, connection, publicKey, {
+ *   roomId: 'my-asset-room-123',
+ *   hostPubkey: publicKey,
+ *   prizeIndex: 0, // First prize
+ *   prizeMint: nftMint,
+ * });
+ * console.log('Prize deposited:', result.signature);
+ * ```
  */
 export async function depositPrizeAsset(
   program: Program,
