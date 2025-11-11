@@ -4,8 +4,34 @@
  * Provides transaction safety, validation, and error handling utilities for Solana interactions.
  * Includes transaction simulation to catch errors before user signing (preventing wasted gas),
  * input validation for room parameters (fees, IDs), slippage protection for token amounts,
- * and user-friendly error message formatting for common Solana/Anchor errors. Used by
- * useFundraiselyContract hook to validate and simulate transactions before submission, improving
+ * and user-friendly error message formatting for common Solana/Anchor errors.
+ *
+ * ## Prize Pool Validation
+ *
+ * The prize pool validation implements the economic model where hosts control 40% of the total
+ * allocation, which can be split between host fee (0-5%) and prize pool (0-35%). The maximum
+ * prize pool is dynamically calculated as: `40% - host fee = max prize pool`
+ *
+ * ### Validation Rules
+ * - **Host Fee**: 0-5% (0-500 basis points)
+ * - **Prize Pool**: 0-35% (0-3500 basis points), maximum = 40% - host fee
+ * - **Platform Fee**: 20% (fixed, 2000 basis points)
+ * - **Charity**: Minimum 40% (calculated remainder)
+ * - **Total Allocation**: Must equal 100% (10000 basis points)
+ *
+ * ### Example Calculations
+ * - Host fee: 1% (100 bps) → Max prize pool: 39% (3900 bps)
+ * - Host fee: 5% (500 bps) → Max prize pool: 35% (3500 bps)
+ * - Host fee: 0% (0 bps) → Max prize pool: 40% (4000 bps)
+ *
+ * ### Error Messages
+ * The validation provides detailed error messages explaining:
+ * - Current host fee and prize pool values
+ * - Maximum allowed prize pool based on host fee
+ * - Total allocation breakdown
+ * - Suggestions for fixing validation errors
+ *
+ * Used by useSolanaContract hook to validate and simulate transactions before submission, improving
  * UX by detecting failures early and providing clear feedback. Formats program-specific errors
  * (RoomExpired, HostFeeTooHigh) into actionable messages for users. Core safety layer between
  * UI components and blockchain transactions.
@@ -121,6 +147,55 @@ export function calculateSlippageBounds(
 
 /**
  * Validate transaction inputs before building
+ *
+ * Validates room creation parameters according to the economic model:
+ * - Platform Fee: 20% (fixed)
+ * - Host Allocation: 40% total (host fee + prize pool)
+ * - Charity: Minimum 40% (calculated remainder)
+ *
+ * ## Prize Pool Validation Logic
+ *
+ * The prize pool validation dynamically calculates the maximum allowed prize pool based on the
+ * host fee. Since hosts control 40% total allocation, the maximum prize pool is:
+ * `maxPrizePool = 40% - hostFee`
+ *
+ * This ensures that:
+ * - Host fee + prize pool never exceeds 40%
+ * - Charity always receives at least 40%
+ * - Total allocation always equals 100%
+ *
+ * ## Validation Rules
+ *
+ * 1. **Entry Fee**: Must be positive
+ * 2. **Host Fee**: 0-5% (0-500 basis points)
+ * 3. **Prize Pool**: 0-35% (0-3500 basis points), max = 40% - host fee
+ * 4. **Host Allocation**: Host fee + prize pool must not exceed 40%
+ * 5. **Total Allocation**: Platform (20%) + host allocation (40%) + charity (40%+) = 100%
+ * 6. **Max Players**: 1-1000
+ * 7. **Room ID**: 1-32 characters
+ *
+ * @param params - Transaction input parameters to validate
+ * @param params.entryFee - Entry fee amount (must be positive)
+ * @param params.hostFeeBps - Host fee in basis points (0-500 = 0-5%)
+ * @param params.prizePoolBps - Prize pool in basis points (0-3500 = 0-35%, max = 40% - host fee)
+ * @param params.maxPlayers - Maximum number of players (1-1000)
+ * @param params.roomId - Room identifier (1-32 characters)
+ * @returns Validation result with boolean valid flag and array of error messages
+ *
+ * @example
+ * ```typescript
+ * const result = validateTransactionInputs({
+ *   entryFee: 1.0,
+ *   hostFeeBps: 100, // 1%
+ *   prizePoolBps: 3900, // 39% (valid: max is 39% with 1% host fee)
+ *   maxPlayers: 100,
+ *   roomId: 'my-room-123',
+ * });
+ *
+ * if (!result.valid) {
+ *   console.error('Validation errors:', result.errors);
+ * }
+ * ```
  */
 export function validateTransactionInputs(params: {
   entryFee?: number;
@@ -141,19 +216,50 @@ export function validateTransactionInputs(params: {
     errors.push('Host fee cannot exceed 5% (500 bps)');
   }
 
-  // Prize pool validation (max 35%)
-  if (params.prizePoolBps !== undefined && params.prizePoolBps > 3500) {
-    errors.push('Prize pool cannot exceed 35% (3500 bps)');
+  // Prize pool validation
+  // Host controls 40% total: 0-5% for host, remainder for prizes
+  // Max prize pool = 40% - host fee = (4000 - hostFeeBps) bps
+  if (params.prizePoolBps !== undefined) {
+    if (params.prizePoolBps <= 0) {
+      errors.push('Prize pool must be greater than 0');
+    } else {
+      const hostFeeBps = params.hostFeeBps ?? 0;
+      const maxPrizePoolBps = 4000 - hostFeeBps; // 40% - host fee
+      
+      if (params.prizePoolBps > maxPrizePoolBps) {
+        errors.push(
+          `Prize pool cannot exceed ${maxPrizePoolBps / 100}% (${maxPrizePoolBps} bps). ` +
+          `With host fee of ${hostFeeBps / 100}% (${hostFeeBps} bps), ` +
+          `maximum prize pool is ${maxPrizePoolBps / 100}% (${maxPrizePoolBps} bps).`
+        );
+      }
+    }
   }
 
-  // Charity minimum validation (must be at least 40%)
+  // Total allocation validation
   // Platform fee is fixed at 20% (2000 bps)
+  // Host controls 40% (host fee + prize pool)
+  // Charity gets the remainder (at least 40%)
   if (params.hostFeeBps !== undefined && params.prizePoolBps !== undefined) {
     const platformBps = 2000;
-    const charityBps = 10000 - platformBps - params.hostFeeBps - params.prizePoolBps;
+    const hostAllocationBps = params.hostFeeBps + params.prizePoolBps;
+    const charityBps = 10000 - platformBps - hostAllocationBps;
 
-    if (charityBps < 4000) {
-      errors.push('Charity allocation must be at least 40% (4000 bps)');
+    // Validate host allocation doesn't exceed 40%
+    if (hostAllocationBps > 4000) {
+      errors.push(
+        `Host allocation (host fee + prize pool) cannot exceed 40% (4000 bps). ` +
+        `Current: ${hostAllocationBps / 100}% (${hostAllocationBps} bps)`
+      );
+    }
+
+    // Validate total doesn't exceed 100%
+    if (charityBps < 0) {
+      errors.push(
+        `Total allocation exceeds 100%. ` +
+        `Platform: 20%, Host: ${params.hostFeeBps / 100}%, Prizes: ${params.prizePoolBps / 100}% ` +
+        `= ${(platformBps + hostAllocationBps) / 100}%. Reduce host fee or prize pool.`
+      );
     }
   }
 
@@ -174,7 +280,30 @@ export function validateTransactionInputs(params: {
 }
 
 /**
- * User-friendly error messages
+ * Format transaction errors into user-friendly messages
+ *
+ * Converts technical Solana/Anchor errors into actionable user messages. Handles common errors
+ * such as insufficient funds, transaction rejection, and program-specific errors.
+ *
+ * ## Error Categories
+ *
+ * 1. **Solana Errors**: Network errors, insufficient funds, blockhash not found
+ * 2. **Anchor Errors**: Program-specific errors (Unauthorized, RoomExpired, etc.)
+ * 3. **User Errors**: Transaction rejected, cancelled by user
+ * 4. **Simulation Errors**: Transaction would fail, validation errors
+ *
+ * @param error - Error object or string to format
+ * @returns User-friendly error message
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await createPoolRoom({...});
+ * } catch (error) {
+ *   const message = formatTransactionError(error);
+ *   console.error(message); // "Insufficient funds for transaction"
+ * }
+ * ```
  */
 export function formatTransactionError(error: any): string {
   const errorStr = error?.toString() || '';

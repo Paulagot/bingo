@@ -1,14 +1,85 @@
 /**
  * Bingo Smart Contract Integration Hook
  *
- * Primary interface for all Solana blockchain interactions in the Bingo platform. Provides
- * type-safe methods to create bingo rooms, join as players, and distribute prizes via the
+ * Primary interface for all Solana blockchain interactions in the FundRaisely quiz platform. Provides
+ * type-safe methods to create fundraising rooms, join as players, and distribute prizes via the
  * deployed Anchor program. Handles complex PDA derivation for Room, RoomVault, and PlayerEntry
  * accounts, manages SPL token transfers for entry fees, and simulates transactions before sending
- * to prevent failed transactions. Used by CreateRoomPage for room initialization and RoomPage for
- * player joins. Integrates with transactionHelpers.ts for validation and config.ts for network
- * settings. Exposes query methods (getRoomInfo, getPlayerEntry) for fetching on-chain state and
- * PDA derivation helpers for building custom transactions. Core blockchain layer of the application.
+ * to prevent failed transactions.
+ *
+ * ## Key Features
+ *
+ * ### Room Management
+ * - **createPoolRoom**: Creates a new pool-based fundraising room with configurable fee structure
+ * - **createAssetRoom**: Creates an asset-based room with pre-deposited prize assets
+ * - **getRoomInfo**: Fetches on-chain room state and configuration
+ *
+ * ### Player Operations
+ * - **joinRoom**: Allows players to join a room by paying entry fee
+ * - **getPlayerEntry**: Fetches player participation record
+ *
+ * ### Prize Distribution
+ * - **distributePrizes**: Distributes prizes to winners with automatic token account creation
+ *   - Automatically creates missing token accounts for host, platform, charity, and winners
+ *   - Handles both pool-based and asset-based rooms
+ *   - Simulates transaction before execution to prevent failures
+ *   - Emits RoomEnded event for transparency
+ *
+ * ### Token Account Management
+ * - **Automatic Creation**: Missing token accounts are created automatically before prize distribution
+ * - **Recipients**: Host, platform, charity, and winner token accounts are checked and created if needed
+ * - **Asset Rooms**: Prize asset token accounts are also created for asset-based rooms
+ *
+ * ### Transaction Safety
+ * - **Simulation**: All transactions are simulated before execution
+ * - **Validation**: Input validation via transactionHelpers.ts
+ * - **Error Handling**: User-friendly error messages for common failures
+ *
+ * ## Economic Model
+ *
+ * The contract enforces a trustless economic model:
+ * - Platform Fee: 20% (fixed)
+ * - Host Allocation: 40% total (configurable within this limit)
+ *   - Host Fee: 0-5% (host chooses)
+ *   - Prize Pool: 0-35% (calculated as 40% - host fee)
+ * - Charity: Minimum 40% (calculated remainder)
+ * - Extras: 100% to charity
+ *
+ * ## Usage
+ *
+ * ```typescript
+ * const { createPoolRoom, joinRoom, distributePrizes } = useSolanaContract();
+ *
+ * // Create a room
+ * const room = await createPoolRoom({
+ *   roomId: 'my-room-123',
+ *   entryFee: 1.0,
+ *   hostFeeBps: 100, // 1%
+ *   prizePoolBps: 3900, // 39% (max with 1% host fee)
+ *   maxPlayers: 100,
+ *   feeTokenMint: USDC_MINT,
+ *   charityWallet: charityAddress,
+ * });
+ *
+ * // Join a room
+ * await joinRoom({
+ *   roomId: 'my-room-123',
+ *   roomAddress: room.room,
+ *   entryFee: 1.0,
+ *   feeTokenMint: USDC_MINT,
+ * });
+ *
+ * // Distribute prizes
+ * await distributePrizes({
+ *   roomId: 'my-room-123',
+ *   winners: ['winner1...', 'winner2...', 'winner3...'],
+ * });
+ * ```
+ *
+ * Used by CreateRoomPage for room initialization and RoomPage for player joins. Integrates with
+ * transactionHelpers.ts for validation and config.ts for network settings. Exposes query methods
+ * (getRoomInfo, getPlayerEntry) for fetching on-chain state and PDA derivation helpers for building
+ * custom transactions. Core blockchain layer of the application.
  */
 import { getAccount } from '@solana/spl-token';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
@@ -520,6 +591,71 @@ export function useSolanaContract() {
     [publicKey, provider, program, connection, deriveTokenRegistryPDA]
   );
 
+  /**
+   * Creates a new pool-based fundraising room on Solana
+   *
+   * This function creates a new fundraising room where winners receive prizes from a pool of
+   * collected entry fees. The room is configured with a fee structure that allocates funds
+   * between platform (20%), host (0-5%), prize pool (0-35%), and charity (40%+).
+   *
+   * ## Charity Wallet Handling
+   *
+   * The charity wallet is determined using the following priority:
+   * 1. **GlobalConfig**: If GlobalConfig is initialized, use the charity wallet from it
+   * 2. **Params**: Use the charity wallet provided in params.charityWallet
+   * 3. **Error**: If neither is available, throw an error
+   *
+   * This ensures that the charity wallet is always valid and matches the platform configuration.
+   *
+   * ## Fee Structure Validation
+   *
+   * - Platform Fee: 20% (fixed by GlobalConfig)
+   * - Host Fee: 0-5% (500 basis points maximum)
+   * - Prize Pool: 0-35% (calculated as 40% - host fee)
+   * - Charity: Minimum 40% (calculated remainder)
+   *
+   * The system validates that:
+   * - Host fee + prize pool does not exceed 40%
+   * - Total allocation (platform + host + prize + charity) equals 100%
+   * - Charity receives at least 40%
+   *
+   * ## Automatic Initialization
+   *
+   * This function automatically initializes:
+   * - GlobalConfig: If not already initialized
+   * - TokenRegistry: If not already initialized
+   * - Token Approval: If the fee token is not already approved
+   *
+   * ## Token Restrictions
+   *
+   * Room fees are restricted to USDC and PYUSD only. Prize tokens have no restrictions.
+   *
+   * @param params - Room creation parameters
+   * @param params.roomId - Unique room identifier
+   * @param params.entryFee - Entry fee in token base units (e.g., 1000000 = 1 USDC)
+   * @param params.hostFeeBps - Host fee in basis points (0-500 = 0-5%)
+   * @param params.prizePoolBps - Prize pool in basis points (0-3500 = 0-35%, max = 40% - host fee)
+   * @param params.maxPlayers - Maximum number of players (1-1000)
+   * @param params.feeTokenMint - Token mint for entry fees (must be USDC or PYUSD)
+   * @param params.charityWallet - Charity wallet address (used if GlobalConfig not initialized)
+   * @param params.prizeDistribution - Prize distribution percentages [1st, 2nd, 3rd] (must sum to 100)
+   * @returns Room creation result with room PDA and transaction signature
+   * @throws Error if wallet not connected, program not initialized, or validation fails
+   *
+   * @example
+   * ```typescript
+   * const room = await createPoolRoom({
+   *   roomId: 'my-room-123',
+   *   entryFee: new BN(1000000), // 1 USDC
+   *   hostFeeBps: 100, // 1%
+   *   prizePoolBps: 3900, // 39% (max with 1% host fee)
+   *   maxPlayers: 100,
+   *   feeTokenMint: USDC_MINT,
+   *   charityWallet: charityAddress,
+   *   prizeDistribution: [50, 30, 20], // 50% 1st, 30% 2nd, 20% 3rd
+   * });
+   * ```
+   */
   const createPoolRoom = useCallback(
     async (params: CreatePoolRoomParams) => {
       console.log('[createPoolRoom] Starting room creation with params:', {
@@ -974,8 +1110,55 @@ export function useSolanaContract() {
    *
    * @see {@link https://spl.solana.com/associated-token-account} - ATA spec
    */
- const joinRoom = useCallback(
-  async (params: JoinRoomParams) => {
+  /**
+   * Joins a room as a player by paying the entry fee
+   *
+   * This function allows a player to join a fundraising room by paying the required entry fee.
+   * The entry fee is transferred to the room vault, and a PlayerEntry account is created to
+   * track the player's participation.
+   *
+   * ## Token Account Management
+   *
+   * - If the player's token account doesn't exist, it is created automatically
+   * - For native SOL, the account is funded and synced
+   * - For SPL tokens, the player must have approved the token transfer
+   *
+   * ## Entry Fee Payment
+   *
+   * - Entry fee is transferred from player's token account to room vault
+   * - Extras (optional) are also transferred to room vault
+   * - All extras go 100% to charity (transparent on-chain)
+   *
+   * ## Validation
+   *
+   * - Room must exist and match provided parameters
+   * - Player must not have already joined
+   * - Player must have sufficient balance
+   * - Room must not be full
+   * - Room must not be ended
+   *
+   * @param params - Join room parameters
+   * @param params.roomId - Room identifier
+   * @param params.roomAddress - Room PDA address
+   * @param params.entryFee - Entry fee in token base units
+   * @param params.feeTokenMint - Token mint for entry fees
+   * @param params.extrasAmount - Optional extras amount (100% to charity)
+   * @returns Join room result with transaction signature
+   * @throws Error if wallet not connected, room not found, player already joined, or insufficient balance
+   *
+   * @example
+   * ```typescript
+   * await joinRoom({
+   *   roomId: 'my-room-123',
+   *   roomAddress: roomPDA,
+   *   entryFee: new BN(1000000), // 1 USDC
+   *   feeTokenMint: USDC_MINT,
+   *   extrasAmount: new BN(500000), // 0.5 USDC extras (100% to charity)
+   * });
+   * ```
+   */
+  const joinRoom = useCallback(
+    async (params: JoinRoomParams) => {
     console.log('[joinRoom] Called with params:', {
       roomId: params.roomId,
       roomIdLength: params.roomId.length,
@@ -2585,6 +2768,76 @@ export function useSolanaContract() {
    * Valid Solana addresses are base58-encoded public keys, typically 43-44 characters.
    * Example: 7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU
    */
+  /**
+   * Distributes prizes to winners and closes the room
+   *
+   * This function handles the complete prize distribution process, including:
+   * - Declaring winners (if not already declared)
+   * - Checking and creating missing token accounts for all recipients
+   * - Distributing funds from room vault to platform, host, charity, and winners
+   * - Handling both pool-based and asset-based rooms
+   * - Simulating transaction before execution to prevent failures
+   *
+   * ## Token Account Creation
+   *
+   * The system automatically creates missing token accounts for:
+   * - **Host**: Token account for host to receive host fee
+   * - **Platform**: Token account for platform to receive platform fee (20%)
+   * - **Charity**: Token account for charity to receive charity allocation (40%+)
+   * - **Winners**: Token accounts for each winner to receive prizes
+   * - **Prize Assets**: Token accounts for asset-based rooms (if applicable)
+   *
+   * All token account creation instructions are included in the same transaction as
+   * prize distribution, ensuring atomic execution.
+   *
+   * ## Prize Distribution Flow
+   *
+   * 1. **Validate Inputs**: Check room exists, not already ended, winners are valid
+   * 2. **Declare Winners**: Call `declareWinners` if winners not already declared
+   * 3. **Check Token Accounts**: Verify all recipient token accounts exist
+   * 4. **Create Missing Accounts**: Create any missing token accounts
+   * 5. **Build EndRoom Instruction**: Create instruction to distribute funds
+   * 6. **Simulate Transaction**: Simulate transaction to catch errors early
+   * 7. **Send Transaction**: Sign and send transaction
+   * 8. **Confirm Transaction**: Wait for confirmation
+   * 9. **Cleanup Room**: Optionally cleanup room to reclaim rent
+   *
+   * ## Asset-Based Rooms
+   *
+   * For asset-based rooms, the function also:
+   * - Checks winner token accounts for prize assets
+   * - Creates missing prize asset token accounts
+   * - Includes prize vault accounts in remaining accounts
+   *
+   * ## Transaction Simulation
+   *
+   * All transactions are simulated before execution to:
+   * - Catch errors early (before user signs)
+   * - Provide detailed error messages
+   * - Prevent wasted gas fees
+   * - Improve user experience
+   *
+   * @param params - Prize distribution parameters
+   * @param params.roomId - Room identifier
+   * @param params.winners - Array of winner wallet addresses (1-3 winners)
+   * @param params.roomAddress - Optional room PDA address (derived if not provided)
+   * @returns Prize distribution result with transaction signatures and charity amount
+   * @throws Error if wallet not connected, room not found, room already ended, or transaction fails
+   *
+   * @example
+   * ```typescript
+   * const result = await distributePrizes({
+   *   roomId: 'my-room-123',
+   *   winners: [
+   *     'winner1...',
+   *     'winner2...',
+   *     'winner3...',
+   *   ],
+   * });
+   * console.log('Prizes distributed:', result.signature);
+   * console.log('Charity amount:', result.charityAmount);
+   * ```
+   */
   const distributePrizes = useCallback(
     async (params: { roomId: string; winners: string[]; roomAddress?: string }): Promise<{ signature: string; cleanupSignature?: string; rentReclaimed?: number; cleanupError?: string; charityAmount?: BN }> => {
       if (!publicKey || !provider || !program) {
@@ -2701,6 +2954,99 @@ export function useSolanaContract() {
         )
       );
 
+      // ✅ Check and create missing token accounts before building endRoom instruction
+      // The Solana program expects all recipient token accounts to exist
+      console.log('[distributePrizes] Checking token account existence...');
+
+      // Helper function to check if token account exists and create if missing
+      const ensureTokenAccountExists = async (
+        tokenAccount: PublicKey,
+        owner: PublicKey,
+        mint: PublicKey,
+        accountName: string
+      ): Promise<TransactionInstruction | null> => {
+        try {
+          const account = await getAccount(connection, tokenAccount, 'confirmed');
+          // Verify it's for the correct mint
+          if (!account.mint.equals(mint)) {
+            throw new Error(
+              `Token account ${accountName} exists but for wrong mint. ` +
+              `Expected ${mint.toBase58()}, found ${account.mint.toBase58()}`
+            );
+          }
+          console.log(`[distributePrizes] ✅ ${accountName} token account exists:`, tokenAccount.toBase58());
+          return null; // Account exists, no instruction needed
+        } catch (error: any) {
+          // Account doesn't exist, create it
+          if (
+            error.name === 'TokenAccountNotFoundError' ||
+            error.message?.includes('could not find account') ||
+            error.message?.includes('InvalidAccountData')
+          ) {
+            console.log(`[distributePrizes] ⚠️ ${accountName} token account does not exist, will create:`, tokenAccount.toBase58());
+            return createAssociatedTokenAccountInstruction(
+              publicKey,    // payer (host)
+              tokenAccount, // ata address
+              owner,        // owner (who will receive tokens)
+              mint          // token mint
+            );
+          }
+          // Re-throw other errors
+          throw error;
+        }
+      };
+
+      // Check and create token accounts for all recipients
+      const tokenAccountCreationInstructions: TransactionInstruction[] = [];
+
+      // 1. Check host token account (this is the one that's failing)
+      const hostAtaIx = await ensureTokenAccountExists(
+        hostTokenAccount,
+        roomInfo.host,
+        roomInfo.feeTokenMint,
+        'Host'
+      );
+      if (hostAtaIx) {
+        tokenAccountCreationInstructions.push(hostAtaIx);
+      }
+
+      // 2. Check platform token account
+      const platformAtaIx = await ensureTokenAccountExists(
+        platformTokenAccount,
+        platformWallet,
+        roomInfo.feeTokenMint,
+        'Platform'
+      );
+      if (platformAtaIx) {
+        tokenAccountCreationInstructions.push(platformAtaIx);
+      }
+
+      // 3. Check charity token account
+      const charityAtaIx = await ensureTokenAccountExists(
+        charityTokenAccount,
+        charityWallet,
+        roomInfo.feeTokenMint,
+        'Charity'
+      );
+      if (charityAtaIx) {
+        tokenAccountCreationInstructions.push(charityAtaIx);
+      }
+
+      // 4. Check winner token accounts (for fee token)
+      for (let i = 0; i < winnerTokenAccounts.length; i++) {
+        const winnerTokenAccount = winnerTokenAccounts[i];
+        const winner = winnerPubkeys[i];
+        const winnerAtaIx = await ensureTokenAccountExists(
+          winnerTokenAccount,
+          winner,
+          roomInfo.feeTokenMint,
+          `Winner ${i + 1}`
+        );
+        if (winnerAtaIx) {
+          tokenAccountCreationInstructions.push(winnerAtaIx);
+        }
+      }
+
       // Build remaining accounts array
       // For asset-based rooms, the structure is:
       // [0..winners_count] = winner token accounts for fee_token_mint
@@ -2719,18 +3065,34 @@ export function useSolanaContract() {
         ((roomInfo.prizeMode as any).assetBased !== undefined || 
          (roomInfo.prizeMode as any).AssetBased !== undefined);
 
+      // Track winner prize token accounts for asset-based rooms
+      let winnerPrizeTokenAccounts: PublicKey[] = [];
+
       if (isAssetBased && roomInfo.prizeAssets) {
         console.log('[distributePrizes] Asset-based room detected, building prize accounts...');
         
         // Get winner token accounts for prize assets (one per winner for their prize mint)
-        const winnerPrizeTokenAccounts = await Promise.all(
+        winnerPrizeTokenAccounts = await Promise.all(
           winnerPubkeys.slice(0, 3).map(async (winner, index) => {
             const prizeAsset = roomInfo.prizeAssets?.[index];
             if (prizeAsset && prizeAsset.deposited) {
-              return await getAssociatedTokenAddress(
+              const winnerPrizeTokenAccount = await getAssociatedTokenAddress(
                 prizeAsset.mint,
                 winner
               );
+              
+              // ✅ Check and create winner token account for prize asset if missing
+              const winnerPrizeAtaIx = await ensureTokenAccountExists(
+                winnerPrizeTokenAccount,
+                winner,
+                prizeAsset.mint,
+                `Winner ${index + 1} (Prize Asset)`
+              );
+              if (winnerPrizeAtaIx) {
+                tokenAccountCreationInstructions.push(winnerPrizeAtaIx);
+              }
+              
+              return winnerPrizeTokenAccount;
             }
             // If no prize for this position, use fee token mint as placeholder
             // (won't be used but needed to maintain array structure)
@@ -2784,6 +3146,18 @@ export function useSolanaContract() {
           prizeVaultAccounts: prizeVaultAccounts.length,
           total: remainingAccounts.length,
         });
+      }
+
+      // ✅ Add all token account creation instructions to transaction before endRoom
+      // Do this after all account checks (including asset-based prize accounts) are complete
+      if (tokenAccountCreationInstructions.length > 0) {
+        console.log(`[distributePrizes] Adding ${tokenAccountCreationInstructions.length} token account creation instructions...`);
+        tokenAccountCreationInstructions.forEach((ix, idx) => {
+          tx.add(ix);
+          console.log(`[distributePrizes] Added token account creation instruction ${idx + 1}`);
+        });
+      } else {
+        console.log('[distributePrizes] All token accounts already exist');
       }
 
       // Build endRoom instruction

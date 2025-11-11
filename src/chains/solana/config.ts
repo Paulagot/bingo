@@ -2,10 +2,50 @@
  * Solana Network Configuration
  *
  * Centralizes blockchain configuration including deployed program ID, RPC endpoints, and
- * transaction parameters for the Bingo Solana program. Defines network selection
+ * transaction parameters for the FundRaisely Solana program. Defines network selection
  * (devnet/mainnet/testnet), PDA seed constants that must match the Rust program's anchor
  * derive macros, and fee constraints enforced by smart contract.
- * Provides TOKEN_MINTS for supported tokens (USDC, SOL) and TX_CONFIG for transaction
+ *
+ * ## Program Configuration
+ *
+ * - **Program ID**: `8W83G9mSeoQ6Ljcz5QJHYPjH2vQgw94YeVCnpY6KFt7i` (devnet)
+ * - **Network**: Devnet (default), Testnet, Mainnet-beta
+ * - **RPC Endpoints**: Configurable per network via environment variables
+ *
+ * ## Token Configuration
+ *
+ * Supported tokens for room fees (restricted to USDC and PYUSD):
+ * - **USDC**: USD Coin (Circle)
+ * - **PYUSD**: PayPal USD
+ * - **USDT**: Tether USD (optional)
+ * - **SOL**: Native Solana token (wrapped)
+ *
+ * Token mints are network-specific and automatically selected based on the current network.
+ *
+ * ## PDA Seeds
+ *
+ * PDA seeds must match the Rust program's anchor derive macros:
+ * - `global-config`: GlobalConfig PDA
+ * - `approved_tokens`: TokenRegistry PDA
+ * - `room`: Room PDA
+ * - `room-vault`: RoomVault PDA
+ * - `player-entry`: PlayerEntry PDA
+ *
+ * ## Fee Configuration
+ *
+ * Fee constraints enforced by the smart contract:
+ * - **PLATFORM_BPS**: 2000 (20% fixed platform fee)
+ * - **MAX_HOST_BPS**: 500 (5% maximum host fee)
+ * - **MAX_COMBINED_BPS**: 4000 (40% maximum host allocation: host fee + prize pool)
+ *
+ * ## Transaction Configuration
+ *
+ * - **Commitment**: 'confirmed' (default)
+ * - **Preflight Commitment**: 'confirmed'
+ * - **Skip Preflight**: false (validate before sending)
+ * - **Max Retries**: 3
+ *
+ * Provides TOKEN_MINTS for supported tokens (USDC, PYUSD, USDT, SOL) and TX_CONFIG for transaction
  * commitment levels. Referenced by useSolanaContract, transactionHelpers, and
  * SolanaWalletProvider to ensure consistent blockchain interaction across the application.
  */
