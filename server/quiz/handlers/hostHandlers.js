@@ -734,6 +734,115 @@ socket.on('end_quiz_and_distribute_prizes', ({ roomId }) => {
     });
   }
 
+  // ✅ NEW: For Solana rooms, calculate charity amount and get wallet from TGB API
+  let charityWalletAddress = room.config.web3CharityAddress; // Default for non-Solana chains
+  
+  if (web3Chain === 'solana') {
+    try {
+      // Calculate charity amount from room state
+      const entryFee = parseFloat(room.config.entryFee || '0');
+      const paidPlayers = room.players.filter((p) => p.paid && !p.disqualified);
+      const totalEntryReceived = paidPlayers.length * entryFee;
+      
+      let totalExtrasReceived = 0;
+      for (const player of room.players) {
+        if (player.extraPayments) {
+          for (const [, val] of Object.entries(player.extraPayments)) {
+            totalExtrasReceived += val.amount || 0;
+          }
+        }
+      }
+      
+      const totalRaised = totalEntryReceived + totalExtrasReceived;
+      
+      // Calculate charity amount based on web3PrizeSplit
+      let charityAmount = 0;
+      if (room.config.web3PrizeSplit && room.config.web3PrizeSplit.charity) {
+        charityAmount = (totalRaised * room.config.web3PrizeSplit.charity) / 100;
+      } else {
+        // Fallback: assume 100% to charity if no split defined
+        charityAmount = totalRaised;
+      }
+      
+      if (debug) {
+        console.log(`[Host] 💰 Calculating charity amount for Solana room:`, {
+          totalEntryReceived,
+          totalExtrasReceived,
+          totalRaised,
+          charityPercentage: room.config.web3PrizeSplit?.charity || 100,
+          charityAmount,
+        });
+      }
+      
+      // Call TGB API to get wallet address
+      if (charityAmount > 0 && room.config.web3CharityId) {
+        try {
+          // Import TGB handler directly to avoid HTTP call overhead
+          const createDepositAddress = (await import('../../tgb/api/create-deposit-address.js')).default;
+          
+          // Create a mock request/response object for the handler
+          const mockReq = {
+            body: {
+              organizationId: room.config.web3CharityId,
+              currency: room.config.web3Currency || 'USDC',
+              network: 'solana',
+              amount: charityAmount.toFixed(2), // Convert to decimal string
+              mock: true, // Use mock mode for now (returns mockSolAddress: 7q1Z6dQexV9HcZ7q1Z6dQexV9HcZ7q1Z6dQexV9HcZ7)
+            },
+            requestId: `tgb-${roomId}-${Date.now()}`,
+            query: {},
+          };
+          
+          let tgbData = null;
+          let responseStatus = 200;
+          const mockRes = {
+            json: (data) => {
+              tgbData = data;
+              return mockRes;
+            },
+            status: (code) => {
+              responseStatus = code;
+              return mockRes;
+            },
+            headersSent: false,
+          };
+          
+          // Call the handler directly
+          await createDepositAddress(mockReq, mockRes);
+          
+          if (responseStatus === 200 && tgbData && tgbData.ok && tgbData.depositAddress) {
+            charityWalletAddress = tgbData.depositAddress;
+            if (debug) {
+              console.log(`[Host] ✅ TGB API returned wallet address: ${charityWalletAddress}`);
+            }
+          } else {
+            console.error(`[Host] ❌ TGB API returned error:`, tgbData);
+            socket.emit('quiz_error', {
+              message: `Failed to get charity wallet address from The Giving Block API: ${tgbData?.error || 'Unknown error'}`,
+            });
+            return;
+          }
+        } catch (tgbError) {
+          console.error(`[Host] ❌ Error calling TGB API:`, tgbError);
+          socket.emit('quiz_error', {
+            message: `Failed to get charity wallet address from The Giving Block API: ${tgbError.message}`,
+          });
+          return;
+        }
+      } else {
+        if (debug) {
+          console.warn(`[Host] ⚠️ Skipping TGB API call: charityAmount=${charityAmount}, charityId=${room.config.web3CharityId}`);
+        }
+      }
+    } catch (calcError) {
+      console.error(`[Host] ❌ Error calculating charity amount:`, calcError);
+      socket.emit('quiz_error', {
+        message: `Failed to calculate charity amount: ${calcError.message}`,
+      });
+      return;
+    }
+  }
+
   // You can keep sending only `winners` if that's what your frontend expects
   // but including winnersDetailed can help the host UI.
   socket.emit('initiate_prize_distribution', {
@@ -746,11 +855,10 @@ socket.on('end_quiz_and_distribute_prizes', ({ roomId }) => {
     evmNetwork: room.config.evmNetwork,
     roomAddress: room.config.roomContractAddress || room.config.web3ContractAddress,
 
-    // Charity info: Used by Stellar/EVM chains
-    // NOTE: Solana uses GlobalConfig.charity_wallet from on-chain state instead
+    // Charity info: For Solana, this is the TGB wallet address; for other chains, it's the configured address
     charityOrgId: room.config.web3CharityId,
     charityName: room.config.web3CharityName,
-    charityAddress: room.config.web3CharityAddress,
+    charityAddress: charityWalletAddress, // ✅ Updated: Now includes TGB wallet for Solana
   });
 
   namespace.to(roomId).emit('prize_distribution_started', {

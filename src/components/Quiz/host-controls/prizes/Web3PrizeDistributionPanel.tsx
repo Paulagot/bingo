@@ -122,16 +122,25 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
     });
 
     // Call the contract action
-    const result = await distributePrizes({
+    // ✅ For Solana, pass charityAddress as charityWallet parameter
+    const distributeParams: any = {
       roomId: data.roomId,
       winners: winnersPayload,
       roomAddress: data.roomAddress,
-      charityOrgId: data.charityOrgId,       // ✅ ADD
-      charityName: data.charityName,         // ✅ ADD
+      charityOrgId: data.charityOrgId,
+      charityName: data.charityName,
       charityAddress: data.charityAddress,
-       web3Chain: data.web3Chain,     // 👈 add
-  evmNetwork: data.evmNetwork,   // ✅ ADD
-    });
+      web3Chain: data.web3Chain,
+      evmNetwork: data.evmNetwork,
+    };
+    
+    // ✅ NEW: For Solana, pass charityAddress as charityWallet to use TGB wallet
+    if (data.web3Chain === 'solana' && data.charityAddress) {
+      distributeParams.charityWallet = data.charityAddress;
+      console.log('🎯 [Frontend] Using TGB charity wallet for Solana:', data.charityAddress);
+    }
+    
+    const result = await distributePrizes(distributeParams);
 
         console.log('📊 [Frontend] distributePrizes result:', result);
 

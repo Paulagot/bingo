@@ -172,8 +172,9 @@ type DistributeArgs = {
   charityOrgId?: string;
   charityName?: string;
   charityAddress?: string;
-   web3Chain?: string;     // 👈 add
-  evmNetwork?: string,
+  web3Chain?: string;
+  evmNetwork?: string;
+  charityWallet?: string; // ✅ NEW: For Solana, the TGB wallet address to use instead of GlobalConfig
 };
 
 type DistributeResult =
@@ -425,7 +426,7 @@ export function useContractActions(opts?: Options) {
     }
 
     if (effectiveChain === 'solana') {
-      return async ({ roomId, winners, roomAddress }: DistributeArgs): Promise<DistributeResult> => {
+      return async ({ roomId, winners, roomAddress, charityWallet }: DistributeArgs): Promise<DistributeResult> => {
         try {
           if (!solanaContract || !solanaContract.isReady) {
             return { success: false, error: 'Solana contract not ready' };
@@ -434,7 +435,7 @@ export function useContractActions(opts?: Options) {
             return { success: false, error: 'Wallet not connected' };
           }
 
-          console.log('🎯 [Solana] Starting prize distribution:', { roomId, winners, roomAddress });
+          console.log('🎯 [Solana] Starting prize distribution:', { roomId, winners, roomAddress, charityWallet });
 
           // Extract winner addresses (Solana public keys)
           const winnerAddresses = winners
@@ -447,11 +448,15 @@ export function useContractActions(opts?: Options) {
           }
 
           console.log('🏆 [Solana] Winner addresses:', winnerAddresses);
+          if (charityWallet) {
+            console.log('💰 [Solana] Using TGB charity wallet:', charityWallet);
+          }
 
           const res = await solanaContract.distributePrizes({
             roomId,
             winners: winnerAddresses,
             roomAddress, // Pass room PDA address from backend
+            charityWallet, // ✅ NEW: Pass TGB wallet address (from backend)
           });
 
           console.log('✅ [Solana] Prize distribution successful:', res.signature);

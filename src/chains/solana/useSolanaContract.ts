@@ -426,6 +426,67 @@ export function useSolanaContract() {
   );
 
   /**
+   * Updates the global configuration (admin only)
+   * 
+   * Used to update max_prize_pool_bps from 3500 (35%) to 4000 (40%) to allow
+   * hosts to allocate up to 40% - host fee for prizes.
+   */
+  const updateGlobalConfig = useCallback(
+    async (updates: {
+      platformWallet?: PublicKey | null;
+      charityWallet?: PublicKey | null;
+      platformFeeBps?: number | null;
+      maxHostFeeBps?: number | null;
+      maxPrizePoolBps?: number | null;
+      minCharityBps?: number | null;
+    }): Promise<{ signature: string }> => {
+      console.log('[updateGlobalConfig] Updating global config:', updates);
+
+      if (!publicKey || !provider) {
+        throw new Error('Wallet not connected');
+      }
+
+      if (!program) {
+        throw new Error('Program not initialized');
+      }
+
+      const [globalConfig] = deriveGlobalConfigPDA();
+
+      // Build update instruction
+      const ix = await program.methods
+        .updateGlobalConfig(
+          updates.platformWallet ?? null,
+          updates.charityWallet ?? null,
+          updates.platformFeeBps ?? null,
+          updates.maxHostFeeBps ?? null,
+          updates.maxPrizePoolBps ?? null,
+          updates.minCharityBps ?? null
+        )
+        .accounts({
+          globalConfig,
+          admin: publicKey,
+        })
+        .instruction();
+
+      // Build and send transaction
+      const tx = new Transaction().add(ix);
+      tx.feePayer = publicKey;
+      const { blockhash } = await connection.getLatestBlockhash('finalized');
+      tx.recentBlockhash = blockhash;
+
+      const signature = await provider.sendAndConfirm(tx, [], {
+        skipPreflight: false,
+        commitment: 'confirmed',
+      });
+
+      console.log('✅ Global config updated:', signature);
+
+      return { signature };
+    },
+    [publicKey, provider, program, deriveGlobalConfigPDA]
+  );
+
+  /**
    * Initializes the token registry (one-time setup)
    *
    * The token registry must be initialized before creating any rooms.
@@ -692,6 +753,35 @@ export function useSolanaContract() {
         console.log('[createPoolRoom] Global config already initialized (caught expected error)');
       }
 
+      // Check and update max_prize_pool_bps if it's set to 3500 (35%)
+      // The contract should allow up to 40% - host fee, so max_prize_pool_bps should be 4000
+      const [globalConfig] = deriveGlobalConfigPDA();
+      try {
+        const configAccount = await program.account.globalConfig.fetch(globalConfig);
+        if (configAccount.maxPrizePoolBps === 3500) {
+          console.log('[createPoolRoom] GlobalConfig has max_prize_pool_bps = 3500, updating to 4000...');
+          try {
+            // Check if current user is admin
+            if (configAccount.admin.equals(publicKey)) {
+              await updateGlobalConfig({ maxPrizePoolBps: 4000 });
+              console.log('[createPoolRoom] ✅ Updated max_prize_pool_bps to 4000 (40%)');
+            } else {
+              console.warn('[createPoolRoom] ⚠️ max_prize_pool_bps is 3500 but user is not admin. Contract validation may fail for prize pools > 35%.');
+              console.warn('[createPoolRoom] ⚠️ Admin must update GlobalConfig.max_prize_pool_bps to 4000 to allow prize pools up to 40% - host fee.');
+            }
+          } catch (updateError: any) {
+            // If update fails (e.g., not admin), log warning but continue
+            console.warn('[createPoolRoom] Could not update GlobalConfig:', updateError.message);
+            console.warn('[createPoolRoom] Prize pool validation may fail if prizePoolBps > 35%.');
+          }
+        } else {
+          console.log(`[createPoolRoom] GlobalConfig max_prize_pool_bps: ${configAccount.maxPrizePoolBps}`);
+        }
+      } catch (configError: any) {
+        // If we can't fetch config, log warning but continue
+        console.warn('[createPoolRoom] Could not fetch GlobalConfig:', configError.message);
+      }
+
       console.log('[createPoolRoom] Checking if token registry is initialized...');
       try {
         await initializeTokenRegistry();
@@ -916,7 +1006,7 @@ export function useSolanaContract() {
 
       return { signature, room: room.toBase58() };
     },
-    [publicKey, program, provider, connection, deriveGlobalConfigPDA, deriveRoomPDA, deriveRoomVaultPDA, initializeGlobalConfig, initializeTokenRegistry, addApprovedToken]
+    [publicKey, program, provider, connection, deriveGlobalConfigPDA, deriveRoomPDA, deriveRoomVaultPDA, initializeGlobalConfig, updateGlobalConfig, initializeTokenRegistry, addApprovedToken]
   );
 
   // ============================================================================
@@ -2145,17 +2235,39 @@ export function useSolanaContract() {
 
         if (txDetails?.meta?.logMessages) {
           // Parse events from transaction logs
-          const events = program.coder.events.parseLogs(txDetails.meta.logMessages);
-          const roomEndedEvent = events.find((e: any) => e.name === 'RoomEnded');
-          
-          if (roomEndedEvent) {
-            charityAmount = new BN(roomEndedEvent.data.charityAmount.toString());
-            console.log('[endRoom] Parsed RoomEnded event:', {
-              charityAmount: charityAmount.toString(),
-              platformAmount: roomEndedEvent.data.platformAmount.toString(),
-              hostAmount: roomEndedEvent.data.hostAmount.toString(),
-              prizeAmount: roomEndedEvent.data.prizeAmount.toString(),
-            });
+          // Anchor events are emitted as "Program data: <base64>" in logs
+          // We need to find the RoomEnded event and decode it
+          try {
+            // Look for log lines containing "Program data:" which indicates an event
+            for (const log of txDetails.meta.logMessages) {
+              if (log.includes('Program data:')) {
+                // Extract base64 data
+                const base64Match = log.match(/Program data: ([A-Za-z0-9+/=]+)/);
+                if (base64Match) {
+                  try {
+                    const eventData = Buffer.from(base64Match[1], 'base64');
+                    // Try to decode as RoomEnded event
+                    // The event coder expects the full event data including discriminator
+                    const decoded = program.coder.events.decode('RoomEnded', eventData);
+                    if (decoded && decoded.charityAmount) {
+                      charityAmount = new BN(decoded.charityAmount.toString());
+                      console.log('[endRoom] Parsed RoomEnded event:', {
+                        charityAmount: charityAmount.toString(),
+                        platformAmount: decoded.platformAmount?.toString(),
+                        hostAmount: decoded.hostAmount?.toString(),
+                        prizeAmount: decoded.prizeAmount?.toString(),
+                      });
+                      break; // Found the event, stop searching
+                    }
+                  } catch (decodeError) {
+                    // Not a RoomEnded event or decode failed, continue searching
+                    continue;
+                  }
+                }
+              }
+            }
+          } catch (parseError) {
+            console.log('[endRoom] Event parsing failed, continuing without event data');
           }
         }
       } catch (eventParseError) {
@@ -2839,7 +2951,7 @@ export function useSolanaContract() {
    * ```
    */
   const distributePrizes = useCallback(
-    async (params: { roomId: string; winners: string[]; roomAddress?: string }): Promise<{ signature: string; cleanupSignature?: string; rentReclaimed?: number; cleanupError?: string; charityAmount?: BN }> => {
+    async (params: { roomId: string; winners: string[]; roomAddress?: string; charityWallet?: string }): Promise<{ signature: string; cleanupSignature?: string; rentReclaimed?: number; cleanupError?: string; charityAmount?: BN }> => {
       if (!publicKey || !provider || !program) {
         throw new Error('Wallet not connected or program not initialized');
       }
@@ -2848,6 +2960,7 @@ export function useSolanaContract() {
         roomId: params.roomId,
         winners: params.winners,
         roomAddress: params.roomAddress,
+        charityWallet: params.charityWallet,
       });
 
       // Use provided room address or derive it
@@ -2927,11 +3040,21 @@ export function useSolanaContract() {
       const [globalConfig] = deriveGlobalConfigPDA();
       const [roomVault] = deriveRoomVaultPDA(roomPDA);
 
-      // Fetch global config to get platform and charity wallets
+      // Fetch global config to get platform wallet
       // @ts-ignore - Account types available after program deployment
       const globalConfigAccount = await program.account.globalConfig.fetch(globalConfig);
       const platformWallet = globalConfigAccount.platformWallet as PublicKey;
-      const charityWallet = globalConfigAccount.charityWallet as PublicKey;
+      
+      // ✅ NEW: Use provided charity wallet address (from TGB API) instead of GlobalConfig
+      let charityWallet: PublicKey;
+      if (params.charityWallet) {
+        charityWallet = new PublicKey(params.charityWallet);
+        console.log('[distributePrizes] Using provided charity wallet (from TGB API):', charityWallet.toBase58());
+      } else {
+        // Fallback to GlobalConfig charity wallet if not provided (for backward compatibility)
+        charityWallet = globalConfigAccount.charityWallet as PublicKey;
+        console.log('[distributePrizes] Using GlobalConfig charity wallet (fallback):', charityWallet.toBase58());
+      }
 
       // Get token accounts for all recipients
       const platformTokenAccount = await getAssociatedTokenAddress(
@@ -3231,17 +3354,39 @@ export function useSolanaContract() {
 
         if (txDetails?.meta?.logMessages) {
           // Parse events from transaction logs
-          const events = program.coder.events.parseLogs(txDetails.meta.logMessages);
-          const roomEndedEvent = events.find((e: any) => e.name === 'RoomEnded');
-          
-          if (roomEndedEvent) {
-            charityAmount = new BN(roomEndedEvent.data.charityAmount.toString());
-            console.log('[distributePrizes] Parsed RoomEnded event:', {
-              charityAmount: charityAmount.toString(),
-              platformAmount: roomEndedEvent.data.platformAmount.toString(),
-              hostAmount: roomEndedEvent.data.hostAmount.toString(),
-              prizeAmount: roomEndedEvent.data.prizeAmount.toString(),
-            });
+          // Anchor events are emitted as "Program data: <base64>" in logs
+          // We need to find the RoomEnded event and decode it
+          try {
+            // Look for log lines containing "Program data:" which indicates an event
+            for (const log of txDetails.meta.logMessages) {
+              if (log.includes('Program data:')) {
+                // Extract base64 data
+                const base64Match = log.match(/Program data: ([A-Za-z0-9+/=]+)/);
+                if (base64Match) {
+                  try {
+                    const eventData = Buffer.from(base64Match[1], 'base64');
+                    // Try to decode as RoomEnded event
+                    // The event coder expects the full event data including discriminator
+                    const decoded = program.coder.events.decode('RoomEnded', eventData);
+                    if (decoded && decoded.charityAmount) {
+                      charityAmount = new BN(decoded.charityAmount.toString());
+                      console.log('[distributePrizes] Parsed RoomEnded event:', {
+                        charityAmount: charityAmount.toString(),
+                        platformAmount: decoded.platformAmount?.toString(),
+                        hostAmount: decoded.hostAmount?.toString(),
+                        prizeAmount: decoded.prizeAmount?.toString(),
+                      });
+                      break; // Found the event, stop searching
+                    }
+                  } catch (decodeError) {
+                    // Not a RoomEnded event or decode failed, continue searching
+                    continue;
+                  }
+                }
+              }
+            }
+          } catch (parseError) {
+            console.log('[distributePrizes] Event parsing failed, continuing without event data');
           }
         }
       } catch (eventParseError) {
