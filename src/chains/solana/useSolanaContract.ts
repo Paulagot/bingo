@@ -82,8 +82,8 @@
  * custom transactions. Core blockchain layer of the application.
  */
 import { useConnection, useWallet, WalletContext } from '@solana/wallet-adapter-react';
-import { useContext } from 'react';
-import { useCallback, useMemo } from 'react';
+import { useContext, useCallback, useMemo } from 'react';
+import type { DependencyList } from 'react';
 import { Program, AnchorProvider, BN } from '@coral-xyz/anchor';
 import {
   PublicKey,
@@ -200,10 +200,12 @@ export interface PlayerEntryInfoExtended extends PlayerEntryInfo {
 }
 
 // ============================================================================
-// Main Hook
+// Helper Functions
 // ============================================================================
 
-// Helper to create safe default return when WalletProvider is not available
+/**
+ * Helper to create safe default return when WalletProvider is not available
+ */
 function createSafeDefaultReturn() {
   // Return a safe default object with all required properties
   // All functions will return errors indicating wallet is not connected
@@ -236,6 +238,40 @@ function createSafeDefaultReturn() {
     createTokenMint: notAvailable,
   };
 }
+
+/**
+ * Converts RoomInfo to RoomInfoExtended for backward compatibility
+ */
+function toRoomInfoExtended(roomInfo: RoomInfo | null): RoomInfoExtended | null {
+  if (!roomInfo) return null;
+  
+  return {
+    ...roomInfo,
+    ended: (roomInfo as any).ended ?? false,
+    expirationSlot: (roomInfo as any).expirationSlot ?? new BN(0),
+    prizeMode: (roomInfo as any).prizeMode,
+  } as RoomInfoExtended;
+}
+
+/**
+ * Converts PlayerEntryInfo to PlayerEntryInfoExtended for backward compatibility
+ */
+function toPlayerEntryInfoExtended(playerEntry: PlayerEntryInfo | null): PlayerEntryInfoExtended | null {
+  if (!playerEntry) return null;
+  
+  return {
+    ...playerEntry,
+    room: (playerEntry as any).room,
+    entryPaid: (playerEntry as any).entryPaid ?? new BN(0),
+    extrasPaid: (playerEntry as any).extrasPaid ?? new BN(0),
+    totalPaid: (playerEntry as any).totalPaid ?? new BN(0),
+    joinSlot: (playerEntry as any).joinSlot ?? new BN(0),
+  } as PlayerEntryInfoExtended;
+}
+
+// ============================================================================
+// Main Hook
+// ============================================================================
 
 export function useSolanaContract() {
   // Check if WalletProvider exists - useContext is safe to call
@@ -288,6 +324,64 @@ export function useSolanaContract() {
       return null;
     }
   }, [provider]);
+
+  // ============================================================================
+  // Context Creation Helper
+  // ============================================================================
+
+  /**
+   * Memoized Solana contract context
+   * Single source of truth for all API operations
+   */
+  const context = useMemo((): SolanaContractContext => {
+    return {
+      program,
+      provider,
+      publicKey,
+      connected: !!publicKey,
+      isReady: !!publicKey && !!program,
+      connection,
+    };
+  }, [program, provider, publicKey, connection]);
+
+  // ============================================================================
+  // Generic API Wrapper Factory
+  // ============================================================================
+
+  /**
+   * Creates a useCallback-wrapped API function with automatic context injection
+   * and improved error handling with operation names for debugging.
+   * 
+   * @param operationName - Name of the operation (for error messages)
+   * @param apiFunction - The API function to wrap
+   * @param dependencies - React dependencies array
+   * @returns Wrapped function with useCallback
+   */
+  function createApiWrapper<TParams extends any[], TResult>(
+    operationName: string,
+    apiFunction: (context: SolanaContractContext, ...args: TParams) => Promise<TResult>,
+    dependencies: DependencyList
+  ): (...args: TParams) => Promise<TResult> {
+    return useCallback(
+      async (...args: TParams): Promise<TResult> => {
+        try {
+          return await apiFunction(context, ...args);
+        } catch (error: any) {
+          // Enhance error message with operation name for better debugging
+          const enhancedError = new Error(
+            `[useSolanaContract:${operationName}] ${error.message || 'Unknown error'}`
+          );
+          // Preserve original error stack and properties
+          if (error.stack) {
+            enhancedError.stack = error.stack;
+          }
+          Object.assign(enhancedError, error);
+          throw enhancedError;
+        }
+      },
+      [context, ...dependencies]
+    );
+  }
 
   // ============================================================================
   // PDA Derivation Helpers
@@ -375,6 +469,10 @@ export function useSolanaContract() {
    * @see {@link https://explorer.solana.com} - View transaction on explorer
    */
 
+  // ============================================================================
+  // Admin Operations
+  // ============================================================================
+
   /**
    * Initializes the global config (one-time setup)
    * ✅ Now uses extracted API module from @/features/web3/solana/api/admin/initialize-global-config
@@ -386,25 +484,16 @@ export function useSolanaContract() {
    * @param charityWallet - Wallet to receive charity donations
    * @returns Transaction signature
    */
-  const initializeGlobalConfig = useCallback(
-    async (platformWallet: PublicKey, charityWallet: PublicKey): Promise<{ signature: string }> => {
-      const context: SolanaContractContext = {
-        program,
-        provider,
-        publicKey,
-        connected: !!publicKey,
-        isReady: !!publicKey && !!program,
-        connection,
-      };
-
-      const result = await initializeGlobalConfigAPI(context, {
+  const initializeGlobalConfig = createApiWrapper(
+    'initializeGlobalConfig',
+    async (ctx, platformWallet: PublicKey, charityWallet: PublicKey) => {
+      const result = await initializeGlobalConfigAPI(ctx, {
         platformWallet,
         charityWallet,
       });
-
       return { signature: result.signature };
     },
-    [publicKey, provider, program, connection]
+    []
   );
 
   /**
@@ -414,24 +503,16 @@ export function useSolanaContract() {
    * Used to update max_prize_pool_bps from 3500 (35%) to 4000 (40%) to allow
    * hosts to allocate up to 40% - host fee for prizes.
    */
-  const updateGlobalConfig = useCallback(
-    async (updates: {
+  const updateGlobalConfig = createApiWrapper(
+    'updateGlobalConfig',
+    async (ctx, updates: {
       platformWallet?: PublicKey | null;
       charityWallet?: PublicKey | null;
       platformFeeBps?: number | null;
       maxHostFeeBps?: number | null;
       maxPrizePoolBps?: number | null;
       minCharityBps?: number | null;
-    }): Promise<{ signature: string }> => {
-      const context: SolanaContractContext = {
-        program,
-        provider,
-        publicKey,
-        connected: !!publicKey,
-        isReady: !!publicKey && !!program,
-        connection,
-      };
-
+    }) => {
       // Filter out null values and convert to proper type
       const filteredUpdates: any = {};
       if (updates.platformWallet !== null && updates.platformWallet !== undefined) {
@@ -452,9 +533,9 @@ export function useSolanaContract() {
       if (updates.minCharityBps !== null && updates.minCharityBps !== undefined) {
         filteredUpdates.minCharityBps = updates.minCharityBps;
       }
-      return await updateGlobalConfigAPI(context, filteredUpdates);
+      return await updateGlobalConfigAPI(ctx, filteredUpdates);
     },
-    [publicKey, provider, program, connection]
+    []
   );
 
   /**
@@ -466,21 +547,13 @@ export function useSolanaContract() {
    *
    * @returns Transaction signature
    */
-  const initializeTokenRegistry = useCallback(
-    async (): Promise<{ signature: string }> => {
-      const context: SolanaContractContext = {
-        program,
-        provider,
-        publicKey,
-        connected: !!publicKey,
-        isReady: !!publicKey && !!program,
-        connection,
-      };
-
-      const result = await initializeTokenRegistryAPI(context);
+  const initializeTokenRegistry = createApiWrapper(
+    'initializeTokenRegistry',
+    async (ctx) => {
+      const result = await initializeTokenRegistryAPI(ctx);
       return { signature: result.signature };
     },
-    [publicKey, provider, program, connection]
+    []
   );
 
   /**
@@ -490,21 +563,13 @@ export function useSolanaContract() {
    * @param tokenMint - The mint address of the token to approve
    * @returns Transaction signature
    */
-  const addApprovedToken = useCallback(
-    async (tokenMint: PublicKey): Promise<{ signature: string }> => {
-      const context: SolanaContractContext = {
-        program,
-        provider,
-        publicKey,
-        connected: !!publicKey,
-        isReady: !!publicKey && !!program,
-        connection,
-      };
-
-      const result = await addApprovedTokenAPI(context, { tokenMint });
+  const addApprovedToken = createApiWrapper(
+    'addApprovedToken',
+    async (ctx, tokenMint: PublicKey) => {
+      const result = await addApprovedTokenAPI(ctx, { tokenMint });
       return { signature: result.signature };
     },
-    [publicKey, provider, program, connection]
+    []
   );
 
   /**
@@ -577,76 +642,52 @@ export function useSolanaContract() {
    * });
    * ```
    */
+  // ============================================================================
+  // Room Operations
+  // ============================================================================
+
   /**
    * Creates a new pool-based fundraising room
    * ✅ Now uses extracted API module from @/features/web3/solana/api/room/create-pool-room
    */
-  const createPoolRoom = useCallback(
-    async (params: CreatePoolRoomParams): Promise<RoomCreationResult> => {
-      const context: SolanaContractContext = {
-        program,
-        provider,
-        publicKey,
-        connected: !!publicKey,
-        isReady: !!publicKey && !!program,
-        connection,
-      };
-
-      return await createPoolRoomAPI(context, params);
+  const createPoolRoom = createApiWrapper(
+    'createPoolRoom',
+    async (ctx, params: CreatePoolRoomParams): Promise<RoomCreationResult> => {
+      return await createPoolRoomAPI(ctx, params);
     },
-    [publicKey, program, provider, connection]
+    []
   );
-
-  // ============================================================================
-  // Instruction: Create Asset Room
-  // ============================================================================
 
   /**
    * Creates an asset-based room where prizes are pre-deposited SPL tokens.
    * ✅ Now uses extracted API module from @/features/web3/solana/api/room/create-asset-room
    */
-  const createAssetRoom = useCallback(
-    async (params: CreateAssetRoomParams): Promise<RoomCreationResult> => {
-      const context: SolanaContractContext = {
-        program,
-        provider,
-        publicKey,
-        connected: !!publicKey,
-        isReady: !!publicKey && !!program,
-        connection,
-      };
-
-      return await createAssetRoomAPI(context, params);
+  const createAssetRoom = createApiWrapper(
+    'createAssetRoom',
+    async (ctx, params: CreateAssetRoomParams): Promise<RoomCreationResult> => {
+      return await createAssetRoomAPI(ctx, params);
     },
-    [publicKey, program, provider, connection]
+    []
   );
 
   // ============================================================================
-  // Instruction: Deposit Prize Asset
+  // Prize Operations
   // ============================================================================
 
   /**
    * Deposits a prize asset into an asset-based room.
    * ✅ Now uses extracted API module from @/features/web3/solana/api/prizes/deposit-prize-asset
    */
-  const depositPrizeAsset = useCallback(
-    async (params: DepositPrizeAssetParams): Promise<{ signature: string }> => {
-      const context: SolanaContractContext = {
-        program,
-        provider,
-        publicKey,
-        connected: !!publicKey,
-        isReady: !!publicKey && !!program,
-        connection,
-      };
-
-      return await depositPrizeAssetAPI(context, params);
+  const depositPrizeAsset = createApiWrapper(
+    'depositPrizeAsset',
+    async (ctx, params: DepositPrizeAssetParams) => {
+      return await depositPrizeAssetAPI(ctx, params);
     },
-    [publicKey, provider, program, connection]
+    []
   );
 
   // ============================================================================
-  // Utility: Create Token Mint
+  // Utility Operations
   // ============================================================================
 
   /**
@@ -657,25 +698,36 @@ export function useSolanaContract() {
   const createTokenMint = useCallback(
     async (params?: Omit<CreateTokenMintParams, 'connection' | 'publicKey' | 'signTransaction'>): Promise<CreateTokenMintResult> => {
       if (!publicKey || !signTransaction) {
-        throw new Error('Wallet not connected');
+        throw new Error('[useSolanaContract:createTokenMint] Wallet not connected');
       }
 
-      const signTx = async (tx: Transaction) => {
-        return signTransaction(tx);
-      };
+      try {
+        const signTx = async (tx: Transaction) => {
+          return signTransaction(tx);
+        };
 
-      return createTokenMintAPI({
-        connection,
-        publicKey,
-        signTransaction: signTx,
-        ...params,
-      });
+        return await createTokenMintAPI({
+          connection,
+          publicKey,
+          signTransaction: signTx,
+          ...params,
+        });
+      } catch (error: any) {
+        const enhancedError = new Error(
+          `[useSolanaContract:createTokenMint] ${error.message || 'Unknown error'}`
+        );
+        if (error.stack) {
+          enhancedError.stack = error.stack;
+        }
+        Object.assign(enhancedError, error);
+        throw enhancedError;
+      }
     },
     [publicKey, signTransaction, connection]
   );
 
   // ============================================================================
-  // Instruction: Join Room
+  // Player Operations
   // ============================================================================
 
   /**
@@ -692,25 +744,13 @@ export function useSolanaContract() {
    * @returns Join room result with transaction signature and player entry PDA
    * @throws Error if wallet not connected, room not found, player already joined, or insufficient balance
    */
-  const joinRoom = useCallback(
-    async (params: JoinRoomParams): Promise<{ signature: string; playerEntry: string }> => {
-      const context: SolanaContractContext = {
-        program,
-        provider,
-        publicKey,
-        connected: !!publicKey,
-        isReady: !!publicKey && !!program,
-        connection,
-      };
-
-      return await joinRoomAPI(context, params);
+  const joinRoom = createApiWrapper(
+    'joinRoom',
+    async (ctx, params: JoinRoomParams) => {
+      return await joinRoomAPI(ctx, params);
     },
-    [publicKey, program, provider, connection]
+    []
   );
-
-  // ============================================================================
-  // Instruction: Distribute Prizes
-  // ============================================================================
 
   /**
    * Distributes prizes to winners after game ends
@@ -724,25 +764,13 @@ export function useSolanaContract() {
    * @returns Distribution result with transaction signature
    * @throws Error if wallet not connected, room not found, or winners invalid
    */
-  const distributePrizes = useCallback(
-    async (params: DistributePrizesParams): Promise<DistributePrizesResult> => {
-      const context: SolanaContractContext = {
-        program,
-        provider,
-        publicKey,
-        connected: !!publicKey,
-        isReady: !!publicKey && !!program,
-        connection,
-      };
-
-      return await distributePrizesAPI(context, params);
+  const distributePrizes = createApiWrapper(
+    'distributePrizes',
+    async (ctx, params: DistributePrizesParams): Promise<DistributePrizesResult> => {
+      return await distributePrizesAPI(ctx, params);
     },
-    [publicKey, program, provider, connection]
+    []
   );
-
-  // ============================================================================
-  // Return Hook Interface
-  // ============================================================================
 
   // ============================================================================
   // Query Operations
@@ -752,92 +780,53 @@ export function useSolanaContract() {
    * Fetches room information from on-chain account
    * ✅ Now uses extracted API module from @/features/web3/solana/api/room/get-room-info
    */
-  const getRoomInfo = useCallback(
-    async (roomAddress: PublicKey): Promise<RoomInfoExtended | null> => {
-      const context: SolanaContractContext = {
-        program,
-        provider,
-        publicKey,
-        connected: !!publicKey,
-        isReady: !!publicKey && !!program,
-      };
-
-      const result = await getRoomInfoAPI(context, roomAddress);
-      // Cast to extended type for backward compatibility
-      return result as RoomInfoExtended | null;
+  const getRoomInfo = createApiWrapper(
+    'getRoomInfo',
+    async (ctx, roomAddress: PublicKey) => {
+      const result = await getRoomInfoAPI(ctx, roomAddress);
+      // Convert to extended type for backward compatibility
+      return toRoomInfoExtended(result);
     },
-    [publicKey, program, provider]
+    []
   );
 
   /**
    * Fetches player entry information from on-chain account
    * ✅ Now uses extracted API module from @/features/web3/solana/api/player/get-player-entry
    */
-  const getPlayerEntry = useCallback(
-    async (roomAddress: PublicKey, playerAddress: PublicKey): Promise<PlayerEntryInfoExtended | null> => {
-      const context: SolanaContractContext = {
-        program,
-        provider,
-        publicKey,
-        connected: !!publicKey,
-        isReady: !!publicKey && !!program,
-      };
-
+  const getPlayerEntry = createApiWrapper(
+    'getPlayerEntry',
+    async (ctx, roomAddress: PublicKey, playerAddress: PublicKey) => {
       // Derive player entry PDA
       const [playerEntryPDA] = derivePlayerEntryPDA(roomAddress, playerAddress);
-      const result = await getPlayerEntryAPI(context, playerEntryPDA);
-      // Cast to extended type for backward compatibility
-      return result as PlayerEntryInfoExtended | null;
+      const result = await getPlayerEntryAPI(ctx, playerEntryPDA);
+      // Convert to extended type for backward compatibility
+      return toPlayerEntryInfoExtended(result);
     },
-    [publicKey, program, provider]
+    []
   );
-
-  // ============================================================================
-  // Admin Operations (Additional)
-  // ============================================================================
 
   /**
    * Sets emergency pause state (admin only)
    * ✅ Now uses extracted API module from @/features/web3/solana/api/admin/set-emergency-pause
    */
-  const setEmergencyPause = useCallback(
-    async (paused: boolean): Promise<{ signature: string }> => {
-      const context: SolanaContractContext = {
-        program,
-        provider,
-        publicKey,
-        connected: !!publicKey,
-        isReady: !!publicKey && !!program,
-        connection,
-      };
-
-      const result = await setEmergencyPauseAPI(context, paused);
+  const setEmergencyPause = createApiWrapper(
+    'setEmergencyPause',
+    async (ctx, paused: boolean) => {
+      const result = await setEmergencyPauseAPI(ctx, paused);
       return { signature: result.signature };
     },
-    [publicKey, program, provider, connection]
+    []
   );
 
   /**
    * Recovers a room and refunds players (admin only)
    * ✅ Now uses extracted API module from @/features/web3/solana/api/admin/recover-room
    */
-  const recoverRoom = useCallback(
-    async (params: { roomId: string; hostPubkey: PublicKey; roomAddress?: PublicKey }): Promise<{
-      signature: string;
-      playersRefunded: number;
-      totalRefunded: BN;
-      platformFee: BN;
-    }> => {
-      const context: SolanaContractContext = {
-        program,
-        provider,
-        publicKey,
-        connected: !!publicKey,
-        isReady: !!publicKey && !!program,
-        connection,
-      };
-
-      const result = await recoverRoomAPI(context, params);
+  const recoverRoom = createApiWrapper(
+    'recoverRoom',
+    async (ctx, params: { roomId: string; hostPubkey: PublicKey; roomAddress?: PublicKey }) => {
+      const result = await recoverRoomAPI(ctx, params);
       return {
         signature: result.signature,
         playersRefunded: result.playersRefunded,
@@ -845,71 +834,43 @@ export function useSolanaContract() {
         platformFee: result.platformFee,
       };
     },
-    [publicKey, program, provider, connection]
+    []
   );
-
-  // ============================================================================
-  // Room Operations (Additional)
-  // ============================================================================
 
   /**
    * Closes joining for a room (host only)
    * ✅ Now uses extracted API module from @/features/web3/solana/api/room/close-joining
    */
-  const closeJoining = useCallback(
-    async (params: { roomId: string; hostPubkey: PublicKey }): Promise<{ signature: string }> => {
-      const context: SolanaContractContext = {
-        program,
-        provider,
-        publicKey,
-        connected: !!publicKey,
-        isReady: !!publicKey && !!program,
-        connection,
-      };
-
-      const result = await closeJoiningAPI(context, params);
+  const closeJoining = createApiWrapper(
+    'closeJoining',
+    async (ctx, params: { roomId: string; hostPubkey: PublicKey }) => {
+      const result = await closeJoiningAPI(ctx, params);
       return { signature: result.signature };
     },
-    [publicKey, program, provider, connection]
+    []
   );
 
   /**
    * Cleans up a room after it's ended (host only)
    * ✅ Now uses extracted API module from @/features/web3/solana/api/room/cleanup-room
    */
-  const cleanupRoom = useCallback(
-    async (params: { roomId: string; hostPubkey: PublicKey }): Promise<{ signature: string; rentReclaimed: number }> => {
-      const context: SolanaContractContext = {
-        program,
-        provider,
-        publicKey,
-        connected: !!publicKey,
-        isReady: !!publicKey && !!program,
-        connection,
-      };
-
-      const result = await cleanupRoomAPI(context, params);
+  const cleanupRoom = createApiWrapper(
+    'cleanupRoom',
+    async (ctx, params: { roomId: string; hostPubkey: PublicKey }) => {
+      const result = await cleanupRoomAPI(ctx, params);
       return { signature: result.signature, rentReclaimed: result.rentReclaimed };
     },
-    [publicKey, program, provider, connection]
+    []
   );
 
   /**
    * Ends a room and distributes prizes
    * ✅ Now uses extracted API module from @/features/web3/solana/api/prizes/end-room
    */
-  const endRoom = useCallback(
-    async (params: EndRoomParams): Promise<{ signature: string }> => {
-      const context: SolanaContractContext = {
-        program,
-        provider,
-        publicKey,
-        connected: !!publicKey,
-        isReady: !!publicKey && !!program,
-        connection,
-      };
-
-      const result = await endRoomAPI(context, {
+  const endRoom = createApiWrapper(
+    'endRoom',
+    async (ctx, params: EndRoomParams) => {
+      const result = await endRoomAPI(ctx, {
         roomId: params.roomId,
         hostPubkey: params.hostPubkey,
         winners: params.winners,
@@ -917,36 +878,24 @@ export function useSolanaContract() {
       });
       return { signature: result.signature };
     },
-    [publicKey, program, provider, connection]
+    []
   );
-
-  // ============================================================================
-  // Prize Operations (Additional)
-  // ============================================================================
 
   /**
    * Declares winners for a room (host only)
    * ✅ Now uses extracted API module from @/features/web3/solana/api/prizes/declare-winners
    */
-  const declareWinners = useCallback(
-    async (params: DeclareWinnersParams): Promise<{ signature: string }> => {
-      const context: SolanaContractContext = {
-        program,
-        provider,
-        publicKey,
-        connected: !!publicKey,
-        isReady: !!publicKey && !!program,
-        connection,
-      };
-
-      const result = await declareWinnersAPI(context, {
+  const declareWinners = createApiWrapper(
+    'declareWinners',
+    async (ctx, params: DeclareWinnersParams) => {
+      const result = await declareWinnersAPI(ctx, {
         roomId: params.roomId,
         hostPubkey: params.hostPubkey,
         winners: params.winners,
       });
       return { signature: result.signature };
     },
-    [publicKey, program, provider, connection]
+    []
   );
 
   // ============================================================================
