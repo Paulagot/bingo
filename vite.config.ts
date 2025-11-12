@@ -62,6 +62,10 @@ export default defineConfig(({ mode }) => {
         generatedCode: {
           constBindings: false,
         },
+        // Ensure React is loaded first
+        entryFileNames: 'assets/[name].[hash].js',
+        chunkFileNames: 'assets/[name].[hash].js',
+        assetFileNames: 'assets/[name].[hash].[ext]',
         manualChunks: (id) => {
           // Feature-based code splitting
           if (id.includes('/src/features/auth/')) {
@@ -85,8 +89,17 @@ export default defineConfig(({ mode }) => {
           
           // Vendor chunks
           if (id.includes('node_modules')) {
-            // React and core libraries
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+            // React and core libraries - ensure React is always available
+            // Put react and react-dom in the same chunk to avoid loading issues
+            // Match both 'react' and 'react/' to catch all React imports
+            if (id.includes('/react') || id.includes('/react-dom') || 
+                id.includes('\\react') || id.includes('\\react-dom')) {
+              // Exclude react-router from react-core chunk
+              if (!id.includes('react-router')) {
+                return 'react-core';
+              }
+            }
+            if (id.includes('react-router')) {
               return 'react-vendor';
             }
             // Solana libraries
@@ -150,6 +163,7 @@ export default defineConfig(({ mode }) => {
     // Pre-bundle these heavy dependencies
     include: [
       'react',
+      'react/jsx-runtime',
       'react-dom', 
       '@solana/web3.js',
       'wagmi',
@@ -158,6 +172,10 @@ export default defineConfig(({ mode }) => {
       'core-js'
     ],
     exclude: ['lucide-react'],
+    // Ensure React is always available
+    esbuildOptions: {
+      jsx: 'automatic',
+    },
   },
 
   // Performance optimizations
