@@ -595,11 +595,16 @@ app.get('/debug/rooms', (req, res) => {
 
 // Startup - Start server immediately, initialize database in background
 // This ensures healthcheck can respond right away
+console.log(`🔧 Starting server on port ${PORT}...`);
+console.log(`🔧 PORT env var: ${process.env.PORT}`);
+console.log(`🔧 NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
+
 try {
   httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`💾 Cache headers: ${process.env.NODE_ENV === 'production' ? 'Optimized (1 year)' : 'Development mode'}`);
+    console.log(`✅ Healthcheck available at http://0.0.0.0:${PORT}/health`);
     console.log(`✅ Healthcheck available at http://localhost:${PORT}/health`);
   });
 
