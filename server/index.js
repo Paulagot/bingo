@@ -574,30 +574,29 @@ app.get('/debug/rooms', (req, res) => {
   res.json({ totalRooms: roomStates.length, rooms: roomStates });
 });
 
-// Startup
-async function startServer() {
+// Startup - Start server immediately, initialize database in background
+// This ensures healthcheck can respond right away
+httpServer.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`💾 Cache headers: ${process.env.NODE_ENV === 'production' ? 'Optimized (1 year)' : 'Development mode'}`);
+  console.log(`✅ Healthcheck available at http://localhost:${PORT}/health`);
+});
+
+// Initialize database in background (non-blocking)
+(async () => {
   try {
-    // Try to initialize database, but don't fail if it's not available (for local dev)
-    try {
-      await initializeDatabase();
-      console.log(`🗄️ Database connected`);
-    } catch (dbError) {
-      console.warn('⚠️ Database connection failed, but continuing without it...');
-      console.warn('⚠️ This is OK for local development if you only need Web3 rooms (in-memory)');
-      console.warn('⚠️ Database features will not be available');
-      console.warn(`⚠️ Error: ${dbError.message}`);
-      // Don't exit - allow server to start for Web3/in-memory features
-    }
-    
-    httpServer.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`💾 Cache headers: ${process.env.NODE_ENV === 'production' ? 'Optimized (1 year)' : 'Development mode'}`);
-    });
-  } catch (error) {
-    console.error('❌ Failed to start server:', error);
-    process.exit(1);
+    await initializeDatabase();
+    console.log(`🗄️ Database connected`);
+  } catch (dbError) {
+    console.warn('⚠️ Database connection failed, but continuing without it...');
+    console.warn('⚠️ This is OK for local development if you only need Web3 rooms (in-memory)');
+    console.warn('⚠️ Database features will not be available');
+    console.warn(`⚠️ Error: ${dbError.message}`);
+    // Don't exit - allow server to start for Web3/in-memory features
   }
-}
-startServer().catch(console.error);
+})().catch((error) => {
+  console.error('❌ Database initialization error:', error);
+  // Don't exit - server is already running
+});
 
