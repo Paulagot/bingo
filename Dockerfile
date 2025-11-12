@@ -42,6 +42,8 @@ RUN npm ci --only=production && npm cache clean --force
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/public ./public
+# Copy server directory (needed for runtime)
+COPY --from=builder /app/server ./server
 
 # Expose port (Railway will override with PORT env var)
 EXPOSE 8080
