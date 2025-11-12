@@ -67,7 +67,59 @@ export default defineConfig(({ mode }) => {
         chunkFileNames: 'assets/[name].[hash].js',
         assetFileNames: 'assets/[name].[hash].[ext]',
         manualChunks: (id) => {
-          // Feature-based code splitting
+          // Vendor chunks - MUST come before feature chunks to ensure proper loading order
+          if (id.includes('node_modules')) {
+            // React MUST be in its own chunk and loaded first
+            // This is critical - React must be available globally before any other code runs
+            if (id.includes('node_modules/react/') || id.includes('node_modules\\react\\')) {
+              return 'react-core';
+            }
+            if (id.includes('node_modules/react-dom/') || id.includes('node_modules\\react-dom\\')) {
+              return 'react-dom';
+            }
+            if (id.includes('react-router')) {
+              return 'react-router';
+            }
+
+            // Solana libraries
+            if (id.includes('@solana/web3.js')) {
+              return 'solana-core';
+            }
+            if (id.includes('@solana/spl-token')) {
+              return 'solana-tokens';
+            }
+            if (id.includes('@coral-xyz/anchor')) {
+              return 'solana-anchor';
+            }
+            if (id.includes('@solana/wallet-adapter')) {
+              return 'solana-wallets';
+            }
+
+            // EVM libraries
+            if (id.includes('wagmi') || id.includes('viem') || id.includes('ethers') || id.includes('@rainbow-me/rainbowkit')) {
+              return 'web3-ethereum';
+            }
+
+            // Web3 AppKit
+            if (id.includes('@reown/appkit')) {
+              return 'web3-appkit';
+            }
+
+            // UI libraries
+            if (id.includes('@headlessui/react') || id.includes('framer-motion') || id.includes('lucide-react')) {
+              return 'ui-vendor';
+            }
+
+            // Utility libraries
+            if (id.includes('lodash') || id.includes('zustand') || id.includes('bs58') || id.includes('uuid')) {
+              return 'utils';
+            }
+
+            // Other node_modules
+            return 'vendor';
+          }
+
+          // Feature-based code splitting (after vendor chunks)
           if (id.includes('/src/features/auth/')) {
             return 'feature-auth';
           }
@@ -85,54 +137,6 @@ export default defineConfig(({ mode }) => {
           }
           if (id.includes('/src/app/')) {
             return 'app';
-          }
-          
-          // Vendor chunks
-          if (id.includes('node_modules')) {
-            // React and core libraries - ensure React is always available
-            // Put react and react-dom in the same chunk to avoid loading issues
-            // Match both 'react' and 'react/' to catch all React imports
-            if (id.includes('/react') || id.includes('/react-dom') || 
-                id.includes('\\react') || id.includes('\\react-dom')) {
-              // Exclude react-router from react-core chunk
-              if (!id.includes('react-router')) {
-                return 'react-core';
-              }
-            }
-            if (id.includes('react-router')) {
-              return 'react-vendor';
-            }
-            // Solana libraries
-            if (id.includes('@solana/web3.js')) {
-              return 'solana-core';
-            }
-            if (id.includes('@solana/spl-token')) {
-              return 'solana-tokens';
-            }
-            if (id.includes('@coral-xyz/anchor')) {
-              return 'solana-anchor';
-            }
-            if (id.includes('@solana/wallet-adapter')) {
-              return 'solana-wallets';
-            }
-            // EVM libraries
-            if (id.includes('wagmi') || id.includes('viem') || id.includes('ethers') || id.includes('@rainbow-me/rainbowkit')) {
-              return 'web3-ethereum';
-            }
-            // Web3 AppKit
-            if (id.includes('@reown/appkit')) {
-              return 'web3-appkit';
-            }
-            // UI libraries
-            if (id.includes('@headlessui/react') || id.includes('framer-motion') || id.includes('lucide-react')) {
-              return 'ui-vendor';
-            }
-            // Utility libraries
-            if (id.includes('lodash') || id.includes('zustand') || id.includes('bs58') || id.includes('uuid')) {
-              return 'utils';
-            }
-            // Other node_modules
-            return 'vendor';
           }
         }
       }
@@ -153,9 +157,22 @@ export default defineConfig(({ mode }) => {
     // Target modern browsers for better optimization
     target: 'esnext',
     
-    // Disable module preload warnings for circular deps
+    // Enable module preload to ensure React loads first
     modulePreload: {
-      polyfill: false,
+      polyfill: true,
+      resolveDependencies: (filename, deps) => {
+        // Ensure react-core and react-dom load before any other chunks
+        const reactChunks = deps.filter(dep =>
+          dep.includes('react-core') ||
+          dep.includes('react-dom')
+        );
+        const otherChunks = deps.filter(dep =>
+          !dep.includes('react-core') &&
+          !dep.includes('react-dom')
+        );
+        // Return React chunks first, then others
+        return [...reactChunks, ...otherChunks];
+      }
     }
   },
 
