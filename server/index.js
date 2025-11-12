@@ -1,3 +1,4 @@
+// server/index.js
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -8,7 +9,6 @@ console.log('DB_USER:', process.env.DB_USER);
 console.log('DB_NAME:', process.env.DB_NAME);
 console.log('DB_PORT:', process.env.DB_PORT);
 
-//server/index.js
 import express from 'express';
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
@@ -47,6 +47,10 @@ import { logger, loggers, logRequest, logResponse } from './config/logging.js';
 const app = express();
 app.use(cors());
 
+// Accept JSON bodies (existing)
+app.use(express.json({ limit: '100kb' }));
+// Accept raw/text bodies too (TGB may send raw encrypted string bodies)
+app.use(express.text({ type: 'text/*', limit: '100kb' }));
 // JSON body parser - Express will automatically handle parsing errors
 app.use(express.json({ 
   limit: '100kb',
@@ -117,6 +121,10 @@ app.get('/health', (req, res) => {
   });
 });
 
+/* ──────────────────────────────────────────────────────────
+   TGB endpoints (deposit address creation + webhook)
+   Keep these grouped and mounted early (before heavy middleware)
+   ────────────────────────────────────────────────────────── */
 app.post('/api/tgb/create-deposit-address', createDepositAddress);
 app.post('/api/tgb/webhook', tgbWebhookHandler);
 
@@ -196,7 +204,6 @@ app.use(helmet.contentSecurityPolicy({
   reportOnly: false, // You can flip to true temporarily to test
 }));
 
-
 // ──────────────────────────────────────────────────────────
 // 301 redirects (run BEFORE routes/static/SPA handlers)
 // ──────────────────────────────────────────────────────────
@@ -233,9 +240,6 @@ app.use((req, res, next) => {
   next();
 });
 
-
-
-
 // Trusted Types (Report-Only) — surfaces DOM sink usage without breaking anything
 // app.use((req, res, next) => {
 //   const existing = res.getHeader('Content-Security-Policy-Report-Only') || '';
@@ -243,11 +247,9 @@ app.use((req, res, next) => {
 //   next();
 // });
 
-
-
-/* ──────────────────────────────────────────────────────────
-   Request logging
-   ────────────────────────────────────────────────────────── */
+// ──────────────────────────────────────────────────────────
+//  Request logging
+// ──────────────────────────────────────────────────────────
 app.use((req, res, next) => {
   // Only log API requests to reduce noise
   if (req.path.startsWith('/quiz/api') || req.path.startsWith('/api')) {
@@ -261,6 +263,7 @@ app.use((req, res, next) => {
   next();
 });
 
+// Mount quiz and other API routers
 app.use('/quiz/api/community-registration', communityRegistrationApi);
 app.use('/quiz/api/impactcampaign/pledge', impactCampaignPledgeApi);
 
@@ -268,7 +271,7 @@ console.log('🛠️ Setting up routes...');
 app.use('/quiz/api', createRoomApi);
 console.log('🔗 Setting up community registration route...');
 
-console.log('✅ Routes setup complete'); 
+console.log('✅ Routes setup complete');
 
 console.log('📋 Registered routes:');
 app._router?.stack?.forEach((mw) => {
@@ -282,7 +285,7 @@ app.get('/quiz/api/community-registration/test', (req, res) => {
 
 /* ──────────────────────────────────────────────────────────
    Host-based sitemap / robots
-   ────────────────────────────────────────────────────────── */
+   ────────────────────────────────────────── */
 app.get('/sitemap.xml', (req, res) => {
   const host = req.get('host');
   console.log(`🗺️ Serving sitemap for host: ${host}`);
@@ -342,7 +345,7 @@ function buildHeadTags(seo) {
     robots: robotsFromSeo = 'index, follow',
   } = seo;
 
-   const isStaging = process.env.APP_ENV === 'staging';
+  const isStaging = process.env.APP_ENV === 'staging';
   const robots = isStaging ? 'noindex, nofollow' : robotsFromSeo;
 
   return [
@@ -562,7 +565,6 @@ process.on('uncaughtException', (error) => {
   process.exit(1);
 });
 
-
 // Health check
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
@@ -600,4 +602,5 @@ async function startServer() {
   }
 }
 startServer().catch(console.error);
+
 

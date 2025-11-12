@@ -49,7 +49,7 @@ const quizTemplates: QuizTemplate[] = [
       },
       {
         type: 'speed_round',
-        category: 'Emojis',
+        category: 'family movies',
         difficulty: 'hard',
         customConfig: {
           questionsPerRound: 40,

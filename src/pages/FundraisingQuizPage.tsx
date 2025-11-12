@@ -52,7 +52,7 @@ const YouTubeBlock: React.FC<YouTubeBlockProps> = ({ title, youtubeUrlOrId, clas
 };
 
 /** Replace these with your real YouTube IDs or full URLs */
-const SETUP_VIDEO_ID = '804_uzaROzI';      // e.g. 'AbCdEfGhIJK'
+const SETUP_VIDEO_ID = '10xGLZNTmMQ';      // e.g. 'AbCdEfGhIJK'
 const DASHBOARD_VIDEO_ID = 'DASHBOARD1D_';
 const INGAME_VIDEO_ID = 'INGAMEVID01_';
 const REPORTING_VIDEO_ID = 'REPORTING01_';

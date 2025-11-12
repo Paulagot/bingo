@@ -289,7 +289,7 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
           cfg = {
             questionsPerRound: 4,
             timePerQuestion: 10,
-            pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
+            pointsPerDifficulty: { easy: 3, medium: 4, hard: 5 },
             pointsLostPerWrong: 2,
             pointsLostPerUnanswered: 3,
           } as RoundConfig;
@@ -300,7 +300,7 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
             questionsPerRound: 40,
             totalTimeSeconds: 20,
             skipAllowed: true,
-            pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
+            pointsPerDifficulty: { easy: 1, medium: 2, hard: 3 },
             pointsLostPerWrong: 0,
             pointsLostPerUnanswered: 0,
           } as RoundConfig;
