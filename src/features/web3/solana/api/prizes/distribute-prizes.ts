@@ -138,26 +138,26 @@ export async function distributePrizes(
   const winnerTokenAccounts: PublicKey[] = [];
   for (const winner of params.winners) {
     const winnerPubkey = typeof winner === 'string' ? new PublicKey(winner) : winner;
-    const winnerATA = getAssociatedTokenAccountAddress(
+    const winnerATA = await getAssociatedTokenAccountAddress(
       feeTokenMint,
       winnerPubkey
     );
     winnerTokenAccounts.push(winnerATA);
   }
 
-  const charityTokenAccount = getAssociatedTokenAccountAddress(
+  const charityTokenAccount = await getAssociatedTokenAccountAddress(
     feeTokenMint,
     charityWallet
   );
 
   const globalConfigAccount = await (program.account as any).globalConfig.fetch(globalConfig);
   const platformWallet = globalConfigAccount.platformWallet as PublicKey;
-  const platformTokenAccount = getAssociatedTokenAccountAddress(
+  const platformTokenAccount = await getAssociatedTokenAccountAddress(
     feeTokenMint,
     platformWallet
   );
 
-  const hostTokenAccount = getAssociatedTokenAccountAddress(
+  const hostTokenAccount = await getAssociatedTokenAccountAddress(
     feeTokenMint,
     roomAccount.host as PublicKey
   );

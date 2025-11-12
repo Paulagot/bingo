@@ -321,7 +321,7 @@ export async function joinRoom(
     ataExists = true;
   } catch (error: any) {
     // ATA doesn't exist - need to create it
-    const createATAIx = createATAInstruction({
+    const createATAIx = await createATAInstruction({
       mint: validFeeTokenMint,
       owner: validPublicKey,
       payer: validPublicKey,

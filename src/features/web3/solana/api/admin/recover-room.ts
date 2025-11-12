@@ -169,7 +169,7 @@ export async function recoverRoom(
   
   for (const entry of allPlayerEntries) {
     const playerPubkey = entry.account.player as PublicKey;
-    const tokenAccount = getAssociatedTokenAccountAddress(
+    const tokenAccount = await getAssociatedTokenAccountAddress(
       roomInfo.feeTokenMint,
       playerPubkey
     );
@@ -180,7 +180,7 @@ export async function recoverRoom(
   }
 
   // Get platform token account using Phase 1 utilities
-  const platformTokenAccount = getAssociatedTokenAccountAddress(
+  const platformTokenAccount = await getAssociatedTokenAccountAddress(
     roomInfo.feeTokenMint,
     globalConfigAccount.platformWallet as PublicKey
   );

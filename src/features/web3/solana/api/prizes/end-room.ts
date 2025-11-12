@@ -120,22 +120,24 @@ export async function endRoom(
   const charityWallet = globalConfigAccount.charityWallet as PublicKey;
 
   // Get token accounts for all recipients using Phase 1 utilities
-  const platformTokenAccount = getAssociatedTokenAccountAddress(
+  const platformTokenAccount = await getAssociatedTokenAccountAddress(
     params.feeTokenMint,
     platformWallet
   );
-  const charityTokenAccount = getAssociatedTokenAccountAddress(
+  const charityTokenAccount = await getAssociatedTokenAccountAddress(
     params.feeTokenMint,
     charityWallet
   );
-  const hostTokenAccount = getAssociatedTokenAccountAddress(
+  const hostTokenAccount = await getAssociatedTokenAccountAddress(
     params.feeTokenMint,
     params.hostPubkey
   );
 
   // Get winner token accounts (must be passed as remaining accounts)
-  const winnerTokenAccounts = params.winners.map(winner =>
-    getAssociatedTokenAccountAddress(params.feeTokenMint, winner)
+  const winnerTokenAccounts = await Promise.all(
+    params.winners.map(winner =>
+      getAssociatedTokenAccountAddress(params.feeTokenMint, winner)
+    )
   );
 
   // Build instruction with remaining accounts for winners
