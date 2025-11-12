@@ -1,6 +1,8 @@
-// server/api/tgb/webhook.js
+// server/tgb/api/webhook.js
 import crypto from 'node:crypto';
 import { loggers, logError } from '../../config/logging.js';
+import { findIntentByAddress, findIntentById, saveIntent } from '../persistence.js';
+
 const webhookLogger = loggers.webhook;
 
 /**
@@ -20,28 +22,6 @@ function decryptAes256CbcBase64(cipherB64, key, iv) {
   return Buffer.concat(chunks).toString('utf8');
 }
 
-// Replace with your real DB logic
-async function upsertDonationFromWebhook(event, requestId) {
-  // Example mapping:
-  // event.eventType: "deposit.detected" | "deposit.confirmed" | "deposit.converted"
-  // event.depositAddress: correlate with the address you created for the room
-  // event.metadata?.roomId: if you passed it when creating the address
-  // event.txHash, event.status, etc.
-
-  webhookLogger.info({
-    requestId,
-    eventType: event.eventType,
-    depositAddress: event.depositAddress,
-    txHash: event.txHash,
-    status: event.status,
-    roomId: event.metadata?.roomId,
-    amount: event.amount,
-    currency: event.currency
-  }, `TGB webhook event: ${event.eventType}`);
-
-  await Promise.resolve();
-}
-
 export default async function tgbWebhookHandler(req, res) {
   try {
     webhookLogger.info({
@@ -58,10 +38,10 @@ export default async function tgbWebhookHandler(req, res) {
     if (!keyB64 || !ivB64) {
       webhookLogger.error({ requestId: req.requestId }, 'Webhook AES key/iv not configured');
       return res.status(500).json({ ok: false, error: 'Webhook AES key/iv not configured' });
-      }
+    }
 
-    const key = Buffer.from(keyB64, 'base64'); // 32 bytes
-    const iv = Buffer.from(ivB64, 'base64');   // 16 bytes
+    const key = Buffer.from(keyB64, 'hex'); // 32 bytes
+    const iv = Buffer.from(ivB64, 'hex');   // 16 bytes
 
     const cipherB64 =
       (req.body && req.body.encrypted) ||
@@ -112,16 +92,85 @@ export default async function tgbWebhookHandler(req, res) {
       }
     }
 
-    // Optional signature verification if TGB provides one in headers
-    // const sigHeader = req.header('X-TGB-Signature');
-    // if (sigHeader) { /* verify HMAC over cipherB64 using your signing secret */ }
+    webhookLogger.info({
+      requestId: req.requestId,
+      eventType: event.eventType,
+      depositAddress: event.depositAddress,
+      depositId: event.depositId ?? event.id,
+      metadata: event.metadata ?? null
+    }, 'TGB webhook decrypted and parsed');
 
-    await upsertDonationFromWebhook(event, req.requestId);
+    // Try to find persisted intent: by address, then by offchainIntentId or requestId
+    let intent = null;
+    if (event.depositAddress) {
+      intent = findIntentByAddress(event.depositAddress);
+    }
+    if (!intent && event.metadata && event.metadata.offchainIntentId) {
+      intent = findIntentById(event.metadata.offchainIntentId);
+    }
+    if (!intent && event.requestId) {
+      intent = findIntentById(event.requestId);
+    }
+    if (!intent && (event.depositId || event.id)) {
+      intent = findIntentById(event.depositId || event.id);
+    }
+
+    if (!intent) {
+      webhookLogger.warn({
+        requestId: req.requestId,
+        depositAddress: event.depositAddress,
+        metadata: event.metadata
+      }, 'No matching intent found for TGB webhook — saving as orphaned event');
+
+      // Save a minimal orphan record so ops can inspect
+      const orphan = {
+        depositAddress: event.depositAddress ?? null,
+        depositTag: event.depositTag ?? null,
+        offchainIntentId: event.metadata?.offchainIntentId ?? null,
+        roomId: event.metadata?.roomId ?? null,
+        expectedAmountDecimal: null,
+        tgbDepositId: event.depositId ?? event.id ?? null,
+        tgbRequestId: event.requestId ?? null,
+        organizationId: event.organizationId ?? null,
+        currency: event.currency ?? null,
+        network: event.network ?? null,
+        status: 'orphaned',
+        tgbWebhookEvent: event,
+      };
+      try {
+        saveIntent(orphan);
+      } catch (e) {
+        webhookLogger.error({ requestId: req.requestId, err: e }, 'Failed to persist orphaned intent');
+      }
+      return res.json({ ok: true }); // acknowledge
+    }
+
+    // Update the found intent with webhook information
+    const updated = {
+      ...intent,
+      status: event.eventType ?? intent.status ?? 'updated',
+      tgbWebhookEvent: event,
+      tgbDepositId: event.depositId ?? event.id ?? intent.tgbDepositId,
+      tgbRequestId: event.requestId ?? intent.tgbRequestId,
+      txHash: event.txHash ?? intent.txHash ?? null,
+      confirmedAt: new Date().toISOString(),
+      actualAmountDecimal: event.amount ?? intent.actualAmountDecimal ?? null,
+      currency: event.currency ?? intent.currency ?? null,
+      network: event.network ?? intent.network ?? null
+    };
+
+    try {
+      saveIntent(updated);
+    } catch (e) {
+      webhookLogger.error({ requestId: req.requestId, err: e, intentId: intent.offchainIntentId }, 'Failed to persist updated intent from webhook');
+    }
 
     webhookLogger.info({
       requestId: req.requestId,
+      offchainIntentId: intent.offchainIntentId,
+      depositAddress: event.depositAddress,
       eventType: event.eventType
-    }, 'TGB webhook processed successfully');
+    }, 'TGB webhook processed and intent updated');
 
     return res.json({ ok: true });
   } catch (err) {
@@ -132,3 +181,4 @@ export default async function tgbWebhookHandler(req, res) {
     return res.status(500).json({ ok: false, error: err?.message ?? 'Server error' });
   }
 }
+

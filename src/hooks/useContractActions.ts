@@ -428,7 +428,7 @@ export function useContractActions(opts?: Options) {
         try {
           console.log('🎯 [EVM] Starting prize distribution:', { winners });
 
-          const runtimeChainId = getChainId(wagmiConfig);
+         const runtimeChainId = await getChainId(wagmiConfig);
 
           if (!runtimeChainId) {
             throw new Error('No active chain detected. Please connect your wallet.');
