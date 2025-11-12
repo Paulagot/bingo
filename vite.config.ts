@@ -66,78 +66,41 @@ export default defineConfig(({ mode }) => {
         entryFileNames: 'assets/[name].[hash].js',
         chunkFileNames: 'assets/[name].[hash].js',
         assetFileNames: 'assets/[name].[hash].[ext]',
-        manualChunks: (id) => {
-          // Vendor chunks - MUST come before feature chunks to ensure proper loading order
-          if (id.includes('node_modules')) {
-            // React MUST be in its own chunk and loaded first
-            // This is critical - React must be available globally before any other code runs
-            if (id.includes('node_modules/react/') || id.includes('node_modules\\react\\')) {
-              return 'react-core';
-            }
-            if (id.includes('node_modules/react-dom/') || id.includes('node_modules\\react-dom\\')) {
-              return 'react-dom';
-            }
-            if (id.includes('react-router')) {
-              return 'react-router';
-            }
-
-            // Solana libraries
-            if (id.includes('@solana/web3.js')) {
-              return 'solana-core';
-            }
-            if (id.includes('@solana/spl-token')) {
-              return 'solana-tokens';
-            }
-            if (id.includes('@coral-xyz/anchor')) {
-              return 'solana-anchor';
-            }
-            if (id.includes('@solana/wallet-adapter')) {
-              return 'solana-wallets';
-            }
-
-            // EVM libraries
-            if (id.includes('wagmi') || id.includes('viem') || id.includes('ethers') || id.includes('@rainbow-me/rainbowkit')) {
-              return 'web3-ethereum';
-            }
-
-            // Web3 AppKit
-            if (id.includes('@reown/appkit')) {
-              return 'web3-appkit';
-            }
-
-            // UI libraries
-            if (id.includes('@headlessui/react') || id.includes('framer-motion') || id.includes('lucide-react')) {
-              return 'ui-vendor';
-            }
-
-            // Utility libraries
-            if (id.includes('lodash') || id.includes('zustand') || id.includes('bs58') || id.includes('uuid')) {
-              return 'utils';
-            }
-
-            // Other node_modules
-            return 'vendor';
-          }
-
-          // Feature-based code splitting (after vendor chunks)
-          if (id.includes('/src/features/auth/')) {
-            return 'feature-auth';
-          }
-          if (id.includes('/src/features/quiz/')) {
-            return 'feature-quiz';
-          }
-          if (id.includes('/src/features/bingo/')) {
-            return 'feature-bingo';
-          }
-          if (id.includes('/src/features/web3/')) {
-            return 'feature-web3';
-          }
-          if (id.includes('/src/shared/')) {
-            return 'shared';
-          }
-          if (id.includes('/src/app/')) {
-            return 'app';
-          }
+        manualChunks: {
+          // Separate vendor chunks - Match main branch approach exactly
+          // React MUST be bundled together to prevent multiple instances and loading order issues
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          
+          // Split Solana into smaller chunks
+          'solana-core': ['@solana/web3.js'],
+          'solana-tokens': ['@solana/spl-token'],
+          'solana-anchor': ['@coral-xyz/anchor'],
+          'solana-wallets': ['@solana/wallet-adapter-wallets'],
+          
+          // EVM libraries
+          'web3-ethereum': [
+            'wagmi', 
+            'viem', 
+            'ethers', 
+            '@rainbow-me/rainbowkit'
+          ],
+          
+          // Web3 AppKit
+          'web3-appkit': [
+            '@reown/appkit',
+            '@reown/appkit-adapter-solana',
+            '@reown/appkit-adapter-wagmi'
+          ],
+          
+          // UI libraries
+          'ui-vendor': [
+            '@headlessui/react', 
+            'framer-motion', 
+            'lucide-react'
+          ],
+          
+          // Utility libraries
+          'utils': ['lodash', 'zustand', 'bs58', 'uuid']
         }
       }
     },
@@ -161,14 +124,12 @@ export default defineConfig(({ mode }) => {
     modulePreload: {
       polyfill: true,
       resolveDependencies: (filename, deps) => {
-        // Ensure react-core and react-dom load before any other chunks
+        // Ensure react-vendor chunk loads before any other chunks
         const reactChunks = deps.filter(dep =>
-          dep.includes('react-core') ||
-          dep.includes('react-dom')
+          dep.includes('react-vendor')
         );
         const otherChunks = deps.filter(dep =>
-          !dep.includes('react-core') &&
-          !dep.includes('react-dom')
+          !dep.includes('react-vendor')
         );
         // Return React chunks first, then others
         return [...reactChunks, ...otherChunks];
