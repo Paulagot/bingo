@@ -50,7 +50,7 @@
  */
 
 import { PublicKey } from '@solana/web3.js';
-import { PROGRAM_ID, PDA_SEEDS } from '@/chains/solana/config';
+import { PROGRAM_ID, PDA_SEEDS } from '@/shared/lib/solana/config';
 
 /**
  * Derives the PDA address for the global platform configuration account
@@ -293,9 +293,11 @@ export function derivePrizeVaultPDA(room: PublicKey, prizeIndex: number): [Publi
  * @see instructions/player/join_room.rs - Entry creation
  */
 export function derivePlayerEntryPDA(room: PublicKey, player: PublicKey): [PublicKey, number] {
+  // Note: Contract uses "player" as seed, not "player-entry"
+  // This matches the Rust code: seeds = [b"player", room.key().as_ref(), player.key().as_ref()]
   return PublicKey.findProgramAddressSync(
     [
-      Buffer.from(PDA_SEEDS.PLAYER_ENTRY),
+      Buffer.from('player'),
       room.toBuffer(),
       player.toBuffer()
     ],

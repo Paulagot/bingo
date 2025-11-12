@@ -114,7 +114,7 @@ import AssetRoomABI from '../abis/quiz/BaseQuizAssetRoom.json';
 /* ------------------------- Solana imports ------------------------- */
 import { useSolanaWalletContext } from '../chains/solana/SolanaWalletProvider';
 import { useSolanaContract } from '../chains/solana/useSolanaContract';
-import { TOKEN_MINTS, PROGRAM_ID, PDA_SEEDS } from '../chains/solana/config';
+import { TOKEN_MINTS, PROGRAM_ID, PDA_SEEDS } from '@/shared/lib/solana/config';
 import { BN } from '@coral-xyz/anchor';
 import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
 

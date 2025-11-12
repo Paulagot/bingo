@@ -9,5 +9,3 @@
 
 export * from './chain-adapter';
 export * from './solana-adapter.example';
-// export * from './evm-adapter';      // TODO: Implement
-// export * from './stellar-adapter';  // TODO: Implement

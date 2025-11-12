@@ -4,7 +4,7 @@ import { TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction, getAssociate
 import { BN } from 'bn.js';
 import { useAppKitConnection } from '@reown/appkit-adapter-solana/react';
 import { useAppKitAccount, useAppKitProvider } from '@reown/appkit/react';
-import { TOKEN_MINTS, NETWORK, getExplorerUrl } from '@/chains/solana/config';
+import { TOKEN_MINTS, NETWORK, getExplorerUrl } from '@/shared/lib/solana/config';
 
 interface SolanaWalletProvider {
   signTransaction: (tx: any) => Promise<any>;
@@ -32,16 +32,6 @@ export const CreateSolanaRoom: React.FC<CreateSolanaRoomProps> = ({
 
   useEffect(() => {
     const createRoom = async () => {
-      if (debug) {
-        console.log('🛠️ Debug: Initial state', {
-          isConnected,
-          address,
-          hasWalletProvider: !!walletProvider,
-          hasConnection: !!connection,
-          entryFee,
-          roomId,
-        });
-      }
 
       if (!isConnected || !address || !walletProvider || !connection) {
         console.error('❌ Missing wallet connection or network');
@@ -50,7 +40,6 @@ export const CreateSolanaRoom: React.FC<CreateSolanaRoomProps> = ({
 
       try {
         // Step 1: Setup wallet and provider
-        console.log('🔑 Step 1: Setting up wallet...');
         const publicKey = new PublicKey(address);
         const rawProvider = walletProvider as unknown as SolanaWalletProvider;
         
@@ -63,18 +52,11 @@ export const CreateSolanaRoom: React.FC<CreateSolanaRoomProps> = ({
           signTransaction: rawProvider.signTransaction.bind(rawProvider),
           signAllTransactions: rawProvider.signAllTransactions.bind(rawProvider),
         };
-        console.log('✅ Wallet setup complete');
-
         // Step 2: Setup program and constants
-        console.log('🎯 Step 2: Setting up program...');
         const programId = new PublicKey('Ev3D1mV3m1HZFZAJb8r68VoURxUxJq1o9vtcajZKXgDo');
         const usdcMint = TOKEN_MINTS.USDC; // Network-aware USDC mint
-        console.log('✅ Program ID:', programId.toBase58());
-        console.log('✅ USDC mint:', usdcMint.toBase58());
-        console.log('✅ Network:', NETWORK);
 
         // Step 3: Parse parameters
-        console.log('📊 Step 3: Parsing parameters...');
         // Use timestamp to ensure unique room ID for testing
         const roomIdNumber = parseInt(roomId, 10) + Math.floor(Date.now() / 1000); // Add timestamp
         const roomIdBN = new BN(roomIdNumber);
@@ -83,11 +65,7 @@ export const CreateSolanaRoom: React.FC<CreateSolanaRoomProps> = ({
         if (isNaN(entryFeeNumber)) throw new Error(`Invalid entry fee: ${entryFee}`);
         const entryFeeBN = new BN(Math.floor(entryFeeNumber * 1_000_000));
         
-        console.log('✅ Room ID:', roomIdBN.toString());
-        console.log('✅ Entry fee:', entryFeeBN.toString(), '(micro USDC)');
-
         // Step 4: Derive PDAs
-        console.log('🔍 Step 4: Deriving PDAs...');
         const [roomPda, roomBump] = await PublicKey.findProgramAddress(
           [Buffer.from('room'), publicKey.toBuffer(), roomIdBN.toArrayLike(Buffer, 'le', 8)],
           programId
@@ -98,22 +76,15 @@ export const CreateSolanaRoom: React.FC<CreateSolanaRoomProps> = ({
           programId
         );
 
-        console.log('✅ Room PDA:', roomPda.toBase58(), 'bump:', roomBump);
-        console.log('✅ Room token account PDA:', roomTokenAccount.toBase58(), 'bump:', tokenBump);
-
         // Step 5: Setup host token account
-        console.log('💰 Step 5: Setting up host token account...');
         const hostTokenAccount = await getAssociatedTokenAddress(usdcMint, publicKey);
-        console.log('✅ Host token account address:', hostTokenAccount.toString());
 
         // Step 6: Build transaction
-        console.log('📝 Step 6: Building transaction...');
         const transaction = new Transaction();
 
         // Check if host needs USDC token account
         const hostTokenAccountInfo = await connection.getAccountInfo(hostTokenAccount);
         if (!hostTokenAccountInfo) {
-          console.log('🔧 Adding create ATA instruction...');
           const createATAInstruction = createAssociatedTokenAccountInstruction(
             publicKey, // payer
             hostTokenAccount, // ata
@@ -154,10 +125,8 @@ export const CreateSolanaRoom: React.FC<CreateSolanaRoomProps> = ({
         });
 
         transaction.add(createRoomInstruction);
-        console.log('✅ Transaction built with', transaction.instructions.length, 'instructions');
 
         // Step 7: Send transaction
-        console.log('🚀 Step 7: Sending transaction...');
         
         // Get recent blockhash with retry
         let blockhash: string;
@@ -166,11 +135,9 @@ export const CreateSolanaRoom: React.FC<CreateSolanaRoomProps> = ({
           try {
             const blockhashInfo = await connection.getLatestBlockhash('confirmed');
             blockhash = blockhashInfo.blockhash;
-            console.log('✅ Got blockhash:', blockhash);
             break;
           } catch (err) {
             attempts++;
-            console.log(`⚠️ Blockhash attempt ${attempts} failed:`, err);
             if (attempts >= 3) throw new Error('Failed to get recent blockhash');
             await new Promise(resolve => setTimeout(resolve, 1000));
           }
@@ -180,12 +147,9 @@ export const CreateSolanaRoom: React.FC<CreateSolanaRoomProps> = ({
         transaction.feePayer = publicKey;
 
         // Sign transaction
-        console.log('✍️ Requesting signature...');
         const signedTransaction = await wallet.signTransaction(transaction);
-        console.log('✅ Transaction signed');
 
         // Send transaction
-        console.log('📡 Sending to network...');
         const txid = await connection.sendRawTransaction(
           signedTransaction.serialize(),
           {
@@ -194,31 +158,17 @@ export const CreateSolanaRoom: React.FC<CreateSolanaRoomProps> = ({
             maxRetries: 3
           }
         );
-        console.log('🚀 Transaction sent with ID:', txid);
         const explorerUrl = getExplorerUrl('tx', txid, NETWORK);
-        console.log('🔗 View on explorer:', explorerUrl);
 
         // Don't wait for confirmation to avoid timeout - just return the txid
         sendTxId(txid);
         onSuccess();
         
         // Optional: Try to confirm in background
-        connection.confirmTransaction(txid, 'confirmed').then(() => {
-          console.log('✅ Transaction confirmed!');
-        }).catch((err) => {
-          console.log('⚠️ Confirmation timeout (transaction may still succeed):', err.message);
-        });
+        connection.confirmTransaction(txid, 'confirmed').catch(() => {});
 
       } catch (err: any) {
         console.error('❌ Room creation failed:', err);
-        if (debug) {
-          console.error('🧵 Error details:', {
-            message: err?.message,
-            stack: err?.stack,
-            logs: err?.logs,
-            name: err?.name,
-          });
-        }
       }
     };
 
@@ -227,10 +177,5 @@ export const CreateSolanaRoom: React.FC<CreateSolanaRoomProps> = ({
 
   return null;
 };
-
-
-
-
-
 
 

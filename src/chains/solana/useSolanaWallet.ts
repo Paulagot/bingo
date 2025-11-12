@@ -13,7 +13,7 @@ import { LAMPORTS_PER_SOL, type Cluster } from '@solana/web3.js';
 import { useWalletStore } from '../../stores/walletStore';
 import type { WalletConnectionResult,WalletError } from '../types';
 import { WalletErrorCode } from '../types';
-import { solanaStorageKeys, NETWORK } from './config';
+import { solanaStorageKeys, NETWORK } from '@/shared/lib/solana/config';
 
 export const useSolanaWallet = () => {
   // ===================================================================
@@ -76,7 +76,6 @@ export const useSolanaWallet = () => {
     async (tokenAddress?: string): Promise<string> => {
       if (tokenAddress) {
         // TODO: Implement SPL token balance fetching
-        console.warn('[Solana] SPL token balance not yet implemented');
         return '0';
       }
       return fetchBalance();
@@ -116,7 +115,7 @@ export const useSolanaWallet = () => {
 
   const connect = useCallback(async (): Promise<WalletConnectionResult> => {
     try {
-      updateSolanaWallet({ isConnecting: true, error: undefined });
+      updateSolanaWallet({ isConnecting: true, error: null });
 
       // If already connected, just return success
       if (solanaWallet.connected && solanaWallet.publicKey) {
@@ -129,7 +128,6 @@ export const useSolanaWallet = () => {
 
       // If no wallet selected, show the modal for user to choose
       if (!solanaWallet.wallet) {
-        console.log('🔓 No wallet selected, opening wallet modal...');
         setVisible(true);
 
         // Wait for user to select a wallet from the modal
@@ -146,14 +144,13 @@ export const useSolanaWallet = () => {
                 publicKey: address,
                 isConnected: true,
                 isConnecting: false,
-                error: undefined,
+                error: null,
                 cluster: currentCluster,
               });
 
               setActiveChain('solana');
               startBalancePolling();
 
-              console.log('✅ Solana wallet connected via modal:', address);
 
               resolve({
                 success: true,
@@ -197,14 +194,13 @@ export const useSolanaWallet = () => {
           publicKey: solanaWallet.publicKey.toBase58(),
           isConnected: true,
           isConnecting: false,
-          error: undefined,
+          error: null,
           cluster: currentCluster,
         });
 
         setActiveChain('solana');
         startBalancePolling();
 
-        console.log('✅ Solana wallet connected:', address);
 
         return {
           success: true,
@@ -214,6 +210,16 @@ export const useSolanaWallet = () => {
 
       throw new Error('Failed to get public key from wallet');
     } catch (error: any) {
+      // Check if this is a user rejection (expected behavior)
+      const isUserRejection = 
+        error?.name === 'WalletConnectionError' ||
+        error?.message?.includes('Connection rejected') ||
+        error?.message?.includes('User rejected') ||
+        error?.message?.includes('rejected');
+
+      // Check if this is an auto-connect failure (expected if wallet not available)
+      const isAutoConnectFailure = error?.message?.includes('Failed to get public key');
+
       const walletError = createWalletError(
         WalletErrorCode.CONNECTION_FAILED,
         error.message || 'Failed to connect Solana wallet',
@@ -225,7 +231,17 @@ export const useSolanaWallet = () => {
         error: walletError
       });
 
-      console.error('❌ Solana connection failed:', error);
+      // Only log as error if it's unexpected
+      // User rejections and auto-connect failures are expected
+      if (isUserRejection) {
+        // User rejected connection - this is normal, don't log as error
+      } else if (isAutoConnectFailure) {
+        // Auto-connect failed - expected if wallet not available
+        // Only log if we're not in auto-connect mode to avoid noise
+      } else {
+        // Unexpected error - log it
+        console.error('❌ Solana connection failed:', error);
+      }
 
       return {
         success: false,
@@ -252,14 +268,12 @@ export const useSolanaWallet = () => {
       // Clear localStorage
       localStorage.removeItem(solanaStorageKeys.AUTO_CONNECT);
 
-      updateSolanaWallet({
-        address: undefined,
-        publicKey: undefined,
-        isConnected: false,
-        isDisconnecting: false,
-        error: undefined,
-        balance: undefined,
-      });
+        updateSolanaWallet({
+          address: null,
+          isConnected: false,
+          isDisconnecting: false,
+          error: null,
+        });
 
       // Clear active chain if Solana was active
       const state = useWalletStore.getState();
@@ -272,7 +286,6 @@ export const useSolanaWallet = () => {
         }
       }
 
-      console.log('✅ Solana wallet disconnected');
     } catch (error: any) {
       console.error('❌ Solana disconnection failed:', error);
       updateSolanaWallet({ isDisconnecting: false });
@@ -300,7 +313,6 @@ export const useSolanaWallet = () => {
 
       await connect();
     } catch (error) {
-      console.warn('[Solana] Auto-reconnect failed:', error);
     }
   }, [solanaWallet, connect]);
 
@@ -316,7 +328,6 @@ export const useSolanaWallet = () => {
         setCurrentCluster(cluster);
         localStorage.setItem(solanaStorageKeys.NETWORK, cluster);
 
-        console.log(`✅ Switched to Solana ${cluster}`);
 
         // Note: Full implementation would require updating the ConnectionProvider
         // which is set at the provider level, not here
@@ -368,7 +379,6 @@ export const useSolanaWallet = () => {
   useEffect(() => {
     if (!isInitialized) {
       setIsInitialized(true);
-      console.log('✅ Solana wallet hook initialized');
     }
   }, [isInitialized]);
 

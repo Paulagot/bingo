@@ -95,11 +95,11 @@ export const routes: RouteObject[] = [
   },
   {
     path: '/reset-password',
-    element: <ContactForm />, // TODO: Replace with actual component
+    element: <ContactForm />,
   },
   {
     path: '/forgot-password',
-    element: <ContactForm />, // TODO: Replace with actual component
+    element: <ContactForm />,
   },
   {
     path: '/quiz/create-fundraising-quiz',

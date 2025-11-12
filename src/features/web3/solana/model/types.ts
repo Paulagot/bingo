@@ -185,6 +185,7 @@ export interface SolanaContractContext {
   publicKey: PublicKey | null;
   connected: boolean;
   isReady: boolean;
+  connection?: import('@solana/web3.js').Connection; // Optional connection for operations that need it
 }
 
 /**

@@ -173,13 +173,58 @@ export function getAssociatedTokenAccountAddress(
   owner: PublicKey,
   allowOwnerOffCurve: boolean = false
 ): PublicKey {
-  return getATAAddress(
-    mint,
-    owner,
-    allowOwnerOffCurve,
-    TOKEN_PROGRAM_ID,
-    ASSOCIATED_TOKEN_PROGRAM_ID
-  );
+  // Validate inputs are actually PublicKey instances
+  if (!(mint instanceof PublicKey)) {
+    throw new Error(`Invalid mint: expected PublicKey, got ${typeof mint}`);
+  }
+  if (!(owner instanceof PublicKey)) {
+    throw new Error(`Invalid owner: expected PublicKey, got ${typeof owner}`);
+  }
+
+  try {
+    // getATAAddress is synchronous in @solana/spl-token v0.4.13
+    // It returns a PublicKey directly
+    const ataAddress = getATAAddress(
+      mint,
+      owner,
+      allowOwnerOffCurve,
+      TOKEN_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+    
+    // getATAAddress should return a PublicKey
+    if (ataAddress instanceof PublicKey) {
+      return ataAddress;
+    }
+    
+    // If it's not a PublicKey, try to convert it
+    // This shouldn't happen, but handle it gracefully
+    if (typeof ataAddress === 'string') {
+      return new PublicKey(ataAddress);
+    }
+    
+    // If it has a toBase58 method, use it
+    if (ataAddress && typeof ataAddress.toBase58 === 'function') {
+      return new PublicKey(ataAddress.toBase58());
+    }
+    
+    // If it's an object with a publicKey property (some versions return this)
+    if (ataAddress && typeof ataAddress === 'object' && 'publicKey' in ataAddress) {
+      const pubkey = (ataAddress as any).publicKey;
+      return pubkey instanceof PublicKey ? pubkey : new PublicKey(pubkey);
+    }
+    
+    throw new Error(`getATAAddress returned invalid type: ${typeof ataAddress}. Value: ${JSON.stringify(ataAddress)}`);
+  } catch (error: any) {
+    if (error.message?.includes('Assertion failed')) {
+      throw new Error(
+        `Failed to derive ATA: Invalid PublicKey parameters. ` +
+        `mint: ${mint.toBase58()}, owner: ${owner.toBase58()}. ` +
+        `Original error: ${error.message}`
+      );
+    }
+    throw error;
+  }
 }
 
 /**
