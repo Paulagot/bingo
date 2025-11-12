@@ -10,7 +10,7 @@
   "scripts": {
     "generate-seo": "node scripts/generateStaticSeoFiles.js",
     "dev": "npm run generate-seo && concurrently \"vite\" \"node server/index.js\"",
-    "build": "npm run generate-seo && vite build",
+    "build": "npm run generate-seo && node --max-old-space-size=8192 ./node_modules/vite/bin/vite.js build",
     "build:analyze": "npm run generate-seo && vite build --mode analyze",
     "start": "node server/index.js",
     "lint": "eslint .",
