@@ -557,7 +557,7 @@ socket.on('tiebreak:proceed_to_completion', ({ roomId }) => {
   // ✅ end_quiz_and_distribute_prizes (unchanged from your version)
 // ONLY SHOWING THE CHANGED SECTION - insert this into your hostHandlers.js
 
-socket.on('end_quiz_and_distribute_prizes', ({ roomId }) => {
+socket.on('end_quiz_and_distribute_prizes', async ({ roomId }) => {
   if (debug) console.log(`[Host] 🏆 end_quiz_and_distribute_prizes for ${roomId}`);
 
   const room = getQuizRoom(roomId);

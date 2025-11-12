@@ -506,26 +506,42 @@ export function useSolanaContract() {
         throw new Error('Program not initialized');
       }
 
-      // Derive token registry PDA
-      const [tokenRegistry, bump] = deriveTokenRegistryPDA();
+      // CRITICAL: Use program.programId to derive token registry PDA (matches Anchor's derivation)
+      // This ensures the PDA matches what Anchor expects when validating the constraint
+      const programId = program.programId;
+      
+      // Verify PROGRAM_ID matches the program's programId (for consistency)
+      if (!programId.equals(PROGRAM_ID)) {
+        console.warn('[initializeTokenRegistry] ⚠️ PROGRAM_ID mismatch!', {
+          config: PROGRAM_ID.toBase58(),
+          program: programId.toBase58(),
+          message: 'Using program.programId for PDA derivation to match Anchor validation'
+        });
+      }
+      
+      // Derive token registry PDA using program.programId (same as Anchor uses)
+      const [tokenRegistry, bump] = PublicKey.findProgramAddressSync(
+        [Buffer.from('token-registry-v4')],
+        programId
+      );
 
-      console.log('[initializeTokenRegistry] Token registry PDA:', tokenRegistry.toBase58());
+      console.log('[initializeTokenRegistry] Token registry PDA (derived with program.programId):', tokenRegistry.toBase58());
       console.log('[initializeTokenRegistry] Bump:', bump);
-      console.log('[initializeTokenRegistry] Program ID:', program.programId.toBase58());
-      console.log('[initializeTokenRegistry] Seed used:', 'token-registry-v2');
+      console.log('[initializeTokenRegistry] Program ID:', programId.toBase58());
+      console.log('[initializeTokenRegistry] Seed used:', 'token-registry-v4');
 
       // Check if already initialized
       try {
         const registryAccount = await connection.getAccountInfo(tokenRegistry);
         if (registryAccount) {
           // Check if it's owned by the correct program
-          if (registryAccount.owner.toBase58() === program.programId.toBase58()) {
+          if (registryAccount.owner.toBase58() === programId.toBase58()) {
             console.log('[initializeTokenRegistry] Token registry already initialized');
             return { signature: 'already-initialized' };
           } else {
             console.warn('[initializeTokenRegistry] ⚠️ Token registry exists but owned by old program:', {
               oldOwner: registryAccount.owner.toBase58(),
-              currentProgram: program.programId.toBase58(),
+              currentProgram: programId.toBase58(),
             });
             throw new Error(
               `⚠️ DEVNET CLEANUP NEEDED: Token registry was created by old program deployment.\n\n` +
@@ -545,15 +561,16 @@ export function useSolanaContract() {
       }
 
       // Build initialization instruction
-      // Fixed: Program now has synchronized declare_id! and keypair, so Anchor auto-derivation works
+      // Note: tokenRegistry is explicitly passed, but Anchor will validate it matches the PDA constraint
+      // Using program.programId ensures the PDA matches Anchor's derivation
       console.log('[initializeTokenRegistry] 🏗️ Building instruction with Anchor...');
-      console.log('[initializeTokenRegistry] Program object:', program.programId.toString());
+      console.log('[initializeTokenRegistry] Program object:', programId.toString());
       console.log('[initializeTokenRegistry] Passing tokenRegistry:', tokenRegistry.toBase58());
 
       const ix = await program.methods
         .initializeTokenRegistry()
         .accounts({
-          tokenRegistry,
+          tokenRegistry, // Explicitly pass - Anchor will validate it matches the constraint
           admin: publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -607,9 +624,15 @@ export function useSolanaContract() {
         throw new Error('Program not initialized');
       }
 
-      const [tokenRegistry] = deriveTokenRegistryPDA();
+      // CRITICAL: Use program.programId to derive token registry PDA (matches Anchor's derivation)
+      // This ensures the PDA matches what Anchor expects when validating the constraint
+      const programId = program.programId;
+      const [tokenRegistry] = PublicKey.findProgramAddressSync(
+        [Buffer.from('token-registry-v4')],
+        programId
+      );
 
-      console.log('[addApprovedToken] Token registry PDA:', tokenRegistry.toBase58());
+      console.log('[addApprovedToken] Token registry PDA (derived with program.programId):', tokenRegistry.toBase58());
       console.log('[addApprovedToken] Token to approve:', tokenMint.toBase58());
 
       // Check if token is already approved
@@ -626,10 +649,12 @@ export function useSolanaContract() {
       }
 
       // Build add token instruction
+      // Note: tokenRegistry is explicitly passed, but Anchor will validate it matches the PDA constraint
+      // Using program.programId ensures the PDA matches Anchor's derivation
       const ix = await program.methods
         .addApprovedToken(tokenMint)
         .accounts({
-          tokenRegistry,
+          tokenRegistry, // Explicitly pass - Anchor will validate it matches the constraint
           admin: publicKey,
         })
         .instruction();
@@ -662,11 +687,16 @@ export function useSolanaContract() {
    * ## Charity Wallet Handling
    *
    * The charity wallet is determined using the following priority:
-   * 1. **GlobalConfig**: If GlobalConfig is initialized, use the charity wallet from it
-   * 2. **Params**: Use the charity wallet provided in params.charityWallet
-   * 3. **Error**: If neither is available, throw an error
+   * The charity wallet is provided via params.charityWallet. This wallet is stored in the room
+   * account but is primarily used as a placeholder. The actual charity routing happens during
+   * prize distribution via the charity_token_account parameter in the end_room instruction.
    *
-   * This ensures that the charity wallet is always valid and matches the platform configuration.
+   * **Important**: The charity wallet used at room creation time is stored in room.charity_wallet,
+   * but the end_room instruction accepts ANY valid charity_token_account without validation against
+   * GlobalConfig.charity_wallet. This enables:
+   * - TGB dynamic wallet addresses (different address per transaction)
+   * - Custom charity wallets per-room or per-transaction
+   * - Per-room charity configuration
    *
    * ## Fee Structure Validation
    *
@@ -738,19 +768,55 @@ export function useSolanaContract() {
       }
 
       // Auto-initialize global config and token registry if needed
+      // Note: The charity wallet passed here is used to initialize GlobalConfig if it doesn't exist.
+      // This is a placeholder - the actual TGB dynamic charity address is used during prize distribution.
       console.log('[createPoolRoom] Checking if global config is initialized...');
+      console.log('[createPoolRoom] Charity wallet for GlobalConfig initialization:', params.charityWallet.toBase58());
+      
       try {
         await initializeGlobalConfig(publicKey, params.charityWallet);
+        console.log('[createPoolRoom] ✅ GlobalConfig initialized or already exists');
       } catch (error: any) {
         // Only fail if it's not already initialized
         const isAlreadyInit = error.message?.includes('already-initialized') ||
                              error.message?.includes('already been processed') ||
-                             error.message?.includes('custom program error: 0x0'); // Account already initialized
+                             error.message?.includes('custom program error: 0x0') || // Account already initialized
+                             error.message?.includes('AccountAlreadyInitialized'); // Alternative error format
         if (!isAlreadyInit) {
-          console.error('[createPoolRoom] Failed to initialize global config:', error);
-          throw error;
+          console.error('[createPoolRoom] ❌ Failed to initialize global config:', error);
+          console.error('[createPoolRoom] Error details:', {
+            message: error.message,
+            name: error.name,
+            stack: error.stack?.substring(0, 500)
+          });
+          // Don't throw - if GlobalConfig initialization fails, we can still try to use existing GlobalConfig
+          // or continue with room creation (the contract may handle missing GlobalConfig differently)
+          console.warn('[createPoolRoom] ⚠️ Continuing despite GlobalConfig initialization failure - room creation may fail if GlobalConfig is required');
+        } else {
+          console.log('[createPoolRoom] ✅ GlobalConfig already initialized (caught expected error)');
         }
-        console.log('[createPoolRoom] Global config already initialized (caught expected error)');
+      }
+      
+      // Verify GlobalConfig exists and has a valid charity wallet
+      // If it doesn't exist or has an invalid wallet, we've already tried to initialize it above
+      try {
+        const [globalConfigPDA] = deriveGlobalConfigPDA();
+        const configAccount = await program.account.globalConfig.fetch(globalConfigPDA);
+        const configCharityWallet = configAccount.charityWallet as PublicKey;
+        console.log('[createPoolRoom] ✅ GlobalConfig verified - charity wallet:', configCharityWallet.toBase58());
+        
+        // Warn if the charity wallet in GlobalConfig doesn't match the one we're trying to use
+        // (this is OK - the room will use the charity wallet from params, and prize distribution uses TGB address)
+        if (!configCharityWallet.equals(params.charityWallet)) {
+          console.log('[createPoolRoom] ℹ️ Note: Room will use charity wallet from params:', params.charityWallet.toBase58());
+          console.log('[createPoolRoom] ℹ️ GlobalConfig has different charity wallet:', configCharityWallet.toBase58());
+          console.log('[createPoolRoom] ℹ️ This is OK - prize distribution uses TGB dynamic address, not room.charity_wallet');
+        }
+      } catch (verifyError: any) {
+        // GlobalConfig doesn't exist or couldn't be fetched - this is a problem
+        console.error('[createPoolRoom] ❌ Could not verify GlobalConfig:', verifyError.message);
+        console.error('[createPoolRoom] ⚠️ Room creation may fail if GlobalConfig is required by the contract');
+        // Don't throw - let the contract validation handle this
       }
 
       // Check and update max_prize_pool_bps if it's set to 3500 (35%)
@@ -783,29 +849,125 @@ export function useSolanaContract() {
       }
 
       console.log('[createPoolRoom] Checking if token registry is initialized...');
-      try {
-        await initializeTokenRegistry();
-      } catch (error: any) {
-        // Get full transaction logs if available
-        if (error.getLogs && typeof error.getLogs === 'function') {
-          const logs = await error.getLogs();
-          console.error('[createPoolRoom] Full transaction logs:', logs);
-        }
-
-        // Log complete error details
-        console.error('[createPoolRoom] Full error object:', {
-          message: error.message,
-          name: error.name,
-          stack: error.stack,
-          logs: error.logs,
+      
+      // CRITICAL: Use program.programId to derive token registry PDA (matches Anchor's derivation)
+      // This ensures the PDA matches what Anchor expects when auto-deriving from IDL constraint
+      const programId = program.programId;
+      
+      // Verify PROGRAM_ID matches the program's programId (for consistency)
+      if (!programId.equals(PROGRAM_ID)) {
+        console.warn('[createPoolRoom] ⚠️ PROGRAM_ID mismatch!', {
+          config: PROGRAM_ID.toBase58(),
+          program: programId.toBase58(),
+          message: 'Using program.programId for PDA derivation to match Anchor validation'
         });
-
-        // Only fail if it's not already initialized
-        if (!error.message?.includes('already-initialized')) {
-          console.error('[createPoolRoom] Failed to initialize token registry:', error);
-          throw new Error(`Token registry initialization failed: ${error.message}`);
+      }
+      
+      // Derive token registry PDA using program.programId (same as Anchor uses)
+      const [tokenRegistryPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from('token-registry-v4')],
+        programId
+      );
+      
+      console.log('[createPoolRoom] Token registry PDA (derived with program.programId):', tokenRegistryPDA.toBase58());
+      console.log('[createPoolRoom] Program ID used for derivation:', programId.toBase58());
+      
+      // CRITICAL: The contract constraint uses `bump = token_registry.bump`, which means
+      // Anchor must read the account to get the bump. The account MUST exist before init_pool_room.
+      // 
+      // DIAGNOSIS: Check if token registry exists at v4 PDA, and also check for old v2 PDA
+      // If it exists at v2 PDA, that's the problem - Anchor is looking for v4 but finding v2
+      const [oldV2PDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from('token-registry-v2')],
+        programId
+      );
+      
+      console.log('[createPoolRoom] Checking for token registry at both PDAs:');
+      console.log('[createPoolRoom] v4 PDA (expected):', tokenRegistryPDA.toBase58());
+      console.log('[createPoolRoom] v2 PDA (old, if exists):', oldV2PDA.toBase58());
+      
+      // Check if old v2 registry exists (diagnostic only - don't throw error)
+      const oldV2Account = await connection.getAccountInfo(oldV2PDA).catch(() => null);
+      if (oldV2Account && oldV2Account.owner.toBase58() === programId.toBase58()) {
+        console.warn('[createPoolRoom] ⚠️ WARNING: Token registry also exists at OLD v2 PDA (this should not cause issues):', {
+          v2PDA: oldV2PDA.toBase58(),
+          v4PDA: tokenRegistryPDA.toBase58(),
+          message: 'Both v2 and v4 registries exist. Using v4 registry as expected.'
+        });
+      }
+      
+      // Verify v4 registry exists
+      let tokenRegistryExists = false;
+      try {
+        // First, try to fetch using Anchor's account API (this is what Anchor will use)
+        const registryAccount = await program.account.tokenRegistry.fetch(tokenRegistryPDA);
+        console.log('[createPoolRoom] ✅ Token registry account fetched successfully via Anchor API:', {
+          pda: tokenRegistryPDA.toBase58(),
+          admin: registryAccount.admin.toBase58(),
+          approvedTokensCount: registryAccount.approvedTokens?.length || 0,
+          bump: registryAccount.bump,
+        });
+        tokenRegistryExists = true;
+      } catch (fetchError: any) {
+        console.log('[createPoolRoom] Token registry not found via Anchor API:', fetchError.message);
+        console.log('[createPoolRoom] Checking with getAccountInfo...');
+        
+        // Fallback: Check with getAccountInfo
+        const accountInfo = await connection.getAccountInfo(tokenRegistryPDA);
+        if (!accountInfo) {
+          console.log('[createPoolRoom] ❌ Token registry does not exist at v4 PDA:', tokenRegistryPDA.toBase58());
+          console.log('[createPoolRoom] Initializing token registry with v4 seed...');
+          
+          try {
+            await initializeTokenRegistry();
+            // Verify it was created
+            const verifyAccount = await program.account.tokenRegistry.fetch(tokenRegistryPDA);
+            console.log('[createPoolRoom] ✅ Token registry initialized and verified:', {
+              pda: tokenRegistryPDA.toBase58(),
+              admin: verifyAccount.admin.toBase58(),
+              bump: verifyAccount.bump,
+            });
+            tokenRegistryExists = true;
+          } catch (initError: any) {
+            console.error('[createPoolRoom] ❌ Token registry initialization failed:', initError);
+            throw new Error(`Token registry initialization failed: ${initError.message}`);
+          }
+        } else if (accountInfo.owner.toBase58() !== programId.toBase58()) {
+          console.error('[createPoolRoom] ❌ Token registry exists but owned by wrong program:', {
+            owner: accountInfo.owner.toBase58(),
+            expected: programId.toBase58(),
+            pda: tokenRegistryPDA.toBase58(),
+          });
+          throw new Error(
+            `Token registry exists but owned by wrong program.\n` +
+            `Owner: ${accountInfo.owner.toBase58()}\n` +
+            `Expected: ${programId.toBase58()}\n` +
+            `PDA: ${tokenRegistryPDA.toBase58()}\n\n` +
+            `Please close the old account and reinitialize.`
+          );
+        } else {
+          // Account exists and is owned by correct program, but Anchor API failed
+          // This might mean the account data is invalid or the IDL doesn't match
+          console.error('[createPoolRoom] ❌ Token registry exists but Anchor API fetch failed:', fetchError.message);
+          console.error('[createPoolRoom] Account info:', {
+            exists: true,
+            owner: accountInfo.owner.toBase58(),
+            dataLength: accountInfo.data.length,
+            executable: accountInfo.executable,
+          });
+          throw new Error(
+            `Token registry exists at ${tokenRegistryPDA.toBase58()} but Anchor cannot fetch it: ${fetchError.message}. ` +
+            `This might indicate an IDL mismatch or corrupted account data. ` +
+            `The account might have been created with a different IDL version.`
+          );
         }
       }
+      
+      if (!tokenRegistryExists) {
+        throw new Error('Token registry verification failed - account does not exist');
+      }
+      
+      console.log('[createPoolRoom] ✅ Token registry verified and ready for room creation');
 
       // Validate that fee token is USDC or PYUSD only (room fees restriction)
       const TOKEN_MINTS = getTokenMints();
@@ -881,21 +1043,80 @@ export function useSolanaContract() {
         totalRequired: ((totalRentRequired + TRANSACTION_FEE_BUFFER) / 1e9).toFixed(4),
       });
 
-      // Derive all required PDAs (globalConfig already declared above on line 758)
+      // Derive all required PDAs
+      // tokenRegistryPDA was already derived and verified above (line 826)
       const [room] = deriveRoomPDA(publicKey, params.roomId);
       const [roomVault] = deriveRoomVaultPDA(room);
-      const [tokenRegistry] = deriveTokenRegistryPDA();
 
       console.log('[createPoolRoom] PDAs derived:', {
+        programId: programId.toBase58(),
         globalConfig: globalConfig.toBase58(),
         room: room.toBase58(),
         roomVault: roomVault.toBase58(),
-        tokenRegistry: tokenRegistry.toBase58(),
+        tokenRegistry: tokenRegistryPDA.toBase58(), // Already verified to exist above
       });
 
+      // Final verification: Fetch the token registry account one more time to get its bump
+      // This ensures we have the exact account data that Anchor will see
+      const finalRegistryCheck = await program.account.tokenRegistry.fetch(tokenRegistryPDA);
+      console.log('[createPoolRoom] Final token registry verification:', {
+        pda: tokenRegistryPDA.toBase58(),
+        storedBump: finalRegistryCheck.bump,
+        admin: finalRegistryCheck.admin.toBase58(),
+        programId: programId.toBase58(),
+      });
+      
+      // Verify the PDA derivation matches what Anchor expects
+      // Anchor will derive: findProgramAddressSync([b"token-registry-v4"], programId)
+      // Then read the account's bump and verify it matches
+      const [derivedPDA, derivedBump] = PublicKey.findProgramAddressSync(
+        [Buffer.from('token-registry-v4')],
+        programId
+      );
+      console.log('[createPoolRoom] PDA derivation check:', {
+        expectedPDA: tokenRegistryPDA.toBase58(),
+        derivedPDA: derivedPDA.toBase58(),
+        matches: tokenRegistryPDA.toBase58() === derivedPDA.toBase58(),
+        storedBump: finalRegistryCheck.bump,
+        derivedBump: derivedBump,
+        bumpMatches: finalRegistryCheck.bump === derivedBump,
+      });
+      
+      if (tokenRegistryPDA.toBase58() !== derivedPDA.toBase58()) {
+        throw new Error(
+          `PDA derivation mismatch! Expected ${tokenRegistryPDA.toBase58()} but derived ${derivedPDA.toBase58()}. ` +
+          `This indicates a program ID mismatch. Program ID: ${programId.toBase58()}`
+        );
+      }
+      
+      if (finalRegistryCheck.bump !== derivedBump) {
+        console.error('[createPoolRoom] ❌ CRITICAL: Stored bump does not match derived bump!', {
+          storedBump: finalRegistryCheck.bump,
+          derivedBump: derivedBump,
+          pda: tokenRegistryPDA.toBase58(),
+          message: 'This WILL cause ConstraintSeeds error! The account was created with a different program ID or seed.'
+        });
+        throw new Error(
+          `Token registry account has incorrect bump! ` +
+          `Stored: ${finalRegistryCheck.bump}, Expected: ${derivedBump}. ` +
+          `This indicates the account was created with a different program ID or seed. ` +
+          `The account needs to be reinitialized with the correct program ID.`
+        );
+      }
+      
+      console.log('[createPoolRoom] ✅ Bump verification passed - stored bump matches derived bump');
+
       // Build instruction using Anchor's methods API
-      // Note: tokenRegistry is NOT passed - Anchor will auto-derive it from IDL constraint
-      // This prevents ConstraintSeeds validation errors (see createAssetRoom for reference)
+      // CRITICAL: Explicitly pass tokenRegistry to ensure Anchor can validate the bump constraint correctly
+      // The constraint `bump = token_registry.bump` requires Anchor to read the account to get the bump.
+      // By explicitly passing the account, we ensure Anchor has it available for validation and can
+      // properly verify that the stored bump matches the derived bump.
+      // 
+      // This is necessary because Anchor's auto-derivation with bump constraints that require
+      // reading account data can sometimes fail if the account isn't explicitly provided.
+      console.log('[createPoolRoom] Building instruction with accounts...');
+      console.log('[createPoolRoom] ✅ Explicitly passing tokenRegistry account for bump constraint validation');
+      console.log('[createPoolRoom] Token registry PDA:', tokenRegistryPDA.toBase58());
       const ix = await program.methods
         .initPoolRoom(
           params.roomId,
@@ -914,15 +1135,66 @@ export function useSolanaContract() {
           room,
           roomVault,
           feeTokenMint: params.feeTokenMint,
+          tokenRegistry: tokenRegistryPDA, // ✅ Explicitly pass to ensure Anchor can validate bump constraint
           globalConfig,
-          // tokenRegistry is NOT passed - Anchor will auto-derive it from IDL constraint
-          // This prevents ConstraintSeeds validation errors
           host: publicKey,
           systemProgram: SystemProgram.programId,
           tokenProgram: TOKEN_PROGRAM_ID,
           rent: SYSVAR_RENT_PUBKEY,
         })
         .instruction();
+      
+      console.log('[createPoolRoom] Instruction built successfully');
+      console.log('[createPoolRoom] Instruction program ID:', ix.programId.toBase58());
+      
+      // Verify tokenRegistry account is in the instruction (we explicitly passed it)
+      const allInstructionAccounts = ix.keys.map((k, i) => ({
+        index: i,
+        pubkey: k.pubkey.toBase58(),
+        isSigner: k.isSigner,
+        isWritable: k.isWritable,
+      }));
+      
+      console.log('[createPoolRoom] 📋 All instruction accounts:', JSON.stringify(allInstructionAccounts, null, 2));
+      console.log('[createPoolRoom] Expected tokenRegistry PDA (v4):', tokenRegistryPDA.toBase58());
+      
+      // Verify the tokenRegistry account we passed is in the instruction
+      const tokenRegistryInInstruction = ix.keys.find(k => k.pubkey.toBase58() === tokenRegistryPDA.toBase58());
+      const oldV2InInstruction = ix.keys.find(k => k.pubkey.toBase58() === oldV2PDA.toBase58());
+      
+      if (tokenRegistryInInstruction) {
+        console.log('[createPoolRoom] ✅ Token registry account (v4) found in instruction:', {
+          pubkey: tokenRegistryInInstruction.pubkey.toBase58(),
+          isSigner: tokenRegistryInInstruction.isSigner,
+          isWritable: tokenRegistryInInstruction.isWritable,
+          index: ix.keys.indexOf(tokenRegistryInInstruction),
+        });
+      } else {
+        console.error('[createPoolRoom] ❌ Token registry (v4) NOT found in instruction keys!');
+        console.error('[createPoolRoom] This should not happen since we explicitly passed it.');
+        throw new Error(
+          `Token registry account not found in instruction despite explicitly passing it. ` +
+          `Expected: ${tokenRegistryPDA.toBase58()}`
+        );
+      }
+      
+      if (oldV2InInstruction) {
+        console.error('[createPoolRoom] ⚠️ WARNING: Old v2 PDA also found in instruction!', {
+          v2PDA: oldV2InInstruction.pubkey.toBase58(),
+          v4PDA: tokenRegistryPDA.toBase58(),
+        });
+        // Don't throw error, just log warning - both might be present for some reason
+      }
+      
+      // Verify program ID matches
+      if (ix.programId.toBase58() !== programId.toBase58()) {
+        console.error('[createPoolRoom] ❌ Program ID mismatch!', {
+          instructionProgramId: ix.programId.toBase58(),
+          expectedProgramId: programId.toBase58(),
+        });
+        throw new Error(`Program ID mismatch in instruction! This will cause PDA derivation to fail.`);
+      }
+      console.log('[createPoolRoom] ✅ Program ID matches:', programId.toBase58());
 
       // Build transaction and simulate
       const tx = new Transaction().add(ix);
@@ -939,12 +1211,100 @@ export function useSolanaContract() {
         lastValidBlockHeight,
       });
 
+      // Before simulation, verify token registry one final time
+      try {
+        const preSimRegistry = await program.account.tokenRegistry.fetch(tokenRegistryPDA);
+        console.log('[createPoolRoom] Pre-simulation token registry check:', {
+          pda: tokenRegistryPDA.toBase58(),
+          bump: preSimRegistry.bump,
+          admin: preSimRegistry.admin.toBase58(),
+          programId: programId.toBase58(),
+        });
+      } catch (preSimError: any) {
+        console.error('[createPoolRoom] ❌ Pre-simulation check failed - token registry cannot be fetched:', preSimError.message);
+        throw new Error(`Token registry verification failed before simulation: ${preSimError.message}`);
+      }
+      
       console.log('[createPoolRoom] Simulating transaction...');
+      console.log('[createPoolRoom] Instruction details:', {
+        programId: ix.programId.toBase58(),
+        accountsCount: ix.keys.length,
+        tokenRegistryExpected: tokenRegistryPDA.toBase58(),
+      });
+      
       const simResult = await simulateTransaction(connection, tx);
-
+      
       if (!simResult.success) {
         console.error('[createPoolRoom] Simulation failed:', simResult.error);
         console.error('[createPoolRoom] Full simulation result:', JSON.stringify(simResult, null, 2));
+        
+        // If it's a ConstraintSeeds error on token_registry, provide detailed diagnosis
+        if (simResult.logs && simResult.logs.some((log: string) => 
+          log.includes('token_registry') && log.includes('ConstraintSeeds')
+        )) {
+          console.error('[createPoolRoom] ❌ ConstraintSeeds error on token_registry detected!');
+          console.error('[createPoolRoom] Diagnosis:');
+          console.error('[createPoolRoom] 1. Token registry PDA (expected):', tokenRegistryPDA.toBase58());
+          console.error('[createPoolRoom] 2. Program ID (used for derivation):', programId.toBase58());
+          console.error('[createPoolRoom] 3. Seed used: token-registry-v4');
+          console.error('[createPoolRoom] 4. This error means Anchor could not validate the PDA constraint.');
+          console.error('[createPoolRoom] 5. Possible causes:');
+          console.error('[createPoolRoom]    - Token registry account does not exist at expected PDA');
+          console.error('[createPoolRoom]    - Token registry was created with different program ID');
+          console.error('[createPoolRoom]    - Token registry was created with old v2 seed');
+          console.error('[createPoolRoom]    - Stored bump in account does not match derived bump');
+          console.error('[createPoolRoom]    - IDL mismatch between frontend and deployed contract');
+          
+          // Try to fetch the account one more time to see its current state
+          try {
+            const diagnosticCheck = await program.account.tokenRegistry.fetch(tokenRegistryPDA);
+            console.error('[createPoolRoom] ✅ Account exists and can be fetched:', {
+              pda: tokenRegistryPDA.toBase58(),
+              bump: diagnosticCheck.bump,
+            });
+          } catch (diagError: any) {
+            console.error('[createPoolRoom] ❌ Account cannot be fetched:', diagError.message);
+          }
+          
+          // CRITICAL: Check what PDA Anchor actually included in the instruction
+          console.error('[createPoolRoom] 🔍 DIAGNOSTIC: Checking what PDA Anchor derived...');
+          console.error('[createPoolRoom] Expected v4 PDA:', tokenRegistryPDA.toBase58());
+          console.error('[createPoolRoom] Expected v2 PDA (if contract uses old seed):', oldV2PDA.toBase58());
+          
+          // Check instruction accounts to see which PDA Anchor derived
+          const instructionAccounts = tx.instructions[0].keys.map((k, i) => ({
+            index: i,
+            pubkey: k.pubkey.toBase58(),
+            isSigner: k.isSigner,
+            isWritable: k.isWritable,
+          }));
+          console.error('[createPoolRoom] 📋 Instruction accounts in transaction:', JSON.stringify(instructionAccounts, null, 2));
+          
+          const v4InTx = instructionAccounts.find(a => a.pubkey === tokenRegistryPDA.toBase58());
+          const v2InTx = instructionAccounts.find(a => a.pubkey === oldV2PDA.toBase58());
+          
+          if (v2InTx) {
+            console.error('[createPoolRoom] ❌❌❌ ROOT CAUSE IDENTIFIED: Anchor included v2 PDA in transaction!');
+            console.error('[createPoolRoom] This confirms the DEPLOYED CONTRACT uses token-registry-v2 seed, but IDL says v4.');
+            console.error('[createPoolRoom] SOLUTION: The contract needs to be rebuilt and redeployed with v4 seed.');
+            console.error('[createPoolRoom] TEMPORARY FIX: Update IDL to use v2 seed to match deployed contract.');
+            throw new Error(
+              `IDL/Contract Mismatch Confirmed! ` +
+              `The deployed contract uses token-registry-v2 seed, but the IDL says token-registry-v4. ` +
+              `Anchor derived v2 PDA (${oldV2PDA.toBase58()}) but the account exists at v4 PDA (${tokenRegistryPDA.toBase58()}). ` +
+              `SOLUTION: Rebuild and redeploy the contract from source code (which uses v4 seed) to match the IDL. ` +
+              `The contract is at: C:\\Users\\isich\\bingo-solana-contracts\\bingo`
+            );
+          } else if (v4InTx) {
+            console.error('[createPoolRoom] ✅ Anchor included v4 PDA in transaction (correct)');
+            console.error('[createPoolRoom] But simulation still fails - this suggests the DEPLOYED CONTRACT validates against v2 seed.');
+            console.error('[createPoolRoom] SOLUTION: Rebuild and redeploy the contract to match the IDL.');
+          } else {
+            console.error('[createPoolRoom] ❌ Neither v4 nor v2 PDA found in transaction accounts!');
+            console.error('[createPoolRoom] This suggests Anchor did not auto-derive the token_registry PDA from IDL.');
+          }
+        }
+        
         throw new Error(formatTransactionError(simResult.error) || 'Transaction simulation failed');
       }
 
@@ -3044,7 +3404,8 @@ export function useSolanaContract() {
       const globalConfigAccount = await program.account.globalConfig.fetch(globalConfig);
       const platformWallet = globalConfigAccount.platformWallet as PublicKey;
       
-      // ✅ NEW: Use provided charity wallet address (from TGB API) instead of GlobalConfig
+      // Use provided charity wallet address (from TGB API) if available, otherwise fall back to GlobalConfig
+      // The contract accepts any charity_token_account without validation, enabling dynamic TGB addresses
       let charityWallet: PublicKey;
       if (params.charityWallet) {
         charityWallet = new PublicKey(params.charityWallet);

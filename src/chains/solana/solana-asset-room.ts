@@ -94,7 +94,7 @@ export function deriveGlobalConfigPDA(): [PublicKey, number] {
 }
 
 export function deriveTokenRegistryPDA(): [PublicKey, number] {
-  const seed = 'token-registry-v2'; // MUST match Rust contract: b"token-registry-v2"
+  const seed = 'token-registry-v4'; // MUST match Rust contract: b"token-registry-v4"
   console.log('[deriveTokenRegistryPDA] Input - Seed:', seed, 'Program:', PROGRAM_ID.toString());
   const result = PublicKey.findProgramAddressSync(
     [Buffer.from(seed)],
@@ -258,9 +258,9 @@ export async function createAssetRoom(
   
   // Derive tokenRegistry PDA - CRITICAL: Must use the same programId as other PDAs
   // Use programId instead of PROGRAM_ID to match what Anchor expects
-  // The IDL constraint is: seeds = ["token-registry-v2"] (matches Rust contract)
+  // The IDL constraint is: seeds = ["token-registry-v4"] (matches Rust contract)
   const [tokenRegistry, tokenRegistryBump] = PublicKey.findProgramAddressSync(
-    [Buffer.from('token-registry-v2')],
+    [Buffer.from('token-registry-v4')],
     programId
   );
   
@@ -297,7 +297,7 @@ export async function createAssetRoom(
     programId: programId.toBase58(),
     tokenRegistry: tokenRegistry.toBase58(),
     tokenRegistryBump,
-    tokenRegistrySeed: 'token-registry-v2',
+    tokenRegistrySeed: 'token-registry-v4',
     globalConfig: globalConfig.toBase58(),
     room: room.toBase58(),
     roomBump,
@@ -337,7 +337,7 @@ export async function createAssetRoom(
   // Note: For PDAs with constraints in the IDL, Anchor will automatically derive and validate them
   // We should NOT pass tokenRegistry explicitly - let Anchor auto-derive it from the IDL constraint
   // This prevents ConstraintSeeds validation errors
-  // The IDL has a PDA constraint for token_registry with seeds: ["token-registry-v2"] (matches Rust contract)
+  // The IDL has a PDA constraint for token_registry with seeds: ["token-registry-v4"] (matches Rust contract)
   // Anchor will automatically derive it using program.programId, so we don't pass it
   const initAssetRoomIx = await program.methods
     .initAssetRoom(
@@ -618,11 +618,9 @@ export async function depositPrizeAsset(
   const instructions = [];
 
   if (!vaultInfo || vaultInfo.data.length === 0) {
-    console.log('[depositPrizeAsset] Prize vault does not exist - contract should create it');
-    console.warn('[depositPrizeAsset] ⚠️ WARNING: Prize vault PDA token account must be created by the contract');
-    console.warn('[depositPrizeAsset] ⚠️ Cannot create PDA token account from frontend - contract must handle it');
-    // Note: The contract's add_prize_asset instruction should create the prize vault if it doesn't exist
-    // Similar to how init_asset_room creates room_vault
+    console.log('[depositPrizeAsset] Prize vault does not exist - contract will create it automatically');
+    // Note: The contract's add_prize_asset instruction will create the prize vault if it doesn't exist
+    // Similar to how init_asset_room creates room_vault. This is expected behavior.
   } else {
     console.log('[depositPrizeAsset] Prize vault already exists');
   }

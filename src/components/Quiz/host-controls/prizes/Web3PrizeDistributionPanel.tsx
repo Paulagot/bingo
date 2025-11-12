@@ -122,7 +122,7 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
     });
 
     // Call the contract action
-    // ✅ For Solana, pass charityAddress as charityWallet parameter
+    // For Solana, pass charityAddress as charityWallet parameter to use dynamic TGB wallet
     const distributeParams: any = {
       roomId: data.roomId,
       winners: winnersPayload,
@@ -134,7 +134,8 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
       evmNetwork: data.evmNetwork,
     };
     
-    // ✅ NEW: For Solana, pass charityAddress as charityWallet to use TGB wallet
+    // For Solana, pass charityAddress as charityWallet to use TGB dynamic wallet address
+    // The contract accepts any charity_token_account, enabling per-transaction TGB addresses
     if (data.web3Chain === 'solana' && data.charityAddress) {
       distributeParams.charityWallet = data.charityAddress;
       console.log('🎯 [Frontend] Using TGB charity wallet for Solana:', data.charityAddress);

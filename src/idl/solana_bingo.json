@@ -16,7 +16,15 @@
     {
       "name": "add_approved_token",
       "docs": [
-        "Add a token to the approved list"
+        "Add a token to the approved list",
+        "",
+        "# Arguments",
+        "* `token_mint` - Public key of the token mint to approve",
+        "",
+        "# Errors",
+        "* `Unauthorized` - If caller is not admin",
+        "* `TokenAlreadyApproved` - If token is already in the registry",
+        "* `TokenRegistryFull` - If registry is at capacity (50 tokens)"
       ],
       "discriminator": [
         243,
@@ -31,6 +39,9 @@
       "accounts": [
         {
           "name": "token_registry",
+          "docs": [
+            "Token registry PDA account"
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -53,7 +64,7 @@
                   121,
                   45,
                   118,
-                  50
+                  52
                 ]
               }
             ]
@@ -61,6 +72,9 @@
         },
         {
           "name": "admin",
+          "docs": [
+            "Admin account adding the token"
+          ],
           "writable": true,
           "signer": true
         }
@@ -75,7 +89,18 @@
     {
       "name": "add_prize_asset",
       "docs": [
-        "Add prize asset to asset-based room"
+        "Add prize asset to asset-based room",
+        "",
+        "Deposits a prize asset into the room's prize vault.",
+        "",
+        "# Arguments",
+        "* `room_id` - Unique identifier for the room",
+        "* `prize_index` - Index of prize (0, 1, or 2)",
+        "",
+        "# Errors",
+        "* `Unauthorized` - If caller is not the host",
+        "* `InvalidRoomStatus` - If room is not in asset-based mode",
+        "* `PrizeAlreadyDeposited` - If prize has already been deposited"
       ],
       "discriminator": [
         73,
@@ -90,6 +115,9 @@
       "accounts": [
         {
           "name": "room",
+          "docs": [
+            "Room PDA account"
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -117,35 +145,31 @@
         {
           "name": "prize_vault",
           "docs": [
-            "Prize vault PDA - will be created manually in handler (like room_vault)",
-            "Using UncheckedAccount to skip Anchor's initialization validation",
-            "The handler will derive the PDA manually and validate it"
+            "Prize vault token account (destination)"
           ],
           "writable": true
         },
         {
           "name": "host_token_account",
+          "docs": [
+            "Host token account (source of funds)"
+          ],
           "writable": true
         },
         {
           "name": "host",
+          "docs": [
+            "Host account depositing the prize"
+          ],
           "writable": true,
           "signer": true
         },
         {
-          "name": "prize_mint"
-        },
-        {
           "name": "token_program",
+          "docs": [
+            "Token program for token transfers"
+          ],
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-        },
-        {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
-        },
-        {
-          "name": "rent",
-          "address": "SysvarRent111111111111111111111111111111111"
         }
       ],
       "args": [
@@ -162,7 +186,16 @@
     {
       "name": "cleanup_room",
       "docs": [
-        "Cleanup room and reclaim rent (host or admin)"
+        "Cleanup room and reclaim rent (host or admin)",
+        "",
+        "Closes ended room accounts and reclaims rent. Only works if vault is empty.",
+        "",
+        "# Arguments",
+        "* `room_id` - Unique identifier for the room",
+        "",
+        "# Errors",
+        "* `Unauthorized` - If caller is not host or admin",
+        "* `VaultNotEmpty` - If vault still has funds"
       ],
       "discriminator": [
         68,
@@ -177,6 +210,9 @@
       "accounts": [
         {
           "name": "room",
+          "docs": [
+            "Room PDA account"
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -203,6 +239,9 @@
         },
         {
           "name": "room_vault",
+          "docs": [
+            "Room vault token account (must be empty)"
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -230,6 +269,9 @@
         },
         {
           "name": "global_config",
+          "docs": [
+            "Global configuration PDA"
+          ],
           "pda": {
             "seeds": [
               {
@@ -255,11 +297,17 @@
         },
         {
           "name": "caller",
+          "docs": [
+            "Caller account (host or admin)"
+          ],
           "writable": true,
           "signer": true
         },
         {
           "name": "token_program",
+          "docs": [
+            "Token program for token operations"
+          ],
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         }
       ],
@@ -273,7 +321,15 @@
     {
       "name": "close_joining",
       "docs": [
-        "Close joining for a room (host only)"
+        "Close joining for a room (host only)",
+        "",
+        "Prevents new players from joining while allowing existing game to continue.",
+        "",
+        "# Arguments",
+        "* `room_id` - Unique identifier for the room",
+        "",
+        "# Errors",
+        "* `Unauthorized` - If caller is not the host"
       ],
       "discriminator": [
         203,
@@ -288,6 +344,9 @@
       "accounts": [
         {
           "name": "room",
+          "docs": [
+            "Room PDA account"
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -314,6 +373,9 @@
         },
         {
           "name": "host",
+          "docs": [
+            "Host account closing the room"
+          ],
           "writable": true,
           "signer": true
         }
@@ -328,7 +390,19 @@
     {
       "name": "declare_winners",
       "docs": [
-        "Declare winners for a room (must be called before end_room)"
+        "Declare winners for a room (must be called before end_room)",
+        "",
+        "# Arguments",
+        "* `room_id` - Unique identifier for the room",
+        "* `winners` - Vector of winner public keys (1-10 winners)",
+        "",
+        "# Errors",
+        "* `Unauthorized` - If caller is not the host",
+        "* `InvalidRoomStatus` - If room is not in valid state",
+        "* `RoomAlreadyEnded` - If room has already ended",
+        "* `WinnersAlreadyDeclared` - If winners have already been declared",
+        "* `InvalidWinners` - If winner count is invalid or host is in winners list",
+        "* `InvalidPlayerEntry` - If winner did not join the room"
       ],
       "discriminator": [
         42,
@@ -343,6 +417,9 @@
       "accounts": [
         {
           "name": "room",
+          "docs": [
+            "Room PDA account"
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -369,6 +446,9 @@
         },
         {
           "name": "host",
+          "docs": [
+            "Host account declaring winners"
+          ],
           "writable": true,
           "signer": true
         }
@@ -389,7 +469,23 @@
     {
       "name": "end_room",
       "docs": [
-        "End room and distribute prizes to winners"
+        "End room and distribute prizes to winners",
+        "",
+        "# Arguments",
+        "* `room_id` - Unique identifier for the room",
+        "* `winners` - Vector of winner public keys (used if winners not pre-declared)",
+        "",
+        "# Accounts",
+        "* `remaining_accounts` - Winner token accounts for prize distribution",
+        "",
+        "# Errors",
+        "* `RoomAlreadyEnded` - If room has already ended",
+        "* `InvalidRoomStatus` - If room is not in Active status",
+        "* `Unauthorized` - If caller is not the host (unless room is expired)",
+        "* `InvalidWinners` - If winner list is invalid",
+        "* `HostCannotBeWinner` - If host is in winners list",
+        "* `InvalidTokenMint` - If token mint doesn't match",
+        "* `InvalidTokenOwner` - If token owner doesn't match winner"
       ],
       "discriminator": [
         102,
@@ -404,6 +500,9 @@
       "accounts": [
         {
           "name": "room",
+          "docs": [
+            "Room PDA account"
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -429,10 +528,16 @@
         },
         {
           "name": "room_vault",
+          "docs": [
+            "Room vault token account (source of funds)"
+          ],
           "writable": true
         },
         {
           "name": "global_config",
+          "docs": [
+            "Global configuration PDA"
+          ],
           "pda": {
             "seeds": [
               {
@@ -458,23 +563,49 @@
         },
         {
           "name": "platform_token_account",
+          "docs": [
+            "Platform wallet token account (receives platform fees)",
+            "Must be owned by GlobalConfig.platform_wallet"
+          ],
           "writable": true
         },
         {
           "name": "charity_token_account",
+          "docs": [
+            "Charity wallet token account (receives charity donations)",
+            "",
+            "IMPORTANT: This account is NOT validated against GlobalConfig.charity_wallet.",
+            "The frontend can pass ANY valid SPL TokenAccount, enabling support for:",
+            "- The Giving Block (TGB) dynamic wallet addresses (different address per transaction)",
+            "- Custom charity wallets per-room or per-transaction",
+            "- Per-room charity configuration",
+            "",
+            "Security: Anchor validates this is a valid TokenAccount, but the owner wallet",
+            "is not restricted. This provides flexibility for dynamic charity routing."
+          ],
           "writable": true
         },
         {
           "name": "host_token_account",
+          "docs": [
+            "Host wallet token account (receives host fees)",
+            "Must be owned by the room host"
+          ],
           "writable": true
         },
         {
           "name": "host",
+          "docs": [
+            "Host account ending the room"
+          ],
           "writable": true,
           "signer": true
         },
         {
           "name": "token_program",
+          "docs": [
+            "Token program for token transfers"
+          ],
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         }
       ],
@@ -494,7 +625,24 @@
     {
       "name": "init_asset_room",
       "docs": [
-        "Initialize asset-based room"
+        "Initialize asset-based room",
+        "",
+        "Creates a room where prizes are pre-deposited assets rather than pool-based.",
+        "",
+        "# Arguments",
+        "* `room_id` - Unique identifier for the room (max 32 bytes)",
+        "* `charity_wallet` - Wallet address for charity donations",
+        "* `entry_fee` - Amount players must pay to join",
+        "* `max_players` - Maximum number of players allowed",
+        "* `host_fee_bps` - Host fee in basis points (0-500)",
+        "* `charity_memo` - Memo for charity donation (max 28 bytes)",
+        "* `expiration_slots` - Optional expiration in slots",
+        "* `prize_1_mint` - Token mint for first place prize",
+        "* `prize_1_amount` - Amount for first place prize",
+        "* `prize_2_mint` - Optional token mint for second place prize",
+        "* `prize_2_amount` - Optional amount for second place prize",
+        "* `prize_3_mint` - Optional token mint for third place prize",
+        "* `prize_3_amount` - Optional amount for third place prize"
       ],
       "discriminator": [
         130,
@@ -509,6 +657,9 @@
       "accounts": [
         {
           "name": "room",
+          "docs": [
+            "Room PDA account"
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -534,7 +685,6 @@
         },
         {
           "name": "room_vault",
-          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -560,10 +710,16 @@
           }
         },
         {
-          "name": "fee_token_mint"
+          "name": "fee_token_mint",
+          "docs": [
+            "Token mint for entry fees"
+          ]
         },
         {
           "name": "token_registry",
+          "docs": [
+            "Token registry PDA"
+          ],
           "pda": {
             "seeds": [
               {
@@ -585,7 +741,7 @@
                   121,
                   45,
                   118,
-                  50
+                  52
                 ]
               }
             ]
@@ -593,6 +749,9 @@
         },
         {
           "name": "global_config",
+          "docs": [
+            "Global configuration PDA"
+          ],
           "pda": {
             "seeds": [
               {
@@ -618,19 +777,31 @@
         },
         {
           "name": "host",
+          "docs": [
+            "Host account creating the room"
+          ],
           "writable": true,
           "signer": true
         },
         {
           "name": "system_program",
+          "docs": [
+            "System program for account creation"
+          ],
           "address": "11111111111111111111111111111111"
         },
         {
           "name": "token_program",
+          "docs": [
+            "Token program for token operations"
+          ],
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
           "name": "rent",
+          "docs": [
+            "Rent sysvar for account sizing"
+          ],
           "address": "SysvarRent111111111111111111111111111111111"
         }
       ],
@@ -702,7 +873,29 @@
     {
       "name": "init_pool_room",
       "docs": [
-        "Create a pool-based room where prizes come from entry fee pool"
+        "Create a pool-based room where prizes come from entry fee pool",
+        "",
+        "# Arguments",
+        "* `room_id` - Unique identifier for the room (max 32 bytes)",
+        "* `charity_wallet` - Wallet address for charity donations",
+        "* `entry_fee` - Amount players must pay to join (in token base units)",
+        "* `max_players` - Maximum number of players allowed (1-10000)",
+        "* `host_fee_bps` - Host fee in basis points (0-500 = 0-5%)",
+        "* `prize_pool_bps` - Prize pool in basis points (0-3500 = 0-35%)",
+        "* `first_place_pct` - First place prize percentage (must sum to 100 with others)",
+        "* `second_place_pct` - Second place prize percentage (optional)",
+        "* `third_place_pct` - Third place prize percentage (optional)",
+        "* `charity_memo` - Memo for charity donation (max 28 bytes)",
+        "* `expiration_slots` - Optional expiration in slots (0 = no expiration)",
+        "",
+        "# Errors",
+        "* `EmergencyPause` - If contract is paused",
+        "* `InvalidRoomId` - If room_id is invalid",
+        "* `InvalidEntryFee` - If entry_fee is zero",
+        "* `HostFeeTooHigh` - If host_fee_bps exceeds maximum",
+        "* `PrizePoolTooHigh` - If prize_pool_bps exceeds maximum",
+        "* `CharityBelowMinimum` - If charity allocation would be below 40%",
+        "* `InvalidPrizeDistribution` - If prize percentages don't sum to 100"
       ],
       "discriminator": [
         51,
@@ -717,6 +910,9 @@
       "accounts": [
         {
           "name": "room",
+          "docs": [
+            "Room PDA account"
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -742,11 +938,6 @@
         },
         {
           "name": "room_vault",
-          "docs": [
-            "SECURITY: Handler validates this is a proper TokenAccount with correct mint/authority.",
-            "Using AccountInfo to avoid initialization order issues (room must exist before vault can use it as authority).",
-            "The handler performs manual deserialization and validation of TokenAccount structure."
-          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -773,10 +964,16 @@
           }
         },
         {
-          "name": "fee_token_mint"
+          "name": "fee_token_mint",
+          "docs": [
+            "Token mint for entry fees"
+          ]
         },
         {
           "name": "token_registry",
+          "docs": [
+            "Token registry PDA"
+          ],
           "pda": {
             "seeds": [
               {
@@ -798,7 +995,7 @@
                   121,
                   45,
                   118,
-                  50
+                  52
                 ]
               }
             ]
@@ -806,6 +1003,9 @@
         },
         {
           "name": "global_config",
+          "docs": [
+            "Global configuration PDA"
+          ],
           "pda": {
             "seeds": [
               {
@@ -831,19 +1031,31 @@
         },
         {
           "name": "host",
+          "docs": [
+            "Host account creating the room"
+          ],
           "writable": true,
           "signer": true
         },
         {
           "name": "system_program",
+          "docs": [
+            "System program for account creation"
+          ],
           "address": "11111111111111111111111111111111"
         },
         {
           "name": "token_program",
+          "docs": [
+            "Token program for token account initialization"
+          ],
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
           "name": "rent",
+          "docs": [
+            "Rent sysvar for account sizing"
+          ],
           "address": "SysvarRent111111111111111111111111111111111"
         }
       ],
@@ -903,7 +1115,15 @@
     {
       "name": "initialize",
       "docs": [
-        "Initialize the global configuration (one-time setup)"
+        "Initialize the global configuration (one-time setup)",
+        "",
+        "# Arguments",
+        "* `platform_wallet` - Wallet address that receives platform fees",
+        "* `charity_wallet` - Default charity wallet for donations",
+        "",
+        "# Errors",
+        "* `ArithmeticOverflow` - If calculation overflows",
+        "* `InvalidAccountData` - If account data is invalid"
       ],
       "discriminator": [
         175,
@@ -918,6 +1138,9 @@
       "accounts": [
         {
           "name": "global_config",
+          "docs": [
+            "Global configuration PDA account"
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -944,11 +1167,17 @@
         },
         {
           "name": "admin",
+          "docs": [
+            "Admin account that will own the configuration"
+          ],
           "writable": true,
           "signer": true
         },
         {
           "name": "system_program",
+          "docs": [
+            "System program for account creation"
+          ],
           "address": "11111111111111111111111111111111"
         }
       ],
@@ -966,7 +1195,10 @@
     {
       "name": "initialize_token_registry",
       "docs": [
-        "Initialize the token registry (one-time setup)"
+        "Initialize the token registry (one-time setup)",
+        "",
+        "# Errors",
+        "* `AccountAlreadyInitialized` - If registry already exists"
       ],
       "discriminator": [
         206,
@@ -981,6 +1213,9 @@
       "accounts": [
         {
           "name": "token_registry",
+          "docs": [
+            "Token registry PDA account"
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -1003,7 +1238,7 @@
                   121,
                   45,
                   118,
-                  50
+                  52
                 ]
               }
             ]
@@ -1011,11 +1246,17 @@
         },
         {
           "name": "admin",
+          "docs": [
+            "Admin account initializing the registry"
+          ],
           "writable": true,
           "signer": true
         },
         {
           "name": "system_program",
+          "docs": [
+            "System program for account creation"
+          ],
           "address": "11111111111111111111111111111111"
         }
       ],
@@ -1024,7 +1265,20 @@
     {
       "name": "join_room",
       "docs": [
-        "Join a room by paying entry fee"
+        "Join a room by paying entry fee",
+        "",
+        "# Arguments",
+        "* `room_id` - Unique identifier for the room",
+        "* `extras_amount` - Optional additional donation (100% goes to charity)",
+        "",
+        "# Errors",
+        "* `EmergencyPause` - If contract is paused",
+        "* `RoomExpired` - If room has expired",
+        "* `RoomNotReady` - If room is not in Ready/Active status",
+        "* `RoomAlreadyEnded` - If room has already ended",
+        "* `JoiningClosed` - If room is no longer accepting players",
+        "* `MaxPlayersReached` - If room is full",
+        "* `PlayerAlreadyJoined` - If player has already joined"
       ],
       "discriminator": [
         95,
@@ -1039,6 +1293,9 @@
       "accounts": [
         {
           "name": "room",
+          "docs": [
+            "Room PDA account"
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -1065,6 +1322,9 @@
         },
         {
           "name": "player_entry",
+          "docs": [
+            "Player entry PDA - prevents duplicate joins"
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -1094,7 +1354,9 @@
           "name": "room_vault",
           "docs": [
             "Room vault token account - receives player's entry fee tokens.",
-            "SECURITY: Properly typed as TokenAccount to ensure correct account validation."
+            "",
+            "# Security",
+            "Properly typed as TokenAccount to ensure correct account validation."
           ],
           "writable": true,
           "pda": {
@@ -1123,10 +1385,16 @@
         },
         {
           "name": "player_token_account",
+          "docs": [
+            "Player's token account (source of funds)"
+          ],
           "writable": true
         },
         {
           "name": "global_config",
+          "docs": [
+            "Global configuration PDA"
+          ],
           "pda": {
             "seeds": [
               {
@@ -1152,15 +1420,24 @@
         },
         {
           "name": "player",
+          "docs": [
+            "Player account joining the room"
+          ],
           "writable": true,
           "signer": true
         },
         {
           "name": "token_program",
+          "docs": [
+            "Token program for token transfers"
+          ],
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
           "name": "system_program",
+          "docs": [
+            "System program for account creation"
+          ],
           "address": "11111111111111111111111111111111"
         }
       ],
@@ -1178,7 +1455,17 @@
     {
       "name": "recover_room",
       "docs": [
-        "Recover abandoned room (admin only)"
+        "Recover abandoned room (admin only)",
+        "",
+        "Allows admin to recover funds from abandoned rooms and refund players.",
+        "",
+        "# Arguments",
+        "* `room_id` - Unique identifier for the room to recover",
+        "",
+        "# Errors",
+        "* `Unauthorized` - If caller is not admin",
+        "* `RoomAlreadyEnded` - If room has already ended",
+        "* `InsufficientBalance` - If room has no funds to recover"
       ],
       "discriminator": [
         23,
@@ -1193,6 +1480,9 @@
       "accounts": [
         {
           "name": "room",
+          "docs": [
+            "Room PDA account"
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -1219,6 +1509,9 @@
         },
         {
           "name": "room_vault",
+          "docs": [
+            "Room vault token account (source of refunds)"
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -1246,6 +1539,9 @@
         },
         {
           "name": "global_config",
+          "docs": [
+            "Global configuration PDA"
+          ],
           "pda": {
             "seeds": [
               {
@@ -1271,15 +1567,24 @@
         },
         {
           "name": "platform_token_account",
+          "docs": [
+            "Platform wallet token account (receives recovery fee)"
+          ],
           "writable": true
         },
         {
           "name": "admin",
+          "docs": [
+            "Admin account recovering the room"
+          ],
           "writable": true,
           "signer": true
         },
         {
           "name": "token_program",
+          "docs": [
+            "Token program for token transfers"
+          ],
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         }
       ],
@@ -1293,7 +1598,14 @@
     {
       "name": "remove_approved_token",
       "docs": [
-        "Remove a token from the approved list"
+        "Remove a token from the approved list",
+        "",
+        "# Arguments",
+        "* `token_mint` - Public key of the token mint to remove",
+        "",
+        "# Errors",
+        "* `Unauthorized` - If caller is not admin",
+        "* `TokenNotApproved` - If token is not in the registry"
       ],
       "discriminator": [
         210,
@@ -1308,6 +1620,9 @@
       "accounts": [
         {
           "name": "token_registry",
+          "docs": [
+            "Token registry PDA account"
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -1330,7 +1645,7 @@
                   121,
                   45,
                   118,
-                  50
+                  52
                 ]
               }
             ]
@@ -1338,6 +1653,9 @@
         },
         {
           "name": "admin",
+          "docs": [
+            "Admin account removing the token"
+          ],
           "writable": true,
           "signer": true
         }
@@ -1352,7 +1670,15 @@
     {
       "name": "set_emergency_pause",
       "docs": [
-        "Set emergency pause (admin only)"
+        "Set emergency pause (admin only)",
+        "",
+        "Circuit breaker to halt all contract operations in case of security incident.",
+        "",
+        "# Arguments",
+        "* `paused` - True to pause, false to unpause",
+        "",
+        "# Errors",
+        "* `Unauthorized` - If caller is not admin"
       ],
       "discriminator": [
         216,
@@ -1367,6 +1693,9 @@
       "accounts": [
         {
           "name": "global_config",
+          "docs": [
+            "Global configuration PDA account"
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -1393,6 +1722,9 @@
         },
         {
           "name": "admin",
+          "docs": [
+            "Admin account setting the pause"
+          ],
           "writable": true,
           "signer": true
         }
@@ -1407,7 +1739,13 @@
     {
       "name": "update_global_config",
       "docs": [
-        "Update global configuration (admin only)"
+        "Update global configuration parameters (admin only)",
+        "",
+        "# Arguments",
+        "All parameters are optional - only provided values will be updated",
+        "",
+        "# Errors",
+        "* `Unauthorized` - If caller is not admin or upgrade authority"
       ],
       "discriminator": [
         164,
@@ -1422,6 +1760,9 @@
       "accounts": [
         {
           "name": "global_config",
+          "docs": [
+            "Global configuration PDA account"
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -1448,11 +1789,10 @@
         },
         {
           "name": "admin",
-          "writable": true,
-          "signer": true,
-          "relations": [
-            "global_config"
-          ]
+          "docs": [
+            "Admin or upgrade authority account"
+          ],
+          "signer": true
         }
       ],
       "args": [
@@ -2451,7 +2791,7 @@
             "name": "charity_wallet",
             "docs": [
               "Charity wallet address (per-room, from The Giving Block or custom)",
-              "Receives the charity portion of total pool (entry fees + extras, split proportionally)"
+              "Receives the charity portion of entry fees + 100% of extras"
             ],
             "type": "pubkey"
           },
@@ -2780,7 +3120,7 @@
           {
             "name": "charity_amount",
             "docs": [
-              "Amount sent to charity (calculated from total pool proportionally, including extras)"
+              "Amount sent to charity (includes all extras)"
             ],
             "type": "u64"
           },
