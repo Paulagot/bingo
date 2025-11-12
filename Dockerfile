@@ -45,6 +45,11 @@ COPY --from=builder /app/public ./public
 # Copy server directory (needed for runtime)
 COPY --from=builder /app/server ./server
 
+# Install server dependencies if server has its own package.json
+WORKDIR /app/server
+RUN if [ -f package.json ]; then npm ci --only=production && npm cache clean --force; fi
+WORKDIR /app
+
 # Expose port (Railway will override with PORT env var)
 EXPOSE 8080
 
