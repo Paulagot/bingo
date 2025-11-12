@@ -1,3 +1,43 @@
+/**
+ * EVM Asset Factory Contract Configuration
+ *
+ * Defines AssetFactory contract addresses for each EVM-compatible network.
+ * The AssetFactory is used to create asset-based fundraising rooms where winners
+ * receive pre-deposited prize assets (NFTs, tokens, etc.).
+ *
+ * ## Factory Pattern
+ *
+ * The AssetFactory contract follows the factory pattern:
+ * - Hosts call `createAssetRoom()` to deploy a new room contract
+ * - Factory returns the address of the newly deployed room
+ * - Each room is an independent contract managing its own prize assets
+ *
+ * ## Network Support
+ *
+ * - **Base Sepolia**: Testnet factory address (deployed)
+ * - **Base**: Mainnet factory address (placeholder)
+ * - **Polygon**: Mainnet factory address (placeholder)
+ * - **Other Networks**: Placeholder addresses (TBD)
+ *
+ * ## Usage
+ *
+ * ```typescript
+ * import { ASSET_FACTORY, AssetFactoryABI } from './contracts.asset';
+ *
+ * // Get factory address for current network
+ * const factoryAddress = ASSET_FACTORY.baseSepolia;
+ *
+ * // Create an asset room
+ * const tx = await writeContract({
+ *   address: factoryAddress,
+ *   abi: AssetFactoryABI,
+ *   functionName: 'createAssetRoom',
+ *   args: [...],
+ * });
+ * ```
+ *
+ * Used by `useContractActions` to deploy asset-based rooms on EVM chains.
+ */
 // src/chains/evm/config/contracts.asset.ts
 
 // Keep your existing placeholders; use a common dummy for new networks.

@@ -36,12 +36,11 @@ RUN apt-get update && apt-get install -y \
 # Copy package files
 COPY package*.json ./
 
-# Copy node_modules from builder (includes compiled native modules)
-COPY --from=builder /app/node_modules ./node_modules
+# Install only production dependencies for root
+RUN npm ci --only=production && npm cache clean --force
 
-# Copy built application
+# Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/server ./server
 COPY --from=builder /app/public ./public
 
 # Expose port (Railway will override with PORT env var)

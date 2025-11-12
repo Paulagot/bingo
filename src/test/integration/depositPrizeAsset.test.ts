@@ -17,8 +17,8 @@ import {
   mintTo,
   getAccount,
 } from '@solana/spl-token';
-import { depositPrizeAsset } from '@/chains/solana/solana-asset-room';
-import { createAssetRoom } from '@/chains/solana/solana-asset-room';
+import { depositPrizeAsset } from '@/features/web3/solana/lib/solana-asset-room';
+import { createAssetRoom } from '@/features/web3/solana/lib/solana-asset-room';
 import BingoIDL from '@/idl/solana_bingo.json';
 import type { Idl } from '@coral-xyz/anchor';
 

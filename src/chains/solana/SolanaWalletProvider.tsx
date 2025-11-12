@@ -21,7 +21,7 @@ import {
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
 import { clusterApiUrl, type Cluster } from '@solana/web3.js';
 import { useSolanaWallet } from './useSolanaWallet';
-import { getRpcEndpoint, NETWORK, solanaStorageKeys } from './config';
+import { getRpcEndpoint, NETWORK, solanaStorageKeys } from '@/shared/lib/solana/config';
 import { useWalletStore } from '../../stores/walletStore';
 import type { WalletConnectionResult, TransactionResult } from '../types';
 
@@ -163,7 +163,6 @@ const SolanaWalletInner: React.FC<SolanaWalletProviderProps> = ({
   useEffect(() => {
     if (solanaWallet.isInitialized && !isProviderReady) {
       setIsProviderReady(true);
-      console.log('✅ Solana wallet provider ready');
     }
   }, [solanaWallet.isInitialized, isProviderReady]);
 
@@ -173,18 +172,26 @@ const SolanaWalletInner: React.FC<SolanaWalletProviderProps> = ({
       setLastConnectionState(solanaWallet.isConnected);
       onConnectionChange?.(solanaWallet.isConnected);
 
-      if (solanaWallet.isConnected) {
-        console.log('🌟 Solana wallet connected:', solanaWallet.address);
-      } else {
-        console.log('📱 Solana wallet disconnected');
-      }
     }
   }, [solanaWallet.isConnected, lastConnectionState, onConnectionChange, solanaWallet.address]);
 
   // Handle errors
   useEffect(() => {
     if (solanaWallet.error) {
-      console.error('❌ Solana wallet error:', solanaWallet.error);
+      // Check if this is an expected error (user rejection, auto-connect failure)
+      const errorMessage = solanaWallet.error.message || '';
+      const isExpectedError = 
+        errorMessage.includes('Connection rejected') ||
+        errorMessage.includes('User rejected') ||
+        errorMessage.includes('rejected') ||
+        errorMessage.includes('Failed to get public key');
+
+      // Only log unexpected errors
+      if (!isExpectedError) {
+        console.error('❌ Solana wallet error:', solanaWallet.error);
+      }
+      
+      // Always call onError callback (parent may want to handle it)
       onError?.(solanaWallet.error);
     }
   }, [solanaWallet.error, onError]);
@@ -203,7 +210,6 @@ const SolanaWalletInner: React.FC<SolanaWalletProviderProps> = ({
     const tryReconnect = async () => {
       try {
         if (savedWalletId || savedLastAddress) {
-          console.log('🔄 Auto-connecting Solana wallet:', savedWalletId || 'last wallet');
           await solanaWallet.reconnect();
         }
       } catch (error) {
@@ -228,7 +234,6 @@ const SolanaWalletInner: React.FC<SolanaWalletProviderProps> = ({
     try {
       const result = await solanaWallet.connect();
       if (result.success) {
-        console.log('✅ Solana wallet connected successfully');
       }
       return result;
     } catch (error) {
@@ -250,7 +255,6 @@ const SolanaWalletInner: React.FC<SolanaWalletProviderProps> = ({
   const enhancedDisconnect = async (): Promise<void> => {
     try {
       await solanaWallet.disconnect();
-      console.log('✅ Solana wallet disconnected successfully');
     } catch (error) {
       console.error('❌ Solana wallet disconnection failed:', error);
       onError?.(error);
@@ -261,7 +265,6 @@ const SolanaWalletInner: React.FC<SolanaWalletProviderProps> = ({
     try {
       const success = await solanaWallet.switchNetwork(cluster);
       if (success) {
-        console.log(`✅ Switched to Solana ${cluster}`);
       }
       return success;
     } catch (error) {
@@ -317,12 +320,12 @@ const SolanaWalletInner: React.FC<SolanaWalletProviderProps> = ({
   useEffect(() => {
     const onRequestConnect = () => {
       if (solanaWallet.isConnected || solanaWallet.isConnecting) return;
-      enhancedConnect().catch((e) => console.warn('[Solana] connect() via event failed:', e));
+      enhancedConnect().catch(() => {});
     };
 
     const onRequestDisconnect = () => {
       if (!solanaWallet.isConnected || solanaWallet.isDisconnecting) return;
-      enhancedDisconnect().catch((e) => console.warn('[Solana] disconnect() via event failed:', e));
+      enhancedDisconnect().catch(() => {});
     };
 
     window.addEventListener('solana:request-connect', onRequestConnect);
@@ -485,13 +488,3 @@ export const useSolanaNetwork = () => {
 // DEVELOPMENT HELPER
 // ===================================================================
 
-export const debugSolanaProvider = (context: SolanaWalletContextType) => {
-  console.log('🌟 Solana Provider Debug Info:', {
-    isConnected: context.wallet.isConnected,
-    address: context.wallet.address,
-    cluster: context.currentCluster,
-    balance: context.wallet.balance,
-    canConnect: context.canConnect,
-    canDisconnect: context.canDisconnect,
-  });
-};

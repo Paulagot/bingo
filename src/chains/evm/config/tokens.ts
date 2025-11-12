@@ -1,3 +1,39 @@
+/**
+ * EVM Token Configuration
+ *
+ * Defines token addresses for each EVM-compatible network.
+ * Supports USDC (USD Coin) and USDGLO (Glo Dollar) tokens for entry fees
+ * and prize distributions.
+ *
+ * ## Token Details
+ *
+ * - **USDC**: USD Coin (Circle)
+ *   - Decimals: 6
+ *   - Networks: Base, Base Sepolia, Polygon, Polygon Amoy, Optimism, Avalanche, BSC
+ * - **USDGLO**: Glo Dollar (charitable giving token)
+ *   - Decimals: 18
+ *   - Networks: Ethereum, Base, Polygon, Optimism
+ *   - Same address across all supported chains
+ *
+ * ## Network-Specific Addresses
+ *
+ * Token addresses are network-specific and must match the deployed token
+ * contracts on each network. Testnet tokens may differ from mainnet tokens.
+ *
+ * ## Usage
+ *
+ * ```typescript
+ * import { USDC, USDGLO, USDC_DECIMALS, USDGLO_DECIMALS } from './tokens';
+ *
+ * // Get USDC address for current network
+ * const usdcAddress = USDC.baseSepolia;
+ *
+ * // Get token decimals
+ * const decimals = USDC_DECIMALS; // 6
+ * ```
+ *
+ * Used by `useContractActions` and EVM wallet providers for token operations.
+ */
 // src/chains/evm/config/tokens.ts
 
 // --- USDC (decimals = 6 everywhere) ---

@@ -1,28 +1,36 @@
-# Dependencies
+# Dependencies (will be installed fresh in container)
 node_modules
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+pnpm-lock.yaml
 
 # Testing
 coverage
 .nyc_output
-*.log
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+vitest.config.ts
+vitest.integration.config.ts
+src/test/
+src/**/*.test.ts
+src/**/*.test.tsx
+src/**/*.spec.ts
+src/**/*.spec.tsx
 
-# Production
+# Build outputs (will be built in container)
 dist
+dist-ssr
 build
+*.log
 
 # Misc
 .DS_Store
 *.pem
-*.log
-
-# Debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+*.zone.identifier
 
 # Local env files
 .env
@@ -31,33 +39,81 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
+.env.example
 
-# IDE
+# IDE and editor files
 .vscode
 .idea
+.claude
 *.swp
 *.swo
 *~
+settings.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
 
 # Git
 .git
 .gitignore
 .gitattributes
 
-# CI
+# CI/CD (not needed in production image)
 .github
+.gitlab-ci.yml
+.travis.yml
+.circleci
 
-# Documentation
+# Documentation (not needed in production)
 README.md
 CHANGELOG.md
+ARCHITECTURE.md
+MIGRATION_GUIDE.md
+NAMING_CONVENTIONS.md
 *.md
+PRE_MAINNET_CHECKLIST.pdf
 
-# Docker
+# Docker files (not needed inside image)
 Dockerfile
 docker-compose.yml
 .dockerignore
+.dockerignore.*
+
+# Development scripts (keep scripts/ as it's needed for build)
+# scripts/ is needed for generate-seo script during build
+*.sh
+
+# Development configuration (not needed for build or runtime)
+.eslintcache
+.eslintrc*
+eslint.config.js
+prettier.config.*
+.prettierrc*
+vitest.config.ts
+vitest.integration.config.ts
+
+# Note: vite.config.ts, tsconfig*.json, tailwind.config.js, postcss.config.js
+# are needed for the build stage, so they are NOT excluded
 
 # Temporary files
 tmp
 temp
 *.tmp
+temp_*.txt
+temp_*.ts
+temp_*.js
+roomState.json
+roomState.json.bak
+quiz-dashboard-demo.gif
+quiz-setup-demo.gif
+
+# Deployment configs (may be needed, but usually not in image)
+nixpacks.toml
+railway.json
+vercel.json
+netlify.toml
+
+# Development dependencies will be pruned
+# but we exclude them from builder stage to speed up builds
+# (they'll be installed via npm ci anyway)
