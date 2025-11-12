@@ -1,3 +1,42 @@
+/**
+ * Stellar Network Configuration
+ *
+ * Centralizes Stellar blockchain configuration including network settings, wallet integration,
+ * supported assets, and transaction parameters for the FundRaisely Stellar integration.
+ *
+ * ## Network Configuration
+ *
+ * - **Testnet**: Default network for development and testing
+ * - **Mainnet**: Production network (currently using testnet for development)
+ * - **Horizon URLs**: Stellar Horizon API endpoints for each network
+ * - **Network Passphrases**: Network identifiers for transaction signing
+ *
+ * ## Wallet Integration
+ *
+ * - **StellarWalletsKit**: Multi-wallet support (Freighter, Albedo, etc.)
+ * - **WalletConnect**: Mobile deep linking support (requires project ID)
+ * - **Wallet Modules**: Modular wallet support for various Stellar wallets
+ *
+ * ## Supported Assets
+ *
+ * - **XLM**: Native Stellar token
+ * - **USDC**: USD Coin on Stellar
+ * - **Glo USD**: Glo USD for charitable giving
+ *
+ * Assets are network-specific and automatically selected based on the current network.
+ *
+ * ## WalletConnect Configuration
+ *
+ * WalletConnect requires a project ID from https://cloud.walletconnect.com/.
+ * Set `VITE_WALLETCONNECT_PROJECT_ID` in your `.env` file to enable mobile deep linking.
+ *
+ * ## Error Messages
+ *
+ * Provides user-friendly error messages for common Stellar wallet and transaction errors.
+ *
+ * Used by StellarWalletProvider, useStellarWallet, and useQuizContract to ensure consistent
+ * Stellar blockchain interaction across the application.
+ */
 // src/chains/stellar/config.ts - Complete updated configuration with WalletConnect support
 import { 
   StellarWalletsKit, 

@@ -20,6 +20,8 @@ quiz-setup-demo.gif
 .vscode/*
 !.vscode/extensions.json
 .idea
+.claude
+settings.json
 .DS_Store
 *.suo
 *.ntvs*

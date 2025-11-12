@@ -176,12 +176,25 @@ const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) =
           amount: String(p.value ?? '1'),
         })) || [];
 
-        const resolvedCharityAddress =
-  (setupConfig as any)?.web3CharityAddress ?? undefined;
+    // Charity wallet handling:
+    // - web3CharityAddress is ONLY used at prize distribution time (TGB dynamic addresses)
+    // - For room creation, charityAddress is optional - the deploy function will use GlobalConfig's charity wallet
+    // - If web3CharityAddress is provided, we can use it, but it's not required for room creation
+    const resolvedCharityAddress =
+      (setupConfig as any)?.web3CharityAddress ?? undefined;
 
+    const resolvedCharityName =
+      (setupConfig as any)?.web3Charity ?? (setupConfig as any)?.charityName ?? undefined;
 
-        const resolvedCharityName =
-  (setupConfig as any)?.web3Charity ?? (setupConfig as any)?.charityName ?? undefined;
+    // Log charity wallet resolution for debugging
+    if (resolvedCharityAddress) {
+      console.log('[Web3 Launch] 📋 Charity address provided for room creation:', resolvedCharityAddress);
+      console.log('[Web3 Launch] ℹ️ Note: This will be stored in the room, but TGB dynamic address will be used at prize distribution');
+    } else {
+      console.log('[Web3 Launch] 📋 No charity address provided - deploy function will use GlobalConfig charity wallet');
+      console.log('[Web3 Launch] ℹ️ Note: TGB dynamic charity address will be used during prize distribution');
+    }
+
     return {
       roomId: _roomId,
       hostId: _hostId,
@@ -190,6 +203,8 @@ const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) =
       hostFeePct: Number(splits?.host ?? 0),
       prizeMode: prizeMode,
       charityName: resolvedCharityName,
+      // charityAddress is optional - if not provided, deploy function will use GlobalConfig's charity wallet
+      // This allows room creation to succeed even if TGB address is not available yet
       charityAddress: resolvedCharityAddress,
       prizePoolPct: Number(splits?.prizes ?? 0),
       prizeSplits: poolSplits,

@@ -51,6 +51,41 @@ app.use(cors());
 app.use(express.json({ limit: '100kb' }));
 // Accept raw/text bodies too (TGB may send raw encrypted string bodies)
 app.use(express.text({ type: 'text/*', limit: '100kb' }));
+// JSON body parser - Express will automatically handle parsing errors
+app.use(express.json({ 
+  limit: '100kb',
+  strict: true
+}));
+
+// Handle JSON parsing errors (Express throws SyntaxError for invalid JSON)
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    console.error('[Server] ❌ JSON parsing error:', err.message);
+    console.error('[Server] ❌ Request path:', req.path);
+    console.error('[Server] ❌ Request method:', req.method);
+    console.error('[Server] ❌ Request headers:', {
+      'content-type': req.headers['content-type'],
+      'content-length': req.headers['content-length']
+    });
+    
+    if (!res.headersSent) {
+      try {
+        res.status(400);
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ 
+          error: 'Invalid JSON',
+          message: 'Request body contains invalid JSON',
+          details: err.message
+        }));
+        console.log('[Server] ✅ JSON parsing error response sent');
+        return;
+      } catch (sendErr) {
+        console.error('[Server] ❌ Failed to send JSON parsing error response:', sendErr);
+      }
+    }
+  }
+  next(err);
+});
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -216,7 +251,15 @@ app.use((req, res, next) => {
 //  Request logging
 // ──────────────────────────────────────────────────────────
 app.use((req, res, next) => {
-  console.log(`📥 ${req.method} ${req.url} - Headers:`, req.headers);
+  // Only log API requests to reduce noise
+  if (req.path.startsWith('/quiz/api') || req.path.startsWith('/api')) {
+    console.log(`📥 ${req.method} ${req.url}`);
+    console.log(`📥 Headers:`, {
+      'content-type': req.headers['content-type'],
+      'content-length': req.headers['content-length'],
+      'user-agent': req.headers['user-agent']?.substring(0, 50)
+    });
+  }
   next();
 });
 
@@ -442,37 +485,63 @@ app.use('/api/contact', contactRoute);
 app.use('/api/auth/reset', passwordResetRoute);
 
 
-// server/index.js (after app.use routes)
+// Global error handler - must be last middleware (after all routes)
 app.use((err, req, res, next) => {
-  console.error('❌ Unhandled error middleware:', err);
-  console.error('❌ Error name:', err?.name);
-  console.error('❌ Error message:', err?.message);
-  console.error('❌ Error stack:', err?.stack);
-  console.error('❌ Request path:', req.path);
-  console.error('❌ Request method:', req.method);
+  // Skip if this is a JSON parsing error (already handled above)
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return next(err); // Let the JSON parsing error handler deal with it
+  }
   
-  if (!res.headersSent) {
+  console.error('--------------------------------------');
+  console.error('[Server] ❌❌ GLOBAL ERROR HANDLER');
+  console.error('[Server] ❌ Error type:', err?.constructor?.name);
+  console.error('[Server] ❌ Error name:', err?.name);
+  console.error('[Server] ❌ Error message:', err?.message);
+  console.error('[Server] ❌ Error stack:', err?.stack);
+  console.error('[Server] ❌ Request path:', req.path);
+  console.error('[Server] ❌ Request method:', req.method);
+  console.error('[Server] ❌ Response headers sent:', res.headersSent);
+  console.error('[Server] ❌ Response status code:', res.statusCode);
+  console.error('--------------------------------------');
+  
+  // Skip if response already sent
+  if (res.headersSent) {
+    console.error('[Server] ❌ Response already sent, cannot send error');
+    return next(err);
+  }
+  
+  // Handle all other errors
+  try {
+    const errorResponse = { 
+      error: 'Internal error',
+      message: err?.message || 'An unexpected error occurred',
+      ...(process.env.NODE_ENV !== 'production' && { 
+        details: err?.message,
+        stack: err?.stack,
+        name: err?.name,
+        type: err?.constructor?.name
+      })
+    };
+    
+    res.status(500);
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify(errorResponse));
+    console.log('[Server] ✅ Error response sent');
+  } catch (sendErr) {
+    console.error('[Server] ❌ Failed to send error response:', sendErr);
+    console.error('[Server] ❌ Send error stack:', sendErr?.stack);
+    // Last resort - try plain text
     try {
-      res.status(500).json({ 
-        error: 'Internal error',
-        ...(process.env.NODE_ENV !== 'production' && { 
-          details: err?.message,
-          stack: err?.stack 
-        })
-      });
-    } catch (sendErr) {
-      console.error('❌ Failed to send error response:', sendErr);
-      // Last resort
-      try {
-        if (!res.headersSent) {
-          res.status(500).type('text/plain').send('Internal server error');
-        }
-      } catch {
-        console.error('❌❌ Cannot send any response');
+      if (!res.headersSent) {
+        res.status(500);
+        res.setHeader('Content-Type', 'text/plain');
+        res.end('Internal server error: ' + (err?.message || 'Unknown error'));
+        console.log('[Server] ✅ Plain text error response sent');
       }
+    } catch (finalErr) {
+      console.error('[Server] ❌❌ Cannot send any response');
+      console.error('[Server] ❌❌ Final error:', finalErr);
     }
-  } else {
-    console.error('❌ Response already sent, cannot send error');
   }
 });
 
