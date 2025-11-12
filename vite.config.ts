@@ -69,16 +69,15 @@ export default defineConfig(({ mode }) => {
         manualChunks: (id) => {
           // Vendor chunks - MUST come before feature chunks to ensure proper loading order
           if (id.includes('node_modules')) {
-            // React MUST be in its own chunk and loaded first
-            // This is critical - React must be available globally before any other code runs
-            if (id.includes('node_modules/react/') || id.includes('node_modules\\react\\')) {
-              return 'react-core';
-            }
-            if (id.includes('node_modules/react-dom/') || id.includes('node_modules\\react-dom\\')) {
-              return 'react-dom';
-            }
-            if (id.includes('react-router')) {
-              return 'react-router';
+            // React MUST be bundled together to ensure proper loading order
+            // Match main branch approach: bundle react, react-dom, react-router-dom together
+            if (id.includes('node_modules/react/') || 
+                id.includes('node_modules\\react\\') ||
+                id.includes('node_modules/react-dom/') || 
+                id.includes('node_modules\\react-dom\\') ||
+                id.includes('node_modules/react-router-dom/') ||
+                id.includes('node_modules\\react-router-dom\\')) {
+              return 'react-vendor';
             }
 
             // Solana libraries
@@ -161,14 +160,12 @@ export default defineConfig(({ mode }) => {
     modulePreload: {
       polyfill: true,
       resolveDependencies: (filename, deps) => {
-        // Ensure react-core and react-dom load before any other chunks
+        // Ensure react-vendor chunk loads before any other chunks
         const reactChunks = deps.filter(dep =>
-          dep.includes('react-core') ||
-          dep.includes('react-dom')
+          dep.includes('react-vendor')
         );
         const otherChunks = deps.filter(dep =>
-          !dep.includes('react-core') &&
-          !dep.includes('react-dom')
+          !dep.includes('react-vendor')
         );
         // Return React chunks first, then others
         return [...reactChunks, ...otherChunks];
