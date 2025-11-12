@@ -1,6 +1,7 @@
 /**
- * Transaction Utility Functions
+ * @module shared/lib/solana/transaction-helpers
  *
+ * ## Purpose
  * Provides transaction safety, validation, and error handling utilities for Solana interactions.
  * Includes transaction simulation to catch errors before user signing (preventing wasted gas),
  * input validation for room parameters (fees, IDs), slippage protection for token amounts,
@@ -24,25 +25,40 @@
  * - Host fee: 5% (500 bps) → Max prize pool: 35% (3500 bps)
  * - Host fee: 0% (0 bps) → Max prize pool: 40% (4000 bps)
  *
- * ### Error Messages
- * The validation provides detailed error messages explaining:
- * - Current host fee and prize pool values
- * - Maximum allowed prize pool based on host fee
- * - Total allocation breakdown
- * - Suggestions for fixing validation errors
+ * ## Error Formatting
  *
- * Used by useSolanaContract hook to validate and simulate transactions before submission, improving
- * UX by detecting failures early and providing clear feedback. Formats program-specific errors
- * (RoomExpired, HostFeeTooHigh) into actionable messages for users. Core safety layer between
- * UI components and blockchain transactions.
+ * Converts technical Solana/Anchor errors into actionable user messages. Handles common errors
+ * such as insufficient funds, transaction rejection, and program-specific errors.
+ *
+ * @see {@link transactions} - Core transaction building and sending utilities
+ * @see {@link validation} - Zod-based validation schemas
+ *
+ * @example
+ * ```typescript
+ * import { simulateTransaction, formatTransactionError, validateTransactionInputs } from '@/shared/lib/solana/transaction-helpers';
+ *
+ * // Validate inputs
+ * const validation = validateTransactionInputs({
+ *   entryFee: 1.0,
+ *   hostFeeBps: 100,
+ *   prizePoolBps: 3900,
+ *   maxPlayers: 100,
+ *   roomId: 'my-room-123',
+ * });
+ *
+ * // Simulate transaction
+ * const result = await simulateTransaction(connection, transaction);
+ *
+ * // Format errors
+ * const message = formatTransactionError(error);
+ * ```
  */
 
 import { Connection, Transaction, VersionedTransaction } from '@solana/web3.js';
 
 /**
- * Transaction simulation and safety helpers
+ * Transaction simulation result
  */
-
 export interface SimulationResult {
   success: boolean;
   error?: string;
@@ -52,7 +68,23 @@ export interface SimulationResult {
 
 /**
  * Simulate a transaction before sending
- * This helps catch errors before users sign and waste gas
+ *
+ * This helps catch errors before users sign and waste gas. Runs the transaction through
+ * the runtime without actually executing it on-chain.
+ *
+ * @param connection - Solana connection
+ * @param transaction - Transaction to simulate (legacy or versioned)
+ * @returns Simulation result with success flag, error message, logs, and compute units
+ *
+ * @example
+ * ```typescript
+ * const result = await simulateTransaction(connection, transaction);
+ * if (!result.success) {
+ *   console.error('Transaction would fail:', result.error);
+ *   console.error('Logs:', result.logs);
+ *   return;
+ * }
+ * ```
  */
 export async function simulateTransaction(
   connection: Connection,
@@ -65,9 +97,7 @@ export async function simulateTransaction(
       transaction.recentBlockhash = blockhash;
     }
 
-    const simulation = transaction instanceof Transaction
-      ? await connection.simulateTransaction(transaction)
-      : await connection.simulateTransaction(transaction);
+    const simulation = await connection.simulateTransaction(transaction);
 
     if (simulation.value.err) {
       return {
@@ -92,6 +122,21 @@ export async function simulateTransaction(
 
 /**
  * Build and simulate transaction with error handling
+ *
+ * Gets a fresh blockhash, sets it on the transaction, and simulates it.
+ * Useful for validating transactions before user signing.
+ *
+ * @param connection - Solana connection
+ * @param transaction - Transaction to build and simulate
+ * @returns Simulation result with success flag, error message, and logs
+ *
+ * @example
+ * ```typescript
+ * const result = await buildAndSimulateTransaction(connection, transaction);
+ * if (!result.success) {
+ *   throw new Error(result.error);
+ * }
+ * ```
  */
 export async function buildAndSimulateTransaction(
   connection: Connection,
@@ -116,7 +161,7 @@ export async function buildAndSimulateTransaction(
       };
     }
 
-    console.log('[COMPLETE] Transaction simulation succeeded');
+    console.log('[buildAndSimulateTransaction] Transaction simulation succeeded');
     console.log(`Units consumed: ${result.unitsConsumed}`);
 
     return { success: true };
@@ -131,8 +176,19 @@ export async function buildAndSimulateTransaction(
 
 /**
  * Slippage protection for token amounts
- * Note: For fixed-price entry fees, slippage is less relevant
- * But useful for when working with dynamic pricing or AMMs
+ *
+ * Calculates minimum and maximum amounts based on expected amount and slippage tolerance.
+ * Note: For fixed-price entry fees, slippage is less relevant, but useful for dynamic pricing or AMMs.
+ *
+ * @param expectedAmount - Expected token amount
+ * @param slippageBps - Slippage tolerance in basis points (default: 50 = 0.5%)
+ * @returns Minimum and maximum amounts accounting for slippage
+ *
+ * @example
+ * ```typescript
+ * const { minAmount, maxAmount } = calculateSlippageBounds(1000000, 50);
+ * // minAmount: 995000, maxAmount: 1005000 (0.5% slippage)
+ * ```
  */
 export function calculateSlippageBounds(
   expectedAmount: number,
@@ -305,8 +361,9 @@ export function validateTransactionInputs(params: {
  * }
  * ```
  */
-export function formatTransactionError(error: any): string {
+export function formatTransactionError(error: unknown): string {
   const errorStr = error?.toString() || '';
+  const errorMessage = error instanceof Error ? error.message : String(error);
 
   // Common Solana errors
   if (errorStr.includes('0x1')) {
@@ -342,5 +399,6 @@ export function formatTransactionError(error: any): string {
     return 'Total fees exceed the maximum allowed (40%)';
   }
 
-  return error?.message || 'Transaction failed - please try again';
+  return errorMessage || 'Transaction failed - please try again';
 }
+

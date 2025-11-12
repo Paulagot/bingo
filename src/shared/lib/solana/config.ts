@@ -1,6 +1,7 @@
 /**
- * Solana Network Configuration
+ * @module shared/lib/solana/config
  *
+ * ## Purpose
  * Centralizes blockchain configuration including deployed program ID, RPC endpoints, and
  * transaction parameters for the FundRaisely Solana program. Defines network selection
  * (devnet/mainnet/testnet), PDA seed constants that must match the Rust program's anchor
@@ -26,9 +27,10 @@
  *
  * PDA seeds must match the Rust program's anchor derive macros:
  * - `global-config`: GlobalConfig PDA
- * - `approved_tokens`: TokenRegistry PDA
+ * - `token-registry-v4`: TokenRegistry PDA (versioned for upgrades)
  * - `room`: Room PDA
  * - `room-vault`: RoomVault PDA
+ * - `prize-vault`: PrizeVault PDA
  * - `player-entry`: PlayerEntry PDA
  *
  * ## Fee Configuration
@@ -45,9 +47,16 @@
  * - **Skip Preflight**: false (validate before sending)
  * - **Max Retries**: 3
  *
- * Provides TOKEN_MINTS for supported tokens (USDC, PYUSD, USDT, SOL) and TX_CONFIG for transaction
- * commitment levels. Referenced by useSolanaContract, transactionHelpers, and
- * SolanaWalletProvider to ensure consistent blockchain interaction across the application.
+ * @see {@link pda} - PDA derivation utilities using these seeds
+ * @see {@link validation} - Validation schemas using these constraints
+ *
+ * @example
+ * ```typescript
+ * import { PROGRAM_ID, getTokenMints, NETWORK } from '@/shared/lib/solana/config';
+ *
+ * const [roomPda] = deriveRoomPDA(hostPubkey, roomId);
+ * const tokenMints = getTokenMints();
+ * ```
  */
 
 import { PublicKey, type Cluster } from '@solana/web3.js';
@@ -56,16 +65,7 @@ import { PublicKey, type Cluster } from '@solana/web3.js';
 // BYPASSING import.meta.env DUE TO AGGRESSIVE BROWSER CACHING
 const HARDCODED_PROGRAM_ID = '8W83G9mSeoQ6Ljcz5QJHYPjH2vQgw94YeVCnpY6KFt7i';
 
-console.log('═══════════════════════════════════════════════════════');
-console.log('🔧 SOLANA CONFIG MODULE LOADING - HARDCODED MODE');
-console.log('═══════════════════════════════════════════════════════');
-console.log('[Config] HARDCODED_PROGRAM_ID:', HARDCODED_PROGRAM_ID);
-
 export const PROGRAM_ID = new PublicKey(HARDCODED_PROGRAM_ID);
-
-console.log('[Config] ✅ PROGRAM_ID PublicKey created:', PROGRAM_ID.toString());
-console.log('[Config] Match:', PROGRAM_ID.toString() === HARDCODED_PROGRAM_ID ? '✅ CORRECT' : '❌ MISMATCH!!!');
-console.log('═══════════════════════════════════════════════════════');
 
 // Network configuration
 // FORCE devnet for development (public mainnet RPC is rate-limited)
@@ -99,14 +99,19 @@ const TOKEN_MINTS_BY_NETWORK = {
   },
   'testnet': {
     USDC: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU', // Testnet USDC (same as devnet)
-    PYUSD: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU', // Testnet PYUSD (using same as USDC for testnet - update when available)
+    PYUSD: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU', // Testnet PYUSD (same as devnet)
     USDT: 'EJwZgeZrdC8TXTQbQBoL6bfuAnFUUy1PVCMB4DYPzVaS', // Testnet USDT (same as devnet)
     SOL: 'So11111111111111111111111111111111111111112', // Wrapped SOL (native mint)
   },
-} as const;
+};
 
 // Get token mints for current network
-export const getTokenMints = (network: Cluster = NETWORK) => {
+export const getTokenMints = (network: Cluster = NETWORK): {
+  USDC: PublicKey;
+  PYUSD: PublicKey;
+  USDT: PublicKey;
+  SOL: PublicKey;
+} => {
   const mints = TOKEN_MINTS_BY_NETWORK[network] || TOKEN_MINTS_BY_NETWORK.devnet;
   return {
     USDC: new PublicKey(mints.USDC),
@@ -116,18 +121,30 @@ export const getTokenMints = (network: Cluster = NETWORK) => {
   };
 };
 
-// Legacy export for backwards compatibility (uses current network)
+// Export token mints as constants for convenience (using current network)
 export const TOKEN_MINTS = getTokenMints();
 
-// PDA seeds (must match program - using underscores as per Rust code)
+// PDA seed constants (must match Rust program's anchor derive macros)
 export const PDA_SEEDS = {
   GLOBAL_CONFIG: 'global-config',
-  APPROVED_TOKENS: 'approved_tokens',
+  TOKEN_REGISTRY: 'token-registry-v4', // Versioned for upgrades
+  APPROVED_TOKENS: 'approved_tokens', // Legacy name (kept for compatibility)
   ROOM: 'room',
   ROOM_VAULT: 'room-vault',
-  PLAYER: 'player',
-  PLAYER_ENTRY: 'player-entry',
-};
+  PRIZE_VAULT: 'prize-vault',
+  PLAYER: 'player', // Used for player_entry PDA (matches Rust: seeds = [b"player", ...])
+  PLAYER_ENTRY: 'player', // Alias for PLAYER (contract uses "player", not "player-entry")
+} as const;
+
+// Fee constraints (enforced by smart contract)
+export const FEE_CONSTRAINTS = {
+  PLATFORM_BPS: 2000, // 20% fixed platform fee
+  MAX_HOST_BPS: 500, // 5% maximum host fee
+  MAX_COMBINED_BPS: 4000, // 40% maximum host allocation (host fee + prize pool)
+} as const;
+
+// Legacy export for backwards compatibility
+export const FEES = FEE_CONSTRAINTS;
 
 // Transaction configuration
 export const TX_CONFIG = {
@@ -135,22 +152,58 @@ export const TX_CONFIG = {
   preflightCommitment: 'confirmed' as const,
   skipPreflight: false,
   maxRetries: 3,
-};
-
-// Fee configuration (basis points)
-export const FEES = {
-  PLATFORM_BPS: 2000, // 20%
-  MAX_HOST_BPS: 500,   // 5%
-  MAX_COMBINED_BPS: 4000, // 40%
-};
-
-// Storage keys for persisting wallet state
-export const solanaStorageKeys = {
-  WALLET_ID: 'solana_wallet_id',
-  LAST_ADDRESS: 'solana_last_address',
-  AUTO_CONNECT: 'solana_auto_connect',
-  NETWORK: 'solana_network',
 } as const;
+
+// Solana storage keys for localStorage
+export const solanaStorageKeys = {
+  WALLET_NAME: 'solana_wallet_name',
+  WALLET_ID: 'solana_wallet_id', // Legacy name
+  LAST_ADDRESS: 'solana_last_address', // Legacy name
+  AUTO_CONNECT: 'solana_auto_connect',
+  LAST_CONNECTED: 'solana_last_connected',
+  NETWORK: 'solana_network', // Legacy name
+} as const;
+
+// Explorer URLs
+export const EXPLORER_URLS = {
+  'mainnet-beta': 'https://solscan.io',
+  'devnet': 'https://solscan.io',
+  'testnet': 'https://solscan.io',
+} as const;
+
+// Get explorer URL for a transaction or account
+export const getExplorerUrl = (
+  typeOrSignature: 'tx' | 'address' | 'token' | string,
+  identifierOrType?: string,
+  cluster: Cluster = NETWORK
+): string => {
+  // Support both old signature (string, type) and new (type, identifier, cluster) signatures
+  if (identifierOrType === undefined) {
+    // Old signature: (signatureOrAddress: string, type: 'tx' | 'address' = 'tx', network: Cluster = NETWORK)
+    const signatureOrAddress = typeOrSignature;
+    const type = 'tx';
+    const network = cluster;
+    const clusterParam = network !== 'mainnet-beta' ? `?cluster=${network}` : '';
+    return `https://explorer.solana.com/${type}/${signatureOrAddress}${clusterParam}`;
+  } else {
+    // New signature: (type: 'tx' | 'address' | 'token', identifier: string, cluster: Cluster = NETWORK)
+    const type = typeOrSignature as 'tx' | 'address' | 'token';
+    const identifier = identifierOrType;
+    const base = EXPLORER_URLS[cluster] || EXPLORER_URLS.devnet;
+    const clusterParam = cluster !== 'mainnet-beta' ? `?cluster=${cluster}` : '';
+    
+    switch (type) {
+      case 'tx':
+        return `${base}/tx/${identifier}${clusterParam}`;
+      case 'address':
+        return `${base}/account/${identifier}${clusterParam}`;
+      case 'token':
+        return `${base}/token/${identifier}${clusterParam}`;
+      default:
+        return base;
+    }
+  }
+};
 
 // Supported Solana wallet types
 export const SUPPORTED_WALLETS = [
@@ -164,29 +217,3 @@ export const SUPPORTED_WALLETS = [
 
 export type SupportedSolanaWallet = typeof SUPPORTED_WALLETS[number];
 
-// Explorer URLs
-export const EXPLORER_URLS = {
-  'mainnet-beta': 'https://solscan.io',
-  'devnet': 'https://solscan.io',
-  'testnet': 'https://solscan.io',
-};
-
-export const getExplorerUrl = (
-  type: 'tx' | 'address' | 'token',
-  identifier: string,
-  cluster: Cluster = NETWORK
-): string => {
-  const base = EXPLORER_URLS[cluster] || EXPLORER_URLS.devnet;
-  const clusterParam = cluster !== 'mainnet-beta' ? `?cluster=${cluster}` : '';
-
-  switch (type) {
-    case 'tx':
-      return `${base}/tx/${identifier}${clusterParam}`;
-    case 'address':
-      return `${base}/account/${identifier}${clusterParam}`;
-    case 'token':
-      return `${base}/token/${identifier}${clusterParam}`;
-    default:
-      return base;
-  }
-};

@@ -6,8 +6,8 @@
  */
 
 import { Connection, PublicKey, Transaction, SystemProgram } from '@solana/web3.js';
-import { deriveTokenRegistryPDA } from './solana-asset-room';
-import { getRpcEndpoint, NETWORK } from './config';
+import { deriveTokenRegistryPDA } from '@/shared/lib/solana/pda';
+import { getRpcEndpoint, NETWORK } from '@/shared/lib/solana/config';
 
 const OLD_PROGRAM_ID = new PublicKey('C184eRviViBMEVisTcRUbbtPAfGCtkqnaKoSqshiHqFJ');
 

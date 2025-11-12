@@ -6,6 +6,41 @@ Solana blockchain wallet integration for quiz platform entry fees and rewards.
 
 This module handles Solana wallet connections, SPL token transactions, and program interactions for the quiz platform. It provides a complete interface for creating fundraising rooms, joining games, and distributing prizes through the deployed Anchor program on Solana.
 
+## Architecture
+
+The Solana integration has been modularized following Feature-Sliced Design (FSD) principles:
+
+- **`useSolanaContract.ts`**: Main React hook that delegates to API modules
+- **`SolanaWalletProvider.tsx`**: React context provider for wallet state
+- **`useSolanaWallet.ts`**: Wallet connection and state management hook
+- **`config.ts`**: Re-exports from `@/shared/lib/solana/config` (deprecated, use shared location)
+
+### Shared Utilities
+
+All shared utilities have been moved to `src/shared/lib/solana/`:
+- **`config.ts`**: Network configuration, program ID, token mints, PDA seeds
+- **`transaction-helpers.ts`**: Transaction simulation, validation, error formatting
+- **`pda.ts`**: PDA derivation utilities
+- **`token-accounts.ts`**: Token account management
+- **`transactions.ts`**: Transaction building and sending
+
+### API Modules
+
+All contract operations are extracted to `src/features/web3/solana/api/`:
+- **`admin/`**: Admin operations (initialize config, add tokens, etc.)
+- **`room/`**: Room operations (create, get info, cleanup)
+- **`player/`**: Player operations (join room, get entry)
+- **`prizes/`**: Prize operations (distribute, deposit assets, declare winners)
+
+### Implementation Details
+
+Low-level implementations are in `src/features/web3/solana/lib/`:
+
+### Migration Scripts
+
+One-time migration scripts are in `scripts/solana/`:
+- **`cleanup-old-registry.ts`**: Cleanup utility for old token registry accounts
+
 ## Status
 
 ✅ **Fully Implemented**
@@ -331,7 +366,7 @@ function DistributePrizes() {
 
 ```typescript
 import { useSolanaContract } from './useSolanaContract';
-import { createAssetRoom } from './solana-asset-room';
+import { createAssetRoom } from '@/features/web3/solana/api/room';
 
 function CreateAssetRoom() {
   const { connection, wallet } = useSolanaWallet();
@@ -472,10 +507,49 @@ try {
 - `@solana/spl-token` - SPL token operations
 - `@coral-xyz/anchor` - Anchor framework for program interactions
 
-## Usage
+## Import Paths
+
+### Shared Utilities
 
 ```typescript
-import { useSolanaContract } from './useSolanaContract';
+// Configuration
+import { PROGRAM_ID, NETWORK, getTokenMints, PDA_SEEDS } from '@/shared/lib/solana/config';
+
+// Transaction helpers
+import { simulateTransaction, formatTransactionError } from '@/shared/lib/solana/transaction-helpers';
+
+// PDA derivation
+import { deriveRoomPDA, deriveRoomVaultPDA } from '@/shared/lib/solana/pda';
+
+// Token accounts
+import { getOrCreateATA, getAssociatedTokenAccountAddress } from '@/shared/lib/solana/token-accounts';
+
+// Transactions
+import { buildTransaction, sendWithRetry } from '@/shared/lib/solana/transactions';
+```
+
+### API Modules
+
+```typescript
+// Room operations
+import { createPoolRoom, createAssetRoom, getRoomInfo } from '@/features/web3/solana/api/room';
+
+// Player operations
+import { joinRoom, getPlayerEntry } from '@/features/web3/solana/api/player';
+
+// Prize operations
+import { distributePrizes, depositPrizeAsset } from '@/features/web3/solana/api/prizes';
+
+// Admin operations
+import { initializeGlobalConfig, addApprovedToken } from '@/features/web3/solana/api/admin';
+```
+
+## Usage
+
+### React Hook (Recommended)
+
+```typescript
+import { useSolanaContract } from '@/chains/solana/useSolanaContract';
 
 function QuizPayment() {
   const { 
@@ -489,6 +563,69 @@ function QuizPayment() {
   
   // Implementation
 }
+```
+
+### Direct API Usage
+
+For non-React contexts or advanced use cases, you can use the API modules directly:
+
+```typescript
+import { createPoolRoom } from '@/features/web3/solana/api/room';
+import { joinRoom } from '@/features/web3/solana/api/player';
+import { distributePrizes } from '@/features/web3/solana/api/prizes';
+
+// Create context
+const context: SolanaContractContext = {
+  program,
+  provider,
+  publicKey,
+  connected: !!publicKey,
+  isReady: !!program && !!provider && !!publicKey,
+  connection,
+};
+
+// Use API modules
+const result = await createPoolRoom(context, params);
+await joinRoom(context, joinParams);
+await distributePrizes(context, prizeParams);
+```
+
+## IDL Management
+
+The frontend IDL (`src/idl/solana_bingo.json`) must match the deployed contract. Use these scripts to keep it in sync:
+
+### Sync IDL from Contracts
+
+```bash
+npm run sync-idl
+```
+
+This copies the IDL from `C:/Users/isich/bingo-solana-contracts/bingo/target/idl/bingo.json` to the frontend.
+
+### Verify IDL Compatibility
+
+```bash
+npm run verify-idl
+```
+
+This checks:
+- Program ID matches
+- Instruction names and discriminators match
+- PDA seeds match frontend constants
+- Account structures are compatible
+
+### Debug IDL Issues
+
+```typescript
+import { debugIDLCompatibility, printCompatibilityReport } from '@/shared/lib/solana/debug-idl';
+import BingoIDL from '@/idl/solana_bingo.json';
+
+// Get detailed compatibility report
+const report = debugIDLCompatibility(BingoIDL);
+console.log(report);
+
+// Or print formatted report
+printCompatibilityReport(BingoIDL);
 ```
 
 ## Reference Documentation

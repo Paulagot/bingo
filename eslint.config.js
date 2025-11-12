@@ -18,7 +18,7 @@ export default tseslint.config(
       ecmaVersion: 2020,
       sourceType: 'module',
       globals: {
-        ...globals.browser, // default: browser for src/**
+        ...globals.browser, // default: browser for src/** 
       },
     },
     plugins: {
@@ -38,6 +38,36 @@ export default tseslint.config(
       'tailwindcss/classnames-order': 'warn',
       'tailwindcss/no-contradicting-classname': 'error',
       'tailwindcss/no-custom-classname': 'off',
+      
+      // TypeScript specific rules
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/explicit-module-boundary-types': 'off',
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
+      
+      // Enforce consistent naming
+      '@typescript-eslint/naming-convention': [
+        'warn',
+        {
+          selector: 'typeLike',
+          format: ['PascalCase'],
+        },
+        {
+          selector: 'variable',
+          format: ['camelCase', 'PascalCase', 'UPPER_CASE'],
+          leadingUnderscore: 'allow',
+        },
+        {
+          selector: 'function',
+          format: ['camelCase', 'PascalCase'],
+        },
+      ],
     },
   },
 
