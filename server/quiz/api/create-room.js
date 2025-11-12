@@ -9,6 +9,10 @@ import {
 import { canUseTemplate } from '../../policy/entitlements.js';
 
 import authenticateToken from '../../middleware/auth.js';
+import jwt from 'jsonwebtoken';
+import { connection } from '../../config/database.js';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-dev-secret';
 
 const router = express.Router();
 
@@ -677,16 +681,42 @@ router.post('/create-web3-room', async (req, res) => {
 /*                      UNAUTHENTICATED ROUTES (WEB3 FLOW)                     */
 /* -------------------------------------------------------------------------- */
 
-// Entitlements - Web3 rooms don't require authentication, return default entitlements
-// This MUST be before authenticateToken middleware
+// Entitlements - Optionally authenticated: if token present, use actual entitlements; otherwise Web3 defaults
+// This MUST be before authenticateToken middleware to support Web3 flow
 router.get('/me/entitlements', async (req, res) => {
   try {
     console.log('[API] 📥 Received entitlements request');
-    console.log('[API] 📋 req.club_id:', req.club_id);
     
-    const clubId = req.club_id;
+    // Optionally authenticate if token is present (matches main branch auth logic)
+    let clubId = req.club_id;
     
-    // For Web3 rooms, if no authentication, return generous default entitlements
+    if (!clubId) {
+      const authHeader = req.headers['authorization'];
+      const token = authHeader && authHeader.split(' ')[1];
+      
+      if (token && connection) {
+        try {
+          const decoded = jwt.verify(token, JWT_SECRET);
+          const [rows] = await connection.execute(
+            `SELECT u.*, c.name as club_name FROM fundraisely_users u JOIN fundraisely_clubs c ON u.club_id = c.id WHERE u.id = ?`,
+            [decoded.userId]
+          );
+          
+          if (Array.isArray(rows) && rows.length > 0) {
+            req.user = rows[0];
+            clubId = req.user.club_id;
+            console.log(`[API] ✅ Authenticated via token, club_id: ${clubId}`);
+          }
+        } catch (authError) {
+          // Token invalid/expired - continue without auth (for Web3 flow)
+          console.log('[API] ⚠️ Token present but invalid, continuing without authentication');
+        }
+      }
+    }
+    
+    console.log('[API] 📋 Final club_id:', clubId);
+    
+    // For Web3 rooms (no token) or unauthenticated users, return generous default entitlements
     if (!clubId) {
       console.log('[API] ⚠️ No club_id found, returning Web3 default entitlements');
       const web3DefaultEntitlements = {
@@ -707,14 +737,14 @@ router.get('/me/entitlements', async (req, res) => {
       return;
     }
     
-    console.log(`[API] 👤 Resolved club ID: "${clubId}"`);
+    console.log(`[API] 👤 Resolved club ID: "${clubId}" - fetching actual entitlements`);
     
     try {
       const ents = await resolveEntitlements({ userId: clubId });
       res.status(200);
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify(ents));
-      console.log('[API] ✅ Sent entitlements for club:', clubId);
+      console.log('[API] ✅ Sent entitlements for club:', clubId, 'plan:', ents.plan_code);
       return;
     } catch (entError) {
       console.error('[API] ❌ resolveEntitlements error:', entError);
