@@ -45,6 +45,17 @@ import { v4 as uuidv4 } from 'uuid';
 import { logger, loggers, logRequest, logResponse } from './config/logging.js';
 
 const app = express();
+
+// Health check endpoint - MUST be first so it's always available
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    port: process.env.PORT || 3001
+  });
+});
+
 app.use(cors());
 
 // JSON body parser - Express will automatically handle parsing errors
@@ -108,14 +119,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check endpoint for Docker and monitoring
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
+// Health check endpoint is already defined at the top for immediate availability
 
 app.post('/api/tgb/create-deposit-address', createDepositAddress);
 app.post('/api/tgb/webhook', tgbWebhookHandler);
@@ -473,13 +477,28 @@ const io = new Server(httpServer, {
 });
 
 // Host-based sitemap/robots helper
-seoRoutes(app);
+try {
+  seoRoutes(app);
+} catch (error) {
+  console.error('⚠️ Failed to setup SEO routes:', error.message);
+  // Continue - SEO routes are not critical for server startup
+}
 
 // Socket handlers
-setupSocketHandlers(io);
+try {
+  setupSocketHandlers(io);
+} catch (error) {
+  console.error('⚠️ Failed to setup socket handlers:', error.message);
+  // Continue - sockets are not critical for healthcheck
+}
 
-app.use('/api/contact', contactRoute);
-app.use('/api/auth/reset', passwordResetRoute);
+try {
+  app.use('/api/contact', contactRoute);
+  app.use('/api/auth/reset', passwordResetRoute);
+} catch (error) {
+  console.error('⚠️ Failed to setup API routes:', error.message);
+  // Continue - these routes are not critical for healthcheck
+}
 
 
 // Global error handler - must be last middleware (after all routes)
@@ -576,12 +595,29 @@ app.get('/debug/rooms', (req, res) => {
 
 // Startup - Start server immediately, initialize database in background
 // This ensures healthcheck can respond right away
-httpServer.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`💾 Cache headers: ${process.env.NODE_ENV === 'production' ? 'Optimized (1 year)' : 'Development mode'}`);
-  console.log(`✅ Healthcheck available at http://localhost:${PORT}/health`);
-});
+try {
+  httpServer.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`💾 Cache headers: ${process.env.NODE_ENV === 'production' ? 'Optimized (1 year)' : 'Development mode'}`);
+    console.log(`✅ Healthcheck available at http://localhost:${PORT}/health`);
+  });
+
+  // Handle listen errors
+  httpServer.on('error', (error) => {
+    if (error.code === 'EADDRINUSE') {
+      console.error(`❌ Port ${PORT} is already in use`);
+      process.exit(1);
+    } else {
+      console.error(`❌ Server error:`, error);
+      process.exit(1);
+    }
+  });
+} catch (error) {
+  console.error('❌ Failed to start server:', error);
+  console.error('❌ Error stack:', error.stack);
+  process.exit(1);
+}
 
 // Initialize database in background (non-blocking)
 (async () => {
