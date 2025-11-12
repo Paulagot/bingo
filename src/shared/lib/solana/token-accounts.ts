@@ -175,22 +175,70 @@ export function getAssociatedTokenAccountAddress(
 ): PublicKey {
   // Validate inputs are actually PublicKey instances
   if (!(mint instanceof PublicKey)) {
-    throw new Error(`Invalid mint: expected PublicKey, got ${typeof mint}`);
+    throw new Error(
+      `Invalid mint: expected PublicKey, got ${typeof mint}. ` +
+      `Value: ${JSON.stringify(mint)}`
+    );
   }
   if (!(owner instanceof PublicKey)) {
-    throw new Error(`Invalid owner: expected PublicKey, got ${typeof owner}`);
+    throw new Error(
+      `Invalid owner: expected PublicKey, got ${typeof owner}. ` +
+      `Value: ${JSON.stringify(owner)}`
+    );
+  }
+
+  // Validate PublicKey instances are valid (can call toBase58)
+  let mintAddress: string;
+  let ownerAddress: string;
+  try {
+    mintAddress = mint.toBase58();
+  } catch (error: any) {
+    throw new Error(
+      `Invalid mint PublicKey: ${error.message}. ` +
+      `Value: ${JSON.stringify(mint)}`
+    );
+  }
+  try {
+    ownerAddress = owner.toBase58();
+  } catch (error: any) {
+    throw new Error(
+      `Invalid owner PublicKey: ${error.message}. ` +
+      `Value: ${JSON.stringify(owner)}`
+    );
   }
 
   try {
     // getATAAddress is synchronous in @solana/spl-token v0.4.13
-    // It returns a PublicKey directly
-    const ataAddress = getATAAddress(
+    // It returns a PublicKey directly, but may return a Promise in some versions
+    const ataAddressResult = getATAAddress(
       mint,
       owner,
       allowOwnerOffCurve,
       TOKEN_PROGRAM_ID,
       ASSOCIATED_TOKEN_PROGRAM_ID
     );
+    
+    // Handle Promise case (some versions return Promise)
+    // Note: This is synchronous, so if it's a Promise, we'll need to handle it differently
+    // For now, check if it's a Promise and throw a helpful error
+    if (ataAddressResult instanceof Promise) {
+      throw new Error(
+        `getATAAddress returned a Promise. This function is synchronous. ` +
+        `mint: ${mintAddress}, owner: ${ownerAddress}. ` +
+        `Please use the async version or update @solana/spl-token version.`
+      );
+    }
+    
+    const ataAddress = ataAddressResult;
+    
+    // Check for empty object first (this is the reported error case)
+    if (ataAddress && typeof ataAddress === 'object' && Object.keys(ataAddress).length === 0) {
+      throw new Error(
+        `getATAAddress returned empty object. This usually indicates invalid parameters or a library error. ` +
+        `mint: ${mintAddress}, owner: ${ownerAddress}, allowOwnerOffCurve: ${allowOwnerOffCurve}. ` +
+        `Please verify the mint and owner are valid PublicKey instances.`
+      );
+    }
     
     // getATAAddress should return a PublicKey
     if (ataAddress instanceof PublicKey) {
@@ -214,16 +262,33 @@ export function getAssociatedTokenAccountAddress(
       return pubkey instanceof PublicKey ? pubkey : new PublicKey(pubkey);
     }
     
-    throw new Error(`getATAAddress returned invalid type: ${typeof ataAddress}. Value: ${JSON.stringify(ataAddress)}`);
+    throw new Error(
+      `getATAAddress returned invalid type: ${typeof ataAddress}. ` +
+      `Value: ${JSON.stringify(ataAddress)}. ` +
+      `mint: ${mintAddress}, owner: ${ownerAddress}`
+    );
   } catch (error: any) {
+    // If it's already our custom error, re-throw it
+    if (error.message?.includes('getATAAddress returned') || 
+        error.message?.includes('Invalid mint') || 
+        error.message?.includes('Invalid owner')) {
+      throw error;
+    }
+    
+    // Handle assertion failures and other errors
     if (error.message?.includes('Assertion failed')) {
       throw new Error(
         `Failed to derive ATA: Invalid PublicKey parameters. ` +
-        `mint: ${mint.toBase58()}, owner: ${owner.toBase58()}. ` +
+        `mint: ${mintAddress}, owner: ${ownerAddress}. ` +
         `Original error: ${error.message}`
       );
     }
-    throw error;
+    
+    // Wrap other errors with context
+    throw new Error(
+      `Failed to get associated token account address: ${error.message}. ` +
+      `mint: ${mintAddress}, owner: ${ownerAddress}`
+    );
   }
 }
 
