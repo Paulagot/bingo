@@ -127,9 +127,52 @@ export async function distributePrizes(
   const [globalConfig] = deriveGlobalConfigPDA();
 
   // Get charity wallet (use TGB dynamic address if provided, otherwise room's charity wallet)
-  const charityWallet = params.charityWallet
-    ? new PublicKey(params.charityWallet)
-    : (roomAccount.charityWallet as PublicKey);
+  let charityWallet: PublicKey;
+  try {
+    if (params.charityWallet) {
+      // Validate charity wallet address before creating PublicKey
+      if (typeof params.charityWallet !== 'string' || params.charityWallet.length === 0) {
+        throw new Error(
+          `Invalid charity wallet address: expected non-empty string, got ${typeof params.charityWallet}. ` +
+          `Value: ${JSON.stringify(params.charityWallet)}`
+        );
+      }
+      
+      // Validate Solana address format (base58, 32-44 chars)
+      if (params.charityWallet.length < 32 || params.charityWallet.length > 44) {
+        throw new Error(
+          `Invalid charity wallet address format: Solana addresses must be 32-44 characters (base58). ` +
+          `Got ${params.charityWallet.length} characters: ${params.charityWallet}`
+        );
+      }
+      
+      charityWallet = new PublicKey(params.charityWallet);
+      
+      // Validate PublicKey is valid by calling toBase58 (throws if invalid)
+      charityWallet.toBase58();
+    } else {
+      charityWallet = roomAccount.charityWallet as PublicKey;
+      
+      // Validate room's charity wallet is valid
+      if (!charityWallet || !(charityWallet instanceof PublicKey)) {
+        throw new Error(
+          `Invalid charity wallet in room account: expected PublicKey, got ${typeof charityWallet}. ` +
+          `Room: ${params.roomId}`
+        );
+      }
+      
+      // Validate PublicKey is valid
+      charityWallet.toBase58();
+    }
+  } catch (error: any) {
+    if (error.message?.includes('Invalid public key') || error.message?.includes('Invalid charity')) {
+      throw new Error(
+        `Failed to validate charity wallet address: ${error.message}. ` +
+        `Charity wallet: ${params.charityWallet || 'room default'}, Room: ${params.roomId}`
+      );
+    }
+    throw error;
+  }
 
   // Get fee token mint from room
   const feeTokenMint = roomAccount.feeTokenMint as PublicKey;
@@ -138,29 +181,77 @@ export async function distributePrizes(
   const winnerTokenAccounts: PublicKey[] = [];
   for (const winner of params.winners) {
     const winnerPubkey = typeof winner === 'string' ? new PublicKey(winner) : winner;
-    const winnerATA = getAssociatedTokenAccountAddress(
-      feeTokenMint,
-      winnerPubkey
-    );
-    winnerTokenAccounts.push(winnerATA);
+    try {
+      // getAssociatedTokenAccountAddress is synchronous (no await needed)
+      const winnerATA = getAssociatedTokenAccountAddress(
+        feeTokenMint,
+        winnerPubkey
+      );
+      winnerTokenAccounts.push(winnerATA);
+    } catch (error: any) {
+      throw new Error(
+        `Failed to derive winner token account: ${error.message}. ` +
+        `Winner: ${typeof winner === 'string' ? winner : winner.toBase58()}, ` +
+        `Mint: ${feeTokenMint.toBase58()}`
+      );
+    }
   }
 
-  const charityTokenAccount = getAssociatedTokenAccountAddress(
-    feeTokenMint,
-    charityWallet
-  );
+  // Derive charity token account with validation and error handling
+  let charityTokenAccount: PublicKey;
+  try {
+    // getAssociatedTokenAccountAddress is synchronous (no await needed)
+    charityTokenAccount = getAssociatedTokenAccountAddress(
+      feeTokenMint,
+      charityWallet
+    );
+  } catch (error: any) {
+    if (error.message?.includes('TokenOwnerOffCurve') || error.message?.includes('Invalid owner')) {
+      throw new Error(
+        `Failed to derive charity token account: Invalid charity wallet address. ` +
+        `Charity wallet: ${charityWallet.toBase58()}, Mint: ${feeTokenMint.toBase58()}. ` +
+        `The charity wallet address may be invalid or off-curve. ` +
+        `Original error: ${error.message}`
+      );
+    }
+    throw new Error(
+      `Failed to derive charity token account: ${error.message}. ` +
+      `Charity wallet: ${charityWallet.toBase58()}, Mint: ${feeTokenMint.toBase58()}`
+    );
+  }
 
   const globalConfigAccount = await (program.account as any).globalConfig.fetch(globalConfig);
   const platformWallet = globalConfigAccount.platformWallet as PublicKey;
-  const platformTokenAccount = getAssociatedTokenAccountAddress(
-    feeTokenMint,
-    platformWallet
-  );
+  
+  // Derive platform token account
+  let platformTokenAccount: PublicKey;
+  try {
+    // getAssociatedTokenAccountAddress is synchronous (no await needed)
+    platformTokenAccount = getAssociatedTokenAccountAddress(
+      feeTokenMint,
+      platformWallet
+    );
+  } catch (error: any) {
+    throw new Error(
+      `Failed to derive platform token account: ${error.message}. ` +
+      `Platform wallet: ${platformWallet.toBase58()}, Mint: ${feeTokenMint.toBase58()}`
+    );
+  }
 
-  const hostTokenAccount = getAssociatedTokenAccountAddress(
-    feeTokenMint,
-    roomAccount.host as PublicKey
-  );
+  // Derive host token account
+  let hostTokenAccount: PublicKey;
+  try {
+    // getAssociatedTokenAccountAddress is synchronous (no await needed)
+    hostTokenAccount = getAssociatedTokenAccountAddress(
+      feeTokenMint,
+      roomAccount.host as PublicKey
+    );
+  } catch (error: any) {
+    throw new Error(
+      `Failed to derive host token account: ${error.message}. ` +
+      `Host: ${(roomAccount.host as PublicKey).toBase58()}, Mint: ${feeTokenMint.toBase58()}`
+    );
+  }
 
   // Build instruction
   const winnerPubkeys = params.winners.map((w: string | PublicKey) =>
