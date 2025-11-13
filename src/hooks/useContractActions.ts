@@ -430,7 +430,7 @@ export function useContractActions(opts?: Options) {
     }
 
     if (effectiveChain === 'solana') {
-      return async ({ roomId, winners, roomAddress, charityWallet }: DistributeArgs): Promise<DistributeResult> => {
+      return async ({ roomId, winners, roomAddress, charityWallet, ...rest }: DistributeArgs): Promise<DistributeResult> => {
         try {
           if (!solanaContract || !solanaContract.isReady) {
             return { success: false, error: 'Solana contract not ready' };
@@ -452,15 +452,119 @@ export function useContractActions(opts?: Options) {
           }
 
           console.log('🏆 [Solana] Winner addresses:', winnerAddresses);
-          if (charityWallet) {
-            console.log('💰 [Solana] Using TGB charity wallet:', charityWallet);
+
+          // Validate room address
+          if (!roomAddress) {
+            console.error('❌ [Solana] Missing room address');
+            return { success: false, error: 'Missing room address' };
           }
+
+          // ------------------- Get exact charity amount from contract -------------------
+          console.log('🔍 [Solana] Reading charity amount from contract...');
+          
+          // Import calculateCharityAmount function
+          const { calculateCharityAmount } = await import('@/features/web3/solana/api/prizes/calculate-charity-amount');
+          
+          let charityAmountInfo;
+          try {
+            charityAmountInfo = await calculateCharityAmount(
+              {
+                program: solanaContract.program!,
+                connection: solanaContract.connection!,
+                publicKey: solanaContract.publicKey!,
+                provider: solanaContract.provider!,
+              },
+              roomAddress
+            );
+            console.log('💰 [Solana] Exact charity amount from contract:', {
+              raw: charityAmountInfo.charityAmountRaw.toString(),
+              formatted: charityAmountInfo.charityAmountFormatted,
+              vaultBalance: charityAmountInfo.vaultBalanceRaw.toString(),
+              charityBps: charityAmountInfo.charityBps,
+              decimals: charityAmountInfo.decimals,
+            });
+          } catch (calcError: any) {
+            console.error('❌ [Solana] Failed to calculate charity amount:', calcError);
+            throw new Error(`Failed to calculate charity amount from contract: ${calcError.message}`);
+          }
+
+          // ------------------- TGB deposit address (non-breaking) -------------------
+          // We try to fetch a TGB deposit address ONLY if the room setup has a TGB orgId.
+          // If not present, we fall back to the charityWallet parameter to avoid breaking behavior.
+          const setup = JSON.parse(localStorage.getItem('setupConfig') || '{}');
+          const tgbOrgId = (setup?.web3CharityOrgId as string | undefined) || (rest as any)?.charityOrgId;
+
+          let recipientAddressForDistribution: string | null = null;
+
+          if (tgbOrgId) {
+            try {
+              // Currency symbol from setup (or default to USDC)
+              const currencySym = (setup?.currencySymbol || setup?.web3Currency || 'USDC').toUpperCase();
+
+              // Derive TGB network label centrally (no hard-coded switches here)
+              const tgbNetwork = getTgbNetworkLabel({
+                web3Chain: 'solana',
+                evmTargetKey: null,
+                solanaCluster: setup?.solanaCluster || 'devnet',
+              });
+
+              // Use exact charity amount from contract (already formatted as decimal string)
+              const charityAmtDecimal = charityAmountInfo.charityAmountFormatted;
+
+              console.log('📞 [Solana] Calling TGB API with exact contract amount:', {
+                organizationId: tgbOrgId,
+                currency: currencySym,
+                network: tgbNetwork,
+                amount: charityAmtDecimal,
+              });
+
+              // Server decides mock mode via TGB_FORCE_MOCK env var
+              // Frontend always calls the API with the exact charity amount from contract
+              const resp = await fetch(`/api/tgb/create-deposit-address`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  organizationId: tgbOrgId,
+                  currency: currencySym,       // e.g., "USDC"
+                  network: tgbNetwork,         // e.g., "solana"
+                  amount: charityAmtDecimal,   // exact amount (human-readable, from contract)
+                  metadata: { roomId },
+                }),
+              });
+
+              const dep = await resp.json();
+              if (!resp.ok || !dep?.ok || !dep?.depositAddress) {
+                console.error('❌ [Solana] TGB deposit address request failed:', dep);
+                throw new Error(dep?.error || 'Could not get The Giving Block deposit address');
+              }
+
+              recipientAddressForDistribution = dep.depositAddress as string;
+              console.log('✅ [Solana] TGB deposit address received:', recipientAddressForDistribution);
+            } catch (tgbErr: any) {
+              console.warn('⚠️ [Solana] TGB API call failed, falling back to charityWallet parameter:', tgbErr?.message || tgbErr);
+              recipientAddressForDistribution = null; // fallback will be handled below
+            }
+          }
+
+          // Fallback (legacy path): use the charityWallet parameter if TGB path is not available
+          if (!recipientAddressForDistribution) {
+            if (charityWallet) {
+              console.log('🔍 [Solana] Using charityWallet parameter (fallback):', charityWallet);
+              recipientAddressForDistribution = charityWallet;
+            } else {
+              console.error('❌ [Solana] No charity wallet available (no TGB orgId and no charityWallet parameter)');
+              throw new Error('No charity wallet available. Please configure a charity wallet or TGB organization ID.');
+            }
+          }
+          // ------------------- End TGB + fallback -------------------
+
+          console.log('💰 [Solana] Using charity wallet for distribution:', recipientAddressForDistribution);
 
           const res = await solanaContract.distributePrizes({
             roomId,
             winners: winnerAddresses,
-            roomAddress, // Pass room PDA address from backend
-            charityWallet, // ✅ NEW: Pass TGB wallet address (from backend)
+            roomAddress, // Pass room PDA address
+            charityWallet: recipientAddressForDistribution, // Use TGB wallet or fallback
           });
 
           console.log('✅ [Solana] Prize distribution successful:', res.signature);
@@ -470,7 +574,7 @@ export function useContractActions(opts?: Options) {
             console.log('💰 [Solana] Charity amount from RoomEnded event:', res.charityAmount.toString());
             console.log('⚠️ [Solana] IMPORTANT: Use this exact charityAmount when reporting to The Giving Block');
           } else {
-            console.warn('⚠️ [Solana] Could not parse charityAmount from RoomEnded event. Frontend calculation may differ from on-chain amount.');
+            console.warn('⚠️ [Solana] Could not parse charityAmount from RoomEnded event. Using calculated amount:', charityAmountInfo.charityAmountFormatted);
           }
 
           // Check if cleanup (PDA closing) succeeded
@@ -481,7 +585,7 @@ export function useContractActions(opts?: Options) {
               success: true,
               txHash: res.signature as `0x${string}`,
               error: `Prizes distributed but PDA cleanup failed: ${res.cleanupError}. Rent can be reclaimed manually.`,
-              charityAmount: res.charityAmount?.toString(), // Pass through exact charity amount
+              charityAmount: res.charityAmount?.toString() || charityAmountInfo.charityAmountFormatted, // Pass through exact charity amount
             };
           }
 
@@ -494,7 +598,7 @@ export function useContractActions(opts?: Options) {
             txHash: res.signature as `0x${string}`,
             cleanupTxHash: res.cleanupSignature as `0x${string}` | undefined,
             rentReclaimed: res.rentReclaimed,
-            charityAmount: res.charityAmount?.toString(), // Exact amount sent to charity (from on-chain event)
+            charityAmount: res.charityAmount?.toString() || charityAmountInfo.charityAmountFormatted, // Exact amount sent to charity (from on-chain event or calculation)
           };
         } catch (e: any) {
           console.error('[Solana distributePrizes error]', e);

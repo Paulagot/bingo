@@ -126,6 +126,46 @@ export async function distributePrizes(
   const [roomVault] = deriveRoomVaultPDA(roomPDA);
   const [globalConfig] = deriveGlobalConfigPDA();
 
+  // Check if winners were declared - if so, we must use those exact winners
+  const declaredWinners = roomAccount.winners as PublicKey[] | null | undefined;
+  const hasDeclaredWinners = declaredWinners && Array.isArray(declaredWinners) && declaredWinners.length > 0;
+  
+  console.log('[distributePrizes] Room state check:', {
+    roomId: params.roomId,
+    hasDeclaredWinners,
+    declaredWinnersCount: declaredWinners?.length || 0,
+    providedWinnersCount: params.winners.length,
+  });
+
+  // If winners were declared, validate that provided winners match declared winners
+  if (hasDeclaredWinners) {
+    const declaredWinnersStr = declaredWinners!.map(w => w.toBase58()).sort();
+    const providedWinnersStr = params.winners
+      .map(w => (typeof w === 'string' ? w : w.toBase58()))
+      .sort();
+    
+    // Check if they match (order doesn't matter, but all winners must be present)
+    const declaredSet = new Set(declaredWinnersStr);
+    const providedSet = new Set(providedWinnersStr);
+    
+    if (declaredSet.size !== providedSet.size || 
+        ![...declaredSet].every(w => providedSet.has(w))) {
+      console.error('[distributePrizes] ❌ Winners mismatch:', {
+        declared: declaredWinnersStr,
+        provided: providedWinnersStr,
+      });
+      throw new Error(
+        `Winners mismatch: Room has ${declaredWinnersStr.length} declared winner(s): ${declaredWinnersStr.join(', ')}. ` +
+        `But ${providedWinnersStr.length} winner(s) provided: ${providedWinnersStr.join(', ')}. ` +
+        `The winners list must exactly match the declared winners.`
+      );
+    }
+    
+    console.log('[distributePrizes] ✅ Provided winners match declared winners');
+  } else {
+    console.log('[distributePrizes] ⚠️ No winners declared - using provided winners list');
+  }
+
   // Get charity wallet (use TGB dynamic address if provided, otherwise room's charity wallet)
   let charityWallet: PublicKey;
   try {
@@ -135,6 +175,15 @@ export async function distributePrizes(
         throw new Error(
           `Invalid charity wallet address: expected non-empty string, got ${typeof params.charityWallet}. ` +
           `Value: ${JSON.stringify(params.charityWallet)}`
+        );
+      }
+      
+      // Validate it's not the System Program address (all 1s)
+      if (params.charityWallet === '11111111111111111111111111111111' || 
+          params.charityWallet === 'SysvarRent111111111111111111111111111111111') {
+        throw new Error(
+          `Invalid charity wallet: Cannot use System Program address (${params.charityWallet}). ` +
+          `Please provide a valid charity wallet address.`
         );
       }
       
@@ -149,7 +198,15 @@ export async function distributePrizes(
       charityWallet = new PublicKey(params.charityWallet);
       
       // Validate PublicKey is valid by calling toBase58 (throws if invalid)
-      charityWallet.toBase58();
+      const charityWalletStr = charityWallet.toBase58();
+      
+      // Double-check it's not System Program after conversion
+      if (charityWalletStr === '11111111111111111111111111111111') {
+        throw new Error(
+          `Invalid charity wallet: Cannot use System Program address. ` +
+          `Please provide a valid charity wallet address.`
+        );
+      }
     } else {
       charityWallet = roomAccount.charityWallet as PublicKey;
       
@@ -162,10 +219,18 @@ export async function distributePrizes(
       }
       
       // Validate PublicKey is valid
-      charityWallet.toBase58();
+      const charityWalletStr = charityWallet.toBase58();
+      
+      // Check it's not System Program
+      if (charityWalletStr === '11111111111111111111111111111111') {
+        throw new Error(
+          `Invalid charity wallet in room account: Room has System Program as charity wallet. ` +
+          `Room: ${params.roomId}. Please update the room configuration with a valid charity wallet.`
+        );
+      }
     }
   } catch (error: any) {
-    if (error.message?.includes('Invalid public key') || error.message?.includes('Invalid charity')) {
+    if (error.message?.includes('Invalid public key') || error.message?.includes('Invalid charity') || error.message?.includes('System Program')) {
       throw new Error(
         `Failed to validate charity wallet address: ${error.message}. ` +
         `Charity wallet: ${params.charityWallet || 'room default'}, Room: ${params.roomId}`

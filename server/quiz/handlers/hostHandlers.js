@@ -777,64 +777,117 @@ socket.on('end_quiz_and_distribute_prizes', async ({ roomId }) => {
       // Call TGB API to get wallet address
       if (charityAmount > 0 && room.config.web3CharityId) {
         try {
-          // For now, use mock mode directly to avoid build-time issues
-          // In production, this will call the actual TGB API endpoint
-          const useMockMode = process.env.TGB_FORCE_MOCK === 'true' || process.env.NODE_ENV !== 'production';
+          // Always try to call the real TGB API endpoint
+          // Only use mock mode if explicitly forced via TGB_FORCE_MOCK env var
+          const baseUrl = process.env.BASE_URL || 'http://localhost:3001';
           
-          if (useMockMode) {
-            // Mock Solana address for development/testing
-            // Valid Solana PublicKey format - System Program address (valid base58, 32-44 chars)
-            // This is a valid test address that can be used for mock purposes
-            charityWalletAddress = '11111111111111111111111111111111';
-            if (debug) {
-              console.log(`[Host] ✅ Using mock TGB wallet address (mock mode): ${charityWalletAddress}`);
-            }
-          } else {
-            // Production: Call TGB API endpoint
-            // Use internal API call to avoid importing handler directly (prevents build issues)
-            const baseUrl = process.env.BASE_URL || 'http://localhost:3001';
-            const tgbResponse = await fetch(`${baseUrl}/api/tgb/create-deposit-address`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                organizationId: room.config.web3CharityId,
-                currency: room.config.web3Currency || 'USDC',
-                network: 'solana',
-                amount: charityAmount.toFixed(2),
-              }),
+          // Determine if we should force mock mode
+          const forceMock = process.env.TGB_FORCE_MOCK === 'true';
+          
+          // Build request with mock parameter if forced
+          const mockParam = forceMock ? '?mock=1' : '';
+          const tgbUrl = `${baseUrl}/api/tgb/create-deposit-address${mockParam}`;
+          
+          if (debug) {
+            console.log(`[Host] 📞 Calling TGB API: ${tgbUrl}`);
+            console.log(`[Host] 📋 Request body:`, {
+              organizationId: room.config.web3CharityId,
+              currency: room.config.web3Currency || 'USDC',
+              network: 'solana',
+              amount: charityAmount.toFixed(2),
             });
-            
-            if (tgbResponse.ok) {
-              const tgbData = await tgbResponse.json();
-              if (tgbData.ok && tgbData.depositAddress) {
+          }
+          
+          const tgbResponse = await fetch(tgbUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              organizationId: room.config.web3CharityId,
+              currency: room.config.web3Currency || 'USDC',
+              network: 'solana',
+              amount: charityAmount.toFixed(2),
+              metadata: { roomId },
+            }),
+          });
+          
+          if (tgbResponse.ok) {
+            const tgbData = await tgbResponse.json();
+            if (tgbData.ok && tgbData.depositAddress) {
+              // Validate the returned address is not System Program
+              if (tgbData.depositAddress === '11111111111111111111111111111111') {
+                console.warn(`[Host] ⚠️ TGB API returned System Program address (invalid). Falling back to room's default charity wallet.`);
+                // Fall back to room's default charity wallet if TGB returned System Program
+                if (room.config.web3CharityAddress && room.config.web3CharityAddress !== '11111111111111111111111111111111') {
+                  charityWalletAddress = room.config.web3CharityAddress;
+                  if (debug) {
+                    console.log(`[Host] ✅ Using room's default charity wallet (fallback): ${charityWalletAddress}`);
+                  }
+                } else {
+                  console.error(`[Host] ❌ Room has no valid charity wallet configured as fallback.`);
+                  socket.emit('quiz_error', {
+                    message: `The Giving Block API returned an invalid address. Please configure a valid charity wallet in room settings.`,
+                  });
+                  return;
+                }
+              } else {
                 charityWalletAddress = tgbData.depositAddress;
                 if (debug) {
                   console.log(`[Host] ✅ TGB API returned wallet address: ${charityWalletAddress}`);
+                  if (forceMock) {
+                    console.log(`[Host] ℹ️  Mock mode was forced via TGB_FORCE_MOCK=true`);
+                  }
+                }
+              }
+            } else {
+              console.error(`[Host] ❌ TGB API returned error:`, tgbData);
+              // Fall back to room's default charity wallet if TGB API fails
+              if (room.config.web3CharityAddress && room.config.web3CharityAddress !== '11111111111111111111111111111111') {
+                charityWalletAddress = room.config.web3CharityAddress;
+                console.warn(`[Host] ⚠️ Falling back to room's default charity wallet: ${charityWalletAddress}`);
+                if (debug) {
+                  console.log(`[Host] ✅ Using room's default charity wallet (TGB API error fallback): ${charityWalletAddress}`);
                 }
               } else {
-                console.error(`[Host] ❌ TGB API returned error:`, tgbData);
                 socket.emit('quiz_error', {
-                  message: `Failed to get charity wallet address from The Giving Block API: ${tgbData?.error || 'Unknown error'}`,
+                  message: `Failed to get charity wallet address from The Giving Block API: ${tgbData?.error || 'Unknown error'}. Please configure a valid charity wallet in room settings.`,
                 });
                 return;
               }
+            }
+          } else {
+            const errorText = await tgbResponse.text().catch(() => 'Unknown error');
+            console.error(`[Host] ❌ TGB API call failed: ${tgbResponse.status} ${errorText}`);
+            // Fall back to room's default charity wallet if TGB API fails
+            if (room.config.web3CharityAddress && room.config.web3CharityAddress !== '11111111111111111111111111111111') {
+              charityWalletAddress = room.config.web3CharityAddress;
+              console.warn(`[Host] ⚠️ TGB API call failed (${tgbResponse.status}). Falling back to room's default charity wallet: ${charityWalletAddress}`);
+              if (debug) {
+                console.log(`[Host] ✅ Using room's default charity wallet (TGB API call failure fallback): ${charityWalletAddress}`);
+              }
             } else {
-              const errorText = await tgbResponse.text().catch(() => 'Unknown error');
-              console.error(`[Host] ❌ TGB API call failed: ${tgbResponse.status} ${errorText}`);
               socket.emit('quiz_error', {
-                message: `Failed to get charity wallet address from The Giving Block API: ${tgbResponse.status} ${errorText}`,
+                message: `Failed to get charity wallet address from The Giving Block API: ${tgbResponse.status} ${errorText}. Please configure a valid charity wallet in room settings.`,
               });
               return;
             }
           }
         } catch (tgbError) {
           console.error(`[Host] ❌ Error getting TGB wallet address:`, tgbError);
-          socket.emit('quiz_error', {
-            message: `Failed to get charity wallet address from The Giving Block API: ${tgbError.message}`,
-          });
-          return;
+          // Fall back to room's default charity wallet if TGB API throws
+          if (room.config.web3CharityAddress && room.config.web3CharityAddress !== '11111111111111111111111111111111') {
+            charityWalletAddress = room.config.web3CharityAddress;
+            console.warn(`[Host] ⚠️ TGB API error occurred. Falling back to room's default charity wallet: ${charityWalletAddress}`);
+            if (debug) {
+              console.log(`[Host] ✅ Using room's default charity wallet (TGB API exception fallback): ${charityWalletAddress}`);
+            }
+          } else {
+            socket.emit('quiz_error', {
+              message: `Failed to get charity wallet address from The Giving Block API: ${tgbError.message}. Please configure a valid charity wallet in room settings.`,
+            });
+            return;
+          }
         }
       } else {
         if (debug) {
