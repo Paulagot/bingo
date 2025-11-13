@@ -28,11 +28,11 @@ import {
   deriveRoomVaultPDA,
 } from '@/shared/lib/solana/pda';
 import {
-  getAssociatedTokenAccountAddress,
   createATAInstruction,
 } from '@/shared/lib/solana/token-accounts';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { buildTransaction } from '@/shared/lib/solana/transactions';
+import { simulateTransaction, formatTransactionError } from '@/shared/lib/solana/transaction-helpers';
 
 // Phase 2 types
 import type { SolanaContractContext } from '@/features/web3/solana/model/types';
@@ -314,39 +314,62 @@ export async function joinRoom(
 
   const instructions: TransactionInstruction[] = [];
 
-  // Check if player ATA exists
+  // Check if player ATA exists and validate balance
   let ataExists = false;
+  let playerBalance: BN | null = null;
+  
   try {
     await getAccount(connection, playerTokenAccount);
     ataExists = true;
-  } catch (error: any) {
-    // ATA doesn't exist - need to create it
-    const createATAIx = createATAInstruction({
-      mint: validFeeTokenMint,
-      owner: validPublicKey,
-      payer: validPublicKey,
-    });
-    instructions.push(createATAIx);
-  }
-
-  // Check player balance
-  try {
+    
+    // Account exists - check balance
     const balance = await connection.getTokenAccountBalance(playerTokenAccount);
-    const balanceBN = new BN(balance.value.amount);
+    playerBalance = new BN(balance.value.amount);
+    
     const totalRequired = params.extrasAmount
       ? entryFee.add(params.extrasAmount)
       : entryFee;
 
-    if (balanceBN.lt(totalRequired)) {
+    if (playerBalance.lt(totalRequired)) {
       const token = validFeeTokenMint.toBase58() === 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' ? 'USDC' : 'tokens';
       throw new Error(
-        `Insufficient balance. Required: ${totalRequired.toString()} ${token}, Available: ${balanceBN.toString()} ${token}`
+        `Insufficient balance. Required: ${totalRequired.toString()} ${token}, Available: ${playerBalance.toString()} ${token}`
       );
     }
+    
+    console.log('[joinRoom] ✅ Player ATA exists with sufficient balance:', {
+      balance: playerBalance.toString(),
+      required: totalRequired.toString(),
+      ata: playerTokenAccount.toBase58(),
+    });
   } catch (error: any) {
-    if (!ataExists) {
-      // ATA doesn't exist yet, so balance check fails - this is expected
+    // Check if error is because account doesn't exist
+    if (
+      error.message?.includes('could not find account') ||
+      error.message?.includes('Invalid account') ||
+      error.name === 'TokenAccountNotFoundError'
+    ) {
+      // ATA doesn't exist - need to create it
+      console.log('[joinRoom] ⚠️ Player ATA does not exist, will create in transaction:', {
+        ata: playerTokenAccount.toBase58(),
+        mint: validFeeTokenMint.toBase58(),
+      });
+      
+      // Important: If ATA doesn't exist, user cannot have tokens yet.
+      // They need to receive tokens to their ATA first before joining.
+      // However, the transaction might still work if they receive tokens in the same transaction
+      // (unlikely but possible). For now, we'll create the ATA and let the on-chain transfer handle validation.
+      
+      const createATAIx = await createATAInstruction({
+        mint: validFeeTokenMint,
+        owner: validPublicKey,
+        payer: validPublicKey,
+      });
+      instructions.push(createATAIx);
+      
+      console.log('[joinRoom] ⚠️ Note: Creating ATA in transaction. User must have tokens ready to transfer.');
     } else {
+      // Other error (balance insufficient, etc.) - rethrow
       throw error;
     }
   }
@@ -377,19 +400,59 @@ export async function joinRoom(
 
   instructions.push(joinRoomIx);
 
+  console.log('[joinRoom] 📦 Transaction structure:', {
+    totalInstructions: instructions.length,
+    hasATACreation: instructions.length > 1,
+    ataExists,
+    playerBalance: playerBalance?.toString() || 'N/A (ATA will be created)',
+    entryFee: entryFee.toString(),
+    extrasAmount: params.extrasAmount?.toString() || '0',
+    playerTokenAccount: playerTokenAccount.toBase58(),
+    room: room.toBase58(),
+    roomVault: roomVault.toBase58(),
+  });
+
   // Build transaction using Phase 1 utilities
   const transaction = await buildTransaction({
     connection,
     instructions,
     feePayer: publicKey,
-    commitment: 'confirmed',
+    commitment: 'finalized',
   });
 
+  // Simulate transaction before sending to wallet to ensure it's valid
+  // This helps catch errors early and ensures the wallet preview is accurate
+  // Note: Some wallets may show incorrect previews for transactions that create accounts
+  // (like ATA creation) and then use them in the same transaction. Our simulation
+  // validates the transaction will succeed, but the wallet's preview might still be incorrect.
+  console.log('[joinRoom] 🔍 Simulating transaction before sending to wallet...');
+  const simResult = await simulateTransaction(connection, transaction);
+  
+  if (!simResult.success) {
+    console.error('[joinRoom] ❌ Transaction simulation failed:', simResult.error);
+    console.error('[joinRoom] Simulation logs:', simResult.logs);
+    const errorMessage = formatTransactionError(simResult.error) || 'Transaction simulation failed';
+    throw new Error(`Transaction validation failed: ${errorMessage}. Please check your balance and try again.`);
+  }
+
+  console.log('[joinRoom] ✅ Transaction simulation succeeded');
+  console.log('[joinRoom] Estimated compute units:', simResult.unitsConsumed);
+  console.log('[joinRoom] ⚠️ Note: Some wallets may show incorrect previews for complex transactions.');
+  console.log('[joinRoom] ⚠️ If wallet shows errors but our simulation passed, the transaction should still succeed.');
+
   // Send and confirm using Anchor provider (handles signing automatically)
+  // skipPreflight is false to ensure wallet also validates, but we've already validated above
+  // The wallet will do its own simulation/preview, which might differ from ours due to:
+  // 1. Stale account state in wallet's simulation
+  // 2. Different simulation parameters
+  // 3. Wallet bugs with account creation + usage in same transaction
+  console.log('[joinRoom] 📤 Sending transaction to wallet for signing...');
   const signature = await provider.sendAndConfirm(transaction, [], {
     skipPreflight: false,
     commitment: 'confirmed',
   });
+  
+  console.log('[joinRoom] ✅ Transaction sent and confirmed:', signature);
 
   return {
     signature,
