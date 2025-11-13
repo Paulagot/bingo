@@ -1,3 +1,5 @@
+// server/tgb/api/create-deposit-address.js
+
 import { getAccessToken, tgbBaseUrl } from '../auth.js';
 import { loggers, logExternalApi, logError } from '../../config/logging.js';
 import { saveIntent } from '../persistence.js';
@@ -73,57 +75,38 @@ function isMockEnabled(req) {
 export default async function createDepositAddress(req, res) {
   try {
     console.log('🔵 [TGB] ========== CREATE DEPOSIT ADDRESS START ==========');
+    console.log('🔵 [TGB] env.TGB_FORCE_MOCK:', process.env.TGB_FORCE_MOCK);
     console.log('🔵 [TGB] Raw request body:', JSON.stringify(req.body, null, 2));
 
     const {
       organizationId,
-      currency,     // maps to pledgeCurrency for TGB
-      network,
-      pledgeAmount,
-      isAnonymous = false,
-      firstName,
-      lastName,
-      receiptEmail,
-      addressLine1,
-      addressLine2,
-      country,
-      state,
-      city,
-      zipcode,
-      fundsDesignation,
-      honoreeEmail,
-      honoreeName,
-      campaignId,
+      currency,      // maps to pledgeCurrency for TGB
+      network,       // your internal reference (base, solana, etc.)
+      pledgeAmount,  // preferred, but...
+      amount,        // ...we also accept `amount` for backward compatibility
+      isAnonymous = true,
       metadata
     } = req.body || {};
+
+    // Normalise amount field so FE can send either `pledgeAmount` or `amount`
+    const effectiveAmount = pledgeAmount ?? amount;
 
     console.log('🔵 [TGB] Destructured values:');
     console.log('  - organizationId:', organizationId, typeof organizationId);
     console.log('  - currency (maps to pledgeCurrency):', currency, typeof currency);
-    console.log('  - network (your reference only):', network, typeof network);
+    console.log('  - network (frontend):', network, typeof network);
     console.log('  - pledgeAmount:', pledgeAmount, typeof pledgeAmount);
+    console.log('  - amount:', amount, typeof amount);
+    console.log('  - effectiveAmount:', effectiveAmount, typeof effectiveAmount);
     console.log('  - isAnonymous:', isAnonymous, typeof isAnonymous);
-    console.log('  - receiptEmail:', receiptEmail);
-    console.log('  - firstName:', firstName);
-    console.log('  - lastName:', lastName);
     console.log('  - metadata:', metadata);
 
-    // Validate required fields
+    // --- Basic validation of what we EXPECT from frontend (anonymous-only) ---
     assertIntegerOrString('organizationId', organizationId);
     assertString('currency', currency);
-    assertString('pledgeAmount', String(pledgeAmount));
+    assertString('pledgeAmount', String(effectiveAmount));
 
-    if (!isAnonymous) {
-      assertString('firstName', firstName);
-      assertString('lastName', lastName);
-      assertString('addressLine1', addressLine1);
-      assertString('country', country);
-      assertString('state', state);
-      assertString('city', city);
-      assertString('zipcode', zipcode);
-    }
-
-    console.log('✅ [TGB] All assertions passed');
+    console.log('✅ [TGB] Basic assertions passed (anonymous flow)');
 
     const netNorm = normalizeNetwork(network);
     console.log('🔵 [TGB] Normalized network:', network, '->', netNorm);
@@ -137,10 +120,25 @@ export default async function createDepositAddress(req, res) {
     };
     console.log('🔵 [TGB] Metadata with intent:', JSON.stringify(metadataWithIntent, null, 2));
 
+    const mockEnabled = isMockEnabled(req);
+    console.log('🔵 [TGB] isMockEnabled(req):', mockEnabled);
+
     // ---------- MOCK SHORT-CIRCUIT ----------
-    if (isMockEnabled(req)) {
+    if (mockEnabled) {
       console.log('⚠️  [TGB] MOCK MODE ENABLED');
-      tgbLogger.warn({ requestId: req.requestId, organizationId, currency, network, netNorm, pledgeAmount, isAnonymous, mockMode: true }, 'TGB API call running in MOCK MODE');
+      tgbLogger.warn(
+        {
+          requestId: req.requestId,
+          organizationId,
+          currency,
+          network,
+          netNorm,
+          pledgeAmount: effectiveAmount,
+          isAnonymous,
+          mockMode: true
+        },
+        'TGB API call running in MOCK MODE'
+      );
 
       let depositAddress = '';
       let depositTag = null;
@@ -158,8 +156,17 @@ export default async function createDepositAddress(req, res) {
         id: 'tgb-mock-deposit-id',
         requestId: 'tgb-mock-req-1',
         offchainIntentId,
-        expectedAmountDecimal: String(pledgeAmount),
-        _debug: { organizationId, currency, network, netNorm, pledgeAmount, isAnonymous, metadata: metadataWithIntent, source: 'mock' }
+        expectedAmountDecimal: String(effectiveAmount),
+        _debug: {
+          organizationId,
+          currency,
+          network,
+          netNorm,
+          pledgeAmount: effectiveAmount,
+          isAnonymous,
+          metadata: metadataWithIntent,
+          source: 'mock'
+        }
       };
 
       console.log('✅ [TGB] Mock response:', JSON.stringify(mock, null, 2));
@@ -170,7 +177,7 @@ export default async function createDepositAddress(req, res) {
           depositTag: depositTag ?? null,
           offchainIntentId,
           roomId: metadata?.roomId ?? null,
-          expectedAmountDecimal: String(pledgeAmount),
+          expectedAmountDecimal: String(effectiveAmount),
           tgbDepositId: mock.id,
           tgbRequestId: mock.requestId,
           organizationId,
@@ -197,6 +204,7 @@ export default async function createDepositAddress(req, res) {
     const token = await getAccessToken();
     if (!token || String(token).trim() === '') {
       console.error('[TGB] getAccessToken returned empty token');
+      console.log('🔵 [TGB] ========== CREATE DEPOSIT ADDRESS END (NO TOKEN) ==========');
       return res.status(500).json({ ok: false, error: 'Missing access token for TGB' });
     }
     console.log('🔵 [TGB] Access token retrieved (preview):', String(token).slice(0, 12) + '...');
@@ -204,35 +212,31 @@ export default async function createDepositAddress(req, res) {
     const url = `${tgbBaseUrl()}/v1/deposit-address`;
     console.log('🔵 [TGB] API URL:', url);
 
-    // Build payload for TGB API according to their spec (do NOT include metadata)
+    // Build payload for TGB API according to their spec (anonymous-only)
     const payload = {
       organizationId,
       pledgeCurrency: currency,
-      pledgeAmount: String(pledgeAmount),
-      isAnonymous
+      pledgeAmount: String(effectiveAmount),
+      isAnonymous: true
     };
-
-    if (!isAnonymous) {
-      payload.firstName = firstName;
-      payload.lastName = lastName;
-      payload.addressLine1 = addressLine1;
-      payload.country = country;
-      payload.state = state;
-      payload.city = city;
-      payload.zipcode = zipcode;
-      if (addressLine2) payload.addressLine2 = addressLine2;
-    }
-
-    if (receiptEmail) payload.receiptEmail = receiptEmail;
-    if (fundsDesignation) payload.fundsDesignation = fundsDesignation;
-    if (honoreeEmail) payload.honoreeEmail = honoreeEmail;
-    if (honoreeName) payload.honoreeName = honoreeName;
-    if (campaignId) payload.campaignId = campaignId;
 
     console.log('🔵 [TGB] Payload to send to TGB API:', JSON.stringify(payload, null, 2));
 
     const startTime = Date.now();
-    tgbLogger.info({ requestId: req.requestId, method: 'POST', url, payload: { ...payload, hasDonor: !!(firstName || lastName || receiptEmail) } }, 'TGB API request: create deposit address');
+    tgbLogger.info(
+      {
+        requestId: req.requestId,
+        method: 'POST',
+        url,
+        payload: {
+          organizationId,
+          pledgeCurrency: currency,
+          pledgeAmount: String(effectiveAmount),
+          isAnonymous: true
+        }
+      },
+      'TGB API request: create deposit address'
+    );
 
     console.log('📤 [TGB] Sending POST request to TGB...');
     const tgbRes = await fetch(url, {
@@ -254,51 +258,65 @@ export default async function createDepositAddress(req, res) {
       console.error('❌ [TGB] API call failed with status:', tgbRes.status);
       console.error('❌ [TGB] Error response:', text);
 
-      logExternalApi(tgbLogger, { method: 'POST', url, duration, statusCode: tgbRes.status, requestId: req.requestId, error: { message: 'TGB API failed', code: tgbRes.status } });
+      logExternalApi(tgbLogger, {
+        method: 'POST',
+        url,
+        duration,
+        statusCode: tgbRes.status,
+        requestId: req.requestId,
+        error: { message: 'TGB API failed', code: tgbRes.status }
+      });
 
-      tgbLogger.error({ requestId: req.requestId, endpoint: 'create-deposit-address', status: tgbRes.status, body: tryParse(text) }, 'TGB create deposit-address returned non-OK');
+      tgbLogger.error(
+        { requestId: req.requestId, endpoint: 'create-deposit-address', status: tgbRes.status, body: tryParse(text) },
+        'TGB create deposit-address returned non-OK'
+      );
 
       console.log('🔵 [TGB] ========== CREATE DEPOSIT ADDRESS END (ERROR) ==========');
-      return res.status(tgbRes.status).json({ ok: false, error: 'TGB create deposit address failed', status: tgbRes.status, details: tryParse(text) });
+      return res
+        .status(tgbRes.status)
+        .json({ ok: false, error: 'TGB create deposit address failed', status: tgbRes.status, details: tryParse(text) });
     }
 
-   
-const data = tryParse(text);
-console.log('✅ [TGB] Parsed response data:', JSON.stringify(data, null, 2));
+    const data = tryParse(text);
+    console.log('✅ [TGB] Parsed response data:', JSON.stringify(data, null, 2));
 
-// helper to safely access nested values if response is wrapped in { data: { ... } }
-const top = (data && typeof data === 'object') ? data : {};
-const nested = (top.data && typeof top.data === 'object') ? top.data : {};
+    // helper to safely access nested values if response is wrapped in { data: { ... } }
+    const top = (data && typeof data === 'object') ? data : {};
+    const nested = (top.data && typeof top.data === 'object') ? top.data : {};
 
-// prefer top-level keys, then nested.keys
-const depositAddressVal = top.depositAddress ?? nested.depositAddress ?? top.address ?? nested.address ?? '';
-const depositTagVal     = top.depositTag ?? nested.depositTag ?? null;
-const idVal             = top.id ?? nested.id ?? top.depositId ?? nested.depositId ?? undefined;
-const requestIdVal      = top.requestId ?? nested.requestId ?? undefined;
-const qrCodeVal         = top.qrCodeBase64 ?? top.qrCode ?? nested.qrCodeBase64 ?? nested.qrCode ?? undefined;
+    // prefer top-level keys, then nested.keys
+    const depositAddressVal = top.depositAddress ?? nested.depositAddress ?? top.address ?? nested.address ?? '';
+    const depositTagVal     = top.depositTag ?? nested.depositTag ?? null;
+    const idVal             = top.id ?? nested.id ?? top.depositId ?? nested.depositId ?? undefined;
+    const requestIdVal      = top.requestId ?? nested.requestId ?? undefined;
+    const qrCodeVal         = top.qrCodeBase64 ?? top.qrCode ?? nested.qrCodeBase64 ?? nested.qrCode ?? undefined;
 
-logExternalApi(tgbLogger, {
-  method: 'POST',
-  url,
-  duration,
-  statusCode: tgbRes.status,
-  requestId: req.requestId
-});
+    logExternalApi(tgbLogger, {
+      method: 'POST',
+      url,
+      duration,
+      statusCode: tgbRes.status,
+      requestId: req.requestId
+    });
 
-const out = {
-  ok: true,
-  depositAddress: depositAddressVal,
-  depositTag: depositTagVal,
-  id: idVal,
-  requestId: requestIdVal,
-  qrCodeImageBase64: qrCodeVal
-};
+    const out = {
+      ok: true,
+      depositAddress: depositAddressVal,
+      depositTag: depositTagVal,
+      id: idVal,
+      requestId: requestIdVal,
+      qrCodeImageBase64: qrCodeVal
+    };
 
     console.log('🔵 [TGB] Mapped output object:', JSON.stringify(out, null, 2));
 
     if (!out.depositAddress) {
       console.error('❌ [TGB] No deposit address in response!');
-      tgbLogger.error({ requestId: req.requestId, error: 'No depositAddress in TGB response', tgbResponse: data }, 'TGB API returned invalid response');
+      tgbLogger.error(
+        { requestId: req.requestId, error: 'No depositAddress in TGB response', tgbResponse: data },
+        'TGB API returned invalid response'
+      );
 
       console.log('🔵 [TGB] ========== CREATE DEPOSIT ADDRESS END (NO ADDRESS) ==========');
       return res.status(502).json({ ok: false, error: 'No depositAddress returned by TGB.', details: data });
@@ -317,7 +335,10 @@ const out = {
 
       if (!valid) {
         console.warn(`⚠️  [TGB] Address shape mismatch! Expected ${expect}, got:`, addr);
-        tgbLogger.warn({ requestId: req.requestId, networkRequested: netNorm, depositAddress: addr, expectedShape: expect }, 'TGB address shape mismatch with requested network');
+        tgbLogger.warn(
+          { requestId: req.requestId, networkRequested: netNorm, depositAddress: addr, expectedShape: expect },
+          'TGB address shape mismatch with requested network'
+        );
       } else {
         console.log(`✅ [TGB] Address validation passed for ${netNorm}`);
       }
@@ -331,14 +352,14 @@ const out = {
         depositTag: out.depositTag ?? null,
         offchainIntentId,
         roomId: metadata?.roomId ?? null,
-        expectedAmountDecimal: String(pledgeAmount),
+        expectedAmountDecimal: String(effectiveAmount),
         tgbDepositId: out.id ?? undefined,
         tgbRequestId: out.requestId ?? undefined,
         organizationId,
         currency,
         network: netNorm,
         metadata: metadataWithIntent ?? null,
-        qrCode: out.qrCode ?? null,
+        qrCode: out.qrCodeImageBase64 ?? null,
         status: 'pending',
         createdAt: new Date().toISOString()
       });
@@ -348,10 +369,13 @@ const out = {
       tgbLogger.error({ requestId: req.requestId, err: e }, 'Failed to persist TGB intent');
     }
 
-    tgbLogger.info({ requestId: req.requestId, depositAddress: out.depositAddress, depositId: out.id, network: netNorm }, 'TGB deposit address created successfully');
+    tgbLogger.info(
+      { requestId: req.requestId, depositAddress: out.depositAddress, depositId: out.id, network: netNorm },
+      'TGB deposit address created successfully'
+    );
 
     out.offchainIntentId = offchainIntentId;
-    out.expectedAmountDecimal = String(pledgeAmount);
+    out.expectedAmountDecimal = String(effectiveAmount);
 
     console.log('✅ [TGB] Final response:', JSON.stringify(out, null, 2));
     console.log('🔵 [TGB] ========== CREATE DEPOSIT ADDRESS END (SUCCESS) ==========');
@@ -361,12 +385,17 @@ const out = {
     console.error('❌ [TGB] FATAL ERROR:', err);
     console.error('❌ [TGB] Stack trace:', err?.stack);
 
-    logError(tgbLogger, err, { requestId: req.requestId, endpoint: 'create-deposit-address', organizationId: req.body?.organizationId });
+    logError(tgbLogger, err, {
+      requestId: req.requestId,
+      endpoint: 'create-deposit-address',
+      organizationId: req.body?.organizationId
+    });
 
     console.log('🔵 [TGB] ========== CREATE DEPOSIT ADDRESS END (EXCEPTION) ==========');
     return res.status(500).json({ ok: false, error: err?.message ?? 'Server error' });
   }
 }
+
 
 
 
