@@ -20,6 +20,11 @@ Each chain implementation follows a consistent pattern:
 - **Status**: ✅ Fully Implemented
 - **Network**: Devnet, Testnet, Mainnet
 - **Program ID**: `8W83G9mSeoQ6Ljcz5QJHYPjH2vQgw94YeVCnpY6KFt7i` (devnet)
+- **Architecture**: Modular design with domain-specific hooks
+  - Main hook: `useSolanaContract.ts` (orchestrator)
+  - Domain hooks: `hooks/useSolanaAdmin.ts`, `hooks/useSolanaRooms.ts`, `hooks/useSolanaPrizes.ts`, `hooks/useSolanaQueries.ts`
+  - Types: `types/hook-types.ts`
+  - Utilities: `utils/hook-helpers.ts`, `utils/api-wrapper.ts`
 - **Features**: 
   - Pool rooms
   - Asset rooms

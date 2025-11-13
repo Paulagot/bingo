@@ -101,13 +101,20 @@ The EVM implementation uses a factory pattern for room creation:
 
 ### Token Addresses
 
-#### Base
-- **USDC**: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` (mainnet)
-- **USDC**: Testnet address (configurable)
+#### USDC (USD Coin - 6 decimals)
+- **Base**: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` (native USDC)
+- **Base Sepolia**: `0x036CbD53842c5426634e7929541eC2318f3dCF7e` (Circle test USDC)
+- **Polygon**: `0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359` (native USDC)
+- **Polygon Amoy**: `0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582` (Circle test USDC)
+- **Optimism**: `0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85` (native USDC)
+- **Optimism Sepolia**: `0x5fd84259d66Cd46123540766Be93DFE6D43130D7` (Circle test USDC)
+- **Avalanche**: `0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E` (native USDC)
+- **Avalanche Fuji**: `0x5425890298aed601595a70ab815c96711a31bc65` (Circle test USDC)
+- **BSC**: `0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d` (Binance-Peg USDC)
+- **BSC Testnet**: `0x64544969ED7EBf5F083679233325356EBe738930` (test token)
 
-#### Polygon
-- **USDC**: `0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359` (mainnet)
-- **USDC**: Testnet address (configurable)
+#### USDGLO (Glo Dollar - 18 decimals)
+- **Ethereum/Base/Polygon/Optimism**: `0x4F604735c1cF31399C6E711D5962b2B3E0225AD3` (same address across chains)
 
 ## Contract Integration
 
@@ -263,18 +270,16 @@ try {
 
 ### Factory Contracts
 
-```typescript
-// Base
-export const POOL_FACTORY = {
-  'base': '0x...', // Base mainnet
-  'baseSepolia': '0x...', // Base Sepolia testnet
-};
+See `src/chains/evm/config/README.md` for complete contract addresses.
 
-export const ASSET_FACTORY = {
-  'base': '0x...', // Base mainnet
-  'baseSepolia': '0x...', // Base Sepolia testnet
-};
-```
+#### PoolFactory
+- **Base Sepolia**: `0x1407B51e43F5983B72577d1dB70AB107820c2e75` ✅ (deployed)
+- **Avalanche Fuji**: `0xbD144cA5539FEBdBCf40eE24F90Ab3E608609D5d` ✅ (deployed)
+- **Other Networks**: Placeholder addresses (see config files)
+
+#### AssetFactory
+- **Base Sepolia**: `0x7775A6c38347FE7284be1298FCdDB291F1A24CCe` ✅ (deployed)
+- **Other Networks**: Placeholder addresses (see config files)
 
 ### RPC Endpoints
 
@@ -299,7 +304,7 @@ The quiz platform already has an existing `Web3Provider.tsx` that handles EVM co
 ## Usage
 
 ```typescript
-import { useContractActions } from '../../hooks/useContractActions';
+import { useContractActions } from '@/hooks/useContractActions';
 
 function QuizPayment() {
   const { 

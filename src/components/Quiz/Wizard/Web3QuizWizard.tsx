@@ -4,12 +4,12 @@ import { DynamicChainProvider } from '../../chains/DynamicChainProvider';
 import type { SupportedChain } from '../../../chains/types';
 import useQuizChainIntegration from '../../../hooks/useQuizChainIntegration';
 
-import StepFundraisingOptions from './StepFundraisingOptions';
-import StepWeb3Prizes from './StepWeb3Prizes';
-import StepWeb3ReviewLaunch from './StepWeb3ReviewLaunch';
-import StepCombinedRounds from './StepCombinedRounds';
+import StepFundraisingOptions from './StepFundraisingOptions/index';
+import StepWeb3Prizes from './StepWeb3Prizes/index';
+import StepWeb3ReviewLaunch from './StepWeb3ReviewLaunch/index';
+import StepCombinedRounds from './StepCombinedRounds/index';
 import StepQuizTemplates from './StepQuizTemplates';
-import StepWeb3QuizSetup from './StepWeb3QuizSetup';
+import StepWeb3QuizSetup from './StepWeb3QuizSetup/index';
 import WalletDebugPanel from './WalletDebug';
 
 const DEBUG = true;

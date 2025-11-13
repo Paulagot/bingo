@@ -157,22 +157,25 @@ export interface ValidateTokenAccountParams {
  * The address is deterministic based on the owner and mint, following the SPL Token
  * standard derivation.
  *
+ * **Note**: In newer versions of @solana/spl-token, `getAssociatedTokenAddress` may be async.
+ * This function handles both sync and async versions.
+ *
  * @param mint - Token mint address
  * @param owner - Owner's public key
  * @param allowOwnerOffCurve - Allow PDA owners (default: false)
- * @returns The ATA address
+ * @returns The ATA address (Promise in newer versions)
  *
  * @example
  * ```typescript
- * const ataAddress = getAssociatedTokenAccountAddress(USDC_MINT, userPublicKey);
+ * const ataAddress = await getAssociatedTokenAccountAddress(USDC_MINT, userPublicKey);
  * console.log('User USDC account:', ataAddress.toBase58());
  * ```
  */
-export function getAssociatedTokenAccountAddress(
+export async function getAssociatedTokenAccountAddress(
   mint: PublicKey,
   owner: PublicKey,
   allowOwnerOffCurve: boolean = false
-): PublicKey {
+): Promise<PublicKey> {
   // Validate inputs are actually PublicKey instances
   if (!(mint instanceof PublicKey)) {
     throw new Error(
@@ -208,9 +211,16 @@ export function getAssociatedTokenAccountAddress(
   }
 
   try {
+<<<<<<< Updated upstream
     // getATAAddress is synchronous in @solana/spl-token v0.4.13
     // It returns a PublicKey directly, but may return a Promise in some versions
     const ataAddressResult = getATAAddress(
+=======
+    // getATAAddress may be async in newer versions of @solana/spl-token
+    // Handle both sync and async versions by wrapping in Promise.resolve
+    // This works whether getATAAddress returns a value or a Promise
+    const result = getATAAddress(
+>>>>>>> Stashed changes
       mint,
       owner,
       allowOwnerOffCurve,
@@ -218,6 +228,7 @@ export function getAssociatedTokenAccountAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID
     );
     
+<<<<<<< Updated upstream
     // Handle Promise case (some versions return Promise)
     // Note: This is synchronous, so if it's a Promise, we'll need to handle it differently
     // For now, check if it's a Promise and throw a helpful error
@@ -239,6 +250,10 @@ export function getAssociatedTokenAccountAddress(
         `Please verify the mint and owner are valid PublicKey instances.`
       );
     }
+=======
+    // If it's a Promise, await it; otherwise use the value directly
+    const ataAddress = result instanceof Promise ? await result : result;
+>>>>>>> Stashed changes
     
     // getATAAddress should return a PublicKey
     if (ataAddress instanceof PublicKey) {
@@ -262,10 +277,19 @@ export function getAssociatedTokenAccountAddress(
       return pubkey instanceof PublicKey ? pubkey : new PublicKey(pubkey);
     }
     
+<<<<<<< Updated upstream
     throw new Error(
       `getATAAddress returned invalid type: ${typeof ataAddress}. ` +
       `Value: ${JSON.stringify(ataAddress)}. ` +
       `mint: ${mintAddress}, owner: ${ownerAddress}`
+=======
+    // This should never happen since we await Promise.resolve()
+    // But if it does, provide a helpful error message
+    throw new Error(
+      `getATAAddress returned unexpected type: ${typeof ataAddress}. ` +
+      `Expected PublicKey. mint: ${mint.toBase58()}, owner: ${owner.toBase58()}. ` +
+      `Value: ${JSON.stringify(ataAddress)}`
+>>>>>>> Stashed changes
     );
   } catch (error: any) {
     // If it's already our custom error, re-throw it
@@ -283,12 +307,19 @@ export function getAssociatedTokenAccountAddress(
         `Original error: ${error.message}`
       );
     }
+<<<<<<< Updated upstream
     
     // Wrap other errors with context
     throw new Error(
       `Failed to get associated token account address: ${error.message}. ` +
       `mint: ${mintAddress}, owner: ${ownerAddress}`
     );
+=======
+    if (error.message?.includes('returned a Promise') || error.message?.includes('Promise')) {
+      throw error;
+    }
+    throw error;
+>>>>>>> Stashed changes
   }
 }
 
@@ -330,7 +361,7 @@ export async function getOrCreateATA(
   const { connection, mint, owner, payer, allowOwnerOffCurve = false } = params;
 
   // Derive ATA address
-  const address = getAssociatedTokenAccountAddress(mint, owner, allowOwnerOffCurve);
+  const address = await getAssociatedTokenAccountAddress(mint, owner, allowOwnerOffCurve);
 
   // Try to fetch existing account
   try {
@@ -407,15 +438,15 @@ export async function getOrCreateATA(
  * const tx = new Transaction().add(instruction);
  * ```
  */
-export function createATAInstruction(params: {
+export async function createATAInstruction(params: {
   mint: PublicKey;
   owner: PublicKey;
   payer: PublicKey;
   allowOwnerOffCurve?: boolean;
-}): TransactionInstruction {
+}): Promise<TransactionInstruction> {
   const { mint, owner, payer, allowOwnerOffCurve = false } = params;
 
-  const ataAddress = getAssociatedTokenAccountAddress(mint, owner, allowOwnerOffCurve);
+  const ataAddress = await getAssociatedTokenAccountAddress(mint, owner, allowOwnerOffCurve);
 
   return createAssociatedTokenAccountInstruction(
     payer,

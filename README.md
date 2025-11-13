@@ -72,6 +72,7 @@ FundRaisely enables charities and community organizations to run engaging quiz f
 - **Status**: ✅ Fully Implemented
 - **Networks**: Devnet, Testnet, Mainnet
 - **Program ID**: `8W83G9mSeoQ6Ljcz5QJHYPjH2vQgw94YeVCnpY6KFt7i` (devnet)
+- **Architecture**: Modular design with domain-specific hooks (admin, rooms, prizes, queries)
 - **Features**: Pool rooms, asset rooms, automatic token account creation
 - **Documentation**: See [Solana Chain Documentation](./src/chains/solana/README.md)
 

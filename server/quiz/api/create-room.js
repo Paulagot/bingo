@@ -635,7 +635,7 @@ router.post('/create-web3-room', async (req, res) => {
       route: '/create-web3-room',
       ...(process.env.NODE_ENV !== 'production' && { 
         details: err?.message,
-        stack: err?.stack,
+        stack: err?.stack?.substring(0, 500), // Limit stack trace
         name: err?.name,
         type: err?.constructor?.name
       })
@@ -647,24 +647,39 @@ router.post('/create-web3-room', async (req, res) => {
     const sent = sendErrorResponse(500, errorResponse);
     
     if (!sent) {
-      // Last resort - try plain text with res.send()
-      console.error('[API] ❌❌ sendErrorResponse returned false, trying res.send()');
+      // Last resort - try multiple methods to ensure response is sent
+      console.error('[API] ❌❌ sendErrorResponse returned false, trying alternative methods');
       try {
         if (!res.headersSent && !res.finished) {
-          console.log('[API] 🔴 Attempting res.send() error response');
+          console.log('[API] 🔴 Attempting res.json() as fallback');
           clearTimeout(timeout);
-          const plainText = 'Internal server error: ' + (err?.message || 'Unknown error');
-          res.status(500).send(plainText);
-          console.log('[API] ✅ Plain text error response sent via res.send()');
-          console.log('[API] ✅ Plain text length:', plainText.length);
+          res.status(500).json(errorResponse);
+          console.log('[API] ✅ Error response sent via res.json() fallback');
+        } else if (!res.finished) {
+          // Headers sent but not finished - try to end the response
+          console.log('[API] 🔴 Headers sent but not finished, attempting res.end()');
+          clearTimeout(timeout);
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify(errorResponse));
+          console.log('[API] ✅ Error response sent via res.end()');
         } else {
-          console.error('[API] ❌❌ Cannot send plain text - headersSent:', res.headersSent, 'finished:', res.finished);
+          console.error('[API] ❌❌ Cannot send error - response already finished');
         }
-      } catch (finalErr) {
-        console.error('[API] ❌❌❌ Complete failure to send any response');
-        console.error('[API] ❌❌❌ Final error name:', finalErr?.name);
-        console.error('[API] ❌❌❌ Final error message:', finalErr?.message);
-        console.error('[API] ❌❌❌ Final error stack:', finalErr?.stack);
+      } catch (fallbackErr) {
+        console.error('[API] ❌❌ Fallback methods failed, trying plain text');
+        try {
+          if (!res.headersSent && !res.finished) {
+            clearTimeout(timeout);
+            const plainText = JSON.stringify(errorResponse);
+            res.status(500).setHeader('Content-Type', 'application/json').end(plainText);
+            console.log('[API] ✅ Plain text error response sent');
+          }
+        } catch (finalErr) {
+          console.error('[API] ❌❌❌ Complete failure to send any response');
+          console.error('[API] ❌❌❌ Final error name:', finalErr?.name);
+          console.error('[API] ❌❌❌ Final error message:', finalErr?.message);
+          console.error('[API] ❌❌❌ Final error stack:', finalErr?.stack);
+        }
       }
     } else {
       console.log('[API] ✅ Error response sent successfully via sendErrorResponse');
@@ -674,6 +689,20 @@ router.post('/create-web3-room', async (req, res) => {
     console.log('[API] 🏁 Headers sent:', res.headersSent);
     console.log('[API] 🏁 Response finished:', res.finished);
     console.log('[API] 🏁 Status code:', res.statusCode);
+    
+    // Final safety check - ensure response was sent
+    if (!res.headersSent && !res.finished) {
+      console.error('[API] ⚠️⚠️⚠️ WARNING: Response was not sent! Attempting emergency response');
+      try {
+        res.status(500).json({ 
+          error: 'internal_error', 
+          message: 'An error occurred but the response could not be sent properly',
+          timestamp: new Date().toISOString()
+        });
+      } catch (emergencyErr) {
+        console.error('[API] ❌❌❌ Emergency response also failed:', emergencyErr);
+      }
+    }
   }
 });
 

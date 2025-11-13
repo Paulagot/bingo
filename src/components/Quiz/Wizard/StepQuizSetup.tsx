@@ -3,27 +3,7 @@ import { Users, AlertCircle, Check, ChevronRight, DollarSign, Sparkles } from 'l
 import { WizardStepProps } from './WizardStepProps';
 import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
 import ClearSetupButton from './ClearSetupButton';
-
-const Character = ({ message }: { message: string }) => {
-  const getBubbleColor = (): string => {
-    if (message.includes('Perfect!') || message.includes('🎉')) return 'bg-green-50 border-green-200';
-    if (message.includes('Excellent!') || message.includes('choice!')) return 'bg-blue-50 border-blue-200';
-    if (message.includes('ready') || message.includes('configured')) return 'bg-indigo-50 border-indigo-200';
-    return 'bg-gray-50 border-border';
-  };
-  return (
-    <div className="mb-3 flex items-center gap-2 sm:mb-6 sm:gap-4">
-      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-gray-300 bg-gray-200 sm:h-16 sm:w-16">
-        <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-gray-100 to-gray-300">
-          <span className="text-fg/60 text-xs font-medium sm:text-sm">IMG</span>
-        </div>
-      </div>
-      <div className={`relative flex-1 rounded-lg border p-2 shadow-lg sm:rounded-2xl sm:p-4 ${getBubbleColor()}`}>
-        <p className="text-fg/80 text-xs leading-tight sm:text-sm sm:leading-normal">{message}</p>
-      </div>
-    </div>
-  );
-};
+import Character from './shared/components/Character';
 
 const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) => {
   const [error, setError] = useState('');

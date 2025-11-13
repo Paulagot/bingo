@@ -528,7 +528,7 @@ export async function depositPrizeAsset(
   const [prizeVault] = derivePrizeVaultPDA(room, params.prizeIndex);
 
   // Get host's token account - using Phase 1 utility
-  const hostTokenAccount = getAssociatedTokenAccountAddress(
+  const hostTokenAccount = await getAssociatedTokenAccountAddress(
     params.prizeMint,
     publicKey
   );

@@ -8,16 +8,84 @@ This module handles Solana wallet connections, SPL token transactions, and progr
 
 ## Architecture
 
-The Solana integration has been modularized following Feature-Sliced Design (FSD) principles:
+The Solana integration uses a modular architecture with clear separation of concerns:
 
-- **`useSolanaContract.ts`**: Main React hook that delegates to API modules
-- **`SolanaWalletProvider.tsx`**: React context provider for wallet state
-- **`useSolanaWallet.ts`**: Wallet connection and state management hook
-- **`config.ts`**: Re-exports from `@/shared/lib/solana/config` (deprecated, use shared location)
+### Main Hook
+
+- **`useSolanaContract.ts`**: Main orchestrator hook that composes domain-specific hooks to provide a unified interface. This hook maintains backward compatibility while internally using a modular structure.
+
+### Modular Structure
+
+The Solana contract hook has been refactored from a monolithic 961-line file into a modular architecture:
+
+#### Domain Hooks (`hooks/`)
+
+- **`useSolanaContext.ts`**: Provider detection, context creation, and memoization
+- **`useSolanaAdmin.ts`**: Admin operations (config, registry, emergency controls, room recovery)
+- **`useSolanaRooms.ts`**: Room operations (create pool/asset rooms, close joining, cleanup, end room)
+- **`useSolanaPrizes.ts`**: Prize operations (declare winners, distribute prizes, deposit assets)
+- **`useSolanaQueries.ts`**: Query operations (get room info, get player entry)
+
+#### Type Definitions (`types/`)
+
+- **`hook-types.ts`**: Hook-specific type definitions that extend base API types for backward compatibility
+  - `JoinRoomParams`, `DeclareWinnersParams`, `EndRoomParams`
+  - `RoomInfoExtended`, `PlayerEntryInfoExtended`
+
+#### Utilities (`utils/`)
+
+- **`hook-helpers.ts`**: Helper functions for provider detection, type conversion, and safe defaults
+- **`api-wrapper.ts`**: Factory function for wrapping API functions with error handling and React memoization
+
+### File Structure
+
+```
+src/chains/solana/
+├── useSolanaContract.ts          # Main orchestrator hook (243 lines)
+├── useSolanaWallet.ts            # Wallet connection and state management
+├── SolanaWalletProvider.tsx      # React context provider for wallet state
+├── hooks/
+│   ├── useSolanaContext.ts       # Context creation and provider detection
+│   ├── useSolanaAdmin.ts         # Admin operations hook
+│   ├── useSolanaRooms.ts         # Room operations hook
+│   ├── useSolanaPrizes.ts        # Prize operations hook
+│   └── useSolanaQueries.ts       # Query operations hook
+├── types/
+│   └── hook-types.ts             # Hook-specific type definitions
+└── utils/
+    ├── hook-helpers.ts           # Helper functions
+    └── api-wrapper.ts            # API wrapper factory
+```
+
+### Hook Composition Pattern
+
+The main hook uses a composition pattern where domain hooks are combined:
+
+```typescript
+export function useSolanaContract() {
+  const context = useSolanaContext();
+  const admin = useSolanaAdmin();
+  const rooms = useSolanaRooms();
+  const prizes = useSolanaPrizes();
+  const queries = useSolanaQueries();
+  
+  // Compose and return unified interface
+  return {
+    ...admin,
+    ...rooms,
+    ...prizes,
+    ...queries,
+    // Connection state
+    publicKey: context.publicKey,
+    connected: context.connected,
+    isReady: context.isReady,
+  };
+}
+```
 
 ### Shared Utilities
 
-All shared utilities have been moved to `src/shared/lib/solana/`:
+All shared utilities are in `src/shared/lib/solana/`:
 - **`config.ts`**: Network configuration, program ID, token mints, PDA seeds
 - **`transaction-helpers.ts`**: Transaction simulation, validation, error formatting
 - **`pda.ts`**: PDA derivation utilities
@@ -26,20 +94,16 @@ All shared utilities have been moved to `src/shared/lib/solana/`:
 
 ### API Modules
 
-All contract operations are extracted to `src/features/web3/solana/api/`:
-- **`admin/`**: Admin operations (initialize config, add tokens, etc.)
-- **`room/`**: Room operations (create, get info, cleanup)
+All contract operations are in `src/features/web3/solana/api/`:
+- **`admin/`**: Admin operations (initialize config, add tokens, recover room, etc.)
+- **`room/`**: Room operations (create pool/asset rooms, get info, cleanup, close joining)
 - **`player/`**: Player operations (join room, get entry)
-- **`prizes/`**: Prize operations (distribute, deposit assets, declare winners)
+- **`prizes/`**: Prize operations (distribute, deposit assets, declare winners, end room)
 
 ### Implementation Details
 
 Low-level implementations are in `src/features/web3/solana/lib/`:
-
-### Migration Scripts
-
-One-time migration scripts are in `scripts/solana/`:
-- **`cleanup-old-registry.ts`**: Cleanup utility for old token registry accounts
+- **`solana-asset-room.ts`**: Asset room specific logic
 
 ## Status
 
@@ -56,6 +120,7 @@ All features are implemented and production-ready:
 - ✅ Automatic token account creation
 - ✅ Prize distribution with token account management
 - ✅ Transaction validation and error handling
+- ✅ Modular architecture with domain-specific hooks
 
 ## Features
 
@@ -106,32 +171,19 @@ The Solana program is built using the Anchor framework and implements a comprehe
 
 ### Program Derived Addresses (PDAs)
 
-All accounts use PDAs for security and determinism:
+All accounts use PDAs for security and determinism. PDA derivation utilities are in `@/shared/lib/solana/pda`:
 
 ```typescript
-// GlobalConfig PDA
-const [globalConfig] = PublicKey.findProgramAddressSync(
-  [Buffer.from('global-config')],
-  PROGRAM_ID
-);
+import { deriveRoomPDA, deriveRoomVaultPDA, derivePlayerEntryPDA } from '@/shared/lib/solana/pda';
 
 // Room PDA
-const [room] = PublicKey.findProgramAddressSync(
-  [Buffer.from('room'), host.toBuffer(), Buffer.from(roomId)],
-  PROGRAM_ID
-);
+const [room] = deriveRoomPDA(hostPubkey, roomId);
 
 // RoomVault PDA
-const [roomVault] = PublicKey.findProgramAddressSync(
-  [Buffer.from('room-vault'), room.toBuffer()],
-  PROGRAM_ID
-);
+const [roomVault] = deriveRoomVaultPDA(roomPubkey);
 
 // PlayerEntry PDA
-const [playerEntry] = PublicKey.findProgramAddressSync(
-  [Buffer.from('player-entry'), room.toBuffer(), player.toBuffer()],
-  PROGRAM_ID
-);
+const [playerEntry] = derivePlayerEntryPDA(roomPubkey, playerPubkey);
 ```
 
 ### Economic Model
@@ -184,73 +236,13 @@ The system automatically handles token account creation for all recipients:
 - **Winner Token Accounts**: Created if missing for each winner
 - **Prize Asset Accounts**: Created if missing for asset-based rooms
 
-#### Implementation
-
-```typescript
-// Helper function to check and create token accounts
-const ensureTokenAccountExists = async (
-  tokenAccount: PublicKey,
-  owner: PublicKey,
-  mint: PublicKey,
-  accountName: string
-): Promise<TransactionInstruction | null> => {
-  try {
-    // Check if account exists
-    const account = await getAccount(connection, tokenAccount, 'confirmed');
-    // Verify it's for the correct mint
-    if (!account.mint.equals(mint)) {
-      throw new Error(`Token account exists but for wrong mint`);
-    }
-    return null; // Account exists
-  } catch (error) {
-    // Account doesn't exist, create it
-    if (error.name === 'TokenAccountNotFoundError') {
-      return createAssociatedTokenAccountInstruction(
-        payer,        // Host (pays for account creation)
-        tokenAccount, // ATA address
-        owner,        // Account owner
-        mint          // Token mint
-      );
-    }
-    throw error;
-  }
-};
-```
-
-#### Transaction Structure
-
-```typescript
-// 1. Check and create token accounts
-const tokenAccountCreationInstructions = [];
-// ... check all accounts and collect creation instructions
-
-// 2. Add creation instructions to transaction
-tokenAccountCreationInstructions.forEach(ix => tx.add(ix));
-
-// 3. Add endRoom instruction
-const endRoomIx = await program.methods
-  .endRoom(roomId, winners)
-  .accounts({...})
-  .instruction();
-tx.add(endRoomIx);
-
-// 4. Simulate and send
-await simulateTransaction(connection, tx);
-await sendTransaction(tx);
-```
+All account creation instructions are included in the same transaction as prize distribution, ensuring atomic execution.
 
 ## Transaction Safety
 
 ### Transaction Simulation
 
-All transactions are simulated before execution to prevent failures:
-
-```typescript
-const simResult = await simulateTransaction(connection, tx);
-if (!simResult.success) {
-  throw new Error(`Transaction would fail: ${simResult.error}`);
-}
-```
+All transactions are simulated before execution to prevent failures. Simulation utilities are in `@/shared/lib/solana/transaction-helpers`.
 
 ### Input Validation
 
@@ -266,23 +258,14 @@ if (prizePoolBps > maxPrizePoolBps) {
 
 ### Error Handling
 
-Common errors are caught and formatted for user feedback:
-
-```typescript
-try {
-  await distributePrizes({ roomId, winners });
-} catch (error) {
-  const formattedError = formatTransactionError(error);
-  console.error(formattedError.message);
-}
-```
+Common errors are caught and formatted for user feedback. Error formatting utilities are in `@/shared/lib/solana/transaction-helpers`.
 
 ## Code Examples
 
 ### Room Creation
 
 ```typescript
-import { useSolanaContract } from './useSolanaContract';
+import { useSolanaContract } from '@/chains/solana/useSolanaContract';
 
 function CreateRoom() {
   const { createPoolRoom } = useSolanaContract();
@@ -291,12 +274,13 @@ function CreateRoom() {
     try {
       const result = await createPoolRoom({
         roomId: 'my-room-123',
-        entryFee: 1.0, // 1 USDC
+        entryFee: new BN(1_000_000), // 1 USDC (6 decimals)
         hostFeeBps: 100, // 1%
         prizePoolBps: 3900, // 39% (max with 1% host fee)
         maxPlayers: 100,
         feeTokenMint: USDC_MINT,
         charityWallet: charityAddress,
+        prizeDistribution: [50, 30, 20], // 50% 1st, 30% 2nd, 20% 3rd
       });
       console.log('Room created:', result.room);
     } catch (error) {
@@ -311,7 +295,7 @@ function CreateRoom() {
 ### Joining a Room
 
 ```typescript
-import { useSolanaContract } from './useSolanaContract';
+import { useSolanaContract } from '@/chains/solana/useSolanaContract';
 
 function JoinRoom() {
   const { joinRoom } = useSolanaContract();
@@ -320,9 +304,11 @@ function JoinRoom() {
     try {
       const result = await joinRoom({
         roomId: 'my-room-123',
-        roomAddress: roomPDA,
-        entryFee: 1.0,
+        // Optional: provide these to avoid on-chain lookups
+        hostPubkey: hostKey,
+        entryFee: new BN(1_000_000),
         feeTokenMint: USDC_MINT,
+        extrasAmount: new BN(500_000), // Optional extra donation
       });
       console.log('Joined room:', result.signature);
     } catch (error) {
@@ -337,20 +323,24 @@ function JoinRoom() {
 ### Prize Distribution
 
 ```typescript
-import { useSolanaContract } from './useSolanaContract';
+import { useSolanaContract } from '@/chains/solana/useSolanaContract';
 
 function DistributePrizes() {
-  const { distributePrizes } = useSolanaContract();
+  const { declareWinners, distributePrizes } = useSolanaContract();
 
   const handleDistributePrizes = async () => {
     try {
+      // First declare winners
+      await declareWinners({
+        roomId: 'my-room-123',
+        hostPubkey: myPublicKey,
+        winners: [winner1, winner2, winner3],
+      });
+
+      // Then distribute prizes
       const result = await distributePrizes({
         roomId: 'my-room-123',
-        winners: [
-          'winner1...',
-          'winner2...',
-          'winner3...',
-        ],
+        winners: [winner1, winner2, winner3],
       });
       console.log('Prizes distributed:', result.signature);
     } catch (error) {
@@ -365,24 +355,29 @@ function DistributePrizes() {
 ### Asset-Based Rooms
 
 ```typescript
-import { useSolanaContract } from './useSolanaContract';
-import { createAssetRoom } from '@/features/web3/solana/api/room';
+import { useSolanaContract } from '@/chains/solana/useSolanaContract';
 
 function CreateAssetRoom() {
-  const { connection, wallet } = useSolanaWallet();
+  const { createAssetRoom, depositPrizeAsset } = useSolanaContract();
 
   const handleCreateAssetRoom = async () => {
     try {
+      // Create asset room
       const result = await createAssetRoom({
-        roomId: 'my-asset-room-123',
-        host: wallet.publicKey,
-        prizeAssets: [
-          { mint: nftMint1, amount: new BN(1) },
-          { mint: nftMint2, amount: new BN(1) },
-          { mint: tokenMint, amount: new BN(1000) },
-        ],
+        roomId: 'nft-raffle',
+        entryFee: new BN(1_000_000), // Entry fee for platform/host/charity
+        maxPlayers: 50,
+        feeTokenMint: USDC_MINT,
+        charityWallet: charityAddress,
       });
       console.log('Asset room created:', result.room);
+
+      // Deposit prize assets
+      await depositPrizeAsset({
+        roomId: 'nft-raffle',
+        assetMint: nftMint,
+        amount: new BN(1), // 1 NFT
+      });
     } catch (error) {
       console.error('Failed to create asset room:', error);
     }
@@ -396,41 +391,41 @@ function CreateAssetRoom() {
 
 ### Program ID
 
+Configuration is in `@/shared/lib/solana/config`:
+
 ```typescript
-// Devnet
-export const PROGRAM_ID = new PublicKey('8W83G9mSeoQ6Ljcz5QJHYPjH2vQgw94YeVCnpY6KFt7i');
+import { PROGRAM_ID } from '@/shared/lib/solana/config';
+
+// Devnet Program ID
+// 8W83G9mSeoQ6Ljcz5QJHYPjH2vQgw94YeVCnpY6KFt7i
 ```
 
 ### RPC Endpoints
 
 ```typescript
-export const RPC_ENDPOINTS = {
-  'devnet': 'https://api.devnet.solana.com',
-  'testnet': 'https://api.testnet.solana.com',
-  'mainnet-beta': 'https://api.mainnet-beta.solana.com',
-};
+import { getRpcEndpoint, NETWORK } from '@/shared/lib/solana/config';
+
+// Get RPC endpoint for current network
+const endpoint = getRpcEndpoint(NETWORK);
 ```
 
 ### Token Mints
 
 ```typescript
-// Devnet
-export const TOKEN_MINTS = {
-  USDC: new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU'),
-  PYUSD: new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU'),
-  USDT: new PublicKey('EJwZgeZrdC8TXTQbQBoL6bfuAnFUUy1PVCMB4DYPzVaS'),
-  SOL: new PublicKey('So11111111111111111111111111111111111111112'),
-};
+import { getTokenMints } from '@/shared/lib/solana/config';
+
+// Get token mints for current network
+const { USDC, PYUSD, USDT, SOL } = getTokenMints();
 ```
 
 ### Fee Configuration
 
 ```typescript
-export const FEES = {
-  PLATFORM_BPS: 2000, // 20%
-  MAX_HOST_BPS: 500,   // 5%
-  MAX_COMBINED_BPS: 4000, // 40%
-};
+// Fee structure is enforced on-chain
+// Platform: 20% (fixed)
+// Host: 0-5% (configurable)
+// Prize Pool: 0-35% (max = 40% - host fee)
+// Charity: Minimum 40% (remainder)
 ```
 
 ## Error Handling
@@ -446,15 +441,16 @@ export const FEES = {
 
 ### Error Formatting
 
+Error formatting utilities are in `@/shared/lib/solana/transaction-helpers`:
+
 ```typescript
-import { formatTransactionError } from './transactionHelpers';
+import { formatTransactionError } from '@/shared/lib/solana/transaction-helpers';
 
 try {
   await createPoolRoom({...});
 } catch (error) {
   const formatted = formatTransactionError(error);
   console.error(formatted.message);
-  // User-friendly error message
 }
 ```
 
@@ -475,7 +471,7 @@ try {
 ### Joining Room Flow
 
 1. Validate inputs (room ID, entry fee)
-2. Fetch room account
+2. Fetch room account (or use provided room PDA)
 3. Validate room state (not ended, not full)
 4. Derive PlayerEntry PDA
 5. Get user's token account
@@ -509,6 +505,37 @@ try {
 
 ## Import Paths
 
+### Main Hook (Recommended)
+
+```typescript
+import { useSolanaContract } from '@/chains/solana/useSolanaContract';
+
+const {
+  createPoolRoom,
+  createAssetRoom,
+  joinRoom,
+  distributePrizes,
+  getRoomInfo,
+  getPlayerEntry,
+  // ... all other operations
+} = useSolanaContract();
+```
+
+### Domain Hooks (Advanced)
+
+For advanced use cases, you can use domain hooks directly:
+
+```typescript
+import { useSolanaAdmin } from '@/chains/solana/hooks/useSolanaAdmin';
+import { useSolanaRooms } from '@/chains/solana/hooks/useSolanaRooms';
+import { useSolanaPrizes } from '@/chains/solana/hooks/useSolanaPrizes';
+import { useSolanaQueries } from '@/chains/solana/hooks/useSolanaQueries';
+
+// Use specific domain hooks
+const admin = useSolanaAdmin();
+const rooms = useSolanaRooms();
+```
+
 ### Shared Utilities
 
 ```typescript
@@ -519,7 +546,7 @@ import { PROGRAM_ID, NETWORK, getTokenMints, PDA_SEEDS } from '@/shared/lib/sola
 import { simulateTransaction, formatTransactionError } from '@/shared/lib/solana/transaction-helpers';
 
 // PDA derivation
-import { deriveRoomPDA, deriveRoomVaultPDA } from '@/shared/lib/solana/pda';
+import { deriveRoomPDA, deriveRoomVaultPDA, derivePlayerEntryPDA } from '@/shared/lib/solana/pda';
 
 // Token accounts
 import { getOrCreateATA, getAssociatedTokenAccountAddress } from '@/shared/lib/solana/token-accounts';
@@ -528,51 +555,15 @@ import { getOrCreateATA, getAssociatedTokenAccountAddress } from '@/shared/lib/s
 import { buildTransaction, sendWithRetry } from '@/shared/lib/solana/transactions';
 ```
 
-### API Modules
+### API Modules (Direct Usage)
 
-```typescript
-// Room operations
-import { createPoolRoom, createAssetRoom, getRoomInfo } from '@/features/web3/solana/api/room';
-
-// Player operations
-import { joinRoom, getPlayerEntry } from '@/features/web3/solana/api/player';
-
-// Prize operations
-import { distributePrizes, depositPrizeAsset } from '@/features/web3/solana/api/prizes';
-
-// Admin operations
-import { initializeGlobalConfig, addApprovedToken } from '@/features/web3/solana/api/admin';
-```
-
-## Usage
-
-### React Hook (Recommended)
-
-```typescript
-import { useSolanaContract } from '@/chains/solana/useSolanaContract';
-
-function QuizPayment() {
-  const { 
-    createPoolRoom,
-    joinRoom,
-    distributePrizes,
-    getRoomInfo,
-    isConnected,
-    publicKey
-  } = useSolanaContract();
-  
-  // Implementation
-}
-```
-
-### Direct API Usage
-
-For non-React contexts or advanced use cases, you can use the API modules directly:
+For non-React contexts or advanced use cases:
 
 ```typescript
 import { createPoolRoom } from '@/features/web3/solana/api/room';
 import { joinRoom } from '@/features/web3/solana/api/player';
 import { distributePrizes } from '@/features/web3/solana/api/prizes';
+import { initializeGlobalConfig } from '@/features/web3/solana/api/admin';
 
 // Create context
 const context: SolanaContractContext = {
@@ -584,7 +575,7 @@ const context: SolanaContractContext = {
   connection,
 };
 
-// Use API modules
+// Use API modules directly
 const result = await createPoolRoom(context, params);
 await joinRoom(context, joinParams);
 await distributePrizes(context, prizeParams);
@@ -614,20 +605,6 @@ This checks:
 - PDA seeds match frontend constants
 - Account structures are compatible
 
-### Debug IDL Issues
-
-```typescript
-import { debugIDLCompatibility, printCompatibilityReport } from '@/shared/lib/solana/debug-idl';
-import BingoIDL from '@/idl/solana_bingo.json';
-
-// Get detailed compatibility report
-const report = debugIDLCompatibility(BingoIDL);
-console.log(report);
-
-// Or print formatted report
-printCompatibilityReport(BingoIDL);
-```
-
 ## Reference Documentation
 
 - [Solana Program Source Code](../../../../bingo-solana-contracts/bingo/programs/bingo/src/lib.rs)
@@ -637,7 +614,13 @@ printCompatibilityReport(BingoIDL);
 
 ## Recent Updates
 
-### Token Account Creation (Latest)
+### Modular Architecture Refactoring
+- **Change**: Refactored `useSolanaContract.ts` from 961 lines to 243 lines
+- **Structure**: Split into domain hooks (admin, rooms, prizes, queries), types, and utilities
+- **Impact**: Improved maintainability, better code organization, enhanced documentation
+- **Compatibility**: 100% backward compatible - no changes needed to existing code
+
+### Token Account Creation
 - **Issue**: Prize distribution failed when recipient token accounts didn't exist
 - **Fix**: Automatic token account creation before prize distribution
 - **Impact**: Prize distribution now works even when token accounts don't exist

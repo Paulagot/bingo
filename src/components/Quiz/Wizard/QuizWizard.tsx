@@ -2,12 +2,12 @@
 import {  useMemo } from 'react';
 import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
 
-import StepFundraisingOptions from './StepFundraisingOptions';
-import StepReviewLaunch from './StepReviewLaunch';
-import StepPrizes from './StepPrizes';
+import StepFundraisingOptions from './StepFundraisingOptions/index';
+import StepReviewLaunch from './StepReviewLaunch/index';
+import StepPrizes from './StepPrizes/index';
 import StepQuizSetup from './StepQuizSetup';
-import StepQuizTemplates from './StepQuizTemplates'; // NEW COMPONENT
-import StepCombinedRounds from './StepCombinedRounds';
+import StepQuizTemplates from './StepQuizTemplates';
+import StepCombinedRounds from './StepCombinedRounds/index';
 import EntitlementsBar from './EntitlementsBar';
 import { useEntitlements } from '../hooks/useEntitlements';
 

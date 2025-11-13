@@ -182,8 +182,8 @@ export async function distributePrizes(
   for (const winner of params.winners) {
     const winnerPubkey = typeof winner === 'string' ? new PublicKey(winner) : winner;
     try {
-      // getAssociatedTokenAccountAddress is synchronous (no await needed)
-      const winnerATA = getAssociatedTokenAccountAddress(
+      // getAssociatedTokenAccountAddress is now async in newer versions
+      const winnerATA = await getAssociatedTokenAccountAddress(
         feeTokenMint,
         winnerPubkey
       );
@@ -200,8 +200,8 @@ export async function distributePrizes(
   // Derive charity token account with validation and error handling
   let charityTokenAccount: PublicKey;
   try {
-    // getAssociatedTokenAccountAddress is synchronous (no await needed)
-    charityTokenAccount = getAssociatedTokenAccountAddress(
+    // getAssociatedTokenAccountAddress is now async in newer versions
+    charityTokenAccount = await getAssociatedTokenAccountAddress(
       feeTokenMint,
       charityWallet
     );
@@ -226,8 +226,8 @@ export async function distributePrizes(
   // Derive platform token account
   let platformTokenAccount: PublicKey;
   try {
-    // getAssociatedTokenAccountAddress is synchronous (no await needed)
-    platformTokenAccount = getAssociatedTokenAccountAddress(
+    // getAssociatedTokenAccountAddress is now async in newer versions
+    platformTokenAccount = await getAssociatedTokenAccountAddress(
       feeTokenMint,
       platformWallet
     );
@@ -241,8 +241,8 @@ export async function distributePrizes(
   // Derive host token account
   let hostTokenAccount: PublicKey;
   try {
-    // getAssociatedTokenAccountAddress is synchronous (no await needed)
-    hostTokenAccount = getAssociatedTokenAccountAddress(
+    // getAssociatedTokenAccountAddress is now async in newer versions
+    hostTokenAccount = await getAssociatedTokenAccountAddress(
       feeTokenMint,
       roomAccount.host as PublicKey
     );
