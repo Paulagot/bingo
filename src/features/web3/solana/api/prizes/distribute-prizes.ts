@@ -258,8 +258,9 @@ export async function distributePrizes(
     typeof w === 'string' ? new PublicKey(w) : w
   );
 
-  const distributePrizesIx = await (program.methods as any)
-    .distributePrizes(params.roomId, winnerPubkeys)
+  // Use endRoom method (which distributes prizes) - this is the correct method name from the IDL
+  const distributePrizesIx = await program.methods
+    .endRoom(params.roomId, winnerPubkeys)
     .accounts({
       room: roomPDA,
       roomVault,
@@ -267,7 +268,7 @@ export async function distributePrizes(
       charityTokenAccount,
       platformTokenAccount,
       hostTokenAccount,
-      caller: publicKey,
+      host: publicKey,
       tokenProgram: TOKEN_PROGRAM_ID,
     })
     .remainingAccounts([

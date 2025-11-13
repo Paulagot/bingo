@@ -47,7 +47,7 @@
  * use the hook interface directly.
  */
 
-import type { BN } from '@coral-xyz/anchor';
+import { BN } from '@coral-xyz/anchor';
 import type {
   RoomInfo,
   PlayerEntryInfo,
