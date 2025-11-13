@@ -211,16 +211,10 @@ export async function getAssociatedTokenAccountAddress(
   }
 
   try {
-<<<<<<< Updated upstream
-    // getATAAddress is synchronous in @solana/spl-token v0.4.13
-    // It returns a PublicKey directly, but may return a Promise in some versions
-    const ataAddressResult = getATAAddress(
-=======
     // getATAAddress may be async in newer versions of @solana/spl-token
     // Handle both sync and async versions by wrapping in Promise.resolve
     // This works whether getATAAddress returns a value or a Promise
     const result = getATAAddress(
->>>>>>> Stashed changes
       mint,
       owner,
       allowOwnerOffCurve,
@@ -228,19 +222,8 @@ export async function getAssociatedTokenAccountAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID
     );
     
-<<<<<<< Updated upstream
-    // Handle Promise case (some versions return Promise)
-    // Note: This is synchronous, so if it's a Promise, we'll need to handle it differently
-    // For now, check if it's a Promise and throw a helpful error
-    if (ataAddressResult instanceof Promise) {
-      throw new Error(
-        `getATAAddress returned a Promise. This function is synchronous. ` +
-        `mint: ${mintAddress}, owner: ${ownerAddress}. ` +
-        `Please use the async version or update @solana/spl-token version.`
-      );
-    }
-    
-    const ataAddress = ataAddressResult;
+    // If it's a Promise, await it; otherwise use the value directly
+    const ataAddress = result instanceof Promise ? await result : result;
     
     // Check for empty object first (this is the reported error case)
     if (ataAddress && typeof ataAddress === 'object' && Object.keys(ataAddress).length === 0) {
@@ -250,10 +233,6 @@ export async function getAssociatedTokenAccountAddress(
         `Please verify the mint and owner are valid PublicKey instances.`
       );
     }
-=======
-    // If it's a Promise, await it; otherwise use the value directly
-    const ataAddress = result instanceof Promise ? await result : result;
->>>>>>> Stashed changes
     
     // getATAAddress should return a PublicKey
     if (ataAddress instanceof PublicKey) {
@@ -277,19 +256,11 @@ export async function getAssociatedTokenAccountAddress(
       return pubkey instanceof PublicKey ? pubkey : new PublicKey(pubkey);
     }
     
-<<<<<<< Updated upstream
-    throw new Error(
-      `getATAAddress returned invalid type: ${typeof ataAddress}. ` +
-      `Value: ${JSON.stringify(ataAddress)}. ` +
-      `mint: ${mintAddress}, owner: ${ownerAddress}`
-=======
-    // This should never happen since we await Promise.resolve()
-    // But if it does, provide a helpful error message
+    // This should never happen, but if it does, provide a helpful error message
     throw new Error(
       `getATAAddress returned unexpected type: ${typeof ataAddress}. ` +
-      `Expected PublicKey. mint: ${mint.toBase58()}, owner: ${owner.toBase58()}. ` +
+      `Expected PublicKey. mint: ${mintAddress}, owner: ${ownerAddress}. ` +
       `Value: ${JSON.stringify(ataAddress)}`
->>>>>>> Stashed changes
     );
   } catch (error: any) {
     // If it's already our custom error, re-throw it
@@ -307,19 +278,11 @@ export async function getAssociatedTokenAccountAddress(
         `Original error: ${error.message}`
       );
     }
-<<<<<<< Updated upstream
-    
     // Wrap other errors with context
     throw new Error(
       `Failed to get associated token account address: ${error.message}. ` +
       `mint: ${mintAddress}, owner: ${ownerAddress}`
     );
-=======
-    if (error.message?.includes('returned a Promise') || error.message?.includes('Promise')) {
-      throw error;
-    }
-    throw error;
->>>>>>> Stashed changes
   }
 }
 
