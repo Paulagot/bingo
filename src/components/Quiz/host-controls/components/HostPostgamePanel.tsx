@@ -1,5 +1,5 @@
 // HostPostgamePanel.tsx
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { Loader, Trophy, Crown, Medal, Award } from 'lucide-react';
 import FinalQuizStats from '../components/FinalQuizStats';
 import { Web3PrizeDistributionRouter } from '../prizes/Web3PrizeDistributionRouter';
@@ -91,6 +91,29 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
 
   // 🆕 NEW: Track when prizes are successfully distributed
   const [prizeDistributionComplete, setPrizeDistributionComplete] = React.useState(false);
+
+  // 🆕 NEW: Memoize onStatusChange callback to prevent infinite loop
+  // The callback was being recreated on every render, causing Web3PrizeDistributionPanel's
+  // useEffect to run continuously because onStatusChange was in its dependency array
+  const handleStatusChange = useCallback((status: 'idle' | 'running' | 'success' | 'failed') => {
+    console.log('🎯 Prize Router Status:', status);
+    
+    // Move phase based on router status
+    // Only call onPhaseChange if we're not already in the desired phase to prevent loops
+    if (status === 'running' && phase !== 'distributing_prizes') {
+      onPhaseChange?.('distributing_prizes');
+    }
+    
+    if (status === 'success' && phase !== 'complete') {
+      onPhaseChange?.('complete');
+      // 🆕 Mark distribution as complete to trigger cleanup timer
+      setPrizeDistributionComplete(true);
+    }
+    
+    if ((status === 'idle' || status === 'failed') && phase !== 'complete') {
+      onPhaseChange?.('complete');
+    }
+  }, [onPhaseChange, phase]); // Include phase to check current state before changing
 
   // 🆕 NEW: Auto-cleanup after successful prize distribution
   useEffect(() => {
@@ -251,24 +274,7 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
           <Web3PrizeDistributionRouter
             roomId={roomId}
             leaderboard={leaderboard}
-            onStatusChange={(status) => {
-              console.log('🎯 Prize Router Status:', status);
-              
-              // Move phase based on router status
-              if (status === 'running') {
-                onPhaseChange?.('distributing_prizes');
-              }
-              
-              if (status === 'success') {
-                onPhaseChange?.('complete');
-                // 🆕 Mark distribution as complete to trigger cleanup timer
-                setPrizeDistributionComplete(true);
-              }
-              
-              if (status === 'idle' || status === 'failed') {
-                onPhaseChange?.('complete');
-              }
-            }}
+            onStatusChange={handleStatusChange}
           />
         </div>
       )}
