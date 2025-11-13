@@ -783,7 +783,9 @@ socket.on('end_quiz_and_distribute_prizes', async ({ roomId }) => {
           
           if (useMockMode) {
             // Mock Solana address for development/testing
-            charityWalletAddress = '7q1Z6dQexV9HcZ7q1Z6dQexV9HcZ7q1Z6dQexV9HcZ7';
+            // Valid Solana PublicKey format - System Program address (valid base58, 32-44 chars)
+            // This is a valid test address that can be used for mock purposes
+            charityWalletAddress = '11111111111111111111111111111111';
             if (debug) {
               console.log(`[Host] ✅ Using mock TGB wallet address (mock mode): ${charityWalletAddress}`);
             }

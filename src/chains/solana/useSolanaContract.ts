@@ -274,29 +274,44 @@ function toPlayerEntryInfoExtended(playerEntry: PlayerEntryInfo | null): PlayerE
 // ============================================================================
 
 export function useSolanaContract() {
-  // Check if WalletProvider exists - useContext is safe to call
+  // Check if WalletProvider exists - useContext is safe to call and won't throw
+  // It returns DEFAULT_CONTEXT if no provider is mounted
   const walletContext = useContext(WalletContext);
-  const hasWalletProvider = walletContext !== undefined && walletContext !== null;
-
+  
   // Hooks MUST be called unconditionally (Rules of Hooks)
-  // But useConnection and useWallet will throw if WalletProvider is not mounted
-  // We handle this by checking context first and returning early if no provider
-  if (!hasWalletProvider) {
-    // Provider doesn't exist - return safe defaults
-    // We still need to call hooks to satisfy Rules of Hooks, but we'll ignore the error
-    try {
-      useConnection(); // Called but will throw - we ignore it
-      useWallet(); // Called but will throw - we ignore it
-    } catch {
-      // Expected - provider doesn't exist
-    }
+  // useConnection and useWallet return default contexts if provider doesn't exist
+  // They don't throw, but accessing properties on default context logs errors
+  const connectionContext = useConnection();
+  const wallet = useWallet();
+  
+  // Check if we have a real provider by checking connection
+  // Default connection context is {} (empty object cast as ConnectionContextState)
+  // At runtime, connectionContext.connection is undefined for default context
+  // Real provider has a valid Connection object with rpcEndpoint property
+  // We can safely check if connection exists without triggering error logs
+  const hasRealConnection = 
+    connectionContext &&
+    connectionContext.connection !== undefined &&
+    connectionContext.connection !== null &&
+    typeof connectionContext.connection === 'object' &&
+    'rpcEndpoint' in connectionContext.connection;
+  
+  // If no real connection, return safe defaults immediately
+  // This prevents accessing wallet.publicKey which would trigger error logs
+  if (!hasRealConnection) {
+    // No provider - return safe defaults immediately
+    // Don't access wallet.publicKey or other properties that trigger error logs
     return createSafeDefaultReturn();
   }
 
-  // Provider exists - safe to use hooks
-  const { connection } = useConnection();
-  const wallet = useWallet();
-  const { publicKey, signTransaction } = wallet;
+  // Provider exists - safe to access properties
+  // Note: Accessing wallet.publicKey might still log error if wallet not connected,
+  // but that's expected behavior and won't cause render loops (only logs, doesn't throw)
+  const { connection } = connectionContext;
+  // Safe to access wallet properties now since we have a real provider
+  // Even if wallet is not connected, publicKey will be null (not trigger error)
+  const publicKey = wallet.publicKey;
+  const signTransaction = wallet.signTransaction;
 
   // Memoize provider - only recreate when wallet/connection changes
   const provider = useMemo(() => {
