@@ -56,7 +56,9 @@ function mockEvmAddress() {
   return '0xb7ACd1159dBed96B955C4d856fc001De9be59844';
 }
 function mockSolAddress() {
-  return '7q1Z6dQexV9HcZ7q1Z6dQexV9HcZ7q1Z6dQexV9HcZ7';
+  // Valid Solana PublicKey format - System Program address (valid base58, 32-44 chars)
+  // This is a valid test address that can be used for mock purposes
+  return '11111111111111111111111111111111';
 }
 function mockStellarAddress() {
   return 'GCF3Z7C6WJ6QX5M3Q7C7J2E6YJ5N4M2Q1P8R7T6U5S4R3Q2P1O';
