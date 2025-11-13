@@ -33,6 +33,7 @@ import {
 } from '@/shared/lib/solana/token-accounts';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { buildTransaction } from '@/shared/lib/solana/transactions';
+import { simulateTransaction, formatTransactionError } from '@/shared/lib/solana/transaction-helpers';
 
 // Phase 2 types
 import type { SolanaContractContext } from '@/features/web3/solana/model/types';
@@ -382,14 +383,43 @@ export async function joinRoom(
     connection,
     instructions,
     feePayer: publicKey,
-    commitment: 'confirmed',
+    commitment: 'finalized',
+  });
+
+  // Simulate transaction before sending to wallet to ensure it's valid
+  // This helps catch errors early and ensures the wallet preview is accurate
+  // Note: Some wallets may show incorrect previews for transactions that create accounts
+  // (like ATA creation) and then use them in the same transaction. Our simulation
+  // validates the transaction will succeed, but the wallet's preview might still be incorrect.
+  console.log('[joinRoom] 🔍 Simulating transaction before sending to wallet...');
+  const simResult = await simulateTransaction(connection, transaction);
+  
+  if (!simResult.success) {
+    console.error('[joinRoom] ❌ Transaction simulation failed:', simResult.error);
+    console.error('[joinRoom] Simulation logs:', simResult.logs);
+    const errorMessage = formatTransactionError(simResult.error) || 'Transaction simulation failed';
+    throw new Error(`Transaction validation failed: ${errorMessage}. Please check your balance and try again.`);
+  }
+
+  console.log('[joinRoom] ✅ Transaction simulation succeeded');
+  console.log('[joinRoom] Estimated compute units:', simResult.unitsConsumed);
+
+  // Rebuild transaction with fresh blockhash before sending to wallet
+  // This ensures the wallet uses the latest blockhash, which helps with accurate previews
+  const freshTransaction = await buildTransaction({
+    connection,
+    instructions,
+    feePayer: publicKey,
+    commitment: 'finalized',
   });
 
   // Send and confirm using Anchor provider (handles signing automatically)
-  const signature = await provider.sendAndConfirm(transaction, [], {
-    skipPreflight: false,
+  console.log('[joinRoom] 📤 Sending transaction to wallet for signing...');
+  const signature = await provider.sendAndConfirm(freshTransaction, [], {
     commitment: 'confirmed',
   });
+  
+  console.log('[joinRoom] ✅ Transaction sent and confirmed:', signature);
 
   return {
     signature,
