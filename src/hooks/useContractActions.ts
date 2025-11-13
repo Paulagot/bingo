@@ -677,8 +677,9 @@ export function useContractActions(opts?: Options) {
 
               const charityAmtDecimal = bigintToDecimalString(charityAmt, decimals);
 
-              const mockParam = process.env.NODE_ENV !== 'production' ? '?mock=1' : '';
-              const resp = await fetch(`/api/tgb/create-deposit-address${mockParam}`, {
+             
+           const mockParam = process.env.NODE_ENV !== 'production' ? '?mock=1' : '';
+const resp = await fetch(`/api/tgb/create-deposit-address${mockParam}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
