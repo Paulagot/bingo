@@ -223,9 +223,14 @@ export async function createAssetRoom(
   // Note: These use PROGRAM_ID from config, which should match program.programId
   const [globalConfig] = deriveGlobalConfigPDA();
   
-  // Derive tokenRegistry PDA - CRITICAL: Must use the same programId as other PDAs
+  // Derive tokenRegistry PDA - CRITICAL: Must use program.programId to match Anchor's derivation
   // The IDL constraint is: seeds = ["token-registry-v4"] (matches Rust contract)
-  const [tokenRegistry, tokenRegistryBump] = deriveTokenRegistryPDA();
+  // Note: We use programId directly instead of deriveTokenRegistryPDA() to ensure
+  // we're using the exact programId from the program instance (matches create-pool-room.ts)
+  const [tokenRegistry, tokenRegistryBump] = PublicKey.findProgramAddressSync(
+    [Buffer.from('token-registry-v4')],
+    programId
+  );
   
   // Verify the token registry account exists and is owned by the program
   // If it doesn't exist, Anchor will fail the constraint check
@@ -292,11 +297,9 @@ export async function createAssetRoom(
   }
 
   // Build init_asset_room instruction
-  // Note: For PDAs with constraints in the IDL, Anchor will automatically derive and validate them
-  // We should NOT pass tokenRegistry explicitly - let Anchor auto-derive it from the IDL constraint
-  // This prevents ConstraintSeeds validation errors
+  // CRITICAL: We explicitly pass tokenRegistry derived with program.programId to match Anchor's derivation
   // The IDL has a PDA constraint for token_registry with seeds: ["token-registry-v4"] (matches Rust contract)
-  // Anchor will automatically derive it using program.programId, so we don't pass it
+  // By deriving it with program.programId and passing it explicitly, Anchor can validate the constraint correctly
   // @ts-expect-error - program.methods is always defined for valid Program instances
   const initAssetRoomIx = await program.methods
     .initAssetRoom(
@@ -319,9 +322,7 @@ export async function createAssetRoom(
       roomVault,
       feeTokenMint: params.feeTokenMint,
       globalConfig,
-        tokenRegistry,
-      // tokenRegistry is NOT passed - Anchor will auto-derive it from IDL constraint
-      // This prevents ConstraintSeeds validation errors
+      tokenRegistry, // ✅ Explicitly pass to ensure Anchor can validate the bump constraint correctly
       host: publicKey,
       systemProgram: SystemProgram.programId,
       tokenProgram: TOKEN_PROGRAM_ID,
