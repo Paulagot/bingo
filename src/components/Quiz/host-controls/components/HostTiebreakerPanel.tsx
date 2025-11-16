@@ -49,7 +49,7 @@ const HostTiebreakerPanel: React.FC<HostTiebreakerPanelProps> = ({
   const { timeLeft } = useQuizTimer({
     question: timerQuestion,
     timerActive: !!question && !showReview,
-    onTimeUp: undefined
+   
   });
 
   // Helper to get player names

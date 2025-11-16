@@ -573,7 +573,6 @@ socket.on('end_quiz_and_distribute_prizes', async ({ roomId }) => {
 
   const isWeb3Room = room.config?.paymentMethod === 'web3' || room.config?.isWeb3Room;
 
-  // Structured logging for Web3 room configuration
   logWeb3RoomConfig(roomId, room.config);
 
   if (debug) {
@@ -608,20 +607,15 @@ socket.on('end_quiz_and_distribute_prizes', async ({ roomId }) => {
 
   const { web3PrizeStructure, web3Chain } = room.config;
 
-  // Determine actual number of winners based on game logic:
-  // - If 1-3 players: all players are winners (everyone gets a prize)
-  // - If 4+ players: top 3 from leaderboard are winners
   const playerCount = finalLeaderboard.length;
   let actualWinnerCount;
 
   if (playerCount <= 3) {
-    // All players are winners by default
     actualWinnerCount = playerCount;
     if (debug) {
       console.log(`[Host] 🏆 ${playerCount} player(s) joined - all are winners by default`);
     }
   } else {
-    // 4+ players: use leaderboard rankings for top 3
     const hasSecondPrize = web3PrizeStructure?.secondPlace && web3PrizeStructure.secondPlace > 0;
     const hasThirdPrize  = web3PrizeStructure?.thirdPlace  && web3PrizeStructure.thirdPlace  > 0;
     actualWinnerCount = 1 + (hasSecondPrize ? 1 : 0) + (hasThirdPrize ? 1 : 0);
@@ -630,13 +624,12 @@ socket.on('end_quiz_and_distribute_prizes', async ({ roomId }) => {
     }
   }
 
-  // For Solana, we need to pad the winners array to 3 addresses to match the on-chain prize_distribution
-  const prizeCount = (web3Chain === 'solana') ? 3 : actualWinnerCount;
+ const prizeCount = Math.min(actualWinnerCount, playerCount);
 
   const winnerAddresses = [];
   const winnerPlayerIds = [];
-  const winnersDetailed = []; // optional: richer payload for the host UI
-  const missing = [];         // collect any missing address issues
+  const winnersDetailed = [];
+  const missing = [];
 
   if (debug) {
     console.log('[Host] 🔍 Winner mapping debug:', {
@@ -648,15 +641,10 @@ socket.on('end_quiz_and_distribute_prizes', async ({ roomId }) => {
     });
   }
 
-  // Iterate top N and map by ID
   for (let rank = 0; rank < prizeCount; rank++) {
     const entry = finalLeaderboard[rank];
 
-    // If no player exists at this rank, we still need to fill the slot for Solana
-    // Solana requires winners.len() == prize_distribution.len()
     if (!entry) {
-      // Pad with the first winner's address (they get that portion too)
-      // Or use a zero/null address - but duplicating first winner is simpler
       if (winnerAddresses.length > 0) {
         const firstWinnerAddress = winnerAddresses[0];
         winnerAddresses.push(firstWinnerAddress);
@@ -667,13 +655,13 @@ socket.on('end_quiz_and_distribute_prizes', async ({ roomId }) => {
       continue;
     }
 
-    const playerId = entry.id;          // <- stable ID from leaderboard
-    const playerName = entry.name;      // <- keep for UI and logs
+    const playerId = entry.id;
+    const playerName = entry.name;
     const addressInfo = room.web3AddressMap.get(playerId);
 
     if (!addressInfo?.address) {
       missing.push({ playerId, playerName, rank: rank + 1 });
-      continue; // don't abort entire flow; we'll handle below
+      continue;
     }
 
     winnerAddresses.push(addressInfo.address);
@@ -691,10 +679,8 @@ socket.on('end_quiz_and_distribute_prizes', async ({ roomId }) => {
     }
   }
 
-  // Log winner address mapping (includes missing addresses if any)
   logWinnerAddressMapping(roomId, winnersDetailed, missing);
 
-  // If we're missing any addresses, fail (or you could choose to continue if not 1st place)
   if (missing.length) {
     const firstMissing = missing[0];
     socket.emit('quiz_error', {
@@ -715,31 +701,12 @@ socket.on('end_quiz_and_distribute_prizes', async ({ roomId }) => {
   room.prizeDistributionStatus = 'initiated';
   room.currentPhase = 'distributing_prizes';
 
-  // Structured logging for prize distribution initiation
-  logPrizeDistributionInitiated(
-    roomId,
-    winners,
-    room.config.roomContractAddress || room.config.web3ContractAddress,
-    room.config.web3Chain,
-    winnersDetailed
-  );
+  // ✅ FIXED: Declare charityAmount OUTSIDE the try-catch block so it's accessible later
+  let charityAmount = 0;
+  let charityWalletAddress = room.config.web3CharityAddress;
 
-  if (debug) {
-    console.log(`[Host] 🎯 Prize distribution initiated:`);
-    console.log(`  - Room: ${roomId}`);
-    console.log(`  - Winners: ${winners.length}`);
-    console.log(`  - Contract: ${room.config.roomContractAddress || room.config.web3ContractAddress}`);
-    winnersDetailed.forEach(w => {
-      console.log(`    ${w.rank}. ${w.playerName} (${w.score} pts) -> ${w.address}`);
-    });
-  }
-
-  // ✅ NEW: For Solana rooms, calculate charity amount and get wallet from TGB API
-  let charityWalletAddress = room.config.web3CharityAddress; // Default for non-Solana chains
-  
   if (web3Chain === 'solana') {
     try {
-      // Calculate charity amount from room state
       const entryFee = parseFloat(room.config.entryFee || '0');
       const paidPlayers = room.players.filter((p) => p.paid && !p.disqualified);
       const totalEntryReceived = paidPlayers.length * entryFee;
@@ -755,12 +722,10 @@ socket.on('end_quiz_and_distribute_prizes', async ({ roomId }) => {
       
       const totalRaised = totalEntryReceived + totalExtrasReceived;
       
-      // Calculate charity amount based on web3PrizeSplit
-      let charityAmount = 0;
+      // ✅ FIXED: Assign to outer variable
       if (room.config.web3PrizeSplit && room.config.web3PrizeSplit.charity) {
         charityAmount = (totalRaised * room.config.web3PrizeSplit.charity) / 100;
       } else {
-        // Fallback: assume 100% to charity if no split defined
         charityAmount = totalRaised;
       }
       
@@ -774,24 +739,16 @@ socket.on('end_quiz_and_distribute_prizes', async ({ roomId }) => {
         });
       }
       
-      // Call TGB API to get wallet address
       if (charityAmount > 0 && room.config.web3CharityId) {
         try {
-          // For now, use mock mode directly to avoid build-time issues
-          // In production, this will call the actual TGB API endpoint
           const useMockMode = process.env.TGB_FORCE_MOCK === 'true' || process.env.NODE_ENV !== 'production';
           
           if (useMockMode) {
-            // Mock Solana address for development/testing
-            // Valid Solana PublicKey format - System Program address (valid base58, 32-44 chars)
-            // This is a valid test address that can be used for mock purposes
-            charityWalletAddress = '11111111111111111111111111111111';
+            charityWalletAddress = '7q1Z6dQexV9HcZ7q1Z6dQexV9HcZ7q1Z6dQexV9HcZ7';
             if (debug) {
               console.log(`[Host] ✅ Using mock TGB wallet address (mock mode): ${charityWalletAddress}`);
             }
           } else {
-            // Production: Call TGB API endpoint
-            // Use internal API call to avoid importing handler directly (prevents build issues)
             const baseUrl = process.env.BASE_URL || 'http://localhost:3001';
             const tgbResponse = await fetch(`${baseUrl}/api/tgb/create-deposit-address`, {
               method: 'POST',
@@ -850,22 +807,38 @@ socket.on('end_quiz_and_distribute_prizes', async ({ roomId }) => {
     }
   }
 
-  // You can keep sending only `winners` if that's what your frontend expects
-  // but including winnersDetailed can help the host UI.
+  logPrizeDistributionInitiated(
+    roomId,
+    winners,
+    room.config.roomContractAddress || room.config.web3ContractAddress,
+    room.config.web3Chain,
+    winnersDetailed
+  );
+
+  if (debug) {
+    console.log(`[Host] 🎯 Prize distribution initiated:`);
+    console.log(`  - Room: ${roomId}`);
+    console.log(`  - Winners: ${winners.length}`);
+    console.log(`  - Contract: ${room.config.roomContractAddress || room.config.web3ContractAddress}`);
+    winnersDetailed.forEach(w => {
+      console.log(`    ${w.rank}. ${w.playerName} (${w.score} pts) -> ${w.address}`);
+    });
+  }
+
+  // ✅ FIXED: Now charityAmount is in scope here
   socket.emit('initiate_prize_distribution', {
     roomId,
     winners,
-    winnersDetailed, // optional, safe to keep
+    winnersDetailed,
     finalLeaderboard: finalLeaderboard.slice(0, 5),
     prizeStructure: web3PrizeStructure,
     web3Chain: room.config.web3Chain || 'stellar',
     evmNetwork: room.config.evmNetwork,
     roomAddress: room.config.roomContractAddress || room.config.web3ContractAddress,
-
-    // Charity info: For Solana, this is the TGB wallet address; for other chains, it's the configured address
     charityOrgId: room.config.web3CharityId,
     charityName: room.config.web3CharityName,
-    charityAddress: charityWalletAddress, // ✅ Updated: Now includes TGB wallet for Solana
+    charityCurrency: room.config.web3Currency || 'USDC',
+    charityAmountPreview: charityAmount.toFixed(2),
   });
 
   namespace.to(roomId).emit('prize_distribution_started', {

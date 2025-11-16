@@ -4,7 +4,6 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import type { QuizConfig, RoundDefinition } from '../types/quiz';
 import { getCharityById } from '../../../chains/evm/config/charities';
 
-
 type WizardStep = 'setup' | 'templates' | 'rounds' | 'fundraising' | 'stepPrizes' | 'review';
 type WizardFlow = 'web2' | 'web3';
 
@@ -18,7 +17,14 @@ function deepMerge<T extends object>(base: T, updates: Partial<T>): T {
   const out: any = Array.isArray(base) ? [...(base as any)] : { ...(base as any) };
   for (const [k, v] of Object.entries(updates)) {
     const cur = (out as any)[k];
-    if (v && typeof v === 'object' && !Array.isArray(v) && cur && typeof cur === 'object' && !Array.isArray(cur)) {
+    if (
+      v &&
+      typeof v === 'object' &&
+      !Array.isArray(v) &&
+      cur &&
+      typeof cur === 'object' &&
+      !Array.isArray(cur)
+    ) {
       (out as any)[k] = deepMerge(cur, v as any);
     } else {
       (out as any)[k] = v as any;
@@ -28,7 +34,7 @@ function deepMerge<T extends object>(base: T, updates: Partial<T>): T {
 }
 
 interface QuizSetupState {
-  setupId: string | null;               // 🆕 pre-room collaboration key
+  setupId: string | null; // 🆕 pre-room collaboration key
   flow: WizardFlow;
   currentStep: WizardStep;
   setupConfig: Partial<QuizConfig>;
@@ -36,7 +42,7 @@ interface QuizSetupState {
   hostId: string | null;
   lastSavedAt: number | null;
 
-  ensureSetupId: () => string;          // 🆕 creates one if missing and returns it
+  ensureSetupId: () => string; // 🆕 creates one if missing and returns it
 
   setFlow: (flow: WizardFlow) => void;
   setStep: (step: WizardStep) => void;
@@ -104,19 +110,45 @@ export const useQuizSetupStore = create<QuizSetupState>()(
         })),
 
       setHostName: (hostName) =>
-        set((s) => ({ setupConfig: { ...s.setupConfig, hostName }, lastSavedAt: Date.now() })),
+        set((s) => ({
+          setupConfig: { ...s.setupConfig, hostName },
+          lastSavedAt: Date.now(),
+        })),
 
       setEntryFee: (entryFee) =>
-        set((s) => ({ setupConfig: { ...s.setupConfig, entryFee }, lastSavedAt: Date.now() })),
+        set((s) => ({
+          setupConfig: { ...s.setupConfig, entryFee },
+          lastSavedAt: Date.now(),
+        })),
 
       setCurrencySymbol: (currencySymbol) =>
-        set((s) => ({ setupConfig: { ...s.setupConfig, currencySymbol }, lastSavedAt: Date.now() })),
+        set((s) => ({
+          setupConfig: { ...s.setupConfig, currencySymbol },
+          lastSavedAt: Date.now(),
+        })),
 
       setPaymentMethod: (paymentMethod) =>
-        set((s) => ({ setupConfig: { ...s.setupConfig, paymentMethod }, lastSavedAt: Date.now() })),
+        set((s) => ({
+          setupConfig: { ...s.setupConfig, paymentMethod },
+          lastSavedAt: Date.now(),
+        })),
 
+      // ✅ FIXED: never assign `undefined` directly; remove the field instead
       setEventDateTime: (iso) =>
-        set((s) => ({ setupConfig: { ...s.setupConfig, eventDateTime: iso }, lastSavedAt: Date.now() })),
+        set((s) => {
+          const nextConfig: Partial<QuizConfig> = { ...s.setupConfig };
+          if (iso === undefined) {
+            // clear it
+            delete (nextConfig as any).eventDateTime;
+          } else {
+            // set it
+            (nextConfig as any).eventDateTime = iso;
+          }
+          return {
+            setupConfig: nextConfig,
+            lastSavedAt: Date.now(),
+          };
+        }),
 
       setTemplate: (templateId, opts) =>
         set((s) => ({
@@ -144,7 +176,9 @@ export const useQuizSetupStore = create<QuizSetupState>()(
       updateRound: (index, updates) =>
         set((state) => {
           const currentRounds = state.setupConfig.roundDefinitions || [];
-          const updatedRounds = currentRounds.map((r, i) => (i === index ? { ...r, ...updates } : r));
+          const updatedRounds = currentRounds.map((r, i) =>
+            i === index ? { ...r, ...updates } : r
+          );
           return {
             setupConfig: { ...state.setupConfig, roundDefinitions: updatedRounds },
             lastSavedAt: Date.now(),
@@ -176,21 +210,35 @@ export const useQuizSetupStore = create<QuizSetupState>()(
           };
         }),
 
-        setWeb3CharityById: (id) =>
-  set((s) => {
-    // lazy import avoids bundler cycles
-        const c = id ? getCharityById(id) : undefined;
-    return {
-      setupConfig: {
-        ...s.setupConfig,
-        web3CharityId: c?.id,
-        web3Charity: c?.name,                  // display name (for UI)
-        web3CharityAddress: c?.wallet as any,  // EVM address (for deploy)
-      },
-      lastSavedAt: Date.now(),
-    };
-  }),
+      // ✅ FIXED: don't assign `undefined` to fields; set or delete them
+      setWeb3CharityById: (id) =>
+        set((s) => {
+          const nextConfig: Partial<QuizConfig> = { ...s.setupConfig };
 
+          if (!id) {
+            // clear all charity fields
+            delete (nextConfig as any).web3CharityId;
+            delete (nextConfig as any).web3Charity;
+            delete (nextConfig as any).web3CharityAddress;
+          } else {
+            const c = getCharityById(id);
+            if (c) {
+              (nextConfig as any).web3CharityId = c.id;
+              (nextConfig as any).web3Charity = c.name; // display name (for UI)
+              (nextConfig as any).web3CharityAddress = c.wallet as any; // EVM address (for deploy)
+            } else {
+              // unknown id -> clear
+              delete (nextConfig as any).web3CharityId;
+              delete (nextConfig as any).web3Charity;
+              delete (nextConfig as any).web3CharityAddress;
+            }
+          }
+
+          return {
+            setupConfig: nextConfig,
+            lastSavedAt: Date.now(),
+          };
+        }),
 
       setExtraPrice: (key, price) =>
         set((state) => {
@@ -272,4 +320,3 @@ export const useQuizSetupStore = create<QuizSetupState>()(
     }
   )
 );
-

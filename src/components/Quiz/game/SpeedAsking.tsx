@@ -3,17 +3,17 @@ import { RoundComponentProps } from '../types/quiz';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 
 interface SpeedAskingProps extends RoundComponentProps {
-  questionNumber?: number;
-  totalQuestions?: number;
-  difficulty?: string;
-  category?: string;
-  currentRound?: number;
+  questionNumber?: number | undefined;
+  totalQuestions?: number | undefined;
+  difficulty?: string | undefined;
+  category?: string | undefined;
+  currentRound?: number | undefined;
 
-  // ✅ accept the flashing props the router passes (optional)
-  isFlashing?: boolean;
+  isFlashing?: boolean | undefined;
   currentEffect?: any;
-  getFlashClasses?: () => string;
+  getFlashClasses?: (() => string) | undefined;
 }
+
 
 const debug = false;
 

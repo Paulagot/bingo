@@ -58,6 +58,7 @@
  * ```
  */
 
+
 import {
   Connection,
   PublicKey,
@@ -66,7 +67,7 @@ import {
 import {
   TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
-  getAssociatedTokenAddress as getATAAddress,
+  getAssociatedTokenAddressSync, // ✅ USE THE SYNC VERSION
   createAssociatedTokenAccountInstruction,
   getAccount,
   TokenAccountNotFoundError,
@@ -76,97 +77,49 @@ import {
 } from '@solana/spl-token';
 import { BN } from '@coral-xyz/anchor';
 
-/**
- * Result from getOrCreateATA operation
- */
+// ... (keep all your interfaces the same)
+
 export interface GetOrCreateATAResult {
-  /** The ATA address (existing or to-be-created) */
   address: PublicKey;
-  /** Instruction to create the ATA (null if already exists) */
   instruction: TransactionInstruction | null;
-  /** Whether the account already existed */
   exists: boolean;
-  /** Token account info (if exists) */
   account?: TokenAccount;
 }
 
-/**
- * Parameters for getting or creating an ATA
- */
 export interface GetOrCreateATAParams {
-  /** Solana connection */
   connection: Connection;
-  /** Token mint address */
   mint: PublicKey;
-  /** Owner of the token account */
   owner: PublicKey;
-  /** Payer for account creation (pays rent) */
   payer: PublicKey;
-  /** Allow owner off curve (PDA owners) */
   allowOwnerOffCurve?: boolean;
 }
 
-/**
- * Parameters for checking token balance
- */
 export interface CheckTokenBalanceParams {
-  /** Solana connection */
   connection: Connection;
-  /** Token account address */
   tokenAccount: PublicKey;
-  /** Required amount (in raw token units) */
   requiredAmount: BN;
-  /** Optional mint to verify */
   expectedMint?: PublicKey;
 }
 
-/**
- * Result from token balance check
- */
 export interface TokenBalanceResult {
-  /** Whether balance is sufficient */
   sufficient: boolean;
-  /** Current balance */
   currentBalance: BN;
-  /** Required balance */
   requiredBalance: BN;
-  /** Missing amount (0 if sufficient) */
   missingAmount: BN;
-  /** Token account info */
   account: TokenAccount;
 }
 
-/**
- * Parameters for validating a token account
- */
 export interface ValidateTokenAccountParams {
-  /** Solana connection */
   connection: Connection;
-  /** Token account address to validate */
   tokenAccount: PublicKey;
-  /** Expected owner (optional) */
   expectedOwner?: PublicKey;
-  /** Expected mint (optional) */
   expectedMint?: PublicKey;
 }
 
 /**
  * Derives the Associated Token Account address for an owner and mint
- *
- * This is a pure function that computes the ATA address without making an RPC call.
- * The address is deterministic based on the owner and mint, following the SPL Token
- * standard derivation.
- *
- * @param mint - Token mint address
- * @param owner - Owner's public key
- * @param allowOwnerOffCurve - Allow PDA owners (default: false)
- * @returns The ATA address
- *
- * @example
- * ```typescript
- * const ataAddress = getAssociatedTokenAccountAddress(USDC_MINT, userPublicKey);
- * console.log('User USDC account:', ataAddress.toBase58());
- * ```
+ * 
+ * This is a SYNCHRONOUS function that computes the ATA address without making an RPC call.
  */
 export function getAssociatedTokenAccountAddress(
   mint: PublicKey,
@@ -175,16 +128,41 @@ export function getAssociatedTokenAccountAddress(
 ): PublicKey {
   // Validate inputs are actually PublicKey instances
   if (!(mint instanceof PublicKey)) {
-    throw new Error(`Invalid mint: expected PublicKey, got ${typeof mint}`);
+    throw new Error(
+      `Invalid mint: expected PublicKey, got ${typeof mint}. ` +
+      `Value: ${JSON.stringify(mint)}`
+    );
   }
   if (!(owner instanceof PublicKey)) {
-    throw new Error(`Invalid owner: expected PublicKey, got ${typeof owner}`);
+    throw new Error(
+      `Invalid owner: expected PublicKey, got ${typeof owner}. ` +
+      `Value: ${JSON.stringify(owner)}`
+    );
+  }
+
+  // Validate PublicKey instances are valid
+  let mintAddress: string;
+  let ownerAddress: string;
+  try {
+    mintAddress = mint.toBase58();
+  } catch (error: any) {
+    throw new Error(
+      `Invalid mint PublicKey: ${error.message}. ` +
+      `Value: ${JSON.stringify(mint)}`
+    );
+  }
+  try {
+    ownerAddress = owner.toBase58();
+  } catch (error: any) {
+    throw new Error(
+      `Invalid owner PublicKey: ${error.message}. ` +
+      `Value: ${JSON.stringify(owner)}`
+    );
   }
 
   try {
-    // getATAAddress is synchronous in @solana/spl-token v0.4.13
-    // It returns a PublicKey directly
-    const ataAddress = getATAAddress(
+    // ✅ USE getAssociatedTokenAddressSync - this is guaranteed to be synchronous
+    const ataAddress = getAssociatedTokenAddressSync(
       mint,
       owner,
       allowOwnerOffCurve,
@@ -192,72 +170,27 @@ export function getAssociatedTokenAccountAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID
     );
     
-    // getATAAddress should return a PublicKey
-    if (ataAddress instanceof PublicKey) {
-      return ataAddress;
-    }
-    
-    // If it's not a PublicKey, try to convert it
-    // This shouldn't happen, but handle it gracefully
-    if (typeof ataAddress === 'string') {
-      return new PublicKey(ataAddress);
-    }
-    
-    // If it has a toBase58 method, use it
-    if (ataAddress && typeof ataAddress.toBase58 === 'function') {
-      return new PublicKey(ataAddress.toBase58());
-    }
-    
-    // If it's an object with a publicKey property (some versions return this)
-    if (ataAddress && typeof ataAddress === 'object' && 'publicKey' in ataAddress) {
-      const pubkey = (ataAddress as any).publicKey;
-      return pubkey instanceof PublicKey ? pubkey : new PublicKey(pubkey);
-    }
-    
-    throw new Error(`getATAAddress returned invalid type: ${typeof ataAddress}. Value: ${JSON.stringify(ataAddress)}`);
+    return ataAddress;
   } catch (error: any) {
+    // Handle assertion failures and other errors
     if (error.message?.includes('Assertion failed')) {
       throw new Error(
         `Failed to derive ATA: Invalid PublicKey parameters. ` +
-        `mint: ${mint.toBase58()}, owner: ${owner.toBase58()}. ` +
+        `mint: ${mintAddress}, owner: ${ownerAddress}. ` +
         `Original error: ${error.message}`
       );
     }
-    throw error;
+    
+    // Wrap other errors with context
+    throw new Error(
+      `Failed to get associated token account address: ${error.message}. ` +
+      `mint: ${mintAddress}, owner: ${ownerAddress}`
+    );
   }
 }
 
 /**
  * Gets an existing ATA or returns an instruction to create it
- *
- * This function checks if the ATA already exists. If it does, it returns the
- * account info. If not, it returns an instruction that can be added to a
- * transaction to create the account.
- *
- * **Important**: The instruction should be added BEFORE any instructions that
- * require the account to exist (like transferring tokens).
- *
- * @param params - Get or create parameters
- * @returns Result with address, optional instruction, and existence flag
- *
- * @throws {TokenInvalidMintError} If account exists but has wrong mint
- * @throws {TokenInvalidAccountOwnerError} If account exists but has wrong owner
- *
- * @example
- * ```typescript
- * const { address, instruction, exists } = await getOrCreateATA({
- *   connection,
- *   mint: USDC_MINT,
- *   owner: userPublicKey,
- *   payer: userPublicKey,
- * });
- *
- * const tx = new Transaction();
- * if (instruction) {
- *   tx.add(instruction); // Create account first
- * }
- * tx.add(transferInstruction); // Then transfer tokens
- * ```
  */
 export async function getOrCreateATA(
   params: GetOrCreateATAParams
@@ -324,23 +257,6 @@ export async function getOrCreateATA(
 
 /**
  * Creates an instruction to initialize an Associated Token Account
- *
- * This instruction creates a new ATA that is rent-exempt and properly initialized.
- * The payer pays for the account creation (~0.002 SOL).
- *
- * @param params - Creation parameters
- * @returns Transaction instruction
- *
- * @example
- * ```typescript
- * const instruction = createATAInstruction({
- *   mint: USDC_MINT,
- *   owner: userPublicKey,
- *   payer: userPublicKey,
- * });
- *
- * const tx = new Transaction().add(instruction);
- * ```
  */
 export function createATAInstruction(params: {
   mint: PublicKey;
@@ -364,33 +280,6 @@ export function createATAInstruction(params: {
 
 /**
  * Checks if a token account has sufficient balance
- *
- * Validates that the token account exists, has the expected mint (if provided),
- * and contains at least the required amount of tokens.
- *
- * @param params - Balance check parameters
- * @returns Balance check result with detailed information
- *
- * @throws {TokenAccountNotFoundError} If account doesn't exist
- * @throws {TokenInvalidMintError} If expectedMint provided and doesn't match
- *
- * @example
- * ```typescript
- * const result = await checkTokenBalance({
- *   connection,
- *   tokenAccount: userUSDCAccount,
- *   requiredAmount: new BN(1_000_000), // 1 USDC
- *   expectedMint: USDC_MINT,
- * });
- *
- * if (!result.sufficient) {
- *   throw new Error(
- *     `Insufficient balance. Need ${result.requiredBalance.toString()}, ` +
- *     `have ${result.currentBalance.toString()}, ` +
- *     `missing ${result.missingAmount.toString()}`
- *   );
- * }
- * ```
  */
 export async function checkTokenBalance(
   params: CheckTokenBalanceParams
@@ -428,31 +317,6 @@ export async function checkTokenBalance(
 
 /**
  * Validates a token account's ownership and mint
- *
- * Fetches the token account and verifies it matches expected constraints.
- * Useful for pre-flight validation before operations.
- *
- * @param params - Validation parameters
- * @returns Token account info if valid
- *
- * @throws {TokenAccountNotFoundError} If account doesn't exist
- * @throws {TokenInvalidAccountOwnerError} If owner doesn't match
- * @throws {TokenInvalidMintError} If mint doesn't match
- *
- * @example
- * ```typescript
- * try {
- *   const account = await validateTokenAccount({
- *     connection,
- *     tokenAccount: hostTokenAccount,
- *     expectedOwner: hostPublicKey,
- *     expectedMint: prizeMint,
- *   });
- *   console.log('Account valid with balance:', account.amount);
- * } catch (error) {
- *   console.error('Invalid token account:', error.message);
- * }
- * ```
  */
 export async function validateTokenAccount(
   params: ValidateTokenAccountParams
@@ -486,23 +350,6 @@ export async function validateTokenAccount(
 
 /**
  * Formats a token amount with decimals for display
- *
- * Converts raw token units to a human-readable decimal string.
- *
- * @param amount - Raw token amount (e.g., 1000000 for 1 USDC with 6 decimals)
- * @param decimals - Token decimals (e.g., 6 for USDC, 9 for SOL)
- * @param maxFractionDigits - Maximum decimal places to show (default: decimals)
- * @returns Formatted string (e.g., "1.000000" or "1")
- *
- * @example
- * ```typescript
- * const balance = new BN(1_234_567); // 1.234567 USDC
- * const formatted = formatTokenAmount(balance, 6);
- * console.log(formatted); // "1.234567"
- *
- * const formattedShort = formatTokenAmount(balance, 6, 2);
- * console.log(formattedShort); // "1.23"
- * ```
  */
 export function formatTokenAmount(
   amount: BN | bigint | number,
@@ -526,20 +373,6 @@ export function formatTokenAmount(
 
 /**
  * Parses a decimal token amount to raw units
- *
- * Converts a human-readable decimal string to raw token units.
- *
- * @param amount - Decimal amount string (e.g., "1.5" for 1.5 USDC)
- * @param decimals - Token decimals (e.g., 6 for USDC)
- * @returns Raw token units as BN
- *
- * @throws {Error} If amount is invalid or has too many decimal places
- *
- * @example
- * ```typescript
- * const rawAmount = parseTokenAmount("1.5", 6);
- * console.log(rawAmount.toString()); // "1500000"
- * ```
  */
 export function parseTokenAmount(amount: string, decimals: number): BN {
   if (!/^\d+(\.\d+)?$/.test(amount)) {

@@ -1,27 +1,9 @@
 /**
  * @module features/web3/solana/api/prizes/declare-winners
- *
- * ## Purpose
- * Declares winners for a room. This operation can only be performed by the room host
- * and must be called before distributing prizes. The winners are stored in the room
- * account and used during prize distribution.
- *
- * ## Architecture
- * This module extracts the winner declaration logic into a focused, testable API module.
- * It uses Phase 1 utilities for PDA derivation and transaction building.
- *
- * ## Security
- * This operation can only be performed by the room host. The caller's public key must
- * match the room's host public key. Winners must have joined the room (PlayerEntry
- * accounts must exist).
- *
- * @see {@link useSolanaContract} - React hook that uses this module
- * @see {@link distributePrizes} - Distribute prizes after declaring winners
- * @see programs/bingo/src/instructions/declare_winners.rs - Contract implementation
  */
 
-import { PublicKey, Transaction } from '@solana/web3.js';
-import type { AnchorProvider, Program } from '@coral-xyz/anchor';
+import { PublicKey } from '@solana/web3.js';
+// ✅ FIXED: Removed unused imports
 
 // Phase 1 utilities
 import { deriveRoomPDA, derivePlayerEntryPDA } from '@/shared/lib/solana/pda';
@@ -30,53 +12,18 @@ import { buildTransaction } from '@/shared/lib/solana/transactions';
 // Phase 2 types
 import type { SolanaContractContext } from '@/features/web3/solana/model/types';
 
-/**
- * Parameters for declaring winners (extended with hostPubkey)
- */
 export interface DeclareWinnersParams {
   roomId: string;
-  hostPubkey: PublicKey; // Room host's pubkey (must match caller)
-  winners: PublicKey[]; // Winner pubkeys (1-10 winners)
+  hostPubkey: PublicKey;
+  winners: PublicKey[];
 }
 
-// Config
 import { simulateTransaction, formatTransactionError } from '@/shared/lib/solana/transaction-helpers';
 
-/**
- * Result from declaring winners
- */
 export interface DeclareWinnersResult {
-  /** Transaction signature */
   signature: string;
 }
 
-/**
- * Declares winners for a room (host only)
- *
- * This operation stores the winner addresses in the room account. Winners must have
- * joined the room (PlayerEntry accounts must exist). The room must be active and not
- * already ended.
- *
- * @param context - Solana contract context (must have program and provider initialized)
- * @param params - Winner declaration parameters
- * @returns Result with transaction signature
- *
- * @throws {Error} 'Wallet not connected' - If publicKey or provider is null
- * @throws {Error} 'Program not initialized' - If Anchor program not initialized
- * @throws {Error} 'Must declare 1-10 winners' - If winner count is invalid
- * @throws {Error} Transaction errors - If declaration fails
- *
- * @example
- * ```typescript
- * const result = await declareWinners(context, {
- *   roomId: 'bingo-night-2024',
- *   hostPubkey: hostPublicKey,
- *   winners: [winner1, winner2, winner3],
- * });
- *
- * console.log('Winners declared:', result.signature);
- * ```
- */
 export async function declareWinners(
   context: SolanaContractContext,
   params: DeclareWinnersParams
@@ -95,7 +42,7 @@ export async function declareWinners(
 
   const { program, provider, publicKey, connection } = context;
 
-  // Validate winners (bingo supports 1-10 winners)
+  // Validate winners
   if (params.winners.length < 1 || params.winners.length > 10) {
     throw new Error('Must declare 1-10 winners');
   }
@@ -103,7 +50,7 @@ export async function declareWinners(
   // Derive room PDA
   const [room] = deriveRoomPDA(params.hostPubkey, params.roomId);
 
-  // Derive PlayerEntry PDAs for each winner (to verify they actually joined)
+  // Derive PlayerEntry PDAs for each winner
   const playerEntryPDAs = params.winners.map(winner => {
     const [playerEntry] = derivePlayerEntryPDA(room, winner);
     return playerEntry;
@@ -111,10 +58,8 @@ export async function declareWinners(
 
   // Fetch and validate room state
   try {
-    // @ts-ignore - Account types available after program deployment
-    const roomAccount = await program.account.room.fetch(room);
+    const roomAccount = await (program.account as any).room.fetch(room);
 
-    // Validation checks
     if (roomAccount.host.toBase58() !== params.hostPubkey.toBase58()) {
       console.error('[declareWinners] ⚠️ WARNING: Host mismatch!');
     }
@@ -131,8 +76,13 @@ export async function declareWinners(
     throw new Error('Cannot fetch room account: ' + e.message);
   }
 
+  // ✅ FIXED: Add null check for program.methods
+  if (!program.methods) {
+    throw new Error('Program methods not available');
+  }
+
   // Build instruction with PlayerEntry PDAs as remaining_accounts
-  const ix = await program.methods
+  const ix = await (program.methods as any)
     .declareWinners(params.roomId, params.winners)
     .accounts({
       room,
@@ -142,7 +92,7 @@ export async function declareWinners(
       playerEntryPDAs.map(playerEntry => ({
         pubkey: playerEntry,
         isSigner: false,
-        isWritable: false, // Read-only, just verifying they exist
+        isWritable: false,
       }))
     )
     .instruction();

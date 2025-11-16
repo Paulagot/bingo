@@ -27,15 +27,16 @@ interface ReviewPhaseProps {
   question: Question;
   selectedAnswer: string;
   feedback: string | null;
-  correctAnswer?: string;
-  difficulty?: string;
-  category?: string;
-  questionNumber?: number;
-  totalQuestions?: number;
-  // ✅ NEW: Statistics and host mode
-  statistics?: AnswerStatistics;
-  isHost?: boolean;
+  correctAnswer?: string | undefined;
+  difficulty?: string | undefined;
+  category?: string | undefined;
+  questionNumber?: number | undefined;
+  totalQuestions?: number | undefined;
+  statistics?: AnswerStatistics | undefined;  // 👈 this is the crucial line
+  isHost?: boolean | undefined;
 }
+
+
 
 const ReviewPhase: React.FC<ReviewPhaseProps> = ({
   question,

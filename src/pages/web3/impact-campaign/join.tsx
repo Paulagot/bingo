@@ -71,9 +71,9 @@ const YouTubeBlock: React.FC<YouTubeBlockProps> = ({ title, youtubeUrlOrId, clas
 /** ─────────────────────────────────────────────────────────────────────────────
  * Replace these with your real YouTube IDs when ready
  * ────────────────────────────────────────────────────────────────────────────*/
-const SETUP_VIDEO_ID = 'SETUPVIDEO1D_';      // e.g., 'AbCdEfGhIJK'
-const DASHBOARD_VIDEO_ID = 'DASHBOARD1D_';   // placeholder
-const INGAME_VIDEO_ID = 'INGAMEVID01_';
+const SETUP_VIDEO_ID = 'v0mutwIyqb0';      // e.g., 'AbCdEfGhIJK'
+const DASHBOARD_VIDEO_ID = 'Sf9e8_IGdFU';   // placeholder
+const INGAME_VIDEO_ID = 'd5zyT5zf-wI';
 const REPORTING_VIDEO_ID = 'REPORTING01_';
 
 const JoinImpactCampaignPage: React.FC = () => {
@@ -311,7 +311,7 @@ const JoinImpactCampaignPage: React.FC = () => {
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 font-bold flex-shrink-0">1</div>
                       <div>
                         <h3 className="font-semibold text-lg">Set Basic Details</h3>
-                        <p className="text-gray-600">Add your name, select chain, select fee currency and set price</p>
+                        <p className="text-gray-600">Add your name, select chain, select fee currency, select charity and set price</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">

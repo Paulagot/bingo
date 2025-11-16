@@ -20,7 +20,7 @@ export class QuestionService {
    * @param {boolean} dbg
    * @param {'combined'|'true_false'} source
    */
- static loadAndFilterQuestions(
+static loadAndFilterQuestions(
   roomId,
   roundType,
   category,
@@ -34,9 +34,9 @@ export class QuestionService {
   const rd = room?.config?.roundDefinitions?.[roundIdx];
 
   // 🔁 If roundDef exists, it is the source of truth
-  const effCategory    = rd?.category ?? (category ?? null);
-  const effDifficulty  = rd?.difficulty ?? (difficulty ?? null);
-  const effRequired    = rd?.config?.questionsPerRound ?? requiredCount ?? 6;
+  const effCategory   = rd?.category ?? (category ?? null);
+  const effDifficulty = rd?.difficulty ?? (difficulty ?? null);
+  const effRequired   = rd?.config?.questionsPerRound ?? requiredCount ?? 6;
 
   if (dbg) {
     console.log('\n========== [QuestionService] loadAndFilterQuestions ==========');
@@ -61,56 +61,118 @@ export class QuestionService {
     console.log('• CurrentRound:', room?.currentRound, 'TotalRounds:', room?.config?.roundCount);
   }
 
-  let availableQuestions =
+  // Helper to call the right loader for each filter combo
+  const loader = (cat, diff) =>
     source === 'true_false'
-      ? this.loadFromTrueFalseFile(roomId, effCategory, effDifficulty, effRequired, dbg)
-      : loadQuestionsFromCombinedFile(roomId, effCategory, effDifficulty, effRequired);
+      ? this.loadFromTrueFalseFile(roomId, cat, diff, effRequired, dbg)
+      : loadQuestionsFromCombinedFile(roomId, cat, diff, effRequired);
+
+  const selected = [];
+  const selectedIds = new Set();
+
+  // 1) STRICT: category + difficulty
+  let strict = loader(effCategory, effDifficulty);
 
   if (dbg) {
-    console.log(`[QS] After initial load (${source}) → count=${availableQuestions.length}`);
-    this._logSample(availableQuestions, dbg, 'initial');
+    console.log(`[QS] Initial strict load (${source}) → count=${strict.length}`, {
+      category: effCategory,
+      difficulty: effDifficulty,
+    });
+    this._logSample(strict, dbg, 'strict');
   }
 
-  // Fallback 1: relax category
-  if (availableQuestions.length < effRequired && effCategory) {
+  if (strict.length >= effRequired) {
+    // We have enough with full criteria: randomly pick from those and return.
+    const picked = this.shuffleArray(strict).slice(0, effRequired);
     if (dbg) {
-      console.warn(`[QS] Fallback #1 → not enough with category="${effCategory}". Trying difficulty-only…`);
+      console.log(`[QS] ✅ Enough strict matches. Returning ${picked.length} without using fallbacks.`);
+      console.log('===============================================================\n');
     }
-    availableQuestions =
-      source === 'true_false'
-        ? this.loadFromTrueFalseFile(roomId, null, effDifficulty, effRequired, dbg)
-        : loadQuestionsFromCombinedFile(roomId, null, effDifficulty, effRequired);
+    return picked;
+  }
+
+  // Use ALL strict matches
+  strict.forEach(q => {
+    selected.push(q);
+    if (q?.id != null) selectedIds.add(q.id);
+  });
+
+  let remaining = effRequired - selected.length;
+
+  // 2) FALLBACK #1: difficulty-only (category relaxed)
+  if (remaining > 0 && effCategory) {
+    if (dbg) {
+      console.warn(`[QS] Fallback #1 → not enough with category="${effCategory}". Topping up with difficulty-only…`);
+    }
+    let fb1 = loader(null, effDifficulty);
+
+    // Remove any that are already selected in this round
+    fb1 = fb1.filter(q => !selectedIds.has(q.id));
 
     if (dbg) {
-      console.log(`[QS] After fallback #1 → count=${availableQuestions.length}`);
-      this._logSample(availableQuestions, dbg, 'fallback1');
+      console.log(`[QS] Fallback #1 pool size before shuffle=${fb1.length}`);
+      this._logSample(fb1, dbg, 'fallback1.pool');
+    }
+
+    if (fb1.length > 0) {
+      const shuffledFb1 = this.shuffleArray(fb1);
+      const toTake = shuffledFb1.slice(0, remaining);
+      toTake.forEach(q => {
+        selected.push(q);
+        if (q?.id != null) selectedIds.add(q.id);
+      });
+      remaining = effRequired - selected.length;
+
+      if (dbg) {
+        console.log(`[QS] After fallback #1 top-up → selected=${selected.length}, remaining=${remaining}`);
+      }
     }
   }
 
-  // Fallback 2: relax difficulty too
-  if (availableQuestions.length < effRequired) {
+  // 3) FALLBACK #2: no category or difficulty (completely unfiltered)
+  if (remaining > 0) {
     if (dbg) {
-      console.warn('[QS] Fallback #2 → still short. Using unfiltered (no category/difficulty).');
+      console.warn('[QS] Fallback #2 → still short. Topping up from unfiltered set (no category/difficulty).');
     }
-    availableQuestions =
-      source === 'true_false'
-        ? this.loadFromTrueFalseFile(roomId, null, null, effRequired, dbg)
-        : loadQuestionsFromCombinedFile(roomId, null, null, effRequired);
+    let fb2 = loader(null, null);
+
+    // Remove any already selected this round
+    fb2 = fb2.filter(q => !selectedIds.has(q.id));
 
     if (dbg) {
-      console.log(`[QS] After fallback #2 → count=${availableQuestions.length}`);
-      this._logSample(availableQuestions, dbg, 'fallback2');
+      console.log(`[QS] Fallback #2 pool size before shuffle=${fb2.length}`);
+      this._logSample(fb2, dbg, 'fallback2.pool');
+    }
+
+    if (fb2.length > 0) {
+      const shuffledFb2 = this.shuffleArray(fb2);
+      const toTake = shuffledFb2.slice(0, remaining);
+      toTake.forEach(q => {
+        selected.push(q);
+        if (q?.id != null) selectedIds.add(q.id);
+      });
+      remaining = effRequired - selected.length;
+
+      if (dbg) {
+        console.log(`[QS] After fallback #2 top-up → selected=${selected.length}, remaining=${remaining}`);
+      }
     }
   }
 
-  const selected = this.shuffleArray(availableQuestions).slice(0, effRequired);
-
+  // 4) Final sanity + shuffle
   if (dbg) {
-    console.log(`[QS] ✅ Selected ${selected.length} (requested ${effRequired})`);
+    if (selected.length < effRequired) {
+      console.warn(
+        `[QS] ⚠️ Only ${selected.length} questions available after all fallbacks (requested ${effRequired}).`
+      );
+    }
+    console.log(`[QS] ✅ Final selected count=${selected.length} (requested ${effRequired})`);
     console.log('[QS] Selected IDs (first 10):', selected.slice(0, 10).map(q => q.id));
     console.log('===============================================================\n');
   }
-  return selected;
+
+  // We can shuffle the final list so strict vs fallback ordering is random in the UI
+  return this.shuffleArray(selected);
 }
 
 

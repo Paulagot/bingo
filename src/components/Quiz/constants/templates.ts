@@ -20,7 +20,7 @@ export interface QuizTemplate {
 /**
  * Categories must match your availableCategories:
  * general_trivia / wipeout: 'General Knowledge','Olympic Sports','Pop Music','History','World Capitals','Pop Culture','Web3','Children'
- * speed_round:               'Math','Emojis','Pop Music','Sport','family movies'
+ * speed_round:               'Math','Emojis','Pop Music','Sport'
  * NOTE: 'family movies' is lowercase to match your source.
  */
 
@@ -49,7 +49,7 @@ const quizTemplates: QuizTemplate[] = [
       },
       {
         type: 'speed_round',
-        category: 'Emojis',
+        category: 'Math',
         difficulty: 'hard',
         customConfig: {
           questionsPerRound: 40,
@@ -84,13 +84,13 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'kids-club-45',
     name: 'Kids Club Night',
-    description: 'Fun school/club set with movie facts and emoji speed.',
+    description: 'Fun school/club set with Math and emoji speed.',
     icon: '🧒',
     difficulty: 'Easy',
     rounds: [
       { type: 'general_trivia', category: 'Children',       difficulty: 'easy' },
       { type: 'general_trivia', category: 'Children',       difficulty: 'easy' },
-      { type: 'speed_round',    category: 'family movies',  difficulty: 'easy', customConfig: { totalTimeSeconds: 60 } },
+      { type: 'speed_round',    category: 'Math',  difficulty: 'easy', customConfig: { totalTimeSeconds: 60 } },
       { type: 'general_trivia', category: 'Pop Culture',    difficulty: 'easy' },
       { type: 'speed_round',    category: 'Emojis',         difficulty: 'easy', customConfig: { totalTimeSeconds: 45 } },
     ],

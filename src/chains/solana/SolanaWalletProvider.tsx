@@ -13,17 +13,17 @@ import {
   ConnectionProvider,
   WalletProvider,
 } from '@solana/wallet-adapter-react';
-import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
+;
 import {
   PhantomWalletAdapter,
   SolflareWalletAdapter,
 } from '@solana/wallet-adapter-wallets';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
-import { clusterApiUrl, type Cluster } from '@solana/web3.js';
+import {type Cluster } from '@solana/web3.js';
 import { useSolanaWallet } from './useSolanaWallet';
 import { getRpcEndpoint, NETWORK, solanaStorageKeys } from '@/shared/lib/solana/config';
 import { useWalletStore } from '../../stores/walletStore';
-import type { WalletConnectionResult, TransactionResult } from '../types';
+import type { WalletConnectionResult } from '../types';
 
 // Import wallet styles
 import '@solana/wallet-adapter-react-ui/styles.css';
@@ -112,7 +112,7 @@ const SolanaWalletInner: React.FC<SolanaWalletProviderProps> = ({
       isConnected: !!solanaWallet.isConnected,
       isConnecting: !!solanaWallet.isConnecting,
       isDisconnecting: !!solanaWallet.isDisconnecting,
-      error: solanaWallet.error ?? undefined,
+       error: solanaWallet.error?.message ?? null,  
       balance: solanaWallet.balance ?? undefined,
       publicKey: solanaWallet.publicKey?.toBase58() ?? undefined,
       cluster: solanaWallet.cluster ?? undefined,
@@ -286,7 +286,7 @@ const SolanaWalletInner: React.FC<SolanaWalletProviderProps> = ({
       isConnecting: solanaWallet.isConnecting,
       isDisconnecting: solanaWallet.isDisconnecting,
       chain: 'solana',
-      error: solanaWallet.error,
+       error: solanaWallet.error?.message ?? null,  
       balance: solanaWallet.balance,
       publicKey: solanaWallet.publicKey?.toBase58() ?? null,
       cluster: solanaWallet.cluster,
@@ -422,18 +422,24 @@ export const SolanaWalletProvider: React.FC<SolanaWalletProviderProps> = ({
 // ===================================================================
 // CONTEXT HOOK
 // ===================================================================
-
 export const useSolanaWalletContext = (): SolanaWalletContextType => {
   const context = useContext(SolanaWalletContext);
-
   if (!context) {
     throw new Error(
       'useSolanaWalletContext must be used within a SolanaWalletProvider. ' +
         'Make sure to wrap your component with <SolanaWalletProvider>.'
     );
   }
-
   return context;
+};
+
+// ADD THIS NEW HOOK - Safe version that returns null (add after line ~435)
+/**
+ * Safe version of useSolanaWalletContext that returns null if provider is not mounted.
+ * Use this in hooks that may be called outside of SolanaWalletProvider.
+ */
+export const useSolanaWalletContextSafe = (): SolanaWalletContextType | null => {
+  return useContext(SolanaWalletContext);
 };
 
 // ===================================================================

@@ -12,22 +12,32 @@ type LeaderboardEntry = { id: string; name: string; score: number };
 interface PrizeRouterProps {
   roomId: string;
   leaderboard: LeaderboardEntry[];
-  onStatusChange?: (s: PrizeRouterStatus) => void; // ✅ Added
+  onStatusChange?: (s: PrizeRouterStatus) => void;
 }
 
 export const Web3PrizeDistributionRouter: React.FC<PrizeRouterProps> = ({
   roomId,
   leaderboard,
-  onStatusChange // ✅ Added
+  onStatusChange,
 }) => {
-  const { selectedChain,  getNetworkDisplayName } = useQuizChainIntegration();
+  const { selectedChain, getNetworkDisplayName } = useQuizChainIntegration();
+
+  // Always-defined handler to satisfy strict prop type on the panel
+  const handleStatusChange = React.useCallback(
+    (status: PrizeRouterStatus) => {
+      if (onStatusChange) {
+        onStatusChange(status);
+      }
+    },
+    [onStatusChange]
+  );
 
   if (selectedChain === 'stellar' || selectedChain === 'evm' || selectedChain === 'solana') {
     return (
       <Web3PrizeDistributionPanel
         roomId={roomId}
         leaderboard={leaderboard}
-        onStatusChange={onStatusChange} // ✅ Pass through
+        onStatusChange={handleStatusChange}
       />
     );
   }
@@ -44,3 +54,4 @@ export const Web3PrizeDistributionRouter: React.FC<PrizeRouterProps> = ({
     </div>
   );
 };
+
