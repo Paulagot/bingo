@@ -66,6 +66,7 @@ const RoundRouter: React.FC<RoundRouterProps> = ({
         totalQuestions={totalQuestions}
         statistics={statistics}
         isHost={isHost}
+        
       />
     );
   }

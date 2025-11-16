@@ -56,7 +56,7 @@ function mockEvmAddress() {
   return '0xb7ACd1159dBed96B955C4d856fc001De9be59844';
 }
 function mockSolAddress() {
-  return '7q1Z6dQexV9HcZ7q1Z6dQexV9HcZ7q1Z6dQexV9HcZ7';
+  return '7koYv1dqqHWh4PQ5bVh8CyLBTxqAHeARPiuazzF2FhCY';
 }
 function mockStellarAddress() {
   return 'GCF3Z7C6WJ6QX5M3Q7C7J2E6YJ5N4M2Q1P8R7T6U5S4R3Q2P1O';

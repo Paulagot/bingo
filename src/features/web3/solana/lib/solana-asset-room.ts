@@ -319,6 +319,7 @@ export async function createAssetRoom(
       roomVault,
       feeTokenMint: params.feeTokenMint,
       globalConfig,
+        tokenRegistry,
       // tokenRegistry is NOT passed - Anchor will auto-derive it from IDL constraint
       // This prevents ConstraintSeeds validation errors
       host: publicKey,

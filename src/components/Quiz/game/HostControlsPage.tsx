@@ -89,18 +89,24 @@ type LeaderboardEntry = {
   pointsRestored?: number;
 };
 
-const HostControlsCore = () => {
+// ✅ Type for Solana contract (or null for non-Solana rooms)
+type SolanaContractType = ReturnType<typeof useSolanaContract> | null;
+
+// ✅ Props interface for the inner component
+interface HostControlsCoreInnerProps {
+  solanaContract?: SolanaContractType;
+}
+
+const HostControlsCoreInner = ({ solanaContract = null }: HostControlsCoreInnerProps) => {
   const navigate = useNavigate();
-  const { roomId } = useParams<{ roomId: string }>();
+  const params = useParams<{ roomId: string }>();
+  const roomId = params.roomId!;
   const { socket, connected } = useQuizSocket();
   const { config } = useQuizConfig();
   const [_timerActive, setTimerActive] = useState(false);
   const [playersInRoom, setPlayersInRoom] = useState<User[]>([]);
   const [joiningClosed, setJoiningClosed] = useState(false);
   const [closingJoining, setClosingJoining] = useState(false);
-
-  // Solana contract hook (only used if web3 room)
-  const solanaContract = useSolanaContract();
 
   const [roomState, setRoomState] = useState<RoomStatePayload>({
     currentRound: 1,
@@ -210,7 +216,6 @@ const HostControlsCore = () => {
   const { timeLeft } = useQuizTimer({
     question: timerQuestion,
     timerActive: roomState.phase === 'asking',
-    onTimeUp: undefined,
   });
 
   useEffect(() => {
@@ -351,12 +356,20 @@ const HostControlsCore = () => {
       timeLimit: number;
       questionStartTime?: number;
     }) => {
-      setTbQuestion({
-        id: q.id,
-        text: q.text,
-        timeLimit: q.timeLimit,
-        questionStartTime: q.questionStartTime,
-      });
+      setTbQuestion(
+        q.questionStartTime != null
+          ? {
+              id: q.id,
+              text: q.text,
+              timeLimit: q.timeLimit,
+              questionStartTime: q.questionStartTime,
+            }
+          : {
+              id: q.id,
+              text: q.text,
+              timeLimit: q.timeLimit,
+            }
+      );
       setTbShowReview(false);
       setTbPlayerAnswers({});
     };
@@ -484,7 +497,8 @@ const HostControlsCore = () => {
       if (data.questionNumber && data.totalQuestions) {
         setQuestionInRound(data.questionNumber);
         setTotalInRound(data.totalQuestions);
-        if (debug) console.log(`[Host] Review position: ${data.questionNumber}/${data.totalQuestions}`);
+        if (debug)
+          console.log(`[Host] Review position: ${data.questionNumber}/${data.totalQuestions}`);
       }
     };
     socket.on('host_review_question', handleHostReviewQuestion);
@@ -569,7 +583,8 @@ const HostControlsCore = () => {
       return;
     }
 
-    if (!solanaContract.publicKey) {
+    // ✅ Check if solanaContract is available
+    if (!solanaContract || !solanaContract.publicKey) {
       toast.error('Please connect your wallet first');
       return;
     }
@@ -611,7 +626,7 @@ const HostControlsCore = () => {
   };
 
   // --- CTA label logic for overall leaderboard ---
- 
+
   const prizeCount = computePrizeCount(config);
   const prizeBoundaryTies =
     roomState.phase === 'leaderboard' && !isShowingRoundResults
@@ -620,10 +635,15 @@ const HostControlsCore = () => {
   const hasPrizeTie = prizeBoundaryTies.length > 0;
 
   const tieParticipantsByName = (() => {
-    if (!hasPrizeTie) return [];
-    const ids = prizeBoundaryTies[0].playerIds;
+    if (!hasPrizeTie) return [] as string[];
+
+    const firstTie = prizeBoundaryTies[0];
+    if (!firstTie) return [] as string[];
+
+    const ids = firstTie.playerIds ?? [];
     const map = new Map(leaderboard.map((e) => [e.id, e.name]));
-    return ids.map((id) => map.get(id) || id);
+
+    return ids.map((id) => map.get(id) ?? id);
   })();
 
   useHostRecovery({
@@ -655,89 +675,101 @@ const HostControlsCore = () => {
   });
 
   /**
- * 🧹 End Game Cleanup Handler
- * 
- * Called after successful Web3 prize distribution.
- * Emits cleanup signal to backend, which then notifies all clients.
- * Frontend (QuizSocketProvider) handles the actual redirect based on isWeb3Room flag.
- */
-const handleEndGame = useCallback(async () => {
-  console.log('🧹 [Host] Starting end game cleanup...');
+   * 🧹 End Game Cleanup Handler
+   *
+   * Called after successful Web3 prize distribution.
+   * Emits cleanup signal to backend, which then notifies all clients.
+   * Frontend (QuizSocketProvider) handles the actual redirect based on isWeb3Room flag.
+   */
+  const handleEndGame = useCallback(async () => {
+    console.log('🧹 [Host] Starting end game cleanup...');
 
-  if (!socket || !roomId) {
-    console.warn('⚠️ [Host] No socket or roomId available');
-    // Fallback: redirect directly based on payment method
-    if (config?.paymentMethod === 'web3' || config?.isWeb3Room) {
-      navigate('/web3/impact-campaign/');
-    } else {
-      navigate('/');
+    if (!socket || !roomId) {
+      console.warn('⚠️ [Host] No socket or roomId available');
+      // Fallback: redirect directly based on payment method
+      if (config?.paymentMethod === 'web3' || config?.isWeb3Room) {
+        navigate('/web3/impact-campaign/');
+      } else {
+        navigate('/');
+      }
+      return;
     }
-    return;
-  }
 
-  try {
-    // 🔗 For Solana Web3 rooms, call cleanup_room on-chain first
-    if (config?.isWeb3Room && config?.web3Chain === 'solana' && config?.contractAddress && solanaContract.publicKey) {
-      try {
-        console.log('🧹 [Solana] Calling cleanup_room on-chain...');
+    try {
+      // 🔗 For Solana Web3 rooms, call cleanup_room on-chain first
+      if (
+        config?.isWeb3Room &&
+        config?.web3Chain === 'solana' &&
+        config?.contractAddress &&
+        solanaContract?.publicKey
+      ) {
+        try {
+          console.log('🧹 [Solana] Calling cleanup_room on-chain...');
 
-        const roomPDA = new PublicKey(config.contractAddress);
-        const roomInfo = await solanaContract.getRoomInfo(roomPDA);
+          const roomPDA = new PublicKey(config.contractAddress);
+          const roomInfo = await solanaContract.getRoomInfo(roomPDA);
 
-        if (roomInfo && solanaContract.publicKey.equals(roomInfo.host)) {
-          const result = await solanaContract.cleanupRoom({
-            roomId: roomId!,
-            hostPubkey: roomInfo.host,
+          if (roomInfo && solanaContract.publicKey.equals(roomInfo.host)) {
+            const result = await solanaContract.cleanupRoom({
+              roomId: roomId!,
+              hostPubkey: roomInfo.host,
+            });
+
+            console.log('✅ [Solana] Room cleaned up on-chain:', {
+              signature: result.signature,
+              rentReclaimed: result.rentReclaimed / 1e9,
+            });
+
+            toast.success(
+              `Room cleaned up! ${(result.rentReclaimed / 1e9).toFixed(4)} SOL reclaimed`,
+              {
+                description: `TX: ${result.signature.slice(0, 8)}...`,
+              }
+            );
+          } else {
+            console.warn('⚠️ [Solana] Not host or room not found, skipping on-chain cleanup');
+          }
+        } catch (cleanupError: any) {
+          console.error('❌ [Solana] On-chain cleanup failed:', cleanupError);
+          // Don't block backend cleanup if on-chain cleanup fails
+          toast.error('On-chain cleanup failed', {
+            description: cleanupError.message || 'Room will be cleaned up on backend',
           });
-
-          console.log('✅ [Solana] Room cleaned up on-chain:', {
-            signature: result.signature,
-            rentReclaimed: result.rentReclaimed / 1e9,
-          });
-
-          toast.success(`Room cleaned up! ${(result.rentReclaimed / 1e9).toFixed(4)} SOL reclaimed`, {
-            description: `TX: ${result.signature.slice(0, 8)}...`,
-          });
-        } else {
-          console.warn('⚠️ [Solana] Not host or room not found, skipping on-chain cleanup');
         }
-      } catch (cleanupError: any) {
-        console.error('❌ [Solana] On-chain cleanup failed:', cleanupError);
-        // Don't block backend cleanup if on-chain cleanup fails
-        toast.error('On-chain cleanup failed', {
-          description: cleanupError.message || 'Room will be cleaned up on backend',
-        });
+      }
+
+      // Send cleanup signal to backend
+      // Backend will determine if Web3 room and notify all clients with appropriate flag
+      socket.emit('end_quiz_cleanup', { roomId });
+
+      console.log('✅ [Host] End game cleanup signal sent to backend');
+      console.log('⏳ [Host] Waiting for backend to complete cleanup...');
+
+      // The rest happens automatically:
+      // 1. Backend checks if Web3 room
+      // 2. Backend emits quiz_cleanup_complete with isWeb3Room flag
+      // 3. QuizSocketProvider receives event and redirects based on flag
+      //    - Web3: /web3/impact-campaign/
+      //    - Web2: /quiz
+    } catch (error) {
+      console.error('❌ [Host] Error during cleanup:', error);
+      // Fallback: navigate directly if socket fails
+      if (config?.paymentMethod === 'web3' || config?.isWeb3Room) {
+        navigate('/web3/impact-campaign/');
+      } else {
+        navigate('/');
       }
     }
-
-    // Send cleanup signal to backend
-    // Backend will determine if Web3 room and notify all clients with appropriate flag
-    socket.emit('end_quiz_cleanup', { roomId });
-
-    console.log('✅ [Host] End game cleanup signal sent to backend');
-    console.log('⏳ [Host] Waiting for backend to complete cleanup...');
-
-    // The rest happens automatically:
-    // 1. Backend checks if Web3 room
-    // 2. Backend emits quiz_cleanup_complete with isWeb3Room flag
-    // 3. QuizSocketProvider receives event and redirects based on flag
-    //    - Web3: /web3/impact-campaign/
-    //    - Web2: /quiz
-
-  } catch (error) {
-    console.error('❌ [Host] Error during cleanup:', error);
-    // Fallback: navigate directly if socket fails
-    if (config?.paymentMethod === 'web3' || config?.isWeb3Room) {
-      navigate('/web3/impact-campaign/');
-    } else {
-      navigate('/');
-    }
-  }
-}, [socket, roomId, navigate, config?.paymentMethod, config?.isWeb3Room, config?.web3Chain, config?.contractAddress, solanaContract]);
-
-
-
-
+  }, [
+    socket,
+    roomId,
+    navigate,
+    config?.paymentMethod,
+    config?.isWeb3Room,
+    config?.web3Chain,
+    config?.contractAddress,
+    solanaContract,
+  ]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
@@ -749,8 +781,8 @@ const handleEndGame = useCallback(async () => {
               currentEffect.color === 'green'
                 ? 'text-green-500'
                 : currentEffect.color === 'orange'
-                ? 'text-orange-500'
-                : 'text-red-500'
+                  ? 'text-orange-500'
+                  : 'text-red-500'
             }`}
           >
             {currentEffect.message}
@@ -773,7 +805,7 @@ const handleEndGame = useCallback(async () => {
           question={tbQuestion}
           winners={tbWinners}
           playerAnswers={tbPlayerAnswers}
-          correctAnswer={tbCorrectAnswer}
+          correctAnswer={tbCorrectAnswer ?? 0}
           showReview={tbShowReview}
           playersInRoom={playersInRoom?.length ? playersInRoom : leaderboard}
           questionNumber={tbQuestionNumber}
@@ -785,31 +817,28 @@ const handleEndGame = useCallback(async () => {
 
         {/* Close Joining Button for Web3/Solana Rooms */}
         {(roomState.phase === 'waiting' || roomState.phase === 'launched') &&
-         config?.isWeb3Room &&
-         config?.web3Chain === 'solana' &&
-         !joiningClosed && (
-          <div className="mb-6 rounded-xl border border-purple-200 bg-gradient-to-br from-orange-50 to-red-50 p-6 shadow-lg">
-            <div className="text-center">
-              <h3 className="mb-2 text-lg font-bold text-orange-900">
-                Room Management
-              </h3>
-              <p className="mb-4 text-sm text-orange-700">
-                {roomState.totalPlayers || 0} players joined. Close joining early to prevent new players from entering.
-              </p>
-              <button
-                onClick={handleCloseJoining}
-                disabled={closingJoining}
-                className="inline-flex items-center space-x-2 rounded-lg bg-orange-600 px-6 py-3 font-semibold text-white shadow-md transition-all hover:bg-orange-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Lock className="h-5 w-5" />
-                <span>{closingJoining ? 'Closing...' : 'Close Joining'}</span>
-              </button>
-              <p className="mt-2 text-xs text-orange-600">
-                ⚠️ This action cannot be reversed
-              </p>
+          config?.isWeb3Room &&
+          config?.web3Chain === 'solana' &&
+          !joiningClosed && (
+            <div className="mb-6 rounded-xl border border-purple-200 bg-gradient-to-br from-orange-50 to-red-50 p-6 shadow-lg">
+              <div className="text-center">
+                <h3 className="mb-2 text-lg font-bold text-orange-900">Room Management</h3>
+                <p className="mb-4 text-sm text-orange-700">
+                  {roomState.totalPlayers || 0} players joined. Close joining early to prevent new
+                  players from entering.
+                </p>
+                <button
+                  onClick={handleCloseJoining}
+                  disabled={closingJoining}
+                  className="inline-flex items-center space-x-2 rounded-lg bg-orange-600 px-6 py-3 font-semibold text-white shadow-md transition-all hover:bg-orange-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Lock className="h-5 w-5" />
+                  <span>{closingJoining ? 'Closing...' : 'Close Joining'}</span>
+                </button>
+                <p className="mt-2 text-xs text-orange-600">⚠️ This action cannot be reversed</p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* Joining Closed Badge */}
         {joiningClosed && (
@@ -848,7 +877,7 @@ const handleEndGame = useCallback(async () => {
                   <Eye className="h-5 w-5 text-blue-600" />
                   <span>Current Question</span>
                 </h3>
-                {(currentQuestion.questionNumber && currentQuestion.totalQuestions) && (
+                {currentQuestion.questionNumber && currentQuestion.totalQuestions && (
                   <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700">
                     Question {currentQuestion.questionNumber}/{currentQuestion.totalQuestions}
                   </span>
@@ -866,8 +895,8 @@ const handleEndGame = useCallback(async () => {
                       currentQuestion.difficulty === 'easy'
                         ? 'bg-green-100 text-green-700'
                         : currentQuestion.difficulty === 'medium'
-                        ? 'bg-yellow-100 text-yellow-700'
-                        : 'bg-red-100 text-red-700'
+                          ? 'bg-yellow-100 text-yellow-700'
+                          : 'bg-red-100 text-red-700'
                     }`}
                   >
                     {currentQuestion.difficulty}
@@ -881,8 +910,8 @@ const handleEndGame = useCallback(async () => {
                         timeLeft <= 10
                           ? 'animate-pulse text-red-600'
                           : timeLeft <= 30
-                          ? 'text-orange-600'
-                          : 'text-green-600'
+                            ? 'text-orange-600'
+                            : 'text-green-600'
                       }`}
                     >
                       {timeLeft}s
@@ -924,18 +953,23 @@ const handleEndGame = useCallback(async () => {
         />
 
         {/* Round Stats (during round leaderboard) */}
-        {roomState.phase === 'leaderboard' && isShowingRoundResults && hasRoundStats && currentRoundStats && (
-          <RoundStatsDisplay roundStats={currentRoundStats} isVisible={true} />
-        )}
+        {roomState.phase === 'leaderboard' &&
+          isShowingRoundResults &&
+          hasRoundStats &&
+          currentRoundStats && (
+            <RoundStatsDisplay roundStats={currentRoundStats} isVisible={true} />
+          )}
 
         {/* Round Leaderboard */}
-        {roomState.phase === 'leaderboard' && isShowingRoundResults && roundLeaderboard.length > 0 && (
-          <RoundLeaderboardCard
-            roundNumber={roomState.currentRound}
-            leaderboard={roundLeaderboard}
-            onContinue={handleContinueToOverallLeaderboard}
-          />
-        )}
+        {roomState.phase === 'leaderboard' &&
+          isShowingRoundResults &&
+          roundLeaderboard.length > 0 && (
+            <RoundLeaderboardCard
+              roundNumber={roomState.currentRound}
+              leaderboard={roundLeaderboard}
+              onContinue={handleContinueToOverallLeaderboard}
+            />
+          )}
 
         {/* Overall Leaderboard */}
         {roomState.phase === 'leaderboard' && !isShowingRoundResults && leaderboard.length > 0 && (
@@ -955,30 +989,35 @@ const handleEndGame = useCallback(async () => {
           />
         )}
 
-      
-     {/* ⤵️ Post-game content (complete + distributing) */}
-<HostPostgamePanel
-  phase={roomState.phase}
-  leaderboard={leaderboard}
-  totalPlayers={roomState.totalPlayers || 0}
-  hasFinalStats={hasFinalStats}
-  allRoundsStats={allRoundsStats}
-  roomId={roomId!}
-  paymentMethod={config?.paymentMethod}
-  debug={debug}
-  onReturnToDashboard={() =>
-    navigate(`/quiz/host-dashboard/${roomId}?tab=prizes&lock=postgame`)
-  }
-  onEndGame={handleEndGame}
-  currentRound={roomState.currentRound}
-  totalRounds={roomState.totalRounds}
-/>
+        {/* ⤵️ Post-game content (complete + distributing) */}
+        <HostPostgamePanel
+          phase={roomState.phase}
+          leaderboard={leaderboard}
+          totalPlayers={roomState.totalPlayers || 0}
+          hasFinalStats={hasFinalStats}
+          allRoundsStats={allRoundsStats}
+          roomId={roomId!}
+          paymentMethod={config?.paymentMethod ?? 'unknown'}
+          debug={debug}
+          onReturnToDashboard={() =>
+            navigate(`/quiz/host-dashboard/${roomId}?tab=prizes&lock=postgame`)
+          }
+          onEndGame={handleEndGame}
+          currentRound={roomState.currentRound}
+          totalRounds={roomState.totalRounds}
+        />
       </div>
     </div>
   );
 };
 
-// Wrapper that selects the chain and wraps HostControlsCore in the right provider
+// ✅ Wrapper that provides Solana contract - only used for Solana rooms
+const HostControlsCoreWithSolana = () => {
+  const solanaContract = useSolanaContract();
+  return <HostControlsCoreInner solanaContract={solanaContract} />;
+};
+
+// ✅ Main wrapper that selects the chain and wraps in the right provider
 const HostControlsPage: React.FC = () => {
   const { config } = useQuizConfig();
 
@@ -996,15 +1035,26 @@ const HostControlsPage: React.FC = () => {
     return null;
   })();
 
-  if (!config?.isWeb3Room || !selectedChain) {
-    return <HostControlsCore />;
+  // ✅ For Solana rooms, use the wrapper that calls useSolanaContract()
+  if (selectedChain === 'solana') {
+    return (
+      <DynamicChainProvider selectedChain="solana">
+        <HostControlsCoreWithSolana />
+      </DynamicChainProvider>
+    );
   }
 
-  return (
-    <DynamicChainProvider selectedChain={selectedChain}>
-      <HostControlsCore />
-    </DynamicChainProvider>
-  );
+  // ✅ For EVM/Stellar rooms, use the inner component without Solana hook
+  if (selectedChain === 'evm' || selectedChain === 'stellar') {
+    return (
+      <DynamicChainProvider selectedChain={selectedChain}>
+        <HostControlsCoreInner solanaContract={null} />
+      </DynamicChainProvider>
+    );
+  }
+
+  // ✅ For non-Web3 rooms, render without any chain provider
+  return <HostControlsCoreInner solanaContract={null} />;
 };
 
 export default HostControlsPage;

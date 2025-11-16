@@ -1,5 +1,5 @@
 /**
- * Bingo Smart Contract Integration Hook
+ *  Smart Contract Integration Hook
  *
  * Primary interface for all Solana blockchain interactions in the FundRaisely quiz platform. Provides
  * type-safe methods to create fundraising rooms, join as players, and distribute prizes via the
@@ -146,6 +146,15 @@ import {
   createTokenMint as createTokenMintAPI,
 } from '@/features/web3/solana/api/admin';
 
+import { getAccount, getMint } from '@solana/spl-token';
+import {
+ 
+  deriveRoomVaultPDA,
+  deriveGlobalConfigPDA,
+} from '@/shared/lib/solana/pda';
+import { getAssociatedTokenAccountAddress } from '@/shared/lib/solana/token-accounts';
+
+
 // ============================================================================
 // Types - Using centralized types from Phase 2
 // ============================================================================
@@ -269,34 +278,55 @@ function toPlayerEntryInfoExtended(playerEntry: PlayerEntryInfo | null): PlayerE
   } as PlayerEntryInfoExtended;
 }
 
+function bigIntToDecimalString(amount: bigint, decimals: number): string {
+  const negative = amount < 0n;
+  const value = negative ? -amount : amount;
+
+  const base = 10n ** BigInt(decimals);
+  const whole = value / base;
+  const fraction = value % base;
+
+  const wholeStr = whole.toString();
+  const fractionStr = fraction.toString().padStart(decimals, '0').replace(/0+$/, '');
+
+  const result = fractionStr.length > 0 ? `${wholeStr}.${fractionStr}` : wholeStr;
+  return negative ? `-${result}` : result;
+}
+
+
 // ============================================================================
 // Main Hook
 // ============================================================================
 
+// In useSolanaContract.ts, replace lines 300-326:
 export function useSolanaContract() {
-  // Check if WalletProvider exists - useContext is safe to call
   const walletContext = useContext(WalletContext);
-  const hasWalletProvider = walletContext !== undefined && walletContext !== null;
-
-  // Hooks MUST be called unconditionally (Rules of Hooks)
-  // But useConnection and useWallet will throw if WalletProvider is not mounted
-  // We handle this by checking context first and returning early if no provider
-  if (!hasWalletProvider) {
-    // Provider doesn't exist - return safe defaults
-    // We still need to call hooks to satisfy Rules of Hooks, but we'll ignore the error
+  
+  // ✅ Check if we have the REAL provider (not the default proxy)
+  // The @solana/wallet-adapter-react creates a default context value
+  // that is a Proxy which throws on property access
+  const hasWalletProvider = (() => {
+    if (!walletContext || typeof walletContext !== 'object') return false;
+    
+    // If we can access properties without throwing, we have a real provider
     try {
-      useConnection(); // Called but will throw - we ignore it
-      useWallet(); // Called but will throw - we ignore it
+      // The default proxy throws immediately on ANY property access
+      // So if this doesn't throw, we have a real provider
+      const descriptor = Object.getOwnPropertyDescriptor(walletContext, 'publicKey');
+      return descriptor !== undefined || 'publicKey' in walletContext;
     } catch {
-      // Expected - provider doesn't exist
+      return false;
     }
+  })();
+
+  if (!hasWalletProvider) {
     return createSafeDefaultReturn();
   }
 
-  // Provider exists - safe to use hooks
   const { connection } = useConnection();
   const wallet = useWallet();
   const { publicKey, signTransaction } = wallet;
+  // ... rest of hook
 
   // Memoize provider - only recreate when wallet/connection changes
   const provider = useMemo(() => {
@@ -343,6 +373,96 @@ export function useSolanaContract() {
       connection,
     };
   }, [program, provider, publicKey, connection]);
+
+    /**
+   * Preview charity payout for a room by reading on-chain vault balance
+   * and applying fee BPS (similar to EVM previewCharityPayout).
+   *
+   * This is used to:
+   * - Show host a preview of how much goes to charity
+   * - Build a TGB request amount for /api/tgb/create-deposit-address
+   */
+const previewCharityPayout = useCallback(
+  async (params: { roomId: string; roomAddress?: PublicKey }) => {
+    const { program, connection } = context;
+
+    if (!program || !connection) {
+      throw new Error('[useSolanaContract:previewCharityPayout] Program or connection not available');
+    }
+
+    const { roomId, roomAddress } = params;
+
+    // 1) Find room PDA
+    let roomPDA: PublicKey;
+    if (roomAddress) {
+      roomPDA = roomAddress;
+    } else {
+      const rooms = await (program.account as any).room.all();
+      const matchingRoom = rooms.find((r: any) => {
+        const roomData = r.account;
+        const roomIdStr = Buffer.from(roomData.roomId)
+          .toString('utf8')
+          .replace(/\0/g, '');
+        return roomIdStr === roomId;
+      });
+
+      if (!matchingRoom) {
+        throw new Error(
+          `[useSolanaContract:previewCharityPayout] Room "${roomId}" not found`
+        );
+      }
+
+      roomPDA = matchingRoom.publicKey;
+    }
+
+    // 2) Fetch room + global config
+    const roomAccount = await (program.account as any).room.fetch(roomPDA);
+    const [roomVault] = deriveRoomVaultPDA(roomPDA);
+    const [globalConfigPDA] = deriveGlobalConfigPDA();
+    const globalConfigAccount = await (program.account as any).globalConfig.fetch(globalConfigPDA);
+
+    // 3) Get vault token account + mint info
+    const feeTokenMint = roomAccount.feeTokenMint as PublicKey;
+
+    // ✅ FIX: roomVault is a PDA, so allowOwnerOffCurve must be true
+    const roomVaultTokenAccount = getAssociatedTokenAccountAddress(
+      feeTokenMint,
+      roomVault,
+      true  // ✅ ADD THIS - roomVault is a PDA (off-curve)
+    );
+
+    const vaultAccount = await getAccount(connection, roomVaultTokenAccount);
+    const totalInVault = vaultAccount.amount; // bigint
+
+    const mintInfo = await getMint(connection, feeTokenMint);
+    const decimals = mintInfo.decimals;
+
+    // 4) Compute BPS and charity amount
+    const platformFeeBps = Number(globalConfigAccount.platformFeeBps ?? 2000);
+    const hostFeeBps = Number(roomAccount.hostFeeBps ?? 0);
+    const prizePoolBps = Number(roomAccount.prizePoolBps ?? 0);
+
+    const charityBps = 10_000 - platformFeeBps - hostFeeBps - prizePoolBps;
+    if (charityBps <= 0) {
+      throw new Error(
+        `[useSolanaContract:previewCharityPayout] Invalid fee configuration, charityBps=${charityBps}`
+      );
+    }
+
+    const charityAmountRaw = (totalInVault * BigInt(charityBps)) / 10_000n;
+    const amountDecimal = bigIntToDecimalString(charityAmountRaw, decimals);
+
+    return {
+      roomPDA,
+      amountRaw: charityAmountRaw,
+      amountDecimal,
+      decimals,
+      charityBps,
+    };
+  },
+  [context]
+);
+
 
   // ============================================================================
   // Generic API Wrapper Factory
@@ -936,6 +1056,9 @@ export function useSolanaContract() {
 
     // Utility operations
     createTokenMint,
+
+      // New: Solana charity preview (for TGB + UI)
+    previewCharityPayout,
   };
 }
 

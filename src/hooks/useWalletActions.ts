@@ -27,8 +27,11 @@ export interface WalletActions {
 type Options = { chainOverride?: SupportedChain | null };
 
 export function useWalletActions(opts?: Options): WalletActions {
-  const { selectedChain } = useQuizChainIntegration({ chainOverride: opts?.chainOverride });
+  const { selectedChain } = useQuizChainIntegration({
+    chainOverride: opts?.chainOverride ?? null,
+  });
   const effectiveChain = (opts?.chainOverride ?? selectedChain) as SupportedChain | null;
+ 
 
   // Read from store (no contexts)
   const { stellar, evm, solana } = useWalletStore((s) => ({
