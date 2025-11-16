@@ -478,10 +478,38 @@ export async function depositPrizeAsset(
   publicKey: PublicKey,
   params: DepositPrizeAssetParams
 ): Promise<{ signature: string }> {
+  // ✅ Validate and convert prizeMint to PublicKey if needed
+  let prizeMint: PublicKey;
+  try {
+    if (params.prizeMint instanceof PublicKey) {
+      prizeMint = params.prizeMint;
+    } else if (typeof params.prizeMint === 'string') {
+      prizeMint = new PublicKey(params.prizeMint);
+    } else {
+      throw new Error(
+        `Invalid prizeMint: expected PublicKey or string, got ${typeof params.prizeMint}. ` +
+        `Value: ${JSON.stringify(params.prizeMint)}`
+      );
+    }
+  } catch (error: any) {
+    throw new Error(
+      `Failed to parse prizeMint: ${error.message}. ` +
+      `Value: ${JSON.stringify(params.prizeMint)}`
+    );
+  }
+
+  // ✅ Validate publicKey is a PublicKey instance
+  if (!(publicKey instanceof PublicKey)) {
+    throw new Error(
+      `Invalid publicKey: expected PublicKey, got ${typeof publicKey}. ` +
+      `Value: ${JSON.stringify(publicKey)}`
+    );
+  }
+
   console.log('[depositPrizeAsset] Starting prize deposit:', {
     roomId: params.roomId,
     prizeIndex: params.prizeIndex,
-    prizeMint: params.prizeMint.toBase58(),
+    prizeMint: prizeMint.toBase58(),
   });
 
   // Validate prize index
@@ -490,7 +518,7 @@ export async function depositPrizeAsset(
   }
 
   // Validate prize mint address
-  if (!params.prizeMint || params.prizeMint.equals(PublicKey.default)) {
+  if (!prizeMint || prizeMint.equals(PublicKey.default)) {
     throw new Error('Invalid prize mint address');
   }
 
@@ -498,10 +526,10 @@ export async function depositPrizeAsset(
   // ⚠️ WARNING: If mint doesn't exist, transaction will fail on-chain
   // This is a pre-flight check to catch errors early
   try {
-    const mintInfo = await connection.getAccountInfo(params.prizeMint);
+    const mintInfo = await connection.getAccountInfo(prizeMint);
     if (!mintInfo) {
       console.warn(
-        `[depositPrizeAsset] ⚠️ Prize mint account does not exist on devnet: ${params.prizeMint.toBase58()}\n\n` +
+        `[depositPrizeAsset] ⚠️ Prize mint account does not exist on devnet: ${prizeMint.toBase58()}\n\n` +
         `To create a test token on devnet using your Phantom wallet:\n` +
         `1. Open browser console and run: window.createTestToken()\n` +
         `2. Or use the Solana CLI: spl-token create-token --url devnet\n` +
@@ -515,7 +543,7 @@ export async function depositPrizeAsset(
         throw new Error(`Prize mint account is not owned by Token Program: ${mintInfo.owner.toBase58()}`);
       }
       console.log('[depositPrizeAsset] ✅ Prize mint validated:', {
-        mint: params.prizeMint.toBase58(),
+        mint: prizeMint.toBase58(),
         owner: mintInfo.owner.toBase58(),
         dataLength: mintInfo.data.length,
       });
@@ -539,8 +567,9 @@ export async function depositPrizeAsset(
   const [prizeVault] = derivePrizeVaultPDA(room, params.prizeIndex);
 
   // Get host's token account - using Phase 1 utility
+  // ✅ Ensure both parameters are PublicKey instances
   const hostTokenAccount = getAssociatedTokenAccountAddress(
-    params.prizeMint,
+    prizeMint,
     publicKey
   );
 
@@ -548,7 +577,7 @@ export async function depositPrizeAsset(
     room: room.toBase58(),
     prizeVault: prizeVault.toBase58(),
     hostTokenAccount: hostTokenAccount.toBase58(),
-    prizeMint: params.prizeMint.toBase58(),
+    prizeMint: prizeMint.toBase58(),
   });
 
   // ✅ Check if prize vault exists - it should be created by the contract
@@ -566,10 +595,10 @@ export async function depositPrizeAsset(
   }
 
   // ✅ Verify mint exists before creating ATA (required for ATA creation)
-  const mintInfo = await connection.getAccountInfo(params.prizeMint);
+  const mintInfo = await connection.getAccountInfo(prizeMint);
   if (!mintInfo || !mintInfo.owner.equals(TOKEN_PROGRAM_ID)) {
     throw new Error(
-      `Prize mint account does not exist or is invalid: ${params.prizeMint.toBase58()}\n\n` +
+      `Prize mint account does not exist or is invalid: ${prizeMint.toBase58()}\n\n` +
       `The mint must exist on ${NETWORK} before you can deposit prize assets.\n` +
       `To create a test token mint using your Phantom wallet, use the createTokenMint function.`
     );
@@ -599,7 +628,7 @@ export async function depositPrizeAsset(
   // ✅ Check if host's token account exists, create if needed - using Phase 1 utility
   const { instruction: createHostAtaIx, exists: hostTokenAccountExists, account: hostTokenAccountInfo } = await getOrCreateATA({
     connection,
-    mint: params.prizeMint,
+    mint: prizeMint,
     owner: publicKey,
     payer: publicKey,
   });
@@ -608,7 +637,7 @@ export async function depositPrizeAsset(
   if (requiredPrizeAmount && hostTokenAccountInfo) {
     const hostBalance = new BN(hostTokenAccountInfo.amount.toString());
     if (hostBalance.lt(requiredPrizeAmount)) {
-      const mintInfo = await connection.getParsedAccountInfo(params.prizeMint);
+      const mintInfo = await connection.getParsedAccountInfo(prizeMint);
       const decimals = (mintInfo.value?.data as any)?.parsed?.info?.decimals || 9;
       const requiredAmount = requiredPrizeAmount.toNumber() / Math.pow(10, decimals);
       const currentBalance = hostBalance.toNumber() / Math.pow(10, decimals);
@@ -619,7 +648,7 @@ export async function depositPrizeAsset(
         `Current balance: ${currentBalance} tokens\n` +
         `Missing: ${requiredAmount - currentBalance} tokens\n\n` +
         `Please mint or transfer tokens to your wallet before depositing prizes.\n` +
-        `Token mint: ${params.prizeMint.toBase58()}`
+        `Token mint: ${prizeMint.toBase58()}`
       );
     }
   } else if (requiredPrizeAmount && !hostTokenAccountExists) {
@@ -652,7 +681,7 @@ export async function depositPrizeAsset(
     .accounts({
       room,
       prizeVault,
-      prizeMint: params.prizeMint,
+      prizeMint: prizeMint,
       hostTokenAccount,
       host: publicKey,
       systemProgram: SystemProgram.programId,
@@ -745,7 +774,7 @@ export async function depositPrizeAsset(
             const prizeAsset = roomAccount.prize_assets[params.prizeIndex];
             if (prizeAsset && prizeAsset.amount) {
               requiredAmountRaw = prizeAsset.amount as BN;
-              const mintInfo = await connection.getParsedAccountInfo(params.prizeMint);
+              const mintInfo = await connection.getParsedAccountInfo(prizeMint);
               const decimals = (mintInfo.value?.data as any)?.parsed?.info?.decimals || 9;
               requiredAmount = (requiredAmountRaw.toNumber() / Math.pow(10, decimals)).toFixed(decimals).replace(/\.?0+$/, '');
               console.log('[depositPrizeAsset] Required amount calculated:', {
@@ -771,7 +800,7 @@ export async function depositPrizeAsset(
           const tokenAccount = await getAccount(connection, hostTokenAccount, 'confirmed');
           if (tokenAccount) {
             const balance = new BN(tokenAccount.amount.toString());
-            const mintInfo = await connection.getParsedAccountInfo(params.prizeMint);
+            const mintInfo = await connection.getParsedAccountInfo(prizeMint);
             const decimals = (mintInfo.value?.data as any)?.parsed?.info?.decimals || 9;
             currentBalance = (balance.toNumber() / Math.pow(10, decimals)).toString();
           }
