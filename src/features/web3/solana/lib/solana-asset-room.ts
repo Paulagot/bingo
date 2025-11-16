@@ -45,7 +45,7 @@ import { Connection, PublicKey, Transaction, SystemProgram, SYSVAR_RENT_PUBKEY, 
 import { TOKEN_PROGRAM_ID, getAccount, MINT_SIZE, getMinimumBalanceForRentExemptMint, createInitializeMint2Instruction } from '@solana/spl-token';
 // Phase 1 utilities - use shared token account and transaction utilities
 import { getAssociatedTokenAccountAddress, getOrCreateATA } from '@/shared/lib/solana/token-accounts';
-import { buildTransaction, sendWithRetry } from '@/shared/lib/solana/transactions';
+import { buildTransaction } from '@/shared/lib/solana/transactions';
 import { Program, AnchorProvider, BN } from '@coral-xyz/anchor';
 import { PROGRAM_ID, getTokenMints, NETWORK } from '@/shared/lib/solana/config';
 // Phase 1 utilities - use shared PDA utilities instead of duplicating code
@@ -347,46 +347,56 @@ export async function createAssetRoom(
     totalInstructions: instructions.length,
   });
 
-  // Build and send transaction with all instructions
-  // Build and send transaction - using Phase 1 utilities
+  // Build transaction using Phase 1 utilities
   console.log('[createAssetRoom] Building transaction...');
-  const tx = await buildTransaction({
+  const transaction = await buildTransaction({
     connection,
     instructions,
     feePayer: publicKey,
     commitment: 'finalized',
   });
 
-  console.log('[createAssetRoom] Transaction built, signing...');
-  let signedTx;
+  // Send and confirm using Anchor provider (handles signing automatically)
+  // This is the idiomatic Anchor way - provider.sendAndConfirm handles all signing and sending
+  console.log('[createAssetRoom] Sending transaction via Anchor provider...');
+  let signature: string;
   try {
-    signedTx = await provider.wallet.signTransaction(tx);
-    console.log('[createAssetRoom] Transaction signed successfully');
-  } catch (signError: any) {
-    console.error('[createAssetRoom] Signing failed:', signError);
-    if (signError?.message?.includes('User rejected')) {
-      throw new Error('Transaction rejected by user');
-    }
-    throw new Error(`Failed to sign transaction: ${signError?.message || 'Unknown error'}`);
-  }
-
-  console.log('[createAssetRoom] Sending transaction with retry...');
-  let signature;
-  try {
-    signature = await sendWithRetry({
-      connection,
-      signedTransaction: signedTx,
+    signature = await provider.sendAndConfirm(transaction, [], {
+      skipPreflight: false,
       commitment: 'confirmed',
-      maxRetries: 3,
-      maxAttempts: 2,
     });
     console.log('[createAssetRoom] Transaction sent and confirmed:', signature);
-  } catch (sendError: any) {
-    console.error('[createAssetRoom] Send failed:', sendError);
-    if (sendError?.message?.includes('Blockhash not found') || sendError?.message?.includes('expired')) {
-      throw new Error('Transaction expired. Please try again and approve quickly.');
+  } catch (error: any) {
+    console.error('[createAssetRoom] Transaction error:', error);
+
+    // Check if transaction actually succeeded despite error
+    if (error.message?.includes('already been processed')) {
+      // Try to fetch the room to see if it was created
+      try {
+        // @ts-ignore - Account types available after program deployment
+        await program.account.room.fetch(room);
+
+        // Try to get the actual transaction signature from recent signatures
+        try {
+          const signatures = await connection.getSignaturesForAddress(room, { limit: 1 });
+          if (signatures.length > 0) {
+            const sig = signatures[0].signature;
+            return { signature: sig, room: room.toBase58() };
+          }
+        } catch (sigError) {
+          // Fallback to error signature
+        }
+
+        // Fallback: extract from error or use placeholder
+        const sig = error.signature || error.transactionSignature || 'transaction-completed';
+        return { signature: sig, room: room.toBase58() };
+      } catch (fetchError) {
+        console.error('[createAssetRoom] Room does not exist, transaction truly failed:', fetchError);
+        throw new Error('Transaction failed and room was not created');
+      }
     }
-    throw new Error(`Failed to send transaction: ${sendError?.message || 'Unknown error'}`);
+
+    throw error;
   }
 
   console.log('✅ Asset room created:', {
