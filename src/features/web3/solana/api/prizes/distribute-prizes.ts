@@ -27,6 +27,7 @@ import {
 } from '@/shared/lib/solana/pda';
 import {
   getAssociatedTokenAccountAddress,
+  toPublicKey,
 } from '@/shared/lib/solana/token-accounts';
 import { buildTransaction } from '@/shared/lib/solana/transactions';
 
@@ -151,18 +152,8 @@ export async function distributePrizes(
       // Validate PublicKey is valid by calling toBase58 (throws if invalid)
       charityWallet.toBase58();
     } else {
-      charityWallet = roomAccount.charityWallet as PublicKey;
-      
-      // Validate room's charity wallet is valid
-      if (!charityWallet || !(charityWallet instanceof PublicKey)) {
-        throw new Error(
-          `Invalid charity wallet in room account: expected PublicKey, got ${typeof charityWallet}. ` +
-          `Room: ${params.roomId}`
-        );
-      }
-      
-      // Validate PublicKey is valid
-      charityWallet.toBase58();
+      // Convert Anchor account PublicKey object to PublicKey instance
+      charityWallet = toPublicKey(roomAccount.charityWallet, 'charityWallet');
     }
   } catch (error: any) {
     if (error.message?.includes('Invalid public key') || error.message?.includes('Invalid charity')) {
@@ -174,8 +165,8 @@ export async function distributePrizes(
     throw error;
   }
 
-  // Get fee token mint from room
-  const feeTokenMint = roomAccount.feeTokenMint as PublicKey;
+  // Get fee token mint from room - convert Anchor account PublicKey object to PublicKey instance
+  const feeTokenMint = toPublicKey(roomAccount.feeTokenMint, 'feeTokenMint');
 
   // Get or create token accounts for winners and charity
   const winnerTokenAccounts: PublicKey[] = [];
@@ -189,9 +180,12 @@ export async function distributePrizes(
       );
       winnerTokenAccounts.push(winnerATA);
     } catch (error: any) {
+      const winnerStr = typeof winner === 'string' 
+        ? winner 
+        : (winner as PublicKey).toBase58();
       throw new Error(
         `Failed to derive winner token account: ${error.message}. ` +
-        `Winner: ${typeof winner === 'string' ? winner : winner.toBase58()}, ` +
+        `Winner: ${winnerStr}, ` +
         `Mint: ${feeTokenMint.toBase58()}`
       );
     }
@@ -221,7 +215,8 @@ export async function distributePrizes(
   }
 
   const globalConfigAccount = await (program.account as any).globalConfig.fetch(globalConfig);
-  const platformWallet = globalConfigAccount.platformWallet as PublicKey;
+  // Convert Anchor account PublicKey object to PublicKey instance
+  const platformWallet = toPublicKey(globalConfigAccount.platformWallet, 'platformWallet');
   
   // Derive platform token account
   let platformTokenAccount: PublicKey;
@@ -239,17 +234,19 @@ export async function distributePrizes(
   }
 
   // Derive host token account
+  // Convert Anchor account PublicKey object to PublicKey instance
+  const hostPublicKey = toPublicKey(roomAccount.host, 'host');
   let hostTokenAccount: PublicKey;
   try {
     // getAssociatedTokenAccountAddress is synchronous (no await needed)
     hostTokenAccount = getAssociatedTokenAccountAddress(
       feeTokenMint,
-      roomAccount.host as PublicKey
+      hostPublicKey
     );
   } catch (error: any) {
     throw new Error(
       `Failed to derive host token account: ${error.message}. ` +
-      `Host: ${(roomAccount.host as PublicKey).toBase58()}, Mint: ${feeTokenMint.toBase58()}`
+      `Host: ${hostPublicKey.toBase58()}, Mint: ${feeTokenMint.toBase58()}`
     );
   }
 
@@ -300,7 +297,6 @@ export async function distributePrizes(
 
   return {
     signature,
-    winnersCount: winnerPubkeys.length,
   };
 }
 

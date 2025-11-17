@@ -44,7 +44,7 @@
 import { Connection, PublicKey, Transaction, SystemProgram, SYSVAR_RENT_PUBKEY, Keypair, TransactionInstruction } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, getAccount, MINT_SIZE, getMinimumBalanceForRentExemptMint, createInitializeMint2Instruction } from '@solana/spl-token';
 // Phase 1 utilities - use shared token account and transaction utilities
-import { getAssociatedTokenAccountAddress, getOrCreateATA } from '@/shared/lib/solana/token-accounts';
+import { getAssociatedTokenAccountAddress, getOrCreateATA, toPublicKey } from '@/shared/lib/solana/token-accounts';
 import { buildTransaction } from '@/shared/lib/solana/transactions';
 import { Program, AnchorProvider, BN } from '@coral-xyz/anchor';
 import { PROGRAM_ID, getTokenMints, NETWORK } from '@/shared/lib/solana/config';
@@ -478,33 +478,11 @@ export async function depositPrizeAsset(
   publicKey: PublicKey,
   params: DepositPrizeAssetParams
 ): Promise<{ signature: string }> {
-  // ✅ Validate and convert prizeMint to PublicKey if needed
-  let prizeMint: PublicKey;
-  try {
-    if (params.prizeMint instanceof PublicKey) {
-      prizeMint = params.prizeMint;
-    } else if (typeof params.prizeMint === 'string') {
-      prizeMint = new PublicKey(params.prizeMint);
-    } else {
-      throw new Error(
-        `Invalid prizeMint: expected PublicKey or string, got ${typeof params.prizeMint}. ` +
-        `Value: ${JSON.stringify(params.prizeMint)}`
-      );
-    }
-  } catch (error: any) {
-    throw new Error(
-      `Failed to parse prizeMint: ${error.message}. ` +
-      `Value: ${JSON.stringify(params.prizeMint)}`
-    );
-  }
+  // ✅ Validate and convert prizeMint to PublicKey using helper
+  const prizeMint = toPublicKey(params.prizeMint, 'prizeMint');
 
   // ✅ Validate publicKey is a PublicKey instance
-  if (!(publicKey instanceof PublicKey)) {
-    throw new Error(
-      `Invalid publicKey: expected PublicKey, got ${typeof publicKey}. ` +
-      `Value: ${JSON.stringify(publicKey)}`
-    );
-  }
+  const validatedPublicKey = toPublicKey(publicKey, 'publicKey');
 
   console.log('[depositPrizeAsset] Starting prize deposit:', {
     roomId: params.roomId,
@@ -570,7 +548,7 @@ export async function depositPrizeAsset(
   // ✅ Ensure both parameters are PublicKey instances
   const hostTokenAccount = getAssociatedTokenAccountAddress(
     prizeMint,
-    publicKey
+    validatedPublicKey
   );
 
   console.log('[depositPrizeAsset] Accounts:', {
@@ -629,8 +607,8 @@ export async function depositPrizeAsset(
   const { instruction: createHostAtaIx, exists: hostTokenAccountExists, account: hostTokenAccountInfo } = await getOrCreateATA({
     connection,
     mint: prizeMint,
-    owner: publicKey,
-    payer: publicKey,
+    owner: validatedPublicKey,
+    payer: validatedPublicKey,
   });
 
   // Validate balance if we have the required amount
@@ -683,7 +661,7 @@ export async function depositPrizeAsset(
       prizeVault,
       prizeMint: prizeMint,
       hostTokenAccount,
-      host: publicKey,
+      host: validatedPublicKey,
       systemProgram: SystemProgram.programId,
       tokenProgram: TOKEN_PROGRAM_ID,
       rent: SYSVAR_RENT_PUBKEY,
@@ -698,7 +676,7 @@ export async function depositPrizeAsset(
     const tx = await buildTransaction({
       connection,
       instructions,
-      feePayer: publicKey,
+      feePayer: validatedPublicKey,
       commitment: 'finalized',
     });
 
