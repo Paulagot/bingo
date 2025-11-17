@@ -23,12 +23,12 @@ interface RoomConfig {
   
   // Web3 fields
   web3Chain?: string;
-  evmNetwork?: string;           // ✅ ADD THIS
-  solanaCluster?: string;        // ✅ ADD THIS
-  stellarNetwork?: string;       // ✅ ADD THIS for completeness
+  evmNetwork?: string;
+  solanaCluster?: string;
+  stellarNetwork?: string;
   roomContractAddress?: string;
   deploymentTxHash?: string;
-  web3Currency?: string;         // ✅ ADD THIS too
+  web3Currency?: string;
   
   // Room info
   hostName?: string;
@@ -87,6 +87,16 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
           return;
         }
         
+        // ✅ SET SESSION STORAGE IMMEDIATELY BEFORE setting roomConfig
+        // This ensures EvmWalletProvider reads the correct network on re-render
+        if (data.web3Chain === 'evm' && data.evmNetwork) {
+          console.log('🔧 Pre-setting EVM network in sessionStorage:', data.evmNetwork);
+          sessionStorage.setItem('active-evm-network', data.evmNetwork);
+          if (data.roomContractAddress) {
+            sessionStorage.setItem('active-room-contract', data.roomContractAddress);
+          }
+        }
+        
         // Room exists, set up the config and proceed to name entry
         const normalizedConfig: RoomConfig = {
           ...data,
@@ -96,10 +106,10 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
         
         setRoomConfig(normalizedConfig);
 
-const normalized = normalizeChain(data.web3Chain);
+        const normalized = normalizeChain(data.web3Chain);
 
-console.log('normalized chain:', normalized);
-if (normalized) setDetectedChain(normalized);
+        console.log('normalized chain:', normalized);
+        if (normalized) setDetectedChain(normalized);
 
         if (data.demoMode) {
           setPaymentFlow('demo');
@@ -121,6 +131,16 @@ if (normalized) setDetectedChain(normalized);
   const handleRoomVerified = (config: any, roomId: string, playerName: string) => {
     console.log('🎯 handleRoomVerified called with:', { config, roomId, playerName });
     
+    // ✅ SET SESSION STORAGE FIRST - before any state updates
+    // This ensures EvmWalletProvider reads the correct network
+    if (config.web3Chain === 'evm' && config.evmNetwork) {
+      console.log('🔧 Pre-setting EVM network in sessionStorage:', config.evmNetwork);
+      sessionStorage.setItem('active-evm-network', config.evmNetwork);
+      if (config.roomContractAddress) {
+        sessionStorage.setItem('active-room-contract', config.roomContractAddress);
+      }
+    }
+    
     const normalizedConfig: RoomConfig = {
       ...config,
       currencySymbol: config.currencySymbol || '€',
@@ -132,10 +152,9 @@ if (normalized) setDetectedChain(normalized);
     setPlayerName(playerName);
 
     // Handle chain detection internally (no parent callback)
- const normalized = normalizeChain(config.web3Chain);
-console.log('🎯 Setting detected chain to:', normalized || config.web3Chain);
-setDetectedChain(normalized);
-
+    const normalized = normalizeChain(config.web3Chain);
+    console.log('🎯 Setting detected chain to:', normalized || config.web3Chain);
+    setDetectedChain(normalized);
 
     if (config.demoMode) {
       setPaymentFlow('demo');
@@ -160,6 +179,9 @@ setDetectedChain(normalized);
     setPaymentFlow(null);
     setRoomConfig(null);
     setSelectedExtras([]);
+    // ✅ Clean up sessionStorage when going back
+    sessionStorage.removeItem('active-evm-network');
+    sessionStorage.removeItem('active-room-contract');
   };
 
   const handleBackToExtras = () => {
@@ -224,26 +246,25 @@ setDetectedChain(normalized);
                 />
               )}
               
-          {paymentFlow === 'web3' && (
-  detectedChain ? (
-    <Web3PaymentStep
-     chainOverride={detectedChain}   // ✅ room-driven, authoritative
-      roomId={roomId}
-      playerName={playerName}
-      roomConfig={roomConfig}
-      selectedExtras={selectedExtras}
-      onBack={handleBackToExtras}
-      onClose={onClose}
-    />
-  ) : (
-    <div className="p-6">
-      <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
-        Detecting blockchain network… Please wait.
-      </div>
-    </div>
-  )
-)}
-
+              {paymentFlow === 'web3' && (
+                detectedChain ? (
+                  <Web3PaymentStep
+                    chainOverride={detectedChain}
+                    roomId={roomId}
+                    playerName={playerName}
+                    roomConfig={roomConfig}
+                    selectedExtras={selectedExtras}
+                    onBack={handleBackToExtras}
+                    onClose={onClose}
+                  />
+                ) : (
+                  <div className="p-6">
+                    <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+                      Detecting blockchain network… Please wait.
+                    </div>
+                  </div>
+                )
+              )}
               
               {paymentFlow === 'web2' && (
                 <Web2PaymentStep
@@ -343,4 +364,4 @@ const NameEntryStep: React.FC<NameEntryStepProps> = ({
       </div>
     </div>
   );
-};
+}
