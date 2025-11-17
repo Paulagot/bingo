@@ -742,12 +742,40 @@ socket.on('end_quiz_and_distribute_prizes', async ({ roomId }) => {
       if (charityAmount > 0 && room.config.web3CharityId) {
         try {
           const useMockMode = process.env.TGB_FORCE_MOCK === 'true' || process.env.NODE_ENV !== 'production';
+             const baseUrl = process.env.BASE_URL || 'http://localhost:3001';
+
+          if (useMockMode && debug) {
+            console.log(
+              '[Host] 🧪 Mock mode enabled – backend will return a mock TGB deposit address based on env.'
+            );
+          }
+
+          const tgbResponse = await fetch(`${baseUrl}/api/tgb/create-deposit-address`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              organizationId: room.config.web3CharityId,
+              currency: room.config.web3Currency || 'USDC',
+              network: 'solana',
+              amount: charityAmount.toFixed(2),
+              // no mockMode flag needed – backend uses env
+            }),
+          });
+
+          if (!tgbResponse?.data?.depositAddress) {
+            throw new Error('No depositAddress in TGB response');
+          }
+
+          charityWalletAddress = tgbResponse.data.depositAddress;
+
+          if (debug) {
+            console.log(
+              `[Host] ✅ Using TGB wallet address (${useMockMode ? 'mock' : 'live'} mode): ${charityWalletAddress}`
+            );
           
-          if (useMockMode) {
-            charityWalletAddress = '7q1Z6dQexV9HcZ7q1Z6dQexV9HcZ7q1Z6dQexV9HcZ7';
-            if (debug) {
-              console.log(`[Host] ✅ Using mock TGB wallet address (mock mode): ${charityWalletAddress}`);
-            }
+
           } else {
             const baseUrl = process.env.BASE_URL || 'http://localhost:3001';
             const tgbResponse = await fetch(`${baseUrl}/api/tgb/create-deposit-address`, {

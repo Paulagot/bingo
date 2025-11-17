@@ -1,5 +1,5 @@
 // server/quiz/gameplayEngines/services/StatsService.js
-// COMPLETE FILE with minimal speed round enhancements
+// COMPLETE FILE with minimal speed round enhancements + host activity notifications
 
 import { getQuizRoom } from '../../quizRoomManager.js';
 
@@ -7,6 +7,28 @@ const debug = true;
 
 export class StatsService {
   
+  /**
+   * Send host activity notification for extras usage
+   * This notifies the host dashboard when players use extras (hints, freezes, robs, restores)
+   */
+  static sendHostActivityNotification(namespace, roomId, activityData) {
+    if (!namespace || !roomId) return;
+    
+    namespace.to(`${roomId}:host`).emit('host_activity_update', {
+      type: activityData.type,
+      playerName: activityData.playerName,
+      targetName: activityData.targetName,
+      context: activityData.context || 'Game',
+      round: activityData.round,
+      questionNumber: activityData.questionNumber,
+      timestamp: Date.now()
+    });
+
+    if (debug) {
+      console.log(`[StatsService] 📡 Host notified: ${activityData.playerName} used ${activityData.type}${activityData.targetName ? ` on ${activityData.targetName}` : ''}`);
+    }
+  }
+
   /**
    * Calculate live round stats during gameplay
    * ENHANCED: Adds speed round skip tracking while preserving existing logic

@@ -69,15 +69,38 @@ export function initRound(roomId, namespace) {
   StatsService.calculateLiveRoundStats(roomId, namespace);
   emitRoomState(namespace, roomId);
 
-  room._speedRoundInterval && clearInterval(room._speedRoundInterval);
-  room._speedRoundInterval = setInterval(() => {
-    const remaining = Math.max(0, Math.floor((room.roundEndTime - Date.now()) / 1000));
-    namespace.to(roomId).emit('round_time_remaining', { remaining });
-    if (remaining <= 0) {
-      clearInterval(room._speedRoundInterval);
-      finalizeSpeedRound(roomId, namespace);
-    }
-  }, 1000);
+room._speedRoundInterval && clearInterval(room._speedRoundInterval);
+room._speedRoundInterval = setInterval(() => {
+  const remaining = Math.max(0, Math.floor((room.roundEndTime - Date.now()) / 1000));
+  namespace.to(roomId).emit('round_time_remaining', { remaining });
+  
+  // ADD THIS: Emit countdown effects at 3, 2, 1 seconds
+  if (remaining === 3) {
+    namespace.to(roomId).emit('countdown_effect', {
+      secondsLeft: 3,
+      color: 'green',
+      message: '3...'
+    });
+  } else if (remaining === 2) {
+    namespace.to(roomId).emit('countdown_effect', {
+      secondsLeft: 2,
+      color: 'orange',
+      message: '2...'
+    });
+  } else if (remaining === 1) {
+    namespace.to(roomId).emit('countdown_effect', {
+      secondsLeft: 1,
+      color: 'red',
+      message: '1...',
+    
+    });
+  }
+  
+  if (remaining <= 0) {
+    clearInterval(room._speedRoundInterval);
+    finalizeSpeedRound(roomId, namespace);
+  }
+}, 1000);
 
   room.players.forEach(p => emitNextQuestionToPlayer(roomId, p.id, namespace));
 

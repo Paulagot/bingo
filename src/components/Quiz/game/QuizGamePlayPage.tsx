@@ -1157,6 +1157,9 @@ const submitTieBreaker = useCallback(() => {
                 category={getCurrentRoundDefinition()?.category}
                 isHost={false}
                 playersInRoom={playersInRoom}
+                isFlashing={isFlashing}
+  currentEffect={currentEffect}
+  getFlashClasses={getFlashClasses}
               />
             </div>
           ) : (
