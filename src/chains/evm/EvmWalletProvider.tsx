@@ -80,17 +80,31 @@ export const EvmWalletProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const { connectors, connectAsync } = useConnect();
 
   // ✅ Get target network from setup config
+// ✅ Get setup config (host flow) but don't always prioritise it
 const { setupConfig } = useQuizSetupStore();
 
-// Priority: 1) setupConfig (host creating room), 2) sessionStorage (player joining room)
-const evmNetworkKey = (
-  (setupConfig as any)?.evmNetwork ||
-  (typeof window !== 'undefined' ? sessionStorage.getItem('active-evm-network') : null) ||
-  undefined
-) as EvmNetworkKey | undefined;
+const setupNetwork = (setupConfig as any)?.evmNetwork as EvmNetworkKey | undefined;
+const storedNetwork =
+  typeof window !== 'undefined'
+    ? (sessionStorage.getItem('active-evm-network') as EvmNetworkKey | null)
+    : null;
+
+// 🧠 New priority:
+// 1) sessionStorage (room / join flow, or last explicit selection)
+// 2) setupConfig (host creating room, if nothing else is set)
+// 3) undefined
+const evmNetworkKey = (storedNetwork || setupNetwork || undefined) as EvmNetworkKey | undefined;
 
 // ✅ Use dynamic lookup - will work for ALL networks
 const targetChainId = evmNetworkKey ? EVM_KEY_TO_ID[evmNetworkKey] : undefined;
+
+console.log('🔍 [EvmWalletProvider] Network resolution:', {
+  fromSetupConfig: setupNetwork,
+  fromSessionStorage: storedNetwork,
+  resolved: evmNetworkKey,
+  targetChainId
+});
+
 
 
   console.log('🔍 [EvmWalletProvider] Config:', {

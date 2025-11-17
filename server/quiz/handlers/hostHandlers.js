@@ -739,93 +739,81 @@ socket.on('end_quiz_and_distribute_prizes', async ({ roomId }) => {
         });
       }
       
-      if (charityAmount > 0 && room.config.web3CharityId) {
-        try {
-          const useMockMode = process.env.TGB_FORCE_MOCK === 'true' || process.env.NODE_ENV !== 'production';
-             const baseUrl = process.env.BASE_URL || 'http://localhost:3001';
+if (charityAmount > 0 && room.config.web3CharityId) {
+  try {
+    const useMockMode =
+      process.env.TGB_FORCE_MOCK === 'true' || process.env.NODE_ENV !== 'production';
+    const baseUrl = process.env.BASE_URL || 'http://localhost:3001';
 
-          if (useMockMode && debug) {
-            console.log(
-              '[Host] 🧪 Mock mode enabled – backend will return a mock TGB deposit address based on env.'
-            );
-          }
+    if (useMockMode && debug) {
+      console.log(
+        '[Host] 🧪 Mock mode enabled – backend will return a mock TGB deposit address based on env.'
+      );
+    }
 
-          const tgbResponse = await fetch(`${baseUrl}/api/tgb/create-deposit-address`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              organizationId: room.config.web3CharityId,
-              currency: room.config.web3Currency || 'USDC',
-              network: 'solana',
-              amount: charityAmount.toFixed(2),
-              // no mockMode flag needed – backend uses env
-            }),
-          });
+    const tgbRes = await fetch(`${baseUrl}/api/tgb/create-deposit-address`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        organizationId: room.config.web3CharityId,
+        currency: room.config.web3Currency || 'USDC',
+        network: 'solana',
+        // your endpoint supports either `pledgeAmount` or `amount`;
+        // it normalises to effectiveAmount = pledgeAmount ?? amount
+        pledgeAmount: charityAmount.toFixed(2),
+        // optional: metadata if you want to link to room
+        // metadata: { roomId },
+      }),
+    });
 
-          if (!tgbResponse?.data?.depositAddress) {
-            throw new Error('No depositAddress in TGB response');
-          }
+    // Try to parse JSON; if it fails, this will be null
+    const data = await tgbRes.json().catch(() => null);
+    if (debug) {
+      console.log('[Host] 🔵 TGB create-deposit-address raw client data:', data);
+    }
 
-          charityWalletAddress = tgbResponse.data.depositAddress;
+    if (!tgbRes.ok) {
+      const statusText = tgbRes.statusText || 'Unknown error';
+      console.error('[Host] ❌ TGB API returned non-OK status:', tgbRes.status, data);
+      throw new Error(`TGB API returned HTTP ${tgbRes.status}: ${statusText}`);
+    }
 
-          if (debug) {
-            console.log(
-              `[Host] ✅ Using TGB wallet address (${useMockMode ? 'mock' : 'live'} mode): ${charityWalletAddress}`
-            );
-          
+    // Our Express handler returns top-level depositAddress in both MOCK and REAL flows
+    const depositAddress =
+      data?.depositAddress ??
+      data?.data?.depositAddress ?? // safety if we ever wrap it later
+      null;
 
-          } else {
-            const baseUrl = process.env.BASE_URL || 'http://localhost:3001';
-            const tgbResponse = await fetch(`${baseUrl}/api/tgb/create-deposit-address`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                organizationId: room.config.web3CharityId,
-                currency: room.config.web3Currency || 'USDC',
-                network: 'solana',
-                amount: charityAmount.toFixed(2),
-              }),
-            });
-            
-            if (tgbResponse.ok) {
-              const tgbData = await tgbResponse.json();
-              if (tgbData.ok && tgbData.depositAddress) {
-                charityWalletAddress = tgbData.depositAddress;
-                if (debug) {
-                  console.log(`[Host] ✅ TGB API returned wallet address: ${charityWalletAddress}`);
-                }
-              } else {
-                console.error(`[Host] ❌ TGB API returned error:`, tgbData);
-                socket.emit('quiz_error', {
-                  message: `Failed to get charity wallet address from The Giving Block API: ${tgbData?.error || 'Unknown error'}`,
-                });
-                return;
-              }
-            } else {
-              const errorText = await tgbResponse.text().catch(() => 'Unknown error');
-              console.error(`[Host] ❌ TGB API call failed: ${tgbResponse.status} ${errorText}`);
-              socket.emit('quiz_error', {
-                message: `Failed to get charity wallet address from The Giving Block API: ${tgbResponse.status} ${errorText}`,
-              });
-              return;
-            }
-          }
-        } catch (tgbError) {
-          console.error(`[Host] ❌ Error getting TGB wallet address:`, tgbError);
-          socket.emit('quiz_error', {
-            message: `Failed to get charity wallet address from The Giving Block API: ${tgbError.message}`,
-          });
-          return;
-        }
-      } else {
-        if (debug) {
-          console.warn(`[Host] ⚠️ Skipping TGB API call: charityAmount=${charityAmount}, charityId=${room.config.web3CharityId}`);
-        }
-      }
+    if (!depositAddress) {
+      console.error('[Host] ❌ TGB response missing depositAddress field:', data);
+      throw new Error('No depositAddress in TGB response');
+    }
+
+    charityWalletAddress = depositAddress;
+
+    if (debug) {
+      console.log(
+        `[Host] ✅ Using TGB wallet address (${useMockMode ? 'mock' : 'live'} mode): ${charityWalletAddress}`
+      );
+    }
+  } catch (tgbError) {
+    console.error('[Host] ❌ Error getting TGB wallet address:', tgbError);
+    socket.emit('quiz_error', {
+      message: `Failed to get charity wallet address from The Giving Block API: ${
+        tgbError.message || 'Unknown error'
+      }`,
+    });
+    return;
+  }
+} else {
+  if (debug) {
+    console.warn(
+      `[Host] ⚠️ Skipping TGB API call: charityAmount=${charityAmount}, charityId=${room.config.web3CharityId}`
+    );
+  }
+}
+
+
     } catch (calcError) {
       console.error(`[Host] ❌ Error calculating charity amount:`, calcError);
       socket.emit('quiz_error', {
