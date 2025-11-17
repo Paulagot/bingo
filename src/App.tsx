@@ -76,16 +76,16 @@ export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isGameRoute(location.pathname)) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [location]);
+  // useEffect(() => {
+  //   const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+  //     if (isGameRoute(location.pathname)) {
+  //       e.preventDefault();
+  //       e.returnValue = '';
+  //     }
+  //   };
+  //   window.addEventListener('beforeunload', handleBeforeUnload);
+  //   return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  // }, [location]);
 
   const { pathname } = location;
   const hideOnPaths = ['/pitch-deck-content', '/BingoBlitz'];
