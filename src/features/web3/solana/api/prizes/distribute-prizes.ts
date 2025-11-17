@@ -17,9 +17,7 @@
  * @see programs/bingo/src/instructions/distribute_prizes.rs - Distribute prizes instruction
  */
 
-
-
-import { PublicKey, TransactionInstruction } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 // Phase 1 utilities
@@ -28,26 +26,59 @@ import {
   deriveGlobalConfigPDA,
 } from '@/shared/lib/solana/pda';
 import {
-  getOrCreateATA,
+  getAssociatedTokenAccountAddress,
+  toPublicKey,
 } from '@/shared/lib/solana/token-accounts';
 import { buildTransaction } from '@/shared/lib/solana/transactions';
 
 // Phase 2 types
 import type { SolanaContractContext, DistributePrizesParams, DistributePrizesResult } from '@/features/web3/solana/model/types';
 
+/**
+ * Distributes prizes to winners after game ends
+ *
+ * This function handles prize distribution for both pool-based and asset-based rooms.
+ * For pool-based rooms, it calculates prize amounts from the total pool.
+ * For asset-based rooms, it transfers pre-deposited prize assets to winners.
+ *
+ * ## Pool-Based Distribution
+ *
+ * The total pool is split according to prize percentages:
+ * - 1st place: receives firstPlacePct of prize pool
+ * - 2nd place (optional): receives secondPlacePct of prize pool
+ * - 3rd place (optional): receives thirdPlacePct of prize pool
+ *
+ * ## Asset-Based Distribution
+ *
+ * Pre-deposited prize assets are transferred:
+ * - Each winner receives their designated prize asset
+ * - Prize vaults are emptied and closed
+ * - Rent is reclaimed by the host
+ *
+ * @param context - Solana contract context (must have program, provider, publicKey, and connection)
+ * @param params - Prize distribution parameters
+ * @param params.roomId - Room identifier
+ * @param params.winners - Array of winner public keys (1-10 winners, as strings or PublicKeys)
+ * @param params.roomAddress - Optional room PDA address
+ * @param params.charityWallet - Optional charity wallet override
+ * @returns Distribution result with transaction signature
+ * @throws Error if wallet not connected, room not found, or winners invalid
+ *
+ * @example
+ * ```typescript
+ * const result = await distributePrizes(context, {
+ *   roomId: 'bingo-night-2024',
+ *   winners: ['winner1...', 'winner2...', 'winner3...'],
+ *   charityWallet: 'charity-wallet-address',
+ * });
+ *
+ * console.log('Prizes distributed:', result.signature);
+ * ```
+ */
 export async function distributePrizes(
   context: SolanaContractContext,
   params: DistributePrizesParams
 ): Promise<DistributePrizesResult> {
-  console.log('[distributePrizes] ========== START ==========');
-  console.log('[distributePrizes] Input params:', {
-    roomId: params.roomId,
-    roomAddress: params.roomAddress,
-    winners: params.winners,
-    winnersCount: params.winners?.length,
-    charityWallet: params.charityWallet,
-  });
-
   if (!context.publicKey || !context.provider) {
     throw new Error('Wallet not connected');
   }
@@ -62,11 +93,6 @@ export async function distributePrizes(
 
   const { program, provider, publicKey, connection } = context;
 
-  console.log('[distributePrizes] Context:', {
-    publicKey: publicKey.toBase58(),
-    programId: program.programId.toBase58(),
-  });
-
   // Validate winners array
   if (!params.winners || params.winners.length === 0) {
     throw new Error('At least one winner must be specified');
@@ -80,9 +106,8 @@ export async function distributePrizes(
   let roomPDA: PublicKey;
   if (params.roomAddress) {
     roomPDA = new PublicKey(params.roomAddress);
-    console.log('[distributePrizes] Using provided room address:', roomPDA.toBase58());
   } else {
-    console.log('[distributePrizes] Searching for room by ID:', params.roomId);
+    // Need to find the room by searching all rooms
     const rooms = await (program.account as any).room.all();
     const matchingRoom = rooms.find((r: any) => {
       const roomData = r.account;
@@ -95,205 +120,183 @@ export async function distributePrizes(
     }
 
     roomPDA = matchingRoom.publicKey;
-    console.log('[distributePrizes] Found room PDA:', roomPDA.toBase58());
   }
 
   // Fetch room data
-  console.log('[distributePrizes] Fetching room account data...');
   const roomAccount = await (program.account as any).room.fetch(roomPDA);
-  console.log('[distributePrizes] Room account:', {
-    roomId: roomAccount.roomId,
-    host: roomAccount.host.toBase58(),
-    feeTokenMint: roomAccount.feeTokenMint.toBase58(),
-    charityWallet: roomAccount.charityWallet.toBase58(),
-    prizeDistribution: roomAccount.prizeDistribution,
-    playerCount: roomAccount.playerCount,
-    ended: roomAccount.ended,
-    status: roomAccount.status,
-  });
-
   const [roomVault] = deriveRoomVaultPDA(roomPDA);
   const [globalConfig] = deriveGlobalConfigPDA();
 
-  console.log('[distributePrizes] Derived PDAs:', {
-    roomVault: roomVault.toBase58(),
-    globalConfig: globalConfig.toBase58(),
-  });
-
   // Get charity wallet (use TGB dynamic address if provided, otherwise room's charity wallet)
-  const charityWallet = params.charityWallet
-    ? new PublicKey(params.charityWallet)
-    : (roomAccount.charityWallet as PublicKey);
+  let charityWallet: PublicKey;
+  try {
+    if (params.charityWallet) {
+      // Validate charity wallet address before creating PublicKey
+      if (typeof params.charityWallet !== 'string' || params.charityWallet.length === 0) {
+        throw new Error(
+          `Invalid charity wallet address: expected non-empty string, got ${typeof params.charityWallet}. ` +
+          `Value: ${JSON.stringify(params.charityWallet)}`
+        );
+      }
+      
+      // Validate Solana address format (base58, 32-44 chars)
+      if (params.charityWallet.length < 32 || params.charityWallet.length > 44) {
+        throw new Error(
+          `Invalid charity wallet address format: Solana addresses must be 32-44 characters (base58). ` +
+          `Got ${params.charityWallet.length} characters: ${params.charityWallet}`
+        );
+      }
+      
+      charityWallet = new PublicKey(params.charityWallet);
+      
+      // Validate PublicKey is valid by calling toBase58 (throws if invalid)
+      charityWallet.toBase58();
+    } else {
+      // Convert Anchor account PublicKey object to PublicKey instance
+      charityWallet = toPublicKey(roomAccount.charityWallet, 'charityWallet');
+    }
+  } catch (error: any) {
+    if (error.message?.includes('Invalid public key') || error.message?.includes('Invalid charity')) {
+      throw new Error(
+        `Failed to validate charity wallet address: ${error.message}. ` +
+        `Charity wallet: ${params.charityWallet || 'room default'}, Room: ${params.roomId}`
+      );
+    }
+    throw error;
+  }
 
-  console.log('[distributePrizes] Charity wallet:', charityWallet.toBase58());
+  // Get fee token mint from room - convert Anchor account PublicKey object to PublicKey instance
+  const feeTokenMint = toPublicKey(roomAccount.feeTokenMint, 'feeTokenMint');
 
-  // Get fee token mint from room
-  const feeTokenMint = roomAccount.feeTokenMint as PublicKey;
-  console.log('[distributePrizes] Fee token mint:', feeTokenMint.toBase58());
+  // Get or create token accounts for winners and charity
+  const winnerTokenAccounts: PublicKey[] = [];
+  for (const winner of params.winners) {
+    const winnerPubkey = typeof winner === 'string' ? new PublicKey(winner) : winner;
+    try {
+      // getAssociatedTokenAccountAddress is synchronous (no await needed)
+      const winnerATA = getAssociatedTokenAccountAddress(
+        feeTokenMint,
+        winnerPubkey
+      );
+      winnerTokenAccounts.push(winnerATA);
+    } catch (error: any) {
+      const winnerStr = typeof winner === 'string' 
+        ? winner 
+        : (winner as PublicKey).toBase58();
+      throw new Error(
+        `Failed to derive winner token account: ${error.message}. ` +
+        `Winner: ${winnerStr}, ` +
+        `Mint: ${feeTokenMint.toBase58()}`
+      );
+    }
+  }
 
-  // Get global config for platform wallet
+  // Derive charity token account with validation and error handling
+  let charityTokenAccount: PublicKey;
+  try {
+    // getAssociatedTokenAccountAddress is synchronous (no await needed)
+    charityTokenAccount = getAssociatedTokenAccountAddress(
+      feeTokenMint,
+      charityWallet
+    );
+  } catch (error: any) {
+    if (error.message?.includes('TokenOwnerOffCurve') || error.message?.includes('Invalid owner')) {
+      throw new Error(
+        `Failed to derive charity token account: Invalid charity wallet address. ` +
+        `Charity wallet: ${charityWallet.toBase58()}, Mint: ${feeTokenMint.toBase58()}. ` +
+        `The charity wallet address may be invalid or off-curve. ` +
+        `Original error: ${error.message}`
+      );
+    }
+    throw new Error(
+      `Failed to derive charity token account: ${error.message}. ` +
+      `Charity wallet: ${charityWallet.toBase58()}, Mint: ${feeTokenMint.toBase58()}`
+    );
+  }
+
   const globalConfigAccount = await (program.account as any).globalConfig.fetch(globalConfig);
-  const platformWallet = globalConfigAccount.platformWallet as PublicKey;
-  console.log('[distributePrizes] Platform wallet:', platformWallet.toBase58());
+  // Convert Anchor account PublicKey object to PublicKey instance
+  const platformWallet = toPublicKey(globalConfigAccount.platformWallet, 'platformWallet');
+  
+  // Derive platform token account
+  let platformTokenAccount: PublicKey;
+  try {
+    // getAssociatedTokenAccountAddress is synchronous (no await needed)
+    platformTokenAccount = getAssociatedTokenAccountAddress(
+      feeTokenMint,
+      platformWallet
+    );
+  } catch (error: any) {
+    throw new Error(
+      `Failed to derive platform token account: ${error.message}. ` +
+      `Platform wallet: ${platformWallet.toBase58()}, Mint: ${feeTokenMint.toBase58()}`
+    );
+  }
 
-  // Convert winner strings to PublicKeys
+  // Derive host token account
+  // Convert Anchor account PublicKey object to PublicKey instance
+  const hostPublicKey = toPublicKey(roomAccount.host, 'host');
+  let hostTokenAccount: PublicKey;
+  try {
+    // getAssociatedTokenAccountAddress is synchronous (no await needed)
+    hostTokenAccount = getAssociatedTokenAccountAddress(
+      feeTokenMint,
+      hostPublicKey
+    );
+  } catch (error: any) {
+    throw new Error(
+      `Failed to derive host token account: ${error.message}. ` +
+      `Host: ${hostPublicKey.toBase58()}, Mint: ${feeTokenMint.toBase58()}`
+    );
+  }
+
+  // Build instruction
   const winnerPubkeys = params.winners.map((w: string | PublicKey) =>
     typeof w === 'string' ? new PublicKey(w) : w
   );
 
-  console.log('[distributePrizes] Winner pubkeys:', winnerPubkeys.map(pk => pk.toBase58()));
-
-  // Create setup instructions for missing ATAs
-  const setupInstructions: TransactionInstruction[] = [];
-
-  // Check/create charity token account
-  console.log('[distributePrizes] Getting/creating charity ATA...');
-  const charityATAResult = await getOrCreateATA({
-    connection,
-    mint: feeTokenMint,
-    owner: charityWallet,
-    payer: publicKey,
-  });
-  if (charityATAResult.instruction) {
-    console.log('[distributePrizes] Creating charity ATA:', charityATAResult.address.toBase58());
-    setupInstructions.push(charityATAResult.instruction);
-  } else {
-    console.log('[distributePrizes] Charity ATA exists:', charityATAResult.address.toBase58());
-  }
-  const charityTokenAccount = charityATAResult.address;
-
-  // Check/create platform token account
-  console.log('[distributePrizes] Getting/creating platform ATA...');
-  const platformATAResult = await getOrCreateATA({
-    connection,
-    mint: feeTokenMint,
-    owner: platformWallet,
-    payer: publicKey,
-  });
-  if (platformATAResult.instruction) {
-    console.log('[distributePrizes] Creating platform ATA:', platformATAResult.address.toBase58());
-    setupInstructions.push(platformATAResult.instruction);
-  } else {
-    console.log('[distributePrizes] Platform ATA exists:', platformATAResult.address.toBase58());
-  }
-  const platformTokenAccount = platformATAResult.address;
-
-  // Check/create host token account
-  const hostWallet = roomAccount.host as PublicKey;
-  console.log('[distributePrizes] Getting/creating host ATA for:', hostWallet.toBase58());
-  const hostATAResult = await getOrCreateATA({
-    connection,
-    mint: feeTokenMint,
-    owner: hostWallet,
-    payer: publicKey,
-  });
-  if (hostATAResult.instruction) {
-    console.log('[distributePrizes] Creating host ATA:', hostATAResult.address.toBase58());
-    setupInstructions.push(hostATAResult.instruction);
-  } else {
-    console.log('[distributePrizes] Host ATA exists:', hostATAResult.address.toBase58());
-  }
-  const hostTokenAccount = hostATAResult.address;
-
-  // Check/create winner token accounts
-  const winnerTokenAccounts: PublicKey[] = [];
-  console.log('[distributePrizes] Getting/creating winner ATAs...');
-  for (let i = 0; i < winnerPubkeys.length; i++) {
-    const winnerPubkey = winnerPubkeys[i];
-    if (!winnerPubkey) {
-      throw new Error(`Winner at index ${i} is undefined`);
-    }
-    console.log(`[distributePrizes] Winner ${i + 1} wallet:`, winnerPubkey.toBase58());
-    const winnerATAResult = await getOrCreateATA({
-      connection,
-      mint: feeTokenMint,
-      owner: winnerPubkey,
-      payer: publicKey,
-    });
-    if (winnerATAResult.instruction) {
-      console.log(`[distributePrizes] Creating winner ${i + 1} ATA:`, winnerATAResult.address.toBase58());
-      setupInstructions.push(winnerATAResult.instruction);
-    } else {
-      console.log(`[distributePrizes] Winner ${i + 1} ATA exists:`, winnerATAResult.address.toBase58());
-    }
-    winnerTokenAccounts.push(winnerATAResult.address);
-  }
-
-  console.log(`[distributePrizes] Setup instructions: ${setupInstructions.length} ATAs to create`);
-  console.log('[distributePrizes] Winner token accounts:', winnerTokenAccounts.map(pk => pk.toBase58()));
-
-  // Build remaining accounts - ONLY winner token accounts, NOT winner pubkeys
-  const remainingAccounts = winnerTokenAccounts.map((ata: PublicKey) => ({
-    pubkey: ata,
-    isSigner: false,
-    isWritable: true,
-  }));
-
-  console.log('[distributePrizes] Remaining accounts for contract:', {
-    count: remainingAccounts.length,
-    accounts: remainingAccounts.map(acc => ({
-      pubkey: acc.pubkey.toBase58(),
-      isSigner: acc.isSigner,
-      isWritable: acc.isWritable,
-    })),
-  });
-
-  console.log('[distributePrizes] Building endRoom instruction with:', {
-    roomId: params.roomId,
-    winnersArg: winnerPubkeys.map(pk => pk.toBase58()),
-    accounts: {
-      room: roomPDA.toBase58(),
-      roomVault: roomVault.toBase58(),
-      globalConfig: globalConfig.toBase58(),
-      charityTokenAccount: charityTokenAccount.toBase58(),
-      platformTokenAccount: platformTokenAccount.toBase58(),
-      hostTokenAccount: hostTokenAccount.toBase58(),
-      host: publicKey.toBase58(),
-      tokenProgram: TOKEN_PROGRAM_ID.toBase58(),
-    },
-    remainingAccountsCount: remainingAccounts.length,
-  });
-
-  // Build the endRoom instruction
-  const endRoomIx = await (program.methods as any)
-    .endRoom(params.roomId, winnerPubkeys)
+  const distributePrizesIx = await (program.methods as any)
+    .distributePrizes(params.roomId, winnerPubkeys)
     .accounts({
       room: roomPDA,
       roomVault,
       globalConfig,
-      platformTokenAccount,
       charityTokenAccount,
+      platformTokenAccount,
       hostTokenAccount,
-      host: publicKey,
+      caller: publicKey,
       tokenProgram: TOKEN_PROGRAM_ID,
     })
-    .remainingAccounts(remainingAccounts)
+    .remainingAccounts([
+      ...winnerPubkeys.map((winner: PublicKey) => ({
+        pubkey: winner,
+        isSigner: false,
+        isWritable: false,
+      })),
+      ...winnerTokenAccounts.map((ata: PublicKey) => ({
+        pubkey: ata,
+        isSigner: false,
+        isWritable: true,
+      })),
+    ])
     .instruction();
 
-  console.log('[distributePrizes] endRoom instruction built successfully');
-
-  // Build transaction with setup instructions FIRST, then endRoom
+  // Build transaction using Phase 1 utilities
   const transaction = await buildTransaction({
     connection,
-    instructions: [...setupInstructions, endRoomIx],
+    instructions: [distributePrizesIx],
     feePayer: publicKey,
     commitment: 'confirmed',
   });
 
-  console.log(`[distributePrizes] Transaction built with ${setupInstructions.length + 1} instructions`);
-  console.log('[distributePrizes] Sending transaction...');
-
-  // Send and confirm using Anchor provider
+  // Send and confirm using Anchor provider (handles signing automatically)
   const signature = await provider.sendAndConfirm(transaction, [], {
     skipPreflight: false,
     commitment: 'confirmed',
   });
 
-  console.log('[distributePrizes] ✅ Transaction confirmed:', signature);
-  console.log('[distributePrizes] ========== END ==========');
-
-  // Return only required field, omit optional undefined fields
   return {
     signature,
   };
 }
+

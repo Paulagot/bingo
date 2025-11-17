@@ -44,8 +44,8 @@
 import { Connection, PublicKey, Transaction, SystemProgram, SYSVAR_RENT_PUBKEY, Keypair, TransactionInstruction } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, getAccount, MINT_SIZE, getMinimumBalanceForRentExemptMint, createInitializeMint2Instruction } from '@solana/spl-token';
 // Phase 1 utilities - use shared token account and transaction utilities
-import { getAssociatedTokenAccountAddress, getOrCreateATA } from '@/shared/lib/solana/token-accounts';
-import { buildTransaction, sendWithRetry } from '@/shared/lib/solana/transactions';
+import { getAssociatedTokenAccountAddress, getOrCreateATA, toPublicKey } from '@/shared/lib/solana/token-accounts';
+import { buildTransaction } from '@/shared/lib/solana/transactions';
 import { Program, AnchorProvider, BN } from '@coral-xyz/anchor';
 import { PROGRAM_ID, getTokenMints, NETWORK } from '@/shared/lib/solana/config';
 // Phase 1 utilities - use shared PDA utilities instead of duplicating code
@@ -223,9 +223,14 @@ export async function createAssetRoom(
   // Note: These use PROGRAM_ID from config, which should match program.programId
   const [globalConfig] = deriveGlobalConfigPDA();
   
-  // Derive tokenRegistry PDA - CRITICAL: Must use the same programId as other PDAs
+  // Derive tokenRegistry PDA - CRITICAL: Must use program.programId to match Anchor's derivation
   // The IDL constraint is: seeds = ["token-registry-v4"] (matches Rust contract)
-  const [tokenRegistry, tokenRegistryBump] = deriveTokenRegistryPDA();
+  // Note: We use programId directly instead of deriveTokenRegistryPDA() to ensure
+  // we're using the exact programId from the program instance (matches create-pool-room.ts)
+  const [tokenRegistry, tokenRegistryBump] = PublicKey.findProgramAddressSync(
+    [Buffer.from('token-registry-v4')],
+    programId
+  );
   
   // Verify the token registry account exists and is owned by the program
   // If it doesn't exist, Anchor will fail the constraint check
@@ -292,11 +297,9 @@ export async function createAssetRoom(
   }
 
   // Build init_asset_room instruction
-  // Note: For PDAs with constraints in the IDL, Anchor will automatically derive and validate them
-  // We should NOT pass tokenRegistry explicitly - let Anchor auto-derive it from the IDL constraint
-  // This prevents ConstraintSeeds validation errors
+  // CRITICAL: We explicitly pass tokenRegistry derived with program.programId to match Anchor's derivation
   // The IDL has a PDA constraint for token_registry with seeds: ["token-registry-v4"] (matches Rust contract)
-  // Anchor will automatically derive it using program.programId, so we don't pass it
+  // By deriving it with program.programId and passing it explicitly, Anchor can validate the constraint correctly
   // @ts-expect-error - program.methods is always defined for valid Program instances
   const initAssetRoomIx = await program.methods
     .initAssetRoom(
@@ -319,9 +322,7 @@ export async function createAssetRoom(
       roomVault,
       feeTokenMint: params.feeTokenMint,
       globalConfig,
-        tokenRegistry,
-      // tokenRegistry is NOT passed - Anchor will auto-derive it from IDL constraint
-      // This prevents ConstraintSeeds validation errors
+      tokenRegistry, // ✅ Explicitly pass to ensure Anchor can validate the bump constraint correctly
       host: publicKey,
       systemProgram: SystemProgram.programId,
       tokenProgram: TOKEN_PROGRAM_ID,
@@ -337,56 +338,65 @@ export async function createAssetRoom(
     room: room.toBase58(),
     roomVault: roomVault.toBase58(),
     globalConfig: globalConfig.toBase58(),
-    tokenRegistry: tokenRegistry.toBase58(), // For reference - Anchor will auto-derive this
+    tokenRegistry: tokenRegistry.toBase58(),
     programId: initAssetRoomIx.programId.toBase58(),
   });
-  console.log('[createAssetRoom] ✅ tokenRegistry will be auto-derived by Anchor from IDL constraint');
   console.log('[createAssetRoom] Transaction will include:', {
     vaultCreation: instructions.length > 0 && instructions[0] !== initAssetRoomIx,
     initAssetRoom: true,
     totalInstructions: instructions.length,
   });
 
-  // Build and send transaction with all instructions
-  // Build and send transaction - using Phase 1 utilities
+  // Build transaction using Phase 1 utilities
   console.log('[createAssetRoom] Building transaction...');
-  const tx = await buildTransaction({
+  const transaction = await buildTransaction({
     connection,
     instructions,
     feePayer: publicKey,
     commitment: 'finalized',
   });
 
-  console.log('[createAssetRoom] Transaction built, signing...');
-  let signedTx;
+  // Send and confirm using Anchor provider (handles signing automatically)
+  // This is the idiomatic Anchor way - provider.sendAndConfirm handles all signing and sending
+  console.log('[createAssetRoom] Sending transaction via Anchor provider...');
+  let signature: string;
   try {
-    signedTx = await provider.wallet.signTransaction(tx);
-    console.log('[createAssetRoom] Transaction signed successfully');
-  } catch (signError: any) {
-    console.error('[createAssetRoom] Signing failed:', signError);
-    if (signError?.message?.includes('User rejected')) {
-      throw new Error('Transaction rejected by user');
-    }
-    throw new Error(`Failed to sign transaction: ${signError?.message || 'Unknown error'}`);
-  }
-
-  console.log('[createAssetRoom] Sending transaction with retry...');
-  let signature;
-  try {
-    signature = await sendWithRetry({
-      connection,
-      signedTransaction: signedTx,
+    signature = await provider.sendAndConfirm(transaction, [], {
+      skipPreflight: false,
       commitment: 'confirmed',
-      maxRetries: 3,
-      maxAttempts: 2,
     });
     console.log('[createAssetRoom] Transaction sent and confirmed:', signature);
-  } catch (sendError: any) {
-    console.error('[createAssetRoom] Send failed:', sendError);
-    if (sendError?.message?.includes('Blockhash not found') || sendError?.message?.includes('expired')) {
-      throw new Error('Transaction expired. Please try again and approve quickly.');
+  } catch (error: any) {
+    console.error('[createAssetRoom] Transaction error:', error);
+
+    // Check if transaction actually succeeded despite error
+    if (error.message?.includes('already been processed')) {
+      // Try to fetch the room to see if it was created
+      try {
+        // @ts-ignore - Account types available after program deployment
+        await program.account.room.fetch(room);
+
+        // Try to get the actual transaction signature from recent signatures
+        try {
+          const signatures = await connection.getSignaturesForAddress(room, { limit: 1 });
+          if (signatures.length > 0) {
+            const sig = signatures[0].signature;
+            return { signature: sig, room: room.toBase58() };
+          }
+        } catch (sigError) {
+          // Fallback to error signature
+        }
+
+        // Fallback: extract from error or use placeholder
+        const sig = error.signature || error.transactionSignature || 'transaction-completed';
+        return { signature: sig, room: room.toBase58() };
+      } catch (fetchError) {
+        console.error('[createAssetRoom] Room does not exist, transaction truly failed:', fetchError);
+        throw new Error('Transaction failed and room was not created');
+      }
     }
-    throw new Error(`Failed to send transaction: ${sendError?.message || 'Unknown error'}`);
+
+    throw error;
   }
 
   console.log('✅ Asset room created:', {
@@ -468,10 +478,16 @@ export async function depositPrizeAsset(
   publicKey: PublicKey,
   params: DepositPrizeAssetParams
 ): Promise<{ signature: string }> {
+  // ✅ Validate and convert prizeMint to PublicKey using helper
+  const prizeMint = toPublicKey(params.prizeMint, 'prizeMint');
+
+  // ✅ Validate publicKey is a PublicKey instance
+  const validatedPublicKey = toPublicKey(publicKey, 'publicKey');
+
   console.log('[depositPrizeAsset] Starting prize deposit:', {
     roomId: params.roomId,
     prizeIndex: params.prizeIndex,
-    prizeMint: params.prizeMint.toBase58(),
+    prizeMint: prizeMint.toBase58(),
   });
 
   // Validate prize index
@@ -480,7 +496,7 @@ export async function depositPrizeAsset(
   }
 
   // Validate prize mint address
-  if (!params.prizeMint || params.prizeMint.equals(PublicKey.default)) {
+  if (!prizeMint || prizeMint.equals(PublicKey.default)) {
     throw new Error('Invalid prize mint address');
   }
 
@@ -488,10 +504,10 @@ export async function depositPrizeAsset(
   // ⚠️ WARNING: If mint doesn't exist, transaction will fail on-chain
   // This is a pre-flight check to catch errors early
   try {
-    const mintInfo = await connection.getAccountInfo(params.prizeMint);
+    const mintInfo = await connection.getAccountInfo(prizeMint);
     if (!mintInfo) {
       console.warn(
-        `[depositPrizeAsset] ⚠️ Prize mint account does not exist on devnet: ${params.prizeMint.toBase58()}\n\n` +
+        `[depositPrizeAsset] ⚠️ Prize mint account does not exist on devnet: ${prizeMint.toBase58()}\n\n` +
         `To create a test token on devnet using your Phantom wallet:\n` +
         `1. Open browser console and run: window.createTestToken()\n` +
         `2. Or use the Solana CLI: spl-token create-token --url devnet\n` +
@@ -505,7 +521,7 @@ export async function depositPrizeAsset(
         throw new Error(`Prize mint account is not owned by Token Program: ${mintInfo.owner.toBase58()}`);
       }
       console.log('[depositPrizeAsset] ✅ Prize mint validated:', {
-        mint: params.prizeMint.toBase58(),
+        mint: prizeMint.toBase58(),
         owner: mintInfo.owner.toBase58(),
         dataLength: mintInfo.data.length,
       });
@@ -529,16 +545,17 @@ export async function depositPrizeAsset(
   const [prizeVault] = derivePrizeVaultPDA(room, params.prizeIndex);
 
   // Get host's token account - using Phase 1 utility
+  // ✅ Ensure both parameters are PublicKey instances
   const hostTokenAccount = getAssociatedTokenAccountAddress(
-    params.prizeMint,
-    publicKey
+    prizeMint,
+    validatedPublicKey
   );
 
   console.log('[depositPrizeAsset] Accounts:', {
     room: room.toBase58(),
     prizeVault: prizeVault.toBase58(),
     hostTokenAccount: hostTokenAccount.toBase58(),
-    prizeMint: params.prizeMint.toBase58(),
+    prizeMint: prizeMint.toBase58(),
   });
 
   // ✅ Check if prize vault exists - it should be created by the contract
@@ -556,10 +573,10 @@ export async function depositPrizeAsset(
   }
 
   // ✅ Verify mint exists before creating ATA (required for ATA creation)
-  const mintInfo = await connection.getAccountInfo(params.prizeMint);
+  const mintInfo = await connection.getAccountInfo(prizeMint);
   if (!mintInfo || !mintInfo.owner.equals(TOKEN_PROGRAM_ID)) {
     throw new Error(
-      `Prize mint account does not exist or is invalid: ${params.prizeMint.toBase58()}\n\n` +
+      `Prize mint account does not exist or is invalid: ${prizeMint.toBase58()}\n\n` +
       `The mint must exist on ${NETWORK} before you can deposit prize assets.\n` +
       `To create a test token mint using your Phantom wallet, use the createTokenMint function.`
     );
@@ -589,16 +606,16 @@ export async function depositPrizeAsset(
   // ✅ Check if host's token account exists, create if needed - using Phase 1 utility
   const { instruction: createHostAtaIx, exists: hostTokenAccountExists, account: hostTokenAccountInfo } = await getOrCreateATA({
     connection,
-    mint: params.prizeMint,
-    owner: publicKey,
-    payer: publicKey,
+    mint: prizeMint,
+    owner: validatedPublicKey,
+    payer: validatedPublicKey,
   });
 
   // Validate balance if we have the required amount
   if (requiredPrizeAmount && hostTokenAccountInfo) {
     const hostBalance = new BN(hostTokenAccountInfo.amount.toString());
     if (hostBalance.lt(requiredPrizeAmount)) {
-      const mintInfo = await connection.getParsedAccountInfo(params.prizeMint);
+      const mintInfo = await connection.getParsedAccountInfo(prizeMint);
       const decimals = (mintInfo.value?.data as any)?.parsed?.info?.decimals || 9;
       const requiredAmount = requiredPrizeAmount.toNumber() / Math.pow(10, decimals);
       const currentBalance = hostBalance.toNumber() / Math.pow(10, decimals);
@@ -609,7 +626,7 @@ export async function depositPrizeAsset(
         `Current balance: ${currentBalance} tokens\n` +
         `Missing: ${requiredAmount - currentBalance} tokens\n\n` +
         `Please mint or transfer tokens to your wallet before depositing prizes.\n` +
-        `Token mint: ${params.prizeMint.toBase58()}`
+        `Token mint: ${prizeMint.toBase58()}`
       );
     }
   } else if (requiredPrizeAmount && !hostTokenAccountExists) {
@@ -642,9 +659,9 @@ export async function depositPrizeAsset(
     .accounts({
       room,
       prizeVault,
-      prizeMint: params.prizeMint,
+      prizeMint: prizeMint,
       hostTokenAccount,
-      host: publicKey,
+      host: validatedPublicKey,
       systemProgram: SystemProgram.programId,
       tokenProgram: TOKEN_PROGRAM_ID,
       rent: SYSVAR_RENT_PUBKEY,
@@ -659,7 +676,7 @@ export async function depositPrizeAsset(
     const tx = await buildTransaction({
       connection,
       instructions,
-      feePayer: publicKey,
+      feePayer: validatedPublicKey,
       commitment: 'finalized',
     });
 
@@ -735,7 +752,7 @@ export async function depositPrizeAsset(
             const prizeAsset = roomAccount.prize_assets[params.prizeIndex];
             if (prizeAsset && prizeAsset.amount) {
               requiredAmountRaw = prizeAsset.amount as BN;
-              const mintInfo = await connection.getParsedAccountInfo(params.prizeMint);
+              const mintInfo = await connection.getParsedAccountInfo(prizeMint);
               const decimals = (mintInfo.value?.data as any)?.parsed?.info?.decimals || 9;
               requiredAmount = (requiredAmountRaw.toNumber() / Math.pow(10, decimals)).toFixed(decimals).replace(/\.?0+$/, '');
               console.log('[depositPrizeAsset] Required amount calculated:', {
@@ -761,7 +778,7 @@ export async function depositPrizeAsset(
           const tokenAccount = await getAccount(connection, hostTokenAccount, 'confirmed');
           if (tokenAccount) {
             const balance = new BN(tokenAccount.amount.toString());
-            const mintInfo = await connection.getParsedAccountInfo(params.prizeMint);
+            const mintInfo = await connection.getParsedAccountInfo(prizeMint);
             const decimals = (mintInfo.value?.data as any)?.parsed?.info?.decimals || 9;
             currentBalance = (balance.toNumber() / Math.pow(10, decimals)).toString();
           }

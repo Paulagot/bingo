@@ -190,6 +190,43 @@ export function getAssociatedTokenAccountAddress(
 }
 
 /**
+ * Converts Anchor account PublicKey objects to PublicKey instances
+ * Handles: PublicKey instances, strings, and Anchor account objects with toBase58()
+ * 
+ * @param value - The value to convert (PublicKey, string, or Anchor account object)
+ * @param fieldName - Name of the field for error messages (default: 'PublicKey')
+ * @returns PublicKey instance
+ * @throws Error if value cannot be converted to PublicKey
+ * 
+ * @example
+ * ```typescript
+ * // Handle Anchor account PublicKey objects
+ * const mint = toPublicKey(roomAccount.feeTokenMint, 'feeTokenMint');
+ * 
+ * // Handle strings
+ * const wallet = toPublicKey('9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM', 'wallet');
+ * 
+ * // Handle existing PublicKey instances (no conversion needed)
+ * const existing = toPublicKey(publicKey, 'publicKey');
+ * ```
+ */
+export function toPublicKey(value: any, fieldName: string = 'PublicKey'): PublicKey {
+  if (value instanceof PublicKey) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    return new PublicKey(value);
+  }
+  if (value && typeof value.toBase58 === 'function') {
+    return new PublicKey(value.toBase58());
+  }
+  throw new Error(
+    `Invalid ${fieldName}: expected PublicKey, string, or object with toBase58, got ${typeof value}. ` +
+    `Value: ${JSON.stringify(value)}`
+  );
+}
+
+/**
  * Gets an existing ATA or returns an instruction to create it
  */
 export async function getOrCreateATA(
