@@ -20,6 +20,38 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
+/**
+ * Normalize raw method strings from players / extras / legacy values
+ * into the same buckets as the AddPlayerModal dropdown:
+ * 'cash' | 'instant payment' | 'card' | 'web3' | 'unknown'
+ */
+function normalizeMethodForReport(raw: any): string {
+  if (!raw) return 'unknown';
+  const v = String(raw).trim().toLowerCase();
+
+  if (v === 'cash') return 'cash';
+
+  if (
+    v === 'instant payment' ||
+    v === 'instant_payment' ||
+    v === 'revolut' ||
+    v === 'cash_or_revolut'
+  ) {
+    return 'instant payment';
+  }
+
+  if (v === 'card' || v === 'card tap' || v === 'card_tap') {
+    return 'card';
+  }
+
+  if (v === 'web3' || v === 'crypto') {
+    return 'web3';
+  }
+
+  // collapse 'other', 'unknown', anything weird into 'unknown'
+  return 'unknown';
+}
+
 const PaymentReconciliationPanel: React.FC = () => {
 
   const { players } = usePlayerStore();
@@ -50,22 +82,30 @@ const PaymentReconciliationPanel: React.FC = () => {
   const unpaidPlayers = activePlayers.filter((p) => !p.paid);
 
   for (const p of activePlayers) {
-    const primaryMethod = p.paymentMethod || 'unknown';
+    // normalize the main method to our canonical buckets
+    const primaryMethod = normalizeMethodForReport(p.paymentMethod);
     if (!paymentData[primaryMethod]) {
       paymentData[primaryMethod] = { entry: 0, extrasAmount: 0, extrasCount: 0, total: 0 };
     }
-    if (p.paid) paymentData[primaryMethod].entry += entryFee;
+
+    if (p.paid) {
+      paymentData[primaryMethod].entry += entryFee;
+    }
 
     if (p.extraPayments) {
       for (const [, val] of Object.entries(p.extraPayments)) {
-        const m = (val as any)?.method || 'unknown';
+        const m = normalizeMethodForReport((val as any)?.method);
         const amt = Number((val as any)?.amount || 0);
-        if (!paymentData[m]) paymentData[m] = { entry: 0, extrasAmount: 0, extrasCount: 0, total: 0 };
+
+        if (!paymentData[m]) {
+          paymentData[m] = { entry: 0, extrasAmount: 0, extrasCount: 0, total: 0 };
+        }
         paymentData[m].extrasAmount += amt;
         paymentData[m].extrasCount += 1;
       }
     }
   }
+
   for (const k in paymentData) {
     const d = paymentData[k];
     d.total = d.entry + d.extrasAmount;
@@ -261,7 +301,9 @@ const PaymentReconciliationPanel: React.FC = () => {
             <tbody className="divide-y divide-gray-200">
               {Object.entries(paymentData).map(([method, d]) => (
                 <tr key={method} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900 capitalize">{method}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900 capitalize">
+                    {method}
+                  </td>
                   <td className="px-4 py-3 text-sm text-gray-700">{fmt(d.entry)}</td>
                   <td className="px-4 py-3 text-sm text-gray-700">{d.extrasCount}</td>
                   <td className="px-4 py-3 text-sm text-gray-700">{fmt(d.extrasAmount)}</td>
@@ -316,6 +358,7 @@ const PaymentReconciliationPanel: React.FC = () => {
 };
 
 export default PaymentReconciliationPanel;
+
 
 
 

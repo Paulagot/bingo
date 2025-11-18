@@ -318,9 +318,9 @@ const SpeedAsking: React.FC<SpeedAskingProps> = ({
           background: white; border: 2px solid #e2e8f0; border-radius: 20px;
           padding: 28px 20px; cursor: pointer; transition: all .2s ease; text-align: center;
           min-height: 120px; display: flex; align-items: center; justify-content: center;
-          font-weight: 700; font-size: 42px; line-height: 1; color: #0f172a; user-select: none;
+          font-weight: 600; font-size: 32px; line-height: 1; color: #0f172a; user-select: none;
         }
-        @media (max-width: 640px) { .speed-option, .speed-skip { min-height: 90px; font-size: 34px; } }
+        @media (max-width: 640px) { .speed-option, .speed-skip { min-height: 90px; font-size: 28px; } }
 
         .speed-label { position: absolute; top: 12px; font-size: 14px; font-weight: 600; letter-spacing: .4px; color: #64748b; }
         .speed-label.left-4 { left: 16px; }

@@ -70,11 +70,11 @@ export default function RequestPasswordReset() {
               </div>
 
               {/* Turnstile placeholder */}
-              <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-indigo-50 to-blue-50 opacity-50 p-4">
+              {/* <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-indigo-50 to-blue-50 opacity-50 p-4">
                 <p className="text-sm text-indigo-800/70 text-center">
                   🔒 Cloudflare Turnstile verification will appear here
                 </p>
-              </div>
+              </div> */}
 
               {/* Submit Button */}
               <div className="text-center pt-2">

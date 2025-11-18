@@ -93,7 +93,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         marketingConsent: data.marketingConsent || false
       });
       
-      const successMsg = 'Registration successful! Please check your email and login to continue.';
+      const successMsg = 'Registration successful! Please login to continue.';
       set({
         isLoading: false,
         error: null,

@@ -10,6 +10,11 @@ import { DynamicChainProvider } from '../../chains/DynamicChainProvider';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import WalletDebugPanel from '../Wizard/WalletDebug';
 
+// 🔍 central debug toggle + helper
+const DEBUG = true;
+const joinDebug = (...args: any[]) => {
+  if (DEBUG) console.log('[JoinRoomFlow]', ...args);
+};
 
 // Use consistent RoomConfig interface matching what verification returns
 interface RoomConfig {
@@ -20,7 +25,7 @@ interface RoomConfig {
   fundraisingOptions: Record<string, boolean>;
   fundraisingPrices: Record<string, number>;
   currencySymbol: string;
-  
+
   // Web3 fields
   web3Chain?: string;
   evmNetwork?: string;
@@ -29,7 +34,7 @@ interface RoomConfig {
   roomContractAddress?: string;
   deploymentTxHash?: string;
   web3Currency?: string;
-  
+
   // Room info
   hostName?: string;
   gameType?: string;
@@ -45,11 +50,15 @@ const normalizeChain = (value?: string | null): SupportedChain | null => {
   if (!value) return null;
   const v = value.toLowerCase();
   if (['stellar', 'xlm'].includes(v)) return 'stellar';
-  if (['evm', 'ethereum', 'eth', 'polygon', 'matic', 'arbitrum', 'optimism', 'base'].includes(v)) return 'evm';
+  if (
+    ['evm', 'ethereum', 'eth', 'polygon', 'matic', 'arbitrum', 'optimism', 'base'].includes(
+      v
+    )
+  )
+    return 'evm';
   if (['solana', 'sol'].includes(v)) return 'solana';
   return null;
 };
-
 
 interface JoinRoomFlowProps {
   onClose: () => void;
@@ -57,12 +66,14 @@ interface JoinRoomFlowProps {
   prefilledRoomId?: string;
 }
 
-export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({ 
-  onClose, 
-  prefilledRoomId 
+export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
+  onClose,
+  prefilledRoomId,
 }) => {
   const { socket } = useQuizSocket();
-  const [step, setStep] = useState<JoinStep>(prefilledRoomId ? 'name-entry' : 'verification');
+  const [step, setStep] = useState<JoinStep>(
+    prefilledRoomId ? 'name-entry' : 'verification'
+  );
   const [paymentFlow, setPaymentFlow] = useState<PaymentFlow | null>(null);
   const [roomId, setRoomId] = useState(prefilledRoomId || '');
   const [playerName, setPlayerName] = useState('');
@@ -70,111 +81,165 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
   const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
   const [detectedChain, setDetectedChain] = useState<SupportedChain | null>(null);
 
+  // 🔄 top-level render log
+  joinDebug('render', {
+    step,
+    paymentFlow,
+    hasRoomConfig: !!roomConfig,
+    roomId,
+    playerName,
+    detectedChain,
+    prefilledRoomId,
+  });
+
   // Auto-verify room if roomId is prefilled
   useEffect(() => {
     if (prefilledRoomId && socket?.connected && !roomConfig) {
-      console.log('Auto-verifying room from QR code:', prefilledRoomId);
-      
+      joinDebug('Auto-verifying room from QR code', { prefilledRoomId });
+
       socket.emit('verify_quiz_room', { roomId: prefilledRoomId });
-      
+
       const handleVerification = (data: any) => {
-        console.log('Room verification response:', data);
-        console.log('verify result web3Chain:', data.web3Chain);
-        
+        joinDebug('Room verification response', data);
+        joinDebug('verify result web3Chain:', data.web3Chain);
+
         if (!data.exists) {
+          joinDebug('Room does NOT exist, returning to verification step');
           // Room doesn't exist, fall back to manual entry
           setStep('verification');
           return;
         }
-        
+
         // ✅ SET SESSION STORAGE IMMEDIATELY BEFORE setting roomConfig
         // This ensures EvmWalletProvider reads the correct network on re-render
         if (data.web3Chain === 'evm' && data.evmNetwork) {
-          console.log('🔧 Pre-setting EVM network in sessionStorage:', data.evmNetwork);
+          joinDebug('Pre-setting EVM network in sessionStorage', {
+            evmNetwork: data.evmNetwork,
+            roomContractAddress: data.roomContractAddress,
+          });
           sessionStorage.setItem('active-evm-network', data.evmNetwork);
           if (data.roomContractAddress) {
             sessionStorage.setItem('active-room-contract', data.roomContractAddress);
           }
         }
-        
+
         // Room exists, set up the config and proceed to name entry
         const normalizedConfig: RoomConfig = {
           ...data,
           currencySymbol: data.currencySymbol || '€',
-          roomId: prefilledRoomId
+          roomId: prefilledRoomId,
         };
-        
+
+        joinDebug('Setting roomConfig from QR verify', normalizedConfig);
         setRoomConfig(normalizedConfig);
 
         const normalized = normalizeChain(data.web3Chain);
-
-        console.log('normalized chain:', normalized);
+        joinDebug('normalized chain from verify:', {
+          raw: data.web3Chain,
+          normalized,
+        });
         if (normalized) setDetectedChain(normalized);
 
+        let flow: PaymentFlow;
         if (data.demoMode) {
-          setPaymentFlow('demo');
+          flow = 'demo';
         } else if (data.paymentMethod === 'web3') {
-          setPaymentFlow('web3');
+          flow = 'web3';
         } else {
-          setPaymentFlow('web2');
+          flow = 'web2';
         }
+        joinDebug('Auto-selected paymentFlow from verify', {
+          paymentMethod: data.paymentMethod,
+          demoMode: data.demoMode,
+          paymentFlow: flow,
+        });
+
+        setPaymentFlow(flow);
+
+        // Since QR already implies a ready room, skip name step if you want
+        // but currently logic starts at name-entry (set by initial state)
       };
 
       socket.once('quiz_room_verification_result', handleVerification);
-      
+
       return () => {
         socket.off('quiz_room_verification_result', handleVerification);
       };
     }
-  }, [prefilledRoomId, socket?.connected, roomConfig]);
+  }, [prefilledRoomId, socket?.connected, roomConfig, socket]);
 
   const handleRoomVerified = (config: any, roomId: string, playerName: string) => {
-    console.log('🎯 handleRoomVerified called with:', { config, roomId, playerName });
-    
+    joinDebug('handleRoomVerified called', { config, roomId, playerName });
+
     // ✅ SET SESSION STORAGE FIRST - before any state updates
     // This ensures EvmWalletProvider reads the correct network
     if (config.web3Chain === 'evm' && config.evmNetwork) {
-      console.log('🔧 Pre-setting EVM network in sessionStorage:', config.evmNetwork);
+      joinDebug('Pre-setting EVM network in sessionStorage', {
+        evmNetwork: config.evmNetwork,
+        roomContractAddress: config.roomContractAddress,
+      });
       sessionStorage.setItem('active-evm-network', config.evmNetwork);
       if (config.roomContractAddress) {
         sessionStorage.setItem('active-room-contract', config.roomContractAddress);
       }
     }
-    
+
     const normalizedConfig: RoomConfig = {
       ...config,
       currencySymbol: config.currencySymbol || '€',
-      roomId: roomId 
+      roomId: roomId,
     };
-    
+
+    joinDebug('Setting roomConfig from manual verify', normalizedConfig);
     setRoomConfig(normalizedConfig);
     setRoomId(roomId);
     setPlayerName(playerName);
 
     // Handle chain detection internally (no parent callback)
     const normalized = normalizeChain(config.web3Chain);
-    console.log('🎯 Setting detected chain to:', normalized || config.web3Chain);
+    joinDebug('Setting detected chain', {
+      raw: config.web3Chain,
+      normalized,
+    });
     setDetectedChain(normalized);
 
+    let flow: PaymentFlow;
     if (config.demoMode) {
-      setPaymentFlow('demo');
+      flow = 'demo';
     } else if (config.paymentMethod === 'web3') {
-      setPaymentFlow('web3');
+      flow = 'web3';
     } else {
-      setPaymentFlow('web2');
+      flow = 'web2';
     }
-    
-    console.log('🎯 About to set step to extras');
+    joinDebug('Selected paymentFlow from config', {
+      paymentMethod: config.paymentMethod,
+      demoMode: config.demoMode,
+      paymentFlow: flow,
+    });
+
+    setPaymentFlow(flow);
+
+    joinDebug('About to set step to extras');
     setStep('extras');
-    console.log('🎯 Step set to extras');
+    joinDebug('Step set to extras (handleRoomVerified)');
   };
 
   const handleExtrasSelected = (extras: string[]) => {
+    joinDebug('Extras selected, moving to payment step', {
+      extras,
+      roomId,
+      playerName,
+      paymentFlow,
+    });
     setSelectedExtras(extras);
     setStep('payment');
   };
 
   const handleBackToVerification = () => {
+    joinDebug('Back to verification pressed. Resetting flow.', {
+      currentStep: step,
+      roomId,
+    });
     setStep('verification');
     setPaymentFlow(null);
     setRoomConfig(null);
@@ -185,44 +250,47 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
   };
 
   const handleBackToExtras = () => {
+    joinDebug('Back to extras pressed', {
+      currentStep: step,
+      roomId,
+      selectedExtras,
+    });
     setStep('extras');
   };
 
-  // Add this useEffect to track step changes
+  // Track step changes
   useEffect(() => {
-    console.log('🔄 Step changed to:', step);
+    joinDebug('Step changed', { step });
   }, [step]);
 
-  // And add this to see the current state when rendering
-  console.log('🎭 JoinRoomFlow render - current step:', step, 'paymentFlow:', paymentFlow, 'roomConfig exists:', !!roomConfig);
-  console.log('🔗 JoinRoomFlow detectedChain:', detectedChain);
-  console.log('🔗 JoinRoomFlow step:', step, 'paymentFlow:', paymentFlow);
+  // Track payment flow changes
+  useEffect(() => {
+    joinDebug('paymentFlow changed', { paymentFlow });
+  }, [paymentFlow]);
 
   return (
     <DynamicChainProvider selectedChain={detectedChain}>
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30 p-2 sm:p-4">
         <div className="bg-muted max-h-[95vh] w-full max-w-4xl overflow-hidden rounded-xl shadow-xl sm:max-h-[90vh]">
           {step === 'verification' && (
-            <RoomVerificationStep
-              onVerified={handleRoomVerified}
-              onClose={onClose}
-            />
+            <RoomVerificationStep onVerified={handleRoomVerified} onClose={onClose} />
           )}
 
           {/* <WalletDebugPanel /> */}
-          
+
           {step === 'name-entry' && roomConfig && (
             <NameEntryStep
               roomId={roomId}
               roomConfig={roomConfig}
               onBack={handleBackToVerification}
               onContinue={(name) => {
+                joinDebug('Name entry continue', { name, roomId });
                 setPlayerName(name);
                 setStep('extras');
               }}
             />
           )}
-          
+
           {step === 'extras' && roomConfig && (
             <ExtrasSelectionStep
               roomId={roomId}
@@ -232,7 +300,7 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
               onContinue={handleExtrasSelected}
             />
           )}
-          
+
           {step === 'payment' && roomConfig && (
             <>
               {paymentFlow === 'demo' && (
@@ -245,9 +313,9 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
                   onClose={onClose}
                 />
               )}
-              
-              {paymentFlow === 'web3' && (
-                detectedChain ? (
+
+              {paymentFlow === 'web3' &&
+                (detectedChain ? (
                   <Web3PaymentStep
                     chainOverride={detectedChain}
                     roomId={roomId}
@@ -263,9 +331,8 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
                       Detecting blockchain network… Please wait.
                     </div>
                   </div>
-                )
-              )}
-              
+                ))}
+
               {paymentFlow === 'web2' && (
                 <Web2PaymentStep
                   roomId={roomId}
@@ -295,7 +362,7 @@ const NameEntryStep: React.FC<NameEntryStepProps> = ({
   roomId,
   roomConfig,
   onBack,
-  onContinue
+  onContinue,
 }) => {
   const [playerName, setPlayerName] = useState('');
   const [error, setError] = useState('');
@@ -326,10 +393,12 @@ const NameEntryStep: React.FC<NameEntryStepProps> = ({
 
       <div className="space-y-4">
         <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">Your Name</label>
+          <label className="mb-2 block text-sm font-medium text-gray-700">
+            Your Name
+          </label>
           <input
             value={playerName}
-            onChange={e => {
+            onChange={(e) => {
               setPlayerName(e.target.value);
               setError('');
             }}
@@ -348,13 +417,13 @@ const NameEntryStep: React.FC<NameEntryStepProps> = ({
       )}
 
       <div className="mt-6 flex flex-col justify-end space-y-3 border-t border-gray-200 pt-6 sm:flex-row sm:space-x-3 sm:space-y-0">
-        <button 
+        <button
           onClick={onBack}
           className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 sm:px-6 sm:py-3 sm:text-base"
         >
           Back
         </button>
-        <button 
+        <button
           onClick={handleContinue}
           className="flex items-center justify-center space-x-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 sm:px-6 sm:py-3 sm:text-base"
         >
@@ -364,4 +433,4 @@ const NameEntryStep: React.FC<NameEntryStepProps> = ({
       </div>
     </div>
   );
-}
+};

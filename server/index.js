@@ -9,6 +9,13 @@ console.log('DB_USER:', process.env.DB_USER);
 console.log('DB_NAME:', process.env.DB_NAME);
 console.log('DB_PORT:', process.env.DB_PORT);
 
+// 🔍 SMTP debug
+console.log('SMTP_HOST:', process.env.SMTP_HOST);
+console.log('SMTP_PORT:', process.env.SMTP_PORT);
+console.log('SMTP_SECURE:', process.env.SMTP_SECURE);
+console.log('SMTP_USER:', process.env.SMTP_USER);
+console.log('MAIL_FROM:', process.env.MAIL_FROM);
+
 import express from 'express';
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
@@ -34,6 +41,9 @@ import tgbWebhookHandler from './tgb/api/webhook.js';
 import contactRoute from './routes/contact.js';
 import passwordResetRoute from './routes/passwordReset.js';
 
+// ✅ NEW: import mailer verify helper
+import { verifyMailer } from './utils/mailer.js';
+
 import { seoRoutes } from './SeoRoutes.js';
 import { getSeoForPath } from './seoMap.js'; // route→SEO map (server/seoMap.js)
 import helmet from 'helmet';
@@ -45,6 +55,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { logger, loggers, logRequest, logResponse } from './config/logging.js';
 
 const app = express();
+
+// 🔍 Verify SMTP once at startup (non-blocking)
+verifyMailer().catch((err) => {
+  console.warn('📧 SMTP verify threw (will still try on send):', err?.message || err);
+});
 
 // Health check endpoint - MUST be first so it's always available
 app.get('/health', (req, res) => {
@@ -243,6 +258,7 @@ app.use((req, res, next) => {
 
   next();
 });
+
 
 // Trusted Types (Report-Only) — surfaces DOM sink usage without breaking anything
 // app.use((req, res, next) => {
