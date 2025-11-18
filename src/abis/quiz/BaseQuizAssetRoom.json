@@ -1,127 +1,225 @@
 [
-  { "type": "function", "stateMutability": "view", "name": "PLATFORM_WALLET", "inputs": [], "outputs": [{ "name": "", "type": "address" }] },
-  { "type": "function", "stateMutability": "view", "name": "TOKEN", "inputs": [], "outputs": [{ "name": "", "type": "address" }] },
-  { "type": "function", "stateMutability": "view", "name": "HOST", "inputs": [], "outputs": [{ "name": "", "type": "address" }] },
-  { "type": "function", "stateMutability": "view", "name": "HOST_PAY_BPS", "inputs": [], "outputs": [{ "name": "", "type": "uint16" }] },
-
-  { "type": "function", "stateMutability": "view", "name": "state", "inputs": [], "outputs": [{ "name": "", "type": "uint8" }] },
-
+  {
+    "type": "constructor",
+    "inputs": [
+      { "name": "platformWallet", "type": "address", "internalType": "address" },
+      { "name": "token", "type": "address", "internalType": "address" },
+      { "name": "host", "type": "address", "internalType": "address" },
+      { "name": "hostPayBps", "type": "uint16", "internalType": "uint16" }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  { "type": "function", "name": "PLATFORM_WALLET", "inputs": [], "outputs": [{ "name": "", "type": "address", "internalType": "address" }], "stateMutability": "view" },
+  { "type": "function", "name": "TOKEN", "inputs": [], "outputs": [{ "name": "", "type": "address", "internalType": "address" }], "stateMutability": "view" },
+  { "type": "function", "name": "HOST", "inputs": [], "outputs": [{ "name": "", "type": "address", "internalType": "address" }], "stateMutability": "view" },
+  { "type": "function", "name": "HOST_PAY_BPS", "inputs": [], "outputs": [{ "name": "", "type": "uint16", "internalType": "uint16" }], "stateMutability": "view" },
+  { "type": "function", "name": "state", "inputs": [], "outputs": [{ "name": "", "type": "uint8", "internalType": "enum FundRaiselyAssetRoom.State" }], "stateMutability": "view" },
   {
     "type": "function",
-    "stateMutability": "view",
     "name": "totals",
     "inputs": [],
     "outputs": [
-      { "name": "fees",   "type": "uint128" },
-      { "name": "extras", "type": "uint128" },
-      { "name": "players","type": "uint32"  }
-    ]
+      { "name": "fees", "type": "uint128", "internalType": "uint128" },
+      { "name": "extras", "type": "uint128", "internalType": "uint128" },
+      { "name": "players", "type": "uint32", "internalType": "uint32" }
+    ],
+    "stateMutability": "view"
   },
-
-  { "type": "function", "stateMutability": "view", "name": "playerPaid", "inputs": [{ "name": "", "type": "address" }], "outputs": [{ "name": "", "type": "uint256" }] },
-  { "type": "function", "stateMutability": "view", "name": "joined",     "inputs": [{ "name": "", "type": "address" }], "outputs": [{ "name": "", "type": "bool" }] },
-
-  { "type": "function", "stateMutability": "view", "name": "refundRemaining", "inputs": [], "outputs": [{ "name": "", "type": "uint256" }] },
-
-  { "type": "function", "stateMutability": "view", "name": "prizeCount", "inputs": [], "outputs": [{ "name": "", "type": "uint8" }] },
-  { "type": "function", "stateMutability": "view", "name": "allPrizesUploaded", "inputs": [], "outputs": [{ "name": "", "type": "bool" }] },
-
+  { "type": "function", "name": "playerPaid", "inputs": [{ "name": "", "type": "address", "internalType": "address" }], "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }], "stateMutability": "view" },
+  { "type": "function", "name": "joined", "inputs": [{ "name": "", "type": "address", "internalType": "address" }], "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }], "stateMutability": "view" },
+  { "type": "function", "name": "refundRemaining", "inputs": [], "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }], "stateMutability": "view" },
+  { "type": "function", "name": "totalIntake", "inputs": [], "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }], "stateMutability": "view" },
+  { "type": "function", "name": "prizeCount", "inputs": [], "outputs": [{ "name": "", "type": "uint8", "internalType": "uint8" }], "stateMutability": "view" },
+  { "type": "function", "name": "allPrizesUploaded", "inputs": [], "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }], "stateMutability": "view" },
   {
     "type": "function",
-    "stateMutability": "view",
     "name": "getAllPrizes",
     "inputs": [],
     "outputs": [
-      { "name": "places",   "type": "uint8[]"  },
-      { "name": "types_",   "type": "uint8[]"  },
-      { "name": "assets",   "type": "address[]"},
-      { "name": "amounts",  "type": "uint256[]"},
-      { "name": "tokenIds", "type": "uint256[]"},
-      { "name": "uploaded", "type": "bool[]"   }
-    ]
+      { "name": "places", "type": "uint8[]", "internalType": "uint8[]" },
+      { "name": "types_", "type": "uint8[]", "internalType": "enum FundRaiselyAssetRoom.PrizeType[]" },
+      { "name": "assets", "type": "address[]", "internalType": "address[]" },
+      { "name": "amounts", "type": "uint256[]", "internalType": "uint256[]" },
+      { "name": "tokenIds", "type": "uint256[]", "internalType": "uint256[]" },
+      { "name": "uploaded", "type": "bool[]", "internalType": "bool[]" }
+    ],
+    "stateMutability": "view"
   },
-
   {
     "type": "function",
-    "stateMutability": "nonpayable",
     "name": "configurePrize",
     "inputs": [
-      { "name": "place",    "type": "uint8"   },
-      { "name": "ptype",    "type": "uint8"   },
-      { "name": "asset",    "type": "address" },
-      { "name": "amount",   "type": "uint256" },
-      { "name": "tokenId",  "type": "uint256" }
+      { "name": "place", "type": "uint8", "internalType": "uint8" },
+      { "name": "ptype", "type": "uint8", "internalType": "enum FundRaiselyAssetRoom.PrizeType" },
+      { "name": "asset", "type": "address", "internalType": "address" },
+      { "name": "amount", "type": "uint256", "internalType": "uint256" },
+      { "name": "tokenId", "type": "uint256", "internalType": "uint256" }
     ],
-    "outputs": []
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
-
-  { "type": "function", "stateMutability": "nonpayable", "name": "uploadPrize", "inputs": [ { "name": "place", "type": "uint8" } ], "outputs": [] },
-
-  { "type": "function", "stateMutability": "nonpayable", "name": "join", "inputs": [ { "name": "feePaid", "type": "uint256" }, { "name": "extrasPaid", "type": "uint256" } ], "outputs": [] },
-  { "type": "function", "stateMutability": "nonpayable", "name": "addExtras", "inputs": [ { "name": "extrasPaid", "type": "uint256" } ], "outputs": [] },
-
-  { "type": "function", "stateMutability": "nonpayable", "name": "lockForSettlement", "inputs": [], "outputs": [] },
-
   {
     "type": "function",
-    "stateMutability": "view",
+    "name": "configurePrizesBatch",
+    "inputs": [
+      { "name": "places", "type": "uint8[]", "internalType": "uint8[]" },
+      { "name": "ptypes", "type": "uint8[]", "internalType": "uint8[]" },
+      { "name": "assets", "type": "address[]", "internalType": "address[]" },
+      { "name": "amounts", "type": "uint256[]", "internalType": "uint256[]" },
+      { "name": "tokenIds", "type": "uint256[]", "internalType": "uint256[]" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  { "type": "function", "name": "uploadPrize", "inputs": [{ "name": "place", "type": "uint8", "internalType": "uint8" }], "outputs": [], "stateMutability": "nonpayable" },
+  {
+    "type": "function",
+    "name": "join",
+    "inputs": [
+      { "name": "feePaid", "type": "uint256", "internalType": "uint256" },
+      { "name": "extrasPaid", "type": "uint256", "internalType": "uint256" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  { "type": "function", "name": "addExtras", "inputs": [{ "name": "extrasPaid", "type": "uint256", "internalType": "uint256" }], "outputs": [], "stateMutability": "nonpayable" },
+  { "type": "function", "name": "lockForSettlement", "inputs": [], "outputs": [], "stateMutability": "nonpayable" },
+  {
+    "type": "function",
     "name": "previewCharityPayout",
     "inputs": [],
     "outputs": [
-      { "name": "token",       "type": "address" },
-      { "name": "intake",      "type": "uint256" },
-      { "name": "charityAmt",  "type": "uint256" },
-      { "name": "platformAmt", "type": "uint256" },
-      { "name": "hostAmt",     "type": "uint256" }
-    ]
+      { "name": "token", "type": "address", "internalType": "address" },
+      { "name": "intake", "type": "uint256", "internalType": "uint256" },
+      { "name": "charityAmt", "type": "uint256", "internalType": "uint256" },
+      { "name": "platformAmt", "type": "uint256", "internalType": "uint256" },
+      { "name": "hostAmt", "type": "uint256", "internalType": "uint256" }
+    ],
+    "stateMutability": "view"
   },
-
   {
     "type": "function",
-    "stateMutability": "nonpayable",
     "name": "emitFinancialsPreview",
     "inputs": [],
     "outputs": [
-      { "name": "token",       "type": "address" },
-      { "name": "intake",      "type": "uint256" },
-      { "name": "charityAmt",  "type": "uint256" },
-      { "name": "platformAmt", "type": "uint256" },
-      { "name": "hostAmt",     "type": "uint256" }
-    ]
+      { "name": "token", "type": "address", "internalType": "address" },
+      { "name": "intake", "type": "uint256", "internalType": "uint256" },
+      { "name": "charityAmt", "type": "uint256", "internalType": "uint256" },
+      { "name": "platformAmt", "type": "uint256", "internalType": "uint256" },
+      { "name": "hostAmt", "type": "uint256", "internalType": "uint256" }
+    ],
+    "stateMutability": "nonpayable"
   },
-
   {
     "type": "function",
-    "stateMutability": "nonpayable",
     "name": "finalize",
     "inputs": [
-      { "name": "winners",           "type": "address[]" },
-      { "name": "charityRecipient",  "type": "address"   },
-      { "name": "intentIdHash",      "type": "bytes32"   }
+      { "name": "winners", "type": "address[]", "internalType": "address[]" },
+      { "name": "charityRecipient", "type": "address", "internalType": "address" },
+      { "name": "intentIdHash", "type": "bytes32", "internalType": "bytes32" }
     ],
-    "outputs": []
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
-
-  { "type": "function", "stateMutability": "nonpayable", "name": "adminCloseAndRefund", "inputs": [], "outputs": [] },
-  { "type": "function", "stateMutability": "nonpayable", "name": "refundBatch", "inputs": [ { "name": "users", "type": "address[]" } ], "outputs": [] },
-
-  { "type": "function", "stateMutability": "view", "name": "totalIntake", "inputs": [], "outputs": [ { "name": "", "type": "uint256" } ] },
-
-  { "type": "event", "name": "Joined", "inputs": [ { "name": "player", "type": "address", "indexed": true }, { "name": "feePaid", "type": "uint256", "indexed": false }, { "name": "extrasPaid", "type": "uint256", "indexed": false } ], "anonymous": false },
-  { "type": "event", "name": "ExtrasAdded", "inputs": [ { "name": "player", "type": "address", "indexed": true }, { "name": "extrasPaid", "type": "uint256", "indexed": false } ], "anonymous": false },
+  { "type": "function", "name": "adminCloseAndRefund", "inputs": [], "outputs": [], "stateMutability": "nonpayable" },
+  { "type": "function", "name": "refundBatch", "inputs": [{ "name": "users", "type": "address[]", "internalType": "address[]" }], "outputs": [], "stateMutability": "nonpayable" },
+  {
+    "type": "event",
+    "name": "Joined",
+    "inputs": [
+      { "name": "player", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "feePaid", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "extrasPaid", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ExtrasAdded",
+    "inputs": [
+      { "name": "player", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "extrasPaid", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
   { "type": "event", "name": "RoomLocked", "inputs": [], "anonymous": false },
-
-  { "type": "event", "name": "PrizeConfigured", "inputs": [ { "name": "place", "type": "uint8", "indexed": true }, { "name": "ptype", "type": "uint8", "indexed": false }, { "name": "asset", "type": "address", "indexed": false }, { "name": "amount", "type": "uint256", "indexed": false }, { "name": "tokenId", "type": "uint256", "indexed": false } ], "anonymous": false },
-  { "type": "event", "name": "PrizeUploaded",   "inputs": [ { "name": "place", "type": "uint8", "indexed": true } ], "anonymous": false },
-  { "type": "event", "name": "PrizesReady",     "inputs": [], "anonymous": false },
-
-  { "type": "event", "name": "PrizeDelivered", "inputs": [ { "name": "place", "type": "uint8", "indexed": true }, { "name": "winner", "type": "address", "indexed": true }, { "name": "ptype", "type": "uint8", "indexed": false }, { "name": "asset", "type": "address", "indexed": false }, { "name": "amount", "type": "uint256", "indexed": false }, { "name": "tokenId", "type": "uint256", "indexed": false } ], "anonymous": false },
-
-  { "type": "event", "name": "CharityPaid", "inputs": [ { "name": "token", "type": "address", "indexed": false }, { "name": "recipient", "type": "address", "indexed": false }, { "name": "amount", "type": "uint256", "indexed": false }, { "name": "intentIdHash", "type": "bytes32", "indexed": false } ], "anonymous": false },
-
-  { "type": "event", "name": "RoomFinancialsPreview", "inputs": [ { "name": "token", "type": "address", "indexed": false }, { "name": "intake", "type": "uint256", "indexed": false }, { "name": "platformAmt", "type": "uint256", "indexed": false }, { "name": "hostAmt", "type": "uint256", "indexed": false }, { "name": "charityAmt", "type": "uint256", "indexed": false } ], "anonymous": false },
-
-  { "type": "event", "name": "RoomSettled", "inputs": [ { "name": "totalIntake", "type": "uint256", "indexed": false }, { "name": "platformPaid", "type": "uint256", "indexed": false }, { "name": "hostPaid", "type": "uint256", "indexed": false }, { "name": "charityPaid", "type": "uint256", "indexed": false }, { "name": "prizesPaid", "type": "uint256", "indexed": false } ], "anonymous": false },
-
-  { "type": "event", "name": "AdminRefunded", "inputs": [ { "name": "totalRefunded", "type": "uint256", "indexed": false }, { "name": "platformCut", "type": "uint256", "indexed": false } ], "anonymous": false }
+  {
+    "type": "event",
+    "name": "PrizeConfigured",
+    "inputs": [
+      { "name": "place", "type": "uint8", "indexed": true, "internalType": "uint8" },
+      { "name": "ptype", "type": "uint8", "indexed": false, "internalType": "enum FundRaiselyAssetRoom.PrizeType" },
+      { "name": "asset", "type": "address", "indexed": false, "internalType": "address" },
+      { "name": "amount", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "tokenId", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PrizeUploaded",
+    "inputs": [
+      { "name": "place", "type": "uint8", "indexed": true, "internalType": "uint8" }
+    ],
+    "anonymous": false
+  },
+  { "type": "event", "name": "PrizesReady", "inputs": [], "anonymous": false },
+  {
+    "type": "event",
+    "name": "PrizeDelivered",
+    "inputs": [
+      { "name": "place", "type": "uint8", "indexed": true, "internalType": "uint8" },
+      { "name": "winner", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "ptype", "type": "uint8", "indexed": false, "internalType": "enum FundRaiselyAssetRoom.PrizeType" },
+      { "name": "asset", "type": "address", "indexed": false, "internalType": "address" },
+      { "name": "amount", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "tokenId", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "CharityPaid",
+    "inputs": [
+      { "name": "token", "type": "address", "indexed": false, "internalType": "address" },
+      { "name": "recipient", "type": "address", "indexed": false, "internalType": "address" },
+      { "name": "amount", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "intentIdHash", "type": "bytes32", "indexed": false, "internalType": "bytes32" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RoomSettled",
+    "inputs": [
+      { "name": "totalIntake", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "platformPaid", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "hostPaid", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "charityPaid", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "prizesPaid", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "AdminRefunded",
+    "inputs": [
+      { "name": "totalRefunded", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "platformCut", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RoomFinancialsPreview",
+    "inputs": [
+      { "name": "token", "type": "address", "indexed": false, "internalType": "address" },
+      { "name": "intake", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "platformAmt", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "hostAmt", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "charityAmt", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
+  { "type": "error", "name": "ReentrancyGuardReentrantCall", "inputs": [] }
 ]

@@ -1,31 +1,32 @@
 [
-  { "type": "function", "stateMutability": "view", "name": "PLATFORM_WALLET", "inputs": [], "outputs": [{ "name": "", "type": "address" }] },
-  { "type": "function", "stateMutability": "view", "name": "allowedToken", "inputs": [{ "name": "token", "type": "address" }], "outputs": [{ "name": "", "type": "bool" }] },
-  { "type": "function", "stateMutability": "view", "name": "roomKeyOf", "inputs": [{ "name": "roomId", "type": "string" }], "outputs": [{ "name": "", "type": "bytes32" }] },
-  { "type": "function", "stateMutability": "view", "name": "roomOf", "inputs": [{ "name": "roomKey", "type": "bytes32" }], "outputs": [{ "name": "", "type": "address" }] },
-
+  { "type": "constructor", "inputs": [{ "name": "platformWallet", "type": "address", "internalType": "address" }], "stateMutability": "nonpayable" },
+  { "type": "function", "name": "PLATFORM_WALLET", "inputs": [], "outputs": [{ "name": "", "type": "address", "internalType": "address" }], "stateMutability": "view" },
+  { "type": "function", "name": "owner", "inputs": [], "outputs": [{ "name": "", "type": "address", "internalType": "address" }], "stateMutability": "view" },
+  { "type": "function", "name": "allowedToken", "inputs": [{ "name": "", "type": "address", "internalType": "address" }], "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }], "stateMutability": "view" },
+  { "type": "function", "name": "roomKeyOf", "inputs": [{ "name": "roomId", "type": "string", "internalType": "string" }], "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }], "stateMutability": "pure" },
+  { "type": "function", "name": "roomOf", "inputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }], "outputs": [{ "name": "", "type": "address", "internalType": "address" }], "stateMutability": "view" },
   {
     "type": "function",
-    "stateMutability": "nonpayable",
     "name": "createAssetRoom",
     "inputs": [
-      { "name": "roomId",      "type": "string"  },
-      { "name": "token",       "type": "address" },
-      { "name": "host",        "type": "address" },
-      { "name": "hostPayBps",  "type": "uint16"  }
+      { "name": "roomId", "type": "string", "internalType": "string" },
+      { "name": "token", "type": "address", "internalType": "address" },
+      { "name": "host", "type": "address", "internalType": "address" },
+      { "name": "hostPayBps", "type": "uint16", "internalType": "uint16" }
     ],
-    "outputs": [ { "name": "room", "type": "address" } ]
+    "outputs": [{ "name": "room", "type": "address", "internalType": "address" }],
+    "stateMutability": "nonpayable"
   },
-
-  { "type": "function", "stateMutability": "nonpayable", "name": "setAllowedToken", "inputs": [ { "name": "token", "type": "address" }, { "name": "allowed", "type": "bool" } ], "outputs": [] },
-  { "type": "function", "stateMutability": "nonpayable", "name": "adminCloseAndRefund", "inputs": [ { "name": "room", "type": "address" } ], "outputs": [] },
-
+  { "type": "function", "name": "setAllowedToken", "inputs": [{ "name": "token", "type": "address", "internalType": "address" }, { "name": "allowed", "type": "bool", "internalType": "bool" }], "outputs": [], "stateMutability": "nonpayable" },
+  { "type": "function", "name": "adminCloseAndRefund", "inputs": [{ "name": "room", "type": "address", "internalType": "address" }], "outputs": [], "stateMutability": "nonpayable" },
+  { "type": "function", "name": "renounceOwnership", "inputs": [], "outputs": [], "stateMutability": "nonpayable" },
+  { "type": "function", "name": "transferOwnership", "inputs": [{ "name": "newOwner", "type": "address", "internalType": "address" }], "outputs": [], "stateMutability": "nonpayable" },
   {
     "type": "event",
     "name": "TokenAllowed",
     "inputs": [
-      { "name": "token", "type": "address", "indexed": false },
-      { "name": "allowed", "type": "bool", "indexed": false }
+      { "name": "token", "type": "address", "indexed": false, "internalType": "address" },
+      { "name": "allowed", "type": "bool", "indexed": false, "internalType": "bool" }
     ],
     "anonymous": false
   },
@@ -33,11 +34,11 @@
     "type": "event",
     "name": "RoomCreated",
     "inputs": [
-      { "name": "roomKey", "type": "bytes32", "indexed": true },
-      { "name": "roomId",  "type": "string",  "indexed": false },
-      { "name": "room",    "type": "address", "indexed": false },
-      { "name": "token",   "type": "address", "indexed": false },
-      { "name": "host",    "type": "address", "indexed": false }
+      { "name": "roomKey", "type": "bytes32", "indexed": true, "internalType": "bytes32" },
+      { "name": "roomId", "type": "string", "indexed": false, "internalType": "string" },
+      { "name": "room", "type": "address", "indexed": false, "internalType": "address" },
+      { "name": "token", "type": "address", "indexed": false, "internalType": "address" },
+      { "name": "host", "type": "address", "indexed": false, "internalType": "address" }
     ],
     "anonymous": false
   },
@@ -45,8 +46,19 @@
     "type": "event",
     "name": "RoomClosedByAdmin",
     "inputs": [
-      { "name": "room", "type": "address", "indexed": false }
+      { "name": "room", "type": "address", "indexed": false, "internalType": "address" }
     ],
     "anonymous": false
-  }
+  },
+  {
+    "type": "event",
+    "name": "OwnershipTransferred",
+    "inputs": [
+      { "name": "previousOwner", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "newOwner", "type": "address", "indexed": true, "internalType": "address" }
+    ],
+    "anonymous": false
+  },
+  { "type": "error", "name": "OwnableInvalidOwner", "inputs": [{ "name": "owner", "type": "address", "internalType": "address" }] },
+  { "type": "error", "name": "OwnableUnauthorizedAccount", "inputs": [{ "name": "account", "type": "address", "internalType": "address" }] }
 ]

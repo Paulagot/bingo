@@ -98,30 +98,30 @@ const evmNetworkKey = (storedNetwork || setupNetwork || undefined) as EvmNetwork
 // ✅ Use dynamic lookup - will work for ALL networks
 const targetChainId = evmNetworkKey ? EVM_KEY_TO_ID[evmNetworkKey] : undefined;
 
-console.log('🔍 [EvmWalletProvider] Network resolution:', {
-  fromSetupConfig: setupNetwork,
-  fromSessionStorage: storedNetwork,
-  resolved: evmNetworkKey,
-  targetChainId
-});
+// console.log('🔍 [EvmWalletProvider] Network resolution:', {
+//   fromSetupConfig: setupNetwork,
+//   fromSessionStorage: storedNetwork,
+//   resolved: evmNetworkKey,
+//   targetChainId
+// });
 
 
 
-  console.log('🔍 [EvmWalletProvider] Config:', {
-    evmNetworkKey,
-    targetChainId,
-    currentChainId: chainId,
-    isConnected,
-    address: address ? `${address.slice(0, 6)}...${address.slice(-4)}` : null
-  });
+  // console.log('🔍 [EvmWalletProvider] Config:', {
+  //   evmNetworkKey,
+  //   targetChainId,
+  //   currentChainId: chainId,
+  //   isConnected,
+  //   address: address ? `${address.slice(0, 6)}...${address.slice(-4)}` : null
+  // });
 
   // Add this debug:
-console.log('🔍 [EvmWalletProvider] Network resolution:', {
-  fromSetupConfig: (setupConfig as any)?.evmNetwork,
-  fromSessionStorage: sessionStorage.getItem('active-evm-network'),
-  resolved: evmNetworkKey,
-  targetChainId
-});
+// console.log('🔍 [EvmWalletProvider] Network resolution:', {
+//   fromSetupConfig: (setupConfig as any)?.evmNetwork,
+//   fromSessionStorage: sessionStorage.getItem('active-evm-network'),
+//   resolved: evmNetworkKey,
+//   targetChainId
+// });
 
   const ensureChain = useCallback(
     async (desiredId?: number) => {
