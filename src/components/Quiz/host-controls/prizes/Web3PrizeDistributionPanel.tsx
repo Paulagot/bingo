@@ -100,6 +100,7 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
       roomId: string;
       winners: string[];
       finalLeaderboard: any[];
+       prizeMode?: string;
       web3Chain?: string;
       evmNetwork?: string;
       roomAddress?: string;
@@ -137,6 +138,7 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
           roomId: data.roomId,
           winners: winnersPayload,
           roomAddress: data.roomAddress,
+           prizeMode: data.prizeMode,
           charityOrgId: data.charityOrgId,
           charityName: data.charityName,
           charityAddress: data.charityAddress,

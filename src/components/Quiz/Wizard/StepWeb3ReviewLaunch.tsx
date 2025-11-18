@@ -168,13 +168,16 @@ const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) =
         : { first: 100 };
 
     // Map asset prizes
-    const expectedPrizes =
-      (setupConfig.prizes || [])
-        .filter((p: any) => p?.tokenAddress)
-        .map((p: any) => ({
-          tokenAddress: String(p.tokenAddress),
-          amount: String(p.value ?? '1'),
-        })) || [];
+  const expectedPrizes =
+    (setupConfig.prizes || [])
+      .filter((p: any) => p?.tokenAddress)
+      .map((p: any) => ({
+        place: p.place,                           // NEW
+        tokenAddress: String(p.tokenAddress),
+        amount: String(p.value ?? '1'),
+        isNFT: p.isNFT ?? false,                  // NEW
+        tokenId: p.tokenId,                       // NEW
+      })) || [];
 
     // Charity wallet handling:
     // - web3CharityAddress is ONLY used at prize distribution time (TGB dynamic addresses)

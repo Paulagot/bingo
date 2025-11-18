@@ -851,6 +851,7 @@ if (charityAmount > 0 && room.config.web3CharityId) {
     web3Chain: room.config.web3Chain || 'stellar',
     evmNetwork: room.config.evmNetwork,
     roomAddress: room.config.roomContractAddress || room.config.web3ContractAddress,
+     prizeMode: room.config.prizeMode,
     charityOrgId: room.config.web3CharityId,
     charityName: room.config.web3CharityName,
     charityCurrency: room.config.web3Currency || 'USDC',
