@@ -24,6 +24,7 @@ const AUTH_PASSWORD_COLUMN = process.env.AUTH_PASSWORD_COLUMN || 'password_hash'
 // ---- Step 1: request reset link (by club email) ----
 router.post('/request', authLimiter, validate(resetRequestSchema), async (req, res) => {
   const { email } = req.body;
+  console.log('🔐 Password reset request for:', email);
 
   // Find club by email
   const [rows] = await db.execute(
@@ -32,8 +33,12 @@ router.post('/request', authLimiter, validate(resetRequestSchema), async (req, r
   );
   const club = Array.isArray(rows) && rows[0];
 
-  // Always 200 to avoid enumeration
-  if (!club) return res.json({ ok: true });
+  if (!club) {
+    console.log('🔐 No club found for email (still returning ok):', email);
+    return res.json({ ok: true });
+  }
+
+  console.log('🔐 Found club for reset:', { id: club.id, name: club.name, email: club.email });
 
   // Invalidate previous tokens for this club id
   await db.execute(
@@ -52,9 +57,10 @@ router.post('/request', authLimiter, validate(resetRequestSchema), async (req, r
   );
 
   const link = `${APP_ORIGIN}/reset-password?token=${encodeURIComponent(rawToken)}`;
+  console.log('🔐 Reset link generated for club', club.id, '->', link);
 
   // Send email (safe; won’t crash)
-  await sendEmail({
+  const mailResult = await sendEmail({
     to: email,
     subject: 'Reset your FundRaisely password',
     html: `
@@ -65,8 +71,12 @@ router.post('/request', authLimiter, validate(resetRequestSchema), async (req, r
     `,
   });
 
+  console.log('📧 Reset email send result for', email, ':', mailResult);
+
+  // Still don’t leak whether the email is real / delivery result
   res.json({ ok: true });
 });
+
 
 // ---- Step 2: confirm new password ----
 router.post('/confirm', authLimiter, validate(resetConfirmSchema), async (req, res) => {

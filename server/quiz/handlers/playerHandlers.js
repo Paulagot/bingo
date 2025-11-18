@@ -23,12 +23,23 @@ const ALLOWED_PM = ['cash', 'instant payment', 'card', 'web3', 'unknown'];
 
 function normalizePaymentMethod(maybe) {
   if (typeof maybe === 'string') {
-    if (ALLOWED_PM.includes(maybe)) return maybe;
-    // legacy alias
-    if (maybe === 'revolut') return 'instant payment';
+    const raw = maybe.trim();
+    const lower = raw.toLowerCase();
+
+    // direct canonical match (all lower-case)
+    if (ALLOWED_PM.includes(lower)) return lower;
+
+    // legacy / fuzzy aliases
+    if (lower === 'revolut' || lower === 'revolut transfer') return 'instant payment';
+    if (lower.includes('cash')) return 'cash';
+    if (lower.includes('card')) return 'card';
+    if (lower.includes('web3') || lower.includes('crypto')) return 'web3';
   }
-  return 'other';
+
+  // fallback bucket, treated as "unknown" in reconciliation
+  return 'unknown';
 }
+
 
 function normalizeExtraPayments(extraPayments) {
   if (!extraPayments || typeof extraPayments !== 'object') return {};
@@ -256,6 +267,97 @@ export function setupPlayerHandlers(socket, namespace) {
       });
     }, 50);
   });
+
+    /**
+   * Host/Admin player editor:
+   * Update an existing player (paid flag, extras, payment method, etc.)
+   *
+   * payload: { roomId, playerId, updates }
+   */
+  socket.on('update_player', (payload, ack) => {
+    const sendAck = typeof ack === 'function' ? ack : () => {};
+    try {
+      const { roomId, playerId, updates } = payload || {};
+      if (!roomId || !playerId || !updates || typeof updates !== 'object') {
+        if (debug) console.warn('[update_player] ❌ Invalid payload', payload);
+        return sendAck({ ok: false, error: 'Invalid payload' });
+      }
+
+      const room = getQuizRoom(roomId);
+      if (!room) {
+        if (debug) console.warn('[update_player] ❌ Room not found', roomId);
+        return sendAck({ ok: false, error: 'Room not found' });
+      }
+
+      const existing = room.players.find((p) => p.id === playerId);
+      if (!existing) {
+        if (debug) console.warn('[update_player] ❌ Player not found', { roomId, playerId });
+        return sendAck({ ok: false, error: 'Player not found' });
+      }
+
+      // Normalise payment method if it’s in the updates
+      const nextPaymentMethod =
+        updates.paymentMethod != null
+          ? normalizePaymentMethod(updates.paymentMethod)
+          : existing.paymentMethod;
+
+      // Normalise extraPayments if provided, otherwise keep existing
+     // Normalise extraPayments if provided, otherwise keep existing
+const nextExtraPayments =
+  updates.extraPayments != null
+    ? {
+        ...(existing.extraPayments || {}),
+        ...normalizeExtraPayments(updates.extraPayments),
+      }
+    : (existing.extraPayments || {});
+
+
+      // If extras array provided, use it; otherwise keep existing
+      const nextExtras =
+        Array.isArray(updates.extras) ? updates.extras : (existing.extras || []);
+
+      const merged = {
+        ...existing,
+        ...updates,
+        paymentMethod: nextPaymentMethod,
+        extras: nextExtras,
+        extraPayments: nextExtraPayments,
+      };
+
+      addOrUpdatePlayer(roomId, merged);
+
+      if (debug) {
+        console.log('[update_player] ✅ Updated player', {
+          roomId,
+          playerId,
+          merged,
+        });
+      }
+
+      // Build a lite list for UI
+      const playersLite = room.players.map((p) => ({
+        id: p.id,
+        name: p.name,
+        paid: !!p.paid,
+        paymentMethod: p.paymentMethod,
+        extras: p.extras || [],
+        disqualified: !!p.disqualified,
+      }));
+
+      // Broadcast to host/admin/players so PlayerListPanel + waiting pages update
+      namespace.to(roomId).emit('player_list_updated', { players: playersLite });
+
+      // Keep other UIs in sync (scoreboard, etc.)
+      emitRoomState(namespace, roomId);
+      emitFullRoomState(socket, namespace, roomId);
+
+      return sendAck({ ok: true, player: merged });
+    } catch (err) {
+      console.error('[update_player] 💥 Error:', err);
+      return sendAck({ ok: false, error: 'Internal error' });
+    }
+  });
+
 
   // --- Tie-breaker: player submits numeric answer ---
   socket.on('tiebreak:answer', async ({ roomId, answer }) => {

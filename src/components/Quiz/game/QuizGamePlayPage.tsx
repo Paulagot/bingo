@@ -290,16 +290,33 @@ useEffect(() => {
      role: 'player'
    },
    (res?: any) =>  {
-      if (!res?.ok) {
-        const msg = res?.error || 'Failed to join';
-        if (msg.includes('Room not found') || msg.includes('Player not found')) {
-          showNotification('error', msg);
-          navigate('/');
-        } else {
-          showNotification('error', msg);
-        }
-        return;
-      }
+     if (!res?.ok) {
+  const msg = res?.error || 'Failed to join';
+  console.error('[QuizGamePlayPage] join_and_recover failed:', res);
+
+  if (msg.includes('Room not found')) {
+    showNotification(
+      'error',
+      'This quiz room no longer exists or was closed by the host.'
+    );
+    navigate('/quiz'); // go back to quiz home, not site root
+  } else if (msg.includes('Player not found')) {
+    showNotification(
+      'error',
+      'We could not recover your player in this room. Returning to the waiting room.'
+    );
+    if (roomId && playerId) {
+      navigate(`/quiz/game/${roomId}/${playerId}`);
+    } else {
+      navigate('/quiz');
+    }
+  } else {
+    // For transient / weird errors: show message but don't throw user out
+    showNotification('error', msg);
+  }
+  return;
+}
+
 
       const { snap } = res;
 

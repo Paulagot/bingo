@@ -72,7 +72,7 @@ export default function ContactForm() {
                     </svg>
                   </a>
                   <a
-                    href="#"
+                    href="https://www.instagram.com/fund.raisely/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="group inline-flex h-14 w-14 items-center justify-center rounded-2xl shadow-md hover:shadow-xl hover:scale-110 transition-all duration-300"
@@ -84,7 +84,7 @@ export default function ContactForm() {
                     </svg>
                   </a>
                   <a
-                    href="#"
+                    href="https://www.facebook.com/profile.php?id=61580826725459"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="group inline-flex h-14 w-14 items-center justify-center rounded-2xl shadow-md hover:shadow-xl hover:scale-110 transition-all duration-300"
