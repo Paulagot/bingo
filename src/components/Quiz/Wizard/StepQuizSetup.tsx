@@ -61,6 +61,7 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
     { symbol: '€', label: 'Euro (EUR)' },
     { symbol: '$', label: 'Dollar (USD)' },
     { symbol: '£', label: 'British Pound (GBP)' },
+    { symbol: '₦', label: 'Nigerian Naira (NGN)' },
   ];
 
   const handleSubmit = () => {
