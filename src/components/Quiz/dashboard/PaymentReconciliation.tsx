@@ -81,30 +81,32 @@ const PaymentReconciliationPanel: React.FC = () => {
   const paidPlayers = activePlayers.filter((p) => p.paid);
   const unpaidPlayers = activePlayers.filter((p) => !p.paid);
 
-  for (const p of activePlayers) {
-    // normalize the main method to our canonical buckets
-    const primaryMethod = normalizeMethodForReport(p.paymentMethod);
-    if (!paymentData[primaryMethod]) {
-      paymentData[primaryMethod] = { entry: 0, extrasAmount: 0, extrasCount: 0, total: 0 };
-    }
+for (const p of activePlayers) {
+  const primaryMethod = normalizeMethodForReport(p.paymentMethod);
+  if (!paymentData[primaryMethod]) {
+    paymentData[primaryMethod] = { entry: 0, extrasAmount: 0, extrasCount: 0, total: 0 };
+  }
 
-    if (p.paid) {
-      paymentData[primaryMethod].entry += entryFee;
-    }
+  // Only count entry if player is marked paid
+  if (p.paid) {
+    paymentData[primaryMethod].entry += entryFee;
+  }
 
-    if (p.extraPayments) {
-      for (const [, val] of Object.entries(p.extraPayments)) {
-        const m = normalizeMethodForReport((val as any)?.method);
-        const amt = Number((val as any)?.amount || 0);
+  // ✅ Only count extras once the player is marked paid
+  if (p.paid && p.extraPayments) {
+    for (const [, val] of Object.entries(p.extraPayments)) {
+      const m = normalizeMethodForReport((val as any)?.method);
+      const amt = Number((val as any)?.amount || 0);
 
-        if (!paymentData[m]) {
-          paymentData[m] = { entry: 0, extrasAmount: 0, extrasCount: 0, total: 0 };
-        }
-        paymentData[m].extrasAmount += amt;
-        paymentData[m].extrasCount += 1;
+      if (!paymentData[m]) {
+        paymentData[m] = { entry: 0, extrasAmount: 0, extrasCount: 0, total: 0 };
       }
+      paymentData[m].extrasAmount += amt;
+      paymentData[m].extrasCount += 1;
     }
   }
+}
+
 
   for (const k in paymentData) {
     const d = paymentData[k];
