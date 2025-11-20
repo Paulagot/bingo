@@ -21,7 +21,7 @@ interface AddPlayerModalProps {
   playerToEdit?: any; // You can replace `any` with your Player type
 }
 
-const debug = false;
+const debug = true;
 
 /** ---------- Helpers ---------- */
 const LAST_PM_KEY = 'fr.lastPaymentMethod';
@@ -174,6 +174,10 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
           ])
         ),
       };
+
+        if (debug) {
+      console.log('[AddPlayerModal] submitting updates:', updates);
+    }
 
       socket.emit(
         'update_player',

@@ -392,17 +392,25 @@ const previewCharityPayout = useCallback(
 
     const { roomId, roomAddress } = params;
 
+    console.log('🔍 [previewCharityPayout] DEBUG START ===========================');
+    console.log('🔍 [previewCharityPayout] Input:', { roomId, roomAddress: roomAddress?.toBase58() });
+
     // 1) Find room PDA
     let roomPDA: PublicKey;
     if (roomAddress) {
       roomPDA = roomAddress;
+      console.log('🔍 [previewCharityPayout] Using provided roomAddress:', roomPDA.toBase58());
     } else {
+      console.log('🔍 [previewCharityPayout] Searching for room by roomId...');
       const rooms = await (program.account as any).room.all();
+      console.log('🔍 [previewCharityPayout] Found', rooms.length, 'rooms total');
+      
       const matchingRoom = rooms.find((r: any) => {
         const roomData = r.account;
         const roomIdStr = Buffer.from(roomData.roomId)
           .toString('utf8')
           .replace(/\0/g, '');
+        console.log('🔍 [previewCharityPayout] Checking room:', roomIdStr, '===', roomId, '?', roomIdStr === roomId);
         return roomIdStr === roomId;
       });
 
@@ -413,52 +421,110 @@ const previewCharityPayout = useCallback(
       }
 
       roomPDA = matchingRoom.publicKey;
+      console.log('🔍 [previewCharityPayout] Found room PDA:', roomPDA.toBase58());
     }
 
     // 2) Fetch room + global config
+    console.log('🔍 [previewCharityPayout] Fetching room account...');
     const roomAccount = await (program.account as any).room.fetch(roomPDA);
+    console.log('🔍 [previewCharityPayout] Room account:', {
+      host: roomAccount.host?.toBase58(),
+      feeTokenMint: roomAccount.feeTokenMint?.toBase58(),
+      entryFee: roomAccount.entryFee?.toString(),
+      hostFeeBps: roomAccount.hostFeeBps?.toString(),
+      prizePoolBps: roomAccount.prizePoolBps?.toString(),
+      playerCount: roomAccount.playerCount?.toString(),
+    });
+
     const [roomVault] = deriveRoomVaultPDA(roomPDA);
+    console.log('🔍 [previewCharityPayout] Room vault PDA:', roomVault.toBase58());
+
     const [globalConfigPDA] = deriveGlobalConfigPDA();
+    console.log('🔍 [previewCharityPayout] Global config PDA:', globalConfigPDA.toBase58());
+
     const globalConfigAccount = await (program.account as any).globalConfig.fetch(globalConfigPDA);
+    console.log('🔍 [previewCharityPayout] Global config:', {
+      platformWallet: globalConfigAccount.platformWallet?.toBase58(),
+      charityWallet: globalConfigAccount.charityWallet?.toBase58(),
+      platformFeeBps: globalConfigAccount.platformFeeBps?.toString(),
+    });
 
     // 3) Get vault token account + mint info
     const feeTokenMint = roomAccount.feeTokenMint as PublicKey;
+    console.log('🔍 [previewCharityPayout] Fee token mint:', feeTokenMint.toBase58());
 
-    // ✅ FIX: roomVault is a PDA, so allowOwnerOffCurve must be true
-    const roomVaultTokenAccount = getAssociatedTokenAccountAddress(
-      feeTokenMint,
-      roomVault,
-      true  // ✅ ADD THIS - roomVault is a PDA (off-curve)
-    );
+   const roomVaultTokenAccount = roomVault;
+    console.log('🔍 [previewCharityPayout] Vault token account address:', roomVaultTokenAccount.toBase58());
 
-    const vaultAccount = await getAccount(connection, roomVaultTokenAccount);
-    const totalInVault = vaultAccount.amount; // bigint
+    // ✅ TRY to get account, handle errors gracefully
+    let vaultAccount;
+    let vaultBalance = 0n;
+    
+    try {
+      console.log('🔍 [previewCharityPayout] Attempting to fetch vault token account...');
+      vaultAccount = await getAccount(connection, roomVaultTokenAccount);
+      vaultBalance = vaultAccount.amount;
+      console.log('✅ [previewCharityPayout] Vault account found! Balance:', vaultBalance.toString());
+    } catch (error: any) {
+      console.error('❌ [previewCharityPayout] Vault token account error:', error.name, error.message);
+      
+      // Check if it's specifically account not found
+      if (error.name === 'TokenAccountNotFoundError' || 
+          error.message?.includes('could not find account')) {
+        console.warn('⚠️  [previewCharityPayout] Vault token account does not exist yet (no fees collected?)');
+        vaultBalance = 0n;
+      } else {
+        // Some other error - re-throw
+        console.error('❌ [previewCharityPayout] Unexpected error fetching vault:', error);
+        throw error;
+      }
+    }
+
+    console.log('🔍 [previewCharityPayout] Total in vault (raw):', vaultBalance.toString());
 
     const mintInfo = await getMint(connection, feeTokenMint);
     const decimals = mintInfo.decimals;
+    console.log('🔍 [previewCharityPayout] Token decimals:', decimals);
 
     // 4) Compute BPS and charity amount
     const platformFeeBps = Number(globalConfigAccount.platformFeeBps ?? 2000);
     const hostFeeBps = Number(roomAccount.hostFeeBps ?? 0);
     const prizePoolBps = Number(roomAccount.prizePoolBps ?? 0);
 
+    console.log('🔍 [previewCharityPayout] Fee structure (BPS):', {
+      platform: platformFeeBps,
+      host: hostFeeBps,
+      prizePool: prizePoolBps,
+      total: platformFeeBps + hostFeeBps + prizePoolBps,
+    });
+
     const charityBps = 10_000 - platformFeeBps - hostFeeBps - prizePoolBps;
+    console.log('🔍 [previewCharityPayout] Charity BPS:', charityBps);
+
     if (charityBps <= 0) {
       throw new Error(
         `[useSolanaContract:previewCharityPayout] Invalid fee configuration, charityBps=${charityBps}`
       );
     }
 
-    const charityAmountRaw = (totalInVault * BigInt(charityBps)) / 10_000n;
-    const amountDecimal = bigIntToDecimalString(charityAmountRaw, decimals);
+    const charityAmountRaw = (vaultBalance * BigInt(charityBps)) / 10_000n;
+    console.log('🔍 [previewCharityPayout] Charity amount (raw):', charityAmountRaw.toString());
 
-    return {
+    const amountDecimal = bigIntToDecimalString(charityAmountRaw, decimals);
+    console.log('🔍 [previewCharityPayout] Charity amount (decimal):', amountDecimal);
+
+    const result = {
       roomPDA,
       amountRaw: charityAmountRaw,
       amountDecimal,
       decimals,
       charityBps,
     };
+
+    console.log('✅ [previewCharityPayout] DEBUG END =============================');
+    console.log('✅ [previewCharityPayout] Returning:', result);
+
+    return result;
   },
   [context]
 );

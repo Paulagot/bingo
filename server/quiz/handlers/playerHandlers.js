@@ -283,6 +283,12 @@ export function setupPlayerHandlers(socket, namespace) {
         return sendAck({ ok: false, error: 'Invalid payload' });
       }
 
+          // 🔎 Add this block:
+    if (debug) {
+      console.log('[update_player] raw updates.paymentMethod =', updates.paymentMethod);
+      console.log('[update_player] raw updates.extraPayments =', updates.extraPayments);
+    }
+
       const room = getQuizRoom(roomId);
       if (!room) {
         if (debug) console.warn('[update_player] ❌ Room not found', roomId);
