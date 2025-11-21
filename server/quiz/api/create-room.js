@@ -9,8 +9,41 @@ import {
 import { canUseTemplate } from '../../policy/entitlements.js';
 
 import authenticateToken from '../../middleware/auth.js';
+import jwt from 'jsonwebtoken';
+import { connection } from '../../config/database.js';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-dev-secret';
 
 const router = express.Router();
+
+// VERSION IDENTIFIER - If you see this in logs, new code is running
+const ROUTER_VERSION = 'v2.0.0-enhanced-error-handling';
+console.log(`[Router] 🆕 Quiz API Router loaded - Version: ${ROUTER_VERSION}`);
+console.log(`[Router] 🆕 Timestamp: ${new Date().toISOString()}`);
+
+// Add middleware to log ALL requests to this router
+router.use((req, res, next) => {
+  console.log('========================================');
+  console.log('[Router] 📍 Request reached quiz API router');
+  console.log(`[Router] 📍 Version: ${ROUTER_VERSION}`);
+  console.log('[Router] 📍 Path:', req.path);
+  console.log('[Router] 📍 Method:', req.method);
+  console.log('[Router] 📍 URL:', req.url);
+  console.log('[Router] 📍 Original URL:', req.originalUrl);
+  console.log('========================================');
+  next();
+});
+
+// Test endpoint to verify router is working
+router.get('/test', (req, res) => {
+  console.log('[Router] ✅ Test endpoint hit');
+  console.log(`[Router] ✅ Router version: ${ROUTER_VERSION}`);
+  res.status(200).json({ 
+    message: 'Router is working', 
+    version: ROUTER_VERSION,
+    timestamp: new Date().toISOString() 
+  });
+});
 
 /* -------------------------------------------------------------------------- */
 /*                                WEB3 HELPERS                                */
@@ -133,22 +166,141 @@ const validateWeb3Proof = ({ chain, contractAddress, deploymentTxHash }) => {
  * on the right network (Soroban RPC, EVM JSON-RPC, Solana RPC).
  */
 router.post('/create-web3-room', async (req, res) => {
+  // IMMEDIATE logging - before anything else
+  console.log('========================================');
+  console.log('[API] 🚀 ROUTE HANDLER CALLED - /create-web3-room');
+  console.log('[API] 🕐 Timestamp:', new Date().toISOString());
+  console.log('[API] 📍 Request received at handler');
+  console.log('[API] 📍 Response object exists:', !!res);
+  console.log('[API] 📍 Response methods:', {
+    hasEnd: typeof res.end === 'function',
+    hasSend: typeof res.send === 'function',
+    hasJson: typeof res.json === 'function',
+    hasStatus: typeof res.status === 'function'
+  });
+  console.log('========================================');
+  
+  // Ensure response object is valid
+  if (!res || typeof res.end !== 'function') {
+    console.error('[API] ❌❌❌ INVALID RESPONSE OBJECT!');
+    return;
+  }
+
   // Add timeout to ensure response is always sent
   const timeout = setTimeout(() => {
+    console.error('[API] ⚠️ Request timeout after 30 seconds');
     if (!res.headersSent) {
-      console.error('[API] ⚠️ Request timeout - sending error response');
-      res.status(500).json({ error: 'Request timeout' });
+      console.error('[API] ⚠️ Sending timeout error response');
+      try {
+        res.status(500);
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'Request timeout' }));
+        console.log('[API] ✅ Timeout response sent');
+      } catch (err) {
+        console.error('[API] ❌ Failed to send timeout response:', err);
+        console.error('[API] ❌ Timeout error stack:', err?.stack);
+      }
+    } else {
+      console.error('[API] ❌ Cannot send timeout response - headers already sent');
     }
   }, 30000); // 30 second timeout
 
+  // Helper function to send error response - use res.json() for Express compatibility
+  const sendErrorResponse = (status, errorData) => {
+    console.log(`[API] 🔴 sendErrorResponse called: status=${status}`);
+    console.log(`[API] 🔴 Headers sent: ${res.headersSent}`);
+    console.log(`[API] 🔴 Response finished: ${res.finished}`);
+    console.log(`[API] 🔴 Error data:`, JSON.stringify(errorData, null, 2));
+    
+    if (res.headersSent || res.finished) {
+      console.error('[API] ❌ Cannot send error response - response already sent/finished');
+      console.error('[API] ❌ Current status code:', res.statusCode);
+      return false;
+    }
+    
+    try {
+      clearTimeout(timeout);
+      console.log(`[API] 🔴 Setting status to ${status}`);
+      
+      // Use res.json() instead of res.end() for better Express compatibility
+      res.status(status).json(errorData);
+      
+      console.log(`[API] ✅ Sent error response (${status}) using res.json()`);
+      console.log(`[API] ✅ Response sent, headersSent: ${res.headersSent}`);
+      console.log(`[API] ✅ Response finished: ${res.finished}`);
+      return true;
+    } catch (sendErr) {
+      console.error('[API] ❌ Failed to send error response with res.json():', sendErr);
+      console.error('[API] ❌ Send error name:', sendErr?.name);
+      console.error('[API] ❌ Send error message:', sendErr?.message);
+      console.error('[API] ❌ Send error stack:', sendErr?.stack);
+      
+      // Fallback to res.end() if res.json() fails
+      try {
+        if (!res.headersSent && !res.finished) {
+          console.log('[API] 🔴 Trying res.end() as fallback');
+          res.status(status);
+          res.setHeader('Content-Type', 'application/json');
+          const jsonString = JSON.stringify(errorData);
+          res.end(jsonString);
+          console.log('[API] ✅ Sent error response using res.end() fallback');
+          return true;
+        }
+      } catch (fallbackErr) {
+        console.error('[API] ❌❌ Fallback res.end() also failed:', fallbackErr);
+        return false;
+      }
+      return false;
+    }
+  };
+
+  // Wrap EVERYTHING in try-catch to catch any synchronous errors
   try {
+    console.log('[API] 📥 Entering main try block');
     console.log('--------------------------------------');
     console.log('[API] 🔗 Received Web3 room creation request');
+    console.log('[API] 📋 Request method:', req.method);
+    console.log('[API] 📋 Request path:', req.path);
+    console.log('[API] 📋 Request headers:', {
+      'content-type': req.headers['content-type'],
+      'content-length': req.headers['content-length'],
+    });
     console.log('[API] 📋 Request body exists:', !!req.body);
+    console.log('[API] 📋 Request body type:', typeof req.body);
+    
+    // Log request body structure (sanitized - don't log full content if too large)
+    if (req.body) {
+      const bodyKeys = Object.keys(req.body);
+      console.log('[API] 📋 Request body keys:', bodyKeys);
+      console.log('[API] 📋 Request body has config:', !!req.body.config);
+      console.log('[API] 📋 Request body has roomId:', !!req.body.roomId);
+      console.log('[API] 📋 Request body has hostId:', !!req.body.hostId);
+      
+      if (req.body.config) {
+        const configKeys = Object.keys(req.body.config);
+        console.log('[API] 📋 Config keys:', configKeys);
+        console.log('[API] 📋 Config has roundDefinitions:', !!req.body.config.roundDefinitions);
+        console.log('[API] 📋 Config roundDefinitions type:', typeof req.body.config.roundDefinitions);
+        console.log('[API] 📋 Config roundDefinitions is array:', Array.isArray(req.body.config.roundDefinitions));
+        if (Array.isArray(req.body.config.roundDefinitions)) {
+          console.log('[API] 📋 Config roundDefinitions length:', req.body.config.roundDefinitions.length);
+        }
+      }
+    }
     
     if (!req.body) {
-      clearTimeout(timeout);
-      return res.status(400).json({ error: 'Request body is required' });
+      return sendErrorResponse(400, { 
+        error: 'Request body is required',
+        message: 'Request body is missing or could not be parsed'
+      });
+    }
+    
+    // Validate request body structure
+    if (typeof req.body !== 'object' || Array.isArray(req.body)) {
+      return sendErrorResponse(400, { 
+        error: 'Invalid request body',
+        message: 'Request body must be a valid JSON object'
+      });
     }
     
     const { config: setupConfig, roomId, hostId } = req.body;
@@ -156,14 +308,29 @@ router.post('/create-web3-room', async (req, res) => {
     // Basic validation
     if (!roomId || !hostId) {
       console.error('[API] ❌ Missing roomId or hostId in request');
-      clearTimeout(timeout);
-      return res.status(400).json({ error: 'roomId and hostId are required' });
+      console.error('[API] ❌ roomId:', roomId);
+      console.error('[API] ❌ hostId:', hostId);
+      return sendErrorResponse(400, { 
+        error: 'roomId and hostId are required',
+        message: 'Both roomId and hostId must be provided in the request body'
+      });
     }
 
     if (!setupConfig) {
-      console.error('[API] ❌ Missing config');
-      clearTimeout(timeout);
-      return res.status(400).json({ error: 'Missing config' });
+      console.error('[API] ❌ Missing config in request body');
+      return sendErrorResponse(400, { 
+        error: 'Missing config',
+        message: 'The config object is required in the request body'
+      });
+    }
+
+    // Validate setupConfig is an object
+    if (typeof setupConfig !== 'object' || Array.isArray(setupConfig)) {
+      console.error('[API] ❌ Invalid config type:', typeof setupConfig);
+      return sendErrorResponse(400, { 
+        error: 'Invalid config',
+        message: 'Config must be a valid object'
+      });
     }
 
     // ✅ CHANGED: Accept all three possible field names for contract address
@@ -182,9 +349,14 @@ router.post('/create-web3-room', async (req, res) => {
     // ✅ NEW: Validate we actually got a contract address
     if (!contractAddress) {
       console.error('[API] ❌ No contract address found in request');
-      clearTimeout(timeout);
-      return res.status(400).json({ 
-        error: 'Contract address missing. Deployment may have failed.',
+      console.error('[API] ❌ Checked fields:', {
+        roomContractAddress: setupConfig?.roomContractAddress,
+        web3ContractAddress: setupConfig?.web3ContractAddress,
+        contractAddress: setupConfig?.contractAddress
+      });
+      return sendErrorResponse(400, { 
+        error: 'Contract address missing',
+        message: 'Deployment may have failed. No contract address found in config.',
         hint: 'Check that roomContractAddress is being sent in the config'
       });
     }
@@ -207,9 +379,9 @@ router.post('/create-web3-room', async (req, res) => {
         contractAddress,
         deploymentTxHash,
       });
-      clearTimeout(timeout);
-      return res.status(400).json({ 
-        error: 'Deployment not verified: missing/invalid tx hash or contract/program id. Please sign on the correct network and try again.',
+      return sendErrorResponse(400, { 
+        error: 'Deployment not verified',
+        message: 'Missing/invalid tx hash or contract/program id. Please sign on the correct network and try again.',
         details: {
           chain,
           reason: proof.reason,
@@ -229,8 +401,53 @@ router.post('/create-web3-room', async (req, res) => {
     }
 
     console.log('[API] 🔄 Starting room creation process...');
-    const requestedRounds = (setupConfig?.roundDefinitions || []).length;
+    console.log('[API] 📋 Web3 chain:', chain);
+    console.log('[API] 📋 Contract address:', contractAddress);
+    console.log('[API] 📋 Deployment tx hash:', deploymentTxHash);
+    
+    // Log charity wallet information (if available) for debugging
+    if (setupConfig.web3CharityAddress) {
+      console.log('[API] 📋 Charity address from config:', setupConfig.web3CharityAddress);
+      console.log('[API] ℹ️ Note: This is for prize distribution. Room creation uses GlobalConfig charity wallet.');
+    } else {
+      console.log('[API] 📋 No charity address in config (expected for Solana - uses GlobalConfig)');
+    }
+    
+    // ✅ Ensure roundDefinitions exists - this is critical for room creation
+    if (!setupConfig.roundDefinitions) {
+      console.error('[API] ❌ roundDefinitions is missing in config');
+      console.error('[API] ❌ Config keys:', Object.keys(setupConfig || {}));
+      return sendErrorResponse(400, { 
+        error: 'Missing roundDefinitions',
+        message: 'roundDefinitions is required and must be a non-empty array',
+        hint: 'Make sure the quiz configuration includes at least one round definition',
+        receivedKeys: Object.keys(setupConfig || {})
+      });
+    }
+    
+    if (!Array.isArray(setupConfig.roundDefinitions)) {
+      console.error('[API] ❌ roundDefinitions is not an array');
+      console.error('[API] ❌ roundDefinitions type:', typeof setupConfig.roundDefinitions);
+      console.error('[API] ❌ roundDefinitions value:', setupConfig.roundDefinitions);
+      return sendErrorResponse(400, { 
+        error: 'Invalid roundDefinitions',
+        message: 'roundDefinitions must be an array',
+        receivedType: typeof setupConfig.roundDefinitions
+      });
+    }
+    
+    if (setupConfig.roundDefinitions.length === 0) {
+      console.error('[API] ❌ roundDefinitions is an empty array');
+      return sendErrorResponse(400, { 
+        error: 'Empty roundDefinitions',
+        message: 'roundDefinitions must contain at least one round definition',
+        hint: 'Make sure the quiz configuration includes at least one round definition'
+      });
+    }
+    
+    const requestedRounds = setupConfig.roundDefinitions.length;
     console.log(`[API] 📊 Requested rounds: ${requestedRounds}`);
+    console.log(`[API] 📋 roundDefinitions validated successfully`);
 
     // Force Web3 configuration with generous limits
     setupConfig.roomCaps = {
@@ -241,25 +458,95 @@ router.post('/create-web3-room', async (req, res) => {
     };
 
     console.log('[API] 🎯 Calling createQuizRoom...');
+    console.log('[API] 📋 Room ID:', roomId);
+    console.log('[API] 📋 Host ID:', hostId);
+    console.log('[API] 📋 Chain:', chain);
+    console.log('[API] 📋 Contract address:', contractAddress);
+    console.log('[API] 📋 SetupConfig validated, proceeding with room creation');
     
     let created = false;
     try {
+      console.log('[API] 📤 Calling createQuizRoom with:', {
+        roomId,
+        hostId,
+        hasConfig: !!setupConfig,
+        roundCount: setupConfig.roundDefinitions?.length,
+        paymentMethod: setupConfig.paymentMethod,
+        isWeb3Room: setupConfig.isWeb3Room,
+        web3Chain: setupConfig.web3Chain,
+        contractAddress: setupConfig.roomContractAddress,
+        hasCharityAddress: !!setupConfig.web3CharityAddress
+      });
+      
       created = createQuizRoom(roomId, hostId, setupConfig);
+      console.log('[API] ✅ createQuizRoom returned:', created);
     } catch (roomErr) {
-      console.error('[API] ❌ Error in createQuizRoom:', roomErr);
+      console.error('========================================');
+      console.error('[API] ❌❌❌ ERROR IN createQuizRoom');
+      console.error('[API] ❌ Error type:', roomErr?.constructor?.name);
+      console.error('[API] ❌ Error name:', roomErr?.name);
+      console.error('[API] ❌ Error message:', roomErr?.message);
       console.error('[API] ❌ Error stack:', roomErr?.stack);
-      clearTimeout(timeout);
-      return res.status(500).json({ 
+      console.error('[API] ❌ Request context:', {
+        roomId,
+        hostId,
+        hasConfig: !!setupConfig,
+        chain,
+        contractAddress,
+        roundCount: setupConfig.roundDefinitions?.length
+      });
+      console.error('========================================');
+      
+      // Check if error is related to charity wallet
+      const isCharityWalletError = roomErr?.message?.toLowerCase().includes('charity') || 
+                                   roomErr?.message?.toLowerCase().includes('wallet');
+      
+      if (isCharityWalletError) {
+        console.error('[API] ⚠️ Error appears to be related to charity wallet');
+        console.error('[API] ℹ️ For Solana: Room creation should use GlobalConfig charity wallet');
+        console.error('[API] ℹ️ TGB dynamic charity addresses are used during prize distribution, not room creation');
+      }
+      
+      return sendErrorResponse(500, { 
         error: 'Failed to create room',
-        ...(process.env.NODE_ENV !== 'production' && { details: roomErr?.message })
+        message: roomErr?.message || 'Unknown error occurred during room creation',
+        ...(process.env.NODE_ENV !== 'production' && { 
+          details: roomErr?.message,
+          stack: roomErr?.stack?.substring(0, 1000), // Limit stack trace length
+          name: roomErr?.name,
+          type: roomErr?.constructor?.name,
+          ...(isCharityWalletError && {
+            hint: 'For Solana: Room creation uses GlobalConfig charity wallet. TGB dynamic addresses are used during prize distribution.'
+          })
+        })
       });
     }
     
     if (!created) {
-      console.error('[API] ❌ Failed to create Web3 quiz room');
-      clearTimeout(timeout);
-      return res.status(400).json({ 
-        error: 'Failed to create room (invalid config, questions missing, or room already exists)' 
+      console.error('[API] ❌ Failed to create Web3 quiz room (createQuizRoom returned false)');
+      console.error('[API] ❌ Room creation failed but no exception was thrown');
+      console.error('[API] ❌ This usually means: invalid config, questions missing, or room already exists');
+      console.error('[API] ❌ Config summary:', {
+        roomId,
+        hostId,
+        chain,
+        contractAddress,
+        roundCount: setupConfig.roundDefinitions?.length,
+        paymentMethod: setupConfig.paymentMethod,
+        isWeb3Room: setupConfig.isWeb3Room
+      });
+      return sendErrorResponse(400, { 
+        error: 'Failed to create room',
+        message: 'Room creation failed. Possible causes: invalid config, questions missing, or room already exists',
+        hint: 'Check that roundDefinitions is provided and is a non-empty array. For Solana, ensure the contract was deployed successfully.',
+        ...(process.env.NODE_ENV !== 'production' && {
+          details: {
+            roomId,
+            chain,
+            contractAddress,
+            roundCount: setupConfig.roundDefinitions?.length
+          }
+        })
       });
     }
 
@@ -281,34 +568,232 @@ router.post('/create-web3-room', async (req, res) => {
     };
 
     console.log('[API] 📤 Sending success response to client');
+    console.log('[API] 📤 Response data:', JSON.stringify(responseData, null, 2));
+    
     clearTimeout(timeout);
-    res.status(200).json(responseData);
+    
+    if (res.headersSent || res.finished) {
+      console.error('[API] ❌ Cannot send success response - already sent/finished');
+      console.error('[API] ❌ headersSent:', res.headersSent);
+      console.error('[API] ❌ finished:', res.finished);
+      return;
+    }
+    
+    try {
+      // Use res.json() for Express compatibility
+      res.status(200).json(responseData);
+      console.log('[API] ✅ Success response sent successfully using res.json()');
+    } catch (sendErr) {
+      console.error('[API] ❌ Failed to send success response:', sendErr);
+      console.error('[API] ❌ Send error name:', sendErr?.name);
+      console.error('[API] ❌ Send error message:', sendErr?.message);
+      console.error('[API] ❌ Send error stack:', sendErr?.stack);
+      // Try to send error response instead
+      sendErrorResponse(500, { 
+        error: 'Failed to send response',
+        message: 'Room was created but failed to send response to client'
+      });
+    }
     
   } catch (err) {
-    clearTimeout(timeout);
-    console.error('[API] ❌ Exception creating Web3 room:', err);
+    // Top-level error handler - catches any unhandled errors
+    console.error('========================================');
+    console.error('[API] ❌❌❌ UNHANDLED EXCEPTION in create-web3-room');
+    console.error('[API] ❌ Error type:', err?.constructor?.name);
     console.error('[API] ❌ Error name:', err?.name);
     console.error('[API] ❌ Error message:', err?.message);
     console.error('[API] ❌ Error stack:', err?.stack);
+    console.error('[API] ❌ Response headers sent:', res.headersSent);
+    console.error('[API] ❌ Response status code:', res.statusCode);
+    console.error('[API] ❌ Response finished:', res.finished);
+    console.error('[API] ❌ Request context:', {
+      method: req.method,
+      path: req.path,
+      url: req.url,
+      hasBody: !!req.body,
+      bodyKeys: req.body ? Object.keys(req.body) : []
+    });
+    console.error('========================================');
     
-    if (!res.headersSent) {
+    // Clear timeout first
+    clearTimeout(timeout);
+    
+    // Check if response is already finished or headers sent
+    if (res.headersSent || res.finished) {
+      console.error('[API] ❌❌ Response already sent or finished, cannot send error');
+      console.error('[API] ❌❌ headersSent:', res.headersSent);
+      console.error('[API] ❌❌ finished:', res.finished);
+      console.error('[API] ❌❌ statusCode:', res.statusCode);
+      return; // Exit early
+    }
+    
+    // Always try to send an error response
+    const errorResponse = { 
+      error: 'internal_error',
+      message: err?.message || 'An unexpected error occurred',
+      timestamp: new Date().toISOString(),
+      route: '/create-web3-room',
+      ...(process.env.NODE_ENV !== 'production' && { 
+        details: err?.message,
+        stack: err?.stack,
+        name: err?.name,
+        type: err?.constructor?.name
+      })
+    };
+    
+    console.log('[API] 🔴 Attempting to send error response via sendErrorResponse');
+    console.log('[API] 🔴 Error response object:', JSON.stringify(errorResponse, null, 2));
+    
+    const sent = sendErrorResponse(500, errorResponse);
+    
+    if (!sent) {
+      // Last resort - try plain text with res.send()
+      console.error('[API] ❌❌ sendErrorResponse returned false, trying res.send()');
       try {
-        res.status(500).json({ 
-          error: 'internal_error',
-          ...(process.env.NODE_ENV !== 'production' && { 
-            details: err?.message,
-            stack: err?.stack 
-          })
-        });
-      } catch (sendErr) {
-        console.error('[API] ❌ Failed to send error response:', sendErr);
-        // Last resort
+        if (!res.headersSent && !res.finished) {
+          console.log('[API] 🔴 Attempting res.send() error response');
+          clearTimeout(timeout);
+          const plainText = 'Internal server error: ' + (err?.message || 'Unknown error');
+          res.status(500).send(plainText);
+          console.log('[API] ✅ Plain text error response sent via res.send()');
+          console.log('[API] ✅ Plain text length:', plainText.length);
+        } else {
+          console.error('[API] ❌❌ Cannot send plain text - headersSent:', res.headersSent, 'finished:', res.finished);
+        }
+      } catch (finalErr) {
+        console.error('[API] ❌❌❌ Complete failure to send any response');
+        console.error('[API] ❌❌❌ Final error name:', finalErr?.name);
+        console.error('[API] ❌❌❌ Final error message:', finalErr?.message);
+        console.error('[API] ❌❌❌ Final error stack:', finalErr?.stack);
+      }
+    } else {
+      console.log('[API] ✅ Error response sent successfully via sendErrorResponse');
+    }
+  } finally {
+    console.log('[API] 🏁 Route handler finished');
+    console.log('[API] 🏁 Headers sent:', res.headersSent);
+    console.log('[API] 🏁 Response finished:', res.finished);
+    console.log('[API] 🏁 Status code:', res.statusCode);
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/*                      UNAUTHENTICATED ROUTES (WEB3 FLOW)                     */
+/* -------------------------------------------------------------------------- */
+
+// Entitlements - Optionally authenticated: if token present, use actual entitlements; otherwise Web3 defaults
+// This MUST be before authenticateToken middleware to support Web3 flow
+router.get('/me/entitlements', async (req, res) => {
+  try {
+    console.log('[API] 📥 Received entitlements request');
+    
+    // Optionally authenticate if token is present (matches main branch auth logic)
+    let clubId = req.club_id;
+    
+    if (!clubId) {
+      const authHeader = req.headers['authorization'];
+      const token = authHeader && authHeader.split(' ')[1];
+      
+      if (token && connection) {
         try {
-          res.status(500).send('Internal server error');
-        } catch {
-          console.error('[API] ❌❌ Complete failure to send response');
+          const decoded = jwt.verify(token, JWT_SECRET);
+          const [rows] = await connection.execute(
+            `SELECT u.*, c.name as club_name FROM fundraisely_users u JOIN fundraisely_clubs c ON u.club_id = c.id WHERE u.id = ?`,
+            [decoded.userId]
+          );
+          
+          if (Array.isArray(rows) && rows.length > 0) {
+            req.user = rows[0];
+            clubId = req.user.club_id;
+            console.log(`[API] ✅ Authenticated via token, club_id: ${clubId}`);
+          }
+        } catch (authError) {
+          // Token invalid/expired - continue without auth (for Web3 flow)
+          console.log('[API] ⚠️ Token present but invalid, continuing without authentication');
         }
       }
+    }
+    
+    console.log('[API] 📋 Final club_id:', clubId);
+    
+    // For Web3 rooms (no token) or unauthenticated users, return generous default entitlements
+    if (!clubId) {
+      console.log('[API] ⚠️ No club_id found, returning Web3 default entitlements');
+      const web3DefaultEntitlements = {
+        plan_id: null,
+        plan_code: 'WEB3_DEFAULT',
+        max_players_per_game: 10000,
+        max_rounds: 100,
+        round_types_allowed: '*',
+        extras_allowed: '*',
+        concurrent_rooms: 999,
+        game_credits_remaining: 9999,
+      };
+      
+      res.status(200);
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(web3DefaultEntitlements));
+      console.log('[API] ✅ Sent Web3 default entitlements');
+      return;
+    }
+    
+    console.log(`[API] 👤 Resolved club ID: "${clubId}" - fetching actual entitlements`);
+    
+    try {
+      const ents = await resolveEntitlements({ userId: clubId });
+      res.status(200);
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(ents));
+      console.log('[API] ✅ Sent entitlements for club:', clubId, 'plan:', ents.plan_code);
+      return;
+    } catch (entError) {
+      console.error('[API] ❌ resolveEntitlements error:', entError);
+      console.error('[API] ❌ Error stack:', entError.stack);
+      
+      // Fallback to Web3 defaults if database fails
+      const web3DefaultEntitlements = {
+        plan_id: null,
+        plan_code: 'WEB3_FALLBACK',
+        max_players_per_game: 10000,
+        max_rounds: 100,
+        round_types_allowed: '*',
+        extras_allowed: '*',
+        concurrent_rooms: 999,
+        game_credits_remaining: 9999,
+      };
+      
+      if (!res.headersSent) {
+        res.status(200);
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify(web3DefaultEntitlements));
+        console.log('[API] ✅ Sent fallback entitlements due to database error');
+        return;
+      }
+    }
+  } catch (error) {
+    console.error('[API] ❌ Entitlements endpoint error:', error);
+    console.error('[API] ❌ Error stack:', error.stack);
+    console.error('[API] ❌ Response headers sent:', res.headersSent);
+    
+    if (!res.headersSent) {
+      // Return Web3 defaults even on error
+      const web3DefaultEntitlements = {
+        plan_id: null,
+        plan_code: 'WEB3_ERROR_FALLBACK',
+        max_players_per_game: 10000,
+        max_rounds: 100,
+        round_types_allowed: '*',
+        extras_allowed: '*',
+        concurrent_rooms: 999,
+        game_credits_remaining: 9999,
+      };
+      
+      res.status(200);
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(web3DefaultEntitlements));
+      console.log('[API] ✅ Sent error fallback entitlements');
+    } else {
+      console.error('[API] ❌ Cannot send response - headers already sent');
     }
   }
 });
@@ -317,51 +802,6 @@ router.post('/create-web3-room', async (req, res) => {
 /*                      AUTH-REQUIRED ROUTES (WEB2 FLOW)                      */
 /* -------------------------------------------------------------------------- */
 router.use(authenticateToken);
-
-// Entitlements
-router.get('/me/entitlements', async (req, res) => {
-  try {
-    const clubId = req.club_id;
-    
-    if (!clubId) {
-      console.error('[API] ❌ Missing club_id in request');
-      return res.status(401).json({ 
-        error: 'Authentication required',
-        details: 'club_id not found in request'
-      });
-    }
-    
-    console.log(`[API] 👤 Resolved club ID: "${clubId}"`);
-    
-    try {
-      const ents = await resolveEntitlements({ userId: clubId });
-      return res.json(ents);
-    } catch (entError) {
-      console.error('[API] ❌ resolveEntitlements error:', entError);
-      console.error('[API] ❌ Error stack:', entError.stack);
-      return res.status(500).json({ 
-        error: 'Failed to resolve entitlements',
-        ...(process.env.NODE_ENV !== 'production' && { 
-          details: entError.message,
-          stack: entError.stack 
-        })
-      });
-    }
-  } catch (error) {
-    console.error('[API] ❌ Entitlements endpoint error:', error);
-    console.error('[API] ❌ Error stack:', error.stack);
-    
-    if (!res.headersSent) {
-      return res.status(500).json({ 
-        error: 'Internal server error',
-        ...(process.env.NODE_ENV !== 'production' && { 
-          details: error.message,
-          stack: error.stack 
-        })
-      });
-    }
-  }
-});
 
 // Standard Web2 room creation (credits, caps, etc.)
 router.post('/create-room', async (req, res) => {

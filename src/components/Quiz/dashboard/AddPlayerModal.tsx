@@ -12,9 +12,16 @@ interface AddPlayerModalProps {
   onClose: () => void;
   initialName: string;
   roomId: string;
+
+  /** 
+   * mode = "add": create a new player via join_quiz_room
+   * mode = "edit": update an existing player via update_player
+   */
+  mode?: 'add' | 'edit';
+  playerToEdit?: any; // You can replace `any` with your Player type
 }
 
-const debug = false;
+const debug = true;
 
 /** ---------- Helpers ---------- */
 const LAST_PM_KEY = 'fr.lastPaymentMethod';
@@ -51,12 +58,16 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
   onClose,
   initialName,
   roomId,
+  mode = 'add',
+  playerToEdit,
 }) => {
   const { config } = useQuizConfig();
   const { players } = usePlayerStore();
   const { socket } = useQuizSocket();
 
-  // Capacity logic
+  const effectiveMode: 'add' | 'edit' = mode;
+
+  // Capacity logic (only relevant for add mode)
   const isWeb3 = config?.paymentMethod === 'web3' || config?.isWeb3Room;
   const maxPlayers = isWeb3 ? Number.POSITIVE_INFINITY : (config?.roomCaps?.maxPlayers ?? 20);
   const atCapacity = isWeb3 ? false : ((players?.length || 0) >= maxPlayers);
@@ -88,72 +99,140 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
   );
   const total = entryFee + totalExtras;
 
-  const handleAddPlayer = () => {
+  const handleSubmit = () => {
     const trimmedName = name.trim();
     if (!trimmedName) return;
 
     // 1) prevent duplicate names
-    const nameAlreadyUsed = players.some(
-      (p) => p.name.toLowerCase() === trimmedName.toLowerCase()
-    );
+    const nameAlreadyUsed = players.some((p) => {
+      if (effectiveMode === 'edit' && playerToEdit && p.id === playerToEdit.id) {
+        // allow the same player to keep their own name
+        return false;
+      }
+      return p.name.toLowerCase() === trimmedName.toLowerCase();
+    });
+
     if (nameAlreadyUsed) {
       setNameError('This name is already used. Please choose a different one.');
       return;
     }
 
-    // 2) build payload
-    const sanitized = normalizeMethod(paymentMethod);
-
-    const newPlayer = {
-      id: nanoid(),
-      name: trimmedName,
-      paid,
-      paymentMethod, // keep exact selection on the player
-      credits: 0,
-      extras: selectedExtras,
-      extraPayments: Object.fromEntries(
-        selectedExtras.map((key) => [
-          key,
-          {
-            method: sanitized, // record method used per extra
-            amount: config?.fundraisingPrices?.[key] || 0,
-          },
-        ])
-      ),
-    };
-
-    // 3) emit to server
     if (!socket) {
-      console.error('[AddPlayerModal] socket is not connected yet; cannot add player');
+      console.error('[AddPlayerModal] socket is not connected; cannot submit');
       return;
     }
-    socket.emit('join_quiz_room', {
-      roomId,
-      user: newPlayer,
-      role: 'player',
-    });
 
-    setAdded(true);
-    if (debug) console.log('→ Emitted join_quiz_room:', newPlayer);
+    const sanitized = normalizeMethod(paymentMethod);
 
-    // 4) close after brief confirmation
-    setTimeout(() => {
-      setAdded(false);
-      onClose();
-    }, 1200);
+    if (effectiveMode === 'add') {
+      // ADD MODE: create a brand new player
+      const newPlayer = {
+        id: nanoid(),
+        name: trimmedName,
+        paid,
+        paymentMethod, // keep exact selection on the player
+        credits: 0,
+        extras: selectedExtras,
+        extraPayments: Object.fromEntries(
+          selectedExtras.map((key) => [
+            key,
+            {
+              method: sanitized, // record method used per extra
+              amount: config?.fundraisingPrices?.[key] || 0,
+            },
+          ])
+        ),
+      };
+
+      socket.emit('join_quiz_room', {
+        roomId,
+        user: newPlayer,
+        role: 'player',
+      });
+
+      setAdded(true);
+      if (debug) console.log('→ [AddPlayerModal] Emitted join_quiz_room:', newPlayer);
+
+      setTimeout(() => {
+        setAdded(false);
+        onClose();
+      }, 1200);
+    } else if (effectiveMode === 'edit' && playerToEdit) {
+      // EDIT MODE: update existing player via update_player
+      const updates = {
+        name: trimmedName,
+        paid,
+        paymentMethod,
+        extras: selectedExtras,
+        extraPayments: Object.fromEntries(
+          selectedExtras.map((key) => [
+            key,
+            {
+              method: sanitized,
+              amount: config?.fundraisingPrices?.[key] || 0,
+            },
+          ])
+        ),
+      };
+
+        if (debug) {
+      console.log('[AddPlayerModal] submitting updates:', updates);
+    }
+
+      socket.emit(
+        'update_player',
+        {
+          roomId,
+          playerId: playerToEdit.id,
+          updates,
+        },
+        (res?: any) => {
+          if (!res?.ok) {
+            console.error('[AddPlayerModal] update_player failed', res?.error);
+          } else if (debug) {
+            console.log('[AddPlayerModal] update_player success', res.player);
+          }
+        }
+      );
+
+      if (debug) console.log('→ [AddPlayerModal] Emitted update_player:', updates);
+
+      setAdded(true);
+      setTimeout(() => {
+        setAdded(false);
+        onClose();
+      }, 800);
+    }
   };
 
-  // Reset fields when modal opens (dynamic default for payment method)
+  // Reset / hydrate fields when modal opens
   useEffect(() => {
     if (isOpen) {
-      setName(initialName);
-      setSelectedExtras([]);
-      setPaymentMethod(getDefaultPaymentMethod(config));
-      setPaid(false);
+      if (effectiveMode === 'edit' && playerToEdit) {
+        // Populate from existing player
+        setName(playerToEdit.name || initialName || '');
+        setSelectedExtras(Array.isArray(playerToEdit.extras) ? playerToEdit.extras : []);
+        setPaymentMethod(
+          (playerToEdit.paymentMethod as PaymentMethod) || getDefaultPaymentMethod(config)
+        );
+        setPaid(!!playerToEdit.paid);
+      } else {
+        // Fresh add mode
+        setName(initialName);
+        setSelectedExtras([]);
+        setPaymentMethod(getDefaultPaymentMethod(config));
+        setPaid(false);
+      }
       setAdded(false);
       setNameError('');
     }
-  }, [isOpen, initialName, config]);
+  }, [isOpen, initialName, config, effectiveMode, playerToEdit]);
+
+  const buttonDisabledAdd =
+    !paid || !name.trim() || (!isWeb3 && atCapacity);
+  const buttonDisabledEdit = !name.trim(); // allow unpaid edits
+
+  const disableButton = effectiveMode === 'add' ? buttonDisabledAdd : buttonDisabledEdit;
 
   return (
     <Dialog open={isOpen} onClose={onClose} className="fixed inset-0 z-50 overflow-y-auto">
@@ -161,7 +240,9 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
         <div className="fixed inset-0 bg-black opacity-30" aria-hidden="true" />
 
         <div className="bg-muted relative z-50 w-full max-w-md rounded-xl p-6 shadow-xl">
-          <Dialog.Title className="heading-2">Add Player</Dialog.Title>
+          <Dialog.Title className="heading-2">
+            {effectiveMode === 'add' ? 'Add Player' : 'Edit Player'}
+          </Dialog.Title>
 
           <div className="space-y-3">
             {/* Name */}
@@ -179,7 +260,8 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
 
             {/* Entry fee */}
             <p className="text-fg/70 text-sm">
-              Entry Fee: {currency}{entryFee.toFixed(2)}
+              Entry Fee: {currency}
+              {entryFee.toFixed(2)}
             </p>
 
             {/* Extras */}
@@ -190,7 +272,10 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
                   const price = config?.fundraisingPrices?.[key] || 0;
 
                   return (
-                    <label key={key} className="text-fg/80 flex items-center justify-between text-sm">
+                    <label
+                      key={key}
+                      className="text-fg/80 flex items-center justify-between text-sm"
+                    >
                       <span title={extra?.description || ''} className="flex items-center gap-2">
                         <input
                           type="checkbox"
@@ -201,7 +286,8 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
                         {extra?.label || key}
                       </span>
                       <span>
-                        {currency}{price.toFixed(2)}
+                        {currency}
+                        {price.toFixed(2)}
                       </span>
                     </label>
                   );
@@ -213,7 +299,8 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
             <p className="mt-2 text-right font-semibold">
               Total:{' '}
               <span className="text-indigo-700">
-                {currency}{total.toFixed(2)}
+                {currency}
+                {total.toFixed(2)}
               </span>
             </p>
 
@@ -228,7 +315,9 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
                   const next = e.target.value as PaymentMethod;
                   setPaymentMethod(next);
                   // remember last used
-                  try { localStorage.setItem(LAST_PM_KEY, next); } catch {}
+                  try {
+                    localStorage.setItem(LAST_PM_KEY, next);
+                  } catch {}
                 }}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2"
               >
@@ -264,19 +353,23 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
               </button>
 
               <button
-                onClick={handleAddPlayer}
-                disabled={!paid || !name.trim() || (!isWeb3 && atCapacity)}
+                onClick={handleSubmit}
+                disabled={disableButton}
                 className={`w-1/2 rounded-lg py-2 font-semibold text-white transition ${
-                  (!paid || !name.trim() || (!isWeb3 && atCapacity))
+                  disableButton
                     ? 'cursor-not-allowed bg-gray-400'
                     : 'bg-indigo-600 hover:bg-indigo-700'
                 }`}
               >
-                {added
-                  ? '✅ Added!'
-                  : (!isWeb3 && atCapacity)
-                    ? `Limit ${Number.isFinite(maxPlayers) ? maxPlayers : ''} reached`
-                    : 'Add Player'}
+                {effectiveMode === 'add'
+                  ? added
+                    ? '✅ Added!'
+                    : (!isWeb3 && atCapacity)
+                      ? `Limit ${Number.isFinite(maxPlayers) ? maxPlayers : ''} reached`
+                      : 'Add Player'
+                  : added
+                    ? '✅ Saved!'
+                    : 'Save Changes'}
               </button>
             </div>
           </div>
@@ -287,5 +380,6 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
 };
 
 export default AddPlayerModal;
+
 
 

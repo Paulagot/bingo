@@ -43,16 +43,17 @@ const FloatingExtrasBar: React.FC<{
 }) => {
   const [robPointsModalOpen, setRobPointsModalOpen] = useState(false);
 
-  const { globalExtras, restorablePoints, robPointsTargets } = useGlobalExtras({
-    allPlayerExtras: availableExtras,
-    currentPlayerId,
-    leaderboard,
-    cumulativeNegativePoints,
-    pointsRestored,
-    usedExtras,
-    maxRestorePoints,
-    debug: false
-  });
+const { globalExtras, restorablePoints, robPointsTargets } = useGlobalExtras({
+  allPlayerExtras: availableExtras,
+  currentPlayerId,
+  leaderboard,
+  cumulativeNegativePoints,
+  pointsRestored,
+  usedExtras,
+  maxRestorePoints: maxRestorePoints ?? 0,
+  debug: false,
+});
+
 
   // Get actual extra definitions (now pre-filtered by the hook)
   const globalExtraDefinitions = globalExtras.map(extraId => 
@@ -419,17 +420,20 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
   const isTopThree = currentPlayerPosition >= 0 && currentPlayerPosition <= 2;
 
   // Leaderboard display logic - Top 10 + Current Player
-  const displayedLeaderboard = useMemo(() => {
-    const top10 = leaderboard.slice(0, 10);
-    
-    // If current player is not in top 10, add them at the end
-    if (currentPlayerPosition >= 10) {
-      const currentPlayer = leaderboard[currentPlayerPosition];
+ const displayedLeaderboard: LeaderboardEntry[] = useMemo(() => {
+  const top10 = leaderboard.slice(0, 10);
+
+  // If current player is not in top 10, add them at the end
+  if (currentPlayerPosition >= 10 && currentPlayerPosition < leaderboard.length) {
+    const currentPlayer = leaderboard[currentPlayerPosition];
+    if (currentPlayer) {
       return [...top10, currentPlayer];
     }
-    
-    return top10;
-  }, [leaderboard, currentPlayerPosition]);
+  }
+
+  return top10;
+}, [leaderboard, currentPlayerPosition]);
+
 
   // Celebration effects for round results
   useEffect(() => {
@@ -507,18 +511,19 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
       {showWinnerBadge && isRoundWinner && <WinnerBadge />}
 
       {/* Enhanced Floating Extras Bar (only show during round results) */}
-      {isRoundResults && (
-        <FloatingExtrasBar
-          availableExtras={availableExtras}
-          usedExtras={usedExtras}
-          onUseExtra={onUseExtra}
-          leaderboard={leaderboard}
-          currentPlayerId={currentPlayerId}
-          cumulativeNegativePoints={cumulativeNegativePoints}
-          pointsRestored={pointsRestored}
-          maxRestorePoints={maxRestorePoints}
-        />
-      )}
+{isRoundResults && (
+  <FloatingExtrasBar
+    availableExtras={availableExtras}
+    usedExtras={usedExtras}
+    onUseExtra={onUseExtra}
+    leaderboard={leaderboard}
+    currentPlayerId={currentPlayerId}
+    cumulativeNegativePoints={cumulativeNegativePoints}
+    pointsRestored={pointsRestored}
+    maxRestorePoints={maxRestorePoints ?? 0}
+  />
+)}
+
 
       <div className={`bg-muted overflow-hidden rounded-xl border-2 shadow-lg transition-all duration-500 ${
         isRoundResults 
@@ -559,28 +564,31 @@ const EnhancedPlayerLeaderboard: React.FC<EnhancedPlayerLeaderboardProps> = ({
             </p>
             
             {/* Round winner announcement */}
-            {isRoundResults && leaderboard.length > 0 && (
-              <div className="bg-muted/70 mt-3 rounded-lg p-3">
-                <div className="flex items-center justify-center space-x-2">
-                  <Crown className="h-5 w-5 text-yellow-600" />
-                  <span className="font-semibold text-purple-800">
-                    {leaderboard[0].name} won Round {currentRound}!
-                  </span>
-                  <Sparkles className="h-5 w-5 text-yellow-600" />
-                </div>
-              </div>
-            )}
+{isRoundResults && leaderboard.length > 0 && (
+  <div className="bg-muted/70 mt-3 rounded-lg p-3">
+    <div className="flex items-center justify-center space-x-2">
+      <Crown className="h-5 w-5 text-yellow-600" />
+      <span className="font-semibold text-purple-800">
+        {(leaderboard[0]?.name ?? 'Someone')} won Round {currentRound ?? '?'}!
+      </span>
+      <Sparkles className="h-5 w-5 text-yellow-600" />
+    </div>
+  </div>
+)}
+
           </div>
         </div>
 
         {/* Leaderboard */}
         <div className="p-6">
           <div className="space-y-3">
-            {displayedLeaderboard.map((entry: LeaderboardEntry, displayIdx: number) => {
-              const isCurrentPlayer = entry.id === currentPlayerId;
-              const actualPosition = leaderboard.findIndex(p => p.id === entry.id);
-              const isWinner = actualPosition === 0;
-              const isCurrentPlayerOutsideTop10 = currentPlayerPosition >= 10 && isCurrentPlayer;
+            {displayedLeaderboard
+    .filter((entry): entry is LeaderboardEntry => !!entry)
+    .map((entry, displayIdx) => {
+      const isCurrentPlayer = entry.id === currentPlayerId;
+      const actualPosition = leaderboard.findIndex(p => p.id === entry.id);
+      const isWinner = actualPosition === 0;
+      const isCurrentPlayerOutsideTop10 = currentPlayerPosition >= 10 && isCurrentPlayer
 
               // Which debt number to show in this row:
               // - In round results, prefer carryDebt (from the round settlement)

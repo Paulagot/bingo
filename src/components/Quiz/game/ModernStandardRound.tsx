@@ -10,16 +10,17 @@ console.count('[ModernStandardRound] render');
 
 
 interface ModernStandardRoundProps extends RoundComponentProps {
-  questionNumber?: number;
-  totalQuestions?: number;
-  difficulty?: string;
-  category?: string;
-  playersInRoom?: { id: string; name: string }[];
-  isFlashing?: boolean;
+  questionNumber?: number | undefined;
+  totalQuestions?: number | undefined;
+  difficulty?: string | undefined;
+  category?: string | undefined;
+  playersInRoom?: { id: string; name: string }[] | undefined;
+  isFlashing?: boolean | undefined;
   currentEffect?: any;
-  getFlashClasses?: () => string;
-  currentRound?: number;
+  getFlashClasses?: (() => string) | undefined;
+  currentRound?: number | undefined;
 }
+
 
 const ModernStandardRound: React.FC<ModernStandardRoundProps> = ({
   question,
@@ -62,7 +63,7 @@ const timerQuestion = useMemo(() => {
 const { timeLeft } = useQuizTimer({
   question: timerQuestion,
   timerActive: timerActive && !answerSubmitted,
-  onTimeUp: undefined,
+  
 });
 
   

@@ -47,7 +47,6 @@ const Web3ProviderLazy = lazy(() =>
 const Web3HubPage = lazy(() => import('./pages/web3')); // /web3/
 
 
-// If/when these are ready, uncomment the imports and the routes below
 const ImpactCampaignOverview = lazy(() => import('./pages/web3/impact-campaign'));
 const ImpactCampaignJoin = lazy(() => import('./pages/web3/impact-campaign/join'));
 const ImpactCampaignLeaderboard = lazy(() => import('./pages/web3/impact-campaign/leaderboard'));
@@ -77,16 +76,16 @@ export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isGameRoute(location.pathname)) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [location]);
+  // useEffect(() => {
+  //   const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+  //     if (isGameRoute(location.pathname)) {
+  //       e.preventDefault();
+  //       e.returnValue = '';
+  //     }
+  //   };
+  //   window.addEventListener('beforeunload', handleBeforeUnload);
+  //   return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  // }, [location]);
 
   const { pathname } = location;
   const hideOnPaths = ['/pitch-deck-content', '/BingoBlitz'];
@@ -218,8 +217,6 @@ export default function App() {
               }
             />
 
-            {/* OPTIONAL subpages (uncomment when ready) */}
-            
             <Route
               path="/web3/impact-campaign/join"
               element={
@@ -249,16 +246,6 @@ export default function App() {
 
             {/* (Optional) If this path duplicates the hub, redirect it */}
             <Route path="/web3-fundraising-quiz" element={<Navigate to="/web3" replace />} />
-            {/* If you still need the old page somewhere else, you can keep the route below instead of the redirect:
-            <Route
-              path="/web3-fundraising-quiz"
-              element={
-                <Suspense fallback={<LoadingSpinner message="Loading Web3" />}>
-                  <Web3FundraisingQuizPage />
-                </Suspense>
-              }
-            />
-            */}
 
             {/* 404 */}
             <Route

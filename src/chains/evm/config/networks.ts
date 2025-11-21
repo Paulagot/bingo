@@ -1,3 +1,48 @@
+/**
+ * EVM Network Configuration
+ *
+ * Defines network configuration for EVM-compatible chains including chain IDs,
+ * RPC endpoints, explorer URLs, and native currency information.
+ *
+ * ## Supported Networks
+ *
+ * - **Base**: Chain ID 8453, Mainnet
+ * - **Base Sepolia**: Chain ID 84532, Testnet
+ * - **Polygon**: Chain ID 137, Mainnet
+ * - **Polygon Amoy**: Chain ID 80002, Testnet
+ * - **BSC**: Chain ID 56, Mainnet
+ * - **BSC Testnet**: Chain ID 97, Testnet
+ * - **Avalanche**: Chain ID 43114, Mainnet
+ * - **Avalanche Fuji**: Chain ID 43113, Testnet
+ * - **Optimism**: Chain ID 10, Mainnet
+ * - **Optimism Sepolia**: Chain ID 11155420, Testnet
+ *
+ * ## Network Configuration
+ *
+ * Each network includes:
+ * - **Chain ID**: Unique identifier for the network
+ * - **Name**: Human-readable network name
+ * - **RPC**: RPC endpoint URL
+ * - **Explorer**: Block explorer URL
+ * - **Native Currency**: Native token (ETH, MATIC, AVAX, BNB)
+ *
+ * ## Usage
+ *
+ * ```typescript
+ * import { EVM_NETWORKS, getMetaByKey, getKeyById } from './networks';
+ *
+ * // Get network by key
+ * const network = EVM_NETWORKS.baseSepolia;
+ *
+ * // Get network by chain ID
+ * const key = getKeyById(84532); // 'baseSepolia'
+ *
+ * // Get network metadata
+ * const meta = getMetaByKey('baseSepolia');
+ * ```
+ *
+ * Used by wallet providers and contract interactions to determine network configuration.
+ */
 // src/chains/evm/config/networks.ts
 export const EVM_NETWORKS = {
   base: {

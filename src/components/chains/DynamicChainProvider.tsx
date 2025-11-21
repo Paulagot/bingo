@@ -33,13 +33,18 @@ class ChainProviderErrorBoundary extends React.Component<
     super(props);
     this.state = { hasError: false };
   }
-  static getDerivedStateFromError(error: Error) {
+  
+  // ✅ FIX: Added 'override' modifier
+  static override getDerivedStateFromError(error: Error) {
     return { hasError: true, error };
   }
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  
+  // ✅ FIX: Added 'override' modifier
+  override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error(`Failed to load ${this.props.chain} provider:`, error, errorInfo);
   }
-  render() {
+  
+  override render() {
     if (this.state.hasError) {
       return (
         <div className="flex min-h-32 items-center justify-center">
@@ -65,6 +70,7 @@ export const DynamicChainProvider: FC<DynamicChainProviderProps> = ({ selectedCh
     shallow
   );
 
+  // ✅ Sync activeChain in store when selectedChain changes
   useEffect(() => {
     const state = useWalletStore.getState();
     if (selectedChain) {
@@ -79,12 +85,12 @@ export const DynamicChainProvider: FC<DynamicChainProviderProps> = ({ selectedCh
     }
   }, [selectedChain, setActiveChain, resetAllWallets]);
 
+  // ✅ FIX: Memoize the provider component to prevent re-renders
   const ProviderComponent = useMemo(() => {
     switch (selectedChain) {
       case 'stellar':
         return StellarWalletProvider;
       case 'evm':
-        // We wrap EVM below with <Web3Provider/> + <EvmWalletProvider/>
         return EvmWalletProvider;
       case 'solana':
         return SolanaWalletProvider;
@@ -93,56 +99,49 @@ export const DynamicChainProvider: FC<DynamicChainProviderProps> = ({ selectedCh
     }
   }, [selectedChain]);
 
-  // === EVM branch: must include Wagmi+Query providers ===
-  if (selectedChain === 'evm' && ProviderComponent) {
-    return (
-      <ChainProviderErrorBoundary chain={selectedChain}>
-        <Web3Provider>
+  // ✅ FIX: Render wrapper with stable structure
+  // Always render the same component tree, just with different content
+  const renderContent = () => {
+    // === EVM branch: must include Wagmi+Query providers ===
+    if (selectedChain === 'evm' && ProviderComponent) {
+      return (
+        <ChainProviderErrorBoundary chain={selectedChain}>
+          <Web3Provider>
+            <ProviderComponent>
+              <div data-testid="evm-wallet-mode">{children}</div>
+            </ProviderComponent>
+          </Web3Provider>
+        </ChainProviderErrorBoundary>
+      );
+    }
+
+    // Stellar: provider doesn't need Wagmi
+    if (selectedChain === 'stellar' && ProviderComponent) {
+      return (
+        <ChainProviderErrorBoundary chain={selectedChain}>
           <ProviderComponent>
-            <div data-testid="evm-wallet-mode">{children}</div>
+            <div data-testid="stellar-wallet-mode">{children}</div>
           </ProviderComponent>
-        </Web3Provider>
-      </ChainProviderErrorBoundary>
-    );
-  }
+        </ChainProviderErrorBoundary>
+      );
+    }
 
-  // Stellar: provider doesn't need Wagmi
-  if (selectedChain === 'stellar' && ProviderComponent) {
-    return (
-      <ChainProviderErrorBoundary chain={selectedChain}>
-        <ProviderComponent>
-          <div data-testid="stellar-wallet-mode">{children}</div>
-        </ProviderComponent>
-      </ChainProviderErrorBoundary>
-    );
-  }
+    // Solana: provider doesn't need Wagmi
+    if (selectedChain === 'solana' && ProviderComponent) {
+      return (
+        <ChainProviderErrorBoundary chain={selectedChain}>
+          <ProviderComponent>
+            <div data-testid="solana-wallet-mode">{children}</div>
+          </ProviderComponent>
+        </ChainProviderErrorBoundary>
+      );
+    }
 
-  // Solana: provider doesn't need Wagmi
-  if (selectedChain === 'solana' && ProviderComponent) {
-    return (
-      <ChainProviderErrorBoundary chain={selectedChain}>
-        <ProviderComponent>
-          <div data-testid="solana-wallet-mode">{children}</div>
-        </ProviderComponent>
-      </ChainProviderErrorBoundary>
-    );
-  }
-
-  // No wallet mode
-  if (!selectedChain || !ProviderComponent) {
+    // No wallet mode - just render children directly
     return <div data-testid="no-wallet-mode">{children}</div>;
-  }
+  };
 
-  // Fallback for any other chain
-  return (
-    <ChainProviderErrorBoundary chain={selectedChain}>
-      <Suspense fallback={<ChainProviderSuspense chain={selectedChain} />}>
-        <ProviderComponent>
-          <div data-testid={`${selectedChain}-wallet-mode`}>{children}</div>
-        </ProviderComponent>
-      </Suspense>
-    </ChainProviderErrorBoundary>
-  );
+  return <>{renderContent()}</>;
 };
 
 export const useDynamicChain = () => {

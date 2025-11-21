@@ -1,3 +1,42 @@
+/**
+ * EVM Pool Factory Contract Configuration
+ *
+ * Defines PoolFactory contract addresses for each EVM-compatible network.
+ * The PoolFactory is used to create pool-based fundraising rooms where winners
+ * receive prizes from a pool of collected entry fees.
+ *
+ * ## Factory Pattern
+ *
+ * The PoolFactory contract follows the factory pattern:
+ * - Hosts call `createPoolRoom()` to deploy a new room contract
+ * - Factory returns the address of the newly deployed room
+ * - Each room is an independent contract managing its own state
+ *
+ * ## Network Support
+ *
+ * - **Base Sepolia**: Testnet factory address (deployed)
+ * - **Avalanche Fuji**: Testnet factory address (deployed)
+ * - **Other Networks**: Placeholder addresses (TBD)
+ *
+ * ## Usage
+ *
+ * ```typescript
+ * import { POOL_FACTORY, PoolFactoryABI } from './contracts.pool';
+ *
+ * // Get factory address for current network
+ * const factoryAddress = POOL_FACTORY.baseSepolia;
+ *
+ * // Create a pool room
+ * const tx = await writeContract({
+ *   address: factoryAddress,
+ *   abi: PoolFactoryABI,
+ *   functionName: 'createPoolRoom',
+ *   args: [...],
+ * });
+ * ```
+ *
+ * Used by `useContractActions` to deploy pool-based rooms on EVM chains.
+ */
 // src/chains/evm/config/contracts.pool.ts
 
 // Use a consistent dummy placeholder for yet-to-be-deployed factories.

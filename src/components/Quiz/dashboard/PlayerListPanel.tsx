@@ -1,14 +1,13 @@
 // src/components/Quiz/dashboard/PlayerListPanel.tsx
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { usePlayerStore } from '../hooks/usePlayerStore';
 import { useQuizConfig } from '../hooks/useQuizConfig';
 import { QRCodeCanvas } from 'qrcode.react';
 import AddPlayerModal from './AddPlayerModal';
+import { useRoomIdentity } from '../hooks/useRoomIdentity';
+import QRCodeShare from './QRCodeShare';
 import { 
-  BadgeCheck, 
-  BadgeX, 
   Users, 
   UserPlus, 
   QrCode, 
@@ -16,7 +15,9 @@ import {
   X,
   AlertCircle,
   CheckCircle2,
-  XCircle
+  XCircle,
+  AlertTriangle,
+  Pencil
 } from 'lucide-react';
 import { fundraisingExtras } from '../types/quiz';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
@@ -24,15 +25,34 @@ import PlayerSearchInput from '../game/PlayerSearchInput';
 
 const PlayerListPanel: React.FC = () => {
   const { config } = useQuizConfig();
-  const { roomId } = useParams();
+  // Prefer canonical room id from identity, fallback to route param
+  const { roomId: identityRoomId } = useRoomIdentity();
+  const { roomId: routeRoomId } = useParams();
+  const roomId = identityRoomId || routeRoomId || '';
+
   const { players } = usePlayerStore();
 
   const isWeb3 = config?.paymentMethod === 'web3' || config?.isWeb3Room;
   const maxPlayers = isWeb3 ? Number.POSITIVE_INFINITY : (config?.roomCaps?.maxPlayers ?? 20);
   const atCapacity = isWeb3 ? false : ((players?.length || 0) >= maxPlayers);
 
+  const currency = config?.currencySymbol || '€';
+  const entryFee = Number(config?.entryFee) || 0;
+
+  // Asset room gating for room-level QR
+  const isAssetRoom = isWeb3 && config?.prizeMode === 'assets';
+  const assetPrizes = useMemo(
+    () => (Array.isArray(config?.prizes) ? config!.prizes! : []).filter((p: any) => p?.tokenAddress),
+    [config?.prizes]
+  );
+  const allAssetsUploaded =
+    assetPrizes.length > 0 &&
+    assetPrizes.every((p: any) => p?.uploadStatus === 'completed');
+  const showRoomQR = isWeb3 && (!isAssetRoom || allAssetsUploaded);
+
   const [newName, setNewName] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [editingPlayer, setEditingPlayer] = useState<any | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -117,6 +137,18 @@ const PlayerListPanel: React.FC = () => {
   const disqualifiedPlayers = filteredPlayers.filter((p: any) => p.disqualified);
   const paidCount = players.filter((p: any) => p.paid && !p.disqualified).length;
 
+  // Total owed helper
+  const getPlayerTotals = (player: any) => {
+    const extrasTotal = (player.extras || []).reduce(
+      (sum: number, key: string) => sum + (config?.fundraisingPrices?.[key] || 0),
+      0
+    );
+    const total = entryFee + extrasTotal;
+    return { extrasTotal, total };
+  };
+
+  const isEditModalOpen = !!editingPlayer;
+
   return (
     <div className="bg-gray-50 rounded-xl p-6 shadow-md">
       {/* Header with Stats */}
@@ -141,6 +173,47 @@ const PlayerListPanel: React.FC = () => {
           />
         </div>
       </div>
+
+      {/* Room-level QR */}
+      {roomId && (
+        isWeb3 ? (
+          showRoomQR ? (
+            <div className="mb-6">
+              <QRCodeShare
+                roomId={roomId}
+                hostName={config?.hostName}
+                gameType={config?.gameType}
+              />
+            </div>
+          ) : isAssetRoom ? (
+            <div className="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                <div className="text-sm text-yellow-800">
+                  <p className="font-medium">QR joining is locked for asset rooms.</p>
+                  <p className="mt-1">
+                    Add and upload all digital prize assets first.{' '}
+                    {assetPrizes.length === 0
+                      ? 'No assets configured yet.'
+                      : `Uploaded ${
+                          assetPrizes.filter((p: any) => p?.uploadStatus === 'completed').length
+                        }/${assetPrizes.length}.`}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : null
+        ) : (
+          // ✅ Web2 / cash / Revolut rooms get a simple room QR with no gating
+          <div className="mb-6">
+            <QRCodeShare
+              roomId={roomId}
+              hostName={config?.hostName}
+              gameType={config?.gameType}
+            />
+          </div>
+        )
+      )}
 
       {/* Add Player Section (Web2 only) */}
       {!isWeb3 && (
@@ -188,14 +261,18 @@ const PlayerListPanel: React.FC = () => {
         </div>
       )}
 
+      {/* Shared Add/Edit Modal */}
       <AddPlayerModal
-        isOpen={showModal}
+        isOpen={showModal || isEditModalOpen}
         onClose={() => {
           setShowModal(false);
+          setEditingPlayer(null);
           setNewName('');
         }}
-        initialName={newName}
-        roomId={roomId || ''}
+        initialName={editingPlayer?.name ?? newName}
+        roomId={roomId}
+        mode={editingPlayer ? 'edit' : 'add'}
+        playerToEdit={editingPlayer ?? undefined}
       />
 
       {/* Empty State */}
@@ -226,13 +303,18 @@ const PlayerListPanel: React.FC = () => {
                   const isShowingQR = selectedPlayerId === player.id;
                   const isCopied = copiedId === player.id;
 
+                  const { extrasTotal, total } = getPlayerTotals(player);
+
                   return (
-                    <li key={player.id} className="rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-indigo-300 hover:shadow-md transition-all">
+                    <li
+                      key={player.id}
+                      className="rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-indigo-300 hover:shadow-md transition-all"
+                    >
                       <div className="flex flex-col gap-3">
                         {/* Player Info */}
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
+                            <div className="flex items-center gap-2 mb-1">
                               <h4 className="font-semibold text-gray-900">{player.name}</h4>
                               {player.paid ? (
                                 <div className="flex items-center gap-1 rounded-full bg-green-100 border border-green-300 px-2 py-0.5">
@@ -247,6 +329,28 @@ const PlayerListPanel: React.FC = () => {
                               )}
                             </div>
 
+                            {/* Amount owed */}
+                            <div className="mb-2 text-xs text-gray-700">
+                              <span className="font-semibold">
+                                Total: {currency}
+                                {total.toFixed(2)}
+                              </span>
+                              {' · '}
+                              <span>
+                                Entry {currency}
+                                {entryFee.toFixed(2)}
+                              </span>
+                              {extrasTotal > 0 && (
+                                <>
+                                  {' + Extras '}
+                                  <span>
+                                    {currency}
+                                    {extrasTotal.toFixed(2)}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+
                             {/* Extras */}
                             {allExtras.length > 0 && (
                               <div className="flex flex-wrap gap-1.5">
@@ -257,12 +361,13 @@ const PlayerListPanel: React.FC = () => {
                                     <span
                                       key={extraKey}
                                       className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-all ${
-                                        hasExtra 
-                                          ? 'bg-green-100 text-green-800 border border-green-300' 
+                                        hasExtra
+                                          ? 'bg-green-100 text-green-800 border border-green-300'
                                           : 'bg-gray-100 text-gray-600 border border-gray-200'
                                       }`}
                                     >
-                                      {extra?.label?.replace(/^Buy\s+/i, '') || extraKey.replace(/^buy/i, '')}
+                                      {extra?.label?.replace(/^Buy\s+/i, '') ||
+                                        extraKey.replace(/^buy/i, '')}
                                     </span>
                                   );
                                 })}
@@ -279,6 +384,15 @@ const PlayerListPanel: React.FC = () => {
                               <QrCode className="h-3.5 w-3.5" />
                               {isShowingQR ? 'Hide' : 'Invite'}
                             </button>
+
+                            <button
+                              onClick={() => setEditingPlayer(player)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border-2 border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition-all"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                              Edit
+                            </button>
+
                             <button
                               onClick={() => toggleDisqualification(player.id)}
                               className="inline-flex items-center gap-1.5 rounded-lg border-2 border-red-300 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 transition-all"
@@ -365,6 +479,8 @@ const PlayerListPanel: React.FC = () => {
 };
 
 export default PlayerListPanel;
+
+
 
 
 

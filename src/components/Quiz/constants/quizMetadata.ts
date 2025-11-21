@@ -196,7 +196,7 @@ export const availableDifficulties = ['easy', 'medium', 'hard'] as const;
 export const availableCategories: Record<RoundTypeId, string[]> = {
   general_trivia: ['General Knowledge','Olympic Sports', 'Pop Music', 'History', 'World Capitals', 'Pop Culture', 'Web3', 'Children'],
   wipeout: ['General Knowledge','Olympic Sports', 'Pop Music', 'History', 'World Capitals', 'Pop Culture', 'Web3', 'Children'],
-  speed_round: ['Math', 'Emojis', 'Pop Music', 'Sport', 'family movies'],
+  speed_round: ['Math', 'Emojis', 'Pop Music', 'Sport', ],
   // media_puzzle: [...],
   // head_to_head: [...]
 };

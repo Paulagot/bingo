@@ -11,7 +11,7 @@ import type { Address } from 'viem';
 
 // 🚨 Only the STELLAR child component imports and uses this hook
 import { useQuizContract as useStellarQuizContract } from '../../../chains/stellar/useQuizContract';
-import { useSolanaContract } from '../../../chains/solana/useSolanaContract';
+import { useSolanaContractContext} from '../../../chains/solana/useSolanaContractContext';
 import { PublicKey } from '@solana/web3.js';
 
 import {
@@ -992,7 +992,7 @@ const SolanaAssetUploadPlaceholder: React.FC<{ chainName: string }> = ({ chainNa
   const { isWalletConnected, currentWallet } = useQuizChainIntegration();
 
   // Use Solana contract hook
-  const solanaContract = useSolanaContract();
+  const solanaContract = useSolanaContractContext();
 
   const [_copying, setCopying] = useState<string | null>(null);
 

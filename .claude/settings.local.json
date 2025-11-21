@@ -85,7 +85,11 @@
       "Bash(start https://github.com/Paulagot/bingo/compare/develop...tino-solana-develop)",
       "Bash(cmd //c \"cd /d C:\\Users\\isich\\bingo-solana-contracts\\bingo && anchor run update-charity\")",
       "Bash(cmd /c \"cd /d C:\\Users\\isich\\bingo-solana-contracts\\bingo && anchor run update-charity\")",
-      "Bash(yarn ts-node:*)"
+      "Bash(yarn ts-node:*)",
+      "Bash(git restore:*)",
+      "Bash(test:*)",
+      "Bash(xargs -I {} sh -c 'lines=$(wc -l < \"\"\"\"{}\"\"\"\"); if [ $lines -gt 500 ]; then echo \"\"\"\"$lines {}\"\"\"\"; fi')",
+      "Bash(powershell -Command:*)"
     ],
     "deny": [],
     "ask": []

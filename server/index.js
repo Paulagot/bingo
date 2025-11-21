@@ -1,3 +1,4 @@
+// server/index.js
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -8,7 +9,13 @@ console.log('DB_USER:', process.env.DB_USER);
 console.log('DB_NAME:', process.env.DB_NAME);
 console.log('DB_PORT:', process.env.DB_PORT);
 
-//server/index.js
+// 🔍 SMTP debug
+console.log('SMTP_HOST:', process.env.SMTP_HOST);
+console.log('SMTP_PORT:', process.env.SMTP_PORT);
+console.log('SMTP_SECURE:', process.env.SMTP_SECURE);
+console.log('SMTP_USER:', process.env.SMTP_USER);
+console.log('MAIL_FROM:', process.env.MAIL_FROM);
+
 import express from 'express';
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
@@ -34,6 +41,9 @@ import tgbWebhookHandler from './tgb/api/webhook.js';
 import contactRoute from './routes/contact.js';
 import passwordResetRoute from './routes/passwordReset.js';
 
+// ✅ NEW: import mailer verify helper
+import { verifyMailer } from './utils/mailer.js';
+
 import { seoRoutes } from './SeoRoutes.js';
 import { getSeoForPath } from './seoMap.js'; // route→SEO map (server/seoMap.js)
 import helmet from 'helmet';
@@ -45,8 +55,63 @@ import { v4 as uuidv4 } from 'uuid';
 import { logger, loggers, logRequest, logResponse } from './config/logging.js';
 
 const app = express();
+
+// 🔍 Verify SMTP once at startup (non-blocking)
+verifyMailer().catch((err) => {
+  console.warn('📧 SMTP verify threw (will still try on send):', err?.message || err);
+});
+
+// Health check endpoint - MUST be first so it's always available
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    port: process.env.PORT || 3001
+  });
+});
+
 app.use(cors());
+
+// Accept JSON bodies (existing)
 app.use(express.json({ limit: '100kb' }));
+// Accept raw/text bodies too (TGB may send raw encrypted string bodies)
+app.use(express.text({ type: 'text/*', limit: '100kb' }));
+// JSON body parser - Express will automatically handle parsing errors
+app.use(express.json({ 
+  limit: '100kb',
+  strict: true
+}));
+
+// Handle JSON parsing errors (Express throws SyntaxError for invalid JSON)
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    console.error('[Server] ❌ JSON parsing error:', err.message);
+    console.error('[Server] ❌ Request path:', req.path);
+    console.error('[Server] ❌ Request method:', req.method);
+    console.error('[Server] ❌ Request headers:', {
+      'content-type': req.headers['content-type'],
+      'content-length': req.headers['content-length']
+    });
+    
+    if (!res.headersSent) {
+      try {
+        res.status(400);
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ 
+          error: 'Invalid JSON',
+          message: 'Request body contains invalid JSON',
+          details: err.message
+        }));
+        console.log('[Server] ✅ JSON parsing error response sent');
+        return;
+      } catch (sendErr) {
+        console.error('[Server] ❌ Failed to send JSON parsing error response:', sendErr);
+      }
+    }
+  }
+  next(err);
+});
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -73,54 +138,90 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check endpoint for Docker and monitoring
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
+// Health check endpoint is already defined at the top for immediate availability
 
+/* ──────────────────────────────────────────────────────────
+   TGB endpoints (deposit address creation + webhook)
+   Keep these grouped and mounted early (before heavy middleware)
+   ────────────────────────────────────────────────────────── */
 app.post('/api/tgb/create-deposit-address', createDepositAddress);
 app.post('/api/tgb/webhook', tgbWebhookHandler);
 
 /* ──────────────────────────────────────────────────────────
    Security headers (safe defaults; CSP in Report-Only)
    ────────────────────────────────────────────────────────── */
+// Security headers (safe defaults)
 app.use(helmet({
   xPoweredBy: false,
-  frameguard: { action: 'sameorigin' },                       // X-Frame-Options: SAMEORIGIN
+  // Coinbase Smart Wallet: COOP must NOT be 'same-origin'.
+  // Use 'same-origin-allow-popups' globally, or disable on wallet routes.
+  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-  crossOriginOpenerPolicy: { policy: 'same-origin' },         // COOP
-  crossOriginResourcePolicy: { policy: 'same-site' },         // safe with your CDNs
+  // Keep resource policy conservative; adjust if you serve from multiple domains.
+  crossOriginResourcePolicy: { policy: 'same-site' },
 }));
 
-// HSTS (prod only) — 1 year, no preload (enable later when ready)
-if (isProd) {
-  app.use(helmet.hsts({
-    maxAge: 31536000,          // 1 year in seconds
-    includeSubDomains: true,
-    preload: true,            // set to true only when you’re ready to preload the domain
-  }));
-}
+// Build scalable allowlists from env
+const ALLOWED_CONNECT = [
+  "'self'",
+  "https:",
+  "wss:",
+  // API
+  "https://mgtsystem-production.up.railway.app",
+  // WalletConnect & RPCs (wildcards where possible)
+  "https://rpc.walletconnect.org",
+  "https://*.walletconnect.com",
+  "wss://*.walletconnect.com",
+  // Base
+  "https://mainnet.base.org",
+  "https://sepolia.base.org",
+  // Avalanche
+  "https://api.avax.network",
+  "https://api.avax-test.network",
+  "https://avalanche-fuji-c-chain.publicnode.com",
+  "https://*.publicnode.com",
+  "https://*.ankr.com",
+  "https://*.llamarpc.com",
+  "wss://avalanche-fuji.drpc.org",
+  // Add more chains via env (comma-separated)
+  ...(process.env.CSP_CONNECT_EXTRA?.split(',').map(s => s.trim()).filter(Boolean) ?? []),
+];
 
-// CSP (Report-Only) — allow CF beacon; keep 'unsafe-inline' for now due to CF inline bits
 const cspDirectives = {
   defaultSrc: ["'self'"],
   baseUri: ["'self'"],
   objectSrc: ["'none'"],
-  scriptSrc: ["'self'", "https:", "'unsafe-inline'"],      // keep telemetry loose
+
+  // Scripts/styles: keep 'unsafe-inline' if you must (Cloudflare/snippets). Remove when you can.
+  scriptSrc: ["'self'", "https:", "'unsafe-inline'"],
   scriptSrcElem: ["'self'", "https:", "'unsafe-inline'"],
+  // Block inline event handlers from attributes
+  scriptSrcAttr: ["'none'"],
   styleSrc: ["'self'", "https:", "'unsafe-inline'"],
-  imgSrc: ["'self'", "data:", "https:"],
+
+  // Media & workers (nice to be explicit)
+  imgSrc: ["'self'", "data:", "blob:", "https:", "https://images.walletconnect.com", "https://static.walletconnect.com"],
   fontSrc: ["'self'", "https:", "data:"],
-  connectSrc: ["'self'", "https:", "wss:", "https://mgtsystem-production.up.railway.app"],
-  frameSrc: ["'self'", "https://www.youtube.com", "https://www.youtube-nocookie.com"],
+  mediaSrc: ["'self'", "https:"],
+  workerSrc: ["'self'", "blob:"],
+  manifestSrc: ["'self'"],
+
+  // ✅ Allow iframes (YouTube + nocookie; add Vimeo if you ever embed it)
+  frameSrc: ["'self'", "https://www.youtube.com", "https://www.youtube-nocookie.com", "https://player.vimeo.com"],
+  // Who may embed *your* site
   frameAncestors: ["'self'"],
-  // ❌ do NOT include upgradeInsecureRequests in Report-Only
+
+  // RPCs, sockets, APIs (scalable)
+  connectSrc: ALLOWED_CONNECT,
+
+  // If you rely on CF to upgrade mixed content, set this too; otherwise omit.
+  upgradeInsecureRequests: [],
 };
-app.use(helmet.contentSecurityPolicy({ directives: cspDirectives, reportOnly: false }));
+
+app.use(helmet.contentSecurityPolicy({
+  directives: cspDirectives,
+  reportOnly: false, // You can flip to true temporarily to test
+}));
 
 // ──────────────────────────────────────────────────────────
 // 301 redirects (run BEFORE routes/static/SPA handlers)
@@ -159,8 +260,6 @@ app.use((req, res, next) => {
 });
 
 
-
-
 // Trusted Types (Report-Only) — surfaces DOM sink usage without breaking anything
 // app.use((req, res, next) => {
 //   const existing = res.getHeader('Content-Security-Policy-Report-Only') || '';
@@ -168,16 +267,23 @@ app.use((req, res, next) => {
 //   next();
 // });
 
-
-
-/* ──────────────────────────────────────────────────────────
-   Request logging
-   ────────────────────────────────────────────────────────── */
+// ──────────────────────────────────────────────────────────
+//  Request logging
+// ──────────────────────────────────────────────────────────
 app.use((req, res, next) => {
-  console.log(`📥 ${req.method} ${req.url} - Headers:`, req.headers);
+  // Only log API requests to reduce noise
+  if (req.path.startsWith('/quiz/api') || req.path.startsWith('/api')) {
+    console.log(`📥 ${req.method} ${req.url}`);
+    console.log(`📥 Headers:`, {
+      'content-type': req.headers['content-type'],
+      'content-length': req.headers['content-length'],
+      'user-agent': req.headers['user-agent']?.substring(0, 50)
+    });
+  }
   next();
 });
 
+// Mount quiz and other API routers
 app.use('/quiz/api/community-registration', communityRegistrationApi);
 app.use('/quiz/api/impactcampaign/pledge', impactCampaignPledgeApi);
 
@@ -185,7 +291,7 @@ console.log('🛠️ Setting up routes...');
 app.use('/quiz/api', createRoomApi);
 console.log('🔗 Setting up community registration route...');
 
-console.log('✅ Routes setup complete'); 
+console.log('✅ Routes setup complete');
 
 console.log('📋 Registered routes:');
 app._router?.stack?.forEach((mw) => {
@@ -199,7 +305,7 @@ app.get('/quiz/api/community-registration/test', (req, res) => {
 
 /* ──────────────────────────────────────────────────────────
    Host-based sitemap / robots
-   ────────────────────────────────────────────────────────── */
+   ────────────────────────────────────────── */
 app.get('/sitemap.xml', (req, res) => {
   const host = req.get('host');
   console.log(`🗺️ Serving sitemap for host: ${host}`);
@@ -259,7 +365,7 @@ function buildHeadTags(seo) {
     robots: robotsFromSeo = 'index, follow',
   } = seo;
 
-   const isStaging = process.env.APP_ENV === 'staging';
+  const isStaging = process.env.APP_ENV === 'staging';
   const robots = isStaging ? 'noindex, nofollow' : robotsFromSeo;
 
   return [
@@ -390,46 +496,87 @@ const io = new Server(httpServer, {
 });
 
 // Host-based sitemap/robots helper
-seoRoutes(app);
+try {
+  seoRoutes(app);
+} catch (error) {
+  console.error('⚠️ Failed to setup SEO routes:', error.message);
+  // Continue - SEO routes are not critical for server startup
+}
 
 // Socket handlers
-setupSocketHandlers(io);
+try {
+  setupSocketHandlers(io);
+} catch (error) {
+  console.error('⚠️ Failed to setup socket handlers:', error.message);
+  // Continue - sockets are not critical for healthcheck
+}
 
-app.use('/api/contact', contactRoute);
-app.use('/api/auth/reset', passwordResetRoute);
+try {
+  app.use('/api/contact', contactRoute);
+  app.use('/api/auth/reset', passwordResetRoute);
+} catch (error) {
+  console.error('⚠️ Failed to setup API routes:', error.message);
+  // Continue - these routes are not critical for healthcheck
+}
 
 
-// server/index.js (after app.use routes)
+// Global error handler - must be last middleware (after all routes)
 app.use((err, req, res, next) => {
-  console.error('❌ Unhandled error middleware:', err);
-  console.error('❌ Error name:', err?.name);
-  console.error('❌ Error message:', err?.message);
-  console.error('❌ Error stack:', err?.stack);
-  console.error('❌ Request path:', req.path);
-  console.error('❌ Request method:', req.method);
+  // Skip if this is a JSON parsing error (already handled above)
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return next(err); // Let the JSON parsing error handler deal with it
+  }
   
-  if (!res.headersSent) {
+  console.error('--------------------------------------');
+  console.error('[Server] ❌❌ GLOBAL ERROR HANDLER');
+  console.error('[Server] ❌ Error type:', err?.constructor?.name);
+  console.error('[Server] ❌ Error name:', err?.name);
+  console.error('[Server] ❌ Error message:', err?.message);
+  console.error('[Server] ❌ Error stack:', err?.stack);
+  console.error('[Server] ❌ Request path:', req.path);
+  console.error('[Server] ❌ Request method:', req.method);
+  console.error('[Server] ❌ Response headers sent:', res.headersSent);
+  console.error('[Server] ❌ Response status code:', res.statusCode);
+  console.error('--------------------------------------');
+  
+  // Skip if response already sent
+  if (res.headersSent) {
+    console.error('[Server] ❌ Response already sent, cannot send error');
+    return next(err);
+  }
+  
+  // Handle all other errors
+  try {
+    const errorResponse = { 
+      error: 'Internal error',
+      message: err?.message || 'An unexpected error occurred',
+      ...(process.env.NODE_ENV !== 'production' && { 
+        details: err?.message,
+        stack: err?.stack,
+        name: err?.name,
+        type: err?.constructor?.name
+      })
+    };
+    
+    res.status(500);
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify(errorResponse));
+    console.log('[Server] ✅ Error response sent');
+  } catch (sendErr) {
+    console.error('[Server] ❌ Failed to send error response:', sendErr);
+    console.error('[Server] ❌ Send error stack:', sendErr?.stack);
+    // Last resort - try plain text
     try {
-      res.status(500).json({ 
-        error: 'Internal error',
-        ...(process.env.NODE_ENV !== 'production' && { 
-          details: err?.message,
-          stack: err?.stack 
-        })
-      });
-    } catch (sendErr) {
-      console.error('❌ Failed to send error response:', sendErr);
-      // Last resort
-      try {
-        if (!res.headersSent) {
-          res.status(500).type('text/plain').send('Internal server error');
-        }
-      } catch {
-        console.error('❌❌ Cannot send any response');
+      if (!res.headersSent) {
+        res.status(500);
+        res.setHeader('Content-Type', 'text/plain');
+        res.end('Internal server error: ' + (err?.message || 'Unknown error'));
+        console.log('[Server] ✅ Plain text error response sent');
       }
+    } catch (finalErr) {
+      console.error('[Server] ❌❌ Cannot send any response');
+      console.error('[Server] ❌❌ Final error:', finalErr);
     }
-  } else {
-    console.error('❌ Response already sent, cannot send error');
   }
 });
 
@@ -453,7 +600,6 @@ process.on('uncaughtException', (error) => {
   process.exit(1);
 });
 
-
 // Health check
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
@@ -465,30 +611,52 @@ app.get('/debug/rooms', (req, res) => {
   res.json({ totalRooms: roomStates.length, rooms: roomStates });
 });
 
-// Startup
-async function startServer() {
-  try {
-    // Try to initialize database, but don't fail if it's not available (for local dev)
-    try {
-      await initializeDatabase();
-      console.log(`🗄️ Database connected`);
-    } catch (dbError) {
-      console.warn('⚠️ Database connection failed, but continuing without it...');
-      console.warn('⚠️ This is OK for local development if you only need Web3 rooms (in-memory)');
-      console.warn('⚠️ Database features will not be available');
-      console.warn(`⚠️ Error: ${dbError.message}`);
-      // Don't exit - allow server to start for Web3/in-memory features
+// Startup - Start server immediately, initialize database in background
+// This ensures healthcheck can respond right away
+console.log(`🔧 Starting server on port ${PORT}...`);
+console.log(`🔧 PORT env var: ${process.env.PORT}`);
+console.log(`🔧 NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
+
+try {
+  httpServer.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`💾 Cache headers: ${process.env.NODE_ENV === 'production' ? 'Optimized (1 year)' : 'Development mode'}`);
+    console.log(`✅ Healthcheck available at http://0.0.0.0:${PORT}/health`);
+    console.log(`✅ Healthcheck available at http://localhost:${PORT}/health`);
+  });
+
+  // Handle listen errors
+  httpServer.on('error', (error) => {
+    if (error.code === 'EADDRINUSE') {
+      console.error(`❌ Port ${PORT} is already in use`);
+      process.exit(1);
+    } else {
+      console.error(`❌ Server error:`, error);
+      process.exit(1);
     }
-    
-    httpServer.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`💾 Cache headers: ${process.env.NODE_ENV === 'production' ? 'Optimized (1 year)' : 'Development mode'}`);
-    });
-  } catch (error) {
-    console.error('❌ Failed to start server:', error);
-    process.exit(1);
-  }
+  });
+} catch (error) {
+  console.error('❌ Failed to start server:', error);
+  console.error('❌ Error stack:', error.stack);
+  process.exit(1);
 }
-startServer().catch(console.error);
+
+// Initialize database in background (non-blocking)
+(async () => {
+  try {
+    await initializeDatabase();
+    console.log(`🗄️ Database connected`);
+  } catch (dbError) {
+    console.warn('⚠️ Database connection failed, but continuing without it...');
+    console.warn('⚠️ This is OK for local development if you only need Web3 rooms (in-memory)');
+    console.warn('⚠️ Database features will not be available');
+    console.warn(`⚠️ Error: ${dbError.message}`);
+    // Don't exit - allow server to start for Web3/in-memory features
+  }
+})().catch((error) => {
+  console.error('❌ Database initialization error:', error);
+  // Don't exit - server is already running
+});
+
 

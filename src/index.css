@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-* ActivityTicker animations */
+/* ActivityTicker animations */
 @keyframes scroll-left {
   0% { 
     transform: translateX(100%); 

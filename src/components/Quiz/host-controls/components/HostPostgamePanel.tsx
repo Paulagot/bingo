@@ -1,6 +1,6 @@
 // HostPostgamePanel.tsx
 import React, { useEffect } from 'react';
-import { Loader, Trophy, Crown, Medal, Award } from 'lucide-react';
+import { Trophy, Crown, Medal, Award } from 'lucide-react';
 import FinalQuizStats from '../components/FinalQuizStats';
 import { Web3PrizeDistributionRouter } from '../prizes/Web3PrizeDistributionRouter';
 
@@ -32,12 +32,12 @@ interface HostPostgamePanelProps {
   paymentMethod?: string; // 'web3' | 'cash_or_revolut' | ...
   debug?: boolean;
   onReturnToDashboard?: () => void;
-  onPhaseChange?: (p: Phase) => void;
+  onPhaseChange?: (p: Phase) => void; // kept for compatibility, but not used now
 
-  // 🆕 NEW: callback to trigger cleanup/end game
+  // callback to trigger cleanup/end game
   onEndGame?: () => void;
 
-  // 🆕 NEW: current/total rounds to prevent showing post-game during intermediate rounds
+  // current/total rounds to prevent showing post-game during intermediate rounds
   currentRound?: number;
   totalRounds?: number;
 }
@@ -52,19 +52,38 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
   paymentMethod,
   debug = false,
   onReturnToDashboard,
-  onPhaseChange,
-  onEndGame, // 🆕 NEW
+  onEndGame,
   currentRound,
   totalRounds,
 }) => {
+  // ✅ HOOK #1 - Always called
+  const [prizeDistributionComplete, setPrizeDistributionComplete] = React.useState(false);
+
+  // Calculate all your derived state BEFORE the effect
   const isComplete = phase === 'complete';
   const isDistributing = phase === 'distributing_prizes';
   const isWeb3Flow = paymentMethod === 'web3';
 
-  // 🆕 SAFEGUARD: Only show post-game panel if we're on the final round
-  const isFinalRound = currentRound && totalRounds && currentRound >= totalRounds;
+  const isFinalRound =
+    typeof currentRound === 'number' &&
+    typeof totalRounds === 'number' &&
+    currentRound >= totalRounds;
 
-  // Debug logging to understand why safeguard might not be working
+  // ✅ HOOK #2 - Always called (moved BEFORE early returns)
+  useEffect(() => {
+    if (!prizeDistributionComplete || !isWeb3Flow) return;
+
+    console.log('🎯 Prizes distributed successfully. Starting cleanup timer...');
+
+    const cleanupTimer = setTimeout(() => {
+      console.log('🧹 Triggering end game cleanup...');
+      onEndGame?.();
+    }, 60000);
+
+    return () => clearTimeout(cleanupTimer);
+  }, [prizeDistributionComplete, isWeb3Flow, onEndGame]);
+
+  // ✅ NOW early returns are safe - all hooks have been called
   if (debug && (isComplete || isDistributing)) {
     console.log('[HostPostgamePanel] Phase check:', {
       phase,
@@ -73,87 +92,39 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
       isFinalRound,
       isComplete,
       isDistributing,
-      willHide: !isFinalRound,
+      willHide: !(isComplete || isDistributing) || !isFinalRound,
     });
   }
 
-  // If phase says "complete" but we're not on final round, don't show this panel
-  // This prevents stale phase state from showing post-game UI during intermediate rounds
   if ((isComplete || isDistributing) && !isFinalRound) {
-    console.warn('[HostPostgamePanel] Phase is complete/distributing but not on final round. Hiding post-game panel.', {
-      phase,
-      currentRound,
-      totalRounds,
-      isFinalRound,
-    });
+    console.warn(
+      '[HostPostgamePanel] Phase is complete/distributing but not on final round. Hiding post-game panel.',
+      { phase, currentRound, totalRounds, isFinalRound }
+    );
     return null;
   }
 
-  // 🆕 NEW: Track when prizes are successfully distributed
-  const [prizeDistributionComplete, setPrizeDistributionComplete] = React.useState(false);
-
-  // 🆕 NEW: Auto-cleanup after successful prize distribution
-  useEffect(() => {
-    if (!prizeDistributionComplete || !isWeb3Flow) return;
-    
-    console.log('🎯 Prizes distributed successfully. Starting cleanup timer...');
-    
-    // Wait 60 seconds (1 minute) before triggering cleanup
-    const cleanupTimer = setTimeout(() => {
-      console.log('🧹 Triggering end game cleanup...');
-      onEndGame?.();
-    }, 60000); // 60,000ms = 1 minute
-    
-    // Cleanup timer if component unmounts
-    return () => clearTimeout(cleanupTimer);
-  }, [prizeDistributionComplete, isWeb3Flow, onEndGame]);
-
   if (!(isComplete || isDistributing)) return null;
+
+  // ✅ All hooks called above - now safe to render JSX
 
   return (
     <div className="space-y-6">
-      {/* 
-        🔴 REMOVED: Prize distribution from top 
-        (it was here before, around line 77-89)
-      */}
-
-      {/* Distributing state banner */}
-      {isDistributing && (
-        <div className="mb-6 rounded-xl border-2 border-orange-200 bg-gradient-to-r from-orange-50 to-yellow-50 p-8 text-center">
-          <div className="mb-4 text-6xl">💰</div>
-          <h2 className="mb-2 text-3xl font-bold text-orange-800">Distributing Prizes...</h2>
-          <p className="text-lg text-orange-600">
-            Please wait while prizes are sent to winners via smart contract
-          </p>
-          <div className="mt-4">
-            <Loader className="mx-auto h-8 w-8 animate-spin text-orange-600" />
-          </div>
-
-          {/* Escape hatch */}
-          <button
-            className="mt-6 rounded-lg border border-orange-300 bg-white/70 px-4 py-2 text-orange-700 hover:bg-white"
-            onClick={() => onPhaseChange?.('complete')}
-          >
-            Cancel & Return to Results
-          </button>
-        </div>
-      )}
-
-      {/* Complete state banner */}
+      {/* Complete state banner (only when phase === complete) */}
       {isComplete && (
         <div className="mb-6 rounded-xl border-2 border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50 p-8 text-center">
           <div className="mb-4 text-6xl">🎉</div>
           <h2 className="mb-2 text-3xl font-bold text-purple-800">Quiz Complete!</h2>
           <p className="text-lg text-purple-600">
-            {isWeb3Flow 
-              ? 'Complete the prize distribution below!' 
+            {isWeb3Flow
+              ? 'Review the final results and then distribute prizes via smart contract below.'
               : 'Thank you for hosting this amazing quiz experience!'}
           </p>
         </div>
       )}
 
       {/* Final Leaderboard */}
-      {isComplete && leaderboard.length > 0 && (
+      {leaderboard.length > 0 && (
         <div className="bg-muted mb-6 rounded-xl border-2 border-green-200 p-6 shadow-lg">
           <div className="mb-4 flex items-center justify-center">
             <h3 className="text-fg flex items-center space-x-2 text-2xl font-bold">
@@ -226,57 +197,38 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
         </div>
       )}
 
-      {/* Final Stats */}
-      {(isComplete && (hasFinalStats || allRoundsStats.length > 0)) && (
-        <FinalQuizStats allRoundsStats={allRoundsStats} totalPlayers={totalPlayers || 0} isVisible />
+      {/* Final Stats – always shown when postgame is visible, if we have them */}
+      {(hasFinalStats || allRoundsStats.length > 0) && (
+        <FinalQuizStats
+          allRoundsStats={allRoundsStats}
+          totalPlayers={totalPlayers || 0}
+          isVisible
+        />
       )}
 
-      {/* Fallback if no stats */}
-      {isComplete && !hasFinalStats && allRoundsStats.length === 0 && (
-        <div className="mb-6 rounded-xl bg-blue-50 p-6 text-center">
-          <div className="mb-2 text-blue-600">📊</div>
-          <h3 className="mb-2 text-lg font-bold text-blue-800">No Statistics Available</h3>
-          <p className="text-blue-600">
-            Final quiz statistics are not yet available. They may still be loading.
-          </p>
-        </div>
-      )}
-
-      {/* 
-        🟢 MOVED: Web3 Prize Distribution - NOW AT THE BOTTOM 
-        Only shows for web3 payment method
-      */}
-      {isWeb3Flow && (isComplete || isDistributing) && (
+      {/* Web3 Prize Distribution (EVM + Solana, always on-chain, button-driven) */}
+      {isWeb3Flow && (
         <div className="mt-8 border-t-4 border-green-300 pt-6">
           <Web3PrizeDistributionRouter
             roomId={roomId}
             leaderboard={leaderboard}
             onStatusChange={(status) => {
               console.log('🎯 Prize Router Status:', status);
-              
-              // Move phase based on router status
-              if (status === 'running') {
-                onPhaseChange?.('distributing_prizes');
-              }
-              
+
+              // IMPORTANT: Do NOT drive distribution from phase.
+              // The underlying Web3PrizeDistributionPanel only starts
+              // distribution when the host clicks the button.
+
+              // We only care about success here, to start cleanup.
               if (status === 'success') {
-                onPhaseChange?.('complete');
-                // 🆕 Mark distribution as complete to trigger cleanup timer
                 setPrizeDistributionComplete(true);
-              }
-              
-              if (status === 'idle' || status === 'failed') {
-                onPhaseChange?.('complete');
               }
             }}
           />
         </div>
       )}
 
-      {/* 
-        🔴 CONDITIONAL: Return to Dashboard button
-        Only shows for NON-web3 flows
-      */}
+      {/* Return to Dashboard button for non-web3 flows */}
       {!isWeb3Flow && isComplete && (
         <div className="mt-8 text-center">
           <button
@@ -289,10 +241,7 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
         </div>
       )}
 
-      {/* 
-        🆕 NEW: Auto-cleanup countdown for web3 flows 
-        Shows after successful prize distribution
-      */}
+      {/* Auto-cleanup countdown for web3 flows (after successful on-chain distribution) */}
       {isWeb3Flow && prizeDistributionComplete && (
         <div className="mt-6 rounded-xl border-2 border-blue-200 bg-blue-50 p-6 text-center">
           <div className="mb-2 text-4xl">⏳</div>
@@ -315,4 +264,7 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
 };
 
 export default HostPostgamePanel;
+
+
+
 

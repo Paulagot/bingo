@@ -2,7 +2,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { nanoid } from 'nanoid';
-import { ChevronLeft, AlertCircle, CheckCircle, Loader, Wallet, PlugZap, Unplug, X } from 'lucide-react';
+import {
+  ChevronLeft,
+  AlertCircle,
+  CheckCircle,
+  Loader,
+  Wallet,
+  PlugZap,
+  Unplug,
+  X,
+} from 'lucide-react';
 
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { useQuizChainIntegration } from '../../../hooks/useQuizChainIntegration';
@@ -75,12 +84,12 @@ interface RoomConfig {
 
   // Web3 fields
   web3Chain?: string;
-  evmNetwork?: string;           // ✅ used for target chain metadata
-  solanaCluster?: string;        // ✅ for completeness
-  stellarNetwork?: string;       // ✅ for completeness
+  evmNetwork?: string; // ✅ used for target chain metadata
+  solanaCluster?: string; // ✅ for completeness
+  stellarNetwork?: string; // ✅ for completeness
   roomContractAddress?: string;
   deploymentTxHash?: string;
-  web3Currency?: string;         // ✅ currency symbol (e.g., USDC)
+  web3Currency?: string; // ✅ currency symbol (e.g., USDC)
 
   // Room info
   hostName?: string;
@@ -96,6 +105,7 @@ interface Web3PaymentStepProps {
   selectedExtras: string[];
   onBack: () => void;
   onClose: () => void;
+  // note: can still be `undefined` from outside, we normalize it below
   chainOverride?: SupportedChain;
 }
 
@@ -111,19 +121,37 @@ async function safeDebugAssetRoom(roomAddress?: string) {
     const chainId = await getChainId(wagmiConfig);
 
     const [prizeCount, allPrizesUploaded, state] = await Promise.all([
-      readContract(wagmiConfig, { address: roomAddress as `0x${string}`, abi: AssetRoomABI as any, functionName: 'prizeCount', args: [], chainId }),
-      readContract(wagmiConfig, { address: roomAddress as `0x${string}`, abi: AssetRoomABI as any, functionName: 'allPrizesUploaded', args: [], chainId }),
-      readContract(wagmiConfig, { address: roomAddress as `0x${string}`, abi: AssetRoomABI as any, functionName: 'state', args: [], chainId }),
+      readContract(wagmiConfig, {
+        address: roomAddress as `0x${string}`,
+        abi: AssetRoomABI as any,
+        functionName: 'prizeCount',
+        args: [],
+        chainId,
+      }),
+      readContract(wagmiConfig, {
+        address: roomAddress as `0x${string}`,
+        abi: AssetRoomABI as any,
+        functionName: 'allPrizesUploaded',
+        args: [],
+        chainId,
+      }),
+      readContract(wagmiConfig, {
+        address: roomAddress as `0x${string}`,
+        abi: AssetRoomABI as any,
+        functionName: 'state',
+        args: [],
+        chainId,
+      }),
     ]);
 
     const [places, types_, assets, amounts, tokenIds, uploaded] =
-      await readContract(wagmiConfig, {
+      (await readContract(wagmiConfig, {
         address: roomAddress as `0x${string}`,
         abi: AssetRoomABI as any,
         functionName: 'getAllPrizes',
         args: [],
         chainId,
-      }) as [number[], number[], `0x${string}`[], bigint[], bigint[], boolean[]];
+      })) as [number[], number[], `0x${string}`[], bigint[], bigint[], boolean[]];
 
     const prizeRows = (places || []).map((p, i) => ({
       place: Number(p),
@@ -145,11 +173,17 @@ async function safeDebugAssetRoom(roomAddress?: string) {
 
     const i1 = (places || []).findIndex((p) => Number(p) === 1);
     if (i1 === -1) {
-      console.warn('❌ [AssetRoom] No entry with place=1 in getAllPrizes(). Did you configure prize #1?');
+      console.warn(
+        '❌ [AssetRoom] No entry with place=1 in getAllPrizes(). Did you configure prize #1?'
+      );
     } else if (!uploaded[i1]) {
-      console.warn('❌ [AssetRoom] prize #1 exists but uploaded=false. Did you call uploadPrize(1) on THIS room/chain?');
+      console.warn(
+        '❌ [AssetRoom] prize #1 exists but uploaded=false. Did you call uploadPrize(1) on THIS room/chain?'
+      );
     } else {
-      console.log('✅ [AssetRoom] prize #1 is uploaded=true. Join should not be blocked by "need 1st".');
+      console.log(
+        '✅ [AssetRoom] prize #1 is uploaded=true. Join should not be blocked by "need 1st".'
+      );
     }
   } catch (e) {
     // swallow to avoid red UI; log for inspection
@@ -170,10 +204,15 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
   const { socket } = useQuizSocket();
   const navigate = useNavigate();
 
-  const { selectedChain } = useQuizChainIntegration({ chainOverride });
+  // 🔧 Normalize chainOverride so it matches hooks' Options type (SupportedChain | null)
+  const normalizedChainOverride: SupportedChain | null = chainOverride ?? null;
 
-  const wallet = useWalletActions({ chainOverride });
-  const { joinRoom } = useContractActions({ chainOverride });
+  const { selectedChain } = useQuizChainIntegration({
+    chainOverride: normalizedChainOverride,
+  });
+
+  const wallet = useWalletActions({ chainOverride: normalizedChainOverride });
+  const { joinRoom } = useContractActions({ chainOverride: normalizedChainOverride });
 
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('idle');
   const [error, setError] = useState('');
@@ -181,7 +220,9 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
 
   /* ---------- AppKit (if present) ---------- */
   const appkit = useAppKit ? useAppKit() : null;
-  const appkitAcc = useAppKitAccount ? useAppKitAccount({ namespace: 'eip155' }) : { address: undefined as string | undefined };
+  const appkitAcc = useAppKitAccount
+    ? useAppKitAccount({ namespace: 'eip155' })
+    : { address: undefined as string | undefined };
 
   // Costs
   const extrasTotal = selectedExtras.reduce(
@@ -218,7 +259,9 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
         try {
           const hookCid = useWagmiChainId();
           if (typeof hookCid === 'number') cid = hookCid;
-        } catch { /* noop */ }
+        } catch {
+          /* noop */
+        }
       }
 
       if (!cid && (window as any)?.ethereum?.request) {
@@ -228,7 +271,9 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
             const p = parseInt(hex, 16);
             if (!Number.isNaN(p)) cid = p;
           }
-        } catch { /* noop */ }
+        } catch {
+          /* noop */
+        }
       }
 
       setCurrentChainId(cid);
@@ -259,16 +304,19 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
   }, []);
 
   // Must be connected; for EVM also must be on the target network
-  const networkOk =
-    isEvm
-      ? baseConnected && (!targetChainId || currentChainId === targetChainId)
-      : baseConnected;
+  const networkOk = isEvm
+    ? baseConnected && (!targetChainId || currentChainId === targetChainId)
+    : baseConnected;
 
   const canProceed = totalAmount > 0 ? networkOk : true;
 
   // Debug logs
   useEffect(() => {
-    console.log('[JOIN][UI] chain:', selectedChain, 'addr(evm/appkit):', { evmAddr, appkitAddr, shown: addr });
+    console.log('[JOIN][UI] chain:', selectedChain, 'addr(evm/appkit):', {
+      evmAddr,
+      appkitAddr,
+      shown: addr,
+    });
     console.log('[JOIN][UI] amounts:', {
       entryFee: roomConfig.entryFee,
       extrasTotal,
@@ -314,10 +362,13 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
     }
   }, [baseConnected, currentChainId, targetChainId, isEvm, error]);
 
-  // ✅ NEW: Store room's network config for EvmWalletProvider to read
+  // ✅ Store room's network config for EvmWalletProvider to read
   useEffect(() => {
     if (roomConfig?.web3Chain === 'evm' && roomConfig.evmNetwork) {
-      console.log('[Web3PaymentStep] Setting active EVM network for provider:', roomConfig.evmNetwork);
+      console.log(
+        '[Web3PaymentStep] Setting active EVM network for provider:',
+        roomConfig.evmNetwork
+      );
       sessionStorage.setItem('active-evm-network', roomConfig.evmNetwork);
 
       if (roomConfig.roomContractAddress) {
@@ -350,7 +401,8 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
 
       // ensure our provider side (wagmi) syncs
       const res = await wallet.connect();
-      if (!res.success && !appkitAddr) throw new Error(res.error?.message || 'Failed to connect wallet');
+      if (!res.success && !appkitAddr)
+        throw new Error(res.error?.message || 'Failed to connect wallet');
 
       // best-effort switch to room's target chain
       if (isEvm && targetChainId && typeof (wallet as any)?.switchChain === 'function') {
@@ -405,7 +457,7 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
         await handleWalletConnect();
 
         // Give wallet state time to update (especially for Solana)
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
         if (!((wallet.isConnected() && wallet.getAddress()) || appkitAcc?.address)) {
           throw new Error('Failed to connect wallet');
@@ -424,7 +476,9 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
         if (currentChainId !== targetChainId) {
           const key = (roomConfig as any)?.evmNetwork || '';
           const meta = getMetaByKey(key);
-          throw new Error(`Wrong network. Please switch to ${meta?.name || 'the correct network'}.`);
+          throw new Error(
+            `Wrong network. Please switch to ${meta?.name || 'the correct network'}.`
+          );
         }
       }
 
@@ -491,8 +545,13 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
       let errorMessage = e.message || 'Failed to join game';
 
       // Solana error code 6038 = JoiningClosed
-      if (e.message?.includes('6038') || e.message?.toLowerCase().includes('joining closed') || e.message?.toLowerCase().includes('no longer accepting')) {
-        errorMessage = 'This room is no longer accepting new players. The host has closed joining.';
+      if (
+        e.message?.includes('6038') ||
+        e.message?.toLowerCase().includes('joining closed') ||
+        e.message?.toLowerCase().includes('no longer accepting')
+      ) {
+        errorMessage =
+          'This room is no longer accepting new players. The host has closed joining.';
       } else if (e.message?.includes('6014') || e.message?.toLowerCase().includes('max players')) {
         errorMessage = 'This room is full. Please try another room.';
       } else if (e.message?.includes('6012') || e.message?.toLowerCase().includes('room expired')) {
@@ -507,15 +566,35 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
   const status = (() => {
     switch (paymentStatus) {
       case 'connecting':
-        return { icon: <Loader className="h-5 w-5 animate-spin" />, text: `Connecting ${chainLabel} wallet...`, color: 'text-blue-600' };
+        return {
+          icon: <Loader className="h-5 w-5 animate-spin" />,
+          text: `Connecting ${chainLabel} wallet...`,
+          color: 'text-blue-600',
+        };
       case 'paying':
-        return { icon: <Loader className="h-5 w-5 animate-spin" />, text: 'Processing payment...', color: 'text-yellow-600' };
+        return {
+          icon: <Loader className="h-5 w-5 animate-spin" />,
+          text: 'Processing payment...',
+          color: 'text-yellow-600',
+        };
       case 'confirming':
-        return { icon: <Loader className="h-5 w-5 animate-spin" />, text: 'Confirming transaction...', color: 'text-orange-600' };
+        return {
+          icon: <Loader className="h-5 w-5 animate-spin" />,
+          text: 'Confirming transaction...',
+          color: 'text-orange-600',
+        };
       case 'joining':
-        return { icon: <Loader className="h-5 w-5 animate-spin" />, text: 'Joining game...', color: 'text-green-600' };
+        return {
+          icon: <Loader className="h-5 w-5 animate-spin" />,
+          text: 'Joining game...',
+          color: 'text-green-600',
+        };
       case 'success':
-        return { icon: <CheckCircle className="h-5 w-5" />, text: 'Success! Redirecting...', color: 'text-green-600' };
+        return {
+          icon: <CheckCircle className="h-5 w-5" />,
+          text: 'Success! Redirecting...',
+          color: 'text-green-600',
+        };
       default:
         return null;
     }
@@ -585,7 +664,8 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
             <div className="text-fg/70 text-sm">
               Entry: {roomConfig.currencySymbol}
               {roomConfig.entryFee.toFixed(2)}
-              {extrasTotal > 0 && ` + Extras: ${roomConfig.currencySymbol}${extrasTotal.toFixed(2)}`}
+              {extrasTotal > 0 &&
+                ` + Extras: ${roomConfig.currencySymbol}${extrasTotal.toFixed(2)}`}
             </div>
           </div>
           <div className="text-xl font-bold text-blue-900">
@@ -602,9 +682,19 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
             <Wallet className="h-4 w-4 text-purple-600" />
             <span className="font-medium text-purple-800">{chainLabel} Wallet Status</span>
           </div>
-          <div className={`flex items-center space-x-2 ${canProceed ? 'text-green-600' : 'text-yellow-600'}`}>
-            <div className={`h-2 w-2 rounded-full ${canProceed ? 'bg-green-500' : 'bg-yellow-500'}`} />
-            <span className="text-sm font-medium">{canProceed ? 'Ready' : 'Connection needed'}</span>
+          <div
+            className={`flex items-center space-x-2 ${
+              canProceed ? 'text-green-600' : 'text-yellow-600'
+            }`}
+          >
+            <div
+              className={`h-2 w-2 rounded-full ${
+                canProceed ? 'bg-green-500' : 'bg-yellow-500'
+              }`}
+            />
+            <span className="text-sm font-medium">
+              {canProceed ? 'Ready' : 'Connection needed'}
+            </span>
           </div>
         </div>
 
@@ -631,7 +721,11 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
             <div className="rounded-lg border border-green-200 bg-green-50 p-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <div className={`h-2 w-2 rounded-full ${networkOk ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                  <div
+                    className={`h-2 w-2 rounded-full ${
+                      networkOk ? 'bg-green-500' : 'bg-yellow-500'
+                    }`}
+                  />
                   <div>
                     <div className="text-sm font-medium text-green-800">
                       {chainLabel} Wallet {networkOk ? 'Connected' : 'Connected (Wrong Network)'}
@@ -655,8 +749,10 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
                   <div>
                     Wrong network detected. Please switch to{' '}
                     <strong>
-                      {getMetaByKey((roomConfig as any)?.evmNetwork)?.name || 'the correct network'}
-                    </strong>.
+                      {getMetaByKey((roomConfig as any)?.evmNetwork)?.name ||
+                        'the correct network'}
+                    </strong>
+                    .
                   </div>
                   {typeof (wallet as any)?.switchChain === 'function' && (
                     <button
@@ -687,7 +783,9 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
             <div className={status.color}>{status.icon}</div>
             <span className={`font-medium ${status.color}`}>{status.text}</span>
           </div>
-          {txHash && <div className="mt-2 text-xs text-gray-600">Transaction: {txHash.slice(0, 16)}...</div>}
+          {txHash && (
+            <div className="mt-2 text-xs text-gray-600">Transaction: {txHash.slice(0, 16)}...</div>
+          )}
         </div>
       )}
 
@@ -715,7 +813,10 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
             disabled={paymentStatus !== 'idle' || !canProceed}
             className="flex items-center justify-center space-x-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-700 disabled:opacity-50 sm:px-6 sm:py-3 sm:text-base"
           >
-            <span>Pay {roomConfig.currencySymbol}{totalAmount.toFixed(2)}</span>
+            <span>
+              Pay {roomConfig.currencySymbol}
+              {totalAmount.toFixed(2)}
+            </span>
             <CheckCircle className="h-4 w-4" />
           </button>
         )}
@@ -723,6 +824,7 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
     </div>
   );
 };
+
 
 
 

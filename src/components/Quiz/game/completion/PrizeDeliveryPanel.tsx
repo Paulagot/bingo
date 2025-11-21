@@ -1,4 +1,3 @@
-// src/components/Quiz/postgame/PrizeDeliveryPanel.tsx
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuizSocket } from '../../sockets/QuizSocketProvider';
@@ -28,23 +27,18 @@ type Award = {
   declaredAt?: string;
   deliveredAt?: string;
   statusHistory?: Array<{ status: Award['status']; at: string; by?: string }>;
-  awardMethod?: string;
+  awardMethod?: string;      // collection | delivery
   awardReference?: string;
   awardNotes?: string;
+  winnerConfirmed?: boolean; // NEW: compliance tick (got it confirmed)
 };
 
 const FINAL_STATES = new Set(['delivered', 'unclaimed', 'refused', 'returned', 'canceled']);
 
 const METHOD_OPTIONS = [
   { value: '', label: '— Select method —' },
-  { value: 'cash', label: 'Cash' },
-  { value: 'card', label: 'Card' },
-  { value: 'revolut', label: 'Revolut' },
-  { value: 'web3', label: 'Web3 / On-chain' },
-  { value: 'voucher', label: 'Voucher / Code' },
-  { value: 'delivery', label: 'Postal / Delivery' },
-  { value: 'collection', label: 'In-person collection' },
-  { value: 'other', label: 'Other' },
+  { value: 'collection', label: 'Collection (in-person)' },
+  { value: 'delivery', label: 'Delivery (postal/courier)' },
 ];
 
 type Props = {
@@ -60,7 +54,6 @@ export default function PrizeDeliveryPanel({ lockEdits = false }: Props) {
 
   const prizes = (config?.prizes || []) as any[];
   const awards = ((config?.reconciliation as any)?.prizeAwards || []) as Award[];
-  const ledger = ((config?.reconciliation as any)?.ledger || []) as any[];
 
   const [updating, setUpdating] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<Record<string, string | null>>({});
@@ -106,21 +99,24 @@ export default function PrizeDeliveryPanel({ lockEdits = false }: Props) {
     }, 250);
   };
 
-  const emitAwardsWithOptionalLedger = (nextAwards: Award[], addLedger?: any) => {
+  const emitAwardsOnly = (nextAwards: Award[]) => {
     if (!socket || !roomId) return;
-    const nextPatch: any = { prizeAwards: nextAwards };
-    if (addLedger) {
-      nextPatch.ledger = [...ledger, addLedger];
-    }
-    socket.emit('update_reconciliation', { roomId, patch: nextPatch });
+    socket.emit('update_reconciliation', { roomId, patch: { prizeAwards: nextAwards } });
   };
 
   const handleStatusChange = (award: Award, nextStatus: Award['status']) => {
     if (lockEdits) return;
 
-    if (nextStatus === 'delivered' && !award.awardMethod) {
-      setErrors((prev) => ({ ...prev, [award.prizeAwardId]: 'Select a delivery method first.' }));
-      return;
+    if (nextStatus === 'delivered') {
+      // Require delivery method and winner confirmation
+      if (!award.awardMethod) {
+        setErrors((prev) => ({ ...prev, [award.prizeAwardId]: 'Select a delivery method first.' }));
+        return;
+      }
+      if (!award.winnerConfirmed) {
+        setErrors((prev) => ({ ...prev, [award.prizeAwardId]: 'Confirm winner receipt before marking delivered.' }));
+        return;
+      }
     }
 
     setErrors((prev) => ({ ...prev, [award.prizeAwardId]: null }));
@@ -140,7 +136,8 @@ export default function PrizeDeliveryPanel({ lockEdits = false }: Props) {
     });
 
     setUpdating((prev) => new Set(prev).add(award.prizeAwardId));
-    emitAwardsWithOptionalLedger(nextAwards);
+    // No auto-ledger emit here; prize payout will be booked in the Reconciliation Ledger by treasurer.
+    emitAwardsOnly(nextAwards);
   };
 
   const handleReopen = (award: Award) => {
@@ -156,19 +153,8 @@ export default function PrizeDeliveryPanel({ lockEdits = false }: Props) {
     });
 
     setUpdating((prev) => new Set(prev).add(award.prizeAwardId));
-
-    emitAwardsWithOptionalLedger(nextAwards, {
-      id: crypto.randomUUID?.() || `led-${Date.now()}`,
-      ts: now,
-      type: 'correction',
-      method: 'other',
-      payerId: award.winnerPlayerId || '',
-      amount: 0,
-      currency: 'EUR',
-      reasonCode: 'prize_reopened',
-      note: `Reopened ${award.prizeName || 'prize'} (place ${award.place ?? '—'})`,
-      createdBy: hostName,
-    });
+    // No ledger adjustment on reopen (correction type removed).
+    emitAwardsOnly(nextAwards);
   };
 
   const copyToClipboard = (text: string, awardId: string) => {
@@ -203,8 +189,8 @@ export default function PrizeDeliveryPanel({ lockEdits = false }: Props) {
           <Package className="h-5 w-5 text-purple-700" />
         </div>
         <div>
-          <h3 className="text-lg font-bold text-gray-900">Delivery & Status Management</h3>
-          <p className="text-sm text-gray-600">Track delivery methods, references, and prize statuses</p>
+          <h3 className="text-lg font-bold text-gray-900">Delivery & Compliance</h3>
+          <p className="text-sm text-gray-600">Record method, confirmation, value, and notes</p>
         </div>
       </div>
 
@@ -215,6 +201,8 @@ export default function PrizeDeliveryPanel({ lockEdits = false }: Props) {
           const final = FINAL_STATES.has(a.status);
           const err = errors[a.prizeAwardId] || null;
           const isCopied = copiedRef === a.prizeAwardId;
+
+          const value = typeof a.prizeValue === 'number' ? a.prizeValue : 0;
 
           return (
             <div
@@ -238,7 +226,7 @@ export default function PrizeDeliveryPanel({ lockEdits = false }: Props) {
                   </div>
                   <div className="text-xs text-gray-600 space-y-0.5">
                     {a.sponsor && <div>Sponsor: <span className="text-purple-600 font-medium">{a.sponsor}</span></div>}
-                    <div>Value: <span className="font-medium">{currency}{(a.prizeValue ?? 0).toFixed(2)}</span></div>
+                    <div>Value: <span className="font-medium">{currency}{value.toFixed(2)}</span></div>
                     <div>Winner: <span className="font-medium text-blue-700">{a.winnerName || '—'}</span></div>
                   </div>
                 </div>
@@ -257,7 +245,7 @@ export default function PrizeDeliveryPanel({ lockEdits = false }: Props) {
                 </div>
               </div>
 
-              {/* Method / Reference / Notes */}
+              {/* Method / Value / Reference / Notes / Winner Confirmed */}
               <div className="mb-3 space-y-3">
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold text-gray-700 uppercase tracking-wider">
@@ -275,12 +263,37 @@ export default function PrizeDeliveryPanel({ lockEdits = false }: Props) {
                       </option>
                     ))}
                   </select>
-                  {!a.awardMethod && !final && (
-                    <div className="mt-1.5 flex items-center gap-1.5 text-xs text-amber-700">
-                      <AlertCircle className="h-3 w-3" />
-                      <span>Required to mark as delivered</span>
-                    </div>
-                  )}
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Value
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">{currency}</span>
+                    <input
+                      disabled={lockEdits || final}
+                      type="number"
+                      step="0.01"
+                      className="w-36 rounded-lg border-2 border-gray-300 bg-white px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200 disabled:bg-gray-100 disabled:cursor-not-allowed transition-all"
+                      value={(a.prizeValue ?? 0)}
+                      onChange={(e) => queueAwardFieldPatch(a.prizeAwardId, { prizeValue: parseFloat(e.target.value || '0') })}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    id={`winner-confirmed-${a.prizeAwardId}`}
+                    type="checkbox"
+                    disabled={lockEdits || final}
+                    className="h-4 w-4"
+                    checked={!!a.winnerConfirmed}
+                    onChange={(e) => queueAwardFieldPatch(a.prizeAwardId, { winnerConfirmed: e.target.checked })}
+                  />
+                  <label htmlFor={`winner-confirmed-${a.prizeAwardId}`} className="text-sm text-gray-700">
+                    Winner confirmed receipt
+                  </label>
                 </div>
 
                 <div>
@@ -293,7 +306,7 @@ export default function PrizeDeliveryPanel({ lockEdits = false }: Props) {
                       className="flex-1 rounded-lg border-2 border-gray-300 bg-white px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200 disabled:bg-gray-100 disabled:cursor-not-allowed transition-all"
                       value={a.awardReference || ''}
                       onChange={(e) => queueAwardFieldPatch(a.prizeAwardId, { awardReference: e.target.value })}
-                      placeholder="e.g. CASH-001, REV-xyz, TX hash..."
+                      placeholder="e.g. CASH-001, REV-xyz, postal ref…"
                     />
                     <button
                       type="button"
@@ -359,11 +372,11 @@ export default function PrizeDeliveryPanel({ lockEdits = false }: Props) {
                   <div className="flex flex-wrap gap-2">
                     <button
                       className={`inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 active:bg-green-800 transition-all shadow-sm ${
-                        (!a.awardMethod || lockEdits) ? 'opacity-40 cursor-not-allowed' : ''
+                        (!a.awardMethod || !a.winnerConfirmed || lockEdits) ? 'opacity-40 cursor-not-allowed' : ''
                       }`}
                       onClick={() => handleStatusChange(a, 'delivered')}
-                      disabled={busy || lockEdits || !a.awardMethod}
-                      title={!a.awardMethod ? 'Select a delivery method first' : 'Mark Delivered'}
+                      disabled={busy || lockEdits || !a.awardMethod || !a.winnerConfirmed}
+                      title={!a.awardMethod ? 'Select delivery method' : !a.winnerConfirmed ? 'Confirm winner receipt' : 'Mark Delivered'}
                     >
                       <CheckCircle2 className="h-3.5 w-3.5" />
                       Mark Delivered
@@ -443,4 +456,5 @@ export default function PrizeDeliveryPanel({ lockEdits = false }: Props) {
     </div>
   );
 }
+
 

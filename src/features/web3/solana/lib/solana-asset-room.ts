@@ -3,12 +3,59 @@
  *
  * Implements createAssetRoom() and depositPrizeAsset() for the Solana blockchain.
  * These functions work with the deployed Anchor program's init_asset_room and add_prize_asset instructions.
+ *
+ * ## Asset-Based Rooms
+ *
+ * Asset-based rooms allow hosts to pre-deposit prize assets (NFTs, tokens, etc.) that
+ * are distributed to winners at the end of the game. This is different from pool-based
+ * rooms where prizes come from collected entry fees.
+ *
+ * ## Room Lifecycle
+ *
+ * 1. **Create Room**: Host calls `createAssetRoom()` to create a room in AwaitingFunding state
+ * 2. **Deposit Prizes**: Host calls `depositPrizeAsset()` for each prize (up to 3 prizes)
+ * 3. **Room Ready**: Once all prizes are deposited, room status changes to Ready
+ * 4. **Players Join**: Players can join the room by paying entry fees
+ * 5. **End Room**: Host calls `endRoom()` to distribute prizes to winners
+ *
+ * ## Fee Distribution (Asset Mode)
+ *
+ * - Platform: 20% (fixed)
+ * - Host: 0-5% (configurable)
+ * - Charity: 75-80% (remainder, calculated as 100% - platform - host)
+ * - Prizes: Pre-deposited assets (no percentage allocation)
+ *
+ * ## Prize Assets
+ *
+ * - Up to 3 prizes can be deposited
+ * - Each prize can be any SPL token (NFTs, fungible tokens, etc.)
+ * - Prizes are stored in prize vault PDAs
+ * - Prize vaults are created automatically when prizes are deposited
+ *
+ * ## Token Account Creation
+ *
+ * The system automatically creates missing token accounts for:
+ * - Prize vaults (for storing prize assets)
+ * - Winner token accounts (for receiving prizes)
+ *
+ * Used by `useSolanaContract` and `useContractActions` to create and manage asset-based rooms.
  */
 
-import { Connection, PublicKey, Transaction, SystemProgram, SYSVAR_RENT_PUBKEY, Keypair } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, createInitializeAccount3Instruction, getMinimumBalanceForRentExemptAccount, getAccount, createMint, getOrCreateAssociatedTokenAccount, mintTo, MINT_SIZE, getMinimumBalanceForRentExemptMint, createInitializeMint2Instruction } from '@solana/spl-token';
+import { Connection, PublicKey, Transaction, SystemProgram, SYSVAR_RENT_PUBKEY, Keypair, TransactionInstruction } from '@solana/web3.js';
+import { TOKEN_PROGRAM_ID, getAccount, MINT_SIZE, getMinimumBalanceForRentExemptMint, createInitializeMint2Instruction } from '@solana/spl-token';
+// Phase 1 utilities - use shared token account and transaction utilities
+import { getAssociatedTokenAccountAddress, getOrCreateATA } from '@/shared/lib/solana/token-accounts';
+import { buildTransaction, sendWithRetry } from '@/shared/lib/solana/transactions';
 import { Program, AnchorProvider, BN } from '@coral-xyz/anchor';
-import { PROGRAM_ID, getTokenMints, NETWORK } from './config';
+import { PROGRAM_ID, getTokenMints, NETWORK } from '@/shared/lib/solana/config';
+// Phase 1 utilities - use shared PDA utilities instead of duplicating code
+import {
+  deriveRoomPDA,
+  deriveGlobalConfigPDA,
+  deriveTokenRegistryPDA,
+  deriveRoomVaultPDA,
+  derivePrizeVaultPDA,
+} from '@/shared/lib/solana/pda';
 
 // ============================================================================
 // Types
@@ -42,70 +89,85 @@ export interface DepositPrizeAssetParams {
 // ============================================================================
 // PDA Derivation Helpers
 // ============================================================================
-
-export function deriveRoomPDA(host: PublicKey, roomId: string): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync(
-    [Buffer.from('room'), host.toBuffer(), Buffer.from(roomId)],
-    PROGRAM_ID
-  );
-}
-
-export function deriveGlobalConfigPDA(): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync(
-    [Buffer.from('global-config')],
-    PROGRAM_ID
-  );
-}
-
-export function deriveTokenRegistryPDA(): [PublicKey, number] {
-  const seed = 'token-registry-v2'; // MUST match Rust contract: b"token-registry-v2"
-  console.log('[deriveTokenRegistryPDA] Input - Seed:', seed, 'Program:', PROGRAM_ID.toString());
-  const result = PublicKey.findProgramAddressSync(
-    [Buffer.from(seed)],
-    PROGRAM_ID
-  );
-  console.log('[deriveTokenRegistryPDA] Output - PDA:', result[0].toString(), 'Bump:', result[1]);
-  console.log('[deriveTokenRegistryPDA] ✅ PDA derived successfully');
-
-  return result;
-}
-
-export function deriveRoomVaultPDA(room: PublicKey): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync(
-    [Buffer.from('room-vault'), room.toBuffer()],
-    PROGRAM_ID
-  );
-}
-
-export function derivePrizeVaultPDA(room: PublicKey, prizeIndex: number): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync(
-    [
-      Buffer.from('prize-vault'),
-      room.toBuffer(),
-      Buffer.from([prizeIndex])
-    ],
-    PROGRAM_ID
-  );
-}
+// ✅ Using Phase 1 utilities from @/shared/lib/solana/pda
+// These are imported at the top of the file to eliminate code duplication
+// All PDA derivation now uses the centralized, tested utilities
 
 // ============================================================================
 // Create Asset Room
 // ============================================================================
 
 /**
- * Creates an asset-based room where prizes are pre-deposited SPL tokens.
+ * Creates an asset-based room where prizes are pre-deposited SPL tokens
  *
- * **Flow:**
- * 1. Room created with status: AwaitingFunding
- * 2. Host must call depositPrizeAsset() for each prize
- * 3. Once all prizes deposited, status changes to Ready
- * 4. Players can then join
+ * This function creates a new asset-based fundraising room on Solana. Unlike pool-based rooms,
+ * asset-based rooms require hosts to pre-deposit prize assets before players can join.
  *
- * **Fee Distribution (Asset Mode):**
- * - Platform: 20% (fixed)
- * - Host: 0-5% (configurable)
- * - Charity: 75-80% (remainder)
- * - No prize pool percentage (prizes are pre-deposited assets)
+ * ## Room Lifecycle
+ *
+ * 1. **Create Room**: Room is created in AwaitingFunding state
+ * 2. **Deposit Prizes**: Host must call `depositPrizeAsset()` for each prize (up to 3)
+ * 3. **Room Ready**: Once all prizes are deposited, room status changes to Ready
+ * 4. **Players Join**: Players can join the room by paying entry fees
+ * 5. **End Room**: Host calls `endRoom()` to distribute prizes to winners
+ *
+ * ## Fee Distribution (Asset Mode)
+ *
+ * - **Platform**: 20% (fixed)
+ * - **Host**: 0-5% (configurable)
+ * - **Charity**: 75-80% (remainder, calculated as 100% - platform - host)
+ * - **Prizes**: Pre-deposited assets (no percentage allocation from entry fees)
+ *
+ * ## Prize Configuration
+ *
+ * - Up to 3 prizes can be configured
+ * - Each prize consists of a token mint and amount
+ * - Prizes are stored in prize vault PDAs
+ * - Prize vaults are created automatically when prizes are deposited
+ *
+ * ## Token Restrictions
+ *
+ * - Room fees are restricted to USDC and PYUSD only
+ * - Prize tokens have no restrictions (can be any SPL token)
+ *
+ * @param program - Anchor program instance
+ * @param provider - Anchor provider instance
+ * @param connection - Solana connection
+ * @param publicKey - Host public key
+ * @param params - Asset room creation parameters
+ * @param params.roomId - Unique room identifier
+ * @param params.charityWallet - Charity wallet address
+ * @param params.entryFee - Entry fee in token base units
+ * @param params.maxPlayers - Maximum number of players
+ * @param params.hostFeeBps - Host fee in basis points (0-500 = 0-5%)
+ * @param params.charityMemo - Charity memo/name
+ * @param params.expirationSlots - Optional expiration slots
+ * @param params.feeTokenMint - Token mint for entry fees (must be USDC or PYUSD)
+ * @param params.prize1Mint - First prize token mint
+ * @param params.prize1Amount - First prize amount
+ * @param params.prize2Mint - Second prize token mint (optional)
+ * @param params.prize2Amount - Second prize amount (optional)
+ * @param params.prize3Mint - Third prize token mint (optional)
+ * @param params.prize3Amount - Third prize amount (optional)
+ * @returns Room creation result with room PDA and transaction signature
+ * @throws Error if validation fails or room creation fails
+ *
+ * @example
+ * ```typescript
+ * const result = await createAssetRoom(program, provider, connection, publicKey, {
+ *   roomId: 'my-asset-room-123',
+ *   charityWallet: charityAddress,
+ *   entryFee: new BN(1000000), // 1 USDC
+ *   maxPlayers: 100,
+ *   hostFeeBps: 100, // 1%
+ *   charityMemo: 'Charity Name',
+ *   feeTokenMint: USDC_MINT,
+ *   prize1Mint: nftMint1,
+ *   prize1Amount: new BN(1),
+ *   prize2Mint: tokenMint,
+ *   prize2Amount: new BN(1000),
+ * });
+ * ```
  */
 export async function createAssetRoom(
   program: Program,
@@ -157,19 +219,13 @@ export async function createAssetRoom(
     });
   }
   
-  // Use program.programId to ensure Anchor's PDA constraint validation passes
-  const [globalConfig] = PublicKey.findProgramAddressSync(
-    [Buffer.from('global-config')],
-    programId
-  );
+  // Use Phase 1 utilities for PDA derivation
+  // Note: These use PROGRAM_ID from config, which should match program.programId
+  const [globalConfig] = deriveGlobalConfigPDA();
   
   // Derive tokenRegistry PDA - CRITICAL: Must use the same programId as other PDAs
-  // Use programId instead of PROGRAM_ID to match what Anchor expects
-  // The IDL constraint is: seeds = ["token-registry-v2"] (matches Rust contract)
-  const [tokenRegistry, tokenRegistryBump] = PublicKey.findProgramAddressSync(
-    [Buffer.from('token-registry-v2')],
-    programId
-  );
+  // The IDL constraint is: seeds = ["token-registry-v4"] (matches Rust contract)
+  const [tokenRegistry, tokenRegistryBump] = deriveTokenRegistryPDA();
   
   // Verify the token registry account exists and is owned by the program
   // If it doesn't exist, Anchor will fail the constraint check
@@ -191,20 +247,15 @@ export async function createAssetRoom(
   
   // ✅ FIX: Derive room PDA first (even though it doesn't exist yet)
   // We need this to derive the room vault PDA
-  const [room, roomBump] = PublicKey.findProgramAddressSync(
-    [Buffer.from('room'), publicKey.toBuffer(), Buffer.from(params.roomId)],
-    programId
-  );
-  const [roomVault, roomVaultBump] = PublicKey.findProgramAddressSync(
-    [Buffer.from('room-vault'), room.toBuffer()],
-    programId
-  );
+  // Using Phase 1 utilities for consistency
+  const [room, roomBump] = deriveRoomPDA(publicKey, params.roomId);
+  const [roomVault, roomVaultBump] = deriveRoomVaultPDA(room);
   
   console.log('[createAssetRoom] PDA derivation details:', {
     programId: programId.toBase58(),
     tokenRegistry: tokenRegistry.toBase58(),
     tokenRegistryBump,
-    tokenRegistrySeed: 'token-registry-v2',
+    tokenRegistrySeed: 'token-registry-v4',
     globalConfig: globalConfig.toBase58(),
     room: room.toBase58(),
     roomBump,
@@ -244,8 +295,9 @@ export async function createAssetRoom(
   // Note: For PDAs with constraints in the IDL, Anchor will automatically derive and validate them
   // We should NOT pass tokenRegistry explicitly - let Anchor auto-derive it from the IDL constraint
   // This prevents ConstraintSeeds validation errors
-  // The IDL has a PDA constraint for token_registry with seeds: ["token-registry-v2"] (matches Rust contract)
+  // The IDL has a PDA constraint for token_registry with seeds: ["token-registry-v4"] (matches Rust contract)
   // Anchor will automatically derive it using program.programId, so we don't pass it
+  // @ts-expect-error - program.methods is always defined for valid Program instances
   const initAssetRoomIx = await program.methods
     .initAssetRoom(
       params.roomId,
@@ -267,6 +319,7 @@ export async function createAssetRoom(
       roomVault,
       feeTokenMint: params.feeTokenMint,
       globalConfig,
+        tokenRegistry,
       // tokenRegistry is NOT passed - Anchor will auto-derive it from IDL constraint
       // This prevents ConstraintSeeds validation errors
       host: publicKey,
@@ -295,15 +348,16 @@ export async function createAssetRoom(
   });
 
   // Build and send transaction with all instructions
-  const tx = new Transaction().add(...instructions);
-  tx.feePayer = publicKey;
-  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
-  tx.recentBlockhash = blockhash;
-  tx.lastValidBlockHeight = lastValidBlockHeight;
+  // Build and send transaction - using Phase 1 utilities
+  console.log('[createAssetRoom] Building transaction...');
+  const tx = await buildTransaction({
+    connection,
+    instructions,
+    feePayer: publicKey,
+    commitment: 'finalized',
+  });
 
-  console.log('[createAssetRoom] Sending transaction...');
-
-  // Sign and send with same blockhash to avoid expiration
+  console.log('[createAssetRoom] Transaction built, signing...');
   let signedTx;
   try {
     signedTx = await provider.wallet.signTransaction(tx);
@@ -316,42 +370,23 @@ export async function createAssetRoom(
     throw new Error(`Failed to sign transaction: ${signError?.message || 'Unknown error'}`);
   }
 
-  const rawTx = signedTx.serialize();
-  console.log('[createAssetRoom] Transaction serialized, sending to network...');
-
+  console.log('[createAssetRoom] Sending transaction with retry...');
   let signature;
   try {
-    signature = await connection.sendRawTransaction(rawTx, {
-      skipPreflight: false,
+    signature = await sendWithRetry({
+      connection,
+      signedTransaction: signedTx,
+      commitment: 'confirmed',
       maxRetries: 3,
+      maxAttempts: 2,
     });
-    console.log('[createAssetRoom] Transaction sent:', signature);
+    console.log('[createAssetRoom] Transaction sent and confirmed:', signature);
   } catch (sendError: any) {
     console.error('[createAssetRoom] Send failed:', sendError);
-    if (sendError?.message?.includes('Blockhash not found')) {
+    if (sendError?.message?.includes('Blockhash not found') || sendError?.message?.includes('expired')) {
       throw new Error('Transaction expired. Please try again and approve quickly.');
     }
     throw new Error(`Failed to send transaction: ${sendError?.message || 'Unknown error'}`);
-  }
-
-  // Wait for confirmation
-  console.log('[createAssetRoom] Waiting for confirmation...');
-  let confirmation;
-  try {
-    confirmation = await connection.confirmTransaction({
-      signature,
-      blockhash,
-      lastValidBlockHeight,
-    }, 'confirmed');
-    console.log('[createAssetRoom] Confirmation received:', confirmation);
-  } catch (confirmError: any) {
-    console.error('[createAssetRoom] Confirmation failed:', confirmError);
-    throw new Error(`Transaction confirmation failed: ${confirmError?.message || 'Unknown error'}`);
-  }
-
-  if (confirmation.value.err) {
-    console.error('[createAssetRoom] Transaction error:', confirmation.value.err);
-    throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
   }
 
   console.log('✅ Asset room created:', {
@@ -368,20 +403,63 @@ export async function createAssetRoom(
 // ============================================================================
 
 /**
- * Deposits a prize asset into an asset-based room.
+ * Deposits a prize asset into an asset-based room
  *
- * **Flow:**
- * 1. Host creates asset room (status: AwaitingFunding)
- * 2. Host calls this for prize index 0 (1st place)
- * 3. Host calls this for prize index 1 (2nd place) - optional
- * 4. Host calls this for prize index 2 (3rd place) - optional
- * 5. Once all configured prizes deposited, status → Ready
+ * This function allows hosts to deposit prize assets (NFTs, tokens, etc.) into
+ * an asset-based room. Prizes must be deposited before players can join the room.
  *
- * **Requirements:**
+ * ## Deposit Flow
+ *
+ * 1. **Create Room**: Host creates asset room (status: AwaitingFunding)
+ * 2. **Deposit Prize 1**: Host calls this for prize index 0 (1st place)
+ * 3. **Deposit Prize 2**: Host calls this for prize index 1 (2nd place) - optional
+ * 4. **Deposit Prize 3**: Host calls this for prize index 2 (3rd place) - optional
+ * 5. **Room Ready**: Once all configured prizes deposited, status → Ready
+ *
+ * ## Prize Vault
+ *
+ * - Prize vaults are PDA token accounts managed by the program
+ * - Vaults are created automatically by the contract when prizes are deposited
+ * - Each prize has its own vault (prize vault 0, 1, 2)
+ * - Assets are locked in vaults until room ends
+ *
+ * ## Token Account Creation
+ *
+ * The system automatically creates missing token accounts for:
+ * - Host token account (for source of prize assets)
+ * - Prize vault (created by contract, not frontend)
+ *
+ * ## Validation
+ *
+ * - Room must exist and be in AwaitingFunding state
+ * - Prize index must be valid (0, 1, or 2)
+ * - Prize mint must match room configuration
+ * - Host must have sufficient balance of prize token
+ * - Prize must not already be deposited
  * - Caller must be room host
- * - Room must be asset-based mode
- * - Prize not already deposited
- * - Host must have sufficient token balance
+ *
+ * @param program - Anchor program instance
+ * @param provider - Anchor provider instance
+ * @param connection - Solana connection
+ * @param publicKey - Host public key
+ * @param params - Prize asset deposit parameters
+ * @param params.roomId - Room identifier
+ * @param params.hostPubkey - Host public key
+ * @param params.prizeIndex - Prize index (0, 1, or 2)
+ * @param params.prizeMint - Prize token mint
+ * @returns Deposit result with transaction signature
+ * @throws Error if validation fails or deposit fails
+ *
+ * @example
+ * ```typescript
+ * const result = await depositPrizeAsset(program, provider, connection, publicKey, {
+ *   roomId: 'my-asset-room-123',
+ *   hostPubkey: publicKey,
+ *   prizeIndex: 0, // First prize
+ *   prizeMint: nftMint,
+ * });
+ * console.log('Prize deposited:', result.signature);
+ * ```
  */
 export async function depositPrizeAsset(
   program: Program,
@@ -442,27 +520,16 @@ export async function depositPrizeAsset(
     console.warn('[depositPrizeAsset] ⚠️ Mint validation warning:', error.message);
   }
 
-  // Derive PDAs - Use program's programId to ensure match with Anchor's automatic derivation
-  const programId = program.programId;
-  const [room] = PublicKey.findProgramAddressSync(
-    [Buffer.from('room'), params.hostPubkey.toBuffer(), Buffer.from(params.roomId)],
-    programId
-  );
+  // Derive PDAs - Using Phase 1 utilities for consistency
+  const [room] = deriveRoomPDA(params.hostPubkey, params.roomId);
 
   // ✅ FIX: Prize vault should be a PDA token account, not an ATA
   // The contract expects prize vaults to be PDAs with seeds ["prize-vault", room_key, prize_index]
   // ATAs cannot be created for PDA owners, so we must use a PDA token account
-  const [prizeVault, prizeVaultBump] = PublicKey.findProgramAddressSync(
-    [
-      Buffer.from('prize-vault'),
-      room.toBuffer(),
-      Buffer.from([params.prizeIndex])
-    ],
-    programId
-  );
+  const [prizeVault] = derivePrizeVaultPDA(room, params.prizeIndex);
 
-  // Get host's token account
-  const hostTokenAccount = await getAssociatedTokenAddress(
+  // Get host's token account - using Phase 1 utility
+  const hostTokenAccount = getAssociatedTokenAccountAddress(
     params.prizeMint,
     publicKey
   );
@@ -478,15 +545,12 @@ export async function depositPrizeAsset(
   // Prize vaults are PDA token accounts, not ATAs, so they can't be created from the frontend
   // The contract should create them if needed (similar to room_vault)
   const vaultInfo = await connection.getAccountInfo(prizeVault);
-  const hostTokenInfo = await connection.getAccountInfo(hostTokenAccount);
-  const instructions = [];
+  const instructions: TransactionInstruction[] = [];
 
   if (!vaultInfo || vaultInfo.data.length === 0) {
-    console.log('[depositPrizeAsset] Prize vault does not exist - contract should create it');
-    console.warn('[depositPrizeAsset] ⚠️ WARNING: Prize vault PDA token account must be created by the contract');
-    console.warn('[depositPrizeAsset] ⚠️ Cannot create PDA token account from frontend - contract must handle it');
-    // Note: The contract's add_prize_asset instruction should create the prize vault if it doesn't exist
-    // Similar to how init_asset_room creates room_vault
+    console.log('[depositPrizeAsset] Prize vault does not exist - contract will create it automatically');
+    // Note: The contract's add_prize_asset instruction will create the prize vault if it doesn't exist
+    // Similar to how init_asset_room creates room_vault. This is expected behavior.
   } else {
     console.log('[depositPrizeAsset] Prize vault already exists');
   }
@@ -522,98 +586,57 @@ export async function depositPrizeAsset(
     // Continue without balance check - contract will validate on-chain
   }
 
-  // ✅ Check if host's token account exists, create if needed
-  // Use getAccount to properly check if it's a valid token account
-  let hostTokenAccountExists = false;
-  let hostBalance: BN | null = null;
-  try {
-    const tokenAccount = await getAccount(connection, hostTokenAccount, 'confirmed');
-    if (tokenAccount && tokenAccount.mint.equals(params.prizeMint)) {
-      hostTokenAccountExists = true;
-      hostBalance = new BN(tokenAccount.amount.toString());
-      console.log('[depositPrizeAsset] Host token account already exists:', {
-        address: hostTokenAccount.toBase58(),
-        mint: tokenAccount.mint.toBase58(),
-        balance: hostBalance.toString(),
-      });
+  // ✅ Check if host's token account exists, create if needed - using Phase 1 utility
+  const { instruction: createHostAtaIx, exists: hostTokenAccountExists, account: hostTokenAccountInfo } = await getOrCreateATA({
+    connection,
+    mint: params.prizeMint,
+    owner: publicKey,
+    payer: publicKey,
+  });
 
-      // Validate balance if we have the required amount
-      if (requiredPrizeAmount && hostBalance.lt(requiredPrizeAmount)) {
-        const mintInfo = await connection.getParsedAccountInfo(params.prizeMint);
-        const decimals = (mintInfo.value?.data as any)?.parsed?.info?.decimals || 9;
-        const requiredAmount = requiredPrizeAmount.toNumber() / Math.pow(10, decimals);
-        const currentBalance = hostBalance.toNumber() / Math.pow(10, decimals);
-        
-        throw new Error(
-          `Insufficient token balance!\n\n` +
-          `Required: ${requiredAmount} tokens\n` +
-          `Current balance: ${currentBalance} tokens\n` +
-          `Missing: ${requiredAmount - currentBalance} tokens\n\n` +
-          `Please mint or transfer tokens to your wallet before depositing prizes.\n` +
-          `Token mint: ${params.prizeMint.toBase58()}`
-        );
-      }
-    } else if (tokenAccount) {
-      // Account exists but for different mint - this shouldn't happen with ATAs
-      console.warn('[depositPrizeAsset] ⚠️ Host token account exists but for different mint:', {
-        account: hostTokenAccount.toBase58(),
-        expectedMint: params.prizeMint.toBase58(),
-        actualMint: tokenAccount.mint.toBase58(),
-      });
-      throw new Error(`Token account exists but for different mint. Expected ${params.prizeMint.toBase58()}, found ${tokenAccount.mint.toBase58()}`);
-    }
-  } catch (error: any) {
-    // Account doesn't exist or is not a token account
-    if (error.name === 'TokenAccountNotFoundError' || 
-        error.message?.includes('could not find account') ||
-        error.message?.includes('InvalidAccountData')) {
-      hostTokenAccountExists = false;
-      console.log('[depositPrizeAsset] Host token account does not exist, will create ATA');
+  // Validate balance if we have the required amount
+  if (requiredPrizeAmount && hostTokenAccountInfo) {
+    const hostBalance = new BN(hostTokenAccountInfo.amount.toString());
+    if (hostBalance.lt(requiredPrizeAmount)) {
+      const mintInfo = await connection.getParsedAccountInfo(params.prizeMint);
+      const decimals = (mintInfo.value?.data as any)?.parsed?.info?.decimals || 9;
+      const requiredAmount = requiredPrizeAmount.toNumber() / Math.pow(10, decimals);
+      const currentBalance = hostBalance.toNumber() / Math.pow(10, decimals);
       
-      // If account doesn't exist, balance will be 0, so validate required amount
-      if (requiredPrizeAmount && requiredPrizeAmount.gt(new BN(0))) {
-        const mintInfo = await connection.getParsedAccountInfo(params.prizeMint);
-        const decimals = (mintInfo.value?.data as any)?.parsed?.info?.decimals || 9;
-        const requiredAmount = requiredPrizeAmount.toNumber() / Math.pow(10, decimals);
-        
-        throw new Error(
-          `Insufficient token balance!\n\n` +
-          `Required: ${requiredAmount} tokens\n` +
-          `Current balance: 0 tokens\n` +
-          `Missing: ${requiredAmount} tokens\n\n` +
-          `Please mint or transfer tokens to your wallet before depositing prizes.\n` +
-          `Token mint: ${params.prizeMint.toBase58()}`
-        );
-      }
-    } else if (error.message?.includes('Insufficient token balance')) {
-      // Re-throw balance errors
-      throw error;
-    } else {
-      // Re-throw other errors (like mint mismatch)
-      throw error;
+      throw new Error(
+        `Insufficient token balance!\n\n` +
+        `Required: ${requiredAmount} tokens\n` +
+        `Current balance: ${currentBalance} tokens\n` +
+        `Missing: ${requiredAmount - currentBalance} tokens\n\n` +
+        `Please mint or transfer tokens to your wallet before depositing prizes.\n` +
+        `Token mint: ${params.prizeMint.toBase58()}`
+      );
     }
+  } else if (requiredPrizeAmount && !hostTokenAccountExists) {
+    // Account doesn't exist, balance will be 0
+    const mintInfo = await connection.getParsedAccountInfo(params.prizeMint);
+    const decimals = (mintInfo.value?.data as any)?.parsed?.info?.decimals || 9;
+    const requiredAmount = requiredPrizeAmount.toNumber() / Math.pow(10, decimals);
+    
+    throw new Error(
+      `Insufficient token balance!\n\n` +
+      `Required: ${requiredAmount} tokens\n` +
+      `Current balance: 0 tokens\n` +
+      `Missing: ${requiredAmount} tokens\n\n` +
+      `Please mint or transfer tokens to your wallet before depositing prizes.\n` +
+      `Token mint: ${params.prizeMint.toBase58()}`
+    );
   }
 
-  if (!hostTokenAccountExists) {
-    console.log('[depositPrizeAsset] Creating host ATA...', {
-      payer: publicKey.toBase58(),
-      ata: hostTokenAccount.toBase58(),
-      owner: publicKey.toBase58(),
-      mint: params.prizeMint.toBase58(),
-    });
-    // ✅ Create ATA instruction - mint is verified to exist above
-    const createHostAtaIx = createAssociatedTokenAccountInstruction(
-      publicKey,           // payer
-      hostTokenAccount,    // ata address
-      publicKey,           // owner (host wallet)
-      params.prizeMint     // mint (verified to exist)
-    );
+  // Add ATA creation instruction if needed
+  if (createHostAtaIx) {
     instructions.push(createHostAtaIx);
   }
 
   // Build add_prize_asset instruction
   // Note: prize_vault is now a PDA with seeds ["prize-vault", room_key, prize_index]
   // The contract will create it if it doesn't exist (similar to room_vault)
+  // @ts-expect-error - program.methods is always defined for valid Program instances
   const addPrizeIx = await program.methods
     .addPrizeAsset(params.roomId, params.prizeIndex)
     .accounts({
@@ -630,61 +653,36 @@ export async function depositPrizeAsset(
 
   instructions.push(addPrizeIx);
 
-  // Build and send transaction
-  // Helper function to send transaction with retry on blockhash expiration
-  const sendWithRetry = async (): Promise<string> => {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        // Get fresh blockhash right before building transaction
-        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
-        
-        const tx = new Transaction().add(...instructions);
-        tx.feePayer = publicKey;
-        tx.recentBlockhash = blockhash;
-        tx.lastValidBlockHeight = lastValidBlockHeight;
+  // Build and send transaction - using Phase 1 utilities
+  const buildAndSendTransaction = async (): Promise<string> => {
+    // Build transaction using Phase 1 utility
+    const tx = await buildTransaction({
+      connection,
+      instructions,
+      feePayer: publicKey,
+      commitment: 'finalized',
+    });
 
-        console.log('[depositPrizeAsset] Signing transaction (attempt', attempt + 1, ')...');
-        
-        // Sign transaction
-        const signedTx = await provider.wallet.signTransaction(tx);
-        const rawTx = signedTx.serialize();
+    console.log('[depositPrizeAsset] Signing transaction...');
+    
+    // Sign transaction
+    const signedTx = await provider.wallet.signTransaction(tx);
 
-        // Send immediately after signing
-        const signature = await connection.sendRawTransaction(rawTx, {
-          skipPreflight: false,
-          maxRetries: 3,
-        });
-        
-        return signature;
-      } catch (error: any) {
-        // Handle blockhash expiration - retry with fresh blockhash
-        if (error.message?.includes('Blockhash not found') || 
-            error.message?.includes('blockhash') ||
-            error.message?.includes('expired')) {
-          if (attempt === 0) {
-            console.log('[depositPrizeAsset] Blockhash expired, retrying with fresh blockhash...');
-            // Wait a bit before retrying
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            continue;
-          } else {
-            throw new Error(
-              `Transaction expired. Please try again - the blockhash expired before the transaction was sent.\n\n` +
-              `This usually happens if there's a delay approving the transaction in your wallet.\n` +
-              `Try again with a fresh transaction.`
-            );
-          }
-        } else {
-          // Re-throw other errors
-          throw error;
-        }
-      }
-    }
-    throw new Error('Failed to send transaction after retries');
+    // Send with retry using Phase 1 utility
+    const signature = await sendWithRetry({
+      connection,
+      signedTransaction: signedTx,
+      commitment: 'confirmed',
+      maxRetries: 3,
+      maxAttempts: 2,
+    });
+    
+    return signature;
   };
 
   let signature: string;
   try {
-    signature = await sendWithRetry();
+    signature = await buildAndSendTransaction();
   } catch (error: any) {
     console.error('[depositPrizeAsset] Error caught:', {
       name: error?.name,

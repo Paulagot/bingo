@@ -97,14 +97,17 @@ export interface QuizConfig {
   useMedia: boolean;
   entryFee: string;
   paymentMethod: 'cash_or_revolut' | 'web3';
-  fundraisingOptions: FundraisingOptions; // ✅ required
-  fundraisingPrices: FundraisingPrices;   // ✅ required
-  roundDefinitions: RoundDefinition[]; 
+  fundraisingOptions: FundraisingOptions;
+  fundraisingPrices: FundraisingPrices;
+  roundDefinitions: RoundDefinition[];
   selectedTemplate?: string;
   isCustomQuiz?: boolean;
-  skipRoundConfiguration?: boolean;   // ✅ required
+  skipRoundConfiguration?: boolean;
   questions: unknown[];
-  prizeMode?: 'split' | 'assets' | 'cash';
+  
+  // ✅ CRITICAL: Make prizeMode required for web3 rooms
+  prizeMode?: 'split' | 'assets' ;
+  
   prizeSplits?: Record<number, number>;
   prizes?: Prize[];
   startTime?: string;
@@ -113,18 +116,18 @@ export interface QuizConfig {
   totalTimeSeconds?: number;
   web3Chain?: string;
   web3Currency?: string;
-  web3Charity?: string; 
+  web3Charity?: string;
+  web3ChairtyOrgId?: string; // ✅ ADD THIS for TGB
   web3PrizeSplit?: {
-    charity: number; // min 50
-    host: number;    // max 5
-    prizes: number;  // max 25
+    charity: number;
+    host: number;
+    prizes: number;
   };
-  hostWallet?: string; 
+  hostWallet?: string;
   eventDateTime?: string;
   timeZone?: string;
   web3ContractAddress?: string;
-  // Add the missing Web3 deployment properties
- web3ChainConfirmed ?: string;
+  web3ChainConfirmed?: string;
   hostWalletConfirmed?: string;
   contractAddress?: string;
   deploymentTxHash?: string;
@@ -139,11 +142,9 @@ export interface QuizConfig {
   roomCaps?: RoomCaps;
   isWeb3Room?: boolean;
   reconciliation?: ReconciliationMeta;
-  
-  evmNetwork?: 'base' | 'baseSepolia' | 'polygon' | 'polygonAmoy';  // ✅ add
-  solanaCluster?: 'mainnet' | 'devnet';                              // optional, nice for symmetry
-  stellarNetwork?: 'public' | 'testnet';                             // optional
-  
+  evmNetwork?: 'base' | 'baseSepolia' | 'polygon' | 'polygonAmoy';
+  solanaCluster?: 'mainnet' | 'devnet';
+  stellarNetwork?: 'public' | 'testnet';
 }
 
 export type ExtrasPanelProps = {

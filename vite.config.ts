@@ -62,30 +62,44 @@ export default defineConfig(({ mode }) => {
         generatedCode: {
           constBindings: false,
         },
+        // Ensure React is loaded first
+        entryFileNames: 'assets/[name].[hash].js',
+        chunkFileNames: 'assets/[name].[hash].js',
+        assetFileNames: 'assets/[name].[hash].[ext]',
         manualChunks: {
-          // Separate vendor chunks
+          // Separate vendor chunks - Match main branch approach exactly
+          // React MUST be bundled together to prevent multiple instances and loading order issues
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          
           // Split Solana into smaller chunks
           'solana-core': ['@solana/web3.js'],
           'solana-tokens': ['@solana/spl-token'],
           'solana-anchor': ['@coral-xyz/anchor'],
           'solana-wallets': ['@solana/wallet-adapter-wallets'],
+          
+          // EVM libraries
           'web3-ethereum': [
             'wagmi', 
             'viem', 
             'ethers', 
             '@rainbow-me/rainbowkit'
           ],
+          
+          // Web3 AppKit
           'web3-appkit': [
             '@reown/appkit',
             '@reown/appkit-adapter-solana',
             '@reown/appkit-adapter-wagmi'
           ],
+          
+          // UI libraries
           'ui-vendor': [
             '@headlessui/react', 
             'framer-motion', 
             'lucide-react'
           ],
+          
+          // Utility libraries
           'utils': ['lodash', 'zustand', 'bs58', 'uuid']
         }
       }
@@ -106,9 +120,20 @@ export default defineConfig(({ mode }) => {
     // Target modern browsers for better optimization
     target: 'esnext',
     
-    // Disable module preload warnings for circular deps
+    // Enable module preload to ensure React loads first
     modulePreload: {
-      polyfill: false,
+      polyfill: true,
+      resolveDependencies: (filename, deps) => {
+        // Ensure react-vendor chunk loads before any other chunks
+        const reactChunks = deps.filter(dep =>
+          dep.includes('react-vendor')
+        );
+        const otherChunks = deps.filter(dep =>
+          !dep.includes('react-vendor')
+        );
+        // Return React chunks first, then others
+        return [...reactChunks, ...otherChunks];
+      }
     }
   },
 
@@ -116,6 +141,7 @@ export default defineConfig(({ mode }) => {
     // Pre-bundle these heavy dependencies
     include: [
       'react',
+      'react/jsx-runtime',
       'react-dom', 
       '@solana/web3.js',
       'wagmi',
@@ -124,6 +150,10 @@ export default defineConfig(({ mode }) => {
       'core-js'
     ],
     exclude: ['lucide-react'],
+    // Ensure React is always available
+    esbuildOptions: {
+      jsx: 'automatic',
+    },
   },
 
   // Performance optimizations
@@ -161,6 +191,11 @@ export default defineConfig(({ mode }) => {
   resolve: {
     alias: {
       '@': '/src',
+      '@app': '/src/app',
+      '@features': '/src/features',
+      '@shared': '/src/shared',
+      '@entities': '/src/entities',
+      '@widgets': '/src/widgets',
     },
   },
 };
