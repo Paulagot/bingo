@@ -4,7 +4,7 @@
  */
 import { useCallback, useMemo } from 'react';
 import { useQuizChainIntegration } from './useQuizChainIntegration';
-import { useSolanaWalletContextSafe } from '../chains/solana/SolanaWalletProvider';
+
 import { useSolanaContract } from '../chains/solana/useSolanaContract';
 
 import type { SupportedChain } from '../chains/types';
@@ -153,23 +153,182 @@ async function assertFirstPrizeUploaded(params: {
 }
 
 /* ---------------- Main hook ---------------- */
+/* ---------------- Main hook ---------------- */
 export function useContractActions(opts?: Options) {
   const { selectedChain } = useQuizChainIntegration({
     chainOverride: opts?.chainOverride ?? null,
   });
   const effectiveChain = (opts?.chainOverride ?? selectedChain) as SupportedChain | null;
 
-  // ✅ Always call hooks unconditionally (Rules of Hooks)
   const solanaContractResult = useSolanaContract();
-  const solanaWalletResult = useSolanaWalletContextSafe();
+ 
 
-  // Then use them conditionally based on chain
   const solanaContract = effectiveChain === 'solana' ? solanaContractResult : null;
-  const solanaWallet = effectiveChain === 'solana' ? solanaWalletResult : null;
+  
 
   const getHostAddress = useCallback((fallback: string) => {
     return fallback;
   }, []);
+
+  // ✅ 1. ADD HELPER FUNCTION HERE - OUTSIDE of distributePrizes useMemo
+// ✅ UPDATED HELPER FUNCTION - Add isAssetRoom parameter
+
+const prepareWinnersArray = useCallback(async (params: {
+  winners: Array<{ playerId: string; address?: string | null; rank?: number }>;
+  roomAddress: string;
+  chainId: number;
+  roomABI: any;
+  fallbackAddress: string;
+  isAssetRoom: boolean;
+}): Promise<{ addresses: `0x${string}`[]; warnings: string[] }> => {
+  const { winners, roomAddress, chainId, roomABI, fallbackAddress, isAssetRoom } = params;
+  const warnings: string[] = [];
+
+  // Step 1: Get expected number of winners from contract
+  let expectedPlaces = 0;
+  
+  if (isAssetRoom) {
+    // ✅ ASSET ROOM: Use prizeCount()
+    try {
+      expectedPlaces = (await readContract(wagmiConfig, {
+        address: roomAddress as `0x${string}`,
+        abi: roomABI,
+        functionName: 'prizeCount',
+        args: [], // ✅ ADD EMPTY ARGS
+        chainId,
+      })) as number;
+      
+      console.log('📊 [EVM][Asset] Contract expects', expectedPlaces, 'winners (from prizeCount)');
+      
+      // Fallback: count from getAllPrizes if prizeCount returns 0
+      if (expectedPlaces === 0) {
+        console.warn('⚠️ [EVM][Asset] prizeCount returned 0, trying getAllPrizes...');
+        const [places] = (await readContract(wagmiConfig, {
+          address: roomAddress as `0x${string}`,
+          abi: roomABI,
+          functionName: 'getAllPrizes',
+          args: [], // ✅ ADD EMPTY ARGS
+          chainId,
+        })) as [number[], any, any, any, any, any];
+        
+        expectedPlaces = places.length;
+        console.log('📊 [EVM][Asset] Got', expectedPlaces, 'prizes from getAllPrizes');
+      }
+    } catch (e: any) {
+      console.error('❌ [EVM][Asset] Failed to get prize count:', e);
+      
+      // Final fallback: try getAllPrizes
+      try {
+        const [places] = (await readContract(wagmiConfig, {
+          address: roomAddress as `0x${string}`,
+          abi: roomABI,
+          functionName: 'getAllPrizes',
+          args: [], // ✅ ADD EMPTY ARGS
+          chainId,
+        })) as [number[], any, any, any, any, any];
+        
+        expectedPlaces = places.length;
+        console.log('📊 [EVM][Asset] Fallback: got', expectedPlaces, 'prizes from getAllPrizes');
+      } catch (e2: any) {
+        console.error('❌ [EVM][Asset] Failed to get prizes from getAllPrizes:', e2);
+        throw new Error('Cannot determine expected number of prizes from asset room contract');
+      }
+    }
+  } else {
+    // ✅ POOL ROOM: Use existing logic (prizeSplitsBps)
+    try {
+      const prizeSplits = (await readContract(wagmiConfig, {
+        address: roomAddress as `0x${string}`,
+        abi: roomABI,
+        functionName: 'prizeSplitsBps',
+        args: [], // ✅ ADD EMPTY ARGS
+        chainId,
+      })) as [number, number, number];
+
+      expectedPlaces = prizeSplits.filter(split => split > 0).length;
+      console.log('📊 [EVM][Pool] Contract expects', expectedPlaces, 'winners. Prize splits:', prizeSplits);
+    } catch (e: any) {
+      console.error('❌ [EVM][Pool] Failed to read prize splits from contract:', e);
+      try {
+        expectedPlaces = (await readContract(wagmiConfig, {
+          address: roomAddress as `0x${string}`,
+          abi: roomABI,
+          functionName: 'definedPrizePlaces',
+          args: [], // ✅ ADD EMPTY ARGS
+          chainId,
+        })) as number;
+        console.log('✅ [EVM][Pool] Got expected places from definedPrizePlaces():', expectedPlaces);
+      } catch (e2: any) {
+        console.error('❌ [EVM][Pool] Failed to get definedPrizePlaces:', e2);
+        throw new Error('Cannot determine expected number of winners from pool room contract');
+      }
+    }
+  }
+
+  if (expectedPlaces === 0 || expectedPlaces > 3) {
+    throw new Error(`Invalid prize configuration: ${expectedPlaces} places`);
+  }
+
+  // Step 2: Extract valid addresses from winners
+  const validAddresses: `0x${string}`[] = [];
+  
+  const sortedWinners = [...winners].sort((a, b) => {
+    const rankA = a.rank ?? Infinity;
+    const rankB = b.rank ?? Infinity;
+    return rankA - rankB;
+  });
+
+  for (let i = 0; i < sortedWinners.length; i++) {
+    const winner = sortedWinners[i];
+    
+    if (!winner) {
+      console.warn(`⚠️ [EVM] Winner ${i + 1} is undefined, skipping`);
+      continue;
+    }
+    
+    const addr = winner.address;
+    
+    if (addr && /^0x[0-9a-fA-F]{40}$/.test(addr)) {
+      validAddresses.push(addr as `0x${string}`);
+      console.log(`✅ [EVM] Winner ${i + 1} (rank ${winner.rank}):`, addr);
+    } else {
+      warnings.push(`Winner at rank ${winner.rank || i + 1} has invalid/missing address`);
+      console.warn(`⚠️ [EVM] Winner ${i + 1} has invalid address:`, addr);
+    }
+  }
+
+  // Step 3: Handle mismatches
+  if (validAddresses.length > expectedPlaces) {
+    warnings.push(
+      `More winners (${validAddresses.length}) than prize places (${expectedPlaces}). ` +
+      `Only top ${expectedPlaces} will receive prizes.`
+    );
+    console.warn('⚠️ [EVM] Too many winners, truncating to', expectedPlaces);
+    return {
+      addresses: validAddresses.slice(0, expectedPlaces),
+      warnings,
+    };
+  }
+
+  if (validAddresses.length < expectedPlaces) {
+    const shortage = expectedPlaces - validAddresses.length;
+    warnings.push(
+      `Only ${validAddresses.length} valid winner(s) found, but ${expectedPlaces} prize places configured. ` +
+      `Using HOST address for unfilled place(s). Unclaimed prizes will go to HOST.`
+    );
+    console.warn(
+      `⚠️ [EVM] Not enough winners (${validAddresses.length}/${expectedPlaces}). ` +
+      `Padding with HOST address for ${shortage} place(s).`
+    );
+
+    while (validAddresses.length < expectedPlaces) {
+      validAddresses.push(fallbackAddress as `0x${string}`);
+    }
+  }
+
+  console.log('✅ [EVM] Final winners array:', validAddresses);
+  return { addresses: validAddresses, warnings };
+}, []);
 
   /** ---------------- Player: joinRoom ---------------- */
   const joinRoom = useMemo(() => {
@@ -513,7 +672,7 @@ export function useContractActions(opts?: Options) {
       };
     }
 
-    if (effectiveChain === 'evm') {
+if (effectiveChain === 'evm') {
       return async ({
         roomId: _roomId,
         winners,
@@ -523,12 +682,9 @@ export function useContractActions(opts?: Options) {
           console.log('🎯 [EVM] Starting prize distribution:', { winners });
 
           const runtimeChainId = await getChainId(wagmiConfig);
-
           if (!runtimeChainId) {
             throw new Error('No active chain detected. Please connect your wallet.');
           }
-
-          console.log('✅ [EVM] Chain ID confirmed:', runtimeChainId);
 
           const setup = JSON.parse(localStorage.getItem('setupConfig') || '{}');
           const setupKey = setup?.evmNetwork as string | undefined;
@@ -537,28 +693,18 @@ export function useContractActions(opts?: Options) {
             runtimeChainId,
           });
 
-          console.log('🔍 [EVM] Resolved target:', target);
-
           const roomAddress = (rest as any)?.roomAddress;
-
           if (!roomAddress || !/^0x[0-9a-fA-F]{40}$/.test(roomAddress)) {
-            console.error('❌ [EVM] Invalid room address:', roomAddress);
             return {
               success: false,
               error: 'Missing or invalid EVM room contract address',
             };
           }
 
-          console.log('📍 [EVM] Room contract:', roomAddress);
-
           const prizeMode = (rest as any)?.prizeMode as 'assets' | 'split' | 'pool' | undefined;
-
-          console.log('🔍 [EVM] Prize mode from backend:', prizeMode);
-
           let isAssetRoom = prizeMode === 'assets';
 
           if (!prizeMode) {
-            console.log('⚠️ [EVM] prizeMode not provided, detecting from contract...');
             try {
               await readContract(wagmiConfig, {
                 address: roomAddress as `0x${string}`,
@@ -567,44 +713,20 @@ export function useContractActions(opts?: Options) {
                 chainId: target.id,
               });
               isAssetRoom = true;
-              console.log('✅ [EVM] Detected as ASSET room');
             } catch {
               isAssetRoom = false;
-              console.log('✅ [EVM] Detected as POOL room');
             }
           }
 
           const RoomABI = isAssetRoom ? AssetRoomABI : PoolRoomABI;
-          console.log('🔍 [EVM] Using ABI:', isAssetRoom ? 'AssetRoomABI' : 'PoolRoomABI');
-
-          const addrs = winners
-            .map((w) => w.address)
-            .filter((addr): addr is string => {
-              if (!addr) return false;
-              if (!/^0x[0-9a-fA-F]{40}$/.test(addr)) {
-                console.warn('⚠️ [EVM] Invalid winner address:', addr);
-                return false;
-              }
-              return true;
-            });
-
-          if (addrs.length === 0) {
-            console.error('❌ [EVM] No valid winner addresses found');
-            return { success: false, error: 'No valid winner addresses' };
-          }
-
-          console.log('🏆 [EVM] Winner addresses:', addrs);
 
           const accountInfo = getAccount(wagmiConfig);
-          console.log('🔍 [EVM] Account info:', accountInfo);
-
           if (!accountInfo.address) {
             throw new Error('No wallet address found. Please reconnect your wallet.');
           }
-
           const account = accountInfo.address;
-          console.log('🔍 [EVM] Using account for transaction:', account);
 
+          // Verify HOST
           try {
             const contractHost = await readContract(wagmiConfig, {
               address: roomAddress as `0x${string}`,
@@ -612,9 +734,6 @@ export function useContractActions(opts?: Options) {
               functionName: 'HOST',
               chainId: target.id,
             });
-
-            console.log('🔍 [EVM] Contract HOST address:', contractHost);
-            console.log('🔍 [EVM] Current wallet address:', account);
 
             if (String(contractHost).toLowerCase() !== String(account).toLowerCase()) {
               throw new Error(
@@ -626,64 +745,135 @@ export function useContractActions(opts?: Options) {
             throw e;
           }
 
-          console.log('🔒 [EVM] Locking room for settlement...');
-
-          const lockTxHash = await writeContract(wagmiConfig, {
-            address: roomAddress as `0x${string}`,
-            abi: RoomABI,
-            functionName: 'lockForSettlement',
-            args: [],
+          // ✅ NEW: Prepare winners array with padding
+          const { addresses: addrs, warnings } = await prepareWinnersArray({
+            winners,
+            roomAddress,
             chainId: target.id,
-            account: account as `0x${string}`,
+            roomABI: RoomABI,
+            fallbackAddress: account,
+             isAssetRoom,
           });
 
-          await waitForTransactionReceipt(wagmiConfig, {
-            hash: lockTxHash,
-            chainId: target.id,
-            confirmations: 1,
-          });
-          console.log('✅ [EVM] Room locked successfully:', lockTxHash);
+          if (warnings.length > 0) {
+            console.warn('⚠️ [EVM] Winner preparation warnings:');
+            warnings.forEach(w => console.warn('  -', w));
+          }
 
+          // ✅ 3. STATE VALIDATION - GOES HERE, BEFORE LOCKING
+          try {
+            const currentState = await readContract(wagmiConfig, {
+              address: roomAddress as `0x${string}`,
+              abi: RoomABI,
+              functionName: 'state',
+              chainId: target.id,
+            });
+
+            console.log('🔍 [EVM] Current room state:', currentState);
+            
+            // 0 = Open, 1 = Locked, 2 = Settled, 3 = Refunding
+            if (currentState === 2) {
+              return {
+                success: false,
+                error: 'Room already settled. Prizes have been distributed.',
+              };
+            } else if (currentState === 3) {
+              return {
+                success: false,
+                error: 'Room is in refunding state. Cannot distribute prizes.',
+              };
+            } else if (currentState === 1) {
+              console.warn('⚠️ [EVM] Room already locked, skipping lock step');
+              // Don't lock again, skip to finalize
+            } else if (currentState === 0) {
+              // Room is Open, proceed with locking
+              console.log('🔒 [EVM] Locking room for settlement...');
+              const lockTxHash = await writeContract(wagmiConfig, {
+                address: roomAddress as `0x${string}`,
+                abi: RoomABI,
+                functionName: 'lockForSettlement',
+                args: [],
+                chainId: target.id,
+                account: account as `0x${string}`,
+              });
+
+              await waitForTransactionReceipt(wagmiConfig, {
+                hash: lockTxHash,
+                chainId: target.id,
+                confirmations: 1,
+              });
+              console.log('✅ [EVM] Room locked successfully:', lockTxHash);
+            }
+          } catch (stateError) {
+            console.warn('⚠️ [EVM] Could not check room state:', stateError);
+            // Try locking anyway - let contract handle the error
+            try {
+              console.log('🔒 [EVM] Attempting to lock room...');
+              const lockTxHash = await writeContract(wagmiConfig, {
+                address: roomAddress as `0x${string}`,
+                abi: RoomABI,
+                functionName: 'lockForSettlement',
+                args: [],
+                chainId: target.id,
+                account: account as `0x${string}`,
+              });
+
+              await waitForTransactionReceipt(wagmiConfig, {
+                hash: lockTxHash,
+                chainId: target.id,
+                confirmations: 1,
+              });
+              console.log('✅ [EVM] Room locked successfully:', lockTxHash);
+            } catch (lockError: any) {
+              if (lockError.message.includes('bad state')) {
+                console.warn('⚠️ [EVM] Room already in correct state, continuing...');
+              } else {
+                throw lockError;
+              }
+            }
+          }
+
+          // ... REST OF YOUR EXISTING CHARITY/TGB CODE ...
           let charityAmt: bigint;
           let token: `0x${string}`;
           let recipientAddressForFinalize: `0x${string}` | null = null;
 
-          if (isAssetRoom) {
-            console.log('🎨 [EVM] Asset room - reading token directly...');
-            
-            token = (await readContract(wagmiConfig, {
-              address: roomAddress as `0x${string}`,
-              abi: AssetRoomABI,
-              functionName: 'TOKEN',
-              chainId: target.id,
-            })) as `0x${string}`;
+         if (isAssetRoom) {
+  console.log('🎨 [EVM] Asset room - reading charity payout from contract...');
+  
+  token = (await readContract(wagmiConfig, {
+    address: roomAddress as `0x${string}`,
+    abi: AssetRoomABI,
+    functionName: 'TOKEN',
+    args: [],
+    chainId: target.id,
+  })) as `0x${string}`;
 
-            console.log('🪙 [EVM] Token address:', token);
+  // ✅ ALWAYS call previewCharityPayout for asset rooms
+  try {
+    const preview = await readContract(wagmiConfig, {
+      address: roomAddress as `0x${string}`,
+      abi: AssetRoomABI,
+      functionName: 'previewCharityPayout',
+      args: [],
+      chainId: target.id,
+    });
 
-            const charityAmountPreview = (rest as any)?.charityAmountPreview;
-            
-            if (!charityAmountPreview) {
-              console.warn('⚠️ [EVM] No charityAmountPreview provided for asset room');
-              charityAmt = 0n;
-            } else {
-              const decimals = (await readContract(wagmiConfig, {
-                address: token,
-                abi: ERC20_ABI,
-                functionName: 'decimals',
-                chainId: target.id,
-              })) as number;
+    if (Array.isArray(preview)) {
+      charityAmt = preview[2] as bigint;
+    } else if (typeof preview === 'object' && preview !== null) {
+      const previewObj = preview as any;
+      charityAmt = previewObj.charityAmt || previewObj[2] || 0n;
+    } else {
+      charityAmt = 0n;
+    }
 
-              const previewFloat = parseFloat(charityAmountPreview);
-              charityAmt = BigInt(Math.floor(previewFloat * Math.pow(10, decimals)));
-              
-              console.log('💰 [EVM] Charity amount from preview:', {
-                preview: charityAmountPreview,
-                decimals,
-                charityAmtWei: charityAmt.toString()
-              });
-            }
-
-          } else {
+    console.log('✅ [EVM][Asset] Got charity amount from contract:', charityAmt.toString());
+  } catch (previewError: any) {
+    console.error('❌ [EVM][Asset] Failed to read previewCharityPayout:', previewError);
+    charityAmt = 0n;
+  }
+} else {
             console.log('🏊 [EVM] Pool room - reading charity payout preview from contract...');
 
             let preview: unknown;
@@ -694,8 +884,6 @@ export function useContractActions(opts?: Options) {
                 functionName: 'previewCharityPayout',
                 chainId: target.id,
               });
-
-              console.log('📦 [EVM] Raw preview response:', preview);
             } catch (readError: any) {
               console.error('❌ [EVM] Failed to read previewCharityPayout:', readError);
               throw new Error(`Failed to read charity payout preview: ${readError.message}`);
@@ -717,26 +905,16 @@ export function useContractActions(opts?: Options) {
             }
 
             if (!token || charityAmt === undefined) {
-              console.error('❌ [EVM] Missing required values from preview:', { token, charityAmt });
               throw new Error('previewCharityPayout did not return expected values');
             }
-
-            console.log('💰 [EVM] Charity amount from contract:', charityAmt.toString());
           }
 
-          console.log('🪙 [EVM] Token address:', token);
-
-          const tgbOrgId =
-            (setup?.web3CharityOrgId as string | undefined) || (rest as any)?.charityOrgId;
+          // TGB charity logic
+          const tgbOrgId = (setup?.web3CharityOrgId as string | undefined) || (rest as any)?.charityOrgId;
 
           if (tgbOrgId && charityAmt > 0n) {
             try {
-              const currencySym = (
-                setup?.currencySymbol ||
-                setup?.web3Currency ||
-                'USDC'
-              ).toUpperCase();
-
+              const currencySym = (setup?.currencySymbol || setup?.web3Currency || 'USDC').toUpperCase();
               const tgbNetwork = getTgbNetworkLabel({
                 web3Chain: 'evm',
                 evmTargetKey: target.key,
@@ -752,13 +930,6 @@ export function useContractActions(opts?: Options) {
 
               const charityAmtDecimal = bigintToDecimalString(charityAmt, decimals);
 
-              console.log('🎁 [TGB] Requesting deposit address:', {
-                organizationId: tgbOrgId,
-                currency: currencySym,
-                network: tgbNetwork,
-                amount: charityAmtDecimal,
-              });
-
               const resp = await fetch('/api/tgb/create-deposit-address', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -773,69 +944,45 @@ export function useContractActions(opts?: Options) {
 
               const dep = await resp.json();
               if (!resp.ok || !dep?.ok || !dep?.depositAddress) {
-                console.error('❌ [TGB] Deposit address request failed:', dep);
                 throw new Error(dep?.error || 'Could not get The Giving Block deposit address');
               }
 
               recipientAddressForFinalize = dep.depositAddress as `0x${string}`;
-              console.log(
-                '✅ [TGB] Using deposit address for finalize:',
-                recipientAddressForFinalize
-              );
             } catch (tgbErr: any) {
-              console.warn(
-                '⚠️ [TGB] Falling back to configured charity wallet due to error:',
-                tgbErr?.message || tgbErr
-              );
+              console.warn('⚠️ [TGB] Falling back to configured charity wallet:', tgbErr?.message);
               recipientAddressForFinalize = null;
             }
           }
 
           if (!recipientAddressForFinalize) {
             const charityWallet = (rest as any)?.charityAddress;
-            console.log('🔍 [EVM] Charity info from room config (fallback):', {
-              wallet: charityWallet,
-            });
-
             if (!charityWallet || !/^0x[0-9a-fA-F]{40}$/.test(charityWallet)) {
-              console.error('❌ [EVM] Invalid charity wallet:', charityWallet);
-              throw new Error(
-                'Invalid charity wallet address. Room configuration may be incomplete.'
-              );
+              throw new Error('Invalid charity wallet address. Room configuration may be incomplete.');
             }
-
             recipientAddressForFinalize = charityWallet as `0x${string}`;
           }
 
+          // Finalize
           const offchainIntentId = `FR-${_roomId}-${Date.now()}`;
           const intentIdHash = keccak256(stringToHex(offchainIntentId, { size: 32 }));
 
           console.log('🎁 [EVM] Calling finalize on contract...');
           console.log('🎁 [EVM] Winners array:', addrs);
           console.log('🎁 [EVM] Charity recipient:', recipientAddressForFinalize);
-          console.log('🎁 [EVM] Intent ID hash:', intentIdHash);
 
           const hash = await writeContract(wagmiConfig, {
             address: roomAddress as `0x${string}`,
             abi: RoomABI,
             functionName: 'finalize',
-            args: [addrs as `0x${string}`[], recipientAddressForFinalize, intentIdHash],
+            args: [addrs, recipientAddressForFinalize, intentIdHash],
             chainId: target.id,
             account: account as `0x${string}`,
           });
-
-          console.log('📝 [EVM] Finalize transaction submitted:', hash);
 
           const receipt = await waitForTransactionReceipt(wagmiConfig, {
             hash,
             chainId: target.id,
             confirmations: 1,
-          });
-
-          console.log('✅ [EVM] Transaction confirmed:', {
-            hash,
-            blockNumber: receipt.blockNumber,
-            status: receipt.status,
           });
 
           if (receipt.status !== 'success') {
@@ -848,6 +995,7 @@ export function useContractActions(opts?: Options) {
             success: true,
             txHash: hash as `0x${string}`,
             explorerUrl: `${explorerUrl}/tx/${hash}`,
+            error: warnings.length > 0 ? warnings.join('\n') : undefined,
           };
         } catch (e: any) {
           console.error('❌ [EVM] Prize distribution error:', e);
@@ -858,10 +1006,12 @@ export function useContractActions(opts?: Options) {
             errorMessage = 'Transaction was rejected by user';
           } else if (errorMessage.includes('insufficient funds')) {
             errorMessage = 'Insufficient funds for gas fees';
+          } else if (errorMessage.includes('bad state')) {
+            errorMessage = 'Room is not in correct state. May already be settled or not locked yet.';
+          } else if (errorMessage.includes('bad winners len')) {
+            errorMessage = 'Winner count mismatch. This should have been handled automatically - please report this bug.';
           } else if (errorMessage.includes('execution reverted')) {
             errorMessage = 'Contract execution reverted. Check if prizes can be distributed.';
-          } else if (errorMessage.includes('block not found')) {
-            errorMessage = 'RPC provider issue. Please try again or switch networks.';
           }
 
           return {
@@ -876,7 +1026,7 @@ export function useContractActions(opts?: Options) {
       success: false,
       error: 'Prize distribution not implemented for this chain',
     });
-  }, [effectiveChain, solanaContract]);
+  }, [effectiveChain, solanaContract, prepareWinnersArray]);
 
   /* ------------------------ EVM helpers & deployer ------------------------ */
   const toBps16 = (pct?: number) => {
@@ -1138,6 +1288,11 @@ export function useContractActions(opts?: Options) {
 
       for (let i = 0; i < p.expectedPrizes.length; i++) {
         const prize = p.expectedPrizes[i];
+
+          if (!prize) {
+    console.warn(`[EVM][DEPLOY] Prize at index ${i} is undefined, skipping`);
+    continue;
+  }
         const place = (prize as any).place ?? i + 1;
 
         if (!prize.tokenAddress || !/^0x[0-9a-fA-F]{40}$/.test(prize.tokenAddress)) {
