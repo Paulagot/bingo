@@ -7,7 +7,7 @@ import {
   Award, 
   ChevronDown, 
   ChevronRight,
-  Download,
+ 
   CheckCircle,
  
 } from 'lucide-react';
@@ -127,32 +127,7 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
     setExpandedRounds(newExpanded);
   };
 
-  const exportStats = () => {
-    const statsData = {
-      overallStats,
-      playerStats,
-      roundBreakdown: allRoundsStats,
-      mostTargeted,
-      quizDuration,
-      totalPlayers,
-      performanceMetrics: {
-        overallCorrectPercentage,
-        accuracyRate,
-        averageCorrectPerRound,
-        hasSpeedRounds,
-        speedRoundCount
-      }
-    };
-    
-    const dataStr = JSON.stringify(statsData, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `quiz-stats-${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
+ 
 
   return (
     <div className="bg-muted mb-6 rounded-xl border-2 border-purple-200 p-6 shadow-lg">
@@ -170,13 +145,13 @@ const FinalQuizStats: React.FC<FinalQuizStatsProps> = ({
             )}
           </div>
         </div>
-        <button
+        {/* <button
           onClick={exportStats}
           className="flex items-center space-x-2 rounded-lg bg-purple-600 px-4 py-2 text-white transition hover:bg-purple-700"
         >
           <Download className="h-4 w-4" />
           <span>Export</span>
-        </button>
+        </button> */}
       </div>
 
       {/* ENHANCED: Overall Question Performance with Skip Support */}

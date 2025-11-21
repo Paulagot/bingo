@@ -106,7 +106,7 @@ export interface QuizConfig {
   questions: unknown[];
   
   // ✅ CRITICAL: Make prizeMode required for web3 rooms
-  prizeMode?: 'split' | 'assets' | 'cash';
+  prizeMode?: 'split' | 'assets' ;
   
   prizeSplits?: Record<number, number>;
   prizes?: Prize[];
