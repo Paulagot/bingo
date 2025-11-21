@@ -761,43 +761,25 @@ const HostDashboardCore: React.FC = () => {
 // Wrapper component with provider logic (multichain-normalized)
 const HostDashboard: React.FC = () => {
   const { config } = useQuizConfig();
-  const { selectedChain, walletReadiness } = useQuizChainIntegration();
+  const { selectedChain } = useQuizChainIntegration();
 
-  console.log('=== HOST DASHBOARD CHAIN INTEGRATION ===');
-  console.log('Config state:', {
-    hasConfig: !!config,
-    configKeys: config ? Object.keys(config).length : 0,
-    web3Chain: config?.web3Chain,
-    isWeb3Room: config?.isWeb3Room,
-    paymentMethod: config?.paymentMethod,
-  });
-  console.log('Chain integration:', {
-    selectedChain,
-    walletStatus: walletReadiness?.status,
-    walletMessage: walletReadiness?.message,
-  });
+  // ✅ Move logs to useEffect (from previous fix)
+  useEffect(() => {
+    console.log('=== HOST DASHBOARD CHAIN INTEGRATION ===');
+    console.log('Config state:', {
+      hasConfig: !!config,
+      web3Chain: config?.web3Chain,
+      isWeb3Room: config?.isWeb3Room,
+    });
+    console.log('Chain integration:', { selectedChain });
+  }, [config?.web3Chain, config?.isWeb3Room, selectedChain]);
 
-  // If this room isn’t Web3 (or config not ready), don’t mount a chain provider
-  if (!config || Object.keys(config).length === 0) {
-    console.log('Config not loaded yet, rendering without chain provider');
-    return <HostDashboardCore />;
-  }
-  if (!config.isWeb3Room) {
-    console.log('Non-Web3 room, rendering without chain provider');
-    return <HostDashboardCore />;
-  }
+  // ✅ FIX: Always wrap with DynamicChainProvider (it handles null chain internally)
+  // Determine the chain to pass (null is fine, provider handles it)
+  const chainToUse = config?.isWeb3Room ? selectedChain : null;
 
-  // Web3 room: only mount provider if chain is resolved
-  if (!selectedChain) {
-    console.log(
-      'Web3 room but no chain resolved yet — rendering without provider (UI still works, debug panel will indicate)',
-    );
-    return <HostDashboardCore />;
-  }
-
-  console.log(`Rendering with ${selectedChain} DynamicChainProvider`);
   return (
-    <DynamicChainProvider selectedChain={selectedChain}>
+    <DynamicChainProvider selectedChain={chainToUse}>
       <HostDashboardCore />
     </DynamicChainProvider>
   );

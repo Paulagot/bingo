@@ -13,17 +13,17 @@ import {
   ConnectionProvider,
   WalletProvider,
 } from '@solana/wallet-adapter-react';
-;
 import {
   PhantomWalletAdapter,
   SolflareWalletAdapter,
+  
 } from '@solana/wallet-adapter-wallets';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
-import {type Cluster } from '@solana/web3.js';
+import { type Cluster } from '@solana/web3.js';
 import { useSolanaWallet } from './useSolanaWallet';
 import { getRpcEndpoint, NETWORK, solanaStorageKeys } from '@/shared/lib/solana/config';
 import { useWalletStore } from '../../stores/walletStore';
-import type { WalletConnectionResult } from '../types';
+import type { WalletConnectionResult, WalletError } from '../types';
 
 // Import wallet styles
 import '@solana/wallet-adapter-react-ui/styles.css';
@@ -77,6 +77,21 @@ export interface SolanaWalletContextType {
 const SolanaWalletContext = createContext<SolanaWalletContextType | null>(null);
 
 // ===================================================================
+// INTERNAL STRICT HOOK (throws if no provider)
+// Only used within this file
+// ===================================================================
+const useSolanaWalletContextStrict = (): SolanaWalletContextType => {
+  const context = useContext(SolanaWalletContext);
+  if (!context) {
+    throw new Error(
+      'useSolanaWalletContextStrict must be used within a SolanaWalletProvider. ' +
+        'This is an internal error - please report this bug.'
+    );
+  }
+  return context;
+};
+
+// ===================================================================
 // PROVIDER WRAPPER (Adapters + Context)
 // ===================================================================
 
@@ -107,17 +122,40 @@ const SolanaWalletInner: React.FC<SolanaWalletProviderProps> = ({
 
   // Sync wallet state to global store
   useEffect(() => {
-    useWalletStore.getState().updateSolanaWallet({
-      address: solanaWallet.address ?? undefined,
+    // ✅ Create proper WalletError object with correct WalletErrorCode
+    const walletError: WalletError | null = solanaWallet.error
+      ? {
+          // Cast the fallback literal to the WalletError code type to satisfy the WalletError type.
+          code: ('UNKNOWN' as unknown) as WalletError['code'],
+          message: solanaWallet.error.message,
+          timestamp: new Date(),
+        }
+      : null;
+
+    // ✅ Build update object with only defined values (no undefined)
+    const updates: any = {
       isConnected: !!solanaWallet.isConnected,
       isConnecting: !!solanaWallet.isConnecting,
       isDisconnecting: !!solanaWallet.isDisconnecting,
-       error: solanaWallet.error?.message ?? null,  
-      balance: solanaWallet.balance ?? undefined,
-      publicKey: solanaWallet.publicKey?.toBase58() ?? undefined,
-      cluster: solanaWallet.cluster ?? undefined,
-      chain: 'solana',
-    });
+      error: walletError,
+      chain: 'solana' as const,
+    };
+
+    // Only add optional properties if they have values
+    if (solanaWallet.address) {
+      updates.address = solanaWallet.address;
+    }
+    if (solanaWallet.balance) {
+      updates.balance = solanaWallet.balance;
+    }
+    if (solanaWallet.publicKey) {
+      updates.publicKey = solanaWallet.publicKey.toBase58();
+    }
+    if (solanaWallet.cluster) {
+      updates.cluster = solanaWallet.cluster;
+    }
+
+    useWalletStore.getState().updateSolanaWallet(updates);
 
     // Maintain activeChain = 'solana' only when actually connected
     if (solanaWallet.isConnected && solanaWallet.address) {
@@ -171,9 +209,8 @@ const SolanaWalletInner: React.FC<SolanaWalletProviderProps> = ({
     if (solanaWallet.isConnected !== lastConnectionState) {
       setLastConnectionState(solanaWallet.isConnected);
       onConnectionChange?.(solanaWallet.isConnected);
-
     }
-  }, [solanaWallet.isConnected, lastConnectionState, onConnectionChange, solanaWallet.address]);
+  }, [solanaWallet.isConnected, lastConnectionState, onConnectionChange]);
 
   // Handle errors
   useEffect(() => {
@@ -233,8 +270,6 @@ const SolanaWalletInner: React.FC<SolanaWalletProviderProps> = ({
   const enhancedConnect = async (): Promise<WalletConnectionResult> => {
     try {
       const result = await solanaWallet.connect();
-      if (result.success) {
-      }
       return result;
     } catch (error) {
       console.error('❌ Solana wallet connection failed:', error);
@@ -264,8 +299,6 @@ const SolanaWalletInner: React.FC<SolanaWalletProviderProps> = ({
   const enhancedSwitchNetwork = async (cluster: Cluster): Promise<boolean> => {
     try {
       const success = await solanaWallet.switchNetwork(cluster);
-      if (success) {
-      }
       return success;
     } catch (error) {
       console.error('❌ Network switch failed:', error);
@@ -286,7 +319,7 @@ const SolanaWalletInner: React.FC<SolanaWalletProviderProps> = ({
       isConnecting: solanaWallet.isConnecting,
       isDisconnecting: solanaWallet.isDisconnecting,
       chain: 'solana',
-       error: solanaWallet.error?.message ?? null,  
+      error: solanaWallet.error?.message ?? null,
       balance: solanaWallet.balance,
       publicKey: solanaWallet.publicKey?.toBase58() ?? null,
       cluster: solanaWallet.cluster,
@@ -336,8 +369,6 @@ const SolanaWalletInner: React.FC<SolanaWalletProviderProps> = ({
       window.removeEventListener('solana:request-disconnect', onRequestDisconnect);
     };
   }, [
-    enhancedConnect,
-    enhancedDisconnect,
     solanaWallet.isConnected,
     solanaWallet.isConnecting,
     solanaWallet.isDisconnecting,
@@ -420,37 +451,24 @@ export const SolanaWalletProvider: React.FC<SolanaWalletProviderProps> = ({
 };
 
 // ===================================================================
-// CONTEXT HOOK
+// PUBLIC SAFE HOOK (returns null if no provider)
+// Used by multi-chain components
 // ===================================================================
-export const useSolanaWalletContext = (): SolanaWalletContextType => {
-  const context = useContext(SolanaWalletContext);
-  if (!context) {
-    throw new Error(
-      'useSolanaWalletContext must be used within a SolanaWalletProvider. ' +
-        'Make sure to wrap your component with <SolanaWalletProvider>.'
-    );
-  }
-  return context;
-};
 
-// ADD THIS NEW HOOK - Safe version that returns null (add after line ~435)
-/**
- * Safe version of useSolanaWalletContext that returns null if provider is not mounted.
- * Use this in hooks that may be called outside of SolanaWalletProvider.
- */
-export const useSolanaWalletContextSafe = (): SolanaWalletContextType | null => {
+export const useSolanaWalletContext = (): SolanaWalletContextType | null => {
   return useContext(SolanaWalletContext);
 };
 
 // ===================================================================
-// CONVENIENCE HOOKS
+// CONVENIENCE HOOKS (use strict version internally)
 // ===================================================================
 
 /**
  * Hook to get Solana wallet connection state
+ * ✅ Safe to call - uses strict version internally (only called within provider)
  */
 export const useSolanaConnection = () => {
-  const { wallet, isInitialized, connect, disconnect } = useSolanaWalletContext();
+  const { wallet, isInitialized, connect, disconnect } = useSolanaWalletContextStrict(); // ✅ Fixed
 
   return {
     isConnected: wallet.isConnected,
@@ -464,9 +482,10 @@ export const useSolanaConnection = () => {
 
 /**
  * Hook to get Solana wallet balance information
+ * ✅ Safe to call - uses strict version internally (only called within provider)
  */
 export const useSolanaBalance = () => {
-  const { wallet, getBalance } = useSolanaWalletContext();
+  const { wallet, getBalance } = useSolanaWalletContextStrict(); // ✅ Fixed
 
   return {
     solBalance: wallet.balance || '0',
@@ -477,9 +496,10 @@ export const useSolanaBalance = () => {
 
 /**
  * Hook to manage Solana network
+ * ✅ Safe to call - uses strict version internally (only called within provider)
  */
 export const useSolanaNetwork = () => {
-  const { currentCluster, switchNetwork } = useSolanaWalletContext();
+  const { currentCluster, switchNetwork } = useSolanaWalletContextStrict(); // ✅ Fixed
 
   return {
     currentCluster,
