@@ -52,21 +52,38 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
   paymentMethod,
   debug = false,
   onReturnToDashboard,
-  // onPhaseChange, // intentionally not used to avoid phase-driven auto behaviour
   onEndGame,
   currentRound,
   totalRounds,
 }) => {
+  // ✅ HOOK #1 - Always called
+  const [prizeDistributionComplete, setPrizeDistributionComplete] = React.useState(false);
+
+  // Calculate all your derived state BEFORE the effect
   const isComplete = phase === 'complete';
   const isDistributing = phase === 'distributing_prizes';
   const isWeb3Flow = paymentMethod === 'web3';
 
-  // Only show post-game panel if we're on the final round
   const isFinalRound =
     typeof currentRound === 'number' &&
     typeof totalRounds === 'number' &&
     currentRound >= totalRounds;
 
+  // ✅ HOOK #2 - Always called (moved BEFORE early returns)
+  useEffect(() => {
+    if (!prizeDistributionComplete || !isWeb3Flow) return;
+
+    console.log('🎯 Prizes distributed successfully. Starting cleanup timer...');
+
+    const cleanupTimer = setTimeout(() => {
+      console.log('🧹 Triggering end game cleanup...');
+      onEndGame?.();
+    }, 60000);
+
+    return () => clearTimeout(cleanupTimer);
+  }, [prizeDistributionComplete, isWeb3Flow, onEndGame]);
+
+  // ✅ NOW early returns are safe - all hooks have been called
   if (debug && (isComplete || isDistributing)) {
     console.log('[HostPostgamePanel] Phase check:', {
       phase,
@@ -79,7 +96,6 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
     });
   }
 
-  // If phase says "complete" or "distributing_prizes" but we're not on final round, don't show this panel
   if ((isComplete || isDistributing) && !isFinalRound) {
     console.warn(
       '[HostPostgamePanel] Phase is complete/distributing but not on final round. Hiding post-game panel.',
@@ -88,25 +104,9 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
     return null;
   }
 
-  // Only render for post-game phases
   if (!(isComplete || isDistributing)) return null;
 
-  // Track when prizes are successfully distributed (Web3 only)
-  const [prizeDistributionComplete, setPrizeDistributionComplete] = React.useState(false);
-
-  // Auto-cleanup after successful prize distribution (Web3 only)
-  useEffect(() => {
-    if (!prizeDistributionComplete || !isWeb3Flow) return;
-
-    console.log('🎯 Prizes distributed successfully. Starting cleanup timer...');
-
-    const cleanupTimer = setTimeout(() => {
-      console.log('🧹 Triggering end game cleanup...');
-      onEndGame?.();
-    }, 60000); // 60 seconds
-
-    return () => clearTimeout(cleanupTimer);
-  }, [prizeDistributionComplete, isWeb3Flow, onEndGame]);
+  // ✅ All hooks called above - now safe to render JSX
 
   return (
     <div className="space-y-6">

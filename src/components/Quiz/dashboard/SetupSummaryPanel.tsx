@@ -69,31 +69,31 @@ const SetupSummaryPanel: React.FC = () => {
    * IMPORTANT: this hook must be called on **every render**, even when config
    * is not yet loaded, so it lives **before** any early return.
    */
-  const estimatedTime = useMemo(() => {
-    if (!config || !Array.isArray(config.roundDefinitions)) {
-      console.log('[SetupSummaryPanel] estimatedTime recomputed: 0 (no config/rounds)');
-      return 0;
-    }
+  // const estimatedTime = useMemo(() => {
+  //   if (!config || !Array.isArray(config.roundDefinitions)) {
+  //     console.log('[SetupSummaryPanel] estimatedTime recomputed: 0 (no config/rounds)');
+  //     return 0;
+  //   }
 
-    const minutes =
-      config.roundDefinitions.reduce((total: number, round: any) => {
-        const cfg = round?.config || {};
-        let roundTime = 2.5; // buffer
+  //   const minutes =
+  //     config.roundDefinitions.reduce((total: number, round: any) => {
+  //       const cfg = round?.config || {};
+  //       let roundTime = 2.5; // buffer
 
-        if (cfg.totalTimeSeconds) {
-          roundTime += cfg.totalTimeSeconds / 60;
-        } else if (cfg.questionsPerRound && cfg.timePerQuestion) {
-          roundTime += (cfg.questionsPerRound * cfg.timePerQuestion) / 60;
-        } else {
-          roundTime += 5;
-        }
+  //       if (cfg.totalTimeSeconds) {
+  //         roundTime += cfg.totalTimeSeconds / 60;
+  //       } else if (cfg.questionsPerRound && cfg.timePerQuestion) {
+  //         roundTime += (cfg.questionsPerRound * cfg.timePerQuestion) / 60;
+  //       } else {
+  //         roundTime += 5;
+  //       }
 
-        return total + roundTime;
-      }, 0) || 0;
+  //       return total + roundTime;
+  //     }, 0) || 0;
 
-    console.log('[SetupSummaryPanel] estimatedTime recomputed:', minutes);
-    return minutes;
-  }, [config]);
+  //   console.log('[SetupSummaryPanel] estimatedTime recomputed:', minutes);
+  //   return minutes;
+  // }, [config]);
 
   // ✅ Early return AFTER all hooks are declared
   if (!config || !config.hostName) {
@@ -269,7 +269,7 @@ const SetupSummaryPanel: React.FC = () => {
             <div className="text-left">
               <div className="font-bold text-gray-900">Quiz Rounds</div>
               <div className="text-sm text-gray-600">
-                {roundDefinitions?.length || 0} rounds • ~{Math.round(estimatedTime)} min
+                {roundDefinitions?.length || 0} rounds 
               </div>
             </div>
           </div>
@@ -583,7 +583,7 @@ const SetupSummaryPanel: React.FC = () => {
                   </div>
                 ))}
               </div>
-            ) : (prizeMode === 'assets' || prizeMode === 'cash') && prizes ? (
+            ) : (prizeMode === 'assets' || prizeMode === 'split') && prizes ? (
               <div className="space-y-3">
                 {prizes.map((prize: any, idx: number) => (
                   <div key={idx} className="rounded-lg border-2 border-yellow-200 bg-white p-4">

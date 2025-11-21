@@ -5,7 +5,7 @@
 import { useCallback, useMemo } from 'react';
 import { useQuizChainIntegration } from './useQuizChainIntegration';
 
-import { useSolanaContract } from '../chains/solana/useSolanaContract';
+import { useSolanaContractContext } from '../chains/solana/useSolanaContractContext';
 
 import type { SupportedChain } from '../chains/types';
 import { keccak256, stringToHex } from 'viem';
@@ -160,7 +160,7 @@ export function useContractActions(opts?: Options) {
   });
   const effectiveChain = (opts?.chainOverride ?? selectedChain) as SupportedChain | null;
 
-  const solanaContractResult = useSolanaContract();
+  const solanaContractResult = useSolanaContractContext();
  
 
   const solanaContract = effectiveChain === 'solana' ? solanaContractResult : null;

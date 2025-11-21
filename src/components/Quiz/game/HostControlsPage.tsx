@@ -23,7 +23,7 @@ import HostPostgamePanel from '../host-controls/components/HostPostgamePanel';
 
 import { Eye, Timer, Lock } from 'lucide-react';
 import { useQuizTimer } from '../hooks/useQuizTimer';
-import { useSolanaContract } from '../../../chains/solana/useSolanaContract';
+import { useSolanaContractContext } from '../../../chains/solana/useSolanaContractContext';
 import { PublicKey } from '@solana/web3.js';
 import { toast } from 'sonner';
 
@@ -90,7 +90,7 @@ type LeaderboardEntry = {
 };
 
 // ✅ Type for Solana contract (or null for non-Solana rooms)
-type SolanaContractType = ReturnType<typeof useSolanaContract> | null;
+type SolanaContractType = ReturnType<typeof useSolanaContractContext> | null;
 
 // ✅ Props interface for the inner component
 interface HostControlsCoreInnerProps {
@@ -1013,7 +1013,7 @@ const HostControlsCoreInner = ({ solanaContract = null }: HostControlsCoreInnerP
 
 // ✅ Wrapper that provides Solana contract - only used for Solana rooms
 const HostControlsCoreWithSolana = () => {
-  const solanaContract = useSolanaContract();
+  const solanaContract = useSolanaContractContext();
   return <HostControlsCoreInner solanaContract={solanaContract} />;
 };
 
@@ -1035,7 +1035,7 @@ const HostControlsPage: React.FC = () => {
     return null;
   })();
 
-  // ✅ For Solana rooms, use the wrapper that calls useSolanaContract()
+  // ✅ For Solana rooms, use the wrapper that calls useSolanaContractContext()
   if (selectedChain === 'solana') {
     return (
       <DynamicChainProvider selectedChain="solana">
