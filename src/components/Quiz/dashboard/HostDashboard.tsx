@@ -283,7 +283,7 @@ const HostDashboardCore: React.FC = () => {
   // === Prize workflow gating (Payments locked until prizes resolved) ===
   const awards = (config?.reconciliation?.prizeAwards || []) as any[];
   const prizePlaces = new Set((config?.prizes || []).map((p: any) => p.place));
-  const finalStatuses = new Set(['delivered', 'unclaimed', 'refused', 'returned', 'canceled']);
+const finalStatuses = new Set(['collected', 'delivered', 'unclaimed', 'refused', 'canceled']);
   const declaredByPlace = new Map<number, any>();
   for (const a of awards) if (typeof a?.place === 'number') declaredByPlace.set(a.place, a);
   const allDeclared = prizePlaces.size > 0 && [...prizePlaces].every((pl) => declaredByPlace.has(pl));

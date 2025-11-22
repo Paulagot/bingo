@@ -497,7 +497,7 @@ export const Web3PaymentStep: React.FC<Web3PaymentStepProps> = ({
       const r = await joinRoom({
         roomId,
         feeAmount: roomConfig.entryFee,
-        extrasAmount: extrasTotal > 0 ? extrasTotal.toString() : undefined,
+        extrasAmount: extrasTotal > 0 ? extrasTotal.toString() : '0',
         roomAddress: roomAddrFromConfig, // undefined triggers fallback in joinRoom
         currency: roomConfig.currencySymbol,
       });

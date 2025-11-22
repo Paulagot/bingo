@@ -97,7 +97,7 @@ const AdminJoinPage: React.FC = () => {
   const { prizeWorkflowComplete } = useMemo(() => {
     const awards = (config?.reconciliation?.prizeAwards || []) as any[];
     const prizePlaces = new Set((config?.prizes || []).map((p: any) => p.place));
-    const finalStatuses = new Set(['delivered', 'unclaimed', 'refused', 'returned', 'canceled']);
+   const finalStatuses = new Set(['collected', 'delivered', 'unclaimed', 'refused', 'canceled']);
     const declaredByPlace = new Map<number, any>();
     
     for (const a of awards) {

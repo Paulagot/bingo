@@ -20,6 +20,7 @@ export interface Prize {
   tokenAddress?: string;
   isNFT?: boolean; // NEW: simple flag to distinguish token types
   uploadStatus?: 'pending' | 'uploading' | 'completed' | 'failed';
+   deliveryMethod?: 'in-person' | 'shipped' | 'digital';
   transactionHash?: string;
   uploadedAt?: string;
   tokenId?: string | number;
@@ -277,6 +278,7 @@ export interface UseAnswerSubmissionParams {
 
 export type PrizeAwardStatus =
   | 'declared'
+   | 'collected'
   | 'delivered'
   | 'unclaimed'
   | 'refused'
@@ -289,7 +291,7 @@ export interface PrizeAward {
   place?: number;
   prizeName: string;
   prizeType: 'cash' | 'token' | 'nft' | 'voucher' | 'goods';
-  declaredValue?: number;
+  declaredValue?: number | null;
   currency?: string;
   sponsor?: { name?: string; contact?: string; notes?: string; inKind?: boolean };
 
@@ -299,17 +301,25 @@ export interface PrizeAward {
   status: PrizeAwardStatus;
   statusHistory: Array<{
     status: PrizeAwardStatus;
-    at: string;               // ISO
+    at: string;
     byUserId: string;
     byUserName?: string;
     note?: string;
   }>;
 
+  // existing:
   awardMethod?: 'cash' | 'card' | 'revolut' | 'web3' | 'physical' | 'other';
-  awardReference?: string;     // PSP id / tx hash / receipt
-  awardedAt?: string;          // ISO
+  awardReference?: string;
+  awardedAt?: string;
   note?: string;
+
+  // 🆕 NEW: Add timestamp fields used by UI
+  collectedAt?: string;
+  deliveredAt?: string;
+  unclaimedAt?: string;
+  refusedAt?: string;
 }
+
 
 export interface ReconciliationMeta  {
   approvedBy?: string;
