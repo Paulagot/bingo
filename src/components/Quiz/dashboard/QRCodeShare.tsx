@@ -5,8 +5,8 @@ import { Copy, Check, QrCode, ExternalLink, Users } from 'lucide-react';
 
 interface QRCodeShareProps {
   roomId: string;
-  hostName?: string;
-  gameType?: string;
+ hostName?: string | undefined;  // ✅ Explicitly add | undefined
+  gameType?: string | undefined
 }
 
 const QRCodeShare: React.FC<QRCodeShareProps> = ({ roomId, hostName, gameType }) => {
@@ -17,7 +17,7 @@ const QRCodeShare: React.FC<QRCodeShareProps> = ({ roomId, hostName, gameType })
     if (typeof window !== 'undefined') {
       return `${window.location.protocol}//${window.location.host}`;
     }
-    return 'https://yourapp.com'; // Fallback
+    return 'https://fundraisely.ie'; // Fallback
   };
 
   const joinUrl = `${getBaseUrl()}/quiz/join/${roomId}`;

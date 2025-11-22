@@ -1,6 +1,6 @@
 // src/components/Quiz/payments/ReconciliationDownloads.tsx
 import { useEffect, useMemo, useState } from 'react';
-import { Download, CheckCircle } from 'lucide-react';
+import { Download, CheckCircle, AlertTriangle, Clock } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 
 import { useQuizConfig } from '../hooks/useQuizConfig';
@@ -11,7 +11,6 @@ import { makeArchiveZip } from './reportExport';
 
 type Props = {
   allRoundsStats?: any[];
-  // 🔴 REMOVED: onArchiveComplete - we'll use socket cleanup instead
 };
 
 export default function ReconciliationDownloads({
@@ -27,7 +26,7 @@ export default function ReconciliationDownloads({
 
   const [busy, setBusy] = useState<'none' | 'zip'>('none');
   
-  // 🆕 NEW: Track successful archive generation and countdown
+  // Track successful archive generation and countdown
   const [archiveComplete, setArchiveComplete] = useState(false);
   const [countdown, setCountdown] = useState(10); // 10 second countdown
 
@@ -36,7 +35,7 @@ export default function ReconciliationDownloads({
     [config, players, allRoundsStats]
   );
 
-  // 🆕 NEW: Auto-cleanup countdown after archive generation
+  // Auto-cleanup countdown after archive generation
   useEffect(() => {
     if (!archiveComplete) return;
 
@@ -54,9 +53,10 @@ export default function ReconciliationDownloads({
     }, 1000);
 
     return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [archiveComplete]);
 
-  // 🆕 NEW: Unified cleanup function using socket
+  // Unified cleanup function using socket
   const handleEndQuiz = () => {
     console.log('🧹 [Reconciliation] Triggering quiz cleanup...');
     
@@ -68,8 +68,7 @@ export default function ReconciliationDownloads({
     }
 
     try {
-      // Use the same cleanup event as Web3 flow
-      // Backend will detect this is NOT a Web3 room and redirect accordingly
+      // Use the same cleanup event that the auto-guard will also use
       socket.emit('end_quiz_cleanup', { roomId });
       console.log('✅ [Reconciliation] Cleanup signal sent');
     } catch (error) {
@@ -88,7 +87,7 @@ export default function ReconciliationDownloads({
       // Generate and download archive
       await makeArchiveZip(payload);
       
-      // Stamp archiveGeneratedAt for audit trail
+      // Stamp archiveGeneratedAt for audit trail (prevents auto-cleanup guard from triggering)
       if (socket && roomId) {
         const ts = new Date().toISOString();
         socket.emit('update_reconciliation', {
@@ -97,7 +96,7 @@ export default function ReconciliationDownloads({
         });
       }
       
-      // 🆕 NEW: Mark as complete and start countdown
+      // Mark as complete and start countdown
       setArchiveComplete(true);
       setCountdown(10); // Reset countdown
       
@@ -111,73 +110,121 @@ export default function ReconciliationDownloads({
   };
 
   return (
-    <div className="rounded-xl border-2 border-emerald-200 bg-white p-4">
-      <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Downloads</h3>
-        <div className="text-xs text-fg/70">
-          {disabled ? 'Exports unlock after approval' : 'Ready'}
+    <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+      <div className="p-4 border-b border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-semibold text-gray-900">Download & Complete</h3>
+            <p className="text-xs text-gray-600 mt-0.5">
+              {disabled ? 'Approve reconciliation to unlock downloads' : 'Download your complete quiz archive'}
+            </p>
+          </div>
+          {!disabled && !archiveComplete && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-green-300 bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
+              <CheckCircle className="h-3 w-3" />
+              Ready
+            </span>
+          )}
         </div>
       </div>
 
-      {/* 🆕 UPDATED: Download button */}
-      {!archiveComplete ? (
-        <div className="flex flex-wrap gap-3">
-          <button
-            disabled={disabled || busy !== 'none'}
-            onClick={handleArchive}
-            className="flex items-center space-x-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-40"
-          >
-            <Download className="h-4 w-4" />
-            <span>
-              {busy === 'zip' ? 'Generating Archive…' : 'Download Archive & End Quiz'}
-            </span>
-          </button>
-        </div>
-      ) : (
-        /* 🆕 NEW: Success state with auto-cleanup countdown */
-        <div className="space-y-3">
-          {/* Success message */}
-          <div className="flex items-center space-x-2 rounded-lg border-2 border-green-200 bg-green-50 p-3">
-            <CheckCircle className="h-5 w-5 text-green-600" />
-            <span className="text-sm font-medium text-green-800">
-              Archive downloaded successfully!
-            </span>
-          </div>
-
-          {/* Countdown bar */}
-          <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-4">
-            <div className="mb-3 text-center">
-              <div className="text-2xl font-bold text-blue-800">
-                {countdown}
-              </div>
-              <p className="text-sm text-blue-600">
-                Cleaning up and returning to dashboard...
-              </p>
-            </div>
-
-            {/* Progress bar */}
-            <div className="mb-3 h-2 overflow-hidden rounded-full bg-blue-200">
-              <div
-                className="h-full bg-blue-600 transition-all duration-1000 ease-linear"
-                style={{ width: `${(countdown / 10) * 100}%` }}
-              />
-            </div>
-
-            {/* Manual trigger option */}
+      <div className="p-4">
+        {/* Download button (pre-archive) */}
+        {!archiveComplete ? (
+          <div className="space-y-3">
             <button
-              onClick={handleEndQuiz}
-              className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+              disabled={disabled || busy !== 'none'}
+              onClick={handleArchive}
+              className="w-full flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
             >
-              End Quiz Now
+              <Download className="h-4 w-4" />
+              <span>
+                {busy === 'zip' ? 'Generating Archive…' : 'Download Archive & End Quiz'}
+              </span>
             </button>
-          </div>
-        </div>
-      )}
 
-      {/* Optional: Info text */}
-      <p className="mt-2 text-xs text-gray-500">
-        After downloading, the quiz will automatically end and clean up all data.
-      </p>
+            {/* Info about what's included */}
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2">
+              <div className="text-xs font-semibold text-gray-700">Archive includes:</div>
+              <ul className="text-xs text-gray-600 space-y-1">
+                <li>• Complete financial reconciliation report</li>
+                <li>• Player roster and payment records</li>
+                <li>• Game statistics and results</li>
+                <li>• Audit trail of all adjustments</li>
+              </ul>
+            </div>
+
+            {/* Warning about what happens */}
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <div className="flex gap-2 text-xs text-amber-900">
+                <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <strong>This will end your quiz:</strong> After downloading, the quiz will automatically 
+                  clean up and all participants will be disconnected. Make sure you've completed everything first.
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Success state with auto-cleanup countdown */
+          <div className="space-y-3">
+            {/* Success message */}
+            <div className="flex items-center gap-2 rounded-lg border-2 border-green-200 bg-green-50 p-4">
+              <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0" />
+              <div className="flex-1">
+                <div className="text-sm font-semibold text-green-800">
+                  Archive downloaded successfully!
+                </div>
+                <div className="text-xs text-green-700 mt-1">
+                  Your quiz data has been saved locally
+                </div>
+              </div>
+            </div>
+
+            {/* Countdown bar */}
+            <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-4">
+              <div className="mb-3 text-center">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <Clock className="h-5 w-5 text-blue-600" />
+                  <div className="text-3xl font-bold text-blue-800">
+                    {countdown}
+                  </div>
+                </div>
+                <p className="text-sm text-blue-700 font-medium">
+                  Cleaning up and returning to dashboard...
+                </p>
+              </div>
+
+              {/* Progress bar */}
+              <div className="mb-3 h-2 overflow-hidden rounded-full bg-blue-200">
+                <div
+                  className="h-full bg-blue-600 transition-all duration-1000 ease-linear"
+                  style={{ width: `${(countdown / 10) * 100}%` }}
+                />
+              </div>
+
+              {/* Manual trigger option */}
+              <button
+                onClick={handleEndQuiz}
+                className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 active:bg-blue-800 shadow-sm"
+              >
+                End Quiz Now
+              </button>
+            </div>
+
+            {/* What happens next */}
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <div className="text-xs text-gray-600 space-y-1">
+                <p><strong>What's happening:</strong></p>
+                <p>• All quiz data will be removed from our servers</p>
+                <p>• All participants will be disconnected</p>
+                <p>• You'll be redirected to the dashboard</p>
+                <p>• Your downloaded archive contains all records</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

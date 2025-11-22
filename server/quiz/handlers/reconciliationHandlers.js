@@ -86,78 +86,92 @@ export function setupReconciliationHandlers(socket, namespace) {
   });
 
     // NEW: declare a prize award (status starts as 'declared')
-  socket.on('record_prize_award', ({ roomId, award }) => {
-    try {
-      const room = getQuizRoom(roomId);
-      if (!room) return socket.emit('quiz_error', { message: `Room not found: ${roomId}` });
-      const recon = ensureRecon(room);
+// NEW: declare a prize award (status starts as 'declared')
+socket.on('record_prize_award', ({ roomId, award }) => {
+  try {
+    const room = getQuizRoom(roomId);
+    if (!room) return socket.emit('quiz_error', { message: `Room not found: ${roomId}` });
+    const recon = ensureRecon(room);
 
-      const withId = {
-        prizeAwardId: award?.prizeAwardId || crypto.randomUUID?.() || String(Date.now()),
-        status: 'declared',
-        statusHistory: [
-          {
-            status: 'declared',
-            at: new Date().toISOString(),
-            byUserId: award?.byUserId || room.hostId || 'host',
-            byUserName: award?.byUserName || room.config?.hostName || 'Host',
-            note: award?.note || '',
-          },
-        ],
-        ...award,
+    const id = award?.prizeAwardId || crypto.randomUUID?.() || String(Date.now());
+    const existingIdx = (recon.prizeAwards || []).findIndex(a => a.prizeAwardId === id);
+
+    const declaredAt = new Date().toISOString();
+
+    const base = {
+      prizeAwardId: id,
+      status: 'declared',
+      statusHistory: [
+        {
+          status: 'declared',
+          at: declaredAt,
+          byUserId: room.hostId || 'host',
+          byUserName: room.config?.hostName || 'Host',
+          note: award?.note || 'Declared',
+        }
+      ],
+
+      ...award,
+      declaredAt,
+    };
+
+    if (!recon.prizeAwards) recon.prizeAwards = [];
+
+    if (existingIdx >= 0) {
+      // Update instead of adding duplicates
+      recon.prizeAwards[existingIdx] = {
+        ...recon.prizeAwards[existingIdx],
+        ...base
       };
-
-      recon.prizeAwards = [...(recon.prizeAwards || []), withId];
-
-      if (debug) console.log('[recon] record_prize_award', roomId, withId.prizeAwardId);
-      emitReconUpdated(namespace, roomId, recon);
-      namespace.to(roomId).emit('room_config', { ...room.config });
-    } catch (e) {
-      console.error('[recon] record_prize_award error', e);
-      socket.emit('quiz_error', { message: 'Failed to record prize award' });
+    } else {
+      recon.prizeAwards.push(base);
     }
-  });
+
+    emitReconUpdated(namespace, roomId, recon);
+    namespace.to(roomId).emit('room_config', { ...room.config });
+  } catch (e) {
+    console.error('[recon] record_prize_award error', e);
+    socket.emit('quiz_error', { message: 'Failed to record prize award' });
+  }
+});
+
 
   // NEW: update a prize award (status transitions, delivery info, etc.)
-  socket.on('update_prize_award', ({ roomId, prizeAwardId, patch }) => {
-    try {
-      const room = getQuizRoom(roomId);
-      if (!room) return socket.emit('quiz_error', { message: `Room not found: ${roomId}` });
-      const recon = ensureRecon(room);
+socket.on('update_prize_award', ({ roomId, prizeAwardId, patch }) => {
+  try {
+    const room = getQuizRoom(roomId);
+    if (!room) return socket.emit('quiz_error', { message: `Room not found: ${roomId}` });
+    const recon = ensureRecon(room);
 
-      const list = recon.prizeAwards || [];
-      const idx = list.findIndex(a => a.prizeAwardId === prizeAwardId);
-      if (idx === -1) return socket.emit('quiz_error', { message: `Prize award not found: ${prizeAwardId}` });
+    const list = recon.prizeAwards || [];
+    const idx = list.findIndex(a => a.prizeAwardId === prizeAwardId);
+    if (idx === -1) return socket.emit('quiz_error', { message: `Prize award not found: ${prizeAwardId}` });
 
-      const prev = list[idx] || {};
-      const next = { ...prev, ...patch };
+    const prev = list[idx];
+    const next = { ...prev, ...patch };
 
-      // status history
-      if (patch?.status && patch.status !== prev.status) {
-        next.statusHistory = Array.isArray(prev.statusHistory) ? [...prev.statusHistory] : [];
-        next.statusHistory.push({
-          status: patch.status,
-          at: new Date().toISOString(),
-          byUserId: patch.byUserId || room.hostId || 'host',
-          byUserName: patch.byUserName || room.config?.hostName || 'Host',
-          note: patch.note || '',
-        });
-      }
-
-      list[idx] = next;
-      recon.prizeAwards = list;
-
-      if (debug) console.log('[recon] update_prize_award', roomId, prizeAwardId, Object.keys(patch || {}));
-
-      // optional: auto-ledger entries for delivered/refused/returned/unclaimed
-      // You can add a rule here later; for Phase 1 we keep it manual via UI or a later patch.
-
-      emitReconUpdated(namespace, roomId, recon);
-      namespace.to(roomId).emit('room_config', { ...room.config });
-    } catch (e) {
-      console.error('[recon] update_prize_award error', e);
-      socket.emit('quiz_error', { message: 'Failed to update prize award' });
+    // Track status changes properly
+    if (patch?.status && patch.status !== prev.status) {
+      next.statusHistory = [...(prev.statusHistory || [])];
+      next.statusHistory.push({
+        status: patch.status,
+        at: new Date().toISOString(),
+        byUserId: room.hostId || 'host',
+        byUserName: room.config?.hostName || 'Host',
+        note: patch.note || ''
+      });
     }
-  });
+
+    list[idx] = next;
+    recon.prizeAwards = list;
+
+    emitReconUpdated(namespace, roomId, recon);
+    namespace.to(roomId).emit('room_config', { ...room.config });
+  } catch (e) {
+    console.error('[recon] update_prize_award error', e);
+    socket.emit('quiz_error', { message: 'Failed to update prize award' });
+  }
+});
+
 
 }

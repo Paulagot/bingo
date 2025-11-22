@@ -44,6 +44,7 @@ export interface Prize {
 
 export type PrizeAwardStatus =
   | 'declared'
+   | 'collected'
   | 'delivered'
   | 'unclaimed'
   | 'refused'
@@ -56,11 +57,13 @@ export interface PrizeAward {
   place?: number;
   prizeName: string;
   prizeType: 'cash' | 'token' | 'nft' | 'voucher' | 'goods';
-  declaredValue?: number;
+  declaredValue?: number| null;
   currency?: string;
   sponsor?: { name?: string; contact?: string; notes?: string; inKind?: boolean };
+
   winnerPlayerId: string;
   winnerName: string;
+
   status: PrizeAwardStatus;
   statusHistory: Array<{
     status: PrizeAwardStatus;
@@ -69,11 +72,20 @@ export interface PrizeAward {
     byUserName?: string;
     note?: string;
   }>;
+
+  // existing:
   awardMethod?: 'cash' | 'card' | 'revolut' | 'web3' | 'physical' | 'other';
   awardReference?: string;
   awardedAt?: string;
   note?: string;
+
+  // 🆕 NEW: Add timestamp fields used by UI
+  collectedAt?: string;
+  deliveredAt?: string;
+  unclaimedAt?: string;
+  refusedAt?: string;
 }
+
 
 export interface ReconciliationMeta {
   approvedBy?: string;
