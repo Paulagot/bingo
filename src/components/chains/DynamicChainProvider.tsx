@@ -1,5 +1,5 @@
 // src/components/chains/DynamicChainProvider.tsx
-import React, { FC, Suspense, useMemo, useEffect } from 'react';
+import React, { FC,  useMemo, useEffect } from 'react';
 import type { SupportedChain } from '../../chains/types';
 import { useWalletStore } from '../../stores/walletStore';
 import { shallow } from 'zustand/shallow';
@@ -14,16 +14,16 @@ interface DynamicChainProviderProps {
   children: React.ReactNode;
 }
 
-const ChainProviderSuspense: FC<{ chain: SupportedChain }> = ({ chain }) => (
-  <div className="flex min-h-32 items-center justify-center">
-    <div className="flex flex-col items-center space-y-2">
-      <div className="h-6 w-6 animate-spin rounded-full border-b-2 border-blue-600"></div>
-      <span className="text-fg/70 text-sm">
-        Initializing {chain.charAt(0).toUpperCase() + chain.slice(1)} wallet...
-      </span>
-    </div>
-  </div>
-);
+// const ChainProviderSuspense: FC<{ chain: SupportedChain }> = ({ chain }) => (
+//   <div className="flex min-h-32 items-center justify-center">
+//     <div className="flex flex-col items-center space-y-2">
+//       <div className="h-6 w-6 animate-spin rounded-full border-b-2 border-blue-600"></div>
+//       <span className="text-fg/70 text-sm">
+//         Initializing {chain.charAt(0).toUpperCase() + chain.slice(1)} wallet...
+//       </span>
+//     </div>
+//   </div>
+// );
 
 class ChainProviderErrorBoundary extends React.Component<
   { children: React.ReactNode; chain: SupportedChain | null },
@@ -35,7 +35,7 @@ class ChainProviderErrorBoundary extends React.Component<
   }
   
   // ✅ FIX: Added 'override' modifier
-  static override getDerivedStateFromError(error: Error) {
+  static getDerivedStateFromError(error: Error) {
     return { hasError: true, error };
   }
   
