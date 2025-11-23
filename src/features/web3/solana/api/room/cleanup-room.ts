@@ -173,8 +173,13 @@ export async function cleanupRoom(
   }
 
   // Build instruction
-  const ix = await program.methods
-    .cleanupRoom(params.roomId)
+  // Ensure the Anchor `methods` API and the `cleanupRoom` method exist before invoking.
+  const cleanupBuilder = program.methods?.cleanupRoom?.(params.roomId);
+  if (!cleanupBuilder) {
+    throw new Error('Program methods not initialized: cleanupRoom not available on program.methods');
+  }
+
+  const ix = await cleanupBuilder
     .accounts({
       room,
       roomVault,
