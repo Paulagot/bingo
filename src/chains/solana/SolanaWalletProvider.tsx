@@ -1,10 +1,8 @@
 /**
- * Solana Wallet Provider Component
+ * Solana Wallet Provider Component - COMPREHENSIVE VERSION
  *
  * Configures and initializes the Solana Wallet Adapter ecosystem for the entire application.
- * Wraps components with ConnectionProvider (RPC connection), WalletProvider (wallet integration),
- * and WalletModalProvider (connection UI) to enable blockchain interactions.
- * Supports Phantom and Solflare wallets with auto-connect enabled.
+ * Supports ALL major Solana wallets including desktop, mobile, and hardware wallets.
  * Integrates with global walletStore for state synchronization across the multichain application.
  */
 
@@ -14,10 +12,31 @@ import {
   WalletProvider,
 } from '@solana/wallet-adapter-react';
 import {
+  // MOST POPULAR WALLETS
   PhantomWalletAdapter,
   SolflareWalletAdapter,
+
+  CoinbaseWalletAdapter,
   
+  // ADDITIONAL POPULAR WALLETS
+  TrustWalletAdapter,
+  Coin98WalletAdapter,
+
+  TorusWalletAdapter,
+  LedgerWalletAdapter,
+  
+  // UNCOMMENT IF YOU WANT EVEN MORE:
+  // MathWalletAdapter,
+  // NightlyWalletAdapter,
+  // SafePalWalletAdapter,
+  // TokenPocketWalletAdapter,
+  // XDEFIWalletAdapter,
 } from '@solana/wallet-adapter-wallets';
+import { 
+  SolanaMobileWalletAdapter,
+  createDefaultAddressSelector,
+  createDefaultAuthorizationResultCache,
+} from '@solana-mobile/wallet-adapter-mobile';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
 import { type Cluster } from '@solana/web3.js';
 import { useSolanaWallet } from './useSolanaWallet';
@@ -430,13 +449,57 @@ export const SolanaWalletProvider: React.FC<SolanaWalletProviderProps> = ({
     return getRpcEndpoint(network);
   }, [network]);
 
-  // Configure wallet adapters
+  // ===================================================================
+  // COMPREHENSIVE WALLET CONFIGURATION
+  // ===================================================================
+  
   const wallets = useMemo(
     () => [
-      new PhantomWalletAdapter(),
-      new SolflareWalletAdapter(),
+      // ✨ MOBILE WALLET ADAPTER - MUST BE FIRST!
+      // This enables deep linking to mobile wallet apps
+new SolanaMobileWalletAdapter({
+  addressSelector: createDefaultAddressSelector(),
+  appIdentity: {
+    name: 'Fundraisely', // Your app name
+    uri: window.location.origin,
+    icon: `${window.location.origin}/favicon.ico`,
+  },
+  authorizationResultCache: createDefaultAuthorizationResultCache(),
+  cluster: network,
+  onWalletNotFound: async () => {
+    console.warn('No mobile wallet installed');
+  },
+}),
+      
+      // ⭐ MOST POPULAR WALLETS (these should cover 95%+ of users)
+      new PhantomWalletAdapter(),       // Most popular, desktop + mobile
+      new SolflareWalletAdapter(),      // Very popular, desktop + mobile + web
+  
+      new CoinbaseWalletAdapter(),      // Multi-chain, desktop + mobile
+      
+      // 🌟 ADDITIONAL POPULAR WALLETS
+      new TrustWalletAdapter(),         // Multi-chain mobile wallet (70+ chains)
+      new Coin98WalletAdapter(),        // Multi-chain wallet
+   
+      new TorusWalletAdapter(),         // Social login wallet (good for onboarding)
+      new LedgerWalletAdapter(),        // Hardware wallet (best security)
+      
+      // 💡 UNCOMMENT TO ADD EVEN MORE WALLETS:
+      // new MathWalletAdapter(),
+      // new NightlyWalletAdapter(),
+      // new SafePalWalletAdapter(),
+      // new TokenPocketWalletAdapter(),
+      // new XDEFIWalletAdapter(),
+      // new CloverWalletAdapter(),
+      // new BitpieWalletAdapter(),
+      // new AvanaWalletAdapter(),
+      // new HuobiWalletAdapter(),
+      // new CoinhubWalletAdapter(),
+      
+      // ⚠️ DEVELOPMENT ONLY:
+      // new UnsafeBurnerWalletAdapter(), // Creates temporary wallets for testing
     ],
-    []
+    [network]
   );
 
   return (
@@ -468,7 +531,7 @@ export const useSolanaWalletContext = (): SolanaWalletContextType | null => {
  * ✅ Safe to call - uses strict version internally (only called within provider)
  */
 export const useSolanaConnection = () => {
-  const { wallet, isInitialized, connect, disconnect } = useSolanaWalletContextStrict(); // ✅ Fixed
+  const { wallet, isInitialized, connect, disconnect } = useSolanaWalletContextStrict();
 
   return {
     isConnected: wallet.isConnected,
@@ -485,7 +548,7 @@ export const useSolanaConnection = () => {
  * ✅ Safe to call - uses strict version internally (only called within provider)
  */
 export const useSolanaBalance = () => {
-  const { wallet, getBalance } = useSolanaWalletContextStrict(); // ✅ Fixed
+  const { wallet, getBalance } = useSolanaWalletContextStrict();
 
   return {
     solBalance: wallet.balance || '0',
@@ -499,7 +562,7 @@ export const useSolanaBalance = () => {
  * ✅ Safe to call - uses strict version internally (only called within provider)
  */
 export const useSolanaNetwork = () => {
-  const { currentCluster, switchNetwork } = useSolanaWalletContextStrict(); // ✅ Fixed
+  const { currentCluster, switchNetwork } = useSolanaWalletContextStrict();
 
   return {
     currentCluster,
@@ -509,6 +572,20 @@ export const useSolanaNetwork = () => {
     isTestnet: currentCluster === 'testnet',
   };
 };
+
+/**
+ * ============================================================================
+ * WALLET STANDARD NOTE
+ * ============================================================================
+ * 
+ * Backpack and other wallets that implement the Wallet Standard will be
+ * automatically detected and added to the wallet list, even if you don't
+ * explicitly add them above. However, adding them explicitly ensures they
+ * appear with proper branding and icons in the wallet modal.
+ * 
+ * This is why Backpack was working for you even though it wasn't in your
+ * original configuration!
+ */
 
 // ===================================================================
 // DEVELOPMENT HELPER
