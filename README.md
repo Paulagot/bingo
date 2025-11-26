@@ -71,7 +71,7 @@ FundRaisely enables charities and community organizations to run engaging quiz f
 ### Solana
 - **Status**: ✅ Fully Implemented
 - **Networks**: Devnet, Testnet, Mainnet
-- **Program ID**: `8W83G9mSeoQ6Ljcz5QJHYPjH2vQgw94YeVCnpY6KFt7i` (devnet)
+- **Program ID**: `7cBb4Ho5W66nBdcaAgt7sLnY3HG6jwTWkmCFF9d2yxBn` (devnet)
 - **Features**: Pool rooms, asset rooms, automatic token account creation
 - **Documentation**: See [Solana Chain Documentation](./src/chains/solana/README.md)
 
@@ -407,7 +407,7 @@ docker build -t fundraisely-bingo .
 ### Solana Configuration
 
 See `src/chains/solana/config.ts` for:
-- Program ID: `8W83G9mSeoQ6Ljcz5QJHYPjH2vQgw94YeVCnpY6KFt7i` (devnet)
+- Program ID: `7cBb4Ho5W66nBdcaAgt7sLnY3HG6jwTWkmCFF9d2yxBn` (devnet)
 - RPC Endpoints: Configurable per network
 - Token Mints: USDC, PYUSD, USDT, SOL
 - PDA Seeds: Must match Rust program

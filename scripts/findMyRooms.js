@@ -5,7 +5,7 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 
 // Program ID from your config
-const PROGRAM_ID = new PublicKey('8W83G9mSeoQ6Ljcz5QJHYPjH2vQgw94YeVCnpY6KFt7i');
+const PROGRAM_ID = new PublicKey('7cBb4Ho5W66nBdcaAgt7sLnY3HG6jwTWkmCFF9d2yxBn');
 
 // Your wallet public key (from the console logs)
 const YOUR_WALLET = 'C48gmshkEL8UdCe8GcpZKGwrEfCLbWWq4zk23tHmNDcE';

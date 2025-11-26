@@ -734,56 +734,60 @@ const EvmAssetUploadPanel: React.FC<{ chainName: string }> = ({ chainName }) => 
   };
 
   // ---- ERC-721 / 1155
-  const handleUploadNft = async (assetIndex: number) => {
-    try {
-      const prize = guard(assetIndex);
-      if (!prize.isNFT) throw new Error('Prize is not NFT');
+ // ---- ERC-721 / 1155
+const handleUploadNft = async (assetIndex: number) => {
+  try {
+    const prize = guard(assetIndex);
+    if (!prize.isNFT) throw new Error('Prize is not NFT');
 
-      const tokenIdStr = String(prize.tokenId ?? localTokenIds[assetIndex] ?? '').trim();
-      const amountStr = String(prize.value ?? localAmounts[assetIndex] ?? '').trim();
-      if (!tokenIdStr) throw new Error('Token ID required for NFT');
+    const tokenIdStr = String(prize.tokenId ?? localTokenIds[assetIndex] ?? '').trim();
+    const amountStr = String(prize.value ?? localAmounts[assetIndex] ?? '').trim();
+    if (!tokenIdStr) throw new Error('Token ID required for NFT');
 
-      if (!connected || !socket) throw new Error('Socket disconnected');
-      const s = socket;
-      if (!s) throw new Error('Socket missing');
+    if (!connected || !socket) throw new Error('Socket disconnected');
+    const s = socket;
+    if (!s) throw new Error('Socket missing');
 
-      setErr({});
-      setBusyIndex(assetIndex);
-      updatePrizeStatus(assetIndex, 'uploading');
+    setErr({});
+    setBusyIndex(assetIndex);
+    updatePrizeStatus(assetIndex, 'uploading');
 
-      let res;
-      if (amountStr) {
-        // ERC-1155
-        res = await uploadErc1155({
-          token: prize.tokenAddress as Address,
-          tokenId: BigInt(tokenIdStr),
-          amount: BigInt(amountStr),
-          place: prize.place,
-        });
-      } else {
-        // ERC-721
-        res = await uploadErc721({
-          token: prize.tokenAddress as Address,
-          tokenId: BigInt(tokenIdStr),
-          place: prize.place,
-        });
-      }
-
-      if (res.success) {
-        updatePrizeStatus(assetIndex, 'completed', res.hash);
-        s.emit('asset_upload_success', { roomId, prizeIndex: prize.place - 1, txHash: res.hash });
-      } else {
-        updatePrizeStatus(assetIndex, 'failed');
-        setErr((m) => ({ ...m, [assetIndex]: res.error }));
-      }
-    } catch (e: any) {
-      updatePrizeStatus(assetIndex, 'failed');
-      setErr((m) => ({ ...m, [assetIndex]: e?.message || 'Upload error' }));
-    } finally {
-      setBusyIndex(null);
-      await resyncFromContract();
+    let res;
+    const amount = amountStr ? parseInt(amountStr, 10) : 1;
+    
+    // ✅ ERC-1155 if amount > 1, otherwise ERC-721
+    if (amount > 1) {
+      // ERC-1155
+      res = await uploadErc1155({
+        token: prize.tokenAddress as Address,
+        tokenId: BigInt(tokenIdStr),
+        amount: BigInt(amount),
+        place: prize.place,
+      });
+    } else {
+      // ERC-721 (amount is 1 or not specified)
+      res = await uploadErc721({
+        token: prize.tokenAddress as Address,
+        tokenId: BigInt(tokenIdStr),
+        place: prize.place,
+      });
     }
-  };
+
+    if (res.success) {
+      updatePrizeStatus(assetIndex, 'completed', res.hash);
+      s.emit('asset_upload_success', { roomId, prizeIndex: prize.place - 1, txHash: res.hash });
+    } else {
+      updatePrizeStatus(assetIndex, 'failed');
+      setErr((m) => ({ ...m, [assetIndex]: res.error }));
+    }
+  } catch (e: any) {
+    updatePrizeStatus(assetIndex, 'failed');
+    setErr((m) => ({ ...m, [assetIndex]: e?.message || 'Upload error' }));
+  } finally {
+    setBusyIndex(null);
+    await resyncFromContract();
+  }
+};
 
   const iconFor = (status?: 'pending' | 'uploading' | 'completed' | 'failed') =>
     status === 'completed' ? (

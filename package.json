@@ -39,6 +39,7 @@
     "@reown/appkit-adapter-solana": "1.7.5",
     "@reown/appkit-adapter-wagmi": "1.7.5",
     "@solana-mobile/wallet-adapter-mobile": "^2.2.5",
+    "@solana-mobile/wallet-standard-mobile": "^0.4.4",
     "@solana/spl-token": "^0.4.13",
     "@solana/wallet-adapter-base": "^0.9.27",
     "@solana/wallet-adapter-keystone": "^0.1.19",

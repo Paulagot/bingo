@@ -80,7 +80,7 @@ All features are implemented and production-ready:
 - **Mainnet-beta**: Production deployment
 
 ### Program Integration
-- **Program ID**: `8W83G9mSeoQ6Ljcz5QJHYPjH2vQgw94YeVCnpY6KFt7i` (devnet)
+- **Program ID**: `7cBb4Ho5W66nBdcaAgt7sLnY3HG6jwTWkmCFF9d2yxBn` (devnet)
 - **Anchor Framework**: Type-safe program interactions
 - **IDL**: Auto-generated TypeScript types from Rust program
 
@@ -398,7 +398,7 @@ function CreateAssetRoom() {
 
 ```typescript
 // Devnet
-export const PROGRAM_ID = new PublicKey('8W83G9mSeoQ6Ljcz5QJHYPjH2vQgw94YeVCnpY6KFt7i');
+export const PROGRAM_ID = new PublicKey('7cBb4Ho5W66nBdcaAgt7sLnY3HG6jwTWkmCFF9d2yxBn');
 ```
 
 ### RPC Endpoints
