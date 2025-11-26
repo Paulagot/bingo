@@ -13,7 +13,7 @@ import {
   Target,
   Gift,
 } from 'lucide-react';
-import type { Prize } from '../types/quiz';
+import type { Prize, QuizConfig } from '../types/quiz';
 import ClearSetupButton from './ClearSetupButton';
 
 // --- Character with IMG placeholder (same style as StepWeb3QuizSetup) ---
@@ -140,14 +140,13 @@ const StepWeb3Prizes: FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst })
   const handleSplitChange = (place: number, value: number) => {
     setSplits((prev) => ({ ...prev, [place]: Number.isFinite(value) && value >= 0 ? value : 0 }));
   };
-
-  const handleExternalPrizeChange = <K extends keyof Prize>(index: number, field: K, value: Prize[K]) => {
-    setExternalPrizes((prev) => {
-      const updated = [...prev];
-      updated[index] = { ...updated[index], [field]: value };
-      return updated;
-    });
-  };
+const handleExternalPrizeChange = <K extends keyof Prize>(index: number, field: K, value: Prize[K]) => {
+  setExternalPrizes((prev) => {
+    const updated = [...prev];
+    updated[index] = { ...updated[index], [field]: value } as Prize;
+    return updated;
+  });
+};
 
   const totalPrizeSplit = useMemo(
     () => PRIZE_PLACES.reduce((acc, p) => acc + (Number.isFinite(splits[p]) ? (splits[p] as number) : 0), 0),
@@ -184,16 +183,22 @@ const StepWeb3Prizes: FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst })
       ) as Record<number, number>;
 
       // Save for pool mode (NO hostWallet anywhere)
-      updateSetupConfig({
-        web3PrizeSplit: {
-          charity: charityPct,
-          host: personalTake,
-          prizes: prizePoolPct,
-        },
-        prizeMode: 'split',
-        prizeSplits: prizePoolPct > 0 ? sanitizedSplits : undefined,
-        prizes: [], // external assets not used in pool mode
-      });
+   const updateData: Partial<QuizConfig> = {
+  web3PrizeSplit: {
+    charity: charityPct,
+    host: personalTake,
+    prizes: prizePoolPct,
+  },
+  prizeMode: 'split',
+  prizes: [],
+};
+
+// Only set prizeSplits if we have values
+if (prizePoolPct > 0) {
+  updateData.prizeSplits = sanitizedSplits;
+}
+
+updateSetupConfig(updateData);
     } else {
       // External assets mode
 
@@ -225,7 +230,7 @@ const StepWeb3Prizes: FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst })
           prizes: 0,
         },
         prizeMode: 'assets',
-        prizeSplits: undefined,
+       
         prizes: completePrizes,
       });
     }
@@ -607,6 +612,42 @@ const StepWeb3Prizes: FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst })
                         />
                       </div>
 
+                      {/* ✅ ADD THIS - EVM-only NFT type selector */}
+{setupConfig.web3Chain === 'evm' && (
+  <div>
+    <label className="text-fg/80 mb-1 block text-xs font-medium">
+      Token Type {required && <span className="text-red-500">*</span>}
+    </label>
+    <div className="flex gap-4">
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="radio"
+          name={`tokenType-${index}`}
+          checked={!prize.isNFT}
+          onChange={() => handleExternalPrizeChange(index, 'isNFT', false)}
+          className="h-4 w-4"
+        />
+        <span className="text-sm">ERC-20 (Fungible Token)</span>
+      </label>
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="radio"
+          name={`tokenType-${index}`}
+          checked={!!prize.isNFT}
+          onChange={() => handleExternalPrizeChange(index, 'isNFT', true)}
+          className="h-4 w-4"
+        />
+        <span className="text-sm">NFT (ERC-721/1155)</span>
+      </label>
+    </div>
+    <p className="text-xs text-fg/60 mt-1">
+      {prize.isNFT 
+        ? "For NFTs, the value above will be used as Token ID (ERC-721) or quantity (ERC-1155)"
+        : "For fungible tokens, the value is the amount to transfer (e.g., 100 USDC)"}
+    </p>
+  </div>
+)}
+
                       <div>
                         <label className="text-fg/80 mb-1 block text-xs font-medium">Sponsor (Optional)</label>
                         <input
@@ -704,7 +745,7 @@ const StepWeb3Prizes: FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst })
   size="sm"
   keepIds={false}
   flow="web3"
-  onCleared={onResetToFirst}
+  onCleared={onResetToFirst || (() => {})}
 />
 
           <button

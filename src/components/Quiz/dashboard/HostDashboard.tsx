@@ -294,31 +294,26 @@ const finalStatuses = new Set(['collected', 'delivered', 'unclaimed', 'refused',
   const paymentsLocked = postGameLock && !prizeWorkflowComplete;
 
   // === Final leaderboard for the Prizes tab ===
-  const prizeLeaderboard = useMemo(() => {
-    const fromRecon = ((config?.reconciliation as any)?.finalLeaderboard || []) as any[];
-    if (fromRecon.length) return fromRecon;
+const prizeLeaderboard = useMemo(() => {
+  // ✅ ALWAYS build fresh from current players
+  const list = (players || []).map((p: any) => ({
+    id: p.id,
+    name: p.name || p.id,
+    score:
+      typeof p.score === 'number'
+        ? p.score
+        : typeof p.totalScore === 'number'
+        ? p.totalScore
+        : typeof p.finalScore === 'number'
+        ? p.finalScore
+        : 0,
+  }));
 
-    const fromConfig = ((config as any)?.finalLeaderboard || []) as any[];
-    if (fromConfig.length) return fromConfig;
-
-    const list = (players || []).map((p: any) => ({
-      id: p.id,
-      name: p.name || p.id,
-      score:
-        typeof p.score === 'number'
-          ? p.score
-          : typeof p.totalScore === 'number'
-          ? p.totalScore
-          : typeof p.finalScore === 'number'
-          ? p.finalScore
-          : 0,
-    }));
-
-    if (list.every((l) => typeof l.score === 'number')) {
-      list.sort((a, b) => (b.score || 0) - (a.score || 0));
-    }
-    return list;
-  }, [config?.reconciliation?.finalLeaderboard, (config as any)?.finalLeaderboard, players]);
+  // Sort by score descending
+  list.sort((a, b) => (b.score || 0) - (a.score || 0));
+  
+  return list;
+}, [players]);
 
   // On first Prizes visit after completion: snapshot standings and auto-declare awards if missing
   useEffect(() => {
@@ -337,7 +332,12 @@ const finalStatuses = new Set(['collected', 'delivered', 'unclaimed', 'refused',
     const patch: any = {};
     if (needSnapshot) patch.finalLeaderboard = prizeLeaderboard;
 
-    if (prizes.length && !haveAwards && prizeLeaderboard.length) {
+   if (prizes.length && !haveAwards && prizeLeaderboard.length > 0) {
+  // Only run if we have NO awards at all
+  if (existingAwards.length > 0) {
+    console.log('[HostDashboard] Awards already exist, skipping auto-assignment');
+    return;
+  }
       const rankByPlace = new Map<number, any>();
       prizeLeaderboard.forEach((entry: any, idx: number) => rankByPlace.set(idx + 1, entry));
 

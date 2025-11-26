@@ -6,7 +6,7 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { getAccount } from '@solana/spl-token';
 
-const PROGRAM_ID = new PublicKey('8W83G9mSeoQ6Ljcz5QJHYPjH2vQgw94YeVCnpY6KFt7i');
+const PROGRAM_ID = new PublicKey('7cBb4Ho5W66nBdcaAgt7sLnY3HG6jwTWkmCFF9d2yxBn');
 
 // PDA derivation (same as in solana-asset-room.ts)
 function deriveRoomPDA(host, roomId) {
