@@ -5,198 +5,190 @@ import react from '@vitejs/plugin-react';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 export default defineConfig(({ mode }) => {
-  // Load env file based on `mode` in the current working directory.
   const env = loadEnv(mode, process.cwd(), '');
 
   return {
-    // Define polyfills for Node.js modules used by Web3 libraries
     base: '/',
+
+    // Define global polyfill (required for Solana + WC)
     define: {
       global: 'globalThis',
-      'process.env.VITE_SOLANA_PROGRAM_ID': JSON.stringify(env.VITE_SOLANA_PROGRAM_ID),
-      'process.env.VITE_SOLANA_NETWORK': JSON.stringify(env.VITE_SOLANA_NETWORK),
     },
-  
-  plugins: [
-    react(),
-    nodePolyfills({
-      // Whether to polyfill specific globals.
-      globals: {
-        Buffer: true,
-        global: true,
-        process: true,
+
+    plugins: [
+      react(),
+      nodePolyfills({
+        globals: {
+          Buffer: true,
+          global: true,
+          process: true,
+        },
+        protocolImports: true,
+      }),
+    ],
+
+    build: {
+      commonjsOptions: {
+        transformMixedEsModules: true,
+        requireReturnsDefault: 'auto',
       },
-      // Whether to polyfill Node.js built-in modules.
-      protocolImports: true,
-    }),
-  ],
-  
-  // Build optimizations
-  build: {
-    commonjsOptions: {
-      transformMixedEsModules: true,
-      requireReturnsDefault: 'auto',
-    },
-    // Code splitting configuration
-    rollupOptions: {
-      plugins: [
-        {
-          name: 'stub-core-js',
-          resolveId(id) {
-            if (id.startsWith('core-js/modules/')) {
-              return '\0stub:' + id; // Virtual module
+
+      rollupOptions: {
+        plugins: [
+          {
+            name: 'stub-core-js',
+            resolveId(id) {
+              if (id.startsWith('core-js/modules/')) {
+                return '\0stub:' + id;
+              }
+              return null;
+            },
+            load(id) {
+              if (id.startsWith('\0stub:core-js/modules/')) {
+                return 'export {};';
+              }
+              return null;
             }
-            return null;
+          }
+        ],
+
+        output: {
+          format: 'es',
+          preserveModules: false,
+          generatedCode: {
+            constBindings: false,
           },
-          load(id) {
-            if (id.startsWith('\0stub:core-js/modules/')) {
-              return 'export {};'; // Empty module stub
-            }
-            return null;
+          entryFileNames: 'assets/[name].[hash].js',
+          chunkFileNames: 'assets/[name].[hash].js',
+          assetFileNames: 'assets/[name].[hash].[ext]',
+
+          manualChunks: {
+            // React core
+            'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+
+            // Solana ecosystem
+            'solana-core': ['@solana/web3.js'],
+            'solana-tokens': ['@solana/spl-token'],
+            'solana-anchor': ['@coral-xyz/anchor'],
+            'solana-wallets': [
+              '@solana/wallet-adapter-wallets',
+              '@solana/wallet-adapter-base'
+            ],
+
+            // WalletConnect isolation (CRITICAL for mobile)
+            'walletconnect': [
+              '@walletconnect/sign-client',
+              '@walletconnect/utils',
+              '@walletconnect/core',
+              '@walletconnect/jsonrpc-provider',
+              '@walletconnect/jsonrpc-utils',
+              '@solana/wallet-adapter-walletconnect'
+            ],
+
+            // EVM libs
+            'web3-ethereum': [
+              'wagmi',
+              'viem',
+              'ethers',
+              '@rainbow-me/rainbowkit'
+            ],
+
+            // Reown
+            'web3-appkit': [
+              '@reown/appkit',
+              '@reown/appkit-adapter-solana',
+              '@reown/appkit-adapter-wagmi'
+            ],
+
+            // UI and util libs
+            'ui-vendor': [
+              '@headlessui/react',
+              'framer-motion',
+              'lucide-react'
+            ],
+
+            'utils': ['lodash', 'zustand', 'bs58', 'uuid']
           }
         }
-      ],
-      output: {
-        format: 'es',
-        preserveModules: false,
-        generatedCode: {
-          constBindings: false,
-        },
-        // Ensure React is loaded first
-        entryFileNames: 'assets/[name].[hash].js',
-        chunkFileNames: 'assets/[name].[hash].js',
-        assetFileNames: 'assets/[name].[hash].[ext]',
-        manualChunks: {
-          // Separate vendor chunks - Match main branch approach exactly
-          // React MUST be bundled together to prevent multiple instances and loading order issues
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          
-          // Split Solana into smaller chunks
-          'solana-core': ['@solana/web3.js'],
-          'solana-tokens': ['@solana/spl-token'],
-          'solana-anchor': ['@coral-xyz/anchor'],
-          'solana-wallets': ['@solana/wallet-adapter-wallets'],
-          
-          // EVM libraries
-          'web3-ethereum': [
-            'wagmi', 
-            'viem', 
-            'ethers', 
-            '@rainbow-me/rainbowkit'
-          ],
-          
-          // Web3 AppKit
-          'web3-appkit': [
-            '@reown/appkit',
-            '@reown/appkit-adapter-solana',
-            '@reown/appkit-adapter-wagmi'
-          ],
-          
-          // UI libraries
-          'ui-vendor': [
-            '@headlessui/react', 
-            'framer-motion', 
-            'lucide-react'
-          ],
-          
-          // Utility libraries
-          'utils': ['lodash', 'zustand', 'bs58', 'uuid']
+      },
+
+      chunkSizeWarningLimit: 1500,
+      sourcemap: true,
+      cssCodeSplit: true,
+      minify: 'esbuild',
+      target: 'esnext',
+
+      modulePreload: {
+        polyfill: true,
+        resolveDependencies: (filename, deps) => {
+          const reactChunks = deps.filter(dep => dep.includes('react-vendor'));
+          const otherChunks = deps.filter(dep => !dep.includes('react-vendor'));
+          return [...reactChunks, ...otherChunks];
         }
       }
     },
-    
-    // Increase chunk size warning limit since Web3 libs are naturally large
-    chunkSizeWarningLimit: 1500,
-    
-    // Enable source maps for production debugging
-    sourcemap: true,
-    
-    // CSS optimization
-    cssCodeSplit: true,
-    
-    // Use default esbuild minification (handles CSS better than custom configs)
-    minify: 'esbuild',
-    
-    // Target modern browsers for better optimization
-    target: 'esnext',
-    
-    // Enable module preload to ensure React loads first
-    modulePreload: {
-      polyfill: true,
-      resolveDependencies: (filename, deps) => {
-        // Ensure react-vendor chunk loads before any other chunks
-        const reactChunks = deps.filter(dep =>
-          dep.includes('react-vendor')
-        );
-        const otherChunks = deps.filter(dep =>
-          !dep.includes('react-vendor')
-        );
-        // Return React chunks first, then others
-        return [...reactChunks, ...otherChunks];
-      }
-    }
-  },
 
-  optimizeDeps: {
-    // Pre-bundle these heavy dependencies
-    include: [
-      'react',
-      'react/jsx-runtime',
-      'react-dom', 
-      '@solana/web3.js',
-      'wagmi',
-      'ethers',
-      'zustand',
-      'core-js'
-    ],
-    exclude: ['lucide-react'],
-    // Ensure React is always available
-    esbuildOptions: {
-      jsx: 'automatic',
-    },
-  },
+    optimizeDeps: {
+      include: [
+        'react',
+        'react/jsx-runtime',
+        'react-dom',
+        '@solana/web3.js',
+        'wagmi',
+        'ethers',
+        'zustand',
+        'core-js',
 
-  // Performance optimizations
-  server: {
-  port: 5173,
-  proxy: {
-    // ✅ Only API under /quiz/api
-    '/quiz/api': {
-      target: 'http://localhost:3001',
-      changeOrigin: true,
+        // 🔥 WalletConnect MUST be prebundled (Fixes mobile issues)
+        '@solana/wallet-adapter-walletconnect',
+        '@walletconnect/sign-client',
+        '@walletconnect/core',
+        '@walletconnect/utils',
+        '@walletconnect/jsonrpc-provider',
+        '@walletconnect/jsonrpc-utils',
+      ],
+      exclude: ['lucide-react'],
+      esbuildOptions: { jsx: 'automatic' },
     },
-    // ✅ Socket.IO
-    '/socket.io': {
-      target: 'http://localhost:3001',
-      ws: true,
-      changeOrigin: true,
-    },
-    // Optional: other backend routes (not SPA)
-    '/api': {
-      target: 'http://localhost:3001',
-      changeOrigin: true,
-    },
-  },
-  fs: { cachedChecks: false },
-},
 
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    setupFiles: './src/setupTests.ts',
-    include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-    exclude: ['node_modules', 'dist', '.next', '.nuxt', '.vercel', 'src/test/integration/**'],
-  },
-
-  resolve: {
-    alias: {
-      '@': '/src',
-      '@app': '/src/app',
-      '@features': '/src/features',
-      '@shared': '/src/shared',
-      '@entities': '/src/entities',
-      '@widgets': '/src/widgets',
+    server: {
+      port: 5173,
+      proxy: {
+        '/quiz/api': {
+          target: 'http://localhost:3001',
+          changeOrigin: true
+        },
+        '/socket.io': {
+          target: 'http://localhost:3001',
+          ws: true,
+          changeOrigin: true
+        },
+        '/api': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+        },
+      },
+      fs: { cachedChecks: false },
     },
-  },
-};
+
+    test: {
+      globals: true,
+      environment: 'jsdom',
+      setupFiles: './src/setupTests.ts',
+      include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+      exclude: ['node_modules', 'dist', '.next', '.nuxt', '.vercel', 'src/test/integration/**'],
+    },
+
+    resolve: {
+      alias: {
+        '@': '/src',
+        '@app': '/src/app',
+        '@features': '/src/features',
+        '@shared': '/src/shared',
+        '@entities': '/src/entities',
+        '@widgets': '/src/widgets',
+      },
+    },
+  };
 });
+

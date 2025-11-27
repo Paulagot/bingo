@@ -11,7 +11,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 // Hardcoded PROGRAM_ID (from config.ts)
-const PROGRAM_ID = new PublicKey('8W83G9mSeoQ6Ljcz5QJHYPjH2vQgw94YeVCnpY6KFt7i');
+const PROGRAM_ID = new PublicKey('7cBb4Ho5W66nBdcaAgt7sLnY3HG6jwTWkmCFF9d2yxBn');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

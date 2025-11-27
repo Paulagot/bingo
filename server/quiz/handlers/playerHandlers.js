@@ -12,7 +12,8 @@ import {
   updatePlayerSession,
   getPlayerSession,
   isPlayerInActiveSession,
-  cleanExpiredSessions
+  cleanExpiredSessions,
+   isQuizComplete
 } from '../quizRoomManager.js';
 import { emitFullRoomState } from '../handlers/sharedUtils.js';
 
@@ -274,95 +275,116 @@ export function setupPlayerHandlers(socket, namespace) {
    *
    * payload: { roomId, playerId, updates }
    */
-  socket.on('update_player', (payload, ack) => {
-    const sendAck = typeof ack === 'function' ? ack : () => {};
-    try {
-      const { roomId, playerId, updates } = payload || {};
-      if (!roomId || !playerId || !updates || typeof updates !== 'object') {
-        if (debug) console.warn('[update_player] ❌ Invalid payload', payload);
-        return sendAck({ ok: false, error: 'Invalid payload' });
-      }
+socket.on('update_player', (payload, ack) => {
+  const sendAck = typeof ack === 'function' ? ack : () => {};
+  try {
+    const { roomId, playerId, updates } = payload || {};
+    if (!roomId || !playerId || !updates || typeof updates !== 'object') {
+      if (debug) console.warn('[update_player] ❌ Invalid payload', payload);
+      return sendAck({ ok: false, error: 'Invalid payload' });
+    }
 
-          // 🔎 Add this block:
+    // 🔎 Debug logging
     if (debug) {
       console.log('[update_player] raw updates.paymentMethod =', updates.paymentMethod);
       console.log('[update_player] raw updates.extraPayments =', updates.extraPayments);
+      console.log('[update_player] raw updates.extras =', updates.extras);
+      console.log('[update_player] raw updates.paid =', updates.paid);
     }
 
-      const room = getQuizRoom(roomId);
-      if (!room) {
-        if (debug) console.warn('[update_player] ❌ Room not found', roomId);
-        return sendAck({ ok: false, error: 'Room not found' });
-      }
-
-      const existing = room.players.find((p) => p.id === playerId);
-      if (!existing) {
-        if (debug) console.warn('[update_player] ❌ Player not found', { roomId, playerId });
-        return sendAck({ ok: false, error: 'Player not found' });
-      }
-
-      // Normalise payment method if it’s in the updates
-      const nextPaymentMethod =
-        updates.paymentMethod != null
-          ? normalizePaymentMethod(updates.paymentMethod)
-          : existing.paymentMethod;
-
-      // Normalise extraPayments if provided, otherwise keep existing
-     // Normalise extraPayments if provided, otherwise keep existing
-const nextExtraPayments =
-  updates.extraPayments != null
-    ? {
-        ...(existing.extraPayments || {}),
-        ...normalizeExtraPayments(updates.extraPayments),
-      }
-    : (existing.extraPayments || {});
-
-
-      // If extras array provided, use it; otherwise keep existing
-      const nextExtras =
-        Array.isArray(updates.extras) ? updates.extras : (existing.extras || []);
-
-      const merged = {
-        ...existing,
-        ...updates,
-        paymentMethod: nextPaymentMethod,
-        extras: nextExtras,
-        extraPayments: nextExtraPayments,
-      };
-
-      addOrUpdatePlayer(roomId, merged);
-
-      if (debug) {
-        console.log('[update_player] ✅ Updated player', {
-          roomId,
-          playerId,
-          merged,
-        });
-      }
-
-      // Build a lite list for UI
-      const playersLite = room.players.map((p) => ({
-        id: p.id,
-        name: p.name,
-        paid: !!p.paid,
-        paymentMethod: p.paymentMethod,
-        extras: p.extras || [],
-        disqualified: !!p.disqualified,
-      }));
-
-      // Broadcast to host/admin/players so PlayerListPanel + waiting pages update
-      namespace.to(roomId).emit('player_list_updated', { players: playersLite });
-
-      // Keep other UIs in sync (scoreboard, etc.)
-      emitRoomState(namespace, roomId);
-      emitFullRoomState(socket, namespace, roomId);
-
-      return sendAck({ ok: true, player: merged });
-    } catch (err) {
-      console.error('[update_player] 💥 Error:', err);
-      return sendAck({ ok: false, error: 'Internal error' });
+    const room = getQuizRoom(roomId);
+    if (!room) {
+      if (debug) console.warn('[update_player] ❌ Room not found', roomId);
+      return sendAck({ ok: false, error: 'Room not found' });
     }
-  });
+
+    const existing = room.players.find((p) => p.id === playerId);
+    if (!existing) {
+      if (debug) console.warn('[update_player] ❌ Player not found', { roomId, playerId });
+      return sendAck({ ok: false, error: 'Player not found' });
+    }
+
+    // Normalise payment method if it's in the updates
+    const nextPaymentMethod =
+      updates.paymentMethod != null
+        ? normalizePaymentMethod(updates.paymentMethod)
+        : existing.paymentMethod;
+
+    // If extras array provided, use it; otherwise keep existing
+    const nextExtras =
+      Array.isArray(updates.extras) ? updates.extras : (existing.extras || []);
+
+    // ✅ FIX: Rebuild extraPayments based on current extras array
+    // This ensures payment method is consistent for all extras
+    let nextExtraPayments;
+    if (updates.extraPayments != null) {
+      // If extraPayments explicitly provided in updates, use it (normalized)
+      nextExtraPayments = normalizeExtraPayments(updates.extraPayments);
+    } else if (Array.isArray(updates.extras)) {
+      // ✅ CRITICAL: If extras array changed, rebuild extraPayments with current payment method
+      nextExtraPayments = {};
+      for (const extraId of nextExtras) {
+        // Try to preserve existing payment info, or use current payment method
+        const existingPayment = existing.extraPayments?.[extraId];
+        nextExtraPayments[extraId] = existingPayment
+          ? { ...existingPayment, method: nextPaymentMethod } // Update method but keep amount
+          : {
+              method: nextPaymentMethod,
+              amount: room.config?.fundraisingPrices?.[extraId] || 0,
+            };
+      }
+    } else {
+      // No changes to extras, keep existing extraPayments
+      nextExtraPayments = existing.extraPayments || {};
+    }
+
+    const merged = {
+      ...existing,
+      ...updates,
+      paymentMethod: nextPaymentMethod,
+      extras: nextExtras,
+      extraPayments: nextExtraPayments,
+    };
+
+    // ✅ This will now properly update playerData.purchases and playerData.paymentMethod
+    addOrUpdatePlayer(roomId, merged);
+
+    if (debug) {
+      console.log('[update_player] ✅ Updated player', {
+        roomId,
+        playerId,
+        name: merged.name,
+        paid: merged.paid,
+        paymentMethod: merged.paymentMethod,
+        extras: merged.extras,
+        extraPayments: merged.extraPayments,
+      });
+    }
+
+    // Build a lite list for UI
+    const playersLite = room.players.map((p) => ({
+      id: p.id,
+      name: p.name,
+      paid: !!p.paid,
+      paymentMethod: p.paymentMethod,
+      extras: p.extras || [],
+      extraPayments: p.extraPayments || {}, // ✅ Include this for debugging
+      disqualified: !!p.disqualified,
+    }));
+
+    // Broadcast to host/admin/players so PlayerListPanel + waiting pages update
+    namespace.to(roomId).emit('player_list_updated', { players: playersLite });
+
+    // Keep other UIs in sync (scoreboard, etc.)
+    emitRoomState(namespace, roomId);
+    emitFullRoomState(socket, namespace, roomId);
+
+    return sendAck({ ok: true, player: merged });
+  } catch (err) {
+    console.error('[update_player] 💥 Error:', err);
+    return sendAck({ ok: false, error: 'Internal error' });
+  }
+});
 
 
   // --- Tie-breaker: player submits numeric answer ---
@@ -441,11 +463,20 @@ socket.on('player_route_change', ({ roomId, playerId, route, entering }) => {
 
   socket.on('submit_answer', ({ roomId, playerId, questionId, answer, autoTimeout }) => {
     if (debug) console.log(`[DEBUG] submit_answer received:`, { roomId, playerId, questionId, answer, autoTimeout });
-    const room = getQuizRoom(roomId);
-    if (!room) {
-      socket.emit('quiz_error', { message: 'Room not found' });
-      return;
-    }
+    
+    // ✅ NEW: Guard against answers after completion
+  const room = getQuizRoom(roomId);
+  if (!room) {
+    socket.emit('quiz_error', { message: 'Room not found' });
+    return;
+  }
+
+  // ✅ CRITICAL: Block submissions if quiz is complete
+  if (room.currentPhase === 'complete' || room.completedAt) {
+    if (debug) console.warn('[submit_answer] ⚠️ Quiz already complete, ignoring answer from', playerId);
+    socket.emit('quiz_error', { message: 'Quiz has already completed' });
+    return;
+  }
 
     const enginePromise = getEngine(room);
     if (!enginePromise) {

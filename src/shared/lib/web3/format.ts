@@ -27,7 +27,7 @@
  * const formatted = formatAmount(1_234_567, 6); // "1.234567"
  *
  * // Truncate Solana address
- * const short = formatAddress('8W83G9mSeoQ6Ljcz5QJHYPjH2vQgw94YeVCnpY6KFt7i');
+ * const short = formatAddress('7cBb4Ho5W66nBdcaAgt7sLnY3HG6jwTWkmCFF9d2yxBn');
  * // "8W83...Ft7i"
  * ```
  */
@@ -180,7 +180,7 @@ export function parseAmount(amount: string, decimals: number): string {
  * @example
  * ```typescript
  * // Solana address
- * formatAddress('8W83G9mSeoQ6Ljcz5QJHYPjH2vQgw94YeVCnpY6KFt7i');
+ * formatAddress('7cBb4Ho5W66nBdcaAgt7sLnY3HG6jwTWkmCFF9d2yxBn');
  * // "8W83...Ft7i"
  *
  * // EVM address

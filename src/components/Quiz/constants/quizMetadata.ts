@@ -23,7 +23,7 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     id: 'general_trivia',
     name: 'General Trivia',
     icon: '🧠',
-    description: 'Classic multiple choice trivia game. Points awarded for correct answers. Hints and Freeze out are available as fundraising extras.',
+    description: 'Welcome to this general round.  It is a typical multiple choice, tap the screen to select your answser. Hints and Freeze out are available to play during the question phase. At the end of the question phase we will move on to the review phase, the host will navigate the review and all questions will be scored. At the end of the review phase you will see the round leaderboard. Here you can use Robbin Hood. Are you ready to get started',
     gameplay: 'Host reads questions → teams see question & answers → automatically serves host and players next question after 25s → Host controlled review of questions with answers → Host presents Leaderboard',
     pros: [ 'Steady pace', 'Fair for all teams', 'Customizable levels of difficulty'],
     timing: '30 seconds per question',
@@ -47,7 +47,7 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     id: 'speed_round',
     name: 'Speed Round',
     icon: '⚡',
-    description: 'Answer as many True/False as possible in 75 seconds. You can skip.',
+    description: 'Welcome to the Speend Round.  Players must answer as many questions as possible in the given time. You can skip a question and you will not be deducted points.  The host will NOT read out the questions in this round, so pay close attention to your device, tap the answer and the questions will advance. There are 40 questions in total, can you get them all?.',
     gameplay: 'Host starts → 75s global timer → tap answer 1 / answer 2/ Skip → instant scoring → Review → Round Leaderboard.',
     pros: ['Fast-paced', 'Mobile-friendly', 'High engagement'],
     timing: '75 seconds',
@@ -67,7 +67,7 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     id: 'wipeout',
     name: 'Wipeout',
     icon: '💀',
-    description: 'Welcome to the Wipeout Round.  Here points are awarded for correct answers. Points deducted for wrong answers or no answer. Hints, Freeze out, Rob Points and Restore points are available as player arsnal during this round.  Are you ready to get started?',
+    description: 'Welcome to the Wipeout Round. The host will read out each question and each question will auto advance when the time runs out. Points are awarded for correct answers. But in this round points are also deducted for wrong answers or no answer. Hints and Freeze outs are available as player arsnal during the question phase. At the end of the question phase we will move on to the review phase, the host will navigate the review and all questions will be scored. At the end of the review phase you will see the round leaderboard. Here you can use Robbin Hood and Restore points. This is a FAST round. Keep your eyes on your screens, Are you ready to get started?',
     gameplay: ' Host reads questions → teams see question & answers → automatically serves host and players next question after 18s → Host controlled review of questions with answers → Host presents Leaderboard (correct answers = 2 point, wrong answers = -2 point)',
     pros: ['Strategic', 'High tension', 'Risk vs reward'],
     timing: '22 seconds per question',
@@ -196,7 +196,7 @@ export const availableDifficulties = ['easy', 'medium', 'hard'] as const;
 export const availableCategories: Record<RoundTypeId, string[]> = {
   general_trivia: ['General Knowledge','Olympic Sports', 'Pop Music', 'History', 'World Capitals', 'Pop Culture', 'Web3', 'Children'],
   wipeout: ['General Knowledge','Olympic Sports', 'Pop Music', 'History', 'World Capitals', 'Pop Culture', 'Web3', 'Children'],
-  speed_round: ['Math', 'Emojis', 'Pop Music', 'Sport', ],
+  speed_round: ['Math', 'Emojis', 'Pop Music', 'Sport', 'Flags of the World' ],
   // media_puzzle: [...],
   // head_to_head: [...]
 };

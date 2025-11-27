@@ -19,7 +19,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Default program ID (from config)
-const DEFAULT_PROGRAM_ID = '8W83G9mSeoQ6Ljcz5QJHYPjH2vQgw94YeVCnpY6KFt7i';
+const DEFAULT_PROGRAM_ID = '7cBb4Ho5W66nBdcaAgt7sLnY3HG6jwTWkmCFF9d2yxBn';
 const IDL_FILE_PATH = join(__dirname, '../src/idl/solana_bingo.json');
 const RPC_URL = 'https://api.devnet.solana.com';
 

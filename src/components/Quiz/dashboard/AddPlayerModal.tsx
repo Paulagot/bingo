@@ -45,11 +45,29 @@ function getDefaultPaymentMethod(config: any): PaymentMethod {
   } catch {}
 
   // d) Neutral fallback
-  return 'unknown';
+  return 'cash'; // ✅ Changed from 'unknown' to 'cash' for better UX
 }
 
-function normalizeMethod(maybe: string): PaymentMethod | 'other' {
-  return isAllowedMethod(maybe) ? maybe : 'other';
+// ✅ NEW: Helper to ensure valid payment method from existing player data
+function ensureValidPaymentMethod(value: any): PaymentMethod {
+  if (typeof value === 'string') {
+    const lower = value.toLowerCase();
+    
+    // Direct match
+    if (isAllowedMethod(value)) {
+      return value as PaymentMethod;
+    }
+    
+    // Handle common variations
+    if (lower.includes('instant') || lower === 'revolut') return 'instant payment';
+    if (lower === 'other') return 'cash'; // Treat 'other' as 'cash'
+    if (lower.includes('cash')) return 'cash';
+    if (lower.includes('card')) return 'card';
+    if (lower.includes('web3') || lower.includes('crypto')) return 'web3';
+  }
+  
+  // Default to cash for invalid/unknown values
+  return 'cash';
 }
 
 /** ---------- Component ---------- */
@@ -122,22 +140,21 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
       return;
     }
 
-    const sanitized = normalizeMethod(paymentMethod);
-
+    // ✅ FIXED: Use paymentMethod directly (it's already validated)
     if (effectiveMode === 'add') {
       // ADD MODE: create a brand new player
       const newPlayer = {
         id: nanoid(),
         name: trimmedName,
         paid,
-        paymentMethod, // keep exact selection on the player
+        paymentMethod, // ✅ Use the validated payment method
         credits: 0,
         extras: selectedExtras,
         extraPayments: Object.fromEntries(
           selectedExtras.map((key) => [
             key,
             {
-              method: sanitized, // record method used per extra
+              method: paymentMethod, // ✅ Use same method for all extras
               amount: config?.fundraisingPrices?.[key] || 0,
             },
           ])
@@ -162,22 +179,22 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
       const updates = {
         name: trimmedName,
         paid,
-        paymentMethod,
+        paymentMethod, // ✅ Use the validated payment method
         extras: selectedExtras,
         extraPayments: Object.fromEntries(
           selectedExtras.map((key) => [
             key,
             {
-              method: sanitized,
+              method: paymentMethod, // ✅ Use same method for all extras
               amount: config?.fundraisingPrices?.[key] || 0,
             },
           ])
         ),
       };
 
-        if (debug) {
-      console.log('[AddPlayerModal] submitting updates:', updates);
-    }
+      if (debug) {
+        console.log('[AddPlayerModal] submitting updates:', updates);
+      }
 
       socket.emit(
         'update_player',
@@ -205,17 +222,30 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
     }
   };
 
-  // Reset / hydrate fields when modal opens
+  // ✅ FIXED: Reset / hydrate fields when modal opens with proper validation
   useEffect(() => {
     if (isOpen) {
       if (effectiveMode === 'edit' && playerToEdit) {
         // Populate from existing player
         setName(playerToEdit.name || initialName || '');
         setSelectedExtras(Array.isArray(playerToEdit.extras) ? playerToEdit.extras : []);
-        setPaymentMethod(
-          (playerToEdit.paymentMethod as PaymentMethod) || getDefaultPaymentMethod(config)
-        );
+        
+        // ✅ CRITICAL FIX: Properly validate and set payment method
+        const existingMethod = playerToEdit.paymentMethod;
+        const validMethod = ensureValidPaymentMethod(existingMethod);
+        setPaymentMethod(validMethod);
+        
         setPaid(!!playerToEdit.paid);
+        
+        if (debug) {
+          console.log('[AddPlayerModal] Edit mode hydration:', {
+            playerId: playerToEdit.id,
+            existingMethod,
+            validMethod,
+            paid: playerToEdit.paid,
+            extras: playerToEdit.extras
+          });
+        }
       } else {
         // Fresh add mode
         setName(initialName);
@@ -318,6 +348,10 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
                   try {
                     localStorage.setItem(LAST_PM_KEY, next);
                   } catch {}
+                  
+                  if (debug) {
+                    console.log('[AddPlayerModal] Payment method changed to:', next);
+                  }
                 }}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2"
               >

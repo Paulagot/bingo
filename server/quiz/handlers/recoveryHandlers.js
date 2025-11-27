@@ -33,7 +33,6 @@ function isPlaceholderName(name, id) {
   );
 }
 
-
 function normalizeExtraPayments(extraPayments) {
   if (!extraPayments || typeof extraPayments !== 'object') return {};
   return Object.fromEntries(
@@ -81,8 +80,8 @@ export function setupRecoveryHandlers(socket, namespace) {
         return sendAck({ ok: false, error: 'Room not found' });
       }
 
-       // Keep session table tidy (same as playerHandlers)
- cleanExpiredSessions(roomId);
+      // Keep session table tidy (same as playerHandlers)
+      cleanExpiredSessions(roomId);
 
       const isPlayerRole = role === 'player';
 
@@ -110,7 +109,7 @@ export function setupRecoveryHandlers(socket, namespace) {
       if (prevSocketId && prevSocketId !== socket.id) {
         const prevSocket = namespace.sockets.get(prevSocketId);
         if (prevSocket && prevSocket.connected) {
-          // Only boot if it’s actually a PLAYER socket for this room
+          // Only boot if it's actually a PLAYER socket for this room
           const isSameRoom = prevSocket.rooms.has(roomId);
           const isPlayerSock = prevSocket.rooms.has(`${roomId}:player`);
           const isHostSock = prevSocket.rooms.has(`${roomId}:host`);
@@ -144,91 +143,91 @@ export function setupRecoveryHandlers(socket, namespace) {
       socket.join(roomId);
       socket.join(`${roomId}:${role}`);
 
-      // we’ll broadcast this later; players get a normalized user object
+      // we'll broadcast this later; players get a normalized user object
       let joinedUser = null;
 
       // ✅ Only treat as a player if role === 'player'
       if (isPlayerRole) {
         // Normalize payment fields from the client
-       // Normalize fields
-const normalizedPaymentMethod = normalizePaymentMethod(user.paymentMethod);
-const normalizedExtraPayments = normalizeExtraPayments(user.extraPayments);
+        const normalizedPaymentMethod = normalizePaymentMethod(user.paymentMethod);
+        const normalizedExtraPayments = normalizeExtraPayments(user.extraPayments);
 
-const sanitizedUser = {
-  ...user,
-  paymentMethod: normalizedPaymentMethod,
-  extraPayments: normalizedExtraPayments,
-  socketId: socket.id,
-};
+        const sanitizedUser = {
+          ...user,
+          paymentMethod: normalizedPaymentMethod,
+          extraPayments: normalizedExtraPayments,
+          socketId: socket.id,
+        };
 
-// --- name guard helpers ---
-function isPlaceholderName(name, id) {
-  if (!name) return true;
-  const n = String(name).trim();
-  return n.toLowerCase() === 'player' || n === id || n.startsWith('Player ');
-}
+        // Decide which name to keep (protect real names from placeholder overwrites)
+        const incomingName = sanitizedUser.name;
+        const existingName = existingPlayer?.name;
+        let nameToUse;
 
-// Decide which name to keep (protect real names from placeholder overwrites)
-const incomingName = sanitizedUser.name;
-const existingName = existingPlayer?.name;
-let nameToUse;
+        if (!existingPlayer) {
+          // brand new player
+          nameToUse = !isPlaceholderName(incomingName, user.id)
+            ? incomingName
+            : `Player ${user.id}`; // harmless fallback, UI won't use if it doesn't show placeholders
+        } else {
+          // existing player: keep the existing real name; only upgrade from placeholder → real
+          if (!isPlaceholderName(incomingName, user.id) && isPlaceholderName(existingName, user.id)) {
+            nameToUse = incomingName; // promote
+          } else {
+            nameToUse = existingName || incomingName;
+          }
+        }
 
-if (!existingPlayer) {
-  // brand new player
-  nameToUse = !isPlaceholderName(incomingName, user.id)
-    ? incomingName
-    : `Player ${user.id}`; // harmless fallback, UI won’t use if it doesn’t show placeholders
-} else {
-  // existing player: keep the existing real name; only upgrade from placeholder → real
-  if (!isPlaceholderName(incomingName, user.id) && isPlaceholderName(existingName, user.id)) {
-    nameToUse = incomingName; // promote
-  } else {
-    nameToUse = existingName || incomingName;
-  }
-}
+        if (!existingPlayer) {
+          // ✅ NEW PLAYER: addOrUpdatePlayer will initialize playerData with purchases
+          addOrUpdatePlayer(roomId, { ...sanitizedUser, name: nameToUse });
+          joinedUser = { ...sanitizedUser, name: nameToUse };
 
-if (!existingPlayer) {
-  addOrUpdatePlayer(roomId, { ...sanitizedUser, name: nameToUse });
-  joinedUser = { ...sanitizedUser, name: nameToUse };
+          updatePlayerSocketId(roomId, user.id, socket.id);
+          updatePlayerSession(roomId, user.id, {
+            socketId: socket.id,
+            status: 'waiting',
+            inPlayRoute: false,
+            lastActive: Date.now(),
+          });
+        } else {
+          // ✅ EXISTING PLAYER: Merge carefully and ensure purchases sync
+          const mergedExisting = {
+            ...existingPlayer,
+            ...sanitizedUser,
+            // ✅ Merge extraPayments (preserve existing + overlay new)
+            extraPayments: {
+              ...(existingPlayer.extraPayments || {}),
+              ...(sanitizedUser.extraPayments || {}),
+            },
+            // ✅ Merge extras array (use incoming if provided, otherwise keep existing)
+            extras: Array.isArray(sanitizedUser.extras) 
+              ? sanitizedUser.extras 
+              : (existingPlayer.extras || []),
+            name: nameToUse,
+            socketId: socket.id,
+          };
 
-  updatePlayerSocketId(roomId, user.id, socket.id);
-  updatePlayerSession(roomId, user.id, {
-    socketId: socket.id,
-    status: 'waiting',
-    inPlayRoute: false,
-    lastActive: Date.now(),
-  });
-} else {
-  const mergedExisting = {
-    ...existingPlayer,
-    ...sanitizedUser,
-    // keep previous extraPayments & overlay
-    extraPayments: {
-      ...(existingPlayer.extraPayments || {}),
-      ...(sanitizedUser.extraPayments || {}),
-    },
-    name: nameToUse,   // <- guard name AFTER spreads
-    socketId: socket.id,
-  };
+          // ✅ CRITICAL: Call addOrUpdatePlayer which will sync playerData.purchases
           addOrUpdatePlayer(roomId, mergedExisting);
           joinedUser = mergedExisting;
 
-                 // Mirror playerHandlers: remember web3 payout address if provided
-       if (user.web3Address && user.web3Chain) {
-         if (!room.web3AddressMap) room.web3AddressMap = new Map();
-         room.web3AddressMap.set(user.id, {
-           address: user.web3Address,
-           chain: user.web3Chain,
-           txHash: user.web3TxHash || null,
-           playerName: user.name || 'Unknown',
-         });
-         if (!room.config.web3PlayerAddresses) room.config.web3PlayerAddresses = {};
-         room.config.web3PlayerAddresses[user.id] = {
-           address: user.web3Address,
-           chain: user.web3Chain,
-           name: user.name,
-         };
-       }
+          // Mirror playerHandlers: remember web3 payout address if provided
+          if (user.web3Address && user.web3Chain) {
+            if (!room.web3AddressMap) room.web3AddressMap = new Map();
+            room.web3AddressMap.set(user.id, {
+              address: user.web3Address,
+              chain: user.web3Chain,
+              txHash: user.web3TxHash || null,
+              playerName: user.name || 'Unknown',
+            });
+            if (!room.config.web3PlayerAddresses) room.config.web3PlayerAddresses = {};
+            room.config.web3PlayerAddresses[user.id] = {
+              address: user.web3Address,
+              chain: user.web3Chain,
+              name: user.name,
+            };
+          }
 
           updatePlayerSocketId(roomId, user.id, socket.id);
           updatePlayerSession(roomId, user.id, {
@@ -237,6 +236,24 @@ if (!existingPlayer) {
             inPlayRoute: !!existingSession?.inPlayRoute,
             lastActive: Date.now(),
           });
+
+          if (debug) {
+            console.log('[Recovery] ✅ Merged existing player:', {
+              playerId: user.id,
+              name: nameToUse,
+              paid: mergedExisting.paid,
+              paymentMethod: mergedExisting.paymentMethod,
+              extras: mergedExisting.extras,
+              extraPayments: mergedExisting.extraPayments,
+            });
+            
+            // ✅ DEBUG: Check if playerData.purchases was properly updated
+            const playerData = room.playerData[user.id];
+            if (playerData) {
+              console.log('[Recovery] 🔍 playerData.purchases:', playerData.purchases);
+              console.log('[Recovery] 🔍 playerData.paymentMethod:', playerData.paymentMethod);
+            }
+          }
         }
       } else {
         // 🧹 If this id was previously (incorrectly) added as a player, remove it now
@@ -458,14 +475,13 @@ if (!existingPlayer) {
 
       // Keep user_joined event (clients can ignore non-players if they want)
       const broadcastUser = joinedUser || { ...user, socketId: socket.id };
-     if (role === 'player') {
-  namespace.to(roomId).emit('user_joined', { user: broadcastUser, role: 'player' });
-} else if (role === 'host') {
-  namespace.to(roomId).emit('host_joined', { user: { id: user.id, name: room.config?.hostName || user.name }, role: 'host' });
-} else if (role === 'admin') {
-  namespace.to(roomId).emit('admin_joined', { user: { id: user.id, name: user.name }, role: 'admin' });
-}
-
+      if (role === 'player') {
+        namespace.to(roomId).emit('user_joined', { user: broadcastUser, role: 'player' });
+      } else if (role === 'host') {
+        namespace.to(roomId).emit('host_joined', { user: { id: user.id, name: room.config?.hostName || user.name }, role: 'host' });
+      } else if (role === 'admin') {
+        namespace.to(roomId).emit('admin_joined', { user: { id: user.id, name: user.name }, role: 'admin' });
+      }
 
       // Also push current players list to everyone (optional but handy)
       namespace.to(roomId).emit('player_list_updated', { players: playersLite });

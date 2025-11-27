@@ -33,7 +33,7 @@ import {
   Gift,
 } from 'lucide-react';
 
-const DEBUG = false;
+const DEBUG = true; // Enable debug logging
 
 type TabType = 'overview' | 'assets' | 'launch' | 'players' | 'admins' | 'prizes' | 'payments';
 
@@ -50,6 +50,7 @@ const HostDashboardCore: React.FC = () => {
   const { admins } = useAdminStore();
 
   const requestedOnceRef = useRef(false);
+  const autoAssignedRef = useRef(false); // Track if we've auto-assigned
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -283,7 +284,7 @@ const HostDashboardCore: React.FC = () => {
   // === Prize workflow gating (Payments locked until prizes resolved) ===
   const awards = (config?.reconciliation?.prizeAwards || []) as any[];
   const prizePlaces = new Set((config?.prizes || []).map((p: any) => p.place));
-  const finalStatuses = new Set(['delivered', 'unclaimed', 'refused', 'returned', 'canceled']);
+  const finalStatuses = new Set(['collected', 'delivered', 'unclaimed', 'refused', 'canceled']);
   const declaredByPlace = new Map<number, any>();
   for (const a of awards) if (typeof a?.place === 'number') declaredByPlace.set(a.place, a);
   const allDeclared = prizePlaces.size > 0 && [...prizePlaces].every((pl) => declaredByPlace.has(pl));
@@ -295,79 +296,143 @@ const HostDashboardCore: React.FC = () => {
 
   // === Final leaderboard for the Prizes tab ===
   const prizeLeaderboard = useMemo(() => {
-    const fromRecon = ((config?.reconciliation as any)?.finalLeaderboard || []) as any[];
-    if (fromRecon.length) return fromRecon;
+    console.log('🏆 [HostDashboard] Building prize leaderboard from players:', {
+      playerCount: players?.length || 0,
+      playersRaw: players,
+      reconLeaderboard: (config?.reconciliation as any)?.finalLeaderboard,
+      configLeaderboard: (config as any)?.finalLeaderboard,
+    });
 
-    const fromConfig = ((config as any)?.finalLeaderboard || []) as any[];
-    if (fromConfig.length) return fromConfig;
-
-    const list = (players || []).map((p: any) => ({
-      id: p.id,
-      name: p.name || p.id,
-      score:
-        typeof p.score === 'number'
-          ? p.score
-          : typeof p.totalScore === 'number'
-          ? p.totalScore
-          : typeof p.finalScore === 'number'
-          ? p.finalScore
-          : 0,
-    }));
-
-    if (list.every((l) => typeof l.score === 'number')) {
-      list.sort((a, b) => (b.score || 0) - (a.score || 0));
+    // Priority 1: Use reconciliation finalLeaderboard if it exists (this is the frozen snapshot)
+    const reconLeaderboard = (config?.reconciliation as any)?.finalLeaderboard;
+    if (Array.isArray(reconLeaderboard) && reconLeaderboard.length > 0) {
+      console.log('✅ [HostDashboard] Using reconciliation finalLeaderboard:', reconLeaderboard);
+      return reconLeaderboard;
     }
+
+    // Priority 2: Use config finalLeaderboard if it exists
+    const configLeaderboard = (config as any)?.finalLeaderboard;
+    if (Array.isArray(configLeaderboard) && configLeaderboard.length > 0) {
+      console.log('✅ [HostDashboard] Using config finalLeaderboard:', configLeaderboard);
+      return configLeaderboard;
+    }
+
+    // Priority 3: Build fresh from current players
+    console.log('⚠️ [HostDashboard] Building leaderboard from players store');
+    const list = (players || []).map((p: any) => {
+      // Try multiple score fields in priority order
+      const score = typeof p.score === 'number'
+        ? p.score
+        : typeof p.totalScore === 'number'
+        ? p.totalScore
+        : typeof p.finalScore === 'number'
+        ? p.finalScore
+        : 0;
+
+      console.log(`  Player ${p.name || p.id}: score=${score} (from score=${p.score}, totalScore=${p.totalScore}, finalScore=${p.finalScore})`);
+
+      return {
+        id: p.id,
+        name: p.name || p.id,
+        score,
+      };
+    });
+
+    // Sort by score descending
+    list.sort((a, b) => (b.score || 0) - (a.score || 0));
+    
+    console.log('📊 [HostDashboard] Final sorted leaderboard:', list);
     return list;
-  }, [config?.reconciliation?.finalLeaderboard, (config as any)?.finalLeaderboard, players]);
+  }, [players, config?.reconciliation, config]);
 
   // On first Prizes visit after completion: snapshot standings and auto-declare awards if missing
   useEffect(() => {
     if (!socket || !roomId) return;
     if (!isQuizComplete) return;
+    if (autoAssignedRef.current) return; // Already auto-assigned
 
     const prizes = (config?.prizes || []) as any[];
     const rec = (config?.reconciliation as any) || {};
     const existingAwards = Array.isArray(rec.prizeAwards) ? rec.prizeAwards : [];
     const haveAwards = existingAwards.length > 0;
 
+    console.log('🎁 [HostDashboard] Auto-assignment check:', {
+      isQuizComplete,
+      prizesCount: prizes.length,
+      existingAwardsCount: existingAwards.length,
+      haveAwards,
+      prizeLeaderboardLength: prizeLeaderboard.length,
+      hasFinalLeaderboard: !!(rec.finalLeaderboard && Array.isArray(rec.finalLeaderboard) && rec.finalLeaderboard.length),
+    });
+
     const needSnapshot =
       !(rec.finalLeaderboard && Array.isArray(rec.finalLeaderboard) && rec.finalLeaderboard.length) &&
       prizeLeaderboard.length;
 
     const patch: any = {};
-    if (needSnapshot) patch.finalLeaderboard = prizeLeaderboard;
+    if (needSnapshot) {
+      console.log('📸 [HostDashboard] Snapshotting final leaderboard:', prizeLeaderboard);
+      patch.finalLeaderboard = prizeLeaderboard;
+    }
 
-    if (prizes.length && !haveAwards && prizeLeaderboard.length) {
+    if (prizes.length && !haveAwards && prizeLeaderboard.length > 0) {
+      // Only run if we have NO awards at all
+      if (existingAwards.length > 0) {
+        console.log('[HostDashboard] Awards already exist, skipping auto-assignment');
+        return;
+      }
+
+      console.log('🤖 [HostDashboard] Auto-assigning prizes to winners');
       const rankByPlace = new Map<number, any>();
-      prizeLeaderboard.forEach((entry: any, idx: number) => rankByPlace.set(idx + 1, entry));
+      prizeLeaderboard.forEach((entry: any, idx: number) => {
+        console.log(`  Rank ${idx + 1}: ${entry.name} (${entry.score} pts) -> id: ${entry.id}`);
+        rankByPlace.set(idx + 1, entry);
+      });
 
       const autoAwards = prizes
         .filter((p: any) => typeof p.place === 'number')
         .map((p: any) => {
           const winner = rankByPlace.get(p.place);
-          if (!winner) return null;
-          return {
+          if (!winner) {
+            console.warn(`  ⚠️ No winner found for prize place ${p.place}`);
+            return null;
+          }
+          
+          const award = {
             prizeAwardId: uuid(),
-            prizeId: p.place, // or your real prize id
-            prizeName: p.description,
-            prizeValue: typeof p.value === 'number' ? p.value : null,
-            sponsor: p.sponsor || null,
+            prizeId: `${p.place}`,
             place: p.place,
+            prizeName: p.description,
+            prizeType: 'goods',
+            currency: config?.currencySymbol || '€',
+            declaredValue: typeof p.value === 'number' ? p.value : undefined,
+            sponsor: p.sponsor ? { name: p.sponsor } : undefined,
             winnerPlayerId: winner.id,
             winnerName: winner.name,
             status: 'declared',
-            declaredAt: new Date().toISOString(),
-            statusHistory: [{ status: 'declared', at: new Date().toISOString(), by: config?.hostName || 'Host' }],
+            statusHistory: [{
+              status: 'declared',
+              at: new Date().toISOString(),
+              byUserId: config?.hostId || 'system',
+              byUserName: config?.hostName || 'Host',
+              note: 'Auto-assigned from leaderboard',
+            }],
           };
+          
+          console.log(`  ✅ Prize ${p.place} (${p.description}) -> ${winner.name} (${winner.id})`);
+          return award;
         })
         .filter(Boolean) as any[];
 
       if (autoAwards.length) {
+        console.log(`🎯 [HostDashboard] Created ${autoAwards.length} auto-awards:`, autoAwards);
         patch.prizeAwards = autoAwards;
+        autoAssignedRef.current = true; // Mark as assigned
       }
     }
 
     if (Object.keys(patch).length) {
+      console.log('📤 [HostDashboard] Sending reconciliation patch:', patch);
       socket.emit('update_reconciliation', { roomId, patch });
     }
   }, [
@@ -379,6 +444,8 @@ const HostDashboardCore: React.FC = () => {
     config?.reconciliation?.finalLeaderboard,
     prizeLeaderboard,
     config?.hostName,
+    config?.hostId,
+    config?.currencySymbol,
   ]);
 
   // ---- UI helpers

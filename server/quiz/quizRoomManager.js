@@ -328,8 +328,47 @@ export function addOrUpdatePlayer(roomId, player) {
 
   const existing = room.players.find(p => p.id === player.id);
   if (existing) {
+    // ✅ Update all player fields including payment info
     Object.assign(existing, player);
-    if (debug) console.log(`[quizRoomManager] 🔄 Updated player ${player.id}`);
+    if (debug) console.log(`[quizRoomManager] 🔄 Updated player ${player.id}`, {
+      paid: player.paid,
+      paymentMethod: player.paymentMethod,
+      extras: player.extras
+    });
+    
+    // ✅ CRITICAL FIX: Update purchases AND payment tracking for existing players
+    const purchasedExtras = player.extras || [];
+    if (room.playerData[player.id]) {
+      const playerData = room.playerData[player.id];
+      
+      // Rebuild purchases object based on current extras
+      const newPurchases = {};
+      const newUsedExtras = {};
+      const newUsedExtrasThisRound = {};
+      
+      for (const extra of purchasedExtras) {
+        newPurchases[extra] = true;
+        // Preserve used status if it existed
+        newUsedExtras[extra] = playerData.usedExtras?.[extra] || false;
+        newUsedExtrasThisRound[extra] = playerData.usedExtrasThisRound?.[extra] || false;
+      }
+      
+      playerData.purchases = newPurchases;
+      playerData.usedExtras = newUsedExtras;
+      playerData.usedExtrasThisRound = newUsedExtrasThisRound;
+      
+      // ✅ Store payment method for reconciliation
+      playerData.paymentMethod = player.paymentMethod;
+      playerData.paid = player.paid;
+      
+      if (debug) {
+        console.log(`[quizRoomManager] ✅ Updated playerData for ${player.id}:`, {
+          purchases: newPurchases,
+          paymentMethod: player.paymentMethod,
+          paid: player.paid
+        });
+      }
+    }
   } else {
     room.players.push(player);
     if (debug) console.log(`[quizRoomManager] ➕ Added new player ${player.id}`);
@@ -338,6 +377,7 @@ export function addOrUpdatePlayer(roomId, player) {
   const purchasedExtras = player.extras || [];
   if (debug) console.log(`[quizRoomManager] 🎯 Player ${player.id} has extras:`, purchasedExtras);
 
+  // Initialize playerData for new players only
   if (!room.playerData[player.id]) {
     const extraPurchases = {};
     const usedExtras = {};
@@ -359,7 +399,10 @@ export function addOrUpdatePlayer(roomId, player) {
       frozenNextQuestion: false,
       frozenForQuestionIndex: undefined,
       cumulativeNegativePoints: 0,
-      pointsRestored: 0   
+      pointsRestored: 0,
+      // ✅ Store payment info for new players
+      paymentMethod: player.paymentMethod,
+      paid: player.paid
     };
 
     if (debug) console.log(`[quizRoomManager] ✅ Initialized playerData for ${player.id}`);
@@ -497,6 +540,60 @@ export function listQuizRooms() {
     admins: room.admins.length,
     started: room.currentRound > 1 || room.currentQuestionIndex > 0
   }));
+}
+
+/**
+ * NEW: Freeze final leaderboard when quiz completes
+ * This creates a snapshot that becomes the single source of truth for prize assignments
+ */
+export function freezeFinalLeaderboard(roomId) {
+  const room = quizRooms.get(roomId);
+  if (!room) {
+    console.warn(`[quizRoomManager] ⚠️ Cannot freeze leaderboard: Room ${roomId} not found`);
+    return null;
+  }
+
+  // Build final leaderboard from current player scores
+  const finalLeaderboard = room.players
+    .map(player => {
+      const playerData = room.playerData[player.id];
+      return {
+        id: player.id,
+        name: player.name || player.id,
+        score: playerData?.score || 0, // Use playerData.score as single source
+        // Optional: include penalty tracking for display
+        cumulativeNegativePoints: playerData?.cumulativeNegativePoints || 0,
+        pointsRestored: playerData?.pointsRestored || 0,
+      };
+    })
+    .sort((a, b) => b.score - a.score); // Sort descending by score
+
+  console.log('[quizRoomManager] 🏆 Final leaderboard frozen:', {
+    roomId,
+    rankings: finalLeaderboard.map((p, i) => `${i + 1}. ${p.name}: ${p.score} pts`),
+  });
+
+  // Store in reconciliation
+  if (!room.config.reconciliation) {
+    room.config.reconciliation = { ledger: [], prizeAwards: [] };
+  }
+  room.config.reconciliation.finalLeaderboard = finalLeaderboard;
+
+  // Mark quiz as completed
+  room.completedAt = new Date().toISOString();
+  room.config.completedAt = room.completedAt;
+
+  console.log('[quizRoomManager] ✅ Final leaderboard frozen and stored in reconciliation');
+
+  return finalLeaderboard;
+}
+
+/**
+ * NEW: Check if quiz is complete (to prevent further score updates)
+ */
+export function isQuizComplete(roomId) {
+  const room = quizRooms.get(roomId);
+  return room?.currentPhase === 'complete' || !!room?.completedAt;
 }
 
 export function resetRoundExtrasTracking(roomId) {

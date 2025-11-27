@@ -24,7 +24,7 @@ import type { Idl } from '@coral-xyz/anchor';
 
 // Test configuration
 const RPC_URL = 'https://api.devnet.solana.com';
-const PROGRAM_ID = new PublicKey('8W83G9mSeoQ6Ljcz5QJHYPjH2vQgw94YeVCnpY6KFt7i');
+const PROGRAM_ID = new PublicKey('7cBb4Ho5W66nBdcaAgt7sLnY3HG6jwTWkmCFF9d2yxBn');
 
 // Skip tests if not running in CI or if explicitly enabled
 const RUN_TESTS = process.env.RUN_SOLANA_TESTS === 'true' || process.env.CI === 'true';

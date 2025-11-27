@@ -9,7 +9,7 @@
  *
  * ## Program Configuration
  *
- * - **Program ID**: `8W83G9mSeoQ6Ljcz5QJHYPjH2vQgw94YeVCnpY6KFt7i` (devnet)
+ * - **Program ID**: `7cBb4Ho5W66nBdcaAgt7sLnY3HG6jwTWkmCFF9d2yxBn` (devnet)
  * - **Network**: Devnet (default), Testnet, Mainnet-beta
  * - **RPC Endpoints**: Configurable per network via environment variables
  *
@@ -63,7 +63,7 @@ import { PublicKey, type Cluster } from '@solana/web3.js';
 
 // Program IDs - HARDCODED - Nov 1, 2025 13:51
 // BYPASSING import.meta.env DUE TO AGGRESSIVE BROWSER CACHING
-const HARDCODED_PROGRAM_ID = '8W83G9mSeoQ6Ljcz5QJHYPjH2vQgw94YeVCnpY6KFt7i';
+const HARDCODED_PROGRAM_ID = '7cBb4Ho5W66nBdcaAgt7sLnY3HG6jwTWkmCFF9d2yxBn';
 
 export const PROGRAM_ID = new PublicKey(HARDCODED_PROGRAM_ID);
 
