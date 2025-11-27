@@ -82,7 +82,7 @@ const FundraisingQuizPage = () => {
     const params = new URLSearchParams(location.search);
     if (params.get('openWizard') && isAuthenticated) {
       setShowWizard(true);
-      navigate('/quiz');
+      navigate('/', { replace: true });
     }
   }, [isAuthenticated, navigate]);
 

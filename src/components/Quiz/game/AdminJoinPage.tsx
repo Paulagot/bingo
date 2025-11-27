@@ -119,7 +119,7 @@ const AdminJoinPage: React.FC = () => {
   // 1) On mount / connection, join + request config/state
   useEffect(() => {
     if (!roomId) {
-      navigate('/quiz', { replace: true });
+      navigate('/', { replace: true });
       return;
     }
 
@@ -130,7 +130,7 @@ const AdminJoinPage: React.FC = () => {
 
     if (!memberId) {
       // No identifier at all → bounce to home
-      navigate('/quiz', { replace: true });
+      navigate('/', { replace: true });
       return;
     }
 
@@ -139,7 +139,7 @@ const AdminJoinPage: React.FC = () => {
 
       const handleError = ({ message }: { message: string }) => {
         alert(`Failed to join as ${role}: ${message}`);
-        navigate('/quiz', { replace: true });
+        navigate('/', { replace: true });
       };
 
       const handleConfig = (payload: any) => {

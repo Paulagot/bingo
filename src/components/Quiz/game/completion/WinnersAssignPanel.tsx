@@ -18,17 +18,34 @@ export default function WinnersAssignPanel({ leaderboard }: Props) {
   const prizes = config?.prizes || [];
   const awards: PrizeAward[] = (config?.reconciliation?.prizeAwards || []) as PrizeAward[];
 
+  console.log('🎁 [WinnersAssignPanel] Component render:', {
+    leaderboardLength: leaderboard.length,
+    leaderboard: leaderboard.map((l, idx) => `${idx + 1}. ${l.name} (${l.score} pts)`),
+    prizesCount: prizes.length,
+    awardsCount: awards.length,
+    awards: awards.map(a => `Place ${a.place}: ${a.winnerName}`),
+  });
+
   if (!prizes.length) return null;
 
   // Map already declared winners by prize place
   const declaredByPlace = new Map<number, PrizeAward>();
   for (const a of awards) {
-    if (typeof a.place === 'number') declaredByPlace.set(a.place, a);
+    if (typeof a.place === 'number') {
+      console.log(`  Declared prize ${a.place} -> ${a.winnerName} (${a.winnerPlayerId})`);
+      declaredByPlace.set(a.place, a);
+    }
   }
 
   // ===== DECLARE WINNER =====
   const onDeclare = (place: number, prizeName: string, winner: LeaderboardEntry) => {
     if (!socket || !roomId) return;
+
+    console.log('🎯 [WinnersAssignPanel] Declaring winner:', {
+      place,
+      prizeName,
+      winner: { id: winner.id, name: winner.name, score: winner.score },
+    });
 
     const prizeAwardId = crypto.randomUUID();
     const prizeConfig = prizes.find((p) => p.place === place);
@@ -44,7 +61,7 @@ export default function WinnersAssignPanel({ leaderboard }: Props) {
       status: 'declared',
       at: new Date().toISOString(),
       byUserId: config?.hostId || 'system',
-      note: 'Auto-assigned from leaderboard',
+      note: 'Manually assigned from winner panel',
     };
 
     if (config?.hostName) {
@@ -71,6 +88,8 @@ export default function WinnersAssignPanel({ leaderboard }: Props) {
     if (prizeConfig?.sponsor) {
       award.sponsor = { name: prizeConfig.sponsor };
     }
+
+    console.log('📤 [WinnersAssignPanel] Emitting record_prize_award:', award);
 
     // NEW AWARD — backend handles dedupe + merge
     socket.emit('record_prize_award', { roomId, award });
@@ -131,6 +150,15 @@ export default function WinnersAssignPanel({ leaderboard }: Props) {
             const already = declaredByPlace.get(prize.place);
             const topCandidates = leaderboard.slice(0, Math.min(5, leaderboard.length));
             const isAssigned = !!already;
+
+            console.log(`🏆 Prize ${prize.place} (${prize.description}):`, {
+              isAssigned,
+              currentWinner: already ? `${already.winnerName} (${already.winnerPlayerId})` : 'none',
+              suggestedWinner: topCandidates[prize.place - 1] 
+                ? `${topCandidates[prize.place - 1].name} (${topCandidates[prize.place - 1].id})`
+                : 'none',
+              topCandidates: topCandidates.map((c, idx) => `${idx + 1}. ${c.name} (${c.score} pts)`),
+            });
 
             return (
               <div
@@ -194,11 +222,20 @@ export default function WinnersAssignPanel({ leaderboard }: Props) {
                           className="rounded-lg border-2 border-gray-300 bg-white px-3 py-2 text-sm font-medium focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all min-w-[200px] disabled:bg-gray-100 disabled:cursor-not-allowed"
                           onChange={(e) => {
                             const idx = Number(e.target.value);
+                            console.log('👤 [WinnersAssignPanel] Select changed:', {
+                              selectedIndex: idx,
+                              prizePlace: prize.place,
+                              prizeName: prize.description,
+                            });
+
                             if (!Number.isFinite(idx)) return;
 
                             const pick = topCandidates[idx];
                             if (pick) {
+                              console.log('  Selected winner:', pick);
                               onDeclare(prize.place, prize.description, pick);
+                            } else {
+                              console.warn('  ⚠️ No candidate found at index:', idx);
                             }
                           }}
                           disabled={isLocked}

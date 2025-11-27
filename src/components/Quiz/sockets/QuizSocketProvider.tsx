@@ -45,8 +45,18 @@ export const QuizSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const socketRef = useRef<Socket | null>(null);
   const reconnectAttemptRef = useRef<number>(0);
 
+  // ✅ Read identity values
   const { roomId, hostId } = useRoomIdentity();
+  
+  // ✅ Store current values in ref so we can access them in callbacks
+  const identityRef = useRef({ roomId, hostId });
+  
+  // ✅ Keep ref in sync with latest values
+  useEffect(() => {
+    identityRef.current = { roomId, hostId };
+  }, [roomId, hostId]);
 
+  // ✅ Socket creation effect - runs ONCE on mount only
   useEffect(() => {
     log('mount');
     if (socketRef.current) return;
@@ -55,7 +65,7 @@ export const QuizSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     log('connecting to:', target);
 
     const socket = io(target, {
-      path: '/socket.io',            // must match server (you’re using default)
+      path: '/socket.io',            // must match server (you're using default)
       transports: ['websocket', 'polling'], // prefer WS first
       withCredentials: false,        // same-origin in prod; no cookies needed in dev
       reconnection: true,
@@ -110,66 +120,43 @@ export const QuizSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setTimeout(() => { window.location.href = '/'; }, 100);
     });
 
-socket.on('quiz_cleanup_complete', ({ 
-  message, 
-  roomId: cleanupRoomId,
-  isWeb3Room 
-}: { 
-  message: string; 
-  roomId: string;
-  isWeb3Room?: boolean;
-}) => {
-  log('quiz_cleanup_complete', message, cleanupRoomId, 'isWeb3Room:', isWeb3Room);
-  
-  // Same cleanup for everyone
-  useQuizConfig.getState().resetConfig();
-  usePlayerStore.getState().resetPlayers();
-  useAdminStore.getState().resetAdmins();
-  
-  if (cleanupRoomId) {
-    localStorage.removeItem(`quiz_config_${cleanupRoomId}`);
-    localStorage.removeItem(`prizesDistributed:${cleanupRoomId}`);
-    localStorage.removeItem(`quiz_rejoin_${cleanupRoomId}`);
-  }
-  
-  localStorage.removeItem('current-room-id');
-  localStorage.removeItem('current-host-id');
-  
-  // 🎯 DIFFERENT REDIRECT FOR WEB3 vs WEB2
-  setTimeout(() => {
-    if (isWeb3Room) {
-      // Web3 flow: Everyone goes to impact campaign
-      window.location.href = '/web3/impact-campaign/';
-    } else {
-      // Web2 flow: Everyone goes to quiz home
-      window.location.href = '/';
-    }
-  }, 100);
-});// Add this listener to your QuizSocketProvider.tsx
-// Place it right after the existing quiz_cancelled handler (around line 96)
-
-socket.on('quiz_cleanup_complete', ({ message, roomId: cleanupRoomId }: { message: string; roomId: string }) => {
-  log('quiz_cleanup_complete', message, cleanupRoomId);
-  
-  // Same cleanup as quiz_cancelled, but for successful completion
-  useQuizConfig.getState().resetConfig();
-  usePlayerStore.getState().resetPlayers();
-  useAdminStore.getState().resetAdmins();
-  
-  if (cleanupRoomId) {
-    localStorage.removeItem(`quiz_config_${cleanupRoomId}`);
-    localStorage.removeItem(`prizesDistributed:${cleanupRoomId}`);
-    localStorage.removeItem(`quiz_rejoin_${cleanupRoomId}`);
-  }
-  
-  localStorage.removeItem('current-room-id');
-  localStorage.removeItem('current-host-id');
-  
-  // Redirect to dashboard after successful completion
-  setTimeout(() => { 
-    window.location.href = '/'; 
-  }, 100);
-});
+    // ✅ UNIFIED quiz_cleanup_complete handler - handles BOTH Web3 and Web2
+    socket.on('quiz_cleanup_complete', ({ 
+      message, 
+      roomId: cleanupRoomId,
+      isWeb3Room 
+    }: { 
+      message: string; 
+      roomId: string;
+      isWeb3Room?: boolean;
+    }) => {
+      log('quiz_cleanup_complete', message, cleanupRoomId, 'isWeb3Room:', isWeb3Room);
+      
+      // Same cleanup for everyone
+      useQuizConfig.getState().resetConfig();
+      usePlayerStore.getState().resetPlayers();
+      useAdminStore.getState().resetAdmins();
+      
+      if (cleanupRoomId) {
+        localStorage.removeItem(`quiz_config_${cleanupRoomId}`);
+        localStorage.removeItem(`prizesDistributed:${cleanupRoomId}`);
+        localStorage.removeItem(`quiz_rejoin_${cleanupRoomId}`);
+      }
+      
+      localStorage.removeItem('current-room-id');
+      localStorage.removeItem('current-host-id');
+      
+      // 🎯 DIFFERENT REDIRECT FOR WEB3 vs WEB2
+      setTimeout(() => {
+        if (isWeb3Room) {
+          // Web3 flow: Everyone goes to impact campaign
+          window.location.href = '/web3/impact-campaign/';
+        } else {
+          // Web2 flow: Everyone goes to quiz home
+          window.location.href = '/';
+        }
+      }, 100);
+    });
 
     // ---- lifecycle ----
     socket.on('connect', () => {
@@ -180,9 +167,16 @@ socket.on('quiz_cleanup_complete', ({ message, roomId: cleanupRoomId }: { messag
       reconnectAttemptRef.current = 0;
       (window as any).quizSocket = socket;
 
-      if (roomId && hostId) {
-        log('auto rejoin after connect', { roomId, hostId });
-        socket.emit('join_quiz_room', { roomId, user: { id: hostId }, role: 'host' });
+      // ✅ Read current identity values from ref (not from hook state)
+      const { roomId: currentRoomId, hostId: currentHostId } = identityRef.current;
+
+      if (currentRoomId && currentHostId) {
+        log('auto rejoin after connect', { roomId: currentRoomId, hostId: currentHostId });
+        socket.emit('join_quiz_room', { 
+          roomId: currentRoomId, 
+          user: { id: currentHostId }, 
+          role: 'host' 
+        });
       }
     });
 
@@ -219,7 +213,21 @@ socket.on('quiz_cleanup_complete', ({ message, roomId: cleanupRoomId }: { messag
       socketRef.current?.disconnect();
       socketRef.current = null;
     };
-  }, [roomId, hostId]);
+  }, []); // ✅ Empty array - socket created ONCE on mount, never recreated
+
+  // ✅ SEPARATE effect to handle room/host identity changes
+  // This only emits events, doesn't recreate the socket
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket || !connected || !roomId || !hostId) return;
+
+    log('Room identity ready, rejoining', { roomId, hostId });
+    socket.emit('join_quiz_room', { 
+      roomId, 
+      user: { id: hostId }, 
+      role: 'host' 
+    });
+  }, [roomId, hostId, connected]); // ✅ Only re-join if identity or connection changes
 
   const contextValue: QuizSocketContextType = {
     socket: socketRef.current,
