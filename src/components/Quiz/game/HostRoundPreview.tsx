@@ -63,12 +63,12 @@ const HostRoundPreview: React.FC<HostRoundPreviewProps> = ({
           🎯 Host Controls
         </h4>
         <ul className="space-y-1 text-sm text-green-700">
-          <li>• Read the round configuration below to players</li>
+          <li>• Read the gamplay below to players</li>
           <li>• Start round when players are ready</li>
-          <li>• Read questions to players with possible answers - questions auto-transition when timer expires</li>
-          <li>• Review stage: Read each question again with correct answer and share stats</li>
-          <li>• Control leaderboard transitions (round results, then overall leaderboard)</li>
-          <li>• Allow time for players to use arsenal during round leaderboard</li>
+          <li>• Questions auto-transition when timer expires</li>
+          <li>• Review stage: Triggers when Qqestions are complete. Control the reivew speed and share stats</li>
+          <li>• Control leaderboard transitions (round results & stats, then overall leaderboard)</li>
+          <li>• Allow time for players to use extras during round leaderboard</li>
         </ul>
       </div>
 
@@ -92,7 +92,7 @@ const HostRoundPreview: React.FC<HostRoundPreviewProps> = ({
 
       {/* Round Configuration */}
       <div className="bg-blue-50 mb-6 rounded-lg p-6 backdrop-blur-sm">
-        <h4 className="text-blue-800 mb-3 text-lg font-bold">⏱️ Timing & Scoring</h4>
+        <h4 className="text-blue-800 mb-3 text-lg font-bold">⏱️ GAMEPLAY</h4>
         <p className="text-blue-800 mb-4">{roundMetadata.description}</p>
         
         <div className="grid gap-4 md:grid-cols-2">

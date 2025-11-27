@@ -542,6 +542,60 @@ export function listQuizRooms() {
   }));
 }
 
+/**
+ * NEW: Freeze final leaderboard when quiz completes
+ * This creates a snapshot that becomes the single source of truth for prize assignments
+ */
+export function freezeFinalLeaderboard(roomId) {
+  const room = quizRooms.get(roomId);
+  if (!room) {
+    console.warn(`[quizRoomManager] ⚠️ Cannot freeze leaderboard: Room ${roomId} not found`);
+    return null;
+  }
+
+  // Build final leaderboard from current player scores
+  const finalLeaderboard = room.players
+    .map(player => {
+      const playerData = room.playerData[player.id];
+      return {
+        id: player.id,
+        name: player.name || player.id,
+        score: playerData?.score || 0, // Use playerData.score as single source
+        // Optional: include penalty tracking for display
+        cumulativeNegativePoints: playerData?.cumulativeNegativePoints || 0,
+        pointsRestored: playerData?.pointsRestored || 0,
+      };
+    })
+    .sort((a, b) => b.score - a.score); // Sort descending by score
+
+  console.log('[quizRoomManager] 🏆 Final leaderboard frozen:', {
+    roomId,
+    rankings: finalLeaderboard.map((p, i) => `${i + 1}. ${p.name}: ${p.score} pts`),
+  });
+
+  // Store in reconciliation
+  if (!room.config.reconciliation) {
+    room.config.reconciliation = { ledger: [], prizeAwards: [] };
+  }
+  room.config.reconciliation.finalLeaderboard = finalLeaderboard;
+
+  // Mark quiz as completed
+  room.completedAt = new Date().toISOString();
+  room.config.completedAt = room.completedAt;
+
+  console.log('[quizRoomManager] ✅ Final leaderboard frozen and stored in reconciliation');
+
+  return finalLeaderboard;
+}
+
+/**
+ * NEW: Check if quiz is complete (to prevent further score updates)
+ */
+export function isQuizComplete(roomId) {
+  const room = quizRooms.get(roomId);
+  return room?.currentPhase === 'complete' || !!room?.completedAt;
+}
+
 export function resetRoundExtrasTracking(roomId) {
   const room = quizRooms.get(roomId);
   if (!room) {

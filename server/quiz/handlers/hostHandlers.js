@@ -6,7 +6,8 @@ import {
   resetRoundExtrasTracking,
   startNextRound,
   removeQuizRoom,
-  emitRoomState
+  emitRoomState,
+   freezeFinalLeaderboard 
 } from '../quizRoomManager.js';
 
 import { getEngine } from '../gameplayEngines/gameplayEngineRouter.js';
@@ -521,6 +522,7 @@ namespace.to(`${roomId}:host`).emit('host_final_leaderboard', finalLeaderboard);
 
 
     // Enhanced stats per player
+   // Enhanced stats per player
     room.players.forEach(player => {
       const playerSocket = namespace.sockets.get(player.socketId);
       if (playerSocket) {
@@ -532,8 +534,33 @@ namespace.to(`${roomId}:host`).emit('host_final_leaderboard', finalLeaderboard);
       }
     });
 
+    // ✅ NEW: Freeze the leaderboard BEFORE setting phase to complete
     room.currentPhase = 'complete';
-    namespace.to(roomId).emit('quiz_end', { message: 'Quiz complete. Thank you! Prizes being distributed' });
+    const frozenLeaderboard = freezeFinalLeaderboard(roomId);
+    
+    // ✅ NEW: Send frozen leaderboard in room_config
+    if (frozenLeaderboard) {
+      namespace.to(roomId).emit('room_config', {
+        ...room.config,
+        currentPhase: 'complete',
+        completedAt: room.completedAt,
+        reconciliation: {
+          ...room.config.reconciliation,
+          finalLeaderboard: frozenLeaderboard,
+        },
+      });
+      
+      if (debug) {
+        console.log('[Complete] 🏆 Frozen leaderboard sent to clients:', 
+          frozenLeaderboard.map((p, i) => `${i + 1}. ${p.name}: ${p.score} pts`)
+        );
+      }
+    }
+    
+    namespace.to(roomId).emit('quiz_end', { 
+      message: 'Quiz complete. Thank you! Prizes being distributed',
+      finalLeaderboard: frozenLeaderboard  // ✅ Include in completion event
+    });
     emitRoomState(namespace, roomId);
     room.completedAt = Date.now();
 
@@ -698,6 +725,13 @@ socket.on('tiebreak:proceed_to_completion', ({ roomId }) => {
     room.finalLeaderboard = finalLeaderboard;
     room.prizeDistributionStatus = 'initiated';
     room.currentPhase = 'distributing_prizes';
+
+    // ✅ NEW: Also freeze leaderboard here for Web3 completion path
+    const frozenLeaderboard = freezeFinalLeaderboard(roomId);
+    if (frozenLeaderboard && debug) {
+      console.log('[Prize Distribution] 🏆 Leaderboard frozen for Web3 prize distribution');
+    }
+
 
     // ✅ CALCULATE charityAmountPreview for frontend (for both chains)
     let charityAmountPreview = null;
@@ -1150,7 +1184,7 @@ socket.on('tiebreak:proceed_to_completion', ({ roomId }) => {
 
     if (debug) {
       console.log(`[Host] 📢 Sent cleanup completion notice to room ${roomId}`);
-      console.log(`[Host] 🌐 isWeb3Room: ${isWeb3Room}, will redirect to ${isWeb3Room ? '/web3/impact-campaign/' : '/quiz'}`);
+      console.log(`[Host] 🌐 isWeb3Room: ${isWeb3Room}, will redirect to ${isWeb3Room ? '/web3/impact-campaign/' : '/'}`);
     }
 
     setTimeout(() => {

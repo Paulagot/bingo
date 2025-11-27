@@ -87,7 +87,7 @@ const QuizGameWaitingPage = () => {
         if (!res?.ok) {
           const msg = res?.error || 'Failed to recover';
           debugLog.error('❌ join_and_recover failed', msg);
-          navigate('/quiz');
+          navigate('/');
           return;
         }
         debugLog.success('✅ join_and_recover snapshot received');

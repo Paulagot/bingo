@@ -12,7 +12,8 @@ import {
   updatePlayerSession,
   getPlayerSession,
   isPlayerInActiveSession,
-  cleanExpiredSessions
+  cleanExpiredSessions,
+   isQuizComplete
 } from '../quizRoomManager.js';
 import { emitFullRoomState } from '../handlers/sharedUtils.js';
 
@@ -462,11 +463,20 @@ socket.on('player_route_change', ({ roomId, playerId, route, entering }) => {
 
   socket.on('submit_answer', ({ roomId, playerId, questionId, answer, autoTimeout }) => {
     if (debug) console.log(`[DEBUG] submit_answer received:`, { roomId, playerId, questionId, answer, autoTimeout });
-    const room = getQuizRoom(roomId);
-    if (!room) {
-      socket.emit('quiz_error', { message: 'Room not found' });
-      return;
-    }
+    
+    // ✅ NEW: Guard against answers after completion
+  const room = getQuizRoom(roomId);
+  if (!room) {
+    socket.emit('quiz_error', { message: 'Room not found' });
+    return;
+  }
+
+  // ✅ CRITICAL: Block submissions if quiz is complete
+  if (room.currentPhase === 'complete' || room.completedAt) {
+    if (debug) console.warn('[submit_answer] ⚠️ Quiz already complete, ignoring answer from', playerId);
+    socket.emit('quiz_error', { message: 'Quiz has already completed' });
+    return;
+  }
 
     const enginePromise = getEngine(room);
     if (!enginePromise) {

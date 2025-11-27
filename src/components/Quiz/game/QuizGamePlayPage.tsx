@@ -20,6 +20,7 @@ import RobinHoodRunner from './RobinHoodRunner';
 import { useRobinHoodAnimation } from '../hooks/useRobinHoodAnimation';
 import FreezeOverlay from './FreezeOverlay';
 import TiebreakerRound from './TiebreakerRound';
+import { useRouteChangeNotifier } from '../hooks/useRouteChangeNotifier';
 
 type RoomPhaseWithTB = RoomPhase | 'tiebreaker';
 
@@ -223,6 +224,16 @@ const QuizGamePlayPage = () => {
   }, [answerSubmitted]);
 
   // anti-cheat tab tracking (kept as-is)
+// ✅ ADD: Debounced route change tracking
+useRouteChangeNotifier({
+  socket,
+  roomId,
+  playerId,
+  routeName: 'play',
+  debounceMs: 1000
+});
+
+// ✅ KEEP: Anti-cheat tab tracking (but WITHOUT route change emissions)
 useEffect(() => {
   if (!roomId || !playerId) return;
 
@@ -232,7 +243,6 @@ useEffect(() => {
   const ACTIVE_KEY = `quiz-active-play-${roomId}-${playerId}`;
   const ACTIVE_TS  = `quiz-active-play-time-${roomId}-${playerId}`;
 
-  // If another tab was active, CLAIM ownership instead of navigating away.
   const existingTabId = localStorage.getItem(ACTIVE_KEY);
   if (existingTabId && existingTabId !== tabId) {
     showNotification('info', 'This tab is now active. Any other tab will be signed out.');
@@ -244,12 +254,7 @@ useEffect(() => {
     localStorage.setItem(ACTIVE_TS, String(Date.now()));
   }, 5000);
 
-  if (socket && connected) {
-    socket.emit('player_route_change', { roomId, playerId, route: 'play', entering: true });
-  }
-
   const handleStorageChange = (e: StorageEvent) => {
-    // Another tab took over → this tab should back out gracefully.
     if (e.key === ACTIVE_KEY && e.newValue && e.newValue !== tabId) {
       showNotification('warning', 'Another tab took over this quiz. Returning to the waiting page.');
       navigate(`/quiz/game/${roomId}/${playerId}`);
@@ -261,16 +266,13 @@ useEffect(() => {
     clearInterval(activityInterval);
     window.removeEventListener('storage', handleStorageChange);
 
-    // Only clear if we still own it
     const currentActiveTab = localStorage.getItem(ACTIVE_KEY);
     if (currentActiveTab === tabId) {
       localStorage.removeItem(ACTIVE_KEY);
       localStorage.removeItem(ACTIVE_TS);
     }
-
-    socket?.emit('player_route_change', { roomId, playerId, route: 'play', entering: false });
   };
-}, [roomId, playerId, socket, connected, navigate, showNotification]);
+}, [roomId, playerId, navigate, showNotification]); // ✅ Removed socket and connected from deps
 
 
 // fast join + full snapshot in one ack (replaces verify→join→request flow)
@@ -308,7 +310,7 @@ useEffect(() => {
     if (roomId && playerId) {
       navigate(`/quiz/game/${roomId}/${playerId}`);
     } else {
-      navigate('/quiz');
+      navigate('/');
     }
   } else {
     // For transient / weird errors: show message but don't throw user out

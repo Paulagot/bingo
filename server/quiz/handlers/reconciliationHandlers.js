@@ -87,14 +87,27 @@ export function setupReconciliationHandlers(socket, namespace) {
 
     // NEW: declare a prize award (status starts as 'declared')
 // NEW: declare a prize award (status starts as 'declared')
+
 socket.on('record_prize_award', ({ roomId, award }) => {
   try {
     const room = getQuizRoom(roomId);
     if (!room) return socket.emit('quiz_error', { message: `Room not found: ${roomId}` });
     const recon = ensureRecon(room);
 
+    console.log('[PrizeAward] 📥 Recording prize award:', {
+      roomId,
+      place: award?.place,
+      winner: award?.winnerName,
+      prizeAwardId: award?.prizeAwardId,
+    });
+
     const id = award?.prizeAwardId || crypto.randomUUID?.() || String(Date.now());
-    const existingIdx = (recon.prizeAwards || []).findIndex(a => a.prizeAwardId === id);
+    
+    // ✅ IMPROVED: Check for duplicate by PLACE (not just ID)
+    // This prevents assigning the same prize to multiple winners
+    const existingByPlace = (recon.prizeAwards || []).find(
+      a => a.place === award?.place
+    );
 
     const declaredAt = new Date().toISOString();
 
@@ -105,27 +118,32 @@ socket.on('record_prize_award', ({ roomId, award }) => {
         {
           status: 'declared',
           at: declaredAt,
-          byUserId: room.hostId || 'host',
+          byUserId: room.hostId || 'system',
           byUserName: room.config?.hostName || 'Host',
           note: award?.note || 'Declared',
         }
       ],
-
       ...award,
       declaredAt,
     };
 
     if (!recon.prizeAwards) recon.prizeAwards = [];
 
-    if (existingIdx >= 0) {
-      // Update instead of adding duplicates
-      recon.prizeAwards[existingIdx] = {
-        ...recon.prizeAwards[existingIdx],
-        ...base
-      };
+    if (existingByPlace) {
+      // ✅ Replace existing award at this place
+      console.warn('[PrizeAward] ⚠️ Award already exists for place', award?.place, '- replacing');
+      const idx = recon.prizeAwards.findIndex(a => a.place === award?.place);
+      recon.prizeAwards[idx] = base;
     } else {
+      // Add new award
       recon.prizeAwards.push(base);
     }
+
+    console.log('[PrizeAward] ✅ Award recorded:', {
+      place: base.place,
+      winner: base.winnerName,
+      winnerId: base.winnerPlayerId,
+    });
 
     emitReconUpdated(namespace, roomId, recon);
     namespace.to(roomId).emit('room_config', { ...room.config });
