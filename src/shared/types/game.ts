@@ -32,15 +32,36 @@ export interface Question {
 export interface Prize {
   place: number;
   description: string;
-  sponsor?: string;
-  value?: number;
-  tokenAddress?: string;
-  isNFT?: boolean;
-  uploadStatus?: 'pending' | 'uploading' | 'completed' | 'failed';
-  transactionHash?: string;
-  uploadedAt?: string;
-  tokenId?: string | number;
+  sponsor?: string | undefined;
+  
+  // Token identification
+  tokenAddress?: string | undefined;
+  tokenType?: 'erc20' | 'erc721' | 'erc1155' | undefined;
+  
+  // For ERC-20: amount of tokens (e.g., "500" for 500 USDC)
+  // For ERC-721: always "1" (single NFT)
+  // For ERC-1155: quantity of tokens (e.g., "5" for 5 copies)
+  amount?: string | undefined;
+  
+  // For ERC-721/1155: the token ID (e.g., "1234")
+  tokenId?: string | undefined;
+  
+  // Legacy field - keep for backward compatibility with non-EVM chains
+  // DO NOT use in new EVM code
+  value?: number | undefined;
+  
+  // NFT metadata
+  isNFT?: boolean | undefined;
+  
+  // Upload tracking
+  uploadStatus?: 'pending' | 'uploading' | 'completed' | 'failed' | undefined;
+  uploadedAt?: string | undefined;
+  transactionHash?: string | undefined;
+  
+  // Delivery info
+  deliveryMethod?: 'in-person' | 'shipped' | 'digital' | undefined;
 }
+
 
 export type PrizeAwardStatus =
   | 'declared'

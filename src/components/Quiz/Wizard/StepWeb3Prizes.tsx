@@ -39,8 +39,6 @@ const Character = ({ message }: { message: string }) => {
   );
 };
 
-
-
 type PrizeSource = 'pool' | 'assets';
 
 const PRIZE_PLACES = [1, 2, 3] as const;
@@ -73,17 +71,22 @@ const StepWeb3Prizes: FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst })
   const [splits, setSplits] = useState<Record<number, number>>(initialSplits);
 
   // External assets mode: 3 slots, 1st required
-  const [externalPrizes, setExternalPrizes] = useState<Prize[]>(
-    setupConfig.prizes && setupConfig.prizes.length
-      ? setupConfig.prizes
-          .filter((p) => PRIZE_PLACES.includes(p.place as (typeof PRIZE_PLACES)[number]))
-          .sort((a, b) => a.place - b.place)
-      : [
-          { place: 1, description: '', tokenAddress: '', value: 0 },
-          { place: 2, description: '', tokenAddress: '', value: 0 },
-          { place: 3, description: '', tokenAddress: '', value: 0 },
-        ]
-  );
+  const [externalPrizes, setExternalPrizes] = useState<Prize[]>(() => {
+    if (setupConfig.prizes && setupConfig.prizes.length) {
+      return setupConfig.prizes
+        .filter((p) => PRIZE_PLACES.includes(p.place as (typeof PRIZE_PLACES)[number]))
+        .sort((a, b) => a.place - b.place);
+    }
+    
+    // Default state with tokenType for EVM
+    const defaultTokenType = setupConfig.web3Chain === 'evm' ? 'erc20' : undefined;
+    
+    return [
+      { place: 1, description: '', tokenAddress: '', tokenType: defaultTokenType, amount: '', tokenId: '' },
+      { place: 2, description: '', tokenAddress: '', tokenType: defaultTokenType, amount: '', tokenId: '' },
+      { place: 3, description: '', tokenAddress: '', tokenType: defaultTokenType, amount: '', tokenId: '' },
+    ];
+  });
 
   const [error, setError] = useState('');
 
@@ -104,11 +107,42 @@ const StepWeb3Prizes: FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst })
   );
 
   // Helpers
-  const isPrizeStarted = (p: Prize) =>
-    !!(p.description?.trim() || p.tokenAddress?.trim() || (p.value && p.value > 0));
+  const isPrizeStarted = (p: Prize) => {
+    const hasDescription = !!(p.description?.trim());
+    const hasTokenAddress = !!(p.tokenAddress?.trim());
+    const hasAmount = !!(p.amount?.trim());
+    const hasTokenId = !!(p.tokenId?.trim());
+    
+    return hasDescription || hasTokenAddress || hasAmount || hasTokenId;
+  };
 
-  const isPrizeComplete = (p: Prize) =>
-    !!(p.description?.trim() && p.tokenAddress?.trim() && p.value && p.value > 0);
+  const isPrizeComplete = (p: Prize) => {
+    if (!p.description?.trim() || !p.tokenAddress?.trim()) return false;
+    
+    if (setupConfig.web3Chain === 'evm') {
+      if (!p.tokenType) return false;
+      
+      if (p.tokenType === 'erc20') {
+        return !!(p.amount && p.amount.trim() && parseFloat(p.amount) > 0);
+      }
+      
+      if (p.tokenType === 'erc721') {
+        return !!(p.tokenId && p.tokenId.trim());
+      }
+      
+      if (p.tokenType === 'erc1155') {
+        return !!(
+          p.tokenId && p.tokenId.trim() &&
+          p.amount && p.amount.trim() && parseFloat(p.amount) > 0
+        );
+      }
+    } else {
+      // For non-EVM chains (keep existing logic with value field)
+      return !!(p.value && p.value > 0);
+    }
+    
+    return false;
+  };
 
   const getCompletedPrizesCount = () => externalPrizes.filter(isPrizeComplete).length;
 
@@ -140,13 +174,25 @@ const StepWeb3Prizes: FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst })
   const handleSplitChange = (place: number, value: number) => {
     setSplits((prev) => ({ ...prev, [place]: Number.isFinite(value) && value >= 0 ? value : 0 }));
   };
-const handleExternalPrizeChange = <K extends keyof Prize>(index: number, field: K, value: Prize[K]) => {
-  setExternalPrizes((prev) => {
-    const updated = [...prev];
-    updated[index] = { ...updated[index], [field]: value } as Prize;
-    return updated;
-  });
-};
+
+  const handleExternalPrizeChange = <K extends keyof Prize>(index: number, field: K, value: Prize[K]) => {
+    setExternalPrizes((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value } as Prize;
+      return updated;
+    });
+  };
+
+  const clearPrize = (index: number) => {
+    const defaultTokenType = setupConfig.web3Chain === 'evm' ? 'erc20' : undefined;
+    handleExternalPrizeChange(index, 'description', '');
+    handleExternalPrizeChange(index, 'tokenAddress', '');
+    handleExternalPrizeChange(index, 'amount', '');
+    handleExternalPrizeChange(index, 'tokenId', '');
+    handleExternalPrizeChange(index, 'sponsor', '');
+    handleExternalPrizeChange(index, 'tokenType', defaultTokenType);
+    setError('');
+  };
 
   const totalPrizeSplit = useMemo(
     () => PRIZE_PLACES.reduce((acc, p) => acc + (Number.isFinite(splits[p]) ? (splits[p] as number) : 0), 0),
@@ -165,9 +211,9 @@ const handleExternalPrizeChange = <K extends keyof Prize>(index: number, field: 
       // Validate prize pool allocation within allowed bucket
       if (!Number.isFinite(prizePoolPct) || prizePoolPct < 0 || prizePoolPct > maxPrizePool) {
         return setError(`Prize pool must be between 0% and ${maxPrizePool}%.`);
-        }
+      }
       if (prizePoolPct === 0) {
-        return setError('Set a prize pool percentage (greater than 0) or switch to “External Assets”.');
+        return setError('Set a prize pool percentage (greater than 0) or switch to "External Assets".');
       }
       if (prizePoolPct > 0) {
         if (totalPrizeSplit > 100) {
@@ -182,23 +228,23 @@ const handleExternalPrizeChange = <K extends keyof Prize>(index: number, field: 
         PRIZE_PLACES.map((p) => [p, splits[p] ?? 0])
       ) as Record<number, number>;
 
-      // Save for pool mode (NO hostWallet anywhere)
-   const updateData: Partial<QuizConfig> = {
-  web3PrizeSplit: {
-    charity: charityPct,
-    host: personalTake,
-    prizes: prizePoolPct,
-  },
-  prizeMode: 'split',
-  prizes: [],
-};
+      // Save for pool mode
+      const updateData: Partial<QuizConfig> = {
+        web3PrizeSplit: {
+          charity: charityPct,
+          host: personalTake,
+          prizes: prizePoolPct,
+        },
+        prizeMode: 'split',
+        prizes: [],
+      };
 
-// Only set prizeSplits if we have values
-if (prizePoolPct > 0) {
-  updateData.prizeSplits = sanitizedSplits;
-}
+      // Only set prizeSplits if we have values
+      if (prizePoolPct > 0) {
+        updateData.prizeSplits = sanitizedSplits;
+      }
 
-updateSetupConfig(updateData);
+      updateSetupConfig(updateData);
     } else {
       // External assets mode
 
@@ -206,7 +252,7 @@ updateSetupConfig(updateData);
       const firstPrize = externalPrizes.find((p) => p.place === 1);
       if (!firstPrize || !isPrizeComplete(firstPrize)) {
         return setError(
-          '1st place prize is required and must include description, contract address, and quantity.'
+          '1st place prize is required and must include description, contract address, and token details.'
         );
       }
 
@@ -220,9 +266,40 @@ updateSetupConfig(updateData);
         return setError(`Please complete all details for ${places} place prize(s), or clear them if not needed.`);
       }
 
-      const completePrizes = externalPrizes.filter(isPrizeComplete);
+      // Convert UI values into proper token fields
+      const processedPrizes = externalPrizes
+        .filter(isPrizeComplete)
+        .map((p) => {
+          const base: Prize = {
+            place: p.place,
+            description: p.description,
+            sponsor: p.sponsor,
+            tokenAddress: p.tokenAddress,
+            tokenType: p.tokenType ?? 'erc20',
+          };
 
-      // Save for assets mode (NO hostWallet anywhere)
+          if (setupConfig.web3Chain === 'evm') {
+            if (p.tokenType === 'erc20') {
+              base.amount = p.amount; // Already a string
+              base.tokenId = undefined;
+              base.isNFT = false;
+            } else if (p.tokenType === 'erc721') {
+              base.tokenId = p.tokenId; // Already a string
+              base.amount = '1';
+              base.isNFT = true;
+            } else if (p.tokenType === 'erc1155') {
+              base.tokenId = p.tokenId; // Already a string
+              base.amount = p.amount || '1'; // Already a string
+              base.isNFT = true;
+            }
+          } else {
+            // Non-EVM: keep legacy behavior with value field
+            base.amount = String(p.value ?? '0');
+          }
+
+          return base;
+        });
+
       updateSetupConfig({
         web3PrizeSplit: {
           charity: charityPct,
@@ -230,8 +307,7 @@ updateSetupConfig(updateData);
           prizes: 0,
         },
         prizeMode: 'assets',
-       
-        prizes: completePrizes,
+        prizes: processedPrizes,
       });
     }
 
@@ -384,8 +460,6 @@ updateSetupConfig(updateData);
               </div>
               <p className="text-fg/60 text-xs">Drag to select your personal take (0–5%)</p>
             </div>
-
-            {/* Host wallet capture removed */}
           </div>
         </div>
 
@@ -509,7 +583,7 @@ updateSetupConfig(updateData);
                 {PRIZE_PLACES.map((place) => {
                   const prize =
                     externalPrizes.find((p) => p.place === place) ||
-                    { place, description: '', tokenAddress: '', value: 0 };
+                    { place, description: '', tokenAddress: '', amount: '', tokenId: '' };
                   const complete = isPrizeComplete(prize);
                   const started = isPrizeStarted(prize);
                   const required = place === 1;
@@ -542,6 +616,7 @@ updateSetupConfig(updateData);
                 const complete = isPrizeComplete(prize);
                 const started = isPrizeStarted(prize);
                 const required = prize.place === 1;
+                const isEvm = setupConfig.web3Chain === 'evm';
 
                 return (
                   <div
@@ -593,60 +668,183 @@ updateSetupConfig(updateData);
                           type="text"
                           value={prize.tokenAddress || ''}
                           onChange={(e) => handleExternalPrizeChange(index, 'tokenAddress', e.target.value)}
-                          placeholder="e.g., 0x1234...abcd or G1234...xyz"
-                          className="border-border w-full rounded-lg border-2 px-3 py-2 text-sm outline-none transition focus:border-indigo-500"
+                          placeholder="e.g., 0x1234...abcd"
+                          className="border-border w-full rounded-lg border-2 px-3 py-2 font-mono text-sm outline-none transition focus:border-indigo-500"
                         />
                       </div>
 
-                      <div>
-                        <label className="text-fg/80 mb-1 block text-xs font-medium">
-                          Quantity/Token ID {required && <span className="text-red-500">*</span>}
-                        </label>
-                        <input
-                          type="number"
-                          min={1}
-                          value={prize.value || ''}
-                          onChange={(e) => handleExternalPrizeChange(index, 'value', parseFloat(e.target.value) || 0)}
-                          placeholder="e.g., 1 (for NFTs) or 500 (for tokens)"
-                          className="border-border w-full rounded-lg border-2 px-3 py-2 text-sm outline-none transition focus:border-indigo-500"
-                        />
-                      </div>
+                      {/* Token Type Selector - EVM only */}
+                      {isEvm && (
+                        <div>
+                          <label className="text-fg/80 mb-1 block text-xs font-medium">
+                            Token Standard {required && <span className="text-red-500">*</span>}
+                          </label>
+                          <div className="grid grid-cols-3 gap-2">
+                            <label
+                              className={`flex flex-col items-center gap-2 cursor-pointer rounded-lg border-2 p-3 transition-all ${
+                                prize.tokenType === 'erc20' || !prize.tokenType
+                                  ? 'border-indigo-600 bg-indigo-50'
+                                  : 'border-border hover:border-indigo-400'
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name={`tokenType-${index}`}
+                                value="erc20"
+                                checked={prize.tokenType === 'erc20' || !prize.tokenType}
+                                onChange={() => {
+                                  handleExternalPrizeChange(index, 'tokenType', 'erc20');
+                                  handleExternalPrizeChange(index, 'tokenId', '');
+                                }}
+                                className="sr-only"
+                              />
+                              <div className="text-center">
+                                <div className="text-sm font-medium">ERC-20</div>
+                                <div className="text-xs text-fg/60">Fungible</div>
+                              </div>
+                            </label>
 
-                      {/* ✅ ADD THIS - EVM-only NFT type selector */}
-{setupConfig.web3Chain === 'evm' && (
-  <div>
-    <label className="text-fg/80 mb-1 block text-xs font-medium">
-      Token Type {required && <span className="text-red-500">*</span>}
-    </label>
-    <div className="flex gap-4">
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input
-          type="radio"
-          name={`tokenType-${index}`}
-          checked={!prize.isNFT}
-          onChange={() => handleExternalPrizeChange(index, 'isNFT', false)}
-          className="h-4 w-4"
-        />
-        <span className="text-sm">ERC-20 (Fungible Token)</span>
-      </label>
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input
-          type="radio"
-          name={`tokenType-${index}`}
-          checked={!!prize.isNFT}
-          onChange={() => handleExternalPrizeChange(index, 'isNFT', true)}
-          className="h-4 w-4"
-        />
-        <span className="text-sm">NFT (ERC-721/1155)</span>
-      </label>
-    </div>
-    <p className="text-xs text-fg/60 mt-1">
-      {prize.isNFT 
-        ? "For NFTs, the value above will be used as Token ID (ERC-721) or quantity (ERC-1155)"
-        : "For fungible tokens, the value is the amount to transfer (e.g., 100 USDC)"}
-    </p>
-  </div>
-)}
+                            <label
+                              className={`flex flex-col items-center gap-2 cursor-pointer rounded-lg border-2 p-3 transition-all ${
+                                prize.tokenType === 'erc721'
+                                  ? 'border-indigo-600 bg-indigo-50'
+                                  : 'border-border hover:border-indigo-400'
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name={`tokenType-${index}`}
+                                value="erc721"
+                                checked={prize.tokenType === 'erc721'}
+                                onChange={() => {
+                                  handleExternalPrizeChange(index, 'tokenType', 'erc721');
+                                  handleExternalPrizeChange(index, 'amount', '1');
+                                }}
+                                className="sr-only"
+                              />
+                              <div className="text-center">
+                                <div className="text-sm font-medium">ERC-721</div>
+                                <div className="text-xs text-fg/60">Unique NFT</div>
+                              </div>
+                            </label>
+
+                            <label
+                              className={`flex flex-col items-center gap-2 cursor-pointer rounded-lg border-2 p-3 transition-all ${
+                                prize.tokenType === 'erc1155'
+                                  ? 'border-indigo-600 bg-indigo-50'
+                                  : 'border-border hover:border-indigo-400'
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name={`tokenType-${index}`}
+                                value="erc1155"
+                                checked={prize.tokenType === 'erc1155'}
+                                onChange={() => {
+                                  handleExternalPrizeChange(index, 'tokenType', 'erc1155');
+                                }}
+                                className="sr-only"
+                              />
+                              <div className="text-center">
+                                <div className="text-sm font-medium">ERC-1155</div>
+                                <div className="text-xs text-fg/60">Semi-Fungible</div>
+                              </div>
+                            </label>
+                          </div>
+                          <p className="text-xs text-fg/60 mt-2">
+                            Choose the token standard that matches your prize contract
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Conditional fields based on token type */}
+                      {isEvm && prize.tokenType === 'erc20' && (
+                        <div>
+                          <label className="text-fg/80 mb-1 block text-xs font-medium">
+                            Amount {required && <span className="text-red-500">*</span>}
+                          </label>
+                          <input
+                            type="text"
+                            value={prize.amount || ''}
+                            onChange={(e) => handleExternalPrizeChange(index, 'amount', e.target.value)}
+                            placeholder="e.g., 500"
+                            className="border-border w-full rounded-lg border-2 px-3 py-2 text-sm outline-none transition focus:border-indigo-500"
+                          />
+                          <p className="text-xs text-fg/60 mt-1">
+                            How many tokens to award (e.g., 500 USDC)
+                          </p>
+                        </div>
+                      )}
+
+                      {isEvm && prize.tokenType === 'erc721' && (
+                        <div>
+                          <label className="text-fg/80 mb-1 block text-xs font-medium">
+                            Token ID {required && <span className="text-red-500">*</span>}
+                          </label>
+                          <input
+                            type="text"
+                            value={prize.tokenId || ''}
+                            onChange={(e) => handleExternalPrizeChange(index, 'tokenId', e.target.value)}
+                            placeholder="e.g., 1234"
+                            className="border-border w-full rounded-lg border-2 px-3 py-2 font-mono text-sm outline-none transition focus:border-indigo-500"
+                          />
+                          <p className="text-xs text-fg/60 mt-1">
+                            The specific NFT token ID to award
+                          </p>
+                        </div>
+                      )}
+
+                      {isEvm && prize.tokenType === 'erc1155' && (
+                        <>
+                          <div>
+                            <label className="text-fg/80 mb-1 block text-xs font-medium">
+                              Token ID {required && <span className="text-red-500">*</span>}
+                            </label>
+                            <input
+                              type="text"
+                              value={prize.tokenId || ''}
+                              onChange={(e) => handleExternalPrizeChange(index, 'tokenId', e.target.value)}
+                              placeholder="e.g., 1234"
+                              className="border-border w-full rounded-lg border-2 px-3 py-2 font-mono text-sm outline-none transition focus:border-indigo-500"
+                            />
+                            <p className="text-xs text-fg/60 mt-1">
+                              The token ID within the ERC-1155 collection
+                            </p>
+                          </div>
+                          <div>
+                            <label className="text-fg/80 mb-1 block text-xs font-medium">
+                              Quantity {required && <span className="text-red-500">*</span>}
+                            </label>
+                            <input
+                              type="text"
+                              value={prize.amount || ''}
+                              onChange={(e) => handleExternalPrizeChange(index, 'amount', e.target.value)}
+                              placeholder="e.g., 5"
+                              className="border-border w-full rounded-lg border-2 px-3 py-2 text-sm outline-none transition focus:border-indigo-500"
+                            />
+                            <p className="text-xs text-fg/60 mt-1">
+                              How many copies of this token to award
+                            </p>
+                          </div>
+                        </>
+                      )}
+
+                      {/* For non-EVM chains, show the legacy value field */}
+                      {!isEvm && (
+                        <div>
+                          <label className="text-fg/80 mb-1 block text-xs font-medium">
+                            Quantity/Token ID {required && <span className="text-red-500">*</span>}
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            value={prize.value || ''}
+                            onChange={(e) => handleExternalPrizeChange(index, 'value', parseFloat(e.target.value) || 0)}
+                            placeholder="e.g., 1 (for NFTs) or 500 (for tokens)"
+                            className="border-border w-full rounded-lg border-2 px-3 py-2 text-sm outline-none transition focus:border-indigo-500"
+                          />
+                        </div>
+                      )}
 
                       <div>
                         <label className="text-fg/80 mb-1 block text-xs font-medium">Sponsor (Optional)</label>
@@ -664,13 +862,7 @@ updateSetupConfig(updateData);
                         <div className="border-border border-t pt-2">
                           <button
                             type="button"
-                            onClick={() => {
-                              handleExternalPrizeChange(index, 'description', '');
-                              handleExternalPrizeChange(index, 'tokenAddress', '');
-                              handleExternalPrizeChange(index, 'value', 0);
-                              handleExternalPrizeChange(index, 'sponsor', '');
-                              setError('');
-                            }}
+                            onClick={() => clearPrize(index)}
                             className="text-fg/60 text-xs transition-colors hover:text-red-600"
                           >
                             Clear this prize
@@ -691,9 +883,11 @@ updateSetupConfig(updateData);
                   <ul className="space-y-1 text-xs">
                     <li>• <strong>1st place prize is required</strong> and must be complete</li>
                     <li>• Other prizes (2nd–3rd) are optional but must be fully complete if started</li>
+                    <li>• <strong>ERC-20:</strong> Enter the amount of tokens to award</li>
+                    <li>• <strong>ERC-721:</strong> Enter the specific token ID (unique NFT)</li>
+                    <li>• <strong>ERC-1155:</strong> Enter both token ID and quantity</li>
                     <li>• Assets should be available and verifiable for escrow before launch</li>
                     <li>• Use correct contract addresses for your blockchain</li>
-                    <li>• For NFTs, use Token ID; for fungible tokens, use quantity</li>
                   </ul>
                 </div>
               </div>
@@ -739,14 +933,14 @@ updateSetupConfig(updateData);
             </button>
           )}
 
-<ClearSetupButton
-  label="Start Over"
-  variant="ghost"
-  size="sm"
-  keepIds={false}
-  flow="web3"
-  onCleared={onResetToFirst || (() => {})}
-/>
+          <ClearSetupButton
+            label="Start Over"
+            variant="ghost"
+            size="sm"
+            keepIds={false}
+            flow="web3"
+            onCleared={onResetToFirst || (() => {})}
+          />
 
           <button
             type="submit"
