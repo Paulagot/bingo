@@ -90,7 +90,7 @@ export default defineConfig(({ mode }) => {
               'wagmi',
               'viem',
               'ethers',
-              '@rainbow-me/rainbowkit'
+              
             ],
 
             // Reown
