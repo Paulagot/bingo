@@ -1,5 +1,5 @@
 import { useParams } from 'react-router-dom';
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import * as React from 'react';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { useNavigate } from 'react-router-dom';
@@ -16,7 +16,6 @@ import RoundLeaderboardCard from '../host-controls/components/RoundLeaderboardCa
 import OverallLeaderboardCard from '../host-controls/components/OverallLeaderboardCard';
 import ReviewPanel from '../host-controls/components/ReviewPanel';
 import HostTiebreakerPanel from '../host-controls/components/HostTiebreakerPanel';
-import { DynamicChainProvider } from '../../chains/DynamicChainProvider';
 import SpeedRoundHostPanel from '../host-controls/components/SpeedRoundHostPanel';
 import { useHostRecovery } from '../hooks/useHostRecovery';
 import HostPostgamePanel from '../host-controls/components/HostPostgamePanel';
@@ -26,6 +25,21 @@ import { useQuizTimer } from '../hooks/useQuizTimer';
 import { useSolanaContractContext } from '../../../chains/solana/useSolanaContractContext';
 import { PublicKey } from '@solana/web3.js';
 import { toast } from 'sonner';
+
+// ✅ Lazy load Web3Provider
+const Web3Provider = lazy(() => 
+  import('../../../components/Web3Provider').then(m => ({ default: m.Web3Provider }))
+);
+
+// Loading spinner
+const LoadingSpinner = () => (
+  <div className="flex min-h-screen items-center justify-center">
+    <div className="text-center">
+      <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-indigo-300 border-t-indigo-600" />
+      <p className="text-indigo-700 text-sm font-medium">Loading host controls...</p>
+    </div>
+  </div>
+);
 
 const debug = false;
 
@@ -1011,13 +1025,13 @@ const HostControlsCoreInner = ({ solanaContract = null }: HostControlsCoreInnerP
   );
 };
 
-// ✅ Wrapper that provides Solana contract - only used for Solana rooms
+// ✅ Wrapper that provides Solana contract context - only for Solana rooms
 const HostControlsCoreWithSolana = () => {
   const solanaContract = useSolanaContractContext();
   return <HostControlsCoreInner solanaContract={solanaContract} />;
 };
 
-// ✅ Main wrapper that selects the chain and wraps in the right provider
+// ✅ Main wrapper that conditionally wraps with Web3Provider
 const HostControlsPage: React.FC = () => {
   const { config } = useQuizConfig();
 
@@ -1035,25 +1049,29 @@ const HostControlsPage: React.FC = () => {
     return null;
   })();
 
-  // ✅ For Solana rooms, use the wrapper that calls useSolanaContractContext()
+  // ✅ For Solana rooms, wrap with Web3Provider + use Solana contract hook
   if (selectedChain === 'solana') {
     return (
-      <DynamicChainProvider selectedChain="solana">
-        <HostControlsCoreWithSolana />
-      </DynamicChainProvider>
+      <Suspense fallback={<LoadingSpinner />}>
+        <Web3Provider>
+          <HostControlsCoreWithSolana />
+        </Web3Provider>
+      </Suspense>
     );
   }
 
-  // ✅ For EVM/Stellar rooms, use the inner component without Solana hook
+  // ✅ For EVM/Stellar rooms, wrap with Web3Provider (no Solana hook needed)
   if (selectedChain === 'evm' || selectedChain === 'stellar') {
     return (
-      <DynamicChainProvider selectedChain={selectedChain}>
-        <HostControlsCoreInner solanaContract={null} />
-      </DynamicChainProvider>
+      <Suspense fallback={<LoadingSpinner />}>
+        <Web3Provider>
+          <HostControlsCoreInner solanaContract={null} />
+        </Web3Provider>
+      </Suspense>
     );
   }
 
-  // ✅ For non-Web3 rooms, render without any chain provider
+  // ✅ For non-Web3 rooms, render without any provider
   return <HostControlsCoreInner solanaContract={null} />;
 };
 

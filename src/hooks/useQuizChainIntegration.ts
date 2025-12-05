@@ -1,9 +1,11 @@
 // src/hooks/useQuizChainIntegration.ts
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useQuizSetupStore } from '../components/Quiz/hooks/useQuizSetupStore';
 import { useQuizConfig } from '../components/Quiz/hooks/useQuizConfig';
 import { useWalletStore } from '../stores/walletStore';
-import type { SupportedChain } from '../chains/types';
+import { useAppKitAccount, useAppKitNetwork } from '@reown/appkit/react';
+import { useStellarWallet } from '../chains/stellar/useStellarWallet';
+import type { SupportedChain, WalletError } from '../chains/types';
 
 // ✅ Use the central networks config to avoid drift
 import { getMetaByKey, getKeyById, type EvmNetworkKey } from '../chains/evm/config/networks';
@@ -22,49 +24,120 @@ const hasPositiveAmount = (value: unknown): boolean => {
   return false;
 };
 
+// ✅ Define the wallet state shape used by this hook
+interface CurrentWalletState {
+  address: string | null;
+  isConnected: boolean;
+  isConnecting: boolean;
+  error: WalletError | null;
+}
+
 type Options = { chainOverride?: SupportedChain | null };
 
-export const useQuizChainIntegration = (opts?: Options) => {
+export const useQuizChainIntegration = (_opts?: Options) => {
   const { setupConfig } = useQuizSetupStore();
   const { config } = useQuizConfig();
 
-  const { activeChain, stellar, evm, solana } = useWalletStore((s) => ({
-    activeChain: s.activeChain as SupportedChain | null,
-    stellar: s.stellar,
-    evm: s.evm,       // should include .chainId if your EvmWalletProvider syncs it
-    solana: s.solana, // may include .cluster if wired
-  }));
+  // ✅ Read directly from AppKit for EVM/Solana
+  const appKitAccount = useAppKitAccount();
+  const { caipNetwork } = useAppKitNetwork();
 
-  // Coarse chain kind ('stellar' | 'evm' | 'solana')
+  // ✅ Read from Stellar wallet (not managed by AppKit)
+  const stellarWallet = useStellarWallet();
+
+  // ✅ Read activeChain from store + get setter
+  const activeChain = useWalletStore((s) => s.activeChain) as SupportedChain | null;
+  const setActiveChain = useWalletStore((s) => s.setActiveChain);
+
+  // Determine selected chain (coarse chain kind: 'stellar' | 'evm' | 'solana')
   const selectedChain: SupportedChain | null = useMemo(() => {
-    if (opts?.chainOverride) return opts.chainOverride;
+    // 1️⃣ Wizard-preferred source — user selection during setup
+    if (setupConfig?.web3Chain === 'evm' ||
+        setupConfig?.web3Chain === 'solana' ||
+        setupConfig?.web3Chain === 'stellar') {
+      return setupConfig.web3Chain;
+    }
+
+    // 2️⃣ After deployment, full config takes over
+    if (config?.web3Chain === 'evm' ||
+        config?.web3Chain === 'solana' ||
+        config?.web3Chain === 'stellar') {
+      return config.web3Chain;
+    }
+
+    // 3️⃣ Store fallback (rare)
     if (activeChain) return activeChain;
 
-    const dash = (config?.web3Chain ?? config?.web3ChainConfirmed) as SupportedChain | undefined;
-    if (dash === 'stellar' || dash === 'evm' || dash === 'solana') return dash;
-
-    const setup = setupConfig?.web3Chain as SupportedChain | undefined;
-    if (setup === 'stellar' || setup === 'evm' || setup === 'solana') return setup;
-
     return null;
-  }, [opts?.chainOverride, activeChain, config?.web3Chain, config?.web3ChainConfirmed, setupConfig?.web3Chain]);
+  }, [setupConfig?.web3Chain, config?.web3Chain, activeChain]);
 
-  const currentWallet = useMemo(() => {
-    switch (selectedChain) {
-      case 'stellar': return stellar;
-      case 'evm':     return evm;
-      case 'solana':  return solana;
-      default:        return undefined;
+  // ✅ Sync selectedChain to activeChain in store (replaces DynamicChainProvider logic)
+  useEffect(() => {
+    if (selectedChain && selectedChain !== activeChain) {
+      console.log('[useQuizChainIntegration] Syncing activeChain:', selectedChain);
+      setActiveChain(selectedChain);
     }
-  }, [selectedChain, stellar, evm, solana]);
+  }, [selectedChain, activeChain, setActiveChain]);
 
-  const isWalletConnected  = !!currentWallet?.isConnected;
+  // ✅ Current wallet state based on selected chain
+  const currentWallet = useMemo<CurrentWalletState | undefined>(() => {
+    switch (selectedChain) {
+      case 'stellar':
+        return {
+          address: stellarWallet.address || null,
+          isConnected: stellarWallet.isConnected ?? false,
+          isConnecting: false, // Stellar hook doesn't expose this
+          error: (stellarWallet as any).error || null, // Cast to access error if it exists
+        };
+      
+      case 'evm':
+      case 'solana':
+        return {
+          address: appKitAccount.address || null,
+          isConnected: appKitAccount.isConnected,
+          isConnecting: appKitAccount.status === 'connecting',
+          error: null, // AppKit doesn't expose errors in the same way
+        };
+      
+      default:
+        return undefined;
+    }
+  }, [
+    selectedChain,
+    stellarWallet.address,
+    stellarWallet.isConnected,
+    appKitAccount.address,
+    appKitAccount.isConnected,
+    appKitAccount.status,
+  ]);
+
+  const isWalletConnected = !!currentWallet?.isConnected;
   const isWalletConnecting = !!currentWallet?.isConnecting;
-  const walletError        = currentWallet?.error;
-  const walletAddress      = currentWallet?.address;
+  const walletError = currentWallet?.error;
+  const walletAddress = currentWallet?.address;
 
   // 🔹 The selected EVM subnetwork key (e.g., 'base', 'optimismSepolia', etc.)
   const selectedEvmNetwork = (setupConfig as any)?.evmNetwork as EvmNetworkKey | undefined;
+
+  // ✅ Extract numeric chainId for EVM
+  const evmChainId = useMemo(() => {
+    if (selectedChain !== 'evm') return undefined;
+    
+    const caipNetworkId = caipNetwork?.caipNetworkId;
+    if (!caipNetworkId) return undefined;
+
+    // Extract from "eip155:84532"
+    if (caipNetworkId.includes(':')) {
+      const parts = caipNetworkId.split(':');
+      const chainIdStr = parts[1];
+      if (chainIdStr) {
+        const parsed = parseInt(chainIdStr, 10);
+        return isNaN(parsed) ? undefined : parsed;
+      }
+    }
+    
+    return undefined;
+  }, [selectedChain, caipNetwork?.caipNetworkId]);
 
   // Network-aware display name, sourced from networks.ts
   const getNetworkDisplayName = (chain?: SupportedChain | null): string => {
@@ -79,7 +152,7 @@ export const useQuizChainIntegration = (opts?: Options) => {
     }
 
     if (c === 'solana') {
-      const cluster = (setupConfig as any)?.solanaCluster || (solana as any)?.cluster || 'mainnet';
+      const cluster = (setupConfig as any)?.solanaCluster || 'mainnet';
       return SOLANA_NAME_BY_CLUSTER[cluster] ?? 'Solana';
     }
 
@@ -87,9 +160,8 @@ export const useQuizChainIntegration = (opts?: Options) => {
     const metaFromKey = getMetaByKey(selectedEvmNetwork);
     if (metaFromKey?.name) return metaFromKey.name;
 
-    const chainId = (evm as any)?.chainId as number | undefined;
-    if (typeof chainId === 'number') {
-      const keyFromId = getKeyById(chainId);
+    if (typeof evmChainId === 'number') {
+      const keyFromId = getKeyById(evmChainId);
       const metaFromId = getMetaByKey(keyFromId);
       if (metaFromId?.name) return metaFromId.name;
     }
@@ -118,23 +190,55 @@ export const useQuizChainIntegration = (opts?: Options) => {
 
   const walletReadiness = useMemo(() => {
     const net = getNetworkDisplayName();
+    
     if (!isWalletRequired) {
-      return { status: 'not-required' as const, message: 'No wallet required for this quiz', canProceed: true };
+      return { 
+        status: 'not-required' as const, 
+        message: 'No wallet required for this quiz', 
+        canProceed: true 
+      };
     }
+    
     if (!selectedChain) {
-      return { status: 'no-chain' as const, message: 'No blockchain selected', canProceed: false };
+      return { 
+        status: 'no-chain' as const, 
+        message: 'No blockchain selected', 
+        canProceed: false 
+      };
     }
+    
     if (isWalletConnecting) {
-      return { status: 'connecting' as const, message: `Connecting to ${net}…`, canProceed: false };
+      return { 
+        status: 'connecting' as const, 
+        message: `Connecting to ${net}…`, 
+        canProceed: false 
+      };
     }
+    
     if (walletError) {
-      return { status: 'error' as const, message: `Wallet error: ${walletError.message}`, canProceed: false };
+      const errMsg = walletError.message || 'Unknown wallet error';
+
+      return {
+        status: 'error' as const,
+        message: `Wallet error: ${errMsg}`,
+        canProceed: false,
+      };
     }
+    
     if (!isWalletConnected) {
-      return { status: 'disconnected' as const, message: `${net} wallet not connected`, canProceed: false };
+      return { 
+        status: 'disconnected' as const, 
+        message: `${net} wallet not connected`, 
+        canProceed: false 
+      };
     }
-    return { status: 'ready' as const, message: `${net} wallet connected and ready`, canProceed: true };
-  }, [isWalletRequired, selectedChain, isWalletConnecting, walletError, isWalletConnected]);
+    
+    return { 
+      status: 'ready' as const, 
+      message: `${net} wallet connected and ready`, 
+      canProceed: true 
+    };
+  }, [isWalletRequired, selectedChain, isWalletConnecting, walletError, isWalletConnected, getNetworkDisplayName]);
 
   const isUsingChain = (chain: SupportedChain): boolean => selectedChain === chain;
 
@@ -174,9 +278,12 @@ export const useQuizChainIntegration = (opts?: Options) => {
       setupConfig,
       config,
       activeChain,
-      evmChainId: (evm as any)?.chainId,
+      evmChainId,
       evmNetworkKey: selectedEvmNetwork,
       solanaCluster: (setupConfig as any)?.solanaCluster,
+      appKitConnected: appKitAccount.isConnected,
+      appKitAddress: appKitAccount.address,
+      caipNetworkId: caipNetwork?.caipNetworkId,
     },
   };
 };

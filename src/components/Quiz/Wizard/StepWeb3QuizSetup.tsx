@@ -16,6 +16,7 @@ import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
 import type { SupportedChain } from '../../../chains/types';
 import ClearSetupButton from './ClearSetupButton';
 
+
 import { CHARITIES as CHARITY_DIR, getCharityById as getGbCharityById } from '../../../chains/evm/config/gbcharities';
 
 interface StepWeb3QuizSetupProps extends WizardStepProps {
@@ -163,6 +164,8 @@ const getTokensForChoice = (choice: ChoiceValue) => {
 
 const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUpdate, onResetToFirst }) => {
   const { setupConfig, updateSetupConfig, setFlow } = useQuizSetupStore();
+
+  
   useEffect(() => { setFlow('web3'); }, [setFlow]);
 
   // Host
@@ -183,8 +186,7 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
 
   // Web3 fields
   const [currency, setCurrency] = useState(setupConfig.web3Currency || 'USDGLO');
- const [charityId, setCharityId] = useState<string>((setupConfig as any).web3CharityOrgId || '');
-
+  const [charityId, setCharityId] = useState<string>((setupConfig as any).web3CharityOrgId || '');
   const [entryFee, setEntryFee] = useState(setupConfig.entryFee || '');
 
   const availableTokens = useMemo(() => getTokensForChoice(choice), [choice]);
@@ -198,12 +200,13 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
     if (!tokenValues.includes(currency)) setCurrency(availableTokens[0]?.value || fallback);
   }, [choice, availableTokens, currency]);
 
+
+
   const [error, setError] = useState('');
 
   const completedSections = useMemo(() => {
     const host = hostName.trim().length >= 2;
     const feeOk = !!entryFee && !Number.isNaN(parseFloat(entryFee)) && parseFloat(entryFee) > 0;
-    // ✅ With TGB, we require an orgId, not a static wallet
     const hasCharity = Boolean((setupConfig as any).web3CharityOrgId);
     const web3 = Boolean(choice && currency && hasCharity && feeOk);
     return { host, web3 };
@@ -220,12 +223,24 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
     return `Great! Now configure your Web3 payments on ${network}: choose token, charity, and the crypto entry fee.`;
   };
 
+  // ✅ ADD: Handle choice change
+  const handleChoiceChange = (newChoice: ChoiceValue) => {
+    setChoice(newChoice);
+    setError('');
+    
+    const meta = CHOICES.find(c => c.value === newChoice);
+    if (meta) {
+      
+      console.log('🔗 [StepWeb3QuizSetup] Chain changed to:', meta.kind);
+    }
+  };
+
   const handleSubmit = () => {
     if (!completedSections.host) return setError('Please enter a host name with at least 2 characters.');
     const parsed = Number.parseFloat(entryFee.trim());
     if (Number.isNaN(parsed) || parsed <= 0) return setError('Please enter a valid entry fee greater than 0.');
-   const orgOk = Boolean((setupConfig as any).web3CharityOrgId);
-   if (!orgOk) return setError('Please select a charity.');
+    const orgOk = Boolean((setupConfig as any).web3CharityOrgId);
+    if (!orgOk) return setError('Please select a charity.');
 
     const meta = selectedInfo!;
     const web3Chain: SupportedChain = meta.kind; // 'stellar' | 'evm' | 'solana'
@@ -243,6 +258,10 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
       evmNetwork,                // only for EVM
       solanaCluster,             // only for Solana
     } as any);
+
+    // ✅ Ensure activeChain is set (redundant but safe)
+   
+    console.log('🔗 [StepWeb3QuizSetup] Submitted with activeChain:', web3Chain);
 
     setError('');
     onChainUpdate?.(web3Chain);
@@ -339,7 +358,7 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
             </label>
             <select
               value={choice}
-              onChange={(e) => { setChoice(e.target.value as ChoiceValue); setError(''); }}
+              onChange={(e) => handleChoiceChange(e.target.value as ChoiceValue)}
               className="border-border w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3 sm:text-base"
             >
               {CHOICES.map((c) => (
@@ -392,15 +411,13 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
             onChange={(e) => {
               const id = e.target.value || '';
               setCharityId(id);
-                 // 🔁 Update setupConfig with TGB orgId + name (and keep backward compat fields)
-     const c = getGbCharityById(id || undefined);
-     updateSetupConfig({
-       web3CharityOrgId: id || null,
-       web3CharityName: c?.name || null,
-       // legacy fields you might still read elsewhere:
-       web3CharityId: id || null,
-       web3CharityAddress: null, // TGB gives deposit addresses per donation; no static wallet needed
-     } as any);   // writes id+name+wallet into setupConfig
+              const c = getGbCharityById(id || undefined);
+              updateSetupConfig({
+                web3CharityOrgId: id || null,
+                web3CharityName: c?.name || null,
+                web3CharityId: id || null,
+                web3CharityAddress: null,
+              } as any);
               setError('');
             }}
             className={`w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3 sm:text-base ${
@@ -413,12 +430,11 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
             ))}
           </select>
 
-          {/* Optional: show the mapped wallet when selected */}
-         {charityId && (
-   <div className="rounded-md border border-indigo-200 bg-indigo-50 p-2 text-[11px] text-indigo-800 break-words">
-     TGB Org ID: {(setupConfig as any).web3CharityOrgId}
-   </div>
- )}
+          {charityId && (
+            <div className="rounded-md border border-indigo-200 bg-indigo-50 p-2 text-[11px] text-indigo-800 break-words">
+              TGB Org ID: {(setupConfig as any).web3CharityOrgId}
+            </div>
+          )}
 
           <p className="text-fg/60 text-xs italic">Powered by The Giving Block and Coala Pay</p>
         </div>

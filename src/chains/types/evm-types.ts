@@ -11,13 +11,11 @@ import type {
 // ===================================================================
 // EVM WALLET CONNECTION
 // ===================================================================
-
 export interface EvmWalletConnection extends BaseWalletConnection {
   chain: 'evm';
-  chainId?: number;
-  ens?: string;
-  walletType?: EvmWalletType;
-  isMultiChain?: boolean;
+  chainId?: number | null;
+  ens?: string | null;
+  walletType?: string | null;
 }
 
 export type EvmWalletType = 'metamask' | 'walletconnect' | 'coinbase' | 'rainbow' | 'injected';

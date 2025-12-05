@@ -15,10 +15,8 @@ import type {
 
 export interface SolanaWalletConnection extends BaseWalletConnection {
   chain: 'solana';
-  publicKey?: string;
-  cluster?: SolanaCluster;
-  walletType?: SolanaWalletType;
-  commitment?: SolanaCommitment;
+  publicKey?: string | null;
+  cluster?: string;   // AppKit gives a string ("mainnet" | "devnet")
 }
 
 export type SolanaWalletType = 'phantom' | 'solflare' | 'backpack' | 'glow' | 'slope' | 'mathwallet' | 'coin98' | 'clover';

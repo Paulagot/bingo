@@ -1,53 +1,7 @@
-//src/config/index
-import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
-import { SolanaAdapter } from '@reown/appkit-adapter-solana/react';
+// src/config/index.ts
+import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
+import { SolanaAdapter } from "@reown/appkit-adapter-solana";
 import {
-  
-  sepolia,
-  baseSepolia,
-  base, 
-  arbitrum,
-  arbitrumSepolia,
-  optimism,
-  optimismSepolia,  
-  avalanche,
-  avalancheFuji,
-  sei,  
-  seiTestnet,  
-  bscTestnet,
-  bsc,
-  solana,
-  solanaDevnet,
-  solanaTestnet,
-  mainnet, 
-  polygon,            // 👈 add
-  polygonAmoy,         
-  
-} from '@reown/appkit/networks';
-import type { AppKitNetwork } from '@reown/appkit/networks';
-
-export const projectId = import.meta.env.VITE_PROJECT_ID || 'b56e18d47c72ab683b10814fe9495694';
-
-// Validate project ID - warn if it looks like a placeholder
-if (!projectId || projectId.includes('your_project_id') || projectId.includes('your-project-id')) {
-  console.warn('⚠️ WalletConnect Project ID appears to be a placeholder. Please set VITE_PROJECT_ID in your .env file.');
-  console.warn('⚠️ Get a project ID from https://cloud.walletconnect.com/');
-}
-
-if (!projectId) {
-  throw new Error('Project ID is not defined');
-}
-
-export const metadata = {
-  name: 'AppKit',
-  description: 'AppKit Example',
-  url: 'https://reown.com',
-  icons: ['https://avatars.githubusercontent.com/u/179229932'],
-};
-
-// ✅ THIS is the key part: networks must be defined at the top level
-export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [
- // Testnets
   sepolia,
   baseSepolia,
   optimismSepolia,
@@ -56,33 +10,122 @@ export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [
   avalancheFuji,
   seiTestnet,
   polygonAmoy,
-  // Mainnets
-  bsc,
-  sei,
-  avalanche,  
-  base,  
-  optimism,
-  arbitrum,  
-  mainnet,
-  polygon, 
 
-  //non-evm
+  // Mainnets
+  mainnet,
+  base,
+  optimism,
+  arbitrum,
+  bsc,
+  avalanche,
+  sei,
+  polygon,
+
+  // Solana
   solana,
   solanaDevnet,
-  solanaTestnet
- 
-  
- 
+  solanaTestnet,
+} from "@reown/appkit/networks";
+
+import type { AppKitNetwork } from "@reown/appkit/networks";
+import { http } from "wagmi";
+
+// ---------------------------------------------
+// 🔐 Project ID
+// ---------------------------------------------
+export const projectId: string = import.meta.env.VITE_PROJECT_ID;
+
+if (!projectId || projectId.trim().length === 0) {
+  throw new Error("❌ VITE_PROJECT_ID is missing in environment variables.");
+}
+
+// ---------------------------------------------
+// 🧩 DApp Metadata (shown in wallet modals)
+// ---------------------------------------------
+export const metadata = {
+  name: "FundRaisely Quiz",
+  description: "FundRaisely Web3-powered quiz fundraising platform",
+  url: "https://fundraisely.ie",
+  icons: ["https://fundraisely.ie/icon.png"],
+};
+
+// ---------------------------------------------
+// 🌐 Supported Networks (tuple for strict typing)
+// ---------------------------------------------
+export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [
+  sepolia,
+  baseSepolia,
+  optimismSepolia,
+  arbitrumSepolia,
+  bscTestnet,
+  avalancheFuji,
+  seiTestnet,
+  polygonAmoy,
+
+  mainnet,
+  base,
+  optimism,
+  arbitrum,
+  bsc,
+  avalanche,
+  sei,
+  polygon,
+
+  solana,
+  solanaDevnet,
+  solanaTestnet,
 ];
 
-console.log('✅ Reown networks configured:', networks.map(n => ({ id: n.id, name: n.name }))); // ✅ this should now work
-console.log(solana.id, solanaDevnet.id, solanaTestnet.id);
+// ---------------------------------------------
+// ⚡ Typed RPC Transports for EVM Chains Only
+// ---------------------------------------------
+export type HttpTransport = ReturnType<typeof http>;
+type EvmTransportMap = Record<number, HttpTransport>;
 
+
+export const evmTransports: EvmTransportMap = {
+  // Testnets
+  [sepolia.id]: http("https://rpc.sepolia.org"),
+  [baseSepolia.id]: http("https://sepolia.base.org"),
+  [optimismSepolia.id]: http("https://sepolia.optimism.io"),
+  [arbitrumSepolia.id]: http("https://sepolia-rollup.arbitrum.io/rpc"),
+  [bscTestnet.id]: http("https://data-seed-prebsc-1-s1.binance.org:8545"),
+  [avalancheFuji.id]: http("https://api.avax-test.network/ext/bc/C/rpc"),
+  [seiTestnet.id]: http("https://evm-rpc-testnet.sei-apis.com"),
+  [polygonAmoy.id]: http("https://rpc-amoy.polygon.technology"),
+
+  // Mainnets
+  [mainnet.id]: http("https://eth.llamarpc.com"),
+  [base.id]: http("https://mainnet.base.org"),
+  [optimism.id]: http("https://mainnet.optimism.io"),
+  [arbitrum.id]: http("https://arb1.arbitrum.io/rpc"),
+  [bsc.id]: http("https://bsc-dataseed.binance.org"),
+  [avalanche.id]: http("https://api.avax.network/ext/bc/C/rpc"),
+  [sei.id]: http("https://evm-rpc.sei-apis.com"),
+  [polygon.id]: http("https://polygon-rpc.com"),
+};
+
+// ---------------------------------------------
+// 🛠️ Adapter: Wagmi (EVM)
+// ---------------------------------------------
 export const wagmiAdapter = new WagmiAdapter({
   projectId,
-  networks,
+  networks: networks as unknown as [AppKitNetwork, ...AppKitNetwork[]],
+  transports: evmTransports,
 });
 
+// ---------------------------------------------
+// 🛠️ Adapter: Solana (Web3.js)
+// ---------------------------------------------
 export const solanaWeb3JsAdapter = new SolanaAdapter();
-export const config = wagmiAdapter.wagmiConfig;
 
+// ---------------------------------------------
+// 📦 Wagmi Config (used by WagmiProvider)
+// ---------------------------------------------
+
+export const wagmiConfig = wagmiAdapter.wagmiConfig;
+export const config = wagmiConfig;
+
+// Debug sanity check
+console.log("🔧[config index] Loaded AppKit networks:", networks.map(n => `${n.name} (${n.id})`));
+console.log("🔧 [config index] EVM transports configured:", Object.keys(evmTransports).length);

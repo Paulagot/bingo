@@ -1,140 +1,100 @@
-/**
- * EVM Network Configuration
- *
- * Defines network configuration for EVM-compatible chains including chain IDs,
- * RPC endpoints, explorer URLs, and native currency information.
- *
- * ## Supported Networks
- *
- * - **Base**: Chain ID 8453, Mainnet
- * - **Base Sepolia**: Chain ID 84532, Testnet
- * - **Polygon**: Chain ID 137, Mainnet
- * - **Polygon Amoy**: Chain ID 80002, Testnet
- * - **BSC**: Chain ID 56, Mainnet
- * - **BSC Testnet**: Chain ID 97, Testnet
- * - **Avalanche**: Chain ID 43114, Mainnet
- * - **Avalanche Fuji**: Chain ID 43113, Testnet
- * - **Optimism**: Chain ID 10, Mainnet
- * - **Optimism Sepolia**: Chain ID 11155420, Testnet
- *
- * ## Network Configuration
- *
- * Each network includes:
- * - **Chain ID**: Unique identifier for the network
- * - **Name**: Human-readable network name
- * - **RPC**: RPC endpoint URL
- * - **Explorer**: Block explorer URL
- * - **Native Currency**: Native token (ETH, MATIC, AVAX, BNB)
- *
- * ## Usage
- *
- * ```typescript
- * import { EVM_NETWORKS, getMetaByKey, getKeyById } from './networks';
- *
- * // Get network by key
- * const network = EVM_NETWORKS.baseSepolia;
- *
- * // Get network by chain ID
- * const key = getKeyById(84532); // 'baseSepolia'
- *
- * // Get network metadata
- * const meta = getMetaByKey('baseSepolia');
- * ```
- *
- * Used by wallet providers and contract interactions to determine network configuration.
- */
 // src/chains/evm/config/networks.ts
-export const EVM_NETWORKS = {
-  base: {
-    id: 8453,
-    name: 'Base',
-    rpc: 'https://mainnet.base.org',
-    explorer: 'https://basescan.org',
-    nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-  },
-  baseSepolia: {
-    id: 84532,
-    name: 'Base Sepolia',
-    rpc: 'https://sepolia.base.org',
-    explorer: 'https://sepolia.basescan.org',
-    nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-  },
 
-  // --- Binance Smart Chain ---
-  bsc: {
-    id: 56,
-    name: 'BNB Smart Chain',
-    rpc: 'https://bsc-dataseed.binance.org',
-    explorer: 'https://bscscan.com',
-    nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
-  },
-  bscTestnet: {
-    id: 97,
-    name: 'BNB Smart Chain Testnet',
-    rpc: 'https://data-seed-prebsc-1-s1.binance.org:8545',
-    explorer: 'https://testnet.bscscan.com',
-    nativeCurrency: { name: 'BNB', symbol: 'tBNB', decimals: 18 },
-  },
+// ✅ Import networks directly from AppKit
+import {
+  mainnet,
+  base,
+  baseSepolia,
+  optimism,
+  optimismSepolia,
+  arbitrum,
+  arbitrumSepolia,
+  bsc,
+  bscTestnet,
+  avalanche,
+  avalancheFuji,
+  polygon,
+  polygonAmoy,
+  sepolia,
+  sei,
+  seiTestnet,
+} from '@reown/appkit/networks';
 
-  // --- Avalanche (C-Chain) ---
-  avalanche: {
-    id: 43114,
-    name: 'Avalanche C-Chain',
-    rpc: 'https://api.avax.network/ext/bc/C/rpc',
-    explorer: 'https://snowtrace.io',
-    nativeCurrency: { name: 'Avalanche', symbol: 'AVAX', decimals: 18 },
-  },
-  avalancheFuji: {
-    id: 43113,
-    name: 'Avalanche Fuji',
-    rpc: 'https://api.avax-test.network/ext/bc/C/rpc',
-    explorer: 'https://testnet.snowtrace.io',
-    nativeCurrency: { name: 'Avalanche', symbol: 'AVAX', decimals: 18 },
-  },
+import type { AppKitNetwork } from '@reown/appkit/networks';
 
-  // --- Optimism ---
-  optimism: {
-    id: 10,
-    name: 'OP Mainnet',
-    rpc: 'https://mainnet.optimism.io',
-    explorer: 'https://optimistic.etherscan.io',
-    nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-  },
-  optimismSepolia: {
-    id: 11155420,
-    name: 'OP Sepolia',
-    rpc: 'https://sepolia.optimism.io',
-    explorer: 'https://sepolia-optimism.etherscan.io',
-    nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-  },
+// ✅ Define the keys you support
+export type EvmNetworkKey =
+  | 'mainnet'
+  | 'sepolia'
+  | 'base'
+  | 'baseSepolia'
+  | 'optimism'
+  | 'optimismSepolia'
+  | 'arbitrum'
+  | 'arbitrumSepolia'
+  | 'bsc'
+  | 'bscTestnet'
+  | 'avalanche'
+  | 'avalancheFuji'
+  | 'polygon'
+  | 'polygonAmoy'
+  | 'sei'
+  | 'seiTestnet';
 
-  // --- Polygon (existing) ---
-  polygon: {
-    id: 137,
-    name: 'Polygon',
-    rpc: 'https://polygon-rpc.com',
-    explorer: 'https://polygonscan.com',
-    nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
-  },
-  polygonAmoy: {
-    id: 80002,
-    name: 'Polygon Amoy',
-    rpc: 'https://rpc-amoy.polygon.technology',
-    explorer: 'https://amoy.polygonscan.com',
-    nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
-  },
-} as const;
+// ✅ Map keys to AppKit's network objects
+export const EVM_NETWORKS: Record<EvmNetworkKey, AppKitNetwork> = {
+  mainnet,
+  sepolia,
+  base,
+  baseSepolia,
+  optimism,
+  optimismSepolia,
+  arbitrum,
+  arbitrumSepolia,
+  bsc,
+  bscTestnet,
+  avalanche,
+  avalancheFuji,
+  polygon,
+  polygonAmoy,
+  sei,
+  seiTestnet,
+};
 
-export type EvmNetworkKey = keyof typeof EVM_NETWORKS;
+// ✅ Get network by key
+export const getMetaByKey = (key?: string | null): AppKitNetwork | undefined => {
+  if (!key || !(key in EVM_NETWORKS)) return undefined;
+  return EVM_NETWORKS[key as EvmNetworkKey];
+};
 
-// Utility helpers
-export const getMetaByKey = (key?: string | null) =>
-  key && key in EVM_NETWORKS ? EVM_NETWORKS[key as EvmNetworkKey] : undefined;
-
+// ✅ Get key by numeric chain ID
 export const getKeyById = (id?: number | null): EvmNetworkKey | undefined => {
-  if (!id && id !== 0) return undefined;
-  const entry = Object.entries(EVM_NETWORKS).find(([, v]) => v.id === id);
+  if (id === undefined || id === null) return undefined;
+  
+  const entry = Object.entries(EVM_NETWORKS).find(
+    ([_, network]) => network.id === id
+  );
+  
   return entry?.[0] as EvmNetworkKey | undefined;
+};
+
+// ✅ Get all networks as array
+export const getAllNetworks = (): AppKitNetwork[] => {
+  return Object.values(EVM_NETWORKS);
+};
+
+// ✅ Get display name by key
+export const getNetworkName = (key: EvmNetworkKey): string => {
+  return EVM_NETWORKS[key]?.name || key;
+};
+
+// ✅ Get chain ID by key - FIX: Type assertion to ensure it's a number
+export const getChainIdByKey = (key: EvmNetworkKey): number | undefined => {
+  const network = EVM_NETWORKS[key];
+  if (!network?.id) return undefined;
+  
+  // ✅ Type assertion: AppKit network IDs are always numbers for EVM
+  return typeof network.id === 'number' ? network.id : undefined;
 };
 
 

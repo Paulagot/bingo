@@ -1,260 +1,469 @@
-import { useMemo, useCallback } from 'react';
-import { useQuizChainIntegration } from './useQuizChainIntegration';
-import { useWalletStore } from '../stores/walletStore';
-import type {
-  SupportedChain,
-  WalletConnectionResult,
-  NetworkInfo,
-} from '../chains/types';
+// src/hooks/useWalletActions.ts
 
-export interface WalletActions {
-  chain: SupportedChain | null;
+import { useCallback, useMemo, useEffect } from "react";
+import { useWalletStore } from "../stores/walletStore";
+import { useQuizSetupStore } from "../components/Quiz/hooks/useQuizSetupStore";
 
-  // lifecycle
-  connect: () => Promise<WalletConnectionResult>;
-  disconnect: () => Promise<void>;
-  isConnected: () => boolean;
-  getAddress: () => string | null;
+// Reown AppKit - direct hooks
+import {
+  useAppKitAccount,
+  useAppKitProvider,
+  useDisconnect,
+  useAppKitNetwork, // ✅ This includes switchNetwork
+  useAppKit,
+} from "@reown/appkit/react";
 
-  // info
-  getNetworkInfo: () => NetworkInfo | undefined;
+import { WalletErrorCode } from "../chains/types";
+import { useStellarWallet } from "../chains/stellar/useStellarWallet";
+import { useQuizConfig } from "../components/Quiz/hooks/useQuizConfig";
+import { getMetaByKey, getKeyById, type EvmNetworkKey } from "../chains/evm/config/networks";
 
-  // optional EVM-only helpers
-  switchChain?: (toChainId: number) => Promise<boolean>;
-  getChainId?: () => Promise<number | undefined>;
-}
+type ChainFamily = 'evm' | 'solana' | 'stellar' | null;
 
-type Options = { chainOverride?: SupportedChain | null };
-
-export function useWalletActions(opts?: Options): WalletActions {
-  const { selectedChain } = useQuizChainIntegration({
-    chainOverride: opts?.chainOverride ?? null,
+/* -------------------------------------------------------------
+   Determine CHAIN FAMILY (memoized)
+-------------------------------------------------------------- */
+function useResolvedChainFamily(): ChainFamily {
+  const { config } = useQuizConfig();
+  const { setupConfig } = useQuizSetupStore();
+  
+  // ✅ ADD THIS DEBUG LOG
+  console.log('[useResolvedChainFamily] Inputs:', {
+    setupConfig_web3Chain: setupConfig?.web3Chain,
+    config_web3Chain: config?.web3Chain,
+    config_evmNetwork: config?.evmNetwork,
+    config_solanaCluster: config?.solanaCluster,
+    config_stellarNetwork: config?.stellarNetwork,
+    hasConfig: !!config,
+    hasSetupConfig: !!setupConfig,
   });
-  const effectiveChain = (opts?.chainOverride ?? selectedChain) as SupportedChain | null;
- 
-
-  // Read from store (no contexts)
-  const { stellar, evm, solana } = useWalletStore((s) => ({
-    stellar: s.stellar,
-    evm: s.evm,
-    solana: s.solana,
-  }));
-
-  // -------------------- Stellar --------------------
-  const stellarConnect = useCallback(async (): Promise<WalletConnectionResult> => {
-    window.dispatchEvent(new CustomEvent('stellar:request-connect'));
-    await new Promise((r) => setTimeout(r, 100));
-
-    const state = useWalletStore.getState().stellar;
-    if (state?.isConnected && state.address) {
-      return {
-        success: true,
-        address: state.address,
-        networkInfo: {
-          chainId: state.networkPassphrase || 'stellar',
-          name: 'Stellar',
-          isTestnet: true,
-          rpcUrl: '',
-          blockExplorer: '',
-        },
-      };
-    }
-    return {
-      success: false,
-      address: null,
-      error: {
-        code: 'WALLET_CONNECTION_FAILED' as any,
-        message: 'Stellar connection failed',
-        timestamp: new Date(),
-      },
-    };
-  }, []);
-
-  const stellarDisconnect = useCallback(async (): Promise<void> => {
-    window.dispatchEvent(new CustomEvent('stellar:request-disconnect'));
-    await new Promise((r) => setTimeout(r, 100));
-  }, []);
-
-  // -------------------- EVM --------------------
-  const evmConnect = useCallback(async (): Promise<WalletConnectionResult> => {
-    window.dispatchEvent(new CustomEvent('evm:request-connect'));
-    await new Promise((r) => setTimeout(r, 100));
-
-    const state = useWalletStore.getState().evm;
-    if (state?.isConnected && state.address) {
-      return {
-        success: true,
-        address: state.address,
-        networkInfo: {
-          chainId: state.chainId?.toString() || 'evm',
-          name: 'EVM',
-          isTestnet: false,
-          rpcUrl: '',
-          blockExplorer: '',
-        },
-      };
-    }
-    return {
-      success: false,
-      address: null,
-      error: {
-        code: 'WALLET_CONNECTION_FAILED' as any,
-        message: 'EVM connection failed',
-        timestamp: new Date(),
-      },
-    };
-  }, []);
-
-  const evmDisconnect = useCallback(async (): Promise<void> => {
-    window.dispatchEvent(new CustomEvent('evm:request-disconnect'));
-    await new Promise((r) => setTimeout(r, 100));
-  }, []);
-
-  // -------------------- ✅ Solana (events) --------------------
-  const solanaConnect = useCallback(async (): Promise<WalletConnectionResult> => {
-    window.dispatchEvent(new CustomEvent('solana:request-connect'));
-    await new Promise((r) => setTimeout(r, 150)); // adapters can be slightly slower
-
-    const state = useWalletStore.getState().solana;
-    if (state?.isConnected && state.address) {
-      return {
-        success: true,
-        address: state.address,
-        networkInfo: {
-          chainId: state.cluster || 'solana',
-          name: state.cluster || 'solana',
-          isTestnet: state.cluster !== 'mainnet-beta',
-          rpcUrl: '',
-          blockExplorer: '',
-        },
-      };
-    }
-    return {
-      success: false,
-      address: null,
-      error: {
-        code: 'WALLET_CONNECTION_FAILED' as any,
-        message: 'Solana connection failed',
-        timestamp: new Date(),
-      },
-    };
-  }, []);
-
-  const solanaDisconnect = useCallback(async (): Promise<void> => {
-    window.dispatchEvent(new CustomEvent('solana:request-disconnect'));
-    await new Promise((r) => setTimeout(r, 150));
-  }, []);
-
-  // -------------------- Return shape per chain --------------------
-  return useMemo<WalletActions>(() => {
-    if (effectiveChain === 'stellar') {
-      return {
-        chain: 'stellar',
-        connect: stellarConnect,
-        disconnect: stellarDisconnect,
-        isConnected: () => !!(stellar?.isConnected && stellar?.address),
-        getAddress: () => stellar?.address ?? null,
-        getNetworkInfo: () => (stellar?.networkPassphrase
-          ? {
-              chainId: stellar.networkPassphrase,
-              name: 'Stellar',
-              isTestnet: true,
-              rpcUrl: '',
-              blockExplorer: '',
-            }
-          : undefined),
-      };
+  
+  return useMemo(() => {
+    // 1. Check setupConfig.web3Chain (during wizard)
+    if (setupConfig?.web3Chain) {
+      const chain = setupConfig.web3Chain;
+      if (chain === 'evm' || chain === 'solana' || chain === 'stellar') {
+        console.log('[useResolvedChainFamily] ✅ From setupConfig:', chain);
+        return chain;
+      }
     }
 
-    if (effectiveChain === 'evm') {
-      return {
-        chain: 'evm',
-        connect: evmConnect,
-        disconnect: evmDisconnect,
-        isConnected: () => !!(evm?.isConnected && evm?.address),
-        getAddress: () => evm?.address ?? null,
-        getNetworkInfo: () => ({
-          chainId: evm?.chainId?.toString() || 'evm',
-          name: 'EVM',
-          isTestnet: false,
-          rpcUrl: '',
-          blockExplorer: '',
-        }),
-        switchChain: async (toChainId: number) => {
-          window.dispatchEvent(
-            new CustomEvent('evm:request-switch-chain', { detail: { chainId: toChainId } })
-          );
-          await new Promise((r) => setTimeout(r, 500));
-          return useWalletStore.getState().evm?.chainId === toChainId;
-        },
-        getChainId: async () => useWalletStore.getState().evm?.chainId,
-      };
+    // 2. Check config.web3Chain (after deployment)
+    if (config?.web3Chain) {
+      const chain = config.web3Chain;
+      if (chain === 'evm' || chain === 'solana' || chain === 'stellar') {
+        console.log('[useResolvedChainFamily] ✅ From config:', chain);
+        return chain;
+      }
     }
 
-    if (effectiveChain === 'solana') {
-      return {
-        chain: 'solana',
-        connect: solanaConnect,
-        disconnect: solanaDisconnect, // ✅ now implemented
-        isConnected: () => !!(solana?.isConnected && solana?.address),
-        getAddress: () => solana?.address ?? null,
-        getNetworkInfo: () =>
-          solana?.cluster
-            ? {
-                chainId: solana.cluster,
-                name: solana.cluster,
-                isTestnet: solana.cluster !== 'mainnet-beta',
-                rpcUrl: '',
-                blockExplorer: '',
-              }
-            : undefined,
-      };
+    // 3. Fallback to detecting from network config
+    if (config?.evmNetwork) {
+      console.log('[useResolvedChainFamily] ✅ Detected EVM from evmNetwork:', config.evmNetwork);
+      return "evm";
+    }
+    if (config?.solanaCluster) {
+      console.log('[useResolvedChainFamily] ✅ Detected Solana from solanaCluster');
+      return "solana";
+    }
+    if (config?.stellarNetwork) {
+      console.log('[useResolvedChainFamily] ✅ Detected Stellar from stellarNetwork');
+      return "stellar";
     }
 
-    // No chain selected
-    return {
-      chain: null,
-      connect: async () => ({
-        success: false,
-        address: null,
-        error: {
-          code: 'WALLET_CONNECTION_FAILED' as any,
-          message: 'No chain selected',
-          timestamp: new Date(),
-        },
-      }),
-      disconnect: async () => {},
-      isConnected: () => false,
-      getAddress: () => null,
-      getNetworkInfo: () => undefined,
-    };
+    console.log('[useResolvedChainFamily] ❌ No chain detected, returning null');
+    return null;
   }, [
-    effectiveChain,
-
-    // store-driven deps
-    stellar?.isConnected,
-    stellar?.address,
-    stellar?.networkPassphrase,
-
-    evm?.isConnected,
-    evm?.address,
-    evm?.chainId,
-
-    solana?.isConnected,
-    solana?.address,
-    solana?.cluster,
-
-    // stable callbacks
-    stellarConnect,
-    stellarDisconnect,
-    evmConnect,
-    evmDisconnect,
-    solanaConnect,
-    solanaDisconnect,
+    setupConfig?.web3Chain,
+    config?.web3Chain,
+    config?.evmNetwork,
+    config?.solanaCluster,
+    config?.stellarNetwork,
   ]);
 }
 
+/* -------------------------------------------------------------
+   MAIN HOOK
+-------------------------------------------------------------- */
+export function useWalletActions() {
+  const chainFamily = useResolvedChainFamily();
 
+  // AppKit hooks
+  const appKitAccount = useAppKitAccount();
+  const { walletProvider: evmWalletProvider } = useAppKitProvider("eip155");
+  const { walletProvider: solanaWalletProvider } = useAppKitProvider("solana");
+  const { disconnect: disconnectAppKit } = useDisconnect();
+  const { open: openAppKitModal } = useAppKit();
+  
+  // ✅ Get caipNetwork AND switchNetwork from the same hook
+  const { caipNetwork, switchNetwork } = useAppKitNetwork();
 
+  // Stellar wallet
+  const stellarWallet = useStellarWallet();
+  const { updateStellarWallet } = useWalletStore();
+  
+  // Quiz setup config
+  const { setupConfig } = useQuizSetupStore();
 
+  console.log("🎯 [useWalletActions] State:", {
+    chainFamily,
+    appKitConnected: appKitAccount.isConnected,
+    appKitAddress: appKitAccount.address,
+    appKitStatus: appKitAccount.status,
+    currentNetwork: caipNetwork?.name,
+    currentChainId: caipNetwork?.caipNetworkId,
+    stellarConnected: stellarWallet.isConnected,
+    stellarAddress: stellarWallet.address,
+  });
 
+  /* -------------------------------------------------------------
+     STELLAR CONNECT/DISCONNECT (unchanged)
+  -------------------------------------------------------------- */
+  const connectStellar = useCallback(async () => {
+    try {
+      console.log("🔗 [Stellar] Attempting connection...");
+      await stellarWallet.connect();
+
+      if (!stellarWallet.address) {
+        throw new Error("Stellar wallet not connected");
+      }
+
+      console.log("✅ [Stellar] Connected:", stellarWallet.address);
+
+      updateStellarWallet({
+        address: stellarWallet.address,
+        publicKey: stellarWallet.publicKey ?? undefined,
+        isConnected: true,
+        error: null,
+      });
+
+      return { success: true, address: stellarWallet.address };
+    } catch (err: any) {
+      console.error("❌ [Stellar] Connection failed:", err);
+      
+      updateStellarWallet({
+        address: null,
+        isConnected: false,
+        error: {
+          code: WalletErrorCode.CONNECTION_FAILED,
+          message: String(err?.message ?? err),
+          timestamp: new Date(),
+          details: err,
+        },
+      });
+      return { success: false, error: err };
+    }
+  }, [stellarWallet, updateStellarWallet]);
+
+  const disconnectStellar = useCallback(async () => {
+    try {
+      console.log("🔌 [Stellar] Disconnecting...");
+      await stellarWallet.disconnect();
+      
+      updateStellarWallet({
+        address: null,
+        isConnected: false,
+        error: null,
+      });
+      
+      console.log("✅ [Stellar] Disconnected");
+      return { success: true };
+    } catch (err) {
+      console.error("❌ [Stellar] Disconnect failed:", err);
+      return { success: false, error: err };
+    }
+  }, [stellarWallet, updateStellarWallet]);
+
+  /* -------------------------------------------------------------
+     HELPER: Get numeric chainId for EVM contracts
+  -------------------------------------------------------------- */
+  const getChainId = useCallback((): number | undefined => {
+    if (chainFamily !== 'evm') return undefined;
+    
+    const caipNetworkId = caipNetwork?.caipNetworkId;
+    if (!caipNetworkId) return undefined;
+    
+    if (caipNetworkId.includes(':')) {
+      const parts = caipNetworkId.split(':');
+      const chainIdStr = parts[1];
+      
+      if (chainIdStr) {
+        const parsed = parseInt(chainIdStr, 10);
+        return isNaN(parsed) ? undefined : parsed;
+      }
+    }
+    
+    return undefined;
+  }, [chainFamily, caipNetwork?.caipNetworkId]);
+
+  /* -------------------------------------------------------------
+     HELPER: Get expected network info
+  -------------------------------------------------------------- */
+  const getExpectedNetwork = useCallback(() => {
+    if (chainFamily !== 'evm') return null;
+    
+    const expectedNetworkKey = setupConfig?.evmNetwork as EvmNetworkKey | undefined;
+    if (!expectedNetworkKey) return null;
+    
+    return getMetaByKey(expectedNetworkKey);
+  }, [chainFamily, setupConfig?.evmNetwork]);
+
+  /* -------------------------------------------------------------
+     HELPER: Check if on correct network
+  -------------------------------------------------------------- */
+  const isOnCorrectNetwork = useCallback((): boolean => {
+    if (chainFamily !== 'evm') return true;
+    
+    const expectedMeta = getExpectedNetwork();
+    if (!expectedMeta) return true;
+    
+    const currentChainId = getChainId();
+    const isCorrect = currentChainId === expectedMeta.id;
+    
+    console.log('🔍 [Network Check]:', {
+      current: currentChainId,
+      expected: expectedMeta.id,
+      expectedName: expectedMeta.name,
+      isCorrect,
+    });
+    
+    return isCorrect;
+  }, [chainFamily, getChainId, getExpectedNetwork]);
+
+  /* -------------------------------------------------------------
+     ✅ AUTO-SWITCH EFFECT: Automatically switch when on wrong network
+  -------------------------------------------------------------- */
+  useEffect(() => {
+    if (chainFamily !== 'evm') return;
+    if (!appKitAccount.isConnected) return;
+    if (!switchNetwork) return; // Guard: ensure switchNetwork exists
+    
+    const expectedMeta = getExpectedNetwork();
+    const currentChainId = getChainId();
+    
+    if (expectedMeta && currentChainId && currentChainId !== expectedMeta.id) {
+      console.log('🔄 [EVM] Auto-switching to expected network...', {
+        from: currentChainId,
+        to: expectedMeta.id,
+        toName: expectedMeta.name,
+      });
+      
+      // ✅ Use switchNetwork from useAppKitNetwork
+      switchNetwork(expectedMeta)
+        .then(() => {
+          console.log(`✅ [EVM] Successfully switched to ${expectedMeta.name}`);
+        })
+        .catch((err) => {
+          console.error('❌ [EVM] Auto-switch failed:', err);
+        });
+    }
+  }, [
+    chainFamily,
+    appKitAccount.isConnected,
+    getExpectedNetwork,
+    getChainId,
+    switchNetwork, // ✅ From useAppKitNetwork
+  ]);
+
+  /* -------------------------------------------------------------
+     UNIFIED CONNECT
+  -------------------------------------------------------------- */
+  const connect = useCallback(async () => {
+    console.log("🚀 [Unified Connect] Chain family:", chainFamily);
+    
+    if (chainFamily === 'stellar') {
+      return connectStellar();
+    }
+    
+    if (chainFamily === 'evm' || chainFamily === 'solana') {
+      try {
+        console.log(`🔗 [${chainFamily.toUpperCase()}] Current state:`, {
+          address: appKitAccount.address,
+          isConnected: appKitAccount.isConnected,
+          status: appKitAccount.status,
+          network: caipNetwork?.name,
+          networkId: caipNetwork?.caipNetworkId,
+        });
+        
+        // Already connected - the auto-switch effect will handle network switching
+        if (appKitAccount.address && appKitAccount.isConnected) {
+          console.log(`✅ [${chainFamily.toUpperCase()}] Already connected:`, appKitAccount.address);
+          return { success: true, address: appKitAccount.address };
+        }
+        
+        // Not connected - open modal
+        console.log(`🔗 [${chainFamily.toUpperCase()}] Opening AppKit modal...`);
+        await openAppKitModal();
+        
+        console.log(`📱 [${chainFamily.toUpperCase()}] Modal opened, waiting for user action...`);
+        
+        return { 
+          success: true, 
+          address: null,
+          pending: true,
+        };
+        
+      } catch (err: any) {
+        console.error(`❌ [${chainFamily?.toUpperCase()}] Connection failed:`, err);
+        return { success: false, error: err };
+      }
+    }
+    
+    return {
+      success: false,
+      error: {
+        code: WalletErrorCode.UNKNOWN_ERROR,
+        message: "NO_CHAIN_SELECTED",
+        timestamp: new Date(),
+      },
+    };
+  }, [
+    chainFamily, 
+    connectStellar, 
+    openAppKitModal, 
+    appKitAccount, 
+    caipNetwork,
+  ]);
+
+  /* -------------------------------------------------------------
+     UNIFIED DISCONNECT
+  -------------------------------------------------------------- */
+  const disconnect = useCallback(async () => {
+    console.log("🔌 [Unified Disconnect] Chain family:", chainFamily);
+    
+    if (chainFamily === 'stellar') {
+      return disconnectStellar();
+    }
+    
+    if (chainFamily === 'evm' || chainFamily === 'solana') {
+      try {
+        console.log(`🔌 [${chainFamily.toUpperCase()}] Disconnecting via AppKit...`);
+        await disconnectAppKit();
+        console.log(`✅ [${chainFamily.toUpperCase()}] Disconnected`);
+        return { success: true };
+      } catch (err) {
+        console.error(`❌ [${chainFamily?.toUpperCase()}] Disconnect failed:`, err);
+        return { success: false, error: err };
+      }
+    }
+    
+    return {
+      success: false,
+      error: {
+        code: WalletErrorCode.UNKNOWN_ERROR,
+        message: "NO_CHAIN_SELECTED",
+        timestamp: new Date(),
+      },
+    };
+  }, [chainFamily, disconnectStellar, disconnectAppKit]);
+
+  /* -------------------------------------------------------------
+     HELPER: Get current address
+  -------------------------------------------------------------- */
+  const getAddress = useCallback((): string | null => {
+    switch (chainFamily) {
+      case 'evm':
+      case 'solana':
+        return appKitAccount.address || null;
+      case 'stellar':
+        return stellarWallet.address || null;
+      default:
+        return null;
+    }
+  }, [chainFamily, appKitAccount.address, stellarWallet.address]);
+
+  /* -------------------------------------------------------------
+     HELPER: Check if connected
+  -------------------------------------------------------------- */
+  const isConnected = useCallback((): boolean => {
+    const network = caipNetwork?.caipNetworkId;
+
+    switch (chainFamily) {
+      case 'evm':
+        return (
+          appKitAccount.isConnected &&
+          !!evmWalletProvider &&
+          !!network?.startsWith('eip155:')
+        );
+
+      case 'solana':
+        return (
+          appKitAccount.isConnected &&
+          !!solanaWalletProvider &&
+          !!network?.startsWith('solana:')
+        );
+
+      case 'stellar':
+        return stellarWallet.isConnected ?? false;
+
+      default:
+        return false;
+    }
+  }, [
+    chainFamily,
+    appKitAccount.isConnected,
+    evmWalletProvider,
+    solanaWalletProvider,
+    caipNetwork?.caipNetworkId,
+    stellarWallet.isConnected,
+  ]);
+
+  /* -------------------------------------------------------------
+     HELPER: Get network info
+  -------------------------------------------------------------- */
+  const getNetworkInfo = useCallback(() => {
+    const currentChainId = getChainId();
+    const expectedMeta = getExpectedNetwork();
+    const isCorrect = isOnCorrectNetwork();
+    
+    return {
+      currentChainId,
+      currentNetwork: caipNetwork?.name,
+      expectedChainId: expectedMeta?.id,
+      expectedNetwork: expectedMeta?.name,
+      isCorrect,
+    };
+  }, [getChainId, getExpectedNetwork, isOnCorrectNetwork, caipNetwork]);
+
+  /* -------------------------------------------------------------
+     EXPOSE API
+  -------------------------------------------------------------- */
+  return {
+    // State
+    chainFamily,
+    
+    // AppKit account
+    account: {
+      address: appKitAccount.address,
+      isConnected: appKitAccount.isConnected,
+      status: appKitAccount.status,
+    },
+    
+    // Stellar account
+    stellarAccount: {
+      address: stellarWallet.address,
+      isConnected: stellarWallet.isConnected,
+      publicKey: stellarWallet.publicKey,
+    },
+    
+    // Providers
+    evmWalletProvider,
+    solanaWalletProvider,
+    
+    // Network info
+    caipNetwork,
+    
+    // Actions
+    connect,
+    disconnect,
+    switchNetwork, // ✅ Expose for manual switching if needed
+    
+    // Helpers
+    getAddress,
+    isConnected,
+    getChainId,
+    isOnCorrectNetwork,
+    getNetworkInfo,
+    getExpectedNetwork,
+  };
+}

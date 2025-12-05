@@ -1,4 +1,4 @@
-// src/components/Quiz/useQuizConfig.ts
+// src/components/Quiz/hooks/useQuizConfig.ts
 
 import { create } from 'zustand';
 import type { QuizConfig } from '../types/quiz';

@@ -1,127 +1,194 @@
-// src/components/Web3Provider.tsx - Updated with QueryClient
-import React, { useEffect, useState } from 'react';
+// src/components/Web3Provider.tsx
+import React, { Suspense, useEffect, useState, useRef } from 'react';
 
 interface Web3ProviderProps {
   children: React.ReactNode;
 }
 
+// ✅ Module-level singleton to survive remounts
+let initializationPromise: Promise<any> | null = null;
+let isInitialized = false;
+let cachedProviders: {
+  AppKitProvider: any;
+  WagmiProvider: any;
+  QueryClientProvider: any;
+  queryClient: any;
+  wagmiConfig: any;
+} | null = null;
+
+// Loading fallback component
+const Web3LoadingFallback: React.FC = () => (
+  <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="text-center">
+      <div className="mx-auto mb-6 h-14 w-14 animate-spin rounded-full border-4 border-indigo-300 border-t-indigo-600" />
+      <p className="text-indigo-700 font-semibold">Initializing Web3…</p>
+    </div>
+  </div>
+);
+
 export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [WagmiProviderComponent, setWagmiProviderComponent] = useState<any>(null);
-  const [QueryClientProviderComponent, setQueryClientProviderComponent] = useState<any>(null);
-  const [wagmiConfig, setWagmiConfig] = useState<any>(null);
-  const [queryClient, setQueryClient] = useState<any>(null);
+  const [providers, setProviders] = useState(cachedProviders);
+  const [loadingError, setLoadingError] = useState<string | null>(null);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
-    const initializeWeb3 = async () => {
+    isMountedRef.current = true;
+    console.log("🌐 [Web3Provider] Mount");
+
+    // ✅ If already initialized, use cached providers
+    if (isInitialized && cachedProviders) {
+      console.log("🌐 [Web3Provider] Using cached providers");
+      setProviders(cachedProviders);
+      return;
+    }
+
+    // ✅ If initialization already in progress, wait for it
+    if (initializationPromise) {
+      console.log("🌐 [Web3Provider] Initialization in progress, waiting...");
+      initializationPromise
+        .then((result) => {
+          if (isMountedRef.current) {
+            console.log("🌐 [Web3Provider] Initialization complete, setting providers");
+            setProviders(result);
+          }
+        })
+        .catch((err) => {
+          if (isMountedRef.current) {
+            console.error("🌐 [Web3Provider] Initialization failed:", err);
+            setLoadingError(err instanceof Error ? err.message : "Unknown error");
+          }
+        });
+      return;
+    }
+
+    // ✅ Start new initialization
+    console.log("🌐 [Web3Provider] Starting new initialization");
+    
+    initializationPromise = (async () => {
       try {
-        console.log('🚀 Lazy loading Web3 dependencies...');
-        
-        // Dynamically import ALL Web3 dependencies including QueryClient
+        console.log("🌐 [Web3Provider] Lazy-loading modules...");
+
         const [
-          { createAppKit },
-          { WagmiProvider },
-          { QueryClient, QueryClientProvider },
-          { projectId, metadata, networks, wagmiAdapter, solanaWeb3JsAdapter }
+          { AppKitProvider: AKProvider, createAppKit },
+          wagmiModule,
+          reactQueryModule,
+          configModule,
         ] = await Promise.all([
-          import('@reown/appkit/react'),
-          import('wagmi'),
-          import('@tanstack/react-query'),
-          import('../config')
+          import("@reown/appkit/react"),
+          import("wagmi"),
+          import("@tanstack/react-query"),
+          import("../config"),
         ]);
 
-        // Create QueryClient for wagmi (fix cacheTime -> gcTime)
-        const client = new QueryClient({
+        console.log("🌐 [Web3Provider] Modules loaded successfully");
+
+        const { WagmiProvider: WagmiProv } = wagmiModule;
+        const { QueryClient, QueryClientProvider: QCProvider } = reactQueryModule;
+        const { wagmiAdapter, solanaWeb3JsAdapter, projectId, networks, metadata } = configModule;
+
+        const qc = new QueryClient({
           defaultOptions: {
-            queries: {
-              staleTime: 60 * 1000, // 1 minute
-              gcTime: 10 * 60 * 1000, // 10 minutes (was cacheTime in older versions)
-            },
+            queries: { staleTime: 90_000, gcTime: 600_000 },
           },
         });
 
-        // Initialize AppKit
-        console.log('📦 Creating AppKit modal...');
+        console.log("🌐 [Web3Provider] Creating AppKit...");
         createAppKit({
           adapters: [wagmiAdapter, solanaWeb3JsAdapter],
           projectId,
           networks,
           metadata,
-          themeMode: 'light',
-          features: {
-            analytics: true
-          }
+          themeMode: "light",
+          features: { analytics: true },
         });
 
-        // Store the components for rendering
-        setWagmiProviderComponent(() => WagmiProvider);
-        setQueryClientProviderComponent(() => QueryClientProvider);
-        setWagmiConfig(wagmiAdapter.wagmiConfig);
-        setQueryClient(client);
-        
-        console.log('✅ Web3 initialization complete');
-        setIsInitialized(true);
-      } catch (err) {
-        console.error('❌ Web3 initialization failed:', err);
-        setError(err instanceof Error ? err.message : 'Unknown Web3 error');
-      }
-    };
+        const result = {
+          AppKitProvider: AKProvider,
+          WagmiProvider: WagmiProv,
+          QueryClientProvider: QCProvider,
+          queryClient: qc,
+          wagmiConfig: wagmiAdapter.wagmiConfig,
+        };
 
-    initializeWeb3();
+        // ✅ Cache for future mounts
+        cachedProviders = result;
+        isInitialized = true;
+
+        console.log("✅ [Web3Provider] Initialization complete and cached");
+        return result;
+      } catch (err) {
+        console.error("❌ [Web3Provider] Initialization error:", err);
+        initializationPromise = null; // Reset so we can retry
+        throw err;
+      }
+    })();
+
+    initializationPromise
+      .then((result) => {
+        if (isMountedRef.current) {
+          console.log("🌐 [Web3Provider] Setting providers on mounted component");
+          setProviders(result);
+        }
+      })
+      .catch((err) => {
+        if (isMountedRef.current) {
+          console.error("🌐 [Web3Provider] Setting error on mounted component");
+          setLoadingError(err instanceof Error ? err.message : "Unknown error");
+        }
+      });
+
+    return () => {
+      console.log("🌐 [Web3Provider] Unmount (but initialization continues in background)");
+      isMountedRef.current = false;
+    };
   }, []);
 
+  console.log("🌐 [Web3Provider] Render", {
+    hasProviders: !!providers,
+    isInitialized,
+    loadingError,
+  });
+
   // Error state
-  if (error) {
+  if (loadingError) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-red-50">
-        <div className="mx-auto max-w-md p-6 text-center">
-          <div className="mb-4 text-4xl text-red-500">⚠️</div>
-          <h2 className="mb-2 text-xl font-bold text-red-800">Web3 Connection Failed</h2>
-          <p className="mb-4 text-sm text-red-600">{error}</p>
-          <div className="space-y-2">
-            <button 
-              onClick={() => window.location.reload()}
-              className="w-full rounded bg-red-600 px-4 py-2 text-white hover:bg-red-700"
-            >
-              Retry Connection
-            </button>
-            <button 
-              onClick={() => window.history.back()}
-              className="w-full rounded bg-gray-600 px-4 py-2 text-white hover:bg-gray-700"
-            >
-              Go Back
-            </button>
-          </div>
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-red-50 to-pink-100">
+        <div className="text-center max-w-md p-6">
+          <div className="text-6xl mb-4">⚠️</div>
+          <h2 className="text-red-700 font-bold text-xl mb-2">Web3 Initialization Failed</h2>
+          <p className="text-red-600 text-sm mb-4">{loadingError}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Reload Page
+          </button>
         </div>
       </div>
     );
   }
 
   // Loading state
-  if (!isInitialized || !WagmiProviderComponent || !QueryClientProviderComponent) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="text-center">
-          <div className="mx-auto mb-6 h-16 w-16 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600"></div>
-          <h2 className="heading-2">Connecting to Web3</h2>
-          <p className="text-fg/70 mb-4 text-sm">Loading blockchain connectivity...</p>
-          <div className="text-fg/60 text-xs">
-            <p>• Initializing wallet connections</p>
-            <p>• Setting up blockchain networks</p>
-            <p>• Preparing smart contracts</p>
-          </div>
-        </div>
-      </div>
-    );
+  if (!providers) {
+    return <Web3LoadingFallback />;
   }
 
-  // Render with Web3 providers in correct order
+  // Ready state
+  const { AppKitProvider, WagmiProvider, QueryClientProvider, queryClient, wagmiConfig } = providers;
+
   return (
-    <QueryClientProviderComponent client={queryClient}>
-      <WagmiProviderComponent config={wagmiConfig}>
-        {children}
-      </WagmiProviderComponent>
-    </QueryClientProviderComponent>
+    <AppKitProvider>
+      <QueryClientProvider client={queryClient}>
+        <WagmiProvider config={wagmiConfig}>
+          <Suspense fallback={
+            <div className="flex items-center justify-center p-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+            </div>
+          }>
+            {children}
+          </Suspense>
+        </WagmiProvider>
+      </QueryClientProvider>
+    </AppKitProvider>
   );
 };
