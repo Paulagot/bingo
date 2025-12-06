@@ -42,8 +42,8 @@ if (!projectId || projectId.trim().length === 0) {
 export const metadata = {
   name: "FundRaisely Quiz",
   description: "FundRaisely Web3-powered quiz fundraising platform",
-  url: "https://fundraisely.ie",
-  icons: ["https://fundraisely.ie/icon.png"],
+  url: "https://fundraisely-staging.up.railway.app", // ✅ Match your actual URL
+  icons: ["https://fundraisely-staging.up.railway.app/fundraisely.png"],
 };
 
 // ---------------------------------------------

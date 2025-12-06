@@ -99,7 +99,13 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
           networks,
           metadata,
           themeMode: "light",
-          features: { analytics: true },
+            features: { 
+    analytics: true,
+    socials: false, // Sometimes helps
+    email: false
+  },
+           enableWalletConnect: true,
+  enableInjected: true,
         });
 
         const result = {
