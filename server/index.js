@@ -404,8 +404,24 @@ if (process.env.NODE_ENV === 'production') {
     maxAge: '31536000000', // 1 year
     etag: true,
     lastModified: true,
+
+    // ⭐ FIX: Ensure correct MIME type for Vite-built ES modules
     setHeaders: (res, filePath) => {
-      if (filePath.endsWith('.js') || filePath.endsWith('.css') || filePath.endsWith('.woff2') || filePath.endsWith('.woff')) {
+      // MIME type fixes
+      if (filePath.endsWith('.js')) {
+        res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+      }
+      if (filePath.endsWith('.css')) {
+        res.setHeader('Content-Type', 'text/css; charset=utf-8');
+      }
+
+      // Your original caching logic (unchanged)
+      if (
+        filePath.endsWith('.js') ||
+        filePath.endsWith('.css') ||
+        filePath.endsWith('.woff2') ||
+        filePath.endsWith('.woff')
+      ) {
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
         console.log(`💾 Setting 1-year cache for: ${path.basename(filePath)}`);
       } else {
@@ -419,7 +435,17 @@ if (process.env.NODE_ENV === 'production') {
     index: false,
     maxAge: '3600000', // 1 hour
     etag: true,
-    lastModified: true
+    lastModified: true,
+
+    // ⭐ FIX: Also correct MIME for JS/CSS here
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.js')) {
+        res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+      }
+      if (filePath.endsWith('.css')) {
+        res.setHeader('Content-Type', 'text/css; charset=utf-8');
+      }
+    }
   }));
 
   // HTML with injected <head> (no-cache for HTML)
@@ -452,6 +478,8 @@ if (process.env.NODE_ENV === 'production') {
       res.setHeader('Expires', '0');
     }
   }));
+}
+
 
   // Dev HTML injection (disable cache)
   app.get('*', (req, res) => {
@@ -473,7 +501,7 @@ if (process.env.NODE_ENV === 'production') {
       res.status(200).send(out);
     });
   });
-}
+
 
 const httpServer = createServer(app);
 

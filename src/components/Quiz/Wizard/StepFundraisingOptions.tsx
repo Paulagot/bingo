@@ -228,11 +228,26 @@ export const StepFundraisingOptions: React.FC<WizardStepProps> = ({ onNext, onBa
     setExtraPrice(key, undefined);
   };
 
-  const handlePriceChange = (key: string, value: string) => {
+const handlePriceChange = (key: string, value: string) => {
+  // Allow all partial inputs
+  if (
+    value === '' ||
+    value === '.' ||
+    value === '0' ||
+    value === '0.' ||
+    /^[0-9]*\.?[0-9]*$/.test(value)  // decimal pattern
+  ) {
+    // Convert to number when possible
     const parsed = parseFloat(value);
-    if (!isNaN(parsed) && parsed > 0) setExtraPrice(key, parsed);
-    else setExtraPrice(key, undefined);
-  };
+    if (!isNaN(parsed)) {
+      setExtraPrice(key, parsed);
+    } else {
+      setExtraPrice(key, undefined);
+    }
+  }
+};
+
+
 
   // ──────────────────────────────────────────────────────────────
   // UI helpers
@@ -371,17 +386,21 @@ export const StepFundraisingOptions: React.FC<WizardStepProps> = ({ onNext, onBa
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-2">
                       <label className="text-fg/80 text-xs font-medium sm:text-sm">Price ({currency})</label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.5"
-                        value={price}
-                        onChange={(e) => handlePriceChange(key, e.target.value)}
-                        className={`w-24 rounded-lg border-2 px-2 py-1 text-xs outline-none transition focus:ring-2 focus:ring-indigo-200 sm:w-28 sm:text-sm ${
-                          priceSet ? 'border-green-300 bg-green-50 focus:border-green-500' : 'border-border focus:border-indigo-500'
-                        }`}
-                        placeholder="0.00"
-                      />
+                  <input
+  type="text"
+  inputMode="decimal"
+  pattern="[0-9]*[.,]?[0-9]*"
+  value={price}
+  onChange={(e) => handlePriceChange(key, e.target.value)}
+  className={`w-24 rounded-lg border-2 px-2 py-1 text-xs outline-none transition
+    focus:ring-2 focus:ring-indigo-200 sm:w-28 sm:text-sm ${
+      priceSet
+        ? 'border-green-300 bg-green-50 focus:border-green-500'
+        : 'border-border focus:border-indigo-500'
+    }`}
+  placeholder="0.00"
+/>
+
                       <span className="text-fg/60 hidden text-xs sm:inline">
                         Suggested: {getSuggestedPriceRange(details.suggestedPrice)}
                       </span>

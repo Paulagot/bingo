@@ -255,7 +255,7 @@ export async function createAssetRoom(
     programId: programId.toBase58(),
     tokenRegistry: tokenRegistry.toBase58(),
     tokenRegistryBump,
-    tokenRegistrySeed: 'token-registry-v4',
+    tokenRegistrySeed: 'token-registry-v2',
     globalConfig: globalConfig.toBase58(),
     room: room.toBase58(),
     roomBump,

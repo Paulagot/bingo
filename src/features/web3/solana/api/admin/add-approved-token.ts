@@ -102,7 +102,7 @@ export async function addApprovedToken(
   // This ensures the PDA matches what Anchor expects when validating the constraint
   const programId = program.programId;
   const [tokenRegistry] = PublicKey.findProgramAddressSync(
-    [Buffer.from('token-registry-v4')],
+    [Buffer.from('token-registry-v2')],
     programId
   );
 
@@ -122,10 +122,12 @@ export async function addApprovedToken(
   // Build add token instruction
   // Note: tokenRegistry is explicitly passed, but Anchor will validate it matches the PDA constraint
   // Using program.programId ensures the PDA matches Anchor's derivation
+  // @ts-ignore - IDL types loaded at runtime
   const ix = await program.methods
     .addApprovedToken(params.tokenMint)
     .accounts({
-      tokenRegistry, // Explicitly pass - Anchor will validate it matches the constraint
+      tokenRegistry,
+      tokenMintAccount: params.tokenMint, // Explicitly pass - Anchor will validate it matches the constraint
       admin: publicKey,
     })
     .instruction();

@@ -1,6 +1,7 @@
 // src/config/index.ts
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
 import { SolanaAdapter } from "@reown/appkit-adapter-solana";
+
 import {
   sepolia,
   baseSepolia,
@@ -10,8 +11,6 @@ import {
   avalancheFuji,
   seiTestnet,
   polygonAmoy,
-
-  // Mainnets
   mainnet,
   base,
   optimism,
@@ -20,8 +19,6 @@ import {
   avalanche,
   sei,
   polygon,
-
-  // Solana
   solana,
   solanaDevnet,
   solanaTestnet,
@@ -53,6 +50,9 @@ export const metadata = {
 // 🌐 Supported Networks (tuple for strict typing)
 // ---------------------------------------------
 export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [
+   solanaDevnet,     // ✅ Devnet first = default network
+  solana,
+  solanaTestnet,
   sepolia,
   baseSepolia,
   optimismSepolia,
@@ -71,9 +71,6 @@ export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [
   sei,
   polygon,
 
-  solana,
-  solanaDevnet,
-  solanaTestnet,
 ];
 
 // ---------------------------------------------
@@ -117,7 +114,10 @@ export const wagmiAdapter = new WagmiAdapter({
 // ---------------------------------------------
 // 🛠️ Adapter: Solana (Web3.js)
 // ---------------------------------------------
-export const solanaWeb3JsAdapter = new SolanaAdapter();
+export const solanaWeb3JsAdapter = new SolanaAdapter({
+  wallets: [], // Leave empty to allow all wallets
+  rpcUrl: 'https://api.devnet.solana.com',
+});
 
 // ---------------------------------------------
 // 📦 Wagmi Config (used by WagmiProvider)

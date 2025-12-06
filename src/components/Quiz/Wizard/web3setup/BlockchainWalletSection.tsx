@@ -19,6 +19,8 @@ interface Props {
   expectedNetwork?: string;
 }
 
+
+
 const BlockchainWalletSection: React.FC<Props> = ({
   setupConfig,
   contractAddress,
@@ -41,6 +43,9 @@ const BlockchainWalletSection: React.FC<Props> = ({
     : walletAddress;
 
   const displayNetworkName = expectedNetwork || networkName || setupConfig.web3Chain || "Blockchain";
+
+  console.log("[BlockchainWalletSection] setupConfig:", setupConfig);
+
 
   return (
     <div className="rounded-xl border border-purple-200 bg-gradient-to-r from-purple-50 to-indigo-50 p-4">
@@ -75,7 +80,7 @@ const BlockchainWalletSection: React.FC<Props> = ({
         <div>
           <span className="text-purple-700">Charity:</span>
           <span className="ml-2 font-medium text-purple-900">
-            {setupConfig.web3Charity || "Not selected"}
+            {setupConfig.web3CharityName || "Not selected"}
           </span>
         </div>
 
