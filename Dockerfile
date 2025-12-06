@@ -20,7 +20,30 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build the application
+# ✅ ADD THESE LINES: Declare and set all VITE_* variables needed at build time
+ARG VITE_PROJECT_ID
+ARG VITE_WALLETCONNECT_PROJECT_ID
+ARG VITE_APP_ENV
+ARG VITE_IE_DOMAIN
+ARG VITE_MGMT_API_URL
+ARG VITE_QUIZ_API_URL
+ARG VITE_SEO_X_DEFAULT_DOMAIN
+ARG VITE_SITE_ORIGIN
+ARG VITE_UK_DOMAIN
+ARG VITE_SEPOLIA_RPC_URL
+
+ENV VITE_PROJECT_ID=$VITE_PROJECT_ID
+ENV VITE_WALLETCONNECT_PROJECT_ID=$VITE_WALLETCONNECT_PROJECT_ID
+ENV VITE_APP_ENV=$VITE_APP_ENV
+ENV VITE_IE_DOMAIN=$VITE_IE_DOMAIN
+ENV VITE_MGMT_API_URL=$VITE_MGMT_API_URL
+ENV VITE_QUIZ_API_URL=$VITE_QUIZ_API_URL
+ENV VITE_SEO_X_DEFAULT_DOMAIN=$VITE_SEO_X_DEFAULT_DOMAIN
+ENV VITE_SITE_ORIGIN=$VITE_SITE_ORIGIN
+ENV VITE_UK_DOMAIN=$VITE_UK_DOMAIN
+ENV VITE_SEPOLIA_RPC_URL=$VITE_SEPOLIA_RPC_URL
+
+# Build the application (now has access to VITE_* vars)
 RUN npm run build
 
 # Production stage
@@ -37,7 +60,6 @@ RUN apt-get update && apt-get install -y \
 COPY package*.json ./
 
 # Copy node_modules from builder (includes compiled native modules and all dependencies)
-# This ensures all dependencies are available, matching main branch approach
 COPY --from=builder /app/node_modules ./node_modules
 
 # Copy built application from builder stage
