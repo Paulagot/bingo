@@ -127,7 +127,7 @@ export const TOKEN_MINTS = getTokenMints();
 // PDA seed constants (must match Rust program's anchor derive macros)
 export const PDA_SEEDS = {
   GLOBAL_CONFIG: 'global-config',
-  TOKEN_REGISTRY: 'token-registry-v4', // Versioned for upgrades
+  TOKEN_REGISTRY: 'token-registry-v2', // Versioned for upgrades
   APPROVED_TOKENS: 'approved_tokens', // Legacy name (kept for compatibility)
   ROOM: 'room',
   ROOM_VAULT: 'room-vault',
