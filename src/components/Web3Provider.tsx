@@ -104,8 +104,13 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
     socials: false, // Sometimes helps
     email: false
   },
-           enableWalletConnect: true,
+  enableWalletConnect: true,
   enableInjected: true,
+   enableCoinbase: true,
+   enableWallets: true,
+  
+  // Force wallets to be clickable even if not "detected"
+  allWallets: 'SHOW', 
         });
 
         const result = {

@@ -115,8 +115,8 @@ export const wagmiAdapter = new WagmiAdapter({
 // 🛠️ Adapter: Solana (Web3.js)
 // ---------------------------------------------
 export const solanaWeb3JsAdapter = new SolanaAdapter({
-  wallets: [], // Leave empty to allow all wallets
-  rpcUrl: 'https://api.devnet.solana.com',
+  registerWalletStandard: true,
+ 
 });
 
 // ---------------------------------------------
