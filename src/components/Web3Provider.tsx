@@ -98,19 +98,30 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
           projectId,
           networks,
           metadata,
-          themeMode: "light",
+          themeMode: "dark",
             features: { 
     analytics: true,
     socials: false, // Sometimes helps
     email: false
   },
-  enableWalletConnect: true,
+  enableNetworkSwitch: true,
   enableInjected: true,
    enableCoinbase: true,
    enableWallets: true,
   
   // Force wallets to be clickable even if not "detected"
   allWallets: 'SHOW', 
+   featuredWalletIds: [
+    'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
+    'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa', // Coinbase
+    // Solana wallets are auto-detected via Wallet Standard
+  ],
+
+
+    // ✅ IMPORTANT: This helps with mobile redirects
+  themeVariables: {
+    '--w3m-z-index': 2147483647, // Ensure modal is on top
+  },
         });
 
         const result = {
