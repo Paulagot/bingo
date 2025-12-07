@@ -172,6 +172,10 @@ const ALLOWED_CONNECT = [
   "https://rpc.walletconnect.org",
   "https://*.walletconnect.com",
   "wss://*.walletconnect.com",
+    "https://relay.walletconnect.com",     // ✅ Main relay
+  "wss://relay.walletconnect.com",       // ✅ WebSocket relay
+  "https://relay.walletconnect.org",     // ✅ Alt domain
+  "wss://relay.walletconnect.org", 
   // Base
   "https://mainnet.base.org",
   "https://sepolia.base.org",
@@ -192,29 +196,32 @@ const cspDirectives = {
   baseUri: ["'self'"],
   objectSrc: ["'none'"],
 
-  // Scripts/styles: keep 'unsafe-inline' if you must (Cloudflare/snippets). Remove when you can.
   scriptSrc: ["'self'", "https:", "'unsafe-inline'"],
   scriptSrcElem: ["'self'", "https:", "'unsafe-inline'"],
-  // Block inline event handlers from attributes
   scriptSrcAttr: ["'none'"],
   styleSrc: ["'self'", "https:", "'unsafe-inline'"],
 
-  // Media & workers (nice to be explicit)
   imgSrc: ["'self'", "data:", "blob:", "https:", "https://images.walletconnect.com", "https://static.walletconnect.com"],
   fontSrc: ["'self'", "https:", "data:"],
   mediaSrc: ["'self'", "https:"],
   workerSrc: ["'self'", "blob:"],
   manifestSrc: ["'self'"],
 
-  // ✅ Allow iframes (YouTube + nocookie; add Vimeo if you ever embed it)
-  frameSrc: ["'self'", "https://www.youtube.com", "https://www.youtube-nocookie.com", "https://player.vimeo.com"],
-  // Who may embed *your* site
+  // ✅ UPDATED: Added WalletConnect verification domains
+  frameSrc: [
+    "'self'", 
+    "https://www.youtube.com", 
+    "https://www.youtube-nocookie.com", 
+    "https://player.vimeo.com",
+    "https://verify.walletconnect.com",
+    "https://verify.walletconnect.org",
+    "https://secure.walletconnect.com",
+    "https://secure.walletconnect.org"
+  ],
   frameAncestors: ["'self'"],
 
-  // RPCs, sockets, APIs (scalable)
   connectSrc: ALLOWED_CONNECT,
 
-  // If you rely on CF to upgrade mixed content, set this too; otherwise omit.
   upgradeInsecureRequests: [],
 };
 
