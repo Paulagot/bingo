@@ -39,12 +39,17 @@ if (!projectId || projectId.trim().length === 0) {
 // ---------------------------------------------
 // 🧩 DApp Metadata (shown in wallet modals)
 // ---------------------------------------------
+// Metadata with proper mobile redirect
 export const metadata = {
   name: "FundRaisely Quiz",
   description: "FundRaisely Web3-powered quiz fundraising platform",
-  url: "https://fundraisely-staging.up.railway.app", // ✅ Match your actual URL
-  icons: ["https://fundraisely-staging.up.railway.app/fundraisely.png"],
+  url: typeof window !== 'undefined' ? window.location.origin : "https://fundraisely-staging.up.railway.app",
+  icons: [`${typeof window !== 'undefined' ? window.location.origin : "https://fundraisely-staging.up.railway.app"}/fundraisely.png`],
+  // ✅ This tells wallets where to return after connection
+  verifyUrl: typeof window !== 'undefined' ? window.location.origin : "https://fundraisely-staging.up.railway.app",
 };
+
+
 
 // ---------------------------------------------
 // 🌐 Supported Networks (tuple for strict typing)
