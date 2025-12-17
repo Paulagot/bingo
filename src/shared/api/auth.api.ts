@@ -14,8 +14,9 @@ export interface RegisterClubRequest {
 }
 
 export interface LoginRequest {
+  club: string;
   email: string;
-  password: string;
+  password: string;  
 }
 
 export interface LoginResponse {

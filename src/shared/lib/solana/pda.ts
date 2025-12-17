@@ -108,7 +108,7 @@ export function deriveGlobalConfigPDA(): [PublicKey, number] {
  * @see instructions/admin/add_approved_token.rs - Token approval
  */
 export function deriveTokenRegistryPDA(): [PublicKey, number] {
-  const seed = 'token-registry-v4'; // MUST match Rust contract seed
+  const seed = 'token-registry-v2'; // MUST match Rust contract seed
 
   return PublicKey.findProgramAddressSync(
     [Buffer.from(seed)],

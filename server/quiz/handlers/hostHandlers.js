@@ -1154,52 +1154,119 @@ socket.on('tiebreak:proceed_to_completion', ({ roomId }) => {
     }, 2000);
   });
 
-  socket.on('end_quiz_cleanup', ({ roomId }) => {
-    if (debug) console.log(`[Host] 🧹 end_quiz_cleanup for ${roomId}`);
+ socket.on('end_quiz_cleanup', async ({ roomId }) => {
+  if (debug) console.log(`[Host] 🧹 end_quiz_cleanup for ${roomId}`);
 
-    const room = getQuizRoom(roomId);
-    if (!room) {
-      console.warn(`[Host] ⚠️ Room ${roomId} not found for cleanup`);
-      return;
-    }
+  const room = getQuizRoom(roomId);
+  if (!room) {
+    console.warn(`[Host] ⚠️ Room ${roomId} not found for cleanup`);
+    return;
+  }
 
-    if (room.hostSocketId !== socket.id) {
-      socket.emit('quiz_error', { message: 'Only the host can end the quiz' });
-      return;
-    }
+  // Only the host can trigger this
+  if (room.hostSocketId !== socket.id) {
+    socket.emit('quiz_error', { message: 'Only the host can end the quiz' });
+    return;
+  }
 
-    if (room.currentPhase !== 'complete') {
-      room.currentPhase = 'complete';
-    }
+  // Ensure room phase is marked complete
+  if (room.currentPhase !== 'complete') {
+    room.currentPhase = 'complete';
+  }
 
-    const isWeb3Room = room.config?.paymentMethod === 'web3' || room.config?.isWeb3Room;
+  // Determine if Web3
+  const isWeb3Room =
+    room.config?.paymentMethod === 'web3' || room.config?.isWeb3Room;
 
-    namespace.to(roomId).emit('quiz_cleanup_complete', {
-      message: isWeb3Room 
-        ? 'Quiz has ended. Thank you for your contribution!' 
-        : 'Quiz has ended. Thank you for playing!',
-      roomId,
-      isWeb3Room,
-    });
+  /* ------------------------------------------------------------------
+     ⭐ SAVE IMPACT CAMPAIGN EVENT TO DATABASE (Web3 rooms only)
+  ------------------------------------------------------------------ */
+  try {
+    if (isWeb3Room) {
+      const eventData = {
+        roomId,
+        hostId: room.hostId,
 
-    if (debug) {
-      console.log(`[Host] 📢 Sent cleanup completion notice to room ${roomId}`);
-      console.log(`[Host] 🌐 isWeb3Room: ${isWeb3Room}, will redirect to ${isWeb3Room ? '/web3/impact-campaign/' : '/'}`);
-    }
+        chain: room.config.web3Chain || 'unknown',
+        network: room.config.web3Network || 'unknown',
+        feeToken: room.config.web3Currency || 'unknown',
 
-    setTimeout(() => {
-      const removed = removeQuizRoom(roomId);
-      
-      if (removed) {
-        namespace.in(roomId).socketsLeave(roomId);
-        namespace.in(`${roomId}:host`).socketsLeave(`${roomId}:host`);
-        namespace.in(`${roomId}:admin`).socketsLeave(`${roomId}:admin`);
-        namespace.in(`${roomId}:player`).socketsLeave(`${roomId}:player`);
-        
-        if (debug) console.log(`[Host] ✅ Room ${roomId} cleaned up successfully`);
+        hostWallet: room.config.hostWallet || null,
+        charityWallet: room.config.web3Charity || null,
+        charityName: room.config.web3CharityName || null,
+
+        totalRaised:
+          Number(room.config.reconciliation?.totals?.totalRaised || 0),
+
+        charityAmount:
+          Number(room.config.reconciliation?.totals?.charityAmount || 0),
+
+        extrasRevenue:
+          Number(room.config.reconciliation?.totals?.extrasRevenue || 0),
+
+        hostFeeAmount:
+          Number(room.config.reconciliation?.totals?.hostFeeAmount || 0),
+
+        prizesValue:
+          Number(room.config.reconciliation?.totals?.prizesValue || 0),
+
+        numberOfPlayers: room.players.length,
+      };
+
+      const result = await saveImpactCampaignEvent(eventData);
+
+      if (!result.success) {
+        console.error(
+          `[ImpactCampaign] ❌ Failed to save event for room ${roomId}`
+        );
+      } else {
+        console.log(
+          `[ImpactCampaign] 💾 Event saved for room ${roomId} → OK`
+        );
       }
-    }, 2000);
+    }
+  } catch (err) {
+    console.error(`[ImpactCampaign] ❌ Error saving event:`, err);
+  }
+
+  /* ------------------------------------------------------------------
+     ⭐ FRONTEND CLEANUP & REDIRECT
+  ------------------------------------------------------------------ */
+  namespace.to(roomId).emit('quiz_cleanup_complete', {
+    message: isWeb3Room
+      ? 'Quiz has ended. Thank you for your contribution!'
+      : 'Quiz has ended. Thank you for playing!',
+    roomId,
+    isWeb3Room,
   });
+
+  if (debug) {
+    console.log(`[Host] 📢 Sent cleanup completion notice to room ${roomId}`);
+    console.log(
+      `[Host] 🌐 isWeb3Room: ${isWeb3Room}, redirect → ${
+        isWeb3Room ? '/web3/impact-campaign/' : '/'
+      }`
+    );
+  }
+
+  /* ------------------------------------------------------------------
+     ⭐ ACTUAL ROOM / SOCKET MEMORY CLEANUP
+  ------------------------------------------------------------------ */
+  setTimeout(() => {
+    const removed = removeQuizRoom(roomId);
+
+    if (removed) {
+      namespace.in(roomId).socketsLeave(roomId);
+      namespace.in(`${roomId}:host`).socketsLeave(`${roomId}:host`);
+      namespace.in(`${roomId}:admin`).socketsLeave(`${roomId}:admin`);
+      namespace.in(`${roomId}:player`).socketsLeave(`${roomId}:player`);
+
+      if (debug)
+        console.log(`[Host] ✅ Room ${roomId} cleaned up successfully`);
+    }
+  }, 2000);
+});
+
 
   socket.on('launch_quiz', ({ roomId }) => {
     if (debug) console.log(`[Host] launch_quiz for ${roomId}`);

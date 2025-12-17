@@ -75,8 +75,7 @@
   {
     "type": "function",
     "name": "join",
-    "inputs": [
-      { "name": "feePaid", "type": "uint256", "internalType": "uint256" },
+    "inputs": [      
       { "name": "extrasPaid", "type": "uint256", "internalType": "uint256" }
     ],
     "outputs": [],

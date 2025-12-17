@@ -1,3 +1,4 @@
+// server/middleware/auth.js
 import jwt from 'jsonwebtoken';
 import { connection } from '../config/database.js';
 

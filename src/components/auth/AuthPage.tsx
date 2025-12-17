@@ -8,7 +8,7 @@ import LoginForm from './LogInForm';
 type AuthMode = 'login' | 'register';
 
 interface AuthPageProps {
-  initialMode?: AuthMode; // ⬅️ add this
+  initialMode?: AuthMode;
 }
 
 export default function AuthPage({ initialMode }: AuthPageProps) {
@@ -16,7 +16,6 @@ export default function AuthPage({ initialMode }: AuthPageProps) {
   const params = new URLSearchParams(location.search);
   const modeFromQuery = params.get('mode') as AuthMode | null;
 
-  // decide the starting view (query param wins, then prop, then default = login)
   const startInRegister = useMemo(() => {
     if (modeFromQuery) return modeFromQuery === 'register';
     if (initialMode) return initialMode === 'register';

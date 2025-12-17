@@ -93,7 +93,7 @@ export async function initializeTokenRegistry(
   // Note: We use programId directly instead of deriveTokenRegistryPDA() to ensure
   // we're using the exact programId from the program instance
   const [tokenRegistry] = PublicKey.findProgramAddressSync(
-    [Buffer.from('token-registry-v4')],
+    [Buffer.from('token-registry-v2')],
     programId
   );
 

@@ -18,7 +18,7 @@ import {
   SelectItem,
 } from '../Wizard/select';
 
-const Debug = true;
+const Debug = false;
 
 if (Debug) {
   const ids = quizTemplates.map(t => t.id);

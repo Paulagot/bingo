@@ -1,5 +1,5 @@
 // src/components/Quiz/dashboard/HostDashboard.tsx
-import React, { useEffect, useRef, useMemo, useState } from 'react';
+import React, { useEffect, useRef, useMemo, useState, lazy, Suspense } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 import { useQuizConfig } from '../hooks/useQuizConfig';
@@ -16,7 +16,6 @@ import AssetUploadPanel from './AssetUploadPanel';
 import BlockchainBadge from './BlockchainBadge';
 import PrizesTab from './PrizesTab';
 
-import { DynamicChainProvider } from '../../chains/DynamicChainProvider';
 import useQuizChainIntegration from '../../../hooks/useQuizChainIntegration';
 
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
@@ -33,6 +32,11 @@ import {
   Gift,
 } from 'lucide-react';
 
+// ✅ Lazy load Web3Provider (only needed for web3 rooms)
+const Web3Provider = lazy(() => 
+  import('../../../components/Web3Provider').then(m => ({ default: m.Web3Provider }))
+);
+
 const DEBUG = true; // Enable debug logging
 
 type TabType = 'overview' | 'assets' | 'launch' | 'players' | 'admins' | 'prizes' | 'payments';
@@ -41,6 +45,16 @@ const uuid = () =>
   (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
     ? crypto.randomUUID()
     : `uuid-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+
+// Loading fallback for Web3Provider
+const LoadingSpinner = () => (
+  <div className="flex items-center justify-center py-12">
+    <div className="text-center">
+      <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-indigo-300 border-t-indigo-600" />
+      <p className="text-indigo-700 text-sm font-medium">Loading Web3 capabilities...</p>
+    </div>
+  </div>
+);
 
 // Core dashboard component (without providers)
 const HostDashboardCore: React.FC = () => {
@@ -57,6 +71,9 @@ const HostDashboardCore: React.FC = () => {
 
   const { socket, connected } = useQuizSocket();
   const { roomId, hostId } = useRoomIdentity();
+
+  // ✅ Use AppKit-powered hook directly (no DynamicChainProvider needed)
+  const { selectedChain } = useQuizChainIntegration();
 
   // Quiz completion logic
   const isQuizComplete = currentPhase === 'complete';
@@ -682,7 +699,7 @@ const HostDashboardCore: React.FC = () => {
               {players?.length || 0} | Admins: {admins?.length || 0} | Assets:{' '}
               {config?.prizes?.filter((p: any) => p.uploadStatus === 'completed').length || 0}/
               {config?.prizes?.filter((p: any) => p.tokenAddress).length || 0} | Phase: {currentPhase || 'unknown'} |
-              Complete: {isQuizComplete ? '✅' : '❌'}
+              Complete: {isQuizComplete ? '✅' : '❌'} | Chain: {selectedChain || 'none'}
             </div>
           )}
         </div>
@@ -825,31 +842,35 @@ const HostDashboardCore: React.FC = () => {
   );
 };
 
-// Wrapper component with provider logic (multichain-normalized)
+// ✅ Wrapper component: Only mount Web3Provider if it's a Web3 room
 const HostDashboard: React.FC = () => {
   const { config } = useQuizConfig();
-  const { selectedChain } = useQuizChainIntegration();
 
-  // ✅ Move logs to useEffect (from previous fix)
   useEffect(() => {
-    console.log('=== HOST DASHBOARD CHAIN INTEGRATION ===');
+    console.log('=== HOST DASHBOARD RENDER ===');
     console.log('Config state:', {
       hasConfig: !!config,
-      web3Chain: config?.web3Chain,
       isWeb3Room: config?.isWeb3Room,
+      web3Chain: config?.web3Chain,
     });
-    console.log('Chain integration:', { selectedChain });
-  }, [config?.web3Chain, config?.isWeb3Room, selectedChain]);
+  }, [config?.web3Chain, config?.isWeb3Room]);
 
-  // ✅ FIX: Always wrap with DynamicChainProvider (it handles null chain internally)
-  // Determine the chain to pass (null is fine, provider handles it)
-  const chainToUse = config?.isWeb3Room ? selectedChain : null;
+  // ✅ If it's a Web3 room, wrap with Web3Provider (lazy loaded)
+  if (config?.isWeb3Room) {
+    console.log('🌐 [HostDashboard] Rendering with Web3Provider for web3 room');
+    
+    return (
+      <Suspense fallback={<LoadingSpinner />}>
+        <Web3Provider>
+          <HostDashboardCore />
+        </Web3Provider>
+      </Suspense>
+    );
+  }
 
-  return (
-    <DynamicChainProvider selectedChain={chainToUse}>
-      <HostDashboardCore />
-    </DynamicChainProvider>
-  );
+  // ✅ Non-web3 rooms: No Web3Provider needed
+  console.log('⚡ [HostDashboard] Rendering without Web3Provider (non-web3 room)');
+  return <HostDashboardCore />;
 };
 
 export default HostDashboard;
