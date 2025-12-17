@@ -32,20 +32,23 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   successMessage: string | null;
-  entitlements: Entitlements | null; // NEW
-  showNoCreditWarning: boolean; // NEW
+  entitlements: Entitlements | null;
+  showNoCreditWarning: boolean;
 }
 
 interface AuthActions {
-  register: (data: { 
-    name: string; 
-    email: string; 
+  register: (data: {
+    name: string;
+    email: string;
     password: string;
     gdprConsent: boolean;
     privacyPolicyAccepted: boolean;
     marketingConsent?: boolean;
   }) => Promise<{ success: boolean; message: string }>;
-  login: (data: { email: string; password: string }) => Promise<void>;
+
+  // ✅ UPDATED: include club
+  login: (data: { club: string; email: string; password: string }) => Promise<void>;
+
   logout: () => void;
   getProfile: () => Promise<void>;
   setError: (error: string) => void;
@@ -56,21 +59,20 @@ interface AuthActions {
   initialize: () => void;
   setUser: (user: User | null) => void;
   setClub: (club: Club | null) => void;
-  dismissNoCreditWarning: () => void; // NEW
+  dismissNoCreditWarning: () => void;
 }
 
 type AuthStore = AuthState & AuthActions;
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
-  // Initial state
   user: null,
   club: null,
   isAuthenticated: false,
   isLoading: false,
   error: null,
   successMessage: null,
-  entitlements: null, // NEW
-  showNoCreditWarning: false, // NEW
+  entitlements: null,
+  showNoCreditWarning: false,
 
   initialize: () => {
     const token = localStorage.getItem('auth_token');
@@ -83,16 +85,16 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   register: async (data) => {
     try {
       set({ isLoading: true, error: null, successMessage: null });
-      
-      const response = await apiService.registerClub({
+
+      await apiService.registerClub({
         name: data.name,
         email: data.email,
         password: data.password,
         gdprConsent: data.gdprConsent,
         privacyPolicyAccepted: data.privacyPolicyAccepted,
-        marketingConsent: data.marketingConsent || false
+        marketingConsent: data.marketingConsent || false,
       });
-      
+
       const successMsg = 'Registration successful! Please login to continue.';
       set({
         isLoading: false,
@@ -102,13 +104,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         club: null,
         isAuthenticated: false,
       });
-      
+
       return { success: true, message: successMsg };
-      
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Registration failed';
-      set({ 
-        isLoading: false, 
+      set({
+        isLoading: false,
         error: errorMessage,
         successMessage: null,
         user: null,
@@ -119,11 +120,17 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
   },
 
+  // ✅ UPDATED: expects club + email + password
   login: async (data) => {
     try {
       set({ isLoading: true, error: null, successMessage: null });
-      const response = await apiService.loginClub(data);
-      
+
+      const response = await apiService.loginClub({
+        club: data.club,
+        email: data.email,
+        password: data.password,
+      });
+
       localStorage.setItem('auth_token', response.token);
       set({
         user: response.user,
@@ -139,19 +146,16 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         const entitlements = await apiService.getEntitlements();
         set({ entitlements });
 
-        // Check if credits are zero
         if (entitlements.game_credits_remaining === 0) {
           set({ showNoCreditWarning: true });
         }
       } catch (entError) {
-        // Don't fail login if entitlements fetch fails
         console.error('Failed to fetch entitlements:', entError);
       }
-
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Login failed';
-      set({ 
-        isLoading: false, 
+      set({
+        isLoading: false,
         error: errorMessage,
         successMessage: null,
         user: null,
@@ -172,8 +176,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       isLoading: false,
       error: null,
       successMessage: null,
-      entitlements: null, // NEW
-      showNoCreditWarning: false, // NEW
+      entitlements: null,
+      showNoCreditWarning: false,
     });
   },
 
@@ -190,7 +194,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to get profile';
       set({ isLoading: false, error: errorMessage });
-      
+
       if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
         get().logout();
       }
@@ -198,10 +202,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
   },
 
-  // NEW: Action to dismiss the warning
   dismissNoCreditWarning: () => set({ showNoCreditWarning: false }),
 
-  // Utility actions
   setUser: (user) => set({ user, isAuthenticated: !!user }),
   setClub: (club) => set({ club }),
   setError: (error) => set({ error, successMessage: null }),
@@ -211,33 +213,35 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   setLoading: (loading) => set({ isLoading: loading }),
 }));
 
-// Selector hooks for components
-export const useAuth = () => useAuthStore((state) => ({
-  user: state.user,
-  club: state.club,
-  isAuthenticated: state.isAuthenticated,
-  login: state.login,
-  register: state.register,
-  logout: state.logout,
-  setUser: state.setUser,
-  setClub: state.setClub,
-  initialize: state.initialize,
-}));
+// Selector hooks
+export const useAuth = () =>
+  useAuthStore((state) => ({
+    user: state.user,
+    club: state.club,
+    isAuthenticated: state.isAuthenticated,
+    login: state.login,
+    register: state.register,
+    logout: state.logout,
+    setUser: state.setUser,
+    setClub: state.setClub,
+    initialize: state.initialize,
+  }));
 
-export const useUI = () => useAuthStore((state) => ({
-  isLoading: state.isLoading,
-  error: state.error,
-  successMessage: state.successMessage,
-  setLoading: state.setLoading,
-  setError: state.setError,
-  clearError: state.clearError,
-  setSuccessMessage: state.setSuccessMessage,
-  clearSuccessMessage: state.clearSuccessMessage,
-}));
+export const useUI = () =>
+  useAuthStore((state) => ({
+    isLoading: state.isLoading,
+    error: state.error,
+    successMessage: state.successMessage,
+    setLoading: state.setLoading,
+    setError: state.setError,
+    clearError: state.clearError,
+    setSuccessMessage: state.setSuccessMessage,
+    clearSuccessMessage: state.clearSuccessMessage,
+  }));
 
-// NEW: Selector for credit warning
-export const useCreditWarning = () => useAuthStore((state) => ({
-  showNoCreditWarning: state.showNoCreditWarning,
-  dismissNoCreditWarning: state.dismissNoCreditWarning,
-  entitlements: state.entitlements,
-}));
+export const useCreditWarning = () =>
+  useAuthStore((state) => ({
+    showNoCreditWarning: state.showNoCreditWarning,
+    dismissNoCreditWarning: state.dismissNoCreditWarning,
+    entitlements: state.entitlements,
+  }));

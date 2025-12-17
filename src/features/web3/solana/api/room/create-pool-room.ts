@@ -107,7 +107,7 @@ export async function createPoolRoom(
     }
   }
 
-  // Check and update max_prize_pool_bps if it's set to 3500 (35%)
+
   try {
     // @ts-expect-error - Account types available after program deployment
     const configAccount = await program.account.globalConfig.fetch(globalConfigPDA);
