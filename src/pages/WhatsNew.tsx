@@ -45,7 +45,7 @@ const updates: UpdateItem[] = [
     title: 'Announcing the First Annual Web3 Impact Campaign',
     date: 'November 2025',
     description:
-      'It\'s official! The First Annual Web3 Impact Campaign runs from November 14, 2025 through February 14, 2026. Clubs, charities, DAOs and communities can host fundraising quizzes, rally supporters, and showcase on-chain impact.',
+      'It\'s official! The First Annual Web3 Impact Campaign runs from February through to April \'26. Clubs, charities, DAOs and communities can host fundraising quizzes, rally supporters, and showcase on-chain impact.',
     image: '/images/impact.jpg',
     category: 'announcement',
     cta: {

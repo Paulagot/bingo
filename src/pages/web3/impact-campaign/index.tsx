@@ -122,7 +122,7 @@ const ImpactCampaignOverview: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
       <SEO
         title="Web3 Impact Campaign — Annual Crypto Fundraising Drive | FundRaisely"
-        description="Fundraise for real-world good, on-chain. The annual Web3 Impact Campaign by FundRaisely unites DAOs, dApps, NFT and meme communities to host quizzes, raise for verified charities, and climb the leaderboard. Nov–Jan."
+        description="Fundraise for real-world good, on-chain. The annual Web3 Impact Campaign by FundRaisely unites DAOs, dApps, NFT and meme communities to host quizzes, raise for verified charities, and climb the leaderboard. Feb - April 2026."
         keywords="web3 fundraising, crypto charity, DAO fundraising, blockchain philanthropy, on-chain donations, Solana fundraising, Stellar fundraising, Base fundraising, Glo Dollar, The Giving Block"
         type="event"
         structuredData={[breadcrumbsJsonLd, eventJsonLd, faqJsonLd]}
@@ -155,7 +155,7 @@ const ImpactCampaignOverview: React.FC = () => {
               </p>
 
               <p className="mx-auto mt-4 max-w-3xl text-indigo-900/70 text-lg md:text-xl leading-relaxed">
-                Unite the Web3 world for real-world impact. From November 14th to February 14th,
+                Unite the Web3 world for real-world impact. From February to April '26',
                 DAOs, dApps, NFT &amp; meme communities host quizzes and route funds
                 on-chain directly to verified charities — with transparent reports and a global leaderboard.
               </p>
@@ -204,7 +204,7 @@ const ImpactCampaignOverview: React.FC = () => {
                 <div className="rounded-2xl border border-indigo-200 bg-white p-8 shadow-lg">
                   <PledgeForm compactTitle="Pledge Now — Get Support" />
                   <p className="mt-4 text-xs text-indigo-900/60">
-                    Tip: When the campaign kicks off in November, this section will switch to
+                    Tip: When the campaign kicks off in February, this section will switch to
                     <strong> "Request Help / Demo"</strong> for late joiners.
                   </p>
                 </div>
@@ -230,7 +230,7 @@ const ImpactCampaignOverview: React.FC = () => {
                   </div>
                   <h3 className="mb-2 text-indigo-900 text-lg font-bold">A global, on-chain charity drive</h3>
                   <p className="text-sm text-indigo-900/80 leading-relaxed">
-                    A 3-month fundraising campaign (Nov 14th–Feb 14th) where Web3 communities host quiz nights and raise funds
+                    A 3-month fundraising campaign (Feb - April '26') where Web3 communities host quiz nights and raise funds
                     directly to verified charities — no custodians, no middlemen, transparent by default.
                   </p>
                 </div>
@@ -322,7 +322,7 @@ const ImpactCampaignOverview: React.FC = () => {
                     From setup to celebration, our platform guides you through every step of hosting successful on-chain fundraising events.
                   </p>
                   <ol className="list-decimal space-y-3 pl-5 text-indigo-900/80 leading-relaxed">
-                    <li>Pick a date &amp; format (in-person or online) between <strong>November 14th and February 14th</strong></li>
+                    <li>Pick a date &amp; format (in-person or online) between <strong>February and April '26</strong></li>
                     <li>Choose your chain and tokens; Select a charity, connect your wallet</li>
                     <li>Host your quiz with live scoring, power-ups, and on-chain receipts</li>
                     <li>Smart contracts split funds: <strong>≥40% charity</strong>, <strong>≤40% host-controlled</strong>, <strong>20% platform</strong></li>
@@ -484,7 +484,7 @@ const ImpactCampaignOverview: React.FC = () => {
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-indigo-100">
                   <h3 className="text-indigo-900 mb-3 text-lg font-semibold">How do we get started?</h3>
                   <p className="text-indigo-900/70 leading-relaxed">
-                    Pledge now to book a short support session. When the campaign opens in November, this page will switch to a
+                    Pledge now to book a short support session. When the campaign opens in February '26, this page will switch to a
                     <strong> Request Help / Demo</strong> flow for late joiners.
                   </p>
                 </div>
@@ -523,7 +523,7 @@ const ImpactCampaignOverview: React.FC = () => {
           <section className="px-4 py-12">
             <div className="container mx-auto max-w-6xl">
               <div className="rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 p-12 shadow-lg text-center text-white">
-                <h2 className="mb-4 text-3xl md:text-4xl font-bold">Join the Web3 Impact Campaign (Nov–Jan)</h2>
+                <h2 className="mb-4 text-3xl md:text-4xl font-bold">Join the Web3 Impact Campaign (Feb - April 2026)</h2>
                 <p className="mb-8 text-lg opacity-90 max-w-3xl mx-auto leading-relaxed">
                   Pledge your community now to secure support and early recognition.
                 </p>
@@ -534,7 +534,7 @@ const ImpactCampaignOverview: React.FC = () => {
                   <span>Pledge Your Community</span>
                   <ArrowRight className="h-6 w-6" />
                 </button>
-                <p className="mt-4 text-sm opacity-75">Leaderboard launches in November.</p>
+                <p className="mt-4 text-sm opacity-75">Leaderboard launches in February.</p>
               </div>
             </div>
           </section>
