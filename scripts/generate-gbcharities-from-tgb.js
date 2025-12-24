@@ -169,4 +169,3 @@ export const searchCharities = (query: string, limit = 10) => {
 })();
 
 
-

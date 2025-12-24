@@ -385,13 +385,15 @@ const PlayerListPanel: React.FC = () => {
                               {isShowingQR ? 'Hide' : 'Invite'}
                             </button>
 
-                            <button
-                              onClick={() => setEditingPlayer(player)}
-                              className="inline-flex items-center gap-1.5 rounded-lg border-2 border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition-all"
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                              Edit
-                            </button>
+                            {!isWeb3 && (
+  <button
+    onClick={() => setEditingPlayer(player)}
+    className="inline-flex items-center gap-1.5 rounded-lg border-2 border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition-all"
+  >
+    <Pencil className="h-3.5 w-3.5" />
+    Edit
+  </button>
+)}
 
                             <button
                               onClick={() => toggleDisqualification(player.id)}

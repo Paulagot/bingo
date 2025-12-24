@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import QuizWizard from '../components/Quiz/Wizard/QuizWizard';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../stores/authStore';
+import { useAuth } from '@features/auth';
 
 // ✅ Debug toggle - set to false for production
 const DEBUG = false;

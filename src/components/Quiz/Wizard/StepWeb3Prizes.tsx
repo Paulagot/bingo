@@ -79,7 +79,11 @@ const StepWeb3Prizes: FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst })
     }
     
     // Default state with tokenType for EVM
-    const defaultTokenType = setupConfig.web3Chain === 'evm' ? 'erc20' : undefined;
+      const defaultTokenType = setupConfig.web3Chain === 'evm' 
+    ? 'erc20' 
+    : setupConfig.web3Chain === 'solana' 
+    ? 'spl-token' 
+    : undefined;
     
     return [
       { place: 1, description: '', tokenAddress: '', tokenType: defaultTokenType, amount: '', tokenId: '' },
@@ -117,32 +121,39 @@ const StepWeb3Prizes: FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst })
   };
 
   const isPrizeComplete = (p: Prize) => {
-    if (!p.description?.trim() || !p.tokenAddress?.trim()) return false;
+  if (!p.description?.trim() || !p.tokenAddress?.trim()) return false;
+  
+  if (setupConfig.web3Chain === 'evm') {
+    // EVM validation (existing code)
+    if (!p.tokenType) return false;
     
-    if (setupConfig.web3Chain === 'evm') {
-      if (!p.tokenType) return false;
-      
-      if (p.tokenType === 'erc20') {
-        return !!(p.amount && p.amount.trim() && parseFloat(p.amount) > 0);
-      }
-      
-      if (p.tokenType === 'erc721') {
-        return !!(p.tokenId && p.tokenId.trim());
-      }
-      
-      if (p.tokenType === 'erc1155') {
-        return !!(
-          p.tokenId && p.tokenId.trim() &&
-          p.amount && p.amount.trim() && parseFloat(p.amount) > 0
-        );
-      }
-    } else {
-      // For non-EVM chains (keep existing logic with value field)
-      return !!(p.value && p.value > 0);
+    if (p.tokenType === 'erc20') {
+      return !!(p.amount && p.amount.trim() && parseFloat(p.amount) > 0);
     }
     
-    return false;
-  };
+    if (p.tokenType === 'erc721') {
+      return !!(p.tokenId && p.tokenId.trim());
+    }
+    
+    if (p.tokenType === 'erc1155') {
+      return !!(
+        p.tokenId && p.tokenId.trim() &&
+        p.amount && p.amount.trim() && parseFloat(p.amount) > 0
+      );
+    }
+  } else if (setupConfig.web3Chain === 'solana') {
+    // ✅ Solana validation
+    if (!p.tokenType) return false;
+    
+    // Both spl-token and nft require amount
+    return !!(p.amount && p.amount.trim() && parseFloat(p.amount) > 0);
+  } else {
+    // Other chains: legacy value field
+    return !!(p.value && p.value > 0);
+  }
+  
+  return false;
+};
 
   const getCompletedPrizesCount = () => externalPrizes.filter(isPrizeComplete).length;
 
@@ -183,16 +194,22 @@ const StepWeb3Prizes: FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst })
     });
   };
 
-  const clearPrize = (index: number) => {
-    const defaultTokenType = setupConfig.web3Chain === 'evm' ? 'erc20' : undefined;
-    handleExternalPrizeChange(index, 'description', '');
-    handleExternalPrizeChange(index, 'tokenAddress', '');
-    handleExternalPrizeChange(index, 'amount', '');
-    handleExternalPrizeChange(index, 'tokenId', '');
-    handleExternalPrizeChange(index, 'sponsor', '');
-    handleExternalPrizeChange(index, 'tokenType', defaultTokenType);
-    setError('');
-  };
+const clearPrize = (index: number) => {
+  // ✅ Set default token type based on chain
+  const defaultTokenType = setupConfig.web3Chain === 'evm' 
+    ? 'erc20' 
+    : setupConfig.web3Chain === 'solana' 
+    ? 'spl-token' 
+    : undefined;
+    
+  handleExternalPrizeChange(index, 'description', '');
+  handleExternalPrizeChange(index, 'tokenAddress', '');
+  handleExternalPrizeChange(index, 'amount', '');
+  handleExternalPrizeChange(index, 'tokenId', '');
+  handleExternalPrizeChange(index, 'sponsor', '');
+  handleExternalPrizeChange(index, 'tokenType', defaultTokenType);
+  setError('');
+};
 
   const totalPrizeSplit = useMemo(
     () => PRIZE_PLACES.reduce((acc, p) => acc + (Number.isFinite(splits[p]) ? (splits[p] as number) : 0), 0),
@@ -267,38 +284,44 @@ const StepWeb3Prizes: FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst })
       }
 
       // Convert UI values into proper token fields
-      const processedPrizes = externalPrizes
-        .filter(isPrizeComplete)
-        .map((p) => {
-          const base: Prize = {
-            place: p.place,
-            description: p.description,
-            sponsor: p.sponsor,
-            tokenAddress: p.tokenAddress,
-            tokenType: p.tokenType ?? 'erc20',
-          };
+     const processedPrizes = externalPrizes
+  .filter(isPrizeComplete)
+  .map((p) => {
+    const base: Prize = {
+      place: p.place,
+      description: p.description,
+      sponsor: p.sponsor,
+      tokenAddress: p.tokenAddress,
+      tokenType: p.tokenType,
+    };
 
-          if (setupConfig.web3Chain === 'evm') {
-            if (p.tokenType === 'erc20') {
-              base.amount = p.amount; // Already a string
-              base.tokenId = undefined;
-              base.isNFT = false;
-            } else if (p.tokenType === 'erc721') {
-              base.tokenId = p.tokenId; // Already a string
-              base.amount = '1';
-              base.isNFT = true;
-            } else if (p.tokenType === 'erc1155') {
-              base.tokenId = p.tokenId; // Already a string
-              base.amount = p.amount || '1'; // Already a string
-              base.isNFT = true;
-            }
-          } else {
-            // Non-EVM: keep legacy behavior with value field
-            base.amount = String(p.value ?? '0');
-          }
+    if (setupConfig.web3Chain === 'evm') {
+      // ✅ EVM processing (existing code)
+      if (p.tokenType === 'erc20') {
+        base.amount = p.amount;
+        base.tokenId = undefined;
+        base.isNFT = false;
+      } else if (p.tokenType === 'erc721') {
+        base.tokenId = p.tokenId;
+        base.amount = '1';
+        base.isNFT = true;
+      } else if (p.tokenType === 'erc1155') {
+        base.tokenId = p.tokenId;
+        base.amount = p.amount || '1';
+        base.isNFT = true;
+      }
+    } else if (setupConfig.web3Chain === 'solana') {
+      // ✅ Solana processing
+      base.amount = p.amount; // Already a string
+      base.tokenId = undefined; // Solana doesn't use tokenId
+      base.isNFT = p.tokenType === 'nft';
+    } else {
+      // ✅ Other chains: legacy value field
+      base.amount = String(p.value ?? '0');
+    }
 
-          return base;
-        });
+    return base;
+  });
 
       updateSetupConfig({
         web3PrizeSplit: {
@@ -757,6 +780,94 @@ const StepWeb3Prizes: FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst })
                         </div>
                       )}
 
+                      {/* Token Type Selector - Solana only */}
+{setupConfig.web3Chain === 'solana' && (
+  <div>
+    <label className="text-fg/80 mb-1 block text-xs font-medium">
+      Token Type {required && <span className="text-red-500">*</span>}
+    </label>
+    <div className="grid grid-cols-2 gap-2">
+      <label
+        className={`flex flex-col items-center gap-2 cursor-pointer rounded-lg border-2 p-3 transition-all ${
+          prize.tokenType === 'spl-token' || !prize.tokenType
+            ? 'border-indigo-600 bg-indigo-50'
+            : 'border-border hover:border-indigo-400'
+        }`}
+      >
+        <input
+          type="radio"
+          name={`tokenType-${index}`}
+          value="spl-token"
+          checked={prize.tokenType === 'spl-token' || !prize.tokenType}
+          onChange={() => {
+            handleExternalPrizeChange(index, 'tokenType', 'spl-token');
+            handleExternalPrizeChange(index, 'tokenId', ''); // Clear tokenId (not used in Solana)
+          }}
+          className="sr-only"
+        />
+        <div className="text-2xl">🪙</div>
+        <div className="text-center">
+          <div className="text-sm font-medium">SPL Token</div>
+          <div className="text-xs text-fg/60">Fungible</div>
+        </div>
+      </label>
+
+      <label
+        className={`flex flex-col items-center gap-2 cursor-pointer rounded-lg border-2 p-3 transition-all ${
+          prize.tokenType === 'nft'
+            ? 'border-indigo-600 bg-indigo-50'
+            : 'border-border hover:border-indigo-400'
+        }`}
+      >
+        <input
+          type="radio"
+          name={`tokenType-${index}`}
+          value="nft"
+          checked={prize.tokenType === 'nft'}
+          onChange={() => {
+            handleExternalPrizeChange(index, 'tokenType', 'nft');
+            handleExternalPrizeChange(index, 'amount', '1'); // NFTs are always 1
+            handleExternalPrizeChange(index, 'tokenId', ''); // Clear tokenId (not used in Solana)
+          }}
+          className="sr-only"
+        />
+        <div className="text-2xl">🎨</div>
+        <div className="text-center">
+          <div className="text-sm font-medium">NFT</div>
+          <div className="text-xs text-fg/60">Unique</div>
+        </div>
+      </label>
+    </div>
+    <p className="text-xs text-fg/60 mt-2">
+      Choose whether this is a fungible token (like SOL, USDC) or an NFT
+    </p>
+  </div>
+)}
+
+{/* Solana: Amount field for both SPL tokens and NFTs */}
+{setupConfig.web3Chain === 'solana' && (
+  <div>
+    <label className="text-fg/80 mb-1 block text-xs font-medium">
+      Amount {required && <span className="text-red-500">*</span>}
+    </label>
+    <input
+      type="text"
+      value={prize.amount || ''}
+      onChange={(e) => handleExternalPrizeChange(index, 'amount', e.target.value)}
+      placeholder={prize.tokenType === 'nft' ? '1' : 'e.g., 100'}
+      disabled={prize.tokenType === 'nft'} // NFTs are always 1
+      className={`border-border w-full rounded-lg border-2 px-3 py-2 text-sm outline-none transition focus:border-indigo-500 ${
+        prize.tokenType === 'nft' ? 'bg-gray-100 cursor-not-allowed' : ''
+      }`}
+    />
+    <p className="text-xs text-fg/60 mt-1">
+      {prize.tokenType === 'nft' 
+        ? 'NFTs are always exactly 1 token' 
+        : 'How many tokens to award (e.g., 100 SOL or 500 USDC)'}
+    </p>
+  </div>
+)}
+
                       {/* Conditional fields based on token type */}
                       {isEvm && prize.tokenType === 'erc20' && (
                         <div>
@@ -830,21 +941,7 @@ const StepWeb3Prizes: FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst })
                       )}
 
                       {/* For non-EVM chains, show the legacy value field */}
-                      {!isEvm && (
-                        <div>
-                          <label className="text-fg/80 mb-1 block text-xs font-medium">
-                            Quantity/Token ID {required && <span className="text-red-500">*</span>}
-                          </label>
-                          <input
-                            type="number"
-                            min={1}
-                            value={prize.value || ''}
-                            onChange={(e) => handleExternalPrizeChange(index, 'value', parseFloat(e.target.value) || 0)}
-                            placeholder="e.g., 1 (for NFTs) or 500 (for tokens)"
-                            className="border-border w-full rounded-lg border-2 px-3 py-2 text-sm outline-none transition focus:border-indigo-500"
-                          />
-                        </div>
-                      )}
+               
 
                       <div>
                         <label className="text-fg/80 mb-1 block text-xs font-medium">Sponsor (Optional)</label>

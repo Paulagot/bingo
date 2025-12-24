@@ -19,7 +19,10 @@ export interface Prize {
   
   // Token identification
   tokenAddress?: string | undefined;
-  tokenType?: 'erc20' | 'erc721' | 'erc1155' | undefined;
+ tokenType?: 
+  | 'erc20' | 'erc721' | 'erc1155'  // EVM
+  | 'spl-token' | 'nft'              // ✅ Add these for Solana
+  | undefined;
   
   // For ERC-20: amount of tokens (e.g., "500" for 500 USDC)
   // For ERC-721: always "1" (single NFT)

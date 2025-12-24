@@ -268,8 +268,8 @@ const HostDashboardCore: React.FC = () => {
   const [ents, setEnts] = useState<any>(null);
   useEffect(() => {
     let cancelled = false;
-    import('../../../services/apiService')
-      .then(({ apiService }) => apiService.getEntitlements())
+   import('@/shared/api')
+  .then(({ quizApi }) => quizApi.getEntitlements())
       .then((data) => {
         if (!cancelled) setEnts(data);
       })
@@ -693,7 +693,7 @@ const HostDashboardCore: React.FC = () => {
             </div>
           )}
 
-          {DEBUG && (
+          {/* {DEBUG && (
             <div className="mt-2 text-xs text-gray-400">
               Room: {roomId} | Socket: {connected ? '🟢' : '🔴'} | Config: {!!config?.roomId ? '✅' : '⏳'} | Players:{' '}
               {players?.length || 0} | Admins: {admins?.length || 0} | Assets:{' '}
@@ -701,7 +701,7 @@ const HostDashboardCore: React.FC = () => {
               {config?.prizes?.filter((p: any) => p.tokenAddress).length || 0} | Phase: {currentPhase || 'unknown'} |
               Complete: {isQuizComplete ? '✅' : '❌'} | Chain: {selectedChain || 'none'}
             </div>
-          )}
+          )} */}
         </div>
 
         {ents && (

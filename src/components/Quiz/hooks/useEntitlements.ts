@@ -21,14 +21,14 @@ export function useEntitlements() {
       try {
         setLoading(true);
         // lazy import to avoid initial bundle weight
-        const { apiService } = await import('../../../services/apiService');
+       const { quizApi } = await import('@/shared/api');
         const cached = sessionStorage.getItem('fundraisely_ents');
         if (cached) {
           const parsed = JSON.parse(cached);
           if (!cancelled) setEnts(parsed);
         }
 
-        const fresh = await apiService.getEntitlements();
+       const fresh = await quizApi.getEntitlements();
         if (!cancelled) {
           setEnts(fresh);
           sessionStorage.setItem('fundraisely_ents', JSON.stringify(fresh));
