@@ -7,7 +7,7 @@ import { generateRoomId, generateHostId } from '../utils/idUtils';
 import { roundTypeMap } from '../constants/quiztypeconstants';
 import type { WizardStepProps } from './WizardStepProps';
 import type { RoundDefinition } from '../types/quiz';
-import { apiService } from '../../../services/apiService';
+import { roomApi } from '@/shared/api';
 import { fundraisingExtraDefinitions } from '../constants/quizMetadata';
 import ClearSetupButton from './ClearSetupButton';
 import {
@@ -111,7 +111,7 @@ const StepReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) => {
       const newHostId = hostId || generateHostId();
       setRoomIds(newRoomId, newHostId);
 
-      const data = await apiService.createRoom({
+      const data = await roomApi.createRoom({
         config: setupConfig,
         roomId: newRoomId,
         hostId: newHostId,

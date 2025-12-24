@@ -811,6 +811,7 @@ socket.on('tiebreak:proceed_to_completion', ({ roomId }) => {
       charityAddress: room.config.web3CharityAddress,
       charityCurrency: room.config.web3Currency || 'USDC',
       charityAmountPreview, // ← Backend estimate (Solana only), frontend will verify with contract
+       roomAddress: room.config.roomContractAddress,
     });
 
     namespace.to(roomId).emit('prize_distribution_started', {

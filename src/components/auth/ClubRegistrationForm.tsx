@@ -10,7 +10,7 @@ import {
   AlertCircle,
   Sparkles
 } from 'lucide-react';
-import { useAuth, useUI } from '../../stores/authStore';
+import { useAuth, useAuthUI } from '@/features/auth';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 interface ClubRegisterFormProps {
@@ -177,7 +177,7 @@ export default function ClubRegisterForm({
     successMessage,
     clearError,
     clearSuccessMessage
-  } = useUI();
+  } = useAuthUI();
   const location = useLocation();
   const navigate = useNavigate();
 

@@ -7,7 +7,7 @@ import { roundTypeDefaults, roundTypeMap } from '../constants/quiztypeconstants'
 import ClearSetupButton from './ClearSetupButton';
 import type { WizardStepProps } from './WizardStepProps';
 import quizTemplates, { type QuizTemplate } from '../constants/templates';
-import apiService from '../../../services/apiService';
+import { quizApi } from '@shared/api';
 
 // shadcn/ui Select
 import {
@@ -166,13 +166,14 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
   const [ents, setEnts] = useState<any | null>(null);
   const [_entsLoaded, setEntsLoaded] = useState(false);
 
-  useEffect(() => {
-    apiService
-      .getEntitlements()
-      .then((e) => setEnts(e))
-      .catch(() => setEnts(null))
-      .finally(() => setEntsLoaded(true));
-  }, []);
+useEffect(() => {
+  quizApi
+    .getEntitlements()
+    .then((e) => setEnts(e))
+    .catch(() => setEnts(null))
+    .finally(() => setEntsLoaded(true));
+}, []);
+
 
   const isDevPlan =
     ents?.plan_id === 2 ||

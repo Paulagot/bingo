@@ -19,7 +19,7 @@ import ContactForm from './components/GeneralSite2/ContactForm';
 import FoundingPartnersPage from './pages/FoundingPartners';
 import BlogPost from './pages/BlogPost';
 
-import { useAuthStore } from './stores/authStore';
+import { useAuthStore } from './features/auth';
 import AuthPage from './components/auth/AuthPage';
 import Login from './pages/Login';
 import Signup from './pages/Signup';

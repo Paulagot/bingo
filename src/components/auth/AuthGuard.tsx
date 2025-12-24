@@ -1,8 +1,8 @@
 // client/src/components/auth/AuthGuard.tsx
 import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../stores/authStore';
-import { apiService } from '../../services/apiService';
+import { useAuth } from '@features/auth';
+import { authApi } from '@/shared/api';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -31,7 +31,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
 
       try {
         setIsCheckingAuth(true);
-        const response = await apiService.getCurrentUser();
+        const response = await authApi.getCurrentUser();
         
         setUser(response.user);
         setClub(response.club);

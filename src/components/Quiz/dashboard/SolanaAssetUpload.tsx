@@ -4,8 +4,9 @@ import { useQuizConfig } from '../hooks/useQuizConfig';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { useQuizChainIntegration } from '../../../hooks/useQuizChainIntegration';
 import { useRoomIdentity } from '../hooks/useRoomIdentity';
-import { useSolanaContractContext } from '../../../chains/solana/useSolanaContractContext';
-import { PublicKey } from '@solana/web3.js';
+import { useSolanaAddPrizeAsset } from '../../../chains/solana/hooks/useSolanaAddPrizeAsset';
+import { useSolanaShared } from '../../../chains/solana/hooks/useSolanaShared';
+import { getSolanaExplorerUrl, getSolanaExplorerTxUrl } from '../../../chains/solana/config/networks';
 
 import {
   Upload,
@@ -45,8 +46,22 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
   const { roomId } = useRoomIdentity();
   const { isWalletConnected, currentWallet } = useQuizChainIntegration();
 
-  // Solana-specific contract hook
-  const solanaContract = useSolanaContractContext();
+  // ✅ NEW: Use the proper hook for adding prize assets
+  const { addPrizeAsset } = useSolanaAddPrizeAsset();
+  
+  // Get cluster info for dynamic explorer URL
+  const { cluster } = useSolanaShared();
+  
+  // Map cluster names: Solana SDK uses 'mainnet-beta', our config uses 'mainnet'
+  const normalizeCluster = (cluster: string | undefined): 'mainnet' | 'devnet' | 'testnet' => {
+    if (cluster === 'mainnet-beta') return 'mainnet';
+    if (cluster === 'devnet') return 'devnet';
+    if (cluster === 'testnet') return 'testnet';
+    return 'devnet'; // default
+  };
+  
+  const normalizedCluster = normalizeCluster(cluster);
+  const explorerBaseUrl = getSolanaExplorerUrl(normalizedCluster);
 
   const [copying, setCopying] = useState<string | null>(null);
 
@@ -56,19 +71,13 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
 
   const stats = useMemo(() => calculateUploadStats(prizes), [prizes]);
 
-  // Contract function readiness
-  const hasDepositFn = solanaContract?.depositPrizeAsset !== undefined;
-  const canDeposit = Boolean(isWalletConnected && solanaContract?.isReady && hasDepositFn);
-
   useEffect(() => {
     console.log('[Solana Assets] ready:', {
       isWalletConnected,
-      contractReady: solanaContract?.isReady,
-      hasDeposit: hasDepositFn,
       roomId,
       connectedSocket: connected,
     });
-  }, [isWalletConnected, solanaContract?.isReady, hasDepositFn, roomId, connected]);
+  }, [isWalletConnected, roomId, connected]);
 
   /**
    * Update prize upload status in config
@@ -100,7 +109,13 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
    * Handle uploading a single asset to Solana contract
    */
   const handleUploadAsset = async (prizeIndex: number) => {
-    if (!roomId || !socket || !connected || !canDeposit) {
+    if (!roomId || !socket || !connected || !isWalletConnected) {
+      console.error('[Solana] Cannot deposit - missing requirements:', {
+        roomId: !!roomId,
+        socket: !!socket,
+        connected,
+        isWalletConnected,
+      });
       updatePrizeStatus(prizeIndex, 'failed');
       return;
     }
@@ -117,34 +132,65 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
       return;
     }
 
+    if (!web3ContractAddress) {
+      console.error('[Solana] Missing contract address (room PDA)');
+      updatePrizeStatus(prizeIndex, 'failed');
+      return;
+    }
+
     try {
       updatePrizeStatus(prizeIndex, 'uploading');
 
-      const contractPrizeIndex = prize.place - 1; // 0-based
-
-      // Get host pubkey from config or current wallet
-      const hostPubkey = new PublicKey(config?.hostWalletConfirmed || currentWallet?.address || '');
-      const prizeMint = new PublicKey(prize.tokenAddress);
-
-      const result = await solanaContract!.depositPrizeAsset!({
+      console.log('[Solana] Depositing prize asset:', {
         roomId,
-        hostPubkey,
-        prizeIndex: contractPrizeIndex,
-        prizeMint,
+        roomAddress: web3ContractAddress,
+        prizeIndex: prize.place - 1, // Convert to 0-based index
+        prizeMint: prize.tokenAddress,
       });
 
-      if (result?.signature) {
-        updatePrizeStatus(prizeIndex, 'completed', result.signature);
+      // ✅ NEW: Use the new hook API
+      const result = await addPrizeAsset({
+        roomId,
+        roomAddress: web3ContractAddress, // This is the room PDA
+        prizeIndex: prize.place - 1, // Convert 1-based place to 0-based index
+        prizeMint: prize.tokenAddress,
+      });
+
+      if (result.success && result.txHash) {
+        console.log('[Solana] Prize asset deposited successfully:', {
+          txHash: result.txHash,
+          prizeIndex: result.prizeIndex,
+          newStatus: result.newStatus,
+          allDeposited: result.allDeposited,
+        });
+
+        updatePrizeStatus(prizeIndex, 'completed', result.txHash);
+        
+        // Notify backend
         socket.emit('asset_upload_success', {
           roomId,
-          prizeIndex: contractPrizeIndex,
-          txHash: result.signature,
+          prizeIndex: prize.place - 1,
+          txHash: result.txHash,
         });
+
+        // If all prizes are deposited, log success
+        if (result.allDeposited) {
+          console.log('[Solana] 🎉 All prizes deposited! Room is ready for players.');
+        }
       } else {
+        console.error('[Solana] Deposit failed - no success flag or txHash');
         updatePrizeStatus(prizeIndex, 'failed');
       }
     } catch (e: any) {
       console.error('[Solana] Prize deposit failed:', e);
+
+      // Enhanced error logging
+      if (e.message) {
+        console.error('[Solana] Error message:', e.message);
+      }
+      if (e.logs) {
+        console.error('[Solana] Transaction logs:', e.logs);
+      }
 
       // Get full logs if SendTransactionError
       if (e && typeof e.getLogs === 'function') {
@@ -225,9 +271,7 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
     roomId &&
     isWalletConnected &&
     socket &&
-    connected &&
-    solanaContract?.depositPrizeAsset !== undefined &&
-    solanaContract?.isReady
+    connected
   );
 
   return (
@@ -241,8 +285,6 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
           web3ContractAddress,
           roomId,
           socketConnected: connected,
-          contractReady: !!solanaContract?.isReady,
-          hasDeposit: hasDepositFn,
         }}
       />
 
@@ -261,7 +303,7 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
       <ConnectionStatusNotices
         isSocketConnected={connected}
         isWalletConnected={isWalletConnected}
-        isContractReady={!!solanaContract?.isReady}
+        isContractReady={true} // Solana doesn't have a separate "contract ready" state
         chainName={chainName}
       />
 
@@ -271,12 +313,12 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
         contractAddress={web3ContractAddress}
         roomId={roomId || undefined}
         walletAddress={currentWallet?.address || undefined}
-        explorerBaseUrl="https://explorer.solana.com"
+        explorerBaseUrl={explorerBaseUrl}
         isWalletConnected={isWalletConnected}
         onCopyAddress={async (addr: string) => copyToClipboard(addr, 'contract')}
         additionalInfo={
           <p className="mt-1 text-xs">
-            Deposit functions: {hasDepositFn ? 'Available' : 'Not loaded'}
+            Cluster: {normalizedCluster}
           </p>
         }
       />
@@ -350,7 +392,7 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
                           <button
                             onClick={() =>
                               window.open(
-                                `https://explorer.solana.com/tx/${prize.transactionHash}?cluster=devnet`,
+                                getSolanaExplorerTxUrl(prize.transactionHash!, normalizedCluster),
                                 '_blank'
                               )
                             }

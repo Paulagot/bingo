@@ -164,4 +164,3 @@ try {
   console.error('❌ Error generating static SEO files:', error);
 }
 
-

@@ -40,6 +40,7 @@ export interface RegisterRequest {
 }
 
 export interface LoginRequest {
+  club: string;
   email: string;
   password: string;
 }

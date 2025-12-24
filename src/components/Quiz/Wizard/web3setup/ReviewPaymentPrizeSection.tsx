@@ -5,6 +5,8 @@ interface Props {
   setupConfig: any;
 }
 
+
+
 const ReviewPaymentPrizeSection: React.FC<Props> = ({ setupConfig }) => {
   const prizeMode: "split" | "assets" | undefined = setupConfig.prizeMode;
   const splits = setupConfig.web3PrizeSplit || setupConfig.prizeSplits || {};
@@ -26,6 +28,10 @@ const ReviewPaymentPrizeSection: React.FC<Props> = ({ setupConfig }) => {
       }, 0),
     [enabledExtrasEntries, setupConfig.fundraisingPrices]
   );
+
+  console.log('fundraisingOptions', setupConfig.fundraisingOptions);
+console.log('fundraisingPrices', setupConfig.fundraisingPrices);
+
 
   return (
     <div className="bg-muted border-border rounded-xl border-2 p-4 shadow-sm md:p-6">
@@ -80,19 +86,10 @@ const ReviewPaymentPrizeSection: React.FC<Props> = ({ setupConfig }) => {
 
             <div className="grid grid-cols-3 gap-2">
               {Object.entries(splits).map(([place, pct]) => (
-                <div
-                  key={place}
-                  className="rounded border border-yellow-200 bg-white p-2 text-center"
-                >
+                <div key={place} className="rounded border border-yellow-200 bg-white p-2 text-center">
                   <div className="font-bold text-yellow-700">{Number(pct)}%</div>
                   <div className="text-xs text-yellow-700">
-                    {place === "1"
-                      ? "1st"
-                      : place === "2"
-                      ? "2nd"
-                      : place === "3"
-                      ? "3rd"
-                      : `${place}th`}
+                    {place === "1" ? "1st" : place === "2" ? "2nd" : place === "3" ? "3rd" : `${place}th`}
                   </div>
                 </div>
               ))}
@@ -107,36 +104,21 @@ const ReviewPaymentPrizeSection: React.FC<Props> = ({ setupConfig }) => {
 
             <div className="space-y-2">
               {setupConfig.prizes!.map((prize: any, i: number) => (
-                <div
-                  key={i}
-                  className="flex items-start gap-3 rounded border border-green-200 bg-white p-2"
-                >
+                <div key={i} className="flex items-start gap-3 rounded border border-green-200 bg-white p-2">
                   <Trophy className="h-4 w-4 text-green-700" />
                   <div className="min-w-0">
                     <div className="text-sm font-medium text-fg">
-                      {prize.place === 1
-                        ? "1st"
-                        : prize.place === 2
-                        ? "2nd"
-                        : prize.place === 3
-                        ? "3rd"
-                        : `${prize.place}th`}{" "}
+                      {prize.place === 1 ? "1st" : prize.place === 2 ? "2nd" : prize.place === 3 ? "3rd" : `${prize.place}th`}{" "}
                       Place
                     </div>
 
-                    <div className="text-xs text-fg/70">
-                      {prize.description || "No description"}
-                    </div>
+                    <div className="text-xs text-fg/70">{prize.description || "No description"}</div>
 
                     {prize.tokenAddress && (
-                      <div className="text-xs font-mono text-fg/70 break-all">
-                        {prize.tokenAddress}
-                      </div>
+                      <div className="text-xs font-mono text-fg/70 break-all">{prize.tokenAddress}</div>
                     )}
 
-                    {prize.value ? (
-                      <div className="text-xs text-fg/70">Qty/ID: {prize.value}</div>
-                    ) : null}
+                    {prize.value ? <div className="text-xs text-fg/70">Qty/ID: {prize.value}</div> : null}
                   </div>
                 </div>
               ))}
@@ -158,13 +140,10 @@ const ReviewPaymentPrizeSection: React.FC<Props> = ({ setupConfig }) => {
               {enabledExtrasEntries.map(([key]) => {
                 const price = setupConfig.fundraisingPrices?.[key];
                 return (
-                  <div
-                    key={key}
-                    className="flex items-center justify-between rounded bg-white p-2"
-                  >
+                  <div key={key} className="flex items-center justify-between rounded bg-white p-2">
                     <span className="text-xs text-fg/80">{key}</span>
                     <span className="text-xs font-medium text-fg">
-                      {typeof price === "number" ? `${price} ${currency}` : "—"}
+                      {typeof price === "number" ? `${price.toFixed(3)} ${currency}` : "—"}
                     </span>
                   </div>
                 );
@@ -173,7 +152,7 @@ const ReviewPaymentPrizeSection: React.FC<Props> = ({ setupConfig }) => {
               <div className="mt-1 text-right text-xs text-fg/70">
                 Potential extras per player:{" "}
                 <span className="font-semibold">
-                  {totalExtrasPerPlayer} {currency}
+                  {totalExtrasPerPlayer.toFixed(3)} {currency}
                 </span>
               </div>
             </div>
@@ -185,3 +164,4 @@ const ReviewPaymentPrizeSection: React.FC<Props> = ({ setupConfig }) => {
 };
 
 export default ReviewPaymentPrizeSection;
+
