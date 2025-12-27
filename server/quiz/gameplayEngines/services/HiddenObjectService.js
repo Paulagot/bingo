@@ -21,33 +21,44 @@ export class HiddenObjectService {
     return parsed;
   }
 
+  /**
+   * ✅ UPDATED: Pick puzzle by CATEGORY only
+   * Difficulty filtering happens at the ITEM level in hiddenObjectEngine
+   */
   static pickPuzzle({ category = null, difficulty = null }, dbg = false) {
     const all = this.loadPuzzles(dbg);
     if (!all.length) return null;
 
     const cat = category ? norm(category) : null;
-    const diff = difficulty ? norm(difficulty) : null;
 
-    // strict
-    let strict = all.filter((p) => {
-      const pc = norm(p.category);
-      const pd = norm(p.difficulty);
-      return (cat ? pc === cat : true) && (diff ? pd === diff : true);
-    });
+    // ✅ Filter by category only (ignore difficulty parameter)
+    let filtered = cat 
+      ? all.filter((p) => norm(p.category) === cat)
+      : all;
 
-    // fallback: difficulty only
-    if (strict.length === 0 && diff) {
-      strict = all.filter((p) => norm(p.difficulty) === diff);
-      if (dbg) console.warn('[HiddenObjectService] fallback difficulty-only hit', strict.length);
+    // Fallback: if no category matches, use all puzzles
+    if (filtered.length === 0) {
+      filtered = all;
+      if (dbg) console.warn('[HiddenObjectService] No category match, using all puzzles');
     }
 
-    // fallback: anything
-    if (strict.length === 0) {
-      strict = all;
-      if (dbg) console.warn('[HiddenObjectService] fallback unfiltered hit', strict.length);
+    // ✅ Random selection from filtered puzzles
+    const picked = filtered[Math.floor(Math.random() * filtered.length)];
+    
+    if (dbg && picked) {
+      // Count items by difficulty for logging
+      const easyCount = (picked.items || []).filter(i => norm(i.difficulty) === 'easy').length;
+      const medCount = (picked.items || []).filter(i => norm(i.difficulty) === 'medium').length;
+      const hardCount = (picked.items || []).filter(i => norm(i.difficulty) === 'hard').length;
+      
+      console.log(`[HiddenObjectService] Picked puzzle ${picked.id} (${picked.category}):`, {
+        totalItems: picked.items?.length || 0,
+        easy: easyCount,
+        medium: medCount,
+        hard: hardCount
+      });
     }
-
-    const picked = strict[Math.floor(Math.random() * strict.length)];
+    
     return picked || null;
   }
 }

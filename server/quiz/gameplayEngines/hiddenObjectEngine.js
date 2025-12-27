@@ -5,6 +5,7 @@ import { HiddenObjectService } from './services/HiddenObjectService.js';
 const ROUND_TYPE = 'hidden_object';
 const debug = true;
 
+// ✅ Fallback values if config is missing
 const ITEMS_BY_DIFFICULTY = {
   easy: 6,
   medium: 8,
@@ -41,32 +42,93 @@ export function initRound(roomId, namespace) {
   const difficulty = (rd?.difficulty || 'easy').toLowerCase();
   const category = rd?.category || 'image';
 
-  const totalSeconds = rd?.config?.totalTimeSeconds ?? 45; // you can tune this
-  const itemTarget = ITEMS_BY_DIFFICULTY[difficulty] ?? 6;
+  // ✅ READ FROM hiddenObject CONFIG
+  const hoConfig = rd?.config?.hiddenObject || {};
+  
+  const totalSeconds = hoConfig.timeLimitSeconds ?? rd?.config?.totalTimeSeconds ?? 45;
+  
+  // ✅ USE CONFIG OR FALLBACK
+  const itemTarget = hoConfig.itemCountByDifficulty?.[difficulty] ?? ITEMS_BY_DIFFICULTY[difficulty] ?? 6;
+  
+  // ✅ GET SCORING CONFIG
+  const pointsPerFindByDifficulty = hoConfig.pointsPerFindByDifficulty || { easy: 1, medium: 2, hard: 3 };
+  const secondsToPoints = hoConfig.secondsToPoints ?? 1;
 
+  // ✅ STEP 1: Pick random puzzle by category
   const puzzle = HiddenObjectService.pickPuzzle({ category, difficulty }, true);
   if (!puzzle) {
     console.warn('[hiddenObjectEngine] No puzzle found');
     return false;
   }
 
+  // ✅ STEP 2: Filter items by difficulty
   const allItems = Array.isArray(puzzle.items) ? puzzle.items : [];
-  const items = allItems.slice(0, Math.min(itemTarget, allItems.length));
+  let itemPool = [];
+
+  if (difficulty === 'easy') {
+    // Easy: only easy items (target: 6)
+    itemPool = allItems.filter(item => 
+      (item.difficulty || 'easy').toLowerCase() === 'easy'
+    );
+  } else if (difficulty === 'medium') {
+    // Medium: easy + medium items (target: 8)
+    const easyItems = allItems.filter(item => 
+      (item.difficulty || 'easy').toLowerCase() === 'easy'
+    );
+    const mediumItems = allItems.filter(item => 
+      (item.difficulty || '').toLowerCase() === 'medium'
+    );
+    itemPool = [...easyItems, ...mediumItems];
+  } else if (difficulty === 'hard') {
+    // Hard: all items (target: 10)
+    itemPool = allItems;
+  }
+
+  // Take up to itemTarget items
+  const items = itemPool.slice(0, Math.min(itemTarget, itemPool.length));
+
+  if (debug) {
+    console.log('[hiddenObjectEngine] Item selection:', {
+      puzzleId: puzzle.id,
+      difficulty,
+      itemTarget,
+      totalInPuzzle: allItems.length,
+      poolSize: itemPool.length,
+      selectedCount: items.length,
+      itemIds: items.map(i => `${i.id}:${i.difficulty || 'easy'}`)
+    });
+  }
+
+  // ✅ Validate we have enough items
+  if (items.length === 0) {
+    console.warn('[hiddenObjectEngine] No items available for difficulty:', difficulty);
+    return false;
+  }
+
+  if (items.length < itemTarget) {
+    console.warn(
+      `[hiddenObjectEngine] Puzzle ${puzzle.id} only has ${items.length} items for ${difficulty} difficulty, ` +
+      `but config requires ${itemTarget}. Using all available items.`
+    );
+  }
 
   const now = Date.now();
   room.currentPhase = 'asking';
   room.roundStartTime = now;
   room.roundEndTime = now + totalSeconds * 1000;
 
-  // store hidden object state in room
+  // ✅ Store hidden object state in room (including scoring config)
   room.hiddenObject = {
     puzzleId: String(puzzle.id),
-    imageUrl: puzzle.imageUrl, // absolute-ish like "/quiz/hidden-object/3000.jpg"
+    imageUrl: puzzle.imageUrl,
     difficulty,
     category,
     totalSeconds,
     itemTarget: items.length,
     items, // include bbox for server validation
+    // ✅ STORE SCORING CONFIG for use in finalize
+    pointsPerFindByDifficulty,
+    secondsToPoints,
     player: {}, // playerId -> { foundIds: Set<string>, finishTs?: number }
   };
 
@@ -110,14 +172,15 @@ export function initRound(roomId, namespace) {
   }, 1000);
 
   if (debug) {
-    console.log('[hiddenObjectEngine] initRound', {
+    console.log('[hiddenObjectEngine] initRound complete:', {
       roomId,
       puzzleId: puzzle.id,
       difficulty,
       itemTarget: items.length,
       totalSeconds,
-      imageUrl: room.hiddenObject?.imageUrl,
-      itemTarget2: room.hiddenObject?.itemTarget,
+      pointsPerFindByDifficulty,
+      secondsToPoints,
+      imageUrl: room.hiddenObject?.imageUrl
     });
   }
 
@@ -222,13 +285,31 @@ function finalizeHiddenObjectRound(roomId, namespace) {
     const s = ho.player?.[p.id];
     const foundCount = s?.foundIds?.size ?? 0;
 
-    // base points: 1 per item
-    const base = foundCount;
+    // ✅ CALCULATE POINTS: sum based on each item's difficulty
+    let base = 0;
+    const pointsPerFindByDifficulty = ho.pointsPerFindByDifficulty || { easy: 1, medium: 2, hard: 3 };
+    
+    if (s?.foundIds) {
+      for (const itemId of s.foundIds) {
+        const item = ho.items.find(it => String(it.id) === String(itemId));
+        if (item) {
+          const itemDifficulty = (item.difficulty || 'easy').toLowerCase();
+          const points = pointsPerFindByDifficulty[itemDifficulty] || 1;
+          base += points;
+          
+          if (debug) {
+            console.log(`  [Item ${itemId}] difficulty: ${itemDifficulty}, points: ${points}`);
+          }
+        }
+      }
+    }
 
-    // time bonus only if finished
+    // ✅ USE CONFIG: time bonus with multiplier
     let bonus = 0;
     if (s?.finishTs) {
-      bonus = Math.max(0, Math.floor((endTs - s.finishTs) / 1000));
+      const remainingSeconds = Math.max(0, Math.floor((endTs - s.finishTs) / 1000));
+      const secondsToPoints = ho.secondsToPoints ?? 1;
+      bonus = remainingSeconds * secondsToPoints;
     }
 
     const totalDelta = base + bonus;
@@ -238,10 +319,22 @@ function finalizeHiddenObjectRound(roomId, namespace) {
     pd.roundMeta[`round${room.currentRound}_hidden_object`] = {
       foundCount,
       itemTarget: ho.itemTarget,
+      pointsPerFindByDifficulty,
       base,
+      secondsToPoints: ho.secondsToPoints ?? 1,
       bonus,
       totalDelta,
     };
+
+    if (debug) {
+      console.log(`[hiddenObjectEngine] Scoring for ${p.name}:`, {
+        foundCount,
+        itemTarget: ho.itemTarget,
+        pointsBreakdown: `${base} base + ${bonus} time bonus`,
+        totalDelta,
+        newScore: pd.score
+      });
+    }
   }
 
   // move to reviewing phase (so HostControls flow stays consistent)

@@ -462,7 +462,7 @@ export function setupRecoveryHandlers(socket, namespace) {
         } else {
           snap.tb = base;
         }
-      } else if (room.currentPhase === 'leaderboard' || room.currentPhase === 'complete') {
+  } else if (room.currentPhase === 'leaderboard' || room.currentPhase === 'complete' || room.currentPhase === 'distributing_prizes') {
         // ✅ helpful: keep hidden_object review payload accessible in leaderboard/complete too
         const roundType = room.config.roundDefinitions?.[roundIndex]?.roundType;
         if (roundType === 'hidden_object') {
@@ -474,8 +474,40 @@ export function setupRecoveryHandlers(socket, namespace) {
           snap.leaderboard = room.finalLeaderboard;
         } else if (room.currentRoundResults && !room.currentOverallLeaderboard) {
           snap.roundLeaderboard = room.currentRoundResults;
+          
+          // ✅ NEW: Send current round stats along with round leaderboard
+          if (room.currentRoundStats) {
+            snap.currentRoundStats = room.currentRoundStats;
+            if (debug) {
+              console.log('[recovery] ✅ Including current round stats:', {
+                roundNumber: room.currentRoundStats.roundNumber,
+                phase: room.currentPhase
+              });
+            }
+          } else if (room.storedRoundStats && room.storedRoundStats[room.currentRound]) {
+            // Fallback: try to get from stored stats
+            snap.currentRoundStats = room.storedRoundStats[room.currentRound];
+            if (debug) {
+              console.log('[recovery] ✅ Including stored round stats:', {
+                roundNumber: room.currentRound,
+                phase: room.currentPhase
+              });
+            }
+          }
         } else if (room.currentOverallLeaderboard) {
           snap.leaderboard = room.currentOverallLeaderboard;
+        }
+
+        // ✅ NEW: Send final quiz stats for post-game recovery
+        if (Array.isArray(room.finalQuizStats) && room.finalQuizStats.length > 0) {
+          snap.finalQuizStats = room.finalQuizStats;
+          if (debug) {
+            console.log('[recovery] ✅ Including final quiz stats:', {
+              phase: room.currentPhase,
+              statsCount: room.finalQuizStats.length,
+              role: role
+            });
+          }
         }
       }
 

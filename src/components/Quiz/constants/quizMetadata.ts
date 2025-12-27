@@ -80,27 +80,42 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
   easy: 6,
   medium: 7,
   hard: 8},},
-    extras: ['Hint', 'Freeze-out-Team', 'Restore Points'],
+    extras: ['Hint', 'Freeze-out-Team', 'Restore Points', 'robPoints'],
     videoId: 'YOUR_YOUTUBE_VIDEO_ID'
   },
 
-  hidden_object: {
+hidden_object: {
   id: 'hidden_object',
   name: 'Find It Fast',
   icon: '🔎',
-  description: 'Find up to 10 hidden items before the timer runs out. Points per find + bonus points for remaining seconds.',
-  gameplay: 'Image appears → tap items to find → server validates finds → score = finds + speed bonus → leaderboard',
+  description: 'Find hidden items before the timer runs out.  There are 10 items to find and you must click on each one.  6 carry 1 point and are easy to spot, 2 carry 2 points and are medium difficulty to find, and 2 carry 3 points and are hard to find.  If you find them all, any time you have left will be added as bonus points. Are you ready to find it fast?',
+  gameplay: 'Image appears → tap items to find → server validates finds → score = (items found × points) + time bonus → leaderboard',
   pros: ['Very mobile friendly', 'High energy', 'Great for mixed ages'],
   timing: '30–60 seconds',
   difficulty: 'Easy–Medium',
-  bestFor: 'Quick engagement rounds, family events, kids rounds',
+  bestFor: 'Mixed groups, family events, kids rounds',
   defaultConfig: {
     questionsPerRound: 1,
     timePerQuestion: 0,
     totalTimeSeconds: 30,
-       
+    // ✅ USE EXISTING hiddenObject CONFIG STRUCTURE
+    hiddenObject: {
+      timeLimitSeconds: 45,
+      secondsToPoints: 1,              // Time bonus multiplier (1 point per second)
+      itemCountByDifficulty: {
+        easy: 6,
+        medium: 8,
+        hard: 10
+      },
+      pointsPerFindByDifficulty: {     // Points per item found
+        easy: 1,
+        medium: 2,
+        hard: 3
+      }
+      // puzzleId: undefined - let engine pick randomly
+    }
   },
-  extras: [] // or keep empty for now
+  extras: ['Restore Points', 'robPoints']
 },
 
   // head_to_head: {
@@ -217,7 +232,7 @@ export const availableCategories: Record<RoundTypeId, string[]> = {
   general_trivia: ['General Knowledge','Olympic Sports', 'Pop Music', 'History', 'World Capitals', 'Pop Culture', 'Web3', 'Children'],
   wipeout: ['General Knowledge','Olympic Sports', 'Pop Music', 'History', 'World Capitals', 'Pop Culture', 'Web3', 'Children'],
   speed_round: ['Math', 'Emojis', 'Pop Music', 'Sport', 'Flags of the World' ],
-  hidden_object: ['image'],
+  hidden_object: ['image', 'nature' ],
   // media_puzzle: [...],
   // head_to_head: [...]
 };

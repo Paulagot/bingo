@@ -167,3 +167,83 @@ export function hydrateTiebreakerFromSnap(
       setTbShowReview(false);
   }
 }
+
+// ✅ NEW: Hydrate hidden object state for both asking and reviewing phases
+export function hydrateHiddenObjectFromSnap(
+  snap: any,
+  {
+    setHiddenPuzzle,
+    setHiddenFoundIds,
+    setHiddenFinished,
+    setRoundRemaining,
+  }: {
+    setHiddenPuzzle: (puzzle: any) => void;
+    setHiddenFoundIds: (ids: string[]) => void;
+    setHiddenFinished: (finished: boolean) => void;
+    setRoundRemaining: (seconds: number | null) => void;
+  }
+) {
+  if (snap?.hiddenObject) {
+    const ho = snap.hiddenObject;
+    
+    // Set the puzzle
+    if (ho.puzzle) {
+      setHiddenPuzzle({
+        puzzleId: ho.puzzle.puzzleId,
+        imageUrl: ho.puzzle.imageUrl,
+        difficulty: ho.puzzle.difficulty,
+        category: ho.puzzle.category,
+        totalSeconds: ho.puzzle.totalSeconds,
+        itemTarget: ho.puzzle.itemTarget,
+        items: ho.puzzle.items || []
+      });
+    }
+    
+    // Set found items (empty array for host, player's items for player)
+    if (Array.isArray(ho.foundIds)) {
+      setHiddenFoundIds(ho.foundIds);
+    }
+    
+    // Set finished state
+    if (typeof ho.finished === 'boolean') {
+      setHiddenFinished(ho.finished);
+    }
+    
+    // Set remaining time
+    if (typeof ho.remaining === 'number') {
+      setRoundRemaining(ho.remaining);
+    } else {
+      setRoundRemaining(null);
+    }
+  }
+}
+
+// ✅ NEW: Hydrate final quiz stats for post-game recovery
+export function hydrateFinalStatsFromSnap(
+  snap: any,
+  {
+    recoverFinalStats,
+  }: {
+    recoverFinalStats: (stats: any[]) => void;
+  }
+) {
+  if (Array.isArray(snap?.finalQuizStats) && snap.finalQuizStats.length > 0) {
+    recoverFinalStats(snap.finalQuizStats);
+    console.log('[hydrateFinalStats] ✅ Recovered final quiz stats:', snap.finalQuizStats.length, 'rounds');
+  }
+}
+
+// ✅ NEW: Hydrate current round stats for round leaderboard
+export function hydrateCurrentRoundStatsFromSnap(
+  snap: any,
+  {
+    updateCurrentRoundStats,
+  }: {
+    updateCurrentRoundStats: (stats: any) => void;
+  }
+) {
+  if (snap?.currentRoundStats) {
+    updateCurrentRoundStats(snap.currentRoundStats);
+    console.log('[hydrateCurrentRoundStats] ✅ Recovered current round stats:', snap.currentRoundStats.roundNumber);
+  }
+}

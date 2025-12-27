@@ -81,6 +81,22 @@ const LaunchedPhase: React.FC<LaunchedPhaseProps> = ({
   // Determine if this is a speed round
   const isSpeedRound = roundTypeId === 'speed_round';
 
+  // ✅ HIDDEN OBJECT SPECIFIC CONFIG
+  const isHiddenObject = roundTypeId === 'hidden_object';
+  const hiddenObjectConfig = roundConfig?.hiddenObject || defaultConfig.hiddenObject;
+  const itemTarget = isHiddenObject 
+    ? (hiddenObjectConfig?.itemCountByDifficulty?.[roundDifficulty] || 6)
+    : null;
+  const pointsPerFind = isHiddenObject && roundDifficulty
+    ? (hiddenObjectConfig?.pointsPerFindByDifficulty?.[roundDifficulty] || 1)
+    : null;
+  const secondsToPoints = isHiddenObject 
+    ? (hiddenObjectConfig?.secondsToPoints || 1)
+    : null;
+  const totalTime = isHiddenObject
+    ? (hiddenObjectConfig?.timeLimitSeconds || totalTimeSeconds || 30)
+    : null;
+
   return (
     <div className={`transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-700 p-8 shadow-2xl">
@@ -124,60 +140,96 @@ const LaunchedPhase: React.FC<LaunchedPhaseProps> = ({
           </div>
         </div>
 
-        {/* Game stats grid */}
+        {/* Game stats grid - CONDITIONAL RENDERING */}
         <div className="relative z-10 mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
-          {/* Questions count */}
-          <div className="rounded-xl bg-white/10 backdrop-blur-sm p-4 text-center text-white">
-            <div className="text-2xl font-bold text-yellow-300">{questionsPerRound}</div>
-            <div className="text-sm opacity-80">Questions</div>
-          </div>
-          
-          {/* Time display - conditional based on round type */}
-          {isSpeedRound && totalTimeSeconds ? (
-            <div className="rounded-xl bg-white/10 backdrop-blur-sm p-4 text-center text-white">
-              <div className="text-2xl font-bold text-blue-300">{totalTimeSeconds}s</div>
-              <div className="text-sm opacity-80">Total Time</div>
-            </div>
-          ) : (
-            <div className="rounded-xl bg-white/10 backdrop-blur-sm p-4 text-center text-white">
-              <div className="text-2xl font-bold text-blue-300">{timePerQuestion}s</div>
-              <div className="text-sm opacity-80">Per Question</div>
-            </div>
-          )}
-          
-          {/* Points display */}
-          {pointsForThisRound !== null ? (
-            <div className="rounded-xl bg-white/10 backdrop-blur-sm p-4 text-center text-white">
-              <div className="text-2xl font-bold text-green-300">+{pointsForThisRound}</div>
-              <div className="text-sm opacity-80">For Correct</div>
-            </div>
-          ) : (
-            <div className="rounded-xl bg-white/10 backdrop-blur-sm p-4 text-center text-white">
-              <div className="text-lg font-bold text-green-300">+{pointsPerDifficulty.easy}-{pointsPerDifficulty.hard}</div>
-              <div className="text-sm opacity-80">Points Range</div>
-            </div>
-          )}
-          
-          {/* Penalty display - Fixed to show penalties */}
-          <div className="rounded-xl bg-white/10 backdrop-blur-sm p-4 text-center text-white">
-            {pointsLostPerWrong > 0 || pointsLostPerNoAnswer > 0 ? (
-              <>
-                <div className="text-2xl font-bold text-red-300">
-                  -{Math.max(pointsLostPerWrong, pointsLostPerNoAnswer)}
+          {isHiddenObject ? (
+            // ✅ HIDDEN OBJECT STATS
+            <>
+              {/* Items to find */}
+              <div className="rounded-xl bg-white/10 backdrop-blur-sm p-4 text-center text-white">
+                <div className="text-2xl font-bold text-yellow-300">{itemTarget}</div>
+                <div className="text-sm opacity-80">Items to Find</div>
+              </div>
+              
+              {/* Total time */}
+              <div className="rounded-xl bg-white/10 backdrop-blur-sm p-4 text-center text-white">
+                <div className="text-2xl font-bold text-blue-300">{totalTime}s</div>
+                <div className="text-sm opacity-80">Total Time</div>
+              </div>
+              
+              {/* Points range - shows the range of point values */}
+              <div className="rounded-xl bg-white/10 backdrop-blur-sm p-4 text-center text-white">
+                <div className="text-2xl font-bold text-green-300">
+                  {roundDifficulty === 'easy' ? '+1' : 
+                   roundDifficulty === 'medium' ? '+1-2' : 
+                   '+1-3'}
                 </div>
-                <div className="text-sm opacity-80">Penalty</div>
-              </>
-            ) : (
-              <>
-                <div className="text-2xl font-bold text-gray-300">0</div>
-                <div className="text-sm opacity-80">No Penalty</div>
-              </>
-            )}
-          </div>
+                <div className="text-sm opacity-80">Points/Item</div>
+              </div>
+              
+              {/* Time bonus */}
+              <div className="rounded-xl bg-white/10 backdrop-blur-sm p-4 text-center text-white">
+                <div className="text-2xl font-bold text-purple-300">+{secondsToPoints}/s</div>
+                <div className="text-sm opacity-80">Time Bonus</div>
+              </div>
+            </>
+          ) : (
+            // ✅ STANDARD Q&A STATS
+            <>
+              {/* Questions count */}
+              <div className="rounded-xl bg-white/10 backdrop-blur-sm p-4 text-center text-white">
+                <div className="text-2xl font-bold text-yellow-300">{questionsPerRound}</div>
+                <div className="text-sm opacity-80">Questions</div>
+              </div>
+              
+              {/* Time display - conditional based on round type */}
+              {isSpeedRound && totalTimeSeconds ? (
+                <div className="rounded-xl bg-white/10 backdrop-blur-sm p-4 text-center text-white">
+                  <div className="text-2xl font-bold text-blue-300">{totalTimeSeconds}s</div>
+                  <div className="text-sm opacity-80">Total Time</div>
+                </div>
+              ) : (
+                <div className="rounded-xl bg-white/10 backdrop-blur-sm p-4 text-center text-white">
+                  <div className="text-2xl font-bold text-blue-300">{timePerQuestion}s</div>
+                  <div className="text-sm opacity-80">Per Question</div>
+                </div>
+              )}
+              
+              {/* Points display */}
+              {pointsForThisRound !== null ? (
+                <div className="rounded-xl bg-white/10 backdrop-blur-sm p-4 text-center text-white">
+                  <div className="text-2xl font-bold text-green-300">+{pointsForThisRound}</div>
+                  <div className="text-sm opacity-80">For Correct</div>
+                </div>
+              ) : (
+                <div className="rounded-xl bg-white/10 backdrop-blur-sm p-4 text-center text-white">
+                  <div className="text-lg font-bold text-green-300">+{pointsPerDifficulty.easy}-{pointsPerDifficulty.hard}</div>
+                  <div className="text-sm opacity-80">Points Range</div>
+                </div>
+              )}
+              
+              {/* Penalty display */}
+              <div className="rounded-xl bg-white/10 backdrop-blur-sm p-4 text-center text-white">
+                {pointsLostPerWrong > 0 || pointsLostPerNoAnswer > 0 ? (
+                  <>
+                    <div className="text-2xl font-bold text-red-300">
+                      -{Math.max(pointsLostPerWrong, pointsLostPerNoAnswer)}
+                    </div>
+                    <div className="text-sm opacity-80">Penalty</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold text-gray-300">0</div>
+                    <div className="text-sm opacity-80">No Penalty</div>
+                  </>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Quick strategy tip */}
-        {(pointsLostPerWrong > 0 || pointsLostPerNoAnswer > 0) && (
+        {/* ✅ CONDITIONAL TIP BANNERS */}
+        {!isHiddenObject && (pointsLostPerWrong > 0 || pointsLostPerNoAnswer > 0) && (
           <div className="relative z-10 mb-6 rounded-xl bg-red-500/20 backdrop-blur-sm border border-red-300/30 p-4 text-center">
             <div className="text-red-100 font-bold text-lg mb-1">⚠️ HIGH STAKES!</div>
             <div className="text-red-200 text-sm">
@@ -188,6 +240,24 @@ const LaunchedPhase: React.FC<LaunchedPhaseProps> = ({
               ) : (
                 `No answer costs ${pointsLostPerNoAnswer} points`
               )}
+            </div>
+          </div>
+        )}
+
+        {isHiddenObject && (
+          <div className="relative z-10 mb-6 rounded-xl bg-purple-500/20 backdrop-blur-sm border border-purple-300/30 p-4 text-center">
+            <div className="text-purple-100 font-bold text-lg mb-1">🔍 SCORING BREAKDOWN</div>
+            <div className="text-purple-200 text-sm space-y-1">
+              {roundDifficulty === 'easy' && (
+                <div>All {itemTarget} items worth 1 point each • Max base score: {itemTarget} points</div>
+              )}
+              {roundDifficulty === 'medium' && (
+                <div>6 easy items (1pt) + 2 medium items (2pts) • Max base score: 10 points</div>
+              )}
+              {roundDifficulty === 'hard' && (
+                <div>6 easy (1pt) + 2 medium (2pts) + 2 hard (3pts) • Max base score: 16 points</div>
+              )}
+              <div className="mt-1">Find all items to unlock time bonus: +{secondsToPoints}/second!</div>
             </div>
           </div>
         )}
