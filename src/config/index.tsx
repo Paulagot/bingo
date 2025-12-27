@@ -46,7 +46,11 @@ export const metadata = {
   url: typeof window !== 'undefined' ? window.location.origin : "https://fundraisely-staging.up.railway.app",
   icons: [`${typeof window !== 'undefined' ? window.location.origin : "https://fundraisely-staging.up.railway.app"}/fundraisely.png`],
   // ✅ This tells wallets where to return after connection
-  verifyUrl: typeof window !== 'undefined' ? window.location.origin : "https://fundraisely-staging.up.railway.app",
+ verifyUrl: typeof window !== 'undefined' ? window.location.origin : "https://fundraisely-staging.up.railway.app",
+   redirect: {
+    native: typeof window !== 'undefined' ? `${window.location.origin}://` : undefined,
+    universal: typeof window !== 'undefined' ? window.location.origin : "https://fundraisely-staging.up.railway.app",
+  }
 };
 
 
@@ -114,14 +118,16 @@ export const wagmiAdapter = new WagmiAdapter({
   projectId,
   networks: networks as unknown as [AppKitNetwork, ...AppKitNetwork[]],
   transports: evmTransports,
-});
+  // ✅ Add SSR support for better hydration
+  ssr: typeof window === 'undefined',
+})
 
 // ---------------------------------------------
 // 🛠️ Adapter: Solana (Web3.js)
 // ---------------------------------------------
 export const solanaWeb3JsAdapter = new SolanaAdapter({
   registerWalletStandard: true,
- 
+ wallets: [],
 });
 
 // ---------------------------------------------

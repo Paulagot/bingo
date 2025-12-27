@@ -83,6 +83,26 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     extras: ['Hint', 'Freeze-out-Team', 'Restore Points'],
     videoId: 'YOUR_YOUTUBE_VIDEO_ID'
   },
+
+  hidden_object: {
+  id: 'hidden_object',
+  name: 'Find It Fast',
+  icon: '🔎',
+  description: 'Find up to 10 hidden items before the timer runs out. Points per find + bonus points for remaining seconds.',
+  gameplay: 'Image appears → tap items to find → server validates finds → score = finds + speed bonus → leaderboard',
+  pros: ['Very mobile friendly', 'High energy', 'Great for mixed ages'],
+  timing: '30–60 seconds',
+  difficulty: 'Easy–Medium',
+  bestFor: 'Quick engagement rounds, family events, kids rounds',
+  defaultConfig: {
+    questionsPerRound: 1,
+    timePerQuestion: 0,
+    totalTimeSeconds: 30,
+       
+  },
+  extras: [] // or keep empty for now
+},
+
   // head_to_head: {
   //   id: 'head_to_head',
   //   name: 'Head to Head',
@@ -197,6 +217,7 @@ export const availableCategories: Record<RoundTypeId, string[]> = {
   general_trivia: ['General Knowledge','Olympic Sports', 'Pop Music', 'History', 'World Capitals', 'Pop Culture', 'Web3', 'Children'],
   wipeout: ['General Knowledge','Olympic Sports', 'Pop Music', 'History', 'World Capitals', 'Pop Culture', 'Web3', 'Children'],
   speed_round: ['Math', 'Emojis', 'Pop Music', 'Sport', 'Flags of the World' ],
+  hidden_object: ['image'],
   // media_puzzle: [...],
   // head_to_head: [...]
 };

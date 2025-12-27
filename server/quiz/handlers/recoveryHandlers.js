@@ -26,11 +26,7 @@ function normalizePaymentMethod(maybe) {
 function isPlaceholderName(name, id) {
   if (!name) return true;
   const n = String(name).trim();
-  return (
-    n.toLowerCase() === 'player' ||
-    n === id ||
-    n.startsWith('Player ')
-  );
+  return n.toLowerCase() === 'player' || n === id || n.startsWith('Player ');
 }
 
 function normalizeExtraPayments(extraPayments) {
@@ -46,8 +42,7 @@ function normalizeExtraPayments(extraPayments) {
 
 // local helper (same logic you use elsewhere)
 function getEngine(room) {
-  const roundType =
-    room.config.roundDefinitions?.[room.currentRound - 1]?.roundType;
+  const roundType = room.config.roundDefinitions?.[room.currentRound - 1]?.roundType;
   switch (roundType) {
     case 'general_trivia':
       return import('../gameplayEngines/generalTriviaEngine.js');
@@ -55,10 +50,43 @@ function getEngine(room) {
       return import('../gameplayEngines/wipeoutEngine.js');
     case 'speed_round':
       return import('../gameplayEngines/speedRoundEngine.js');
+    case 'hidden_object':
+      return import('../gameplayEngines/hiddenObjectEngine.js');
     default:
       if (debug) console.warn(`[recovery] Unknown round type: ${roundType}`);
       return null;
   }
+}
+
+// ✅ helper: build a safe hidden-object snapshot for ANY role (player/host/admin)
+function buildHiddenObjectSnap(room, userId) {
+  const ho = room.hiddenObject;
+  if (!ho) return null;
+
+  const pState = ho.player?.[userId]; // may be undefined for host/admin (that's fine)
+  const remaining =
+    room.currentPhase === 'asking'
+      ? Math.max(0, Math.floor(((room.roundEndTime || 0) - Date.now()) / 1000))
+      : 0;
+
+  return {
+    remaining,
+    puzzle: {
+      puzzleId: ho.puzzleId,
+      imageUrl: ho.imageUrl,
+      difficulty: ho.difficulty,
+      category: ho.category,
+      totalSeconds: ho.totalSeconds,
+      itemTarget: ho.itemTarget,
+      items: ho.items.map((it) => ({
+        id: String(it.id),
+        label: it.label,
+        bbox: it.bbox,
+      })),
+    },
+    foundIds: pState?.foundIds ? Array.from(pState.foundIds) : [],
+    finished: !!pState?.finishTs,
+  };
 }
 
 export function setupRecoveryHandlers(socket, namespace) {
@@ -87,14 +115,9 @@ export function setupRecoveryHandlers(socket, namespace) {
 
       // Capacity (Web2 only) — only enforce for players
       if (isPlayerRole) {
-        const isWeb3 =
-          room.config?.paymentMethod === 'web3' ||
-          room.config?.isWeb3Room === true;
+        const isWeb3 = room.config?.paymentMethod === 'web3' || room.config?.isWeb3Room === true;
         if (!isWeb3) {
-          const limit =
-            room.roomCaps?.maxPlayers ??
-            room.config?.roomCaps?.maxPlayers ??
-            20;
+          const limit = room.roomCaps?.maxPlayers ?? room.config?.roomCaps?.maxPlayers ?? 20;
           if (room.players.length >= limit) {
             return sendAck({ ok: false, error: `Room is full (limit ${limit}).` });
           }
@@ -116,14 +139,9 @@ export function setupRecoveryHandlers(socket, namespace) {
           const isAdminSock = prevSocket.rooms.has(`${roomId}:admin`);
 
           if (isSameRoom && isPlayerSock && !isHostSock && !isAdminSock) {
-            if (debug)
-              console.log(
-                '[Recovery] Disconnecting previous PLAYER socket',
-                prevSocketId
-              );
+            if (debug) console.log('[Recovery] Disconnecting previous PLAYER socket', prevSocketId);
             prevSocket.emit('quiz_error', {
-              message:
-                'You were signed in from another tab. This session is now active.',
+              message: 'You were signed in from another tab. This session is now active.',
             });
             try {
               prevSocket.disconnect(true);
@@ -131,10 +149,10 @@ export function setupRecoveryHandlers(socket, namespace) {
           } else {
             // Safety: never touch host/admin sockets (or sockets from other rooms)
             if (debug)
-              console.warn(
-                '[Recovery] Skipping disconnect of non-player socket',
-                { prevSocketId, rooms: [...prevSocket.rooms] }
-              );
+              console.warn('[Recovery] Skipping disconnect of non-player socket', {
+                prevSocketId,
+                rooms: [...prevSocket.rooms],
+              });
           }
         }
       }
@@ -168,18 +186,17 @@ export function setupRecoveryHandlers(socket, namespace) {
           // brand new player
           nameToUse = !isPlaceholderName(incomingName, user.id)
             ? incomingName
-            : `Player ${user.id}`; // harmless fallback, UI won't use if it doesn't show placeholders
+            : `Player ${user.id}`;
         } else {
-          // existing player: keep the existing real name; only upgrade from placeholder → real
+          // existing player: keep existing real name; only upgrade placeholder → real
           if (!isPlaceholderName(incomingName, user.id) && isPlaceholderName(existingName, user.id)) {
-            nameToUse = incomingName; // promote
+            nameToUse = incomingName;
           } else {
             nameToUse = existingName || incomingName;
           }
         }
 
         if (!existingPlayer) {
-          // ✅ NEW PLAYER: addOrUpdatePlayer will initialize playerData with purchases
           addOrUpdatePlayer(roomId, { ...sanitizedUser, name: nameToUse });
           joinedUser = { ...sanitizedUser, name: nameToUse };
 
@@ -191,24 +208,18 @@ export function setupRecoveryHandlers(socket, namespace) {
             lastActive: Date.now(),
           });
         } else {
-          // ✅ EXISTING PLAYER: Merge carefully and ensure purchases sync
           const mergedExisting = {
             ...existingPlayer,
             ...sanitizedUser,
-            // ✅ Merge extraPayments (preserve existing + overlay new)
             extraPayments: {
               ...(existingPlayer.extraPayments || {}),
               ...(sanitizedUser.extraPayments || {}),
             },
-            // ✅ Merge extras array (use incoming if provided, otherwise keep existing)
-            extras: Array.isArray(sanitizedUser.extras) 
-              ? sanitizedUser.extras 
-              : (existingPlayer.extras || []),
+            extras: Array.isArray(sanitizedUser.extras) ? sanitizedUser.extras : existingPlayer.extras || [],
             name: nameToUse,
             socketId: socket.id,
           };
 
-          // ✅ CRITICAL: Call addOrUpdatePlayer which will sync playerData.purchases
           addOrUpdatePlayer(roomId, mergedExisting);
           joinedUser = mergedExisting;
 
@@ -246,9 +257,8 @@ export function setupRecoveryHandlers(socket, namespace) {
               extras: mergedExisting.extras,
               extraPayments: mergedExisting.extraPayments,
             });
-            
-            // ✅ DEBUG: Check if playerData.purchases was properly updated
-            const playerData = room.playerData[user.id];
+
+            const playerData = room.playerData?.[user.id];
             if (playerData) {
               console.log('[Recovery] 🔍 playerData.purchases:', playerData.purchases);
               console.log('[Recovery] 🔍 playerData.paymentMethod:', playerData.paymentMethod);
@@ -265,11 +275,11 @@ export function setupRecoveryHandlers(socket, namespace) {
         }
       }
 
-      // Minimal snapshot scaffolding (compute after cleanup above)
+      // Minimal snapshot scaffolding
       const totalRounds = room.config.roundDefinitions?.length || 1;
-      const roundIndex = room.currentRound - 1;
-      const roundTypeId =
-        room.config.roundDefinitions?.[roundIndex]?.roundType || '';
+      const roundIndex = (room.currentRound ?? 1) - 1;
+      const roundTypeId = room.config.roundDefinitions?.[roundIndex]?.roundType || '';
+
       const roomState = {
         currentRound: room.currentRound,
         totalRounds,
@@ -280,10 +290,7 @@ export function setupRecoveryHandlers(socket, namespace) {
         caps: room.roomCaps,
       };
 
-      const playersLite = room.players.map((p) => ({
-        id: p.id,
-        name: p.name,
-      }));
+      const playersLite = room.players.map((p) => ({ id: p.id, name: p.name }));
 
       const snap = {
         roomState,
@@ -294,23 +301,27 @@ export function setupRecoveryHandlers(socket, namespace) {
           fundraisingOptions: room.config.fundraisingOptions || {},
           fundraisingPrices: room.config.fundraisingPrices || {},
           roundDefinitions: room.config.roundDefinitions || [],
-          roomCaps:
-            room.roomCaps || room.config.roomCaps || { maxPlayers: 20 },
+          roomCaps: room.roomCaps || room.config.roomCaps || { maxPlayers: 20 },
         },
       };
 
+      // ----------------------------
       // Phase-specific hydration
-      if (room.currentPhase === 'asking') {
-        const roundCfg =
-          room.config.roundDefinitions[roundIndex]?.config || {};
-        const roundType =
-          room.config.roundDefinitions[roundIndex]?.roundType;
+      // ----------------------------
 
+      if (room.currentPhase === 'asking') {
+        const roundCfg = room.config.roundDefinitions?.[roundIndex]?.config || {};
+        const roundType = room.config.roundDefinitions?.[roundIndex]?.roundType;
+
+        // ✅ hidden_object asking hydration
+        if (roundType === 'hidden_object') {
+          const hoSnap = buildHiddenObjectSnap(room, user.id);
+          if (hoSnap) snap.hiddenObject = hoSnap;
+        }
+
+        // ✅ speed round asking hydration
         if (roundType === 'speed_round') {
-          const remaining = Math.max(
-            0,
-            Math.floor(((room.roundEndTime || 0) - Date.now()) / 1000)
-          );
+          const remaining = Math.max(0, Math.floor(((room.roundEndTime || 0) - Date.now()) / 1000));
           const cursor = room.playerCursors?.[user.id] ?? 0;
           const q = room.questions?.[cursor];
           if (q) {
@@ -323,24 +334,21 @@ export function setupRecoveryHandlers(socket, namespace) {
               questionStartTime: Date.now(),
             };
           }
-        } else {
+        } else if (roundType !== 'hidden_object') {
+          // ✅ normal per-question rounds
           const q = room.questions?.[room.currentQuestionIndex];
           if (q) {
             const timeLimit = roundCfg?.timePerQuestion || 10;
             const questionStartTime = room.questionStartTime || Date.now();
-            const elapsed = Math.floor(
-              (Date.now() - questionStartTime) / 1000
-            );
+            const elapsed = Math.floor((Date.now() - questionStartTime) / 1000);
             const remainingTime = Math.max(0, timeLimit - elapsed);
 
-            const pdata = room.playerData[user.id];
+            const pdata = room.playerData?.[user.id];
             const key = `${q.id}_round${room.currentRound}`;
             const submittedAnswer = pdata?.answers?.[key]?.submitted ?? null;
-            const isFrozen =
-              !!(
-                pdata?.frozenNextQuestion &&
-                pdata?.frozenForQuestionIndex === room.currentQuestionIndex
-              );
+            const isFrozen = !!(
+              pdata?.frozenNextQuestion && pdata?.frozenForQuestionIndex === room.currentQuestionIndex
+            );
 
             snap.question = {
               id: q.id,
@@ -351,9 +359,9 @@ export function setupRecoveryHandlers(socket, namespace) {
               questionNumber: room.currentQuestionIndex + 1,
               totalQuestions: room.questions.length,
             };
+
             snap.playerRecovery = {
-              hasAnswered:
-                submittedAnswer !== null && submittedAnswer !== undefined,
+              hasAnswered: submittedAnswer !== null && submittedAnswer !== undefined,
               submittedAnswer,
               isFrozen,
               frozenBy: pdata?.frozenBy || null,
@@ -365,37 +373,46 @@ export function setupRecoveryHandlers(socket, namespace) {
           }
         }
       } else if (room.currentPhase === 'reviewing') {
-        const enginePromise = getEngine(room);
-        if (enginePromise) {
-          try {
-            const engine = await enginePromise;
-            if (engine?.getCurrentReviewQuestion) {
-              const rq = engine.getCurrentReviewQuestion(roomId);
-              if (rq) {
-                const pdata = room.playerData[user.id];
-                const key = `${rq.id}_round${room.currentRound}`;
-                const playerAnswer = pdata?.answers?.[key];
+        const roundType = room.config.roundDefinitions?.[roundIndex]?.roundType;
 
-                snap.review = {
-                  id: rq.id,
-                  text: rq.text,
-                  options: rq.options || [],
-                  correctAnswer: rq.correctAnswer,
-                  submittedAnswer: playerAnswer?.submitted || null,
-                  difficulty: rq.difficulty,
-                  category: rq.category,
-                  questionNumber: (room.lastEmittedReviewIndex ?? -1) + 1,
-                  totalQuestions:
-                    (Array.isArray(room.reviewQuestions) &&
-                      room.reviewQuestions.length > 0)
-                      ? room.reviewQuestions.length
-                      : room.questions?.length || 0,
-                };
+        // ✅ IMPORTANT: hidden_object has NO review questions.
+        // Hydrate the puzzle so review UI can render image + pins after refresh.
+        if (roundType === 'hidden_object') {
+          const hoSnap = buildHiddenObjectSnap(room, user.id);
+          if (hoSnap) snap.hiddenObject = hoSnap;
+          // do NOT attempt engine.getCurrentReviewQuestion()
+        } else {
+          // existing engine-based reviewing hydration
+          const enginePromise = getEngine(room);
+          if (enginePromise) {
+            try {
+              const engine = await enginePromise;
+              if (engine?.getCurrentReviewQuestion) {
+                const rq = engine.getCurrentReviewQuestion(roomId);
+                if (rq) {
+                  const pdata = room.playerData?.[user.id];
+                  const key = `${rq.id}_round${room.currentRound}`;
+                  const playerAnswer = pdata?.answers?.[key];
+
+                  snap.review = {
+                    id: rq.id,
+                    text: rq.text,
+                    options: rq.options || [],
+                    correctAnswer: rq.correctAnswer,
+                    submittedAnswer: playerAnswer?.submitted || null,
+                    difficulty: rq.difficulty,
+                    category: rq.category,
+                    questionNumber: (room.lastEmittedReviewIndex ?? -1) + 1,
+                    totalQuestions:
+                      Array.isArray(room.reviewQuestions) && room.reviewQuestions.length > 0
+                        ? room.reviewQuestions.length
+                        : room.questions?.length || 0,
+                  };
+                }
               }
+            } catch (e) {
+              if (debug) console.error('[recovery] review engine load failed:', e);
             }
-          } catch (e) {
-            if (debug)
-              console.error('[recovery] review engine load failed:', e);
           }
         }
       } else if (room.currentPhase === 'tiebreaker') {
@@ -407,33 +424,27 @@ export function setupRecoveryHandlers(socket, namespace) {
           stage: tb.stage || 'start',
         };
 
-        // QUESTION stage: include user's submittedAnswer to lock UI after refresh
         if (tb.stage === 'question' && room.currentTiebreakQuestion) {
           const q = room.currentTiebreakQuestion;
 
-          // Look up this question's record in TB history and pull this user's answer (if any)
           const record = Array.isArray(tb.history)
             ? tb.history.find((h) => String(h.qid) === String(q.id))
             : null;
 
           const submittedRaw = record?.answers?.[user.id];
           const submittedAnswer =
-            typeof submittedRaw === 'number' && Number.isFinite(submittedRaw)
-              ? submittedRaw
-              : null;
+            typeof submittedRaw === 'number' && Number.isFinite(submittedRaw) ? submittedRaw : null;
 
           snap.tb = {
             ...base,
             question: {
               id: q.id,
               text: q.text,
-              timeLimit: 20, // matches emitter in TiebreakerService
+              timeLimit: 20,
               questionStartTime: q.questionStartTime,
-              submittedAnswer, // used by client to hide the input if already answered
+              submittedAnswer,
             },
           };
-
-          // REVIEW stage: reconstruct review payload
         } else if (tb.stage === 'review' && tb.lastReview) {
           snap.tb = {
             ...base,
@@ -446,21 +457,20 @@ export function setupRecoveryHandlers(socket, namespace) {
               isFinalAnswer: !!tb.lastReview.isFinalAnswer,
             },
           };
-
-          // RESULT stage: final winners (leaderboard will follow)
         } else if (tb.stage === 'result' && Array.isArray(tb.winnerIds)) {
           snap.tb = { ...base, result: { winnerIds: tb.winnerIds } };
-
-          // START / unknown stage: send base metadata so client can show phase text
         } else {
           snap.tb = base;
         }
-      } else if (
-        room.currentPhase === 'leaderboard' ||
-        room.currentPhase === 'complete'
-      ) {
+      } else if (room.currentPhase === 'leaderboard' || room.currentPhase === 'complete') {
+        // ✅ helpful: keep hidden_object review payload accessible in leaderboard/complete too
+        const roundType = room.config.roundDefinitions?.[roundIndex]?.roundType;
+        if (roundType === 'hidden_object') {
+          const hoSnap = buildHiddenObjectSnap(room, user.id);
+          if (hoSnap) snap.hiddenObject = hoSnap;
+        }
+
         if (Array.isArray(room.finalLeaderboard) && room.finalLeaderboard.length) {
-          // Prefer final leaderboard (includes tiebreaker bonus if awarded)
           snap.leaderboard = room.finalLeaderboard;
         } else if (room.currentRoundResults && !room.currentOverallLeaderboard) {
           snap.roundLeaderboard = room.currentRoundResults;
@@ -475,10 +485,13 @@ export function setupRecoveryHandlers(socket, namespace) {
 
       // Keep user_joined event (clients can ignore non-players if they want)
       const broadcastUser = joinedUser || { ...user, socketId: socket.id };
+
       if (role === 'player') {
         namespace.to(roomId).emit('user_joined', { user: broadcastUser, role: 'player' });
       } else if (role === 'host') {
-        namespace.to(roomId).emit('host_joined', { user: { id: user.id, name: room.config?.hostName || user.name }, role: 'host' });
+        namespace
+          .to(roomId)
+          .emit('host_joined', { user: { id: user.id, name: room.config?.hostName || user.name }, role: 'host' });
       } else if (role === 'admin') {
         namespace.to(roomId).emit('admin_joined', { user: { id: user.id, name: user.name }, role: 'admin' });
       }
@@ -493,5 +506,6 @@ export function setupRecoveryHandlers(socket, namespace) {
     }
   });
 }
+
 
 

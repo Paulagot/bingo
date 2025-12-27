@@ -5,18 +5,11 @@ interface Web3ProviderProps {
   children: React.ReactNode;
 }
 
-// ✅ Module-level singleton to survive remounts
+// Module-level singleton
 let initializationPromise: Promise<any> | null = null;
 let isInitialized = false;
-let cachedProviders: {
-  AppKitProvider: any;
-  WagmiProvider: any;
-  QueryClientProvider: any;
-  queryClient: any;
-  wagmiConfig: any;
-} | null = null;
+let cachedProviders: any | null = null;
 
-// Loading fallback component
 const Web3LoadingFallback: React.FC = () => (
   <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
     <div className="text-center">
@@ -35,14 +28,12 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
     isMountedRef.current = true;
     console.log("🌐 [Web3Provider] Mount");
 
-    // ✅ If already initialized, use cached providers
     if (isInitialized && cachedProviders) {
       console.log("🌐 [Web3Provider] Using cached providers");
       setProviders(cachedProviders);
       return;
     }
 
-    // ✅ If initialization already in progress, wait for it
     if (initializationPromise) {
       console.log("🌐 [Web3Provider] Initialization in progress, waiting...");
       initializationPromise
@@ -61,7 +52,6 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
       return;
     }
 
-    // ✅ Start new initialization
     console.log("🌐 [Web3Provider] Starting new initialization");
     
     initializationPromise = (async () => {
@@ -93,35 +83,56 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
         });
 
         console.log("🌐 [Web3Provider] Creating AppKit...");
+        
+        // ✅ ENHANCED APPKIT CONFIGURATION
         createAppKit({
           adapters: [wagmiAdapter, solanaWeb3JsAdapter],
           projectId,
           networks,
           metadata,
+          
+          // ✅ Theme configuration
           themeMode: "dark",
-            features: { 
-    analytics: true,
-    socials: false, // Sometimes helps
-    email: false
-  },
-  enableNetworkSwitch: true,
-  enableInjected: true,
-   enableCoinbase: true,
-   enableWallets: true,
-  
-  // Force wallets to be clickable even if not "detected"
-  allWallets: 'SHOW', 
-   featuredWalletIds: [
-    'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
-    'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa', // Coinbase
-    // Solana wallets are auto-detected via Wallet Standard
-  ],
+          
+          // ✅ Feature configuration - CRITICAL FOR MOBILE
+          features: { 
+            analytics: true,
+            socials: false, // Disable if you don't need social login
+            email: false,   // Disable if you don't need email login
+            swaps: false,   // Disable to reduce modal complexity on mobile
+            onramp: false,  // Disable if not needed
+          },
+          
+          // ✅ Mobile-optimized settings
 
-
-    // ✅ IMPORTANT: This helps with mobile redirects
-  themeVariables: {
-    '--w3m-z-index': 2147483647, // Ensure modal is on top
-  },
+          
+          // ✅ CRITICAL: Wallet configuration for mobile
+          allWallets: 'SHOW', // Shows all wallets including mobile ones
+          
+          // ✅ Featured wallet IDs - prioritize these for mobile
+          featuredWalletIds: [
+            'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
+            'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa', // Coinbase Wallet
+            '18388be9ac2d02726dbac9777c96efaac06d744b2f6d580fccdd4127a6d01fd1', // Rabby
+            '1ae92b26df02f0abca6304df07debccd18262fdf5fe82daa81593582dac9a369', // Rainbow
+            '19177a98252e07ddfc9af2083ba8e07ef627cb6103467ffebb3f8f4205fd7927', // Ledger Live
+            // Solana wallets - auto-detected via Wallet Standard
+          ],
+          
+          // ✅ Enable different wallet types  
+          enableWalletConnect: true,  // QR code connection
+          enableInjected: true,       // Browser extension wallets
+          enableCoinbase: true,       // Coinbase Wallet SDK
+          enableEIP6963: true,        // Modern wallet detection standard
+          
+          // ✅ Theme variables for mobile optimization
+          themeVariables: {
+            '--w3m-z-index': 2147483647, // Ensure modal is on top
+            '--w3m-accent': '#6366f1',      // Your brand color
+          },
+          
+          // ✅ Default network (optional but recommended)
+          defaultNetwork: networks[0], // Start with your primary network
         });
 
         const result = {
@@ -132,7 +143,6 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
           wagmiConfig: wagmiAdapter.wagmiConfig,
         };
 
-        // ✅ Cache for future mounts
         cachedProviders = result;
         isInitialized = true;
 
@@ -140,7 +150,7 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
         return result;
       } catch (err) {
         console.error("❌ [Web3Provider] Initialization error:", err);
-        initializationPromise = null; // Reset so we can retry
+        initializationPromise = null;
         throw err;
       }
     })();
@@ -164,12 +174,6 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
       isMountedRef.current = false;
     };
   }, []);
-
-  console.log("🌐 [Web3Provider] Render", {
-    hasProviders: !!providers,
-    isInitialized,
-    loadingError,
-  });
 
   // Error state
   if (loadingError) {

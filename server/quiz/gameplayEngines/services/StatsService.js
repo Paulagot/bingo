@@ -1,5 +1,5 @@
 // server/quiz/gameplayEngines/services/StatsService.js
-// COMPLETE FILE with minimal speed round enhancements + host activity notifications
+// COMPLETE FILE with speed round enhancements + hidden object support + host activity notifications
 
 import { getQuizRoom } from '../../quizRoomManager.js';
 
@@ -31,7 +31,7 @@ export class StatsService {
 
   /**
    * Calculate live round stats during gameplay
-   * ENHANCED: Adds speed round skip tracking while preserving existing logic
+   * ENHANCED: Adds speed round skip tracking + hidden object support while preserving existing logic
    */
   static calculateLiveRoundStats(roomId, namespace) {
     const room = getQuizRoom(roomId);
@@ -61,12 +61,60 @@ export class StatsService {
       stats.skippedAnswers = 0;
     }
 
+    // NEW: Add hidden object specific tracking
+    if (roundType === 'hidden_object') {
+      stats.itemsFound = 0;
+      stats.itemsTarget = 0;
+      stats.playersCompleted = 0;
+    }
+
     // Initialize player extras tracking
     room.players.forEach(player => {
       stats.extrasByPlayer[player.name] = [];
     });
 
-    // Analyze all answers for this round
+    // ✅ SPECIAL CASE: Hidden Object rounds (live tracking)
+    if (roundType === 'hidden_object' && room.hiddenObject) {
+      const ho = room.hiddenObject;
+      stats.itemsTarget = ho.itemTarget || 0;
+      
+      for (const player of room.players) {
+        const playerState = ho.player?.[player.id];
+        if (playerState) {
+          const foundCount = playerState.foundIds?.size || 0;
+          stats.itemsFound += foundCount;
+          
+          if (playerState.finishTs) {
+            stats.playersCompleted++;
+          }
+        }
+      }
+      
+      stats.questionsAnswered = stats.itemsFound;
+      stats.correctAnswers = stats.itemsFound;
+      stats.wrongAnswers = 0;
+      stats.noAnswers = stats.itemsTarget * room.players.length - stats.itemsFound;
+
+      if (debug) {
+        console.log(`[StatsService] 🔍 Hidden Object live stats:`, {
+          itemsFound: stats.itemsFound,
+          itemsTarget: stats.itemsTarget,
+          playersCompleted: stats.playersCompleted,
+          accuracyRate: stats.itemsTarget > 0 && room.players.length > 0
+            ? Math.round((stats.itemsFound / (stats.itemsTarget * room.players.length)) * 100)
+            : 0
+        });
+      }
+
+      // Emit to host
+      if (namespace) {
+        namespace.to(`${roomId}:host`).emit('host_live_stats', stats);
+      }
+
+      return stats;
+    }
+
+    // Analyze all answers for this round (NORMAL Q&A rounds only)
     for (const player of room.players) {
       const pd = room.playerData[player.id];
       if (!pd?.answers) continue;
@@ -158,7 +206,7 @@ export class StatsService {
 
   /**
    * Calculate final round stats for completed rounds
-   * ENHANCED: Adds speed round skip tracking while preserving existing logic
+   * ENHANCED: Adds speed round skip tracking + hidden object support while preserving existing logic
    */
   static calculateFinalRoundStats(roomId, namespace) {
     const room = getQuizRoom(roomId);
@@ -198,12 +246,104 @@ export class StatsService {
       stats.skippedAnswers = 0;
     }
 
+    // NEW: Add hidden object specific fields
+    if (roundType === 'hidden_object') {
+      stats.itemsFound = 0;
+      stats.itemsTarget = 0;
+      stats.playersCompleted = 0;
+    }
+
     // Initialize player extras tracking
     room.players.forEach(player => {
       stats.extrasByPlayer[player.name] = [];
     });
 
-    // Analyze all answers for this round
+    // ✅ SPECIAL CASE: Hidden Object rounds don't use answers object
+    if (roundType === 'hidden_object' && room.hiddenObject) {
+      const ho = room.hiddenObject;
+      stats.totalQuestions = 0; // Hidden object doesn't have "questions"
+      stats.itemsTarget = ho.itemTarget || 0;
+      
+      // Count items found by all players
+      for (const player of room.players) {
+        const playerState = ho.player?.[player.id];
+        if (playerState) {
+          const foundCount = playerState.foundIds?.size || 0;
+          stats.itemsFound += foundCount;
+          
+          // Count players who completed (found all items)
+          if (playerState.finishTs) {
+            stats.playersCompleted++;
+          }
+        }
+      }
+      
+      // Map hidden object metrics to standard stat fields for consistency
+      stats.questionsAnswered = stats.itemsFound;
+      stats.correctAnswers = stats.itemsFound;
+      stats.wrongAnswers = 0;
+      stats.noAnswers = stats.itemsTarget * room.players.length - stats.itemsFound; // Items not found
+      // ✅ FIXED: Accuracy should be items found vs items target (per player average)
+      stats.accuracyRate = stats.itemsTarget > 0 && room.players.length > 0
+        ? Math.round((stats.itemsFound / (stats.itemsTarget * room.players.length)) * 100)
+        : 0;
+      stats.responseRate = stats.itemsTarget > 0 && room.players.length > 0
+        ? Math.round((stats.itemsFound / (stats.itemsTarget * room.players.length)) * 100)
+        : 0;
+
+      if (debug) {
+        console.log(`[StatsService] 📈 Hidden Object round ${roundNumber} stats:`, {
+          itemsTarget: stats.itemsTarget,
+          totalItemsPossible: stats.itemsTarget * room.players.length,
+          itemsFound: stats.itemsFound,
+          playersCompleted: stats.playersCompleted,
+          responseRate: stats.responseRate + '%'
+        });
+      }
+
+      // Still process extras for hidden object rounds
+      for (const player of room.players) {
+        const pd = room.playerData[player.id];
+        if (!pd) continue;
+
+        // Count extras usage for this player
+        if (pd.usedExtrasThisRound) {
+          for (const [extraType, used] of Object.entries(pd.usedExtrasThisRound)) {
+            if (used) {
+              stats.totalExtrasUsed++;
+              
+              if (!stats.extrasByPlayer[player.name]) {
+                stats.extrasByPlayer[player.name] = [];
+              }
+              stats.extrasByPlayer[player.name].push(extraType);
+              
+              switch (extraType) {
+                case 'buyHint':
+                  stats.hintsUsed++;
+                  break;
+                case 'freezeOutTeam':
+                  stats.freezesUsed++;
+                  break;
+                case 'robPoints':
+                  stats.pointsRobbed++;
+                  break;
+                case 'restorePoints':
+                  stats.pointsRestored++;
+                  break;
+              }
+            }
+          }
+        }
+      }
+
+      // Send to host and return early (skip normal answer analysis)
+      if (namespace) {
+        namespace.to(`${roomId}:host`).emit('host_current_round_stats', stats);
+      }
+      return stats;
+    }
+
+    // Analyze all answers for this round (NORMAL Q&A rounds only - not hidden_object)
     const expectedResponses = stats.totalQuestions * room.players.length;
     
     for (const player of room.players) {
@@ -334,7 +474,7 @@ export class StatsService {
 
   /**
    * Get player-specific statistics
-   * NEW: Includes speed round skip tracking
+   * NEW: Includes speed round skip tracking + hidden object support
    */
   static getPlayerStats(roomId, playerId, roundNumber = null) {
     const room = getQuizRoom(roomId);
@@ -345,7 +485,7 @@ export class StatsService {
     const roundType = room.config.roundDefinitions?.[targetRound - 1]?.roundType;
     const pd = room.playerData[playerId];
     
-    if (!pd?.answers) return null;
+    if (!pd) return null;
 
     let playerStats = {
       playerId,
@@ -364,7 +504,33 @@ export class StatsService {
       playerStats.skippedAnswers = 0;
     }
 
-    // Analyze player's answers for the target round
+    // Add hidden object specific tracking
+    if (roundType === 'hidden_object') {
+      playerStats.itemsFound = 0;
+      playerStats.itemsTarget = 0;
+      playerStats.completed = false;
+    }
+
+    // ✅ SPECIAL CASE: Hidden Object
+    if (roundType === 'hidden_object' && room.hiddenObject) {
+      const playerState = room.hiddenObject.player?.[playerId];
+      if (playerState) {
+        playerStats.itemsFound = playerState.foundIds?.size || 0;
+        playerStats.itemsTarget = room.hiddenObject.itemTarget || 0;
+        playerStats.completed = !!playerState.finishTs;
+        playerStats.questionsAnswered = playerStats.itemsFound;
+        playerStats.correctAnswers = playerStats.itemsFound;
+        // ✅ FIXED: Accuracy is items found vs target
+        playerStats.accuracyRate = playerStats.itemsTarget > 0
+          ? Math.round((playerStats.itemsFound / playerStats.itemsTarget) * 100)
+          : 0;
+      }
+      return playerStats;
+    }
+
+    // Analyze player's answers for the target round (Q&A rounds)
+    if (!pd.answers) return playerStats;
+
     for (const [key, answer] of Object.entries(pd.answers)) {
       if (!key.endsWith(roundTag)) continue;
 
@@ -407,7 +573,7 @@ export class StatsService {
 
   /**
    * Calculate cumulative statistics across all completed rounds
-   * NEW: Includes speed round skip tracking
+   * NEW: Includes speed round skip tracking + hidden object support
    */
   static calculateCumulativeStats(roomId) {
     const room = getQuizRoom(roomId);
@@ -423,6 +589,7 @@ export class StatsService {
       totalWrongAnswers: 0,
       totalNoAnswers: 0,
       totalSkippedAnswers: 0,
+      totalItemsFound: 0,
       totalExtrasUsed: 0,
       totalHintsUsed: 0,
       totalFreezesUsed: 0,
@@ -440,6 +607,7 @@ export class StatsService {
         cumulativeStats.totalWrongAnswers += roundStats.wrongAnswers || 0;
         cumulativeStats.totalNoAnswers += roundStats.noAnswers || 0;
         cumulativeStats.totalSkippedAnswers += roundStats.skippedAnswers || 0;
+        cumulativeStats.totalItemsFound += roundStats.itemsFound || 0;
         cumulativeStats.totalExtrasUsed += roundStats.totalExtrasUsed || 0;
         cumulativeStats.totalHintsUsed += roundStats.hintsUsed || 0;
         cumulativeStats.totalFreezesUsed += roundStats.freezesUsed || 0;
@@ -458,7 +626,7 @@ export class StatsService {
 
   /**
    * Validate answer statistics consistency
-   * NEW: Includes speed round validation
+   * NEW: Includes speed round + hidden object validation
    */
   static validateAnswerConsistency(roomId) {
     const room = getQuizRoom(roomId);
@@ -467,6 +635,11 @@ export class StatsService {
     const issues = [];
     const roundTag = `_round${room.currentRound}`;
     const roundType = room.config.roundDefinitions?.[room.currentRound - 1]?.roundType;
+
+    // Skip validation for hidden object rounds (different data structure)
+    if (roundType === 'hidden_object') {
+      return true;
+    }
 
     for (const player of room.players) {
       const pd = room.playerData[player.id];

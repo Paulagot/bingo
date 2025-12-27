@@ -34,7 +34,21 @@ const quizTemplates: QuizTemplate[] = [
     description: 'Quick demo: 1 short Wipeout + 1 Speed Round.',
     icon: '🚀',
     difficulty: 'Easy',
+
     rounds: [
+           {
+      type: 'hidden_object',
+      category: 'image',
+      difficulty: 'easy',
+      customConfig: {
+        // keep consistent with your RoundConfig shape
+        questionsPerRound: 1,
+        timePerQuestion: 0,
+        totalTimeSeconds: 30, // ✅ round duration
+        // optional if you added nested config:
+        // hiddenObject: { secondsToPoints: 1 }
+      }
+    },
       {
         type: 'wipeout',
         category: 'General Knowledge',
@@ -50,7 +64,7 @@ const quizTemplates: QuizTemplate[] = [
       {
         type: 'speed_round',
         category: 'Math',
-        difficulty: 'hard',
+        difficulty: 'medium',
         customConfig: {
           questionsPerRound: 40,
           totalTimeSeconds: 20,
@@ -60,9 +74,37 @@ const quizTemplates: QuizTemplate[] = [
           pointsLostPerUnanswered: 0,
         },
       },
+ 
     ],
     tags: ['Audience: Mixed','Topic: General','Duration: ≈7m'],
   },
+
+  {
+  id: 'test',
+  name: 'TEST – Hidden Object',
+  description: 'Temporary template to validate hidden object round end-to-end (delete later).',
+  icon: '🧪',
+  difficulty: 'Easy',
+  rounds: [
+      
+    {
+      type: 'hidden_object',
+      category: 'image',
+      difficulty: 'easy',
+      customConfig: {
+        // keep consistent with your RoundConfig shape
+        questionsPerRound: 1,
+        timePerQuestion: 0,
+        totalTimeSeconds: 30, // ✅ round duration
+        // optional if you added nested config:
+        // hiddenObject: { secondsToPoints: 1 }
+      }
+    },
+
+  ],
+  tags: ['Audience: Test', 'Topic: Hidden Object', 'Duration: ≈10m']
+},
+
 
   // ─────────────────────────────────────────────────────────────────────────────
   // KIDS (10)

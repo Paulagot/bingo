@@ -22,6 +22,8 @@ import HostPostgamePanel from '../host-controls/components/HostPostgamePanel';
 
 import { Eye, Timer } from 'lucide-react';
 import { useQuizTimer } from '../hooks/useQuizTimer';
+import HiddenObjectReviewPanel from '../host-controls/components/Hiddenobjectreviewpane';
+import HiddenObjectHostPanel from '../host-controls/components/HiddenObjectHostPanel'
 
 // ✅ Lazy load Web3Provider
 const Web3Provider = lazy(() => 
@@ -194,6 +196,10 @@ const HostControlsCoreInner = () => {
   const [currentQuestion, setCurrentQuestion] = useState<QuestionPayload | null>(null);
   const [reviewQuestion, setReviewQuestion] = useState<ReviewQuestionPayload | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+
+  const [hiddenObjectPuzzle, setHiddenObjectPuzzle] = useState<any>(null);
+const [hiddenObjectFoundIds, setHiddenObjectFoundIds] = useState<string[]>([]);
+const [hiddenObjectRemainingSeconds, setHiddenObjectRemainingSeconds] = useState<number | null>(null);
 
   // Round leaderboard state
   const [roundLeaderboard, setRoundLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -525,6 +531,62 @@ const HostControlsCoreInner = () => {
     };
   }, [socket]);
 
+  
+  // Listen for hidden object review
+  // ✅ ADD THIS ENTIRE BLOCK - Hidden Object Start (Asking Phase):
+  useEffect(() => {
+    if (!socket) return;
+    const handleHiddenObjectStart = (payload: any) => {
+      if (debug) console.log('[Host] Received hidden_object_start:', payload);
+      setHiddenObjectPuzzle({
+        puzzleId: payload.puzzleId,
+        imageUrl: payload.imageUrl,
+        difficulty: payload.difficulty,
+        category: payload.category,
+        totalSeconds: payload.totalSeconds,
+        itemTarget: payload.itemTarget,
+        items: payload.items || []
+      });
+      setHiddenObjectFoundIds([]);
+      setHiddenObjectRemainingSeconds(payload.totalSeconds);
+    };
+    socket.on('hidden_object_start', handleHiddenObjectStart);
+    return () => {
+      socket.off('hidden_object_start', handleHiddenObjectStart);
+    };
+  }, [socket]);
+
+  // ✅ ADD THIS ENTIRE BLOCK - Hidden Object Review:
+  useEffect(() => {
+    if (!socket) return;
+    const handleHiddenObjectReview = (data: { puzzle: any }) => {
+      if (debug) console.log('[Host] Received hidden_object_review:', data);
+      setHiddenObjectPuzzle(data.puzzle);
+      setReviewComplete(true); // Hidden object has no progressive review, goes straight to complete
+      setReviewQuestion(null); // Clear any regular question review
+      setCurrentQuestion(null);
+    };
+    socket.on('hidden_object_review', handleHiddenObjectReview);
+    return () => {
+      socket.off('hidden_object_review', handleHiddenObjectReview);
+    };
+  }, [socket]);
+
+  // ✅ ADD THIS ENTIRE BLOCK - Round Time Remaining (for hidden object timer):
+  useEffect(() => {
+    if (!socket) return;
+    const handleRoundTimeRemaining = ({ remaining }: { remaining: number }) => {
+      if (roundTypeId === 'hidden_object') {
+        setHiddenObjectRemainingSeconds(remaining);
+      }
+    };
+    socket.on('round_time_remaining', handleRoundTimeRemaining);
+    return () => {
+      socket.off('round_time_remaining', handleRoundTimeRemaining);
+    };
+  }, [socket, roundTypeId]);
+
+
   useEffect(() => {
     if (!socket) return;
     const handleRoundLeaderboard = (data: LeaderboardEntry[]) => {
@@ -735,6 +797,12 @@ const HostControlsCoreInner = () => {
           visible={roomState.phase === 'asking' && roundTypeId === 'speed_round'}
         />
 
+           <HiddenObjectHostPanel
+          visible={roomState.phase === 'asking' && roundTypeId === 'hidden_object'}
+          puzzle={hiddenObjectPuzzle}
+          remainingSeconds={hiddenObjectRemainingSeconds}
+        />
+
         {/* Active Question */}
         {currentQuestion && roomState.phase === 'asking' && roundTypeId !== 'speed_round' && (
           <div className="bg-muted mb-6 rounded-xl border-2 border-blue-200 p-6 shadow-lg">
@@ -808,16 +876,27 @@ const HostControlsCoreInner = () => {
         )}
 
         {/* Review Panel */}
-        <ReviewPanel
-          roomPhase={roomState.phase}
-          currentRoundDef={currentRoundDef}
-          reviewQuestion={reviewQuestion!}
-          isLastQuestionOfRound={isLastQuestionOfRound()}
-          reviewComplete={reviewComplete}
-          onShowRoundResults={handleShowRoundResults}
-          onNextReview={handleNextReview}
-          roomId={roomId!}
-        />
+    {/* Review Panel - Conditional based on round type */}
+        {roundTypeId === 'hidden_object' ? (
+         <HiddenObjectReviewPanel
+            roomPhase={roomState.phase}
+            puzzle={hiddenObjectPuzzle}
+            foundIds={hiddenObjectFoundIds}
+            reviewComplete={reviewComplete}
+            onShowRoundResults={handleShowRoundResults}
+          />
+        ) : (
+          <ReviewPanel
+            roomPhase={roomState.phase}
+            currentRoundDef={currentRoundDef}
+            reviewQuestion={reviewQuestion!}
+            isLastQuestionOfRound={isLastQuestionOfRound()}
+            reviewComplete={reviewComplete}
+            onShowRoundResults={handleShowRoundResults}
+            onNextReview={handleNextReview}
+            roomId={roomId!}
+          />
+        )}
 
         {/* Round Stats (during round leaderboard) */}
         {roomState.phase === 'leaderboard' &&
