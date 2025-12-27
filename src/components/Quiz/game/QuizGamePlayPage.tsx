@@ -28,7 +28,9 @@ const debug = true;
 
 // ✅ helper to narrow server string into RoundTypeId
 const asRoundTypeId = (s?: string): RoundTypeId | undefined =>
-  s === 'general_trivia' || s === 'wipeout' || s === 'speed_round' ? s : undefined;
+  s === 'general_trivia' || s === 'wipeout' || s === 'speed_round' || s === 'hidden_object'
+    ? s
+    : undefined;
 
 // ✅ types for notifications
 type NotificationType = 'success' | 'warning' | 'info' | 'error';
@@ -114,6 +116,12 @@ const QuizGamePlayPage = () => {
 
   const currentQuestionIdRef = useRef<string | null>(null);
   const currentQuestionIndexRef = useRef<number>(-1);
+
+  const [hiddenPuzzle, setHiddenPuzzle] = useState<any>(null);
+const [hiddenFoundIds, setHiddenFoundIds] = useState<string[]>([]);
+const [hiddenFinished, setHiddenFinished] = useState(false);
+const [roundRemaining, setRoundRemaining] = useState<number | null>(null);
+
 
   // server-driven room state
   const [serverRoomState, setServerRoomState] = useState<ServerRoomState>({
@@ -365,6 +373,17 @@ useEffect(() => {
 
       if (snap.speed) setPhaseMessage(`Speed Round — ${snap.speed.remaining}s left`);
 
+      if (snap.hiddenObject?.puzzle) {
+  setHiddenPuzzle({
+    ...snap.hiddenObject.puzzle,
+    imageUrl: (snap.hiddenObject.puzzle.imageUrl),
+  });
+  setHiddenFoundIds(snap.hiddenObject.foundIds || []);
+  setHiddenFinished(!!snap.hiddenObject.finished);
+  setPhaseMessage(`Find It Fast — ${snap.hiddenObject.remaining}s left`);
+}
+
+
       // reviewing
       if (snap.review) {
         setQuestion({
@@ -534,9 +553,16 @@ if (snap.tb.stage === 'question' && snap.tb.question) {
     };
 
     // SPEED ROUND: global 90s countdown
-    const handleRoundTimeRemaining = ({ remaining }: { remaining: number }) => {
-      setPhaseMessage(`Speed Round — ${remaining}s left`);
-    };
+const handleRoundTimeRemaining = ({ remaining }: { remaining: number }) => {
+  setRoundRemaining(typeof remaining === 'number' ? remaining : null);
+
+  if (serverRoomState.roundTypeId === 'speed_round') {
+    setPhaseMessage(`Speed Round — ${remaining}s left`);
+  } else if (serverRoomState.roundTypeId === 'hidden_object') {
+    setPhaseMessage(`Find It Fast — ${remaining}s left`);
+  }
+};
+;
 
     const handleReviewQuestion = (data: any) => {
       if (debug) console.log('[Client] review question:', data);
@@ -652,11 +678,25 @@ if (snap.tb.stage === 'question' && snap.tb.question) {
         frozenByRef.current = null;
       }
 
-      if (data.currentRound !== previousRound && data.phase) {
-        currentQuestionIndexRef.current = -1;
-        setIsShowingRoundResults(false);
-        setRoundLeaderboard([]);
-      }
+   if (data.currentRound !== previousRound && data.phase) {
+  currentQuestionIndexRef.current = -1;
+  setIsShowingRoundResults(false);
+  setRoundLeaderboard([]);
+  
+  // ✅ CLEAR state from previous round to prevent crashes during transitions
+  setQuestion(null);
+  setHiddenPuzzle(null);
+  setHiddenFoundIds([]);
+  setHiddenFinished(false);
+  setSelectedAnswer('');
+  setAnswerSubmitted(false);
+  setClue(null);
+  setFeedback(null);
+  setCorrectAnswer(null);
+  setTimerActive(false);
+  
+  if (debug) console.log('[Client] 🔄 Round changed, cleared previous round state');
+}
 
       setRoomPhase(data.phase as RoomPhaseWithTB);
       setServerRoomState(data);
@@ -839,6 +879,45 @@ if (snap.tb.stage === 'question' && snap.tb.question) {
       setPhaseMessage('Tie-breaker resolved. Finalizing results…');
     };
 
+    const handleHiddenStart = (payload: any) => {
+  if (debug) console.log('[Client] hidden_object_start', payload);
+  setHiddenPuzzle({
+    puzzleId: payload.puzzleId,
+    imageUrl: (payload.imageUrl), // ✅ uses your BASE_URL helper
+    difficulty: payload.difficulty,
+    category: payload.category,
+    totalSeconds: payload.totalSeconds,
+    itemTarget: payload.itemTarget,
+    items: payload.items || []
+  });
+
+  setHiddenFoundIds(payload.foundIds || []);
+  setHiddenFinished(!!payload.finished);
+};
+
+const handleHiddenFoundConfirm = (msg: any) => {
+  if (!msg?.itemId) return;
+  setHiddenFoundIds((prev) => (prev.includes(msg.itemId) ? prev : [...prev, msg.itemId]));
+  if (msg.finished) setHiddenFinished(true);
+};
+
+const handleHiddenReview = (payload: any) => {
+  if (debug) console.log('[Client] hidden_object_review', payload);
+  if (payload.puzzle) {
+    setHiddenPuzzle({
+      puzzleId: payload.puzzle.puzzleId,
+      imageUrl: payload.puzzle.imageUrl,
+      difficulty: payload.puzzle.difficulty,
+      category: payload.puzzle.category,
+      totalSeconds: payload.puzzle.totalSeconds,
+      itemTarget: payload.puzzle.itemTarget,
+      items: payload.puzzle.items || []
+    });
+  }
+  // Keep foundIds from asking phase - they're already set
+};
+
+
     // register
     socket.on('tiebreak:review', handleTbReview);
     socket.on('tiebreak:start', handleTbStart);
@@ -867,6 +946,15 @@ if (snap.tb.stage === 'question' && snap.tb.question) {
     socket.on('speed_question', handleSpeedQuestion);
     socket.on('round_time_remaining', handleRoundTimeRemaining);
 
+    socket.on('hidden_object_start', handleHiddenStart);
+socket.on('hidden_object_found_confirm', handleHiddenFoundConfirm);
+socket.on('hidden_object_review', handleHiddenReview);
+
+socket.on('round_time_remaining', ({ remaining }: any) => {
+  setRoundRemaining(typeof remaining === 'number' ? remaining : null);
+});
+
+
     return () => {
       socket.off('tiebreak:review', handleTbReview);
       socket.off('tiebreak:start', handleTbStart);
@@ -894,6 +982,10 @@ if (snap.tb.stage === 'question' && snap.tb.question) {
       socket.off('enhanced_player_stats', handleEnhancedPlayerStats);
       socket.off('speed_question', handleSpeedQuestion);
       socket.off('round_time_remaining', handleRoundTimeRemaining);
+      socket.off('hidden_object_start', handleHiddenStart);
+socket.off('hidden_object_found_confirm', handleHiddenFoundConfirm);
+ socket.off('hidden_object_review', handleHiddenReview);
+
     };
   }, [socket, connected, roomId, playerId, navigate, roomPhase, serverRoomState.currentRound]);
 
@@ -921,6 +1013,12 @@ if (snap.tb.stage === 'question' && snap.tb.question) {
       socket.emit('use_extra', { roomId, playerId, extraId, targetPlayerId });
     }
   };
+
+  const handleHiddenTap = (itemId: string, x: number, y: number) => {
+  if (!socket || !roomId || !playerId) return;
+  socket.emit('hidden_object_found', { roomId, playerId, itemId, x, y });
+};
+
 
   const getMaxRestorePointsFromConfig = (cfg: any): number =>
     cfg?.fundraisingOptions?.restorePoints?.totalRestorePoints ??
@@ -1132,7 +1230,7 @@ const submitTieBreaker = useCallback(() => {
             ) : (
               <div className="text-fg/70 rounded-xl bg-gray-100 p-6 text-center">Calculating leaderboard...</div>
             )
-          ) : (roomPhase === 'reviewing' || roomPhase === 'asking') && question ? (
+          ) : (roomPhase === 'reviewing' || roomPhase === 'asking') && (question || hiddenPuzzle) ? (
             <div>
               <RoundRouter
                 currentRound={serverRoomState.currentRound}
@@ -1179,6 +1277,11 @@ const submitTieBreaker = useCallback(() => {
                 isFlashing={isFlashing}
   currentEffect={currentEffect}
   getFlashClasses={getFlashClasses}
+    puzzle={hiddenPuzzle}
+  foundIds={hiddenFoundIds}
+  finished={hiddenFinished}
+  onTap={handleHiddenTap}
+  remainingSeconds={roundRemaining}
               />
             </div>
           ) : (

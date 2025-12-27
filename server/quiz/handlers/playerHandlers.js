@@ -64,6 +64,8 @@ function getEngine(room) {
       return import('../gameplayEngines/wipeoutEngine.js');
     case 'speed_round':
       return import('../gameplayEngines/speedRoundEngine.js');
+    case 'hidden_object':
+  return import('../gameplayEngines/hiddenObjectEngine.js');
     default:
       console.warn(`[getEngine] ❓ Unknown round type: ${roundType}`);
       return null;
@@ -588,205 +590,215 @@ socket.on('player_route_change', ({ roomId, playerId, route, entering }) => {
       socket.emit('clue_error', { reason: result.error });
     }
   });
+ // --- Hidden Object: player found an item ---
+  socket.on('hidden_object_found', async ({ roomId, playerId, itemId, x, y }) => {
+  const room = getQuizRoom(roomId);
+  if (!room) return;
+
+  const enginePromise = getEngine(room);
+  if (!enginePromise) return;
+
+  try {
+    const engine = await enginePromise;
+    if (engine?.handleFound) {
+      engine.handleFound(roomId, playerId, { itemId, x, y }, namespace);
+    }
+  } catch (e) {
+    console.error('[hidden_object_found] engine error', e);
+  }
+});
+
 
   // request_current_state handler
-  socket.on('request_current_state', ({ roomId, playerId }) => {
-    emitFullRoomState(socket, namespace, roomId);
-    const room = getQuizRoom(roomId);
-    if (!room) return;
+socket.on('request_current_state', ({ roomId, playerId }) => {
+  emitFullRoomState(socket, namespace, roomId);
 
-    if (room.currentPhase === 'asking') {
-      const roundType = room.config.roundDefinitions?.[room.currentRound - 1]?.roundType;
-      if (roundType === 'speed_round') {
+  const room = getQuizRoom(roomId);
+  if (!room) return;
+
+  const roundType = room.config?.roundDefinitions?.[room.currentRound - 1]?.roundType;
+
+  // ─────────────────────────────────────────────
+  // ASKING PHASE
+  // ─────────────────────────────────────────────
+  if (room.currentPhase === 'asking') {
+    // 1) Speed round recovery
+    if (roundType === 'speed_round') {
+      const remaining = Math.max(0, Math.floor(((room.roundEndTime || 0) - Date.now()) / 1000));
+      socket.emit('round_time_remaining', { remaining });
+
+      const cursor = room.playerCursors?.[playerId] ?? 0;
+      const q = room.questions?.[cursor];
+      if (q) {
+        socket.emit('speed_question', {
+          id: q.id,
+          text: q.text,
+          options: Array.isArray(q.options) ? q.options.slice(0, 2) : [],
+        });
+      }
+      // host extras still happen below (no return required, but OK to return)
+      // return;
+    }
+
+    // 2) Hidden Object recovery
+    if (roundType === 'hidden_object') {
+      const ho = room.hiddenObject;
+      if (ho) {
         const remaining = Math.max(0, Math.floor(((room.roundEndTime || 0) - Date.now()) / 1000));
         socket.emit('round_time_remaining', { remaining });
 
-        const enginePromise = getEngine(room);
-        if (enginePromise) {
-          Promise.resolve(enginePromise).then(engine => {
-            if (engine?.emitNextQuestionToPlayer) {
-              const cursor = room.playerCursors?.[playerId] ?? 0;
-              const player = room.players.find(p => p.id === playerId);
-              if (player?.socketId && room.questions[cursor]) {
-                const q = room.questions[cursor];
-                socket.emit('speed_question', {
-                  id: q.id,
-                  text: q.text,
-                  options: Array.isArray(q.options) ? q.options.slice(0, 2) : [],
-                });
-              }
-            }
-          });
-        }
-        return;
-      }
-    }
+        const pState = ho.player?.[playerId];
+        const foundIds = pState?.foundIds ? Array.from(pState.foundIds) : [];
 
-    // Handle asking phase (non speed-round)
-    if (room.currentPhase === 'asking' && room.currentQuestionIndex >= 0) {
-      const question = room.questions[room.currentQuestionIndex];
-      const roundConfig = room.config.roundDefinitions[room.currentRound - 1];
-      const timeLimit = roundConfig?.config?.timePerQuestion || 10;
-      const questionStartTime = room.questionStartTime || Date.now();
-
-      const elapsed = Math.floor((Date.now() - questionStartTime) / 1000);
-      const remainingTime = Math.max(0, timeLimit - elapsed);
-
-      const playerData = room.playerData[playerId];
-      const roundAnswerKey = `${question.id}_round${room.currentRound}`;
-      const hasAnswered = playerData?.answers?.[roundAnswerKey] ? true : false;
-      const submittedAnswer = playerData?.answers?.[roundAnswerKey]?.submitted || null;
-      const isFrozen = playerData?.frozenNextQuestion &&
-                       playerData?.frozenForQuestionIndex === room.currentQuestionIndex;
-
-      socket.emit('question', {
-        id: question.id,
-        text: question.text,
-        options: question.options || [],
-        timeLimit,
-        questionStartTime,
-        questionNumber: room.currentQuestionIndex + 1,
-        totalQuestions: room.questions.length,
-      });
-
-      socket.emit('player_state_recovery', {
-        hasAnswered,
-        submittedAnswer,
-        isFrozen,
-        frozenBy: playerData?.frozenBy || null,
-        usedExtras: playerData?.usedExtras || {},
-        usedExtrasThisRound: playerData?.usedExtrasThisRound || {},
-        remainingTime,
-        currentQuestionIndex: room.currentQuestionIndex
-      });
-
-      if (debug) console.log(`[Recovery] 🔁 Sent complete state recovery for ${playerId}: answered=${hasAnswered}, frozen=${isFrozen}, remaining=${remainingTime}s`);
-    }
-
-    // Handle reviewing phase
-    else if (room.currentPhase === 'reviewing') {
-      if (debug) console.log(`[Recovery] 📖 Recovering review phase for ${playerId} in room ${roomId}`);
-
-      const roundType = room.config.roundDefinitions?.[room.currentRound - 1]?.roundType;
-      let enginePromise;
-
-      if (roundType === 'general_trivia') {
-        enginePromise = import('../gameplayEngines/generalTriviaEngine.js');
-      } else if (roundType === 'wipeout') {
-        enginePromise = import('../gameplayEngines/wipeoutEngine.js');
-      } else if (roundType === 'speed_round') {
-        enginePromise = import('../gameplayEngines/speedRoundEngine.js');
-      }
-
-      if (enginePromise) {
-        enginePromise.then(engine => {
-          if (engine && typeof engine.getCurrentReviewQuestion === 'function') {
-            const reviewQuestion = engine.getCurrentReviewQuestion(roomId);
-
-            if (reviewQuestion) {
-              const isHost = playerId === 'host' || socket.rooms.has(`${roomId}:host`);
-
-              if (isHost) {
-                socket.emit('host_review_question', {
-                  id: reviewQuestion.id,
-                  text: reviewQuestion.text,
-                  options: reviewQuestion.options || [],
-                  correctAnswer: reviewQuestion.correctAnswer,
-                  difficulty: reviewQuestion.difficulty,
-                  category: reviewQuestion.category
-                });
-                if (debug) console.log(`[Recovery] 🧐 Sent host review question for ${roomId}: ${reviewQuestion.id}`);
-              } else {
-                const playerData = room.playerData[playerId];
-                const roundAnswerKey = `${reviewQuestion.id}_round${room.currentRound}`;
-                const playerAnswer = playerData?.answers?.[roundAnswerKey];
-
-                socket.emit('review_question', {
-                  id: reviewQuestion.id,
-                  text: reviewQuestion.text,
-                  options: reviewQuestion.options || [],
-                  correctAnswer: reviewQuestion.correctAnswer,
-                  submittedAnswer: playerAnswer?.submitted || null,
-                  difficulty: reviewQuestion.difficulty,
-                  category: reviewQuestion.category
-                });
-                if (debug) console.log(`[Recovery] 📖 Sent player review question for ${playerId}: ${reviewQuestion.id}`);
-              }
-            }
-
-            if (engine.isReviewComplete && engine.isReviewComplete(roomId)) {
-              const roundConfig = room.config.roundDefinitions[room.currentRound - 1];
-              const questionsPerRound = roundConfig?.config?.questionsPerRound || 6;
-
-              socket.emit('review_complete', {
-                message: `All ${questionsPerRound} questions have been reviewed`,
-                roundNumber: room.currentRound,
-                totalQuestions: questionsPerRound
-              });
-              if (debug) console.log(`[Recovery] ✅ Sent review complete notification for ${roomId}`);
-            }
-          }
-        }).catch(err => {
-          console.error(`[Recovery] ❌ Failed to load engine for review recovery:`, err);
+        socket.emit('hidden_object_start', {
+          puzzleId: ho.puzzleId,
+          imageUrl: ho.imageUrl,
+          difficulty: ho.difficulty,
+          category: ho.category,
+          totalSeconds: ho.totalSeconds,
+          itemTarget: ho.itemTarget,
+          items: ho.items.map(it => ({ id: String(it.id), label: it.label, bbox: it.bbox })),
+          foundIds,
+          finished: !!pState?.finishTs
         });
       }
+      // return;
     }
 
-    // Handle leaderboard phase
-    else if (room.currentPhase === 'leaderboard') {
-      if (debug) console.log(`[Recovery] 🏆 Recovering leaderboard phase for ${playerId} in room ${roomId}`);
+    // 3) Standard question-based recovery (general_trivia/wipeout)
+    if (roundType !== 'speed_round' && roundType !== 'hidden_object') {
+      if (room.currentQuestionIndex >= 0 && room.questions?.[room.currentQuestionIndex]) {
+        const question = room.questions[room.currentQuestionIndex];
+        const roundConfig = room.config.roundDefinitions[room.currentRound - 1];
+        const timeLimit = roundConfig?.config?.timePerQuestion || 10;
+        const questionStartTime = room.questionStartTime || Date.now();
 
-      if (room.currentRoundResults && !room.currentOverallLeaderboard) {
-        socket.emit('round_leaderboard', room.currentRoundResults);
-        if (debug) console.log(`[Recovery] 🏆 Sent round leaderboard for room ${roomId}`);
-      } else if (room.currentOverallLeaderboard) {
-        socket.emit('leaderboard', room.currentOverallLeaderboard);
-        if (debug) console.log(`[Recovery] 🏆 Sent overall leaderboard for room ${roomId}`);
-      } else if (room.currentRoundResults) {
-        socket.emit('round_leaderboard', room.currentRoundResults);
-        if (debug) console.log(`[Recovery] 🏆 Sent round leaderboard (fallback) for room ${roomId}`);
+        const elapsed = Math.floor((Date.now() - questionStartTime) / 1000);
+        const remainingTime = Math.max(0, timeLimit - elapsed);
+
+        const playerData = room.playerData[playerId];
+        const roundAnswerKey = `${question.id}_round${room.currentRound}`;
+        const hasAnswered = !!playerData?.answers?.[roundAnswerKey];
+        const submittedAnswer = playerData?.answers?.[roundAnswerKey]?.submitted || null;
+
+        const isFrozen =
+          playerData?.frozenNextQuestion &&
+          playerData?.frozenForQuestionIndex === room.currentQuestionIndex;
+
+        socket.emit('question', {
+          id: question.id,
+          text: question.text,
+          options: question.options || [],
+          timeLimit,
+          questionStartTime,
+          questionNumber: room.currentQuestionIndex + 1,
+          totalQuestions: room.questions.length,
+        });
+
+        socket.emit('player_state_recovery', {
+          hasAnswered,
+          submittedAnswer,
+          isFrozen,
+          frozenBy: playerData?.frozenBy || null,
+          usedExtras: playerData?.usedExtras || {},
+          usedExtrasThisRound: playerData?.usedExtrasThisRound || {},
+          remainingTime,
+          currentQuestionIndex: room.currentQuestionIndex
+        });
+
+        if (debug) {
+          console.log(`[Recovery] 🔁 Sent state recovery for ${playerId}: answered=${hasAnswered}, frozen=${isFrozen}, remaining=${remainingTime}s`);
+        }
       }
+      // return;
     }
+  }
 
-    // Host extras
-    const isHost = !playerId || playerId === 'host' || socket.rooms.has(`${roomId}:host`);
-    if (isHost && socket.rooms.has(`${roomId}:host`)) {
-      if (debug) console.log(`[Recovery] 📊 Recovering host stats for room ${roomId}`);
+  // ─────────────────────────────────────────────
+  // REVIEWING PHASE
+  // ─────────────────────────────────────────────
+  if (room.currentPhase === 'reviewing') {
+    if (debug) console.log(`[Recovery] 📖 Recovering review phase for ${playerId} in room ${roomId}`);
 
-      if (room.currentRoundStats) {
-        socket.emit('host_current_round_stats', room.currentRoundStats);
-      }
+    let enginePromise;
+    if (roundType === 'general_trivia') enginePromise = import('../gameplayEngines/generalTriviaEngine.js');
+    else if (roundType === 'wipeout') enginePromise = import('../gameplayEngines/wipeoutEngine.js');
+    else if (roundType === 'speed_round') enginePromise = import('../gameplayEngines/speedRoundEngine.js');
+    else if (roundType === 'hidden_object') enginePromise = import('../gameplayEngines/hiddenObjectEngine.js');
 
-      if (room.finalQuizStats) {
-        socket.emit('host_final_stats', room.finalQuizStats);
-      }
+    if (enginePromise) {
+      enginePromise.then(engine => {
+        const reviewQuestion = engine?.getCurrentReviewQuestion?.(roomId);
 
-      if (room.cumulativeStatsForRecovery) {
-        socket.emit('host_cumulative_stats', room.cumulativeStatsForRecovery);
-      }
-    }
-  });
+        if (reviewQuestion) {
+          const isHost = playerId === 'host' || socket.rooms.has(`${roomId}:host`);
+          if (isHost) {
+            socket.emit('host_review_question', {
+              id: reviewQuestion.id,
+              text: reviewQuestion.text,
+              options: reviewQuestion.options || [],
+              correctAnswer: reviewQuestion.correctAnswer,
+              difficulty: reviewQuestion.difficulty,
+              category: reviewQuestion.category
+            });
+          } else {
+            const playerData = room.playerData[playerId];
+            const roundAnswerKey = `${reviewQuestion.id}_round${room.currentRound}`;
+            const playerAnswer = playerData?.answers?.[roundAnswerKey];
 
-  socket.on('disconnect', () => {
-    setTimeout(() => {
-      const rooms = Array.from(socket.rooms).filter(r => r !== socket.id);
-      rooms.forEach(roomId => {
-        const room = getQuizRoom(roomId);
-        if (!room) return;
-
-        const idx = room.admins.findIndex(a => a.socketId === socket.id);
-        if (idx !== -1) {
-          const admin = room.admins[idx];
-          const stillConnected = room.admins.some(a => a.id === admin.id && a.socketId !== socket.id);
-          if (!stillConnected) {
-            room.admins.splice(idx, 1);
-            if (debug) console.log(`[DisconnectCleanup] 🧹 Admin "${admin.name}" (${admin.id}) removed from ${roomId}`);
-            namespace.to(roomId).emit('admin_list_updated', { admins: room.admins });
+            socket.emit('review_question', {
+              id: reviewQuestion.id,
+              text: reviewQuestion.text,
+              options: reviewQuestion.options || [],
+              correctAnswer: reviewQuestion.correctAnswer,
+              submittedAnswer: playerAnswer?.submitted || null,
+              difficulty: reviewQuestion.difficulty,
+              category: reviewQuestion.category
+            });
           }
         }
-      });
-    }, 5000);
-  });
+
+        if (engine?.isReviewComplete?.(roomId)) {
+          const roundConfig = room.config.roundDefinitions[room.currentRound - 1];
+          const questionsPerRound = roundConfig?.config?.questionsPerRound || 0;
+
+          socket.emit('review_complete', {
+            message: `Review complete`,
+            roundNumber: room.currentRound,
+            totalQuestions: questionsPerRound
+          });
+        }
+      }).catch(err => console.error(`[Recovery] ❌ Failed to load engine for review recovery:`, err));
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // LEADERBOARD PHASE  ✅ no else-if dependency
+  // ─────────────────────────────────────────────
+  if (room.currentPhase === 'leaderboard') {
+    if (debug) console.log(`[Recovery] 🏆 Recovering leaderboard phase for ${playerId} in room ${roomId}`);
+
+    if (room.currentRoundResults && !room.currentOverallLeaderboard) {
+      socket.emit('round_leaderboard', room.currentRoundResults);
+    } else if (room.currentOverallLeaderboard) {
+      socket.emit('leaderboard', room.currentOverallLeaderboard);
+    } else if (room.currentRoundResults) {
+      socket.emit('round_leaderboard', room.currentRoundResults);
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // HOST STATS (always after phase recovery)
+  // ─────────────────────────────────────────────
+  const isHost = !playerId || playerId === 'host' || socket.rooms.has(`${roomId}:host`);
+  if (isHost && socket.rooms.has(`${roomId}:host`)) {
+    if (debug) console.log(`[Recovery] 📊 Recovering host stats for room ${roomId}`);
+
+    if (room.currentRoundStats) socket.emit('host_current_round_stats', room.currentRoundStats);
+    if (room.finalQuizStats) socket.emit('host_final_stats', room.finalQuizStats);
+    if (room.cumulativeStatsForRecovery) socket.emit('host_cumulative_stats', room.cumulativeStatsForRecovery);
+  }
+});
 }
 
 

@@ -52,7 +52,8 @@ export interface Prize {
 export type RoundTypeId =
   | 'general_trivia'
   | 'wipeout'
-  | 'speed_round';
+  | 'speed_round'
+  | 'hidden_object';
   // | 'head_to_head'
   // | 'media_puzzle';
 
@@ -74,6 +75,13 @@ export interface RoundConfig {
     filters?: {
     difficulty?: 'easy' | 'medium' | 'hard' | 'mixed';
     category?: string | 'mixed';
+  };
+    hiddenObject?: {
+    timeLimitSeconds?: number; // e.g. 30
+    secondsToPoints?: number;  // e.g. 1
+    itemCountByDifficulty?: { easy: number; medium: number; hard: number };
+    pointsPerFindByDifficulty?: { easy: number; medium: number; hard: number };
+    puzzleId?: string;         // optional, if host chooses a specific puzzle
   };
 }
 

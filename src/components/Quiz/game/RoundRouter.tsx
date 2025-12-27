@@ -4,6 +4,9 @@ import { RoundComponentProps, type RoundTypeId } from '../types/quiz';
 import ModernStandardRound from './ModernStandardRound';
 import ReviewPhase from './ReviewPhase';
 import SpeedAsking from './SpeedAsking';
+import HiddenObjectAsking from './HiddenObjectAsking';
+import HiddenObjectReview from './HiddenObjectReview'; // ✅ add this new component
+import type { HiddenObjectPuzzle } from './HiddenObjectAsking';
 
 interface AnswerStatistics {
   totalPlayers: number;
@@ -17,7 +20,7 @@ interface AnswerStatistics {
 
 interface RoundRouterProps extends RoundComponentProps {
   roomPhase: 'asking' | 'reviewing';
-  currentRoundType?: RoundTypeId;      // use union type
+  currentRoundType?: RoundTypeId;
   correctAnswer?: string;
   questionNumber?: number;
   totalQuestions?: number;
@@ -26,11 +29,19 @@ interface RoundRouterProps extends RoundComponentProps {
   statistics?: AnswerStatistics;
   isHost?: boolean;
   playersInRoom?: { id: string; name: string }[];
+
   // Countdown / FX
   isFlashing?: boolean;
   currentEffect?: any;
   getFlashClasses?: () => string;
   currentRound?: number;
+
+  // ✅ Hidden Object props
+  puzzle?: HiddenObjectPuzzle | null;
+  foundIds?: string[];
+  finished?: boolean;
+  onTap?: (itemId: string, x: number, y: number) => void;
+  remainingSeconds?: number | null;
 }
 
 const RoundRouter: React.FC<RoundRouterProps> = ({
@@ -51,8 +62,30 @@ const RoundRouter: React.FC<RoundRouterProps> = ({
   currentEffect,
   getFlashClasses,
   currentRound,
+
+  // hidden object
+  puzzle,
+  foundIds = [],
+  finished = false,
+  onTap,
+  remainingSeconds = null,
+
   ...props
 }) => {
+  // ✅ Hidden Object REVIEW must bypass ReviewPhase (no "question.text" concept)
+  if (roomPhase === 'reviewing' && currentRoundType === 'hidden_object') {
+    if (!puzzle) {
+      return (
+        <div className="text-fg/70 rounded-xl bg-gray-100 p-6 text-center">
+          Loading Hidden Object review…
+        </div>
+      );
+    }
+
+    return <HiddenObjectReview puzzle={puzzle} foundIds={foundIds} />;
+  }
+
+  // Default REVIEW (standard Q/A rounds)
   if (roomPhase === 'reviewing') {
     return (
       <ReviewPhase
@@ -66,7 +99,6 @@ const RoundRouter: React.FC<RoundRouterProps> = ({
         totalQuestions={totalQuestions}
         statistics={statistics}
         isHost={isHost}
-        
       />
     );
   }
@@ -87,6 +119,27 @@ const RoundRouter: React.FC<RoundRouterProps> = ({
         currentEffect={currentEffect}
         getFlashClasses={getFlashClasses}
         currentRound={currentRound}
+      />
+    );
+  }
+
+  // HIDDEN OBJECT — asking
+  if (currentRoundType === 'hidden_object') {
+    if (!puzzle || !onTap) {
+      return (
+        <div className="text-fg/70 rounded-xl bg-gray-100 p-6 text-center">
+          Loading Hidden Object…
+        </div>
+      );
+    }
+
+    return (
+      <HiddenObjectAsking
+        puzzle={puzzle}
+        foundIds={foundIds}
+        finished={finished}
+        onTap={onTap}
+        remainingSeconds={remainingSeconds}
       />
     );
   }
@@ -112,4 +165,5 @@ const RoundRouter: React.FC<RoundRouterProps> = ({
 };
 
 export default RoundRouter;
+
 

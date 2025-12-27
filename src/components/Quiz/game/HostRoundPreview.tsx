@@ -66,7 +66,7 @@ const HostRoundPreview: React.FC<HostRoundPreviewProps> = ({
           <li>• Read the gamplay below to players</li>
           <li>• Start round when players are ready</li>
           <li>• Questions auto-transition when timer expires</li>
-          <li>• Review stage: Triggers when Qqestions are complete. Control the reivew speed and share stats</li>
+          <li>• Review stage: Triggers when qestions are complete. Control the reivew speed and share stats</li>
           <li>• Control leaderboard transitions (round results & stats, then overall leaderboard)</li>
           <li>• Allow time for players to use extras during round leaderboard</li>
         </ul>
