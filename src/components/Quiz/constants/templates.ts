@@ -39,12 +39,12 @@ const quizTemplates: QuizTemplate[] = [
            {
       type: 'hidden_object',
       category: 'image',
-      difficulty: 'easy',
+      difficulty: 'hard',
       customConfig: {
         // keep consistent with your RoundConfig shape
         questionsPerRound: 1,
         timePerQuestion: 0,
-        totalTimeSeconds: 30, // ✅ round duration
+        totalTimeSeconds: 45, // ✅ round duration
         // optional if you added nested config:
         // hiddenObject: { secondsToPoints: 1 }
       }
@@ -84,25 +84,38 @@ const quizTemplates: QuizTemplate[] = [
   name: 'TEST – Hidden Object',
   description: 'Temporary template to validate hidden object round end-to-end (delete later).',
   icon: '🧪',
-  difficulty: 'Easy',
+  difficulty: 'Medium',
   rounds: [
       
     {
       type: 'hidden_object',
-      category: 'image',
-      difficulty: 'easy',
+      category: 'nature',
+      difficulty: 'hard',
       customConfig: {
         // keep consistent with your RoundConfig shape
         questionsPerRound: 1,
         timePerQuestion: 0,
-        totalTimeSeconds: 30, // ✅ round duration
+        totalTimeSeconds: 45, // ✅ round duration
+        // optional if you added nested config:
+        // hiddenObject: { secondsToPoints: 1 }
+      }
+    },
+     {
+      type: 'hidden_object',
+      category: 'image',
+      difficulty: 'hard',
+      customConfig: {
+        // keep consistent with your RoundConfig shape
+        questionsPerRound: 1,
+        timePerQuestion: 0,
+        totalTimeSeconds: 45, // ✅ round duration
         // optional if you added nested config:
         // hiddenObject: { secondsToPoints: 1 }
       }
     },
 
   ],
-  tags: ['Audience: Test', 'Topic: Hidden Object', 'Duration: ≈10m']
+  tags: ['Audience: Test', 'Topic: Hidden Object', 'Duration: ≈3m']
 },
 
 

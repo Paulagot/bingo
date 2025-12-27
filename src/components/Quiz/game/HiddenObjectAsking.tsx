@@ -70,6 +70,27 @@ const HiddenObjectAsking: React.FC<Props> = ({
           {remainingSeconds !== null ? `${remainingSeconds}s left` : ''}
         </div>
       </div>
+        <div className="rounded-xl border bg-white p-3">
+        <div className="text-xs text-gray-600 mb-2">Items to find</div>
+        <div className="flex flex-wrap gap-2">
+          {puzzle.items.map((it) => {
+            const isFound = foundSet.has(it.id);
+            return (
+              <span
+                key={it.id}
+                className={[
+                  'text-xs px-2 py-1 rounded-full border',
+                  isFound ? 'bg-green-50 border-green-200 text-green-700 line-through' : 'bg-gray-50 border-gray-200'
+                ].join(' ')}
+              >
+                {it.label}
+              </span>
+            );
+          })}
+        </div>
+
+      
+      </div>
 
       <div className="rounded-xl overflow-hidden border bg-white">
         <div className="relative">
@@ -90,29 +111,7 @@ const HiddenObjectAsking: React.FC<Props> = ({
         </div>
       </div>
 
-      <div className="rounded-xl border bg-white p-3">
-        <div className="text-xs text-gray-600 mb-2">Items to find</div>
-        <div className="flex flex-wrap gap-2">
-          {puzzle.items.map((it) => {
-            const isFound = foundSet.has(it.id);
-            return (
-              <span
-                key={it.id}
-                className={[
-                  'text-xs px-2 py-1 rounded-full border',
-                  isFound ? 'bg-green-50 border-green-200 text-green-700 line-through' : 'bg-gray-50 border-gray-200'
-                ].join(' ')}
-              >
-                {it.label}
-              </span>
-            );
-          })}
-        </div>
-
-        <div className="mt-3 text-xs text-gray-600">
-          Scoring: <span className="font-medium">1</span> per item + <span className="font-medium">1</span> per remaining second (only when you finish).
-        </div>
-      </div>
+    
     </div>
   );
 };

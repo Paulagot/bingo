@@ -130,6 +130,8 @@ const HostControlsCoreInner = () => {
     clearActivity,
     hasRoundStats,
     hasFinalStats,
+    recoverFinalStats,
+    updateCurrentRoundStats,
   } = useHostStats(hostStatsParams);
 
   // cache the last roomState we actually applied for cheap equality checks
@@ -655,33 +657,42 @@ const [hiddenObjectRemainingSeconds, setHiddenObjectRemainingSeconds] = useState
     return ids.map((id) => map.get(id) ?? id);
   })();
 
-  useHostRecovery({
-    socket,
-    connected,
-    roomId,
-    setters: {
-      setRoomState,
-      setPlayersInRoom,
+useHostRecovery({
+  socket,
+  connected,
+  roomId,
+  setters: {
+    setRoomState,
+    setPlayersInRoom,
 
-      setCurrentQuestion,
-      setReviewQuestion,
-      setIsShowingRoundResults,
-      setRoundLeaderboard,
-      setLeaderboard,
-      setReviewComplete,
-      setQuestionInRound,
-      setTotalInRound,
+    setCurrentQuestion,
+    setReviewQuestion,
+    setIsShowingRoundResults,
+    setRoundLeaderboard,
+    setLeaderboard,
+    setReviewComplete,
+    setQuestionInRound,
+    setTotalInRound,
 
-      setTbParticipants,
-      setTbQuestion,
-      setTbWinners,
-      setTbPlayerAnswers,
-      setTbCorrectAnswer,
-      setTbShowReview,
-      setTbQuestionNumber,
-      setTbStillTied,
-    },
-  });
+    setHiddenPuzzle: setHiddenObjectPuzzle,
+    setHiddenFoundIds: setHiddenObjectFoundIds,
+    setHiddenFinished: () => {},
+    setRoundRemaining: setHiddenObjectRemainingSeconds,
+
+   
+    recoverFinalStats,
+    updateCurrentRoundStats,
+
+    setTbParticipants,
+    setTbQuestion,
+    setTbWinners,
+    setTbPlayerAnswers,
+    setTbCorrectAnswer,
+    setTbShowReview,
+    setTbQuestionNumber,
+    setTbStillTied,
+  },
+});
 
   /**
    * 🧹 End Game Cleanup Handler
