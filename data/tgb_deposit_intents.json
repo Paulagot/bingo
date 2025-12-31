@@ -1,0 +1,137 @@
+[
+  {
+    "offchainIntentId": "FR-cl4bO8LAvI-1766531338525-f86fc73b-98b0-461a-a1ba-8ee6aabe0f0a",
+    "organizationId": "org_abc123",
+    "currency": "USDC",
+    "network": "base",
+    "amountDecimal": "1.00",
+    "depositAddress": "0xb7ACd1159dBed96B955C4d856fc001De9be59844",
+    "depositTag": null,
+    "id": "tgb-mock-deposit-id",
+    "tgbRequestId": "tgb-mock-req-1",
+    "metadata": {
+      "roomId": "cl4bO8LAvI",
+      "offchainIntentId": "FR-cl4bO8LAvI-1766531338525-f86fc73b-98b0-461a-a1ba-8ee6aabe0f0a"
+    },
+    "status": "mocked",
+    "createdAt": "2025-12-23T23:08:58.526Z",
+    "updatedAt": "2025-12-23T23:08:58.528Z",
+    "roomId": "cl4bO8LAvI",
+    "expectedAmountDecimal": "0.0204",
+    "tgbDepositId": "tgb-mock-deposit-id"
+  },
+  {
+    "depositAddress": "tgb-sim-deposit-address-9a1bebf5-7068-4f6a-91e4-4f676adb4420",
+    "depositTag": null,
+    "offchainIntentId": "FR-room_123-1762877680591-18236e81-52c3-4fda-8da7-7d888e4884d0",
+    "roomId": "room_123",
+    "expectedAmountDecimal": "1.00",
+    "tgbRequestId": "800b3715-0385-4989-b1c7-9bebc90de7a4",
+    "organizationId": 1,
+    "currency": "USDC",
+    "network": "base",
+    "metadata": {
+      "roomId": "room_123",
+      "offchainIntentId": "FR-room_123-1762877680591-18236e81-52c3-4fda-8da7-7d888e4884d0"
+    },
+    "qrCode": null,
+    "status": "pending",
+    "createdAt": "2025-11-11T16:14:41.989Z",
+    "updatedAt": "2025-11-11T16:14:41.989Z"
+  },
+  {
+    "depositAddress": "tgb-sim-deposit-address-7f7f67d8-88c3-4b4a-9fd2-74230c1c64b8",
+    "depositTag": null,
+    "offchainIntentId": "FR-room_123-1762889459038-83adf760-cfb8-4439-8464-1f9662fb9380",
+    "roomId": "room_123",
+    "expectedAmountDecimal": "1.00",
+    "tgbRequestId": "8954698b-0b99-4df6-bb2a-5524ed71c5cc",
+    "organizationId": 1,
+    "currency": "USDC",
+    "network": "base",
+    "metadata": {
+      "roomId": "room_123",
+      "offchainIntentId": "FR-room_123-1762889459038-83adf760-cfb8-4439-8464-1f9662fb9380"
+    },
+    "qrCode": null,
+    "status": "pending",
+    "createdAt": "2025-11-11T19:31:00.081Z",
+    "updatedAt": "2025-11-11T19:31:00.081Z"
+  },
+  {
+    "depositAddress": "tgb-sim-deposit-address-44c3b6ee-e8b6-4371-a387-6cd887d24a74",
+    "depositTag": null,
+    "offchainIntentId": "FR-room_123-1762944214329-bd6d7de6-8db6-41f3-bb23-0ee7e71b13dc",
+    "roomId": "room_123",
+    "expectedAmountDecimal": "1.00",
+    "tgbRequestId": "52020aaf-0b9f-4e7f-bbf7-9122050f1e22",
+    "organizationId": 1,
+    "currency": "USDC",
+    "network": "base",
+    "metadata": {
+      "roomId": "room_123",
+      "offchainIntentId": "FR-room_123-1762944214329-bd6d7de6-8db6-41f3-bb23-0ee7e71b13dc"
+    },
+    "qrCode": null,
+    "status": "pending",
+    "createdAt": "2025-11-12T10:43:35.469Z",
+    "updatedAt": "2025-11-12T10:43:35.469Z"
+  },
+  {
+    "depositAddress": "tgb-sim-deposit-address-78fa3fd0-60b0-44c4-8d8f-0f49f6c93285",
+    "depositTag": null,
+    "offchainIntentId": "FR-room_123-1762947846978-6ebb92de-9baf-4fca-9a5c-278692c397ea",
+    "roomId": "room_123",
+    "expectedAmountDecimal": "1.00",
+    "tgbRequestId": "025912c3-f85e-4636-9e2c-10fd10820299",
+    "organizationId": 1,
+    "currency": "USDC",
+    "network": "base",
+    "metadata": {
+      "roomId": "room_123",
+      "offchainIntentId": "FR-room_123-1762947846978-6ebb92de-9baf-4fca-9a5c-278692c397ea"
+    },
+    "qrCode": null,
+    "status": "pending",
+    "createdAt": "2025-11-12T11:44:08.073Z",
+    "updatedAt": "2025-11-12T11:44:08.073Z"
+  },
+  {
+    "depositAddress": "tgb-sim-deposit-address-8e457691-7439-4b7e-ac95-3fb4f15ba219",
+    "depositTag": null,
+    "offchainIntentId": "FR-room_123-1762948007629-be5b2de2-d8d4-4f97-a972-766c8c85d83e",
+    "roomId": "room_123",
+    "expectedAmountDecimal": "1.00",
+    "tgbRequestId": "53889504-ae92-4765-95c9-8763a45dc217",
+    "organizationId": 1,
+    "currency": "USDC",
+    "network": "base",
+    "metadata": {
+      "roomId": "room_123",
+      "offchainIntentId": "FR-room_123-1762948007629-be5b2de2-d8d4-4f97-a972-766c8c85d83e"
+    },
+    "qrCode": null,
+    "status": "pending",
+    "createdAt": "2025-11-12T11:46:48.394Z",
+    "updatedAt": "2025-11-12T11:46:48.394Z"
+  },
+  {
+    "depositAddress": "tgb-sim-deposit-address-9a8c63d4-1549-4ad4-919a-3c8fe037f2f5",
+    "depositTag": null,
+    "offchainIntentId": "FR-room_123-1762966040767-d911ed14-a7cd-4c19-a467-a884280fff31",
+    "roomId": "room_123",
+    "expectedAmountDecimal": "1.00",
+    "tgbRequestId": "ee6c36a1-e3d6-4e65-b7a3-a6fe6c0d11a9",
+    "organizationId": 1,
+    "currency": "USDC",
+    "network": "base",
+    "metadata": {
+      "roomId": "room_123",
+      "offchainIntentId": "FR-room_123-1762966040767-d911ed14-a7cd-4c19-a467-a884280fff31"
+    },
+    "qrCode": null,
+    "status": "pending",
+    "createdAt": "2025-11-12T16:47:21.852Z",
+    "updatedAt": "2025-11-12T16:47:21.852Z"
+  }
+]
