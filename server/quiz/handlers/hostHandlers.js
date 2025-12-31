@@ -387,7 +387,9 @@ function maybeStartTiebreaker(
     return allRoundsStats;
   }
 
-  // ✅ NEW FUNCTION: Generate enhanced player statistics
+// UPDATED: generateEnhancedPlayerStats function
+// ✅ FIX: Now includes global extras (rob points, restore points) used during leaderboard phase
+
 function generateEnhancedPlayerStats(room, playerId) {
   const playerData = room.playerData[playerId];
   const player = room.players.find(p => p.id === playerId);
@@ -402,6 +404,10 @@ function generateEnhancedPlayerStats(room, playerId) {
   const correctAnswers = allAnswers.filter(a => a.correct).length;
   const wrongAnswers = allAnswers.filter(a => !a.correct && !a.noAnswer).length;
   const noAnswers = allAnswers.filter(a => a.noAnswer).length;
+  
+  // ✅ NEW: Handle skipped answers (for speed rounds)
+  const skippedAnswers = allAnswers.filter(a => a.skipped).length;
+  
   const accuracyRate = totalAnswered > 0 ? Math.round((correctAnswers / totalAnswered) * 100) : 0;
 
   // Calculate round progression
@@ -410,9 +416,39 @@ function generateEnhancedPlayerStats(room, playerId) {
   const bestRound = Math.max(...roundScores.map(s => s || 0));
   const worstRound = Math.min(...roundScores.map(s => s || 0));
 
-  // Count strategic extras usage
-  const extrasUsed = Object.values(playerData.usedExtras || {}).filter(used => used).length;
-  const extrasTypes = Object.keys(playerData.usedExtras || {}).filter(key => playerData.usedExtras[key]);
+  // ✅ FIX: Count strategic extras usage INCLUDING global extras
+  // Step 1: Get extras from playerData.usedExtras (per-question extras)
+  const perQuestionExtras = new Set(
+    Object.keys(playerData.usedExtras || {}).filter(key => playerData.usedExtras[key])
+  );
+  
+  // Step 2: Add global extras used by this player across all rounds
+  const globalExtrasUsed = room.globalExtrasUsedThisRound || [];
+  for (const extra of globalExtrasUsed) {
+    if (extra.playerId === playerId) {
+      perQuestionExtras.add(extra.extraId);
+    }
+  }
+  
+  // Also check previous rounds' global extras if stored
+  if (room.globalExtrasHistory) {
+    for (const roundExtras of Object.values(room.globalExtrasHistory)) {
+      if (Array.isArray(roundExtras)) {
+        for (const extra of roundExtras) {
+          if (extra.playerId === playerId) {
+            perQuestionExtras.add(extra.extraId);
+          }
+        }
+      }
+    }
+  }
+
+  const extrasUsed = perQuestionExtras.size;
+  const extrasTypes = Array.from(perQuestionExtras);
+
+  // ✅ Calculate actual pointsRestored from playerData
+  // This should already be correctly tracked in playerData.pointsRestored
+  const pointsRestored = playerData.pointsRestored || 0;
 
   return {
     playerId,
@@ -424,6 +460,7 @@ function generateEnhancedPlayerStats(room, playerId) {
       correctAnswers,
       wrongAnswers, 
       noAnswers,
+      skippedAnswers, // ✅ NEW: Include skipped answers for speed rounds
       accuracyRate,
       pointsPerQuestion: totalAnswered > 0 ? Math.round(playerData.score / totalAnswered) : 0
     },
@@ -439,17 +476,17 @@ function generateEnhancedPlayerStats(room, playerId) {
     
     // Strategic Play
     strategicPlay: {
-      extrasUsed,
-      extrasTypes,
+      extrasUsed,          // ✅ FIXED: Now includes global extras
+      extrasTypes,          // ✅ FIXED: Now includes global extras
       penaltiesReceived: playerData.cumulativeNegativePoints || 0,
-      pointsRestored: playerData.pointsRestored || 0
+      pointsRestored       // ✅ This should already be correct from playerData
     },
     
     // Final Stats
     finalStats: {
       finalScore: playerData.score || 0,
       cumulativeNegativePoints: playerData.cumulativeNegativePoints || 0,
-      pointsRestored: playerData.pointsRestored || 0
+      pointsRestored       // ✅ This should already be correct from playerData
     }
   };
 }
@@ -1090,32 +1127,55 @@ socket.on('tiebreak:proceed_to_completion', ({ roomId }) => {
   });
 
   // ✅ Continue to overall leaderboard
-  socket.on('continue_to_overall_leaderboard', ({ roomId }) => {
-    if (debug) console.log(`[Host] ➡️ continue_to_overall_leaderboard for ${roomId}`);
+socket.on('continue_to_overall_leaderboard', ({ roomId }) => {
+  if (debug) console.log(`[Host] ➡️ continue_to_overall_leaderboard for ${roomId}`);
 
-    const room = getQuizRoom(roomId);
-    if (!room) {
-      socket.emit('quiz_error', { message: 'Room not found' });
-      return;
+  const room = getQuizRoom(roomId);
+  if (!room) {
+    socket.emit('quiz_error', { message: 'Room not found' });
+    return;
+  }
+
+  if (room.hostSocketId !== socket.id) {
+    socket.emit('quiz_error', { message: 'Only the host can continue to overall leaderboard' });
+    return;
+  }
+
+  if (room.currentPhase !== 'leaderboard') {
+    socket.emit('quiz_error', { message: 'Can only continue to overall leaderboard from leaderboard phase' });
+    return;
+  }
+
+  // ✅ CRITICAL FIX: Recalculate round stats to capture global extras used during leaderboard phase
+  const updatedRoundStats = getCurrentRoundStats(roomId);
+  if (updatedRoundStats && room.storedRoundStats) {
+    room.storedRoundStats[room.currentRound] = {
+      ...room.storedRoundStats[room.currentRound],
+      ...updatedRoundStats,
+      timestamp: Date.now()
+    };
+    
+    // ✅ Re-emit updated stats to host so they have the corrected data
+    socket.emit('host_current_round_stats', room.storedRoundStats[room.currentRound]);
+    
+    if (debug) {
+      console.log(`[Host] 📊 Updated round ${room.currentRound} stats with global extras:`, {
+        hintsUsed: updatedRoundStats.hintsUsed,
+        freezesUsed: updatedRoundStats.freezesUsed,
+        pointsRobbed: updatedRoundStats.pointsRobbed,
+        pointsRestored: updatedRoundStats.pointsRestored,
+        totalExtrasUsed: updatedRoundStats.totalExtrasUsed
+      });
     }
+  }
 
-    if (room.hostSocketId !== socket.id) {
-      socket.emit('quiz_error', { message: 'Only the host can continue to overall leaderboard' });
-      return;
-    }
+  const overallLeaderboard = calculateOverallLeaderboard(roomId);
+  room.currentOverallLeaderboard = overallLeaderboard;
 
-    if (room.currentPhase !== 'leaderboard') {
-      socket.emit('quiz_error', { message: 'Can only continue to overall leaderboard from leaderboard phase' });
-      return;
-    }
+  namespace.to(roomId).emit('leaderboard', overallLeaderboard);
 
-    const overallLeaderboard = calculateOverallLeaderboard(roomId);
-    room.currentOverallLeaderboard = overallLeaderboard;
-
-    namespace.to(roomId).emit('leaderboard', overallLeaderboard);
-
-    if (debug) console.log(`[Host] ✅ Overall leaderboard shown to all players`);
-  });
+  if (debug) console.log(`[Host] ✅ Overall leaderboard shown to all players`);
+});
 
   socket.on('end_quiz', ({ roomId }) => {
     if (debug) console.log(`[Host] end_quiz for ${roomId}`);
