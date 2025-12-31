@@ -29,8 +29,10 @@ export async function buildPaymentReconciliationPdf(payload: any, opts?: { save?
 
   const generatedAt = new Date().toLocaleString();
 
-  const approvedBy = payload?.reconciliation?.approvedBy ?? '';
-const approvedAt = payload?.reconciliation?.approvedAt ?? null;
+  // ✅ FIX: Get reconciliation data from correct path
+  const roomId = payload?.config?.roomId ?? 'Unknown';
+  const approvedBy = payload?.config?.reconciliation?.approvedBy ?? '';
+  const approvedAt = payload?.config?.reconciliation?.approvedAt ?? null;
 
   // -------------------------------
   // 1. ANALYZE CORE DATA
@@ -45,13 +47,14 @@ const approvedAt = payload?.reconciliation?.approvedAt ?? null;
   // -------------------------------
   // 2. COVER PAGE
   // -------------------------------
-addCoverPage(
-  doc,
-  payload,
-  generatedAt,
-  approvedBy,
-  approvedAt
-)
+  // ✅ FIX: Pass parameters in correct order: doc, roomId, approvedBy, approvedAt, generatedAt
+  addCoverPage(
+    doc,
+    roomId,        // ✅ Now passing roomId string (not entire payload object)
+    approvedBy,
+    approvedAt,
+    generatedAt    // ✅ Now in correct position (was in wrong position before)
+  );
   pageNumber++;
 
   // -------------------------------
@@ -125,14 +128,14 @@ addCoverPage(
   // 8. PRIZE REGISTER (FULL AUDIT)
   // -------------------------------
   doc.addPage();
-addPrizeRegisterPage(doc, pageNumber++, generatedAt, {
-  currency: core.currency,
-  awards: core.awards.map(a => ({
-    ...a,
-    declaredValue: a.declaredValue ?? 0,
-    prizeValue: a.prizeValue ?? 0,   // 🔥 NEW FIX
-  })),
-});
+  addPrizeRegisterPage(doc, pageNumber++, generatedAt, {
+    currency: core.currency,
+    awards: core.awards.map(a => ({
+      ...a,
+      declaredValue: a.declaredValue ?? 0,
+      prizeValue: a.prizeValue ?? 0,   // 🔥 NEW FIX
+    })),
+  });
 
 
   // -------------------------------

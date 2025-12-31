@@ -30,7 +30,7 @@ export const ImpactScreen: React.FC<ImpactScreenProps> = ({
             <h3 className="mb-2 text-4xl font-bold text-green-300">
               {currency}{fundraisingData.totalRaised.toFixed(2)}
             </h3>
-            <p className="text-xl">Total Raised for {config?.web3Charity || 'Charity'}</p>
+            <p className="text-xl">Total Raised for {config?.web3Charity || 'the cause'}</p>
           </div>
 
           <div className="grid gap-6 md:grid-cols-3">

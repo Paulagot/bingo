@@ -73,14 +73,21 @@ export function addPrizeRegisterPage(
         ? a.sponsor
         : a.sponsor?.name || '';
 
-    const history = (a.statusHistory || [])
-      .map((h) => {
-        const parts = [`${h.status} @ ${h.at}`];
-        if (h.byUserName) parts.push(`by ${h.byUserName}`);
-        if (h.note) parts.push(`note: ${h.note}`);
-        return parts.join(' • ');
-      })
-      .join(' | ');
+    // ✅ Simplified status history for better display
+    const recentStatus = (a.statusHistory || []).slice(-2).map((h) => {
+      return `${h.status} (${new Date(h.at).toLocaleDateString()})`;
+    }).join(', ') || a.status || '';
+
+    // ✅ Format dates more compactly
+    const formatDate = (dateStr: string | undefined) => {
+      if (!dateStr) return '';
+      try {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
+      } catch {
+        return dateStr;
+      }
+    };
 
     return [
       a.place ?? '',
@@ -91,14 +98,13 @@ export function addPrizeRegisterPage(
       a.status || '',
       a.awardMethod || '',
       a.awardReference || '',
-      a.declaredAt || '',
-      a.deliveredAt || '',
-      a.collectedAt || '',
-      history,
+      formatDate(a.declaredAt),
+      formatDate(a.deliveredAt),
+      recentStatus,
     ];
   });
 
-  // ---- AutoTable ----
+  // ---- AutoTable with optimized column widths ----
   autoTable(doc, {
     startY: y + 10,
     head: [
@@ -113,44 +119,56 @@ export function addPrizeRegisterPage(
         'Ref',
         'Declared',
         'Delivered',
-        'Collected',
-        'History',
+        'Recent Activity',
       ],
     ],
     body: tableRows,
     theme: 'grid',
     margin: { left: 40, right: 40 },
     styles: {
-      fontSize: PDF_FONT.body,
+      fontSize: 8, // ✅ Reduced from 10 to fit more
       textColor: PDF_COLORS.textDark,
       cellWidth: 'wrap',
       valign: 'top',
+      cellPadding: 2, // ✅ Reduced padding
     },
     headStyles: {
       fillColor: [237, 233, 254],
       fontStyle: 'bold',
       textColor: PDF_COLORS.textDark,
+      fontSize: 8,
     },
     alternateRowStyles: {
       fillColor: [250, 250, 255],
     },
-    // Allow wrapping but keep columns readable
+    // ✅ FIXED: Optimized column widths that total ~515 points (fits within margins)
     columnStyles: {
-      0: { cellWidth: 35 },   // place
-      1: { cellWidth: 100 },  // prize
-      2: { cellWidth: 60 },   // value
-      3: { cellWidth: 80 },   // sponsor
-      4: { cellWidth: 80 },   // winner
-      5: { cellWidth: 60 },   // status
-      6: { cellWidth: 55 },   // method
-      7: { cellWidth: 55 },   // reference
-      8: { cellWidth: 70 },   // declared
-      9: { cellWidth: 70 },   // delivered
-      10: { cellWidth: 70 },  // collected
-      11: { cellWidth: 160 }, // history (largest)
+      0: { cellWidth: 30 },   // Place (was 35)
+      1: { cellWidth: 75 },   // Prize (was 100)
+      2: { cellWidth: 45 },   // Value (was 60)
+      3: { cellWidth: 55 },   // Sponsor (was 80)
+      4: { cellWidth: 55 },   // Winner (was 80)
+      5: { cellWidth: 45 },   // Status (was 60)
+      6: { cellWidth: 40 },   // Method (was 55)
+      7: { cellWidth: 40 },   // Reference (was 55)
+      8: { cellWidth: 35 },   // Declared (was 70, now compact date)
+      9: { cellWidth: 35 },   // Delivered (was 70, now compact date)
+      10: { cellWidth: 60 },  // Recent Activity (was 160 for full history)
     },
+    // Total: 30+75+45+55+55+45+40+40+35+35+60 = 515 points ✅
 
     pageBreak: 'auto',
-  
   });
+
+  // ✅ Add note about detailed history if there's space
+  const finalY = (doc as any).lastAutoTable.finalY;
+  if (finalY < doc.internal.pageSize.getHeight() - 100) {
+    doc.setFontSize(8);
+    doc.setTextColor(PDF_COLORS.textLight);
+    doc.text(
+      'Note: Full status history available in reconciliation.json file',
+      40,
+      finalY + 15
+    );
+  }
 }
