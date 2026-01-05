@@ -5,8 +5,12 @@ import ModernStandardRound from './ModernStandardRound';
 import ReviewPhase from './ReviewPhase';
 import SpeedAsking from './SpeedAsking';
 import HiddenObjectAsking from './HiddenObjectAsking';
-import HiddenObjectReview from './HiddenObjectReview'; // ✅ add this new component
+import HiddenObjectReview from './HiddenObjectReview';
+import OrderImageAsking from './OrderImageAsking'; // ✅ ADD
+import OrderImageReview from './OrderImageReview'; // ✅ ADD
 import type { HiddenObjectPuzzle } from './HiddenObjectAsking';
+
+const Debug = false;
 
 interface AnswerStatistics {
   totalPlayers: number;
@@ -29,6 +33,7 @@ interface RoundRouterProps extends RoundComponentProps {
   statistics?: AnswerStatistics;
   isHost?: boolean;
   playersInRoom?: { id: string; name: string }[];
+  onOrderChange?: (order: string[]) => void;
 
   // Countdown / FX
   isFlashing?: boolean;
@@ -42,6 +47,11 @@ interface RoundRouterProps extends RoundComponentProps {
   finished?: boolean;
   onTap?: (itemId: string, x: number, y: number) => void;
   remainingSeconds?: number | null;
+
+  // ✅ Order Image props
+  orderImageQuestion?: any;
+  playerOrder?: string[] | null;
+  onOrderSubmit?: (order: string[]) => void;
 }
 
 const RoundRouter: React.FC<RoundRouterProps> = ({
@@ -70,8 +80,42 @@ const RoundRouter: React.FC<RoundRouterProps> = ({
   onTap,
   remainingSeconds = null,
 
+  // order image
+  orderImageQuestion,
+  playerOrder,
+  onOrderSubmit,
+
   ...props
 }) => {
+    if (Debug) console.log('[RoundRouter] Debug:', {
+    roomPhase,
+    currentRoundType,
+    hasQuestion: !!question,
+    hasOrderImageQuestion: !!orderImageQuestion,
+    hasOnOrderSubmit: !!onOrderSubmit,
+    questionId: question?.id,
+    orderQuestionId: orderImageQuestion?.id
+  });
+  // ✅ ORDER IMAGE REVIEW - Add BEFORE default ReviewPhase
+  if (roomPhase === 'reviewing' && currentRoundType === 'order_image') {
+  if (!orderImageQuestion) {
+    return (
+      <div className="text-fg/70 rounded-xl bg-gray-100 p-6 text-center">
+        Loading Order Image review…
+      </div>
+    );
+  }
+
+    return (
+     <OrderImageReview
+      question={orderImageQuestion} // ✅ Pass orderImageQuestion instead
+      playerOrder={playerOrder || null}
+      questionNumber={questionNumber}
+      totalQuestions={totalQuestions}
+    />
+    );
+  }
+
   // ✅ Hidden Object REVIEW must bypass ReviewPhase (no "question.text" concept)
   if (roomPhase === 'reviewing' && currentRoundType === 'hidden_object') {
     if (!puzzle) {
@@ -87,6 +131,13 @@ const RoundRouter: React.FC<RoundRouterProps> = ({
 
   // Default REVIEW (standard Q/A rounds)
   if (roomPhase === 'reviewing') {
+      if (!question) {
+    return (
+      <div className="text-fg/70 rounded-xl bg-gray-100 p-6 text-center">
+        Loading review…
+      </div>
+    );
+  }
     return (
       <ReviewPhase
         question={question}
@@ -139,7 +190,30 @@ const RoundRouter: React.FC<RoundRouterProps> = ({
         foundIds={foundIds}
         finished={finished}
         onTap={onTap}
-        remainingSeconds={remainingSeconds}
+        // remainingSeconds={remainingSeconds}
+      />
+    );
+  }
+
+  // ✅ ORDER IMAGE — asking
+  if (currentRoundType === 'order_image') {
+    if (!orderImageQuestion || !onOrderSubmit) {
+      return (
+        <div className="text-fg/70 rounded-xl bg-gray-100 p-6 text-center">
+          Loading Order Image…
+        </div>
+      );
+    }
+
+    return (
+      <OrderImageAsking
+        question={orderImageQuestion}
+        onSubmit={onOrderSubmit}
+        isFrozen={props.isFrozen}
+        onOrderChange={props.onOrderChange}
+        frozenNotice={props.frozenNotice}
+        timeLeft={props.timeLeft}
+        answerSubmitted={props.answerSubmitted}
       />
     );
   }

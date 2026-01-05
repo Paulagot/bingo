@@ -53,7 +53,8 @@ export type RoundTypeId =
   | 'general_trivia'
   | 'wipeout'
   | 'speed_round'
-  | 'hidden_object';
+  | 'hidden_object'
+  | 'order_image';
   // | 'head_to_head'
   // | 'media_puzzle';
 
@@ -255,7 +256,7 @@ export type RoomPhase = 'waiting' | 'launched' | 'asking' | 'reviewing' | 'leade
 
 // Props interface for round components
 export interface RoundComponentProps {
-  question: Question;
+  question: Question | null;
   timeLeft: number | null;
   timerActive: boolean;
   selectedAnswer: string;

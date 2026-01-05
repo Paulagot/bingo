@@ -85,7 +85,7 @@ const LaunchedPhase: React.FC<LaunchedPhaseProps> = ({
   const isHiddenObject = roundTypeId === 'hidden_object';
   const hiddenObjectConfig = roundConfig?.hiddenObject || defaultConfig.hiddenObject;
   const itemTarget = isHiddenObject 
-    ? (hiddenObjectConfig?.itemCountByDifficulty?.[roundDifficulty] || 6)
+    ? (hiddenObjectConfig?.itemCountByDifficulty?.[roundDifficulty] || 10)
     : null;
   const pointsPerFind = isHiddenObject && roundDifficulty
     ? (hiddenObjectConfig?.pointsPerFindByDifficulty?.[roundDifficulty] || 1)

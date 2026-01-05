@@ -13,6 +13,21 @@ export function hydrateRoomBasicsFromSnap(
   if (Array.isArray(snap?.players)) setPlayersInRoom(snap.players);
 }
 
+export function hydrateOrderImageFromSnap(snap: any, setters: {
+  setOrderImageQuestion: (q: any) => void;
+  setOrderImageReviewQuestion: (r: any) => void;
+}) {
+  // Asking phase - order_image question
+  if (snap.orderImageQuestion) {
+    setters.setOrderImageQuestion(snap.orderImageQuestion);
+  }
+  
+  // ✅ FIXED: Check for snap.review.images (order_image review is in snap.review)
+  if (snap.review && Array.isArray(snap.review.images)) {
+    setters.setOrderImageReviewQuestion(snap.review);
+  }
+}
+
 export function hydrateQuestionOrReviewFromSnap(
   snap: any,
   {
@@ -195,7 +210,9 @@ export function hydrateHiddenObjectFromSnap(
         category: ho.puzzle.category,
         totalSeconds: ho.puzzle.totalSeconds,
         itemTarget: ho.puzzle.itemTarget,
-        items: ho.puzzle.items || []
+        items: ho.puzzle.items || [],
+        puzzleNumber: ho.puzzleNumber,      // ✅ ADD THIS
+        totalPuzzles: ho.totalPuzzles,      // ✅ ADD THIS
       });
     }
     

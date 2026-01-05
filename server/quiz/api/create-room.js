@@ -22,17 +22,17 @@ console.log(`[Router] 🆕 Quiz API Router loaded - Version: ${ROUTER_VERSION}`)
 console.log(`[Router] 🆕 Timestamp: ${new Date().toISOString()}`);
 
 // Add middleware to log ALL requests to this router
-router.use((req, res, next) => {
-  console.log('========================================');
-  console.log('[Router] 📍 Request reached quiz API router');
-  console.log(`[Router] 📍 Version: ${ROUTER_VERSION}`);
-  console.log('[Router] 📍 Path:', req.path);
-  console.log('[Router] 📍 Method:', req.method);
-  console.log('[Router] 📍 URL:', req.url);
-  console.log('[Router] 📍 Original URL:', req.originalUrl);
-  console.log('========================================');
-  next();
-});
+// router.use((req, res, next) => {
+//   console.log('========================================');
+//   console.log('[Router] 📍 Request reached quiz API router');
+//   console.log(`[Router] 📍 Version: ${ROUTER_VERSION}`);
+//   console.log('[Router] 📍 Path:', req.path);
+//   console.log('[Router] 📍 Method:', req.method);
+//   console.log('[Router] 📍 URL:', req.url);
+//   console.log('[Router] 📍 Original URL:', req.originalUrl);
+//   console.log('========================================');
+//   next();
+// });
 
 // Test endpoint to verify router is working
 router.get('/test', (req, res) => {
@@ -550,11 +550,11 @@ router.post('/create-web3-room', async (req, res) => {
       });
     }
 
-    console.log('[API] ✅ Successfully created Web3 room in memory');
-    console.log(`[API] 🆔 Room ID: ${roomId}`);
-    console.log(`[API] 👤 Host ID: ${hostId}`);
-    console.log(`[API] 📍 Contract: ${contractAddress}`);
-    console.log('--------------------------------------');
+    // console.log('[API] ✅ Successfully created Web3 room in memory');
+    // console.log(`[API] 🆔 Room ID: ${roomId}`);
+    // console.log(`[API] 👤 Host ID: ${hostId}`);
+    // console.log(`[API] 📍 Contract: ${contractAddress}`);
+    // console.log('--------------------------------------');
 
     // Return both field names for backward compatibility
     const responseData = {

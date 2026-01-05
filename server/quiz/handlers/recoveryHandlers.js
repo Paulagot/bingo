@@ -52,6 +52,8 @@ function getEngine(room) {
       return import('../gameplayEngines/speedRoundEngine.js');
     case 'hidden_object':
       return import('../gameplayEngines/hiddenObjectEngine.js');
+    case 'order_image':
+      return import('../gameplayEngines/orderImageEngine.js');
     default:
       if (debug) console.warn(`[recovery] Unknown round type: ${roundType}`);
       return null;
@@ -59,34 +61,83 @@ function getEngine(room) {
 }
 
 // ✅ helper: build a safe hidden-object snapshot for ANY role (player/host/admin)
-function buildHiddenObjectSnap(room, userId) {
+function buildHiddenObjectSnap(room, userId, phase) {
   const ho = room.hiddenObject;
   if (!ho) return null;
 
   const pState = ho.player?.[userId]; // may be undefined for host/admin (that's fine)
-  const remaining =
-    room.currentPhase === 'asking'
-      ? Math.max(0, Math.floor(((room.roundEndTime || 0) - Date.now()) / 1000))
-      : 0;
+  
+  // ✅ PHASE-SPECIFIC LOGIC
+  if (phase === 'reviewing') {
+    // During review, use room.currentReviewIndex to get the correct puzzle
+    const reviewIndex = room.currentReviewIndex ?? 0;
+    const puzzle = room.reviewQuestions?.[reviewIndex];
+    const puzzleHistory = ho.puzzleHistory?.[reviewIndex];
+    
+    if (!puzzle) {
+      console.warn('[Recovery] No review puzzle found at index', reviewIndex);
+      return null;
+    }
+    
+    // Get player's foundIds for THIS specific puzzle from history
+    const playerFoundIds = puzzleHistory?.playerFoundItems?.[userId] || [];
+    
+    if (debug) {
+      console.log('[Recovery] 🔍 Hidden object review recovery:', {
+        userId,
+        reviewIndex,
+        puzzleId: puzzle.puzzleId,
+        playerFoundIds,
+        puzzleNumber: reviewIndex + 1,
+        totalPuzzles: ho.questionsPerRound
+      });
+    }
+    
+    return {
+      remaining: 0, // No timer during review
+      puzzleNumber: reviewIndex + 1,
+      totalPuzzles: ho.questionsPerRound,
+      puzzle: {
+        puzzleId: puzzle.puzzleId,
+        imageUrl: puzzle.imageUrl,
+        difficulty: puzzle.difficulty,
+        category: puzzle.category,
+        totalSeconds: puzzle.totalSeconds || ho.timeLimitSeconds,
+        itemTarget: puzzle.itemTarget,
+        items: (puzzle.items || []).map((it) => ({
+          id: String(it.id),
+          label: it.label,
+          bbox: it.bbox,
+        })),
+      },
+      foundIds: playerFoundIds,
+      finished: true, // Always finished during review
+    };
+  } else {
+    // During 'asking' phase - use current puzzle
+    const remaining = Math.max(0, Math.floor(((room.puzzleEndTime || 0) - Date.now()) / 1000));
 
-  return {
-    remaining,
-    puzzle: {
-      puzzleId: ho.puzzleId,
-      imageUrl: ho.imageUrl,
-      difficulty: ho.difficulty,
-      category: ho.category,
-      totalSeconds: ho.totalSeconds,
-      itemTarget: ho.itemTarget,
-      items: ho.items.map((it) => ({
-        id: String(it.id),
-        label: it.label,
-        bbox: it.bbox,
-      })),
-    },
-    foundIds: pState?.foundIds ? Array.from(pState.foundIds) : [],
-    finished: !!pState?.finishTs,
-  };
+    return {
+      remaining,
+      puzzleNumber: room.currentQuestionIndex + 1,
+      totalPuzzles: ho.questionsPerRound,
+      puzzle: {
+        puzzleId: ho.currentPuzzle?.puzzleId || ho.puzzleId,
+        imageUrl: ho.currentPuzzle?.imageUrl || ho.imageUrl,
+        difficulty: ho.difficulty,
+        category: ho.category,
+        totalSeconds: ho.timeLimitSeconds,
+        itemTarget: ho.currentPuzzle?.itemTarget || ho.itemTarget,
+        items: (ho.currentPuzzle?.items || ho.items || []).map((it) => ({
+          id: String(it.id),
+          label: it.label,
+          bbox: it.bbox,
+        })),
+      },
+      foundIds: pState?.foundIds ? Array.from(pState.foundIds) : [],
+      finished: !!pState?.finishTs,
+    };
+  }
 }
 
 export function setupRecoveryHandlers(socket, namespace) {
@@ -315,12 +366,55 @@ export function setupRecoveryHandlers(socket, namespace) {
 
         // ✅ hidden_object asking hydration
         if (roundType === 'hidden_object') {
-          const hoSnap = buildHiddenObjectSnap(room, user.id);
+          const hoSnap = buildHiddenObjectSnap(room, user.id, 'asking');
           if (hoSnap) snap.hiddenObject = hoSnap;
         }
+        // ✅ order_image asking hydration - MOVED TO CORRECT POSITION
+        else if (roundType === 'order_image') {
+          const q = room.questions?.[room.currentQuestionIndex];
+          if (q) {
+            const timeLimit = roundCfg?.timePerQuestion || 30;
+            const questionStartTime = room.questionStartTime || Date.now();
+            const elapsed = Math.floor((Date.now() - questionStartTime) / 1000);
+            const remainingTime = Math.max(0, timeLimit - elapsed);
 
+            const pdata = room.playerData?.[user.id];
+            const key = `${q.id}_round${room.currentRound}`;
+            const submittedOrder = pdata?.answers?.[key]?.submitted ?? null;
+            const isFrozen = !!(
+              pdata?.frozenNextQuestion && pdata?.frozenForQuestionIndex === room.currentQuestionIndex
+            );
+
+            // Get the shuffled version that was originally emitted
+            const emittedQuestion = room.emittedOptionsByQuestionId?.[q.id];
+            
+            snap.orderImageQuestion = {
+              id: q.id,
+              prompt: q.prompt,
+              images: emittedQuestion?.images || q.images, // Use shuffled version if available
+              difficulty: q.difficulty,
+              category: q.category,
+              timeLimit,
+              questionStartTime,
+              questionNumber: room.currentQuestionIndex + 1,
+              totalQuestions: room.questions.length,
+              currentQuestionIndex: room.currentQuestionIndex
+            };
+
+            snap.playerRecovery = {
+              hasAnswered: submittedOrder !== null && submittedOrder !== undefined,
+              submittedOrder,
+              isFrozen,
+              frozenBy: pdata?.frozenBy || null,
+              usedExtras: pdata?.usedExtras || {},
+              usedExtrasThisRound: pdata?.usedExtrasThisRound || {},
+              remainingTime,
+              currentQuestionIndex: room.currentQuestionIndex,
+            };
+          }
+        }
         // ✅ speed round asking hydration
-        if (roundType === 'speed_round') {
+        else if (roundType === 'speed_round') {
           const remaining = Math.max(0, Math.floor(((room.roundEndTime || 0) - Date.now()) / 1000));
           const cursor = room.playerCursors?.[user.id] ?? 0;
           const q = room.questions?.[cursor];
@@ -334,8 +428,9 @@ export function setupRecoveryHandlers(socket, namespace) {
               questionStartTime: Date.now(),
             };
           }
-        } else if (roundType !== 'hidden_object') {
-          // ✅ normal per-question rounds
+        }
+        // ✅ normal per-question rounds
+        else {
           const q = room.questions?.[room.currentQuestionIndex];
           if (q) {
             const timeLimit = roundCfg?.timePerQuestion || 10;
@@ -375,14 +470,62 @@ export function setupRecoveryHandlers(socket, namespace) {
       } else if (room.currentPhase === 'reviewing') {
         const roundType = room.config.roundDefinitions?.[roundIndex]?.roundType;
 
-        // ✅ IMPORTANT: hidden_object has NO review questions.
-        // Hydrate the puzzle so review UI can render image + pins after refresh.
+        // ✅ FIXED: hidden_object review hydration - pass phase parameter
         if (roundType === 'hidden_object') {
-          const hoSnap = buildHiddenObjectSnap(room, user.id);
-          if (hoSnap) snap.hiddenObject = hoSnap;
-          // do NOT attempt engine.getCurrentReviewQuestion()
+          const hoSnap = buildHiddenObjectSnap(room, user.id, 'reviewing');
+          if (hoSnap) {
+            snap.hiddenObject = hoSnap;
+            
+            if (debug) {
+              console.log('[Recovery] ✅ Hidden object review snap:', {
+                userId: user.id,
+                phase: room.currentPhase,
+                reviewIndex: room.currentReviewIndex,
+                puzzleNumber: hoSnap.puzzleNumber,
+                foundIds: hoSnap.foundIds.length
+              });
+            }
+          }
+        } else if (roundType === 'order_image') {
+          // ✅ order_image review hydration
+          const enginePromise = getEngine(room);
+          if (enginePromise) {
+            try {
+              const engine = await enginePromise;
+              if (engine?.getCurrentReviewQuestion) {
+                const rq = engine.getCurrentReviewQuestion(roomId);
+                if (rq) {
+                  const pdata = room.playerData?.[user.id];
+                  const key = `${rq.id}_round${room.currentRound}`;
+                  const playerAnswer = pdata?.answers?.[key];
+
+                  snap.review = {
+                    id: rq.id,
+                    prompt: rq.prompt,
+                    images: rq.images, // Full array with order property
+                    difficulty: rq.difficulty,
+                    category: rq.category,
+                    playerOrder: playerAnswer?.submitted || null,
+                    questionNumber: (room.lastEmittedReviewIndex ?? -1) + 1,
+                    totalQuestions: room.questions?.length || 0,
+                  };
+                  
+                  if (debug) {
+                    console.log('[Recovery] ✅ order_image review hydrated:', {
+                      questionId: rq.id,
+                      prompt: rq.prompt?.substring(0, 50),
+                      hasImages: !!rq.images,
+                      playerOrder: playerAnswer?.submitted
+                    });
+                  }
+                }
+              }
+            } catch (e) {
+              if (debug) console.error('[recovery] order_image review engine load failed:', e);
+            }
+          }
         } else {
-          // existing engine-based reviewing hydration
+          // existing standard trivia engine-based reviewing hydration
           const enginePromise = getEngine(room);
           if (enginePromise) {
             try {
@@ -462,11 +605,11 @@ export function setupRecoveryHandlers(socket, namespace) {
         } else {
           snap.tb = base;
         }
-  } else if (room.currentPhase === 'leaderboard' || room.currentPhase === 'complete' || room.currentPhase === 'distributing_prizes') {
+      } else if (room.currentPhase === 'leaderboard' || room.currentPhase === 'complete' || room.currentPhase === 'distributing_prizes') {
         // ✅ helpful: keep hidden_object review payload accessible in leaderboard/complete too
         const roundType = room.config.roundDefinitions?.[roundIndex]?.roundType;
         if (roundType === 'hidden_object') {
-          const hoSnap = buildHiddenObjectSnap(room, user.id);
+          const hoSnap = buildHiddenObjectSnap(room, user.id, room.currentPhase);
           if (hoSnap) snap.hiddenObject = hoSnap;
         }
 
@@ -475,7 +618,7 @@ export function setupRecoveryHandlers(socket, namespace) {
         } else if (room.currentRoundResults && !room.currentOverallLeaderboard) {
           snap.roundLeaderboard = room.currentRoundResults;
           
-          // ✅ NEW: Send current round stats along with round leaderboard
+          // ✅ Send current round stats along with round leaderboard
           if (room.currentRoundStats) {
             snap.currentRoundStats = room.currentRoundStats;
             if (debug) {
@@ -498,7 +641,7 @@ export function setupRecoveryHandlers(socket, namespace) {
           snap.leaderboard = room.currentOverallLeaderboard;
         }
 
-        // ✅ NEW: Send final quiz stats for post-game recovery
+        // ✅ Send final quiz stats for post-game recovery
         if (Array.isArray(room.finalQuizStats) && room.finalQuizStats.length > 0) {
           snap.finalQuizStats = room.finalQuizStats;
           if (debug) {

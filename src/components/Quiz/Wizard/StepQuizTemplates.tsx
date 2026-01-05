@@ -34,10 +34,21 @@ function computeRoundMinutes(round: RoundLite): number {
   const defaults = roundTypeDefaults[round.type];
   const cfg: RoundConfig = { ...defaults, ...(round.customConfig ?? {}) };
 
+  // ✅ Speed round: totalTimeSeconds × 4
   if (round.type === 'speed_round' && cfg.totalTimeSeconds) {
     const seconds = cfg.totalTimeSeconds * 4;
     return Math.round((seconds / 60) * 10) / 10;
   }
+
+  // ✅ Hidden object: questionsPerRound × timeLimitSeconds × 1.5 (asking + review)
+  if (round.type === 'hidden_object') {
+    const puzzles = cfg.questionsPerRound || 0;
+    const timePerPuzzle = cfg.hiddenObject?.timeLimitSeconds || 45;
+    const seconds = puzzles * timePerPuzzle * 1.5; // 1.5 = asking + brief review
+    return Math.round((seconds / 60) * 10) / 10;
+  }
+
+  // ✅ Standard rounds: questions × timePerQuestion × 3
   const q = cfg.questionsPerRound || 0;
   const t = cfg.timePerQuestion || 0;
   const seconds = q * t * 3;
@@ -146,7 +157,7 @@ function collectFilterOptions(templates: QuizTemplate[]) {
   };
 }
 
-// Default “Most popular” when no filters are active
+// Default "Most popular" when no filters are active
 function pickMostPopular(templates: QuizTemplate[], max = 8) {
   const score = (t: QuizTemplate) => {
     let s = 0;
@@ -166,14 +177,13 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
   const [ents, setEnts] = useState<any | null>(null);
   const [_entsLoaded, setEntsLoaded] = useState(false);
 
-useEffect(() => {
-  quizApi
-    .getEntitlements()
-    .then((e) => setEnts(e))
-    .catch(() => setEnts(null))
-    .finally(() => setEntsLoaded(true));
-}, []);
-
+  useEffect(() => {
+    quizApi
+      .getEntitlements()
+      .then((e) => setEnts(e))
+      .catch(() => setEnts(null))
+      .finally(() => setEntsLoaded(true));
+  }, []);
 
   const isDevPlan =
     ents?.plan_id === 2 ||
@@ -249,7 +259,7 @@ useEffect(() => {
 
   const getRoundTypeInfo = (type: RoundTypeId, customConfig?: Partial<RoundConfig>) => {
     const roundType = roundTypeMap[type];
-    const icon = type === 'general_trivia' ? '🧠' : type === 'wipeout' ? '💀' : type === 'speed_round' ? '⚡' : '❓';
+    const icon = type === 'general_trivia' ? '🧠' : type === 'wipeout' ? '💀' : type === 'speed_round' ? '⚡' : type === 'hidden_object' ? '🔎' : type === 'order_image' ? '🔢' : '❓';
 
     if (roundType) {
       const time = computeRoundMinutes({ type, customConfig });
@@ -269,10 +279,9 @@ useEffect(() => {
   };
 
   const handleTemplateSelect = (templateId: string) => {
-    // 🚫 hard block demo for non-devs (defence in depth)
+    // 🚫 Block demo for non-devs
     if (templateId === 'demo-quiz' && !isDevPlan) {
       console.warn('[Templates] Blocked non-dev from selecting demo-quiz');
-      // Optionally show a toast here
       return;
     }
 
@@ -281,31 +290,23 @@ useEffect(() => {
     const template = baseTemplates.find((t) => t.id === templateId);
     if (!template) return;
 
+    // ✅ Templates are authoritative - no overrides
     const roundDefinitions = template.rounds.map((round, index) => {
-      let cfg = { ...roundTypeDefaults[round.type], ...(round.customConfig ?? {}) };
+      // Start with round type defaults
+      const defaults = roundTypeDefaults[round.type];
+      
+      // Merge with template's customConfig (template wins)
+      const cfg = {
+        ...defaults,
+        ...(round.customConfig ?? {}),
+      } as RoundConfig;
 
-      // ---- Demo-specific hard overrides (authoritative) ----
-      if (templateId === 'demo-quiz') {
-        if (round.type === 'wipeout') {
-          cfg = {
-            questionsPerRound: 4,
-            timePerQuestion: 10,
-            pointsPerDifficulty: { easy: 3, medium: 4, hard: 5 },
-            pointsLostPerWrong: 2,
-            pointsLostPerUnanswered: 3,
-          } as RoundConfig;
-        }
-        if (round.type === 'speed_round') {
-          cfg = {
-            ...cfg,
-            questionsPerRound: 40,
-            totalTimeSeconds: 20,
-            skipAllowed: true,
-            pointsPerDifficulty: { easy: 1, medium: 2, hard: 3 },
-            pointsLostPerWrong: 0,
-            pointsLostPerUnanswered: 0,
-          } as RoundConfig;
-        }
+      if (Debug) {
+        console.log(`[Template] Round ${index + 1} (${round.type}):`, {
+          defaults: Object.keys(defaults),
+          custom: round.customConfig ? Object.keys(round.customConfig) : [],
+          final: cfg,
+        });
       }
 
       return {
@@ -496,7 +497,7 @@ useEffect(() => {
         <ul className="space-y-1 text-xs text-blue-800 sm:text-sm">
           <li>• Times include asking, review/leaderboard, and scheduled breaks (heuristic-based)</li>
           <li>• Breaks are placed smartly by audience, difficulty, and quiz length</li>
-          <li>• When no filters are applied you’ll see “Most popular” — swap to real data later</li>
+          <li>• When no filters are applied you'll see "Most popular" — swap to real data later</li>
         </ul>
       </div>
 
@@ -665,7 +666,7 @@ export default StepQuizTemplates;
 
 /** ———————————————————————————————————————————————————————————
  * SelectField using shadcn/ui with styled dropdown CONTENT.
- * Native <select> can’t be fully styled; this solves it.
+ * Native <select> can't be fully styled; this solves it.
  * ——————————————————————————————————————————————————————————— */
 function SelectField({
   label,

@@ -37,7 +37,7 @@ const Web3Provider = lazy(() =>
   import('../../../components/Web3Provider').then(m => ({ default: m.Web3Provider }))
 );
 
-const DEBUG = true; // Enable debug logging
+const DEBUG = false; // Enable debug logging
 
 type TabType = 'overview' | 'assets' | 'launch' | 'players' | 'admins' | 'prizes' | 'payments';
 
@@ -313,7 +313,7 @@ const HostDashboardCore: React.FC = () => {
 
   // === Final leaderboard for the Prizes tab ===
   const prizeLeaderboard = useMemo(() => {
-    console.log('🏆 [HostDashboard] Building prize leaderboard from players:', {
+    if (DEBUG) console.log('🏆 [HostDashboard] Building prize leaderboard from players:', {
       playerCount: players?.length || 0,
       playersRaw: players,
       reconLeaderboard: (config?.reconciliation as any)?.finalLeaderboard,
@@ -323,19 +323,19 @@ const HostDashboardCore: React.FC = () => {
     // Priority 1: Use reconciliation finalLeaderboard if it exists (this is the frozen snapshot)
     const reconLeaderboard = (config?.reconciliation as any)?.finalLeaderboard;
     if (Array.isArray(reconLeaderboard) && reconLeaderboard.length > 0) {
-      console.log('✅ [HostDashboard] Using reconciliation finalLeaderboard:', reconLeaderboard);
+      if (DEBUG) console.log('✅ [HostDashboard] Using reconciliation finalLeaderboard:', reconLeaderboard);
       return reconLeaderboard;
     }
 
     // Priority 2: Use config finalLeaderboard if it exists
     const configLeaderboard = (config as any)?.finalLeaderboard;
     if (Array.isArray(configLeaderboard) && configLeaderboard.length > 0) {
-      console.log('✅ [HostDashboard] Using config finalLeaderboard:', configLeaderboard);
+      if (DEBUG) console.log('✅ [HostDashboard] Using config finalLeaderboard:', configLeaderboard);
       return configLeaderboard;
     }
 
     // Priority 3: Build fresh from current players
-    console.log('⚠️ [HostDashboard] Building leaderboard from players store');
+    if (DEBUG) console.log('⚠️ [HostDashboard] Building leaderboard from players store');
     const list = (players || []).map((p: any) => {
       // Try multiple score fields in priority order
       const score = typeof p.score === 'number'
@@ -346,7 +346,7 @@ const HostDashboardCore: React.FC = () => {
         ? p.finalScore
         : 0;
 
-      console.log(`  Player ${p.name || p.id}: score=${score} (from score=${p.score}, totalScore=${p.totalScore}, finalScore=${p.finalScore})`);
+      if (DEBUG) console.log(`  Player ${p.name || p.id}: score=${score} (from score=${p.score}, totalScore=${p.totalScore}, finalScore=${p.finalScore})`);
 
       return {
         id: p.id,
@@ -357,8 +357,8 @@ const HostDashboardCore: React.FC = () => {
 
     // Sort by score descending
     list.sort((a, b) => (b.score || 0) - (a.score || 0));
-    
-    console.log('📊 [HostDashboard] Final sorted leaderboard:', list);
+
+    if (DEBUG) console.log('📊 [HostDashboard] Final sorted leaderboard:', list);
     return list;
   }, [players, config?.reconciliation, config]);
 
@@ -373,7 +373,7 @@ const HostDashboardCore: React.FC = () => {
     const existingAwards = Array.isArray(rec.prizeAwards) ? rec.prizeAwards : [];
     const haveAwards = existingAwards.length > 0;
 
-    console.log('🎁 [HostDashboard] Auto-assignment check:', {
+    if (DEBUG) console.log('🎁 [HostDashboard] Auto-assignment check:', {
       isQuizComplete,
       prizesCount: prizes.length,
       existingAwardsCount: existingAwards.length,
@@ -388,21 +388,21 @@ const HostDashboardCore: React.FC = () => {
 
     const patch: any = {};
     if (needSnapshot) {
-      console.log('📸 [HostDashboard] Snapshotting final leaderboard:', prizeLeaderboard);
+      if (DEBUG) console.log('📸 [HostDashboard] Snapshotting final leaderboard:', prizeLeaderboard);
       patch.finalLeaderboard = prizeLeaderboard;
     }
 
     if (prizes.length && !haveAwards && prizeLeaderboard.length > 0) {
       // Only run if we have NO awards at all
       if (existingAwards.length > 0) {
-        console.log('[HostDashboard] Awards already exist, skipping auto-assignment');
+       if (DEBUG) console.log('[HostDashboard] Awards already exist, skipping auto-assignment');
         return;
       }
 
-      console.log('🤖 [HostDashboard] Auto-assigning prizes to winners');
+    if (DEBUG)  console.log('🤖 [HostDashboard] Auto-assigning prizes to winners');
       const rankByPlace = new Map<number, any>();
       prizeLeaderboard.forEach((entry: any, idx: number) => {
-        console.log(`  Rank ${idx + 1}: ${entry.name} (${entry.score} pts) -> id: ${entry.id}`);
+       if (DEBUG) console.log(`  Rank ${idx + 1}: ${entry.name} (${entry.score} pts) -> id: ${entry.id}`);
         rankByPlace.set(idx + 1, entry);
       });
 
@@ -436,20 +436,20 @@ const HostDashboardCore: React.FC = () => {
             }],
           };
           
-          console.log(`  ✅ Prize ${p.place} (${p.description}) -> ${winner.name} (${winner.id})`);
+          if (DEBUG)console.log(`  ✅ Prize ${p.place} (${p.description}) -> ${winner.name} (${winner.id})`);
           return award;
         })
         .filter(Boolean) as any[];
 
       if (autoAwards.length) {
-        console.log(`🎯 [HostDashboard] Created ${autoAwards.length} auto-awards:`, autoAwards);
+       if (DEBUG) console.log(`🎯 [HostDashboard] Created ${autoAwards.length} auto-awards:`, autoAwards);
         patch.prizeAwards = autoAwards;
         autoAssignedRef.current = true; // Mark as assigned
       }
     }
 
     if (Object.keys(patch).length) {
-      console.log('📤 [HostDashboard] Sending reconciliation patch:', patch);
+      if (DEBUG)console.log('📤 [HostDashboard] Sending reconciliation patch:', patch);
       socket.emit('update_reconciliation', { roomId, patch });
     }
   }, [
@@ -847,8 +847,8 @@ const HostDashboard: React.FC = () => {
   const { config } = useQuizConfig();
 
   useEffect(() => {
-    console.log('=== HOST DASHBOARD RENDER ===');
-    console.log('Config state:', {
+   if (DEBUG) console.log('=== HOST DASHBOARD RENDER ===');
+    if (DEBUG) console.log('Config state:', {
       hasConfig: !!config,
       isWeb3Room: config?.isWeb3Room,
       web3Chain: config?.web3Chain,
@@ -857,7 +857,7 @@ const HostDashboard: React.FC = () => {
 
   // ✅ If it's a Web3 room, wrap with Web3Provider (lazy loaded)
   if (config?.isWeb3Room) {
-    console.log('🌐 [HostDashboard] Rendering with Web3Provider for web3 room');
+    if (DEBUG)console.log('🌐 [HostDashboard] Rendering with Web3Provider for web3 room');
     
     return (
       <Suspense fallback={<LoadingSpinner />}>
@@ -869,7 +869,7 @@ const HostDashboard: React.FC = () => {
   }
 
   // ✅ Non-web3 rooms: No Web3Provider needed
-  console.log('⚡ [HostDashboard] Rendering without Web3Provider (non-web3 room)');
+  if (DEBUG) console.log('⚡ [HostDashboard] Rendering without Web3Provider (non-web3 room)');
   return <HostDashboardCore />;
 };
 

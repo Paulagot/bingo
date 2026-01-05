@@ -15,15 +15,25 @@ const HiddenObjectReview: React.FC<Props> = ({ puzzle, foundIds }) => {
 
   return (
     <div className="space-y-3">
+      {/* ✅ Header with puzzle progress */}
       <div className="flex items-center justify-between">
         <div className="text-sm font-medium">
-          Review • Hidden Object • {puzzle.difficulty.toUpperCase()}
+          📋 Review • Hidden Object
+          {puzzle.puzzleNumber && puzzle.totalPuzzles && (
+            <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
+              Puzzle {puzzle.puzzleNumber} of {puzzle.totalPuzzles}
+            </span>
+          )}
+          <span className="ml-2 text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full">
+            {puzzle.difficulty.toUpperCase()}
+          </span>
         </div>
         <div className="text-sm text-gray-600">
           Found: <span className="font-semibold">{foundIds.length}</span> / {puzzle.itemTarget}
         </div>
       </div>
 
+      {/* Image with answer markers */}
       <div className="rounded-xl overflow-hidden border bg-white">
         <div className="relative">
           <img
@@ -35,7 +45,7 @@ const HiddenObjectReview: React.FC<Props> = ({ puzzle, foundIds }) => {
             onLoad={() => setImgReady(true)}
           />
 
-          {/* Overlay markers only after image is ready */}
+          {/* Show all item locations after image loads */}
           {imgReady &&
             puzzle.items.map((it) => {
               const b = it.bbox;
@@ -61,6 +71,7 @@ const HiddenObjectReview: React.FC<Props> = ({ puzzle, foundIds }) => {
         </div>
       </div>
 
+      {/* Items summary */}
       <div className="rounded-xl border bg-white p-3">
         <div className="text-xs text-gray-600 mb-2">All items</div>
         <div className="flex flex-wrap gap-2">

@@ -6,7 +6,8 @@ import {
   hydrateTiebreakerFromSnap,
   hydrateHiddenObjectFromSnap,
   hydrateFinalStatsFromSnap, 
-  hydrateCurrentRoundStatsFromSnap, // ✅ ADD THIS
+  hydrateCurrentRoundStatsFromSnap, 
+  hydrateOrderImageFromSnap// ✅ ADD THIS
 } from '../../Quiz/utils/recoveryHydrators';
 
 type UseHostRecoveryArgs = {
@@ -26,15 +27,19 @@ type UseHostRecoveryArgs = {
     setQuestionInRound: (n: number) => void;
     setTotalInRound: (n: number) => void;
 
-    // ✅ ADD HIDDEN OBJECT SETTERS
+    // Hidden Object setters
     setHiddenPuzzle: (puzzle: any) => void;
     setHiddenFoundIds: (ids: string[]) => void;
     setHiddenFinished: (finished: boolean) => void;
     setRoundRemaining: (seconds: number | null) => void;
 
-    // ✅ ADD FINAL STATS RECOVERY
+    // ✅ ADD ORDER IMAGE SETTERS
+    setOrderImageQuestion: (q: any) => void;
+    setOrderImageReviewQuestion: (r: any) => void;
+
+    // Stats recovery
     recoverFinalStats: (stats: any[]) => void;
-     updateCurrentRoundStats: (stats: any) => void;
+    updateCurrentRoundStats: (stats: any) => void;
 
     // TB setters
     setTbParticipants: (ids: string[]) => void;
@@ -89,6 +94,11 @@ export function useHostRecovery({ socket, connected, roomId, setters }: UseHostR
           setHiddenFinished: setters.setHiddenFinished,
           setRoundRemaining: setters.setRoundRemaining,
         });
+
+        hydrateOrderImageFromSnap(snap, {
+  setOrderImageQuestion: setters.setOrderImageQuestion,
+  setOrderImageReviewQuestion: setters.setOrderImageReviewQuestion,
+});
 
         // ✅ ADD THIS - Hydrate final quiz stats for post-game
         hydrateFinalStatsFromSnap(snap, {
