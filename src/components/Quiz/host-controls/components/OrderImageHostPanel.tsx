@@ -2,7 +2,7 @@
 import React from 'react';
 import { Timer } from 'lucide-react';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+const BASE_URL = import.meta.env.VITE_SITE_ORIGIN || 'http://localhost:3001';
 
 const getFullImageUrl = (url: string) => {
   if (!url) return '';
