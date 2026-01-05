@@ -1,5 +1,5 @@
 // src/components/Quiz/host-controls/components/HiddenObjectReviewPanel.tsx
-import { Trophy } from 'lucide-react';
+import { Trophy, ChevronRight } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 
 type Item = {
@@ -16,6 +16,8 @@ type HiddenObjectPuzzle = {
   totalSeconds: number;
   itemTarget: number;
   items: Item[];
+  puzzleNumber?: number;
+  totalPuzzles?: number;
 };
 
 type Props = {
@@ -23,6 +25,9 @@ type Props = {
   puzzle: HiddenObjectPuzzle | null;
   foundIds?: string[];
   reviewComplete: boolean;
+  currentReviewIndex: number;      // ✅ ADD THIS
+  totalReviewQuestions: number;    // ✅ ADD THIS
+  onNextReview: () => void;        // ✅ ADD THIS
   onShowRoundResults: () => void;
 };
 
@@ -31,6 +36,9 @@ export default function HiddenObjectReviewPanel({
   puzzle,
   foundIds = [],
   reviewComplete,
+  currentReviewIndex,         // ✅ ADD THIS
+  totalReviewQuestions,       // ✅ ADD THIS
+  onNextReview,               // ✅ ADD THIS
   onShowRoundResults,
 }: Props) {
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -40,25 +48,44 @@ export default function HiddenObjectReviewPanel({
 
   if (!puzzle || roomPhase !== 'reviewing') return null;
 
+  // ✅ Check if this is the last review
+  const isLastReview = currentReviewIndex >= totalReviewQuestions - 1;
+
   return (
     <div className="bg-muted mb-6 rounded-xl border-2 border-yellow-200 p-6 shadow-lg">
+      {/* Header */}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <h3 className="text-fg text-lg font-bold">🔍 Hidden Object Review</h3>
+          {puzzle.puzzleNumber && puzzle.totalPuzzles && (
+            <span className="rounded-full bg-purple-100 px-3 py-1 text-sm font-medium text-purple-700">
+              Puzzle {puzzle.puzzleNumber} of {puzzle.totalPuzzles}
+            </span>
+          )}
           <span className="rounded-full bg-yellow-100 px-3 py-1 text-sm font-medium text-yellow-700">
             {puzzle.difficulty.toUpperCase()} • {puzzle.category}
           </span>
         </div>
 
-        {/* Show Round Results button - always available in review */}
+        {/* ✅ NAVIGATION BUTTONS */}
         <div className="flex items-center space-x-3">
-          <button
-            onClick={onShowRoundResults}
-            className="flex items-center space-x-2 rounded-lg bg-purple-500 px-4 py-2 font-medium text-white transition hover:bg-purple-600"
-          >
-            <Trophy className="h-4 w-4" />
-            <span>Show Round Results</span>
-          </button>
+          {!isLastReview ? (
+            <button
+              onClick={onNextReview}
+              className="flex items-center space-x-2 rounded-lg bg-blue-500 px-4 py-2 font-medium text-white transition hover:bg-blue-600"
+            >
+              <span>Next Review</span>
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          ) : (
+            <button
+              onClick={onShowRoundResults}
+              className="flex items-center space-x-2 rounded-lg bg-purple-500 px-4 py-2 font-medium text-white transition hover:bg-purple-600"
+            >
+              <Trophy className="h-4 w-4" />
+              <span>Show Round Results</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -125,14 +152,15 @@ export default function HiddenObjectReviewPanel({
         </div>
       </div>
 
-      {/* Review Complete Notice */}
-      {reviewComplete && (
-        <div className="mt-4 rounded-lg bg-green-50 border border-green-200 p-4">
-          <p className="text-green-700 font-medium">
-            ✅ Hidden Object round complete. Click "Show Round Results" above to continue.
-          </p>
-        </div>
-      )}
+      {/* ✅ INFO MESSAGE - Updated to show navigation status */}
+      <div className="mt-4 rounded-lg bg-blue-50 border border-blue-200 p-4">
+        <p className="text-blue-700 font-medium">
+          {isLastReview 
+            ? '✅ All puzzles reviewed. Click "Show Round Results" to continue.'
+            : `📋 Reviewing puzzle ${currentReviewIndex + 1} of ${totalReviewQuestions}. Click "Next Review" to continue.`
+          }
+        </p>
+      </div>
     </div>
   );
 }

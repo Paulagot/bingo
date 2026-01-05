@@ -94,29 +94,49 @@ hidden_object: {
   timing: '30–60 seconds',
   difficulty: 'Easy–Medium',
   bestFor: 'Mixed groups, family events, kids rounds',
-  defaultConfig: {
-    questionsPerRound: 1,
-    timePerQuestion: 0,
-    totalTimeSeconds: 30,
-    // ✅ USE EXISTING hiddenObject CONFIG STRUCTURE
+ defaultConfig: {
+    questionsPerRound: 2,              // ✅ Multiple puzzles
+    timePerQuestion: 0,                // Not used
+    totalTimeSeconds: 0,               // Not used
     hiddenObject: {
-      timeLimitSeconds: 45,
-      secondsToPoints: 1,              // Time bonus multiplier (1 point per second)
+      timeLimitSeconds: 45,            // ✅ Per-puzzle timer
+      secondsToPoints: 1,
       itemCountByDifficulty: {
-        easy: 6,
-        medium: 8,
+        easy: 10,
+        medium: 10,
         hard: 10
       },
-      pointsPerFindByDifficulty: {     // Points per item found
+      pointsPerFindByDifficulty: {
         easy: 1,
         medium: 2,
         hard: 3
       }
-      // puzzleId: undefined - let engine pick randomly
-    }
+        }
   },
   extras: ['Restore Points', 'robPoints']
 },
+
+  order_image: {
+    id: 'order_image',
+    name: 'Order the Image',
+    icon: '🔢',
+    description: 'Welcome to Order the Image! Drag and drop 4 images into the correct order. Each question has a specific order - it could be chronological, by size, by age, or another logical sequence. Get the order perfect to score points!  Are you ready to put things in order?',
+    gameplay: 'Host reads prompt → players see 4 shuffled images → drag to reorder → submit answer → automatic scoring (all-or-nothing) → review shows correct order → leaderboard',
+    pros: ['Visual and tactile', 'Mobile-friendly drag & drop', 'Tests knowledge and logic'],
+    timing: '30 seconds per question',
+    difficulty: 'Easy–Hard',
+    bestFor: 'Mixed groups, visual learners, competitive rounds',
+    defaultConfig: {
+      questionsPerRound: 6,
+      timePerQuestion: 30,
+      pointsPerDifficulty: {
+        easy: 2,
+        medium: 4,
+        hard: 6
+      }
+    },
+    extras: ['Freeze-out-Team', 'robPoints']
+  },
 
   // head_to_head: {
   //   id: 'head_to_head',
@@ -216,13 +236,13 @@ export const fundraisingExtraDefinitions = {
     icon: '❄️',
     description: 'Allows a team Freeze opponent team for 1 question. Use in a round where points are lost for not answering makes this a very strategic play.',
     maxPerTeam: 1,
-    applicableTo: ['general_trivia', 'wipeout'] as RoundTypeId[],
+    applicableTo: ['general_trivia', 'wipeout', 'order_image'] as RoundTypeId[],
     impact: 'High strategic impact',
     strategy: 'Priced as advanced option',
     pros: ['Shifts advantage', 'Drama'],
     suggestedPrice: 'High',
     excitement: 'High',
-    playerStrategy: 'Use this to freeze out an opponent team for one question. Use this extra in a general triva or wipeout round.  Choose wisely, as it can turn the tide of the game. This is a great option for players who want to disrupt another team\'s momentum or protect their lead.'
+    playerStrategy: 'Use this to freeze out an opponent team for one question. Use this extra in a general trivia, wipeout, or order image round. Choose wisely, as it can turn the tide of the game. This is a great option for players who want to disrupt another team\'s momentum or protect their lead.'
   }
 } as const;
 
@@ -232,7 +252,8 @@ export const availableCategories: Record<RoundTypeId, string[]> = {
   general_trivia: ['General Knowledge','Olympic Sports', 'Pop Music', 'History', 'World Capitals', 'Pop Culture', 'Web3', 'Children'],
   wipeout: ['General Knowledge','Olympic Sports', 'Pop Music', 'History', 'World Capitals', 'Pop Culture', 'Web3', 'Children'],
   speed_round: ['Math', 'Emojis', 'Pop Music', 'Sport', 'Flags of the World' ],
-  hidden_object: ['image', 'nature' ],
+  hidden_object: ['image', 'kids' ],
+  order_image: ['Technology'],
   // media_puzzle: [...],
   // head_to_head: [...]
 };

@@ -36,31 +36,41 @@ const quizTemplates: QuizTemplate[] = [
     difficulty: 'Easy',
 
     rounds: [
-           {
-      type: 'hidden_object',
-      category: 'image',
-      difficulty: 'hard',
+        {
+      type: 'order_image',  // ✅ NEW round type
+      category: 'Technology',  // or 'Historical Events', 'Size Comparison', 'Age Order'
+      difficulty: 'easy',  // easy, medium, or hard
       customConfig: {
-        // keep consistent with your RoundConfig shape
-        questionsPerRound: 1,
-        timePerQuestion: 0,
-        totalTimeSeconds: 45, // ✅ round duration
-        // optional if you added nested config:
-        // hiddenObject: { secondsToPoints: 1 }
-      }
-    },
+        questionsPerRound: 2,  // Number of ordering questions
+        timePerQuestion: 15,   // 30 seconds per question
+        pointsPerDifficulty: { easy: 2, medium: 4, hard: 6 },
+      },
+    },   
       {
         type: 'wipeout',
         category: 'General Knowledge',
         difficulty: 'medium',
         customConfig: {
           questionsPerRound: 4,
-          timePerQuestion: 10,
+          timePerQuestion: 11,
           pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
           pointsLostPerWrong: 2,
           pointsLostPerUnanswered: 3,
         },
       },
+               {
+      type: 'hidden_object',
+      category: 'kids',
+      difficulty: 'hard',
+     customConfig: {
+    questionsPerRound: 2,            // ✅ 2 puzzles in this round
+    timePerQuestion: 0,
+    totalTimeSeconds: 0,
+    hiddenObject: {
+      timeLimitSeconds: 20,          // ✅ Each puzzle: 45 seconds
+      secondsToPoints: 1
+    }
+    }},
       {
         type: 'speed_round',
         category: 'Math',
@@ -86,33 +96,42 @@ const quizTemplates: QuizTemplate[] = [
   icon: '🧪',
   difficulty: 'Medium',
   rounds: [
+        {
+      type: 'order_image',  // ✅ NEW round type
+      category: 'Technology Timeline',  // or 'Historical Events', 'Size Comparison', 'Age Order'
+      difficulty: 'easy',  // easy, medium, or hard
+      customConfig: {
+        questionsPerRound: 2,  // Number of ordering questions
+        timePerQuestion: 30,   // 30 seconds per question
+        pointsPerDifficulty: { easy: 2, medium: 4, hard: 6 },
+      },},
       
-    {
-      type: 'hidden_object',
-      category: 'nature',
-      difficulty: 'hard',
-      customConfig: {
-        // keep consistent with your RoundConfig shape
-        questionsPerRound: 1,
-        timePerQuestion: 0,
-        totalTimeSeconds: 45, // ✅ round duration
-        // optional if you added nested config:
-        // hiddenObject: { secondsToPoints: 1 }
-      }
-    },
-     {
-      type: 'hidden_object',
-      category: 'image',
-      difficulty: 'hard',
-      customConfig: {
-        // keep consistent with your RoundConfig shape
-        questionsPerRound: 1,
-        timePerQuestion: 0,
-        totalTimeSeconds: 45, // ✅ round duration
-        // optional if you added nested config:
-        // hiddenObject: { secondsToPoints: 1 }
-      }
-    },
+    // {
+    //   type: 'hidden_object',
+    //   category: 'kids',
+    //   difficulty: 'hard',
+    //   customConfig: {
+    //     // keep consistent with your RoundConfig shape
+    //     questionsPerRound: 2,
+    //     timePerQuestion: 0,
+    //     totalTimeSeconds: 15, // ✅ round duration
+    //     // optional if you added nested config:
+    //     // hiddenObject: { secondsToPoints: 1 }
+    //   }
+    // },
+    //  {
+    //   type: 'hidden_object',
+    //   category: 'kids',
+    //   difficulty: 'hard',
+    //   customConfig: {
+    //     // keep consistent with your RoundConfig shape
+    //     questionsPerRound: 1,
+    //     timePerQuestion: 0,
+    //     totalTimeSeconds: 45, // ✅ round duration
+    //     // optional if you added nested config:
+    //     // hiddenObject: { secondsToPoints: 1 }
+    //   }
+    // },
 
   ],
   tags: ['Audience: Test', 'Topic: Hidden Object', 'Duration: ≈3m']

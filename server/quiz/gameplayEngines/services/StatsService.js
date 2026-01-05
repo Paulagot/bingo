@@ -258,48 +258,54 @@ export class StatsService {
       stats.extrasByPlayer[player.name] = [];
     });
 
-    // ✅ SPECIAL CASE: Hidden Object rounds don't use answers object
-    if (roundType === 'hidden_object' && room.hiddenObject) {
-      const ho = room.hiddenObject;
-      stats.totalQuestions = 0; // Hidden object doesn't have "questions"
-      stats.itemsTarget = ho.itemTarget || 0;
+  // ✅ SPECIAL CASE: Hidden Object rounds don't use answers object
+if (roundType === 'hidden_object' && room.hiddenObject) {
+  const ho = room.hiddenObject;
+  stats.totalQuestions = 0; // Hidden object doesn't have "questions"
+  stats.itemsTarget = ho.itemTarget || 0;
+  
+  // ✅ FIX: Get stats from roundMeta which has ALL puzzles tracked
+  for (const player of room.players) {
+    const pd = room.playerData[player.id];
+    if (!pd) continue;
+    
+    const roundMeta = pd.roundMeta?.[`round${roundNumber}_hidden_object`];
+    if (roundMeta) {
+      // Sum up items found across ALL puzzles
+      stats.itemsFound += roundMeta.totalItemsFound || 0;
       
-      // Count items found by all players
-      for (const player of room.players) {
-        const playerState = ho.player?.[player.id];
-        if (playerState) {
-          const foundCount = playerState.foundIds?.size || 0;
-          stats.itemsFound += foundCount;
-          
-          // Count players who completed (found all items)
-          if (playerState.finishTs) {
-            stats.playersCompleted++;
-          }
-        }
+      // Count players who completed all puzzles (found all items)
+      if (roundMeta.totalItemsFound >= roundMeta.totalItemsAvailable) {
+        stats.playersCompleted++;
       }
-      
-      // Map hidden object metrics to standard stat fields for consistency
-      stats.questionsAnswered = stats.itemsFound;
-      stats.correctAnswers = stats.itemsFound;
-      stats.wrongAnswers = 0;
-      stats.noAnswers = stats.itemsTarget * room.players.length - stats.itemsFound; // Items not found
-      // ✅ FIXED: Accuracy should be items found vs items target (per player average)
-      stats.accuracyRate = stats.itemsTarget > 0 && room.players.length > 0
-        ? Math.round((stats.itemsFound / (stats.itemsTarget * room.players.length)) * 100)
-        : 0;
-      stats.responseRate = stats.itemsTarget > 0 && room.players.length > 0
-        ? Math.round((stats.itemsFound / (stats.itemsTarget * room.players.length)) * 100)
-        : 0;
+    }
+  }
+  
+  // Map hidden object metrics to standard stat fields for consistency
+  stats.questionsAnswered = stats.itemsFound;
+  stats.correctAnswers = stats.itemsFound;
+  stats.wrongAnswers = 0;
+  
+  // ✅ Calculate total possible items across ALL players and ALL puzzles
+  const totalPossibleItems = (ho.questionsPerRound || 2) * (ho.itemTarget || 0) * room.players.length;
+  stats.noAnswers = totalPossibleItems - stats.itemsFound; // Items not found
+  
+  // ✅ FIXED: Accuracy should be items found vs total possible across all puzzles
+  stats.accuracyRate = totalPossibleItems > 0
+    ? Math.round((stats.itemsFound / totalPossibleItems) * 100)
+    : 0;
+  stats.responseRate = stats.accuracyRate; // Same for hidden object
 
-      if (debug) {
-        console.log(`[StatsService] 📈 Hidden Object round ${roundNumber} stats:`, {
-          itemsTarget: stats.itemsTarget,
-          totalItemsPossible: stats.itemsTarget * room.players.length,
-          itemsFound: stats.itemsFound,
-          playersCompleted: stats.playersCompleted,
-          responseRate: stats.responseRate + '%'
-        });
-      }
+  if (debug) {
+    console.log(`[StatsService] 📈 Hidden Object round ${roundNumber} stats:`, {
+      questionsPerRound: ho.questionsPerRound,
+      itemsTargetPerPuzzle: ho.itemTarget,
+      totalPossibleItems,
+      itemsFound: stats.itemsFound,
+      playersCompleted: stats.playersCompleted,
+      responseRate: stats.responseRate + '%'
+    });
+  }
 
       // Still process extras for hidden object rounds
       for (const player of room.players) {

@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 
+const Debug = false;
+
 interface FreezeOverlayProps {
   isActive: boolean;
   frozenBy?: string;
@@ -260,7 +262,7 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
   // Main effect controller - BACK TO WORKING VERSION
   useEffect(() => {
     if (isActive) {
-      console.log('[FreezeOverlay] Activating freeze effect');
+      if (Debug) console.log('[FreezeOverlay] Activating freeze effect');
       setShowOverlay(true);
       setCrackCycle(0);
       
@@ -288,7 +290,7 @@ const FreezeOverlay: React.FC<FreezeOverlayProps> = ({
       
     } else {
       // Clean up when deactivated
-      console.log('[FreezeOverlay] Deactivating freeze effect');
+       if (Debug)console.log('[FreezeOverlay] Deactivating freeze effect');
       const targetEl = document.querySelector(targetElement);
       if (targetEl) {
         (targetEl as HTMLElement).classList.remove('fo-target-iced');

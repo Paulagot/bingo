@@ -66,6 +66,8 @@ function getEngine(room) {
       return import('../gameplayEngines/speedRoundEngine.js');
     case 'hidden_object':
   return import('../gameplayEngines/hiddenObjectEngine.js');
+    case 'order_image':
+      return import('../gameplayEngines/orderImageEngine.js');
     default:
       console.warn(`[getEngine] ❓ Unknown round type: ${roundType}`);
       return null;

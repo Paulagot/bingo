@@ -68,7 +68,7 @@
 },
 {
   "id": 3001,
-  "category": "nature",
+  "category": "kids",
   "imageUrl": "/quiz/hidden-object/forest.png",
   "items": [
     {
@@ -132,11 +132,78 @@
       "bbox": { "x": 0.6445, "y": 0.804, "w": 0.1953, "h": 0.0586 }
     }
   ]
-}
+},
 
-
-
+  {
+    "id": 3002,
+    "category": "kids",
+    "imageUrl": "/quiz/hidden-object/bedroom.png",
+    "items": [
+      {
+        "id": "a",
+        "label": "Toy Airplane",
+        "difficulty": "easy",
+        "bbox": { "x": 0.4199, "y": 0.2214, "w": 0.3223, "h": 0.1302 }
+      },
+      {
+        "id": "b",
+        "label": "Teddy Bear",
+        "difficulty": "easy",
+        "bbox": { "x": 0.2881, "y": 0.3092, "w": 0.1709, "h": 0.1465 }
+      },
+      {
+        "id": "c",
+        "label": "Pizza Slice",
+        "difficulty": "easy",
+        "bbox": { "x": 0.5078, "y": 0.4557, "w": 0.293, "h": 0.14 }
+      },
+      {
+        "id": "d",
+        "label": "Toy Robot",
+        "difficulty": "easy",
+        "bbox": { "x": 0.0, "y": 0.5111, "w": 0.2295, "h": 0.2246 }
+      },
+      {
+        "id": "e",
+        "label": "Soccer Ball",
+        "difficulty": "easy",
+        "bbox": { "x": 0.1367, "y": 0.5534, "w": 0.3516, "h": 0.2051 }
+      },
+      {
+        "id": "f",
+        "label": "Rubber Duck",
+        "difficulty": "easy",
+        "bbox": { "x": 0.542, "y": 0.6315, "w": 0.3223, "h": 0.1693 }
+      },
+      {
+        "id": "g",
+        "label": "Game Controller",
+        "difficulty": "medium",
+        "bbox": { "x": 0.5078, "y": 0.5339, "w": 0.3076, "h": 0.1432 }
+      },
+      {
+        "id": "h",
+        "label": "Red Sneaker",
+        "difficulty": "medium",
+        "bbox": { "x": 0.5322, "y": 0.7324, "w": 0.3125, "h": 0.1693 }
+      },
+      {
+        "id": "i",
+        "label": "Yo-yo",
+        "difficulty": "hard",
+        "bbox": { "x": 0.3027, "y": 0.2344, "w": 0.1172, "h": 0.0911 }
+      },
+      {
+        "id": "j",
+        "label": "Blue Button",
+        "difficulty": "hard",
+        "bbox": { "x": 0.3223, "y": 0.7975, "w": 0.166, "h": 0.1009 }
+      }
+    ]
+  }
 ]
+
+
 
 
 

@@ -995,9 +995,15 @@ socket.on('tiebreak:proceed_to_completion', ({ roomId }) => {
 
   // ✅ Show round results
   socket.on('show_round_results', ({ roomId }) => {
-    if (debug) console.log(`[Host] 📊 show_round_results for ${roomId}`);
+     const room = getQuizRoom(roomId);
+  
+    if (debug)  console.log('🟢 [HOST] show_round_results START:', {
+    currentPhase: room.currentPhase,
+    currentRound: room.currentRound,
+    timestamp: Date.now()
+  })
 
-    const room = getQuizRoom(roomId);
+   
     if (!room) {
       socket.emit('quiz_error', { message: 'Room not found' });
       return;
@@ -1118,12 +1124,21 @@ socket.on('tiebreak:proceed_to_completion', ({ roomId }) => {
 
     namespace.to(roomId).emit('round_leaderboard', roundLeaderboard);
 
+      console.log('🟢 [HOST] Emitted round_leaderboard:', {
+    entryCount: roundLeaderboard.length,
+    topThree: roundLeaderboard.slice(0,3).map(p => `${p.name}:${p.score}`),
+    timestamp: Date.now()
+  });
+
     if (room.currentRoundStats) {
       socket.emit('host_current_round_stats', room.currentRoundStats);
     }
-    emitRoomState(namespace, roomId);
+  
 
     if (debug) console.log(`[Host] ✅ Round ${room.currentRound} results shown to all players`);
+      console.log('🟢 [HOST] About to call emitRoomState with phase:', room.currentPhase);
+  emitRoomState(namespace, roomId);
+  console.log('🟢 [HOST] show_round_results COMPLETE');
   });
 
   // ✅ Continue to overall leaderboard
