@@ -19,7 +19,10 @@ export interface Prize {
   
   // Token identification
   tokenAddress?: string | undefined;
-  tokenType?: 'erc20' | 'erc721' | 'erc1155' | undefined;
+ tokenType?: 
+  | 'erc20' | 'erc721' | 'erc1155'  // EVM
+  | 'spl-token' | 'nft'              // ✅ Add these for Solana
+  | undefined;
   
   // For ERC-20: amount of tokens (e.g., "500" for 500 USDC)
   // For ERC-721: always "1" (single NFT)
@@ -49,7 +52,9 @@ export interface Prize {
 export type RoundTypeId =
   | 'general_trivia'
   | 'wipeout'
-  | 'speed_round';
+  | 'speed_round'
+  | 'hidden_object'
+  | 'order_image';
   // | 'head_to_head'
   // | 'media_puzzle';
 
@@ -71,6 +76,13 @@ export interface RoundConfig {
     filters?: {
     difficulty?: 'easy' | 'medium' | 'hard' | 'mixed';
     category?: string | 'mixed';
+  };
+    hiddenObject?: {
+    timeLimitSeconds?: number; // e.g. 30
+    secondsToPoints?: number;  // e.g. 1
+    itemCountByDifficulty?: { easy: number; medium: number; hard: number };
+    pointsPerFindByDifficulty?: { easy: number; medium: number; hard: number };
+    puzzleId?: string;         // optional, if host chooses a specific puzzle
   };
 }
 
@@ -244,7 +256,7 @@ export type RoomPhase = 'waiting' | 'launched' | 'asking' | 'reviewing' | 'leade
 
 // Props interface for round components
 export interface RoundComponentProps {
-  question: Question;
+  question: Question | null;
   timeLeft: number | null;
   timerActive: boolean;
   selectedAnswer: string;

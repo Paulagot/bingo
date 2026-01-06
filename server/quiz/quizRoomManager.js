@@ -313,10 +313,12 @@ export function emitRoomState(namespace, roomId) {
     roundTypeName,
     totalPlayers: room.players.length,
     phase: room.currentPhase,
-    caps: room.roomCaps
+    caps: room.roomCaps,
+    currentReviewIndex: room.currentReviewIndex ?? 0,              // ✅ ADD THIS LINE
+    totalReviewQuestions: room.reviewQuestions?.length ?? 0,       // ✅ ADD THIS LINE
   });
 
-  if (debug) console.log(`[quizRoomManager] ✅ Emitted room_state for ${roomId}: Round ${room.currentRound}/${totalRounds}, Type: ${roundTypeName}, Players: ${room.players.length}, Phase: ${room.currentPhase}`);
+  if (debug) console.log(`[quizRoomManager] ✅ Emitted room_state for ${roomId}: Round ${room.currentRound}/${totalRounds}, Type: ${roundTypeName}, Players: ${room.players.length}, Phase: ${room.currentPhase}, Review: ${room.currentReviewIndex ?? 0}/${room.reviewQuestions?.length ?? 0}`);
 }
 
 export function addOrUpdatePlayer(roomId, player) {

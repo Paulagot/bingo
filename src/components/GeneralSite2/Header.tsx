@@ -2,7 +2,7 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Gamepad2, Menu, X, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
-import { useAuth } from '../../stores/authStore';
+import { useAuth } from '@/features/auth';
 
 export function Header() {
   const navigate = useNavigate();

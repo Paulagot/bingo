@@ -40,6 +40,16 @@ export const roundTypes: RoundTypeDefinition[] = [
       pointsLostPerUnanswered: 3,
     },
   },
+  {
+    id: 'order_image',
+    name: 'Order the Image',
+    description: 'Drag and drop images into the correct order. Visual puzzle gameplay.',
+    defaultConfig: {
+      questionsPerRound: 6,
+      timePerQuestion: 30,
+      pointsPerDifficulty: { easy: 2, medium: 4, hard: 6 },
+    },
+  },
 ];
 
 export const roundTypeDefaults = Object.fromEntries(
@@ -49,4 +59,3 @@ export const roundTypeDefaults = Object.fromEntries(
 export const roundTypeMap = Object.fromEntries(
   roundTypes.map((t) => [t.id, t])
 ) as Record<RoundTypeId, RoundTypeDefinition>;
-

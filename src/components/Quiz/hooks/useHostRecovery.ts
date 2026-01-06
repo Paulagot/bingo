@@ -4,7 +4,11 @@ import {
   hydrateRoomBasicsFromSnap,
   hydrateQuestionOrReviewFromSnap,
   hydrateTiebreakerFromSnap,
-} from '../utils/recoveryHydrators';
+  hydrateHiddenObjectFromSnap,
+  hydrateFinalStatsFromSnap, 
+  hydrateCurrentRoundStatsFromSnap, 
+  hydrateOrderImageFromSnap// ✅ ADD THIS
+} from '../../Quiz/utils/recoveryHydrators';
 
 type UseHostRecoveryArgs = {
   socket: any;
@@ -22,6 +26,20 @@ type UseHostRecoveryArgs = {
     setReviewComplete: (b: boolean) => void;
     setQuestionInRound: (n: number) => void;
     setTotalInRound: (n: number) => void;
+
+    // Hidden Object setters
+    setHiddenPuzzle: (puzzle: any) => void;
+    setHiddenFoundIds: (ids: string[]) => void;
+    setHiddenFinished: (finished: boolean) => void;
+    setRoundRemaining: (seconds: number | null) => void;
+
+    // ✅ ADD ORDER IMAGE SETTERS
+    setOrderImageQuestion: (q: any) => void;
+    setOrderImageReviewQuestion: (r: any) => void;
+
+    // Stats recovery
+    recoverFinalStats: (stats: any[]) => void;
+    updateCurrentRoundStats: (stats: any) => void;
 
     // TB setters
     setTbParticipants: (ids: string[]) => void;
@@ -67,6 +85,28 @@ export function useHostRecovery({ socket, connected, roomId, setters }: UseHostR
           setReviewComplete: setters.setReviewComplete,
           setQuestionInRound: setters.setQuestionInRound,
           setTotalInRound: setters.setTotalInRound,
+        });
+
+        // ✅ ADD THIS - Hydrate hidden object state
+        hydrateHiddenObjectFromSnap(snap, {
+          setHiddenPuzzle: setters.setHiddenPuzzle,
+          setHiddenFoundIds: setters.setHiddenFoundIds,
+          setHiddenFinished: setters.setHiddenFinished,
+          setRoundRemaining: setters.setRoundRemaining,
+        });
+
+        hydrateOrderImageFromSnap(snap, {
+  setOrderImageQuestion: setters.setOrderImageQuestion,
+  setOrderImageReviewQuestion: setters.setOrderImageReviewQuestion,
+});
+
+        // ✅ ADD THIS - Hydrate final quiz stats for post-game
+        hydrateFinalStatsFromSnap(snap, {
+          recoverFinalStats: setters.recoverFinalStats,
+        });
+
+          hydrateCurrentRoundStatsFromSnap(snap, {
+          updateCurrentRoundStats: setters.updateCurrentRoundStats,
         });
 
         hydrateTiebreakerFromSnap(snap, {

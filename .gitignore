@@ -49,7 +49,7 @@ bingo/bingo/
 pnpm-lock.yaml
 test-aws-db.js
 test-token-config.json# TGB / webhook secrets & persistence
-data/
+
 .env*
 /tmp/tgb_*.env
 /tmp/*.json

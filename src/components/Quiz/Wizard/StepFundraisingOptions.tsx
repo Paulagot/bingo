@@ -146,9 +146,9 @@ const SimpleCard: React.FC<SimpleCardProps> = ({
 
 export const StepFundraisingOptions: React.FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst }) => {
   const {
-    flow,                 // 🧭 flow-aware
+    flow, // 🧭 flow-aware
     setupConfig,
-    toggleExtra,          // store helpers
+    toggleExtra, // store helpers
     setExtraPrice,
   } = useQuizSetupStore();
 
@@ -159,6 +159,9 @@ export const StepFundraisingOptions: React.FC<WizardStepProps> = ({ onNext, onBa
   const fundraisingOptions = setupConfig.fundraisingOptions || {};
   const fundraisingPrices = setupConfig.fundraisingPrices || {};
 
+  // Local string buffer for price inputs so decimals/partial typing works
+  const [priceInputs, setPriceInputs] = useState<Record<string, string>>({});
+
   // ──────────────────────────────────────────────────────────────
   // Entitlements (Web2 only). Web3: skip entitlements completely.
   // ──────────────────────────────────────────────────────────────
@@ -168,8 +171,9 @@ export const StepFundraisingOptions: React.FC<WizardStepProps> = ({ onNext, onBa
   useEffect(() => {
     if (isWeb3) return; // skip for Web3
     let cancelled = false;
-    import('../../../services/apiService')
-      .then(({ apiService }) => apiService.getEntitlements())
+
+    import('@/shared/api')
+      .then(({ quizApi }) => quizApi.getEntitlements())
       .then((json) => {
         if (!cancelled) setEntitlements(json);
       })
@@ -179,6 +183,7 @@ export const StepFundraisingOptions: React.FC<WizardStepProps> = ({ onNext, onBa
       .finally(() => {
         if (!cancelled) setEntitlementsLoaded(true);
       });
+
     return () => {
       cancelled = true;
     };
@@ -213,6 +218,29 @@ export const StepFundraisingOptions: React.FC<WizardStepProps> = ({ onNext, onBa
     .filter((key) => fundraisingOptions[key as keyof typeof fundraisingOptions])
     .filter((key) => isExtraAllowed(key));
 
+  // Keep local inputs in sync when selectedExtras change (add/prune)
+  useEffect(() => {
+    setPriceInputs((prev) => {
+      const next = { ...prev };
+
+      // prune anything no longer selected
+      for (const k of Object.keys(next)) {
+        if (!selectedExtras.includes(k)) delete next[k];
+      }
+
+      // seed selected extras from stored numeric prices if local is empty/undefined
+      for (const k of selectedExtras) {
+        if (next[k] === undefined || next[k] === '') {
+          const v = fundraisingPrices[k];
+          if (typeof v === 'number') next[k] = String(v);
+        }
+      }
+
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedExtras.join('|')]);
+
   // ──────────────────────────────────────────────────────────────
   // Store-backed actions
   // ──────────────────────────────────────────────────────────────
@@ -225,29 +253,40 @@ export const StepFundraisingOptions: React.FC<WizardStepProps> = ({ onNext, onBa
   const handleRemoveExtra = (key: string) => {
     const currentlyEnabled = !!fundraisingOptions[key as keyof typeof fundraisingOptions];
     if (currentlyEnabled) toggleExtra(key);
+
+    // clear both local UI buffer + store
+    setPriceInputs((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
     setExtraPrice(key, undefined);
   };
 
-const handlePriceChange = (key: string, value: string) => {
-  // Allow all partial inputs
-  if (
-    value === '' ||
-    value === '.' ||
-    value === '0' ||
-    value === '0.' ||
-    /^[0-9]*\.?[0-9]*$/.test(value)  // decimal pattern
-  ) {
-    // Convert to number when possible
-    const parsed = parseFloat(value);
-    if (!isNaN(parsed)) {
-      setExtraPrice(key, parsed);
-    } else {
-      setExtraPrice(key, undefined);
+  const handlePriceChange = (key: string, raw: string) => {
+    const value = raw.replace(',', '.'); // allow comma decimals
+
+    // Allow partial inputs while typing
+    if (
+      value === '' ||
+      value === '.' ||
+      value === '0' ||
+      value === '0.' ||
+      /^[0-9]*\.?[0-9]*$/.test(value)
+    ) {
+      // always update local string so the user can type decimals smoothly
+      setPriceInputs((prev) => ({ ...prev, [key]: value }));
+
+      // only commit to store when it parses to a valid number
+      const parsed = parseFloat(value);
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        setExtraPrice(key, parsed);
+      } else {
+        // keep store clean until it's a valid >0 price
+        setExtraPrice(key, undefined);
+      }
     }
-  }
-};
-
-
+  };
 
   // ──────────────────────────────────────────────────────────────
   // UI helpers
@@ -288,7 +327,7 @@ const handlePriceChange = (key: string, value: string) => {
       default:
         break;
     }
-    return `${adjusted.min}-${adjusted.max} ${currency}` ;
+    return `${adjusted.min}-${adjusted.max} ${currency}`;
   };
 
   const totalExtraValue = selectedExtras.reduce((sum, key) => {
@@ -296,17 +335,12 @@ const handlePriceChange = (key: string, value: string) => {
     return sum + (typeof price === 'number' ? price : 0);
   }, 0);
 
-  const allPricesSet = selectedExtras.every(
-    (key) => typeof fundraisingPrices[key] === 'number' && fundraisingPrices[key] > 0
-  );
+  const allPricesSet = selectedExtras.every((key) => typeof fundraisingPrices[key] === 'number' && fundraisingPrices[key] > 0);
 
   const message =
     selectedExtras.length > 0
       ? `Great! You've enabled ${selectedExtras.length} fundraising extra${selectedExtras.length > 1 ? 's' : ''}. Set a price for each to continue.`
       : 'Fundraising extras are optional add-ons that boost engagement and donations. Tap the eye icon to see strategy details!';
-
-  // If Web2 and entitlements are still loading, you can show a tiny loader (optional)
-  // For simplicity we just proceed; applicableExtras will be empty until loaded if filtering is strict.
 
   return (
     <div className="w-full space-y-3 px-2 pb-4 sm:space-y-6 sm:px-4">
@@ -330,7 +364,7 @@ const handlePriceChange = (key: string, value: string) => {
         </div>
         <div className="text-xs text-indigo-800 sm:text-sm">
           Enabled: <strong>{selectedExtras.length}</strong> • Revenue/Device:{' '}
-          <strong>            
+          <strong>
             {totalExtraValue.toFixed(2)}
             {currency}
           </strong>
@@ -345,7 +379,11 @@ const handlePriceChange = (key: string, value: string) => {
             {selectedExtras.map((key) => {
               const details = fundraisingExtraDefinitions[key as keyof typeof fundraisingExtraDefinitions];
               const applicability = getApplicabilityInfo(details);
-              const price = fundraisingPrices[key] ?? '';
+
+              const price =
+                priceInputs[key] ??
+                (typeof fundraisingPrices[key] === 'number' ? String(fundraisingPrices[key]) : '');
+
               const priceSet = typeof fundraisingPrices[key] === 'number' && fundraisingPrices[key] > 0;
 
               return (
@@ -386,21 +424,20 @@ const handlePriceChange = (key: string, value: string) => {
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-2">
                       <label className="text-fg/80 text-xs font-medium sm:text-sm">Price ({currency})</label>
-                  <input
-  type="text"
-  inputMode="decimal"
-  pattern="[0-9]*[.,]?[0-9]*"
-  value={price}
-  onChange={(e) => handlePriceChange(key, e.target.value)}
-  className={`w-24 rounded-lg border-2 px-2 py-1 text-xs outline-none transition
-    focus:ring-2 focus:ring-indigo-200 sm:w-28 sm:text-sm ${
-      priceSet
-        ? 'border-green-300 bg-green-50 focus:border-green-500'
-        : 'border-border focus:border-indigo-500'
-    }`}
-  placeholder="0.00"
-/>
-
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        pattern="[0-9]*[.,]?[0-9]*"
+                        value={price}
+                        onChange={(e) => handlePriceChange(key, e.target.value)}
+                        className={`w-24 rounded-lg border-2 px-2 py-1 text-xs outline-none transition
+                          focus:ring-2 focus:ring-indigo-200 sm:w-28 sm:text-sm ${
+                            priceSet
+                              ? 'border-green-300 bg-green-50 focus:border-green-500'
+                              : 'border-border focus:border-indigo-500'
+                          }`}
+                        placeholder="0.00"
+                      />
                       <span className="text-fg/60 hidden text-xs sm:inline">
                         Suggested: {getSuggestedPriceRange(details.suggestedPrice)}
                       </span>
@@ -451,18 +488,19 @@ const handlePriceChange = (key: string, value: string) => {
 
       {/* Navigation */}
       <div className="border-border flex justify-between border-t pt-4">
-       
-       {onBack && (
-  <button onClick={onBack} className="btn-muted">
-    <ChevronLeft className="h-4 w-4" />
-    <span>Back</span>
-  </button>
-)}
+        {onBack && (
+          <button onClick={onBack} className="btn-muted">
+            <ChevronLeft className="h-4 w-4" />
+            <span>Back</span>
+          </button>
+        )}
 
-         <ClearSetupButton
-variant="ghost" flow={flow ?? (setupConfig.paymentMethod === 'web3' ? 'web3' : 'web2')}
- onCleared={onResetToFirst}
-/>
+        <ClearSetupButton
+          variant="ghost"
+          flow={flow ?? (setupConfig.paymentMethod === 'web3' ? 'web3' : 'web2')}
+          onCleared={onResetToFirst}
+        />
+
         <button
           onClick={onNext}
           disabled={selectedExtras.length > 0 && !allPricesSet}
@@ -477,6 +515,7 @@ variant="ghost" flow={flow ?? (setupConfig.paymentMethod === 'web3' ? 'web3' : '
 };
 
 export default StepFundraisingOptions;
+
 
 
 

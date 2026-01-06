@@ -104,6 +104,18 @@ export const useHostStats = ({ socket, roomId, debug = false }: UseHostStatsPara
     }
   }, [debug]);
 
+  // ✅ NEW: Recovery setter for final stats
+  const recoverFinalStats = useCallback((recoveredStats: RoundStats[]) => {
+    setState(prev => ({
+      ...prev,
+      allRoundsStats: recoveredStats.sort((a, b) => a.roundNumber - b.roundNumber)
+    }));
+
+    if (debug) {
+      console.log('[HostStats] 🔄 Recovered final stats from server:', recoveredStats.length, 'rounds');
+    }
+  }, [debug]);
+
   // Socket event listeners
   useEffect(() => {
     if (!socket || !roomId) return;
@@ -198,6 +210,7 @@ export const useHostStats = ({ socket, roomId, debug = false }: UseHostStatsPara
     updateCurrentRoundStats,
     addRoundStats,
     resetStats,
+    recoverFinalStats, // ✅ NEW: Expose recovery function
     
     // Computed values
     hasActivities: state.activities.length > 0,

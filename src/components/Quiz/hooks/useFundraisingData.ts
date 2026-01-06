@@ -1,5 +1,5 @@
 // src/hooks/useFundraisingData.ts
-// UPDATED: Include entry fee in personal impact calculation
+// FIXED: Only count extras from players who actually paid
 
 import { useMemo } from 'react';
 import { usePlayerStore } from './usePlayerStore';
@@ -17,8 +17,8 @@ interface FundraisingData {
     extrasUsed: number;
     extrasSpent: number;
     personalImpact: number;
-    entryFee: number;           // NEW: Player's entry fee
-    extrasContribution: number; // NEW: Renamed from extrasSpent for clarity
+    entryFee: number;           // Player's entry fee
+    extrasContribution: number; // Renamed from extrasSpent for clarity
   };
 }
 
@@ -40,14 +40,15 @@ export const useFundraisingData = (playerId: string): FundraisingData | null => 
     let playerExtrasUsed = 0;
     let playerExtrasSpent = 0;
 
-    // Calculate extras totals and player-specific data
-    for (const player of players) {
-      if (player.extraPayments) {
+    // ✅ FIX: Only count extras from PAID players
+    for (const player of activePlayers) {
+      // ✅ Critical check: only count extras if player has paid
+      if (player.paid && player.extraPayments) {
         for (const [, val] of Object.entries(player.extraPayments)) {
           const amount = val.amount || 0;
           totalExtrasReceived += amount;
           
-          // Track this player's contribution
+          // Track this player's contribution (only if they paid)
           if (player.id === playerId) {
             playerExtrasUsed += 1;
             playerExtrasSpent += amount;
@@ -70,14 +71,17 @@ export const useFundraisingData = (playerId: string): FundraisingData | null => 
     } else {
       // For Web2, prizes are fixed assets, not percentage-based
       // Charity gets most, host gets small fee
-      charityAmount = totalRaised * 1; // Default 85% to charity
-      hostAmount = totalRaised * 0;    // Default 15% to host
+      charityAmount = totalRaised * 1; // Default 100% to charity
+      hostAmount = totalRaised * 0;    // Default 0% to host
       prizeAmount = 0; // Prizes are uploaded assets, not from pool
     }
 
-    // UPDATED: Calculate player's total contribution including entry fee
+    // ✅ Calculate player's total contribution (only if they paid)
     const currentPlayer = players.find(p => p.id === playerId);
     const playerPaidEntry = currentPlayer?.paid ? entryFee : 0;
+    
+    // ✅ IMPORTANT: If player didn't pay, extras should be 0 (already handled above)
+    // playerExtrasSpent will only be counted if player.paid === true
     const playerTotalContribution = playerPaidEntry + playerExtrasSpent;
 
     return {
@@ -89,11 +93,11 @@ export const useFundraisingData = (playerId: string): FundraisingData | null => 
       hostAmount,
       totalPlayers: activePlayers.length,
       playerContribution: {
-        extrasUsed: playerExtrasUsed,
-        extrasSpent: playerExtrasSpent,
-        personalImpact: playerTotalContribution,  // UPDATED: Now includes entry fee + extras
-        entryFee: playerPaidEntry,               // NEW: Player's entry fee contribution
-        extrasContribution: playerExtrasSpent,   // NEW: Clearer naming for extras only
+        extrasUsed: playerExtrasUsed,          // Will be 0 if player didn't pay
+        extrasSpent: playerExtrasSpent,        // Will be 0 if player didn't pay
+        personalImpact: playerTotalContribution,  // Entry fee + extras (both 0 if unpaid)
+        entryFee: playerPaidEntry,             // 0 if player didn't pay
+        extrasContribution: playerExtrasSpent, // Will be 0 if player didn't pay
       },
     };
   }, [players, config, playerId]);

@@ -13,6 +13,21 @@ export function hydrateRoomBasicsFromSnap(
   if (Array.isArray(snap?.players)) setPlayersInRoom(snap.players);
 }
 
+export function hydrateOrderImageFromSnap(snap: any, setters: {
+  setOrderImageQuestion: (q: any) => void;
+  setOrderImageReviewQuestion: (r: any) => void;
+}) {
+  // Asking phase - order_image question
+  if (snap.orderImageQuestion) {
+    setters.setOrderImageQuestion(snap.orderImageQuestion);
+  }
+  
+  // ✅ FIXED: Check for snap.review.images (order_image review is in snap.review)
+  if (snap.review && Array.isArray(snap.review.images)) {
+    setters.setOrderImageReviewQuestion(snap.review);
+  }
+}
+
 export function hydrateQuestionOrReviewFromSnap(
   snap: any,
   {
@@ -165,5 +180,87 @@ export function hydrateTiebreakerFromSnap(
       break;
     default:
       setTbShowReview(false);
+  }
+}
+
+// ✅ NEW: Hydrate hidden object state for both asking and reviewing phases
+export function hydrateHiddenObjectFromSnap(
+  snap: any,
+  {
+    setHiddenPuzzle,
+    setHiddenFoundIds,
+    setHiddenFinished,
+    setRoundRemaining,
+  }: {
+    setHiddenPuzzle: (puzzle: any) => void;
+    setHiddenFoundIds: (ids: string[]) => void;
+    setHiddenFinished: (finished: boolean) => void;
+    setRoundRemaining: (seconds: number | null) => void;
+  }
+) {
+  if (snap?.hiddenObject) {
+    const ho = snap.hiddenObject;
+    
+    // Set the puzzle
+    if (ho.puzzle) {
+      setHiddenPuzzle({
+        puzzleId: ho.puzzle.puzzleId,
+        imageUrl: ho.puzzle.imageUrl,
+        difficulty: ho.puzzle.difficulty,
+        category: ho.puzzle.category,
+        totalSeconds: ho.puzzle.totalSeconds,
+        itemTarget: ho.puzzle.itemTarget,
+        items: ho.puzzle.items || [],
+        puzzleNumber: ho.puzzleNumber,      // ✅ ADD THIS
+        totalPuzzles: ho.totalPuzzles,      // ✅ ADD THIS
+      });
+    }
+    
+    // Set found items (empty array for host, player's items for player)
+    if (Array.isArray(ho.foundIds)) {
+      setHiddenFoundIds(ho.foundIds);
+    }
+    
+    // Set finished state
+    if (typeof ho.finished === 'boolean') {
+      setHiddenFinished(ho.finished);
+    }
+    
+    // Set remaining time
+    if (typeof ho.remaining === 'number') {
+      setRoundRemaining(ho.remaining);
+    } else {
+      setRoundRemaining(null);
+    }
+  }
+}
+
+// ✅ NEW: Hydrate final quiz stats for post-game recovery
+export function hydrateFinalStatsFromSnap(
+  snap: any,
+  {
+    recoverFinalStats,
+  }: {
+    recoverFinalStats: (stats: any[]) => void;
+  }
+) {
+  if (Array.isArray(snap?.finalQuizStats) && snap.finalQuizStats.length > 0) {
+    recoverFinalStats(snap.finalQuizStats);
+    console.log('[hydrateFinalStats] ✅ Recovered final quiz stats:', snap.finalQuizStats.length, 'rounds');
+  }
+}
+
+// ✅ NEW: Hydrate current round stats for round leaderboard
+export function hydrateCurrentRoundStatsFromSnap(
+  snap: any,
+  {
+    updateCurrentRoundStats,
+  }: {
+    updateCurrentRoundStats: (stats: any) => void;
+  }
+) {
+  if (snap?.currentRoundStats) {
+    updateCurrentRoundStats(snap.currentRoundStats);
+    console.log('[hydrateCurrentRoundStats] ✅ Recovered current round stats:', snap.currentRoundStats.roundNumber);
   }
 }

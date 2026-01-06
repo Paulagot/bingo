@@ -21,6 +21,7 @@ import { useRobinHoodAnimation } from '../hooks/useRobinHoodAnimation';
 import FreezeOverlay from './FreezeOverlay';
 import TiebreakerRound from './TiebreakerRound';
 import { useRouteChangeNotifier } from '../hooks/useRouteChangeNotifier';
+import { useQuizTimer } from '../hooks/useQuizTimer';
 
 type RoomPhaseWithTB = RoomPhase | 'tiebreaker';
 
@@ -28,7 +29,13 @@ const debug = true;
 
 // ✅ helper to narrow server string into RoundTypeId
 const asRoundTypeId = (s?: string): RoundTypeId | undefined =>
-  s === 'general_trivia' || s === 'wipeout' || s === 'speed_round' ? s : undefined;
+  s === 'general_trivia' || 
+  s === 'wipeout' || 
+  s === 'speed_round' || 
+  s === 'hidden_object' ||
+  s === 'order_image'  // ✅ ADD THIS LINE
+    ? s
+    : undefined;
 
 // ✅ types for notifications
 type NotificationType = 'success' | 'warning' | 'info' | 'error';
@@ -74,6 +81,7 @@ const QuizGamePlayPage = () => {
 
   const selectedAnswerRef = useRef<string>('');
   const answerSubmittedRef = useRef<boolean>(false);
+  const playerOrderRef = useRef<string[] | null>(null);
 
   if (!roomId || !playerId) {
     return (
@@ -114,6 +122,14 @@ const QuizGamePlayPage = () => {
 
   const currentQuestionIdRef = useRef<string | null>(null);
   const currentQuestionIndexRef = useRef<number>(-1);
+
+  const [hiddenPuzzle, setHiddenPuzzle] = useState<any>(null);
+const [hiddenFoundIds, setHiddenFoundIds] = useState<string[]>([]);
+const [hiddenFinished, setHiddenFinished] = useState(false);
+const [roundRemaining, setRoundRemaining] = useState<number | null>(null);
+const [orderImageQuestion, setOrderImageQuestion] = useState<any>(null);
+const [playerOrder, setPlayerOrder] = useState<string[] | null>(null);
+
 
   // server-driven room state
   const [serverRoomState, setServerRoomState] = useState<ServerRoomState>({
@@ -178,6 +194,8 @@ const QuizGamePlayPage = () => {
   const currentRoundType = serverRoomState.roundTypeId;
   const isFrozenNow = isFrozen && frozenForIndexRef.current === currentQuestionIndexRef.current;
 
+  
+
   // submit hook
   const { submitAnswer } = useAnswerSubmission({
     socket,
@@ -188,23 +206,75 @@ const QuizGamePlayPage = () => {
   });
 
   // auto-submit on countdown (legacy for non-speed rounds)
-  const handleAutoSubmit = useCallback(() => {
-    if (debug) console.log('[AutoSubmit] entry');
-    const currentAnswer = selectedAnswerRef.current;
-    const currentAnswerSubmitted = answerSubmittedRef.current;
-    if (currentAnswerSubmitted) return;
+const handleAutoSubmit = useCallback(() => {
+  if (debug) console.log('[AutoSubmit] entry');
+  
+  const currentAnswerSubmitted = answerSubmittedRef.current;
+  if (currentAnswerSubmitted) {
+    if (debug) console.log('[AutoSubmit] Already submitted, skipping');
+    return;
+  }
 
-    const questionToSubmit = question || { id: currentQuestionIdRef.current };
-    if (!questionToSubmit?.id) return;
+  // ✅ Handle order_image rounds
+  if (serverRoomState.roundTypeId === 'order_image' && orderImageQuestion) {
+    const currentOrder = playerOrderRef.current;
+    if (debug) console.log('[AutoSubmit] Order image - auto-submitting (time expired), order:', currentOrder);
+    
+    if (socket && roomId && playerId) {
+      socket.emit('submit_answer', {
+        roomId,
+        playerId,
+        questionId: orderImageQuestion.id,
+        answer: currentOrder || [], // Will be null/empty if never reordered
+        ts: Date.now()
+      });
+      setPlayerOrder(currentOrder || []);
+      setAnswerSubmitted(true);
+      answerSubmittedRef.current = true; // ✅ Update ref immediately
+    }
+    return;
+  }
 
-    setAnswerSubmitted(true);
-    submitAnswer(currentAnswer || null, {
-      autoTimeout: true,
-      isFrozen: isFrozen,
-      currentQuestionIndex: currentQuestionIndexRef.current,
-      frozenForIndex: frozenForIndexRef.current,
-    });
-  }, [question, submitAnswer, isFrozen]);
+  // ✅ Handle speed_round (no auto-submit needed)
+  if (serverRoomState.roundTypeId === 'speed_round') {
+    if (debug) console.log('[AutoSubmit] Speed round - skipping');
+    return;
+  }
+    // 🆕 ADD THIS: Handle hidden_object rounds (no auto-submit needed)
+  if (serverRoomState.roundTypeId === 'hidden_object') {
+    if (debug) console.log('[AutoSubmit] Hidden object round - skipping');
+    return;
+  }
+
+  // ✅ Handle standard rounds
+  const currentAnswer = selectedAnswerRef.current;
+  const questionToSubmit = question || { id: currentQuestionIdRef.current };
+  
+  if (!questionToSubmit?.id) {
+    if (debug) console.log('[AutoSubmit] No question ID, skipping');
+    return;
+  }
+
+  if (debug) console.log('[AutoSubmit] Standard round - submitting:', currentAnswer);
+  
+  setAnswerSubmitted(true);
+  answerSubmittedRef.current = true; // ✅ Add this for consistency
+  submitAnswer(currentAnswer || null, {
+    autoTimeout: true,
+    isFrozen: isFrozen,
+    currentQuestionIndex: currentQuestionIndexRef.current,
+    frozenForIndex: frozenForIndexRef.current,
+  });
+}, [
+  question, 
+  submitAnswer, 
+  isFrozen, 
+  serverRoomState.roundTypeId, 
+  orderImageQuestion,
+  socket,
+  roomId,
+  playerId
+]);
 
   const { currentEffect, isFlashing, getFlashClasses } = useCountdownEffects(handleAutoSubmit);
 
@@ -215,6 +285,24 @@ const QuizGamePlayPage = () => {
     debug,
   });
 
+const { timeLeft } = useQuizTimer({
+  question: orderImageQuestion 
+    ? {
+        id: orderImageQuestion.id,
+        timeLimit: orderImageQuestion.timeLimit ?? 0,
+        questionStartTime: orderImageQuestion.questionStartTime ?? Date.now()
+      }
+    : question
+    ? {
+        id: question.id,
+        timeLimit: question.timeLimit ?? 0,
+        questionStartTime: question.questionStartTime ?? Date.now()
+      }
+    : null,
+  timerActive: timerActive && !answerSubmitted,
+  onTimeUp: handleAutoSubmit
+});
+
   // keep refs in sync
   useEffect(() => {
     selectedAnswerRef.current = selectedAnswer;
@@ -222,6 +310,9 @@ const QuizGamePlayPage = () => {
   useEffect(() => {
     answerSubmittedRef.current = answerSubmitted;
   }, [answerSubmitted]);
+  useEffect(() => {
+  playerOrderRef.current = playerOrder;
+}, [playerOrder]);
 
   // anti-cheat tab tracking (kept as-is)
 // ✅ ADD: Debounced route change tracking
@@ -364,23 +455,74 @@ useEffect(() => {
       }
 
       if (snap.speed) setPhaseMessage(`Speed Round — ${snap.speed.remaining}s left`);
+if (snap.hiddenObject?.puzzle) {
+  setHiddenPuzzle({
+    ...snap.hiddenObject.puzzle,
+    imageUrl: snap.hiddenObject.puzzle.imageUrl,
+    puzzleNumber: snap.hiddenObject.puzzleNumber,      // ✅ ADD THIS
+    totalPuzzles: snap.hiddenObject.totalPuzzles,      // ✅ ADD THIS
+  });
+  setHiddenFoundIds(snap.hiddenObject.foundIds || []);
+  setHiddenFinished(!!snap.hiddenObject.finished);
+  setPhaseMessage(`Find It Fast — ${snap.hiddenObject.remaining}s left`);
+}
+// Add after hiddenObject recovery
+if (snap.orderImageQuestion) {
+  setOrderImageQuestion(snap.orderImageQuestion);
+  setPlayerOrder(snap.playerRecovery?.submittedOrder || null);
+  setAnswerSubmitted(snap.playerRecovery?.hasAnswered || false);
+  setTimerActive(snap.orderImageQuestion.timeLimit > 0);
+  if (snap.orderImageQuestion.questionNumber && snap.orderImageQuestion.totalQuestions) {
+    setQuestionInRound(snap.orderImageQuestion.questionNumber);
+    setTotalInRound(snap.orderImageQuestion.totalQuestions);
+  }
+}
+
 
       // reviewing
-      if (snap.review) {
-        setQuestion({
-          id: snap.review.id,
-          text: snap.review.text,
-          options: snap.review.options || [],
-          timeLimit: 0,
-          difficulty: snap.review.difficulty,
-          category: snap.review.category,
-        });
-        setClue(null);
-        setTimerActive(false);
-        setSelectedAnswer(snap.review.submittedAnswer || '');
-        setCorrectAnswer(snap.review.correctAnswer);
-        setPhaseMessage('Reviewing previous question…');
-      }
+     if (snap.review) {
+  // Check if it's an order_image review
+  if (snap.review.images && Array.isArray(snap.review.images)) {
+    // Order Image review
+    setQuestion({
+      id: snap.review.id,
+      text: snap.review.prompt || snap.review.text || '',
+      options: [],
+      timeLimit: 0,
+      difficulty: snap.review.difficulty,
+      category: snap.review.category,
+    });
+    
+    setOrderImageQuestion({
+      id: snap.review.id,
+      prompt: snap.review.prompt,
+      images: snap.review.images,
+      difficulty: snap.review.difficulty,
+      category: snap.review.category,
+      questionNumber: snap.review.questionNumber,
+      totalQuestions: snap.review.totalQuestions
+    });
+    
+    setPlayerOrder(snap.review.playerOrder || null);
+     setAnswerSubmitted(true);
+  } else {
+    // Standard trivia review
+    setQuestion({
+      id: snap.review.id,
+      text: snap.review.text,
+      options: snap.review.options || [],
+      timeLimit: 0,
+      difficulty: snap.review.difficulty,
+      category: snap.review.category,
+    });
+    setSelectedAnswer(snap.review.submittedAnswer || '');
+    setCorrectAnswer(snap.review.correctAnswer);
+  }
+  
+  setClue(null);
+  setTimerActive(false);
+  setPhaseMessage('Reviewing previous question…');
+}
 
       // --- TIEBREAKER recovery ---
 if (snap.roomState?.phase === 'tiebreaker' && snap.tb) {
@@ -534,9 +676,16 @@ if (snap.tb.stage === 'question' && snap.tb.question) {
     };
 
     // SPEED ROUND: global 90s countdown
-    const handleRoundTimeRemaining = ({ remaining }: { remaining: number }) => {
-      setPhaseMessage(`Speed Round — ${remaining}s left`);
-    };
+const handleRoundTimeRemaining = ({ remaining }: { remaining: number }) => {
+  setRoundRemaining(typeof remaining === 'number' ? remaining : null);
+
+  if (serverRoomState.roundTypeId === 'speed_round') {
+    setPhaseMessage(`Speed Round — ${remaining}s left`);
+  } else if (serverRoomState.roundTypeId === 'hidden_object') {
+    setPhaseMessage(`Find It Fast — ${remaining}s left`);
+  }
+};
+;
 
     const handleReviewQuestion = (data: any) => {
       if (debug) console.log('[Client] review question:', data);
@@ -638,42 +787,89 @@ if (snap.tb.stage === 'question' && snap.tb.question) {
           currentQuestionIndex: currentQuestionIndexRef.current,
         });
     };
+const handleRoomState = (data: ServerRoomState) => {
+  const timestamp = Date.now();
+  if (debug) console.log(`🔵 [room_state] ${timestamp}:`, data);
 
-    const handleRoomState = (data: ServerRoomState) => {
-      if (debug) console.log('[Client] room_state:', data);
+  const previousRound = serverRoomState.currentRound;
 
-      const previousRound = serverRoomState.currentRound;
+  if (data.phase === 'reviewing' && roomPhase !== 'reviewing') {
+    setIsFrozen(false);
+    setFrozenNotice(null);
+    setShowFreezeOverlay(false);
+    frozenForIndexRef.current = null;
+    frozenByRef.current = null;
+  }
 
-      if (data.phase === 'reviewing' && roomPhase !== 'reviewing') {
-        setIsFrozen(false);
-        setFrozenNotice(null);
-        setShowFreezeOverlay(false);
-        frozenForIndexRef.current = null;
-        frozenByRef.current = null;
-      }
-
-      if (data.currentRound !== previousRound && data.phase) {
-        currentQuestionIndexRef.current = -1;
-        setIsShowingRoundResults(false);
-        setRoundLeaderboard([]);
-      }
-
+  if (data.currentRound !== previousRound && data.phase) {
+    // ✅ DON'T clear state if we're reviewing hidden_object puzzles
+    if (data.roundTypeId === 'hidden_object' && data.phase === 'reviewing') {
+      if (debug) console.log('[Client] ⏸️ Skipping state clear - reviewing hidden object');
       setRoomPhase(data.phase as RoomPhaseWithTB);
       setServerRoomState(data);
-    };
+      return; // Exit early, don't clear anything
+    }
 
-    const handleRoundLeaderboard = (data: LeaderboardEntry[]) => {
-      if (debug) console.log('[Client] round leaderboard:', data);
-      setRoundLeaderboard(data);
-      setIsShowingRoundResults(true);
-      setCurrentRoundNumber(serverRoomState.currentRound);
-    };
+    currentQuestionIndexRef.current = -1;
 
-    const handleLeaderboard = (data: LeaderboardEntry[]) => {
-      if (debug) console.log('[Client] overall leaderboard:', data);
-      setLeaderboard(data);
+    // 🛡️ CRITICAL FIX: Protect leaderboard data during leaderboard phase
+    if (data.phase === 'leaderboard') {
+      if (debug) console.log('[Client] 🛡️ Leaderboard phase - preserving round results');
+      // Update round number but DON'T clear leaderboard data or flag
+      setCurrentRoundNumber(data.currentRound);
+    } else {
+      // ✅ Normal round change: clear leaderboard data if not showing results
+      if (!isShowingRoundResults) {
+        setRoundLeaderboard([]);
+        setCurrentRoundNumber(data.currentRound);
+      }
+      // Always clear the flag when moving to new round (except during leaderboard phase)
       setIsShowingRoundResults(false);
-    };
+    }
+
+    // Clear state from previous round
+    setQuestion(null);
+    setHiddenPuzzle(null);
+    setHiddenFoundIds([]);
+    setHiddenFinished(false);
+    setOrderImageQuestion(null);
+    setPlayerOrder(null);
+    setSelectedAnswer('');
+    setAnswerSubmitted(false);
+    setClue(null);
+    setFeedback(null);
+    setCorrectAnswer(null);
+    setTimerActive(false);
+
+    if (debug) console.log('[Client] 🔄 Round changed, cleared previous round state');
+  }
+
+  setRoomPhase(data.phase as RoomPhaseWithTB);
+  setServerRoomState(data);
+};
+
+ const handleRoundLeaderboard = (data: LeaderboardEntry[]) => {
+ const timestamp = Date.now();
+  if (debug) console.log(`🟢 [round_leaderboard] ${timestamp}:`, { dataLength: data.length });
+  
+  setRoundLeaderboard(data);
+  setIsShowingRoundResults(true);
+  setCurrentRoundNumber(serverRoomState.currentRound);
+  
+ 
+  
+  if (debug) console.log('[Client] ✅ Round leaderboard state updated');
+};
+
+   const handleLeaderboard = (data: LeaderboardEntry[]) => {
+const timestamp = Date.now();
+  console.log(`🟡 [overall_leaderboard] ${timestamp}:`, { dataLength: data.length });
+  
+  setLeaderboard(data);
+  setIsShowingRoundResults(false);  // This is correct - clear round flag
+  
+  if (debug) console.log('[Client] ✅ Overall leaderboard state updated');
+};
 
     const handleRoundEnd = ({ round }: { round: number }) => {
       if (debug) console.log('[Client] round_end:', round);
@@ -839,6 +1035,150 @@ if (snap.tb.stage === 'question' && snap.tb.question) {
       setPhaseMessage('Tie-breaker resolved. Finalizing results…');
     };
 
+const handleHiddenStart = (payload: any) => {
+  if (debug) console.log('[Client] hidden_object_start', payload);
+  
+  // ✅ CRITICAL: Reset foundIds when new puzzle starts
+  setHiddenPuzzle({
+    puzzleId: payload.puzzleId,
+    imageUrl: payload.imageUrl,
+    difficulty: payload.difficulty,
+    category: payload.category,
+    totalSeconds: payload.totalSeconds,
+    itemTarget: payload.itemTarget,
+    items: payload.items || [],
+    puzzleNumber: payload.puzzleNumber,      // ✅ ADD THIS
+    totalPuzzles: payload.totalPuzzles,      // ✅ ADD THIS
+  });
+
+  setHiddenFoundIds([]);              // ✅ CRITICAL: Always reset for new puzzle
+  setHiddenFinished(false);           // ✅ CRITICAL: Always reset for new puzzle
+};
+
+const handleHiddenFoundConfirm = (msg: any) => {
+  if (!msg?.itemId) return;
+  setHiddenFoundIds((prev) => (prev.includes(msg.itemId) ? prev : [...prev, msg.itemId]));
+  if (msg.finished) setHiddenFinished(true);
+};
+
+const handleHiddenReview = (payload: any) => {
+  if (debug)console.log('🔔 [Client] PLAYER received hidden_object_review:', {
+    puzzleNumber: payload.puzzleNumber,
+    totalPuzzles: payload.totalPuzzles,
+    foundIdsCount: payload.foundIds?.length || 0,
+    timestamp: Date.now()
+  });
+  
+  if (payload.puzzle) {
+    setHiddenPuzzle({
+      puzzleId: payload.puzzle.puzzleId,
+      imageUrl: payload.puzzle.imageUrl,
+      difficulty: payload.puzzle.difficulty,
+      category: payload.puzzle.category,
+      totalSeconds: payload.puzzle.totalSeconds,
+      itemTarget: payload.puzzle.itemTarget,
+      items: payload.puzzle.items || [],
+      puzzleNumber: payload.puzzleNumber,
+      totalPuzzles: payload.totalPuzzles,
+    });
+    
+    // ✅ Set the foundIds from the backend for THIS specific puzzle
+    setHiddenFoundIds(payload.foundIds || []);
+    setPhaseMessage(`Reviewing puzzle ${payload.puzzleNumber}...`);
+  }
+};
+
+// ✅ ADD THIS NEW HANDLER
+const handleOrderImageQuestion = (data: any) => {
+  if (debug) console.log('[Client] 📸 order_image_question received:', data);
+  
+  currentQuestionIdRef.current = data.id;
+  
+  setOrderImageQuestion(data);
+  // setQuestion(data); // Also set as general question for timer
+  setSelectedAnswer('');
+  setPlayerOrder(null);
+  setAnswerSubmitted(false);
+  setClue(null);
+  setFeedback(null);
+  setUsedExtrasThisRound({});
+  
+  if (data.questionNumber && data.totalQuestions) {
+    setQuestionInRound(data.questionNumber);
+    setTotalInRound(data.totalQuestions);
+  }
+  
+  setTimerActive(true);
+  setPhaseMessage('');
+};
+
+  const handleOrderImageReview = (data: any) => {
+   if (debug) console.log('🔔 [Client] order_image_review EVENT RECEIVED:', {
+      questionId: data.id,
+      prompt: data.prompt?.substring(0, 50),
+      imageCount: data.images?.length,
+      playerOrder: data.playerOrder,
+      questionNumber: data.questionNumber,
+      totalQuestions: data.totalQuestions,
+      timestamp: Date.now()
+    });
+
+   if (debug) console.log('[Client] BEFORE state update:', {
+      currentOrderImageQuestion: orderImageQuestion?.id,
+      currentPlayerOrder: playerOrder,
+      answerSubmitted
+    });
+
+    // Set the full question with images array
+    setQuestion({
+      id: data.id,
+      text: data.prompt,
+      options: [],
+      timeLimit: 0,
+      difficulty: data.difficulty,
+      category: data.category,
+    });
+
+    // Store the order_image specific data
+    setOrderImageQuestion({
+      id: data.id,
+      prompt: data.prompt,
+      images: data.images,
+      difficulty: data.difficulty,
+      category: data.category,
+      questionNumber: data.questionNumber,
+      totalQuestions: data.totalQuestions
+    });
+
+    // Store player's submitted order
+    setPlayerOrder(data.playerOrder || null);
+
+    setClue(null);
+    setTimerActive(false);
+    setCorrectAnswer(null);
+    setAnswerSubmitted(true);
+
+    if (data.questionNumber && data.totalQuestions) {
+      setQuestionInRound(data.questionNumber);
+      setTotalInRound(data.totalQuestions);
+    }
+
+    setPhaseMessage('Reviewing previous question...');
+
+    if (debug) console.log('[Client] AFTER state update - states set, waiting for React render');
+  };
+
+const handleHiddenObjectTransition = (data: { message: string; completedPuzzle: number; totalPuzzles: number }) => {
+  if (debug) console.log('[Client] hidden_object_transition:', data);
+  
+  // ✅ Clear the puzzle during transition so UI doesn't show stale data
+  setHiddenPuzzle(null);
+  setHiddenFoundIds([]);
+  setHiddenFinished(false);
+  
+  setPhaseMessage(data.message);
+};
+
     // register
     socket.on('tiebreak:review', handleTbReview);
     socket.on('tiebreak:start', handleTbStart);
@@ -867,6 +1207,19 @@ if (snap.tb.stage === 'question' && snap.tb.question) {
     socket.on('speed_question', handleSpeedQuestion);
     socket.on('round_time_remaining', handleRoundTimeRemaining);
 
+    socket.on('hidden_object_start', handleHiddenStart);
+socket.on('hidden_object_found_confirm', handleHiddenFoundConfirm);
+socket.on('hidden_object_review', handleHiddenReview);
+socket.on('order_image_question', handleOrderImageQuestion);
+ socket.on('order_image_review', handleOrderImageReview);
+ socket.on('hidden_object_transition', handleHiddenObjectTransition);
+
+socket.on('round_time_remaining', ({ remaining }: any) => {
+  setRoundRemaining(typeof remaining === 'number' ? remaining : null);
+ 
+});
+
+
     return () => {
       socket.off('tiebreak:review', handleTbReview);
       socket.off('tiebreak:start', handleTbStart);
@@ -894,8 +1247,15 @@ if (snap.tb.stage === 'question' && snap.tb.question) {
       socket.off('enhanced_player_stats', handleEnhancedPlayerStats);
       socket.off('speed_question', handleSpeedQuestion);
       socket.off('round_time_remaining', handleRoundTimeRemaining);
+      socket.off('hidden_object_start', handleHiddenStart);
+socket.off('hidden_object_found_confirm', handleHiddenFoundConfirm);
+ socket.off('hidden_object_review', handleHiddenReview);
+ socket.off('order_image_question', handleOrderImageQuestion);
+  socket.off('order_image_review', handleOrderImageReview);
+  socket.off('hidden_object_transition', handleHiddenObjectTransition);
+
     };
-  }, [socket, connected, roomId, playerId, navigate, roomPhase, serverRoomState.currentRound]);
+ }, [socket, connected, roomId, playerId, navigate]);
 
   const handleUseExtra = (extraId: string, targetPlayerId?: string) => {
     if (!socket || !roomId || !playerId) return;
@@ -922,6 +1282,37 @@ if (snap.tb.stage === 'question' && snap.tb.question) {
     }
   };
 
+  const handleHiddenTap = (itemId: string, x: number, y: number) => {
+  if (!socket || !roomId || !playerId) return;
+  socket.emit('hidden_object_found', { roomId, playerId, itemId, x, y });
+};
+// Around line 1299, UPDATE handleOrderImageSubmit and ADD handleOrderImageChange
+
+const handleOrderImageChange = useCallback((order: string[]) => {
+  // Update ref whenever order changes (while dragging)
+  playerOrderRef.current = order;
+  if (debug)console.log('📋 [OrderImage] Order changed:', order);
+}, []);
+
+const handleOrderImageSubmit = useCallback((order: string[]) => {
+  if (!socket || !roomId || !playerId || !orderImageQuestion) return;
+  
+  if (debug) console.log('[OrderImage] Submitting order:', order);
+  
+  socket.emit('submit_answer', {
+    roomId,
+    playerId,
+    questionId: orderImageQuestion.id,
+    answer: order,
+    ts: Date.now()
+  });
+  
+  setPlayerOrder(order);
+  playerOrderRef.current = order;
+  setAnswerSubmitted(true);
+  answerSubmittedRef.current = true;
+}, [socket, roomId, playerId, orderImageQuestion]);
+
   const getMaxRestorePointsFromConfig = (cfg: any): number =>
     cfg?.fundraisingOptions?.restorePoints?.totalRestorePoints ??
     fundraisingExtraDefinitions.restorePoints?.totalRestorePoints ??
@@ -937,7 +1328,7 @@ if (snap.tb.stage === 'question' && snap.tb.question) {
     setFreezeModalOpen(false);
   };
 
-  const timeLeft = null; // server-managed timers
+
 
   const getCurrentRoundDefinition = () => {
     return config?.roundDefinitions?.[serverRoomState.currentRound - 1];
@@ -997,224 +1388,260 @@ const submitTieBreaker = useCallback(() => {
 }, [socket, roomId, tbAnswer]);
 
 
-  return (
-    <div className={`p-8 ${getFlashClasses()}`}>
-      {roomPhase === 'tiebreaker' ? (
-        <TiebreakerRound
-          question={tbQuestion}
-          isTieBreakerParticipant={isTieBreakerParticipant}
-          tbParticipants={tbParticipants}
-          tbStillTied={tbStillTied}
-          tbWinners={tbWinners}
-          tbAnswer={tbAnswer}
-          setTbAnswer={setTbAnswer}
-          submitTieBreaker={submitTieBreaker}
-          currentRound={serverRoomState.currentRound}
-          timerActive={timerActive}
-          correctAnswer={tbCorrectAnswer}
-          showReview={tbShowReview}
-          playerAnswers={tbPlayerAnswers}
-          playersInRoom={playersInRoom}
-          questionNumber={tbQuestionNumber}
-          hasSubmitted={tbHasSubmitted} 
-          onAutoSubmit={() => {
-            if (tbAnswer.trim()) submitTieBreaker();
-          }}
-        />
-      ) : null}
-
-      {roomPhase === 'complete' ? (
-        <QuizCompletionCelebration
-          leaderboard={leaderboard}
-          config={safeConfig}
-          playerId={playerId || ''}
-          roomId={roomId || ''}
-          enhancedStats={enhancedStats}
-          onShareResults={() => {
-            const score = leaderboard.find((p) => p.id === playerId)?.score ?? 0;
-            const shareText = `I just completed a quiz and scored ${score} points! 🎯`;
-            if (navigator.share) {
-              navigator.share({ text: shareText });
-            } else {
-              navigator.clipboard.writeText(shareText);
-              showNotification('success', 'Results copied to clipboard!');
-            }
-          }}
-          onReturnToHome={() => navigate('/')}
-        />
-      ) : (
-        <>
-          {/* countdown overlay */}
-          {currentEffect && isFlashing && (
-            <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center">
-              <div
-                className={`animate-bounce text-8xl font-bold ${
-                  currentEffect.color === 'green'
-                    ? 'text-green-500'
-                    : currentEffect.color === 'orange'
-                    ? 'text-orange-500'
-                    : 'text-red-500'
-                }`}
-              >
-                {currentEffect.message}
-              </div>
-            </div>
-          )}
-
-          {/* toasts */}
-          {notifications.map((n, i) => (
-            <div
-              key={n.id}
-              className={`fixed right-4 top-20 z-40 rounded-lg p-4 shadow-lg transition-all duration-300 ${
-                n.type === 'success'
-                  ? 'bg-green-500 text-white'
-                  : n.type === 'warning'
-                  ? 'bg-orange-500 text-white'
-                  : n.type === 'error'
-                  ? 'bg-red-500 text-white'
-                  : 'bg-blue-500 text-white'
-              }`}
-              style={{ marginTop: `${i * 80}px` }}
-            >
-              <div className="flex items-center justify-between">
-                <span className="pr-4">
-                  {n.type === 'success' ? '✅' : n.type === 'warning' ? '⚠️' : n.type === 'error' ? '❌' : 'ℹ️'}{' '}
-                  {n.message}
-                </span>
-                <button
-                  onClick={() => setNotifications((prev) => prev.filter((x) => x.id !== n.id))}
-                  className="ml-2 text-lg font-bold text-white hover:text-gray-200"
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-          ))}
-
-          {/* main content switching */}
-          {roomPhase === 'launched' || (roomPhase === 'waiting' && serverRoomState.currentRound > 1) ? (
-            <LaunchedPhase
-              currentRound={serverRoomState.currentRound}
-              config={config}
-              totalPlayers={serverRoomState.totalPlayers}
-              playerId={playerId || ''}
-              playerExtras={thisPlayer?.extras || []}
-              roomPhase={roomPhase}
-            />
-          ) : roomPhase === 'leaderboard' ? (
-            isShowingRoundResults && roundLeaderboard.length > 0 ? (
-              <EnhancedPlayerLeaderboard
-                leaderboard={roundLeaderboard}
-                availableExtras={availableExtras}
-                usedExtras={usedExtras}
-                onUseExtra={handleUseExtra}
-                currentPlayerId={playerId || ''}
-                cumulativeNegativePoints={
-                  roundLeaderboard.find((p) => p.id === playerId)?.cumulativeNegativePoints || 0
-                }
-                pointsRestored={roundLeaderboard.find((p) => p.id === playerId)?.pointsRestored || 0}
-                isRoundResults={true}
-                currentRound={currentRoundNumber}
-                maxRestorePoints={getMaxRestorePointsFromConfig(config)}
-              />
-            ) : leaderboard.length > 0 ? (
-              <EnhancedPlayerLeaderboard
-                leaderboard={leaderboard}
-                availableExtras={availableExtras}
-                usedExtras={usedExtras}
-                onUseExtra={handleUseExtra}
-                currentPlayerId={playerId || ''}
-                cumulativeNegativePoints={leaderboard.find((p) => p.id === playerId)?.cumulativeNegativePoints || 0}
-                pointsRestored={leaderboard.find((p) => p.id === playerId)?.pointsRestored || 0}
-                isRoundResults={false}
-                maxRestorePoints={getMaxRestorePointsFromConfig(config)}
-              />
-            ) : (
-              <div className="text-fg/70 rounded-xl bg-gray-100 p-6 text-center">Calculating leaderboard...</div>
-            )
-          ) : (roomPhase === 'reviewing' || roomPhase === 'asking') && question ? (
-            <div>
-              <RoundRouter
-                currentRound={serverRoomState.currentRound}
-                roomPhase={roomPhase}
-                currentRoundType={asRoundTypeId(serverRoomState.roundTypeId)}
-                question={question}
-                timeLeft={timeLeft}
-                timerActive={timerActive && !answerSubmitted}
-                selectedAnswer={selectedAnswer}
-                setSelectedAnswer={setSelectedAnswer}
-                answerSubmitted={answerSubmitted}
-                clue={clue}
-                feedback={feedback}
-                correctAnswer={correctAnswer ?? undefined}
-                isFrozen={isFrozenNow}
-                frozenNotice={frozenNotice}
-                // ✅ instant submit for speed_round
-                onSubmit={(ans?: string) => {
-                  if (serverRoomState.roundTypeId === 'speed_round') {
-                    setSelectedAnswer(ans ?? '');
-                    setAnswerSubmitted(true);
-                    socket?.emit('submit_speed_answer', {
-                      roomId,
-                      playerId,
-                      questionId: getCurrentQuestionId(),
-                      answer: ans ?? null,
-                    });
-                  } else {
-                    // other rounds: timer-based flow
-                  }
-                }}
-                roomId={roomId!}
-                playerId={playerId!}
-                roundExtras={roundExtras}
-                usedExtras={usedExtras}
-                usedExtrasThisRound={usedExtrasThisRound}
-                onUseExtra={handleUseExtra}
-                questionNumber={questionInRound}
-                totalQuestions={totalInRound}
-                difficulty={getCurrentRoundDefinition()?.difficulty}
-                category={getCurrentRoundDefinition()?.category}
-                isHost={false}
-                playersInRoom={playersInRoom}
-                isFlashing={isFlashing}
-  currentEffect={currentEffect}
-  getFlashClasses={getFlashClasses}
-              />
-            </div>
-          ) : (
-            <div className="text-fg/70 rounded-xl bg-gray-100 p-6 text-center">{phaseMessage}</div>
-          )}
-
-          <UseExtraModal
-            visible={freezeModalOpen}
-            players={playersInRoom.filter((p) => p.id !== playerId)}
-            onCancel={() => setFreezeModalOpen(false)}
-            onConfirm={handleFreezeConfirm}
-          />
-        </>
-      )}
-
-      {/* robin hood overlay */}
-      {robinHoodData && (
-        <RobinHoodRunner
-          isActive={isAnimationActive}
-          onComplete={handleAnimationComplete}
-          stolenPoints={robinHoodData.stolenPoints}
-          fromTeam={robinHoodData.fromTeam}
-          toTeam={robinHoodData.toTeam}
-        />
-      )}
-
-      {/* freeze overlay */}
-      <FreezeOverlay
-        key={freezeOverlayTrigger}
-        isActive={showFreezeOverlay}
-        frozenBy={playersRef.current.find((p) => p.id === frozenByRef.current)?.name || 'Someone'}
-        onAnimationComplete={handleFreezeOverlayComplete}
-        targetElement=".quiz-content, .round-router, [data-testid='question-card']"
+return (
+  <div className={`p-8 ${getFlashClasses()}`}>
+    {roomPhase === 'tiebreaker' ? (
+      <TiebreakerRound
+        question={tbQuestion}
+        isTieBreakerParticipant={isTieBreakerParticipant}
+        tbParticipants={tbParticipants}
+        tbStillTied={tbStillTied}
+        tbWinners={tbWinners}
+        tbAnswer={tbAnswer}
+        setTbAnswer={setTbAnswer}
+        submitTieBreaker={submitTieBreaker}
+        currentRound={serverRoomState.currentRound}
+        timerActive={timerActive}
+        correctAnswer={tbCorrectAnswer}
+        showReview={tbShowReview}
+        playerAnswers={tbPlayerAnswers}
+        playersInRoom={playersInRoom}
+        questionNumber={tbQuestionNumber}
+        hasSubmitted={tbHasSubmitted} 
+        onAutoSubmit={() => {
+          if (tbAnswer.trim()) submitTieBreaker();
+        }}
       />
-    </div>
-  );
+    ) : null}
+
+    {roomPhase === 'complete' ? (
+      <QuizCompletionCelebration
+        leaderboard={leaderboard}
+        config={safeConfig}
+        playerId={playerId || ''}
+        roomId={roomId || ''}
+        enhancedStats={enhancedStats}
+        onShareResults={() => {
+          const score = leaderboard.find((p) => p.id === playerId)?.score ?? 0;
+          const shareText = `I just completed a quiz and scored ${score} points! 🎯`;
+          if (navigator.share) {
+            navigator.share({ text: shareText });
+          } else {
+            navigator.clipboard.writeText(shareText);
+            showNotification('success', 'Results copied to clipboard!');
+          }
+        }}
+        onReturnToHome={() => navigate('/')}
+      />
+    ) : (
+      <>
+        {/* countdown overlay */}
+        {currentEffect && isFlashing && (
+          <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center">
+            <div
+              className={`animate-bounce text-8xl font-bold ${
+                currentEffect.color === 'green'
+                  ? 'text-green-500'
+                  : currentEffect.color === 'orange'
+                  ? 'text-orange-500'
+                  : 'text-red-500'
+              }`}
+            >
+              {currentEffect.message}
+            </div>
+          </div>
+        )}
+
+        {/* toasts */}
+        {notifications.map((n, i) => (
+          <div
+            key={n.id}
+            className={`fixed right-4 top-20 z-40 rounded-lg p-4 shadow-lg transition-all duration-300 ${
+              n.type === 'success'
+                ? 'bg-green-500 text-white'
+                : n.type === 'warning'
+                ? 'bg-orange-500 text-white'
+                : n.type === 'error'
+                ? 'bg-red-500 text-white'
+                : 'bg-blue-500 text-white'
+            }`}
+            style={{ marginTop: `${i * 80}px` }}
+          >
+            <div className="flex items-center justify-between">
+              <span className="pr-4">
+                {n.type === 'success' ? '✅' : n.type === 'warning' ? '⚠️' : n.type === 'error' ? '❌' : 'ℹ️'}{' '}
+                {n.message}
+              </span>
+              <button
+                onClick={() => setNotifications((prev) => prev.filter((x) => x.id !== n.id))}
+                className="ml-2 text-lg font-bold text-white hover:text-gray-200"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        ))}
+
+        {/* ========================================== */}
+        {/* MAIN CONTENT SWITCHING - THE IMPORTANT BIT */}
+        {/* ========================================== */}
+        
+        {roomPhase === 'launched' || (roomPhase === 'waiting' && serverRoomState.currentRound > 1) ? (
+          <LaunchedPhase
+            currentRound={serverRoomState.currentRound}
+            config={config}
+            totalPlayers={serverRoomState.totalPlayers}
+            playerId={playerId || ''}
+            playerExtras={thisPlayer?.extras || []}
+            roomPhase={roomPhase}
+          />
+        ) : roomPhase === 'leaderboard' ? (
+          // ✅ UPDATED LEADERBOARD RENDERING LOGIC
+          (() => {
+           if (debug) console.log('[Client] 📊 Leaderboard render decision:', {
+              isShowingRoundResults,
+              roundLeaderboardLength: roundLeaderboard.length,
+              overallLeaderboardLength: leaderboard.length,
+              roundType: serverRoomState.roundTypeId,
+              currentRound: serverRoomState.currentRound
+            });
+            
+            // Priority 1: Show ROUND leaderboard if flag is set and data exists
+            if (isShowingRoundResults && roundLeaderboard.length > 0) {
+             if (debug) console.log('[Client] ✅ Rendering ROUND leaderboard');
+              return (
+                <EnhancedPlayerLeaderboard
+                  leaderboard={roundLeaderboard}
+                  availableExtras={availableExtras}
+                  usedExtras={usedExtras}
+                  onUseExtra={handleUseExtra}
+                  currentPlayerId={playerId || ''}
+                  cumulativeNegativePoints={
+                    roundLeaderboard.find((p) => p.id === playerId)?.cumulativeNegativePoints || 0
+                  }
+                  pointsRestored={roundLeaderboard.find((p) => p.id === playerId)?.pointsRestored || 0}
+                  isRoundResults={true}
+                  currentRound={currentRoundNumber}
+                  maxRestorePoints={getMaxRestorePointsFromConfig(config)}
+                />
+              );
+            }
+            
+            // Priority 2: Show OVERALL leaderboard if data exists
+            if (leaderboard.length > 0) {
+              if (debug) console.log('[Client] ✅ Rendering OVERALL leaderboard');
+              return (
+                <EnhancedPlayerLeaderboard
+                  leaderboard={leaderboard}
+                  availableExtras={availableExtras}
+                  usedExtras={usedExtras}
+                  onUseExtra={handleUseExtra}
+                  currentPlayerId={playerId || ''}
+                  cumulativeNegativePoints={leaderboard.find((p) => p.id === playerId)?.cumulativeNegativePoints || 0}
+                  pointsRestored={leaderboard.find((p) => p.id === playerId)?.pointsRestored || 0}
+                  isRoundResults={false}
+                  maxRestorePoints={getMaxRestorePointsFromConfig(config)}
+                />
+              );
+            }
+            
+            // Priority 3: Waiting for data
+           if (debug) console.log('[Client] ⏳ Waiting for leaderboard data...');
+            return (
+              <div className="text-fg/70 rounded-xl bg-gray-100 p-6 text-center">
+                Loading results...
+              </div>
+            );
+          })()
+        ) : (roomPhase === 'reviewing' || roomPhase === 'asking') && (question || hiddenPuzzle || orderImageQuestion) ? (
+          <div>
+            <RoundRouter
+              currentRound={serverRoomState.currentRound}
+              roomPhase={roomPhase}
+              currentRoundType={asRoundTypeId(serverRoomState.roundTypeId)}
+              question={question}
+              timeLeft={timeLeft}
+              timerActive={timerActive && !answerSubmitted}
+              selectedAnswer={selectedAnswer}
+              setSelectedAnswer={setSelectedAnswer}
+              answerSubmitted={answerSubmitted}
+              clue={clue}
+              feedback={feedback}
+              correctAnswer={correctAnswer ?? undefined}
+              isFrozen={isFrozenNow}
+              frozenNotice={frozenNotice}
+              onSubmit={(ans?: string) => {
+                if (serverRoomState.roundTypeId === 'speed_round') {
+                  setSelectedAnswer(ans ?? '');
+                  setAnswerSubmitted(true);
+                  socket?.emit('submit_speed_answer', {
+                    roomId,
+                    playerId,
+                    questionId: getCurrentQuestionId(),
+                    answer: ans ?? null,
+                  });
+                }
+              }}
+              roomId={roomId!}
+              playerId={playerId!}
+              roundExtras={roundExtras}
+              usedExtras={usedExtras}
+              usedExtrasThisRound={usedExtrasThisRound}
+              onUseExtra={handleUseExtra}
+              questionNumber={questionInRound}
+              totalQuestions={totalInRound}
+              difficulty={getCurrentRoundDefinition()?.difficulty}
+              category={getCurrentRoundDefinition()?.category}
+              isHost={false}
+              playersInRoom={playersInRoom}
+              isFlashing={isFlashing}
+              currentEffect={currentEffect}
+              getFlashClasses={getFlashClasses}
+              puzzle={hiddenPuzzle}
+              foundIds={hiddenFoundIds}
+              finished={hiddenFinished}
+              onTap={handleHiddenTap}
+              remainingSeconds={roundRemaining}
+              orderImageQuestion={orderImageQuestion}
+              playerOrder={playerOrder}
+              onOrderSubmit={handleOrderImageSubmit}
+              onOrderChange={handleOrderImageChange} 
+            />
+          </div>
+        ) : (
+          <div className="text-fg/70 rounded-xl bg-gray-100 p-6 text-center">{phaseMessage}</div>
+        )}
+
+        <UseExtraModal
+          visible={freezeModalOpen}
+          players={playersInRoom.filter((p) => p.id !== playerId)}
+          onCancel={() => setFreezeModalOpen(false)}
+          onConfirm={handleFreezeConfirm}
+        />
+      </>
+    )}
+
+    {/* robin hood overlay */}
+    {robinHoodData && (
+      <RobinHoodRunner
+        isActive={isAnimationActive}
+        onComplete={handleAnimationComplete}
+        stolenPoints={robinHoodData.stolenPoints}
+        fromTeam={robinHoodData.fromTeam}
+        toTeam={robinHoodData.toTeam}
+      />
+    )}
+
+    {/* freeze overlay */}
+    <FreezeOverlay
+      key={freezeOverlayTrigger}
+      isActive={showFreezeOverlay}
+      frozenBy={playersRef.current.find((p) => p.id === frozenByRef.current)?.name || 'Someone'}
+      onAnimationComplete={handleFreezeOverlayComplete}
+      targetElement=".quiz-content, .round-router, [data-testid='question-card']"
+    />
+  </div>
+);
 };
 
 export default QuizGamePlayPage;

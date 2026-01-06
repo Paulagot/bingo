@@ -2,6 +2,8 @@
 import * as generalTrivia from './generalTriviaEngine.js';
 import * as wipeoutEngine from './wipeoutEngine.js';
 import * as speedRound from './speedRoundEngine.js';
+import * as hiddenObjectEngine from './hiddenObjectEngine.js';
+import * as orderImageEngine from './orderImageEngine.js';
 
 console.log('[Router] Loaded router from', import.meta.url);
 
@@ -9,6 +11,8 @@ const engines = {
   general_trivia: generalTrivia,
   speed_round: speedRound,
   wipeout: wipeoutEngine,
+  hidden_object: hiddenObjectEngine,
+  order_image: orderImageEngine,
 };
 
 console.log('[Router] engines keys =', Object.keys(engines));

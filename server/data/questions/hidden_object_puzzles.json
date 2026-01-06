@@ -1,0 +1,209 @@
+[
+{
+  "id": 3000,
+  "category": "image",
+  "imageUrl": "/quiz/hidden-object/3000.jpg",
+  "items": [
+    {
+      "id": "a",
+      "label": "Witch Hat",
+      "difficulty": "easy",
+      "bbox": { "x": 0.04, "y": 0.14, "w": 0.18, "h": 0.18 }
+    },
+    {
+      "id": "b",
+      "label": "Lantern",
+      "difficulty": "easy",
+      "bbox": { "x": 0.26, "y": 0.12, "w": 0.10, "h": 0.16 }
+    },
+    {
+      "id": "c",
+      "label": "Green Tractor",
+      "difficulty": "easy",
+      "bbox": { "x": 0.68, "y": 0.20, "w": 0.28, "h": 0.26 }
+    },
+    {
+      "id": "d",
+      "label": "Yellow Truck",
+      "difficulty": "easy",
+      "bbox": { "x": 0.22, "y": 0.44, "w": 0.18, "h": 0.12 }
+    },
+    {
+      "id": "e",
+      "label": "Bicycle",
+      "difficulty": "easy",
+      "bbox": { "x": 0.58, "y": 0.50, "w": 0.28, "h": 0.28 }
+    },
+    {
+      "id": "f",
+      "label": "Red Mushroom",
+      "difficulty": "easy",
+      "bbox": { "x": 0.83, "y": 0.73, "w": 0.13, "h": 0.15 }
+    },
+    {
+      "id": "g",
+      "label": "Pocket Watch",
+      "difficulty": "medium",
+      "bbox": { "x": 0.44, "y": 0.66, "w": 0.07, "h": 0.07 }
+    },
+    {
+      "id": "h",
+      "label": "Guitar",
+      "difficulty": "medium",
+      "bbox": { "x": 0.30, "y": 0.63, "w": 0.20, "h": 0.16 }
+    },
+    {
+      "id": "i",
+      "label": "Four-Leaf Clover",
+      "difficulty": "hard",
+      "bbox": { "x": 0.40, "y": 0.79, "w": 0.06, "h": 0.06 }
+    },
+    {
+      "id": "j",
+      "label": "Playing Card",
+      "difficulty": "hard",
+      "bbox": { "x": 0.55, "y": 0.77, "w": 0.06, "h": 0.05 }
+    }
+  ]
+},
+{
+  "id": 3001,
+  "category": "kids",
+  "imageUrl": "/quiz/hidden-object/forest.png",
+  "items": [
+    {
+      "id": "a",
+      "label": "Birdhouse",
+      "difficulty": "easy",
+      "bbox": { "x": 0.0, "y": 0.4818, "w": 0.2051, "h": 0.1432 }
+    },
+    {
+      "id": "b",
+      "label": "Pinecone",
+      "difficulty": "easy",
+      "bbox": { "x": 0.1855, "y": 0.332, "w": 0.0977, "h": 0.0651 }
+    },
+    {
+      "id": "c",
+      "label": "Blue Butterfly",
+      "difficulty": "easy",
+      "bbox": { "x": 0.6348, "y": 0.1953, "w": 0.1367, "h": 0.0651 }
+    },
+    {
+      "id": "d",
+      "label": "Binoculars",
+      "difficulty": "easy",
+      "bbox": { "x": 0.7764, "y": 0.2539, "w": 0.2148, "h": 0.0684 }
+    },
+    {
+      "id": "e",
+      "label": "Rubber Duck",
+      "difficulty": "easy",
+      "bbox": { "x": 0.3516, "y": 0.638, "w": 0.1514, "h": 0.0846 }
+    },
+    {
+      "id": "f",
+      "label": "Turtle",
+      "difficulty": "easy",
+      "bbox": { "x": 0.6836, "y": 0.5013, "w": 0.1611, "h": 0.0846 }
+    },
+    {
+      "id": "g",
+      "label": "Fishing Hook",
+      "difficulty": "medium",
+      "bbox": { "x": 0.293, "y": 0.0977, "w": 0.0635, "h": 0.127 }
+    },
+    {
+      "id": "h",
+      "label": "Caterpillar",
+      "difficulty": "medium",
+      "bbox": { "x": 0.0977, "y": 0.0456, "w": 0.1953, "h": 0.0443 }
+    },
+    {
+      "id": "i",
+      "label": "Spider Web",
+      "difficulty": "hard",
+      "bbox": { "x": 0.2246, "y": 0.0293, "w": 0.2637, "h": 0.0781 }
+    },
+    {
+      "id": "j",
+      "label": "Coiled Rope",
+      "difficulty": "hard",
+      "bbox": { "x": 0.6445, "y": 0.804, "w": 0.1953, "h": 0.0586 }
+    }
+  ]
+},
+
+  {
+    "id": 3002,
+    "category": "kids",
+    "imageUrl": "/quiz/hidden-object/bedroom.png",
+    "items": [
+      {
+        "id": "a",
+        "label": "Toy Airplane",
+        "difficulty": "easy",
+        "bbox": { "x": 0.4199, "y": 0.2214, "w": 0.3223, "h": 0.1302 }
+      },
+      {
+        "id": "b",
+        "label": "Teddy Bear",
+        "difficulty": "easy",
+        "bbox": { "x": 0.2881, "y": 0.3092, "w": 0.1709, "h": 0.1465 }
+      },
+      {
+        "id": "c",
+        "label": "Pizza Slice",
+        "difficulty": "easy",
+        "bbox": { "x": 0.5078, "y": 0.4557, "w": 0.293, "h": 0.14 }
+      },
+      {
+        "id": "d",
+        "label": "Toy Robot",
+        "difficulty": "easy",
+        "bbox": { "x": 0.0, "y": 0.5111, "w": 0.2295, "h": 0.2246 }
+      },
+      {
+        "id": "e",
+        "label": "Soccer Ball",
+        "difficulty": "easy",
+        "bbox": { "x": 0.1367, "y": 0.5534, "w": 0.3516, "h": 0.2051 }
+      },
+      {
+        "id": "f",
+        "label": "Rubber Duck",
+        "difficulty": "easy",
+        "bbox": { "x": 0.542, "y": 0.6315, "w": 0.3223, "h": 0.1693 }
+      },
+      {
+        "id": "g",
+        "label": "Game Controller",
+        "difficulty": "medium",
+        "bbox": { "x": 0.5078, "y": 0.5339, "w": 0.3076, "h": 0.1432 }
+      },
+      {
+        "id": "h",
+        "label": "Red Sneaker",
+        "difficulty": "medium",
+        "bbox": { "x": 0.5322, "y": 0.7324, "w": 0.3125, "h": 0.1693 }
+      },
+      {
+        "id": "i",
+        "label": "Yo-yo",
+        "difficulty": "hard",
+        "bbox": { "x": 0.3027, "y": 0.2344, "w": 0.1172, "h": 0.0911 }
+      },
+      {
+        "id": "j",
+        "label": "Blue Button",
+        "difficulty": "hard",
+        "bbox": { "x": 0.3223, "y": 0.7975, "w": 0.166, "h": 0.1009 }
+      }
+    ]
+  }
+]
+
+
+
+
+

@@ -17,7 +17,7 @@ type ReviewQuestionPayload = {
 type Props = {
   roomPhase: string;
   currentRoundDef?: any;
-  reviewQuestion: ReviewQuestionPayload;
+  reviewQuestion: ReviewQuestionPayload | null;
   isLastQuestionOfRound: boolean;
   reviewComplete: boolean;
   onShowRoundResults: () => void;

@@ -1,6 +1,7 @@
 // src/quiz/components/reports/deriveCore.ts
 // Shared centralised reconciliation + prize + leaderboard derivation
 
+
 export type CorePayload = {
   config: any;
   players: any[];
@@ -32,17 +33,22 @@ export function deriveCore(payload: CorePayload) {
 
   for (const p of active) {
     const primary = p.paymentMethod || 'unknown';
+    
+    // Only count entry fee if player has paid
     if (p.paid) {
       methodBump(primary).entry += entryFee;
     }
 
-    const extras = p.extraPayments || {};
-    for (const key of Object.keys(extras)) {
-      const ex = extras[key];
-      const m = (ex?.method || 'unknown') as string;
-      const amt = Number(ex?.amount || 0);
-      methodBump(m).extrasAmount += amt;
-      methodBump(m).extrasCount += 1;
+    // ✅ FIX #2: Only count extras if player has PAID
+    if (p.paid && p.extraPayments) {
+      const extras = p.extraPayments;
+      for (const key of Object.keys(extras)) {
+        const ex = extras[key];
+        const m = (ex?.method || 'unknown') as string;
+        const amt = Number(ex?.amount || 0);
+        methodBump(m).extrasAmount += amt;
+        methodBump(m).extrasCount += 1;
+      }
     }
   }
 
@@ -75,18 +81,42 @@ export function deriveCore(payload: CorePayload) {
 
   // ---------------------------
   // Leaderboard
+  // ✅ FIX #1: Use frozen leaderboard from reconciliation
   // ---------------------------
-  const leaderboard = [...active]
-    .map((p) => ({
+  const frozenLeaderboard = (config?.reconciliation as any)?.finalLeaderboard;
+
+  let leaderboard;
+
+  if (frozenLeaderboard && Array.isArray(frozenLeaderboard) && frozenLeaderboard.length > 0) {
+    // ✅ Use the frozen leaderboard (single source of truth)
+    leaderboard = frozenLeaderboard.map((p: any, idx: number) => ({
+      rank: idx + 1,
       id: p.id,
       name: p.name || '',
       score: Number(p.score || 0),
       cumulativeNegativePoints: Number(p.cumulativeNegativePoints || 0),
       pointsRestored: Number(p.pointsRestored || 0),
       tiebreakerBonus: Number(p.tiebreakerBonus || 0),
-    }))
-    .sort((a, b) => b.score - a.score)
-    .map((p, idx) => ({ rank: idx + 1, ...p }));
+    }));
+    
+    console.log('[deriveCore] ✅ Using frozen leaderboard from reconciliation:', leaderboard.length, 'players');
+  } else {
+    // ⚠️ Fallback: derive from active players (won't have scores, but prevents crash)
+    console.warn('[deriveCore] ⚠️ No frozen leaderboard found in reconciliation, using fallback (scores will be 0)');
+    console.warn('[deriveCore] 💡 Make sure freezeFinalLeaderboard() is called when quiz completes');
+    
+    leaderboard = [...active]
+      .map((p) => ({
+        id: p.id,
+        name: p.name || '',
+        score: 0, // Can't get real scores from players array
+        cumulativeNegativePoints: 0,
+        pointsRestored: 0,
+        tiebreakerBonus: 0,
+      }))
+      .sort((a, b) => b.score - a.score)
+      .map((p, idx) => ({ rank: idx + 1, ...p }));
+  }
 
   // ---------------------------
   // Prizes & Awards

@@ -243,7 +243,7 @@ export const useQuizSetupStore = create<QuizSetupState>()(
       setExtraPrice: (key, price) =>
         set((state) => {
           const next = { ...(state.setupConfig.fundraisingPrices ?? {}) };
-          if (price && price > 0) (next as any)[key] = price;
+         if (typeof price === 'number' && price > 0) (next as any)[key] = price;
           else delete (next as any)[key];
           return {
             setupConfig: {

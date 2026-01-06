@@ -1,7 +1,7 @@
 // src/components/auth/LoginForm.tsx
 import React, { useState } from 'react';
 import { Eye, EyeOff, LogIn, AlertCircle, Sparkles, Building2 } from 'lucide-react';
-import { useAuth, useUI, useCreditWarning } from '../../stores/authStore';
+import { useAuth, useAuthUI, useCreditWarning } from '@features/auth';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { NoCreditWarningModal } from './NoCreditWarningModal';
 
@@ -17,7 +17,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
   const location = useLocation();
 
   const { login } = useAuth();
-  const { isLoading, error, clearError } = useUI();
+  const { isLoading, error, clearError } = useAuthUI();
   const { showNoCreditWarning, dismissNoCreditWarning } = useCreditWarning();
 
   const handleSubmit = async (e: React.FormEvent) => {
