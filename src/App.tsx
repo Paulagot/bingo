@@ -30,6 +30,8 @@ import TermsOfUse from './pages/nonseo/terms';
 import PrivacyPolicy from './pages/nonseo/privacy';
 import AboutFundRaisely from './pages/nonseo/aboutus';
 import BlogAndResources from './pages/blog';
+import ClubsLeaguePage from './pages/campaigns/ClubsLeaguePage';
+
 
 // Lazy quiz parts
 const QuizRoutes = lazy(() => import('./components/Quiz/QuizRoutes'));
@@ -104,6 +106,7 @@ export default function App() {
             <Route path="/legal/terms" element={<TermsOfUse />} />
 
             <Route path="/founding-partners" element={<FoundingPartnersPage />} />
+            <Route path="/campaigns/clubs-league" element={<ClubsLeaguePage />} />
 
             {/* Auth routes */}
             <Route path="/signup" element={<Signup />} />
