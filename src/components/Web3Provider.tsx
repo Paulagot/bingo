@@ -5,7 +5,6 @@ interface Web3ProviderProps {
   children: React.ReactNode;
 }
 
-// Module-level singleton
 let initializationPromise: Promise<any> | null = null;
 let isInitialized = false;
 let cachedProviders: any | null = null;
@@ -82,57 +81,61 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
           },
         });
 
-        console.log("🌐 [Web3Provider] Creating AppKit...");
+        console.log("🌐 [Web3Provider] Creating AppKit with metadata:", metadata);
         
-        // ✅ ENHANCED APPKIT CONFIGURATION
+        // ✅ MOBILE-OPTIMIZED APPKIT CONFIGURATION
         createAppKit({
           adapters: [wagmiAdapter, solanaWeb3JsAdapter],
           projectId,
           networks,
-          metadata,
+          metadata, // Uses the fixed metadata from config
           
-          // ✅ Theme configuration
+          // ✅ Theme
           themeMode: "dark",
           
-          // ✅ Feature configuration - CRITICAL FOR MOBILE
+          // ✅ Feature configuration
           features: { 
             analytics: true,
-            socials: false, // Disable if you don't need social login
-            email: false,   // Disable if you don't need email login
-            swaps: false,   // Disable to reduce modal complexity on mobile
-            onramp: false,  // Disable if not needed
+            socials: false,
+            email: false,
+            swaps: false,
+            onramp: false,
           },
           
-          // ✅ Mobile-optimized settings
-
+          // ✅ CRITICAL: Wallet connection methods
+          enableWalletConnect: true,  // QR code for desktop
+          enableInjected: true,       // Browser extensions
+          enableCoinbase: true,       // Coinbase Wallet SDK
+          enableEIP6963: true,        // Modern wallet detection
           
-          // ✅ CRITICAL: Wallet configuration for mobile
-          allWallets: 'SHOW', // Shows all wallets including mobile ones
+          // ✅ Show all available wallets (including mobile-specific)
+          allWallets: 'SHOW',
           
-          // ✅ Featured wallet IDs - prioritize these for mobile
+          // ✅ Feature mobile wallets at the top
           featuredWalletIds: [
+            // Solana wallets
+            // Phantom will be auto-detected via Wallet Standard on Solana
+            
+            // EVM wallets with mobile support
             'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
             'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa', // Coinbase Wallet
-            '18388be9ac2d02726dbac9777c96efaac06d744b2f6d580fccdd4127a6d01fd1', // Rabby
             '1ae92b26df02f0abca6304df07debccd18262fdf5fe82daa81593582dac9a369', // Rainbow
-            '19177a98252e07ddfc9af2083ba8e07ef627cb6103467ffebb3f8f4205fd7927', // Ledger Live
-            // Solana wallets - auto-detected via Wallet Standard
+            '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0', // Trust Wallet
           ],
           
-          // ✅ Enable different wallet types  
-          enableWalletConnect: true,  // QR code connection
-          enableInjected: true,       // Browser extension wallets
-          enableCoinbase: true,       // Coinbase Wallet SDK
-          enableEIP6963: true,        // Modern wallet detection standard
-          
-          // ✅ Theme variables for mobile optimization
+          // ✅ Theme customization
           themeVariables: {
-            '--w3m-z-index': 2147483647, // Ensure modal is on top
-            '--w3m-accent': '#6366f1',      // Your brand color
+            '--w3m-z-index': 2147483647,
+            '--w3m-accent': '#6366f1',
+            '--w3m-border-radius-master': '8px',
           },
           
-          // ✅ Default network (optional but recommended)
-          defaultNetwork: networks[0], // Start with your primary network
+          // ✅ Default to Solana devnet (first in your networks array)
+          defaultNetwork: networks[0],
+          
+          // ✅ MOBILE DEBUGGING: Enable if you need to see what's happening
+          // Remove in production
+          debug: import.meta.env.DEV,
         });
 
         const result = {
@@ -175,7 +178,6 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
     };
   }, []);
 
-  // Error state
   if (loadingError) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-red-50 to-pink-100">
@@ -194,12 +196,10 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
     );
   }
 
-  // Loading state
   if (!providers) {
     return <Web3LoadingFallback />;
   }
 
-  // Ready state
   const { AppKitProvider, WagmiProvider, QueryClientProvider, queryClient, wagmiConfig } = providers;
 
   return (

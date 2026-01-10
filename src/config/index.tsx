@@ -40,17 +40,31 @@ if (!projectId || projectId.trim().length === 0) {
 // 🧩 DApp Metadata (shown in wallet modals)
 // ---------------------------------------------
 // Metadata with proper mobile redirect
+// src/config/index.ts
+
+// Current origin for dynamic URLs
+const getOrigin = () => typeof window !== 'undefined' ? window.location.origin : "https://fundraisely-staging.up.railway.app";
+
+// ✅ FIXED: Proper metadata with correct deep link format
 export const metadata = {
   name: "FundRaisely Quiz",
   description: "FundRaisely Web3-powered quiz fundraising platform",
-  url: typeof window !== 'undefined' ? window.location.origin : "https://fundraisely-staging.up.railway.app",
-  icons: [`${typeof window !== 'undefined' ? window.location.origin : "https://fundraisely-staging.up.railway.app"}/fundraisely.png`],
-  // ✅ This tells wallets where to return after connection
- verifyUrl: typeof window !== 'undefined' ? window.location.origin : "https://fundraisely-staging.up.railway.app",
-   redirect: {
-    native: typeof window !== 'undefined' ? `${window.location.origin}://` : undefined,
-    universal: typeof window !== 'undefined' ? window.location.origin : "https://fundraisely-staging.up.railway.app",
-  }
+  url: getOrigin(),
+  icons: [`${getOrigin()}/fundraisely.png`],
+  
+  // ✅ CRITICAL FIX: Native scheme should NOT include https://
+  // It should be your app's custom scheme (without the origin)
+  redirect: {
+    // This is for custom app schemes (if you had a mobile app)
+    // For web apps, you typically don't need this or use undefined
+    native: undefined, // Remove the malformed scheme
+    
+    // ✅ This is what matters for mobile web browsers
+    universal: getOrigin(),
+  },
+  
+  // ✅ Verify URL for WalletConnect security
+  verifyUrl: getOrigin(),
 };
 
 
