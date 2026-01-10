@@ -766,7 +766,7 @@ export function useHostControlsController({ roomId }: { roomId: string }) {
 
     orderImageQuestion,
     orderImageReviewQuestion,
-    handleReturnToDashboard,
+    
 
     roundLeaderboard,
     isShowingRoundResults,
@@ -782,6 +782,7 @@ export function useHostControlsController({ roomId }: { roomId: string }) {
     handleShowRoundResults,
     handleContinueToOverallLeaderboard,
     handleEndGame,
+    handleReturnToDashboard,
   };
 }
 

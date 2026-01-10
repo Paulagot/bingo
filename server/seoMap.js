@@ -160,6 +160,19 @@ export function getSeoForPath(reqPath, hostOrigin) {
   image: ABS(hostOrigin, '/og/web3-impact-leaderboard.png'),
   type: 'event',
 },
+// server/seoMap.js (inside byPath)
+'/campaigns/clubs-league': {
+  title: 'Junior Sports Clubs Quiz League (March 2026) — Family Fundraiser for U8 & U10 | FundRaisely',
+  description:
+    'Join the FundRaisely Junior Sports Clubs Quiz League. Your club runs one family quiz night in March 2026, raises funds for junior teams, and competes for prizes and a €2,000 club grant. Limited to 25 clubs.',
+  canonical: ABS(hostOrigin, '/campaigns/clubs-league'),
+  keywords:
+    'club fundraising, quiz night fundraiser, youth sports fundraising, GAA fundraiser, soccer club fundraiser, family quiz night, March 2026 fundraising',
+  image: ABS(hostOrigin, '/og/fundraisely.png'), // optional if you have it
+  type: 'event',
+  robots: 'index, follow',
+},
+
 
 
     // Add more marketing pages here:

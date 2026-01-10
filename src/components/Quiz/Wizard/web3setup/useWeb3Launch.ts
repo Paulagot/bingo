@@ -358,9 +358,11 @@ export function useWeb3Launch({ onResetToFirst: _onResetToFirst, onBack: _onBack
       const web3RoomConfig = {
         ...setupConfig,
         deploymentTxHash: deployRes.txHash,
+         hostWallet: hostWallet,
         hostWalletConfirmed: hostWallet,
         paymentMethod: "web3" as const,
         isWeb3Room: true,
+        explorerUrl: deployRes.explorerUrl || null,
         web3PrizeStructure: {
           firstPlace: setupConfig.prizeSplits?.[1] || 100,
           secondPlace: setupConfig.prizeSplits?.[2] || 0,
@@ -371,7 +373,11 @@ export function useWeb3Launch({ onResetToFirst: _onResetToFirst, onBack: _onBack
         solanaCluster: (setupConfig as any)?.solanaCluster,
         roomContractAddress: deployRes.contractAddress,
         web3CharityId: (setupConfig as any)?.web3CharityId,
-        web3CharityName: (setupConfig as any)?.web3Charity,
+          web3CharityName: 
+    (setupConfig as any)?.web3CharityName ||     // Try direct field
+    (setupConfig as any)?.charityName ||         // Try alternate field
+    (setupConfig as any)?.web3Charity ||         // Try legacy field
+    null,
         web3CharityAddress: (setupConfig as any)?.web3CharityAddress,
       };
 

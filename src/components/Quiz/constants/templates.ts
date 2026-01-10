@@ -46,44 +46,44 @@ const quizTemplates: QuizTemplate[] = [
         pointsPerDifficulty: { easy: 2, medium: 4, hard: 6 },
       },
     },   
-      {
-        type: 'wipeout',
-        category: 'General Knowledge',
-        difficulty: 'medium',
-        customConfig: {
-          questionsPerRound: 4,
-          timePerQuestion: 11,
-          pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
-          pointsLostPerWrong: 2,
-          pointsLostPerUnanswered: 3,
-        },
-      },
-               {
-      type: 'hidden_object',
-      category: 'kids',
-      difficulty: 'hard',
-     customConfig: {
-    questionsPerRound: 2,            // ✅ 2 puzzles in this round
-    timePerQuestion: 0,
-    totalTimeSeconds: 0,
-    hiddenObject: {
-      timeLimitSeconds: 20,          // ✅ Each puzzle: 45 seconds
-      secondsToPoints: 1
-    }
-    }},
-      {
-        type: 'speed_round',
-        category: 'Math',
-        difficulty: 'medium',
-        customConfig: {
-          questionsPerRound: 40,
-          totalTimeSeconds: 20,
-          skipAllowed: true,
-          pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
-          pointsLostPerWrong: 0,
-          pointsLostPerUnanswered: 0,
-        },
-      },
+    //   {
+    //     type: 'wipeout',
+    //     category: 'General Knowledge',
+    //     difficulty: 'medium',
+    //     customConfig: {
+    //       questionsPerRound: 4,
+    //       timePerQuestion: 11,
+    //       pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
+    //       pointsLostPerWrong: 2,
+    //       pointsLostPerUnanswered: 3,
+    //     },
+    //   },
+    //            {
+    //   type: 'hidden_object',
+    //   category: 'kids',
+    //   difficulty: 'hard',
+    //  customConfig: {
+    // questionsPerRound: 2,            // ✅ 2 puzzles in this round
+    // timePerQuestion: 0,
+    // totalTimeSeconds: 0,
+    // hiddenObject: {
+    //   timeLimitSeconds: 20,          // ✅ Each puzzle: 45 seconds
+    //   secondsToPoints: 1
+    // }
+    // }},
+    //   {
+    //     type: 'speed_round',
+    //     category: 'Math',
+    //     difficulty: 'medium',
+    //     customConfig: {
+    //       questionsPerRound: 40,
+    //       totalTimeSeconds: 20,
+    //       skipAllowed: true,
+    //       pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
+    //       pointsLostPerWrong: 0,
+    //       pointsLostPerUnanswered: 0,
+    //     },
+    //   },
  
     ],
     tags: ['Audience: Mixed','Topic: General','Duration: ≈7m'],

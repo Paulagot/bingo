@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import QuizWizard from '../components/Quiz/Wizard/QuizWizard';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+
 import { useAuth } from '@features/auth';
 
 // ✅ Debug toggle - set to false for production
@@ -62,6 +63,7 @@ const FundraisingQuizPage = () => {
   const [fullscreenGif, setFullscreenGif] = useState<'setup' | 'dashboard' | 'ingame' | 'reporting' | null>(null);
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const location = useLocation();
 
   const renderCountRef = useRef(0);
   renderCountRef.current += 1;
@@ -78,13 +80,20 @@ const FundraisingQuizPage = () => {
     debugLog('FundraisingQuizPage', 'State changed', { showWizard });
   }, [showWizard]);
 
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (params.get('openWizard') && isAuthenticated) {
-      setShowWizard(true);
-      navigate('/', { replace: true });
-    }
-  }, [isAuthenticated, navigate]);
+useEffect(() => {
+  const params = new URLSearchParams(location.search);
+
+  // openWizard=1 (or any truthy) should open wizard once authenticated
+  const shouldOpen = params.get('openWizard');
+
+  if (shouldOpen && isAuthenticated) {
+    setShowWizard(true);
+
+    // ✅ clear the query param without leaving the page
+    navigate('/quiz/create-fundraising-quiz', { replace: true });
+  }
+}, [isAuthenticated, location.search, navigate]);
+
 
   const handleStartClick = () => {
     debugLog('FundraisingQuizPage', 'Host quiz button clicked');
@@ -94,8 +103,8 @@ const FundraisingQuizPage = () => {
       return;
     }
 
-    const returnTo = encodeURIComponent('/quiz?openWizard=1');
-    navigate(`/auth?returnTo=${returnTo}`);
+    const returnTo = encodeURIComponent('/quiz/create-fundraising-quiz?openWizard=1');
+navigate(`/auth?returnTo=${returnTo}`);
   };
 
   useEffect(() => {

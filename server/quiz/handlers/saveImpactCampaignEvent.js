@@ -1,20 +1,18 @@
 // server/quiz/handlers/saveImpactCampaignEvent.js
-import mysql from 'mysql2/promise';
-import { dbConfig } from '../../config/database';  // adjust if your config path differs
+import { connection, TABLE_PREFIX } from '../../config/database.js';
 
-/**
- * Insert completion data for Web3 Impact Campaign leaderboard
- */
 export async function saveImpactCampaignEvent(eventData) {
-  let connection;
-
   try {
-    connection = await mysql.createConnection(dbConfig);
+    const table = `${TABLE_PREFIX}impact_campaign_events`;
 
     const sql = `
-      INSERT INTO fundraisely_impact_campaign_events (
+      INSERT INTO ${table}
+      (
+        platform_campaign_id,
+        campaign_id,
         room_id,
         host_id,
+        host_name,
         chain,
         network,
         fee_token,
@@ -25,36 +23,38 @@ export async function saveImpactCampaignEvent(eventData) {
         charity_amount,
         extras_revenue,
         host_fee_amount,
-        prizes_value,
         number_of_players
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const params = [
+      eventData.platformCampaignId ?? null,
+      eventData.campaignId ?? null,  // ✅ NEW: campaign_id
       eventData.roomId,
-      eventData.hostId || null,
+      eventData.hostId ?? null,
+      eventData.hostName ?? null,
       eventData.chain,
       eventData.network,
       eventData.feeToken,
-      eventData.hostWallet,
-      eventData.charityWallet,
-      eventData.charityName,
-      eventData.totalRaised,
-      eventData.charityAmount,
-      eventData.extrasRevenue,
-      eventData.hostFeeAmount,
-      eventData.prizesValue,
-      eventData.numberOfPlayers
+      eventData.hostWallet ?? null,
+      eventData.charityWallet ?? null,
+      eventData.charityName ?? null,
+      eventData.totalRaised ?? 0,
+      eventData.charityAmount ?? 0,
+      eventData.extrasRevenue ?? 0,
+      eventData.hostFeeAmount ?? 0,
+      eventData.numberOfPlayers ?? 0,
     ];
 
-    await connection.execute(sql, params);
+    const [result] = await connection.execute(sql, params);
 
-    console.log(`💾 [ImpactCampaign] Saved event for room ${eventData.roomId}`);
-    return { success: true };
-  } catch (error) {
-    console.error(`❌ [ImpactCampaign] Failed to save event:`, error);
-    return { success: false, error };
-  } finally {
-    if (connection) await connection.end();
+    return { success: true, insertId: result.insertId };
+  } catch (err) {
+    console.error('[saveImpactCampaignEvent] ❌ Insert failed:', err);
+    return { success: false, error: err?.message || String(err) };
   }
 }
+
+
+

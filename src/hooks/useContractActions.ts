@@ -90,6 +90,8 @@ type DistributeResult =
       rentReclaimed?: number | undefined;
       error?: string | undefined;
       charityAmount?: string | undefined;
+      tgbDepositAddress?: string | undefined;  // ✅ ADD THIS
+      declareWinnersTxHash?: string | undefined;
     }
   | { success: false; error: string };
 

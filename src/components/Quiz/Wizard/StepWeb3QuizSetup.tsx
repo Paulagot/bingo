@@ -409,17 +409,26 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
           <select
             value={charityId}
             onChange={(e) => {
-              const id = e.target.value || '';
-              setCharityId(id);
-              const c = getGbCharityById(id || undefined);
-              updateSetupConfig({
-                web3CharityOrgId: id || null,
-                web3CharityName: c?.name || null,
-                web3CharityId: id || null,
-                web3CharityAddress: null,
-              } as any);
-              setError('');
-            }}
+  const id = e.target.value || '';
+  setCharityId(id);
+  const c = getGbCharityById(id || undefined);
+  
+  // ✅ ADD: Debug logging
+  console.log('🏥 [Charity] Selected:', {
+    id,
+    charityName: c?.name,
+    charityOrgId: id,
+  });
+  
+  updateSetupConfig({
+    web3CharityOrgId: id || null,
+    web3CharityName: c?.name || null,
+    web3CharityId: id || null,
+    web3CharityAddress: null,
+  } as any);
+  
+  setError('');
+}}
             className={`w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3 sm:text-base ${
               charityId ? 'border-green-300 bg-green-50 focus:border-green-500' : 'border-border focus:border-indigo-500'
             }`}

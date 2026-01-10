@@ -30,6 +30,8 @@ export type EvmDistributeResult =
       success: true;
       txHash: `0x${string}`;
       explorerUrl?: string;
+        tgbDepositAddress?: string;  // ✅ NEW: TGB charity wallet address
+      charityAmount?: string; 
       error?: string; // warnings
     }
   | { success: false; error: string };
@@ -497,12 +499,58 @@ export function useEvmDistributePrizes() {
           throw new Error('Transaction reverted on-chain');
         }
 
+        let charityAmountFromEvent: string | undefined;
+
+try {
+  // Find RoomEnded event in logs
+  const roomEndedLog = receipt.logs.find((log: any) => {
+    try {
+      const parsed = RoomABI.find((item: any) => 
+        item.type === 'event' && item.name === 'RoomEnded'
+      );
+      if (!parsed) return false;
+      
+      // Check if this log matches RoomEnded event signature
+      const eventSignature = `RoomEnded(uint256,address[],uint256)`;
+      const eventTopic = keccak256(stringToHex(eventSignature));
+      return log.topics[0] === eventTopic;
+    } catch {
+      return false;
+    }
+  });
+
+  if (roomEndedLog) {
+    // Parse the event
+    const iface = new (await import('ethers')).Interface(RoomABI);
+    const decoded = iface.parseLog({
+      topics: roomEndedLog.topics,
+      data: roomEndedLog.data,
+    });
+    
+    if (decoded && decoded.args && decoded.args.charityAmount) {
+      // Convert bigint to decimal string (assuming 6 decimals for USDC)
+      charityAmountFromEvent = bigintToDecimalString(
+        decoded.args.charityAmount,
+        6 // decimals
+      );
+      
+      console.log('[EVM] 💰 Charity amount from RoomEnded event:', charityAmountFromEvent);
+    }
+  } else {
+    console.warn('[EVM] ⚠️ Could not find RoomEnded event in transaction logs');
+  }
+} catch (parseError: any) {
+  console.error('[EVM] ❌ Failed to parse RoomEnded event:', parseError);
+}
+
         const explorerUrl = explorerFor(target.key);
 
         return {
           success: true,
           txHash: hash as `0x${string}`,
           explorerUrl: `${explorerUrl}/tx/${hash}`,
+           tgbDepositAddress: recipientAddressForFinalize, // ✅ NEW: Return TGB wallet
+  charityAmount: charityAmountFromEvent,  
           error: warnings.length > 0 ? warnings.join('\n') : undefined,
         };
       } catch (e: any) {

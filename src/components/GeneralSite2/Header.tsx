@@ -10,6 +10,7 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileQuizOpen, setMobileQuizOpen] = useState(false);
   const [mobilePricingOpen, setMobilePricingOpen] = useState(false);
+  const [mobileCampaignsOpen, setMobileCampaignsOpen] = useState(false);
 
   const { isAuthenticated, user, club, logout } = useAuth();
 
@@ -26,25 +27,30 @@ export function Header() {
 
   // Routes
   const ROUTES = {
-    impactCampaign: '/web3/impact-campaign/', // label: Impact Campaign
+    // Campaigns
+    impactCampaign: '/web3/impact-campaign',
+    clubsLeague: '/campaigns/clubs-league',
+
     pricing: '/pricing',
-    foundingPartner: '/founding-partners', // Launch offer
+    foundingPartner: '/founding-partners',
     blog: '/blog',
     login: '/auth',
     freeTrial: '/free-trial',
+
     // Quiz Fundraisers subroutes
     howItWorks: '/quiz/how-it-works',
     features: '/quiz/features',
     useCases: '/quiz/use-cases',
     demo: '/quiz/demo',
     testimonials: '/testimonials',
+
     // App
     createQuiz: '/quiz/create-fundraising-quiz',
   };
 
   // Page flags
-  const onImpactCampaign = isCurrent(ROUTES.impactCampaign);
   const onFreeTrial = isCurrent(ROUTES.freeTrial);
+  const onCampaigns = isCurrent(ROUTES.impactCampaign) || isCurrent(ROUTES.clubsLeague);
 
   return (
     <header className="bg-white/90 fixed inset-x-0 top-0 z-50 shadow-sm backdrop-blur-sm">
@@ -74,42 +80,27 @@ export function Header() {
             <div className="invisible absolute left-0 top-full w-64 rounded-lg border border-gray-100 bg-white py-2 opacity-0 shadow-lg transition-all duration-150 group-hover:visible group-hover:opacity-100">
               <div className="flex flex-col">
                 {hideIfCurrent(ROUTES.howItWorks) && (
-                  <Link
-                    to={ROUTES.howItWorks}
-                    className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                  >
+                  <Link to={ROUTES.howItWorks} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
                     How it Works
                   </Link>
                 )}
                 {hideIfCurrent(ROUTES.features) && (
-                  <Link
-                    to={ROUTES.features}
-                    className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                  >
+                  <Link to={ROUTES.features} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
                     Features
                   </Link>
                 )}
                 {hideIfCurrent(ROUTES.useCases) && (
-                  <Link
-                    to={ROUTES.useCases}
-                    className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                  >
+                  <Link to={ROUTES.useCases} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
                     Use Cases (Schools, Clubs, Charities)
                   </Link>
                 )}
                 {hideIfCurrent(ROUTES.demo) && (
-                  <Link
-                    to={ROUTES.demo}
-                    className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                  >
+                  <Link to={ROUTES.demo} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
                     Demo
                   </Link>
                 )}
                 {hideIfCurrent(ROUTES.testimonials) && (
-                  <Link
-                    to={ROUTES.testimonials}
-                    className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                  >
+                  <Link to={ROUTES.testimonials} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
                     Testimonials
                   </Link>
                 )}
@@ -130,18 +121,12 @@ export function Header() {
             <div className="invisible absolute left-0 top-full w-64 rounded-lg border border-gray-100 bg-white py-2 opacity-0 shadow-lg transition-all duration-150 group-hover:visible group-hover:opacity-100">
               <div className="flex flex-col">
                 {hideIfCurrent(ROUTES.foundingPartner) && (
-                  <Link
-                    to={ROUTES.foundingPartner}
-                    className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                  >
+                  <Link to={ROUTES.foundingPartner} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
                     Founding Partners
                   </Link>
                 )}
                 {hideIfCurrent(ROUTES.pricing) && (
-                  <Link
-                    to={ROUTES.pricing}
-                    className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                  >
+                  <Link to={ROUTES.pricing} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
                     Pricing
                   </Link>
                 )}
@@ -149,42 +134,50 @@ export function Header() {
             </div>
           </div>
 
-          {/* Impact Campaign (now unified colour) */}
-          {!onImpactCampaign && (
-            <Link
-              to={ROUTES.impactCampaign}
-              className="text-sm font-medium text-indigo-700 hover:text-indigo-900"
+          {/* Campaigns (dropdown) */}
+          <div className="relative group">
+            <button
+              className="flex items-center gap-1 text-sm font-medium text-indigo-700 hover:text-indigo-900"
+              aria-haspopup="true"
+              aria-expanded="false"
             >
-              Impact Campaign
-            </Link>
-          )}
+              Campaigns
+              <ChevronDown className="h-4 w-4" />
+            </button>
+
+            <div className="invisible absolute left-0 top-full w-72 rounded-lg border border-gray-100 bg-white py-2 opacity-0 shadow-lg transition-all duration-150 group-hover:visible group-hover:opacity-100">
+              <div className="flex flex-col">
+                {hideIfCurrent(ROUTES.impactCampaign) && (
+                  <Link to={ROUTES.impactCampaign} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                    Web3 Impact Campaign
+                  </Link>
+                )}
+                {hideIfCurrent(ROUTES.clubsLeague) && (
+                  <Link to={ROUTES.clubsLeague} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                    Junior Clubs Fundraising Quiz League
+                  </Link>
+                )}
+              </div>
+            </div>
+          </div>
 
           {/* Blog */}
           {hideIfCurrent(ROUTES.blog) && (
-            <Link
-              to={ROUTES.blog}
-              className="text-sm font-medium text-indigo-700 hover:text-indigo-900"
-            >
+            <Link to={ROUTES.blog} className="text-sm font-medium text-indigo-700 hover:text-indigo-900">
               Blog
             </Link>
           )}
 
           {/* Login (hidden when authenticated) */}
           {!isAuthenticated && hideIfCurrent(ROUTES.login) && (
-            <Link
-              to={ROUTES.login}
-              className="text-sm font-medium text-indigo-700 hover:text-indigo-900"
-            >
+            <Link to={ROUTES.login} className="text-sm font-medium text-indigo-700 hover:text-indigo-900">
               Login
             </Link>
           )}
 
           {/* Auth-dependent action */}
           {isAuthenticated ? (
-            <Link
-              to={ROUTES.createQuiz}
-              className="text-sm font-semibold text-indigo-700 hover:text-indigo-900"
-            >
+            <Link to={ROUTES.createQuiz} className="text-sm font-semibold text-indigo-700 hover:text-indigo-900">
               Create Quiz
             </Link>
           ) : (
@@ -201,9 +194,7 @@ export function Header() {
           {/* Greeting + Logout when authed */}
           {isAuthenticated && (
             <>
-              <span className="text-sm text-gray-500">
-                Hi, {club?.name ?? user?.name ?? user?.email}
-              </span>
+              <span className="text-sm text-gray-500">Hi, {club?.name ?? user?.name ?? user?.email}</span>
               <button
                 onClick={handleLogout}
                 className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100"
@@ -242,9 +233,7 @@ export function Header() {
               aria-expanded={mobileQuizOpen}
             >
               <span>Quiz Fundraisers</span>
-              <ChevronDown
-                className={`h-4 w-4 transition-transform ${mobileQuizOpen ? 'rotate-180' : ''}`}
-              />
+              <ChevronDown className={`h-4 w-4 transition-transform ${mobileQuizOpen ? 'rotate-180' : ''}`} />
             </button>
             {mobileQuizOpen && (
               <div className="ml-2 flex flex-col">
@@ -296,16 +285,14 @@ export function Header() {
               </div>
             )}
 
-            {/* Pricing accordion (Founding Partners + Pricing) */}
+            {/* Pricing accordion */}
             <button
               onClick={() => setMobilePricingOpen((v) => !v)}
               className="flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-sm font-medium text-indigo-700 hover:bg-indigo-50"
               aria-expanded={mobilePricingOpen}
             >
               <span>Pricing</span>
-              <ChevronDown
-                className={`h-4 w-4 transition-transform ${mobilePricingOpen ? 'rotate-180' : ''}`}
-              />
+              <ChevronDown className={`h-4 w-4 transition-transform ${mobilePricingOpen ? 'rotate-180' : ''}`} />
             </button>
             {mobilePricingOpen && (
               <div className="ml-2 flex flex-col">
@@ -330,15 +317,36 @@ export function Header() {
               </div>
             )}
 
-            {/* Impact Campaign */}
-            {!onImpactCampaign && (
-              <Link
-                to={ROUTES.impactCampaign}
-                className="block rounded-md px-2 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Impact Campaign
-              </Link>
+            {/* Campaigns accordion */}
+            <button
+              onClick={() => setMobileCampaignsOpen((v) => !v)}
+              className="flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-sm font-medium text-indigo-700 hover:bg-indigo-50"
+              aria-expanded={mobileCampaignsOpen}
+            >
+              <span>Campaigns</span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${mobileCampaignsOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {mobileCampaignsOpen && (
+              <div className="ml-2 flex flex-col">
+                {hideIfCurrent(ROUTES.impactCampaign) && (
+                  <Link
+                    to={ROUTES.impactCampaign}
+                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Web3 Impact Campaign
+                  </Link>
+                )}
+                {hideIfCurrent(ROUTES.clubsLeague) && (
+                  <Link
+                    to={ROUTES.clubsLeague}
+                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Junior Clubs Fundraising Quiz League
+                  </Link>
+                )}
+              </div>
             )}
 
             {/* Blog */}
@@ -399,6 +407,7 @@ export function Header() {
     </header>
   );
 }
+
 
 
 

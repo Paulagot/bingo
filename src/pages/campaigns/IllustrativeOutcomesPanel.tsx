@@ -61,7 +61,8 @@ export const IllustrativeOutcomesPanel: React.FC<Props> = ({
           <h2 className="text-indigo-900 text-3xl md:text-4xl font-bold mb-3"> What success could look like for clubs</h2>
           <p className="text-indigo-900/70 text-lg max-w-3xl mx-auto leading-relaxed">
             This is a fundraising event for your club, you keep all funds raised on the night. These are example scenarios -
-            actual results depend on turnout and extras uptake. Extras are optional game purcahses like hints and freezing out other teams.
+            actual results depend on turnout and extras uptake. Extras are optional game purcahses like hints and freezing out other teams. And this is before
+            any winners prizes from FundRaisely*!
           </p>
         </div>
 

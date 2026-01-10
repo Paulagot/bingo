@@ -42,7 +42,7 @@ const ClubsLeaguePage: React.FC = () => {
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Home', item: abs('/') },
       { '@type': 'ListItem', position: 2, name: 'Clubs', item: abs('/quiz/use-cases/clubs') },
-      { '@type': 'ListItem', position: 3, name: 'Junior Sports Clubs Quiz League', item: abs('/clubs/league') },
+      { '@type': 'ListItem', position: 3, name: 'Junior Sports Clubs Quiz League', item: abs('/campaigns/clubs-league') },
     ],
   };
 
@@ -51,7 +51,7 @@ const ClubsLeaguePage: React.FC = () => {
     '@type': 'Event',
     name: 'FundRaisely Junior Sports Clubs Quiz League (March 2026)',
     description:
-      'A family quiz league for sports clubs (U8 & U10). Each club hosts one quiz night in March 2026 to raise funds and compete for prizes and a €1,000 club grant.',
+      'A family quiz league for sports clubs (U8 & U10). Each club hosts one quiz night in March 2026 to raise funds and compete for prizes and a €2,000 * club grant.',
     startDate: '2026-03-01',
     endDate: '2026-03-31',
     eventStatus: 'https://schema.org/EventScheduled',
@@ -63,7 +63,7 @@ const ClubsLeaguePage: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
       <SEO
         title="Junior Sports Clubs Quiz League (March 2026) — Family Fundraiser for U8 & U10 | FundRaisely"
-        description="Join the FundRaisely Junior Sports Clubs Quiz League. Your club runs one family quiz night in March 2026, raises funds for junior teams, and competes for prizes and a €1,000 club grant. Limited to 25 clubs."
+        description="Join the FundRaisely Junior Sports Clubs Quiz League. Your club runs one family quiz night in March 2026, raises funds for junior teams, and competes for prizes and a €2,000 * club grant. Limited to 25 clubs."
         keywords="club fundraising, quiz night fundraiser, youth sports fundraising, GAA fundraiser, soccer club fundraiser, school hall quiz night, Ireland fundraising, UK fundraising"
         type="event"
         structuredData={[breadcrumbsJsonLd, eventJsonLd]}
@@ -71,7 +71,7 @@ const ClubsLeaguePage: React.FC = () => {
         breadcrumbs={[
           { name: 'Home', item: '/' },
           { name: 'Clubs', item: '/quiz/use-cases/clubs' },
-          { name: 'Junior Sports Clubs Quiz League', item: '/clubs/league' },
+          { name: 'Junior Sports Clubs Quiz League', item: '/campaigns/clubs-league' },
         ]}
       />
 
@@ -95,7 +95,7 @@ const ClubsLeaguePage: React.FC = () => {
 
           <p className="mx-auto mt-4 max-w-3xl text-indigo-900/70 text-lg md:text-xl leading-relaxed">
            Run a fundraising family quiz event on Fundraisely with your U8 & U10 teams in <strong>March 2026</strong>, raises funds for your{' '}
-            <strong>Club</strong>, and competes for prizes in the FundRaisely Junior Club Quiz League - including a <strong>€1,000 club grant</strong>.
+            <strong>Club</strong>, and competes for prizes in the FundRaisely Junior Club Quiz League - including a <strong>€2,000 * club grant</strong>.
           </p>
 
           <div className="mt-7 flex flex-wrap justify-center gap-3">
@@ -135,7 +135,7 @@ const ClubsLeaguePage: React.FC = () => {
                 <Bullet>Quiz night must run during March 2026</Bullet>
                 <Bullet>Quiz night must run on FundRaiselys quiz app</Bullet>
                 <Bullet>Final will be held online</Bullet>
-                <Bullet>Prizes: €1,000 club grant + family vouchers + top-10 free founding partner access</Bullet>
+                <Bullet>Prizes: €2,000 * club grant + family vouchers + top-10 free founding partner access</Bullet>
               </ul>
 
               <div className="mt-6 rounded-2xl border border-indigo-100 bg-indigo-50/40 p-5">
@@ -161,8 +161,9 @@ const ClubsLeaguePage: React.FC = () => {
                       <p className="text-sm text-indigo-900/70">One national final</p>
                     </div>
                   </div>
-                </div>
+                </div>        
               </div>
+    
             </div>
 
             <div className="rounded-2xl border border-indigo-200 bg-white p-8 shadow-lg">
@@ -192,7 +193,7 @@ const ClubsLeaguePage: React.FC = () => {
                 <Trophy className="h-4 w-4" />
                 <span className="text-xs font-semibold">Winner</span>
               </div>
-              <h3 className="mb-2 text-indigo-900 text-lg font-bold">€1,000 Club Grant</h3>
+              <h3 className="mb-2 text-indigo-900 text-lg font-bold">€2,000 * Club Grant</h3>
               <p className="text-sm text-indigo-900/80 leading-relaxed">
                 A straight grant for equipment, coaching, facilities, or team development.
               </p>
@@ -216,10 +217,13 @@ const ClubsLeaguePage: React.FC = () => {
               </div>
               <h3 className="mb-2 text-indigo-900 text-lg font-bold">Top 10 Clubs</h3>
               <p className="text-sm text-indigo-900/80 leading-relaxed">
-                Get <strong>6 months free FundRaisely access</strong> (value €120) to keep fundraising all year.
+                Get <strong>6 months free FundRaisely access</strong> (value €114) to keep fundraising.
               </p>
             </div>
           </div>
+                   <p className="text-lg text-indigo-800/80 px-3 py-1">
+          * FundRaisley will be giving away 50% of the register fees as prizes subject to number of participating clubs. Min €1,000 club grant is guaranteed. If we achieve max participant clubs of 25 first prize will be €2,000. Restaurant vouchers for the Grand Final winners are guaranteed and the 6 months free FundRaisely access is also guaranteed.
+        </p>
         </div>
       </section>
 

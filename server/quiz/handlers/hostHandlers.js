@@ -16,9 +16,16 @@ import { getCurrentRoundStats } from './globalExtrasHandler.js';
 import { getRoundScoring } from './scoringUtils.js';
 import { StatsService } from '../gameplayEngines/services/StatsService.js'
 import { TiebreakerService } from '../gameplayEngines/services/TiebreakerService.js';
+import { saveImpactCampaignEvent } from './saveImpactCampaignEvent.js';
+import { syncImpactEventToFundraiselyClubMgmt } from '../handlers/syncImpactEventToFundraiselyClubMgmt.js';
+import { rollupFundraiselyCampaignFinancials } from '../handlers/rollupFundraiselyCampaignFinancials.js';
+
 
 import { logPrizeDistributionInitiated, logPrizeDistributionSuccess, logPrizeDistributionFailure, logWeb3RoomConfig, logWinnerAddressMapping } from './blockchainLoggingHelper.js';
 const debug = true;
+console.log('[BOOT] hostHandlers loaded from:', import.meta.url);
+console.log('[BOOT] saveImpactCampaignEvent typeof:', typeof saveImpactCampaignEvent);
+
 
 export function setupHostHandlers(socket, namespace) {
 
@@ -66,6 +73,7 @@ export function setupHostHandlers(socket, namespace) {
     return total;
   }
 
+
   // 🆕 End-of-round settlement:
   // Use this round's earned positives to pay down penaltyDebt.
   // - Reduces playerData.score by settled amount
@@ -104,6 +112,56 @@ export function setupHostHandlers(socket, namespace) {
       }
     }
   }
+
+function computeImpactEventTotals(room) {
+  const entryFee = Number(room.config?.entryFee || 0);
+
+  const paidPlayers = (room.players || []).filter(
+    p => p.paid && !p.disqualified
+  );
+
+  const totalEntryReceived = paidPlayers.length * entryFee;
+
+  let extrasRevenue = 0;
+  for (const p of room.players || []) {
+    if (!p.extraPayments) continue;
+    for (const val of Object.values(p.extraPayments)) {
+      extrasRevenue += Number(val?.amount || 0);
+    }
+  }
+
+  const totalRaised = totalEntryReceived + extrasRevenue;
+
+  const split = room.config?.web3PrizeSplit || {};
+  const charityPercent = Number(split.charity ?? 0);
+  const hostPercent = Number(
+    split.host ?? split.hostFee ?? split.hostFeePercent ?? 0
+  );
+
+  // ✅ FIX: Use 4 decimals for micro-transactions
+  const charityAmount =
+    charityPercent > 0
+      ? Number((totalRaised * charityPercent / 100).toFixed(4))
+      : null;
+
+  const hostFeeAmount =
+    hostPercent > 0
+      ? Number((totalRaised * hostPercent / 100).toFixed(4))
+      : null;
+
+  return {
+    entryFee,
+    paidPlayersCount: paidPlayers.length,
+    totalEntryReceived: Number(totalEntryReceived.toFixed(4)),
+    extrasRevenue: Number(extrasRevenue.toFixed(4)),
+    totalRaised: Number(totalRaised.toFixed(4)),
+    charityPercent,
+    hostPercent,
+    charityAmount,
+    hostFeeAmount,
+  };
+}
+
 
   // ✅ Calculate round-specific leaderboard scores WITHOUT re-applying penalties
  function calculateRoundLeaderboard(roomId) {
@@ -619,268 +677,330 @@ socket.on('tiebreak:proceed_to_completion', ({ roomId }) => {
 
 
   // ✅ end_quiz_and_distribute_prizes - UPDATED VERSION
-  socket.on('end_quiz_and_distribute_prizes', async ({ roomId }) => {
-    if (debug) console.log(`[Host] 🏆 end_quiz_and_distribute_prizes for ${roomId}`);
+ socket.on('end_quiz_and_distribute_prizes', async ({ roomId }) => {
+  if (debug) console.log(`[Host] 🏆 end_quiz_and_distribute_prizes for ${roomId}`);
 
-    const room = getQuizRoom(roomId);
-    if (!room) {
-      socket.emit('quiz_error', { message: 'Room not found' });
-      return;
-    }
+  const room = getQuizRoom(roomId);
+  if (!room) {
+    socket.emit('quiz_error', { message: 'Room not found' });
+    return;
+  }
 
-    if (room.hostSocketId !== socket.id) {
-      socket.emit('quiz_error', { message: 'Only the host can end the quiz and distribute prizes' });
-      return;
-    }
+  if (room.hostSocketId !== socket.id) {
+    socket.emit('quiz_error', { message: 'Only the host can end the quiz and distribute prizes' });
+    return;
+  }
 
-    const isWeb3Room = room.config?.paymentMethod === 'web3' || room.config?.isWeb3Room;
+  const isWeb3Room = room.config?.paymentMethod === 'web3' || room.config?.isWeb3Room;
 
-    logWeb3RoomConfig(roomId, room.config);
+  logWeb3RoomConfig(roomId, room.config);
 
+  if (debug) {
+    console.log(`[Host] 🔍 Room config debug:`, {
+      paymentMethod: room.config?.paymentMethod,
+      isWeb3Room: room.config?.isWeb3Room,
+      roomContractAddress: room.config?.roomContractAddress,
+      web3ContractAddress: room.config?.web3ContractAddress,
+      web3Chain: room.config?.web3Chain,
+      evmNetwork: room.config?.evmNetwork,
+      web3PrizeStructure: room.config?.web3PrizeStructure,
+      hasWeb3AddressMap: !!room.web3AddressMap,
+      web3AddressMapKeys: room.web3AddressMap ? Array.from(room.web3AddressMap.keys()) : [],
+      // ✅ ADD: Log charity info
+      web3CharityId: room.config?.web3CharityId,
+      web3CharityName: room.config?.web3CharityName,
+      web3CharityAddress: room.config?.web3CharityAddress,
+    });
+  }
+
+  if (!isWeb3Room) {
+    socket.emit('quiz_error', { message: 'Prize distribution is only available for Web3 rooms' });
+    return;
+  }
+
+  if (!room.web3AddressMap || room.web3AddressMap.size === 0) {
+    socket.emit('quiz_error', { message: 'No Web3 address mapping found. Players may not have joined properly.' });
+    return;
+  }
+
+  const finalLeaderboard = calculateOverallLeaderboard(roomId);
+  if (!finalLeaderboard.length) {
+    socket.emit('quiz_error', { message: 'No players found for prize distribution' });
+    return;
+  }
+
+  const { web3PrizeStructure, web3Chain } = room.config;
+
+  const playerCount = finalLeaderboard.length;
+  let actualWinnerCount;
+
+  if (playerCount <= 3) {
+    actualWinnerCount = playerCount;
     if (debug) {
-      console.log(`[Host] 🔍 Room config debug:`, {
-        paymentMethod: room.config?.paymentMethod,
-        isWeb3Room: room.config?.isWeb3Room,
-        roomContractAddress: room.config?.roomContractAddress,
-        web3ContractAddress: room.config?.web3ContractAddress,
-        web3Chain: room.config?.web3Chain,
-        evmNetwork: room.config?.evmNetwork,
-        web3PrizeStructure: room.config?.web3PrizeStructure,
-        hasWeb3AddressMap: !!room.web3AddressMap,
-        web3AddressMapKeys: room.web3AddressMap ? Array.from(room.web3AddressMap.keys()) : []
-      });
+      console.log(`[Host] 🏆 ${playerCount} player(s) joined - all are winners by default`);
     }
-
-    if (!isWeb3Room) {
-      socket.emit('quiz_error', { message: 'Prize distribution is only available for Web3 rooms' });
-      return;
-    }
-
-    if (!room.web3AddressMap || room.web3AddressMap.size === 0) {
-      socket.emit('quiz_error', { message: 'No Web3 address mapping found. Players may not have joined properly.' });
-      return;
-    }
-
-    const finalLeaderboard = calculateOverallLeaderboard(roomId);
-    if (!finalLeaderboard.length) {
-      socket.emit('quiz_error', { message: 'No players found for prize distribution' });
-      return;
-    }
-
-    const { web3PrizeStructure, web3Chain } = room.config;
-
-    const playerCount = finalLeaderboard.length;
-    let actualWinnerCount;
-
-    if (playerCount <= 3) {
-      actualWinnerCount = playerCount;
-      if (debug) {
-        console.log(`[Host] 🏆 ${playerCount} player(s) joined - all are winners by default`);
-      }
-    } else {
-      const hasSecondPrize = web3PrizeStructure?.secondPlace && web3PrizeStructure.secondPlace > 0;
-      const hasThirdPrize  = web3PrizeStructure?.thirdPlace  && web3PrizeStructure.thirdPlace  > 0;
-      actualWinnerCount = 1 + (hasSecondPrize ? 1 : 0) + (hasThirdPrize ? 1 : 0);
-      if (debug) {
-        console.log(`[Host] 🏆 ${playerCount} players joined - using leaderboard for top ${actualWinnerCount} winners`);
-      }
-    }
-
-    const prizeCount = Math.min(actualWinnerCount, playerCount);
-
-    const winnerAddresses = [];
-    const winnerPlayerIds = [];
-    const winnersDetailed = [];
-    const missing = [];
-
+  } else {
+    const hasSecondPrize = web3PrizeStructure?.secondPlace && web3PrizeStructure.secondPlace > 0;
+    const hasThirdPrize  = web3PrizeStructure?.thirdPlace  && web3PrizeStructure.thirdPlace  > 0;
+    actualWinnerCount = 1 + (hasSecondPrize ? 1 : 0) + (hasThirdPrize ? 1 : 0);
     if (debug) {
-      console.log('[Host] 🔍 Winner mapping debug:', {
-        winnersPreview: finalLeaderboard.slice(0, prizeCount).map(p => ({ id: p.id, name: p.name, score: p.score })),
-        allPlayers: room.players.map(p => ({ id: p.id, name: p.name })),
-        web3AddressMap: Array.from(room.web3AddressMap?.entries() || []).map(([id, info]) => ({
-          playerId: id, playerName: info.playerName, address: info.address
-        }))
-      });
+      console.log(`[Host] 🏆 ${playerCount} players joined - using leaderboard for top ${actualWinnerCount} winners`);
     }
+  }
 
-    for (let rank = 0; rank < prizeCount; rank++) {
-      const entry = finalLeaderboard[rank];
+  const prizeCount = Math.min(actualWinnerCount, playerCount);
 
-      if (!entry) {
-        if (winnerAddresses.length > 0) {
-          const firstWinnerAddress = winnerAddresses[0];
-          winnerAddresses.push(firstWinnerAddress);
-          if (debug) {
-            console.log(`[Host] 🏅 Rank ${rank + 1}: NO PLAYER - padding with first winner`);
-          }
-        }
-        continue;
-      }
+  const winnerAddresses = [];
+  const winnerPlayerIds = [];
+  const winnersDetailed = [];
+  const missing = [];
 
-      const playerId = entry.id;
-      const playerName = entry.name;
-      const addressInfo = room.web3AddressMap.get(playerId);
+  if (debug) {
+    console.log('[Host] 🔍 Winner mapping debug:', {
+      winnersPreview: finalLeaderboard.slice(0, prizeCount).map(p => ({ id: p.id, name: p.name, score: p.score })),
+      allPlayers: room.players.map(p => ({ id: p.id, name: p.name })),
+      web3AddressMap: Array.from(room.web3AddressMap?.entries() || []).map(([id, info]) => ({
+        playerId: id, playerName: info.playerName, address: info.address
+      }))
+    });
+  }
 
-      if (!addressInfo?.address) {
-        missing.push({ playerId, playerName, rank: rank + 1 });
-        continue;
-      }
+  for (let rank = 0; rank < prizeCount; rank++) {
+    const entry = finalLeaderboard[rank];
 
-      winnerAddresses.push(addressInfo.address);
-      winnerPlayerIds.push(playerId);
-      winnersDetailed.push({
-        playerId,
-        playerName,
-        address: addressInfo.address,
-        rank: rank + 1,
-        score: entry.score
-      });
-
-      if (debug) {
-        console.log(`[Host] 🏅 Rank ${rank + 1}: ${playerName} -> ${addressInfo.address.slice(0, 10)}...`);
-      }
-    }
-
-    logWinnerAddressMapping(roomId, winnersDetailed, missing);
-
-    if (missing.length) {
-      const firstMissing = missing[0];
-      socket.emit('quiz_error', {
-        message: `Cannot find Web3 address for winner: ${firstMissing.playerName} (rank ${firstMissing.rank}).`
-      });
-      return;
-    }
-
-    if (!winnerAddresses.length) {
-      socket.emit('quiz_error', { message: 'No valid winner addresses found for prize distribution' });
-      return;
-    }
-
-    const winners = winnerAddresses;
-
-    room.finalWinners = winners;
-    room.finalLeaderboard = finalLeaderboard;
-    room.prizeDistributionStatus = 'initiated';
-    room.currentPhase = 'distributing_prizes';
-
-    // ✅ NEW: Also freeze leaderboard here for Web3 completion path
-    const frozenLeaderboard = freezeFinalLeaderboard(roomId);
-    if (frozenLeaderboard && debug) {
-      console.log('[Prize Distribution] 🏆 Leaderboard frozen for Web3 prize distribution');
-    }
-
-
-    // ✅ CALCULATE charityAmountPreview for frontend (for both chains)
-    let charityAmountPreview = null;
-
-    // Only calculate for Solana (EVM gets it from contract)
-    if (web3Chain === 'solana') {
-      try {
-        const entryFee = parseFloat(room.config.entryFee || '0');
-        const paidPlayers = room.players.filter((p) => p.paid && !p.disqualified);
-        const totalEntryReceived = paidPlayers.length * entryFee;
-        
-        let totalExtrasReceived = 0;
-        for (const player of room.players) {
-          if (player.extraPayments) {
-            for (const [, val] of Object.entries(player.extraPayments)) {
-              totalExtrasReceived += val.amount || 0;
-            }
-          }
-        }
-        
-        const totalRaised = totalEntryReceived + totalExtrasReceived;
-        
-        if (room.config.web3PrizeSplit && room.config.web3PrizeSplit.charity) {
-          charityAmountPreview = ((totalRaised * room.config.web3PrizeSplit.charity) / 100).toFixed(2);
-        } else {
-          charityAmountPreview = totalRaised.toFixed(2);
-        }
-        
+    if (!entry) {
+      if (winnerAddresses.length > 0) {
+        const firstWinnerAddress = winnerAddresses[0];
+        winnerAddresses.push(firstWinnerAddress);
         if (debug) {
-          console.log(`[Host] 💰 Backend calculated charityAmountPreview for Solana:`, {
-            totalEntryReceived,
-            totalExtrasReceived,
-            totalRaised,
-            charityPercentage: room.config.web3PrizeSplit?.charity || 100,
-            charityAmountPreview,
-          });
-          console.log(`[Host] ℹ️  Frontend will use previewCharityPayout() for on-chain amount`);
+          console.log(`[Host] 🏅 Rank ${rank + 1}: NO PLAYER - padding with first winner`);
         }
-      } catch (calcError) {
-        console.error(`[Host] ❌ Error calculating charityAmountPreview:`, calcError);
-        // Don't fail - frontend can still call previewCharityPayout
-        charityAmountPreview = null;
       }
+      continue;
     }
 
-    logPrizeDistributionInitiated(
-      roomId,
-      winners,
-      room.config.roomContractAddress || room.config.web3ContractAddress,
-      room.config.web3Chain,
-      winnersDetailed
-    );
+    const playerId = entry.id;
+    const playerName = entry.name;
+    const addressInfo = room.web3AddressMap.get(playerId);
+
+    if (!addressInfo?.address) {
+      missing.push({ playerId, playerName, rank: rank + 1 });
+      continue;
+    }
+
+    winnerAddresses.push(addressInfo.address);
+    winnerPlayerIds.push(playerId);
+    winnersDetailed.push({
+      playerId,
+      playerName,
+      address: addressInfo.address,
+      rank: rank + 1,
+      score: entry.score
+    });
 
     if (debug) {
-      console.log(`[Host] 🎯 Prize distribution initiated:`);
-      console.log(`  - Room: ${roomId}`);
-      console.log(`  - Winners: ${winners.length}`);
-      console.log(`  - Contract: ${room.config.roomContractAddress || room.config.web3ContractAddress}`);
-      winnersDetailed.forEach(w => {
-        console.log(`    ${w.rank}. ${w.playerName} (${w.score} pts) -> ${w.address}`);
-      });
+      console.log(`[Host] 🏅 Rank ${rank + 1}: ${playerName} -> ${addressInfo.address.slice(0, 10)}...`);
     }
+  }
 
-    // ✅ Send everything to frontend - it will handle TGB call
-    socket.emit('initiate_prize_distribution', {
-      roomId,
-      winners,
-      winnersDetailed,
-      finalLeaderboard: finalLeaderboard.slice(0, 5),
-      prizeStructure: web3PrizeStructure,
-      prizeMode: room.config.prizeMode,
-      web3Chain: room.config.web3Chain || 'stellar',
-      evmNetwork: room.config.evmNetwork,
-      roomAddress: room.config.roomContractAddress || room.config.web3ContractAddress,
+  logWinnerAddressMapping(roomId, winnersDetailed, missing);
+
+  if (missing.length) {
+    const firstMissing = missing[0];
+    socket.emit('quiz_error', {
+      message: `Cannot find Web3 address for winner: ${firstMissing.playerName} (rank ${firstMissing.rank}).`
+    });
+    return;
+  }
+
+  if (!winnerAddresses.length) {
+    socket.emit('quiz_error', { message: 'No valid winner addresses found for prize distribution' });
+    return;
+  }
+
+  const winners = winnerAddresses;
+
+  room.finalWinners = winners;
+  room.finalLeaderboard = finalLeaderboard;
+  room.prizeDistributionStatus = 'initiated';
+  room.currentPhase = 'distributing_prizes';
+
+  // ✅ NEW: Also freeze leaderboard here for Web3 completion path
+  const frozenLeaderboard = freezeFinalLeaderboard(roomId);
+  if (frozenLeaderboard && debug) {
+    console.log('[Prize Distribution] 🏆 Leaderboard frozen for Web3 prize distribution');
+  }
+
+  // ✅ CALCULATE charityAmountPreview for frontend (for both chains)
+  let charityAmountPreview = null;
+
+  // Only calculate for Solana (EVM gets it from contract)
+  if (web3Chain === 'solana') {
+    try {
+      const entryFee = parseFloat(room.config.entryFee || '0');
+      const paidPlayers = room.players.filter((p) => p.paid && !p.disqualified);
+      const totalEntryReceived = paidPlayers.length * entryFee;
+      
+      let totalExtrasReceived = 0;
+      for (const player of room.players) {
+        if (player.extraPayments) {
+          for (const [, val] of Object.entries(player.extraPayments)) {
+            totalExtrasReceived += val.amount || 0;
+          }
+        }
+      }
+      
+      const totalRaised = totalEntryReceived + totalExtrasReceived;
+      
+      if (room.config.web3PrizeSplit && room.config.web3PrizeSplit.charity) {
+        charityAmountPreview = ((totalRaised * room.config.web3PrizeSplit.charity) / 100).toFixed(4); // ✅ Changed to 4 decimals
+      } else {
+        charityAmountPreview = totalRaised.toFixed(4); // ✅ Changed to 4 decimals
+      }
+      
+      if (debug) {
+        console.log(`[Host] 💰 Backend calculated charityAmountPreview for Solana:`, {
+          totalEntryReceived,
+          totalExtrasReceived,
+          totalRaised,
+          charityPercentage: room.config.web3PrizeSplit?.charity || 100,
+          charityAmountPreview,
+        });
+        console.log(`[Host] ℹ️  Frontend will use previewCharityPayout() for on-chain amount`);
+      }
+    } catch (calcError) {
+      console.error(`[Host] ❌ Error calculating charityAmountPreview:`, calcError);
+      charityAmountPreview = null;
+    }
+  }
+
+  logPrizeDistributionInitiated(
+    roomId,
+    winners,
+    room.config.roomContractAddress || room.config.web3ContractAddress,
+    room.config.web3Chain,
+    winnersDetailed
+  );
+
+  if (debug) {
+    console.log(`[Host] 🎯 Prize distribution initiated:`);
+    console.log(`  - Room: ${roomId}`);
+    console.log(`  - Winners: ${winners.length}`);
+    console.log(`  - Contract: ${room.config.roomContractAddress || room.config.web3ContractAddress}`);
+    winnersDetailed.forEach(w => {
+      console.log(`    ${w.rank}. ${w.playerName} (${w.score} pts) -> ${w.address}`);
+    });
+    
+    // ✅ ADD: Log charity info being sent
+    console.log('[Host] 📤 Charity info being sent to frontend:', {
       charityOrgId: room.config.web3CharityId,
       charityName: room.config.web3CharityName,
       charityAddress: room.config.web3CharityAddress,
-      charityCurrency: room.config.web3Currency || 'USDC',
-      charityAmountPreview, // ← Backend estimate (Solana only), frontend will verify with contract
-       roomAddress: room.config.roomContractAddress,
+      charityAmountPreview,
     });
+  }
 
-    namespace.to(roomId).emit('prize_distribution_started', {
-      message: 'Prize distribution has begun! Please wait...',
-      finalLeaderboard: finalLeaderboard.slice(0, 5)
-    });
-
-    emitRoomState(namespace, roomId);
-    if (debug) console.log(`[Host] ✅ Prize distribution data sent to host for contract execution`);
+  // ✅ Send everything to frontend - it will handle TGB call
+  socket.emit('initiate_prize_distribution', {
+    roomId,
+    winners,
+    winnersDetailed,
+    finalLeaderboard: finalLeaderboard.slice(0, 5),
+    prizeStructure: web3PrizeStructure,
+    prizeMode: room.config.prizeMode,
+    web3Chain: room.config.web3Chain || 'stellar',
+    evmNetwork: room.config.evmNetwork,
+    roomAddress: room.config.roomContractAddress || room.config.web3ContractAddress,
+    charityOrgId: room.config.web3CharityId,
+    charityName: room.config.web3CharityName,
+    charityAddress: room.config.web3CharityAddress,
+    charityCurrency: room.config.web3Currency || 'USDC',
+    charityAmountPreview,
   });
 
+  namespace.to(roomId).emit('prize_distribution_started', {
+    message: 'Prize distribution has begun! Please wait...',
+    finalLeaderboard: finalLeaderboard.slice(0, 5)
+  });
+
+  emitRoomState(namespace, roomId);
+  if (debug) console.log(`[Host] ✅ Prize distribution data sent to host for contract execution`);
+});
+
   // ✅ prize_distribution_completed (unchanged)
-  socket.on('prize_distribution_completed', ({ roomId, success, txHash, error, confirmations, blockNumber, charityAmount }) => {
-    if (debug) console.log(`[Host] 💰 Prize distribution result: ${success ? 'SUCCESS' : 'FAILED'}`);
+socket.on(
+  'prize_distribution_completed',
+  ({
+    roomId,
+    success,
+    txHash,
+    error,
+    confirmations,
+    blockNumber,
+    charityAmount,
+    charityWallet,
+    charityName,
+  }) => {
+    if (debug) {
+      console.log(`[Host] 💰 Prize distribution result: ${success ? 'SUCCESS' : 'FAILED'}`);
+      console.log('[Host] 📥 Received prize_distribution_completed:', {
+        roomId,
+        success,
+        txHash,
+        charityWallet,
+        charityName,
+        charityAmount,
+      });
+    }
 
     const room = getQuizRoom(roomId);
     if (!room) return;
+
+    // ✅ Always ACK the sender so UI can stop spinners reliably
+    socket.emit('prize_distribution_completed_ack', {
+      roomId,
+      success,
+      txHash: txHash || null,
+      error: error || null,
+    });
 
     if (success) {
       room.prizeDistributionStatus = 'completed';
       room.prizeDistributionTxHash = txHash;
       room.currentPhase = 'complete';
-      
-      // Store exact charity amount from on-chain event
+
+      // ✅ Store the final charity wallet IF provided
+      if (charityWallet) {
+        room.config.web3CharityAddress = charityWallet;
+        room.config.web3CharityName = room.config.web3CharityName || charityName || null;
+
+        if (debug) {
+          console.log('[Host] ✅ Stored charity wallet on room.config:', {
+            roomId,
+            web3CharityAddress: room.config.web3CharityAddress,
+            web3CharityName: room.config.web3CharityName,
+          });
+        }
+      } else if (debug) {
+        console.warn('[Host] ⚠️ No charityWallet provided in prize_distribution_completed payload');
+      }
+
+      // ✅ Also store host wallet if available
+      if (!room.config.hostWallet && room.config.hostWalletConfirmed) {
+        room.config.hostWallet = room.config.hostWalletConfirmed;
+        if (debug) {
+          console.log('[Host] ✅ Stored hostWallet from hostWalletConfirmed:', room.config.hostWallet);
+        }
+      }
+
+      // ✅ Store exact charity amount from on-chain event
       if (charityAmount) {
         room.charityAmount = charityAmount;
         if (debug) console.log(`[Host] 💰 Charity amount from blockchain: ${charityAmount}`);
-      } else {
-        if (debug) console.warn(`[Host] ⚠️ No charityAmount provided from blockchain`);
+      } else if (debug) {
+        console.warn(`[Host] ⚠️ No charityAmount provided from blockchain`);
       }
 
-      // Structured logging for successful prize distribution
       logPrizeDistributionSuccess(
         roomId,
         room.config.web3Chain,
@@ -890,56 +1010,60 @@ socket.on('tiebreak:proceed_to_completion', ({ roomId }) => {
         charityAmount
       );
 
+      // ✅ IMPORTANT: broadcast ONE canonical “finalized” event to everyone in the room
+      namespace.to(roomId).emit('prize_distribution_finalized', {
+        roomId,
+        success: true,
+        txHash,
+        charityWallet: charityWallet || room.config.web3CharityAddress || null,
+        charityName: charityName || room.config.web3CharityName || null,
+        charityAmount: charityAmount || room.charityAmount || null,
+        finalLeaderboard: room.finalLeaderboard?.slice(0, 5) || [],
+      });
+
+      // (Optional) keep these older events if your UI depends on them
       namespace.to(roomId).emit('prize_distribution_success', {
         message: 'Prizes have been distributed successfully!',
         txHash,
         finalLeaderboard: room.finalLeaderboard?.slice(0, 5),
-        explorerUrl: room.config.web3Chain === 'stellar'
-          ? `https://stellarchain.io/tx/${txHash}`
-          : `https://etherscan.io/tx/${txHash}`
-      });
-
-      socket.emit('prize_distribution_completed', {
-        roomId,
-        success: true,
-        txHash
       });
 
       calculateAndSendFinalStats(roomId, namespace);
 
-      if (debug) console.log(`[Host] 🎉 Quiz completed with successful prize distribution: ${txHash}`);
+      if (debug) {
+        console.log(`[Host] 🎉 Quiz completed with successful prize distribution: ${txHash}`);
+      }
     } else {
       room.prizeDistributionStatus = 'failed';
       room.prizeDistributionError = error;
 
-      logPrizeDistributionFailure(
+      logPrizeDistributionFailure(roomId, room.config.web3Chain, error, txHash, {
+        winners: room.finalWinners,
+        contract: room.config.roomContractAddress || room.config.web3ContractAddress,
+      });
+
+      namespace.to(roomId).emit('prize_distribution_finalized', {
         roomId,
-        room.config.web3Chain,
-        error,
-        txHash,
-        {
-          winners: room.finalWinners,
-          contract: room.config.roomContractAddress || room.config.web3ContractAddress
-        }
-      );
+        success: false,
+        txHash: txHash || null,
+        error: error || 'unknown_error',
+        finalLeaderboard: room.finalLeaderboard?.slice(0, 5) || [],
+      });
 
       namespace.to(roomId).emit('prize_distribution_failed', {
         message: 'Prize distribution failed. Please contact support.',
         error: error,
-        finalLeaderboard: room.finalLeaderboard?.slice(0, 5)
-      });
-
-      socket.emit('prize_distribution_completed', {
-        roomId,
-        success: false,
-        error
+        finalLeaderboard: room.finalLeaderboard?.slice(0, 5),
       });
 
       if (debug) console.log(`[Host] ❌ Prize distribution failed: ${error}`);
     }
 
     emitRoomState(namespace, roomId);
-  });
+  }
+);
+
+
 
   socket.on('create_quiz_room', ({ roomId, hostId, config }) => {
     if (debug) console.log(`[Host] create_quiz_room for: ${roomId}, host: ${hostId}`);
@@ -1230,7 +1354,7 @@ socket.on('continue_to_overall_leaderboard', ({ roomId }) => {
     }, 2000);
   });
 
- socket.on('end_quiz_cleanup', async ({ roomId }) => {
+socket.on('end_quiz_cleanup', async ({ roomId }) => {
   if (debug) console.log(`[Host] 🧹 end_quiz_cleanup for ${roomId}`);
 
   const room = getQuizRoom(roomId);
@@ -1239,71 +1363,152 @@ socket.on('continue_to_overall_leaderboard', ({ roomId }) => {
     return;
   }
 
-  // Only the host can trigger this
   if (room.hostSocketId !== socket.id) {
     socket.emit('quiz_error', { message: 'Only the host can end the quiz' });
     return;
   }
 
-  // Ensure room phase is marked complete
   if (room.currentPhase !== 'complete') {
     room.currentPhase = 'complete';
   }
 
-  // Determine if Web3
-  const isWeb3Room =
-    room.config?.paymentMethod === 'web3' || room.config?.isWeb3Room;
+  const isWeb3Room = room.config?.paymentMethod === 'web3' || room.config?.isWeb3Room;
 
   /* ------------------------------------------------------------------
      ⭐ SAVE IMPACT CAMPAIGN EVENT TO DATABASE (Web3 rooms only)
   ------------------------------------------------------------------ */
-  try {
-    if (isWeb3Room) {
-      const eventData = {
-        roomId,
-        hostId: room.hostId,
+try {
+  if (isWeb3Room) {
+    // ✅ 1) Compute totals from players + config
+    const totals = computeImpactEventTotals(room);
 
-        chain: room.config.web3Chain || 'unknown',
-        network: room.config.web3Network || 'unknown',
-        feeToken: room.config.web3Currency || 'unknown',
+    console.log('📊 [ImpactCampaign] Computed totals', {
+      roomId,
+      entryFee: totals.entryFee,
+      paidPlayersCount: totals.paidPlayersCount,
+      totalEntryReceived: totals.totalEntryReceived,
+      extrasRevenue: totals.extrasRevenue,
+      totalRaised: totals.totalRaised,
+      charityPercent: totals.charityPercent,
+      hostPercent: totals.hostPercent,
+      charityAmount: totals.charityAmount,
+      hostFeeAmount: totals.hostFeeAmount,
+    });
 
-        hostWallet: room.config.hostWallet || null,
-        charityWallet: room.config.web3Charity || null,
-        charityName: room.config.web3CharityName || null,
+    // ✅ 2) Log what's available in room.config for charity
+    console.log('🔍 [ImpactCampaign] Room config charity values:', {
+      web3CharityAddress: room.config?.web3CharityAddress,
+      web3Charity: room.config?.web3Charity,
+      charityWallet: room.config?.charityWallet,
+      web3CharityName: room.config?.web3CharityName,
+      web3CharityId: room.config?.web3CharityId,
+      hostWallet: room.config?.hostWallet,
+      hostWalletConfirmed: room.config?.hostWalletConfirmed,
+    });
 
-        totalRaised:
-          Number(room.config.reconciliation?.totals?.totalRaised || 0),
+    // ✅ 3) Build the payload we insert into MySQL (impact ledger)
+    const eventData = {
+      platformCampaignId: 1,
+      campaignId: 'dba6e181-254f-4da2-ade3-67a05652a26d', // FundRaisely mgmt campaign_id
+      roomId,
+      hostId: room.hostId || null,
+      chain: room.config?.web3Chain || 'unknown',
+      network: room.config?.web3Network || room.config?.evmNetwork || 'unknown',
+      feeToken: room.config?.web3Currency || 'unknown',
+      hostName: room.config?.hostName || room.hostName || null,
 
-        charityAmount:
-          Number(room.config.reconciliation?.totals?.charityAmount || 0),
+      // ✅ Try multiple fallback sources for host wallet
+      hostWallet:
+        room.config?.hostWallet ||
+        room.config?.hostWalletConfirmed ||
+        null,
 
-        extrasRevenue:
-          Number(room.config.reconciliation?.totals?.extrasRevenue || 0),
+      // ✅ Try multiple fallback sources for charity wallet
+      charityWallet:
+        room.config?.web3CharityAddress ||
+        room.config?.charityWallet ||
+        room.charityWallet ||
+        null,
 
-        hostFeeAmount:
-          Number(room.config.reconciliation?.totals?.hostFeeAmount || 0),
+      // ✅ Try multiple fallback sources for charity name
+      charityName:
+        room.config?.web3CharityName ||
+        room.config?.web3Charity ||
+        room.config?.charityName ||
+        null,
 
-        prizesValue:
-          Number(room.config.reconciliation?.totals?.prizesValue || 0),
+      // ✅ Totals from computed values
+      totalRaised: totals.totalRaised,
+      charityAmount: totals.charityAmount ?? 0,
+      extrasRevenue: totals.extrasRevenue,
+      hostFeeAmount: totals.hostFeeAmount ?? 0,
+      numberOfPlayers: (room.players || []).length,
+    };
 
-        numberOfPlayers: room.players.length,
-      };
+    // ✅ 4) Log exactly what you are sending to DB
+    console.log('🧾 [ImpactCampaign] Event data being saved', eventData);
 
-      const result = await saveImpactCampaignEvent(eventData);
+    // ✅ 5) Save impact campaign event ledger row
+    const result = await saveImpactCampaignEvent(eventData);
 
-      if (!result.success) {
-        console.error(
-          `[ImpactCampaign] ❌ Failed to save event for room ${roomId}`
-        );
-      } else {
-        console.log(
-          `[ImpactCampaign] 💾 Event saved for room ${roomId} → OK`
-        );
-      }
+    if (!result.success) {
+      console.error(
+        `[ImpactCampaign] ❌ Failed to save impact ledger event for room ${roomId}:`,
+        result.error
+      );
+      // If the ledger insert failed, do NOT sync into club mgmt
+      return;
     }
-  } catch (err) {
-    console.error(`[ImpactCampaign] ❌ Error saving event:`, err);
+
+    console.log(
+      `[ImpactCampaign] 💾 Impact ledger event saved for room ${roomId} → OK (insertId: ${result.insertId})`
+    );
+
+    const explorerUrl = room?.config?.explorerUrl || null;
+
+    // ✅ 6) Sync into FundRaisely Club Mgmt system (creates/updates event + income, idempotent)
+    try {
+      const syncResult = await syncImpactEventToFundraiselyClubMgmt({
+        roomId,
+        eventData,
+        totals,
+         explorerUrl,
+      });
+
+      console.log(`[ImpactCampaign] ✅ Synced to FundRaisely club mgmt`, {
+        roomId,
+        eventId: syncResult?.eventId,
+        platformRevenue: syncResult?.platformRevenue,
+        dedupe: syncResult?.dedupe,
+      });
+    } catch (syncErr) {
+      console.error(
+        `[ImpactCampaign] ❌ Failed to sync to FundRaisely club mgmt for room ${roomId}:`,
+        syncErr
+      );
+    }
+
+    // ✅ 7) Roll up campaign financials in mgmt system (so dashboards update immediately)
+    try {
+      const rollup = await rollupFundraiselyCampaignFinancials({
+        campaignId: 'dba6e181-254f-4da2-ade3-67a05652a26d',
+      });
+
+      console.log(`[ImpactCampaign] 📈 Campaign rollup updated`, {
+        campaignId: 'dba6e181-254f-4da2-ade3-67a05652a26d',
+        ...rollup,
+      });
+    } catch (rollupErr) {
+      console.error(
+        `[ImpactCampaign] ❌ Failed to roll up FundRaisely campaign financials:`,
+        rollupErr
+      );
+    }
   }
+} catch (err) {
+  console.error(`[ImpactCampaign] ❌ Error saving/syncing impact event:`, err);
+}
+
 
   /* ------------------------------------------------------------------
      ⭐ FRONTEND CLEANUP & REDIRECT
@@ -1337,8 +1542,9 @@ socket.on('continue_to_overall_leaderboard', ({ roomId }) => {
       namespace.in(`${roomId}:admin`).socketsLeave(`${roomId}:admin`);
       namespace.in(`${roomId}:player`).socketsLeave(`${roomId}:player`);
 
-      if (debug)
+      if (debug) {
         console.log(`[Host] ✅ Room ${roomId} cleaned up successfully`);
+      }
     }
   }, 2000);
 });

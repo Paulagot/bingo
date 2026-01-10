@@ -202,6 +202,9 @@ export const SEO: React.FC<SEOProps> = ({
       '/web3/impact-campaign',
       '/web3/impact-campaign/join',
       '/web3/impact-campaign/leaderboard',
+      //  campaigns
+       '/campaigns',
+        '/campaigns/clubs-league',
       // Company (public)
       '/blog',
       '/whats-new',
