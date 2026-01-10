@@ -15,6 +15,8 @@ import UsecaseClubsPage from '../../pages/usecases/UsecaseClubsPage';
 import UsecaseCharitiesPage from '../../pages/usecases/UsecaseCharitiesPage';
 import UsecaseCommunityGroupsPage from '../../pages/usecases/UsecaseCommunityGroupsPage';
 import HowItWorksPage from '../../pages/HowItWorks'
+import QuizEventDashboard from '../mgtsystem/components/dashboard/QuizEventDashboard'; // adjust path to where you created it
+
 export default function QuizRoutes() {
   return (
     <Routes>
@@ -25,6 +27,8 @@ export default function QuizRoutes() {
       <Route path="join/:roomId" element={<JoinRoomPage />} />
       <Route path="admin-join/:roomId" element={<AdminJoinPage />} />
       <Route path="host-controls/:roomId" element={<HostControlsPage />} />
+      <Route path="eventdashboard" element={<QuizEventDashboard />} />
+
 
       {/* marketing pages under /quiz/ */}
       <Route path="demo" element={<DemoPage />} />

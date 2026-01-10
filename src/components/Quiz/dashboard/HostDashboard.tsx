@@ -20,6 +20,8 @@ import useQuizChainIntegration from '../../../hooks/useQuizChainIntegration';
 
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { useAdminStore } from '../hooks/useAdminStore';
+import { quizApi } from '../../../shared/api';
+
 
 import {
   Users,
@@ -58,7 +60,8 @@ const LoadingSpinner = () => (
 
 // Core dashboard component (without providers)
 const HostDashboardCore: React.FC = () => {
-  const { config, setFullConfig, currentPhase, completedAt } = useQuizConfig();
+  const { config, setFullConfig, currentPhase, completedAt, hydrated } = useQuizConfig();
+
   const isWeb3 = config?.paymentMethod === 'web3';
   const { players } = usePlayerStore();
   const { admins } = useAdminStore();
@@ -69,8 +72,59 @@ const HostDashboardCore: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const [dbHydrating, setDbHydrating] = useState(false);
+const [dbHydrateError, setDbHydrateError] = useState<string | null>(null);
+
+
   const { socket, connected } = useQuizSocket();
   const { roomId, hostId } = useRoomIdentity();
+
+  // ✅ WEB2: Hydrate config from DB on refresh/page load
+useEffect(() => {
+  let cancelled = false;
+
+  async function hydrateWeb2FromDb() {
+    // Only for WEB2 rooms
+    if (!roomId) return;
+    if (isWeb3) return;
+
+    // If we already hydrated config, don't refetch
+    if (hydrated && config?.roomId) return;
+
+    try {
+      setDbHydrating(true);
+      setDbHydrateError(null);
+
+      const res = await quizApi.getWeb2Room(roomId);
+      if (cancelled) return;
+
+      // DB returns canonical config_json as `config`
+      const dbConfig = res.config as any;
+
+      // Ensure these are present for downstream UI
+      const mergedConfig = {
+        ...dbConfig,
+        roomId: dbConfig?.roomId ?? res.roomId ?? roomId,
+        hostId: dbConfig?.hostId ?? res.hostId ?? hostId,
+        roomCaps: dbConfig?.roomCaps ?? res.roomCaps ?? null,
+      };
+
+      setFullConfig(mergedConfig);
+      setDbHydrating(false);
+    } catch (err: any) {
+      if (cancelled) return;
+      setDbHydrateError(err?.message || 'db_load_failed');
+      setDbHydrating(false);
+    }
+  }
+
+  hydrateWeb2FromDb();
+
+  return () => {
+    cancelled = true;
+  };
+}, [roomId, hostId, isWeb3, hydrated, config?.roomId, setFullConfig]);
+
 
   // ✅ Use AppKit-powered hook directly (no DynamicChainProvider needed)
   const { selectedChain } = useQuizChainIntegration();
@@ -264,22 +318,26 @@ const HostDashboardCore: React.FC = () => {
     }
   };
 
-  // Entitlements
-  const [ents, setEnts] = useState<any>(null);
-  useEffect(() => {
-    let cancelled = false;
-   import('@/shared/api')
-  .then(({ quizApi }) => quizApi.getEntitlements())
-      .then((data) => {
-        if (!cancelled) setEnts(data);
-      })
-      .catch(() => {
-        if (!cancelled) setEnts(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  
+// Entitlements
+const [ents, setEnts] = useState<any>(null);
+useEffect(() => {
+  let cancelled = false;
+
+  quizApi
+    .getEntitlements()
+    .then((data) => {
+      if (!cancelled) setEnts(data);
+    })
+    .catch(() => {
+      if (!cancelled) setEnts(null);
+    });
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
+
 
   // Derived UI data
   const assetUploadCheck = useMemo(() => {
@@ -660,6 +718,39 @@ const HostDashboardCore: React.FC = () => {
     </div>
   );
 
+  if (!isWeb3 && dbHydrating && !(config?.roomId && hydrated)) {
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
+      <div className="container mx-auto max-w-6xl px-4 py-12">
+        <div className="rounded-xl border bg-white p-6 text-center">
+          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+          <p className="text-sm font-medium text-indigo-700">Loading your quiz setup…</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+if (!isWeb3 && dbHydrateError) {
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
+      <div className="container mx-auto max-w-6xl px-4 py-12">
+        <div className="rounded-xl border bg-white p-6">
+          <p className="text-sm font-medium text-red-600">Failed to load quiz setup</p>
+          <p className="mt-2 text-xs text-gray-600">Error: {dbHydrateError}</p>
+          <button
+            className="mt-4 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white"
+            onClick={() => window.location.reload()}
+          >
+            Refresh
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
       <div className="container mx-auto max-w-6xl px-4 py-8">
@@ -669,7 +760,7 @@ const HostDashboardCore: React.FC = () => {
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-600 text-2xl text-white">
               🎙️
             </div>
-            <span>Host Dashboard</span>
+            <span>Host Quiz Dashboard</span>
           </h1>
           <p className="text-fg/70 text-lg">
             Welcome, <strong>{config?.hostName || 'Host'}</strong> — manage your quiz event below

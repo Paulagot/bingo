@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Users, AlertCircle, Check, ChevronRight, DollarSign, Sparkles } from 'lucide-react';
 import { WizardStepProps } from './WizardStepProps';
 import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
@@ -28,23 +28,85 @@ const Character = ({ message }: { message: string }) => {
 const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) => {
   const [error, setError] = useState('');
 
+  const flow = useQuizSetupStore((s) => s.flow);
+
   const {
     setupConfig,
     setHostName,
     setEntryFee,
     setCurrencySymbol,
     setPaymentMethod,
-
-    // ✅ pull these at the top (do NOT call the hook inside handlers)
+    setEventDateTime,
     updateSetupConfig,
-     // if you need it later
-  } = useQuizSetupStore(); // <-- moved here
+  } = useQuizSetupStore();
 
   const hostName = setupConfig.hostName ?? '';
   const entryFee = setupConfig.entryFee ?? '';
   const currencySymbol = setupConfig.currencySymbol ?? '€';
 
-  const [completedSections, setCompletedSections] = useState({ host: false, payment: false });
+  const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
+
+  // ---------- Scheduling helpers (date + hour + minute) ----------
+  const isoToLocalParts = (iso?: string) => {
+    if (!iso) return { date: '', hour: '', minute: '' };
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return { date: '', hour: '', minute: '' };
+
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const hour = pad(d.getHours());
+    const minute = pad(d.getMinutes());
+    return { date, hour, minute };
+  };
+
+  const storedSchedule = useMemo(() => {
+    return isoToLocalParts((setupConfig as any).eventDateTime as string | undefined);
+  }, [setupConfig]);
+
+  const [scheduleDate, setScheduleDate] = useState(storedSchedule.date);
+  const [scheduleHour, setScheduleHour] = useState(storedSchedule.hour);
+  const [scheduleMinute, setScheduleMinute] = useState(storedSchedule.minute);
+
+  useEffect(() => {
+    setScheduleDate(storedSchedule.date);
+    setScheduleHour(storedSchedule.hour);
+    setScheduleMinute(storedSchedule.minute);
+  }, [storedSchedule.date, storedSchedule.hour, storedSchedule.minute]);
+
+  const applySchedule = (date: string, hour: string, minute: string) => {
+    if (!date || hour === '' || minute === '') {
+      setEventDateTime(undefined);
+      updateSetupConfig({ timeZone: undefined } as any);
+      return;
+    }
+
+    const iso = new Date(`${date}T${hour}:${minute}:00`).toISOString();
+    setEventDateTime(iso);
+    updateSetupConfig({ timeZone: tz } as any);
+  };
+
+  const clearSchedule = () => {
+    setEventDateTime(undefined);
+    updateSetupConfig({ timeZone: undefined } as any);
+    setScheduleDate('');
+    setScheduleHour('');
+    setScheduleMinute('');
+    setError('');
+  };
+
+  const scheduleComplete = useMemo(() => {
+    const iso = (setupConfig as any).eventDateTime as string | undefined;
+    if (!iso) return false;
+    const d = new Date(iso);
+    return !Number.isNaN(d.getTime());
+  }, [setupConfig]);
+  // -------------------------------------------------------------
+
+  const [completedSections, setCompletedSections] = useState({
+    host: false,
+    payment: false,
+    schedule: false,
+  });
 
   useEffect(() => {
     setPaymentMethod('cash_or_revolut');
@@ -54,8 +116,9 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
     setCompletedSections({
       host: hostName.trim().length >= 2,
       payment: Boolean(entryFee && !isNaN(parseFloat(entryFee)) && parseFloat(entryFee) > 0),
+      schedule: flow === 'web2' ? scheduleComplete : true,
     });
-  }, [hostName, entryFee]);
+  }, [hostName, entryFee, flow, scheduleComplete]);
 
   const currencyOptions = [
     { symbol: '€', label: 'Euro (EUR)' },
@@ -73,8 +136,11 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
       setError('Please enter a valid entry fee.');
       return;
     }
+    if (!completedSections.schedule) {
+      setError('Please choose a date, hour, and minute for your quiz.');
+      return;
+    }
 
-    // ✅ use the already-bound store functions
     updateSetupConfig({
       hostName: hostName.trim(),
       entryFee: entryFee.trim(),
@@ -90,8 +156,11 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
 
   const getCurrentMessage = () =>
     allSectionsComplete
-      ? '🎉 Perfect! Your quiz is fully configured and ready to launch!'
-      : "Hi there! Let's set up your quiz together. Fill in your host name and entry fee below to get started.";
+      ? '🎉 Perfect! Your quiz is fully configured and ready to continue!'
+      : "Hi there! Let's set up your quiz together. Fill in the details below to get started.";
+
+  const hourOptions = useMemo(() => Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')), []);
+  const minuteOptions = useMemo(() => Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')), []);
 
   return (
     <div className="w-full space-y-3 px-2 pb-4 sm:space-y-6 sm:px-4">
@@ -138,7 +207,9 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
               }}
               placeholder="e.g., Quiz Master Sarah, The Pub Quiz"
               className={`w-full rounded-lg border-2 px-3 py-2.5 pr-12 text-sm outline-none transition focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3 sm:pr-16 sm:text-base ${
-                completedSections.host ? 'border-green-300 bg-green-50 focus:border-green-500' : 'border-border focus:border-indigo-500'
+                completedSections.host
+                  ? 'border-green-300 bg-green-50 focus:border-green-500'
+                  : 'border-border focus:border-indigo-500'
               }`}
               maxLength={30}
             />
@@ -158,7 +229,9 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
         }`}
       >
         <div className="mb-3 flex items-start gap-3 sm:mb-4">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-green-100 text-xl sm:h-12 sm:w-12 sm:text-2xl">💰</div>
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-green-100 text-xl sm:h-12 sm:w-12 sm:text-2xl">
+            💰
+          </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-fg text-sm font-semibold sm:text-base">Entry Fee</h3>
@@ -195,7 +268,9 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
               </span>
             </label>
             <div className="relative">
-              <span className="text-fg/60 absolute left-3 top-1/2 -translate-y-1/2 transform text-sm font-medium sm:text-base">{currencySymbol}</span>
+              <span className="text-fg/60 absolute left-3 top-1/2 -translate-y-1/2 transform text-sm font-medium sm:text-base">
+                {currencySymbol}
+              </span>
               <input
                 type="number"
                 min="0"
@@ -207,7 +282,9 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
                 }}
                 placeholder="5.00"
                 className={`w-full rounded-lg border-2 py-2.5 pl-7 pr-3 text-sm outline-none transition focus:ring-2 focus:ring-indigo-200 sm:py-3 sm:pl-8 sm:pr-4 sm:text-base ${
-                  completedSections.payment ? 'border-green-300 bg-green-50 focus:border-green-500' : 'border-border focus:border-indigo-500'
+                  completedSections.payment
+                    ? 'border-green-300 bg-green-50 focus:border-green-500'
+                    : 'border-border focus:border-indigo-500'
                 }`}
               />
             </div>
@@ -216,10 +293,115 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
 
         <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3 sm:mt-4">
           <p className="text-xs text-blue-800 sm:text-sm">
-            <strong>Payment Collection:</strong> You'll collect entry fees manually from participants using cash, tap card, or instant transsfer when they arrive.
+            <strong>Payment Collection:</strong> You'll collect entry fees manually from participants using cash, tap card, or
+            instant transsfer when they arrive.
           </p>
         </div>
       </div>
+
+      {/* ✅ Scheduling (Web2 only) — mandatory & full 24h hour/min */}
+      {flow === 'web2' && (
+        <div
+          className={`bg-muted rounded-lg border-2 p-4 shadow-sm transition-all sm:rounded-xl sm:p-6 ${
+            completedSections.schedule ? 'border-green-300 bg-green-50' : 'border-border'
+          }`}
+        >
+          <div className="mb-3 flex items-start gap-3 sm:mb-4">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-xl sm:h-12 sm:w-12 sm:text-2xl">
+              📅
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-fg text-sm font-semibold sm:text-base">
+                  Schedule <span className="text-red-500">*</span>
+                </h3>
+                {completedSections.schedule && <Check className="h-4 w-4 text-green-600 sm:h-5 sm:w-5" />}
+              </div>
+              <p className="text-fg/70 text-xs sm:text-sm">Choose a date, hour, and minute for your quiz.</p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="space-y-1 sm:col-span-1">
+                <label className="text-fg/80 text-xs font-medium sm:text-sm">Date</label>
+                <input
+                  type="date"
+                  value={scheduleDate}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setScheduleDate(next);
+                    applySchedule(next, scheduleHour, scheduleMinute);
+                    setError('');
+                  }}
+                  className="border-border w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-fg/80 text-xs font-medium sm:text-sm">Hour (24h)</label>
+                <select
+                  value={scheduleHour}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setScheduleHour(next);
+                    applySchedule(scheduleDate, next, scheduleMinute);
+                    setError('');
+                  }}
+                  className="border-border w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3"
+                >
+                  <option value="">HH</option>
+                  {hourOptions.map((h) => (
+                    <option key={h} value={h}>
+                      {h}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-fg/80 text-xs font-medium sm:text-sm">Minute</label>
+                <select
+                  value={scheduleMinute}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setScheduleMinute(next);
+                    applySchedule(scheduleDate, scheduleHour, next);
+                    setError('');
+                  }}
+                  className="border-border w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3"
+                >
+                  <option value="">MM</option>
+                  {minuteOptions.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="text-fg/60 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span>Time zone: {(setupConfig as any).timeZone || tz}</span>
+              {completedSections.schedule ? (
+                <span className="rounded-md bg-green-50 px-2 py-1 text-green-700">Saved</span>
+              ) : (
+                <span className="rounded-md bg-yellow-50 px-2 py-1 text-yellow-800">Required</span>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="rounded-lg border bg-white px-3 py-2 text-xs font-medium hover:bg-gray-50"
+                onClick={clearSchedule}
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -229,12 +411,8 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
       )}
 
       <div className="border-border border-t pt-4 sm:pt-6">
+        <ClearSetupButton variant="ghost" flow="web2" onCleared={onResetToFirst} />
 
-           <ClearSetupButton
-          variant="ghost"
-          flow="web2"                 // <-- important: keep the flow consistent
-          onCleared={onResetToFirst} // <-- THIS makes it jump to the first step
-        />
         <button
           onClick={handleSubmit}
           disabled={!allSectionsComplete}
@@ -249,3 +427,6 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
 };
 
 export default StepQuizSetup;
+
+
+

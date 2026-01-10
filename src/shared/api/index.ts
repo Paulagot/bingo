@@ -9,7 +9,9 @@ export * from './room.api';
 // Re-export types that are used by API
 export type { RegisterClubRequest, LoginRequest, LoginResponse, GetCurrentUserResponse } from './auth.api';
 export type { CreateRoomRequest, CreateRoomResponse, CreateWeb3RoomResponse } from './room.api';
+export type { GetWeb2QuizRoomResponse, Web2QuizRoomStatus } from './quiz.api';
 
 // Re-export default client instance
 export { apiClient } from './client';
+
 

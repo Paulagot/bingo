@@ -1,6 +1,7 @@
 // Backend API Route - Updated with strong Web3 proof validation (multichain ready)
+//server/quiz/api/create-room.js
 import express from 'express';
-import { createQuizRoom } from '../quizRoomManager.js';
+import { createQuizRoom, removeQuizRoom } from '../quizRoomManager.js';
 import {
   resolveEntitlements,
   checkCaps,
@@ -10,9 +11,53 @@ import { canUseTemplate } from '../../policy/entitlements.js';
 
 import authenticateToken from '../../middleware/auth.js';
 import jwt from 'jsonwebtoken';
-import { connection } from '../../config/database.js';
+import { connection, TABLE_PREFIX } from '../../config/database.js';
+
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-dev-secret';
+
+const WEB2_ROOMS_TABLE = `${TABLE_PREFIX}web2_quiz_rooms`;
+
+// Insert the launched room config into DB (Web2 only)
+async function insertWeb2RoomRecord({
+  clubId,
+  roomId,
+  hostId,
+  setupConfig,
+  roomCaps,
+}) {
+  const scheduledAt = setupConfig?.eventDateTime ? new Date(setupConfig.eventDateTime) : null;
+  const timeZone = setupConfig?.timeZone || null;
+
+  // Status: scheduled if in the future, otherwise live
+  const status =
+    scheduledAt && !Number.isNaN(scheduledAt.getTime()) && scheduledAt.getTime() > Date.now()
+      ? 'scheduled'
+      : 'live';
+
+  const sql = `
+    INSERT INTO ${WEB2_ROOMS_TABLE}
+      (room_id, host_id, club_id, status, scheduled_at, time_zone, config_json, room_caps_json)
+    VALUES
+      (?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+
+  const params = [
+    roomId,
+    hostId,
+    clubId,
+    status,
+    scheduledAt && !Number.isNaN(scheduledAt.getTime()) ? scheduledAt : null,
+    timeZone,
+    JSON.stringify(setupConfig ?? {}),
+    JSON.stringify(roomCaps ?? null),
+  ];
+
+  await connection.execute(sql, params);
+
+  return { status, scheduledAt, timeZone };
+}
+
 
 const router = express.Router();
 
@@ -900,17 +945,164 @@ router.post('/create-room', async (req, res) => {
       });
     }
 
-    const okCredit = await consumeCredit(clubId);
-    if (!okCredit) return res.status(402).json({ error: 'no_credits' });
+   const okCredit = await consumeCredit(clubId);
+if (!okCredit) {
+  // Clean up in-memory room if we failed to charge a credit
+  removeQuizRoom(roomId);
+  return res.status(402).json({ error: 'no_credits' });
+}
 
-    console.log(`[API] ✅ Successfully created WEB2 room ${roomId}`);
-    console.log('--------------------------------------');
-    return res.status(200).json({ roomId, hostId, roomCaps });
+// ✅ NEW: Persist launched Web2 room config to DB
+try {
+  await insertWeb2RoomRecord({
+    clubId,
+    roomId,
+    hostId,
+    setupConfig,
+    roomCaps,
+  });
+  console.log(`[API] 💾 Saved WEB2 room config to DB: roomId=${roomId}`);
+} catch (dbErr) {
+  console.error('[API] ❌ Failed saving WEB2 room to DB:', dbErr);
+
+  // Clean up in-memory room if DB write fails (prevents half-created state)
+  removeQuizRoom(roomId);
+
+  // NOTE: credit has already been consumed. If you want “refund credit on DB failure”,
+  // we can add a "refundCredit" helper later. For now, this prevents bad room state.
+  return res.status(500).json({ error: 'db_save_failed' });
+}
+
+console.log(`[API] ✅ Successfully created WEB2 room ${roomId}`);
+console.log('--------------------------------------');
+return res.status(200).json({ roomId, hostId, roomCaps });
+
   } catch (err) {
     console.error('[API] ❌ Exception creating WEB2 room:', err);
     return res.status(500).json({ error: 'internal_error' });
   }
 });
+
+/**
+ * WEB2: Load a saved launched room config from DB
+ * Used by Host Dashboard hydration (refresh-safe).
+ */
+router.get('/web2/rooms/:roomId', authenticateToken, async (req, res) => {
+  try {
+    const { roomId } = req.params;
+
+    if (!roomId) {
+      return res.status(400).json({ error: 'roomId_required' });
+    }
+
+    const clubId = req.club_id;
+    if (!clubId) {
+      return res.status(401).json({ error: 'unauthorized' });
+    }
+
+    const sql = `
+      SELECT
+        room_id,
+        host_id,
+        club_id,
+        status,
+        scheduled_at,
+        time_zone,
+        config_json,
+        room_caps_json,
+        created_at,
+        updated_at
+      FROM ${WEB2_ROOMS_TABLE}
+      WHERE room_id = ?
+      LIMIT 1
+    `;
+
+    const [rows] = await connection.execute(sql, [roomId]);
+    const row = rows?.[0];
+
+    if (!row) {
+      return res.status(404).json({ error: 'room_not_found' });
+    }
+
+    // Security: ensure this room belongs to the logged-in club
+    if (String(row.club_id) !== String(clubId)) {
+      return res.status(403).json({ error: 'forbidden' });
+    }
+
+    // MySQL JSON columns can come back as object OR string depending on driver settings
+    const config =
+      typeof row.config_json === 'string' ? JSON.parse(row.config_json) : row.config_json;
+
+    const roomCaps =
+      row.room_caps_json
+        ? (typeof row.room_caps_json === 'string'
+            ? JSON.parse(row.room_caps_json)
+            : row.room_caps_json)
+        : (config?.roomCaps ?? null);
+
+    return res.status(200).json({
+      roomId: row.room_id,
+      hostId: row.host_id,
+      clubId: row.club_id,
+      status: row.status,
+      scheduledAt: row.scheduled_at,
+      timeZone: row.time_zone,
+      roomCaps,
+      config,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    });
+  } catch (err) {
+    console.error('[API] ❌ Failed to load WEB2 room from DB:', err);
+    return res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// ✅ WEB2: List rooms for the logged-in club
+router.get('/web2/rooms', authenticateToken, async (req, res) => {
+  try {
+    const clubId = req.club_id;
+    if (!clubId) return res.status(401).json({ error: 'unauthorized' });
+
+    const status = String(req.query.status || 'scheduled');
+    const time = String(req.query.time || 'upcoming');
+
+    const where = ['club_id = ?'];
+    const params = [clubId];
+
+    if (status !== 'all') {
+      where.push('status = ?');
+      params.push(status);
+    }
+
+    if (time === 'upcoming') {
+      where.push('(scheduled_at IS NULL OR scheduled_at >= (NOW() - INTERVAL 12 HOUR))');
+    } else if (time === 'past') {
+      where.push('(scheduled_at IS NOT NULL AND scheduled_at < NOW())');
+    }
+
+    const orderBy =
+      time === 'past'
+        ? 'ORDER BY scheduled_at DESC, created_at DESC'
+        : 'ORDER BY scheduled_at ASC, created_at DESC';
+
+    const sql = `
+      SELECT room_id, host_id, status, scheduled_at, time_zone, created_at, updated_at
+      FROM ${WEB2_ROOMS_TABLE}
+      WHERE ${where.join(' AND ')}
+      ${orderBy}
+      LIMIT 200
+    `;
+
+    const [rows] = await connection.execute(sql, params);
+    return res.status(200).json({ rooms: rows });
+  } catch (err) {
+    console.error('[API] ❌ Failed listing WEB2 rooms:', err);
+    return res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+
 
 export default router;
 

@@ -1,23 +1,28 @@
-// src/components/Quiz/BlockchainBadge.tsx
-import React from 'react';
+// src/components/Quiz/dashboard/BlockchainBadge.tsx
+import React, { useMemo } from 'react';
 import { ExternalLink, Link as LinkIcon, Shield } from 'lucide-react';
 
-// 🔗 import your network map + helpers
-import { EVM_NETWORKS, getMetaByKey, type EvmNetworkKey } from '../../../chains/evm//config/networks'; 
-// ^ adjust import path if different
+import { resolveEvmTarget } from '../../../chains/evm/utils/evmSelect';
 
 type Props = {
   chain?: 'stellar' | 'evm' | 'solana';
-  /** For EVM, pass the EvmNetworkKey (`'base' | 'baseSepolia' | 'polygon' | 'polygonAmoy'`) */
+  /**
+   * For EVM: your EvmNetworkKey (e.g. 'base', 'baseSepolia', 'polygonAmoy', etc)
+   * For Solana: 'mainnet' | 'mainnet-beta' | 'devnet' (or whatever you store)
+   * For Stellar: 'public' | 'mainnet' | 'testnet'
+   */
   network?: string;
-  /** Contract / program address */
+
   contractAddress?: string;
-  /** Deployment Tx hash (if available) */
   txHash?: string;
 };
 
 const ellipsify = (s?: string, head = 6, tail = 6) =>
   !s ? '' : s.length <= head + tail ? s : `${s.slice(0, head)}…${s.slice(-tail)}`;
+
+function safeLower(v?: string) {
+  return (v ?? '').toLowerCase();
+}
 
 function getExplorerUrls(
   chain?: 'stellar' | 'evm' | 'solana',
@@ -25,9 +30,10 @@ function getExplorerUrls(
   addr?: string,
   tx?: string
 ) {
+  if (!chain) return { addrUrl: undefined, txUrl: undefined, label: 'Blockchain' };
+
   if (chain === 'stellar') {
-    // Accept 'public' | 'mainnet' | 'testnet'
-    const net = (network || '').toLowerCase();
+    const net = safeLower(network);
     const hive = net === 'public' || net === 'mainnet' ? 'public' : 'testnet';
     return {
       addrUrl: addr ? `https://stellar.expert/explorer/${hive}/contract/${addr}` : undefined,
@@ -37,9 +43,18 @@ function getExplorerUrls(
   }
 
   if (chain === 'evm') {
-    const meta = getMetaByKey(network as EvmNetworkKey);
-    const base = meta?.explorer || 'https://etherscan.io';
-    const label = meta?.name || 'EVM';
+    // ✅ Resolve explorer dynamically from your canonical EVM config
+    let base = 'https://etherscan.io';
+    let label = 'EVM';
+
+    try {
+      const resolved = resolveEvmTarget({ setupKey: network ?? null, runtimeChainId: null });
+      base = resolved.explorer;
+      label = resolved.key; // or use your EVM_NETWORKS[resolved.key].name if you want a prettier label
+    } catch {
+      // leave defaults
+    }
+
     return {
       addrUrl: addr ? `${base}/address/${addr}` : undefined,
       txUrl: tx ? `${base}/tx/${tx}` : undefined,
@@ -48,13 +63,14 @@ function getExplorerUrls(
   }
 
   if (chain === 'solana') {
-    const cl = (network || '').toLowerCase();
+    const cl = safeLower(network);
     const isMain = cl === 'mainnet' || cl === 'mainnet-beta';
-    const clusterParam = isMain ? '' : '?cluster=devnet';
+    const clusterParam = isMain ? '' : `?cluster=${encodeURIComponent(cl || 'devnet')}`;
+
     return {
       addrUrl: addr ? `https://explorer.solana.com/address/${addr}${clusterParam}` : undefined,
       txUrl: tx ? `https://explorer.solana.com/tx/${tx}${clusterParam}` : undefined,
-      label: isMain ? 'Solana' : 'Solana (Devnet)',
+      label: isMain ? 'Solana' : `Solana (${cl || 'devnet'})`,
     };
   }
 
@@ -64,13 +80,16 @@ function getExplorerUrls(
 const BlockchainBadge: React.FC<Props> = ({ chain, network, contractAddress, txHash }) => {
   if (!chain) return null;
 
-  const { addrUrl, txUrl, label } = getExplorerUrls(chain, network, contractAddress, txHash);
+  const { addrUrl, txUrl, label } = useMemo(
+    () => getExplorerUrls(chain, network, contractAddress, txHash),
+    [chain, network, contractAddress, txHash]
+  );
 
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-purple-200 bg-purple-50 p-2 text-sm">
       <span className="inline-flex items-center gap-1 font-medium text-purple-800">
         <Shield className="h-4 w-4" />
-        {label}{network && chain === 'evm' ? ` · ${EVM_NETWORKS[network as EvmNetworkKey]?.id ?? ''}` : ''}
+        {label}
       </span>
 
       {contractAddress && (
@@ -87,7 +106,12 @@ const BlockchainBadge: React.FC<Props> = ({ chain, network, contractAddress, txH
       )}
 
       {txHash && txUrl && (
-        <a className="inline-flex items-center gap-1 text-purple-800 hover:underline" href={txUrl} target="_blank" rel="noreferrer">
+        <a
+          className="inline-flex items-center gap-1 text-purple-800 hover:underline"
+          href={txUrl}
+          target="_blank"
+          rel="noreferrer"
+        >
           Tx {ellipsify(txHash)} <ExternalLink className="h-3 w-3" />
         </a>
       )}
@@ -96,5 +120,6 @@ const BlockchainBadge: React.FC<Props> = ({ chain, network, contractAddress, txH
 };
 
 export default BlockchainBadge;
+
 
 

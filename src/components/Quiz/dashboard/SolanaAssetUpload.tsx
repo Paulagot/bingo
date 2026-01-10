@@ -276,7 +276,7 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
 
   return (
     <div className="space-y-6">
-      {/* Debug Info */}
+      {/* Debug Info
       <DebugInfoPanel
         data={{
           chain: 'solana',
@@ -286,7 +286,7 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
           roomId,
           socketConnected: connected,
         }}
-      />
+      /> */}
 
       {/* Upload Status Overview */}
       <UploadStatusOverview
@@ -445,7 +445,7 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
         </div>
 
         {/* Bulk Upload Button */}
-        {canProceedWithUploads && stats.pendingUploads > 0 && (
+        {/* {canProceedWithUploads && stats.pendingUploads > 0 && (
           <div className="border-border mt-6 border-t pt-4">
             <button
               onClick={handleUploadAllRemaining}
@@ -457,7 +457,7 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
               <ArrowRight className="h-4 w-4" />
             </button>
           </div>
-        )}
+        )} */}
       </div>
     </div>
   );
