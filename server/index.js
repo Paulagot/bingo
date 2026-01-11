@@ -210,18 +210,20 @@ const cspDirectives = {
   workerSrc: ["'self'", "blob:"],
   manifestSrc: ["'self'"],
 
-  // ✅ UPDATED: Added WalletConnect verification domains
-  frameSrc: [
-    "'self'", 
-    "https://www.youtube.com", 
-    "https://www.youtube-nocookie.com", 
-    "https://player.vimeo.com",
-    "https://verify.walletconnect.com",
-    "https://verify.walletconnect.org",
-    "https://secure.walletconnect.com",
-    "https://secure.walletconnect.org"
-  ],
-  frameAncestors: ["'self'"],
+frameSrc: [
+  "'self'",
+  "https://verify.walletconnect.com",
+  "https://verify.walletconnect.org",
+  "https://www.youtube.com",
+  "https://www.youtube-nocookie.com",
+  "https://player.vimeo.com",
+],
+childSrc: [
+  "'self'",
+  "https://verify.walletconnect.com",
+  "https://verify.walletconnect.org",
+],
+frameAncestors: ["'self'"],
 
   connectSrc: ALLOWED_CONNECT,
 
