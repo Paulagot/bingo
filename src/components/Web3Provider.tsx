@@ -84,59 +84,72 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
         console.log("🌐 [Web3Provider] Creating AppKit with metadata:", metadata);
         
         // ✅ MOBILE-OPTIMIZED APPKIT CONFIGURATION
-        createAppKit({
-          adapters: [wagmiAdapter, solanaWeb3JsAdapter],
-          projectId,
-          networks,
-          metadata, // Uses the fixed metadata from config
-          
-          // ✅ Theme
-          themeMode: "dark",
-          
-          // ✅ Feature configuration
-          features: { 
-            analytics: true,
-            socials: false,
-            email: false,
-            swaps: false,
-            onramp: false,
-          },
-          
-          // ✅ CRITICAL: Wallet connection methods
-          enableWalletConnect: true,  // QR code for desktop
-          enableInjected: true,       // Browser extensions
-          enableCoinbase: true,       // Coinbase Wallet SDK
-          enableEIP6963: true,        // Modern wallet detection
-          
-          // ✅ Show all available wallets (including mobile-specific)
-          allWallets: 'SHOW',
-          
-          // ✅ Feature mobile wallets at the top
-          featuredWalletIds: [
-            // Solana wallets
-            // Phantom will be auto-detected via Wallet Standard on Solana
-            
-            // EVM wallets with mobile support
-            'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
-            'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa', // Coinbase Wallet
-            '1ae92b26df02f0abca6304df07debccd18262fdf5fe82daa81593582dac9a369', // Rainbow
-            '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0', // Trust Wallet
-          ],
-          
-          // ✅ Theme customization
-          themeVariables: {
-            '--w3m-z-index': 2147483647,
-            '--w3m-accent': '#6366f1',
-            '--w3m-border-radius-master': '8px',
-          },
-          
-          // ✅ Default to Solana devnet (first in your networks array)
-          defaultNetwork: networks[0],
-          
-          // ✅ MOBILE DEBUGGING: Enable if you need to see what's happening
-          // Remove in production
-          debug: import.meta.env.DEV,
-        });
+    createAppKit({
+  adapters: [wagmiAdapter, solanaWeb3JsAdapter],
+  projectId,
+  networks,
+  metadata,
+  
+  themeMode: "dark",
+  
+  features: { 
+    analytics: true,
+    socials: false,
+    email: false,
+    swaps: false,
+    onramp: false,
+  },
+  
+  // ✅ CRITICAL: Wallet connection methods
+  enableWalletConnect: true,
+  enableInjected: true,
+  enableCoinbase: true,
+  enableEIP6963: true,
+  
+  // ✅ Show all available wallets
+  allWallets: 'SHOW',
+  
+  // ✅ UPDATED: Feature both Solana and EVM wallets
+  featuredWalletIds: [
+    // ========== SOLANA WALLETS ==========
+    // These will show when user selects a Solana network
+    'app.phantom', // Phantom (Solana + EVM)
+    'com.solflare', // Solflare
+    'app.backpack', // Backpack
+    'com.exodus', // Exodus
+    
+    // ========== EVM WALLETS ==========
+    // These will show when user selects an EVM network
+    'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
+    'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa', // Coinbase Wallet (supports both Solana & EVM)
+    '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0', // Trust Wallet
+    '225affb176778569276e484e1b92637ad061b01e13a048b35a9d280c3b58970f', // Argent
+  ],
+  
+  // ✅ Include specific wallets (ensures they appear even if not featured)
+  includeWalletIds: [
+    // Solana
+    'app.phantom',
+    'com.solflare', 
+    'app.backpack',
+    'com.exodus',
+    
+    // EVM
+    'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
+    'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa', // Coinbase
+    '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0', // Trust
+    '225affb176778569276e484e1b92637ad061b01e13a048b35a9d280c3b58970f', // Argent
+  ],
+  
+  themeVariables: {
+    '--w3m-z-index': 2147483647,
+    '--w3m-accent': '#6366f1',
+    '--w3m-border-radius-master': '8px',
+  },
+  
+  defaultNetwork: networks[0],
+ 
+});
 
         const result = {
           AppKitProvider: AKProvider,
