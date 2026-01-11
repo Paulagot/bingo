@@ -5,6 +5,7 @@ interface Web3ProviderProps {
   children: React.ReactNode;
 }
 
+// Module-level singleton
 let initializationPromise: Promise<any> | null = null;
 let isInitialized = false;
 let cachedProviders: any | null = null;
@@ -81,75 +82,58 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
           },
         });
 
-        console.log("🌐 [Web3Provider] Creating AppKit with metadata:", metadata);
+        console.log("🌐 [Web3Provider] Creating AppKit...");
         
-        // ✅ MOBILE-OPTIMIZED APPKIT CONFIGURATION
-    createAppKit({
-  adapters: [wagmiAdapter, solanaWeb3JsAdapter],
-  projectId,
-  networks,
-  metadata,
-  
-  themeMode: "dark",
-  
-  features: { 
-    analytics: true,
-    socials: false,
-    email: false,
-    swaps: false,
-    onramp: false,
-  },
-  
-  // ✅ CRITICAL: Wallet connection methods
-  enableWalletConnect: true,
-  enableInjected: true,
-  enableCoinbase: true,
-  enableEIP6963: true,
-  
-  // ✅ Show all available wallets
-  allWallets: 'SHOW',
-  
-  // ✅ UPDATED: Feature both Solana and EVM wallets
-  featuredWalletIds: [
-    // ========== SOLANA WALLETS ==========
-    // These will show when user selects a Solana network
-    'app.phantom', // Phantom (Solana + EVM)
-    'com.solflare', // Solflare
-    'app.backpack', // Backpack
-    'com.exodus', // Exodus
-    
-    // ========== EVM WALLETS ==========
-    // These will show when user selects an EVM network
-    'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
-    'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa', // Coinbase Wallet (supports both Solana & EVM)
-    '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0', // Trust Wallet
-    '225affb176778569276e484e1b92637ad061b01e13a048b35a9d280c3b58970f', // Argent
-  ],
-  
-  // ✅ Include specific wallets (ensures they appear even if not featured)
-  includeWalletIds: [
-    // Solana
-    'app.phantom',
-    'com.solflare', 
-    'app.backpack',
-    'com.exodus',
-    
-    // EVM
-    'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
-    'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa', // Coinbase
-    '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0', // Trust
-    '225affb176778569276e484e1b92637ad061b01e13a048b35a9d280c3b58970f', // Argent
-  ],
-  
-  themeVariables: {
-    '--w3m-z-index': 2147483647,
-    '--w3m-accent': '#6366f1',
-    '--w3m-border-radius-master': '8px',
-  },
-  
-  defaultNetwork: networks[0],
- 
-});
+        // ✅ ENHANCED APPKIT CONFIGURATION
+        createAppKit({
+          adapters: [wagmiAdapter, solanaWeb3JsAdapter],
+          projectId,
+          networks,
+          metadata,
+          
+          // ✅ Theme configuration
+          themeMode: "dark",
+          
+          // ✅ Feature configuration - CRITICAL FOR MOBILE
+          features: { 
+            analytics: true,
+            socials: false, // Disable if you don't need social login
+            email: false,   // Disable if you don't need email login
+            swaps: false,   // Disable to reduce modal complexity on mobile
+            onramp: false,  // Disable if not needed
+          },
+          
+          // ✅ Mobile-optimized settings
+
+          
+          // ✅ CRITICAL: Wallet configuration for mobile
+          allWallets: 'SHOW', // Shows all wallets including mobile ones
+          
+          // ✅ Featured wallet IDs - prioritize these for mobile
+          featuredWalletIds: [
+            'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
+            'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa', // Coinbase Wallet
+            '18388be9ac2d02726dbac9777c96efaac06d744b2f6d580fccdd4127a6d01fd1', // Rabby
+            '1ae92b26df02f0abca6304df07debccd18262fdf5fe82daa81593582dac9a369', // Rainbow
+            '19177a98252e07ddfc9af2083ba8e07ef627cb6103467ffebb3f8f4205fd7927', // Ledger Live
+            // Solana wallets - auto-detected via Wallet Standard
+          ],
+          
+          // ✅ Enable different wallet types  
+          enableWalletConnect: true,  // QR code connection
+          enableInjected: true,       // Browser extension wallets
+          enableCoinbase: true,       // Coinbase Wallet SDK
+          enableEIP6963: true,        // Modern wallet detection standard
+          
+          // ✅ Theme variables for mobile optimization
+          themeVariables: {
+            '--w3m-z-index': 2147483647, // Ensure modal is on top
+            '--w3m-accent': '#6366f1',      // Your brand color
+          },
+          
+          // ✅ Default network (optional but recommended)
+          defaultNetwork: networks[0], // Start with your primary network
+        });
 
         const result = {
           AppKitProvider: AKProvider,
@@ -191,6 +175,7 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
     };
   }, []);
 
+  // Error state
   if (loadingError) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-red-50 to-pink-100">
@@ -209,10 +194,12 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
     );
   }
 
+  // Loading state
   if (!providers) {
     return <Web3LoadingFallback />;
   }
 
+  // Ready state
   const { AppKitProvider, WagmiProvider, QueryClientProvider, queryClient, wagmiConfig } = providers;
 
   return (
