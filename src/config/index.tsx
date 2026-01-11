@@ -26,6 +26,10 @@ import {
 
 import type { AppKitNetwork } from "@reown/appkit/networks";
 import { http } from "wagmi";
+import { 
+  PhantomWalletAdapter, 
+  SolflareWalletAdapter 
+} from '@solana/wallet-adapter-wallets';
 
 // ---------------------------------------------
 // 🔐 Project ID
@@ -141,7 +145,10 @@ export const wagmiAdapter = new WagmiAdapter({
 // ---------------------------------------------
 export const solanaWeb3JsAdapter = new SolanaAdapter({
   registerWalletStandard: true,
- wallets: [],
+   wallets: [
+    new PhantomWalletAdapter(),
+    new SolflareWalletAdapter(),
+  ],
 });
 
 // ---------------------------------------------
