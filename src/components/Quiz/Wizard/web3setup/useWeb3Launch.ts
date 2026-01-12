@@ -1,5 +1,3 @@
-// src/components/Quiz/Wizard/web3setup/useWeb3Launch.ts
-
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -17,6 +15,25 @@ import type { DeployParams } from "../../../../hooks/useContractActions";
 // Move this outside component to prevent recreating on every render
 const isInvalidTx = (tx?: string) =>
   !tx || tx === "pending" || tx === "transaction-submitted" || tx.length < 16;
+
+// Storage key for quiz setup persistence (critical for mobile reloads)
+const QUIZ_SETUP_STORAGE_KEY = "fundraisely-quiz-setup-draft";
+
+const saveQuizDraft = (setup: any) => {
+  try {
+    localStorage.setItem(QUIZ_SETUP_STORAGE_KEY, JSON.stringify(setup));
+    console.log("[useWeb3Launch] Saved quiz draft");
+  } catch (e) {
+    console.warn("[useWeb3Launch] Failed to save quiz draft", e);
+  }
+};
+
+
+
+const clearQuizDraft = () => {
+  localStorage.removeItem(QUIZ_SETUP_STORAGE_KEY);
+  console.log("[useWeb3Launch] Cleared quiz draft");
+};
 
 export type Web3LaunchState =
   | "ready"
@@ -49,6 +66,8 @@ export function useWeb3Launch({ onResetToFirst: _onResetToFirst, onBack: _onBack
     setRoomIds,
     clearRoomIds,
     hardReset,
+    // Assuming your store has a method to restore/merge setupConfig
+    // If not, add one like setSetupConfig or mergeSetupConfig in useQuizSetupStore
   } = useQuizSetupStore();
 
   const { setFullConfig } = useQuizConfig();
@@ -73,6 +92,7 @@ export function useWeb3Launch({ onResetToFirst: _onResetToFirst, onBack: _onBack
   const [explorerUrl, setExplorerUrl] = useState<string | null>(null);
   const [deploymentStep, setDeploymentStep] = useState<string>("");
   const [deployTrigger, setDeployTrigger] = useState(0);
+
 
   // Memoize complex derived values
   const configCheck = useMemo(() => {
@@ -109,8 +129,7 @@ export function useWeb3Launch({ onResetToFirst: _onResetToFirst, onBack: _onBack
     [hostId]
   );
 
-  // buildDeployParams - only recreate when setupConfig changes deeply
-  // Memoize the actual config values we need to prevent unnecessary recreations
+  // buildDeployParams deps
   const deployConfigDeps = useMemo(() => ({
     prizeMode: setupConfig.prizeMode,
     web3PrizeSplit: setupConfig.web3PrizeSplit,
@@ -200,12 +219,15 @@ export function useWeb3Launch({ onResetToFirst: _onResetToFirst, onBack: _onBack
         hostMetadata,
       };
     },
-    [deployConfigDeps] // Now depends on a stable memoized object
+    [deployConfigDeps]
   );
 
-  // Fix handleWalletConnect - only depend on what's actually used
+  // Improved: Save draft BEFORE connect
   const handleWalletConnect = useCallback(async () => {
     console.log("[useWeb3Launch] handleWalletConnect called");
+
+    // Save current quiz setup before opening wallet modal (handles reloads)
+    saveQuizDraft(setupConfig);
 
     try {
       const res = await walletActions.connect();
@@ -220,18 +242,19 @@ export function useWeb3Launch({ onResetToFirst: _onResetToFirst, onBack: _onBack
       console.error("[useWeb3Launch] Wallet connection error:", err);
       setLaunchError(err instanceof Error ? err.message : "Wallet connection failed");
     }
-  }, [walletActions.connect]); // Only depend on the connect function
+  }, [walletActions.connect, setupConfig]);  // Depend on setupConfig for save
 
   const handleWalletDisconnect = useCallback(async () => {
     try {
       await walletActions.disconnect();
+      clearQuizDraft();  // Clean up draft
       console.log("[useWeb3Launch] Wallet disconnected successfully");
     } catch (err) {
       console.error("[useWeb3Launch] Wallet disconnection error:", err);
     }
-  }, [walletActions.disconnect]); // Only depend on the disconnect function
+  }, [walletActions.disconnect]);
 
-  // Socket listeners
+  // Socket listeners (unchanged)
   useEffect(() => {
     if (!connected || !socket) return;
 
@@ -246,6 +269,7 @@ export function useWeb3Launch({ onResetToFirst: _onResetToFirst, onBack: _onBack
       } catch {}
 
       hardReset();
+      clearQuizDraft();  // Clean up on full success
 
       setTimeout(() => {
         navigate(`/quiz/host-dashboard/${roomId}`);
@@ -267,7 +291,7 @@ export function useWeb3Launch({ onResetToFirst: _onResetToFirst, onBack: _onBack
     };
   }, [connected, socket, hardReset, navigate]);
 
-  // handleLaunch - stabilize dependencies
+  // handleLaunch (your full original logic + clear draft on success)
   const handleLaunch = useCallback(async () => {
     if (launchState !== "ready" && launchState !== "error") return;
 
@@ -358,7 +382,7 @@ export function useWeb3Launch({ onResetToFirst: _onResetToFirst, onBack: _onBack
       const web3RoomConfig = {
         ...setupConfig,
         deploymentTxHash: deployRes.txHash,
-         hostWallet: hostWallet,
+        hostWallet: hostWallet,
         hostWalletConfirmed: hostWallet,
         paymentMethod: "web3" as const,
         isWeb3Room: true,
@@ -373,11 +397,11 @@ export function useWeb3Launch({ onResetToFirst: _onResetToFirst, onBack: _onBack
         solanaCluster: (setupConfig as any)?.solanaCluster,
         roomContractAddress: deployRes.contractAddress,
         web3CharityId: (setupConfig as any)?.web3CharityId,
-          web3CharityName: 
-    (setupConfig as any)?.web3CharityName ||     // Try direct field
-    (setupConfig as any)?.charityName ||         // Try alternate field
-    (setupConfig as any)?.web3Charity ||         // Try legacy field
-    null,
+        web3CharityName: 
+          (setupConfig as any)?.web3CharityName ||     // Try direct field
+          (setupConfig as any)?.charityName ||         // Try alternate field
+          (setupConfig as any)?.web3Charity ||         // Try legacy field
+          null,
         web3CharityAddress: (setupConfig as any)?.web3CharityAddress,
       };
 
@@ -426,6 +450,7 @@ export function useWeb3Launch({ onResetToFirst: _onResetToFirst, onBack: _onBack
       });
 
       setLaunchState("success");
+      clearQuizDraft();  // Clean up draft on success
 
       setTimeout(() => {
         navigate(`/quiz/host-dashboard/${data.roomId}`);
@@ -460,7 +485,7 @@ export function useWeb3Launch({ onResetToFirst: _onResetToFirst, onBack: _onBack
     navigate,
   ]);
 
-  // Message for UI
+  // Message for UI (unchanged)
   const currentMessage = useMemo(() => {
     if (launchState === "generating-ids") {
       return {

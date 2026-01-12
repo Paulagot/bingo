@@ -1,4 +1,3 @@
-// src/components/Quiz/hooks/useQuizSetupStore.ts
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { QuizConfig, RoundDefinition } from '../types/quiz';
@@ -133,7 +132,7 @@ export const useQuizSetupStore = create<QuizSetupState>()(
           lastSavedAt: Date.now(),
         })),
 
-      // ✅ FIXED: never assign `undefined` directly; remove the field instead
+      // FIXED: never assign `undefined` directly; remove the field instead
       setEventDateTime: (iso) =>
         set((s) => {
           const nextConfig: Partial<QuizConfig> = { ...s.setupConfig };
@@ -210,40 +209,10 @@ export const useQuizSetupStore = create<QuizSetupState>()(
           };
         }),
 
-      // ✅ FIXED: don't assign `undefined` to fields; set or delete them
-      setWeb3CharityById: (id) =>
-        set((s) => {
-          const nextConfig: Partial<QuizConfig> = { ...s.setupConfig };
-
-          if (!id) {
-            // clear all charity fields
-            delete (nextConfig as any).web3CharityId;
-            delete (nextConfig as any).web3Charity;
-            delete (nextConfig as any).web3CharityAddress;
-          } else {
-            const c = getCharityById(id);
-            if (c) {
-              (nextConfig as any).web3CharityId = c.id;
-              (nextConfig as any).web3Charity = c.name; // display name (for UI)
-              (nextConfig as any).web3CharityAddress = c.wallet as any; // EVM address (for deploy)
-            } else {
-              // unknown id -> clear
-              delete (nextConfig as any).web3CharityId;
-              delete (nextConfig as any).web3Charity;
-              delete (nextConfig as any).web3CharityAddress;
-            }
-          }
-
-          return {
-            setupConfig: nextConfig,
-            lastSavedAt: Date.now(),
-          };
-        }),
-
       setExtraPrice: (key, price) =>
         set((state) => {
           const next = { ...(state.setupConfig.fundraisingPrices ?? {}) };
-         if (typeof price === 'number' && price > 0) (next as any)[key] = price;
+          if (typeof price === 'number' && price > 0) (next as any)[key] = price;
           else delete (next as any)[key];
           return {
             setupConfig: {
@@ -288,6 +257,35 @@ export const useQuizSetupStore = create<QuizSetupState>()(
           set({ flow: nextFlow, currentStep: 'setup' });
         }
       },
+
+      setWeb3CharityById: (id) =>
+        set((s) => {
+          const nextConfig: Partial<QuizConfig> = { ...s.setupConfig };
+
+          if (!id) {
+            // clear all charity fields
+            delete (nextConfig as any).web3CharityId;
+            delete (nextConfig as any).web3Charity;
+            delete (nextConfig as any).web3CharityAddress;
+          } else {
+            const c = getCharityById(id);
+            if (c) {
+              (nextConfig as any).web3CharityId = c.id;
+              (nextConfig as any).web3Charity = c.name; // display name (for UI)
+              (nextConfig as any).web3CharityAddress = c.wallet as any; // EVM address (for deploy)
+            } else {
+              // unknown id -> clear
+              delete (nextConfig as any).web3CharityId;
+              delete (nextConfig as any).web3Charity;
+              delete (nextConfig as any).web3CharityAddress;
+            }
+          }
+
+          return {
+            setupConfig: nextConfig,
+            lastSavedAt: Date.now(),
+          };
+        }),
     }),
     {
       name: PERSIST_KEY,
@@ -317,6 +315,31 @@ export const useQuizSetupStore = create<QuizSetupState>()(
         hostId: state.hostId,
         lastSavedAt: state.lastSavedAt,
       }),
+      // NEW: Custom deep merge during rehydration (critical for nested quiz config)
+  // Inside persist options:
+merge: (persistedState: any, currentState: QuizSetupState) => {
+  // Early return if no persisted state
+  if (!persistedState) {
+    return currentState;
+  }
+
+  // Type assertion - we know persistedState has the shape from partialize()
+  const persisted = persistedState as Partial<QuizSetupState>;
+
+  // Deep merge the setupConfig (handles nested objects safely)
+  const mergedConfig = deepMerge(
+    currentState.setupConfig,
+    persisted.setupConfig || {}
+  );
+
+  return {
+    ...currentState,
+    ...persisted,
+    setupConfig: mergedConfig,
+    // Preserve runtime fields (e.g., don't force currentStep back unless desired)
+    currentStep: currentState.currentStep || persisted.currentStep || 'setup',
+  };
+},
     }
   )
 );
