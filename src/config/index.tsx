@@ -1,4 +1,3 @@
-// src/config/index.ts
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
 import { SolanaAdapter } from "@reown/appkit-adapter-solana";
 
@@ -39,27 +38,25 @@ if (!projectId || projectId.trim().length === 0) {
 // ---------------------------------------------
 // 🧩 DApp Metadata (shown in wallet modals)
 // ---------------------------------------------
-// Metadata with proper mobile redirect
 export const metadata = {
   name: "FundRaisely Quiz",
   description: "FundRaisely Web3-powered quiz fundraising platform",
   url: typeof window !== 'undefined' ? window.location.origin : "https://fundraisely-staging.up.railway.app",
-  icons: [`${typeof window !== 'undefined' ? window.location.origin : "https://fundraisely-staging.up.railway.app"}/fundraisely.png`],
-  // ✅ This tells wallets where to return after connection
- verifyUrl: typeof window !== 'undefined' ? window.location.origin : "https://fundraisely-staging.up.railway.app",
-   redirect: {
-    native: undefined,
+  icons: [typeof window !== 'undefined' ? `${window.location.origin}/fundraisely.png` : "https://fundraisely-staging.up.railway.app/fundraisely.png"],
+  
+  // For web dApps → focus on universal redirect only (HTTPS)
+  // This helps wallets return to your site after approval (fallback behavior)
+  redirect: {
+    native: undefined,           // ← Remove/disable for pure web (no custom scheme)
     universal: typeof window !== 'undefined' ? window.location.origin : "https://fundraisely-staging.up.railway.app",
   }
 };
 
-
-
 // ---------------------------------------------
-// 🌐 Supported Networks (tuple for strict typing)
+// 🌐 Supported Networks
 // ---------------------------------------------
 export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [
-   solanaDevnet,     // ✅ Devnet first = default network
+  solanaDevnet,     // Default = Devnet
   solana,
   solanaTestnet,
   sepolia,
@@ -70,7 +67,6 @@ export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [
   avalancheFuji,
   seiTestnet,
   polygonAmoy,
-
   mainnet,
   base,
   optimism,
@@ -79,7 +75,6 @@ export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [
   avalanche,
   sei,
   polygon,
-
 ];
 
 // ---------------------------------------------
@@ -87,7 +82,6 @@ export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [
 // ---------------------------------------------
 export type HttpTransport = ReturnType<typeof http>;
 type EvmTransportMap = Record<number, HttpTransport>;
-
 
 export const evmTransports: EvmTransportMap = {
   // Testnets
@@ -112,31 +106,19 @@ export const evmTransports: EvmTransportMap = {
 };
 
 // ---------------------------------------------
-// 🛠️ Adapter: Wagmi (EVM)
+// 🛠️ Adapters
 // ---------------------------------------------
 export const wagmiAdapter = new WagmiAdapter({
   projectId,
   networks: networks as unknown as [AppKitNetwork, ...AppKitNetwork[]],
   transports: evmTransports,
-  // ✅ Add SSR support for better hydration
-  ssr: typeof window === 'undefined',
-})
-
-// ---------------------------------------------
-// 🛠️ Adapter: Solana (Web3.js)
-// ---------------------------------------------
-export const solanaWeb3JsAdapter = new SolanaAdapter({
-  registerWalletStandard: true,
- wallets: [],
+  ssr: true,  // Better for hydration / SSR safety
 });
 
-// ---------------------------------------------
-// 📦 Wagmi Config (used by WagmiProvider)
-// ---------------------------------------------
+export const solanaWeb3JsAdapter = new SolanaAdapter({
+  registerWalletStandard: true,
+  wallets: [],  // Let Wallet Standard auto-detect Phantom etc.
+});
 
-export const wagmiConfig = wagmiAdapter.wagmiConfig;
-export const config = wagmiConfig;
-
-// Debug sanity check
-console.log("🔧[config index] Loaded AppKit networks:", networks.map(n => `${n.name} (${n.id})`));
-console.log("🔧 [config index] EVM transports configured:", Object.keys(evmTransports).length);
+// Debug
+console.log("🔧 [config] Loaded networks:", networks.map(n => `${n.name} (${n.id})`));
