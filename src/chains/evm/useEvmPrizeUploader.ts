@@ -7,7 +7,8 @@ import {
   getPublicClient,
   readContract,
 } from '@wagmi/core';
-import { config as wagmiConfig } from '../../config';
+
+import { wagmiConfig } from '../../config';
 
 /* ----------------------------------------
  * Token ABIs

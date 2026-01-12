@@ -132,6 +132,8 @@ export const solanaWeb3JsAdapter = new SolanaAdapter({
   registerWalletStandard: true,
   wallets: [],  // Auto-detect via Wallet Standard (e.g., Phantom)
 });
+export const wagmiConfig = wagmiAdapter.wagmiConfig;
+
 
 // Debug logs (optional — remove in production if desired)
 console.log("🔧 [config] Loaded networks:", networks.map(n => `${n.name} (${n.id})`));
