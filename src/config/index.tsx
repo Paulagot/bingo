@@ -36,19 +36,32 @@ if (!projectId || projectId.trim().length === 0) {
 }
 
 // ---------------------------------------------
-// 🧩 DApp Metadata (shown in wallet modals)
+// 🧩 DApp Metadata (dynamic for multi-domain + specific redirect path)
 // ---------------------------------------------
 export const metadata = {
   name: "FundRaisely Quiz",
   description: "FundRaisely Web3-powered quiz fundraising platform",
-  url: typeof window !== 'undefined' ? window.location.origin : "https://fundraisely-staging.up.railway.app",
-  icons: [typeof window !== 'undefined' ? `${window.location.origin}/fundraisely.png` : "https://fundraisely-staging.up.railway.app/fundraisely.png"],
-  
-  // For web dApps → focus on universal redirect only (HTTPS)
-  // This helps wallets return to your site after approval (fallback behavior)
+
+  // Critical for Verify API: must match the exact current domain/subdomain
+  // This fixes "origins don't match verify.walletconnect.com" warnings
+  url: typeof window !== 'undefined' 
+    ? window.location.origin 
+    : "https://fundraisely-staging.up.railway.app",
+
+  icons: [
+    typeof window !== 'undefined' 
+      ? `${window.location.origin}/fundraisely.png` 
+      : "https://fundraisely-staging.up.railway.app/fundraisely.png"
+  ],
+
+  // Redirect: universal points to your actual connect/review/launch page
+  // Wallets redirect back here after approval (with possible query params)
   redirect: {
-    native: undefined,           // ← Remove/disable for pure web (no custom scheme)
-    universal: typeof window !== 'undefined' ? window.location.origin : "https://fundraisely-staging.up.railway.app",
+    native: undefined,  // Disable — not applicable for web dApp
+
+    universal: typeof window !== 'undefined' 
+      ? `${window.location.origin}/web3/impact-campaign/join`
+      : "https://fundraisely-staging.up.railway.app/web3/impact-campaign/join",
   }
 };
 
@@ -112,13 +125,16 @@ export const wagmiAdapter = new WagmiAdapter({
   projectId,
   networks: networks as unknown as [AppKitNetwork, ...AppKitNetwork[]],
   transports: evmTransports,
-  ssr: true,  // Better for hydration / SSR safety
+  ssr: true,  // Better for hydration
 });
 
 export const solanaWeb3JsAdapter = new SolanaAdapter({
   registerWalletStandard: true,
-  wallets: [],  // Let Wallet Standard auto-detect Phantom etc.
+  wallets: [],  // Auto-detect via Wallet Standard (e.g., Phantom)
 });
+export const wagmiConfig = wagmiAdapter.wagmiConfig;
 
-// Debug
+
+// Debug logs (optional — remove in production if desired)
 console.log("🔧 [config] Loaded networks:", networks.map(n => `${n.name} (${n.id})`));
+console.log("🔧 [config] Metadata URL (dynamic):", metadata.url);
