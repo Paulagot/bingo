@@ -1,5 +1,5 @@
 // src/App.tsx - UPDATED VERSION
-// Remove Web3Provider from wizard routes - let wizards handle it themselves
+
 
 import { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
@@ -31,6 +31,8 @@ import PrivacyPolicy from './pages/nonseo/privacy';
 import AboutFundRaisely from './pages/nonseo/aboutus';
 import BlogAndResources from './pages/blog';
 import ClubsLeaguePage from './pages/campaigns/ClubsLeaguePage';
+import QuizEventDashboard from './components/mgtsystem/components/dashboard/QuizEventDashboard';
+import { ConditionalWeb3Wrapper } from './components/Quiz/ConditionalWeb3Wrapper'; // adjust path to where you created it
 
 
 // Lazy quiz parts
@@ -75,7 +77,7 @@ export default function App() {
   const location = useLocation();
   const { pathname } = location;
 
-  const hideOnPaths = ['/pitch-deck-content', '/BingoBlitz'];
+  const hideOnPaths = [ '/BingoBlitz'];
   const hideOnPrefixes = ['/quiz/game', '/quiz/play', '/quiz/host-dashboard', '/quiz/host-controls'];
   const showHeader =
     !hideOnPaths.includes(pathname) &&
@@ -137,29 +139,41 @@ export default function App() {
               }
             />
 
+            {/* Quiz Event Dashboard - NO Web3Provider needed */}
+<Route
+  path="/quiz/eventdashboard"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading Dashboard" />}>
+      <QuizEventDashboard />
+    </Suspense>
+  }
+/>
+
             {/* Base /quiz redirect */}
             <Route path="/quiz" element={<Navigate to="/quiz/create-fundraising-quiz" replace />} />
 
             {/* Bingo Game Route */}
             <Route path="/game/:roomId" element={<Game />} />
 
+
+
             {/* Quiz Routes (Web3Provider for game routes where players join/pay) */}
-            <Route
-              path="/quiz/*"
-              element={
-                <Suspense fallback={<LoadingSpinner message="Loading Quiz Platform" />}>
-                  <Web3ProviderLazy>
-                    {isGameRoute(location.pathname) ? (
-                      <QuizSocketProvider>
-                        <QuizRoutes />
-                      </QuizSocketProvider>
-                    ) : (
-                      <QuizRoutes />
-                    )}
-                  </Web3ProviderLazy>
-                </Suspense>
-              }
-            />
+     <Route
+  path="/quiz/*"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading Quiz Platform" />}>
+      <ConditionalWeb3Wrapper>
+        {isGameRoute(location.pathname) ? (
+          <QuizSocketProvider>
+            <QuizRoutes />
+          </QuizSocketProvider>
+        ) : (
+          <QuizRoutes />
+        )}
+      </ConditionalWeb3Wrapper>
+    </Suspense>
+  }
+/>
 
             {/* WEB3 Hub & Impact Campaign */}
             <Route

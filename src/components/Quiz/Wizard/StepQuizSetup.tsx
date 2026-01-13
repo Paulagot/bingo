@@ -46,17 +46,26 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
 
   const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
 
-  // ---------- Scheduling helpers (date + hour + minute) ----------
+  // Convert 24-hour to 12-hour format with AM/PM
   const isoToLocalParts = (iso?: string) => {
-    if (!iso) return { date: '', hour: '', minute: '' };
+    if (!iso) return { date: '', hour: '', minute: '', period: 'AM' };
     const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return { date: '', hour: '', minute: '' };
+    if (Number.isNaN(d.getTime())) return { date: '', hour: '', minute: '', period: 'AM' };
 
     const pad = (n: number) => String(n).padStart(2, '0');
     const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-    const hour = pad(d.getHours());
-    const minute = pad(d.getMinutes());
-    return { date, hour, minute };
+    
+    const hours24 = d.getHours();
+    const period = hours24 >= 12 ? 'PM' : 'AM';
+    const hours12 = hours24 % 12 || 12; // Convert 0 to 12
+    const hour = String(hours12);
+    
+    // Round to nearest 15-minute interval
+    const minutes = d.getMinutes();
+    const roundedMinutes = Math.round(minutes / 15) * 15;
+    const minute = String(roundedMinutes === 60 ? 0 : roundedMinutes);
+    
+    return { date, hour, minute, period };
   };
 
   const storedSchedule = useMemo(() => {
@@ -66,21 +75,32 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
   const [scheduleDate, setScheduleDate] = useState(storedSchedule.date);
   const [scheduleHour, setScheduleHour] = useState(storedSchedule.hour);
   const [scheduleMinute, setScheduleMinute] = useState(storedSchedule.minute);
+  const [schedulePeriod, setSchedulePeriod] = useState<'AM' | 'PM'>(storedSchedule.period as 'AM' | 'PM');
 
   useEffect(() => {
     setScheduleDate(storedSchedule.date);
     setScheduleHour(storedSchedule.hour);
     setScheduleMinute(storedSchedule.minute);
-  }, [storedSchedule.date, storedSchedule.hour, storedSchedule.minute]);
+    setSchedulePeriod(storedSchedule.period as 'AM' | 'PM');
+  }, [storedSchedule.date, storedSchedule.hour, storedSchedule.minute, storedSchedule.period]);
 
-  const applySchedule = (date: string, hour: string, minute: string) => {
+  const applySchedule = (date: string, hour: string, minute: string, period: 'AM' | 'PM') => {
     if (!date || hour === '' || minute === '') {
       setEventDateTime(undefined);
       updateSetupConfig({ timeZone: undefined } as any);
       return;
     }
 
-    const iso = new Date(`${date}T${hour}:${minute}:00`).toISOString();
+    // Convert 12-hour to 24-hour format
+    let hours24 = parseInt(hour, 10);
+    if (period === 'AM') {
+      if (hours24 === 12) hours24 = 0; // 12 AM is 00:00
+    } else {
+      if (hours24 !== 12) hours24 += 12; // PM hours except 12 PM
+    }
+
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const iso = new Date(`${date}T${pad(hours24)}:${pad(parseInt(minute, 10))}:00`).toISOString();
     setEventDateTime(iso);
     updateSetupConfig({ timeZone: tz } as any);
   };
@@ -91,6 +111,7 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
     setScheduleDate('');
     setScheduleHour('');
     setScheduleMinute('');
+    setSchedulePeriod('AM');
     setError('');
   };
 
@@ -100,7 +121,6 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
     const d = new Date(iso);
     return !Number.isNaN(d.getTime());
   }, [setupConfig]);
-  // -------------------------------------------------------------
 
   const [completedSections, setCompletedSections] = useState({
     host: false,
@@ -159,8 +179,11 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
       ? '🎉 Perfect! Your quiz is fully configured and ready to continue!'
       : "Hi there! Let's set up your quiz together. Fill in the details below to get started.";
 
-  const hourOptions = useMemo(() => Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')), []);
-  const minuteOptions = useMemo(() => Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')), []);
+  // 12-hour format: 1-12
+  const hourOptions = useMemo(() => Array.from({ length: 12 }, (_, i) => String(i + 1)), []);
+  
+  // 15-minute intervals: 00, 15, 30, 45
+  const minuteOptions = useMemo(() => ['00', '15', '30', '45'], []);
 
   return (
     <div className="w-full space-y-3 px-2 pb-4 sm:space-y-6 sm:px-4">
@@ -299,7 +322,7 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
         </div>
       </div>
 
-      {/* ✅ Scheduling (Web2 only) — mandatory & full 24h hour/min */}
+      {/* Scheduling (Web2 only) — 12-hour format with AM/PM */}
       {flow === 'web2' && (
         <div
           className={`bg-muted rounded-lg border-2 p-4 shadow-sm transition-all sm:rounded-xl sm:p-6 ${
@@ -317,13 +340,13 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
                 </h3>
                 {completedSections.schedule && <Check className="h-4 w-4 text-green-600 sm:h-5 sm:w-5" />}
               </div>
-              <p className="text-fg/70 text-xs sm:text-sm">Choose a date, hour, and minute for your quiz.</p>
+              <p className="text-fg/70 text-xs sm:text-sm">Choose a date and time for your quiz.</p>
             </div>
           </div>
 
           <div className="space-y-3">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div className="space-y-1 sm:col-span-1">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+              <div className="space-y-1 sm:col-span-4">
                 <label className="text-fg/80 text-xs font-medium sm:text-sm">Date</label>
                 <input
                   type="date"
@@ -331,7 +354,7 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
                   onChange={(e) => {
                     const next = e.target.value;
                     setScheduleDate(next);
-                    applySchedule(next, scheduleHour, scheduleMinute);
+                    applySchedule(next, scheduleHour, scheduleMinute, schedulePeriod);
                     setError('');
                   }}
                   className="border-border w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3"
@@ -339,18 +362,18 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
               </div>
 
               <div className="space-y-1">
-                <label className="text-fg/80 text-xs font-medium sm:text-sm">Hour (24h)</label>
+                <label className="text-fg/80 text-xs font-medium sm:text-sm">Hour</label>
                 <select
                   value={scheduleHour}
                   onChange={(e) => {
                     const next = e.target.value;
                     setScheduleHour(next);
-                    applySchedule(scheduleDate, next, scheduleMinute);
+                    applySchedule(scheduleDate, next, scheduleMinute, schedulePeriod);
                     setError('');
                   }}
                   className="border-border w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3"
                 >
-                  <option value="">HH</option>
+                  <option value="">--</option>
                   {hourOptions.map((h) => (
                     <option key={h} value={h}>
                       {h}
@@ -366,17 +389,34 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
                   onChange={(e) => {
                     const next = e.target.value;
                     setScheduleMinute(next);
-                    applySchedule(scheduleDate, scheduleHour, next);
+                    applySchedule(scheduleDate, scheduleHour, next, schedulePeriod);
                     setError('');
                   }}
                   className="border-border w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3"
                 >
-                  <option value="">MM</option>
+                  <option value="">--</option>
                   {minuteOptions.map((m) => (
                     <option key={m} value={m}>
                       {m}
                     </option>
                   ))}
+                </select>
+              </div>
+
+              <div className="space-y-1 sm:col-span-2">
+                <label className="text-fg/80 text-xs font-medium sm:text-sm">Period</label>
+                <select
+                  value={schedulePeriod}
+                  onChange={(e) => {
+                    const next = e.target.value as 'AM' | 'PM';
+                    setSchedulePeriod(next);
+                    applySchedule(scheduleDate, scheduleHour, scheduleMinute, next);
+                    setError('');
+                  }}
+                  className="border-border w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3"
+                >
+                  <option value="AM">AM</option>
+                  <option value="PM">PM</option>
                 </select>
               </div>
             </div>

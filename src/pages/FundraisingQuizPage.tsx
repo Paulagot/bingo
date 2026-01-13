@@ -136,7 +136,7 @@ navigate(`/auth?returnTo=${returnTo}`);
                 onClick={handleStartClick}
               >
                 <span className="relative z-10 flex items-center gap-2">
-                  🎤 Start Creating Your Quiz
+                  🎤 Launch Quiz Wizard
                   <svg
                     className="h-5 w-5 transition-transform group-hover:translate-x-1"
                     fill="none"
@@ -148,7 +148,7 @@ navigate(`/auth?returnTo=${returnTo}`);
                 </span>
               </button>
 
-              <p className="mt-3 text-sm text-gray-500">No credit card required • Free to get started</p>
+            
             </div>
           </div>
 

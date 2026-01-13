@@ -365,7 +365,7 @@ export default function ClubRegisterForm({
       if (result.success) {
         const params = new URLSearchParams(location.search);
         const returnTo =
-          params.get('returnTo') || '/quiz/create-fundraising-quiz';
+          params.get('returnTo') || '/quiz/eventdashboard';
 
         setTimeout(
           () =>
