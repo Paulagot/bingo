@@ -73,20 +73,10 @@ const StepReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) => {
   useEffect(() => {
     if (!connected || !socket) return;
 
- const handleCreated = ({ roomId }: { roomId: string }) => {
-   // try localStorage first; fallback to store hostId if present
-   const hId =
-     localStorage.getItem('current-host-id') ||
-     hostId || // from useQuizSetupStore()
-     '';
-
-   resetSetupConfig({ keepIds: false });
-   navigate(
-     hId
-       ? `/quiz/host-dashboard/${roomId}?hostId=${encodeURIComponent(hId)}`
-       : `/quiz/host-dashboard/${roomId}`
-   );
- };
+const handleCreated = ({ roomId }: { roomId: string }) => {
+  resetSetupConfig({ keepIds: false });
+  navigate('/quiz/eventdashboard');
+};
 
     const handleError = ({ message }: { message: string }) => {
       console.error('[Socket Error]', message);
@@ -120,15 +110,15 @@ const StepReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) => {
       localStorage.setItem('current-room-id', data.roomId);
       localStorage.setItem('current-host-id', data.hostId);
 
-      setFullConfig({
-        ...setupConfig,
-        roomId: data.roomId,
-        hostId: data.hostId,
-        roomCaps: data.roomCaps,
-      });
-      resetSetupConfig({ keepIds: false });
+     setFullConfig({
+  ...setupConfig,
+  roomId: data.roomId,
+  hostId: data.hostId,
+  roomCaps: data.roomCaps,
+});
+resetSetupConfig({ keepIds: false });
 
-    navigate(`/quiz/host-dashboard/${data.roomId}?hostId=${encodeURIComponent(data.hostId)}`)
+navigate('/quiz/eventdashboard');
 
     } catch (err: any) {
       console.error('[Launch Error]', err);
@@ -164,7 +154,7 @@ const StepReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) => {
     return {
       tone: 'ready' as const,
       message:
-        "Everything looks good! Review your configuration below one last time. After launching, the quiz structure can't be modified.",
+        "Everything looks good! Review your configuration below one last time. ",
     };
   };
 
@@ -229,7 +219,7 @@ const StepReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) => {
           <span className="text-xs font-medium text-yellow-900 sm:text-sm">Final Configuration Check</span>
         </div>
         <div className="text-xs text-yellow-800 sm:text-sm">
-          Review everything carefully. Changes to the basic quiz structure can’t be made after launching.
+          Review everything carefully. 
         </div>
       </div>
 
@@ -495,9 +485,9 @@ const StepReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) => {
 
       {/* Launch CTA */}
       <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3 sm:p-4">
-        <div className="mb-2 text-sm font-medium text-indigo-900 sm:text-base">Ready to launch</div>
+        <div className="mb-2 text-sm font-medium text-indigo-900 sm:text-base">Ready to Schedule</div>
         <div className="text-xs text-indigo-800 sm:text-sm">
-          Your quiz configuration is complete and ready to go live.
+          Your quiz configuration is complete and ready to go live. Click "Ready to Schedule" to create your quiz room. You can always make adjustments before the event starts.
         </div>
       </div>
 
@@ -521,7 +511,7 @@ const StepReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) => {
           disabled={isLaunching}
         >
           <Rocket className="h-4 w-4" />
-          <span>{isLaunching ? 'Launching…' : 'Launch Quiz'}</span>
+          <span>{isLaunching ? 'Launching…' : 'Ready to Schedule'}</span>
         </button>
       </div>
     </div>

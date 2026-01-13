@@ -10,6 +10,12 @@ import {
    freezeFinalLeaderboard 
 } from '../quizRoomManager.js';
 
+import { 
+  markRoomAsLive, 
+  markRoomAsCompleted, 
+  markRoomAsCancelled 
+} from './roomStatusManager.js';
+
 import { getEngine } from '../gameplayEngines/gameplayEngineRouter.js';
 import { isRateLimited } from '../../socketRateLimiter.js';
 import { getCurrentRoundStats } from './globalExtrasHandler.js';
@@ -940,6 +946,8 @@ socket.on(
     charityAmount,
     charityWallet,
     charityName,
+    network,        // ✅ ADD THIS LINE
+    web3Chain,      // ✅ ADD THIS LINE
   }) => {
     if (debug) {
       console.log(`[Host] 💰 Prize distribution result: ${success ? 'SUCCESS' : 'FAILED'}`);
@@ -950,6 +958,8 @@ socket.on(
         charityWallet,
         charityName,
         charityAmount,
+        network,      // ✅ ADD THIS LINE
+        web3Chain,    // ✅ ADD THIS LINE
       });
     }
 
@@ -983,6 +993,29 @@ socket.on(
         }
       } else if (debug) {
         console.warn('[Host] ⚠️ No charityWallet provided in prize_distribution_completed payload');
+      }
+      // ✅ NEW: Store network if provided (for Solana especially)
+      if (network) {
+        room.config.web3Network = network;
+        
+        if (debug) {
+          console.log('[Host] ✅ Stored network on room.config:', {
+            roomId,
+            web3Network: network,
+          });
+        }
+      }
+
+      // ✅ NEW: Update chain if provided
+      if (web3Chain) {
+        room.config.web3Chain = web3Chain;
+        
+        if (debug) {
+          console.log('[Host] ✅ Stored web3Chain on room.config:', {
+            roomId,
+            web3Chain: web3Chain,
+          });
+        }
       }
 
       // ✅ Also store host wallet if available
@@ -1329,30 +1362,35 @@ socket.on('continue_to_overall_leaderboard', ({ roomId }) => {
     namespace.to(roomId).emit('quiz_end', { message: 'Quiz ended by host.' });
     emitRoomState(namespace, roomId);
   });
+socket.on('delete_quiz_room', async ({ roomId }) => {  // ✅ Make async
+  if (debug) console.log(`[Host] delete_quiz_room for ${roomId}`);
 
-  socket.on('delete_quiz_room', ({ roomId }) => {
-    if (debug) console.log(`[Host] delete_quiz_room for ${roomId}`);
+  const room = getQuizRoom(roomId);
+  if (!room) {
+    socket.emit('quiz_error', { message: 'Room not found' });
+    return;
+  }
 
-    const room = getQuizRoom(roomId);
-    if (!room) {
-      socket.emit('quiz_error', { message: 'Room not found' });
-      return;
+  // ✅ NEW: Mark as cancelled in database
+  const isWeb2 = room.config?.paymentMethod !== 'web3' && !room.config?.isWeb3Room;
+  if (isWeb2) {
+    await markRoomAsCancelled(roomId);
+  }
+
+  namespace.to(roomId).emit('quiz_cancelled', { message: 'Quiz cancelled by host', roomId });
+  if (debug) console.log(`[Host] 📢 Sent cancellation notice to room ${roomId}`);
+
+  setTimeout(() => {
+    const removed = removeQuizRoom(roomId);
+    if (removed) {
+      namespace.in(roomId).socketsLeave(roomId);
+      namespace.in(`${roomId}:host`).socketsLeave(`${roomId}:host`);
+      namespace.in(`${roomId}:admin`).socketsLeave(`${roomId}:admin`);
+      namespace.in(`${roomId}:player`).socketsLeave(`${roomId}:player`);
+      if (debug) console.log(`[Host] ✅ Room ${roomId} deleted and clients disconnected`);
     }
-
-    namespace.to(roomId).emit('quiz_cancelled', { message: 'Quiz cancelled by host', roomId });
-    if (debug) console.log(`[Host] 📢 Sent cancellation notice to room ${roomId}`);
-
-    setTimeout(() => {
-      const removed = removeQuizRoom(roomId);
-      if (removed) {
-        namespace.in(roomId).socketsLeave(roomId);
-        namespace.in(`${roomId}:host`).socketsLeave(`${roomId}:host`);
-        namespace.in(`${roomId}:admin`).socketsLeave(`${roomId}:admin`);
-        namespace.in(`${roomId}:player`).socketsLeave(`${roomId}:player`);
-        if (debug) console.log(`[Host] ✅ Room ${roomId} deleted and clients disconnected`);
-      }
-    }, 2000);
-  });
+  }, 2000);
+});
 
 socket.on('end_quiz_cleanup', async ({ roomId }) => {
   if (debug) console.log(`[Host] 🧹 end_quiz_cleanup for ${roomId}`);
@@ -1373,6 +1411,8 @@ socket.on('end_quiz_cleanup', async ({ roomId }) => {
   }
 
   const isWeb3Room = room.config?.paymentMethod === 'web3' || room.config?.isWeb3Room;
+
+   await markRoomAsCompleted(roomId); 
 
   /* ------------------------------------------------------------------
      ⭐ SAVE IMPACT CAMPAIGN EVENT TO DATABASE (Web3 rooms only)
@@ -1413,7 +1453,7 @@ try {
       roomId,
       hostId: room.hostId || null,
       chain: room.config?.web3Chain || 'unknown',
-      network: room.config?.web3Network || room.config?.evmNetwork || 'unknown',
+        network: room.config?.web3Network || room.config?.evmNetwork || 'unknown',
       feeToken: room.config?.web3Currency || 'unknown',
       hostName: room.config?.hostName || room.hostName || null,
 
@@ -1446,7 +1486,25 @@ try {
     };
 
     // ✅ 4) Log exactly what you are sending to DB
-    console.log('🧾 [ImpactCampaign] Event data being saved', eventData);
+       console.log('🧾 [ImpactCampaign] Event data being saved', {
+      ...eventData,
+      // ✅ Highlight the critical fields for debugging
+      _debug: {
+        network: eventData.network,
+        charityWallet: eventData.charityWallet,
+        source: {
+          network: {
+            web3Network: room.config?.web3Network,
+            evmNetwork: room.config?.evmNetwork,
+          },
+          charityWallet: {
+            web3CharityAddress: room.config?.web3CharityAddress,
+            charityWallet: room.config?.charityWallet,
+            roomCharityWallet: room.charityWallet,
+          }
+        }
+      }
+    });
 
     // ✅ 5) Save impact campaign event ledger row
     const result = await saveImpactCampaignEvent(eventData);
@@ -1550,31 +1608,37 @@ try {
 });
 
 
-  socket.on('launch_quiz', ({ roomId }) => {
-    if (debug) console.log(`[Host] launch_quiz for ${roomId}`);
+ socket.on('launch_quiz', async ({ roomId }) => {  // ✅ Make async
+  if (debug) console.log(`[Host] launch_quiz for ${roomId}`);
 
-    const room = getQuizRoom(roomId);
-    if (!room) {
-      socket.emit('quiz_error', { message: 'Room not found' });
-      return;
-    }
+  const room = getQuizRoom(roomId);
+  if (!room) {
+    socket.emit('quiz_error', { message: 'Room not found' });
+    return;
+  }
 
-    if (room.hostSocketId !== socket.id) {
-      socket.emit('quiz_error', { message: 'Only the host can launch the quiz' });
-      return;
-    }
+  if (room.hostSocketId !== socket.id) {
+    socket.emit('quiz_error', { message: 'Only the host can launch the quiz' });
+    return;
+  }
 
-    room.currentPhase = 'launched';
+  room.currentPhase = 'launched';
 
-    namespace.to(roomId).emit('quiz_launched', {
-      roomId,
-      message: 'Quiz is starting! Redirecting to game...'
-    });
+  // ✅ NEW: Update database status to 'live' for Web2 rooms
+  const isWeb2 = room.config?.paymentMethod !== 'web3' && !room.config?.isWeb3Room;
+  if (isWeb2) {
+    await markRoomAsLive(roomId);
+  }
 
-    emitRoomState(namespace, roomId);
-
-    if (debug) console.log(`[Host] ✅ Quiz launched for room ${roomId}, players will be redirected`);
+  namespace.to(roomId).emit('quiz_launched', {
+    roomId,
+    message: 'Quiz is starting! Redirecting to game...'
   });
+
+  emitRoomState(namespace, roomId);
+
+  if (debug) console.log(`[Host] ✅ Quiz launched for room ${roomId}, players will be redirected`);
+});
 }
 
 

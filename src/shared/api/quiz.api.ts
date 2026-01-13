@@ -9,15 +9,66 @@ import type { Entitlements } from '../types';
  */
 export type Web2QuizRoomStatus = 'scheduled' | 'live' | 'completed' | 'cancelled';
 
+// ✅ Define these types here instead of in the component
+export interface Prize {
+  place: number;
+  value: number;
+  description?: string;
+}
+
+export interface RoomCaps {
+  maxPlayers: number;
+  maxRounds: number;
+  extrasAllowed: string[];
+  roundTypesAllowed?: string[];
+}
+
+export interface RoundDefinition {
+  config: {
+    timePerQuestion: number;
+    questionsPerRound: number;
+    pointsPerDifficulty?: {
+      easy: number;
+      medium: number;
+      hard: number;
+    };
+  };
+  category: string;
+  roundType: string;
+  difficulty: string;
+  roundNumber: number;
+  enabledExtras?: Record<string, unknown>;
+}
+
+export interface ParsedConfig {
+  prizes?: Prize[];
+  entryFee?: string;
+  hostName?: string;
+  roomCaps?: RoomCaps;
+  timeZone?: string;
+  prizeMode?: string;
+  isCustomQuiz?: boolean;
+  eventDateTime?: string;
+  paymentMethod?: string;
+  currencySymbol?: string;
+  roundDefinitions?: RoundDefinition[];
+  selectedTemplate?: string;
+  skipRoundConfiguration?: boolean;
+  fundraisingOptions?: Record<string, boolean>;
+  fundraisingPrices?: Record<string, number>;
+}
+
 export type Web2RoomListItem = {
   room_id: string;
   host_id: string;
-  club_id?: string; // backend may include it later; safe optional
-  status: Web2QuizRoomStatus;
-  scheduled_at: string | null; // MySQL DATETIME (string)
+  status: string;
+  scheduled_at: string | null;
   time_zone: string | null;
+  config_json?: string | ParsedConfig | null;  // ✅ Now properly typed
+  room_caps_json?: string | RoomCaps | null;   // ✅ Now properly typed
   created_at: string;
   updated_at: string;
+  ended_at?: string | null;
 };
 
 export type GetWeb2RoomsListResponse = {
@@ -26,7 +77,6 @@ export type GetWeb2RoomsListResponse = {
 
 /**
  * WEB2 single room response (from DB)
- * NOTE: If you want strong typing for config, replace `any` with your QuizConfig type import.
  */
 export type GetWeb2QuizRoomResponse = {
   roomId: string;
@@ -36,7 +86,7 @@ export type GetWeb2QuizRoomResponse = {
   scheduledAt: string | null;
   timeZone: string | null;
   roomCaps: Record<string, unknown> | null;
-  config: any; // <-- replace with QuizConfig once you confirm the import path
+  config: ParsedConfig | null; // ✅ Better typed now
   createdAt?: string;
   updatedAt?: string;
 };

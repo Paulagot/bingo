@@ -2,12 +2,22 @@
 import React from 'react';
 import { Timer } from 'lucide-react';
 
-const BASE_URL = import.meta.env.VITE_SITE_ORIGIN || 'http://localhost:3001';
+// Get the base URL dynamically from the browser's current location
+const getBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    // In browser: use the current origin (e.g., https://example.ie or https://example.co.uk)
+    return window.location.origin;
+  }
+  // Fallback for SSR or when window is not available
+  return import.meta.env.VITE_SITE_ORIGIN || 'http://localhost:3001';
+};
 
 const getFullImageUrl = (url: string) => {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  return `${BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+  
+  const baseUrl = getBaseUrl();
+  return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
 };
 
 interface OrderImageQuestion {

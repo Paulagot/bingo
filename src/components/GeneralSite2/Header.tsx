@@ -46,6 +46,7 @@ export function Header() {
 
     // App
     createQuiz: '/quiz/create-fundraising-quiz',
+    eventDashboard: '/quiz/eventdashboard',
   };
 
   // Page flags
@@ -177,8 +178,8 @@ export function Header() {
 
           {/* Auth-dependent action */}
           {isAuthenticated ? (
-            <Link to={ROUTES.createQuiz} className="text-sm font-semibold text-indigo-700 hover:text-indigo-900">
-              Create Quiz
+            <Link to={ROUTES.eventDashboard} className="text-sm font-semibold text-indigo-700 hover:text-indigo-900">
+              Quiz Dashboard
             </Link>
           ) : (
             !onFreeTrial && (
@@ -374,11 +375,11 @@ export function Header() {
             {isAuthenticated ? (
               <>
                 <Link
-                  to={ROUTES.createQuiz}
+                  to={ROUTES.eventDashboard}
                   className="block rounded-md px-2 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  Create Quiz
+                  Quiz Dashboard
                 </Link>
                 <button
                   onClick={() => {

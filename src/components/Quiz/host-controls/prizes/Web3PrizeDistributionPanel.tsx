@@ -69,6 +69,8 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
       charityAmount?: string | null;
       charityWallet?: string | null;
       charityName?: string | null;
+        network?: string;        // ✅ ADD THIS LINE
+    web3Chain?: string; 
     }) => {
       if (!socket) return;
 
@@ -262,23 +264,48 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
             distributeParams.charityWallet ||
             null;
 
-          console.log('📤 [Frontend] Sending prize_distribution_completed with:', {
-            roomId: data.roomId,
-            txHash,
-            charityWallet: finalCharityWallet,
-            charityName: data.charityName || null,
-            charityAmount: charityAmount ?? null,
-          });
+     // ✅ Get network/cluster for both EVM and Solana
+const setupConfig = JSON.parse(localStorage.getItem('setupConfig') || '{}');
 
-          // ✅ Emit once (prevents duplicates)
-          emitCompletionOnce({
-            roomId: data.roomId,
-            success: true,
-            txHash,
-            charityAmount: charityAmount ?? null,
-            charityWallet: finalCharityWallet,
-            charityName: data.charityName || null,
-          });
+let networkForBackend: string;
+let web3ChainForBackend: string;
+
+if (data.web3Chain === 'solana') {
+  // Solana: map cluster to network
+  const cluster = setupConfig.solanaCluster || 'mainnet';
+  networkForBackend = cluster === 'testnet' ? 'devnet' : cluster;
+  web3ChainForBackend = 'solana';
+} else if (data.web3Chain === 'evm') {
+  // EVM: use evmNetwork directly
+  networkForBackend = data.evmNetwork || setupConfig.evmNetwork || 'base-sepolia';
+  web3ChainForBackend = 'evm';
+} else {
+  // Fallback for other chains (stellar, etc)
+  networkForBackend = data.evmNetwork || setupConfig.evmNetwork || 'unknown';
+  web3ChainForBackend = data.web3Chain || 'unknown';
+}
+
+console.log('📤 [Frontend] Sending prize_distribution_completed with:', {
+  roomId: data.roomId,
+  txHash,
+  charityWallet: finalCharityWallet,
+  charityName: data.charityName || null,
+  charityAmount: charityAmount ?? null,
+  network: networkForBackend,
+  web3Chain: web3ChainForBackend,
+});
+
+// ✅ Emit once (prevents duplicates)
+emitCompletionOnce({
+  roomId: data.roomId,
+  success: true,
+  txHash,
+  charityAmount: charityAmount ?? null,
+  charityWallet: finalCharityWallet,
+  charityName: data.charityName || null,
+  network: networkForBackend,
+  web3Chain: web3ChainForBackend,
+});
 
           // Update UI
           const newState: { status: PrizeStatus; txHash?: string; error?: string } = {
