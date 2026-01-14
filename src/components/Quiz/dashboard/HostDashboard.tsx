@@ -110,7 +110,7 @@ useEffect(() => {
       }
 
       const hydrateResponse = await fetch(
-        `${import.meta.env.VITE_API_URL || ''}/api/quiz/web2/rooms/${roomId}/hydrate`,
+        `${import.meta.env.VITE_API_URL || ''}/quiz/api/web2/rooms/${roomId}/hydrate`,
         {
           method: 'POST',
           headers: {
