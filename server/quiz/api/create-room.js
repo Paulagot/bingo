@@ -848,6 +848,18 @@ router.get('/me/entitlements', async (req, res) => {
 /* -------------------------------------------------------------------------- */
 router.use(authenticateToken);
 
+router.use((req, res, next) => {
+  console.log('========================================');
+  console.log('[Router] 📍 Auth-protected route hit');
+  console.log('[Router] 📍 Method:', req.method);
+  console.log('[Router] 📍 Path:', req.path);
+  console.log('[Router] 📍 URL:', req.url);
+  console.log('[Router] 📍 Original URL:', req.originalUrl);
+  console.log('[Router] 📍 Club ID:', req.club_id);
+  console.log('========================================');
+  next();
+});
+
 // Standard Web2 room creation (credits, caps, etc.)
 router.post('/create-room', async (req, res) => {
   const { config: setupConfig, roomId, hostId } = req.body;
@@ -1109,15 +1121,34 @@ router.get('/web2/rooms', authenticateToken, async (req, res) => {
  * This allows refresh-safe room access
  */
 router.post('/web2/rooms/:roomId/hydrate', authenticateToken, async (req, res) => {
+  // ✅ ADD THESE LOGS AT THE VERY TOP
+  console.log('========================================');
+  console.log('[API] 🎯 HYDRATE ENDPOINT HIT!');
+  console.log('[API] 🎯 Timestamp:', new Date().toISOString());
+  console.log('[API] 🎯 Room ID from params:', req.params.roomId);
+  console.log('[API] 🎯 Club ID from auth:', req.club_id);
+  console.log('[API] 🎯 Request method:', req.method);
+  console.log('[API] 🎯 Request path:', req.path);
+  console.log('[API] 🎯 Request URL:', req.url);
+  console.log('[API] 🎯 Original URL:', req.originalUrl);
+  console.log('========================================');
+  
   try {
     const { roomId } = req.params;
     const clubId = req.club_id;
 
     if (!roomId) {
+      console.log('[API] ❌ No roomId in params');
       return res.status(400).json({ error: 'roomId_required' });
     }
 
+    if (!clubId) {
+      console.log('[API] ❌ No clubId from auth (authenticateToken failed?)');
+      return res.status(401).json({ error: 'unauthorized' });
+    }
+
     console.log('[API] 🔄 Hydrating room from DB:', roomId);
+    console.log('[API] 📋 SQL query params:', { roomId, clubId });
 
     // 1. Load from database
     const sql = `
@@ -1137,39 +1168,75 @@ router.post('/web2/rooms/:roomId/hydrate', authenticateToken, async (req, res) =
       LIMIT 1
     `;
 
+    console.log('[API] 🔍 Executing SQL query...');
     const [rows] = await connection.execute(sql, [roomId, clubId]);
+    console.log('[API] 📊 SQL query returned rows:', rows?.length || 0);
+    
     const row = rows?.[0];
 
     if (!row) {
+      console.log('[API] ❌ No room found in DB for roomId:', roomId, 'clubId:', clubId);
       return res.status(404).json({ error: 'room_not_found' });
     }
 
+    console.log('[API] ✅ Found room in DB:', {
+      room_id: row.room_id,
+      host_id: row.host_id,
+      club_id: row.club_id,
+      status: row.status,
+      has_config: !!row.config_json
+    });
+
     // 2. Parse config
+    console.log('[API] 📦 Parsing config_json...');
     const config = typeof row.config_json === 'string' 
       ? JSON.parse(row.config_json) 
       : row.config_json;
+    
+    console.log('[API] ✅ Config parsed, keys:', Object.keys(config || {}));
 
     // 3. Create/restore room in memory using quizRoomManager
+    console.log('[API] 🏗️ Calling createQuizRoom...');
+    console.log('[API] 🏗️ Params:', {
+      roomId: row.room_id,
+      hostId: row.host_id,
+      hasConfig: !!config,
+      configKeys: Object.keys(config || {})
+    });
+    
     const created = createQuizRoom(row.room_id, row.host_id, config);
+    
+    console.log('[API] 📊 createQuizRoom returned:', created);
 
     if (!created) {
-      console.error('[API] ❌ Failed to hydrate room into memory');
+      console.error('[API] ❌ createQuizRoom returned false - room NOT created in memory');
+      console.error('[API] ❌ This usually means: invalid config or room already exists');
       return res.status(500).json({ error: 'failed_to_hydrate' });
     }
 
-    console.log('[API] ✅ Room hydrated into memory:', roomId);
+    console.log('[API] ✅ Room successfully hydrated into memory:', roomId);
+    console.log('[API] ✅ Sending success response to client');
 
-    return res.status(200).json({
+    const responseData = {
       roomId: row.room_id,
       hostId: row.host_id,
       status: row.status,
       config,
       hydrated: true,
-    });
+    };
+
+    console.log('[API] 📤 Response data keys:', Object.keys(responseData));
+    
+    return res.status(200).json(responseData);
 
   } catch (err) {
-    console.error('[API] ❌ Failed to hydrate room:', err);
-    return res.status(500).json({ error: 'internal_error' });
+    console.error('========================================');
+    console.error('[API] ❌❌❌ HYDRATE ERROR');
+    console.error('[API] ❌ Error type:', err?.constructor?.name);
+    console.error('[API] ❌ Error message:', err?.message);
+    console.error('[API] ❌ Error stack:', err?.stack);
+    console.error('========================================');
+    return res.status(500).json({ error: 'internal_error', details: err?.message });
   }
 });
 
