@@ -341,19 +341,7 @@ useEffect(() => {
     }
   }, [socket, connected, roomId, config?.roomId]);
 
-  // Join room as host (and rejoin on room change)
-  useEffect(() => {
-    if (!socket || !roomId) return;
-    const displayName = useQuizConfig.getState().config?.hostName || 'Host';
-
-    socket.emit('join_quiz_room', {
-      roomId,
-      user: { id: hostId || 'host', name: displayName },
-      role: 'host',
-    });
-  }, [socket, roomId, hostId]);
-
-  // Quiz cancelled → reset + navigate home
+   // Quiz cancelled → reset + navigate home
   useEffect(() => {
     if (!socket) return;
 
