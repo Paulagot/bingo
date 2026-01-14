@@ -167,17 +167,7 @@ export const QuizSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       reconnectAttemptRef.current = 0;
       (window as any).quizSocket = socket;
 
-      // ✅ Read current identity values from ref (not from hook state)
-      const { roomId: currentRoomId, hostId: currentHostId } = identityRef.current;
-
-      if (currentRoomId && currentHostId) {
-        log('auto rejoin after connect', { roomId: currentRoomId, hostId: currentHostId });
-        socket.emit('join_quiz_room', { 
-          roomId: currentRoomId, 
-          user: { id: currentHostId }, 
-          role: 'host' 
-        });
-      }
+        
     });
 
     socket.on('disconnect', (reason: string) => {

@@ -85,34 +85,98 @@ useEffect(() => {
 
   async function hydrateWeb2FromDb() {
     // Only for WEB2 rooms
-    if (!roomId) return;
+    if (!roomId || !hostId) return;
     if (isWeb3) return;
 
     // If we already hydrated config, don't refetch
-    if (hydrated && config?.roomId) return;
+    if (hydrated && config?.roomId) {
+      console.log('[HostDashboard] ✅ Already hydrated, skipping');
+      return;
+    }
 
     try {
       setDbHydrating(true);
       setDbHydrateError(null);
 
-      const res = await quizApi.getWeb2Room(roomId);
+      console.log('[HostDashboard] 🔄 Step 1: Hydrating room into server memory...');
+      
+      // 1️⃣ FIRST: Hydrate the room into server memory via the API
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        console.error('[HostDashboard] ❌ No auth token found');
+        setDbHydrateError('No authentication token');
+        navigate('/auth');
+        return;
+      }
+
+      const hydrateResponse = await fetch(
+        `${import.meta.env.VITE_API_URL || ''}/api/quiz/web2/rooms/${roomId}/hydrate`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!hydrateResponse.ok) {
+        const errorData = await hydrateResponse.json();
+        console.error('[HostDashboard] ❌ Failed to hydrate room into memory:', errorData);
+        
+        if (hydrateResponse.status === 404) {
+          setDbHydrateError('Quiz room not found');
+          setTimeout(() => navigate('/'), 2000);
+          return;
+        }
+        
+        if (hydrateResponse.status === 403) {
+          setDbHydrateError('You do not have permission to access this room');
+          setTimeout(() => navigate('/'), 2000);
+          return;
+        }
+        
+        throw new Error(errorData.error || 'Failed to hydrate room');
+      }
+
+      const hydrateData = await hydrateResponse.json();
+      console.log('[HostDashboard] ✅ Room hydrated into server memory:', hydrateData);
+
       if (cancelled) return;
 
-      // DB returns canonical config_json as `config`
-      const dbConfig = res.config as any;
+      // 2️⃣ THEN: Load the config into the frontend state
+      console.log('[HostDashboard] 🔄 Step 2: Loading config into frontend state...');
+      const dbConfig = hydrateData.config;
 
       // Ensure these are present for downstream UI
       const mergedConfig = {
         ...dbConfig,
-        roomId: dbConfig?.roomId ?? res.roomId ?? roomId,
-        hostId: dbConfig?.hostId ?? res.hostId ?? hostId,
-        roomCaps: dbConfig?.roomCaps ?? res.roomCaps ?? null,
+        roomId: dbConfig?.roomId ?? hydrateData.roomId ?? roomId,
+        hostId: dbConfig?.hostId ?? hydrateData.hostId ?? hostId,
+        roomCaps: dbConfig?.roomCaps ?? hydrateData.roomCaps ?? null,
       };
 
       setFullConfig(mergedConfig);
+      console.log('[HostDashboard] ✅ Config loaded into frontend');
+      
+      // 3️⃣ FINALLY: Join via socket (room now exists in memory)
+      if (socket && connected) {
+        console.log('[HostDashboard] 🔌 Step 3: Joining room via socket...');
+        socket.emit('join_quiz_room', {
+          roomId,
+          user: { id: hostId },
+          role: 'host',
+        });
+        console.log('[HostDashboard] ✅ Socket join emitted');
+      } else {
+        console.log('[HostDashboard] ⏳ Waiting for socket connection...');
+      }
+      
       setDbHydrating(false);
+      
     } catch (err: any) {
       if (cancelled) return;
+      console.error('[HostDashboard] ❌ Hydration error:', err);
       setDbHydrateError(err?.message || 'db_load_failed');
       setDbHydrating(false);
     }
@@ -123,7 +187,7 @@ useEffect(() => {
   return () => {
     cancelled = true;
   };
-}, [roomId, hostId, isWeb3, hydrated, config?.roomId, setFullConfig]);
+}, [roomId, hostId, isWeb3, hydrated, config?.roomId, setFullConfig, socket, connected, navigate]);
 
 
   // ✅ Use AppKit-powered hook directly (no DynamicChainProvider needed)
