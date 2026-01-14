@@ -1102,6 +1102,77 @@ router.get('/web2/rooms', authenticateToken, async (req, res) => {
   }
 });
 
+// server/quiz/api/create-room.js (add this route)
+
+/**
+ * Hydrate a Web2 room from DB into memory (for Host Dashboard)
+ * This allows refresh-safe room access
+ */
+router.post('/web2/rooms/:roomId/hydrate', authenticateToken, async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const clubId = req.club_id;
+
+    if (!roomId) {
+      return res.status(400).json({ error: 'roomId_required' });
+    }
+
+    console.log('[API] 🔄 Hydrating room from DB:', roomId);
+
+    // 1. Load from database
+    const sql = `
+      SELECT
+        room_id,
+        host_id,
+        club_id,
+        status,
+        scheduled_at,
+        time_zone,
+        config_json,
+        room_caps_json,
+        created_at,
+        updated_at
+      FROM ${WEB2_ROOMS_TABLE}
+      WHERE room_id = ? AND club_id = ?
+      LIMIT 1
+    `;
+
+    const [rows] = await connection.execute(sql, [roomId, clubId]);
+    const row = rows?.[0];
+
+    if (!row) {
+      return res.status(404).json({ error: 'room_not_found' });
+    }
+
+    // 2. Parse config
+    const config = typeof row.config_json === 'string' 
+      ? JSON.parse(row.config_json) 
+      : row.config_json;
+
+    // 3. Create/restore room in memory using quizRoomManager
+    const created = createQuizRoom(row.room_id, row.host_id, config);
+
+    if (!created) {
+      console.error('[API] ❌ Failed to hydrate room into memory');
+      return res.status(500).json({ error: 'failed_to_hydrate' });
+    }
+
+    console.log('[API] ✅ Room hydrated into memory:', roomId);
+
+    return res.status(200).json({
+      roomId: row.room_id,
+      hostId: row.host_id,
+      status: row.status,
+      config,
+      hydrated: true,
+    });
+
+  } catch (err) {
+    console.error('[API] ❌ Failed to hydrate room:', err);
+    return res.status(500).json({ error: 'internal_error' });
+  }
+});
+
 
 
 export default router;
