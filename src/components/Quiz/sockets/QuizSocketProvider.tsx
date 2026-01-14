@@ -205,19 +205,7 @@ export const QuizSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
   }, []); // ✅ Empty array - socket created ONCE on mount, never recreated
 
-  // ✅ SEPARATE effect to handle room/host identity changes
-  // This only emits events, doesn't recreate the socket
-  useEffect(() => {
-    const socket = socketRef.current;
-    if (!socket || !connected || !roomId || !hostId) return;
 
-    log('Room identity ready, rejoining', { roomId, hostId });
-    socket.emit('join_quiz_room', { 
-      roomId, 
-      user: { id: hostId }, 
-      role: 'host' 
-    });
-  }, [roomId, hostId, connected]); // ✅ Only re-join if identity or connection changes
 
   const contextValue: QuizSocketContextType = {
     socket: socketRef.current,
