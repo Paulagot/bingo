@@ -109,16 +109,20 @@ useEffect(() => {
         return;
       }
 
-      const hydrateResponse = await fetch(
-        `${import.meta.env.VITE_API_URL || ''}/quiz/api/web2/rooms/${roomId}/hydrate`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+ const hydrateUrl = `${import.meta.env.VITE_API_URL || ''}/quiz/api/web2/rooms/${roomId}/hydrate`;
+console.log('[HostDashboard] 🌐 Hydrate URL:', hydrateUrl);
+console.log('[HostDashboard] 🔑 Has token:', !!token);
+
+const hydrateResponse = await fetch(hydrateUrl, {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  },
+});
+
+console.log('[HostDashboard] 📡 Hydrate response status:', hydrateResponse.status);
+console.log('[HostDashboard] 📡 Hydrate response ok:', hydrateResponse.ok);
 
       if (!hydrateResponse.ok) {
         const errorData = await hydrateResponse.json();
