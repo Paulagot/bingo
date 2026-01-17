@@ -48,7 +48,7 @@ const ReviewHostEventSection: React.FC<Props> = ({ setupConfig }) => {
           </div>
         </div>
 
-        {/* Event Date */}
+        {/* Event Date
         {eventDateTime ? (
           <div className="flex items-start space-x-3">
             <Calendar className="text-fg/60 mt-1 h-4 w-4" />
@@ -75,7 +75,7 @@ const ReviewHostEventSection: React.FC<Props> = ({ setupConfig }) => {
               <p className="text-fg">Not scheduled</p>
             </div>
           </div>
-        )}
+        )} */}
 
         {/* Template */}
         {(setupConfig.selectedTemplate || setupConfig.skipRoundConfiguration !== undefined) && (

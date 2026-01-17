@@ -1,5 +1,5 @@
 // src/components/Quiz/hooks/useHostRecovery.ts
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   hydrateRoomBasicsFromSnap,
   hydrateQuestionOrReviewFromSnap,
@@ -7,7 +7,7 @@ import {
   hydrateHiddenObjectFromSnap,
   hydrateFinalStatsFromSnap, 
   hydrateCurrentRoundStatsFromSnap, 
-  hydrateOrderImageFromSnap// ✅ ADD THIS
+  hydrateOrderImageFromSnap
 } from '../../Quiz/utils/recoveryHydrators';
 
 type UseHostRecoveryArgs = {
@@ -27,21 +27,17 @@ type UseHostRecoveryArgs = {
     setQuestionInRound: (n: number) => void;
     setTotalInRound: (n: number) => void;
 
-    // Hidden Object setters
     setHiddenPuzzle: (puzzle: any) => void;
     setHiddenFoundIds: (ids: string[]) => void;
     setHiddenFinished: (finished: boolean) => void;
     setRoundRemaining: (seconds: number | null) => void;
 
-    // ✅ ADD ORDER IMAGE SETTERS
     setOrderImageQuestion: (q: any) => void;
     setOrderImageReviewQuestion: (r: any) => void;
 
-    // Stats recovery
     recoverFinalStats: (stats: any[]) => void;
     updateCurrentRoundStats: (stats: any) => void;
 
-    // TB setters
     setTbParticipants: (ids: string[]) => void;
     setTbQuestion: (q: any) => void;
     setTbWinners: (ids: string[] | null) => void;
@@ -54,73 +50,119 @@ type UseHostRecoveryArgs = {
 };
 
 export function useHostRecovery({ socket, connected, roomId, setters }: UseHostRecoveryArgs) {
+  const hasJoinedRef = useRef(false);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
+  const socketIdRef = useRef<string>('');
+
+  
+
   useEffect(() => {
-    if (!socket || !connected || !roomId) return;
+    console.log('[useHostRecovery] 🔍 Effect triggered:', {
+      hasSocket: !!socket,
+      socketId: socket?.id,
+      connected,
+      roomId,
+      hasJoined: hasJoinedRef.current,
+      trackedSocketId: socketIdRef.current
+    });
 
-    socket.emit(
-      'join_and_recover',
-      {
-        roomId,
-        user: { id: 'host', name: 'Host' },
-        role: 'host',
-      },
-      (res: any) => {
-        if (!res?.ok) {
-          console.error('[useHostRecovery] join_and_recover failed:', res?.error);
-          return;
-        }
-        const { snap } = res;
+    if (!socket || !connected || !roomId) {
+      console.log('[useHostRecovery] ⏸️ Not ready yet, resetting state');
+      hasJoinedRef.current = false;
+      socketIdRef.current = '';
+      return;
+    }
 
-        hydrateRoomBasicsFromSnap(snap, {
-          setRoomState: setters.setRoomState,
-          setPlayersInRoom: setters.setPlayersInRoom,
-        });
+    // ✅ Check if this is the SAME socket we already joined with
+    if (hasJoinedRef.current && socketIdRef.current === socket.id) {
+      console.log('[useHostRecovery] ✅ Already joined with this socket, skipping');
+      return;
+    }
 
-        hydrateQuestionOrReviewFromSnap(snap, {
-          setCurrentQuestion: setters.setCurrentQuestion,
-          setReviewQuestion: setters.setReviewQuestion,
-          setIsShowingRoundResults: setters.setIsShowingRoundResults,
-          setRoundLeaderboard: setters.setRoundLeaderboard,
-          setLeaderboard: setters.setLeaderboard,
-          setReviewComplete: setters.setReviewComplete,
-          setQuestionInRound: setters.setQuestionInRound,
-          setTotalInRound: setters.setTotalInRound,
-        });
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+    }
 
-        // ✅ ADD THIS - Hydrate hidden object state
-        hydrateHiddenObjectFromSnap(snap, {
-          setHiddenPuzzle: setters.setHiddenPuzzle,
-          setHiddenFoundIds: setters.setHiddenFoundIds,
-          setHiddenFinished: setters.setHiddenFinished,
-          setRoundRemaining: setters.setRoundRemaining,
-        });
+    reconnectTimeoutRef.current = setTimeout(() => {
+      console.log('[useHostRecovery] 🔗 Attempting to join room:', roomId, 'with socket:', socket.id);
+      hasJoinedRef.current = true;
+      socketIdRef.current = socket.id;
 
-        hydrateOrderImageFromSnap(snap, {
-  setOrderImageQuestion: setters.setOrderImageQuestion,
-  setOrderImageReviewQuestion: setters.setOrderImageReviewQuestion,
-});
+      socket.emit(
+        'join_and_recover',
+        {
+          roomId,
+          user: { id: 'host', name: 'Host' },
+          role: 'host',
+        },
+        (res: any) => {
+          console.log('[useHostRecovery] 📨 Received response from join_and_recover:', res);
+          
+          if (!res?.ok) {
+            console.error('[useHostRecovery] ❌ join_and_recover failed:', res?.error);
+            hasJoinedRef.current = false;
+            socketIdRef.current = '';
+            return;
+          }
+          
+          console.log('[useHostRecovery] ✅ Successfully joined and recovered');
+          const { snap } = res;
 
-        // ✅ ADD THIS - Hydrate final quiz stats for post-game
-        hydrateFinalStatsFromSnap(snap, {
-          recoverFinalStats: setters.recoverFinalStats,
-        });
+          hydrateRoomBasicsFromSnap(snap, {
+            setRoomState: setters.setRoomState,
+            setPlayersInRoom: setters.setPlayersInRoom,
+          });
+
+          hydrateQuestionOrReviewFromSnap(snap, {
+            setCurrentQuestion: setters.setCurrentQuestion,
+            setReviewQuestion: setters.setReviewQuestion,
+            setIsShowingRoundResults: setters.setIsShowingRoundResults,
+            setRoundLeaderboard: setters.setRoundLeaderboard,
+            setLeaderboard: setters.setLeaderboard,
+            setReviewComplete: setters.setReviewComplete,
+            setQuestionInRound: setters.setQuestionInRound,
+            setTotalInRound: setters.setTotalInRound,
+          });
+
+          hydrateHiddenObjectFromSnap(snap, {
+            setHiddenPuzzle: setters.setHiddenPuzzle,
+            setHiddenFoundIds: setters.setHiddenFoundIds,
+            setHiddenFinished: setters.setHiddenFinished,
+            setRoundRemaining: setters.setRoundRemaining,
+          });
+
+          hydrateOrderImageFromSnap(snap, {
+            setOrderImageQuestion: setters.setOrderImageQuestion,
+            setOrderImageReviewQuestion: setters.setOrderImageReviewQuestion,
+          });
+
+          hydrateFinalStatsFromSnap(snap, {
+            recoverFinalStats: setters.recoverFinalStats,
+          });
 
           hydrateCurrentRoundStatsFromSnap(snap, {
-          updateCurrentRoundStats: setters.updateCurrentRoundStats,
-        });
+            updateCurrentRoundStats: setters.updateCurrentRoundStats,
+          });
 
-        hydrateTiebreakerFromSnap(snap, {
-          setRoomState: setters.setRoomState,
-          setTbParticipants: setters.setTbParticipants,
-          setTbQuestion: setters.setTbQuestion,
-          setTbWinners: setters.setTbWinners,
-          setTbPlayerAnswers: setters.setTbPlayerAnswers,
-          setTbCorrectAnswer: setters.setTbCorrectAnswer,
-          setTbShowReview: setters.setTbShowReview,
-          setTbQuestionNumber: setters.setTbQuestionNumber,
-          setTbStillTied: setters.setTbStillTied,
-        });
+          hydrateTiebreakerFromSnap(snap, {
+            setRoomState: setters.setRoomState,
+            setTbParticipants: setters.setTbParticipants,
+            setTbQuestion: setters.setTbQuestion,
+            setTbWinners: setters.setTbWinners,
+            setTbPlayerAnswers: setters.setTbPlayerAnswers,
+            setTbCorrectAnswer: setters.setTbCorrectAnswer,
+            setTbShowReview: setters.setTbShowReview,
+            setTbQuestionNumber: setters.setTbQuestionNumber,
+            setTbStillTied: setters.setTbStillTied,
+          });
+        }
+      );
+    }, 100); // ✅ Small delay to ensure socket is stable
+
+    return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
       }
-    );
-  }, [socket, connected, roomId]);
+    };
+  }, [socket?.id, connected, roomId, setters]);
 }

@@ -1,7 +1,7 @@
 // src/components/Quiz/Wizard/StepWeb3ReviewLaunch.tsx
 
 import { FC } from "react";
-import { useNavigate } from "react-router-dom";
+
 
 import { useQuizSetupStore } from "../hooks/useQuizSetupStore";
 
@@ -26,7 +26,7 @@ import {
 import type { WizardStepProps } from "./WizardStepProps";
 
 const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) => {
-const navigate = useNavigate();
+
   const { setupConfig } = useQuizSetupStore();
   const { selectedChain, getNetworkDisplayName, isWalletConnected, currentWallet } = useQuizChainIntegration(); // ✅ Get ALL values here
  const walletActions = useWalletActions();

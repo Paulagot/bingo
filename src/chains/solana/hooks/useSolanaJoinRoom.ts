@@ -80,6 +80,45 @@ export function useSolanaJoinRoom() {
     getTxExplorerUrl,
   } = useSolanaShared();
 
+    /**
+   * ✅ NEW: Check if player already has an entry for this room
+   */
+  const checkExistingEntry = useCallback(async (
+    roomPDA: PublicKey,
+    playerPublicKey: PublicKey
+  ): Promise<boolean> => {
+    if (!program) {
+      console.warn('[Solana][JoinRoom] ⚠️ Cannot check existing entry: no program');
+      return false;
+    }
+
+    try {
+      const [playerEntry] = derivePlayerEntryPDA(roomPDA, playerPublicKey);
+      
+      console.log('[Solana][JoinRoom] 🔍 Checking for existing player entry:', playerEntry.toBase58());
+      
+      // Try to fetch the player entry account
+      const playerEntryAccount = await (program.account as any).playerEntry.fetch(playerEntry);
+      
+      if (playerEntryAccount) {
+        console.log('[Solana][JoinRoom] ✅ Player entry already exists!');
+     
+        return true;
+      }
+      
+      return false;
+    } catch (error: any) {
+      // If account doesn't exist, fetch will throw an error
+      if (error.message?.includes('Account does not exist')) {
+        console.log('[Solana][JoinRoom] ℹ️ No existing player entry found');
+        return false;
+      }
+      
+      console.warn('[Solana][JoinRoom] ⚠️ Error checking existing entry:', error.message);
+      return false;
+    }
+  }, [program]);
+
   /**
    * Join a room by paying entry fee + optional extras
    */
@@ -151,6 +190,23 @@ export function useSolanaJoinRoom() {
           'roomAddress parameter is required for Solana join. ' +
           'The host address must be known to derive the room PDA.'
         );
+      }
+
+         // ✅ NEW: Check if player already joined BEFORE fetching room details
+      console.log('[Solana][JoinRoom] 🔍 Checking if player already joined...');
+      const alreadyJoined = await checkExistingEntry(roomPDA, publicKey);
+      
+      if (alreadyJoined) {
+        console.log('[Solana][JoinRoom] ✅ Player already joined this room!');
+        console.log('[Solana][JoinRoom] 🎉 Returning success without payment');
+        
+        // Return success immediately - no transaction needed
+        return {
+          success: true,
+          txHash: 'already-joined', // Special marker
+          explorerUrl: getTxExplorerUrl(''), // Empty explorer URL
+          alreadyPaid: true, // ✅ Add this flag
+        };
       }
 
       // Fetch room account

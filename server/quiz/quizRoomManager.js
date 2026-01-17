@@ -780,7 +780,7 @@ export function cleanExpiredSessions(roomId) {
   if (!room || !room.playerSessions) return;
   
   const now = Date.now();
-  const RECONNECT_WINDOW = 45 * 1000; // 45 seconds
+  const RECONNECT_WINDOW = 60 * 60 * 1000; // 1 hours
   
   for (const playerId in room.playerSessions) {
     const session = room.playerSessions[playerId];

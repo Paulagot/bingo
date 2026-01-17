@@ -410,6 +410,17 @@ router.post('/create-web3-room', async (req, res) => {
     setupConfig.isWeb3Room = true;
     setupConfig.paymentMethod = 'web3';
 
+    // ✅ ADD THIS SECTION - Normalize and save Solana cluster
+if (chain.toLowerCase() === 'solana') {
+  // Ensure solanaCluster is saved (frontend sends this)
+  setupConfig.solanaCluster = setupConfig.solanaCluster || 'devnet';
+  
+  console.log('[API] 📋 Solana network configuration:', {
+    solanaCluster: setupConfig.solanaCluster,
+    web3Chain: chain
+  });
+}
+
     // Strong format validation for on-chain proof
     const proof = validateWeb3Proof({
       chain,
@@ -1121,16 +1132,11 @@ router.get('/web2/rooms', authenticateToken, async (req, res) => {
  * This allows refresh-safe room access
  */
 router.post('/web2/rooms/:roomId/hydrate', authenticateToken, async (req, res) => {
-  // ✅ ADD THESE LOGS AT THE VERY TOP
   console.log('========================================');
   console.log('[API] 🎯 HYDRATE ENDPOINT HIT!');
   console.log('[API] 🎯 Timestamp:', new Date().toISOString());
   console.log('[API] 🎯 Room ID from params:', req.params.roomId);
   console.log('[API] 🎯 Club ID from auth:', req.club_id);
-  console.log('[API] 🎯 Request method:', req.method);
-  console.log('[API] 🎯 Request path:', req.path);
-  console.log('[API] 🎯 Request URL:', req.url);
-  console.log('[API] 🎯 Original URL:', req.originalUrl);
   console.log('========================================');
   
   try {
@@ -1195,7 +1201,27 @@ router.post('/web2/rooms/:roomId/hydrate', authenticateToken, async (req, res) =
     
     console.log('[API] ✅ Config parsed, keys:', Object.keys(config || {}));
 
-    // 3. Create/restore room in memory using quizRoomManager
+    // ✅ 3. CHECK if room already exists in memory
+    console.log('[API] 🔍 Checking if room already exists in memory...');
+    const { getQuizRoom } = await import('../quizRoomManager.js');
+    const existingRoom = getQuizRoom(row.room_id);
+    
+    if (existingRoom) {
+      console.log('[API] ✅ Room already exists in memory, skipping creation');
+      console.log('[API] ✅ Sending success response (room already hydrated)');
+      
+      return res.status(200).json({
+        roomId: row.room_id,
+        hostId: row.host_id,
+        status: row.status,
+        config,
+        hydrated: true,
+        alreadyExisted: true, // ✅ Flag to indicate it was already there
+      });
+    }
+
+    // 4. Create room in memory (only if it doesn't exist)
+    console.log('[API] 🏗️ Room not in memory, creating it now...');
     console.log('[API] 🏗️ Calling createQuizRoom...');
     console.log('[API] 🏗️ Params:', {
       roomId: row.room_id,
@@ -1209,25 +1235,25 @@ router.post('/web2/rooms/:roomId/hydrate', authenticateToken, async (req, res) =
     console.log('[API] 📊 createQuizRoom returned:', created);
 
     if (!created) {
-      console.error('[API] ❌ createQuizRoom returned false - room NOT created in memory');
-      console.error('[API] ❌ This usually means: invalid config or room already exists');
+      console.error('[API] ❌ createQuizRoom returned false - failed to create');
+      console.error('[API] ❌ Config summary:', {
+        hasRoundDefinitions: !!config?.roundDefinitions,
+        roundCount: config?.roundDefinitions?.length,
+        hasRoomCaps: !!config?.roomCaps,
+      });
       return res.status(500).json({ error: 'failed_to_hydrate' });
     }
 
     console.log('[API] ✅ Room successfully hydrated into memory:', roomId);
     console.log('[API] ✅ Sending success response to client');
 
-    const responseData = {
+    return res.status(200).json({
       roomId: row.room_id,
       hostId: row.host_id,
       status: row.status,
       config,
       hydrated: true,
-    };
-
-    console.log('[API] 📤 Response data keys:', Object.keys(responseData));
-    
-    return res.status(200).json(responseData);
+    });
 
   } catch (err) {
     console.error('========================================');
@@ -1240,7 +1266,57 @@ router.post('/web2/rooms/:roomId/hydrate', authenticateToken, async (req, res) =
   }
 });
 
-
+// ✅ PUBLIC: Get basic room info (for ConditionalWeb3Wrapper)
+router.get('/rooms/:roomId/info', async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    
+    if (!roomId) {
+      return res.status(400).json({ error: 'roomId_required' });
+    }
+    
+    // First check in-memory (for Web3 rooms)
+    const { getQuizRoom } = await import('../quizRoomManager.js');
+    const memoryRoom = getQuizRoom(roomId);
+    
+    if (memoryRoom) {
+      return res.status(200).json({
+        roomId: memoryRoom.roomId,
+        isWeb3: memoryRoom.setupConfig?.paymentMethod === 'web3' || memoryRoom.setupConfig?.isWeb3Room,
+        web3Chain: memoryRoom.setupConfig?.web3Chain,
+      });
+    }
+    
+    // Then check database (for Web2 rooms)
+    const sql = `
+      SELECT room_id, config_json
+      FROM ${WEB2_ROOMS_TABLE}
+      WHERE room_id = ?
+      LIMIT 1
+    `;
+    
+    const [rows] = await connection.execute(sql, [roomId]);
+    const row = rows?.[0];
+    
+    if (!row) {
+      return res.status(404).json({ error: 'room_not_found' });
+    }
+    
+    const config = typeof row.config_json === 'string' 
+      ? JSON.parse(row.config_json) 
+      : row.config_json;
+    
+    return res.status(200).json({
+      roomId: row.room_id,
+      isWeb3: config?.paymentMethod === 'web3' || config?.isWeb3Room,
+      web3Chain: config?.web3Chain,
+    });
+    
+  } catch (err) {
+    console.error('[API] ❌ Failed to get room info:', err);
+    return res.status(500).json({ error: 'internal_error' });
+  }
+});
 
 export default router;
 

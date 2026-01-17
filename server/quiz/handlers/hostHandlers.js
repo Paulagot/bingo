@@ -922,6 +922,7 @@ socket.on('tiebreak:proceed_to_completion', ({ roomId }) => {
     charityAddress: room.config.web3CharityAddress,
     charityCurrency: room.config.web3Currency || 'USDC',
     charityAmountPreview,
+    solanaNetwork: room.config.solanaCluster,
   });
 
   namespace.to(roomId).emit('prize_distribution_started', {
@@ -1153,6 +1154,15 @@ socket.on(
   // ✅ Show round results
   socket.on('show_round_results', ({ roomId }) => {
      const room = getQuizRoom(roomId);
+
+       console.log('🟢 [HOST] show_round_results checks:', {
+    hasRoom: !!room,
+    hostSocketId: room?.hostSocketId,
+    currentSocketId: socket.id,
+    isHost: room?.hostSocketId === socket.id,
+    currentPhase: room?.currentPhase,
+    isReviewing: room?.currentPhase === 'reviewing'
+  });
   
     if (debug)  console.log('🟢 [HOST] show_round_results START:', {
     currentPhase: room.currentPhase,

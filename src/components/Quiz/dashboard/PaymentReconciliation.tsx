@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { usePlayerStore } from '../hooks/usePlayerStore';
 import { useQuizConfig } from '../hooks/useQuizConfig';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
+import { cleanupQuizRoom } from '../utils/cleanupQuizRoom';
+import { useRoomIdentity } from '../hooks/useRoomIdentity';
 
 import {
   Lock,
@@ -93,6 +95,7 @@ const PaymentReconciliationPanel: React.FC = () => {
   const { socket } = useQuizSocket();
   const navigate = useNavigate();
 
+  const { roomId } = useRoomIdentity();
   const isComplete = currentPhase === 'complete';
 
   // Prize dependency checks
@@ -181,26 +184,37 @@ const PaymentReconciliationPanel: React.FC = () => {
   const [timeUntilCleanup, setTimeUntilCleanup] = useState<number | null>(null);
 
   // Auto cleanup timer
-  useEffect(() => {
-    if (isLocked || !socket || !endedAt) return;
 
-    const quizEnd = new Date(endedAt).getTime();
-    const cleanupTime = quizEnd + 3 * 60 * 60 * 1000;
+useEffect(() => {
+  if (isLocked || !socket || !endedAt || !roomId) return;
 
-    const tick = () => {
-      const now = Date.now();
-      const remaining = cleanupTime - now;
-      if (remaining <= 0) {
-        socket.emit('end_quiz_cleanup', { roomId: config.roomId });
-      } else {
-        setTimeUntilCleanup(Math.floor(remaining / 1000 / 60));
-      }
-    };
+  const quizEnd = new Date(endedAt).getTime();
+ const cleanupTime = quizEnd + 30 * 60 * 1000;
 
-    tick();
-    const int = setInterval(tick, 60000);
-    return () => clearInterval(int);
-  }, [isLocked, socket, endedAt, config?.roomId]);
+  const tick = async () => {
+    const now = Date.now();
+    const remaining = cleanupTime - now;
+    if (remaining <= 0) {
+      console.log('🧹 [Reconciliation] Auto-cleanup triggered');
+      
+      // Clean up client-side
+      await cleanupQuizRoom({
+        roomId,
+        isWeb3Game: false,
+        disconnectWallets: false,
+      });
+      
+      // Notify server
+      socket.emit('end_quiz_cleanup', { roomId: config.roomId });
+    } else {
+      setTimeUntilCleanup(Math.floor(remaining / 1000 / 60));
+    }
+  };
+
+  tick();
+  const int = setInterval(tick, 60000);
+  return () => clearInterval(int);
+}, [isLocked, socket, endedAt, config?.roomId, roomId]);
 
   const fmt = (n: number) => `${currency}${n.toFixed(2)}`;
 

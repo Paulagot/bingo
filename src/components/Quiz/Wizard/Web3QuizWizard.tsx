@@ -39,7 +39,7 @@ const LoadingSpinner = () => (
   </div>
 );
 
-export default function QuizWeb3Wizard({ onComplete, onChainUpdate, selectedChain }: QuizWizardProps) {
+export default function QuizWeb3Wizard({ onComplete, onChainUpdate  }: QuizWizardProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const { setupConfig, setStep, setFlow } = useQuizSetupStore();
   
@@ -61,14 +61,6 @@ export default function QuizWeb3Wizard({ onComplete, onChainUpdate, selectedChai
       setHasReachedReview(true);
     }
   }, [isReviewStep, hasReachedReview]);
-
-  // debugLog('Web3Wizard', `Render #${renderCountRef.current}`, {
-  //   currentStepIndex,
-  //   currentStep,
-  //   isReviewStep,
-  //   hasReachedReview,
-  //   selectedChain
-  // });
 
   const goNext = () => {
     if (currentStep === 'templates' && setupConfig.skipRoundConfiguration) {
@@ -94,7 +86,7 @@ export default function QuizWeb3Wizard({ onComplete, onChainUpdate, selectedChai
     setFlow('web3');
     setStep('setup');
     setCurrentStepIndex(0);
-    setHasReachedReview(false); // ✅ Reset Web3Provider state on full reset
+    setHasReachedReview(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -125,8 +117,6 @@ export default function QuizWeb3Wizard({ onComplete, onChainUpdate, selectedChai
     }
   };
 
-  // ✅ SOLUTION: Once Web3Provider loads, keep it mounted
-  // Only hide/show step content, don't unmount provider
   const content = (
     <div className="mx-auto max-w-3xl px-4 py-10">
       <div className="mb-6 text-center">
@@ -155,7 +145,7 @@ export default function QuizWeb3Wizard({ onComplete, onChainUpdate, selectedChai
     );
   }
 
-  // ✅ Steps 1-4: No Web3Provider needed yet
+  // ✅ Steps 1-5: No Web3Provider needed yet
   debugLog('Web3Wizard', '⚡ Rendering without Web3Provider');
   return content;
 }

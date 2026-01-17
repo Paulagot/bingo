@@ -63,7 +63,8 @@ function getChainLabel(roomConfig: RoomConfig, fallback: string) {
 function getTargetChainId(roomConfig: RoomConfig): number | undefined {
   if (roomConfig.web3Chain !== 'evm') return undefined;
   const meta = getMetaByKey(roomConfig.evmNetwork);
-  return meta?.id;
+  // Ensure we return a number or undefined
+  return typeof meta?.id === 'number' ? meta.id : undefined;
 }
 
 export const Web3PaymentStep: React.FC<{
@@ -82,14 +83,13 @@ export const Web3PaymentStep: React.FC<{
     chainOverride: chainOverride ?? null,
   });
 
-  const wallet = useWalletActions({ chainOverride: chainOverride ?? null });
+  const wallet = useWalletActions();
   const { joinRoom } = useContractActions({ chainOverride: chainOverride ?? null });
 
   // AppKit + wagmi state
   const appkit = useAppKit();
-  // ✅ Fixed: Remove namespace parameter - it's not accepted in current API
   const appkitAcc = useAppKitAccount();
-  const chainId = useChainId(); // This returns number | undefined
+  const chainId = useChainId();
 
   const evmAddress = appkitAcc.address ?? null;
   const isEvm = roomConfig.web3Chain === 'evm';
@@ -110,13 +110,13 @@ export const Web3PaymentStep: React.FC<{
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('idle');
   const [error, setError] = useState('');
   const [txHash, setTxHash] = useState('');
+  const [alreadyPaid, setAlreadyPaid] = useState(false);
 
   const handleWalletConnect = async () => {
     try {
       setError('');
       setPaymentStatus('connecting');
 
-      // ✅ Fixed: Remove namespace parameter
       await appkit.open({ view: 'Connect' });
       await wallet.connect();
 
@@ -143,13 +143,18 @@ export const Web3PaymentStep: React.FC<{
       // Connect if needed
       if (!evmAddress) {
         await handleWalletConnect();
-        return; // Wait for connection to complete
+        return;
       }
 
       // Ensure on correct chain
       if (isEvm && targetChainId && chainId !== targetChainId) {
         await handleSwitchChain();
-        return; // Wait for network switch
+        return;
+      }
+
+      // ✅ Validate roomContractAddress exists
+      if (!roomConfig.roomContractAddress) {
+        throw new Error('Room contract address is required');
       }
 
       // Now invoke contract join
@@ -158,13 +163,53 @@ export const Web3PaymentStep: React.FC<{
         roomId,
         feeAmount: roomConfig.entryFee,
         extrasAmount: extrasTotal.toString(),
-        roomAddress: roomConfig.roomContractAddress,
+        roomAddress: roomConfig.roomContractAddress, // Now guaranteed to be string
         currency: roomConfig.currencySymbol,
       });
 
       if (!result.success) throw new Error(result.error);
 
-      setTxHash(result.txHash);
+      // ✅ Check if player already paid
+      if ((result as any).alreadyPaid) {
+        console.log('[Web3Payment] ✅ Player already paid, skipping to join');
+        setAlreadyPaid(true);
+        setTxHash('already-paid');
+        setPaymentStatus('joining');
+        
+        const playerId = nanoid();
+
+        socket?.emit('join_quiz_room', {
+          roomId,
+          user: {
+            id: playerId,
+            name: playerName,
+            paid: true,
+            paymentMethod: 'web3',
+            web3TxHash: 'already-paid',
+            web3Address: evmAddress,
+            web3Chain: selectedChain,
+            extras: selectedExtras,
+            extraPayments: Object.fromEntries(
+              selectedExtras.map((key) => [
+                key,
+                { method: 'web3', amount: roomConfig.fundraisingPrices[key], txHash: 'already-paid' },
+              ])
+            ),
+          },
+          role: 'player',
+        });
+
+        localStorage.setItem(`quizPlayerId:${roomId}`, playerId);
+
+        setPaymentStatus('success');
+        setTimeout(() => {
+          navigate(`/quiz/game/${roomId}/${playerId}`);
+        }, 1000);
+        
+        return;
+      }
+
+      setTxHash(result.txHash || '');
       setPaymentStatus('confirming');
 
       await new Promise((r) => setTimeout(r, 800));
@@ -202,8 +247,21 @@ export const Web3PaymentStep: React.FC<{
       }, 1000);
     } catch (e: any) {
       console.error('Join failed:', e);
-      setError(e.message || 'Failed to join game');
-      setPaymentStatus('idle');
+      
+      // ✅ Handle "already processed" error
+      if (e.message?.includes('already been processed') || 
+          e.message?.includes('already processed')) {
+        console.warn('[Web3Payment] ⚠️ Transaction already processed, retrying...');
+        setError('Transaction already processed. Checking entry status...');
+        
+        setTimeout(() => {
+          setError('');
+          handleWeb3Join();
+        }, 2000);
+      } else {
+        setError(e.message || 'Failed to join game');
+        setPaymentStatus('idle');
+      }
     }
   };
 
@@ -217,36 +275,33 @@ export const Web3PaymentStep: React.FC<{
   const showWrongNet =
     isEvm && targetChainId !== undefined && evmAddress && chainId !== targetChainId;
 
-  const STATUS_MAP: Record<
-    Exclude<PaymentStatus, 'idle'>,
-    { icon: JSX.Element; text: string; color: string }
-  > = {
-    connecting: {
-      icon: <Loader className="h-5 w-5 animate-spin" />,
-      text: `Connecting ${chainLabel}...`,
-      color: 'text-blue-600'
-    },
-    paying: {
-      icon: <Loader className="h-5 w-5 animate-spin" />,
-      text: 'Processing payment...',
-      color: 'text-yellow-600'
-    },
-    confirming: {
-      icon: <Loader className="h-5 w-5 animate-spin" />,
-      text: 'Confirming...',
-      color: 'text-orange-600'
-    },
-    joining: {
-      icon: <Loader className="h-5 w-5 animate-spin" />,
-      text: 'Joining...',
-      color: 'text-green-600'
-    },
-    success: {
-      icon: <CheckCircle className="h-5 w-5" />,
-      text: 'Success! Redirecting...',
-      color: 'text-green-600'
-    },
-  };
+ const STATUS_MAP: Record<Exclude<PaymentStatus, 'idle'>, { icon: JSX.Element; text: string; color: string }> = {
+  connecting: {
+    icon: <Loader className="h-5 w-5 animate-spin" />,
+    text: `Connecting ${chainLabel}...`,
+    color: 'text-blue-600'
+  },
+  paying: {
+    icon: <Loader className="h-5 w-5 animate-spin" />,
+    text: alreadyPaid ? 'Already paid! Reconnecting...' : 'Processing payment...',
+    color: alreadyPaid ? 'text-green-600' : 'text-yellow-600'
+  },
+  confirming: {
+    icon: <Loader className="h-5 w-5 animate-spin" />,
+    text: 'Confirming...',
+    color: 'text-orange-600'
+  },
+  joining: {
+    icon: <Loader className="h-5 w-5 animate-spin" />,
+    text: 'Joining...',
+    color: 'text-green-600'
+  },
+  success: {
+    icon: <CheckCircle className="h-5 w-5" />,
+    text: 'Success! Redirecting...',
+    color: 'text-green-600'
+  },
+};
 
   const status = paymentStatus === 'idle' ? null : STATUS_MAP[paymentStatus];
 
@@ -343,7 +398,7 @@ export const Web3PaymentStep: React.FC<{
         <div className="mb-4 rounded-lg border bg-gray-50 p-4 flex items-center space-x-3">
           <div className={status.color}>{status.icon}</div>
           <span className={`font-medium ${status.color}`}>{status.text}</span>
-          {txHash && <span className="text-xs">{txHash.slice(0, 16)}…</span>}
+          {txHash && txHash !== 'already-paid' && <span className="text-xs">{txHash.slice(0, 16)}…</span>}
         </div>
       )}
 
