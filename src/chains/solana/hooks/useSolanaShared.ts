@@ -41,6 +41,8 @@ import {
 } from '../config/networks';
 import type { QuizConfig } from '@/components/Quiz/types/quiz';
 
+const debug = false;
+
 export interface UseSolanaSharedParams {
   /**
    * Optional QuizConfig to get the expected cluster
@@ -96,7 +98,7 @@ export function useSolanaShared(params?: UseSolanaSharedParams): UseSolanaShared
   const { caipNetwork } = useAppKitNetwork();
   const { connection } = useAppKitConnection();
   
-  console.log('[Solana][Shared] 🔌 AppKit Connection State:', {
+  if (debug)console.log('[Solana][Shared] 🔌 AppKit Connection State:', {
     address,
     isConnected,
     hasWalletProvider: !!walletProvider,
@@ -113,7 +115,7 @@ export function useSolanaShared(params?: UseSolanaSharedParams): UseSolanaShared
     const chainId = typeof networkId === 'string' ? networkId : undefined;
     const detected = getSolanaKeyByChainId(chainId);
     
-    console.log('[Solana][Shared] 🌐 Network Detection:', {
+   if (debug) console.log('[Solana][Shared] 🌐 Network Detection:', {
       networkId,
       networkIdType: typeof networkId,
       chainId,
@@ -129,7 +131,7 @@ export function useSolanaShared(params?: UseSolanaSharedParams): UseSolanaShared
     const stored = setupConfig?.solanaCluster;
     
     if (stored) {
-      console.log('[Solana][Shared] 📋 Expected cluster from QuizConfig:', stored);
+    if (debug)  console.log('[Solana][Shared] 📋 Expected cluster from QuizConfig:', stored);
     }
     
     return stored as SolanaNetworkKey | undefined;
@@ -144,7 +146,7 @@ export function useSolanaShared(params?: UseSolanaSharedParams): UseSolanaShared
     
     const correct = cluster === expectedCluster;
     
-    console.log('[Solana][Shared] ✅ Network Match:', {
+   if (debug) console.log('[Solana][Shared] ✅ Network Match:', {
       current: cluster,
       expected: expectedCluster,
       isCorrect: correct,
@@ -156,16 +158,16 @@ export function useSolanaShared(params?: UseSolanaSharedParams): UseSolanaShared
   // Convert address string to PublicKey
   const publicKey = useMemo(() => {
     if (!address) {
-      console.log('[Solana][Shared] ❌ No wallet address');
+     if (debug) console.log('[Solana][Shared] ❌ No wallet address');
       return null;
     }
     
     try {
       const pk = new PublicKey(address);
-      console.log('[Solana][Shared] ✅ PublicKey created:', pk.toBase58());
+   if (debug)  if (debug) console.log('[Solana][Shared] ✅ PublicKey created:', pk.toBase58());
       return pk;
     } catch (error) {
-      console.error('[Solana][Shared] ❌ Failed to create PublicKey:', error);
+    if (debug)  console.error('[Solana][Shared] ❌ Failed to create PublicKey:', error);
       return null;
     }
   }, [address]);
@@ -173,7 +175,7 @@ export function useSolanaShared(params?: UseSolanaSharedParams): UseSolanaShared
   // Create Anchor wallet adapter
   const walletAdapter = useMemo(() => {
     if (!walletProvider || !publicKey) {
-      console.log('[Solana][Shared] ⏳ Wallet adapter not ready:', {
+     if (debug) console.log('[Solana][Shared] ⏳ Wallet adapter not ready:', {
         hasProvider: !!walletProvider,
         hasPublicKey: !!publicKey,
       });
@@ -182,7 +184,7 @@ export function useSolanaShared(params?: UseSolanaSharedParams): UseSolanaShared
     
     const provider = walletProvider as any;
     
-    console.log('[Solana][Shared] ✅ Creating wallet adapter');
+   if (debug) console.log('[Solana][Shared] ✅ Creating wallet adapter');
     
     return {
       publicKey,
@@ -191,7 +193,7 @@ export function useSolanaShared(params?: UseSolanaSharedParams): UseSolanaShared
         return provider.signTransaction(tx);
       },
       signAllTransactions: async (txs: any[]) => {
-        console.log('[Solana][Shared] ✍️  Signing', txs.length, 'transactions...');
+       if (debug) console.log('[Solana][Shared] ✍️  Signing', txs.length, 'transactions...');
         return provider.signAllTransactions(txs);
       },
     };
@@ -207,7 +209,7 @@ export function useSolanaShared(params?: UseSolanaSharedParams): UseSolanaShared
       return null;
     }
     
-    console.log('[Solana][Shared] ✅ Creating AnchorProvider with cluster:', cluster);
+    if (debug) console.log('[Solana][Shared] ✅ Creating AnchorProvider with cluster:', cluster);
     
     return new AnchorProvider(
       connection as unknown as Connection,
@@ -229,13 +231,13 @@ export function useSolanaShared(params?: UseSolanaSharedParams): UseSolanaShared
     try {
       const programId = SOLANA_CONTRACT.PROGRAM_ID.toBase58();
       
-      console.log('[Solana][Shared] ✅ Creating Program instance');
-      console.log('[Solana][Shared] 📍 Program ID:', programId);
-      console.log('[Solana][Shared] 🌐 Cluster:', cluster);
+    if (debug)  console.log('[Solana][Shared] ✅ Creating Program instance');
+    if (debug)  console.log('[Solana][Shared] 📍 Program ID:', programId);
+    if (debug)  console.log('[Solana][Shared] 🌐 Cluster:', cluster);
       
       return new Program(QuizCoreIDL as Idl, provider);
     } catch (error) {
-      console.error('[Solana][Shared] ❌ Failed to create program:', error);
+     if (debug) console.error('[Solana][Shared] ❌ Failed to create program:', error);
       return null;
     }
   }, [provider, cluster]);
@@ -261,7 +263,7 @@ export function useSolanaShared(params?: UseSolanaSharedParams): UseSolanaShared
 
   const isFullyConnected = isConnected && !!publicKey && !!program && isCorrectNetwork;
   
-  console.log('[Solana][Shared] 🎯 Final State:', {
+ if (debug) console.log('[Solana][Shared] 🎯 Final State:', {
     isConnected,
     hasPublicKey: !!publicKey,
     hasProgram: !!program,
