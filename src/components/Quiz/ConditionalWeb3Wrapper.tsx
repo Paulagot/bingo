@@ -35,7 +35,7 @@ export const ConditionalWeb3Wrapper: React.FC<ConditionalWeb3WrapperProps> = ({ 
       return;
     }
 
-  // src/components/Quiz/ConditionalWeb3Wrapper.tsx
+
 
 const checkRoomType = async () => {
   try {

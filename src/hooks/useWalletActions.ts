@@ -9,7 +9,7 @@ import {
   useAppKitAccount,
   useAppKitProvider,
   useDisconnect,
-  useAppKitNetwork, // ✅ This includes switchNetwork
+  useAppKitNetwork,
   useAppKit,
 } from "@reown/appkit/react";
 
@@ -20,14 +20,21 @@ import { getMetaByKey, getKeyById, type EvmNetworkKey } from "../chains/evm/conf
 
 type ChainFamily = 'evm' | 'solana' | 'stellar' | null;
 
+interface WalletActionsOptions {
+  externalSetupConfig?: any;
+}
+
 /* -------------------------------------------------------------
    Determine CHAIN FAMILY (memoized)
+   ✅ NOW ACCEPTS EXTERNAL CONFIG AS PARAMETER
 -------------------------------------------------------------- */
-function useResolvedChainFamily(): ChainFamily {
+function useResolvedChainFamily(externalSetupConfig?: any): ChainFamily {
   const { config } = useQuizConfig();
-  const { setupConfig } = useQuizSetupStore();
+  const { setupConfig: storeSetupConfig } = useQuizSetupStore();
   
-  // ✅ ADD THIS DEBUG LOG
+  // ✅ Use external config if provided, otherwise use store
+  const setupConfig = externalSetupConfig || storeSetupConfig;
+  
   console.log('[useResolvedChainFamily] Inputs:', {
     setupConfig_web3Chain: setupConfig?.web3Chain,
     config_web3Chain: config?.web3Chain,
@@ -36,10 +43,11 @@ function useResolvedChainFamily(): ChainFamily {
     config_stellarNetwork: config?.stellarNetwork,
     hasConfig: !!config,
     hasSetupConfig: !!setupConfig,
+    isExternalConfig: !!externalSetupConfig,
   });
   
   return useMemo(() => {
-    // 1. Check setupConfig.web3Chain (during wizard)
+    // 1. Check setupConfig.web3Chain (during wizard or external)
     if (setupConfig?.web3Chain) {
       const chain = setupConfig.web3Chain;
       if (chain === 'evm' || chain === 'solana' || chain === 'stellar') {
@@ -85,8 +93,13 @@ function useResolvedChainFamily(): ChainFamily {
 /* -------------------------------------------------------------
    MAIN HOOK
 -------------------------------------------------------------- */
-export function useWalletActions() {
-  const chainFamily = useResolvedChainFamily();
+export function useWalletActions(options?: WalletActionsOptions) {
+  // ✅ Pass external config directly to useResolvedChainFamily
+  const chainFamily = useResolvedChainFamily(options?.externalSetupConfig);
+
+  // ✅ Get setupConfig for use in other helpers
+  const { setupConfig: storeSetupConfig } = useQuizSetupStore();
+  const setupConfig = options?.externalSetupConfig || storeSetupConfig;
 
   // AppKit hooks
   const appKitAccount = useAppKitAccount();
@@ -95,15 +108,11 @@ export function useWalletActions() {
   const { disconnect: disconnectAppKit } = useDisconnect();
   const { open: openAppKitModal } = useAppKit();
   
-  // ✅ Get caipNetwork AND switchNetwork from the same hook
   const { caipNetwork, switchNetwork } = useAppKitNetwork();
 
   // Stellar wallet
   const stellarWallet = useStellarWallet();
   const { updateStellarWallet } = useWalletStore();
-  
-  // Quiz setup config
-  const { setupConfig } = useQuizSetupStore();
 
   console.log("🎯 [useWalletActions] State:", {
     chainFamily,
@@ -114,10 +123,11 @@ export function useWalletActions() {
     currentChainId: caipNetwork?.caipNetworkId,
     stellarConnected: stellarWallet.isConnected,
     stellarAddress: stellarWallet.address,
+    hasExternalConfig: !!options?.externalSetupConfig,
   });
 
   /* -------------------------------------------------------------
-     STELLAR CONNECT/DISCONNECT (unchanged)
+     STELLAR CONNECT/DISCONNECT
   -------------------------------------------------------------- */
   const connectStellar = useCallback(async () => {
     try {
@@ -209,34 +219,82 @@ export function useWalletActions() {
   }, [chainFamily, setupConfig?.evmNetwork]);
 
   /* -------------------------------------------------------------
+     HELPER: Get expected chain family from quiz config
+  -------------------------------------------------------------- */
+  const getExpectedChainFamily = useCallback((): ChainFamily => {
+    // ✅ Use the resolved chainFamily which already considers external config
+    return chainFamily;
+  }, [chainFamily]);
+
+  /* -------------------------------------------------------------
+     HELPER: Get actual connected chain family
+  -------------------------------------------------------------- */
+  const getActualChainFamily = useCallback((): ChainFamily => {
+    const network = caipNetwork?.caipNetworkId;
+    
+    if (stellarWallet.isConnected) return 'stellar';
+    if (network?.startsWith('eip155:')) return 'evm';
+    if (network?.startsWith('solana:')) return 'solana';
+    
+    return null;
+  }, [caipNetwork?.caipNetworkId, stellarWallet.isConnected]);
+
+  /* -------------------------------------------------------------
      HELPER: Check if on correct network
   -------------------------------------------------------------- */
   const isOnCorrectNetwork = useCallback((): boolean => {
-    if (chainFamily !== 'evm') return true;
+    const expectedFamily = getExpectedChainFamily();
+    const actualFamily = getActualChainFamily();
     
-    const expectedMeta = getExpectedNetwork();
-    if (!expectedMeta) return true;
-    
-    const currentChainId = getChainId();
-    const isCorrect = currentChainId === expectedMeta.id;
-    
-    console.log('🔍 [Network Check]:', {
-      current: currentChainId,
-      expected: expectedMeta.id,
-      expectedName: expectedMeta.name,
-      isCorrect,
+    console.log('🔍 [Network Check] Chain Family:', {
+      expected: expectedFamily,
+      actual: actualFamily,
     });
     
-    return isCorrect;
-  }, [chainFamily, getChainId, getExpectedNetwork]);
+    if (expectedFamily !== actualFamily) {
+      console.log('❌ [Network Check] Chain family mismatch!');
+      return false;
+    }
+    
+    if (expectedFamily === 'evm') {
+      const expectedMeta = getExpectedNetwork();
+      if (!expectedMeta) {
+        console.log('⚠️ [Network Check] No expected EVM network configured');
+        return true;
+      }
+      
+      const currentChainId = getChainId();
+      const isCorrect = currentChainId === expectedMeta.id;
+      
+      console.log('🔍 [Network Check] EVM Network:', {
+        current: currentChainId,
+        expected: expectedMeta.id,
+        expectedName: expectedMeta.name,
+        isCorrect,
+      });
+      
+      return isCorrect;
+    }
+    
+    console.log('✅ [Network Check] Chain family matches:', expectedFamily);
+    return true;
+  }, [getExpectedChainFamily, getActualChainFamily, getChainId, getExpectedNetwork]);
 
   /* -------------------------------------------------------------
-     ✅ AUTO-SWITCH EFFECT: Automatically switch when on wrong network
+     AUTO-SWITCH EVM NETWORK EFFECT (only when connected to correct chain family)
   -------------------------------------------------------------- */
   useEffect(() => {
-    if (chainFamily !== 'evm') return;
+    const expectedFamily = getExpectedChainFamily();
+    const actualFamily = getActualChainFamily();
+    
+    if (expectedFamily !== 'evm') return;
+    if (actualFamily !== 'evm') {
+      console.log('⚠️ [Auto-Switch] Cannot switch - wrong chain family');
+      return;
+    }
+    
     if (!appKitAccount.isConnected) return;
-    if (!switchNetwork) return; // Guard: ensure switchNetwork exists
+    if (!switchNetwork) return;
     
     const expectedMeta = getExpectedNetwork();
     const currentChainId = getChainId();
@@ -248,7 +306,6 @@ export function useWalletActions() {
         toName: expectedMeta.name,
       });
       
-      // ✅ Use switchNetwork from useAppKitNetwork
       switchNetwork(expectedMeta)
         .then(() => {
           console.log(`✅ [EVM] Successfully switched to ${expectedMeta.name}`);
@@ -258,11 +315,12 @@ export function useWalletActions() {
         });
     }
   }, [
-    chainFamily,
+    getExpectedChainFamily,
+    getActualChainFamily,
     appKitAccount.isConnected,
     getExpectedNetwork,
     getChainId,
-    switchNetwork, // ✅ From useAppKitNetwork
+    switchNetwork,
   ]);
 
   /* -------------------------------------------------------------
@@ -285,13 +343,11 @@ export function useWalletActions() {
           networkId: caipNetwork?.caipNetworkId,
         });
         
-        // Already connected - the auto-switch effect will handle network switching
         if (appKitAccount.address && appKitAccount.isConnected) {
           console.log(`✅ [${chainFamily.toUpperCase()}] Already connected:`, appKitAccount.address);
           return { success: true, address: appKitAccount.address };
         }
         
-        // Not connected - open modal
         console.log(`🔗 [${chainFamily.toUpperCase()}] Opening AppKit modal...`);
         await openAppKitModal();
         
@@ -412,58 +468,82 @@ export function useWalletActions() {
      HELPER: Get network info
   -------------------------------------------------------------- */
   const getNetworkInfo = useCallback(() => {
-    const currentChainId = getChainId();
-    const expectedMeta = getExpectedNetwork();
+    const expectedFamily = getExpectedChainFamily();
+    const actualFamily = getActualChainFamily();
+    
+    let currentNetwork = '';
+    let expectedNetwork = '';
+    
+    if (actualFamily === 'solana') {
+      currentNetwork = caipNetwork?.name || 'Solana Devnet';
+    } else if (actualFamily === 'evm') {
+      currentNetwork = caipNetwork?.name || 'EVM';
+    } else if (actualFamily === 'stellar') {
+      currentNetwork = 'Stellar';
+    }
+    
+    if (expectedFamily === 'evm') {
+      const expectedMeta = getExpectedNetwork();
+      expectedNetwork = expectedMeta?.name || 'EVM';
+    } else if (expectedFamily === 'solana') {
+      const cluster = setupConfig?.solanaCluster || 'devnet';
+      expectedNetwork = cluster === 'devnet' ? 'Solana Devnet' : 'Solana';
+    } else if (expectedFamily === 'stellar') {
+      expectedNetwork = 'Stellar';
+    }
+    
     const isCorrect = isOnCorrectNetwork();
     
     return {
-      currentChainId,
-      currentNetwork: caipNetwork?.name,
-      expectedChainId: expectedMeta?.id,
-      expectedNetwork: expectedMeta?.name,
+      currentChainId: getChainId(),
+      currentNetwork,
+      expectedChainId: expectedFamily === 'evm' ? getExpectedNetwork()?.id : undefined,
+      expectedNetwork,
       isCorrect,
     };
-  }, [getChainId, getExpectedNetwork, isOnCorrectNetwork, caipNetwork]);
+  }, [
+    getExpectedChainFamily,
+    getActualChainFamily,
+    getChainId,
+    getExpectedNetwork,
+    isOnCorrectNetwork,
+    caipNetwork?.name,
+    setupConfig?.solanaCluster,
+  ]);
 
   /* -------------------------------------------------------------
      EXPOSE API
   -------------------------------------------------------------- */
   return {
-    // State
     chainFamily,
     
-    // AppKit account
     account: {
       address: appKitAccount.address,
       isConnected: appKitAccount.isConnected,
       status: appKitAccount.status,
     },
     
-    // Stellar account
     stellarAccount: {
       address: stellarWallet.address,
       isConnected: stellarWallet.isConnected,
       publicKey: stellarWallet.publicKey,
     },
     
-    // Providers
     evmWalletProvider,
     solanaWalletProvider,
-    
-    // Network info
     caipNetwork,
     
-    // Actions
     connect,
     disconnect,
-    switchNetwork, // ✅ Expose for manual switching if needed
+    switchNetwork,
     
-    // Helpers
     getAddress,
     isConnected,
     getChainId,
     isOnCorrectNetwork,
     getNetworkInfo,
     getExpectedNetwork,
+    getExpectedChainFamily,
+    getActualChainFamily,
   };
 }

@@ -61,23 +61,57 @@ const HostDashboardCore: React.FC = () => {
   const { config, setFullConfig, currentPhase, completedAt, hydrated } = useQuizConfig();
    const { roomId, hostId } = useRoomIdentity();
 
-// ✅ IMPROVED: Detect Web3 rooms even before config loads
-// In HostDashboard.tsx, update the isWeb3 memo (around line 86):
+// ✅ NEW: Check room type from API FIRST (before config loads)
+const [roomTypeChecked, setRoomTypeChecked] = useState(false);
+const [isWeb3Room, setIsWeb3Room] = useState(false);
 
-// ✅ IMPROVED: Don't check localStorage at all - rely on API + DB hydration
-const isWeb3 = useMemo(() => {
-  // For Web3 rooms: config comes from API response or memory
-  // For Web2 rooms: config comes from DB hydration
-  
-  if (config?.paymentMethod === 'web3' || config?.isWeb3Room) {
-    console.log('[HostDashboard] ✅ isWeb3=true from loaded config');
-    return true;
+// ✅ Check room type from API before doing anything else
+useEffect(() => {
+  if (!roomId) {
+    setRoomTypeChecked(false);
+    return;
   }
   
-  // Default to false - let hydration tell us
-  console.log('[HostDashboard] ✅ isWeb3=false (Web2 room or not loaded yet)');
-  return false;
-}, [config?.paymentMethod, config?.isWeb3Room]);
+  let cancelled = false;
+  
+  async function checkRoomType() {
+    try {
+      console.log('[HostDashboard] 🔍 Checking room type for:', roomId);
+      
+      const response = await fetch(`/quiz/api/rooms/${roomId}/info`);
+      
+      if (cancelled) return;
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[HostDashboard] ✅ Room type:', data.isWeb3 ? 'Web3' : 'Web2');
+        setIsWeb3Room(!!data.isWeb3);
+        setRoomTypeChecked(true);
+        return;
+      }
+      
+      // If room not found, might be a new room being created
+      console.warn('[HostDashboard] ⚠️ Room info not found, defaulting to Web2');
+      setIsWeb3Room(false);
+      setRoomTypeChecked(true);
+      
+    } catch (err) {
+      if (cancelled) return;
+      console.error('[HostDashboard] ❌ Failed to check room type:', err);
+      setIsWeb3Room(false);
+      setRoomTypeChecked(true);
+    }
+  }
+  
+  checkRoomType();
+  
+  return () => {
+    cancelled = true;
+  };
+}, [roomId]);
+
+// Computed value for backward compatibility with rest of component
+const isWeb3 = isWeb3Room;
 
   const { players } = usePlayerStore();
   const { admins } = useAdminStore();
@@ -114,16 +148,22 @@ useEffect(() => {
   let cancelled = false;
 
   async function hydrateWeb2FromDb() {
+    // ✅ NEW: Wait for room type check to complete
+    if (!roomTypeChecked) {
+      console.log('[HostDashboard] ⏳ Waiting for room type check to complete...');
+      return;
+    }
+    
     // Only for WEB2 rooms
-       if (isWeb3) {
+    if (isWeb3) {
       console.log('[HostDashboard] ⏭️ Skipping hydration - Web3 room');
       return;
     }
+    
     if (!roomId || !hostId) {
       console.log('[HostDashboard] ⏭️ Skipping hydration - no roomId or hostId');
       return;
     }
- 
 
     // ✅ Check if THIS SPECIFIC ROOM has already been hydrated
     if (hydratedRoomIdRef.current === roomId) {
@@ -342,10 +382,16 @@ useEffect(() => {
     console.log('[HostDashboard] 🧹 Hydration effect cleanup');
     cancelled = true;
   };
-}, [roomId, hostId, isWeb3]); // ✅ Only these dependencies - socket/connected managed via refs // ✅ ONLY these three dependencies - same as before// ✅ REMOVED: hydrated, config?.roomId, setFullConfig, socket, connected, navigate
+}, [roomId, hostId, isWeb3, roomTypeChecked]); // ✅ Added roomTypeChecked
 
-// ✅ NEW: Web3 rooms need to join via socket (no hydration needed)
+// ✅ Web3 rooms need to join via socket (no hydration needed)
 useEffect(() => {
+  // ✅ Wait for room type check to complete
+  if (!roomTypeChecked) {
+    console.log('[HostDashboard] ⏳ Web3 effect waiting for room type check...');
+    return;
+  }
+  
   if (!isWeb3) return; // Only for Web3 rooms
   if (!socket || !connected || !roomId || !hostId) return;
   
@@ -387,7 +433,7 @@ useEffect(() => {
     // Mark as joined
     hydratedRoomIdRef.current = roomId;
   });
-}, [isWeb3, socket, connected, roomId, hostId, config?.hostName]);
+}, [isWeb3, socket, connected, roomId, hostId, config?.hostName, roomTypeChecked]); // ✅ Added roomTypeChecked
 
   // Quiz completion logic
   const isQuizComplete = currentPhase === 'complete';
