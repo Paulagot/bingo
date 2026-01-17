@@ -26,9 +26,46 @@ export function setupQuizSocketHandlers(quizNamespace) {
      setupReconciliationHandlers(socket, quizNamespace);
 
 
-    socket.on('disconnect', () => {
-      console.log(`❌ [quiz] Client disconnected: ${socket.id}`);
-    });
+  socket.on('disconnect', () => {
+  console.log(`❌ [quiz] Client disconnected: ${socket.id}`);
+  
+  const rooms = Array.from(socket.rooms);
+  
+  rooms.forEach(roomId => {
+    if (roomId === socket.id) return; // Skip default room
+    
+    const room = getQuizRoom(roomId);
+    if (!room) return;
+    
+    // Check if this was the host
+    if (room.hostSocketId === socket.id) {
+      console.log(`🎙️ [quiz] Host disconnected from room ${roomId}`);
+      
+      // Clear any existing cleanup timer
+      if (room.cleanupTimer) {
+        clearTimeout(room.cleanupTimer);
+      }
+      
+      // Set cleanup timer for 1.5 hours
+      const CLEANUP_DELAY = 90 * 60 * 1000; // 1.5 hours
+      
+      room.cleanupTimer = setTimeout(() => {
+        console.log(`🗑️ [quiz] Cleaning up abandoned room ${roomId} after 1.5 hours of host inactivity`);
+        
+        // Notify any remaining players
+        io.of('/quiz').to(roomId).emit('quiz_cancelled', {
+          message: 'Host did not return. Quiz has been cancelled.',
+          roomId
+        });
+        
+        // Remove the room
+        removeQuizRoom(roomId);
+      }, CLEANUP_DELAY);
+      
+      console.log(`⏰ [quiz] Cleanup timer set for room ${roomId} (90 minutes)`);
+    }
+  });
+});
 
     socket.on('ping', () => {
       socket.emit('pong', { time: Date.now() });

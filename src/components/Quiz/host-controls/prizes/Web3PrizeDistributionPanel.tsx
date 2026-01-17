@@ -26,6 +26,7 @@ type InitiatePrizeDistributionPayload = {
   prizeMode?: string;
   web3Chain?: string;
   evmNetwork?: string;
+    solanaNetwork?: string;
   roomAddress?: string;
   charityOrgId?: string;
   charityName?: string;
@@ -271,16 +272,20 @@ let networkForBackend: string;
 let web3ChainForBackend: string;
 
 if (data.web3Chain === 'solana') {
-  // Solana: map cluster to network
-  const cluster = setupConfig.solanaCluster || 'mainnet';
+  // ✅ Priority: backend > localStorage > safe default
+  const cluster = data.solanaNetwork || setupConfig.solanaCluster || 'devnet';
   networkForBackend = cluster === 'testnet' ? 'devnet' : cluster;
   web3ChainForBackend = 'solana';
+  
+  console.log('🔍 [Solana Network Debug]:', {
+    backendSolanaNetwork: data.solanaNetwork,
+    localStorageCluster: setupConfig.solanaCluster,
+    finalNetwork: networkForBackend
+  });
 } else if (data.web3Chain === 'evm') {
-  // EVM: use evmNetwork directly
   networkForBackend = data.evmNetwork || setupConfig.evmNetwork || 'base-sepolia';
   web3ChainForBackend = 'evm';
 } else {
-  // Fallback for other chains (stellar, etc)
   networkForBackend = data.evmNetwork || setupConfig.evmNetwork || 'unknown';
   web3ChainForBackend = data.web3Chain || 'unknown';
 }

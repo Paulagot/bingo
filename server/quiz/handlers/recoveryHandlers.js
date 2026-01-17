@@ -316,15 +316,32 @@ export function setupRecoveryHandlers(socket, namespace) {
             }
           }
         }
-      } else {
-        // 🧹 If this id was previously (incorrectly) added as a player, remove it now
-        if (existingPlayer) {
-          try {
-            room.players = room.players.filter((p) => p.id !== user.id);
-            if (room.playerData) delete room.playerData[user.id];
-          } catch {}
-        }
-      }
+  } else {
+  // 🧹 If this id was previously (incorrectly) added as a player, remove it now
+  if (existingPlayer) {
+    try {
+      room.players = room.players.filter((p) => p.id !== user.id);
+      if (room.playerData) delete room.playerData[user.id];
+    } catch {}
+  }
+  
+  // ✅ Set host/admin socket ID for non-player roles
+  if (role === 'host') {
+    // ✅ CRITICAL: Cancel cleanup timer when host reconnects
+    if (room.cleanupTimer) {
+      console.log(`✅ [Recovery] Host reconnected to room ${roomId}, canceling cleanup timer`);
+      clearTimeout(room.cleanupTimer);
+      delete room.cleanupTimer;
+    }
+    
+    room.hostSocketId = socket.id;
+    if (debug) console.log('[Recovery] 👑 Set host socket ID:', socket.id);
+  } else if (role === 'admin') {
+    // Admin handling if needed
+    updateAdminSocketId(roomId, user.id, socket.id);
+  }
+}
+      
 
       // Minimal snapshot scaffolding
       const totalRounds = room.config.roundDefinitions?.length || 1;

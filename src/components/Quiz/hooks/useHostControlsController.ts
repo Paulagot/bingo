@@ -7,10 +7,11 @@ import { useQuizConfig } from './useQuizConfig';
 import { useHostStats } from './useHostStats';
 import { useQuizTimer } from './useQuizTimer';
 import { useHostRecovery } from './useHostRecovery';
+import { cleanupQuizRoom } from '../utils/cleanupQuizRoom';
 
 import type { RoundTypeId, User } from '../types/quiz';
 
-const debug = false;
+const debug = true;
 
 export type RoomStatePayload = {
   currentRound: number;
@@ -126,6 +127,8 @@ function findPrizeBoundaryTies(
 
   return ties.filter((t, i, a) => a.findIndex((z) => z.boundary === t.boundary) === i);
 }
+
+
 
 export function useHostControlsController({ roomId }: { roomId: string }) {
   const navigate = useNavigate();
@@ -697,26 +700,44 @@ export function useHostControlsController({ roomId }: { roomId: string }) {
     },
   });
 
-  const handleEndGame = useCallback(async () => {
-    console.log('🧹 [Host] Starting end game cleanup...');
+const handleEndGame = useCallback(async () => {
+  console.log('🧹 [Host] Starting end game cleanup...');
 
-    if (!socket || !roomId) {
-      console.warn('⚠️ [Host] No socket or roomId available');
-      if (config?.paymentMethod === 'web3' || config?.isWeb3Room) navigate('/web3/impact-campaign/');
-      else navigate('/');
-      return;
-    }
+  if (!socket || !roomId) {
+    console.warn('⚠️ [Host] No socket or roomId available');
+    if (config?.paymentMethod === 'web3' || config?.isWeb3Room) navigate('/web3/impact-campaign/');
+    else navigate('/');
+    return;
+  }
 
-    try {
-      socket.emit('end_quiz_cleanup', { roomId });
-      console.log('✅ [Host] End game cleanup signal sent to backend');
-      console.log('⏳ [Host] Waiting for backend to complete cleanup...');
-    } catch (error) {
-      console.error('❌ [Host] Error during cleanup:', error);
-      if (config?.paymentMethod === 'web3' || config?.isWeb3Room) navigate('/web3/impact-campaign/');
+  const isWeb3 = config?.paymentMethod === 'web3' || config?.isWeb3Room;
+
+  try {
+    // 1. Clean up client-side (localStorage + wallets)
+    await cleanupQuizRoom({
+      roomId,
+      isWeb3Game: isWeb3,
+      disconnectWallets: isWeb3,
+    });
+    console.log('✅ [Host] Client-side cleanup complete');
+
+    // 2. Notify server to clean up room
+    socket.emit('end_quiz_cleanup', { roomId });
+    console.log('✅ [Host] End game cleanup signal sent to backend');
+
+    // 3. Navigate away
+    setTimeout(() => {
+      if (isWeb3) navigate('/web3/impact-campaign/');
       else navigate('/');
-    }
-  }, [socket, roomId, navigate, config?.paymentMethod, config?.isWeb3Room]);
+    }, 1000); // Small delay to ensure cleanup completes
+
+  } catch (error) {
+    console.error('❌ [Host] Error during cleanup:', error);
+    // Still navigate even if cleanup fails
+    if (isWeb3) navigate('/web3/impact-campaign/');
+    else navigate('/');
+  }
+}, [socket, roomId, navigate, config?.paymentMethod, config?.isWeb3Room]);
 
   return {
     debug,

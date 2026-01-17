@@ -3,12 +3,10 @@ import * as React from 'react';
 import { useQuizConfig } from '../hooks/useQuizConfig';
 import HostControlsCore from '../host-controls/components/HostControlsCore';
 
-// ✅ Lazy load Web3Provider
 const Web3Provider = lazy(() =>
   import('../../../components/Web3Provider').then(m => ({ default: m.Web3Provider }))
 );
 
-// Loading spinner
 const LoadingSpinner = () => (
   <div className="flex min-h-screen items-center justify-center">
     <div className="text-center">
@@ -21,14 +19,8 @@ const LoadingSpinner = () => (
 const HostControlsPage: React.FC = () => {
   const { config } = useQuizConfig();
 
-  if (!config || Object.keys(config).length === 0) {
-    return (
-      <div className="grid min-h-screen place-items-center">
-        <div className="text-center text-sm text-gray-600">Loading host controls…</div>
-      </div>
-    );
-  }
-
+  // ✅ REMOVED the early return - let HostControlsCore handle its own loading state
+  
   const selectedChain = (() => {
     const c = config?.web3Chain;
     if (c === 'stellar' || c === 'evm' || c === 'solana') return c;

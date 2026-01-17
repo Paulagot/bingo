@@ -8,6 +8,7 @@ import { usePlayerStore } from '../hooks/usePlayerStore';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 
 import { makeArchiveZip } from './reportExport';
+import { cleanupQuizRoom } from '../utils/cleanupQuizRoom';
 
 type Props = {
   allRoundsStats?: any[];
@@ -57,26 +58,41 @@ export default function ReconciliationDownloads({
   }, [archiveComplete]);
 
   // Unified cleanup function using socket
-  const handleEndQuiz = () => {
-    console.log('🧹 [Reconciliation] Triggering quiz cleanup...');
-    
-    if (!socket || !roomId) {
-      console.warn('⚠️ [Reconciliation] No socket or roomId available');
-      // Fallback: just navigate
-      window.location.href = '/';
-      return;
+const handleEndQuiz = async () => {
+  console.log('🧹 [Reconciliation] Triggering quiz cleanup...');
+  
+  if (!roomId) {
+    console.warn('⚠️ [Reconciliation] No roomId available');
+    window.location.href = '/';
+    return;
+  }
+
+  try {
+    // 1. Clean up client-side (localStorage, no wallet disconnect for web2)
+    await cleanupQuizRoom({
+      roomId,
+      isWeb3Game: false,
+      disconnectWallets: false,
+    });
+    console.log('✅ [Reconciliation] Client-side cleanup complete');
+
+    // 2. Notify server to clean up room
+    if (socket) {
+      socket.emit('end_quiz_cleanup', { roomId });
+      console.log('✅ [Reconciliation] Cleanup signal sent to server');
     }
 
-    try {
-      // Use the same cleanup event that the auto-guard will also use
-      socket.emit('end_quiz_cleanup', { roomId });
-      console.log('✅ [Reconciliation] Cleanup signal sent');
-    } catch (error) {
-      console.error('❌ [Reconciliation] Error during cleanup:', error);
-      // Fallback navigation
+    // 3. Navigate away
+    setTimeout(() => {
       window.location.href = '/';
-    }
-  };
+    }, 1000);
+
+  } catch (error) {
+    console.error('❌ [Reconciliation] Error during cleanup:', error);
+    // Fallback navigation
+    window.location.href = '/';
+  }
+};
 
   // Generate archive and trigger auto-cleanup
   const handleArchive = async () => {

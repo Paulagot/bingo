@@ -1,9 +1,8 @@
-// src/components/ConditionalWeb3Wrapper.tsx
+// src/components/Quiz/ConditionalWeb3Wrapper.tsx
 
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { Web3Provider } from '../Web3Provider';
-import {  quizApi } from '@shared/api';
 
 
 interface ConditionalWeb3WrapperProps {
@@ -20,66 +19,101 @@ const LoadingFallback: React.FC = () => (
 );
 
 export const ConditionalWeb3Wrapper: React.FC<ConditionalWeb3WrapperProps> = ({ children }) => {
-  const { roomId } = useParams<{ roomId: string }>();
+  const location = useLocation();
   const [roomType, setRoomType] = useState<'web2' | 'web3' | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Extract roomId from pathname using regex
+    const roomIdMatch = location.pathname.match(/\/quiz\/(join|game|play|admin-join|host-dashboard|host-controls)\/([^\/]+)/);
+    const roomId = roomIdMatch?.[2];
+
     if (!roomId) {
+      console.log('[ConditionalWeb3Wrapper] No roomId found, defaulting to Web2');
       setLoading(false);
-      setRoomType('web2'); // Default to web2 if no roomId
+      setRoomType('web2');
       return;
     }
 
-    const checkRoomType = async () => {
-      try {
-        console.log('[ConditionalWeb3Wrapper] Checking room type for:', roomId);
-        
-        // ✅ Use the correct API method
-        const roomData = await quizApi.getWeb2Room(roomId);
-        
-        // Parse config if it's a string
-        let config = roomData.config;
-        if (typeof config === 'string') {
-          config = JSON.parse(config);
-        }
-        
-        const paymentMethod = config?.paymentMethod;
-        const isWeb3 = paymentMethod === 'web3';
-        
-        console.log('[ConditionalWeb3Wrapper] Payment method:', paymentMethod);
-        console.log('[ConditionalWeb3Wrapper] Is Web3:', isWeb3);
-        
-        setRoomType(isWeb3 ? 'web3' : 'web2');
-      } catch (err: any) {
-        console.error('[ConditionalWeb3Wrapper] Error checking room type:', err);
-        // Default to web2 on error to avoid blocking access
-        setRoomType('web2');
-        setError(err.message);
-      } finally {
+  // src/components/Quiz/ConditionalWeb3Wrapper.tsx
+
+const checkRoomType = async () => {
+  try {
+    console.log('[ConditionalWeb3Wrapper] Checking room type for:', roomId);
+    
+    // ✅ PRIORITY 1: Check localStorage for Web3 indicators
+    try {
+      const contractAddr = localStorage.getItem('current-contract-address');
+      const storedRoomId = localStorage.getItem('current-room-id');
+      
+      console.log('[ConditionalWeb3Wrapper] 🔍 Checking localStorage', { 
+        contractAddr: !!contractAddr, 
+        storedRoomId, 
+        currentRoomId: roomId,
+        match: storedRoomId === roomId 
+      });
+      
+      if (contractAddr && storedRoomId === roomId) {
+        console.log('[ConditionalWeb3Wrapper] ✅ Web3 room detected (from localStorage)');
+        setRoomType('web3');
         setLoading(false);
+        return;
       }
-    };
+    } catch (storageErr) {
+      console.warn('[ConditionalWeb3Wrapper] localStorage check failed:', storageErr);
+    }
+    
+    // ✅ PRIORITY 2: Use PUBLIC endpoint that doesn't require auth
+    console.log('[ConditionalWeb3Wrapper] 🔍 Fetching room info from API...');
+    
+    const response = await fetch(`/quiz/api/rooms/${roomId}/info`); // ✅ New public endpoint
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    console.log('[ConditionalWeb3Wrapper] ✅ Room info fetched:', data);
+    
+    setRoomType(data.isWeb3 ? 'web3' : 'web2');
+    
+  } catch (err: any) {
+    console.warn('[ConditionalWeb3Wrapper] ⚠️ API fetch failed:', err.message);
+    
+    // ✅ Fallback: Check localStorage again
+    try {
+      const contractAddr = localStorage.getItem('current-contract-address');
+      const storedRoomId = localStorage.getItem('current-room-id');
+      
+      if (contractAddr && storedRoomId === roomId) {
+        console.log('[ConditionalWeb3Wrapper] ✅ Web3 room detected (fallback check)');
+        setRoomType('web3');
+      } else {
+        console.log('[ConditionalWeb3Wrapper] ❌ Defaulting to Web2');
+        setRoomType('web2');
+      }
+    } catch {
+      console.error('[ConditionalWeb3Wrapper] ❌ All checks failed, defaulting to Web2');
+      setRoomType('web2');
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
     checkRoomType();
-  }, [roomId]);
+  }, [location.pathname]);
 
   if (loading) {
     return <LoadingFallback />;
   }
 
-  if (error) {
-    console.warn('[ConditionalWeb3Wrapper] Error detected, defaulting to Web2 mode:', error);
-  }
-
-  // ✅ Only wrap in Web3Provider if it's a Web3 room
   if (roomType === 'web3') {
-    console.log('[ConditionalWeb3Wrapper] Initializing Web3Provider for Web3 room');
+    console.log('[ConditionalWeb3Wrapper] 🌐 Initializing Web3Provider for Web3 room');
     return <Web3Provider>{children}</Web3Provider>;
   }
 
-  // ✅ For Web2 rooms, render children directly without Web3
-  console.log('[ConditionalWeb3Wrapper] Skipping Web3Provider for Web2 room');
+  console.log('[ConditionalWeb3Wrapper] ⚡ Skipping Web3Provider for Web2 room');
   return <>{children}</>;
 };
