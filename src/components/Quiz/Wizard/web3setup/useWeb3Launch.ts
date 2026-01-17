@@ -32,7 +32,12 @@ const saveQuizDraft = (setup: any) => {
 
 const clearQuizDraft = () => {
   localStorage.removeItem(QUIZ_SETUP_STORAGE_KEY);
-  console.log("[useWeb3Launch] Cleared quiz draft");
+  
+  // ✅ NEW: Also clear the setup store and admins
+  localStorage.removeItem('quiz-setup-v2');
+  localStorage.removeItem('quiz-admins');
+  
+  console.log('[useWeb3Launch] Cleared quiz draft and setup data');
 };
 
 export type Web3LaunchState =
@@ -266,6 +271,8 @@ export function useWeb3Launch({ onResetToFirst: _onResetToFirst, onBack: _onBack
         localStorage.removeItem("current-room-id");
         localStorage.removeItem("current-host-id");
         localStorage.removeItem("current-contract-address");
+          localStorage.removeItem("quiz-setup-v2");
+  localStorage.removeItem("quiz-admins");
       } catch {}
 
       hardReset();
