@@ -459,9 +459,13 @@ export default function QuizEventDashboard() {
     navigate('/quiz/create-fundraising-quiz?openWizard=1');
   };
 
-  const openRoom = (roomId: string, hostId: string) => {
-    navigate(`/quiz/host-dashboard/${roomId}?hostId=${encodeURIComponent(hostId)}`);
-  };
+const openRoom = (roomId: string, hostId: string) => {
+  // ✅ Clear the wizard setup store when opening an existing room
+  console.log('[QuizEventDashboard] 🧹 Clearing wizard setup before opening room');
+  localStorage.removeItem('quiz-setup-v2');
+  
+  navigate(`/quiz/host-dashboard/${roomId}?hostId=${encodeURIComponent(hostId)}`);
+};
 
   const handleEdit = (room: Room) => {
     console.log('Edit room:', room.room_id);

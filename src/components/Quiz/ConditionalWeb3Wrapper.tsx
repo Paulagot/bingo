@@ -41,62 +41,33 @@ const checkRoomType = async () => {
   try {
     console.log('[ConditionalWeb3Wrapper] Checking room type for:', roomId);
     
-    // ✅ PRIORITY 1: Check localStorage for Web3 indicators
-    try {
-      const contractAddr = localStorage.getItem('current-contract-address');
-      const storedRoomId = localStorage.getItem('current-room-id');
-      
-      console.log('[ConditionalWeb3Wrapper] 🔍 Checking localStorage', { 
-        contractAddr: !!contractAddr, 
-        storedRoomId, 
-        currentRoomId: roomId,
-        match: storedRoomId === roomId 
-      });
-      
-      if (contractAddr && storedRoomId === roomId) {
-        console.log('[ConditionalWeb3Wrapper] ✅ Web3 room detected (from localStorage)');
-        setRoomType('web3');
-        setLoading(false);
-        return;
-      }
-    } catch (storageErr) {
-      console.warn('[ConditionalWeb3Wrapper] localStorage check failed:', storageErr);
-    }
-    
-    // ✅ PRIORITY 2: Use PUBLIC endpoint that doesn't require auth
     console.log('[ConditionalWeb3Wrapper] 🔍 Fetching room info from API...');
     
-    const response = await fetch(`/quiz/api/rooms/${roomId}/info`); // ✅ New public endpoint
+    const response = await fetch(`/quiz/api/rooms/${roomId}/info`);
     
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+    if (response.ok) {
+      const data = await response.json();
+      console.log('[ConditionalWeb3Wrapper] ✅ Room info fetched:', data);
+      setRoomType(data.isWeb3 ? 'web3' : 'web2');
+      setLoading(false);
+      return;
     }
     
-    const data = await response.json();
+    // ✅ Handle errors differently
+    if (response.status === 404) {
+      console.error('[ConditionalWeb3Wrapper] ❌ Room not found (404)');
+      setRoomType('web2'); // Safe default
+      setLoading(false);
+      return;
+    }
     
-    console.log('[ConditionalWeb3Wrapper] ✅ Room info fetched:', data);
-    
-    setRoomType(data.isWeb3 ? 'web3' : 'web2');
+    // For other errors (like 401), log but default to web2
+    console.warn(`[ConditionalWeb3Wrapper] ⚠️ API returned ${response.status}, defaulting to Web2`);
+    setRoomType('web2');
     
   } catch (err: any) {
-    console.warn('[ConditionalWeb3Wrapper] ⚠️ API fetch failed:', err.message);
-    
-    // ✅ Fallback: Check localStorage again
-    try {
-      const contractAddr = localStorage.getItem('current-contract-address');
-      const storedRoomId = localStorage.getItem('current-room-id');
-      
-      if (contractAddr && storedRoomId === roomId) {
-        console.log('[ConditionalWeb3Wrapper] ✅ Web3 room detected (fallback check)');
-        setRoomType('web3');
-      } else {
-        console.log('[ConditionalWeb3Wrapper] ❌ Defaulting to Web2');
-        setRoomType('web2');
-      }
-    } catch {
-      console.error('[ConditionalWeb3Wrapper] ❌ All checks failed, defaulting to Web2');
-      setRoomType('web2');
-    }
+    console.error('[ConditionalWeb3Wrapper] ❌ Error:', err.message);
+    setRoomType('web2'); // Safe default
   } finally {
     setLoading(false);
   }

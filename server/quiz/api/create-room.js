@@ -733,6 +733,58 @@ if (chain.toLowerCase() === 'solana') {
   }
 });
 
+// ✅ PUBLIC: Get basic room info (for ConditionalWeb3Wrapper)
+router.get('/rooms/:roomId/info', async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    
+    if (!roomId) {
+      return res.status(400).json({ error: 'roomId_required' });
+    }
+    
+    // First check in-memory (for Web3 rooms)
+    const { getQuizRoom } = await import('../quizRoomManager.js');
+    const memoryRoom = getQuizRoom(roomId);
+    
+    if (memoryRoom) {
+      return res.status(200).json({
+        roomId: memoryRoom.roomId,
+        isWeb3: memoryRoom.setupConfig?.paymentMethod === 'web3' || memoryRoom.setupConfig?.isWeb3Room,
+        web3Chain: memoryRoom.setupConfig?.web3Chain,
+      });
+    }
+    
+    // Then check database (for Web2 rooms)
+    const sql = `
+      SELECT room_id, config_json
+      FROM ${WEB2_ROOMS_TABLE}
+      WHERE room_id = ?
+      LIMIT 1
+    `;
+    
+    const [rows] = await connection.execute(sql, [roomId]);
+    const row = rows?.[0];
+    
+    if (!row) {
+      return res.status(404).json({ error: 'room_not_found' });
+    }
+    
+    const config = typeof row.config_json === 'string' 
+      ? JSON.parse(row.config_json) 
+      : row.config_json;
+    
+    return res.status(200).json({
+      roomId: row.room_id,
+      isWeb3: config?.paymentMethod === 'web3' || config?.isWeb3Room,
+      web3Chain: config?.web3Chain,
+    });
+    
+  } catch (err) {
+    console.error('[API] ❌ Failed to get room info:', err);
+    return res.status(500).json({ error: 'internal_error' });
+  }
+});
+
 /* -------------------------------------------------------------------------- */
 /*                      UNAUTHENTICATED ROUTES (WEB3 FLOW)                     */
 /* -------------------------------------------------------------------------- */
@@ -1266,57 +1318,7 @@ router.post('/web2/rooms/:roomId/hydrate', authenticateToken, async (req, res) =
   }
 });
 
-// ✅ PUBLIC: Get basic room info (for ConditionalWeb3Wrapper)
-router.get('/rooms/:roomId/info', async (req, res) => {
-  try {
-    const { roomId } = req.params;
-    
-    if (!roomId) {
-      return res.status(400).json({ error: 'roomId_required' });
-    }
-    
-    // First check in-memory (for Web3 rooms)
-    const { getQuizRoom } = await import('../quizRoomManager.js');
-    const memoryRoom = getQuizRoom(roomId);
-    
-    if (memoryRoom) {
-      return res.status(200).json({
-        roomId: memoryRoom.roomId,
-        isWeb3: memoryRoom.setupConfig?.paymentMethod === 'web3' || memoryRoom.setupConfig?.isWeb3Room,
-        web3Chain: memoryRoom.setupConfig?.web3Chain,
-      });
-    }
-    
-    // Then check database (for Web2 rooms)
-    const sql = `
-      SELECT room_id, config_json
-      FROM ${WEB2_ROOMS_TABLE}
-      WHERE room_id = ?
-      LIMIT 1
-    `;
-    
-    const [rows] = await connection.execute(sql, [roomId]);
-    const row = rows?.[0];
-    
-    if (!row) {
-      return res.status(404).json({ error: 'room_not_found' });
-    }
-    
-    const config = typeof row.config_json === 'string' 
-      ? JSON.parse(row.config_json) 
-      : row.config_json;
-    
-    return res.status(200).json({
-      roomId: row.room_id,
-      isWeb3: config?.paymentMethod === 'web3' || config?.isWeb3Room,
-      web3Chain: config?.web3Chain,
-    });
-    
-  } catch (err) {
-    console.error('[API] ❌ Failed to get room info:', err);
-    return res.status(500).json({ error: 'internal_error' });
-  }
-});
+
 
 export default router;
 

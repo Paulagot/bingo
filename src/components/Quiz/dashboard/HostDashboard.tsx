@@ -64,36 +64,20 @@ const HostDashboardCore: React.FC = () => {
 // ✅ IMPROVED: Detect Web3 rooms even before config loads
 // In HostDashboard.tsx, update the isWeb3 memo (around line 86):
 
+// ✅ IMPROVED: Don't check localStorage at all - rely on API + DB hydration
 const isWeb3 = useMemo(() => {
-  // Priority 1: Config confirms it's Web3
+  // For Web3 rooms: config comes from API response or memory
+  // For Web2 rooms: config comes from DB hydration
+  
   if (config?.paymentMethod === 'web3' || config?.isWeb3Room) {
-    console.log('[HostDashboard] ✅ isWeb3=true from config');
+    console.log('[HostDashboard] ✅ isWeb3=true from loaded config');
     return true;
   }
   
-  // Priority 2: localStorage has Web3 indicators (from launch flow)
-  // BUT: Only trust localStorage if we don't have config yet AND there's a contract address
-  if (!config?.roomId) {
-    try {
-      const contractAddr = localStorage.getItem('current-contract-address');
-      
-      // ✅ CRITICAL: Must have BOTH contract address AND matching room ID
-      if (contractAddr) {
-        const storedRoomId = localStorage.getItem('current-room-id');
-        
-        if (storedRoomId === roomId) {
-          console.log('[HostDashboard] ✅ isWeb3=true from localStorage (pre-config)');
-          return true;
-        }
-      }
-    } catch (err) {
-      console.warn('[HostDashboard] ⚠️ localStorage check failed:', err);
-    }
-  }
-  
-  console.log('[HostDashboard] ✅ isWeb3=false (Web2 room)');
+  // Default to false - let hydration tell us
+  console.log('[HostDashboard] ✅ isWeb3=false (Web2 room or not loaded yet)');
   return false;
-}, [config?.paymentMethod, config?.isWeb3Room, config?.roomId, roomId]);
+}, [config?.paymentMethod, config?.isWeb3Room]);
 
   const { players } = usePlayerStore();
   const { admins } = useAdminStore();
