@@ -570,7 +570,6 @@ useEffect(() => {
 
       setFullConfig(enhancedConfig);
     };
-
 const handleSocketError = (error: { message: string }) => {
   console.error('❌ [HostDashboard] Socket error:', error);
   
@@ -580,11 +579,18 @@ const handleSocketError = (error: { message: string }) => {
     return;
   }
   
+  // ✅ NEW: Don't redirect for Web2 rooms - they won't exist in sockets!
+  if (!isWeb3) {
+    console.log('⏭️ [HostDashboard] Ignoring socket error for Web2 room');
+    return;
+  }
+  
   if (error.message?.toLowerCase().includes('not found')) {
     console.warn('🏠 Room not found, redirecting to home');
     navigate('/', { replace: true });
   }
 };
+
 
     socket.on('room_config', handleRoomConfig);
     socket.on('quiz_error', handleSocketError);
