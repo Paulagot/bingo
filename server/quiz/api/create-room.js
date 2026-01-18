@@ -1302,19 +1302,26 @@ router.post('/web2/rooms/:roomId/hydrate', authenticateToken, async (req, res) =
     const { getQuizRoom } = await import('../quizRoomManager.js');
     const existingRoom = getQuizRoom(row.room_id);
     
-    if (existingRoom) {
-      console.log('[API] ✅ Room already exists in memory, skipping creation');
-      console.log('[API] ✅ Sending success response (room already hydrated)');
-      
-      return res.status(200).json({
-        roomId: row.room_id,
-        hostId: row.host_id,
-        status: row.status,
-        config,
-        hydrated: true,
-        alreadyExisted: true, // ✅ Flag to indicate it was already there
-      });
-    }
+if (existingRoom) {
+  console.log('[API] ✅ Room already exists in memory, skipping creation');
+  console.log('[API] ✅ Sending success response (room already hydrated)');
+  
+  // ✅ CRITICAL FIX: Include roomId and hostId in config
+  const configWithIds = {
+    ...config,
+    roomId: row.room_id,
+    hostId: row.host_id,
+  };
+  
+  return res.status(200).json({
+    roomId: row.room_id,
+    hostId: row.host_id,
+    status: row.status,
+    config: configWithIds,  // ✅ Send config WITH roomId
+    hydrated: true,
+    alreadyExisted: true,
+  });
+}
 
     // 4. Create room in memory (only if it doesn't exist)
     console.log('[API] 🏗️ Room not in memory, creating it now...');

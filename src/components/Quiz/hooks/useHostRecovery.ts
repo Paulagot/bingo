@@ -108,6 +108,21 @@ export function useHostRecovery({ socket, connected, roomId, setters }: UseHostR
           console.log('[useHostRecovery] ✅ Successfully joined and recovered');
           const { snap } = res;
 
+          if (snap?.config) {
+  console.log('[useHostRecovery] 📦 Hydrating config from snapshot');
+  // Import dynamically to avoid circular dependencies
+  import('./useQuizConfig').then(({ useQuizConfig }) => {
+    const { setFullConfig } = useQuizConfig.getState();
+    setFullConfig({
+      ...snap.config,
+      roomId: roomId,  // ✅ Ensure roomId is included
+    });
+    console.log('[useHostRecovery] ✅ Config hydrated from snapshot');
+  });
+} else {
+  console.warn('[useHostRecovery] ⚠️ No config in snapshot!');
+}
+
           hydrateRoomBasicsFromSnap(snap, {
             setRoomState: setters.setRoomState,
             setPlayersInRoom: setters.setPlayersInRoom,
