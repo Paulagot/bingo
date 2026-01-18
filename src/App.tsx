@@ -68,7 +68,7 @@ const isGameRoute = (pathname: string) =>
 
 // ✅ FIXED: Only specific game routes need Web3Provider wrapper
 const needsWeb3Wrapper = (pathname: string) =>
-  /^\/quiz\/(game|play|host-dashboard|host-controls|admin-join)\b/.test(pathname);
+  /^\/quiz\/(game|play|admin-join)\b/.test(pathname);
 
 export default function App() {
   const navigate = useNavigate();

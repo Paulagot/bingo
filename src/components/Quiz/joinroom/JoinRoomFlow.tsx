@@ -7,6 +7,7 @@ import { Web2PaymentStep } from './Web2PaymentStep';
 import type { SupportedChain } from '../../../chains/types';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { useQuizConfig } from '../hooks/useQuizConfig';
+import { WalletProvider } from '../../../context/WalletContext';
 
 // ✅ Lazy load Web3Provider AND Web3PaymentStep together
 const Web3Provider = lazy(() => 
@@ -407,28 +408,38 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
               />
             )}
 
-            {paymentFlow === 'web3' &&
-              (detectedChain ? (
-                <Suspense fallback={<LoadingSpinner />}>
-                  <Web3Provider key="web3-payment-provider">
-                    <Web3PaymentStep
-                      chainOverride={detectedChain}
-                      roomId={roomId}
-                      playerName={playerName}
-                      roomConfig={roomConfig}
-                      selectedExtras={selectedExtras}
-                      onBack={handleBackToExtras}
-                      onClose={onClose}
-                    />
-                  </Web3Provider>
-                </Suspense>
-              ) : (
-                <div className="p-6">
-                  <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
-                    Detecting blockchain network… Please wait.
-                  </div>
-                </div>
-              ))}
+          {paymentFlow === 'web3' &&
+  (detectedChain ? (
+    <Suspense fallback={<LoadingSpinner />}>
+      <Web3Provider key="web3-payment-provider">
+        {/* ✅ NEW: Wrap with WalletProvider */}
+        <WalletProvider 
+          roomConfig={{
+            web3Chain: roomConfig.web3Chain,
+            evmNetwork: roomConfig.evmNetwork,
+            solanaCluster: roomConfig.solanaCluster,
+            stellarNetwork: roomConfig.stellarNetwork,
+          }}
+        >
+          <Web3PaymentStep
+            chainOverride={detectedChain}
+            roomId={roomId}
+            playerName={playerName}
+            roomConfig={roomConfig}
+            selectedExtras={selectedExtras}
+            onBack={handleBackToExtras}
+            onClose={onClose}
+          />
+        </WalletProvider>
+      </Web3Provider>
+    </Suspense>
+  ) : (
+    <div className="p-6">
+      <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+        Detecting blockchain network… Please wait.
+      </div>
+    </div>
+  ))}
 
             {paymentFlow === 'web2' && (
               <Web2PaymentStep

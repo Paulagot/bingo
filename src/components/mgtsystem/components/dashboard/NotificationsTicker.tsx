@@ -6,6 +6,7 @@ import {
   Trophy,
   ExternalLink,
   ChevronRight,
+  DollarSign
 } from 'lucide-react';
 
 type NotificationItem = {
@@ -27,14 +28,21 @@ const DEFAULT_ITEMS: NotificationItem[] = [
     text: 'Join our weekly live zoom for fundraising chats and FundRaisely training',
     href: 'https://www.meetup.com/fundraisely/',
     kind: 'external',
-    icon: <Video className="h-4.5 w-4.5 text-indigo-700" />,
+    icon: <Video className="h-4.5 w-4.5 text-red-700" />,
   },
   {
     id: 'clubs-league',
     text: 'Win Funds for your Club - join the Junior Sports Clubs Quiz League',
     href: '/campaigns/clubs-league',
     kind: 'internal',
-    icon: <Trophy className="h-4.5 w-4.5 text-indigo-700" />,
+    icon: <Trophy className="h-4.5 w-4.5 text-yellow-700" />,
+  },
+  {
+    id: 'founding-partners',
+    text: 'Get lifetime access at our lowest-ever rate - Join as a Founding Partner',
+    href: '/founding-partners',
+    kind: 'internal',
+    icon: <DollarSign className="h-4.5 w-4.5 text-green-700" />,
   },
 ];
 

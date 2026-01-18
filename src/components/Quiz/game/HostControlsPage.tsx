@@ -1,6 +1,8 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import * as React from 'react';
+import { useParams } from 'react-router-dom';
 import { useQuizConfig } from '../hooks/useQuizConfig';
+import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import HostControlsCore from '../host-controls/components/HostControlsCore';
 
 const Web3Provider = lazy(() =>
@@ -17,15 +19,54 @@ const LoadingSpinner = () => (
 );
 
 const HostControlsPage: React.FC = () => {
-  const { config } = useQuizConfig();
+  const { roomId } = useParams<{ roomId: string }>();
+  const { config, hydrated, setFullConfig } = useQuizConfig();
+  const { socket, connected } = useQuizSocket();
+  const [isLoadingConfig, setIsLoadingConfig] = useState(true);
 
-  // ✅ REMOVED the early return - let HostControlsCore handle its own loading state
-  
+  // ✅ Load config from socket if not already hydrated
+  useEffect(() => {
+    if (!roomId || !socket || !connected) return;
+
+    // If already hydrated, we're done
+    if (hydrated) {
+      setIsLoadingConfig(false);
+      return;
+    }
+
+    console.log('[HostControlsPage] Loading config for room:', roomId);
+
+    // Request config from socket
+    const handleRoomState = (state: any) => {
+      if (state?.config) {
+        console.log('[HostControlsPage] Received config:', state.config);
+        setFullConfig(state.config);
+        setIsLoadingConfig(false);
+      }
+    };
+
+    socket.on('room_state', handleRoomState);
+
+    // Request the room state
+    socket.emit('join_room_as_host', { roomId });
+
+    return () => {
+      socket.off('room_state', handleRoomState);
+    };
+  }, [roomId, socket, connected, hydrated, setFullConfig]);
+
+  // ✅ Show loading while fetching config
+  if (isLoadingConfig || !hydrated) {
+    return <LoadingSpinner />;
+  }
+
   const selectedChain = (() => {
     const c = config?.web3Chain;
     if (c === 'stellar' || c === 'evm' || c === 'solana') return c;
     return null;
   })();
+
+  console.log('[HostControlsPage] Selected chain:', selectedChain);
 
   // ✅ For Solana/EVM/Stellar rooms, wrap with Web3Provider
   if (selectedChain === 'solana' || selectedChain === 'evm' || selectedChain === 'stellar') {

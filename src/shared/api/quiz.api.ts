@@ -64,8 +64,8 @@ export type Web2RoomListItem = {
   status: string;
   scheduled_at: string | null;
   time_zone: string | null;
-  config_json?: string | ParsedConfig | null;  // ✅ Now properly typed
-  room_caps_json?: string | RoomCaps | null;   // ✅ Now properly typed
+  config_json?: string | ParsedConfig | null; // ✅ Now properly typed
+  room_caps_json?: string | RoomCaps | null; // ✅ Now properly typed
   created_at: string;
   updated_at: string;
   ended_at?: string | null;
@@ -90,6 +90,21 @@ export type GetWeb2QuizRoomResponse = {
   createdAt?: string;
   updatedAt?: string;
 };
+
+/**
+ * WEB2 update payload (PATCH)
+ * You said these should be updateable:
+ * - scheduled_at
+ * - config_json
+ * - room_caps_json
+ * - time_zone
+ */
+export type UpdateWeb2RoomPatch = Partial<{
+  scheduled_at: string | null; // ISO string or null
+  time_zone: string | null;
+  config_json: ParsedConfig | string | null;
+  room_caps_json: RoomCaps | string | null;
+}>;
 
 export const quizApi = {
   /**
@@ -121,7 +136,33 @@ export const quizApi = {
     const qs = sp.toString() ? `?${sp.toString()}` : '';
     return apiClient.get<GetWeb2RoomsListResponse>(`/quiz/api/web2/rooms${qs}`);
   },
+
+  /**
+   * WEB2: Update a scheduled room (PATCH)
+   * Updates:
+   * - scheduled_at
+   * - time_zone
+   * - config_json
+   * - room_caps_json
+   */
+  async updateWeb2Room(roomId: string, patch: UpdateWeb2RoomPatch) {
+    if (!roomId) throw new Error('roomId_required');
+    return apiClient.patch<{ room: Web2RoomListItem }>(
+      `/quiz/api/web2/rooms/${encodeURIComponent(roomId)}`,
+      patch
+    );
+  },
+
+  /**
+   * WEB2: Cancel a scheduled room
+   * (Server should set status='cancelled')
+   */
+  async cancelWeb2Room(roomId: string) {
+    if (!roomId) throw new Error('roomId_required');
+    return apiClient.post<{ ok: true }>(`/quiz/api/web2/rooms/${encodeURIComponent(roomId)}/cancel`, {});
+  },
 };
+
 
 
 

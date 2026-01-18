@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { readContract, writeContract, waitForTransactionReceipt, getAccount, getChainId } from 'wagmi/actions';
+import { readContract, writeContract, waitForTransactionReceipt, getConnection } from 'wagmi/actions';
 import { keccak256, stringToHex, erc20Abi as ERC20_ABI } from 'viem';
 
 import { useEvmShared } from './useEvmShared';
@@ -98,33 +98,38 @@ async function prepareWinnersArray(params: {
     }
   } else {
     // Pool room
-    try {
-      const prizeSplits = (await readContract(wagmiConfig, {
-        address: roomAddress as `0x${string}`,
-        abi: roomABI,
-        functionName: 'prizeSplitsBps',
-        args: [],
-        chainId,
-      })) as [number, number, number];
+   // Pool room
+try {
+  // ✅ TRY definedPrizePlaces() FIRST (this works)
+  expectedPlaces = (await readContract(wagmiConfig, {
+    address: roomAddress as `0x${string}`,
+    abi: roomABI,
+    functionName: 'definedPrizePlaces',
+    args: [],
+    chainId,
+  })) as number;
+  
+  console.log('✅ [EVM][Pool] Got expected places from definedPrizePlaces():', expectedPlaces);
+} catch (e: any) {
+  console.error('❌ [EVM][Pool] Failed to get definedPrizePlaces:', e);
+  
+  // ✅ FALLBACK: Try reading prize splits array
+  try {
+    const prizeSplits = (await readContract(wagmiConfig, {
+      address: roomAddress as `0x${string}`,
+      abi: roomABI,
+      functionName: 'prizeSplitsBps',
+      args: [],
+      chainId,
+    })) as [number, number, number];
 
-      expectedPlaces = prizeSplits.filter((split) => split > 0).length;
-      console.log('📊 [EVM][Pool] Contract expects', expectedPlaces, 'winners. Prize splits:', prizeSplits);
-    } catch (e: any) {
-      console.error('❌ [EVM][Pool] Failed to read prize splits from contract:', e);
-      try {
-        expectedPlaces = (await readContract(wagmiConfig, {
-          address: roomAddress as `0x${string}`,
-          abi: roomABI,
-          functionName: 'definedPrizePlaces',
-          args: [],
-          chainId,
-        })) as number;
-        console.log('✅ [EVM][Pool] Got expected places from definedPrizePlaces():', expectedPlaces);
-      } catch (e2: any) {
-        console.error('❌ [EVM][Pool] Failed to get definedPrizePlaces:', e2);
-        throw new Error('Cannot determine expected number of winners from pool room contract');
-      }
-    }
+    expectedPlaces = prizeSplits.filter((split) => split > 0).length;
+    console.log('📊 [EVM][Pool] Contract expects', expectedPlaces, 'winners from prizeSplitsBps. Prize splits:', prizeSplits);
+  } catch (e2: any) {
+    console.error('❌ [EVM][Pool] Failed to read prize splits from contract:', e2);
+    throw new Error('Cannot determine expected number of winners from pool room contract');
+  }
+}
   }
 
   if (expectedPlaces === 0 || expectedPlaces > 3) {
@@ -232,7 +237,7 @@ export function useEvmDistributePrizes() {
         const RoomABI = isAssetRoom ? AssetRoomABI : PoolRoomABI;
 
         // Get connected account
-        const accountInfo = getAccount(wagmiConfig);
+        const accountInfo = getConnection(wagmiConfig);
         if (!accountInfo.address) {
           throw new Error('No wallet address found. Please reconnect your wallet.');
         }

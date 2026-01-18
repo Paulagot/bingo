@@ -1,16 +1,16 @@
 /**
  * Shared Solana Hook - mirrors useEvmShared.ts
  * 
- * Provides connection, wallet, program instance with network detection from AppKit.
+ * Provides connection, wallet, program instance with explicit cluster from config.
  * This is the foundation for all Solana operations.
  * 
- * ## Network Detection
+ * ## Network Configuration
  * 
  * Unlike EVM where wagmi handles network detection automatically, Solana requires
- * us to:
- * 1. Get the cluster from QuizConfig (stored when room is created)
- * 2. Use AppKit's network.id to detect current network
- * 3. Compare them to ensure user is on correct network
+ * explicit cluster configuration:
+ * 1. Get the cluster directly from QuizConfig (stored when room is created)
+ * 2. Use that cluster to create the correct RPC connection
+ * 3. AppKit manages wallet connection, we manage network configuration
  * 
  * ## Usage
  * 
@@ -26,7 +26,7 @@
  */
 
 import { useMemo } from 'react';
-import { useAppKitAccount, useAppKitProvider, useAppKitNetwork } from '@reown/appkit/react';
+import { useAppKitAccount, useAppKitProvider } from '@reown/appkit/react';
 import { useAppKitConnection } from '@reown/appkit-adapter-solana/react';
 import { PublicKey, Connection } from '@solana/web3.js';
 import { AnchorProvider, Program } from '@coral-xyz/anchor';
@@ -35,7 +35,6 @@ import type { Idl } from '@coral-xyz/anchor';
 import QuizCoreIDL from '../quiz_core.json';
 import { SOLANA_CONTRACT } from '../config/contracts';
 import { 
-  getSolanaKeyByChainId, 
   getSolanaExplorerUrl,
   type SolanaNetworkKey 
 } from '../config/networks';
@@ -46,7 +45,7 @@ const debug = false;
 export interface UseSolanaSharedParams {
   /**
    * Optional QuizConfig to get the expected cluster
-   * If provided, we can validate user is on correct network
+   * If provided, we use the explicit cluster from config
    */
   setupConfig?: QuizConfig | null;
 }
@@ -59,17 +58,18 @@ export interface UseSolanaSharedResult {
   isConnected: boolean;
   
   /**
-   * Current cluster detected from AppKit
+   * Cluster from QuizConfig (explicit, not detected)
    */
   cluster: SolanaNetworkKey;
   
   /**
-   * Expected cluster from QuizConfig (if provided)
+   * Expected cluster from QuizConfig (same as cluster)
    */
   expectedCluster?: SolanaNetworkKey;
   
   /**
    * Whether user is on the correct network
+   * Always true for Solana since we use explicit cluster from config
    */
   isCorrectNetwork: boolean;
   
@@ -95,79 +95,55 @@ export function useSolanaShared(params?: UseSolanaSharedParams): UseSolanaShared
   // Get wallet state from AppKit
   const { address, isConnected } = useAppKitAccount();
   const { walletProvider } = useAppKitProvider('solana');
-  const { caipNetwork } = useAppKitNetwork();
   const { connection } = useAppKitConnection();
   
-  if (debug)console.log('[Solana][Shared] 🔌 AppKit Connection State:', {
+  if (debug) console.log('[Solana][Shared] 🔌 AppKit Connection State:', {
     address,
     isConnected,
     hasWalletProvider: !!walletProvider,
     hasConnection: !!connection,
-    networkId: caipNetwork?.id,
-    networkName: caipNetwork?.name,
   });
   
-  // Detect current cluster from AppKit's network.id
+  // ✅ Get cluster EXPLICITLY from config, don't try to detect it from AppKit
+  // AppKit might not be initialized yet, or might be on wrong network
   const cluster = useMemo(() => {
-    const networkId = caipNetwork?.id;
+    const stored = setupConfig?.solanaCluster as SolanaNetworkKey | undefined;
+    const resolved = stored || 'devnet'; // Default to devnet
     
-    // ✅ Handle both string and number - only strings are valid for Solana
-    const chainId = typeof networkId === 'string' ? networkId : undefined;
-    const detected = getSolanaKeyByChainId(chainId);
-    
-   if (debug) console.log('[Solana][Shared] 🌐 Network Detection:', {
-      networkId,
-      networkIdType: typeof networkId,
-      chainId,
-      detectedCluster: detected,
-      fallback: detected || 'devnet',
+    if (debug) console.log('[Solana][Shared] 📋 Cluster from config:', {
+      fromConfig: stored,
+      resolved,
     });
     
-    return detected || 'devnet'; // Default to devnet if detection fails
-  }, [caipNetwork?.id]);
-  
-  // Get expected cluster from QuizConfig
-  const expectedCluster = useMemo(() => {
-    const stored = setupConfig?.solanaCluster;
-    
-    if (stored) {
-    if (debug)  console.log('[Solana][Shared] 📋 Expected cluster from QuizConfig:', stored);
-    }
-    
-    return stored as SolanaNetworkKey | undefined;
+    return resolved;
   }, [setupConfig?.solanaCluster]);
   
-  // Check if on correct network
-  const isCorrectNetwork = useMemo(() => {
-    if (!expectedCluster) {
-      // If no expected cluster, any network is fine
-      return true;
-    }
-    
-    const correct = cluster === expectedCluster;
-    
-   if (debug) console.log('[Solana][Shared] ✅ Network Match:', {
-      current: cluster,
-      expected: expectedCluster,
-      isCorrect: correct,
-    });
-    
-    return correct;
-  }, [cluster, expectedCluster]);
+  // Expected cluster is same as cluster (we use explicit config, not detection)
+  const expectedCluster = cluster;
+  
+  // ✅ Since we use explicit cluster from config, we're always on "correct" network
+  // The wallet might be connected to a different cluster, but we use our configured one
+  const isCorrectNetwork = true;
+  
+  if (debug) console.log('[Solana][Shared] ✅ Using explicit cluster:', {
+    cluster,
+    expectedCluster,
+    isCorrectNetwork,
+  });
   
   // Convert address string to PublicKey
   const publicKey = useMemo(() => {
     if (!address) {
-     if (debug) console.log('[Solana][Shared] ❌ No wallet address');
+      if (debug) console.log('[Solana][Shared] ❌ No wallet address');
       return null;
     }
     
     try {
       const pk = new PublicKey(address);
-   if (debug)  if (debug) console.log('[Solana][Shared] ✅ PublicKey created:', pk.toBase58());
+      if (debug) console.log('[Solana][Shared] ✅ PublicKey created:', pk.toBase58());
       return pk;
     } catch (error) {
-    if (debug)  console.error('[Solana][Shared] ❌ Failed to create PublicKey:', error);
+      if (debug) console.error('[Solana][Shared] ❌ Failed to create PublicKey:', error);
       return null;
     }
   }, [address]);
@@ -175,7 +151,7 @@ export function useSolanaShared(params?: UseSolanaSharedParams): UseSolanaShared
   // Create Anchor wallet adapter
   const walletAdapter = useMemo(() => {
     if (!walletProvider || !publicKey) {
-     if (debug) console.log('[Solana][Shared] ⏳ Wallet adapter not ready:', {
+      if (debug) console.log('[Solana][Shared] ⏳ Wallet adapter not ready:', {
         hasProvider: !!walletProvider,
         hasPublicKey: !!publicKey,
       });
@@ -184,16 +160,16 @@ export function useSolanaShared(params?: UseSolanaSharedParams): UseSolanaShared
     
     const provider = walletProvider as any;
     
-   if (debug) console.log('[Solana][Shared] ✅ Creating wallet adapter');
+    if (debug) console.log('[Solana][Shared] ✅ Creating wallet adapter');
     
     return {
       publicKey,
       signTransaction: async (tx: any) => {
-        console.log('[Solana][Shared] ✍️  Signing transaction...');
+        if (debug) console.log('[Solana][Shared] ✍️  Signing transaction...');
         return provider.signTransaction(tx);
       },
       signAllTransactions: async (txs: any[]) => {
-       if (debug) console.log('[Solana][Shared] ✍️  Signing', txs.length, 'transactions...');
+        if (debug) console.log('[Solana][Shared] ✍️  Signing', txs.length, 'transactions...');
         return provider.signAllTransactions(txs);
       },
     };
@@ -202,7 +178,7 @@ export function useSolanaShared(params?: UseSolanaSharedParams): UseSolanaShared
   // Create Anchor provider
   const provider = useMemo(() => {
     if (!walletAdapter || !connection) {
-      console.log('[Solana][Shared] ⏳ Provider not ready:', {
+      if (debug) console.log('[Solana][Shared] ⏳ Provider not ready:', {
         hasWalletAdapter: !!walletAdapter,
         hasConnection: !!connection,
       });
@@ -224,20 +200,20 @@ export function useSolanaShared(params?: UseSolanaSharedParams): UseSolanaShared
   // Create program instance
   const program = useMemo(() => {
     if (!provider) {
-      console.log('[Solana][Shared] ⏳ Program not ready: no provider');
+      if (debug) console.log('[Solana][Shared] ⏳ Program not ready: no provider');
       return null;
     }
     
     try {
       const programId = SOLANA_CONTRACT.PROGRAM_ID.toBase58();
       
-    if (debug)  console.log('[Solana][Shared] ✅ Creating Program instance');
-    if (debug)  console.log('[Solana][Shared] 📍 Program ID:', programId);
-    if (debug)  console.log('[Solana][Shared] 🌐 Cluster:', cluster);
+      if (debug) console.log('[Solana][Shared] ✅ Creating Program instance');
+      if (debug) console.log('[Solana][Shared] 📍 Program ID:', programId);
+      if (debug) console.log('[Solana][Shared] 🌐 Cluster:', cluster);
       
       return new Program(QuizCoreIDL as Idl, provider);
     } catch (error) {
-     if (debug) console.error('[Solana][Shared] ❌ Failed to create program:', error);
+      if (debug) console.error('[Solana][Shared] ❌ Failed to create program:', error);
       return null;
     }
   }, [provider, cluster]);
@@ -263,14 +239,14 @@ export function useSolanaShared(params?: UseSolanaSharedParams): UseSolanaShared
 
   const isFullyConnected = isConnected && !!publicKey && !!program && isCorrectNetwork;
   
- if (debug) console.log('[Solana][Shared] 🎯 Final State:', {
+  if (debug) console.log('[Solana][Shared] 🎯 Final State:', {
     isConnected,
     hasPublicKey: !!publicKey,
     hasProgram: !!program,
     isCorrectNetwork,
     isFullyConnected,
     cluster,
-    expectedCluster: expectedCluster || 'none',
+    expectedCluster,
   });
 
   return {
