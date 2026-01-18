@@ -24,6 +24,8 @@ import {
 import { quizApi } from '../../../../shared/api';
 import { useAuthStore } from '../../../../features/auth';
 
+import CancelQuizModal from '../../modals/CancelQuizModal';
+
 // ✅ Import types from API file
 import type { 
   Web2RoomListItem as Room,
@@ -366,6 +368,13 @@ export default function QuizEventDashboard() {
   const maxPlayersFromPlan = useMemo(() => extractMaxPlayers(ents), [ents]);
   const canLaunchWizard = !entsLoading && !entsError && creditsRemaining > 0;
 
+  const [cancelOpen, setCancelOpen] = useState(false);
+const [cancelRoom, setCancelRoom] = useState<Room | null>(null);
+const [cancelConfig, setCancelConfig] = useState<ParsedConfig | null>(null);
+const [cancelLoading, setCancelLoading] = useState(false);
+const [cancelError, setCancelError] = useState<string | null>(null);
+
+
   // Sort rooms by status priority
   const sortedRooms = useMemo(() => {
     const statusPriority: Record<string, number> = {
@@ -472,27 +481,46 @@ const openRoom = (roomId: string, hostId: string) => {
     alert(`Edit functionality coming soon for room: ${room.room_id.slice(0, 8)}`);
   };
 
-  const handleCancel = async (room: Room) => {
-    const config = parseConfigJson(room.config_json);
-    const dateStr = room.scheduled_at 
-      ? new Date(room.scheduled_at).toLocaleString('en-GB')
-      : 'Not scheduled';
-    
-    const confirmed = window.confirm(
-      `Are you sure you want to cancel this quiz?\n\n` +
-      `Room ID: ${room.room_id.slice(0, 8)}...\n` +
-      `Scheduled: ${dateStr}\n` +
-      `Host: ${config.hostName || 'Unknown'}\n\n` +
-      `This action cannot be undone.`
+const handleCancel = (room: Room) => {
+  setCancelError(null);
+  setCancelRoom(room);
+  setCancelConfig(parseConfigJson(room.config_json));
+  setCancelOpen(true);
+};
+
+const confirmCancel = async () => {
+  if (!cancelRoom) return;
+
+  try {
+    setCancelLoading(true);
+    setCancelError(null);
+
+    await quizApi.cancelWeb2Room(cancelRoom.room_id);
+
+    // ✅ Option 1: Optimistic update (instant UI)
+    setRooms((prev) =>
+      prev.map((r) =>
+        r.room_id === cancelRoom.room_id
+          ? { ...r, status: 'cancelled', updated_at: new Date().toISOString() }
+          : r
+      )
     );
-    
-    if (confirmed) {
-      alert('Cancel functionality coming soon - will update status to "cancelled"');
-      // TODO: Call API to update room status
-      // await quizApi.cancelRoom(room.room_id);
-      // loadRooms(status);
-    }
-  };
+
+    // ✅ Option 2 (optional): re-fetch to be 100% consistent
+    // await loadRooms(status);
+
+    setCancelOpen(false);
+    setCancelRoom(null);
+    setCancelConfig(null);
+  } catch (e: any) {
+    console.error('[QuizEventDashboard] ❌ Cancel failed:', e);
+    setCancelError(e?.message || 'Failed to cancel quiz');
+  } finally {
+    setCancelLoading(false);
+  }
+};
+
+
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
@@ -809,6 +837,22 @@ const openRoom = (roomId: string, hostId: string) => {
           </div>
         </div>
       </div>
+
+      <CancelQuizModal
+  open={cancelOpen}
+  room={cancelRoom}
+  config={cancelConfig}
+  loading={cancelLoading}
+  error={cancelError}
+  onClose={() => {
+    if (cancelLoading) return;
+    setCancelOpen(false);
+    setCancelRoom(null);
+    setCancelConfig(null);
+    setCancelError(null);
+  }}
+  onConfirm={confirmCancel}
+/>
     </div>
   );
 }

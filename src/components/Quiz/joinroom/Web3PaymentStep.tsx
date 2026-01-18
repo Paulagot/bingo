@@ -14,11 +14,9 @@ import {
 } from 'lucide-react';
 
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
-import { useQuizChainIntegration } from '../../../hooks/useQuizChainIntegration';
-import { useWalletActions } from '../../../hooks/useWalletActions';
+import { useWallet } from '../../../context/WalletContext';
 import { useContractActions } from '../../../hooks/useContractActions';
 import type { SupportedChain } from '../../../chains/types';
-
 
 interface RoomConfig {
   paymentMethod: string;
@@ -52,32 +50,17 @@ export const Web3PaymentStep: React.FC<{
   const navigate = useNavigate();
   const { socket } = useQuizSocket();
 
-  const {
-    selectedChain,
-    isWalletConnected,
-    currentWallet,
+  // ✅ Use WalletContext instead of calling hooks directly
+  const wallet = useWallet();
+  const { 
+    address: walletAddress, 
+    isConnected: isWalletConnected,
+    chainFamily,
     networkInfo,
-    isOnCorrectNetwork,
-  } = useQuizChainIntegration({
-    chainOverride: chainOverride ?? null,
-    externalConfig: {
-      web3Chain: roomConfig.web3Chain,
-      evmNetwork: roomConfig.evmNetwork,
-      solanaCluster: roomConfig.solanaCluster,
-    },
-  });
+    actions: walletActions 
+  } = wallet;
 
-  const walletActions = useWalletActions({
-    externalSetupConfig: {
-      web3Chain: roomConfig.web3Chain,
-      evmNetwork: roomConfig.evmNetwork,
-      solanaCluster: roomConfig.solanaCluster,
-    },
-  });
-  
   const { joinRoom } = useContractActions({ chainOverride: chainOverride ?? null });
-
-  const walletAddress = currentWallet?.address ?? null;
 
   const extrasTotal = selectedExtras.reduce(
     (sum, key) => sum + (roomConfig.fundraisingPrices[key] || 0),
@@ -91,9 +74,13 @@ export const Web3PaymentStep: React.FC<{
   const [alreadyPaid, setAlreadyPaid] = useState(false);
 
   // Check if connected to wrong chain family
-  const wrongChainFamily = walletActions.getActualChainFamily() !== walletActions.getExpectedChainFamily() 
-    && walletActions.getActualChainFamily() !== null 
-    && walletActions.getExpectedChainFamily() !== null;
+  const actualChainFamily = walletActions.getActualChainFamily();
+  const expectedChainFamily = walletActions.getExpectedChainFamily();
+  const wrongChainFamily = actualChainFamily !== expectedChainFamily 
+    && actualChainFamily !== null 
+    && expectedChainFamily !== null;
+
+  const isOnCorrectNetwork = walletActions.isOnCorrectNetwork();
 
   const handleWalletConnect = async () => {
     try {
@@ -126,7 +113,7 @@ export const Web3PaymentStep: React.FC<{
       }
 
       if (wrongChainFamily) {
-        setError(`Please disconnect and connect with a ${walletActions.getExpectedChainFamily()?.toUpperCase()} wallet`);
+        setError(`Please disconnect and connect with a ${expectedChainFamily?.toUpperCase()} wallet`);
         return;
       }
 
@@ -167,7 +154,7 @@ export const Web3PaymentStep: React.FC<{
             paymentMethod: 'web3',
             web3TxHash: 'already-paid',
             web3Address: walletAddress,
-            web3Chain: selectedChain,
+            web3Chain: chainFamily,
             extras: selectedExtras,
             extraPayments: Object.fromEntries(
               selectedExtras.map((key) => [
@@ -206,7 +193,7 @@ export const Web3PaymentStep: React.FC<{
           paymentMethod: 'web3',
           web3TxHash: result.txHash,
           web3Address: walletAddress,
-          web3Chain: selectedChain,
+          web3Chain: chainFamily,
           extras: selectedExtras,
           extraPayments: Object.fromEntries(
             selectedExtras.map((key) => [
@@ -307,7 +294,7 @@ export const Web3PaymentStep: React.FC<{
               This quiz uses {networkInfo.expectedNetwork}
             </p>
             <p className="text-xs text-blue-600">
-              Make sure you have a {walletActions.getExpectedChainFamily()?.toUpperCase()} wallet ready
+              Make sure you have a {expectedChainFamily?.toUpperCase()} wallet ready
             </p>
           </div>
         </div>
@@ -344,8 +331,8 @@ export const Web3PaymentStep: React.FC<{
                       Wrong Blockchain
                     </p>
                     <p className="text-xs text-red-700 mt-1">
-                      You're connected to <strong>{walletActions.getActualChainFamily()?.toUpperCase()}</strong>, 
-                      but this quiz requires <strong>{walletActions.getExpectedChainFamily()?.toUpperCase()}</strong>.
+                      You're connected to <strong>{actualChainFamily?.toUpperCase()}</strong>, 
+                      but this quiz requires <strong>{expectedChainFamily?.toUpperCase()}</strong>.
                       Please disconnect and reconnect with the correct wallet.
                     </p>
                     <button
@@ -380,7 +367,7 @@ export const Web3PaymentStep: React.FC<{
                         : 'text-orange-800'
                   }`}>
                     {wrongChainFamily
-                      ? `Wrong Blockchain (${walletActions.getActualChainFamily()?.toUpperCase()})`
+                      ? `Wrong Blockchain (${actualChainFamily?.toUpperCase()})`
                       : isOnCorrectNetwork 
                         ? `${networkInfo.expectedNetwork} Connected` 
                         : `${networkInfo.currentNetwork} Connected`

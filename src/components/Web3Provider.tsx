@@ -1,5 +1,7 @@
 // src/components/Web3Provider.tsx
 import React, { useEffect, useState, useRef } from 'react';
+import { WalletProvider } from '../context/WalletContext';
+import { useQuizConfig } from './Quiz/hooks/useQuizConfig';
 
 interface Web3ProviderProps {
   children: React.ReactNode;
@@ -24,6 +26,14 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const isMountedRef = useRef(true);
   const timeoutRef = useRef<NodeJS.Timeout>();
+  
+  // ✅ Get room config for WalletProvider
+  const { config } = useQuizConfig();
+
+  // ✅ DEBUG: Log config when it changes
+  useEffect(() => {
+    console.log('[Web3Provider] 🔍 Config changed:', config);
+  }, [config]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -71,13 +81,13 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
           { createAppKit, AppKitProvider },
           { WagmiProvider },
           { QueryClient, QueryClientProvider },
-          solanaModule, // ✅ Import Solana connection utilities
+          solanaModule,
           configModule,
         ] = await Promise.all([
           import("@reown/appkit/react"),
           import("wagmi"),
           import("@tanstack/react-query"),
-          import("@reown/appkit-adapter-solana/react"), // ✅ ADD THIS
+          import("@reown/appkit-adapter-solana/react"),
           import("../config"),
         ]);
 
@@ -199,11 +209,24 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
 
   const { AppKitProvider, WagmiProvider, QueryClientProvider, queryClient, wagmiConfig } = providers;
 
+  // ✅ Prepare room config for WalletProvider - use optional chaining to avoid TS errors
+  const roomConfig = {
+    web3Chain: config?.web3Chain,
+    evmNetwork: config?.evmNetwork,
+    solanaCluster: (config as any)?.solanaCluster || (config as any)?.solanaNetwork, // ✅ Try both property names
+    stellarNetwork: config?.stellarNetwork,
+  };
+
+  console.log('[Web3Provider] 🎯 Passing roomConfig to WalletProvider:', roomConfig);
+
   return (
     <AppKitProvider>
       <QueryClientProvider client={queryClient}>
         <WagmiProvider config={wagmiConfig}>
-          {children}
+          {/* ✅ ADD WalletProvider HERE */}
+          <WalletProvider roomConfig={roomConfig}>
+            {children}
+          </WalletProvider>
         </WagmiProvider>
       </QueryClientProvider>
     </AppKitProvider>

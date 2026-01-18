@@ -1,11 +1,8 @@
 // src/components/Quiz/utils/cleanupQuizRoom.ts
-import { stellarStorageKeys } from '../../../chains/stellar/config'; // or wherever it's defined
-
-import { useQuizConfig } from '../hooks/useQuizConfig'; // ✅ ADD THIS
-
-// ✅ Import the store
-import { usePlayerStore } from '../hooks/usePlayerStore'; // ✅ Also clear players
-import { useAdminStore } from '../hooks/useAdminStore'; // ✅ Also clear admins
+import { stellarStorageKeys } from '../../../chains/stellar/config';
+import { useQuizConfig } from '../hooks/useQuizConfig';
+import { usePlayerStore } from '../hooks/usePlayerStore';
+import { useAdminStore } from '../hooks/useAdminStore';
 
 interface CleanupOptions {
   roomId: string;
@@ -52,7 +49,12 @@ export async function cleanupQuizRoom({
       `players_${roomId}`,
       `quizUser:${roomId}:host`,
       `quizUser:${roomId}:player`,
-      'setupConfig', // Web3 setup config
+      'setupConfig', // Legacy Web3 setup config
+      
+      // ✅ NEW: Clean up setup wizard state
+      'quiz-setup-v2',           // Setup wizard store
+      'quiz-admins',             // Admins store
+      'fundraisely-quiz-setup-draft', // Draft saved during wallet connect
     ];
 
     quizKeys.forEach(key => {
@@ -89,6 +91,7 @@ export async function cleanupQuizRoom({
         'wagmi.store',
         '@appkit/portfolio_cache',
         'lace-wallet-mode',
+        '@appkit/solana:connected_connector_id', // ✅ NEW: Solana connector state
       ];
       
       appKitKeys.forEach(key => {

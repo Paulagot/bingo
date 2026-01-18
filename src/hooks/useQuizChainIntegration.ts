@@ -1,5 +1,5 @@
 // src/hooks/useQuizChainIntegration.ts
-import { useMemo, useEffect } from 'react';
+import { useMemo } from 'react';
 import { useQuizSetupStore } from '../components/Quiz/hooks/useQuizSetupStore';
 import { useQuizConfig } from '../components/Quiz/hooks/useQuizConfig';
 import { useWalletStore } from '../stores/walletStore';
@@ -26,7 +26,7 @@ interface CurrentWalletState {
   error: WalletError | null;
 }
 
-// ✅ NEW: Add external config option
+// ✅ External config option
 interface ExternalConfig {
   web3Chain?: string;
   evmNetwork?: string;
@@ -36,7 +36,7 @@ interface ExternalConfig {
 
 type Options = { 
   chainOverride?: SupportedChain | null;
-  externalConfig?: ExternalConfig | null; // ✅ NEW
+  externalConfig?: ExternalConfig | null;
 };
 
 export const useQuizChainIntegration = (opts?: Options) => {
@@ -49,11 +49,10 @@ export const useQuizChainIntegration = (opts?: Options) => {
   // ✅ Read from Stellar wallet (not managed by AppKit)
   const stellarWallet = useStellarWallet();
 
-  // ✅ Read activeChain from store + get setter
+  // ✅ Read activeChain from store (used for Stellar only)
   const activeChain = useWalletStore((s) => s.activeChain) as SupportedChain | null;
-  const setActiveChain = useWalletStore((s) => s.setActiveChain);
 
-  // ✅ NEW: Merge external config with internal config
+  // ✅ Merge external config with internal config
   const effectiveConfig = useMemo(() => {
     // Priority: externalConfig > setupConfig > config
     return {
@@ -83,19 +82,14 @@ export const useQuizChainIntegration = (opts?: Options) => {
       return effectiveConfig.web3Chain as SupportedChain;
     }
 
-    // 2️⃣ Store fallback (rare)
+    // 2️⃣ Store fallback (rare, only for Stellar)
     if (activeChain) return activeChain;
 
     return null;
   }, [effectiveConfig.web3Chain, activeChain]);
 
-  // ✅ Sync selectedChain to activeChain in store
-  useEffect(() => {
-    if (selectedChain && selectedChain !== activeChain) {
-      console.log('[useQuizChainIntegration] Syncing activeChain:', selectedChain);
-      setActiveChain(selectedChain);
-    }
-  }, [selectedChain, activeChain, setActiveChain]);
+  // ❌ REMOVED: activeChain sync effect - it was causing infinite loops
+  // activeChain should only be used for Stellar, EVM/Solana state comes from AppKit
 
   // ✅ Current wallet state based on selected chain
   const currentWallet = useMemo<CurrentWalletState | undefined>(() => {
@@ -137,9 +131,15 @@ export const useQuizChainIntegration = (opts?: Options) => {
   // 🔹 The selected EVM subnetwork key (from effectiveConfig)
   const selectedEvmNetwork = effectiveConfig.evmNetwork as EvmNetworkKey | undefined;
 
-  // ✅ Get wallet actions (single source of truth for network checking)
-  // Pass effectiveConfig so it knows what to expect
-  const walletActions = useWalletActions();
+  // ✅ Get wallet actions with SAME config so chain family resolution is consistent
+  const walletActions = useWalletActions({
+    externalSetupConfig: effectiveConfig.web3Chain ? {
+      web3Chain: effectiveConfig.web3Chain,
+      evmNetwork: effectiveConfig.evmNetwork,
+      solanaCluster: effectiveConfig.solanaCluster,
+      stellarNetwork: effectiveConfig.stellarNetwork,
+    } : undefined
+  });
 
   // Network-aware display name
   const getNetworkDisplayName = (chain?: SupportedChain | null): string => {
@@ -241,7 +241,7 @@ export const useQuizChainIntegration = (opts?: Options) => {
     selectedChain,
     selectedEvmNetwork,
     activeChain,
-    effectiveConfig, // ✅ NEW: Expose so consumers can see merged config
+    effectiveConfig,
 
     // wallet state
     currentWallet,

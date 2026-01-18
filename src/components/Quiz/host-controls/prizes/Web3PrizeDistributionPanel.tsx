@@ -3,9 +3,8 @@ import * as React from 'react';
 import { Loader } from 'lucide-react';
 import { useQuizSocket } from '../../sockets/QuizSocketProvider';
 
-import { useQuizChainIntegration } from '../../../../hooks/useQuizChainIntegration';
-import { useWalletActions } from '../../../../hooks/useWalletActions';
 import { useContractActions } from '../../../../hooks/useContractActions';
+import { useWallet } from '../../../../context/WalletContext';
 
 type LeaderboardEntry = { id: string; name: string; score: number };
 
@@ -26,7 +25,7 @@ type InitiatePrizeDistributionPayload = {
   prizeMode?: string;
   web3Chain?: string;
   evmNetwork?: string;
-    solanaNetwork?: string;
+  solanaNetwork?: string;
   roomAddress?: string;
   charityOrgId?: string;
   charityName?: string;
@@ -40,10 +39,19 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
   onStatusChange,
 }) => {
   const { socket } = useQuizSocket();
-  const { getChainDisplayName } = useQuizChainIntegration();
-
-  const wallet = useWalletActions();
+  
+  const wallet = useWallet(); 
   const { distributePrizes } = useContractActions();
+
+  // ✅ Helper function to get chain display name from wallet context
+  const getChainDisplayName = () => {
+    switch (wallet.chainFamily) {
+      case 'evm': return 'EVM';
+      case 'solana': return 'Solana';
+      case 'stellar': return 'Stellar';
+      default: return 'Wallet';
+    }
+  };
 
   const DIST_KEY = React.useMemo(() => `prizesDistributed:${roomId}`, [roomId]);
 
@@ -70,8 +78,8 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
       charityAmount?: string | null;
       charityWallet?: string | null;
       charityName?: string | null;
-        network?: string;        // ✅ ADD THIS LINE
-    web3Chain?: string; 
+      network?: string;
+      web3Chain?: string; 
     }) => {
       if (!socket) return;
 
@@ -127,10 +135,12 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
   const handleDistributeClick = async () => {
     if (state.status === 'success') return;
 
-    if (!wallet.isConnected()) {
+    // ✅ FIX: isConnected is a property, not a method
+    if (!wallet.isConnected) {
       setState({ status: 'connecting' });
 
-      const res = await wallet.connect();
+      // ✅ FIX: connect is inside wallet.actions
+      const res = await wallet.actions.connect();
       if (!res.success) {
         setState({
           status: 'error',
@@ -265,52 +275,52 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
             distributeParams.charityWallet ||
             null;
 
-     // ✅ Get network/cluster for both EVM and Solana
-const setupConfig = JSON.parse(localStorage.getItem('setupConfig') || '{}');
+          // ✅ Get network/cluster for both EVM and Solana
+          const setupConfig = JSON.parse(localStorage.getItem('setupConfig') || '{}');
 
-let networkForBackend: string;
-let web3ChainForBackend: string;
+          let networkForBackend: string;
+          let web3ChainForBackend: string;
 
-if (data.web3Chain === 'solana') {
-  // ✅ Priority: backend > localStorage > safe default
-  const cluster = data.solanaNetwork || setupConfig.solanaCluster || 'devnet';
-  networkForBackend = cluster === 'testnet' ? 'devnet' : cluster;
-  web3ChainForBackend = 'solana';
-  
-  console.log('🔍 [Solana Network Debug]:', {
-    backendSolanaNetwork: data.solanaNetwork,
-    localStorageCluster: setupConfig.solanaCluster,
-    finalNetwork: networkForBackend
-  });
-} else if (data.web3Chain === 'evm') {
-  networkForBackend = data.evmNetwork || setupConfig.evmNetwork || 'base-sepolia';
-  web3ChainForBackend = 'evm';
-} else {
-  networkForBackend = data.evmNetwork || setupConfig.evmNetwork || 'unknown';
-  web3ChainForBackend = data.web3Chain || 'unknown';
-}
+          if (data.web3Chain === 'solana') {
+            // ✅ Priority: backend > localStorage > safe default
+            const cluster = data.solanaNetwork || setupConfig.solanaCluster || 'devnet';
+            networkForBackend = cluster === 'testnet' ? 'devnet' : cluster;
+            web3ChainForBackend = 'solana';
+            
+            console.log('🔍 [Solana Network Debug]:', {
+              backendSolanaNetwork: data.solanaNetwork,
+              localStorageCluster: setupConfig.solanaCluster,
+              finalNetwork: networkForBackend
+            });
+          } else if (data.web3Chain === 'evm') {
+            networkForBackend = data.evmNetwork || setupConfig.evmNetwork || 'base-sepolia';
+            web3ChainForBackend = 'evm';
+          } else {
+            networkForBackend = data.evmNetwork || setupConfig.evmNetwork || 'unknown';
+            web3ChainForBackend = data.web3Chain || 'unknown';
+          }
 
-console.log('📤 [Frontend] Sending prize_distribution_completed with:', {
-  roomId: data.roomId,
-  txHash,
-  charityWallet: finalCharityWallet,
-  charityName: data.charityName || null,
-  charityAmount: charityAmount ?? null,
-  network: networkForBackend,
-  web3Chain: web3ChainForBackend,
-});
+          console.log('📤 [Frontend] Sending prize_distribution_completed with:', {
+            roomId: data.roomId,
+            txHash,
+            charityWallet: finalCharityWallet,
+            charityName: data.charityName || null,
+            charityAmount: charityAmount ?? null,
+            network: networkForBackend,
+            web3Chain: web3ChainForBackend,
+          });
 
-// ✅ Emit once (prevents duplicates)
-emitCompletionOnce({
-  roomId: data.roomId,
-  success: true,
-  txHash,
-  charityAmount: charityAmount ?? null,
-  charityWallet: finalCharityWallet,
-  charityName: data.charityName || null,
-  network: networkForBackend,
-  web3Chain: web3ChainForBackend,
-});
+          // ✅ Emit once (prevents duplicates)
+          emitCompletionOnce({
+            roomId: data.roomId,
+            success: true,
+            txHash,
+            charityAmount: charityAmount ?? null,
+            charityWallet: finalCharityWallet,
+            charityName: data.charityName || null,
+            network: networkForBackend,
+            web3Chain: web3ChainForBackend,
+          });
 
           // Update UI
           const newState: { status: PrizeStatus; txHash?: string; error?: string } = {
@@ -378,7 +388,8 @@ emitCompletionOnce({
     };
   }, [socket, roomId, distributePrizes, DIST_KEY, emitCompletionOnce]);
 
-  const connected = wallet.isConnected();
+  // ✅ FIX: isConnected is a property, not a method
+  const connected = wallet.isConnected;
 
   return (
     <div className="mt-6">
@@ -472,7 +483,7 @@ emitCompletionOnce({
               )}
 
               <p className="mt-2 text-xs text-green-700">
-                You can’t distribute again for this room.
+                You can't distribute again for this room.
               </p>
             </div>
           )}
@@ -509,5 +520,3 @@ emitCompletionOnce({
     </div>
   );
 };
-
-
