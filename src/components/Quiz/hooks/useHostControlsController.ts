@@ -130,7 +130,13 @@ function findPrizeBoundaryTies(
 
 
 
-export function useHostControlsController({ roomId }: { roomId: string }) {
+export function useHostControlsController({ 
+  roomId, 
+  hostId 
+}: { 
+  roomId: string;
+  hostId: string;  // ✅ Add this
+}) {
   const navigate = useNavigate();
   const { socket, connected } = useQuizSocket();
   const { config } = useQuizConfig();
@@ -641,9 +647,12 @@ export function useHostControlsController({ roomId }: { roomId: string }) {
     socket?.emit('continue_to_overall_leaderboard', { roomId });
   }, [socket, roomId]);
 
-  const handleReturnToDashboard = useCallback(() => {
-    navigate(`/quiz/host-dashboard/${roomId}?tab=prizes&lock=postgame`);
-  }, [navigate, roomId]);
+const handleReturnToDashboard = useCallback(() => {
+  // Get hostId from config or localStorage
+  const effectiveHostId = config?.hostId || localStorage.getItem('current-host-id');
+  
+  navigate(`/quiz/host-dashboard/${roomId}?tab=prizes&lock=postgame&hostId=${effectiveHostId}`);
+}, [navigate, roomId, config?.hostId]);
 
   // --- CTA label logic for overall leaderboard ---
   const prizeCount = computePrizeCount(config);

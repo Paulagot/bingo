@@ -37,7 +37,7 @@ const Web3Provider = lazy(() =>
   import('../../../components/Web3Provider').then(m => ({ default: m.Web3Provider }))
 );
 
-const DEBUG = false; // Enable debug logging
+const DEBUG = true; // Enable debug logging
 
 type TabType = 'overview' | 'assets' | 'launch' | 'players' | 'admins' | 'prizes' | 'payments';
 
@@ -56,10 +56,39 @@ const LoadingSpinner = () => (
   </div>
 );
 
+const roomTypeCache = new Map<string, { isWeb3: boolean; checked: boolean }>();
+
 // Core dashboard component (without providers)
 const HostDashboardCore: React.FC = () => {
   const { config, setFullConfig, currentPhase, completedAt, hydrated } = useQuizConfig();
    const { roomId, hostId } = useRoomIdentity();
+
+   // Add this helper function at the top of HostDashboardCore
+const applyRecoverySnapshot = (snap: any, setFullConfig: any, roomId: string, hostId: string) => {
+  // Load players
+  if (snap?.players) {
+    usePlayerStore.setState({ 
+      players: snap.players, 
+      hydrated: true 
+    });
+    console.log('[HostDashboard] 📥 Loaded players from snapshot:', snap.players.length);
+  }
+  
+  // Load config (includes reconciliation data for post-game)
+  if (snap?.config) {
+    setFullConfig({
+      ...snap.config,
+      roomId: roomId,
+      hostId: snap.config.hostId || hostId,
+    });
+    console.log('[HostDashboard] 📥 Loaded config from snapshot');
+  }
+  
+  // Load room state (phase, completedAt, etc.)
+  if (snap?.roomState) {
+    console.log('[HostDashboard] 📊 Room state from snapshot:', snap.roomState);
+  }
+};
 
 // ✅ NEW: Check room type from API FIRST (before config loads)
 const [roomTypeChecked, setRoomTypeChecked] = useState(false);
@@ -69,14 +98,36 @@ const [isWeb3Room, setIsWeb3Room] = useState(false);
 useEffect(() => {
   if (!roomId) {
     setRoomTypeChecked(false);
+    setIsWeb3Room(false);
     return;
   }
   
+  // ✅ OPTIMIZATION 1: Check if config already tells us (Web3 wizard sets this)
+  if (config?.isWeb3Room !== undefined) {
+    console.log('[HostDashboard] ✅ Room type known from config:', config.isWeb3Room ? 'Web3' : 'Web2');
+    setIsWeb3Room(!!config.isWeb3Room);
+    setRoomTypeChecked(true);
+    
+    // ✅ Cache it so we don't check again
+    roomTypeCache.set(roomId, { isWeb3: !!config.isWeb3Room, checked: true });
+    return;
+  }
+  
+  // ✅ OPTIMIZATION 2: Check cache before making API call
+  const cached = roomTypeCache.get(roomId);
+  if (cached?.checked) {
+    console.log('[HostDashboard] ✅ Using cached room type:', cached.isWeb3 ? 'Web3' : 'Web2');
+    setIsWeb3Room(cached.isWeb3);
+    setRoomTypeChecked(true);
+    return;
+  }
+  
+  // ✅ OPTIMIZATION 3: Only make API call if we don't have config AND no cache
   let cancelled = false;
   
   async function checkRoomType() {
     try {
-      console.log('[HostDashboard] 🔍 Checking room type for:', roomId);
+      console.log('[HostDashboard] 🔍 Checking room type via API for:', roomId);
       
       const response = await fetch(`/quiz/api/rooms/${roomId}/info`);
       
@@ -84,20 +135,32 @@ useEffect(() => {
       
       if (response.ok) {
         const data = await response.json();
-        console.log('[HostDashboard] ✅ Room type:', data.isWeb3 ? 'Web3' : 'Web2');
+        console.log('[HostDashboard] ✅ Room type from API:', data.isWeb3 ? 'Web3' : 'Web2');
+        
+        // ✅ Cache the result
+        roomTypeCache.set(roomId, { isWeb3: !!data.isWeb3, checked: true });
+        
         setIsWeb3Room(!!data.isWeb3);
         setRoomTypeChecked(true);
         return;
       }
       
-      // If room not found, might be a new room being created
+      // If room not found in API, might be a new room being created
       console.warn('[HostDashboard] ⚠️ Room info not found, defaulting to Web2');
+      
+      // ✅ Cache the default
+      roomTypeCache.set(roomId, { isWeb3: false, checked: true });
+      
       setIsWeb3Room(false);
       setRoomTypeChecked(true);
       
     } catch (err) {
       if (cancelled) return;
       console.error('[HostDashboard] ❌ Failed to check room type:', err);
+      
+      // ✅ Cache the fallback
+      roomTypeCache.set(roomId, { isWeb3: false, checked: true });
+      
       setIsWeb3Room(false);
       setRoomTypeChecked(true);
     }
@@ -108,7 +171,7 @@ useEffect(() => {
   return () => {
     cancelled = true;
   };
-}, [roomId]);
+}, [roomId, config?.isWeb3Room]); 
 
 // Computed value for backward compatibility with rest of component
 const isWeb3 = isWeb3Room;
@@ -147,46 +210,48 @@ const hydratedRoomIdRef = useRef<string | null>(null);
 useEffect(() => {
   let cancelled = false;
 
-  async function hydrateWeb2FromDb() {
-    // ✅ NEW: Wait for room type check to complete
-    if (!roomTypeChecked) {
-      console.log('[HostDashboard] ⏳ Waiting for room type check to complete...');
-      return;
-    }
-    
-    // Only for WEB2 rooms
-    if (isWeb3) {
-      console.log('[HostDashboard] ⏭️ Skipping hydration - Web3 room');
-      return;
-    }
-    
-    if (!roomId || !hostId) {
-      console.log('[HostDashboard] ⏭️ Skipping hydration - no roomId or hostId');
-      return;
-    }
+ async function hydrateWeb2FromDb() {
+  if (!roomTypeChecked) {
+    console.log('[HostDashboard] ⏳ Waiting for room type check to complete...');
+    return;
+  }
+  
+  if (isWeb3) {
+    console.log('[HostDashboard] ⏭️ Skipping hydration - Web3 room');
+    return;
+  }
+  
+  // ✅ Get effective hostId
+  const effectiveHostId = hostId || config?.hostId || localStorage.getItem('current-host-id');
+  
+  if (!roomId || !effectiveHostId) {
+    console.log('[HostDashboard] ⏭️ Skipping hydration - no roomId or hostId');
+    return;
+  }
 
-    // ✅ Check if THIS SPECIFIC ROOM has already been hydrated
-    if (hydratedRoomIdRef.current === roomId) {
-      console.log(`[HostDashboard] ✅ Room ${roomId} already hydrated, skipping`);
-      return;
-    }
+  // ✅ Check if THIS SPECIFIC ROOM has already been hydrated
+  if (hydratedRoomIdRef.current === roomId) {
+    console.log(`[HostDashboard] ✅ Room ${roomId} already hydrated, skipping`);
+    return;
+  }
 
-    // ✅ Prevent double-runs in React Strict Mode for the SAME room
-    if (hydrationAttemptedRef.current && hydratedRoomIdRef.current === roomId) {
-      console.log('[HostDashboard] ⏭️ Hydration already attempted for this room, skipping');
-      return;
-    }
+  // ✅ UPDATED: Only skip if we have config AND reconciliation (post-game scenario)
+  // Don't skip for fresh room opens even if config exists in state
+  if (hydrated && config?.roomId === roomId && config?.reconciliation?.finalLeaderboard) {
+    console.log('[HostDashboard] ✅ Already have post-game config with reconciliation data, skipping');
+    hydratedRoomIdRef.current = roomId; // Mark as hydrated
+    return;
+  }
 
-    // If we already hydrated config for this room, don't refetch
-    if (hydrated && config?.roomId === roomId) {
-      console.log('[HostDashboard] ✅ Already hydrated in state, skipping');
-      hydratedRoomIdRef.current = roomId; // Mark as hydrated
-      return;
-    }
+  // ✅ Prevent double-runs in React Strict Mode for the SAME room
+  if (hydrationAttemptedRef.current && hydratedRoomIdRef.current === roomId) {
+    console.log('[HostDashboard] ⏭️ Hydration already attempted for this room, skipping');
+    return;
+  }
 
-    // ✅ Mark as attempted for THIS room
-    hydrationAttemptedRef.current = true;
-    console.log(`[HostDashboard] 🎬 Starting hydration process for room: ${roomId}`);
+  // ✅ Mark as attempted for THIS room
+  hydrationAttemptedRef.current = true;
+  console.log(`[HostDashboard] 🎬 Starting hydration process for room: ${roomId}`);
 
     try {
       setDbHydrating(true);
@@ -322,17 +387,8 @@ useEffect(() => {
               console.log('[HostDashboard] ✅ Joined with recovery snapshot:', response.snap);
               
               // ✅ Apply snapshot data to stores
-              if (response.snap?.players) {
-                usePlayerStore.setState({ 
-                  players: response.snap.players, 
-                  hydrated: true 
-                });
-                console.log('[HostDashboard] 📥 Loaded players from snapshot:', response.snap.players.length);
-              }
-              
-              if (response.snap?.roomState) {
-                console.log('[HostDashboard] 📊 Room state from snapshot:', response.snap.roomState);
-              }
+           // ✅ Apply snapshot data using helper (loads players + config + room state)
+applyRecoverySnapshot(response.snap, setFullConfig, roomId, hostId);
               
               console.log('[HostDashboard] 🎉 Hydration process complete!');
               
@@ -403,12 +459,17 @@ useEffect(() => {
   
   console.log(`[HostDashboard] 🔌 Web3 room: Joining via socket...`);
   
+  // ✅ FIX: Get hostName at call time, not from dependencies
+  const getHostName = () => {
+    return config?.hostName || 'Host';
+  };
+  
   // Join the room via socket
   socket.emit('join_and_recover', {
     roomId,
     user: { 
       id: hostId,
-      name: config?.hostName || 'Host'
+      name: getHostName() // ✅ Call function instead of using dependency
     },
     role: 'host',
   }, (response: any) => {
@@ -422,18 +483,13 @@ useEffect(() => {
     console.log('[HostDashboard] ✅ Joined Web3 room successfully');
     
     // ✅ Apply snapshot data to stores if available
-    if (response.snap?.players) {
-      usePlayerStore.setState({ 
-        players: response.snap.players, 
-        hydrated: true 
-      });
-      console.log('[HostDashboard] 📥 Loaded players from snapshot:', response.snap.players.length);
-    }
+    applyRecoverySnapshot(response.snap, setFullConfig, roomId, hostId);
     
     // Mark as joined
     hydratedRoomIdRef.current = roomId;
   });
-}, [isWeb3, socket, connected, roomId, hostId, config?.hostName, roomTypeChecked]); // ✅ Added roomTypeChecked
+}, [isWeb3, socket, connected, roomId, hostId, roomTypeChecked, config]); 
+// ✅ Changed: use 'config' instead of 'config?.hostName' to prevent re-render on every config change // ✅ Added roomTypeChecked
 
   // Quiz completion logic
   const isQuizComplete = currentPhase === 'complete';
@@ -535,7 +591,7 @@ useEffect(() => {
     socket.emit('request_current_state', { roomId });
     socket.emit('request_room_config', { roomId });
   }
-}, [socket, connected, roomId, isWeb3, config?.roomId, hydrated]); // ✅ Added dependencies
+}, [socket, connected, roomId, isWeb3, hydrated, config?.roomId]);
 
 // Reset requestedOnceRef when navigating to a new room
 useEffect(() => {
@@ -601,7 +657,8 @@ const handleSocketError = (error: { message: string }) => {
     };
   }, [socket, connected, roomId, setFullConfig, navigate]);
 
-  // Fallback: request config if we still don't have it after roomId changes
+
+// Fallback: request config if we still don't have it after roomId changes
 // Fallback: request config if we still don't have it after roomId changes
 useEffect(() => {
   if (!socket || !connected || !roomId) return;
@@ -616,7 +673,8 @@ useEffect(() => {
     if (DEBUG) console.log('🔄 [HostDashboard] Requesting room config for:', roomId);
     socket.emit('get_room_config', { roomId });
   }
-}, [socket, connected, roomId, config?.roomId, isWeb3, hydrated]); // ✅ Added dependencies
+}, [socket, connected, roomId, isWeb3, hydrated, config?.roomId]); 
+// ✅ Changed: Use config?.roomId instead of config // ✅ Added dependencies
 
    // Quiz cancelled → reset + navigate home
   useEffect(() => {
