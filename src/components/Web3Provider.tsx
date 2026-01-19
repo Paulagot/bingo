@@ -1,10 +1,11 @@
 // src/components/Web3Provider.tsx
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { WalletProvider } from '../context/WalletContext';
 import { useQuizConfig } from './Quiz/hooks/useQuizConfig';
 
 interface Web3ProviderProps {
   children: React.ReactNode;
+  force?: boolean;
 }
 
 // Singleton pattern to avoid multiple initializations
@@ -21,53 +22,71 @@ const Web3LoadingFallback: React.FC = () => (
   </div>
 );
 
-export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
+export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = false }) => {
   const [providers, setProviders] = useState(cachedProviders);
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const isMountedRef = useRef(true);
   const timeoutRef = useRef<NodeJS.Timeout>();
-  
-  // ✅ Get room config for WalletProvider
+
   const { config } = useQuizConfig();
 
-  // ✅ DEBUG: Log config when it changes
-  useEffect(() => {
-    console.log('[Web3Provider] 🔍 Config changed:', config);
-  }, [config]);
+  const needsWeb3 = useMemo(() => {
+    if (force) return true;
 
+    const paymentMethod = (config as any)?.paymentMethod;
+    const isWeb3RoomFlag = (config as any)?.isWeb3Room;
+
+    if (paymentMethod === 'web3') return true;
+    if (isWeb3RoomFlag === true) return true;
+    if (config?.web3Chain) return true;
+
+    const contractAddr = localStorage.getItem('current-contract-address');
+    if (contractAddr) return true;
+
+    return false;
+  }, [force, config?.web3Chain, (config as any)?.paymentMethod, (config as any)?.isWeb3Room]);
+
+  const roomConfig = useMemo(
+    () => ({
+      web3Chain: config?.web3Chain,
+      evmNetwork: config?.evmNetwork,
+      solanaCluster: (config as any)?.solanaCluster || (config as any)?.solanaNetwork,
+      stellarNetwork: config?.stellarNetwork,
+    }),
+    [
+      config?.web3Chain,
+      config?.evmNetwork,
+      (config as any)?.solanaCluster,
+      (config as any)?.solanaNetwork,
+      config?.stellarNetwork,
+    ]
+  );
+
+  // ✅ ALWAYS call useEffect (before any conditional returns)
   useEffect(() => {
+    // Only initialize if Web3 is needed
+    if (!needsWeb3) return;
+
     isMountedRef.current = true;
 
-    // ✅ If already initialized, use cached providers
     if (isInitialized && cachedProviders) {
-      console.log('[Web3Provider] ✅ Using cached providers');
       setProviders(cachedProviders);
       return;
     }
 
-    // ✅ If initialization in progress, wait for it
     if (initializationPromise) {
-      console.log('[Web3Provider] ⏳ Waiting for existing initialization');
       initializationPromise
         .then((result) => {
-          if (isMountedRef.current) {
-            console.log('[Web3Provider] ✅ Received providers from existing init');
-            setProviders(result);
-          }
+          if (isMountedRef.current) setProviders(result);
         })
         .catch((err) => {
-          if (isMountedRef.current) setLoadingError(err.message || "Unknown error");
+          if (isMountedRef.current) setLoadingError(err?.message || 'Unknown error');
         });
       return;
     }
 
-    // ✅ Start new initialization
-    console.log('[Web3Provider] 🚀 Starting new initialization');
-    
-    // ✅ Set timeout to catch hung initializations
     timeoutRef.current = setTimeout(() => {
       if (!providers && isMountedRef.current) {
-        console.error('[Web3Provider] ⏰ Initialization timeout after 30s');
         setLoadingError('Web3 initialization timed out. Please refresh the page.');
         initializationPromise = null;
       }
@@ -75,33 +94,23 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
 
     initializationPromise = (async () => {
       try {
-        console.log('[Web3Provider] 📦 Loading dependencies...');
-        
         const [
           { createAppKit, AppKitProvider },
           { WagmiProvider },
           { QueryClient, QueryClientProvider },
-          solanaModule,
+          _solanaModule,
           configModule,
         ] = await Promise.all([
-          import("@reown/appkit/react"),
-          import("wagmi"),
-          import("@tanstack/react-query"),
-          import("@reown/appkit-adapter-solana/react"),
-          import("../config"),
+          import('@reown/appkit/react'),
+          import('wagmi'),
+          import('@tanstack/react-query'),
+          import('@reown/appkit-adapter-solana/react'),
+          import('../config'),
         ]);
-
-        console.log('[Web3Provider] ✅ Dependencies loaded');
-        console.log('[Web3Provider] 🔍 Solana module loaded:', Object.keys(solanaModule));
 
         const { wagmiAdapter, solanaWeb3JsAdapter, projectId, networks, metadata } = configModule;
 
-        // ✅ Check for missing project ID
-        if (!projectId) {
-          throw new Error('Missing VITE_PROJECT_ID environment variable');
-        }
-
-        console.log('[Web3Provider] 🔧 Creating AppKit with projectId:', projectId);
+        if (!projectId) throw new Error('Missing VITE_PROJECT_ID environment variable');
 
         const queryClient = new QueryClient({
           defaultOptions: { queries: { staleTime: 90_000, gcTime: 600_000 } },
@@ -112,32 +121,25 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
           projectId,
           networks,
           metadata,
-
-          themeMode: "dark",
+          themeMode: 'dark',
           themeVariables: {
             '--w3m-z-index': 2147483647,
             '--w3m-accent': '#6366f1',
           },
-
           enableMobileFullScreen: true,
           allWallets: 'SHOW',
           enableWalletConnect: true,
           enableInjected: true,
           enableCoinbase: true,
           enableEIP6963: true,
-
           coinbasePreference: 'eoaOnly',
-
           featuredWalletIds: [
-            'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
-            'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa', // Coinbase
-            '19177a98252e07ddfc9af2083ba8e07ef627cb6103467ffebb3f8f4205fd7927', // Ledger
+            'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96',
+            'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa',
+            '19177a98252e07ddfc9af2083ba8e07ef627cb6103467ffebb3f8f4205fd7927',
           ],
-
           defaultNetwork: networks[0],
         });
-
-        console.log('[Web3Provider] ✅ AppKit created successfully');
 
         const result = {
           AppKitProvider,
@@ -149,50 +151,46 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
 
         cachedProviders = result;
         isInitialized = true;
-        
-        // ✅ Clear timeout on success
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-        }
-        
+
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
         return result;
       } catch (err: any) {
-        console.error('[Web3Provider] ❌ Initialization failed:', err);
         initializationPromise = null;
         throw err;
       }
     })();
 
     initializationPromise
-      .then((result) => { 
-        if (isMountedRef.current) {
-          console.log('[Web3Provider] 🎉 Initialization complete, setting providers');
-          setProviders(result);
-        }
+      .then((result) => {
+        if (isMountedRef.current) setProviders(result);
       })
-      .catch((err) => { 
-        if (isMountedRef.current) {
-          console.error('[Web3Provider] ❌ Error setting providers:', err);
-          setLoadingError(err.message);
-        }
+      .catch((err) => {
+        if (isMountedRef.current) setLoadingError(err?.message || 'Unknown error');
       });
 
-    return () => { 
+    return () => {
       isMountedRef.current = false;
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, []);
+  }, [needsWeb3, providers]); // ✅ Include providers in dependencies
+
+  // ✅ NOW it's safe to do early returns (after all hooks have been called)
+  if (!needsWeb3) {
+    return <>{children}</>;
+  }
 
   if (loadingError) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-red-50 to-pink-100 p-6">
-        <div className="text-center max-w-md">
-          <div className="text-6xl mb-4">⚠️</div>
-          <h2 className="text-red-700 font-bold text-xl mb-2">Web3 Init Failed</h2>
-          <p className="text-red-600 mb-4">{loadingError}</p>
-          <button onClick={() => window.location.reload()} className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700">
+        <div className="max-w-md text-center">
+          <div className="mb-4 text-6xl">⚠️</div>
+          <h2 className="mb-2 text-xl font-bold text-red-700">Web3 Init Failed</h2>
+          <p className="mb-4 text-red-600">{loadingError}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="rounded-lg bg-red-600 px-6 py-3 text-white hover:bg-red-700"
+          >
             Reload
           </button>
         </div>
@@ -201,34 +199,19 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
   }
 
   if (!providers) {
-    console.log('[Web3Provider] ⏳ Rendering loading fallback');
     return <Web3LoadingFallback />;
   }
 
-  console.log('[Web3Provider] ✅ Rendering children with providers');
-
   const { AppKitProvider, WagmiProvider, QueryClientProvider, queryClient, wagmiConfig } = providers;
-
-  // ✅ Prepare room config for WalletProvider - use optional chaining to avoid TS errors
-  const roomConfig = {
-    web3Chain: config?.web3Chain,
-    evmNetwork: config?.evmNetwork,
-    solanaCluster: (config as any)?.solanaCluster || (config as any)?.solanaNetwork, // ✅ Try both property names
-    stellarNetwork: config?.stellarNetwork,
-  };
-
-  console.log('[Web3Provider] 🎯 Passing roomConfig to WalletProvider:', roomConfig);
 
   return (
     <AppKitProvider>
       <QueryClientProvider client={queryClient}>
         <WagmiProvider config={wagmiConfig}>
-          {/* ✅ ADD WalletProvider HERE */}
-          <WalletProvider roomConfig={roomConfig}>
-            {children}
-          </WalletProvider>
+          <WalletProvider roomConfig={roomConfig}>{children}</WalletProvider>
         </WagmiProvider>
       </QueryClientProvider>
     </AppKitProvider>
   );
 };
+

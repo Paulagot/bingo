@@ -31,6 +31,7 @@ import type {
   Web2RoomListItem as Room,
   ParsedConfig,
 } from '../../../../shared/api/quiz.api';
+import { useQuizConfig } from '@/components/Quiz/hooks/useQuizConfig';
 
 type StatusFilter = 'scheduled' | 'live' | 'completed' | 'cancelled' | 'all';
 
@@ -468,10 +469,25 @@ const [cancelError, setCancelError] = useState<string | null>(null);
     navigate('/quiz/create-fundraising-quiz?openWizard=1');
   };
 
+// In QuizEventDashboard.tsx - openRoom function
+
 const openRoom = (roomId: string, hostId: string) => {
-  // ✅ Clear the wizard setup store when opening an existing room
-  console.log('[QuizEventDashboard] 🧹 Clearing wizard setup before opening room');
+  console.log('[QuizEventDashboard] 🧹 Clearing all Web3 state before opening Web2 room:', roomId);
+  
+  // Clear wizard setup
   localStorage.removeItem('quiz-setup-v2');
+  localStorage.removeItem('quiz-admins');
+  localStorage.removeItem('fundraisely-quiz-setup-draft');
+  
+  // Clear any previous room data (especially Web3)
+  localStorage.removeItem('current-room-id');
+  localStorage.removeItem('current-host-id');
+  localStorage.removeItem('current-contract-address');
+  
+  // Clear config store (removes any Web3 config)
+  useQuizConfig.getState().resetConfig();
+  
+  console.log('[QuizEventDashboard] ✅ Cleared, navigating to Web2 room');
   
   navigate(`/quiz/host-dashboard/${roomId}?hostId=${encodeURIComponent(hostId)}`);
 };

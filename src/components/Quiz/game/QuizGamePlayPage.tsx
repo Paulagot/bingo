@@ -83,6 +83,16 @@ const QuizGamePlayPage = () => {
   const answerSubmittedRef = useRef<boolean>(false);
   const playerOrderRef = useRef<string[] | null>(null);
 
+    const currentRoundRef = useRef(1); // Initialize with 1
+  const serverRoomStateRef = useRef<ServerRoomState>({
+    currentRound: 1,
+    totalRounds: 1,
+    roundTypeId: '',
+    roundTypeName: '',
+    totalPlayers: 0,
+    phase: 'waiting',
+  });
+
   if (!roomId || !playerId) {
     return (
       <div className="p-8 text-center">
@@ -313,6 +323,11 @@ const { timeLeft } = useQuizTimer({
   useEffect(() => {
   playerOrderRef.current = playerOrder;
 }, [playerOrder]);
+
+  useEffect(() => {
+    currentRoundRef.current = serverRoomState.currentRound;
+    serverRoomStateRef.current = serverRoomState;
+  }, [serverRoomState]);
 
   // anti-cheat tab tracking (kept as-is)
 // ✅ ADD: Debounced route change tracking
@@ -791,7 +806,17 @@ const handleRoomState = (data: ServerRoomState) => {
   const timestamp = Date.now();
   if (debug) console.log(`🔵 [room_state] ${timestamp}:`, data);
 
-  const previousRound = serverRoomState.currentRound;
+  // ✅ Use ref instead of stale state
+  const previousRound = currentRoundRef.current;
+
+  if (debug) console.log(`📍 Current state BEFORE update:`, {
+    question: question?.id,
+    orderImageQuestion: orderImageQuestion?.id,
+    hiddenPuzzle: hiddenPuzzle?.puzzleId,
+    roomPhase,
+    previousRound,
+    newRound: data.currentRound
+  });
 
   if (data.phase === 'reviewing' && roomPhase !== 'reviewing') {
     setIsFrozen(false);
@@ -805,6 +830,9 @@ const handleRoomState = (data: ServerRoomState) => {
     // ✅ DON'T clear state if we're reviewing hidden_object puzzles
     if (data.roundTypeId === 'hidden_object' && data.phase === 'reviewing') {
       if (debug) console.log('[Client] ⏸️ Skipping state clear - reviewing hidden object');
+      // Update refs immediately BEFORE setState
+      currentRoundRef.current = data.currentRound;
+      serverRoomStateRef.current = data;
       setRoomPhase(data.phase as RoomPhaseWithTB);
       setServerRoomState(data);
       return; // Exit early, don't clear anything
@@ -844,8 +872,20 @@ const handleRoomState = (data: ServerRoomState) => {
     if (debug) console.log('[Client] 🔄 Round changed, cleared previous round state');
   }
 
+  // ✅ Update refs BEFORE setState (only once!)
+  currentRoundRef.current = data.currentRound;
+  serverRoomStateRef.current = data;
+
+  // ✅ Update state (only once!)
   setRoomPhase(data.phase as RoomPhaseWithTB);
   setServerRoomState(data);
+
+  if (debug) console.log(`📍 Current state AFTER update:`, {
+    question: question?.id,
+    orderImageQuestion: orderImageQuestion?.id,
+    hiddenPuzzle: hiddenPuzzle?.puzzleId,
+    updatedRoundRef: currentRoundRef.current
+  });
 };
 
  const handleRoundLeaderboard = (data: LeaderboardEntry[]) => {

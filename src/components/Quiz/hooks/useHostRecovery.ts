@@ -49,135 +49,99 @@ type UseHostRecoveryArgs = {
   };
 };
 
+// useHostRecovery.ts
 export function useHostRecovery({ socket, connected, roomId, setters }: UseHostRecoveryArgs) {
   const hasJoinedRef = useRef(false);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
   const socketIdRef = useRef<string>('');
 
-  
+  const settersRef = useRef(setters);
+  useEffect(() => {
+    settersRef.current = setters;
+  }, [setters]);
 
   useEffect(() => {
-    console.log('[useHostRecovery] 🔍 Effect triggered:', {
-      hasSocket: !!socket,
-      socketId: socket?.id,
-      connected,
-      roomId,
-      hasJoined: hasJoinedRef.current,
-      trackedSocketId: socketIdRef.current
-    });
-
     if (!socket || !connected || !roomId) {
-      console.log('[useHostRecovery] ⏸️ Not ready yet, resetting state');
       hasJoinedRef.current = false;
       socketIdRef.current = '';
       return;
     }
 
-    // ✅ Check if this is the SAME socket we already joined with
-    if (hasJoinedRef.current && socketIdRef.current === socket.id) {
-      console.log('[useHostRecovery] ✅ Already joined with this socket, skipping');
-      return;
-    }
+    if (hasJoinedRef.current && socketIdRef.current === socket.id) return;
 
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-    }
+    if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
 
     reconnectTimeoutRef.current = setTimeout(() => {
-      console.log('[useHostRecovery] 🔗 Attempting to join room:', roomId, 'with socket:', socket.id);
       hasJoinedRef.current = true;
       socketIdRef.current = socket.id;
 
       socket.emit(
         'join_and_recover',
-        {
-          roomId,
-          user: { id: 'host', name: 'Host' },
-          role: 'host',
-        },
-        (res: any) => {
-          console.log('[useHostRecovery] 📨 Received response from join_and_recover:', res);
-          
+        { roomId, user: { id: 'host', name: 'Host' }, role: 'host' },
+        async (res: any) => {
           if (!res?.ok) {
-            console.error('[useHostRecovery] ❌ join_and_recover failed:', res?.error);
             hasJoinedRef.current = false;
             socketIdRef.current = '';
             return;
           }
-          
-          console.log('[useHostRecovery] ✅ Successfully joined and recovered');
-          const { snap } = res;
 
+          const { snap } = res;
+          const S = settersRef.current;
+
+          // ✅ hydrate config
           if (snap?.config) {
-  console.log('[useHostRecovery] 📦 Hydrating config from snapshot');
-  // Import dynamically to avoid circular dependencies
-  import('./useQuizConfig').then(({ useQuizConfig }) => {
-    const { setFullConfig } = useQuizConfig.getState();
-    setFullConfig({
-      ...snap.config,
-      roomId: roomId,  // ✅ Ensure roomId is included
-    });
-    console.log('[useHostRecovery] ✅ Config hydrated from snapshot');
-  });
-} else {
-  console.warn('[useHostRecovery] ⚠️ No config in snapshot!');
-}
+            const { setFullConfig } = (await import('./useQuizConfig')).useQuizConfig.getState();
+            setFullConfig({ ...snap.config, roomId });
+          }
 
           hydrateRoomBasicsFromSnap(snap, {
-            setRoomState: setters.setRoomState,
-            setPlayersInRoom: setters.setPlayersInRoom,
+            setRoomState: S.setRoomState,
+            setPlayersInRoom: S.setPlayersInRoom,
           });
 
           hydrateQuestionOrReviewFromSnap(snap, {
-            setCurrentQuestion: setters.setCurrentQuestion,
-            setReviewQuestion: setters.setReviewQuestion,
-            setIsShowingRoundResults: setters.setIsShowingRoundResults,
-            setRoundLeaderboard: setters.setRoundLeaderboard,
-            setLeaderboard: setters.setLeaderboard,
-            setReviewComplete: setters.setReviewComplete,
-            setQuestionInRound: setters.setQuestionInRound,
-            setTotalInRound: setters.setTotalInRound,
+            setCurrentQuestion: S.setCurrentQuestion,
+            setReviewQuestion: S.setReviewQuestion,
+            setIsShowingRoundResults: S.setIsShowingRoundResults,
+            setRoundLeaderboard: S.setRoundLeaderboard,
+            setLeaderboard: S.setLeaderboard,
+            setReviewComplete: S.setReviewComplete,
+            setQuestionInRound: S.setQuestionInRound,
+            setTotalInRound: S.setTotalInRound,
           });
 
           hydrateHiddenObjectFromSnap(snap, {
-            setHiddenPuzzle: setters.setHiddenPuzzle,
-            setHiddenFoundIds: setters.setHiddenFoundIds,
-            setHiddenFinished: setters.setHiddenFinished,
-            setRoundRemaining: setters.setRoundRemaining,
+            setHiddenPuzzle: S.setHiddenPuzzle,
+            setHiddenFoundIds: S.setHiddenFoundIds,
+            setHiddenFinished: S.setHiddenFinished,
+            setRoundRemaining: S.setRoundRemaining,
           });
 
           hydrateOrderImageFromSnap(snap, {
-            setOrderImageQuestion: setters.setOrderImageQuestion,
-            setOrderImageReviewQuestion: setters.setOrderImageReviewQuestion,
+            setOrderImageQuestion: S.setOrderImageQuestion,
+            setOrderImageReviewQuestion: S.setOrderImageReviewQuestion,
           });
 
-          hydrateFinalStatsFromSnap(snap, {
-            recoverFinalStats: setters.recoverFinalStats,
-          });
-
-          hydrateCurrentRoundStatsFromSnap(snap, {
-            updateCurrentRoundStats: setters.updateCurrentRoundStats,
-          });
+          hydrateFinalStatsFromSnap(snap, { recoverFinalStats: S.recoverFinalStats });
+          hydrateCurrentRoundStatsFromSnap(snap, { updateCurrentRoundStats: S.updateCurrentRoundStats });
 
           hydrateTiebreakerFromSnap(snap, {
-            setRoomState: setters.setRoomState,
-            setTbParticipants: setters.setTbParticipants,
-            setTbQuestion: setters.setTbQuestion,
-            setTbWinners: setters.setTbWinners,
-            setTbPlayerAnswers: setters.setTbPlayerAnswers,
-            setTbCorrectAnswer: setters.setTbCorrectAnswer,
-            setTbShowReview: setters.setTbShowReview,
-            setTbQuestionNumber: setters.setTbQuestionNumber,
-            setTbStillTied: setters.setTbStillTied,
+            setRoomState: S.setRoomState,
+            setTbParticipants: S.setTbParticipants,
+            setTbQuestion: S.setTbQuestion,
+            setTbWinners: S.setTbWinners,
+            setTbPlayerAnswers: S.setTbPlayerAnswers,
+            setTbCorrectAnswer: S.setTbCorrectAnswer,
+            setTbShowReview: S.setTbShowReview,
+            setTbQuestionNumber: S.setTbQuestionNumber,
+            setTbStillTied: S.setTbStillTied,
           });
         }
       );
-    }, 100); // ✅ Small delay to ensure socket is stable
+    }, 100);
 
     return () => {
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
     };
-  }, [socket?.id, connected, roomId, setters]);
+  }, [socket?.id, connected, roomId]); // ✅ setters removed
 }

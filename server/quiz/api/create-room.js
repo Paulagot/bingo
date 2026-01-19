@@ -738,85 +738,97 @@ if (chain.toLowerCase() === 'solana') {
 router.get('/rooms/:roomId/info', async (req, res) => {
   try {
     const { roomId } = req.params;
-    
+
     console.log('========================================');
     console.log('[API] 🔍 Getting room info for:', roomId);
     console.log('[API] 📍 Timestamp:', new Date().toISOString());
-    
+
     if (!roomId) {
       console.error('[API] ❌ No roomId provided');
       return res.status(400).json({ error: 'roomId_required' });
     }
-    
-    // First check in-memory (for Web3 rooms)
-    console.log('[API] 🔍 Step 1: Checking in-memory rooms...');
+
+    // 1) Check in-memory first (web2 hydrated rooms + all live web3 rooms)
     const { getQuizRoom } = await import('../quizRoomManager.js');
     const memoryRoom = getQuizRoom(roomId);
-    
+
     console.log('[API] 📊 Memory room found:', !!memoryRoom);
-    
+
     if (memoryRoom) {
-      console.log('[API] 📋 Memory room details:', {
-        hasConfig: !!memoryRoom.config,  // ✅ CHANGED FROM setupConfig
-        paymentMethod: memoryRoom.config?.paymentMethod,
-        isWeb3Room: memoryRoom.config?.isWeb3Room,
-        web3Chain: memoryRoom.config?.web3Chain,
-      });
-      
+      const cfg = memoryRoom.config || {};
+
+      const web3Chain =
+        cfg.web3Chain === 'evm' || cfg.web3Chain === 'solana' || cfg.web3Chain === 'stellar'
+          ? cfg.web3Chain
+          : null;
+
+      const isWeb3 = !!(
+        cfg.paymentMethod === 'web3' ||
+        cfg.isWeb3Room === true ||
+        web3Chain // if chain exists, it’s web3
+      );
+
       const roomInfo = {
-        roomId: memoryRoom.roomId,
-        isWeb3: memoryRoom.config?.paymentMethod === 'web3' || memoryRoom.config?.isWeb3Room,  // ✅ CHANGED
-        web3Chain: memoryRoom.config?.web3Chain,  // ✅ CHANGED
+        roomId, // ✅ ALWAYS use param roomId
+        isWeb3, // ✅ ALWAYS boolean
+        web3Chain: isWeb3 ? web3Chain : null, // ✅ stable
       };
-      
-      console.log('[API] ✅ Returning Web3 room info:', roomInfo);
+
+      console.log('[API] ✅ Returning MEMORY room info:', {
+        ...roomInfo,
+        paymentMethod: cfg.paymentMethod,
+        isWeb3RoomFlag: cfg.isWeb3Room,
+      });
       console.log('========================================');
+
       return res.status(200).json(roomInfo);
     }
-    
+
+    // 2) Not in memory → check DB for web2 launched rooms
     console.log('[API] ⏭️ Not found in memory, checking database...');
-    
-    // Then check database (for Web2 rooms)
-    console.log('[API] 🔍 Step 2: Checking database...');
+
     const sql = `
       SELECT room_id, config_json
       FROM ${WEB2_ROOMS_TABLE}
       WHERE room_id = ?
       LIMIT 1
     `;
-    
+
     const [rows] = await connection.execute(sql, [roomId]);
     const row = rows?.[0];
-    
+
     console.log('[API] 📊 Database rows found:', rows?.length || 0);
-    
+
     if (!row) {
       console.warn('[API] ⚠️ Room not found in memory OR database');
       console.log('========================================');
       return res.status(404).json({ error: 'room_not_found' });
     }
-    
-    const config = typeof row.config_json === 'string' 
-      ? JSON.parse(row.config_json) 
-      : row.config_json;
-    
-    console.log('[API] 📋 Database room details:', {
-      hasConfig: !!config,
-      paymentMethod: config?.paymentMethod,
-      isWeb3Room: config?.isWeb3Room,
-      web3Chain: config?.web3Chain,
-    });
-    
+
+    const cfg =
+      typeof row.config_json === 'string' ? JSON.parse(row.config_json) : (row.config_json || {});
+
+    const web3Chain =
+      cfg.web3Chain === 'evm' || cfg.web3Chain === 'solana' || cfg.web3Chain === 'stellar'
+        ? cfg.web3Chain
+        : null;
+
+    const isWeb3 = !!(
+      cfg.paymentMethod === 'web3' ||
+      cfg.isWeb3Room === true ||
+      web3Chain
+    );
+
     const roomInfo = {
-      roomId: row.room_id,
-      isWeb3: config?.paymentMethod === 'web3' || config?.isWeb3Room,
-      web3Chain: config?.web3Chain,
+      roomId: row.room_id ?? roomId, // ✅ stable
+      isWeb3,                        // ✅ stable boolean
+      web3Chain: isWeb3 ? web3Chain : null,
     };
-    
-    console.log('[API] ✅ Returning Web2 room info:', roomInfo);
+
+    console.log('[API] ✅ Returning DB room info:', roomInfo);
     console.log('========================================');
+
     return res.status(200).json(roomInfo);
-    
   } catch (err) {
     console.error('========================================');
     console.error('[API] ❌❌❌ ERROR in /rooms/:roomId/info');
@@ -828,6 +840,7 @@ router.get('/rooms/:roomId/info', async (req, res) => {
     return res.status(500).json({ error: 'internal_error' });
   }
 });
+
 
 /* -------------------------------------------------------------------------- */
 /*                      UNAUTHENTICATED ROUTES (WEB3 FLOW)                     */

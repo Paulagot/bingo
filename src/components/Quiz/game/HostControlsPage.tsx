@@ -1,13 +1,13 @@
 // HostControlsPage.tsx
-import { lazy, Suspense, useEffect } from 'react';
 import * as React from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuizConfig } from '../hooks/useQuizConfig';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import HostControlsCore from '../host-controls/components/HostControlsCore';
 
 const Web3Provider = lazy(() =>
-  import('../../../components/Web3Provider').then(m => ({ default: m.Web3Provider }))
+  import('../../../components/Web3Provider').then((m) => ({ default: m.Web3Provider }))
 );
 
 const LoadingSpinner = () => (
@@ -27,7 +27,7 @@ const HostControlsPage: React.FC = () => {
   const { config, hydrated } = useQuizConfig();
   const { socket, connected } = useQuizSocket();
 
-  // ✅ Debug logging (optional - remove in production)
+  // ✅ Debug logging (optional)
   useEffect(() => {
     console.log('[HostControlsPage] Status:', {
       roomId,
@@ -36,42 +36,23 @@ const HostControlsPage: React.FC = () => {
       hydrated,
       socketConnected: connected,
       socketId: socket?.id,
+      web3Chain: config?.web3Chain,
     });
-  }, [roomId, config, hydrated, connected, socket?.id]);
+  }, [roomId, config?.roomId, config?.web3Chain, hydrated, connected, socket?.id]); // ✅ avoid depending on whole config object
 
-  // ✅ ONLY check for roomId from URL
-  if (!roomId) {
-    return <LoadingSpinner />;
-  }
+  if (!roomId) return <LoadingSpinner />;
 
-  // ✅ REMOVE the hydrated check
-  // ✅ REMOVE the config.roomId check
-  // Let HostControlsCore and useHostRecovery handle loading the config!
-
-  // ✅ Determine if Web3 room (for provider wrapping)
-  const selectedChain = (() => {
-    const c = config?.web3Chain;
-    if (c === 'stellar' || c === 'evm' || c === 'solana') return c;
-    return null;
-  })();
-
-  console.log('[HostControlsPage] Rendering controls for room:', roomId, 'chain:', selectedChain || 'web2');
-
-  // ✅ For Solana/EVM/Stellar rooms, wrap with Web3Provider
-  if (selectedChain === 'solana' || selectedChain === 'evm' || selectedChain === 'stellar') {
-    return (
-      <Suspense fallback={<LoadingSpinner />}>
-        <Web3Provider>
-          <HostControlsCore />
-        </Web3Provider>
-      </Suspense>
-    );
-  }
-
-  // ✅ For Web2 rooms, render without provider
-  return <HostControlsCore />;
+  // ✅ ALWAYS wrap. Web3Provider must be a NO-OP when web3Chain is not set.
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <Web3Provider>
+        <HostControlsCore />
+      </Web3Provider>
+    </Suspense>
+  );
 };
 
 export default HostControlsPage;
+
 
 
