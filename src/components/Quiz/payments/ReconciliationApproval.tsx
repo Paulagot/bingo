@@ -46,30 +46,7 @@ export default function ReconciliationApproval({ compact = false }: Props) {
     <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
       {/* Header */}
       <div className="p-4 border-b border-gray-200 bg-gray-50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {isApproved ? (
-              <CheckCircle2 className="h-5 w-5 text-green-600" />
-            ) : (
-              <Clock className="h-5 w-5 text-amber-600" />
-            )}
-            <div>
-              <h3 className="text-base font-semibold text-gray-900">Approval & Sign-Off</h3>
-              <p className="text-xs text-gray-600 mt-0.5">Confirm all amounts are correct and finalize</p>
-            </div>
-          </div>
-          {isApproved ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-green-300 bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
-              <CheckCircle2 className="h-3 w-3" />
-              Approved
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
-              <Clock className="h-3 w-3" />
-              Pending
-            </span>
-          )}
-        </div>
+       
       </div>
         {/* Notes Field */}
           <div>
@@ -93,6 +70,31 @@ export default function ReconciliationApproval({ compact = false }: Props) {
               </p>
             )}
           </div>
+
+           <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {isApproved ? (
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
+            ) : (
+              <Clock className="h-5 w-5 text-amber-600" />
+            )}
+            <div>
+              <h3 className="text-base font-semibold text-gray-900">Approval & Sign-Off</h3>
+              <p className="text-xs text-gray-600 mt-0.5">Confirm all amounts are correct and finalize</p>
+            </div>
+          </div>
+          {isApproved ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-green-300 bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
+              <CheckCircle2 className="h-3 w-3" />
+              Approved
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+              <Clock className="h-3 w-3" />
+              Pending
+            </span>
+          )}
+        </div>
 
       <div className="p-4">
         <div className={`grid ${compact ? 'grid-cols-1' : 'grid-cols-1'} gap-4`}>

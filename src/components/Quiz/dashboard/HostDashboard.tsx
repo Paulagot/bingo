@@ -75,14 +75,25 @@ const applyRecoverySnapshot = (snap: any, setFullConfig: any, roomId: string, ho
   }
   
   // Load config (includes reconciliation data for post-game)
-  if (snap?.config) {
-    setFullConfig({
-      ...snap.config,
-      roomId: roomId,
-      hostId: snap.config.hostId || hostId,
-    });
-    console.log('[HostDashboard] 📥 Loaded config from snapshot');
-  }
+if (snap?.config) {
+  const prev = useQuizConfig.getState().config || {};
+
+  setFullConfig({
+    ...prev,               // ✅ keep existing fields like isWeb3Room
+    ...snap.config,        // ✅ apply snapshot updates
+    roomId,
+    hostId: snap.config.hostId || hostId,
+    // ✅ harden: never allow it to disappear
+    isWeb3Room:
+      typeof snap.config.isWeb3Room === 'boolean'
+        ? snap.config.isWeb3Room
+        : typeof (prev as any).isWeb3Room === 'boolean'
+        ? (prev as any).isWeb3Room
+        : (prev as any).paymentMethod === 'web3',
+  });
+
+  console.log('[HostDashboard] 📥 Loaded config from snapshot');
+}
   
   // Load room state (phase, completedAt, etc.)
   if (snap?.roomState) {
@@ -488,7 +499,7 @@ useEffect(() => {
     // Mark as joined
     hydratedRoomIdRef.current = roomId;
   });
-}, [isWeb3, socket, connected, roomId, hostId, roomTypeChecked, config]); 
+},[isWeb3, socket, connected, roomId, hostId, roomTypeChecked]); 
 // ✅ Changed: use 'config' instead of 'config?.hostName' to prevent re-render on every config change // ✅ Added roomTypeChecked
 
   // Quiz completion logic

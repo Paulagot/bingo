@@ -9,6 +9,7 @@ import {
   getPlayerSession,
   emitRoomState,
   cleanExpiredSessions,
+  updateAdminSocketId,
 } from '../quizRoomManager.js';
 import { emitFullRoomState } from './sharedUtils.js';
 
@@ -316,32 +317,31 @@ export function setupRecoveryHandlers(socket, namespace) {
             }
           }
         }
-  } else {
-  // 🧹 If this id was previously (incorrectly) added as a player, remove it now
-  if (existingPlayer) {
-    try {
-      room.players = room.players.filter((p) => p.id !== user.id);
-      if (room.playerData) delete room.playerData[user.id];
-    } catch {}
-  }
-  
-  // ✅ Set host/admin socket ID for non-player roles
-  if (role === 'host') {
-    // ✅ CRITICAL: Cancel cleanup timer when host reconnects
-    if (room.cleanupTimer) {
-      console.log(`✅ [Recovery] Host reconnected to room ${roomId}, canceling cleanup timer`);
-      clearTimeout(room.cleanupTimer);
-      delete room.cleanupTimer;
-    }
-    
-    room.hostSocketId = socket.id;
-    if (debug) console.log('[Recovery] 👑 Set host socket ID:', socket.id);
-  } else if (role === 'admin') {
-    // Admin handling if needed
-    updateAdminSocketId(roomId, user.id, socket.id);
-  }
-}
-      
+      } else {
+        // 🧹 If this id was previously (incorrectly) added as a player, remove it now
+        if (existingPlayer) {
+          try {
+            room.players = room.players.filter((p) => p.id !== user.id);
+            if (room.playerData) delete room.playerData[user.id];
+          } catch {}
+        }
+        
+        // ✅ Set host/admin socket ID for non-player roles
+        if (role === 'host') {
+          // ✅ CRITICAL: Cancel cleanup timer when host reconnects
+          if (room.cleanupTimer) {
+            console.log(`✅ [Recovery] Host reconnected to room ${roomId}, canceling cleanup timer`);
+            clearTimeout(room.cleanupTimer);
+            delete room.cleanupTimer;
+          }
+          
+          room.hostSocketId = socket.id;
+          if (debug) console.log('[Recovery] 👑 Set host socket ID:', socket.id);
+        } else if (role === 'admin') {
+          // Admin handling if needed
+          updateAdminSocketId(roomId, user.id, socket.id);
+        }
+      }
 
       // Minimal snapshot scaffolding
       const totalRounds = room.config.roundDefinitions?.length || 1;
@@ -386,7 +386,7 @@ export function setupRecoveryHandlers(socket, namespace) {
           const hoSnap = buildHiddenObjectSnap(room, user.id, 'asking');
           if (hoSnap) snap.hiddenObject = hoSnap;
         }
-        // ✅ order_image asking hydration - MOVED TO CORRECT POSITION
+        // ✅ order_image asking hydration
         else if (roundType === 'order_image') {
           const q = room.questions?.[room.currentQuestionIndex];
           if (q) {
@@ -674,6 +674,91 @@ export function setupRecoveryHandlers(socket, namespace) {
       // Broadcast normal events so rest of app stays in sync
       emitRoomState(namespace, roomId);
       emitFullRoomState(socket, namespace, roomId);
+
+      // ✅✅✅ NEW: Re-broadcast current question to all players when host recovers during 'asking'
+      if (role === 'host' && room.currentPhase === 'asking') {
+        const roundCfg = room.config.roundDefinitions?.[roundIndex]?.config || {};
+        const roundType = room.config.roundDefinitions?.[roundIndex]?.roundType;
+
+        if (roundType === 'hidden_object' && room.hiddenObject?.currentPuzzle) {
+          const remaining = Math.max(0, Math.floor(((room.puzzleEndTime || 0) - Date.now()) / 1000));
+          
+          namespace.to(`${roomId}:player`).emit('hidden_object_start', {
+            puzzleId: room.hiddenObject.currentPuzzle.puzzleId,
+            imageUrl: room.hiddenObject.currentPuzzle.imageUrl,
+            difficulty: room.hiddenObject.difficulty,
+            category: room.hiddenObject.category,
+            totalSeconds: room.hiddenObject.timeLimitSeconds,
+            itemTarget: room.hiddenObject.currentPuzzle.itemTarget,
+            items: room.hiddenObject.currentPuzzle.items,
+            puzzleNumber: room.currentQuestionIndex + 1,
+            totalPuzzles: room.hiddenObject.questionsPerRound,
+          });
+          
+          if (debug) console.log(`[Recovery] ♻️ Re-broadcast hidden_object_start to players (${remaining}s remaining)`);
+          
+        } else if (roundType === 'order_image') {
+          const q = room.questions?.[room.currentQuestionIndex];
+          if (q) {
+            const emittedQuestion = room.emittedOptionsByQuestionId?.[q.id];
+            const timeLimit = roundCfg?.timePerQuestion || 30;
+            
+            namespace.to(`${roomId}:player`).emit('order_image_question', {
+              id: q.id,
+              prompt: q.prompt,
+              images: emittedQuestion?.images || q.images,
+              difficulty: q.difficulty,
+              category: q.category,
+              timeLimit,
+              questionStartTime: room.questionStartTime,
+              questionNumber: room.currentQuestionIndex + 1,
+              totalQuestions: room.questions.length,
+            });
+            
+            if (debug) console.log(`[Recovery] ♻️ Re-broadcast order_image_question to players`);
+          }
+          
+        } else if (roundType === 'speed_round') {
+          // Speed round: each player gets their own question, so we emit to each individually
+          for (const player of room.players) {
+            const cursor = room.playerCursors?.[player.id] ?? 0;
+            const q = room.questions?.[cursor];
+            if (q && player.socketId) {
+              const playerSocket = namespace.sockets.get(player.socketId);
+              if (playerSocket) {
+                playerSocket.emit('question', {
+                  id: String(q.id),
+                  text: q.text,
+                  options: Array.isArray(q.options) ? q.options.slice(0, 2) : [],
+                  timeLimit: 0,
+                  questionStartTime: Date.now(),
+                });
+              }
+            }
+          }
+          
+          if (debug) console.log(`[Recovery] ♻️ Re-broadcast speed_round questions to individual players`);
+          
+        } else {
+          // Standard trivia question
+          const q = room.questions?.[room.currentQuestionIndex];
+          if (q) {
+            const timeLimit = roundCfg?.timePerQuestion || 10;
+            
+            namespace.to(`${roomId}:player`).emit('question', {
+              id: q.id,
+              text: q.text,
+              options: q.options || [],
+              timeLimit,
+              questionStartTime: room.questionStartTime,
+              questionNumber: room.currentQuestionIndex + 1,
+              totalQuestions: room.questions.length,
+            });
+            
+            if (debug) console.log(`[Recovery] ♻️ Re-broadcast question to players`);
+          }
+        }
+      }
 
       // Keep user_joined event (clients can ignore non-players if they want)
       const broadcastUser = joinedUser || { ...user, socketId: socket.id };

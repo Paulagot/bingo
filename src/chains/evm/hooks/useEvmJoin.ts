@@ -372,8 +372,8 @@ export function useEvmJoin() {
       console.log('✅ [joinRoom] Sufficient allowance already exists, skipping approval');
     } else {
       // ✅ Approve a larger amount to avoid future approvals
-      // Using 1 million USDC (1,000,000 * 10^6 = 1e12)
-      const approvalAmount = BigInt(1_000_000) * BigInt(10 ** decimals);
+      // Using 1 million USDC (1,000 * 10^4 = 1e12)
+      const approvalAmount = BigInt(1_000) * BigInt(10 ** decimals);
       
       console.log('🔑 [joinRoom] Approving larger amount for future use:', approvalAmount.toString());
       

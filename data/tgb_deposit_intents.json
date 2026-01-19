@@ -1,23 +1,23 @@
 [
   {
-    "offchainIntentId": "FR-Fiwqs45Bm7-1768752664993-53fdcd94-9d5e-4e33-8cd9-76aa58936ad9",
+    "offchainIntentId": "FR-AnmGxJYPkx-1768858107451-abf1eacf-a101-4965-bc19-6b86aa917bb5",
     "organizationId": "org_abc123",
     "currency": "USDC",
-    "network": "solana",
+    "network": "base",
     "amountDecimal": "1.00",
-    "depositAddress": "7koYv1dqqHWh4PQ5bVh8CyLBTxqAHeARPiuazzF2FhCY",
+    "depositAddress": "0xb7ACd1159dBed96B955C4d856fc001De9be59844",
     "depositTag": null,
     "id": "tgb-mock-deposit-id",
     "tgbRequestId": "tgb-mock-req-1",
     "metadata": {
-      "roomId": "Fiwqs45Bm7",
-      "offchainIntentId": "FR-Fiwqs45Bm7-1768752664993-53fdcd94-9d5e-4e33-8cd9-76aa58936ad9"
+      "roomId": "AnmGxJYPkx",
+      "offchainIntentId": "FR-AnmGxJYPkx-1768858107451-abf1eacf-a101-4965-bc19-6b86aa917bb5"
     },
     "status": "mocked",
-    "createdAt": "2026-01-18T16:11:04.994Z",
-    "updatedAt": "2026-01-18T16:11:04.996Z",
-    "roomId": "Fiwqs45Bm7",
-    "expectedAmountDecimal": "0.00",
+    "createdAt": "2026-01-19T21:28:27.451Z",
+    "updatedAt": "2026-01-19T21:28:27.453Z",
+    "roomId": "AnmGxJYPkx",
+    "expectedAmountDecimal": "0.0265",
     "tgbDepositId": "tgb-mock-deposit-id"
   },
   {

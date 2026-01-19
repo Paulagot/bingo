@@ -26,15 +26,22 @@ const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) =
 
   const { setupConfig } = useQuizSetupStore();
   
-  // ✅ Get everything from useQuizChainIntegration (which already calls useWalletActions internally)
+  // ✅ Pass setupConfig as externalConfig (not externalSetupConfig)
   const { 
     selectedChain, 
     getNetworkDisplayName, 
     isWalletConnected, 
     currentWallet,
-    networkInfo,        // ✅ Contains currentNetwork, expectedNetwork, isCorrect
-    isOnCorrectNetwork, // ✅ Already available here
-  } = useQuizChainIntegration();
+    networkInfo,
+    isOnCorrectNetwork,
+  } = useQuizChainIntegration({
+    externalConfig: {
+      web3Chain: setupConfig.web3Chain,
+      evmNetwork: (setupConfig as any).evmNetwork,
+      solanaCluster: (setupConfig as any).solanaCluster,
+      stellarNetwork: setupConfig.stellarNetwork,
+    }
+  });
   
   const {
     // state

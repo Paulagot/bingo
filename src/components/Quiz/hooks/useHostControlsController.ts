@@ -135,11 +135,12 @@ export function useHostControlsController({
   hostId 
 }: { 
   roomId: string;
-  hostId: string;  // ✅ Add this
+  hostId?: string;  // ✅ Add this
 }) {
   const navigate = useNavigate();
   const { socket, connected } = useQuizSocket();
   const { config } = useQuizConfig();
+  const effectiveHostId = hostId ?? config?.hostId ?? localStorage.getItem('current-host-id') ?? 'host';
 
   const [_timerActive, setTimerActive] = useState(false);
   const [playersInRoom, setPlayersInRoom] = useState<User[]>([]);

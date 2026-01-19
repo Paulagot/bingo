@@ -18,73 +18,34 @@ const LoadingFallback: React.FC = () => (
   </div>
 );
 
+// Simplified version
 export const ConditionalWeb3Wrapper: React.FC<ConditionalWeb3WrapperProps> = ({ children }) => {
   const location = useLocation();
-  const [roomType, setRoomType] = useState<'web2' | 'web3' | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [isWeb3Room, setIsWeb3Room] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Extract roomId from pathname using regex
     const roomIdMatch = location.pathname.match(/\/quiz\/(join|game|play|admin-join|host-dashboard|host-controls)\/([^\/]+)/);
     const roomId = roomIdMatch?.[2];
 
     if (!roomId) {
-      console.log('[ConditionalWeb3Wrapper] No roomId found, defaulting to Web2');
-      setLoading(false);
-      setRoomType('web2');
+      setIsWeb3Room(false);
       return;
     }
 
-
-
-const checkRoomType = async () => {
-  try {
-    console.log('[ConditionalWeb3Wrapper] Checking room type for:', roomId);
-    
-    console.log('[ConditionalWeb3Wrapper] 🔍 Fetching room info from API...');
-    
-    const response = await fetch(`/quiz/api/rooms/${roomId}/info`);
-    
-    if (response.ok) {
-      const data = await response.json();
-      console.log('[ConditionalWeb3Wrapper] ✅ Room info fetched:', data);
-      setRoomType(data.isWeb3 ? 'web3' : 'web2');
-      setLoading(false);
-      return;
-    }
-    
-    // ✅ Handle errors differently
-    if (response.status === 404) {
-      console.error('[ConditionalWeb3Wrapper] ❌ Room not found (404)');
-      setRoomType('web2'); // Safe default
-      setLoading(false);
-      return;
-    }
-    
-    // For other errors (like 401), log but default to web2
-    console.warn(`[ConditionalWeb3Wrapper] ⚠️ API returned ${response.status}, defaulting to Web2`);
-    setRoomType('web2');
-    
-  } catch (err: any) {
-    console.error('[ConditionalWeb3Wrapper] ❌ Error:', err.message);
-    setRoomType('web2'); // Safe default
-  } finally {
-    setLoading(false);
-  }
-};
-
-    checkRoomType();
+    fetch(`/quiz/api/rooms/${roomId}/info`)
+      .then(res => res.ok ? res.json() : { isWeb3: false })
+      .then(data => setIsWeb3Room(data.isWeb3 || false))
+      .catch(() => setIsWeb3Room(false));
   }, [location.pathname]);
 
-  if (loading) {
+  if (isWeb3Room === null) {
     return <LoadingFallback />;
   }
 
-  if (roomType === 'web3') {
-    console.log('[ConditionalWeb3Wrapper] 🌐 Initializing Web3Provider for Web3 room');
-    return <Web3Provider>{children}</Web3Provider>;
-  }
-
-  console.log('[ConditionalWeb3Wrapper] ⚡ Skipping Web3Provider for Web2 room');
-  return <>{children}</>;
+  // ✅ Force Web3Provider if it's a Web3 room
+  return isWeb3Room ? (
+    <Web3Provider force>{children}</Web3Provider>
+  ) : (
+    <>{children}</>
+  );
 };

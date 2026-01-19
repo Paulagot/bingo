@@ -3,6 +3,9 @@ import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
 import type { SupportedChain } from '../../../chains/types';
 
+// ✅ IMPORT Web3Provider directly (not lazy)
+import { Web3Provider } from '../../Web3Provider';
+
 // Regular imports for steps 1-5 (no Web3 needed)
 import StepFundraisingOptions from './StepFundraisingOptions';
 import StepWeb3Prizes from './StepWeb3Prizes';
@@ -10,11 +13,8 @@ import StepCombinedRounds from './StepCombinedRounds';
 import StepQuizTemplates from './StepQuizTemplates';
 import StepWeb3QuizSetup from './StepWeb3QuizSetup';
 
-// ✅ Lazy load Step 6 + Web3Provider together
+// ✅ Only lazy load Step 6 (not the provider)
 const StepWeb3ReviewLaunch = lazy(() => import('./StepWeb3ReviewLaunch'));
-const Web3Provider = lazy(() => 
-  import('../../../components/Web3Provider').then(m => ({ default: m.Web3Provider }))
-);
 
 const DEBUG = true;
 
@@ -106,11 +106,13 @@ export default function QuizWeb3Wizard({ onComplete, onChainUpdate  }: QuizWizar
         return <StepWeb3Prizes onNext={goNext} onBack={goBack} onResetToFirst={resetToFirst} />;
       case 'review':
         return (
-          <StepWeb3ReviewLaunch
-            onNext={goNext}
-            onBack={goBack}
-            onResetToFirst={resetToFirst}
-          />
+          <Suspense fallback={<LoadingSpinner />}>
+            <StepWeb3ReviewLaunch
+              onNext={goNext}
+              onBack={goBack}
+              onResetToFirst={resetToFirst}
+            />
+          </Suspense>
         );
       default:
         return null;
@@ -137,11 +139,9 @@ export default function QuizWeb3Wizard({ onComplete, onChainUpdate  }: QuizWizar
     });
     
     return (
-      <Suspense fallback={<LoadingSpinner />}>
-        <Web3Provider>
-          {content}
-        </Web3Provider>
-      </Suspense>
+      <Web3Provider force>
+        {content}
+      </Web3Provider>
     );
   }
 

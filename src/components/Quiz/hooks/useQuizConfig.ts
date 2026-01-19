@@ -21,7 +21,8 @@ export const useQuizConfig = create<QuizState>((set) => ({
   currentPhase: null,     // ✅ ADD THIS
   completedAt: null,      // ✅ ADD THIS
 
-  setFullConfig: (newConfig) => set({ config: newConfig, hydrated: true }),
+  setFullConfig: (newConfig) =>
+  set((s) => ({ config: { ...s.config, ...newConfig }, hydrated: true })),
   
   setQuizPhase: (phase, completedAt) => set({ currentPhase: phase, completedAt }), // ✅ ADD THIS
 
