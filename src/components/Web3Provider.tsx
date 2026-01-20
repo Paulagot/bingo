@@ -62,9 +62,7 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = fa
     ]
   );
 
-  // ✅ ALWAYS call useEffect (before any conditional returns)
   useEffect(() => {
-    // Only initialize if Web3 is needed
     if (!needsWeb3) return;
 
     isMountedRef.current = true;
@@ -126,18 +124,34 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = fa
             '--w3m-z-index': 2147483647,
             '--w3m-accent': '#6366f1',
           },
+          
+          // 🔥 ENHANCED MOBILE CONFIGURATION
           enableMobileFullScreen: true,
           allWallets: 'SHOW',
+          
+          // WalletConnect options
           enableWalletConnect: true,
+          
+          // Browser wallet detection
           enableInjected: true,
-          enableCoinbase: true,
           enableEIP6963: true,
-          coinbasePreference: 'eoaOnly',
+          
+          // Coinbase configuration
+          enableCoinbase: true,
+          coinbasePreference: 'all', // Supports both mobile app and extension
+          
+          // Mobile-specific features
+          enableWalletGuide: true, // Shows install prompts for mobile
+          
+          // Featured wallets (prioritized in the modal)
           featuredWalletIds: [
-            'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96',
-            'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa',
-            '19177a98252e07ddfc9af2083ba8e07ef627cb6103467ffebb3f8f4205fd7927',
+            'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
+            'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa', // Coinbase Wallet
+            '19177a98252e07ddfc9af2083ba8e07ef627cb6103467ffebb3f8f4205fd7927', // Phantom
+            '38f5d18bd8522c244bdd70cb4a68e0e718865155811c043f052fb9f1c51de662', // Backpack
+            'c03dfee351b6fcc421b4494ea33b9d4b92a984f87aa76d1663bb28705e95034a', // Exodus
           ],
+          
           defaultNetwork: networks[0],
         });
 
@@ -173,9 +187,8 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = fa
       isMountedRef.current = false;
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [needsWeb3, providers]); // ✅ Include providers in dependencies
+  }, [needsWeb3, providers]);
 
-  // ✅ NOW it's safe to do early returns (after all hooks have been called)
   if (!needsWeb3) {
     return <>{children}</>;
   }
