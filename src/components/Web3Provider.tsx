@@ -8,11 +8,10 @@ interface Web3ProviderProps {
   force?: boolean;
 }
 
-// 🔥 CRITICAL: Global singleton to prevent double initialization
 let initializationPromise: Promise<any> | null = null;
 let isInitialized = false;
 let cachedProviders: any | null = null;
-let appKitInstance: any = null; // Track the AppKit instance
+let appKitInstance: any = null;
 
 const Web3LoadingFallback: React.FC = () => (
   <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -26,9 +25,7 @@ const Web3LoadingFallback: React.FC = () => (
 export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = false }) => {
   const [providers, setProviders] = useState(cachedProviders);
   const [loadingError, setLoadingError] = useState<string | null>(null);
-  const isMountedRef = useRef(true);
   const timeoutRef = useRef<NodeJS.Timeout>();
-  const hasInitialized = useRef(false); // 🔥 Prevent double init in same component
 
   const { config } = useQuizConfig();
 
@@ -67,126 +64,117 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = fa
   useEffect(() => {
     if (!needsWeb3) return;
 
-    // 🔥 CRITICAL: Prevent double initialization in same component instance
-    if (hasInitialized.current) {
-      console.log('⚠️ [Web3Provider] Already initialized in this component, skipping');
-      return;
-    }
-
-    isMountedRef.current = true;
-
-    // If already initialized globally, just use cached providers
     if (isInitialized && cachedProviders) {
       console.log('✅ [Web3Provider] Using cached providers');
       setProviders(cachedProviders);
-      hasInitialized.current = true;
       return;
     }
 
-    // If initialization is in progress, wait for it
     if (initializationPromise) {
       console.log('⏳ [Web3Provider] Initialization in progress, waiting...');
       initializationPromise
         .then((result) => {
-          if (isMountedRef.current) {
-            setProviders(result);
-            hasInitialized.current = true;
-          }
+          console.log('✅ [Web3Provider] Providers ready from existing init');
+          setProviders(result);
         })
         .catch((err) => {
-          if (isMountedRef.current) setLoadingError(err?.message || 'Unknown error');
+          console.error('❌ [Web3Provider] Init failed:', err);
+          setLoadingError(err?.message || 'Unknown error');
         });
       return;
     }
 
     console.log('🚀 [Web3Provider] Starting new initialization');
-    hasInitialized.current = true;
 
     timeoutRef.current = setTimeout(() => {
-      if (!providers && isMountedRef.current) {
+      if (!providers) {
+        console.error('❌ [Web3Provider] Initialization timed out');
         setLoadingError('Web3 initialization timed out. Please refresh the page.');
         initializationPromise = null;
+        isInitialized = false;
       }
     }, 30000);
 
     initializationPromise = (async () => {
       try {
-        // 🔥 Check if AppKit already exists in DOM
-        const existingModal = document.querySelector('w3m-modal');
-        if (existingModal && appKitInstance) {
-          console.log('⚠️ [Web3Provider] AppKit already exists, reusing');
-          return cachedProviders;
-        }
-
+        console.log('📦 [Web3Provider] Loading modules...');
+        
         const [
-          { createAppKit, AppKitProvider },
-          { WagmiProvider },
-          { QueryClient, QueryClientProvider },
-          _solanaModule,
+          appKitModule,
+          wagmiModule,
+          queryModule,
+          _solanaModule, // 🔥 Prefixed with underscore - needed for import but not directly used
           configModule,
         ] = await Promise.all([
           import('@reown/appkit/react'),
           import('wagmi'),
           import('@tanstack/react-query'),
-          import('@reown/appkit-adapter-solana/react'),
+          import('@reown/appkit-adapter-solana/react'), // Still imported for side effects
           import('../config'),
         ]);
 
+        console.log('✅ [Web3Provider] Modules loaded');
+
+        const { createAppKit, AppKitProvider } = appKitModule;
+        const { WagmiProvider } = wagmiModule;
+        const { QueryClient, QueryClientProvider } = queryModule;
         const { wagmiAdapter, solanaWeb3JsAdapter, projectId, networks, metadata } = configModule;
 
-        if (!projectId) throw new Error('Missing VITE_PROJECT_ID environment variable');
+        if (!projectId) {
+          throw new Error('Missing VITE_PROJECT_ID environment variable');
+        }
 
         const queryClient = new QueryClient({
           defaultOptions: { queries: { staleTime: 90_000, gcTime: 600_000 } },
         });
 
-        // 🔥 Only create AppKit if it doesn't exist
-        if (!appKitInstance) {
-          console.log('🔧 [Web3Provider] Creating AppKit instance');
-          appKitInstance = createAppKit({
-            adapters: [wagmiAdapter, solanaWeb3JsAdapter],
-            projectId,
-            networks,
-            metadata,
-            
-            // Theme
-            themeMode: 'dark',
-            themeVariables: {
-              '--w3m-z-index': 2147483647,
-              '--w3m-accent': '#6366f1',
-            },
-            
-            // Wallet configuration
-            allWallets: 'SHOW',
-            
-            includeWalletIds: [
-              'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
-              'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa', // Coinbase
-              '19177a98252e07ddfc9af2083ba8e07ef627cb6103467ffebb3f8f4205fd7927', // Phantom
-              '38f5d18bd8522c244bdd70cb4a68e0e718865155811c043f052fb9f1c51de662', // Backpack
-              'c03dfee351b6fcc421b4494ea33b9d4b92a984f87aa76d1663bb28705e95034a', // Exodus
-            ],
-            
-            featuredWalletIds: [
-              'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96',
-              'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa',
-              '19177a98252e07ddfc9af2083ba8e07ef627cb6103467ffebb3f8f4205fd7927',
-              '38f5d18bd8522c244bdd70cb4a68e0e718865155811c043f052fb9f1c51de662',
-              'c03dfee351b6fcc421b4494ea33b9d4b92a984f87aa76d1663bb28705e95034a',
-            ],
-            
-            enableWalletConnect: true,
-            enableInjected: true,
-            enableEIP6963: true,
-            enableCoinbase: true,
-            coinbasePreference: 'smartWalletOnly',
-            
-            defaultNetwork: networks[0],
-          });
-          console.log('✅ [Web3Provider] AppKit instance created');
-        } else {
-          console.log('⚠️ [Web3Provider] Reusing existing AppKit instance');
-        }
+    if (!appKitInstance) {
+  console.log('🔧 [Web3Provider] Creating AppKit instance');
+  
+  appKitInstance = createAppKit({
+    adapters: [wagmiAdapter, solanaWeb3JsAdapter],
+    projectId,
+    networks,
+    metadata,
+    
+    themeMode: 'dark',
+    themeVariables: {
+      '--w3m-z-index': 2147483647,
+      '--w3m-accent': '#6366f1',
+    },
+    
+    // 🔥 Wallet configuration - show ALL wallets with featured ones at top
+    allWallets: 'SHOW',
+    
+    // Only feature specific wallets, don't restrict to only these
+    featuredWalletIds: [
+      'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
+      'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa', // Coinbase
+      '19177a98252e07ddfc9af2083ba8e07ef627cb6103467ffebb3f8f4205fd7927', // Phantom
+      '38f5d18bd8522c244bdd70cb4a68e0e718865155811c043f052fb9f1c51de662', // Backpack
+      'c03dfee351b6fcc421b4494ea33b9d4b92a984f87aa76d1663bb28705e95034a', // Exodus
+    ],
+    
+    // 🔥 REMOVED includeWalletIds - this was restricting the list!
+    
+    // Disable social/email login
+    features: {
+      socials: false,
+      email: false,
+      emailShowWallets: false,
+    },
+    
+    enableWalletConnect: true,
+    enableInjected: true,
+    enableEIP6963: true,
+    enableCoinbase: true,
+    coinbasePreference: 'smartWalletOnly',
+    
+    defaultNetwork: networks[0],
+  });
+  
+  console.log('✅ [Web3Provider] AppKit instance created');
+}
 
         const result = {
           AppKitProvider,
@@ -199,36 +187,39 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = fa
         cachedProviders = result;
         isInitialized = true;
 
-        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
 
+        console.log('✅ [Web3Provider] Initialization complete');
         return result;
+        
       } catch (err: any) {
         console.error('❌ [Web3Provider] Initialization error:', err);
         initializationPromise = null;
+        isInitialized = false;
         throw err;
       }
     })();
 
     initializationPromise
       .then((result) => {
-        if (isMountedRef.current) {
-          console.log('✅ [Web3Provider] Providers ready');
-          setProviders(result);
-        }
+        console.log('✅ [Web3Provider] Setting providers');
+        setProviders(result);
       })
       .catch((err) => {
-        if (isMountedRef.current) {
-          console.error('❌ [Web3Provider] Failed to set providers:', err);
-          setLoadingError(err?.message || 'Unknown error');
-        }
+        console.error('❌ [Web3Provider] Failed:', err);
+        setLoadingError(err?.message || 'Unknown error');
       });
 
     return () => {
-      isMountedRef.current = false;
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      // Don't reset hasInitialized on cleanup - we want it to persist
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
     };
-  }, [needsWeb3]); // 🔥 Remove 'providers' from deps to prevent re-runs
+  }, [needsWeb3]);
+
+  console.log('🔄 [Web3Provider] Render - providers:', !!providers, 'needsWeb3:', needsWeb3);
 
   if (!needsWeb3) {
     return <>{children}</>;
@@ -256,6 +247,8 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = fa
     return <Web3LoadingFallback />;
   }
 
+  console.log('✅ [Web3Provider] Rendering with providers');
+  
   const { AppKitProvider, WagmiProvider, QueryClientProvider, queryClient, wagmiConfig } = providers;
 
   return (
