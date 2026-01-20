@@ -1,35 +1,16 @@
 // src/contexts/WalletContext.tsx
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useContext, useMemo, useEffect, useState } from 'react';
 import { useAppKitAccount } from '@reown/appkit/react';
 import { useStellarWallet } from '../chains/stellar/useStellarWallet';
 import type { SupportedChain } from '../chains/types';
 import { useWalletActions } from '../hooks/useWalletActions';
 
-/**
- * WalletContext - Only used for Web3 rooms
- * 
- * This context wraps Web3 rooms and provides wallet functionality.
- * It should NEVER be used for Web2 rooms.
- * 
- * Usage:
- * ```tsx
- * // In Web3PaymentStep or other Web3 components:
- * const wallet = useWallet();
- * const { connect, disconnect, isConnected } = wallet.actions;
- * ```
- */
-
 interface WalletContextValue {
-  // Wallet state
   chainFamily: 'evm' | 'solana' | 'stellar' | null;
   address: string | null;
   isConnected: boolean;
   isConnecting: boolean;
-  
-  // Actions
   actions: ReturnType<typeof useWalletActions>;
-  
-  // Network info
   networkInfo: {
     currentNetwork: string;
     expectedNetwork: string;
@@ -41,9 +22,6 @@ const WalletContext = createContext<WalletContextValue | null>(null);
 
 interface WalletProviderProps {
   children: React.ReactNode;
-  /**
-   * Explicit config for this room
-   */
   roomConfig: {
     web3Chain?: string;
     evmNetwork?: string;
@@ -58,7 +36,19 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({
 }) => {
   console.log('[WalletProvider] Initializing with config:', roomConfig);
   
-  // Get wallet state from AppKit
+  // 🔥 Add a small delay to ensure AppKit is fully ready
+  const [isReady, setIsReady] = useState(false);
+  
+  useEffect(() => {
+    // Small delay to ensure AppKit context is mounted
+    const timer = setTimeout(() => {
+      setIsReady(true);
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, []);
+  
+  // Get wallet state from AppKit (will be safe after delay)
   const appKitAccount = useAppKitAccount();
   const stellarWallet = useStellarWallet();
   
@@ -71,6 +61,14 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({
   
   // Determine current wallet state based on chain family
   const { address, isConnected, isConnecting } = useMemo(() => {
+    if (!isReady) {
+      return {
+        address: null,
+        isConnected: false,
+        isConnecting: true, // Show connecting state while initializing
+      };
+    }
+    
     switch (chainFamily) {
       case 'stellar':
         return {
@@ -95,6 +93,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({
         };
     }
   }, [
+    isReady,
     chainFamily,
     stellarWallet.address,
     stellarWallet.isConnected,
@@ -115,6 +114,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({
   };
   
   console.log('[WalletProvider] State:', {
+    isReady,
     chainFamily,
     address,
     isConnected,
@@ -128,12 +128,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({
   );
 };
 
-/**
- * Hook to access wallet context
- * 
- * ⚠️ This will throw an error if used outside WalletProvider
- * This is intentional - wallet hooks should only be used in Web3 rooms
- */
 export const useWallet = (): WalletContextValue => {
   const context = useContext(WalletContext);
   
@@ -148,10 +142,6 @@ export const useWallet = (): WalletContextValue => {
   return context;
 };
 
-/**
- * Safe version that returns null if not in WalletProvider
- * Use this in components that might render in both Web2 and Web3 contexts
- */
 export const useWalletOptional = (): WalletContextValue | null => {
   return useContext(WalletContext);
 };
