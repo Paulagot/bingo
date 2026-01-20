@@ -114,43 +114,51 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = fa
           defaultOptions: { queries: { staleTime: 90_000, gcTime: 600_000 } },
         });
 
+        // 🔥 Create AppKit BEFORE rendering
         createAppKit({
           adapters: [wagmiAdapter, solanaWeb3JsAdapter],
           projectId,
           networks,
           metadata,
+          
+          // Theme
           themeMode: 'dark',
           themeVariables: {
             '--w3m-z-index': 2147483647,
             '--w3m-accent': '#6366f1',
           },
           
-          // 🔥 ENHANCED MOBILE CONFIGURATION
-          enableMobileFullScreen: true,
+          // 🔥 CRITICAL: Wallet configuration for mobile
           allWallets: 'SHOW',
           
-          // WalletConnect options
-          enableWalletConnect: true,
-          
-          // Browser wallet detection
-          enableInjected: true,
-          enableEIP6963: true,
-          
-          // Coinbase configuration
-          enableCoinbase: true,
-          coinbasePreference: 'all', // Supports both mobile app and extension
-          
-          // Mobile-specific features
-          enableWalletGuide: true, // Shows install prompts for mobile
-          
-          // Featured wallets (prioritized in the modal)
-          featuredWalletIds: [
+          // Explicitly include wallets
+          includeWalletIds: [
             'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
-            'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa', // Coinbase Wallet
+            'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa', // Coinbase
             '19177a98252e07ddfc9af2083ba8e07ef627cb6103467ffebb3f8f4205fd7927', // Phantom
             '38f5d18bd8522c244bdd70cb4a68e0e718865155811c043f052fb9f1c51de662', // Backpack
             'c03dfee351b6fcc421b4494ea33b9d4b92a984f87aa76d1663bb28705e95034a', // Exodus
           ],
+          
+          featuredWalletIds: [
+            'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96',
+            'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa',
+            '19177a98252e07ddfc9af2083ba8e07ef627cb6103467ffebb3f8f4205fd7927',
+            '38f5d18bd8522c244bdd70cb4a68e0e718865155811c043f052fb9f1c51de662',
+            'c03dfee351b6fcc421b4494ea33b9d4b92a984f87aa76d1663bb28705e95034a',
+          ],
+          
+          // Core features
+          enableWalletConnect: true,
+          enableInjected: true,
+          enableEIP6963: true,
+          enableCoinbase: true,
+          
+          // 🔥 Coinbase preference - choose based on your needs:
+          // 'smartWalletOnly' = gasless, best UX (recommended)
+          // 'eoaOnly' = traditional wallet
+          // 'all' = let user choose
+          coinbasePreference: 'smartWalletOnly',
           
           defaultNetwork: networks[0],
         });
@@ -170,6 +178,7 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = fa
 
         return result;
       } catch (err: any) {
+        console.error('❌ Web3 initialization error:', err);
         initializationPromise = null;
         throw err;
       }
@@ -177,10 +186,16 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = fa
 
     initializationPromise
       .then((result) => {
-        if (isMountedRef.current) setProviders(result);
+        if (isMountedRef.current) {
+          console.log('✅ Web3 providers initialized');
+          setProviders(result);
+        }
       })
       .catch((err) => {
-        if (isMountedRef.current) setLoadingError(err?.message || 'Unknown error');
+        if (isMountedRef.current) {
+          console.error('❌ Failed to set providers:', err);
+          setLoadingError(err?.message || 'Unknown error');
+        }
       });
 
     return () => {

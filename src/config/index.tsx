@@ -40,42 +40,26 @@ if (!projectId || projectId.trim().length === 0) {
 }
 
 // ---------------------------------------------
-// 🧩 DApp Metadata (dynamic for multi-domain + mobile deep links)
+// 🧩 DApp Metadata
 // ---------------------------------------------
 export const metadata = {
   name: "FundRaisely Quiz",
   description: "FundRaisely Web3-powered quiz fundraising platform",
-
-  // Critical for Verify API: must match the exact current domain/subdomain
   url: typeof window !== 'undefined' 
     ? window.location.origin 
     : "https://fundraisely-staging.up.railway.app",
-
   icons: [
     typeof window !== 'undefined' 
       ? `${window.location.origin}/fundraisely.png` 
       : "https://fundraisely-staging.up.railway.app/fundraisely.png"
   ],
-
-  // 🔥 CRITICAL FIX: Redirect configuration for mobile wallets
-  redirect: {
-    // Native is used for mobile app deep links
-    native: typeof window !== 'undefined' 
-      ? window.location.origin 
-      : "https://fundraisely-staging.up.railway.app",
-
-    // Universal is the fallback URL after wallet interaction
-    universal: typeof window !== 'undefined' 
-      ? window.location.origin 
-      : "https://fundraisely-staging.up.railway.app",
-  }
 };
 
 // ---------------------------------------------
 // 🌐 Supported Networks
 // ---------------------------------------------
 export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [
-  solanaDevnet,     // Default = Devnet
+  solanaDevnet,
   solana,
   solanaTestnet,
   sepolia,
@@ -134,7 +118,6 @@ export const wagmiAdapter = new WagmiAdapter({
   ssr: true,
 });
 
-// 🔥 CRITICAL FIX: Properly configure Solana wallets for mobile support
 export const solanaWeb3JsAdapter = new SolanaAdapter({
   registerWalletStandard: true,
   wallets: [
@@ -145,7 +128,6 @@ export const solanaWeb3JsAdapter = new SolanaAdapter({
 
 export const wagmiConfig = wagmiAdapter.wagmiConfig;
 
-// Debug logs (optional — remove in production if desired)
+// Debug logs
 console.log("🔧 [config] Loaded networks:", networks.map((n) => `${n.name} (${n.id})`));
-console.log("🔧 [config] Metadata URL (dynamic):", metadata.url);
-console.log("🔧 [config] Redirect URLs:", metadata.redirect);
+console.log("🔧 [config] Metadata URL:", metadata.url);
