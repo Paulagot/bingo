@@ -3,6 +3,7 @@ import { SolanaAdapter } from "@reown/appkit-adapter-solana";
 import {
   PhantomWalletAdapter,
   SolflareWalletAdapter,
+ 
 } from "@solana/wallet-adapter-wallets";
 
 import {
@@ -40,7 +41,7 @@ if (!projectId || projectId.trim().length === 0) {
 }
 
 // ---------------------------------------------
-// 🧩 DApp Metadata
+// 🧩 DApp Metadata (with proper mobile deep linking)
 // ---------------------------------------------
 export const metadata = {
   name: "FundRaisely Quiz",
@@ -53,6 +54,20 @@ export const metadata = {
       ? `${window.location.origin}/fundraisely.png` 
       : "https://fundraisely-staging.up.railway.app/fundraisely.png"
   ],
+  
+  // 🔥 CRITICAL for mobile deep linking
+  redirect: {
+    native: typeof window !== 'undefined' 
+      ? window.location.origin 
+      : "https://fundraisely-staging.up.railway.app",
+    universal: typeof window !== 'undefined' 
+      ? window.location.origin 
+      : "https://fundraisely-staging.up.railway.app",
+  },
+  
+  verifyUrl: typeof window !== 'undefined' 
+    ? window.location.origin 
+    : "https://fundraisely-staging.up.railway.app",
 };
 
 // ---------------------------------------------
@@ -131,3 +146,4 @@ export const wagmiConfig = wagmiAdapter.wagmiConfig;
 // Debug logs
 console.log("🔧 [config] Loaded networks:", networks.map((n) => `${n.name} (${n.id})`));
 console.log("🔧 [config] Metadata URL:", metadata.url);
+console.log("🔧 [config] Redirect config:", metadata.redirect);

@@ -128,7 +128,7 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = fa
           defaultOptions: { queries: { staleTime: 90_000, gcTime: 600_000 } },
         });
 
-    if (!appKitInstance) {
+if (!appKitInstance) {
   console.log('🔧 [Web3Provider] Creating AppKit instance');
   
   appKitInstance = createAppKit({
@@ -143,10 +143,9 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = fa
       '--w3m-accent': '#6366f1',
     },
     
-    // 🔥 Wallet configuration - show ALL wallets with featured ones at top
+    // 🔥 Wallet display configuration
     allWallets: 'SHOW',
     
-    // Only feature specific wallets, don't restrict to only these
     featuredWalletIds: [
       'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
       'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa', // Coinbase
@@ -155,20 +154,26 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = fa
       'c03dfee351b6fcc421b4494ea33b9d4b92a984f87aa76d1663bb28705e95034a', // Exodus
     ],
     
-    // 🔥 REMOVED includeWalletIds - this was restricting the list!
-    
-    // Disable social/email login
+    // 🔥 Disable social/email features
     features: {
       socials: false,
       email: false,
       emailShowWallets: false,
+      analytics: false, // Disable analytics
+      swaps: false, // Disable swaps
+      onramp: false, // Disable on-ramp
     },
     
+    // 🔥 CRITICAL: Enable all connection methods
     enableWalletConnect: true,
     enableInjected: true,
     enableEIP6963: true,
     enableCoinbase: true,
-    coinbasePreference: 'smartWalletOnly',
+    
+    // 🔥 CRITICAL for mobile: Allow all Coinbase wallet types
+    coinbasePreference: 'all', // Changed from 'smartWalletOnly'
+    
+    // 🔥 Add these for better mobile support
     
     defaultNetwork: networks[0],
   });
