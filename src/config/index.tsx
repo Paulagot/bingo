@@ -1,5 +1,9 @@
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
 import { SolanaAdapter } from "@reown/appkit-adapter-solana";
+import {
+  PhantomWalletAdapter,
+  SolflareWalletAdapter,
+} from "@solana/wallet-adapter-wallets";
 
 import {
   sepolia,
@@ -36,14 +40,13 @@ if (!projectId || projectId.trim().length === 0) {
 }
 
 // ---------------------------------------------
-// 🧩 DApp Metadata (dynamic for multi-domain + specific redirect path)
+// 🧩 DApp Metadata (dynamic for multi-domain + mobile deep links)
 // ---------------------------------------------
 export const metadata = {
   name: "FundRaisely Quiz",
   description: "FundRaisely Web3-powered quiz fundraising platform",
 
   // Critical for Verify API: must match the exact current domain/subdomain
-  // This fixes "origins don't match verify.walletconnect.com" warnings
   url: typeof window !== 'undefined' 
     ? window.location.origin 
     : "https://fundraisely-staging.up.railway.app",
@@ -54,14 +57,17 @@ export const metadata = {
       : "https://fundraisely-staging.up.railway.app/fundraisely.png"
   ],
 
-  // Redirect: universal points to your actual connect/review/launch page
-  // Wallets redirect back here after approval (with possible query params)
+  // 🔥 CRITICAL FIX: Redirect configuration for mobile wallets
   redirect: {
-    native: undefined,  // Disable — not applicable for web dApp
+    // Native is used for mobile app deep links
+    native: typeof window !== 'undefined' 
+      ? window.location.origin 
+      : "https://fundraisely-staging.up.railway.app",
 
+    // Universal is the fallback URL after wallet interaction
     universal: typeof window !== 'undefined' 
-      ? `${window.location.origin}/web3/impact-campaign/join`
-      : "https://fundraisely-staging.up.railway.app/web3/impact-campaign/join",
+      ? window.location.origin 
+      : "https://fundraisely-staging.up.railway.app",
   }
 };
 
@@ -125,16 +131,21 @@ export const wagmiAdapter = new WagmiAdapter({
   projectId,
   networks: networks as unknown as [AppKitNetwork, ...AppKitNetwork[]],
   transports: evmTransports,
-  ssr: true,  // Better for hydration
+  ssr: true,
 });
 
+// 🔥 CRITICAL FIX: Properly configure Solana wallets for mobile support
 export const solanaWeb3JsAdapter = new SolanaAdapter({
   registerWalletStandard: true,
-  wallets: [],  // Auto-detect via Wallet Standard (e.g., Phantom)
+  wallets: [
+    new PhantomWalletAdapter(),
+    new SolflareWalletAdapter(),
+  ],
 });
+
 export const wagmiConfig = wagmiAdapter.wagmiConfig;
 
-
 // Debug logs (optional — remove in production if desired)
-console.log("🔧 [config] Loaded networks:", networks.map(n => `${n.name} (${n.id})`));
+console.log("🔧 [config] Loaded networks:", networks.map((n) => `${n.name} (${n.id})`));
 console.log("🔧 [config] Metadata URL (dynamic):", metadata.url);
+console.log("🔧 [config] Redirect URLs:", metadata.redirect);
