@@ -46,7 +46,32 @@ export default function ReconciliationApproval({ compact = false }: Props) {
     <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
       {/* Header */}
       <div className="p-4 border-b border-gray-200 bg-gray-50">
-        <div className="flex items-center justify-between">
+       
+      </div>
+        {/* Notes Field */}
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-gray-700 uppercase tracking-wider">
+              Comments / Notes (Optional)
+            </label>
+            <textarea
+              rows={compact ? 2 : 4}
+              className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 disabled:bg-gray-100 disabled:cursor-not-allowed transition-all resize-none"
+              disabled={isApproved}
+              value={notes}
+              onChange={(e) => {
+                setNotes(e.target.value);
+                save({ notes: e.target.value });
+              }}
+              placeholder="Any discrepancies, explanations, or final notes..."
+            />
+            {isApproved && (
+              <p className="mt-1.5 text-xs text-gray-500 italic">
+                Approval is final - edits are locked
+              </p>
+            )}
+          </div>
+
+           <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {isApproved ? (
               <CheckCircle2 className="h-5 w-5 text-green-600" />
@@ -70,7 +95,6 @@ export default function ReconciliationApproval({ compact = false }: Props) {
             </span>
           )}
         </div>
-      </div>
 
       <div className="p-4">
         <div className={`grid ${compact ? 'grid-cols-1' : 'grid-cols-1'} gap-4`}>
@@ -127,28 +151,7 @@ export default function ReconciliationApproval({ compact = false }: Props) {
             )}
           </div>
 
-          {/* Notes Field */}
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold text-gray-700 uppercase tracking-wider">
-              Comments / Notes (Optional)
-            </label>
-            <textarea
-              rows={compact ? 2 : 4}
-              className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 disabled:bg-gray-100 disabled:cursor-not-allowed transition-all resize-none"
-              disabled={isApproved}
-              value={notes}
-              onChange={(e) => {
-                setNotes(e.target.value);
-                save({ notes: e.target.value });
-              }}
-              placeholder="Any discrepancies, explanations, or final notes..."
-            />
-            {isApproved && (
-              <p className="mt-1.5 text-xs text-gray-500 italic">
-                Approval is final - edits are locked
-              </p>
-            )}
-          </div>
+        
         </div>
 
         {/* Information Box */}

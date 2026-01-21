@@ -1,7 +1,8 @@
 import { useCallback } from 'react';
 import { getChainId } from 'wagmi/actions';
-import { config as wagmiConfig } from '../../../../src/config/index';
+import { wagmiConfig } from '../../../../src/config/index';
 import { resolveEvmTarget, type ResolvedEvmTarget } from '../utils/evmSelect';
+
 
 export interface EvmSetupConfig {
   evmNetwork?: string;

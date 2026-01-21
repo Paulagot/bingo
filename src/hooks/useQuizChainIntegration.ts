@@ -1,19 +1,13 @@
 // src/hooks/useQuizChainIntegration.ts
-import { useMemo, useEffect } from 'react';
+import { useMemo } from 'react';
 import { useQuizSetupStore } from '../components/Quiz/hooks/useQuizSetupStore';
 import { useQuizConfig } from '../components/Quiz/hooks/useQuizConfig';
 import { useWalletStore } from '../stores/walletStore';
-import { useAppKitAccount, useAppKitNetwork } from '@reown/appkit/react';
+import { useAppKitAccount } from '@reown/appkit/react';
 import { useStellarWallet } from '../chains/stellar/useStellarWallet';
 import type { SupportedChain, WalletError } from '../chains/types';
-
-// ✅ Use the central networks config to avoid drift
-import { getMetaByKey, getKeyById, type EvmNetworkKey } from '../chains/evm/config/networks';
-
-const SOLANA_NAME_BY_CLUSTER: Record<string, string> = {
-  mainnet: 'Solana',
-  devnet: 'Solana (Devnet)',
-};
+import { useWalletActions } from '../hooks/useWalletActions';
+import type { EvmNetworkKey } from '../chains/evm/config/networks'
 
 const hasPositiveAmount = (value: unknown): boolean => {
   if (typeof value === 'number') return value > 0;
@@ -32,52 +26,70 @@ interface CurrentWalletState {
   error: WalletError | null;
 }
 
-type Options = { chainOverride?: SupportedChain | null };
+// ✅ External config option
+interface ExternalConfig {
+  web3Chain?: string;
+  evmNetwork?: string;
+  solanaCluster?: string;
+  stellarNetwork?: string;
+}
 
-export const useQuizChainIntegration = (_opts?: Options) => {
+type Options = { 
+  chainOverride?: SupportedChain | null;
+  externalConfig?: ExternalConfig | null;
+};
+
+export const useQuizChainIntegration = (opts?: Options) => {
   const { setupConfig } = useQuizSetupStore();
   const { config } = useQuizConfig();
 
   // ✅ Read directly from AppKit for EVM/Solana
   const appKitAccount = useAppKitAccount();
-  const { caipNetwork } = useAppKitNetwork();
 
   // ✅ Read from Stellar wallet (not managed by AppKit)
   const stellarWallet = useStellarWallet();
 
-  // ✅ Read activeChain from store + get setter
+  // ✅ Read activeChain from store (used for Stellar only)
   const activeChain = useWalletStore((s) => s.activeChain) as SupportedChain | null;
-  const setActiveChain = useWalletStore((s) => s.setActiveChain);
+
+  // ✅ Merge external config with internal config
+  const effectiveConfig = useMemo(() => {
+    // Priority: externalConfig > setupConfig > config
+    return {
+      web3Chain: opts?.externalConfig?.web3Chain || setupConfig?.web3Chain || config?.web3Chain,
+      evmNetwork: opts?.externalConfig?.evmNetwork || (setupConfig as any)?.evmNetwork || config?.evmNetwork,
+      solanaCluster: opts?.externalConfig?.solanaCluster || (setupConfig as any)?.solanaCluster || config?.solanaCluster,
+      stellarNetwork: opts?.externalConfig?.stellarNetwork || (setupConfig as any)?.stellarNetwork || config?.stellarNetwork,
+    };
+  }, [
+    opts?.externalConfig,
+    setupConfig?.web3Chain,
+    config?.web3Chain,
+    (setupConfig as any)?.evmNetwork,
+    config?.evmNetwork,
+    (setupConfig as any)?.solanaCluster,
+    config?.solanaCluster,
+    (setupConfig as any)?.stellarNetwork,
+    config?.stellarNetwork,
+  ]);
 
   // Determine selected chain (coarse chain kind: 'stellar' | 'evm' | 'solana')
   const selectedChain: SupportedChain | null = useMemo(() => {
-    // 1️⃣ Wizard-preferred source — user selection during setup
-    if (setupConfig?.web3Chain === 'evm' ||
-        setupConfig?.web3Chain === 'solana' ||
-        setupConfig?.web3Chain === 'stellar') {
-      return setupConfig.web3Chain;
+    // 1️⃣ Use effectiveConfig which includes external config
+    if (effectiveConfig.web3Chain === 'evm' ||
+        effectiveConfig.web3Chain === 'solana' ||
+        effectiveConfig.web3Chain === 'stellar') {
+      return effectiveConfig.web3Chain as SupportedChain;
     }
 
-    // 2️⃣ After deployment, full config takes over
-    if (config?.web3Chain === 'evm' ||
-        config?.web3Chain === 'solana' ||
-        config?.web3Chain === 'stellar') {
-      return config.web3Chain;
-    }
-
-    // 3️⃣ Store fallback (rare)
+    // 2️⃣ Store fallback (rare, only for Stellar)
     if (activeChain) return activeChain;
 
     return null;
-  }, [setupConfig?.web3Chain, config?.web3Chain, activeChain]);
+  }, [effectiveConfig.web3Chain, activeChain]);
 
-  // ✅ Sync selectedChain to activeChain in store (replaces DynamicChainProvider logic)
-  useEffect(() => {
-    if (selectedChain && selectedChain !== activeChain) {
-      console.log('[useQuizChainIntegration] Syncing activeChain:', selectedChain);
-      setActiveChain(selectedChain);
-    }
-  }, [selectedChain, activeChain, setActiveChain]);
+  // ❌ REMOVED: activeChain sync effect - it was causing infinite loops
+  // activeChain should only be used for Stellar, EVM/Solana state comes from AppKit
 
   // ✅ Current wallet state based on selected chain
   const currentWallet = useMemo<CurrentWalletState | undefined>(() => {
@@ -86,8 +98,8 @@ export const useQuizChainIntegration = (_opts?: Options) => {
         return {
           address: stellarWallet.address || null,
           isConnected: stellarWallet.isConnected ?? false,
-          isConnecting: false, // Stellar hook doesn't expose this
-          error: (stellarWallet as any).error || null, // Cast to access error if it exists
+          isConnecting: false,
+          error: (stellarWallet as any).error || null,
         };
       
       case 'evm':
@@ -96,7 +108,7 @@ export const useQuizChainIntegration = (_opts?: Options) => {
           address: appKitAccount.address || null,
           isConnected: appKitAccount.isConnected,
           isConnecting: appKitAccount.status === 'connecting',
-          error: null, // AppKit doesn't expose errors in the same way
+          error: null,
         };
       
       default:
@@ -116,60 +128,35 @@ export const useQuizChainIntegration = (_opts?: Options) => {
   const walletError = currentWallet?.error;
   const walletAddress = currentWallet?.address;
 
-  // 🔹 The selected EVM subnetwork key (e.g., 'base', 'optimismSepolia', etc.)
-  const selectedEvmNetwork = (setupConfig as any)?.evmNetwork as EvmNetworkKey | undefined;
+  // 🔹 The selected EVM subnetwork key (from effectiveConfig)
+  const selectedEvmNetwork = effectiveConfig.evmNetwork as EvmNetworkKey | undefined;
 
-  // ✅ Extract numeric chainId for EVM
-  const evmChainId = useMemo(() => {
-    if (selectedChain !== 'evm') return undefined;
-    
-    const caipNetworkId = caipNetwork?.caipNetworkId;
-    if (!caipNetworkId) return undefined;
+  // ✅ Get wallet actions with SAME config so chain family resolution is consistent
+  const walletActions = useWalletActions({
+    externalSetupConfig: effectiveConfig.web3Chain ? {
+      web3Chain: effectiveConfig.web3Chain,
+      evmNetwork: effectiveConfig.evmNetwork,
+      solanaCluster: effectiveConfig.solanaCluster,
+      stellarNetwork: effectiveConfig.stellarNetwork,
+    } : undefined
+  });
 
-    // Extract from "eip155:84532"
-    if (caipNetworkId.includes(':')) {
-      const parts = caipNetworkId.split(':');
-      const chainIdStr = parts[1];
-      if (chainIdStr) {
-        const parsed = parseInt(chainIdStr, 10);
-        return isNaN(parsed) ? undefined : parsed;
-      }
-    }
-    
-    return undefined;
-  }, [selectedChain, caipNetwork?.caipNetworkId]);
-
-  // Network-aware display name, sourced from networks.ts
+  // Network-aware display name
   const getNetworkDisplayName = (chain?: SupportedChain | null): string => {
+    const networkInfo = walletActions.getNetworkInfo();
+    
     const c = chain ?? selectedChain;
     if (!c) return 'No blockchain';
-
-    if (c === 'stellar') {
-      const stellarNet = (setupConfig as any)?.stellarNetwork; // 'public' | 'testnet' (if present)
-      return stellarNet === 'public' ? 'Stellar (Mainnet)'
-           : stellarNet === 'testnet' ? 'Stellar (Testnet)'
-           : 'Stellar';
+    
+    // If checking the expected network, return the expected name
+    if (!chain || chain === selectedChain) {
+      return networkInfo.expectedNetwork || 'Blockchain';
     }
-
-    if (c === 'solana') {
-      const cluster = (setupConfig as any)?.solanaCluster || 'mainnet';
-      return SOLANA_NAME_BY_CLUSTER[cluster] ?? 'Solana';
-    }
-
-    // EVM: prefer the configured network key, otherwise fall back to the connected chainId
-    const metaFromKey = getMetaByKey(selectedEvmNetwork);
-    if (metaFromKey?.name) return metaFromKey.name;
-
-    if (typeof evmChainId === 'number') {
-      const keyFromId = getKeyById(evmChainId);
-      const metaFromId = getMetaByKey(keyFromId);
-      if (metaFromId?.name) return metaFromId.name;
-    }
-
-    return 'EVM';
+    
+    // Otherwise return the current network name
+    return networkInfo.currentNetwork || 'Blockchain';
   };
 
-  // Family label only
   const getChainDisplayName = (chain?: SupportedChain | null): string => {
     const c = chain ?? selectedChain;
     if (!c) return 'No blockchain';
@@ -217,7 +204,6 @@ export const useQuizChainIntegration = (_opts?: Options) => {
     
     if (walletError) {
       const errMsg = walletError.message || 'Unknown wallet error';
-
       return {
         status: 'error' as const,
         message: `Wallet error: ${errMsg}`,
@@ -253,8 +239,9 @@ export const useQuizChainIntegration = (_opts?: Options) => {
   return {
     // selection
     selectedChain,
-    selectedEvmNetwork, // 🔹 expose for debug/consumers
+    selectedEvmNetwork,
     activeChain,
+    effectiveConfig,
 
     // wallet state
     currentWallet,
@@ -269,22 +256,13 @@ export const useQuizChainIntegration = (_opts?: Options) => {
 
     // helpers
     isUsingChain,
-    getChainDisplayName,    // family ("EVM", "Stellar", "Solana")
-    getNetworkDisplayName,  // network-aware ("Base", "OP Sepolia", "Avalanche Fuji", etc.)
+    getChainDisplayName,
+    getNetworkDisplayName,
     getFormattedAddress,
 
-    // debug (handy in overlays)
-    debugInfo: {
-      setupConfig,
-      config,
-      activeChain,
-      evmChainId,
-      evmNetworkKey: selectedEvmNetwork,
-      solanaCluster: (setupConfig as any)?.solanaCluster,
-      appKitConnected: appKitAccount.isConnected,
-      appKitAddress: appKitAccount.address,
-      caipNetworkId: caipNetwork?.caipNetworkId,
-    },
+    // ✅ Pass through network info from walletActions
+    networkInfo: walletActions.getNetworkInfo(),
+    isOnCorrectNetwork: walletActions.isOnCorrectNetwork(),
   };
 };
 

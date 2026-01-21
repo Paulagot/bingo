@@ -35,7 +35,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
       const returnTo = params.get('returnTo');
 
       if (!showNoCreditWarning) {
-        navigate(returnTo || '/quiz/create-fundraising-quiz', { replace: true });
+        navigate(returnTo || '/quiz/eventdashboard', { replace: true });
       }
     } catch (err) {
       console.error('Login failed:', err);
@@ -51,7 +51,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
     dismissNoCreditWarning();
     const params = new URLSearchParams(location.search);
     const returnTo = params.get('returnTo');
-    navigate(returnTo || '/quiz/create-fundraising-quiz', { replace: true });
+    navigate(returnTo || '/quiz/eventdashboard', { replace: true });
   };
 
   return (

@@ -137,11 +137,14 @@ const BlockchainWalletSection: React.FC<Props> = ({
                 ) : (
                   <AlertTriangle className="h-4 w-4 text-orange-600" />
                 )}
-                <span className={`text-sm font-medium ${
-                  isOnCorrectNetwork ? 'text-green-800' : 'text-orange-800'
-                }`}>
-                  {displayNetworkName} Wallet Connected
-                </span>
+           <span className={`text-sm font-medium ${
+  isOnCorrectNetwork ? 'text-green-800' : 'text-orange-800'
+}`}>
+  {isOnCorrectNetwork 
+    ? `${displayNetworkName} Wallet Connected`
+    : `${actualNetwork} Wallet Connected`  // ✅ Show ACTUAL network when wrong
+  }
+</span>
               </div>
             </div>
             {formattedAddress && (

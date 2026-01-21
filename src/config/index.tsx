@@ -1,6 +1,10 @@
-// src/config/index.ts
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
 import { SolanaAdapter } from "@reown/appkit-adapter-solana";
+import {
+  PhantomWalletAdapter,
+  SolflareWalletAdapter,
+ 
+} from "@solana/wallet-adapter-wallets";
 
 import {
   sepolia,
@@ -37,29 +41,40 @@ if (!projectId || projectId.trim().length === 0) {
 }
 
 // ---------------------------------------------
-// 🧩 DApp Metadata (shown in wallet modals)
+// 🧩 DApp Metadata (with proper mobile deep linking)
 // ---------------------------------------------
-// Metadata with proper mobile redirect
 export const metadata = {
   name: "FundRaisely Quiz",
   description: "FundRaisely Web3-powered quiz fundraising platform",
-  url: typeof window !== 'undefined' ? window.location.origin : "https://fundraisely-staging.up.railway.app",
-  icons: [`${typeof window !== 'undefined' ? window.location.origin : "https://fundraisely-staging.up.railway.app"}/fundraisely.png`],
-  // ✅ This tells wallets where to return after connection
- verifyUrl: typeof window !== 'undefined' ? window.location.origin : "https://fundraisely-staging.up.railway.app",
-   redirect: {
-    native: typeof window !== 'undefined' ? `${window.location.origin}://` : undefined,
-    universal: typeof window !== 'undefined' ? window.location.origin : "https://fundraisely-staging.up.railway.app",
-  }
+  url: typeof window !== 'undefined' 
+    ? window.location.origin 
+    : "https://fundraisely-staging.up.railway.app",
+  icons: [
+    typeof window !== 'undefined' 
+      ? `${window.location.origin}/fundraisely.png` 
+      : "https://fundraisely-staging.up.railway.app/fundraisely.png"
+  ],
+  
+  // 🔥 CRITICAL for mobile deep linking
+  redirect: {
+    native: typeof window !== 'undefined' 
+      ? window.location.origin 
+      : "https://fundraisely-staging.up.railway.app",
+    universal: typeof window !== 'undefined' 
+      ? window.location.origin 
+      : "https://fundraisely-staging.up.railway.app",
+  },
+  
+  verifyUrl: typeof window !== 'undefined' 
+    ? window.location.origin 
+    : "https://fundraisely-staging.up.railway.app",
 };
 
-
-
 // ---------------------------------------------
-// 🌐 Supported Networks (tuple for strict typing)
+// 🌐 Supported Networks
 // ---------------------------------------------
 export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [
-   solanaDevnet,     // ✅ Devnet first = default network
+  solanaDevnet,
   solana,
   solanaTestnet,
   sepolia,
@@ -70,7 +85,6 @@ export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [
   avalancheFuji,
   seiTestnet,
   polygonAmoy,
-
   mainnet,
   base,
   optimism,
@@ -79,7 +93,6 @@ export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [
   avalanche,
   sei,
   polygon,
-
 ];
 
 // ---------------------------------------------
@@ -87,7 +100,6 @@ export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [
 // ---------------------------------------------
 export type HttpTransport = ReturnType<typeof http>;
 type EvmTransportMap = Record<number, HttpTransport>;
-
 
 export const evmTransports: EvmTransportMap = {
   // Testnets
@@ -112,31 +124,26 @@ export const evmTransports: EvmTransportMap = {
 };
 
 // ---------------------------------------------
-// 🛠️ Adapter: Wagmi (EVM)
+// 🛠️ Adapters
 // ---------------------------------------------
 export const wagmiAdapter = new WagmiAdapter({
   projectId,
   networks: networks as unknown as [AppKitNetwork, ...AppKitNetwork[]],
   transports: evmTransports,
-  // ✅ Add SSR support for better hydration
-  ssr: typeof window === 'undefined',
-})
-
-// ---------------------------------------------
-// 🛠️ Adapter: Solana (Web3.js)
-// ---------------------------------------------
-export const solanaWeb3JsAdapter = new SolanaAdapter({
-  registerWalletStandard: true,
- wallets: [],
+  ssr: true,
 });
 
-// ---------------------------------------------
-// 📦 Wagmi Config (used by WagmiProvider)
-// ---------------------------------------------
+export const solanaWeb3JsAdapter = new SolanaAdapter({
+  registerWalletStandard: true,
+  wallets: [
+    new PhantomWalletAdapter(),
+    new SolflareWalletAdapter(),
+  ],
+});
 
 export const wagmiConfig = wagmiAdapter.wagmiConfig;
-export const config = wagmiConfig;
 
-// Debug sanity check
-console.log("🔧[config index] Loaded AppKit networks:", networks.map(n => `${n.name} (${n.id})`));
-console.log("🔧 [config index] EVM transports configured:", Object.keys(evmTransports).length);
+// Debug logs
+console.log("🔧 [config] Loaded networks:", networks.map((n) => `${n.name} (${n.id})`));
+console.log("🔧 [config] Metadata URL:", metadata.url);
+console.log("🔧 [config] Redirect config:", metadata.redirect);

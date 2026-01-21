@@ -3,6 +3,9 @@ import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
 import type { SupportedChain } from '../../../chains/types';
 
+// ✅ IMPORT Web3Provider directly (not lazy)
+import { Web3Provider } from '../../Web3Provider';
+
 // Regular imports for steps 1-5 (no Web3 needed)
 import StepFundraisingOptions from './StepFundraisingOptions';
 import StepWeb3Prizes from './StepWeb3Prizes';
@@ -10,11 +13,8 @@ import StepCombinedRounds from './StepCombinedRounds';
 import StepQuizTemplates from './StepQuizTemplates';
 import StepWeb3QuizSetup from './StepWeb3QuizSetup';
 
-// ✅ Lazy load Step 6 + Web3Provider together
+// ✅ Only lazy load Step 6 (not the provider)
 const StepWeb3ReviewLaunch = lazy(() => import('./StepWeb3ReviewLaunch'));
-const Web3Provider = lazy(() => 
-  import('../../../components/Web3Provider').then(m => ({ default: m.Web3Provider }))
-);
 
 const DEBUG = true;
 
@@ -39,7 +39,7 @@ const LoadingSpinner = () => (
   </div>
 );
 
-export default function QuizWeb3Wizard({ onComplete, onChainUpdate, selectedChain }: QuizWizardProps) {
+export default function QuizWeb3Wizard({ onComplete, onChainUpdate  }: QuizWizardProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const { setupConfig, setStep, setFlow } = useQuizSetupStore();
   
@@ -61,14 +61,6 @@ export default function QuizWeb3Wizard({ onComplete, onChainUpdate, selectedChai
       setHasReachedReview(true);
     }
   }, [isReviewStep, hasReachedReview]);
-
-  // debugLog('Web3Wizard', `Render #${renderCountRef.current}`, {
-  //   currentStepIndex,
-  //   currentStep,
-  //   isReviewStep,
-  //   hasReachedReview,
-  //   selectedChain
-  // });
 
   const goNext = () => {
     if (currentStep === 'templates' && setupConfig.skipRoundConfiguration) {
@@ -94,7 +86,7 @@ export default function QuizWeb3Wizard({ onComplete, onChainUpdate, selectedChai
     setFlow('web3');
     setStep('setup');
     setCurrentStepIndex(0);
-    setHasReachedReview(false); // ✅ Reset Web3Provider state on full reset
+    setHasReachedReview(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -114,19 +106,19 @@ export default function QuizWeb3Wizard({ onComplete, onChainUpdate, selectedChai
         return <StepWeb3Prizes onNext={goNext} onBack={goBack} onResetToFirst={resetToFirst} />;
       case 'review':
         return (
-          <StepWeb3ReviewLaunch
-            onNext={goNext}
-            onBack={goBack}
-            onResetToFirst={resetToFirst}
-          />
+          <Suspense fallback={<LoadingSpinner />}>
+            <StepWeb3ReviewLaunch
+              onNext={goNext}
+              onBack={goBack}
+              onResetToFirst={resetToFirst}
+            />
+          </Suspense>
         );
       default:
         return null;
     }
   };
 
-  // ✅ SOLUTION: Once Web3Provider loads, keep it mounted
-  // Only hide/show step content, don't unmount provider
   const content = (
     <div className="mx-auto max-w-3xl px-4 py-10">
       <div className="mb-6 text-center">
@@ -147,15 +139,13 @@ export default function QuizWeb3Wizard({ onComplete, onChainUpdate, selectedChai
     });
     
     return (
-      <Suspense fallback={<LoadingSpinner />}>
-        <Web3Provider>
-          {content}
-        </Web3Provider>
-      </Suspense>
+      <Web3Provider force>
+        {content}
+      </Web3Provider>
     );
   }
 
-  // ✅ Steps 1-4: No Web3Provider needed yet
+  // ✅ Steps 1-5: No Web3Provider needed yet
   debugLog('Web3Wizard', '⚡ Rendering without Web3Provider');
   return content;
 }

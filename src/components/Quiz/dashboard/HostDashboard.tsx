@@ -16,10 +16,10 @@ import AssetUploadPanel from './AssetUploadPanel';
 import BlockchainBadge from './BlockchainBadge';
 import PrizesTab from './PrizesTab';
 
-import useQuizChainIntegration from '../../../hooks/useQuizChainIntegration';
-
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { useAdminStore } from '../hooks/useAdminStore';
+import { quizApi } from '../../../shared/api';
+
 
 import {
   Users,
@@ -37,7 +37,7 @@ const Web3Provider = lazy(() =>
   import('../../../components/Web3Provider').then(m => ({ default: m.Web3Provider }))
 );
 
-const DEBUG = false; // Enable debug logging
+const DEBUG = true; // Enable debug logging
 
 type TabType = 'overview' | 'assets' | 'launch' | 'players' | 'admins' | 'prizes' | 'payments';
 
@@ -56,24 +56,451 @@ const LoadingSpinner = () => (
   </div>
 );
 
+const roomTypeCache = new Map<string, { isWeb3: boolean; checked: boolean }>();
+
 // Core dashboard component (without providers)
 const HostDashboardCore: React.FC = () => {
-  const { config, setFullConfig, currentPhase, completedAt } = useQuizConfig();
-  const isWeb3 = config?.paymentMethod === 'web3';
+  const { config, setFullConfig, currentPhase, completedAt, hydrated } = useQuizConfig();
+   const { roomId, hostId } = useRoomIdentity();
+
+   // Add this helper function at the top of HostDashboardCore
+const applyRecoverySnapshot = (snap: any, setFullConfig: any, roomId: string, hostId: string) => {
+  // Load players
+  if (snap?.players) {
+    usePlayerStore.setState({ 
+      players: snap.players, 
+      hydrated: true 
+    });
+    console.log('[HostDashboard] 📥 Loaded players from snapshot:', snap.players.length);
+  }
+  
+  // Load config (includes reconciliation data for post-game)
+if (snap?.config) {
+  const prev = useQuizConfig.getState().config || {};
+
+  setFullConfig({
+    ...prev,               // ✅ keep existing fields like isWeb3Room
+    ...snap.config,        // ✅ apply snapshot updates
+    roomId,
+    hostId: snap.config.hostId || hostId,
+    // ✅ harden: never allow it to disappear
+    isWeb3Room:
+      typeof snap.config.isWeb3Room === 'boolean'
+        ? snap.config.isWeb3Room
+        : typeof (prev as any).isWeb3Room === 'boolean'
+        ? (prev as any).isWeb3Room
+        : (prev as any).paymentMethod === 'web3',
+  });
+
+  console.log('[HostDashboard] 📥 Loaded config from snapshot');
+}
+  
+  // Load room state (phase, completedAt, etc.)
+  if (snap?.roomState) {
+    console.log('[HostDashboard] 📊 Room state from snapshot:', snap.roomState);
+  }
+};
+
+// ✅ NEW: Check room type from API FIRST (before config loads)
+const [roomTypeChecked, setRoomTypeChecked] = useState(false);
+const [isWeb3Room, setIsWeb3Room] = useState(false);
+
+// ✅ Check room type from API before doing anything else
+useEffect(() => {
+  if (!roomId) {
+    setRoomTypeChecked(false);
+    setIsWeb3Room(false);
+    return;
+  }
+  
+  // ✅ OPTIMIZATION 1: Check if config already tells us (Web3 wizard sets this)
+  if (config?.isWeb3Room !== undefined) {
+    console.log('[HostDashboard] ✅ Room type known from config:', config.isWeb3Room ? 'Web3' : 'Web2');
+    setIsWeb3Room(!!config.isWeb3Room);
+    setRoomTypeChecked(true);
+    
+    // ✅ Cache it so we don't check again
+    roomTypeCache.set(roomId, { isWeb3: !!config.isWeb3Room, checked: true });
+    return;
+  }
+  
+  // ✅ OPTIMIZATION 2: Check cache before making API call
+  const cached = roomTypeCache.get(roomId);
+  if (cached?.checked) {
+    console.log('[HostDashboard] ✅ Using cached room type:', cached.isWeb3 ? 'Web3' : 'Web2');
+    setIsWeb3Room(cached.isWeb3);
+    setRoomTypeChecked(true);
+    return;
+  }
+  
+  // ✅ OPTIMIZATION 3: Only make API call if we don't have config AND no cache
+  let cancelled = false;
+  
+  async function checkRoomType() {
+    try {
+      console.log('[HostDashboard] 🔍 Checking room type via API for:', roomId);
+      
+      const response = await fetch(`/quiz/api/rooms/${roomId}/info`);
+      
+      if (cancelled) return;
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[HostDashboard] ✅ Room type from API:', data.isWeb3 ? 'Web3' : 'Web2');
+        
+        // ✅ Cache the result
+        roomTypeCache.set(roomId, { isWeb3: !!data.isWeb3, checked: true });
+        
+        setIsWeb3Room(!!data.isWeb3);
+        setRoomTypeChecked(true);
+        return;
+      }
+      
+      // If room not found in API, might be a new room being created
+      console.warn('[HostDashboard] ⚠️ Room info not found, defaulting to Web2');
+      
+      // ✅ Cache the default
+      roomTypeCache.set(roomId, { isWeb3: false, checked: true });
+      
+      setIsWeb3Room(false);
+      setRoomTypeChecked(true);
+      
+    } catch (err) {
+      if (cancelled) return;
+      console.error('[HostDashboard] ❌ Failed to check room type:', err);
+      
+      // ✅ Cache the fallback
+      roomTypeCache.set(roomId, { isWeb3: false, checked: true });
+      
+      setIsWeb3Room(false);
+      setRoomTypeChecked(true);
+    }
+  }
+  
+  checkRoomType();
+  
+  return () => {
+    cancelled = true;
+  };
+}, [roomId, config?.isWeb3Room]); 
+
+// Computed value for backward compatibility with rest of component
+const isWeb3 = isWeb3Room;
+
   const { players } = usePlayerStore();
   const { admins } = useAdminStore();
 
   const requestedOnceRef = useRef(false);
   const autoAssignedRef = useRef(false); // Track if we've auto-assigned
 
+
   const location = useLocation();
   const navigate = useNavigate();
 
-  const { socket, connected } = useQuizSocket();
-  const { roomId, hostId } = useRoomIdentity();
+  const [dbHydrating, setDbHydrating] = useState(false);
+const [dbHydrateError, setDbHydrateError] = useState<string | null>(null);
 
-  // ✅ Use AppKit-powered hook directly (no DynamicChainProvider needed)
-  const { selectedChain } = useQuizChainIntegration();
+
+  const { socket, connected } = useQuizSocket();
+
+    const socketRef = useRef(socket);
+const connectedRef = useRef(connected);
+
+// ✅ Keep socket refs in sync
+useEffect(() => {
+  socketRef.current = socket;
+  connectedRef.current = connected;
+}, [socket, connected]);
+
+  
+const hydrationAttemptedRef = useRef(false);
+const hydratedRoomIdRef = useRef<string | null>(null);
+
+
+// Then replace your entire useEffect with this:
+useEffect(() => {
+  let cancelled = false;
+
+ async function hydrateWeb2FromDb() {
+  if (!roomTypeChecked) {
+    console.log('[HostDashboard] ⏳ Waiting for room type check to complete...');
+    return;
+  }
+  
+  if (isWeb3) {
+    console.log('[HostDashboard] ⏭️ Skipping hydration - Web3 room');
+    return;
+  }
+  
+  // ✅ Get effective hostId
+  const effectiveHostId = hostId || config?.hostId || localStorage.getItem('current-host-id');
+  
+  if (!roomId || !effectiveHostId) {
+    console.log('[HostDashboard] ⏭️ Skipping hydration - no roomId or hostId');
+    return;
+  }
+
+  // ✅ Check if THIS SPECIFIC ROOM has already been hydrated
+  if (hydratedRoomIdRef.current === roomId) {
+    console.log(`[HostDashboard] ✅ Room ${roomId} already hydrated, skipping`);
+    return;
+  }
+
+  // ✅ UPDATED: Only skip if we have config AND reconciliation (post-game scenario)
+  // Don't skip for fresh room opens even if config exists in state
+  if (hydrated && config?.roomId === roomId && config?.reconciliation?.finalLeaderboard) {
+    console.log('[HostDashboard] ✅ Already have post-game config with reconciliation data, skipping');
+    hydratedRoomIdRef.current = roomId; // Mark as hydrated
+    return;
+  }
+
+  // ✅ Prevent double-runs in React Strict Mode for the SAME room
+  if (hydrationAttemptedRef.current && hydratedRoomIdRef.current === roomId) {
+    console.log('[HostDashboard] ⏭️ Hydration already attempted for this room, skipping');
+    return;
+  }
+
+  // ✅ Mark as attempted for THIS room
+  hydrationAttemptedRef.current = true;
+  console.log(`[HostDashboard] 🎬 Starting hydration process for room: ${roomId}`);
+
+    try {
+      setDbHydrating(true);
+      setDbHydrateError(null);
+
+      console.log('[HostDashboard] 🔄 Step 1: Hydrating room into server memory...');
+      
+      // 1️⃣ FIRST: Hydrate the room into server memory via the API
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        console.error('[HostDashboard] ❌ No auth token found');
+        setDbHydrateError('No authentication token');
+        navigate('/auth');
+        hydrationAttemptedRef.current = false;
+        return;
+      }
+
+      const hydrateUrl = `${import.meta.env.VITE_API_URL || ''}/quiz/api/web2/rooms/${roomId}/hydrate`;
+      console.log('[HostDashboard] 🌐 Hydrate URL:', hydrateUrl);
+      console.log('[HostDashboard] 🔑 Has token:', !!token);
+
+      const hydrateResponse = await fetch(hydrateUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('[HostDashboard] 📡 Hydrate response status:', hydrateResponse.status);
+      console.log('[HostDashboard] 📡 Hydrate response ok:', hydrateResponse.ok);
+
+      if (!hydrateResponse.ok) {
+        const errorData = await hydrateResponse.json();
+        console.error('[HostDashboard] ❌ Failed to hydrate room into memory:', errorData);
+        
+        if (hydrateResponse.status === 404) {
+          setDbHydrateError('Quiz room not found');
+          hydrationAttemptedRef.current = false;
+          setTimeout(() => navigate('/'), 2000);
+          return;
+        }
+        
+        if (hydrateResponse.status === 403) {
+          setDbHydrateError('You do not have permission to access this room');
+          hydrationAttemptedRef.current = false;
+          setTimeout(() => navigate('/'), 2000);
+          return;
+        }
+        
+        throw new Error(errorData.error || 'Failed to hydrate room');
+      }
+
+      const hydrateData = await hydrateResponse.json();
+      console.log('[HostDashboard] ✅ Room hydrated into server memory:', hydrateData);
+
+      if (cancelled) {
+        console.log('[HostDashboard] ⛔ Hydration cancelled (component unmounted)');
+        return;
+      }
+
+      // 2️⃣ THEN: Load the config into the frontend state
+      console.log('[HostDashboard] 🔄 Step 2: Loading config into frontend state...');
+      const dbConfig = hydrateData.config;
+
+      const mergedConfig = {
+        ...dbConfig,
+        roomId: dbConfig?.roomId ?? hydrateData.roomId ?? roomId,
+        hostId: dbConfig?.hostId ?? hydrateData.hostId ?? hostId,
+        roomCaps: dbConfig?.roomCaps ?? hydrateData.roomCaps ?? null,
+      };
+
+      setFullConfig(mergedConfig);
+      console.log('[HostDashboard] ✅ Config loaded into frontend');
+      
+      // 3️⃣ WAIT for socket to be ready
+      console.log('[HostDashboard] 🔌 Step 3: Waiting for socket connection...');
+      console.log('[HostDashboard] 📊 Current socket state:', {
+        hasSocket: !!socketRef.current,
+        connected: connectedRef.current,
+      });
+      
+      // Wait for socket to be connected (with timeout)
+      let waitAttempts = 0;
+      const maxWaitAttempts = 50; // 5 seconds max
+      
+      while (waitAttempts < maxWaitAttempts) {
+        if (cancelled) {
+          console.log('[HostDashboard] ⛔ Socket wait cancelled');
+          return;
+        }
+        
+        console.log(`[HostDashboard] ⏳ Attempt ${waitAttempts + 1}/${maxWaitAttempts} - Socket: ${!!socketRef.current}, Connected: ${connectedRef.current}`);
+        
+        // ✅ Check current socket state from refs (not stale closure)
+        if (socketRef.current && connectedRef.current) {
+          console.log('[HostDashboard] ✅ Socket is connected, proceeding to join...');
+          
+          // Small delay to ensure backend hydration has fully propagated
+          console.log('[HostDashboard] ⏱️ Waiting 200ms for backend to stabilize...');
+          await new Promise(resolve => setTimeout(resolve, 200));
+          
+          // 4️⃣ FINALLY: Join via socket with recovery snapshot
+          console.log('[HostDashboard] 📤 Emitting join_and_recover...');
+          
+          return new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(() => {
+              console.error('[HostDashboard] ❌ Socket join timeout after 5 seconds');
+              reject(new Error('Socket join timeout'));
+            }, 5000);
+
+            socketRef.current!.emit('join_and_recover', {
+              roomId,
+              user: { 
+                id: hostId,
+                name: mergedConfig.hostName || 'Host'
+              },
+              role: 'host',
+            }, (response: any) => {
+              clearTimeout(timeout);
+              
+              console.log('[HostDashboard] 📬 Received join_and_recover response:', response);
+              
+              if (!response?.ok) {
+                console.error('[HostDashboard] ❌ Join and recover failed:', response?.error);
+                setDbHydrateError(response?.error || 'Failed to join room');
+                setDbHydrating(false);
+                hydrationAttemptedRef.current = false;
+                reject(new Error(response?.error || 'Failed to join room'));
+                return;
+              }
+              
+              console.log('[HostDashboard] ✅ Joined with recovery snapshot:', response.snap);
+              
+              // ✅ Apply snapshot data to stores
+           // ✅ Apply snapshot data using helper (loads players + config + room state)
+applyRecoverySnapshot(response.snap, setFullConfig, roomId, hostId);
+              
+              console.log('[HostDashboard] 🎉 Hydration process complete!');
+              
+              // ✅ Mark this specific room as successfully hydrated
+              hydratedRoomIdRef.current = roomId;
+              hydrationAttemptedRef.current = false; // Reset for next room
+              
+              setDbHydrating(false);
+              resolve();
+            });
+            
+            console.log('[HostDashboard] ✅ join_and_recover emitted, waiting for callback...');
+          });
+        }
+        
+        // Wait 100ms before checking again
+        await new Promise(resolve => setTimeout(resolve, 100));
+        waitAttempts++;
+      }
+      
+      // Socket never connected
+      console.error('[HostDashboard] ❌ Socket connection timeout - waited 5 seconds');
+      console.error('[HostDashboard] 📊 Final socket state:', {
+        hasSocket: !!socketRef.current,
+        connected: connectedRef.current,
+      });
+      setDbHydrateError('Socket connection timeout');
+      setDbHydrating(false);
+      hydrationAttemptedRef.current = false;
+      
+    } catch (err: any) {
+      if (cancelled) {
+        console.log('[HostDashboard] ⛔ Error during cancelled hydration');
+        return;
+      }
+      console.error('[HostDashboard] ❌ Hydration error:', err);
+      setDbHydrateError(err?.message || 'db_load_failed');
+      setDbHydrating(false);
+      hydrationAttemptedRef.current = false;
+      hydratedRoomIdRef.current = null; // Clear on error so they can retry
+    }
+  }
+
+  hydrateWeb2FromDb();
+
+  return () => {
+    console.log('[HostDashboard] 🧹 Hydration effect cleanup');
+    cancelled = true;
+  };
+}, [roomId, hostId, isWeb3, roomTypeChecked]); // ✅ Added roomTypeChecked
+
+// ✅ Web3 rooms need to join via socket (no hydration needed)
+useEffect(() => {
+  // ✅ Wait for room type check to complete
+  if (!roomTypeChecked) {
+    console.log('[HostDashboard] ⏳ Web3 effect waiting for room type check...');
+    return;
+  }
+  
+  if (!isWeb3) return; // Only for Web3 rooms
+  if (!socket || !connected || !roomId || !hostId) return;
+  
+  // Check if we've already joined this room
+  if (hydratedRoomIdRef.current === roomId) {
+    console.log(`[HostDashboard] ✅ Web3 room ${roomId} already joined via socket`);
+    return;
+  }
+  
+  console.log(`[HostDashboard] 🔌 Web3 room: Joining via socket...`);
+  
+  // ✅ FIX: Get hostName at call time, not from dependencies
+  const getHostName = () => {
+    return config?.hostName || 'Host';
+  };
+  
+  // Join the room via socket
+  socket.emit('join_and_recover', {
+    roomId,
+    user: { 
+      id: hostId,
+      name: getHostName() // ✅ Call function instead of using dependency
+    },
+    role: 'host',
+  }, (response: any) => {
+    console.log('[HostDashboard] 📬 Web3 room join response:', response);
+    
+    if (!response?.ok) {
+      console.error('[HostDashboard] ❌ Failed to join Web3 room:', response?.error);
+      return;
+    }
+    
+    console.log('[HostDashboard] ✅ Joined Web3 room successfully');
+    
+    // ✅ Apply snapshot data to stores if available
+    applyRecoverySnapshot(response.snap, setFullConfig, roomId, hostId);
+    
+    // Mark as joined
+    hydratedRoomIdRef.current = roomId;
+  });
+},[isWeb3, socket, connected, roomId, hostId, roomTypeChecked]); 
+// ✅ Changed: use 'config' instead of 'config?.hostName' to prevent re-render on every config change // ✅ Added roomTypeChecked
 
   // Quiz completion logic
   const isQuizComplete = currentPhase === 'complete';
@@ -158,16 +585,30 @@ const HostDashboardCore: React.FC = () => {
   };
 
   // Request current state/config once when socket connects
-  useEffect(() => {
-    if (!socket || !connected || !roomId) return;
-    if (DEBUG) console.log('✅ [HostDashboard] Socket connected, requesting current state/config');
+ // Request current state/config once when socket connects AND hydration is complete
+useEffect(() => {
+  if (!socket || !connected || !roomId) return;
+  
+  // ✅ DON'T request room data until hydration is complete for Web2 rooms
+  if (!isWeb3 && (!config?.roomId || !hydrated)) {
+    console.log('[HostDashboard] ⏸️ Skipping socket requests - waiting for hydration to complete');
+    return;
+  }
+  
+  if (DEBUG) console.log('✅ [HostDashboard] Socket connected, requesting current state/config');
 
-    if (!requestedOnceRef.current) {
-      requestedOnceRef.current = true;
-      socket.emit('request_current_state', { roomId });
-      socket.emit('request_room_config', { roomId });
-    }
-  }, [socket, connected, roomId]);
+  if (!requestedOnceRef.current) {
+    requestedOnceRef.current = true;
+    socket.emit('request_current_state', { roomId });
+    socket.emit('request_room_config', { roomId });
+  }
+}, [socket, connected, roomId, isWeb3, hydrated, config?.roomId]);
+
+// Reset requestedOnceRef when navigating to a new room
+useEffect(() => {
+  requestedOnceRef.current = false;
+  console.log(`[HostDashboard] 🔄 Room changed to ${roomId}, reset requestedOnceRef`);
+}, [roomId]);
 
   // Listen for config updates + errors
   useEffect(() => {
@@ -196,14 +637,27 @@ const HostDashboardCore: React.FC = () => {
 
       setFullConfig(enhancedConfig);
     };
+const handleSocketError = (error: { message: string }) => {
+  console.error('❌ [HostDashboard] Socket error:', error);
+  
+  // ✅ Don't redirect if we're currently hydrating
+  if (dbHydrating) {
+    console.log('⏳ [HostDashboard] Socket error during hydration, ignoring (hydration in progress)');
+    return;
+  }
+  
+  // ✅ NEW: Don't redirect for Web2 rooms - they won't exist in sockets!
+  if (!isWeb3) {
+    console.log('⏭️ [HostDashboard] Ignoring socket error for Web2 room');
+    return;
+  }
+  
+  if (error.message?.toLowerCase().includes('not found')) {
+    console.warn('🏠 Room not found, redirecting to home');
+    navigate('/', { replace: true });
+  }
+};
 
-    const handleSocketError = (error: { message: string }) => {
-      console.error('❌ [HostDashboard] Socket error:', error);
-      if (error.message?.toLowerCase().includes('not found')) {
-        console.warn('🏠 Room not found, redirecting to home');
-        navigate('/', { replace: true });
-      }
-    };
 
     socket.on('room_config', handleRoomConfig);
     socket.on('quiz_error', handleSocketError);
@@ -214,28 +668,26 @@ const HostDashboardCore: React.FC = () => {
     };
   }, [socket, connected, roomId, setFullConfig, navigate]);
 
-  // Fallback: request config if we still don't have it after roomId changes
-  useEffect(() => {
-    if (!socket || !connected || !roomId) return;
-    if (!config?.roomId) {
-      if (DEBUG) console.log('🔄 [HostDashboard] Requesting room config for:', roomId);
-      socket.emit('get_room_config', { roomId });
-    }
-  }, [socket, connected, roomId, config?.roomId]);
 
-  // Join room as host (and rejoin on room change)
-  useEffect(() => {
-    if (!socket || !roomId) return;
-    const displayName = useQuizConfig.getState().config?.hostName || 'Host';
+// Fallback: request config if we still don't have it after roomId changes
+// Fallback: request config if we still don't have it after roomId changes
+useEffect(() => {
+  if (!socket || !connected || !roomId) return;
+  
+  // ✅ Skip for Web2 rooms that haven't hydrated yet
+  if (!isWeb3 && !hydrated) {
+    console.log('[HostDashboard] ⏸️ Skipping fallback config request - not hydrated yet');
+    return;
+  }
+  
+  if (!config?.roomId) {
+    if (DEBUG) console.log('🔄 [HostDashboard] Requesting room config for:', roomId);
+    socket.emit('get_room_config', { roomId });
+  }
+}, [socket, connected, roomId, isWeb3, hydrated, config?.roomId]); 
+// ✅ Changed: Use config?.roomId instead of config // ✅ Added dependencies
 
-    socket.emit('join_quiz_room', {
-      roomId,
-      user: { id: hostId || 'host', name: displayName },
-      role: 'host',
-    });
-  }, [socket, roomId, hostId]);
-
-  // Quiz cancelled → reset + navigate home
+   // Quiz cancelled → reset + navigate home
   useEffect(() => {
     if (!socket) return;
 
@@ -264,22 +716,26 @@ const HostDashboardCore: React.FC = () => {
     }
   };
 
-  // Entitlements
-  const [ents, setEnts] = useState<any>(null);
-  useEffect(() => {
-    let cancelled = false;
-   import('@/shared/api')
-  .then(({ quizApi }) => quizApi.getEntitlements())
-      .then((data) => {
-        if (!cancelled) setEnts(data);
-      })
-      .catch(() => {
-        if (!cancelled) setEnts(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  
+// Entitlements
+const [ents, setEnts] = useState<any>(null);
+useEffect(() => {
+  let cancelled = false;
+
+  quizApi
+    .getEntitlements()
+    .then((data) => {
+      if (!cancelled) setEnts(data);
+    })
+    .catch(() => {
+      if (!cancelled) setEnts(null);
+    });
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
+
 
   // Derived UI data
   const assetUploadCheck = useMemo(() => {
@@ -660,6 +1116,39 @@ const HostDashboardCore: React.FC = () => {
     </div>
   );
 
+  if (!isWeb3 && dbHydrating && !(config?.roomId && hydrated)) {
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
+      <div className="container mx-auto max-w-6xl px-4 py-12">
+        <div className="rounded-xl border bg-white p-6 text-center">
+          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+          <p className="text-sm font-medium text-indigo-700">Loading your quiz setup…</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+if (!isWeb3 && dbHydrateError) {
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
+      <div className="container mx-auto max-w-6xl px-4 py-12">
+        <div className="rounded-xl border bg-white p-6">
+          <p className="text-sm font-medium text-red-600">Failed to load quiz setup</p>
+          <p className="mt-2 text-xs text-gray-600">Error: {dbHydrateError}</p>
+          <button
+            className="mt-4 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white"
+            onClick={() => window.location.reload()}
+          >
+            Refresh
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
       <div className="container mx-auto max-w-6xl px-4 py-8">
@@ -669,7 +1158,7 @@ const HostDashboardCore: React.FC = () => {
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-600 text-2xl text-white">
               🎙️
             </div>
-            <span>Host Dashboard</span>
+            <span>Host Quiz Dashboard</span>
           </h1>
           <p className="text-fg/70 text-lg">
             Welcome, <strong>{config?.hostName || 'Host'}</strong> — manage your quiz event below

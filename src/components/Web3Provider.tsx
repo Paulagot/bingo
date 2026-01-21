@@ -1,14 +1,17 @@
 // src/components/Web3Provider.tsx
-import React, { Suspense, useEffect, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { WalletProvider } from '../context/WalletContext';
+import { useQuizConfig } from './Quiz/hooks/useQuizConfig';
 
 interface Web3ProviderProps {
   children: React.ReactNode;
+  force?: boolean;
 }
 
-// Module-level singleton
 let initializationPromise: Promise<any> | null = null;
 let isInitialized = false;
 let cachedProviders: any | null = null;
+let appKitInstance: any = null;
 
 const Web3LoadingFallback: React.FC = () => (
   <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -19,202 +22,248 @@ const Web3LoadingFallback: React.FC = () => (
   </div>
 );
 
-export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
+export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = false }) => {
   const [providers, setProviders] = useState(cachedProviders);
   const [loadingError, setLoadingError] = useState<string | null>(null);
-  const isMountedRef = useRef(true);
+  const timeoutRef = useRef<NodeJS.Timeout>();
+
+  const { config } = useQuizConfig();
+
+  const needsWeb3 = useMemo(() => {
+    if (force) return true;
+
+    const paymentMethod = (config as any)?.paymentMethod;
+    const isWeb3RoomFlag = (config as any)?.isWeb3Room;
+
+    if (paymentMethod === 'web3') return true;
+    if (isWeb3RoomFlag === true) return true;
+    if (config?.web3Chain) return true;
+
+    const contractAddr = localStorage.getItem('current-contract-address');
+    if (contractAddr) return true;
+
+    return false;
+  }, [force, config?.web3Chain, (config as any)?.paymentMethod, (config as any)?.isWeb3Room]);
+
+  const roomConfig = useMemo(
+    () => ({
+      web3Chain: config?.web3Chain,
+      evmNetwork: config?.evmNetwork,
+      solanaCluster: (config as any)?.solanaCluster || (config as any)?.solanaNetwork,
+      stellarNetwork: config?.stellarNetwork,
+    }),
+    [
+      config?.web3Chain,
+      config?.evmNetwork,
+      (config as any)?.solanaCluster,
+      (config as any)?.solanaNetwork,
+      config?.stellarNetwork,
+    ]
+  );
 
   useEffect(() => {
-    isMountedRef.current = true;
-    console.log("🌐 [Web3Provider] Mount");
+    if (!needsWeb3) return;
 
     if (isInitialized && cachedProviders) {
-      console.log("🌐 [Web3Provider] Using cached providers");
+      console.log('✅ [Web3Provider] Using cached providers');
       setProviders(cachedProviders);
       return;
     }
 
     if (initializationPromise) {
-      console.log("🌐 [Web3Provider] Initialization in progress, waiting...");
+      console.log('⏳ [Web3Provider] Initialization in progress, waiting...');
       initializationPromise
         .then((result) => {
-          if (isMountedRef.current) {
-            console.log("🌐 [Web3Provider] Initialization complete, setting providers");
-            setProviders(result);
-          }
+          console.log('✅ [Web3Provider] Providers ready from existing init');
+          setProviders(result);
         })
         .catch((err) => {
-          if (isMountedRef.current) {
-            console.error("🌐 [Web3Provider] Initialization failed:", err);
-            setLoadingError(err instanceof Error ? err.message : "Unknown error");
-          }
+          console.error('❌ [Web3Provider] Init failed:', err);
+          setLoadingError(err?.message || 'Unknown error');
         });
       return;
     }
 
-    console.log("🌐 [Web3Provider] Starting new initialization");
-    
+    console.log('🚀 [Web3Provider] Starting new initialization');
+
+    timeoutRef.current = setTimeout(() => {
+      if (!providers) {
+        console.error('❌ [Web3Provider] Initialization timed out');
+        setLoadingError('Web3 initialization timed out. Please refresh the page.');
+        initializationPromise = null;
+        isInitialized = false;
+      }
+    }, 30000);
+
     initializationPromise = (async () => {
       try {
-        console.log("🌐 [Web3Provider] Lazy-loading modules...");
-
+        console.log('📦 [Web3Provider] Loading modules...');
+        
         const [
-          { AppKitProvider: AKProvider, createAppKit },
+          appKitModule,
           wagmiModule,
-          reactQueryModule,
+          queryModule,
+          _solanaModule, // 🔥 Prefixed with underscore - needed for import but not directly used
           configModule,
         ] = await Promise.all([
-          import("@reown/appkit/react"),
-          import("wagmi"),
-          import("@tanstack/react-query"),
-          import("../config"),
+          import('@reown/appkit/react'),
+          import('wagmi'),
+          import('@tanstack/react-query'),
+          import('@reown/appkit-adapter-solana/react'), // Still imported for side effects
+          import('../config'),
         ]);
 
-        console.log("🌐 [Web3Provider] Modules loaded successfully");
+        console.log('✅ [Web3Provider] Modules loaded');
 
-        const { WagmiProvider: WagmiProv } = wagmiModule;
-        const { QueryClient, QueryClientProvider: QCProvider } = reactQueryModule;
+        const { createAppKit, AppKitProvider } = appKitModule;
+        const { WagmiProvider } = wagmiModule;
+        const { QueryClient, QueryClientProvider } = queryModule;
         const { wagmiAdapter, solanaWeb3JsAdapter, projectId, networks, metadata } = configModule;
 
-        const qc = new QueryClient({
-          defaultOptions: {
-            queries: { staleTime: 90_000, gcTime: 600_000 },
-          },
+        if (!projectId) {
+          throw new Error('Missing VITE_PROJECT_ID environment variable');
+        }
+
+        const queryClient = new QueryClient({
+          defaultOptions: { queries: { staleTime: 90_000, gcTime: 600_000 } },
         });
 
-        console.log("🌐 [Web3Provider] Creating AppKit...");
-        
-        // ✅ ENHANCED APPKIT CONFIGURATION
-        createAppKit({
-          adapters: [wagmiAdapter, solanaWeb3JsAdapter],
-          projectId,
-          networks,
-          metadata,
-          
-          // ✅ Theme configuration
-          themeMode: "dark",
-          
-          // ✅ Feature configuration - CRITICAL FOR MOBILE
-          features: { 
-            analytics: true,
-            socials: false, // Disable if you don't need social login
-            email: false,   // Disable if you don't need email login
-            swaps: false,   // Disable to reduce modal complexity on mobile
-            onramp: false,  // Disable if not needed
-          },
-          
-          // ✅ Mobile-optimized settings
-
-          
-          // ✅ CRITICAL: Wallet configuration for mobile
-          allWallets: 'SHOW', // Shows all wallets including mobile ones
-          
-          // ✅ Featured wallet IDs - prioritize these for mobile
-          featuredWalletIds: [
-            'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
-            'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa', // Coinbase Wallet
-            '18388be9ac2d02726dbac9777c96efaac06d744b2f6d580fccdd4127a6d01fd1', // Rabby
-            '1ae92b26df02f0abca6304df07debccd18262fdf5fe82daa81593582dac9a369', // Rainbow
-            '19177a98252e07ddfc9af2083ba8e07ef627cb6103467ffebb3f8f4205fd7927', // Ledger Live
-            // Solana wallets - auto-detected via Wallet Standard
-          ],
-          
-          // ✅ Enable different wallet types  
-          enableWalletConnect: true,  // QR code connection
-          enableInjected: true,       // Browser extension wallets
-          enableCoinbase: true,       // Coinbase Wallet SDK
-          enableEIP6963: true,        // Modern wallet detection standard
-          
-          // ✅ Theme variables for mobile optimization
-          themeVariables: {
-            '--w3m-z-index': 2147483647, // Ensure modal is on top
-            '--w3m-accent': '#6366f1',      // Your brand color
-          },
-          
-          // ✅ Default network (optional but recommended)
-          defaultNetwork: networks[0], // Start with your primary network
-        });
+if (!appKitInstance) {
+  console.log('🔧 [Web3Provider] Creating AppKit instance');
+  
+  appKitInstance = createAppKit({
+    adapters: [wagmiAdapter, solanaWeb3JsAdapter],
+    projectId,
+    networks,
+    metadata,
+    
+    themeMode: 'dark',
+    themeVariables: {
+      '--w3m-z-index': 2147483647,
+      '--w3m-accent': '#6366f1',
+    },
+    
+    // 🔥 Wallet display configuration
+    allWallets: 'SHOW',
+    
+    featuredWalletIds: [
+      'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
+      'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa', // Coinbase
+      '19177a98252e07ddfc9af2083ba8e07ef627cb6103467ffebb3f8f4205fd7927', // Phantom
+      '38f5d18bd8522c244bdd70cb4a68e0e718865155811c043f052fb9f1c51de662', // Backpack
+      'c03dfee351b6fcc421b4494ea33b9d4b92a984f87aa76d1663bb28705e95034a', // Exodus
+    ],
+    
+    // 🔥 Disable social/email features
+    features: {
+      socials: false,
+      email: false,
+      emailShowWallets: false,
+      analytics: false, // Disable analytics
+      swaps: false, // Disable swaps
+      onramp: false, // Disable on-ramp
+    },
+    
+    // 🔥 CRITICAL: Enable all connection methods
+    enableWalletConnect: true,
+    enableInjected: true,
+    enableEIP6963: true,
+    enableCoinbase: true,
+    
+    // 🔥 CRITICAL for mobile: Allow all Coinbase wallet types
+    coinbasePreference: 'all', // Changed from 'smartWalletOnly'
+    
+    // 🔥 Add these for better mobile support
+    
+    defaultNetwork: networks[0],
+  });
+  
+  console.log('✅ [Web3Provider] AppKit instance created');
+}
 
         const result = {
-          AppKitProvider: AKProvider,
-          WagmiProvider: WagmiProv,
-          QueryClientProvider: QCProvider,
-          queryClient: qc,
+          AppKitProvider,
+          WagmiProvider,
+          QueryClientProvider,
+          queryClient,
           wagmiConfig: wagmiAdapter.wagmiConfig,
         };
 
         cachedProviders = result;
         isInitialized = true;
 
-        console.log("✅ [Web3Provider] Initialization complete and cached");
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+
+        console.log('✅ [Web3Provider] Initialization complete');
         return result;
-      } catch (err) {
-        console.error("❌ [Web3Provider] Initialization error:", err);
+        
+      } catch (err: any) {
+        console.error('❌ [Web3Provider] Initialization error:', err);
         initializationPromise = null;
+        isInitialized = false;
         throw err;
       }
     })();
 
     initializationPromise
       .then((result) => {
-        if (isMountedRef.current) {
-          console.log("🌐 [Web3Provider] Setting providers on mounted component");
-          setProviders(result);
-        }
+        console.log('✅ [Web3Provider] Setting providers');
+        setProviders(result);
       })
       .catch((err) => {
-        if (isMountedRef.current) {
-          console.error("🌐 [Web3Provider] Setting error on mounted component");
-          setLoadingError(err instanceof Error ? err.message : "Unknown error");
-        }
+        console.error('❌ [Web3Provider] Failed:', err);
+        setLoadingError(err?.message || 'Unknown error');
       });
 
     return () => {
-      console.log("🌐 [Web3Provider] Unmount (but initialization continues in background)");
-      isMountedRef.current = false;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
     };
-  }, []);
+  }, [needsWeb3]);
 
-  // Error state
+  console.log('🔄 [Web3Provider] Render - providers:', !!providers, 'needsWeb3:', needsWeb3);
+
+  if (!needsWeb3) {
+    return <>{children}</>;
+  }
+
   if (loadingError) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-red-50 to-pink-100">
-        <div className="text-center max-w-md p-6">
-          <div className="text-6xl mb-4">⚠️</div>
-          <h2 className="text-red-700 font-bold text-xl mb-2">Web3 Initialization Failed</h2>
-          <p className="text-red-600 text-sm mb-4">{loadingError}</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-red-50 to-pink-100 p-6">
+        <div className="max-w-md text-center">
+          <div className="mb-4 text-6xl">⚠️</div>
+          <h2 className="mb-2 text-xl font-bold text-red-700">Web3 Init Failed</h2>
+          <p className="mb-4 text-red-600">{loadingError}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="rounded-lg bg-red-600 px-6 py-3 text-white hover:bg-red-700"
           >
-            Reload Page
+            Reload
           </button>
         </div>
       </div>
     );
   }
 
-  // Loading state
   if (!providers) {
     return <Web3LoadingFallback />;
   }
 
-  // Ready state
+  console.log('✅ [Web3Provider] Rendering with providers');
+  
   const { AppKitProvider, WagmiProvider, QueryClientProvider, queryClient, wagmiConfig } = providers;
 
   return (
     <AppKitProvider>
       <QueryClientProvider client={queryClient}>
         <WagmiProvider config={wagmiConfig}>
-          <Suspense fallback={
-            <div className="flex items-center justify-center p-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
-            </div>
-          }>
-            {children}
-          </Suspense>
+          <WalletProvider roomConfig={roomConfig}>{children}</WalletProvider>
         </WagmiProvider>
       </QueryClientProvider>
     </AppKitProvider>
   );
 };
+

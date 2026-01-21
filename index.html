@@ -2,23 +2,34 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-
     <link rel="icon" type="image/png" href="/fundraisely.png" />
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <!-- Required for Phantom Mobile -->
-    <meta name="solana:rpc" content="https://api.devnet.solana.com" />
+    <!-- ✅ Mobile wallet support (generic, no URLs) -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-    <!-- Mobile redirect fallback -->
-    <meta name="solana:redirect" content="https://fundraisely.xyz" />
+    <!-- ✅ Solana RPC endpoint (environment-aware) -->
+    <script>
+      (function() {
+        const origin = window.location.origin;
+        const isStaging = origin.includes('staging') || origin.includes('localhost');
+        
+        // Only set RPC - let AppKit handle redirects
+        const rpcUrl = isStaging 
+          ? 'https://api.devnet.solana.com'
+          : 'https://api.mainnet-beta.solana.com';
+        
+        const rpcMeta = document.createElement('meta');
+        rpcMeta.setAttribute('name', 'solana:rpc');
+        rpcMeta.setAttribute('content', rpcUrl);
+        document.head.appendChild(rpcMeta);
+        
+        console.log('🔗 [Solana RPC]', rpcUrl);
+      })();
+    </script>
 
-    <!-- Wallet Adapter App Metadata -->
-    <meta name="wallet-adapter-app-name" content="FundRaisely">
-    <meta name="wallet-adapter-app-url" content="https://fundraisely.xyz">
-    <meta name="wallet-adapter-app-icon" content="/fundraisely.png">
-
-    <!-- SEO placeholder -->
     <!--app-head-->
 
     <!-- Performance -->

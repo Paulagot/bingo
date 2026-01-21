@@ -1,5 +1,4 @@
-// src/App.tsx - UPDATED VERSION
-// Remove Web3Provider from wizard routes - let wizards handle it themselves
+// src/App.tsx - FULLY UPDATED VERSION
 
 import { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
@@ -30,16 +29,14 @@ import TermsOfUse from './pages/nonseo/terms';
 import PrivacyPolicy from './pages/nonseo/privacy';
 import AboutFundRaisely from './pages/nonseo/aboutus';
 import BlogAndResources from './pages/blog';
+import ClubsLeaguePage from './pages/campaigns/ClubsLeaguePage';
+import QuizEventDashboard from './components/mgtsystem/components/dashboard/QuizEventDashboard';
+import { ConditionalWeb3Wrapper } from './components/Quiz/ConditionalWeb3Wrapper';
 
 // Lazy quiz parts
 const QuizRoutes = lazy(() => import('./components/Quiz/QuizRoutes'));
 const QuizSocketProvider = lazy(() =>
   import('./components/Quiz/sockets/QuizSocketProvider').then((m) => ({ default: m.QuizSocketProvider }))
-);
-
-// Lazy Web3 wrapper (only for game routes where players join/pay)
-const Web3ProviderLazy = lazy(() =>
-  import('./components/Web3Provider').then((m) => ({ default: m.Web3Provider }))
 );
 
 // Lazy Web3 hub + impact campaign pages
@@ -64,16 +61,21 @@ const LoadingSpinner = ({
   </div>
 );
 
-// Only quiz/game gameplay routes need sockets
+// ✅ FIXED: Only gameplay routes need sockets (exclude /quiz/join)
 const isGameRoute = (pathname: string) =>
-  /^\/quiz\/(game|play|host-dashboard|host-controls|join|admin-join)\b/.test(pathname);
+  /^\/quiz\/(game|play|host-dashboard|host-controls|admin-join|join)\b/.test(pathname);
+
+
+// ✅ FIXED: Only specific game routes need Web3Provider wrapper
+const needsWeb3Wrapper = (pathname: string) =>
+  /^\/quiz\/(game|play|admin-join)\b/.test(pathname);
 
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const { pathname } = location;
 
-  const hideOnPaths = ['/pitch-deck-content', '/BingoBlitz'];
+  const hideOnPaths = ['/BingoBlitz'];
   const hideOnPrefixes = ['/quiz/game', '/quiz/play', '/quiz/host-dashboard', '/quiz/host-controls'];
   const showHeader =
     !hideOnPaths.includes(pathname) &&
@@ -102,8 +104,8 @@ export default function App() {
             <Route path="/contact" element={<ContactForm />} />
             <Route path="/legal/privacy" element={<PrivacyPolicy />} />
             <Route path="/legal/terms" element={<TermsOfUse />} />
-
             <Route path="/founding-partners" element={<FoundingPartnersPage />} />
+            <Route path="/campaigns/clubs-league" element={<ClubsLeaguePage />} />
 
             {/* Auth routes */}
             <Route path="/signup" element={<Signup />} />
@@ -134,37 +136,54 @@ export default function App() {
               }
             />
 
+            {/* Quiz Event Dashboard - NO Web3Provider needed */}
+            <Route
+              path="/quiz/eventdashboard"
+              element={
+                <Suspense fallback={<LoadingSpinner message="Loading Dashboard" />}>
+                  <QuizEventDashboard />
+                </Suspense>
+              }
+            />
+
             {/* Base /quiz redirect */}
             <Route path="/quiz" element={<Navigate to="/quiz/create-fundraising-quiz" replace />} />
 
             {/* Bingo Game Route */}
             <Route path="/game/:roomId" element={<Game />} />
 
-            {/* Quiz Routes (Web3Provider for game routes where players join/pay) */}
+            {/* ✅ Quiz Routes - Conditional wrapping based on route */}
             <Route
               path="/quiz/*"
               element={
                 <Suspense fallback={<LoadingSpinner message="Loading Quiz Platform" />}>
-                  <Web3ProviderLazy>
-                    {isGameRoute(location.pathname) ? (
-                      <QuizSocketProvider>
+                  {isGameRoute(location.pathname) ? (
+                    // Game routes: Need sockets + maybe Web3
+                    <QuizSocketProvider>
+                      {needsWeb3Wrapper(location.pathname) ? (
+                        <ConditionalWeb3Wrapper>
+                          <QuizRoutes />
+                        </ConditionalWeb3Wrapper>
+                      ) : (
                         <QuizRoutes />
-                      </QuizSocketProvider>
-                    ) : (
-                      <QuizRoutes />
-                    )}
-                  </Web3ProviderLazy>
+                      )}
+                    </QuizSocketProvider>
+                  ) : (
+                    // Non-game routes (like /quiz/join): Just QuizRoutes
+                    // JoinRoomFlow handles its own Web3Provider internally
+                    <QuizRoutes />
+                  )}
                 </Suspense>
               }
             />
 
-            {/* WEB3 Hub & Impact Campaign */}
+            {/* ✅ WEB3 Hub & Impact Campaign - NO Web3Provider at route level */}
             <Route
               path="/web3/*"
               element={
                 <Suspense fallback={<LoadingSpinner message="Loading Web3" />}>
                   <Routes>
-                    {/* ✅ Marketing pages - NO Web3Provider */}
+                    {/* All marketing pages - NO Web3Provider */}
                     <Route path="" element={<Web3HubPage />} />
                     <Route path="features" element={<Web3Features />} />
                     <Route path="testimonials" element={<Web3Testimonials />} />
@@ -172,7 +191,7 @@ export default function App() {
                     <Route path="impact-campaign" element={<ImpactCampaignOverview />} />
                     <Route path="impact-campaign/leaderboard" element={<ImpactCampaignLeaderboard />} />
                     
-                    {/* ✅ Join page - NO Web3Provider at route level (wizard handles it) */}
+                    {/* ✅ Join page - Wizard handles Web3Provider internally at step 6 */}
                     <Route path="impact-campaign/join" element={<ImpactCampaignJoin />} />
                   </Routes>
                 </Suspense>

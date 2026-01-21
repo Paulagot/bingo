@@ -1,5 +1,5 @@
 // src/components/Quiz/hooks/useHostRecovery.ts
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   hydrateRoomBasicsFromSnap,
   hydrateQuestionOrReviewFromSnap,
@@ -7,7 +7,7 @@ import {
   hydrateHiddenObjectFromSnap,
   hydrateFinalStatsFromSnap, 
   hydrateCurrentRoundStatsFromSnap, 
-  hydrateOrderImageFromSnap// ✅ ADD THIS
+  hydrateOrderImageFromSnap
 } from '../../Quiz/utils/recoveryHydrators';
 
 type UseHostRecoveryArgs = {
@@ -27,21 +27,17 @@ type UseHostRecoveryArgs = {
     setQuestionInRound: (n: number) => void;
     setTotalInRound: (n: number) => void;
 
-    // Hidden Object setters
     setHiddenPuzzle: (puzzle: any) => void;
     setHiddenFoundIds: (ids: string[]) => void;
     setHiddenFinished: (finished: boolean) => void;
     setRoundRemaining: (seconds: number | null) => void;
 
-    // ✅ ADD ORDER IMAGE SETTERS
     setOrderImageQuestion: (q: any) => void;
     setOrderImageReviewQuestion: (r: any) => void;
 
-    // Stats recovery
     recoverFinalStats: (stats: any[]) => void;
     updateCurrentRoundStats: (stats: any) => void;
 
-    // TB setters
     setTbParticipants: (ids: string[]) => void;
     setTbQuestion: (q: any) => void;
     setTbWinners: (ids: string[] | null) => void;
@@ -53,74 +49,99 @@ type UseHostRecoveryArgs = {
   };
 };
 
+// useHostRecovery.ts
 export function useHostRecovery({ socket, connected, roomId, setters }: UseHostRecoveryArgs) {
+  const hasJoinedRef = useRef(false);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
+  const socketIdRef = useRef<string>('');
+
+  const settersRef = useRef(setters);
   useEffect(() => {
-    if (!socket || !connected || !roomId) return;
+    settersRef.current = setters;
+  }, [setters]);
 
-    socket.emit(
-      'join_and_recover',
-      {
-        roomId,
-        user: { id: 'host', name: 'Host' },
-        role: 'host',
-      },
-      (res: any) => {
-        if (!res?.ok) {
-          console.error('[useHostRecovery] join_and_recover failed:', res?.error);
-          return;
+  useEffect(() => {
+    if (!socket || !connected || !roomId) {
+      hasJoinedRef.current = false;
+      socketIdRef.current = '';
+      return;
+    }
+
+    if (hasJoinedRef.current && socketIdRef.current === socket.id) return;
+
+    if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+
+    reconnectTimeoutRef.current = setTimeout(() => {
+      hasJoinedRef.current = true;
+      socketIdRef.current = socket.id;
+
+      socket.emit(
+        'join_and_recover',
+        { roomId, user: { id: 'host', name: 'Host' }, role: 'host' },
+        async (res: any) => {
+          if (!res?.ok) {
+            hasJoinedRef.current = false;
+            socketIdRef.current = '';
+            return;
+          }
+
+          const { snap } = res;
+          const S = settersRef.current;
+
+          // ✅ hydrate config
+          if (snap?.config) {
+            const { setFullConfig } = (await import('./useQuizConfig')).useQuizConfig.getState();
+            setFullConfig({ ...snap.config, roomId });
+          }
+
+          hydrateRoomBasicsFromSnap(snap, {
+            setRoomState: S.setRoomState,
+            setPlayersInRoom: S.setPlayersInRoom,
+          });
+
+          hydrateQuestionOrReviewFromSnap(snap, {
+            setCurrentQuestion: S.setCurrentQuestion,
+            setReviewQuestion: S.setReviewQuestion,
+            setIsShowingRoundResults: S.setIsShowingRoundResults,
+            setRoundLeaderboard: S.setRoundLeaderboard,
+            setLeaderboard: S.setLeaderboard,
+            setReviewComplete: S.setReviewComplete,
+            setQuestionInRound: S.setQuestionInRound,
+            setTotalInRound: S.setTotalInRound,
+          });
+
+          hydrateHiddenObjectFromSnap(snap, {
+            setHiddenPuzzle: S.setHiddenPuzzle,
+            setHiddenFoundIds: S.setHiddenFoundIds,
+            setHiddenFinished: S.setHiddenFinished,
+            setRoundRemaining: S.setRoundRemaining,
+          });
+
+          hydrateOrderImageFromSnap(snap, {
+            setOrderImageQuestion: S.setOrderImageQuestion,
+            setOrderImageReviewQuestion: S.setOrderImageReviewQuestion,
+          });
+
+          hydrateFinalStatsFromSnap(snap, { recoverFinalStats: S.recoverFinalStats });
+          hydrateCurrentRoundStatsFromSnap(snap, { updateCurrentRoundStats: S.updateCurrentRoundStats });
+
+          hydrateTiebreakerFromSnap(snap, {
+            setRoomState: S.setRoomState,
+            setTbParticipants: S.setTbParticipants,
+            setTbQuestion: S.setTbQuestion,
+            setTbWinners: S.setTbWinners,
+            setTbPlayerAnswers: S.setTbPlayerAnswers,
+            setTbCorrectAnswer: S.setTbCorrectAnswer,
+            setTbShowReview: S.setTbShowReview,
+            setTbQuestionNumber: S.setTbQuestionNumber,
+            setTbStillTied: S.setTbStillTied,
+          });
         }
-        const { snap } = res;
+      );
+    }, 100);
 
-        hydrateRoomBasicsFromSnap(snap, {
-          setRoomState: setters.setRoomState,
-          setPlayersInRoom: setters.setPlayersInRoom,
-        });
-
-        hydrateQuestionOrReviewFromSnap(snap, {
-          setCurrentQuestion: setters.setCurrentQuestion,
-          setReviewQuestion: setters.setReviewQuestion,
-          setIsShowingRoundResults: setters.setIsShowingRoundResults,
-          setRoundLeaderboard: setters.setRoundLeaderboard,
-          setLeaderboard: setters.setLeaderboard,
-          setReviewComplete: setters.setReviewComplete,
-          setQuestionInRound: setters.setQuestionInRound,
-          setTotalInRound: setters.setTotalInRound,
-        });
-
-        // ✅ ADD THIS - Hydrate hidden object state
-        hydrateHiddenObjectFromSnap(snap, {
-          setHiddenPuzzle: setters.setHiddenPuzzle,
-          setHiddenFoundIds: setters.setHiddenFoundIds,
-          setHiddenFinished: setters.setHiddenFinished,
-          setRoundRemaining: setters.setRoundRemaining,
-        });
-
-        hydrateOrderImageFromSnap(snap, {
-  setOrderImageQuestion: setters.setOrderImageQuestion,
-  setOrderImageReviewQuestion: setters.setOrderImageReviewQuestion,
-});
-
-        // ✅ ADD THIS - Hydrate final quiz stats for post-game
-        hydrateFinalStatsFromSnap(snap, {
-          recoverFinalStats: setters.recoverFinalStats,
-        });
-
-          hydrateCurrentRoundStatsFromSnap(snap, {
-          updateCurrentRoundStats: setters.updateCurrentRoundStats,
-        });
-
-        hydrateTiebreakerFromSnap(snap, {
-          setRoomState: setters.setRoomState,
-          setTbParticipants: setters.setTbParticipants,
-          setTbQuestion: setters.setTbQuestion,
-          setTbWinners: setters.setTbWinners,
-          setTbPlayerAnswers: setters.setTbPlayerAnswers,
-          setTbCorrectAnswer: setters.setTbCorrectAnswer,
-          setTbShowReview: setters.setTbShowReview,
-          setTbQuestionNumber: setters.setTbQuestionNumber,
-          setTbStillTied: setters.setTbStillTied,
-        });
-      }
-    );
-  }, [socket, connected, roomId]);
+    return () => {
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+    };
+  }, [socket?.id, connected, roomId]); // ✅ setters removed
 }

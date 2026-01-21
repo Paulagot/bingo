@@ -97,7 +97,7 @@ export function validateEntryFee(fee: number): ValidationResult {
     errors.push('Entry fee must be a valid number');
   } else if (fee <= 0) {
     errors.push('Entry fee must be greater than 0');
-  } else if (fee > 1_000_000) {
+  } else if (fee > 1_000) {
     errors.push('Entry fee is too large (max 1,000,000)');
   }
   

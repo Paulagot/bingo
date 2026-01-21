@@ -1,10 +1,13 @@
 // src/components/quiz/host-controls/prizes/Web3PrizeDistributionRouter.tsx
 import * as React from 'react';
-import { useQuizChainIntegration } from '../../../../hooks/useQuizChainIntegration';
 
-// chain-specific panels
+// ✅ KEEP the import for the panel component
 import { Web3PrizeDistributionPanel } from './Web3PrizeDistributionPanel';
 
+// ✅ USE wallet context instead of useQuizChainIntegration
+import { useWallet } from '../../../../context/WalletContext';
+
+// ✅ KEEP these type definitions
 type PrizeRouterStatus = 'idle' | 'running' | 'success' | 'failed';
 
 type LeaderboardEntry = { id: string; name: string; score: number };
@@ -20,7 +23,19 @@ export const Web3PrizeDistributionRouter: React.FC<PrizeRouterProps> = ({
   leaderboard,
   onStatusChange,
 }) => {
-  const { selectedChain, getNetworkDisplayName } = useQuizChainIntegration();
+  // ✅ Get chain info from wallet context instead of useQuizChainIntegration
+  const wallet = useWallet();
+  const selectedChain = wallet.chainFamily;
+  
+  // For display name, create a simple helper function
+  const getNetworkDisplayName = () => {
+    switch (selectedChain) {
+      case 'evm': return 'EVM';
+      case 'solana': return 'Solana';
+      case 'stellar': return 'Stellar';
+      default: return 'Unknown';
+    }
+  };
 
   // Always-defined handler to satisfy strict prop type on the panel
   const handleStatusChange = React.useCallback(

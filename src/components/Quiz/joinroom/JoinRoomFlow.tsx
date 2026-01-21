@@ -7,14 +7,13 @@ import { Web2PaymentStep } from './Web2PaymentStep';
 import type { SupportedChain } from '../../../chains/types';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { useQuizConfig } from '../hooks/useQuizConfig';
-// import WalletDebugPanel from '../Wizard/WalletDebug';
+import { WalletProvider } from '../../../context/WalletContext';
 
-// ✅ Lazy load Web3Provider
+// ✅ Lazy load Web3Provider AND Web3PaymentStep together
 const Web3Provider = lazy(() => 
   import('../../../components/Web3Provider').then(m => ({ default: m.Web3Provider }))
 );
 
-// ✅ Lazy load Web3PaymentStep (it needs Web3Provider context, so load together)
 const Web3PaymentStep = lazy(() => 
   import('./Web3PaymentStep').then(m => ({ default: m.Web3PaymentStep }))
 );
@@ -30,7 +29,20 @@ const LoadingSpinner = () => (
   <div className="flex items-center justify-center p-8">
     <div className="text-center">
       <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-indigo-300 border-t-indigo-600" />
-      <p className="text-indigo-700 text-sm font-medium">Loading Web3 payment...</p>
+      <p className="text-indigo-700 text-sm font-medium">Loading...</p>
+    </div>
+  </div>
+);
+
+// ✅ Add full-screen loading component
+const FullScreenLoader = ({ message = 'Loading room...' }: { message?: string }) => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30 p-2 sm:p-4">
+    <div className="bg-white max-w-md w-full rounded-xl shadow-xl p-8">
+      <div className="text-center">
+        <div className="mx-auto mb-4 h-16 w-16 animate-spin rounded-full border-4 border-indigo-300 border-t-indigo-600" />
+        <p className="text-indigo-700 text-lg font-medium">{message}</p>
+        <p className="text-gray-500 text-sm mt-2">This should only take a moment...</p>
+      </div>
     </div>
   </div>
 );
@@ -79,14 +91,19 @@ const normalizeChain = (value?: string | null): SupportedChain | null => {
   return null;
 };
 
+// ✅ Normalize payment method for QuizConfig
+const normalizePaymentMethod = (method: string): 'web3' | 'cash_or_revolut' => {
+  if (method === 'web3') return 'web3';
+  return 'cash_or_revolut';
+};
+
 interface JoinRoomFlowProps {
   onClose: () => void;
   onChainDetected?: (chain: SupportedChain) => void;
   prefilledRoomId?: string;
 }
 
-// ✅ Core component without provider wrapper
-const JoinRoomFlowCore: React.FC<JoinRoomFlowProps> = ({
+export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
   onClose,
   prefilledRoomId,
 }) => {
@@ -101,6 +118,10 @@ const JoinRoomFlowCore: React.FC<JoinRoomFlowProps> = ({
   const [roomConfig, setRoomConfig] = useState<RoomConfig | null>(null);
   const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
   const [detectedChain, setDetectedChain] = useState<SupportedChain | null>(null);
+  
+  // ✅ Add loading state for auto-verification
+  const [isAutoVerifying, setIsAutoVerifying] = useState(!!prefilledRoomId);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
 
   // 🔄 top-level render log
   joinDebug('render', {
@@ -111,28 +132,47 @@ const JoinRoomFlowCore: React.FC<JoinRoomFlowProps> = ({
     playerName,
     detectedChain,
     prefilledRoomId,
+    isAutoVerifying,
+    socketConnected: socket?.connected,
   });
 
   // Auto-verify room if roomId is prefilled
   useEffect(() => {
     if (prefilledRoomId && socket?.connected && !roomConfig) {
-      joinDebug('Auto-verifying room from QR code', { prefilledRoomId });
+      joinDebug('🚀 Auto-verifying room from URL', { 
+        prefilledRoomId,
+        socketConnected: socket.connected,
+        socketId: socket.id 
+      });
+      
+      setIsAutoVerifying(true);
+      setVerificationError(null);
 
+      // ✅ Add timeout in case socket never responds
+      const timeout = setTimeout(() => {
+        joinDebug('❌ Socket verification timeout after 10s');
+        setVerificationError('Room verification timed out. Please try again.');
+        setIsAutoVerifying(false);
+        setStep('verification');
+      }, 10000);
+
+      joinDebug('📤 Emitting verify_quiz_room event', { roomId: prefilledRoomId });
       socket.emit('verify_quiz_room', { roomId: prefilledRoomId });
 
       const handleVerification = (data: any) => {
-        joinDebug('Room verification response', data);
-        joinDebug('verify result web3Chain:', data.web3Chain);
+        clearTimeout(timeout);
+        joinDebug('✅ Room verification response received', data);
+
+        setIsAutoVerifying(false);
 
         if (!data.exists) {
-          joinDebug('Room does NOT exist, returning to verification step');
-          // Room doesn't exist, fall back to manual entry
+          joinDebug('❌ Room does NOT exist');
+          setVerificationError(`Room ${prefilledRoomId} not found`);
           setStep('verification');
           return;
         }
 
         // ✅ SET SESSION STORAGE IMMEDIATELY BEFORE setting roomConfig
-        // This ensures network config is available when Web3Provider mounts
         if (data.web3Chain === 'evm' && data.evmNetwork) {
           joinDebug('Pre-setting EVM network in sessionStorage', {
             evmNetwork: data.evmNetwork,
@@ -144,24 +184,28 @@ const JoinRoomFlowCore: React.FC<JoinRoomFlowProps> = ({
           }
         }
 
-        // Room exists, set up the config and proceed to name entry
         const normalizedConfig: RoomConfig = {
           ...data,
           currencySymbol: data.currencySymbol || '€',
           roomId: prefilledRoomId,
         };
 
-        joinDebug('Setting roomConfig from QR verify', normalizedConfig);
+        joinDebug('✅ Setting roomConfig from socket verify', normalizedConfig);
         setRoomConfig(normalizedConfig);
-        setFullConfig(normalizedConfig);
+        
+        // ✅ FIX: Normalize types for QuizConfig
+        setFullConfig({
+          ...normalizedConfig,
+          entryFee: String(normalizedConfig.entryFee),
+          paymentMethod: normalizePaymentMethod(normalizedConfig.paymentMethod),
+        } as any); // Use 'as any' to avoid type conflicts between RoomConfig and QuizConfig
 
         const normalized = normalizeChain(data.web3Chain);
-        joinDebug('normalized chain from verify:', {
+        joinDebug('🔗 Normalized chain:', {
           raw: data.web3Chain,
           normalized,
         });
         if (normalized) setDetectedChain(normalized);
-          setFullConfig(normalizedConfig);
 
         let flow: PaymentFlow;
         if (data.demoMode) {
@@ -171,31 +215,41 @@ const JoinRoomFlowCore: React.FC<JoinRoomFlowProps> = ({
         } else {
           flow = 'web2';
         }
-        joinDebug('Auto-selected paymentFlow from verify', {
+        joinDebug('💳 Auto-selected paymentFlow', {
           paymentMethod: data.paymentMethod,
           demoMode: data.demoMode,
           paymentFlow: flow,
         });
 
         setPaymentFlow(flow);
+        
+        // ✅ Move to name-entry step (or extras if name already set)
+        setStep('name-entry');
+      };
 
-        // Since QR already implies a ready room, skip name step if you want
-        // but currently logic starts at name-entry (set by initial state)
+      const handleError = (error: any) => {
+        clearTimeout(timeout);
+        joinDebug('❌ Socket error during verification:', error);
+        setVerificationError(error.message || 'Failed to verify room');
+        setIsAutoVerifying(false);
+        setStep('verification');
       };
 
       socket.once('quiz_room_verification_result', handleVerification);
+      socket.once('error', handleError);
 
       return () => {
+        clearTimeout(timeout);
         socket.off('quiz_room_verification_result', handleVerification);
+        socket.off('error', handleError);
       };
     }
-  }, [prefilledRoomId, socket?.connected, roomConfig, socket]);
+  }, [prefilledRoomId, socket?.connected, roomConfig, socket, setFullConfig]);
 
   const handleRoomVerified = (config: any, roomId: string, playerName: string) => {
     joinDebug('handleRoomVerified called', { config, roomId, playerName });
 
-    // ✅ SET SESSION STORAGE FIRST - before any state updates
-    // This ensures network config is available when Web3Provider mounts
+    // ✅ SET SESSION STORAGE FIRST
     if (config.web3Chain === 'evm' && config.evmNetwork) {
       joinDebug('Pre-setting EVM network in sessionStorage', {
         evmNetwork: config.evmNetwork,
@@ -218,7 +272,13 @@ const JoinRoomFlowCore: React.FC<JoinRoomFlowProps> = ({
     setRoomId(roomId);
     setPlayerName(playerName);
 
-    // Handle chain detection internally (no parent callback)
+    // ✅ FIX: Normalize types for QuizConfig
+    setFullConfig({
+      ...normalizedConfig,
+      entryFee: String(normalizedConfig.entryFee),
+      paymentMethod: normalizePaymentMethod(normalizedConfig.paymentMethod),
+    } as any);
+
     const normalized = normalizeChain(config.web3Chain);
     joinDebug('Setting detected chain', {
       raw: config.web3Chain,
@@ -241,10 +301,7 @@ const JoinRoomFlowCore: React.FC<JoinRoomFlowProps> = ({
     });
 
     setPaymentFlow(flow);
-
-    joinDebug('About to set step to extras');
     setStep('extras');
-    joinDebug('Step set to extras (handleRoomVerified)');
   };
 
   const handleExtrasSelected = (extras: string[]) => {
@@ -267,7 +324,7 @@ const JoinRoomFlowCore: React.FC<JoinRoomFlowProps> = ({
     setPaymentFlow(null);
     setRoomConfig(null);
     setSelectedExtras([]);
-    // ✅ Clean up sessionStorage when going back
+    setVerificationError(null);
     sessionStorage.removeItem('active-evm-network');
     sessionStorage.removeItem('active-room-contract');
     setFullConfig({});
@@ -282,15 +339,31 @@ const JoinRoomFlowCore: React.FC<JoinRoomFlowProps> = ({
     setStep('extras');
   };
 
-  // Track step changes
-  useEffect(() => {
-    joinDebug('Step changed', { step });
-  }, [step]);
+  // ✅ Show loading screen while auto-verifying
+  if (isAutoVerifying) {
+    return <FullScreenLoader message={`Verifying room ${prefilledRoomId}...`} />;
+  }
 
-  // Track payment flow changes
-  useEffect(() => {
-    joinDebug('paymentFlow changed', { paymentFlow });
-  }, [paymentFlow]);
+  // ✅ Show error if verification failed
+  if (verificationError && !socket?.connected) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30 p-2 sm:p-4">
+        <div className="bg-white max-w-md w-full rounded-xl shadow-xl p-8">
+          <div className="text-center">
+            <div className="text-6xl mb-4">⚠️</div>
+            <h2 className="text-red-700 font-bold text-xl mb-2">Connection Error</h2>
+            <p className="text-red-600 mb-4">{verificationError}</p>
+            <button 
+              onClick={handleBackToVerification}
+              className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30 p-2 sm:p-4">
@@ -298,8 +371,6 @@ const JoinRoomFlowCore: React.FC<JoinRoomFlowProps> = ({
         {step === 'verification' && (
           <RoomVerificationStep onVerified={handleRoomVerified} onClose={onClose} />
         )}
-
-        {/* <WalletDebugPanel /> */}
 
         {step === 'name-entry' && roomConfig && (
           <NameEntryStep
@@ -337,26 +408,38 @@ const JoinRoomFlowCore: React.FC<JoinRoomFlowProps> = ({
               />
             )}
 
-            {paymentFlow === 'web3' &&
-              (detectedChain ? (
-                <Suspense fallback={<LoadingSpinner />}>
-                  <Web3PaymentStep
-                    chainOverride={detectedChain}
-                    roomId={roomId}
-                    playerName={playerName}
-                    roomConfig={roomConfig}
-                    selectedExtras={selectedExtras}
-                    onBack={handleBackToExtras}
-                    onClose={onClose}
-                  />
-                </Suspense>
-              ) : (
-                <div className="p-6">
-                  <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
-                    Detecting blockchain network… Please wait.
-                  </div>
-                </div>
-              ))}
+          {paymentFlow === 'web3' &&
+  (detectedChain ? (
+    <Suspense fallback={<LoadingSpinner />}>
+      <Web3Provider key="web3-payment-provider">
+        {/* ✅ NEW: Wrap with WalletProvider */}
+        <WalletProvider 
+          roomConfig={{
+            web3Chain: roomConfig.web3Chain,
+            evmNetwork: roomConfig.evmNetwork,
+            solanaCluster: roomConfig.solanaCluster,
+            stellarNetwork: roomConfig.stellarNetwork,
+          }}
+        >
+          <Web3PaymentStep
+            chainOverride={detectedChain}
+            roomId={roomId}
+            playerName={playerName}
+            roomConfig={roomConfig}
+            selectedExtras={selectedExtras}
+            onBack={handleBackToExtras}
+            onClose={onClose}
+          />
+        </WalletProvider>
+      </Web3Provider>
+    </Suspense>
+  ) : (
+    <div className="p-6">
+      <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+        Detecting blockchain network… Please wait.
+      </div>
+    </div>
+  ))}
 
             {paymentFlow === 'web2' && (
               <Web2PaymentStep
@@ -372,45 +455,6 @@ const JoinRoomFlowCore: React.FC<JoinRoomFlowProps> = ({
         )}
       </div>
     </div>
-  );
-};
-
-// ✅ Wrapper component: Only wrap with Web3Provider when needed
-export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = (props) => {
-  const [needsWeb3, setNeedsWeb3] = useState(false);
-
-  // We need Web3Provider if:
-  // 1. prefilledRoomId exists (might be web3)
-  // 2. User is verifying rooms manually (might be web3)
-  // So basically: always wrap it to be safe, since we don't know upfront
-  // OR: We could check sessionStorage for active-evm-network
-  
-  // For simplicity, let's always wrap it since the overhead is minimal
-  // and we avoid race conditions
-  useEffect(() => {
-    // Check if there's any indication this might be a web3 room
-    const hasEvmNetwork = sessionStorage.getItem('active-evm-network');
-    if (hasEvmNetwork || props.prefilledRoomId) {
-      setNeedsWeb3(true);
-    } else {
-      // Default to true for safety - Web3Provider handles non-web3 gracefully
-      setNeedsWeb3(true);
-    }
-  }, [props.prefilledRoomId]);
-
-  joinDebug('JoinRoomFlow wrapper render', { 
-    needsWeb3, 
-    prefilledRoomId: props.prefilledRoomId 
-  });
-
-  // ✅ Always wrap with Web3Provider for simplicity
-  // It's lightweight and handles non-web3 flows gracefully
-  return (
-    <Suspense fallback={<LoadingSpinner />}>
-      <Web3Provider>
-        <JoinRoomFlowCore {...props} />
-      </Web3Provider>
-    </Suspense>
   );
 };
 

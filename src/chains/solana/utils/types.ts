@@ -142,9 +142,10 @@ export interface JoinRoomParams {
  * Join room result
  */
 export interface JoinRoomResult {
-  success: true;
+  success: boolean;
   txHash: string;
   explorerUrl?: string;
+  alreadyPaid?: boolean; 
 }
 
 // ============================================================================
@@ -177,6 +178,7 @@ export interface DistributePrizesResult {
   declareWinnersTxHash?: string; // Solana-specific: declare_winners transaction
   cleanupTxHash?: string; // Solana-specific: cleanup_room transaction (if called)
   rentReclaimed?: number; // Solana-specific: rent reclaimed in lamports
+  tgbDepositAddress?: string; // TGB deposit address for charity
 }
 
 // ============================================================================

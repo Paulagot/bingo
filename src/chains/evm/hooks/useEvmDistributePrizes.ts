@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { readContract, writeContract, waitForTransactionReceipt, getAccount, getChainId } from 'wagmi/actions';
+import { readContract, writeContract, waitForTransactionReceipt, getConnection } from 'wagmi/actions';
 import { keccak256, stringToHex, erc20Abi as ERC20_ABI } from 'viem';
 
 import { useEvmShared } from './useEvmShared';
@@ -30,6 +30,8 @@ export type EvmDistributeResult =
       success: true;
       txHash: `0x${string}`;
       explorerUrl?: string;
+        tgbDepositAddress?: string;  // ✅ NEW: TGB charity wallet address
+      charityAmount?: string; 
       error?: string; // warnings
     }
   | { success: false; error: string };
@@ -96,33 +98,38 @@ async function prepareWinnersArray(params: {
     }
   } else {
     // Pool room
-    try {
-      const prizeSplits = (await readContract(wagmiConfig, {
-        address: roomAddress as `0x${string}`,
-        abi: roomABI,
-        functionName: 'prizeSplitsBps',
-        args: [],
-        chainId,
-      })) as [number, number, number];
+   // Pool room
+try {
+  // ✅ TRY definedPrizePlaces() FIRST (this works)
+  expectedPlaces = (await readContract(wagmiConfig, {
+    address: roomAddress as `0x${string}`,
+    abi: roomABI,
+    functionName: 'definedPrizePlaces',
+    args: [],
+    chainId,
+  })) as number;
+  
+  console.log('✅ [EVM][Pool] Got expected places from definedPrizePlaces():', expectedPlaces);
+} catch (e: any) {
+  console.error('❌ [EVM][Pool] Failed to get definedPrizePlaces:', e);
+  
+  // ✅ FALLBACK: Try reading prize splits array
+  try {
+    const prizeSplits = (await readContract(wagmiConfig, {
+      address: roomAddress as `0x${string}`,
+      abi: roomABI,
+      functionName: 'prizeSplitsBps',
+      args: [],
+      chainId,
+    })) as [number, number, number];
 
-      expectedPlaces = prizeSplits.filter((split) => split > 0).length;
-      console.log('📊 [EVM][Pool] Contract expects', expectedPlaces, 'winners. Prize splits:', prizeSplits);
-    } catch (e: any) {
-      console.error('❌ [EVM][Pool] Failed to read prize splits from contract:', e);
-      try {
-        expectedPlaces = (await readContract(wagmiConfig, {
-          address: roomAddress as `0x${string}`,
-          abi: roomABI,
-          functionName: 'definedPrizePlaces',
-          args: [],
-          chainId,
-        })) as number;
-        console.log('✅ [EVM][Pool] Got expected places from definedPrizePlaces():', expectedPlaces);
-      } catch (e2: any) {
-        console.error('❌ [EVM][Pool] Failed to get definedPrizePlaces:', e2);
-        throw new Error('Cannot determine expected number of winners from pool room contract');
-      }
-    }
+    expectedPlaces = prizeSplits.filter((split) => split > 0).length;
+    console.log('📊 [EVM][Pool] Contract expects', expectedPlaces, 'winners from prizeSplitsBps. Prize splits:', prizeSplits);
+  } catch (e2: any) {
+    console.error('❌ [EVM][Pool] Failed to read prize splits from contract:', e2);
+    throw new Error('Cannot determine expected number of winners from pool room contract');
+  }
+}
   }
 
   if (expectedPlaces === 0 || expectedPlaces > 3) {
@@ -230,7 +237,7 @@ export function useEvmDistributePrizes() {
         const RoomABI = isAssetRoom ? AssetRoomABI : PoolRoomABI;
 
         // Get connected account
-        const accountInfo = getAccount(wagmiConfig);
+        const accountInfo = getConnection(wagmiConfig);
         if (!accountInfo.address) {
           throw new Error('No wallet address found. Please reconnect your wallet.');
         }
@@ -497,12 +504,58 @@ export function useEvmDistributePrizes() {
           throw new Error('Transaction reverted on-chain');
         }
 
+        let charityAmountFromEvent: string | undefined;
+
+try {
+  // Find RoomEnded event in logs
+  const roomEndedLog = receipt.logs.find((log: any) => {
+    try {
+      const parsed = RoomABI.find((item: any) => 
+        item.type === 'event' && item.name === 'RoomEnded'
+      );
+      if (!parsed) return false;
+      
+      // Check if this log matches RoomEnded event signature
+      const eventSignature = `RoomEnded(uint256,address[],uint256)`;
+      const eventTopic = keccak256(stringToHex(eventSignature));
+      return log.topics[0] === eventTopic;
+    } catch {
+      return false;
+    }
+  });
+
+  if (roomEndedLog) {
+    // Parse the event
+    const iface = new (await import('ethers')).Interface(RoomABI);
+    const decoded = iface.parseLog({
+      topics: roomEndedLog.topics,
+      data: roomEndedLog.data,
+    });
+    
+    if (decoded && decoded.args && decoded.args.charityAmount) {
+      // Convert bigint to decimal string (assuming 6 decimals for USDC)
+      charityAmountFromEvent = bigintToDecimalString(
+        decoded.args.charityAmount,
+        6 // decimals
+      );
+      
+      console.log('[EVM] 💰 Charity amount from RoomEnded event:', charityAmountFromEvent);
+    }
+  } else {
+    console.warn('[EVM] ⚠️ Could not find RoomEnded event in transaction logs');
+  }
+} catch (parseError: any) {
+  console.error('[EVM] ❌ Failed to parse RoomEnded event:', parseError);
+}
+
         const explorerUrl = explorerFor(target.key);
 
         return {
           success: true,
           txHash: hash as `0x${string}`,
           explorerUrl: `${explorerUrl}/tx/${hash}`,
+           tgbDepositAddress: recipientAddressForFinalize, // ✅ NEW: Return TGB wallet
+  charityAmount: charityAmountFromEvent,  
           error: warnings.length > 0 ? warnings.join('\n') : undefined,
         };
       } catch (e: any) {

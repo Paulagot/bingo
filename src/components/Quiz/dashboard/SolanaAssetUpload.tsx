@@ -15,7 +15,7 @@ import {
   ExternalLink,
   Copy,
   Trophy,
-  ArrowRight,
+  
 } from 'lucide-react';
 
 import type { Prize } from '../types/quiz';
@@ -33,7 +33,7 @@ import {
   UploadStatusOverview,
   ConnectionStatusNotices,
   ContractInfoCard,
-  DebugInfoPanel,
+ 
 } from './AssetUploadShared';
 
 /**
@@ -241,16 +241,7 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
     updatePrizeStatus(prizeIndex, 'pending');
   };
 
-  /**
-   * Upload all remaining pending/failed assets
-   */
-  const handleUploadAllRemaining = () => {
-    assetPrizes.forEach((prize, index) => {
-      if (!prize.uploadStatus || prize.uploadStatus === 'pending' || prize.uploadStatus === 'failed') {
-        handleUploadAsset(index);
-      }
-    });
-  };
+
 
   /**
    * Copy text to clipboard
@@ -276,17 +267,7 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
 
   return (
     <div className="space-y-6">
-      {/* Debug Info */}
-      <DebugInfoPanel
-        data={{
-          chain: 'solana',
-          isWalletConnected,
-          currentWallet: currentWallet?.address,
-          web3ContractAddress,
-          roomId,
-          socketConnected: connected,
-        }}
-      />
+
 
       {/* Upload Status Overview */}
       <UploadStatusOverview
@@ -444,20 +425,7 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
           ))}
         </div>
 
-        {/* Bulk Upload Button */}
-        {canProceedWithUploads && stats.pendingUploads > 0 && (
-          <div className="border-border mt-6 border-t pt-4">
-            <button
-              onClick={handleUploadAllRemaining}
-              disabled={stats.uploading > 0}
-              className="flex items-center space-x-2 rounded-lg bg-purple-600 px-4 py-2 text-white transition-colors hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Upload className="h-4 w-4" />
-              <span>Deposit All Remaining Assets</span>
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          </div>
-        )}
+    
       </div>
     </div>
   );

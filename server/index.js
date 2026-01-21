@@ -32,6 +32,7 @@ import communityRegistrationApi from './quiz/api/community-registration.js';
 import impactCampaignPledgeApi from './quiz/api/impactcampaign-pledge.js';
 console.log('✅ Community registration imported:', communityRegistrationApi);
 console.log('📦 Type:', typeof communityRegistrationApi);
+import impact_campaign_leaderboard from './quiz/api/impact-campaign-leaderboard.js';
 
 import { initializeDatabase } from './config/database.js';
 
@@ -53,6 +54,8 @@ const __dirname = path.dirname(__filename);
 
 import { v4 as uuidv4 } from 'uuid';
 import { logger, loggers, logRequest, logResponse } from './config/logging.js';
+import web2RoomsApi from './quiz/api/web2-rooms.js';
+
 
 const app = express();
 
@@ -207,18 +210,20 @@ const cspDirectives = {
   workerSrc: ["'self'", "blob:"],
   manifestSrc: ["'self'"],
 
-  // ✅ UPDATED: Added WalletConnect verification domains
-  frameSrc: [
-    "'self'", 
-    "https://www.youtube.com", 
-    "https://www.youtube-nocookie.com", 
-    "https://player.vimeo.com",
-    "https://verify.walletconnect.com",
-    "https://verify.walletconnect.org",
-    "https://secure.walletconnect.com",
-    "https://secure.walletconnect.org"
-  ],
-  frameAncestors: ["'self'"],
+frameSrc: [
+  "'self'",
+  "https://verify.walletconnect.com",
+  "https://verify.walletconnect.org",
+  "https://www.youtube.com",
+  "https://www.youtube-nocookie.com",
+  "https://player.vimeo.com",
+],
+childSrc: [
+  "'self'",
+  "https://verify.walletconnect.com",
+  "https://verify.walletconnect.org",
+],
+frameAncestors: ["'self'"],
 
   connectSrc: ALLOWED_CONNECT,
 
@@ -293,6 +298,8 @@ app.use((req, res, next) => {
 // Mount quiz and other API routers
 app.use('/quiz/api/community-registration', communityRegistrationApi);
 app.use('/quiz/api/impactcampaign/pledge', impactCampaignPledgeApi);
+app.use('/api/impact-campaign/leaderboard', impact_campaign_leaderboard);
+app.use('/quiz/api', web2RoomsApi);
 
 console.log('🛠️ Setting up routes...');
 app.use('/quiz/api', createRoomApi);

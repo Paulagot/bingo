@@ -90,6 +90,10 @@ type DistributeResult =
       rentReclaimed?: number | undefined;
       error?: string | undefined;
       charityAmount?: string | undefined;
+      tgbDepositAddress?: string | undefined;  // ✅ ADD THIS
+      declareWinnersTxHash?: string | undefined;
+      tgbDepositMemo?: string | undefined;  // ✅ ADD THIS  
+      tbgDepositAddress?: string | undefined;  // ✅ ADD THIS
     }
   | { success: false; error: string };
 
@@ -323,6 +327,7 @@ export function useContractActions(opts?: Options) {
             txHash: result.txHash,
             explorerUrl: result.explorerUrl,
             charityAmount: result.charityAmount,
+            tgbDepositAddress: result.tgbDepositAddress,
             // Pass through declareWinnersTxHash if present
             declareWinnersTxHash: declareWinnersTxHash,
           };

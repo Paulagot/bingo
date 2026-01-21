@@ -1,12 +1,9 @@
 // src/components/Quiz/Wizard/StepWeb3ReviewLaunch.tsx
 
 import { FC } from "react";
-import { useNavigate } from "react-router-dom";
 
 import { useQuizSetupStore } from "../hooks/useQuizSetupStore";
-
 import { useQuizChainIntegration } from "../../../hooks/useQuizChainIntegration";
-import { useWalletActions } from "../../../hooks/useWalletActions";
 
 import ReviewHostEventSection from "./web3setup/ReviewHostEventSection";
 import ReviewPaymentPrizeSection from "./web3setup/ReviewPaymentPrizeSection";
@@ -26,10 +23,26 @@ import {
 import type { WizardStepProps } from "./WizardStepProps";
 
 const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) => {
-const navigate = useNavigate();
+
   const { setupConfig } = useQuizSetupStore();
-  const { selectedChain, getNetworkDisplayName, isWalletConnected, currentWallet } = useQuizChainIntegration(); // ✅ Get ALL values here
- const walletActions = useWalletActions();
+  
+  // ✅ Pass setupConfig as externalConfig (not externalSetupConfig)
+  const { 
+    selectedChain, 
+    getNetworkDisplayName, 
+    isWalletConnected, 
+    currentWallet,
+    networkInfo,
+    isOnCorrectNetwork,
+  } = useQuizChainIntegration({
+    externalConfig: {
+      web3Chain: setupConfig.web3Chain,
+      evmNetwork: (setupConfig as any).evmNetwork,
+      solanaCluster: (setupConfig as any).solanaCluster,
+      stellarNetwork: setupConfig.stellarNetwork,
+    }
+  });
+  
   const {
     // state
     launchState,
@@ -59,9 +72,6 @@ const navigate = useNavigate();
     setLaunchState,
     setLaunchError,
   } = useWeb3Launch({ onBack, onResetToFirst });
-
-    const networkInfo = walletActions.getNetworkInfo();
-  const isOnCorrectNetwork = walletActions.isOnCorrectNetwork();
 
   const Character = ({ expression, message }: { expression: string; message: string }) => {
     const base =
@@ -172,10 +182,10 @@ const navigate = useNavigate();
         explorerUrl={explorerUrl}
         handleWalletConnect={handleWalletConnect}
         handleWalletDisconnect={handleWalletDisconnect}
-         isWalletConnected={isWalletConnected}  // ✅ Pass this
-        walletAddress={currentWallet?.address ?? null}  // ✅ Pass this
+        isWalletConnected={isWalletConnected}
+        walletAddress={currentWallet?.address ?? null}
         networkName={getNetworkDisplayName()}
-          isOnCorrectNetwork={isOnCorrectNetwork}
+        isOnCorrectNetwork={isOnCorrectNetwork}
         actualNetwork={networkInfo.currentNetwork}
         expectedNetwork={networkInfo.expectedNetwork}
       />
