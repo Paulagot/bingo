@@ -1,5 +1,5 @@
 // src/components/mgtsystem/services/QuizRoomsService.ts
-import BaseService from './baseServices';
+import BaseService from './BaseService';
 
 export type StatusFilter = 'scheduled' | 'live' | 'completed' | 'cancelled' | 'all';
 export type TimeFilter = 'upcoming' | 'past' | 'all';

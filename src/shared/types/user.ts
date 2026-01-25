@@ -22,13 +22,20 @@ export interface AuthUser {
 }
 
 export interface Entitlements {
-  max_players_per_game: number;
-  max_rounds: number;
-  round_types_allowed: string[];
-  extras_allowed: string[];
-  concurrent_rooms: number;
-  game_credits_remaining: number;
-  plan_id: number | null;
+  game_credits_remaining?: number;
+  max_players_per_game?: number;
+  max_rounds?: number;
+  plan_id?: number;
   plan_code?: string;
+  quiz_features?: {
+    eventLinking?: boolean;
+    [key: string]: any;
+  };
+  quizFeatures?: {
+    eventLinking?: boolean;
+    [key: string]: any;
+  };
+  // allow extra fields without TS moaning
+  [key: string]: any;
 }
 

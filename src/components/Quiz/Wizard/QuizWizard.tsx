@@ -1,57 +1,80 @@
 // src/components/Quiz/Wizard/QuizWizard.tsx
-import {  useMemo } from 'react';
+import { useMemo } from 'react';
 import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
 
 import StepFundraisingOptions from './StepFundraisingOptions';
 import StepReviewLaunch from './StepReviewLaunch';
 import StepPrizes from './StepPrizes';
 import StepQuizSetup from './StepQuizSetup';
-import StepQuizTemplates from './StepQuizTemplates'; // NEW COMPONENT
+import StepQuizTemplates from './StepQuizTemplates';
 import StepCombinedRounds from './StepCombinedRounds';
 import EntitlementsBar from './EntitlementsBar';
 import { useEntitlements } from '../hooks/useEntitlements';
 
+// Keep in sync with your store WizardStep union
+type WizardStep = 'setup' | 'templates' | 'rounds' | 'fundraising' | 'stepPrizes' | 'review';
 
 interface QuizWizardProps {
   onComplete?: () => void;
+  hideEntitlements?: boolean; // ✅ NEW
+  titleOverride?: string;     // ✅ optional, nice for edit
 }
 
-const steps = [
-  'setup', 
-  'templates',     // NEW STEP
-  'rounds',
-  'fundraising',
-  'stepPrizes',
-  'review',
-] as const;
+const steps = ['setup', 'templates', 'rounds', 'fundraising', 'stepPrizes', 'review'] as const;
+type StepKey = typeof steps[number];
 
-export default function QuizWizard({ onComplete }: QuizWizardProps) {
+function clampIndex(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function getStepSafe(i: number): StepKey {
+  const idx = clampIndex(i, 0, steps.length - 1);
+return steps[idx] ?? 'setup'; // ✅ always defined
+}
+
+export default function QuizWizard({
+  onComplete,
+  hideEntitlements,
+  titleOverride,
+}: QuizWizardProps) {
   const { setupConfig, currentStep, setStep } = useQuizSetupStore();
-const { ents } = useEntitlements();
-  const index = useMemo(() => steps.indexOf(currentStep), [currentStep]);
+  const { ents } = useEntitlements();
+
+  // If currentStep is ever not found, treat it as first step
+  const index = useMemo(() => {
+    const i = steps.indexOf(currentStep as StepKey);
+    return i >= 0 ? i : 0;
+  }, [currentStep]);
+
   const atLast = index >= steps.length - 1;
 
   const resetToFirst = () => {
-    setStep('setup'); // <-- always the first step key for Web2 wizard
+    setStep('setup');
     window.scrollTo({ top: 0 });
   };
 
   const goNext = () => {
+    // Skip rounds if template says so
     if (currentStep === 'templates' && setupConfig.skipRoundConfiguration) {
-      setStep(steps[Math.min(index + 2, steps.length - 1)]);
-    } else if (atLast) {
-      onComplete?.();
-    } else {
-      setStep(steps[index + 1]);
+      setStep(getStepSafe(index + 2) as unknown as WizardStep);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
     }
+
+    if (atLast) {
+      onComplete?.();
+      return;
+    }
+
+    setStep(getStepSafe(index + 1) as unknown as WizardStep);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const goBack = () => {
     if (currentStep === 'fundraising' && setupConfig.skipRoundConfiguration) {
-      setStep(steps[Math.max(index - 2, 0)]);
+      setStep(getStepSafe(index - 2) as unknown as WizardStep);
     } else {
-      setStep(steps[Math.max(index - 1, 0)]);
+      setStep(getStepSafe(index - 1) as unknown as WizardStep);
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -71,21 +94,27 @@ const { ents } = useEntitlements();
       case 'review':
         return <StepReviewLaunch onNext={goNext} onBack={goBack} onResetToFirst={resetToFirst} />;
       default:
-        return null;
+        // Fallback (shouldn’t happen, but keeps TS happy and UI resilient)
+        return <StepQuizSetup onNext={goNext} onResetToFirst={resetToFirst} />;
     }
   };
 
   return (
+    <div className="mx-auto max-w-3xl px-4 py-10">
+<div className="mb-6 text-center">
+  <h1 className="heading-1">
+    {titleOverride ?? 'Create Your Fundraising Quiz'}
+  </h1>
+
+  {!hideEntitlements && (
+    <EntitlementsBar ents={ents} className="inline-block" />
+  )}
+</div>
 
 
-        <div className="mx-auto max-w-3xl px-4 py-10">
-      <div className="mb-6 text-center">
-        <h1 className="heading-1">Create Your Fundraising Quiz</h1>
-        {/* ⬇️ your entitlements strip */}
-        <EntitlementsBar ents={ents} className="inline-block" />
-      </div>
+
       <div className="bg-muted rounded-xl p-6 shadow-lg">{renderStep()}</div>
     </div>
-  
   );
 }
+
