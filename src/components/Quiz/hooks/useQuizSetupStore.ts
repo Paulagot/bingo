@@ -1,3 +1,4 @@
+// src/components/Quiz/Wizard/hooks/useQuizSetupStore.ts
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { QuizConfig, RoundDefinition } from '../types/quiz';
@@ -6,7 +7,7 @@ import { getCharityById } from '../../../chains/evm/config/charities';
 type WizardStep = 'setup' | 'templates' | 'rounds' | 'fundraising' | 'stepPrizes' | 'review';
 type WizardFlow = 'web2' | 'web3';
 
-const PERSIST_KEY = 'quiz-setup-v2'; // keep your existing key
+const PERSIST_KEY = 'quiz-setup-v2';
 const VERSION = 3;
 
 // small helper so we get a stable pre-room ID all hosts can share
@@ -32,8 +33,17 @@ function deepMerge<T extends object>(base: T, updates: Partial<T>): T {
   return out;
 }
 
+type EditBackup = {
+  flow: WizardFlow;
+  currentStep: WizardStep;
+  setupConfig: Partial<QuizConfig>;
+  roomId: string | null;
+  hostId: string | null;
+  setupId: string | null;
+};
+
 interface QuizSetupState {
-  setupId: string | null; // 🆕 pre-room collaboration key
+  setupId: string | null; // pre-room collaboration key
   flow: WizardFlow;
   currentStep: WizardStep;
   setupConfig: Partial<QuizConfig>;
@@ -41,7 +51,11 @@ interface QuizSetupState {
   hostId: string | null;
   lastSavedAt: number | null;
 
-  ensureSetupId: () => string; // 🆕 creates one if missing and returns it
+  // ✅ Edit-session (NOT persisted)
+  editingRoomId: string | null;
+  editBackup: EditBackup | null;
+
+  ensureSetupId: () => string;
 
   setFlow: (flow: WizardFlow) => void;
   setStep: (step: WizardStep) => void;
@@ -69,9 +83,22 @@ interface QuizSetupState {
 
   resetSetupConfig: (opts?: { keepIds?: boolean }) => void;
 
-  purgePersist: (opts?: { keepIds?: boolean }) => void; // fully clear persistence
+  purgePersist: (opts?: { keepIds?: boolean }) => void;
   hardReset: (opts?: { flow?: WizardFlow; keepIds?: boolean }) => void;
   setWeb3CharityById: (id: string | null) => void;
+
+  // ✅ Edit-session actions
+  beginEditWeb2Room: (args: {
+    roomId: string;
+    hostId: string;
+    scheduledAt: string | null;
+    timeZone: string | null;
+    config: Partial<QuizConfig>;
+    roomCaps?: unknown | null;
+  }) => void;
+
+  cancelEditSession: () => void;
+  commitEditSession: () => void;
 }
 
 export const useQuizSetupStore = create<QuizSetupState>()(
@@ -84,6 +111,10 @@ export const useQuizSetupStore = create<QuizSetupState>()(
       roomId: null,
       hostId: null,
       lastSavedAt: null,
+
+      // ✅ edit-session (runtime only)
+      editingRoomId: null,
+      editBackup: null,
 
       ensureSetupId: () => {
         const cur = get().setupId;
@@ -132,15 +163,13 @@ export const useQuizSetupStore = create<QuizSetupState>()(
           lastSavedAt: Date.now(),
         })),
 
-      // FIXED: never assign `undefined` directly; remove the field instead
+      // never assign `undefined` directly; remove the field instead
       setEventDateTime: (iso) =>
         set((s) => {
           const nextConfig: Partial<QuizConfig> = { ...s.setupConfig };
           if (iso === undefined) {
-            // clear it
             delete (nextConfig as any).eventDateTime;
           } else {
-            // set it
             (nextConfig as any).eventDateTime = iso;
           }
           return {
@@ -246,6 +275,9 @@ export const useQuizSetupStore = create<QuizSetupState>()(
           roomId: keepIds ? roomId : null,
           hostId: keepIds ? hostId : null,
           lastSavedAt: Date.now(),
+          // runtime-only fields reset
+          editingRoomId: null,
+          editBackup: null,
         });
       },
 
@@ -263,7 +295,6 @@ export const useQuizSetupStore = create<QuizSetupState>()(
           const nextConfig: Partial<QuizConfig> = { ...s.setupConfig };
 
           if (!id) {
-            // clear all charity fields
             delete (nextConfig as any).web3CharityId;
             delete (nextConfig as any).web3Charity;
             delete (nextConfig as any).web3CharityAddress;
@@ -271,10 +302,9 @@ export const useQuizSetupStore = create<QuizSetupState>()(
             const c = getCharityById(id);
             if (c) {
               (nextConfig as any).web3CharityId = c.id;
-              (nextConfig as any).web3Charity = c.name; // display name (for UI)
-              (nextConfig as any).web3CharityAddress = c.wallet as any; // EVM address (for deploy)
+              (nextConfig as any).web3Charity = c.name;
+              (nextConfig as any).web3CharityAddress = c.wallet as any;
             } else {
-              // unknown id -> clear
               delete (nextConfig as any).web3CharityId;
               delete (nextConfig as any).web3Charity;
               delete (nextConfig as any).web3CharityAddress;
@@ -286,11 +316,94 @@ export const useQuizSetupStore = create<QuizSetupState>()(
             lastSavedAt: Date.now(),
           };
         }),
+
+      // =========================================================
+      // ✅ EDIT SESSION (WEB2) — SAFE, RESTORABLE, NON-PERSISTED
+      // =========================================================
+
+      beginEditWeb2Room: ({ roomId, hostId, scheduledAt, timeZone, config, roomCaps }) => {
+        const cur = get();
+
+        // Snapshot current wizard state in memory so Cancel restores it
+        const backup: EditBackup = {
+          flow: cur.flow,
+          currentStep: cur.currentStep,
+          setupConfig: cur.setupConfig,
+          roomId: cur.roomId,
+          hostId: cur.hostId,
+          setupId: cur.setupId,
+        };
+
+        // Build edit config (don’t mutate original)
+        const nextConfig: Partial<QuizConfig> = {
+          ...config,
+        };
+
+        // Ensure scheduled/timezone are aligned with wizard fields if you use them
+        if (timeZone !== null && timeZone !== undefined) {
+          (nextConfig as any).timeZone = timeZone;
+        }
+        if (scheduledAt !== null && scheduledAt !== undefined) {
+          (nextConfig as any).eventDateTime = scheduledAt;
+        }
+
+        // If you want roomCaps inside setupConfig (common), inject it
+        if (roomCaps !== undefined) {
+          (nextConfig as any).roomCaps = roomCaps ?? null;
+        }
+
+        set({
+          editingRoomId: roomId,
+          editBackup: backup,
+          flow: 'web2',
+          currentStep: 'setup',
+          setupConfig: nextConfig,
+          roomId,
+          hostId,
+          lastSavedAt: Date.now(),
+        });
+      },
+
+      cancelEditSession: () => {
+        const backup = get().editBackup;
+
+        if (!backup) {
+          set({
+            editingRoomId: null,
+            editBackup: null,
+            currentStep: 'setup',
+            lastSavedAt: Date.now(),
+          });
+          return;
+        }
+
+        set({
+          editingRoomId: null,
+          editBackup: null,
+          flow: backup.flow,
+          currentStep: backup.currentStep,
+          setupConfig: backup.setupConfig,
+          roomId: backup.roomId,
+          hostId: backup.hostId,
+          setupId: backup.setupId,
+          lastSavedAt: Date.now(),
+        });
+      },
+
+      commitEditSession: () => {
+        // Keep edited config, just clear edit markers
+        set({
+          editingRoomId: null,
+          editBackup: null,
+          lastSavedAt: Date.now(),
+        });
+      },
     }),
     {
       name: PERSIST_KEY,
       storage: createJSONStorage(() => localStorage),
       version: VERSION,
+
       migrate: (persisted: any, version) => {
         if (!persisted) return persisted;
         if (version < 3) {
@@ -306,6 +419,8 @@ export const useQuizSetupStore = create<QuizSetupState>()(
         }
         return persisted;
       },
+
+      // ✅ Do NOT persist edit-session fields
       partialize: (state) => ({
         setupId: state.setupId,
         flow: state.flow,
@@ -315,31 +430,30 @@ export const useQuizSetupStore = create<QuizSetupState>()(
         hostId: state.hostId,
         lastSavedAt: state.lastSavedAt,
       }),
-      // NEW: Custom deep merge during rehydration (critical for nested quiz config)
-  // Inside persist options:
-merge: (persistedState: any, currentState: QuizSetupState) => {
-  // Early return if no persisted state
-  if (!persistedState) {
-    return currentState;
-  }
 
-  // Type assertion - we know persistedState has the shape from partialize()
-  const persisted = persistedState as Partial<QuizSetupState>;
+      // ✅ Custom deep merge during rehydration
+      merge: (persistedState: any, currentState: QuizSetupState) => {
+        if (!persistedState) return currentState;
 
-  // Deep merge the setupConfig (handles nested objects safely)
-  const mergedConfig = deepMerge(
-    currentState.setupConfig,
-    persisted.setupConfig || {}
-  );
+        const persisted = persistedState as Partial<QuizSetupState>;
 
-  return {
-    ...currentState,
-    ...persisted,
-    setupConfig: mergedConfig,
-    // Preserve runtime fields (e.g., don't force currentStep back unless desired)
-    currentStep: currentState.currentStep || persisted.currentStep || 'setup',
-  };
-},
+        const mergedConfig = deepMerge(
+          currentState.setupConfig,
+          (persisted.setupConfig || {}) as any
+        );
+
+        return {
+          ...currentState,
+          ...persisted,
+          setupConfig: mergedConfig,
+          // runtime-only fields stay as defined in currentState
+          editingRoomId: currentState.editingRoomId ?? null,
+          editBackup: currentState.editBackup ?? null,
+          // keep runtime step stable unless it’s empty
+          currentStep: currentState.currentStep || persisted.currentStep || 'setup',
+        };
+      },
     }
   )
 );
+

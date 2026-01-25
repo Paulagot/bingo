@@ -30,10 +30,14 @@ class BaseService {
   protected async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
     
-    const config: RequestInit = {
-      headers: this.getAuthHeaders(),
-      ...options,
-    };
+ const config: RequestInit = {
+  ...options,
+  headers: {
+    ...this.getAuthHeaders(),
+    ...(options.headers || {}),
+  },
+
+};
 
     console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
     console.log('🔑 Headers:', config.headers);

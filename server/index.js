@@ -55,9 +55,13 @@ const __dirname = path.dirname(__filename);
 import { v4 as uuidv4 } from 'uuid';
 import { logger, loggers, logRequest, logResponse } from './config/logging.js';
 import web2RoomsApi from './quiz/api/web2-rooms.js';
+import eventIntegrationsApi from './mgtsystem/routes/eventIntegrations.js';
 
 
 const app = express();
+
+let isDatabaseReady = false;
+
 
 // 🔍 Verify SMTP once at startup (non-blocking)
 verifyMailer().catch((err) => {
@@ -114,6 +118,23 @@ app.use((err, req, res, next) => {
     }
   }
   next(err);
+});
+
+app.use((req, res, next) => {
+  // Always allow health checks
+  if (req.path === '/health' || req.path === '/api/health') return next();
+
+  // Only guard API routes
+  if (req.path.startsWith('/api') || req.path.startsWith('/quiz/api')) {
+    if (!isDatabaseReady) {
+      return res.status(503).json({
+        error: 'Service unavailable',
+        message: 'Database is still initializing'
+      });
+    }
+  }
+
+  next();
 });
 
 const isProd = process.env.NODE_ENV === 'production';
@@ -300,6 +321,7 @@ app.use('/quiz/api/community-registration', communityRegistrationApi);
 app.use('/quiz/api/impactcampaign/pledge', impactCampaignPledgeApi);
 app.use('/api/impact-campaign/leaderboard', impact_campaign_leaderboard);
 app.use('/quiz/api', web2RoomsApi);
+app.use('/', eventIntegrationsApi);
 
 console.log('🛠️ Setting up routes...');
 app.use('/quiz/api', createRoomApi);
@@ -688,17 +710,18 @@ try {
 (async () => {
   try {
     await initializeDatabase();
-    console.log(`🗄️ Database connected`);
+    isDatabaseReady = true;
+    console.log('🗄️ Database connected and ready');
   } catch (dbError) {
-    console.warn('⚠️ Database connection failed, but continuing without it...');
-    console.warn('⚠️ This is OK for local development if you only need Web3 rooms (in-memory)');
-    console.warn('⚠️ Database features will not be available');
-    console.warn(`⚠️ Error: ${dbError.message}`);
-    // Don't exit - allow server to start for Web3/in-memory features
+    console.error('❌ Database initialization failed:', dbError?.message || dbError);
+
+    // ✅ Recommended: fail fast (prevents random runtime crashes)
+    process.exit(1);
   }
-})().catch((error) => {
-  console.error('❌ Database initialization error:', error);
-  // Don't exit - server is already running
+})().catch((err) => {
+  console.error('❌ Database initialization threw:', err);
+  process.exit(1);
 });
+
 
 
