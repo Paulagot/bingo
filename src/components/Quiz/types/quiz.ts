@@ -420,6 +420,34 @@ export interface EnhancedPlayerStats {
   };
 }
 
+// ✅ ADD THIS after your existing exports:
+
+/**
+ * Player payment tracking (for admin view)
+ */
+export interface PlayerPaymentInfo {
+  paid: boolean;
+  paymentClaimed?: boolean;
+  paymentClaimedAt?: string;
+  paymentReference?: string;
+  paymentConfirmedBy?: string;
+  paymentConfirmedAt?: string;
+  paymentMethod?: 'cash' | 'instant_payment' | 'card' | 'stripe' | 'other';
+}
+
+/**
+ * Extended player with payment info
+ */
+export interface PlayerWithPayment extends User {
+  paid: boolean;
+  paymentClaimed?: boolean;
+  paymentReference?: string;
+  paymentMethod?: 'cash' | 'instant_payment' | 'card' | 'stripe' | 'other';
+  extras?: string[];
+  extraPayments?: Record<string, { method: string; amount: number }>;
+  disqualified?: boolean;
+}
+
 
 
 

@@ -101,11 +101,22 @@ const handleCreated = ({ roomId }: { roomId: string }) => {
       const newHostId = hostId || generateHostId();
       setRoomIds(newRoomId, newHostId);
 
-      const data = await roomApi.createRoom({
-        config: setupConfig,
-        roomId: newRoomId,
-        hostId: newHostId,
-      });
+    
+
+
+      console.log('[LAUNCH setupConfig fundraisingOptions]', setupConfig.fundraisingOptions);
+console.log('[LAUNCH setupConfig fundraisingPrices]', setupConfig.fundraisingPrices);
+
+
+
+
+  const data = await roomApi.createRoom({
+  config: setupConfig,
+  roomId: newRoomId,
+  hostId: newHostId,
+});
+
+
 
       localStorage.setItem('current-room-id', data.roomId);
       localStorage.setItem('current-host-id', data.hostId);
@@ -114,8 +125,9 @@ const handleCreated = ({ roomId }: { roomId: string }) => {
   ...setupConfig,
   roomId: data.roomId,
   hostId: data.hostId,
-  roomCaps: data.roomCaps,
+  roomCaps: data.roomCaps as any,
 });
+
 resetSetupConfig({ keepIds: false });
 
 navigate('/quiz/eventdashboard');

@@ -56,6 +56,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { logger, loggers, logRequest, logResponse } from './config/logging.js';
 import web2RoomsApi from './quiz/api/web2-rooms.js';
 import eventIntegrationsApi from './mgtsystem/routes/eventIntegrations.js';
+import paymentMethodsApi from './mgtsystem/routes/paymentMethods.js';
 
 
 const app = express();
@@ -322,6 +323,9 @@ app.use('/quiz/api/impactcampaign/pledge', impactCampaignPledgeApi);
 app.use('/api/impact-campaign/leaderboard', impact_campaign_leaderboard);
 app.use('/quiz/api', web2RoomsApi);
 app.use('/', eventIntegrationsApi);
+// Around line 200 with other app.use() calls
+app.use('/api/payment-methods', paymentMethodsApi);
+
 
 console.log('🛠️ Setting up routes...');
 app.use('/quiz/api', createRoomApi);

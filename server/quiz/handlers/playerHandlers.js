@@ -1,4 +1,4 @@
-// playerHandlers.js 
+// server/quiz/handlers/playerHandlers.js 
 import { 
   getQuizRoom, 
   addOrUpdatePlayer, 
@@ -16,30 +16,19 @@ import {
    isQuizComplete
 } from '../quizRoomManager.js';
 import { emitFullRoomState } from '../handlers/sharedUtils.js';
+// ✅ ADD THIS at top of playerHandlers.js (after other imports)
+import { normalizePaymentMethod }  from '../../utils/paymentMethods.js';
+import { 
+  createExpectedPayment,
+
+  confirmPayment, 
+  getPlayerLedger 
+} from '../../mgtsystem/services/quizPaymentLedgerService.js'
 
 const debug = true;
 
 // --- Payment method normalization ---
-const ALLOWED_PM = ['cash', 'instant payment', 'card', 'web3', 'unknown'];
 
-function normalizePaymentMethod(maybe) {
-  if (typeof maybe === 'string') {
-    const raw = maybe.trim();
-    const lower = raw.toLowerCase();
-
-    // direct canonical match (all lower-case)
-    if (ALLOWED_PM.includes(lower)) return lower;
-
-    // legacy / fuzzy aliases
-    if (lower === 'revolut' || lower === 'revolut transfer') return 'instant payment';
-    if (lower.includes('cash')) return 'cash';
-    if (lower.includes('card')) return 'card';
-    if (lower.includes('web3') || lower.includes('crypto')) return 'web3';
-  }
-
-  // fallback bucket, treated as "unknown" in reconciliation
-  return 'unknown';
-}
 
 
 function normalizeExtraPayments(extraPayments) {
@@ -75,7 +64,7 @@ function getEngine(room) {
 }
 
 export function setupPlayerHandlers(socket, namespace) {
-  socket.on('join_quiz_room', ({ roomId, user, role }) => {
+  socket.on('join_quiz_room', async ({ roomId, user, role }) => {
     if (!roomId || !user || !role) {
       console.error(`[join_quiz_room] ❌ Missing data:`, { roomId, user, role });
       socket.emit('quiz_error', { message: 'Invalid join_quiz_room payload.' });
@@ -95,6 +84,7 @@ export function setupPlayerHandlers(socket, namespace) {
     if (role === 'player') {
       // Capacity checks (Web2 only; allow overflow for Web3 rooms)
       const isWeb3 = room.config?.paymentMethod === 'web3' || room.config?.isWeb3Room === true;
+
       if (!isWeb3) {
         const limit =
           room.roomCaps?.maxPlayers ??
@@ -131,7 +121,23 @@ export function setupPlayerHandlers(socket, namespace) {
       updateAdminSocketId(roomId, user.id, socket.id);
       if (debug) console.log(`[Join] 🛠️ Admin "${user.name || user.id}" joined with socket ${socket.id}`);
 
-     } else if (role === 'player') {
+    } else if (role === 'player') {
+  // Capacity checks (Web2 only; allow overflow for Web3 rooms)
+  const isWeb3 = room.config?.paymentMethod === 'web3' || room.config?.isWeb3Room === true;
+  
+  if (!isWeb3) {
+    const limit =
+      room.roomCaps?.maxPlayers ??
+      room.config?.roomCaps?.maxPlayers ??
+      20;
+
+    if (room.players.length >= limit) {
+      console.warn(`[Join] 🚫 Player limit reached (${limit}) in room ${roomId}`);
+      socket.emit('quiz_error', { message: `Room is full (limit ${limit}).` });
+      return;
+    }
+  }
+  
   // ✅ Session housekeeping
   cleanExpiredSessions(roomId);
 
@@ -139,7 +145,7 @@ export function setupPlayerHandlers(socket, namespace) {
   const normalizedPaymentMethod = normalizePaymentMethod(user.paymentMethod);
   const normalizedExtraPayments = normalizeExtraPayments(user.extraPayments);
 
-  // 🔎 Determine if player exists and/or has a session (DECLARE FIRST!)
+  // 🔎 Determine if player exists and/or has a session
   const existingPlayer = room.players.find(p => p.id === user.id);
   const existingSession = getPlayerSession(roomId, user.id);
 
@@ -148,7 +154,6 @@ export function setupPlayerHandlers(socket, namespace) {
     ...user,
     paymentMethod: normalizedPaymentMethod,
     extraPayments: normalizedExtraPayments,
-    // ensure socket binding is from this connection
     socketId: socket.id,
   };
 
@@ -166,7 +171,6 @@ export function setupPlayerHandlers(socket, namespace) {
   if (prevSocketId && prevSocketId !== socket.id) {
     const prevSocket = namespace.sockets.get(prevSocketId);
     if (prevSocket && prevSocket.connected) {
-      // ✅ Only boot if the old socket is actually a PLAYER in this room
       const isPrevPlayerSocket =
         prevSocket.rooms.has(roomId) &&
         prevSocket.rooms.has(`${roomId}:player`) &&
@@ -187,9 +191,7 @@ export function setupPlayerHandlers(socket, namespace) {
   }
 
   // Add or update player + session
-
   if (!existingPlayer) {
-    // brand new player
     addOrUpdatePlayer(roomId, sanitizedUser);
     joinedUser = sanitizedUser;
 
@@ -201,11 +203,9 @@ export function setupPlayerHandlers(socket, namespace) {
       lastActive: Date.now(),
     });
   } else {
-    // merge onto existing to avoid blowing away prior fields
     const mergedExisting = {
       ...existingPlayer,
       ...sanitizedUser,
-      // keep any previous extraPayments and overlay new ones
       extraPayments: {
         ...(existingPlayer.extraPayments || {}),
         ...(sanitizedUser.extraPayments || {}),
@@ -227,6 +227,76 @@ export function setupPlayerHandlers(socket, namespace) {
 
   if (debug) console.log(`[Join] 🎮 Player "${joinedUser?.name || user.name}" (${user.id}) connected with socket ${socket.id}`);
 
+// ✅ NEW: Create ledger entries AFTER sanitizedUser exists
+const isWeb2 = !isWeb3;
+if (isWeb2 && room.config?.entryFee && parseFloat(room.config.entryFee) > 0) {
+  try {
+    const clubId = room.config?.clubId || room.config?.hostId || 'unknown';
+    const entryFee = parseFloat(room.config.entryFee);
+    const currency = room.config?.currencySymbol || 'EUR';
+    
+    // ✅ Determine values based on whether payment was claimed
+    const ledgerSource = sanitizedUser.paymentClaimed ? 'player_claimed' : 'player_selected';
+    const claimedAt = sanitizedUser.paymentClaimed ? new Date() : null;
+    
+    // Create entry fee ledger entry
+    await createExpectedPayment({
+      roomId,
+      clubId,
+      playerId: user.id,
+      playerName: sanitizedUser.name,
+      ledgerType: 'entry_fee',
+      amount: entryFee,
+      currency: currency === '€' ? 'EUR' : currency === '£' ? 'GBP' : 'EUR',
+      paymentMethod: sanitizedUser.paymentMethod,
+      paymentSource: ledgerSource,
+      clubPaymentMethodId: sanitizedUser.clubPaymentMethodId || null,
+      paymentReference: sanitizedUser.paymentReference || null, // ✅ NEW
+      claimedAt: claimedAt, // ✅ NEW
+    });
+    
+    // Create ledger entries for each extra
+    if (sanitizedUser.extras && Array.isArray(sanitizedUser.extras)) {
+      for (const extraId of sanitizedUser.extras) {
+        const extraPrice = room.config.fundraisingPrices?.[extraId];
+        if (extraPrice && extraPrice > 0) {
+          await createExpectedPayment({
+            roomId,
+            clubId,
+            playerId: user.id,
+            playerName: sanitizedUser.name,
+            ledgerType: 'extra_purchase',
+            amount: extraPrice,
+            currency: currency === '€' ? 'EUR' : currency === '£' ? 'GBP' : 'EUR',
+            paymentMethod: sanitizedUser.paymentMethod,
+            paymentSource: ledgerSource,
+            clubPaymentMethodId: sanitizedUser.clubPaymentMethodId || null,
+            paymentReference: sanitizedUser.paymentReference || null, // ✅ NEW
+            claimedAt: claimedAt, // ✅ NEW
+            extraId,
+            extraMetadata: { extraId, price: extraPrice },
+          });
+        }
+      }
+    }
+    
+    if (debug) {
+      console.log(`[Ledger] ✅ Created payment ledger entries for ${user.id}`, {
+        entryFee,
+        extrasCount: sanitizedUser.extras?.length || 0,
+        paymentMethod: sanitizedUser.paymentMethod,
+        paymentClaimed: !!sanitizedUser.paymentClaimed,
+        paymentReference: sanitizedUser.paymentReference,
+        clubPaymentMethodId: sanitizedUser.clubPaymentMethodId,
+        claimedAt: claimedAt,
+      });
+    }
+  } catch (ledgerErr) {
+    // Don't block join on ledger failure - log and continue
+    console.error(`[Ledger] ❌ Failed to create ledger entries for ${user.id}:`, ledgerErr);
+  }
+}
+
   // OPTIONAL: store Web3 wallet details for payouts (players only)
   if (user.web3Address && user.web3Chain) {
     if (!room.web3AddressMap) room.web3AddressMap = new Map();
@@ -244,8 +314,8 @@ export function setupPlayerHandlers(socket, namespace) {
     };
   }
 
-
-    } else {
+} else {
+ 
       if (debug) console.error(`[Join] ❌ Unknown role: "${role}"`);
       socket.emit('quiz_error', { message: `Unknown role "${role}".` });
       return;
@@ -366,18 +436,21 @@ socket.on('update_player', (payload, ack) => {
     }
 
     // Build a lite list for UI
-    const playersLite = room.players.map((p) => ({
-      id: p.id,
-      name: p.name,
-      paid: !!p.paid,
-      paymentMethod: p.paymentMethod,
-      extras: p.extras || [],
-      extraPayments: p.extraPayments || {}, // ✅ Include this for debugging
-      disqualified: !!p.disqualified,
-    }));
+const playersLite = room.players.map((p) => ({
+  id: p.id,
+  name: p.name,
+  paid: !!p.paid,
+  paymentMethod: p.paymentMethod,
+  paymentClaimed: !!p.paymentClaimed,        // ✅ ADD THIS
+  paymentReference: p.paymentReference || null, // ✅ ADD THIS  
+  clubPaymentMethodId: p.clubPaymentMethodId || null, // ✅ ADD THIS
+  extras: p.extras || [],
+  extraPayments: p.extraPayments || {},
+  disqualified: !!p.disqualified,
+}));
 
     // Broadcast to host/admin/players so PlayerListPanel + waiting pages update
-    namespace.to(roomId).emit('player_list_updated', { players: playersLite });
+   namespace.to(roomId).emit('player_list_updated', { players: playersLite });
 
     // Keep other UIs in sync (scoreboard, etc.)
     emitRoomState(namespace, roomId);
@@ -501,55 +574,91 @@ socket.on('player_route_change', ({ roomId, playerId, route, entering }) => {
   });
 
   // REPLACED: use_extra
-  socket.on('use_extra', async ({ roomId, playerId, extraId, targetPlayerId }) => {
-    const room = getQuizRoom(roomId);
+socket.on('use_extra', async ({ roomId, playerId, extraId, targetPlayerId }) => {
+  const room = getQuizRoom(roomId);
+  if (!room) {
+    socket.emit('quiz_error', { message: 'Room not found' });
+    return;
+  }
 
-    const allowedByPlan =
-      room.config?.roomCaps?.extrasAllowed === '*' ||
-      (Array.isArray(room.config?.roomCaps?.extrasAllowed) &&
-       room.config.roomCaps.extrasAllowed.includes(extraId));
+  const isWeb3 =
+    room.config?.paymentMethod === 'web3' ||
+    room.config?.isWeb3Room === true;
 
-    const enabledInConfig = !!room.config?.fundraisingOptions?.[extraId];
+  // Use the same caps source pattern you already use elsewhere
+  const caps = room.roomCaps ?? room.config?.roomCaps ?? null;
+  const extrasAllowed = caps?.extrasAllowed;
 
-    if (!allowedByPlan || !enabledInConfig) {
-      if (debug) console.warn(`[PlayerHandler] 🚫 Extra "${extraId}" not permitted (allowedByPlan=${allowedByPlan}, enabled=${enabledInConfig})`);
-      socket.emit('quiz_error', { message: `Extra "${extraId}" is not available in this game.` });
-      return;
-    }
+  // ✅ FIX: treat ['*'] as wildcard too
+  const isWildcard =
+    extrasAllowed === '*' ||
+    (Array.isArray(extrasAllowed) && extrasAllowed.includes('*'));
 
-    if (!room) {
-      socket.emit('quiz_error', { message: 'Room not found' });
-      return;
-    }
+  const allowedByPlan =
+    isWeb3 ||
+    isWildcard ||
+    (Array.isArray(extrasAllowed) && extrasAllowed.includes(extraId));
 
-    const result = handlePlayerExtra(roomId, playerId, extraId, targetPlayerId, namespace);
+  const enabledInConfig = !!room.config?.fundraisingOptions?.[extraId];
 
-    if (!result.success) {
-      console.warn(`[PlayerHandler] ❌ Extra ${extraId} failed for ${playerId}: ${result.error}`);
-      socket.emit('quiz_error', { message: result.error });
-      return;
-    }
+  if (debug) {
+    console.log('[PlayerHandler] 🧩 use_extra check', {
+      roomId,
+      playerId,
+      extraId,
+      targetPlayerId,
+      isWeb3,
+      capsLocation: room.roomCaps ? 'room.roomCaps' : (room.config?.roomCaps ? 'room.config.roomCaps' : 'none'),
+      extrasAllowed,
+      isWildcard,
+      allowedByPlan,
+      enabledInConfig,
+      fundraisingOptionKeys: Object.keys(room.config?.fundraisingOptions || {}),
+    });
+  }
 
-    if (debug) console.log(`[PlayerHandler] ✅ Extra ${extraId} used successfully by ${playerId}`);
-    socket.emit('extra_used_successfully', { extraId });
+  if (!allowedByPlan || !enabledInConfig) {
+    console.warn(`[PlayerHandler] 🚫 Extra "${extraId}" not permitted`, {
+      allowedByPlan,
+      enabledInConfig,
+      isWeb3,
+      extrasAllowed,
+      isWildcard,
+      fundraisingOptionKeys: Object.keys(room.config?.fundraisingOptions || {}),
+    });
+    socket.emit('quiz_error', { message: `Extra "${extraId}" is not available in this game.` });
+    return;
+  }
 
-    try {
-      const enginePromise = getEngine(room);
-      if (enginePromise) {
-        const engine = await enginePromise;
+  const result = handlePlayerExtra(roomId, playerId, extraId, targetPlayerId, namespace);
 
-        if (extraId === 'buyHint' && engine.handleHintExtra) {
-          engine.handleHintExtra(roomId, playerId, namespace);
-          if (debug) console.log(`[PlayerHandler] 📡 Sent hint notification to host for ${playerId}`);
-        } else if (extraId === 'freezeOutTeam' && targetPlayerId && engine.handleFreezeExtra) {
-          engine.handleFreezeExtra(roomId, playerId, targetPlayerId, namespace);
-          if (debug) console.log(`[PlayerHandler] 📡 Sent freeze notification to host for ${playerId} -> ${targetPlayerId}`);
-        }
+  if (!result.success) {
+    console.warn(`[PlayerHandler] ❌ Extra ${extraId} failed for ${playerId}: ${result.error}`);
+    socket.emit('quiz_error', { message: result.error });
+    return;
+  }
+
+  if (debug) console.log(`[PlayerHandler] ✅ Extra ${extraId} used successfully by ${playerId}`);
+  socket.emit('extra_used_successfully', { extraId });
+
+  try {
+    const enginePromise = getEngine(room);
+    if (enginePromise) {
+      const engine = await enginePromise;
+
+      if (extraId === 'buyHint' && engine.handleHintExtra) {
+        engine.handleHintExtra(roomId, playerId, namespace);
+        if (debug) console.log(`[PlayerHandler] 📡 Sent hint notification to host for ${playerId}`);
+      } else if (extraId === 'freezeOutTeam' && targetPlayerId && engine.handleFreezeExtra) {
+        engine.handleFreezeExtra(roomId, playerId, targetPlayerId, namespace);
+        if (debug) console.log(`[PlayerHandler] 📡 Sent freeze notification to host for ${playerId} -> ${targetPlayerId}`);
       }
-    } catch (error) {
-      console.error(`[PlayerHandler] ❌ Failed to send host notification:`, error);
     }
-  });
+  } catch (error) {
+    console.error(`[PlayerHandler] ❌ Failed to send host notification:`, error);
+  }
+});
+
 
   // Speed-round-specific instant submit
   socket.on('submit_speed_answer', ({ roomId, playerId, questionId, answer }) => {

@@ -194,20 +194,31 @@ export const StepFundraisingOptions: React.FC<WizardStepProps> = ({ onNext, onBa
       ? (entitlements.extras_allowed as string[])
       : null;
 
-  const isExtraAllowed = (key: string) => (isWeb3 ? true : !allowedExtrasArr || allowedExtrasArr.includes(key));
+const isExtraAllowed = (key: string) => {
+  if (isWeb3) return true;
+  if (!allowedExtrasArr) return true;
+  if (allowedExtrasArr.includes('*')) return true; // ✅ wildcard support
+  return allowedExtrasArr.includes(key);
+};
+
 
   // ──────────────────────────────────────────────────────────────
   // Applicable extras: must match selected rounds.
   // Web3: show all applicable (ignore entitlements).
   // Web2: filter by entitlements if provided.
   // ──────────────────────────────────────────────────────────────
-  const applicableExtrasBase = Object.entries(fundraisingExtraDefinitions).filter(([_, rule]) =>
-    selectedRounds.some(
-      (round) =>
-        rule.applicableTo === 'global' ||
-        (Array.isArray(rule.applicableTo) && rule.applicableTo.includes(round.roundType))
-    )
-  );
+const applicableExtrasBase = Object.entries(fundraisingExtraDefinitions).filter(([_, rule]) => {
+  if (rule.applicableTo === 'global') return true;
+  // otherwise require a round match…
+  return selectedRounds.some((round: any) => {
+    const roundType = round.roundType ?? round.roundTypeId ?? round.type;
+    return Array.isArray(rule.applicableTo) && roundType && rule.applicableTo.includes(roundType);
+  });
+});
+
+// console.log('[StepFundraisingOptions] roundDefinitions:', setupConfig.roundDefinitions);
+// console.log('[StepFundraisingOptions] extras keys:', Object.keys(fundraisingExtraDefinitions));
+// console.log('[StepFundraisingOptions] sample extra:', fundraisingExtraDefinitions.buyHint);
 
   const applicableExtras = isWeb3
     ? applicableExtrasBase

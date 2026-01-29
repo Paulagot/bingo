@@ -64,7 +64,7 @@ const HostDashboardCore: React.FC = () => {
    const { roomId, hostId } = useRoomIdentity();
 
    // Add this helper function at the top of HostDashboardCore
-const applyRecoverySnapshot = (snap: any, setFullConfig: any, roomId: string, hostId: string) => {
+const applyRecoverySnapshot = (snap: any, setFullConfig: any, roomId: string, hostId: string | null) => {
   // Load players
   if (snap?.players) {
     usePlayerStore.setState({ 
@@ -82,7 +82,7 @@ if (snap?.config) {
     ...prev,               // ✅ keep existing fields like isWeb3Room
     ...snap.config,        // ✅ apply snapshot updates
     roomId,
-    hostId: snap.config.hostId || hostId,
+    hostId: snap.config.hostId || hostId || undefined,
     // ✅ harden: never allow it to disappear
     isWeb3Room:
       typeof snap.config.isWeb3Room === 'boolean'
@@ -112,77 +112,75 @@ useEffect(() => {
     setIsWeb3Room(false);
     return;
   }
-  
+
+  // ✅ capture a non-null string ONCE so nested functions don't see `string | null`
+  const rid = roomId;
+
   // ✅ OPTIMIZATION 1: Check if config already tells us (Web3 wizard sets this)
   if (config?.isWeb3Room !== undefined) {
     console.log('[HostDashboard] ✅ Room type known from config:', config.isWeb3Room ? 'Web3' : 'Web2');
     setIsWeb3Room(!!config.isWeb3Room);
     setRoomTypeChecked(true);
-    
+
     // ✅ Cache it so we don't check again
-    roomTypeCache.set(roomId, { isWeb3: !!config.isWeb3Room, checked: true });
+    roomTypeCache.set(rid, { isWeb3: !!config.isWeb3Room, checked: true });
     return;
   }
-  
+
   // ✅ OPTIMIZATION 2: Check cache before making API call
-  const cached = roomTypeCache.get(roomId);
+  const cached = roomTypeCache.get(rid);
   if (cached?.checked) {
     console.log('[HostDashboard] ✅ Using cached room type:', cached.isWeb3 ? 'Web3' : 'Web2');
     setIsWeb3Room(cached.isWeb3);
     setRoomTypeChecked(true);
     return;
   }
-  
-  // ✅ OPTIMIZATION 3: Only make API call if we don't have config AND no cache
+
   let cancelled = false;
-  
-  async function checkRoomType() {
+
+  async function checkRoomType(roomIdStr: string) {
     try {
-      console.log('[HostDashboard] 🔍 Checking room type via API for:', roomId);
-      
-      const response = await fetch(`/quiz/api/rooms/${roomId}/info`);
-      
+      console.log('[HostDashboard] 🔍 Checking room type via API for:', roomIdStr);
+
+      const response = await fetch(`/quiz/api/rooms/${roomIdStr}/info`);
+
       if (cancelled) return;
-      
+
       if (response.ok) {
         const data = await response.json();
         console.log('[HostDashboard] ✅ Room type from API:', data.isWeb3 ? 'Web3' : 'Web2');
-        
-        // ✅ Cache the result
-        roomTypeCache.set(roomId, { isWeb3: !!data.isWeb3, checked: true });
-        
+
+        roomTypeCache.set(roomIdStr, { isWeb3: !!data.isWeb3, checked: true });
+
         setIsWeb3Room(!!data.isWeb3);
         setRoomTypeChecked(true);
         return;
       }
-      
-      // If room not found in API, might be a new room being created
+
       console.warn('[HostDashboard] ⚠️ Room info not found, defaulting to Web2');
-      
-      // ✅ Cache the default
-      roomTypeCache.set(roomId, { isWeb3: false, checked: true });
-      
+
+      roomTypeCache.set(roomIdStr, { isWeb3: false, checked: true });
+
       setIsWeb3Room(false);
       setRoomTypeChecked(true);
-      
     } catch (err) {
       if (cancelled) return;
       console.error('[HostDashboard] ❌ Failed to check room type:', err);
-      
-      // ✅ Cache the fallback
-      roomTypeCache.set(roomId, { isWeb3: false, checked: true });
-      
+
+      roomTypeCache.set(roomIdStr, { isWeb3: false, checked: true });
+
       setIsWeb3Room(false);
       setRoomTypeChecked(true);
     }
   }
-  
-  checkRoomType();
-  
+
+  checkRoomType(rid);
+
   return () => {
     cancelled = true;
   };
-}, [roomId, config?.isWeb3Room]); 
+}, [roomId, config?.isWeb3Room]);
+
 
 // Computed value for backward compatibility with rest of component
 const isWeb3 = isWeb3Room;
@@ -232,8 +230,8 @@ useEffect(() => {
     return;
   }
   
-  // ✅ Get effective hostId
-  const effectiveHostId = hostId || config?.hostId || localStorage.getItem('current-host-id');
+  // ✅ Get effective hostId - FIX: Handle null case
+  const effectiveHostId = hostId || config?.hostId || localStorage.getItem('current-host-id') || '';
   
   if (!roomId || !effectiveHostId) {
     console.log('[HostDashboard] ⏭️ Skipping hydration - no roomId or hostId');
@@ -331,7 +329,7 @@ useEffect(() => {
       const mergedConfig = {
         ...dbConfig,
         roomId: dbConfig?.roomId ?? hydrateData.roomId ?? roomId,
-        hostId: dbConfig?.hostId ?? hydrateData.hostId ?? hostId,
+        hostId: dbConfig?.hostId ?? hydrateData.hostId ?? hostId ?? undefined,
         roomCaps: dbConfig?.roomCaps ?? hydrateData.roomCaps ?? null,
       };
 
@@ -377,7 +375,7 @@ useEffect(() => {
             socketRef.current!.emit('join_and_recover', {
               roomId,
               user: { 
-                id: hostId,
+                id: hostId || effectiveHostId,
                 name: mergedConfig.hostName || 'Host'
               },
               role: 'host',
@@ -397,9 +395,8 @@ useEffect(() => {
               
               console.log('[HostDashboard] ✅ Joined with recovery snapshot:', response.snap);
               
-              // ✅ Apply snapshot data to stores
-           // ✅ Apply snapshot data using helper (loads players + config + room state)
-applyRecoverySnapshot(response.snap, setFullConfig, roomId, hostId);
+              // ✅ Apply snapshot data using helper (loads players + config + room state)
+              applyRecoverySnapshot(response.snap, setFullConfig, roomId, hostId);
               
               console.log('[HostDashboard] 🎉 Hydration process complete!');
               
@@ -631,7 +628,8 @@ useEffect(() => {
           incoming?.hostId ||
           (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('hostId') : null) ||
           (typeof localStorage !== 'undefined' ? localStorage.getItem('current-host-id') : null) ||
-          (existing as any).hostId,
+          (existing as any).hostId ||
+          undefined,
         reconciliation: mergedRecon,
       };
 
@@ -666,7 +664,7 @@ const handleSocketError = (error: { message: string }) => {
       socket.off('room_config', handleRoomConfig);
       socket.off('quiz_error', handleSocketError);
     };
-  }, [socket, connected, roomId, setFullConfig, navigate]);
+  }, [socket, connected, roomId, setFullConfig, navigate, dbHydrating, isWeb3]);
 
 
 // Fallback: request config if we still don't have it after roomId changes

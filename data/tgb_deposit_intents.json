@@ -1,6 +1,6 @@
 [
   {
-    "offchainIntentId": "FR-AnmGxJYPkx-1768858107451-abf1eacf-a101-4965-bc19-6b86aa917bb5",
+    "offchainIntentId": "FR-3QtrV8mcEu-1769640232817-d676dd04-b0aa-4d7d-bdb1-7865d45cb2df",
     "organizationId": "org_abc123",
     "currency": "USDC",
     "network": "base",
@@ -10,14 +10,14 @@
     "id": "tgb-mock-deposit-id",
     "tgbRequestId": "tgb-mock-req-1",
     "metadata": {
-      "roomId": "AnmGxJYPkx",
-      "offchainIntentId": "FR-AnmGxJYPkx-1768858107451-abf1eacf-a101-4965-bc19-6b86aa917bb5"
+      "roomId": "3QtrV8mcEu",
+      "offchainIntentId": "FR-3QtrV8mcEu-1769640232817-d676dd04-b0aa-4d7d-bdb1-7865d45cb2df"
     },
     "status": "mocked",
-    "createdAt": "2026-01-19T21:28:27.451Z",
-    "updatedAt": "2026-01-19T21:28:27.453Z",
-    "roomId": "AnmGxJYPkx",
-    "expectedAmountDecimal": "0.0265",
+    "createdAt": "2026-01-28T22:43:52.818Z",
+    "updatedAt": "2026-01-28T22:43:52.821Z",
+    "roomId": "3QtrV8mcEu",
+    "expectedAmountDecimal": "0.01056",
     "tgbDepositId": "tgb-mock-deposit-id"
   },
   {
