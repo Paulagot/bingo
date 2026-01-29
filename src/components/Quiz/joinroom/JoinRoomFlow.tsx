@@ -8,6 +8,7 @@ import type { SupportedChain } from '../../../chains/types';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { useQuizConfig } from '../hooks/useQuizConfig';
 import { WalletProvider } from '../../../context/WalletContext';
+import { normalizePaymentMethod } from '../../../shared/utils/paymentMethods';
 
 // ✅ Lazy load Web3Provider AND Web3PaymentStep together
 const Web3Provider = lazy(() => 
@@ -56,6 +57,7 @@ interface RoomConfig {
   fundraisingOptions: Record<string, boolean>;
   fundraisingPrices: Record<string, number>;
   currencySymbol: string;
+  clubId?: string; // ✅ ADD THIS
 
   // Web3 fields
   web3Chain?: string;
@@ -92,10 +94,7 @@ const normalizeChain = (value?: string | null): SupportedChain | null => {
 };
 
 // ✅ Normalize payment method for QuizConfig
-const normalizePaymentMethod = (method: string): 'web3' | 'cash_or_revolut' => {
-  if (method === 'web3') return 'web3';
-  return 'cash_or_revolut';
-};
+
 
 interface JoinRoomFlowProps {
   onClose: () => void;
@@ -188,17 +187,18 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
           ...data,
           currencySymbol: data.currencySymbol || '€',
           roomId: prefilledRoomId,
+           clubId: data.clubId || data.club_id,
         };
 
         joinDebug('✅ Setting roomConfig from socket verify', normalizedConfig);
         setRoomConfig(normalizedConfig);
         
         // ✅ FIX: Normalize types for QuizConfig
-        setFullConfig({
-          ...normalizedConfig,
-          entryFee: String(normalizedConfig.entryFee),
-          paymentMethod: normalizePaymentMethod(normalizedConfig.paymentMethod),
-        } as any); // Use 'as any' to avoid type conflicts between RoomConfig and QuizConfig
+      setFullConfig({
+  ...normalizedConfig,
+  entryFee: String(normalizedConfig.entryFee),
+  paymentMethod: normalizedConfig.paymentMethod === 'web3' ? 'web3' : 'cash_or_revolut',
+} as any); // Use 'as any' to avoid type conflicts between RoomConfig and QuizConfig
 
         const normalized = normalizeChain(data.web3Chain);
         joinDebug('🔗 Normalized chain:', {
@@ -265,6 +265,7 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
       ...config,
       currencySymbol: config.currencySymbol || '€',
       roomId: roomId,
+       clubId: config.clubId || config.club_id, 
     };
 
     joinDebug('Setting roomConfig from manual verify', normalizedConfig);

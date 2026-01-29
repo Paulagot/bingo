@@ -1,6 +1,6 @@
 // src/components/Quiz/joinroom/ExtrasSelectionStep.tsx
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Globe, Target, Zap, AlertCircle, CheckCircle, Plus, Minus, GamepadIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Globe, Target, Zap,  CheckCircle, Plus, Minus, GamepadIcon } from 'lucide-react';
 import { fundraisingExtraDefinitions, roundTypeDefinitions } from '../constants/quizMetadata';
 import type { FundraisingExtraDefinition } from '../constants/quizMetadata';
 import type { RoundTypeId } from '../types/quiz';
@@ -13,11 +13,23 @@ interface RoomConfig {
   entryFee: number;
   fundraisingOptions: Record<string, boolean>;
   fundraisingPrices: Record<string, number>;
-  currencySymbol: string; // Make required to fix type conflict
+  currencySymbol: string;
+  clubId?: string; // ✅ ADD THIS
+
+  // Web3 fields
   web3Chain?: string;
+  evmNetwork?: string;
+  solanaCluster?: string;
+  stellarNetwork?: string;
+  roomContractAddress?: string;
+  deploymentTxHash?: string;
+  web3Currency?: string;
+
+  // Room info
   hostName?: string;
   gameType?: string;
   roundDefinitions?: Array<{ roundType: string }>;
+  roomId: string;
 }
 
 interface ExtraCardProps {

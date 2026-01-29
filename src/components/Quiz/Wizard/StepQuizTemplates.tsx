@@ -8,6 +8,7 @@ import ClearSetupButton from './ClearSetupButton';
 import type { WizardStepProps } from './WizardStepProps';
 import quizTemplates, { type QuizTemplate } from '../constants/templates';
 import { quizApi } from '@shared/api';
+import { fundraisingExtraDefinitions } from '../constants/quizMetadata';
 
 // shadcn/ui Select
 import {
@@ -18,7 +19,20 @@ import {
   SelectItem,
 } from '../Wizard/select';
 
-const Debug = false;
+const Debug = true
+
+function buildEnabledExtrasForRound(roundType: RoundTypeId) {
+  const enabledExtras: Record<string, boolean> = {};
+
+  for (const [extraId, def] of Object.entries(fundraisingExtraDefinitions)) {
+    const applicable = Array.isArray(def.applicableTo) ? def.applicableTo : [];
+    if (applicable.includes(roundType)) {
+      enabledExtras[extraId] = false; // default off (user toggles later)
+    }
+  }
+
+  return enabledExtras;
+}
 
 if (Debug) {
   const ids = quizTemplates.map(t => t.id);
@@ -291,33 +305,24 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
     if (!template) return;
 
     // ✅ Templates are authoritative - no overrides
-    const roundDefinitions = template.rounds.map((round, index) => {
-      // Start with round type defaults
-      const defaults = roundTypeDefaults[round.type];
-      
-      // Merge with template's customConfig (template wins)
-      const cfg = {
-        ...defaults,
-        ...(round.customConfig ?? {}),
-      } as RoundConfig;
+  const roundDefinitions = template.rounds.map((round, index) => {
+  const defaults = roundTypeDefaults[round.type] ?? ({} as RoundConfig);
 
-      if (Debug) {
-        console.log(`[Template] Round ${index + 1} (${round.type}):`, {
-          defaults: Object.keys(defaults),
-          custom: round.customConfig ? Object.keys(round.customConfig) : [],
-          final: cfg,
-        });
-      }
+  const cfg = {
+    ...defaults,
+    ...(round.customConfig ?? {}),
+  } as RoundConfig;
 
-      return {
-        roundNumber: index + 1,
-        roundType: round.type,
-        category: round.category,
-        difficulty: round.difficulty,
-        config: cfg,
-        enabledExtras: {},
-      };
-    });
+  return {
+    roundNumber: index + 1,
+    roundType: round.type,
+    category: round.category,
+    difficulty: round.difficulty,
+    config: cfg,
+    enabledExtras: buildEnabledExtrasForRound(round.type), // ✅ not {}
+  };
+});
+
 
     updateSetupConfig({
       roundDefinitions,

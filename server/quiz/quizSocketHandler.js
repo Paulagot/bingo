@@ -8,6 +8,7 @@ import { setupSharedHandlers } from './handlers/sharedUtils.js';
 import { isRateLimited } from '../socketRateLimiter.js';
 import { setupRecoveryHandlers } from './handlers/recoveryHandlers.js';
 import { setupReconciliationHandlers } from './handlers/reconciliationHandlers.js';
+import { setupPaymentHandlers } from './handlers/paymentHandlers.js';
 
 
 export function setupQuizSocketHandlers(quizNamespace) {
@@ -23,7 +24,8 @@ export function setupQuizSocketHandlers(quizNamespace) {
     setupPlayerHandlers(socket, quizNamespace);
     setupSharedHandlers(socket, quizNamespace);
     setupRecoveryHandlers(socket, quizNamespace);
-     setupReconciliationHandlers(socket, quizNamespace);
+    setupReconciliationHandlers(socket, quizNamespace);
+    setupPaymentHandlers(socket, quizNamespace);
 
 
   socket.on('disconnect', () => {
