@@ -1,6 +1,7 @@
 //server/quiz/handlers/sharedUtils.js
 const debug = false;
 
+import { createSolutionBuilder } from 'typescript';
 import { getQuizRoom } from '../quizRoomManager.js';
 
 // NEW: single emitter for standardized room_config payload
@@ -63,11 +64,14 @@ const {
   hostName,
   gameType,
   roundDefinitions,
-  currencySymbol
+  currencySymbol,
+  clubId,  // ✅ ADD THIS LINE
+      hostId
 } = room.config;
 
     const response = {
       exists: true,
+       clubId: clubId || hostId || 'unknown',
       paymentMethod: paymentMethod ||'unknown',
       entryFee: Number(entryFee),
       fundraisingOptions,

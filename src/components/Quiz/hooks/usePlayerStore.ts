@@ -24,6 +24,10 @@ export interface Player {
     };
   };
   addedByAdminId?: string;
+  paymentClaimed?: boolean;
+paymentReference?: string | null;
+clubPaymentMethodId?: number | null;
+paymentConfirmedBy?: string;
 }
 
 interface PlayerState {

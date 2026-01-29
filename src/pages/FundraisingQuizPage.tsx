@@ -5,7 +5,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@features/auth';
 
 // ✅ Debug toggle - set to false for production
-const DEBUG = false;
+const DEBUG = true;
 
 const debugLog = (source: string, message: string, data?: any) => {
   if (DEBUG) {

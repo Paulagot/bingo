@@ -18,6 +18,15 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback-dev-secret';
 
 const WEB2_ROOMS_TABLE = `${TABLE_PREFIX}web2_quiz_rooms`;
 
+function isWildcardArray(v) {
+  return Array.isArray(v) && v.includes('*');
+}
+
+function isWildcard(v) {
+  return v === '*' || isWildcardArray(v);
+}
+
+
 // Insert the launched room config into DB (Web2 only)
 async function insertWeb2RoomRecord({
   clubId,
@@ -1048,25 +1057,31 @@ router.post('/create-room', async (req, res) => {
       extrasAllowed: ents.extras_allowed ?? [],
     };
     setupConfig.roomCaps = roomCaps;
+    setupConfig.clubId = clubId;
+   // ✅ ADD THIS LINE
+    setupConfig.hostId = hostId;
 
     // Sanitize extras against plan
-    const allowedExtras = ents.extras_allowed ?? [];
-    const enabledExtras = Object.entries(setupConfig?.fundraisingOptions || {})
-      .filter(([, enabled]) => !!enabled)
-      .map(([k]) => k);
+  const allowedExtras = ents.extras_allowed ?? [];
+const enabledExtras = Object.entries(setupConfig?.fundraisingOptions || {})
+  .filter(([, enabled]) => !!enabled)
+  .map(([k]) => k);
 
-    const disallowedExtras =
-      allowedExtras === '*'
-        ? []
-        : enabledExtras.filter((x) => !allowedExtras.includes(x));
+let disallowedExtras = [];
 
-    if (disallowedExtras.length) {
-      console.warn(`[API] 🧹 Removing disallowed extras: ${disallowedExtras.join(', ')}`);
-      for (const key of disallowedExtras) {
-        if (setupConfig.fundraisingOptions) setupConfig.fundraisingOptions[key] = false;
-        if (setupConfig.fundraisingPrices) delete setupConfig.fundraisingPrices[key];
-      }
-    }
+if (!isWildcard(allowedExtras)) {
+  const allowedSet = new Set(Array.isArray(allowedExtras) ? allowedExtras : []);
+  disallowedExtras = enabledExtras.filter((x) => !allowedSet.has(x));
+}
+
+if (disallowedExtras.length) {
+  console.warn(`[API] 🧹 Removing disallowed extras: ${disallowedExtras.join(', ')}`);
+  for (const key of disallowedExtras) {
+    if (setupConfig.fundraisingOptions) setupConfig.fundraisingOptions[key] = false;
+    if (setupConfig.fundraisingPrices) delete setupConfig.fundraisingPrices[key];
+  }
+}
+
 
     const created = createQuizRoom(roomId, hostId, setupConfig);
     if (!created) {
@@ -1307,6 +1322,9 @@ router.post('/web2/rooms/:roomId/hydrate', authenticateToken, async (req, res) =
     const config = typeof row.config_json === 'string' 
       ? JSON.parse(row.config_json) 
       : row.config_json;
+
+         config.clubId = row.club_id;
+    config.hostId = row.host_id;
     
     console.log('[API] ✅ Config parsed, keys:', Object.keys(config || {}));
 
@@ -1324,6 +1342,7 @@ if (existingRoom) {
     ...config,
     roomId: row.room_id,
     hostId: row.host_id,
+    clubId: row.club_id,
   };
   
   return res.status(200).json({
@@ -1333,6 +1352,7 @@ if (existingRoom) {
     config: configWithIds,  // ✅ Send config WITH roomId
     hydrated: true,
     alreadyExisted: true,
+    clubId: row.club_id,
   });
 }
 

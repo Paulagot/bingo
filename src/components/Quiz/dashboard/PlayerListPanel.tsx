@@ -17,7 +17,8 @@ import {
   CheckCircle2,
   XCircle,
   AlertTriangle,
-  Pencil
+  Pencil,
+  Clock
 } from 'lucide-react';
 import { fundraisingExtras } from '../types/quiz';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
@@ -136,6 +137,11 @@ const PlayerListPanel: React.FC = () => {
   const activePlayers = filteredPlayers.filter((p: any) => !p.disqualified);
   const disqualifiedPlayers = filteredPlayers.filter((p: any) => p.disqualified);
   const paidCount = players.filter((p: any) => p.paid && !p.disqualified).length;
+  
+  // ✅ NEW: Count pending (claimed but not confirmed) payments
+  const pendingCount = players.filter((p: any) => 
+    !p.disqualified && p.paymentClaimed && !p.paid
+  ).length;
 
   // Total owed helper
   const getPlayerTotals = (player: any) => {
@@ -145,6 +151,33 @@ const PlayerListPanel: React.FC = () => {
     );
     const total = entryFee + extrasTotal;
     return { extrasTotal, total };
+  };
+
+  // ✅ NEW: Confirm payment handler (Step 2B will fully implement socket handler)
+  const handleConfirmPayment = (playerId: string) => {
+    if (!socket || !roomId) {
+      console.error('[PlayerListPanel] Cannot confirm payment: no socket or roomId');
+      return;
+    }
+
+    const player = players.find(p => p.id === playerId);
+    if (!player) {
+      console.error('[PlayerListPanel] Cannot find player:', playerId);
+      return;
+    }
+
+    console.log('[PlayerListPanel] Confirming payment for player:', {
+      playerId,
+      playerName: player.name,
+      paymentReference: player.paymentReference,
+    });
+
+    // ✅ Emit confirm_player_payment event
+    socket.emit('confirm_player_payment', {
+      roomId,
+      playerId,
+      confirmedBy: config?.hostId || 'host', // Use host ID from config
+    });
   };
 
   const isEditModalOpen = !!editingPlayer;
@@ -160,7 +193,7 @@ const PlayerListPanel: React.FC = () => {
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Players</h2>
             <p className="text-sm text-gray-600 mt-0.5">
-              {players.length} total • {paidCount} paid • {disqualifiedPlayers.length} disqualified
+              {players.length} total • {paidCount} paid • {pendingCount > 0 && `${pendingCount} pending • `}{disqualifiedPlayers.length} disqualified
             </p>
           </div>
         </div>
@@ -305,6 +338,11 @@ const PlayerListPanel: React.FC = () => {
 
                   const { extrasTotal, total } = getPlayerTotals(player);
 
+                  // ✅ NEW: Determine payment status for badges
+                  const isPaid = !!player.paid;
+                  const isPending = !isPaid && !!player.paymentClaimed;
+                  const isUnpaid = !isPaid && !isPending;
+
                   return (
                     <li
                       key={player.id}
@@ -314,20 +352,49 @@ const PlayerListPanel: React.FC = () => {
                         {/* Player Info */}
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
                               <h4 className="font-semibold text-gray-900">{player.name}</h4>
-                              {player.paid ? (
+                              
+                              {/* ✅ STEP 2A: Payment Status Badges */}
+                              {isPaid && (
                                 <div className="flex items-center gap-1 rounded-full bg-green-100 border border-green-300 px-2 py-0.5">
                                   <CheckCircle2 className="h-3 w-3 text-green-700" />
                                   <span className="text-xs font-medium text-green-800">Paid</span>
                                 </div>
-                              ) : (
+                              )}
+                              
+                              {isPending && (
+                                <div className="flex items-center gap-1 rounded-full bg-yellow-100 border border-yellow-300 px-2 py-0.5">
+                                  <Clock className="h-3 w-3 text-yellow-700" />
+                                  <span className="text-xs font-medium text-yellow-800">Pending</span>
+                                </div>
+                              )}
+                              
+                              {isUnpaid && (
                                 <div className="flex items-center gap-1 rounded-full bg-red-100 border border-red-300 px-2 py-0.5">
                                   <XCircle className="h-3 w-3 text-red-700" />
                                   <span className="text-xs font-medium text-red-800">Unpaid</span>
                                 </div>
                               )}
                             </div>
+
+                            {/* ✅ STEP 2A: Show payment reference for pending players */}
+                            {isPending && player.paymentReference && (
+                              <div className="mb-2">
+                                <code className="text-xs bg-gray-100 px-2 py-1 rounded font-mono text-gray-700">
+                                  Ref: {player.paymentReference}
+                                </code>
+                              </div>
+                            )}
+
+                            {/* ✅ STEP 2A: Show payment method if available */}
+                            {player.paymentMethod && (isPaid || isPending) && (
+                              <div className="mb-2">
+                                <span className="text-xs text-gray-600">
+                                  via {player.paymentMethod === 'instant payment' ? 'Instant Payment' : player.paymentMethod}
+                                </span>
+                              </div>
+                            )}
 
                             {/* Amount owed */}
                             <div className="mb-2 text-xs text-gray-700">
@@ -377,6 +444,17 @@ const PlayerListPanel: React.FC = () => {
 
                           {/* Action Buttons */}
                           <div className="flex flex-col gap-2">
+                            {/* ✅ STEP 2A: Confirm Payment Button (only for pending players) */}
+                            {isPending && (
+                              <button
+                                onClick={() => handleConfirmPayment(player.id)}
+                                className="inline-flex items-center gap-1.5 rounded-lg border-2 border-green-300 bg-white px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-50 transition-all"
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                Confirm Payment
+                              </button>
+                            )}
+
                             <button
                               onClick={() => setSelectedPlayerId(isShowingQR ? null : player.id)}
                               className="inline-flex items-center gap-1.5 rounded-lg border-2 border-indigo-300 bg-white px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 transition-all"
@@ -386,14 +464,14 @@ const PlayerListPanel: React.FC = () => {
                             </button>
 
                             {!isWeb3 && (
-  <button
-    onClick={() => setEditingPlayer(player)}
-    className="inline-flex items-center gap-1.5 rounded-lg border-2 border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition-all"
-  >
-    <Pencil className="h-3.5 w-3.5" />
-    Edit
-  </button>
-)}
+                              <button
+                                onClick={() => setEditingPlayer(player)}
+                                className="inline-flex items-center gap-1.5 rounded-lg border-2 border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition-all"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                                Edit
+                              </button>
+                            )}
 
                             <button
                               onClick={() => toggleDisqualification(player.id)}

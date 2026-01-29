@@ -12,17 +12,11 @@ import {
   updateAdminSocketId,
 } from '../quizRoomManager.js';
 import { emitFullRoomState } from './sharedUtils.js';
+// ✅ ADD THIS at top of playerHandlers.js (after other imports)
+import { normalizePaymentMethod }  from '../../utils/paymentMethods.js';
 
 // --- Payment method normalization (keep in sync with playerHandlers.js) ---
-const ALLOWED_PM = ['cash', 'instant payment', 'card', 'web3', 'unknown'];
 
-function normalizePaymentMethod(maybe) {
-  if (typeof maybe === 'string') {
-    if (ALLOWED_PM.includes(maybe)) return maybe;
-    if (maybe === 'revolut') return 'instant payment'; // legacy alias
-  }
-  return 'other';
-}
 
 function isPlaceholderName(name, id) {
   if (!name) return true;
@@ -219,104 +213,120 @@ export function setupRecoveryHandlers(socket, namespace) {
       // ✅ Only treat as a player if role === 'player'
       if (isPlayerRole) {
         // Normalize payment fields from the client
-        const normalizedPaymentMethod = normalizePaymentMethod(user.paymentMethod);
-        const normalizedExtraPayments = normalizeExtraPayments(user.extraPayments);
+       const normalizedPaymentMethod = user.paymentMethod 
+  ? normalizePaymentMethod(user.paymentMethod)
+  : (existingPlayer?.paymentMethod || 'unknown');
 
-        const sanitizedUser = {
-          ...user,
-          paymentMethod: normalizedPaymentMethod,
-          extraPayments: normalizedExtraPayments,
-          socketId: socket.id,
-        };
+const normalizedExtraPayments = normalizeExtraPayments(user.extraPayments);
 
-        // Decide which name to keep (protect real names from placeholder overwrites)
-        const incomingName = sanitizedUser.name;
-        const existingName = existingPlayer?.name;
-        let nameToUse;
+const sanitizedUser = {
+  ...user,
+  paymentMethod: normalizedPaymentMethod,
+  paymentReference: user.paymentReference || existingPlayer?.paymentReference, // ✅ Preserve reference
+  paymentClaimed: user.paymentClaimed ?? existingPlayer?.paymentClaimed ?? false, // ✅ Preserve claimed status
+  clubPaymentMethodId: user.clubPaymentMethodId || existingPlayer?.clubPaymentMethodId, // ✅ Preserve method ID
+  extraPayments: normalizedExtraPayments,
+  socketId: socket.id,
+};
 
-        if (!existingPlayer) {
-          // brand new player
-          nameToUse = !isPlaceholderName(incomingName, user.id)
-            ? incomingName
-            : `Player ${user.id}`;
-        } else {
-          // existing player: keep existing real name; only upgrade placeholder → real
-          if (!isPlaceholderName(incomingName, user.id) && isPlaceholderName(existingName, user.id)) {
-            nameToUse = incomingName;
-          } else {
-            nameToUse = existingName || incomingName;
-          }
-        }
+// Decide which name to keep (protect real names from placeholder overwrites)
+const incomingName = sanitizedUser.name;
+const existingName = existingPlayer?.name;
+let nameToUse;
 
-        if (!existingPlayer) {
-          addOrUpdatePlayer(roomId, { ...sanitizedUser, name: nameToUse });
-          joinedUser = { ...sanitizedUser, name: nameToUse };
+if (!existingPlayer) {
+  // brand new player
+  nameToUse = !isPlaceholderName(incomingName, user.id)
+    ? incomingName
+    : `Player ${user.id}`;
+} else {
+  // existing player: keep existing real name; only upgrade placeholder → real
+  if (!isPlaceholderName(incomingName, user.id) && isPlaceholderName(existingName, user.id)) {
+    nameToUse = incomingName;
+  } else {
+    nameToUse = existingName || incomingName;
+  }
+}
 
-          updatePlayerSocketId(roomId, user.id, socket.id);
-          updatePlayerSession(roomId, user.id, {
-            socketId: socket.id,
-            status: 'waiting',
-            inPlayRoute: false,
-            lastActive: Date.now(),
-          });
-        } else {
-          const mergedExisting = {
-            ...existingPlayer,
-            ...sanitizedUser,
-            extraPayments: {
-              ...(existingPlayer.extraPayments || {}),
-              ...(sanitizedUser.extraPayments || {}),
-            },
-            extras: Array.isArray(sanitizedUser.extras) ? sanitizedUser.extras : existingPlayer.extras || [],
-            name: nameToUse,
-            socketId: socket.id,
-          };
+if (!existingPlayer) {
+  addOrUpdatePlayer(roomId, { ...sanitizedUser, name: nameToUse });
+  joinedUser = { ...sanitizedUser, name: nameToUse };
 
-          addOrUpdatePlayer(roomId, mergedExisting);
-          joinedUser = mergedExisting;
+  updatePlayerSocketId(roomId, user.id, socket.id);
+  updatePlayerSession(roomId, user.id, {
+    socketId: socket.id,
+    status: 'waiting',
+    inPlayRoute: false,
+    lastActive: Date.now(),
+  });
+} else {
+  // ✅ CRITICAL: Preserve payment data when merging
+  const mergedExisting = {
+    ...existingPlayer,
+    ...sanitizedUser,
+    // ✅ Preserve payment fields from existing player if not provided by client
+    paymentMethod: sanitizedUser.paymentMethod || existingPlayer.paymentMethod,
+    paymentReference: sanitizedUser.paymentReference || existingPlayer.paymentReference,
+    paymentClaimed: sanitizedUser.paymentClaimed ?? existingPlayer.paymentClaimed,
+    clubPaymentMethodId: sanitizedUser.clubPaymentMethodId || existingPlayer.clubPaymentMethodId,
+    paid: sanitizedUser.paid ?? existingPlayer.paid, // ✅ Preserve paid status
+    extraPayments: {
+      ...(existingPlayer.extraPayments || {}),
+      ...(sanitizedUser.extraPayments || {}),
+    },
+    extras: Array.isArray(sanitizedUser.extras) ? sanitizedUser.extras : existingPlayer.extras || [],
+    name: nameToUse,
+    socketId: socket.id,
+  };
 
-          // Mirror playerHandlers: remember web3 payout address if provided
-          if (user.web3Address && user.web3Chain) {
-            if (!room.web3AddressMap) room.web3AddressMap = new Map();
-            room.web3AddressMap.set(user.id, {
-              address: user.web3Address,
-              chain: user.web3Chain,
-              txHash: user.web3TxHash || null,
-              playerName: user.name || 'Unknown',
-            });
-            if (!room.config.web3PlayerAddresses) room.config.web3PlayerAddresses = {};
-            room.config.web3PlayerAddresses[user.id] = {
-              address: user.web3Address,
-              chain: user.web3Chain,
-              name: user.name,
-            };
-          }
+  addOrUpdatePlayer(roomId, mergedExisting);
+  joinedUser = mergedExisting;
 
-          updatePlayerSocketId(roomId, user.id, socket.id);
-          updatePlayerSession(roomId, user.id, {
-            socketId: socket.id,
-            status: existingSession?.status || 'waiting',
-            inPlayRoute: !!existingSession?.inPlayRoute,
-            lastActive: Date.now(),
-          });
+  // Mirror playerHandlers: remember web3 payout address if provided
+  if (user.web3Address && user.web3Chain) {
+    if (!room.web3AddressMap) room.web3AddressMap = new Map();
+    room.web3AddressMap.set(user.id, {
+      address: user.web3Address,
+      chain: user.web3Chain,
+      txHash: user.web3TxHash || null,
+      playerName: user.name || 'Unknown',
+    });
+    if (!room.config.web3PlayerAddresses) room.config.web3PlayerAddresses = {};
+    room.config.web3PlayerAddresses[user.id] = {
+      address: user.web3Address,
+      chain: user.web3Chain,
+      name: user.name,
+    };
+  }
 
-          if (debug) {
-            console.log('[Recovery] ✅ Merged existing player:', {
-              playerId: user.id,
-              name: nameToUse,
-              paid: mergedExisting.paid,
-              paymentMethod: mergedExisting.paymentMethod,
-              extras: mergedExisting.extras,
-              extraPayments: mergedExisting.extraPayments,
-            });
+  updatePlayerSocketId(roomId, user.id, socket.id);
+  updatePlayerSession(roomId, user.id, {
+    socketId: socket.id,
+    status: existingSession?.status || 'waiting',
+    inPlayRoute: !!existingSession?.inPlayRoute,
+    lastActive: Date.now(),
+  });
 
-            const playerData = room.playerData?.[user.id];
-            if (playerData) {
-              console.log('[Recovery] 🔍 playerData.purchases:', playerData.purchases);
-              console.log('[Recovery] 🔍 playerData.paymentMethod:', playerData.paymentMethod);
-            }
-          }
-        }
+  if (debug) {
+    console.log('[Recovery] ✅ Merged existing player:', {
+      playerId: user.id,
+      name: nameToUse,
+      paid: mergedExisting.paid,
+      paymentMethod: mergedExisting.paymentMethod,
+      paymentReference: mergedExisting.paymentReference, // ✅ Log this
+      paymentClaimed: mergedExisting.paymentClaimed, // ✅ Log this
+      clubPaymentMethodId: mergedExisting.clubPaymentMethodId, // ✅ Log this
+      extras: mergedExisting.extras,
+      extraPayments: mergedExisting.extraPayments,
+    });
+
+    const playerData = room.playerData?.[user.id];
+    if (playerData) {
+      console.log('[Recovery] 🔍 playerData.purchases:', playerData.purchases);
+      console.log('[Recovery] 🔍 playerData.paymentMethod:', playerData.paymentMethod);
+    }
+  }
+}
       } else {
         // 🧹 If this id was previously (incorrectly) added as a player, remove it now
         if (existingPlayer) {

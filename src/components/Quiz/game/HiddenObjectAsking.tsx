@@ -336,28 +336,38 @@ const HiddenObjectAsking: React.FC<Props> = ({
         </div>
 
         {/* Clickable puzzle image */}
-        <div className="rounded-xl overflow-hidden border bg-white">
-          <div className="relative">
-            <img
-              ref={imgRef}
-              src={puzzle.imageUrl}
-              alt="Hidden object puzzle"
-              className="w-full h-auto select-none cursor-crosshair"
-              onClick={handleClick}
-              draggable={false}
-            />
+     <div className="rounded-xl overflow-hidden border bg-white max-h-[65vh] sm:max-h-[70vh]">
+  <div className="relative flex items-center justify-center bg-gray-50">
+    <img
+      ref={imgRef}
+      src={puzzle.imageUrl}
+      alt="Hidden object puzzle"
+      className="
+        w-full 
+        max-h-[60vh] 
+        object-contain 
+        select-none 
+        cursor-crosshair 
+        mx-auto
+      "
+      onClick={handleClick}
+      draggable={false}
+    />
 
-            {/* Progress overlay */}
-            <div className="absolute top-3 left-3 bg-white/90 rounded-lg px-3 py-2 text-xs shadow-lg">
-              Found:{' '}
-              <span className="font-semibold text-green-600">{foundIds.length}</span> /{' '}
-              {puzzle.itemTarget}
-              {finished && (
-                <span className="ml-2 font-semibold text-green-600">✅ Complete!</span>
-              )}
-            </div>
-          </div>
-        </div>
+    {/* Progress overlay */}
+    <div className="absolute top-3 left-3 bg-white/90 rounded-lg px-3 py-2 text-xs shadow-lg">
+      Found:
+      <span className="font-semibold text-green-600">
+        {foundIds.length}
+      </span>
+      / {puzzle.itemTarget}
+      {finished && (
+        <span className="ml-2 font-semibold text-green-600">✅ Complete!</span>
+      )}
+    </div>
+  </div>
+</div>
+
       </div>
     </>
   );
