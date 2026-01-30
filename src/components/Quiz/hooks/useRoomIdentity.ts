@@ -7,6 +7,8 @@ export interface RoomIdentity {
   hostId: string | null;
 }
 
+const DEBUG = false;
+
 /**
  * Extracts roomId and hostId from URL params.
  * Only persists to localStorage for Web3 rooms (when contract address exists).
@@ -41,7 +43,7 @@ export const useRoomIdentity = (): RoomIdentity => {
     } else {
       // Web2 room: don't pollute localStorage
       // Just use the values from URL without persisting
-      console.log('[useRoomIdentity] 📋 Web2 room - not persisting to localStorage');
+      if (DEBUG) console.log('[useRoomIdentity] 📋 Web2 room - not persisting to localStorage');
     }
 
     setRoomId(resolvedRoomId);

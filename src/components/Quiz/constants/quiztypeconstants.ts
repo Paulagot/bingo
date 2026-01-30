@@ -45,9 +45,19 @@ export const roundTypes: RoundTypeDefinition[] = [
     name: 'Order the Image',
     description: 'Drag and drop images into the correct order. Visual puzzle gameplay.',
     defaultConfig: {
-      questionsPerRound: 6,
+      questionsPerRound: 2,
       timePerQuestion: 30,
       pointsPerDifficulty: { easy: 2, medium: 4, hard: 6 },
+    },
+  },
+    {
+    id: 'hidden_object',
+    name: 'Hidden Object',
+    description: 'Find hidden objects in a scene. Visual puzzle gameplay.',
+    defaultConfig: {
+      questionsPerRound: 2,
+      timePerQuestion: 45,
+      pointsPerDifficulty: { easy: 1, medium: 2, hard: 3 },
     },
   },
 ];

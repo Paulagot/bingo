@@ -45,6 +45,8 @@ import { useQuizConfig } from '@/components/Quiz/hooks/useQuizConfig';
 type StatusFilter = 'scheduled' | 'live' | 'completed' | 'cancelled' | 'all';
 type ViewMode = 'table' | 'cards';
 
+const debug = false;
+
 function minutesUntil(dt: string | null): number | null {
   if (!dt) return null;
   const t = new Date(dt).getTime();
@@ -77,7 +79,7 @@ function parseConfigJson(configStr: string | ParsedConfig | null | undefined, ro
 }
 
 function canUseEventLinking(ents: any): boolean {
-  console.log('🔍 [canUseEventLinking] Checking:', {
+ if (debug) console.log('🔍 [canUseEventLinking] Checking:', {
     ents,
     hasQuizFeatures: !!ents?.quiz_features,
     eventLinking: ents?.quiz_features?.eventLinking,
@@ -638,7 +640,7 @@ export default function QuizEventDashboard() {
     const data = await quizApi.getEntitlements();
     
     // ✅ ADD THIS DEBUG LOG
-    console.log('🔍 [Entitlements Debug]', {
+    if (debug)console.log('🔍 [Entitlements Debug]', {
       raw: data,
       plan_id: data?.plan_id,
       plan_code: data?.plan_code,
@@ -663,14 +665,14 @@ export default function QuizEventDashboard() {
     }
 
     try {
-      console.log('[QuizEventDashboard] 🔗 Loading linked events for', roomIds.length, 'rooms');
+    if (debug)  console.log('[QuizEventDashboard] 🔗 Loading linked events for', roomIds.length, 'rooms');
       
       const response = await eventIntegrationsService.lookupLinks({
         integration_type: 'quiz_web2',
         external_refs: roomIds,
       });
       
-      console.log('[QuizEventDashboard] 🔗 Found', response.links?.length || 0, 'linked events');
+     if (debug) console.log('[QuizEventDashboard] 🔗 Found', response.links?.length || 0, 'linked events');
 
       const linkMap: Record<string, { eventId: string; eventTitle: string }> = {};
       
@@ -695,10 +697,10 @@ export default function QuizEventDashboard() {
       setRoomsLoading(true);
       setRoomsError(null);
       
-      console.log('[QuizEventDashboard] 📡 Fetching rooms with status:', s);
+     if (debug) console.log('[QuizEventDashboard] 📡 Fetching rooms with status:', s);
       const res = await quizApi.getWeb2RoomsList({ status: s, time: 'all' });
       
-      console.log('[QuizEventDashboard] 📥 Received rooms:', res.rooms?.length || 0);
+      if (debug) console.log('[QuizEventDashboard] 📥 Received rooms:', res.rooms?.length || 0);
       
       setRooms(res.rooms || []);
       
@@ -727,7 +729,7 @@ export default function QuizEventDashboard() {
   };
 
   const openRoom = (roomId: string, hostId: string) => {
-    console.log('[QuizEventDashboard] 🧹 Clearing all Web3 state before opening Web2 room:', roomId);
+   if (debug) console.log('[QuizEventDashboard] 🧹 Clearing all Web3 state before opening Web2 room:', roomId);
     
     localStorage.removeItem('quiz-setup-v2');
     localStorage.removeItem('quiz-admins');
@@ -738,14 +740,14 @@ export default function QuizEventDashboard() {
     
     useQuizConfig.getState().resetConfig();
     
-    console.log('[QuizEventDashboard] ✅ Cleared, navigating to Web2 room');
+    if (debug) console.log('[QuizEventDashboard] ✅ Cleared, navigating to Web2 room');
     
     navigate(`/quiz/host-dashboard/${roomId}?hostId=${encodeURIComponent(hostId)}`);
   };
 
   const handleEdit = (room: Room) => {
     if (room.status !== 'scheduled') return;
-    console.log('[QuizEventDashboard] ✏️ Edit room:', room.room_id);
+    if (debug) console.log('[QuizEventDashboard] ✏️ Edit room:', room.room_id);
     openEditModal(room);
   };
 
@@ -802,7 +804,7 @@ export default function QuizEventDashboard() {
     try {
       setUnlinkLoading(true);
       
-      console.log('[QuizEventDashboard] 🔓 Unlinking room', unlinkRoom.room_id, 'from event', linked.eventId);
+     if (debug) console.log('[QuizEventDashboard] 🔓 Unlinking room', unlinkRoom.room_id, 'from event', linked.eventId);
       
       const integrationsResponse = await eventIntegrationsService.list(linked.eventId);
       const integration = integrationsResponse.integrations?.find(
@@ -821,7 +823,7 @@ export default function QuizEventDashboard() {
         return updated;
       });
 
-      console.log('[QuizEventDashboard] ✅ Unlinked successfully');
+     if (debug) console.log('[QuizEventDashboard] ✅ Unlinked successfully');
       
       setUnlinkModalOpen(false);
       setUnlinkRoom(null);

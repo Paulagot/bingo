@@ -19,7 +19,7 @@ import {
   SelectItem,
 } from '../Wizard/select';
 
-const Debug = true
+const Debug = false
 
 function buildEnabledExtrasForRound(roundType: RoundTypeId) {
   const enabledExtras: Record<string, boolean> = {};
@@ -171,6 +171,28 @@ function collectFilterOptions(templates: QuizTemplate[]) {
   };
 }
 
+function forceIncludeTemplates(
+  list: QuizTemplate[],
+  baseTemplates: QuizTemplate[],
+  max: number,
+  opts: { ids?: string[]; names?: string[] }
+) {
+  const ids = opts.ids ?? [];
+  const names = opts.names ?? [];
+
+  const forced = baseTemplates.filter(
+    (t) => ids.includes(t.id) || names.includes(t.name)
+  );
+
+  // Remove anything that is forced from the rest (prevents duplicates)
+  const rest = list.filter(
+    (t) => !ids.includes(t.id) && !names.includes(t.name)
+  );
+
+  return [...forced, ...rest].slice(0, max);
+}
+
+
 // Default "Most popular" when no filters are active
 function pickMostPopular(templates: QuizTemplate[], max = 8) {
   const score = (t: QuizTemplate) => {
@@ -239,7 +261,17 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
       filters.audience !== 'All' || filters.topic !== 'All' || filters.difficulty !== 'All' || filters.duration !== 'All';
 
     // Start with either all (when filtering) or the "popular" slice
-    let start = active ? baseTemplates : pickMostPopular(baseTemplates, 8);
+   let start = active ? baseTemplates : pickMostPopular(baseTemplates, 8);
+
+// ✅ Force include a specific template in the unfiltered "Most popular" view
+if (!active) {
+  start = forceIncludeTemplates(start, baseTemplates, 8, {
+    // Prefer id if possible (safer)
+    ids: ['Sample'],
+    // OR by name (works too)
+    // names: ['Kids Marathon'],
+  });
+}
 
     // Only force/prioritise demo in the unfiltered view for Dev plan
     if (!active && isDevPlan) {
