@@ -16,7 +16,7 @@ import StepWeb3QuizSetup from './StepWeb3QuizSetup';
 // ✅ Only lazy load Step 6 (not the provider)
 const StepWeb3ReviewLaunch = lazy(() => import('./StepWeb3ReviewLaunch'));
 
-const DEBUG = true;
+const DEBUG = false;
 
 const debugLog = (src: string, msg: string, data?: any) => {
   if (DEBUG) console.log(`🧙‍♂️ [${src}] ${msg}`, data ?? '');
