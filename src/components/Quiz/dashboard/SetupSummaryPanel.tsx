@@ -23,19 +23,19 @@ import { roundTypeDefinitions, fundraisingExtraDefinitions } from '../constants/
 import { useRoomIdentity } from '../hooks/useRoomIdentity';
 
 // ---------- DIAGNOSTIC LOGS ----------
-console.count('%cSetupSummaryPanel render');
+const DEBUG = false;
 
 const SetupSummaryPanel: React.FC = () => {
   const { config } = useQuizConfig();
   const { roomId } = useRoomIdentity();
 
   useEffect(() => {
-    console.log('[SetupSummaryPanel] mount');
+    if (DEBUG) console.log('[SetupSummaryPanel] mount');
     return () => console.log('[SetupSummaryPanel] unmount');
   }, []);
 
   useEffect(() => {
-    console.log('[SetupSummaryPanel] roomId changed:', roomId);
+   if (DEBUG) console.log('[SetupSummaryPanel] roomId changed:', roomId);
   }, [roomId]);
 
   useEffect(() => {
@@ -48,9 +48,9 @@ const SetupSummaryPanel: React.FC = () => {
         prizeMode: config.prizeMode,
         rounds: Array.isArray(config.roundDefinitions) ? config.roundDefinitions.length : 0
       };
-      console.log('[SetupSummaryPanel] config snapshot:', snap);
+      if (DEBUG) console.log('[SetupSummaryPanel] config snapshot:', snap);
     } else {
-      console.log('[SetupSummaryPanel] config is null/undefined');
+      if (DEBUG) console.log('[SetupSummaryPanel] config is null/undefined');
     }
   }, [config]);
 
@@ -61,7 +61,7 @@ const SetupSummaryPanel: React.FC = () => {
   });
 
   const toggleSection = (section: string) => {
-    console.log('[SetupSummaryPanel] toggleSection:', section);
+    if (DEBUG) console.log('[SetupSummaryPanel] toggleSection:', section);
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 

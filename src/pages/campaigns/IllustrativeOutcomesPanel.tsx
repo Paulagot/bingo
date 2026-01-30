@@ -3,7 +3,7 @@ import {  Users, Receipt, Info, Target, Sparkles } from 'lucide-react';
 
 type Props = {
   ticketPrice?: number; // default 25
-  leagueFee?: number;   // default 200
+  leagueFee?: number;   // default 100
   maxExtrasPerFamily?: number; // default 10
   // Assumption: % of families who buy all extras (for illustration)
   extrasAttachRate?: number; // default 0.6 (60%)
@@ -30,15 +30,15 @@ const StatCard: React.FC<{ label: string; value: string; sub?: string; tone?: 'p
 
 export const IllustrativeOutcomesPanel: React.FC<Props> = ({
   ticketPrice = 25,
-  leagueFee = 200,
+  leagueFee = 100,
   maxExtrasPerFamily = 10,
   extrasAttachRate = 0.6,
 }) => {
   // Core “achievable structure” numbers
   const teams = 4;
   const familiesPerTeam = 12;
-  const turnout = 0.75;
-  const families = Math.round(teams * familiesPerTeam * turnout); // 36
+  const turnout = 0.50;
+  const families = Math.round(teams * familiesPerTeam * turnout); // 24
 
   // Ticket-only
   const ticketGross = families * ticketPrice;
@@ -143,14 +143,14 @@ export const IllustrativeOutcomesPanel: React.FC<Props> = ({
           </div>
 
           {/* Tip with exact structure */}
-          <div className="mt-6 rounded-xl border border-indigo-100 bg-white p-4 text-sm text-indigo-900/70 leading-relaxed">
+          {/* <div className="mt-6 rounded-xl border border-indigo-100 bg-white p-4 text-sm text-indigo-900/70 leading-relaxed">
             <strong className="text-indigo-900">Why these numbers are achievable:</strong> A typical club setup is{' '}
             <strong>
               {teams} teams × {familiesPerTeam} families × {Math.round(turnout * 100)}% turnout = {families} families
             </strong>
             . Younger age groups often bring siblings and extra supporters, and extras can lift totals further without
             increasing ticket price.
-          </div>
+          </div> */}
         </div>
       </div>
     </section>

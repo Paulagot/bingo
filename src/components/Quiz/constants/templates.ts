@@ -137,6 +137,22 @@ const quizTemplates: QuizTemplate[] = [
   tags: ['Audience: Test', 'Topic: Hidden Object', 'Duration: ≈3m']
 },
 
+ {
+    id: 'Sample',
+    name: 'Sample Quiz',
+    description: 'template for testing purposes. Play each round type once and see how they work.',
+    icon: '🏃‍♂️',
+    difficulty: 'Easy',
+    rounds: [
+      { type: 'order_image', category: 'Technology Timeline', difficulty: 'easy' },
+      { type: 'wipeout', category: 'Children', difficulty: 'easy' },
+      { type: 'hidden_object',    category: 'Kids',     difficulty: 'hard' },
+      { type: 'speed_round',    category: 'Math',   difficulty: 'easy' }     
+      
+    ],
+    tags: ['Audience: Kids', 'Topic: Mixed', 'Duration: ≈35m']
+  },
+
 
   // ─────────────────────────────────────────────────────────────────────────────
   // KIDS (10)

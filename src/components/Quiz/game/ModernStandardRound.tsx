@@ -6,7 +6,7 @@ import UseExtraModal from './UseExtraModal';
 import { useQuizTimer } from '../hooks/useQuizTimer';
 import { shallow } from 'zustand/shallow';
 
-console.count('[ModernStandardRound] render');
+
 
 
 interface ModernStandardRoundProps extends RoundComponentProps {
@@ -102,7 +102,7 @@ const getTimerClass = () => {
   const handleOptionSelect = (option: string) => {
     if (!answerSubmitted && !isFrozen) {
       setSelectedAnswer(option);
-      console.log('[ModernStandardRound] Selected answer:', option);
+      // console.log('[ModernStandardRound] Selected answer:', option);
     }
   };
 
