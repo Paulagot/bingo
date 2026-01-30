@@ -92,7 +92,7 @@ const JoinImpactCampaignPage: React.FC = () => {
   const isAnyModalOpen = showWizard || showJoinModal;
 
   const pageTitle = useMemo(
-    () => 'Host or Join a Web3 Quiz — Impact Campaign (Feb-April 2026) | FundRaisely',
+    () => 'Host or Join a Web3 Quiz — Impact Campaign (date TBC 2026) | FundRaisely',
     []
   );
 
@@ -200,7 +200,7 @@ const JoinImpactCampaignPage: React.FC = () => {
 
             <div className="container relative z-10 mx-auto max-w-6xl text-center">
               <span className="inline-flex items-center gap-2 rounded-full bg-indigo-100 px-3 py-1 text-indigo-700 text-sm font-medium">
-                <Sparkles className="h-4 w-4" /> Web3 Impact Campaign · Feb-Aprl '26
+                <Sparkles className="h-4 w-4" /> Web3 Impact Campaign · Date TBC 2026
               </span>
 
               <h1 className="mt-4 bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-transparent text-4xl md:text-6xl font-bold">
@@ -231,7 +231,7 @@ const JoinImpactCampaignPage: React.FC = () => {
                   </p>
 
                   <p className="text-indigo-900/80 mb-6 leading-relaxed">
-                    We are now live on Base Sepolia and Avalanche Fuji and Solana Devent. We are going live on mainnet on Solana, Base and Avalanche for the campaign launch in February '26'.
+                    We are now live on Base Sepolia and Avalanche Fuji and Solana Devent. We are going live on mainnet on Solana, Base and Avalanche for the campaign launch date TBC'.
                   </p>
 
                   <div className="flex flex-wrap gap-3">

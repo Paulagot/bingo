@@ -119,13 +119,13 @@ const ImpactRibbon: React.FC = () => (
           />
 
           <CampaignCard
-            badge="Clubs • March 2026"
+            badge="Clubs •  2026"
             title="Junior Clubs Fundraising Quiz League"
-            subtitle="For sports clubs running a family-friendly quiz night for U8 & U10 teams — raise funds locally and compete for prizes."
+            subtitle="For sports clubs running a family-friendly quiz night for U8 to U10 teams — raise funds locally and compete for prizes."
             bullets={[
               {
                 icon: <Calendar className="h-5 w-5 text-yellow-200" />,
-                text: 'Run 1 club quiz night during March 2026 (limited to 25 clubs)',
+                text: 'Run 1 club quiz night during Dates TBC (limited to 50 clubs)',
               },
               {
                 icon: <Trophy className="h-5 w-5 text-emerald-200" />,

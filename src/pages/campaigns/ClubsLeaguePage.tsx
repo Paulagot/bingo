@@ -49,9 +49,9 @@ const ClubsLeaguePage: React.FC = () => {
   const eventJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Event',
-    name: 'FundRaisely Junior Sports Clubs Quiz League (March 2026)',
+    name: 'FundRaisely Junior Sports Clubs Quiz League (Dates TBC)',
     description:
-      'A family quiz league for sports clubs (U8 & U10). Each club hosts one quiz night in March 2026 to raise funds and compete for prizes and a €2,000 * club grant.',
+      'A family quiz league for sports clubs (U8 to U10). Each club hosts one quiz night Dates TBC to raise funds and compete for prizes and a €2,000 * club grant.',
     startDate: '2026-03-01',
     endDate: '2026-03-31',
     eventStatus: 'https://schema.org/EventScheduled',
@@ -62,8 +62,8 @@ const ClubsLeaguePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
       <SEO
-        title="Junior Sports Clubs Quiz League (March 2026) — Family Fundraiser for U8 & U10 | FundRaisely"
-        description="Join the FundRaisely Junior Sports Clubs Quiz League. Your club runs one family quiz night in March 2026, raises funds for junior teams, and competes for prizes and a €2,000 * club grant. Limited to 25 clubs."
+        title="Junior Sports Clubs Quiz League (Dates TBC) — Family Fundraiser for U8 to U10 | FundRaisely"
+        description="Join the FundRaisely Junior Sports Clubs Quiz League. Your club runs one family quiz night Dates TBC, raises funds for junior teams, and competes for prizes and a €2,000 * club grant. Limited to 50 clubs."
         keywords="club fundraising, quiz night fundraiser, youth sports fundraising, GAA fundraiser, soccer club fundraiser, school hall quiz night, Ireland fundraising, UK fundraising"
         type="event"
         structuredData={[breadcrumbsJsonLd, eventJsonLd]}
@@ -82,7 +82,7 @@ const ClubsLeaguePage: React.FC = () => {
 
         <div className="container relative z-10 mx-auto max-w-6xl text-center">
           <span className="inline-flex items-center gap-2 rounded-full bg-indigo-100 px-3 py-1 text-indigo-700 text-sm font-medium">
-            <Sparkles className="h-4 w-4" /> March 2026 • Limited to 25 clubs
+            <Sparkles className="h-4 w-4" /> Dates TBC • Limited to 50 clubs
           </span>
 
           <h1 className="mt-4 bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-transparent text-4xl md:text-6xl font-bold">
@@ -94,7 +94,7 @@ const ClubsLeaguePage: React.FC = () => {
           </p>
 
           <p className="mx-auto mt-4 max-w-3xl text-indigo-900/70 text-lg md:text-xl leading-relaxed">
-           Run a fundraising family quiz event on Fundraisely with your U8 & U10 teams in <strong>March 2026</strong>, raises funds for your{' '}
+           Run a fundraising family quiz event on Fundraisely with your U8 to U10 teams in <strong>Dates TBC</strong>, raises funds for your{' '}
             <strong>Club</strong>, and competes for prizes in the FundRaisely Junior Club Quiz League - including a <strong>€2,000 * club grant</strong>.
           </p>
 
@@ -114,7 +114,7 @@ const ClubsLeaguePage: React.FC = () => {
           </div>
 
           <p className="mt-4 text-sm text-indigo-900/60">
-            Registration &amp; payment required by <strong>28 Feb 2026</strong>.
+            Registration &amp; payment required by <strong>date TBC</strong>.
           </p>
         </div>
       </section>
@@ -132,7 +132,7 @@ const ClubsLeaguePage: React.FC = () => {
               <ul className="space-y-3">
                 <Bullet>€200 league registration per club</Bullet>
                 <Bullet>Clubs keeps funds raised by quiz night (see below for details)</Bullet>
-                <Bullet>Quiz night must run during March 2026</Bullet>
+                <Bullet>Quiz night must run during Dates TBC</Bullet>
                 <Bullet>Quiz night must run on FundRaiselys quiz app</Bullet>
                 <Bullet>Final will be held online</Bullet>
                 <Bullet>Prizes: €2,000 * club grant + family vouchers + top-10 free founding partner access</Bullet>
@@ -144,14 +144,14 @@ const ClubsLeaguePage: React.FC = () => {
                     <Calendar className="h-5 w-5 text-indigo-600 mt-0.5" />
                     <div>
                       <p className="font-semibold text-indigo-900">Deadline</p>
-                      <p className="text-sm text-indigo-900/70">Paid by 28 Feb 2026</p>
+                      <p className="text-sm text-indigo-900/70">date TBC</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <Users className="h-5 w-5 text-indigo-600 mt-0.5" />
                     <div>
                       <p className="font-semibold text-indigo-900">Teams</p>
-                      <p className="text-sm text-indigo-900/70">U8 &amp; U10</p>
+                      <p className="text-sm text-indigo-900/70">U8 to U10</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
@@ -222,7 +222,7 @@ const ClubsLeaguePage: React.FC = () => {
             </div>
           </div>
                    <p className="text-lg text-indigo-800/80 px-3 py-1">
-          * FundRaisley will be giving away 50% of the register fees as prizes subject to number of participating clubs. Min €1,000 club grant is guaranteed. If we achieve max participant clubs of 25 first prize will be €2,000. Restaurant vouchers for the Grand Final winners are guaranteed and the 6 months free FundRaisely access is also guaranteed.
+          * FundRaisley will be giving away 50% of the register fees as prizes subject to number of participating clubs. Min €1,000 club grant is guaranteed. If we achieve max participant clubs of 50 first prize will be €2,000. Restaurant vouchers for the Grand Final winners are guaranteed and the 6 months free FundRaisely access is also guaranteed.
         </p>
         </div>
       </section>
@@ -235,13 +235,13 @@ const ClubsLeaguePage: React.FC = () => {
               <h2 className="text-indigo-900 mb-4 text-2xl md:text-3xl font-bold">How It Works</h2>
               <ol className="list-decimal space-y-3 pl-5 text-indigo-900/80 leading-relaxed">
                 <li>
-                  <strong>Pledge now</strong> to reserve a league spot (limited to 25 clubs).
+                  <strong>Pledge now</strong> to reserve a league spot (limited to 50 clubs).
                 </li>
                 <li>
-                  Complete registration &amp; payment by <strong>28 Feb 2026</strong>.
+                  Complete registration &amp; payment by <strong>date TBC</strong>.
                 </li>
                 <li>
-                  Run your club’s family quiz night during <strong>March 2026</strong>.
+                  Run your club’s family quiz night during <strong>date TBC</strong>.
                 </li>
                 <li>
                   Your club winner qualifies for the <strong>national final</strong>.
@@ -296,7 +296,7 @@ const ClubsLeaguePage: React.FC = () => {
           <div className="rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 p-12 shadow-lg text-center text-white">
             <h2 className="mb-4 text-3xl md:text-4xl font-bold">Ready to run your best fundraiser of the year?</h2>
             <p className="mb-8 text-lg opacity-90 max-w-3xl mx-auto leading-relaxed">
-              Reserve your spot now — we’ll help you run one brilliant family quiz night in March 2026.
+              Reserve your spot now — we’ll help you run one brilliant family quiz night Dates TBC.
             </p>
             <a
               href="#pledge"
@@ -305,7 +305,7 @@ const ClubsLeaguePage: React.FC = () => {
               <span>Pledge Your Club</span>
               <ArrowRight className="h-6 w-6" />
             </a>
-            <p className="mt-4 text-sm opacity-80">Cap: 25 clubs • Deadline: 28 Feb 2026</p>
+            <p className="mt-4 text-sm opacity-80">Cap: 50 clubs • Deadline: date TBC</p>
           </div>
         </div>
       </section>
