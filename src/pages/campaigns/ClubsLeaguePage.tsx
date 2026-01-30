@@ -130,7 +130,7 @@ const ClubsLeaguePage: React.FC = () => {
                 handle the league structure and final.
               </p>
               <ul className="space-y-3">
-                <Bullet>€200 league registration per club</Bullet>
+                <Bullet>€100 league registration per club</Bullet>
                 <Bullet>Clubs keeps funds raised by quiz night (see below for details)</Bullet>
                 <Bullet>Quiz night must run during Dates TBC</Bullet>
                 <Bullet>Quiz night must run on FundRaiselys quiz app</Bullet>
@@ -183,7 +183,7 @@ const ClubsLeaguePage: React.FC = () => {
           <div className="text-center mb-10">
             <h2 className="text-indigo-900 text-3xl md:text-4xl font-bold mb-4">Prizes Clubs Actually Care About</h2>
             <p className="text-indigo-900/70 text-lg max-w-3xl mx-auto leading-relaxed">
-              Built to reward participation *and* keep fundraising momentum going after March.
+              Built to reward participation *and* keep fundraising momentum going.
             </p>
           </div>
 
@@ -288,7 +288,7 @@ const ClubsLeaguePage: React.FC = () => {
       </section>
 
           {/* Illustrative outcomes */}
-      <IllustrativeOutcomesPanel ticketPrice={25} leagueFee={200} />
+      <IllustrativeOutcomesPanel ticketPrice={25} leagueFee={100} />
 
       {/* Final CTA */}
       <section className="px-4 py-12">
