@@ -1,3 +1,4 @@
+//src/components/mgtsystem/modals/LinkQuizToEventModal.tsx
 import { useEffect, useMemo, useState } from 'react';
 import { XCircle, Link2 } from 'lucide-react';
 import type { Web2RoomListItem as Room } from '../../../shared/api/quiz.api';

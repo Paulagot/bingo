@@ -167,6 +167,10 @@ export default defineConfig(({ mode }) => {
           target: 'http://localhost:3001',
           changeOrigin: true,
         },
+         '/api/quiz-reconciliation': {  // ← Add this
+      target: 'http://localhost:3001',
+      changeOrigin: true,
+    }
       },
       fs: { cachedChecks: false },
     },

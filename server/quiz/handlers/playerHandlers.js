@@ -11,25 +11,21 @@ import {
   emitRoomState,
   updatePlayerSession,
   getPlayerSession,
-  isPlayerInActiveSession,
   cleanExpiredSessions,
-   isQuizComplete
+
 } from '../quizRoomManager.js';
 import { emitFullRoomState } from '../handlers/sharedUtils.js';
-// ✅ ADD THIS at top of playerHandlers.js (after other imports)
+
 import { normalizePaymentMethod }  from '../../utils/paymentMethods.js';
 import { 
   createExpectedPayment,
-
   confirmPayment, 
-  getPlayerLedger 
+
 } from '../../mgtsystem/services/quizPaymentLedgerService.js'
 
 const debug = true;
 
 // --- Payment method normalization ---
-
-
 
 function normalizeExtraPayments(extraPayments) {
   if (!extraPayments || typeof extraPayments !== 'object') return {};
@@ -64,26 +60,43 @@ function getEngine(room) {
 }
 
 export function setupPlayerHandlers(socket, namespace) {
-  socket.on('join_quiz_room', async ({ roomId, user, role }) => {
-    if (!roomId || !user || !role) {
-      console.error(`[join_quiz_room] ❌ Missing data:`, { roomId, user, role });
-      socket.emit('quiz_error', { message: 'Invalid join_quiz_room payload.' });
-      return;
-    }
+socket.on('join_quiz_room', async ({ roomId, user, role, ticketId }) => {
+  if (!roomId || !user || !role) {
+    console.error(`[join_quiz_room] ❌ Missing data:`, { roomId, user, role });
+    socket.emit('quiz_error', { message: 'Invalid join_quiz_room payload.' });
+    return;
+  }
 
-    if (debug) console.log(`[Join Player Handler] 🚪 ${role.toUpperCase()} "${user.name || user.id}" joining room ${roomId}`);
+  if (debug) {
+    console.log(`[Join Player Handler] 🚪 ${role.toUpperCase()} "${user.name || user.id}" joining room ${roomId}`, {
+      ticketId: ticketId || null,
+      paid: user.paid,
+      paymentMethod: user.paymentMethod,
+    });
+  }
 
-    const room = getQuizRoom(roomId);
-    if (!room) {
-      console.warn(`[Join] ⚠️ Room not found: ${roomId}`);
-      socket.emit('quiz_error', { message: `Room ${roomId} not found.` });
-      return;
-    }
+  const room = getQuizRoom(roomId);
+  if (!room) {
+    console.warn(`[Join] ⚠️ Room not found: ${roomId}`);
+    socket.emit('quiz_error', { message: `Room ${roomId} not found.` });
+    return;
+  }
 
     // Validate BEFORE joining rooms
     if (role === 'player') {
       // Capacity checks (Web2 only; allow overflow for Web3 rooms)
       const isWeb3 = room.config?.paymentMethod === 'web3' || room.config?.isWeb3Room === true;
+
+       if (ticketId) {
+      user.paid = true;
+      user.paymentMethod = 'instant_payment';
+      user.paymentClaimed = true;
+      user.paymentConfirmedBy = 'ticket_system';
+      
+      if (debug) {
+        console.log('[Join] 🎟️ Player joining via ticket:', ticketId);
+      }
+    }
 
       if (!isWeb3) {
         const limit =
@@ -157,6 +170,32 @@ export function setupPlayerHandlers(socket, namespace) {
     socketId: socket.id,
   };
 
+    // ✅ Ticket join: force paid + claimed/confirmed flags
+  if (ticketId) {
+    sanitizedUser.paid = true;
+    sanitizedUser.paymentClaimed = true;
+    sanitizedUser.paymentConfirmedBy = 'ticket_system';
+
+    // if no payment method came through, set a sensible default
+    if (!sanitizedUser.paymentMethod || sanitizedUser.paymentMethod === 'unknown') {
+      sanitizedUser.paymentMethod = normalizePaymentMethod('instant_payment');
+    }
+
+    if (debug) {
+      console.log('[Join] 🎟️ Player joining via ticket:', {
+        ticketId,
+        id: sanitizedUser.id,
+        name: sanitizedUser.name,
+        paymentMethod: sanitizedUser.paymentMethod,
+      });
+    }
+  }
+
+  // ✅ Ensure name never falls back to ID
+  if (!sanitizedUser.name || !String(sanitizedUser.name).trim()) {
+    sanitizedUser.name = 'Player';
+  }
+
   // ✅ Preserve an existing real name if incoming is blank/placeholder
   if (existingPlayer?.name && existingPlayer.name !== 'Player') {
     if (!user.name || user.name === 'Player') {
@@ -229,73 +268,80 @@ export function setupPlayerHandlers(socket, namespace) {
 
 // ✅ NEW: Create ledger entries AFTER sanitizedUser exists
 const isWeb2 = !isWeb3;
-if (isWeb2 && room.config?.entryFee && parseFloat(room.config.entryFee) > 0) {
-  try {
-    const clubId = room.config?.clubId || room.config?.hostId || 'unknown';
-    const entryFee = parseFloat(room.config.entryFee);
-    const currency = room.config?.currencySymbol || 'EUR';
-    
-    // ✅ Determine values based on whether payment was claimed
-    const ledgerSource = sanitizedUser.paymentClaimed ? 'player_claimed' : 'player_selected';
-    const claimedAt = sanitizedUser.paymentClaimed ? new Date() : null;
-    
-    // Create entry fee ledger entry
-    await createExpectedPayment({
-      roomId,
-      clubId,
-      playerId: user.id,
-      playerName: sanitizedUser.name,
-      ledgerType: 'entry_fee',
-      amount: entryFee,
-      currency: currency === '€' ? 'EUR' : currency === '£' ? 'GBP' : 'EUR',
-      paymentMethod: sanitizedUser.paymentMethod,
-      paymentSource: ledgerSource,
-      clubPaymentMethodId: sanitizedUser.clubPaymentMethodId || null,
-      paymentReference: sanitizedUser.paymentReference || null, // ✅ NEW
-      claimedAt: claimedAt, // ✅ NEW
-    });
-    
-    // Create ledger entries for each extra
-    if (sanitizedUser.extras && Array.isArray(sanitizedUser.extras)) {
-      for (const extraId of sanitizedUser.extras) {
-        const extraPrice = room.config.fundraisingPrices?.[extraId];
-        if (extraPrice && extraPrice > 0) {
-          await createExpectedPayment({
-            roomId,
-            clubId,
-            playerId: user.id,
-            playerName: sanitizedUser.name,
-            ledgerType: 'extra_purchase',
-            amount: extraPrice,
-            currency: currency === '€' ? 'EUR' : currency === '£' ? 'GBP' : 'EUR',
-            paymentMethod: sanitizedUser.paymentMethod,
-            paymentSource: ledgerSource,
-            clubPaymentMethodId: sanitizedUser.clubPaymentMethodId || null,
-            paymentReference: sanitizedUser.paymentReference || null, // ✅ NEW
-            claimedAt: claimedAt, // ✅ NEW
-            extraId,
-            extraMetadata: { extraId, price: extraPrice },
-          });
+ const joinedViaTicket = !!ticketId || sanitizedUser.paymentConfirmedBy === 'ticket_system';
+ if (isWeb2 && room.config?.entryFee && parseFloat(room.config.entryFee) > 0 && !joinedViaTicket) {
+    try {
+      const clubId = room.config?.clubId || room.config?.hostId || 'unknown';
+      const entryFee = parseFloat(room.config.entryFee);
+      const currency = room.config?.currencySymbol || 'EUR';
+      
+      // ✅ Determine values based on whether payment was claimed
+      const ledgerSource = sanitizedUser.paymentClaimed ? 'player_claimed' : 'player_selected';
+      const claimedAt = sanitizedUser.paymentClaimed ? new Date() : null;
+      
+      // Create entry fee ledger entry
+      await createExpectedPayment({
+        roomId,
+        clubId,
+        playerId: user.id,
+        playerName: sanitizedUser.name,
+        ledgerType: 'entry_fee',
+        amount: entryFee,
+        currency: currency === '€' ? 'EUR' : currency === '£' ? 'GBP' : 'EUR',
+        paymentMethod: sanitizedUser.paymentMethod,
+        paymentSource: ledgerSource,
+        clubPaymentMethodId: sanitizedUser.clubPaymentMethodId || null,
+        paymentReference: sanitizedUser.paymentReference || null,
+        claimedAt: claimedAt,
+        ticketId: null, // ✅ No ticket ID for normal joins
+      });
+      
+      // Create ledger entries for each extra
+      if (sanitizedUser.extras && Array.isArray(sanitizedUser.extras)) {
+        for (const extraId of sanitizedUser.extras) {
+          const extraPrice = room.config.fundraisingPrices?.[extraId];
+          if (extraPrice && extraPrice > 0) {
+            await createExpectedPayment({
+              roomId,
+              clubId,
+              playerId: user.id,
+              playerName: sanitizedUser.name,
+              ledgerType: 'extra_purchase',
+              amount: extraPrice,
+              currency: currency === '€' ? 'EUR' : currency === '£' ? 'GBP' : 'EUR',
+              paymentMethod: sanitizedUser.paymentMethod,
+              paymentSource: ledgerSource,
+              clubPaymentMethodId: sanitizedUser.clubPaymentMethodId || null,
+              paymentReference: sanitizedUser.paymentReference || null,
+              claimedAt: claimedAt,
+              extraId,
+              extraMetadata: { extraId, price: extraPrice },
+              ticketId: null, // ✅ No ticket ID for normal joins
+            });
+          }
         }
       }
+      
+      if (debug) {
+        console.log(`[Ledger] ✅ Created payment ledger entries for ${user.id}`, {
+          entryFee,
+          extrasCount: sanitizedUser.extras?.length || 0,
+          paymentMethod: sanitizedUser.paymentMethod,
+          paymentClaimed: !!sanitizedUser.paymentClaimed,
+          paymentReference: sanitizedUser.paymentReference,
+          clubPaymentMethodId: sanitizedUser.clubPaymentMethodId,
+          claimedAt: claimedAt,
+        });
+      }
+    } catch (ledgerErr) {
+      // Don't block join on ledger failure - log and continue
+      console.error(`[Ledger] ❌ Failed to create ledger entries for ${user.id}:`, ledgerErr);
     }
-    
+  } else if (joinedViaTicket) {
     if (debug) {
-      console.log(`[Ledger] ✅ Created payment ledger entries for ${user.id}`, {
-        entryFee,
-        extrasCount: sanitizedUser.extras?.length || 0,
-        paymentMethod: sanitizedUser.paymentMethod,
-        paymentClaimed: !!sanitizedUser.paymentClaimed,
-        paymentReference: sanitizedUser.paymentReference,
-        clubPaymentMethodId: sanitizedUser.clubPaymentMethodId,
-        claimedAt: claimedAt,
-      });
+      console.log(`[Ledger] ⏭️ Skipping ledger creation for ticket user ${user.id} - entries already exist from ticket purchase`);
     }
-  } catch (ledgerErr) {
-    // Don't block join on ledger failure - log and continue
-    console.error(`[Ledger] ❌ Failed to create ledger entries for ${user.id}:`, ledgerErr);
   }
-}
 
   // OPTIONAL: store Web3 wallet details for payouts (players only)
   if (user.web3Address && user.web3Chain) {
@@ -349,7 +395,7 @@ if (isWeb2 && room.config?.entryFee && parseFloat(room.config.entryFee) > 0) {
    *
    * payload: { roomId, playerId, updates }
    */
-socket.on('update_player', (payload, ack) => {
+socket.on('update_player', async (payload, ack) => {  // ✅ Already async - good!
   const sendAck = typeof ack === 'function' ? ack : () => {};
   try {
     const { roomId, playerId, updates } = payload || {};
@@ -358,7 +404,6 @@ socket.on('update_player', (payload, ack) => {
       return sendAck({ ok: false, error: 'Invalid payload' });
     }
 
-    // 🔎 Debug logging
     if (debug) {
       console.log('[update_player] raw updates.paymentMethod =', updates.paymentMethod);
       console.log('[update_player] raw updates.extraPayments =', updates.extraPayments);
@@ -378,37 +423,45 @@ socket.on('update_player', (payload, ack) => {
       return sendAck({ ok: false, error: 'Player not found' });
     }
 
+    // ✅ Track if paid status changed from false to true
+    const wasPaid = !!existing.paid;
+    const nowPaid = !!updates.paid;
+    const paidStatusChanged = !wasPaid && nowPaid;
+
+    if (debug) {
+      console.log('[update_player] 🔍 Payment status check:', {
+        wasPaid,
+        nowPaid,
+        paidStatusChanged,
+        existingPaymentMethod: existing.paymentMethod,
+        newPaymentMethod: updates.paymentMethod,
+      });
+    }
+
     // Normalise payment method if it's in the updates
     const nextPaymentMethod =
       updates.paymentMethod != null
         ? normalizePaymentMethod(updates.paymentMethod)
         : existing.paymentMethod;
 
-    // If extras array provided, use it; otherwise keep existing
     const nextExtras =
       Array.isArray(updates.extras) ? updates.extras : (existing.extras || []);
 
-    // ✅ FIX: Rebuild extraPayments based on current extras array
-    // This ensures payment method is consistent for all extras
     let nextExtraPayments;
     if (updates.extraPayments != null) {
-      // If extraPayments explicitly provided in updates, use it (normalized)
       nextExtraPayments = normalizeExtraPayments(updates.extraPayments);
     } else if (Array.isArray(updates.extras)) {
-      // ✅ CRITICAL: If extras array changed, rebuild extraPayments with current payment method
       nextExtraPayments = {};
       for (const extraId of nextExtras) {
-        // Try to preserve existing payment info, or use current payment method
         const existingPayment = existing.extraPayments?.[extraId];
         nextExtraPayments[extraId] = existingPayment
-          ? { ...existingPayment, method: nextPaymentMethod } // Update method but keep amount
+          ? { ...existingPayment, method: nextPaymentMethod }
           : {
               method: nextPaymentMethod,
               amount: room.config?.fundraisingPrices?.[extraId] || 0,
             };
       }
     } else {
-      // No changes to extras, keep existing extraPayments
       nextExtraPayments = existing.extraPayments || {};
     }
 
@@ -420,7 +473,67 @@ socket.on('update_player', (payload, ack) => {
       extraPayments: nextExtraPayments,
     };
 
-    // ✅ This will now properly update playerData.purchases and playerData.paymentMethod
+    // ✅ NEW: If payment status changed to paid, update ledger BEFORE updating player
+    if (paidStatusChanged) {
+      console.log('[update_player] 🏦 Payment status changed to paid - updating ledger...');
+      
+      try {
+        const adminId = room.hostId || 'unknown';
+        const adminName = room.config?.hostName || 'Admin';
+        const adminRole = 'host';
+
+        // ✅ CRITICAL: Determine which payment method to use
+        // If method changed during edit, use new method; otherwise keep existing
+        const methodChanged = updates.paymentMethod && 
+                             normalizePaymentMethod(updates.paymentMethod) !== existing.paymentMethod;
+        
+        const ledgerPaymentMethod = methodChanged ? nextPaymentMethod : null;
+        
+        console.log('[update_player] 📝 Calling confirmPayment with:', {
+          roomId,
+          playerId,
+          confirmedBy: adminId,
+          confirmedByName: adminName,
+          confirmedByRole: adminRole,
+          paymentMethod: ledgerPaymentMethod,
+          adminNotes: 'Marked as paid via player edit',
+        });
+
+        const ledgerResult = await confirmPayment({
+          roomId,
+          playerId,
+          confirmedBy: adminId,
+          confirmedByName: adminName,
+          confirmedByRole: adminRole,
+          adminNotes: 'Marked as paid via player edit',
+          paymentMethod: ledgerPaymentMethod,
+          clubPaymentMethodId: updates.clubPaymentMethodId || null,
+        });
+
+        console.log('[update_player] 🏦 Ledger confirmPayment result:', ledgerResult);
+
+        if (!ledgerResult.ok) {
+          console.error('[update_player] ❌ Ledger update failed:', ledgerResult);
+          // Continue anyway - don't block the player update
+        } else {
+          console.log('[update_player] ✅ Ledger updated successfully', {
+            roomId,
+            playerId,
+            playerName: merged.name,
+            paymentMethod: nextPaymentMethod,
+            ledgerRowsUpdated: ledgerResult.updated,
+          });
+        }
+      } catch (ledgerErr) {
+        console.error('[update_player] ❌ Exception updating ledger:', ledgerErr);
+        console.error('[update_player] ❌ Stack trace:', ledgerErr.stack);
+        // Don't block the player update, just log the error
+      }
+    } else if (debug) {
+      console.log('[update_player] ⏭️ Payment status unchanged - skipping ledger update');
+    }
+
+    // ✅ Now update the player in memory
     addOrUpdatePlayer(roomId, merged);
 
     if (debug) {
@@ -429,41 +542,133 @@ socket.on('update_player', (payload, ack) => {
         playerId,
         name: merged.name,
         paid: merged.paid,
+        paidStatusChanged,
         paymentMethod: merged.paymentMethod,
         extras: merged.extras,
         extraPayments: merged.extraPayments,
       });
     }
 
-    // Build a lite list for UI
-const playersLite = room.players.map((p) => ({
-  id: p.id,
-  name: p.name,
-  paid: !!p.paid,
-  paymentMethod: p.paymentMethod,
-  paymentClaimed: !!p.paymentClaimed,        // ✅ ADD THIS
-  paymentReference: p.paymentReference || null, // ✅ ADD THIS  
-  clubPaymentMethodId: p.clubPaymentMethodId || null, // ✅ ADD THIS
-  extras: p.extras || [],
-  extraPayments: p.extraPayments || {},
-  disqualified: !!p.disqualified,
-}));
+    const playersLite = room.players.map((p) => ({
+      id: p.id,
+      name: p.name,
+      paid: !!p.paid,
+      paymentMethod: p.paymentMethod,
+      paymentClaimed: !!p.paymentClaimed,
+      paymentReference: p.paymentReference || null,
+      clubPaymentMethodId: p.clubPaymentMethodId || null,
+      paymentConfirmedBy: p.paymentConfirmedBy,
+      extras: p.extras || [],
+      extraPayments: p.extraPayments || {},
+      disqualified: !!p.disqualified,
+    }));
 
-    // Broadcast to host/admin/players so PlayerListPanel + waiting pages update
-   namespace.to(roomId).emit('player_list_updated', { players: playersLite });
-
-    // Keep other UIs in sync (scoreboard, etc.)
+    namespace.to(roomId).emit('player_list_updated', { players: playersLite });
     emitRoomState(namespace, roomId);
     emitFullRoomState(socket, namespace, roomId);
 
     return sendAck({ ok: true, player: merged });
   } catch (err) {
     console.error('[update_player] 💥 Error:', err);
+    console.error('[update_player] 💥 Stack trace:', err.stack);
     return sendAck({ ok: false, error: 'Internal error' });
   }
 });
 
+// Add this handler in playerHandlers.js after the update_player handler
 
+socket.on('confirm_player_payment', async (payload, ack) => {
+  const sendAck = typeof ack === 'function' ? ack : () => {};
+  
+  try {
+    const { roomId, playerId, adminNotes } = payload || {};
+    
+    if (!roomId || !playerId) {
+      if (debug) console.warn('[confirm_player_payment] ❌ Invalid payload', payload);
+      return sendAck({ ok: false, error: 'Invalid payload' });
+    }
+
+    const room = getQuizRoom(roomId);
+    if (!room) {
+      if (debug) console.warn('[confirm_player_payment] ❌ Room not found', roomId);
+      return sendAck({ ok: false, error: 'Room not found' });
+    }
+
+    const player = room.players.find((p) => p.id === playerId);
+    if (!player) {
+      if (debug) console.warn('[confirm_player_payment] ❌ Player not found', { roomId, playerId });
+      return sendAck({ ok: false, error: 'Player not found' });
+    }
+
+    // ✅ Get admin info from socket
+    const adminId = room.hostId; // or extract from socket context
+    const adminName = room.config?.hostName || 'Admin';
+    const adminRole = 'host'; // or 'admin' if you track that
+
+    // ✅ Update ledger status from 'claimed' to 'confirmed'
+    const ledgerResult = await confirmPayment({
+      roomId,
+      playerId,
+      confirmedBy: adminId,
+      confirmedByName: adminName,
+      confirmedByRole: adminRole,
+      adminNotes: adminNotes || 'Payment confirmed by staff',
+      // Don't override payment method - keep what player claimed
+      paymentMethod: null,
+      clubPaymentMethodId: null,
+    });
+
+    if (!ledgerResult.ok) {
+      console.error('[confirm_player_payment] ❌ Failed to update ledger', ledgerResult);
+      return sendAck({ ok: false, error: 'Failed to update payment ledger' });
+    }
+
+    // ✅ Update player record to mark as paid
+    const updatedPlayer = {
+      ...player,
+      paid: true,
+      paymentConfirmedBy: adminId,
+      paymentConfirmedAt: new Date().toISOString(),
+    };
+
+    addOrUpdatePlayer(roomId, updatedPlayer);
+
+    if (debug) {
+      console.log('[confirm_player_payment] ✅ Payment confirmed', {
+        roomId,
+        playerId,
+        playerName: player.name,
+        paymentMethod: player.paymentMethod,
+        paymentReference: player.paymentReference,
+        ledgerRowsUpdated: ledgerResult.updated,
+      });
+    }
+
+    // ✅ Broadcast updated player list
+    const playersLite = room.players.map((p) => ({
+      id: p.id,
+      name: p.name,
+      paid: !!p.paid,
+      paymentMethod: p.paymentMethod,
+      paymentClaimed: !!p.paymentClaimed,
+      paymentReference: p.paymentReference || null,
+      clubPaymentMethodId: p.clubPaymentMethodId || null,
+      paymentConfirmedBy: p.paymentConfirmedBy,
+      extras: p.extras || [],
+      extraPayments: p.extraPayments || {},
+      disqualified: !!p.disqualified,
+    }));
+
+    namespace.to(roomId).emit('player_list_updated', { players: playersLite });
+    emitRoomState(namespace, roomId);
+    emitFullRoomState(socket, namespace, roomId);
+
+    return sendAck({ ok: true, player: updatedPlayer });
+  } catch (err) {
+    console.error('[confirm_player_payment] 💥 Error:', err);
+    return sendAck({ ok: false, error: 'Internal error' });
+  }
+});
   // --- Tie-breaker: player submits numeric answer ---
   socket.on('tiebreak:answer', async ({ roomId, answer }) => {
     const room = getQuizRoom(roomId);

@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useMemo, useState, lazy, Suspense } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
+import type { QuizConfig } from '../types/quiz'
 import { useQuizConfig } from '../hooks/useQuizConfig';
 import { usePlayerStore } from '../hooks/usePlayerStore';
 import { useRoomIdentity } from '../hooks/useRoomIdentity';
@@ -31,6 +32,7 @@ import {
   Upload,
   Gift,
 } from 'lucide-react';
+import { getPrizeWorkflowStatus } from '../payments/prizeWorkflow';
 
 // ✅ Lazy load Web3Provider (only needed for web3 rooms)
 const Web3Provider = lazy(() => 
@@ -63,6 +65,12 @@ const HostDashboardCore: React.FC = () => {
   const { config, setFullConfig, currentPhase, completedAt, hydrated } = useQuizConfig();
    const { roomId, hostId } = useRoomIdentity();
 
+   const isPostGamePhase = (phase: string | undefined): boolean => {
+  return phase === 'complete' || 
+         phase === 'distributing_prizes'
+         ;
+};
+
    // Add this helper function at the top of HostDashboardCore
 const applyRecoverySnapshot = (snap: any, setFullConfig: any, roomId: string, hostId: string | null) => {
   // Load players
@@ -90,6 +98,12 @@ if (snap?.config) {
         : typeof (prev as any).isWeb3Room === 'boolean'
         ? (prev as any).isWeb3Room
         : (prev as any).paymentMethod === 'web3',
+    
+    // ✅ PATCH 5: Preserve live reconciliation if it exists
+    reconciliation: 
+      (prev as any).reconciliation?.prizeAwards?.length > 0
+        ? (prev as any).reconciliation  // Keep live data
+        : snap.config.reconciliation || { ledger: [], prizeAwards: [] }
   });
 
   if (DEBUG) console.log('[HostDashboard] 📥 Loaded config from snapshot');
@@ -213,6 +227,58 @@ useEffect(() => {
   
 const hydrationAttemptedRef = useRef(false);
 const hydratedRoomIdRef = useRef<string | null>(null);
+
+// ✅ PATCH 2: Listen for reconciliation updates
+useEffect(() => {
+  if (!socket || !roomId) return;
+
+  const onReconState = ({ roomId: rid, data }: any) => {
+    if (rid !== roomId) return;
+    
+    if (DEBUG) {
+      console.log('[HostDashboard] 📥 Received reconciliation state:', {
+        hasPrizeAwards: !!data?.prizeAwards?.length,
+        hasLedger: !!data?.ledger?.length,
+        approvedAt: data?.approvedAt
+      });
+    }
+    
+   setFullConfig((prev: QuizConfig) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        reconciliation: {
+          ...(prev.reconciliation || {}),
+          ...data
+        }
+      };
+    });
+  };
+
+  const onReconUpdated = ({ roomId: rid, data }: any) => {
+    if (rid !== roomId) return;
+    if (DEBUG) console.log('[HostDashboard] 🔄 Reconciliation updated');
+    
+    setFullConfig(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        reconciliation: {
+          ...(prev.reconciliation || {}),
+          ...data
+        }
+      };
+    });
+  };
+
+  socket.on('reconciliation_state', onReconState);
+  socket.on('reconciliation_updated', onReconUpdated);
+
+  return () => {
+    socket.off('reconciliation_state', onReconState);
+    socket.off('reconciliation_updated', onReconUpdated);
+  };
+}, [socket, roomId, setFullConfig]);
 
 
 // Then replace your entire useEffect with this:
@@ -396,7 +462,21 @@ useEffect(() => {
               if (DEBUG) console.log('[HostDashboard] ✅ Joined with recovery snapshot:', response.snap);
               
               // ✅ Apply snapshot data using helper (loads players + config + room state)
-              applyRecoverySnapshot(response.snap, setFullConfig, roomId, hostId);
+            applyRecoverySnapshot(response.snap, setFullConfig, roomId, hostId);
+              
+              // ✅ PATCH 3: Request reconciliation if post-game
+              if (isPostGamePhase(currentPhase)) {
+                if (DEBUG) {
+                  console.log('[HostDashboard] 📊 Post-game phase detected, requesting reconciliation');
+                }
+                
+                setTimeout(() => {
+                  if (socketRef.current && roomId) {
+                    socketRef.current.emit('request_reconciliation', { roomId });
+                    if (DEBUG) console.log('[HostDashboard] ✉️ Requested reconciliation data');
+                  }
+                }, 200);
+              }
               
               if (DEBUG) console.log('[HostDashboard] 🎉 Hydration process complete!');
               
@@ -753,17 +833,13 @@ useEffect(() => {
   const canLaunch = assetUploadCheck && !isQuizComplete;
 
   // === Prize workflow gating (Payments locked until prizes resolved) ===
-  const awards = (config?.reconciliation?.prizeAwards || []) as any[];
-  const prizePlaces = new Set((config?.prizes || []).map((p: any) => p.place));
-  const finalStatuses = new Set(['collected', 'delivered', 'unclaimed', 'refused', 'canceled']);
-  const declaredByPlace = new Map<number, any>();
-  for (const a of awards) if (typeof a?.place === 'number') declaredByPlace.set(a.place, a);
-  const allDeclared = prizePlaces.size > 0 && [...prizePlaces].every((pl) => declaredByPlace.has(pl));
-  const allResolved =
-    prizePlaces.size > 0 && [...prizePlaces].every((pl) => finalStatuses.has(declaredByPlace.get(pl)?.status));
-  const prizeWorkflowComplete = allDeclared && allResolved;
+const { prizeWorkflowComplete } = useMemo(() => {
+  return getPrizeWorkflowStatus(config);
+}, [config?.prizes, config?.reconciliation?.prizeAwards]);
 
-  const paymentsLocked = postGameLock && !prizeWorkflowComplete;
+const paymentsLocked = false;
+
+
 
   // === Final leaderboard for the Prizes tab ===
   const prizeLeaderboard = useMemo(() => {
@@ -1300,7 +1376,7 @@ if (!isWeb3 && dbHydrateError) {
                     <span>💰 Payment Reconciliation</span>
                   </h3>
                   <span className="text-fg/60 text-sm">
-                    {config?.paymentMethod === 'web3' ? 'Web3 Payments' : 'Manual Collection'}
+                    {config?.paymentMethod === 'web3' ? 'Web3 Payments' : 'Manual Reconciliation'}
                   </span>
                 </div>
 

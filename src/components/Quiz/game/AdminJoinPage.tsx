@@ -9,6 +9,7 @@ import SetupSummaryPanel from '../dashboard/SetupSummaryPanel';
 import SharedFinancialTabs from '../dashboard/SharedFinancialTabs';
 import { Users, Shield, Info } from 'lucide-react';
 import type { QuizConfig } from '../types/quiz';
+import { getPrizeWorkflowStatus } from '../payments/prizeWorkflow';
 
 type RoomRole = 'admin' | 'host';
 
@@ -94,27 +95,10 @@ const AdminJoinPage: React.FC = () => {
   }, [config?.reconciliation?.finalLeaderboard, (config as any)?.finalLeaderboard, players]);
 
   // === PRIZE WORKFLOW STATUS ===
-  const { prizeWorkflowComplete } = useMemo(() => {
-    const awards = (config?.reconciliation?.prizeAwards || []) as any[];
-    const prizePlaces = new Set((config?.prizes || []).map((p: any) => p.place));
-   const finalStatuses = new Set(['collected', 'delivered', 'unclaimed', 'refused', 'canceled']);
-    const declaredByPlace = new Map<number, any>();
-    
-    for (const a of awards) {
-      if (typeof a?.place === 'number') {
-        declaredByPlace.set(a.place, a);
-      }
-    }
-    
-    const allDeclared = prizePlaces.size > 0 && 
-      [...prizePlaces].every(pl => declaredByPlace.has(pl));
-    const allResolved = prizePlaces.size > 0 && 
-      [...prizePlaces].every(pl => finalStatuses.has(declaredByPlace.get(pl)?.status));
-    
-    return {
-      prizeWorkflowComplete: allDeclared && allResolved,
-    };
-  }, [config?.reconciliation?.prizeAwards, config?.prizes]);
+const { prizeWorkflowComplete } = useMemo(() => {
+  return getPrizeWorkflowStatus(config);
+}, [config?.prizes, config?.reconciliation?.prizeAwards]);
+;
 
   // 1) On mount / connection, join + request config/state
   useEffect(() => {

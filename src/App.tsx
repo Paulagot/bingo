@@ -1,4 +1,4 @@
-// src/App.tsx - FULLY UPDATED VERSION
+// src/App.tsx - FULLY UPDATED VERSION WITH TICKET ROUTES
 
 import { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
@@ -39,6 +39,14 @@ const QuizSocketProvider = lazy(() =>
   import('./components/Quiz/sockets/QuizSocketProvider').then((m) => ({ default: m.QuizSocketProvider }))
 );
 
+// ✅ NEW: Lazy load ticket components
+const TicketPurchasePage = lazy(() => 
+  import('./components/Quiz/tickets/TicketPurchasePage').then(m => ({ default: m.TicketPurchasePage }))
+);
+const TicketStatusChecker = lazy(() => 
+  import('./components/Quiz/tickets/TicketStatusChecker').then(m => ({ default: m.TicketStatusChecker }))
+);
+
 // Lazy Web3 hub + impact campaign pages
 const Web3HubPage = lazy(() => import('./pages/web3'));
 const ImpactCampaignOverview = lazy(() => import('./pages/web3/impact-campaign'));
@@ -61,7 +69,7 @@ const LoadingSpinner = ({
   </div>
 );
 
-// ✅ FIXED: Only gameplay routes need sockets (exclude /quiz/join)
+// ✅ FIXED: Only gameplay routes need sockets (exclude /quiz/join and /tickets/*)
 const isGameRoute = (pathname: string) =>
   /^\/quiz\/(game|play|host-dashboard|host-controls|admin-join|join)\b/.test(pathname);
 
@@ -120,6 +128,25 @@ export default function App() {
               element={
                 <Suspense fallback={<LoadingSpinner message="Loading blog post" />}>
                   <BlogPost />
+                </Suspense>
+              }
+            />
+
+            {/* ✅ NEW: Ticket routes (public, no auth required) */}
+            <Route
+              path="/tickets/buy/:roomId"
+              element={
+                <Suspense fallback={<LoadingSpinner message="Loading Ticket Purchase" />}>
+                  <TicketPurchasePage />
+                </Suspense>
+              }
+            />
+            
+            <Route
+              path="/tickets/status/:ticketId"
+              element={
+                <Suspense fallback={<LoadingSpinner message="Loading Ticket Status" />}>
+                  <TicketStatusChecker />
                 </Suspense>
               }
             />

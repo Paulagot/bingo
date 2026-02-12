@@ -133,7 +133,8 @@ interface ExtrasSelectionStepProps {
   playerName: string;
   roomConfig: RoomConfig;
   onBack: () => void;
-  onContinue: (selectedExtras: string[]) => void;
+  onContinue: (extras: string[]) => void;
+  preSelectedExtras?: string[]; // ✅ ADD THIS LINE
 }
 
 export const ExtrasSelectionStep: React.FC<ExtrasSelectionStepProps> = ({
@@ -141,9 +142,12 @@ export const ExtrasSelectionStep: React.FC<ExtrasSelectionStepProps> = ({
   playerName,
   roomConfig,
   onBack,
-  onContinue
+  onContinue,
+   preSelectedExtras,
 }) => {
-  const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
+const [selectedExtras, setSelectedExtras] = useState<string[]>(
+  preSelectedExtras || [] // ✅ Use preSelectedExtras if provided
+);
 
   // Calculate totals
   const extrasTotal = selectedExtras.reduce((sum, key) => sum + (roomConfig.fundraisingPrices[key] || 0), 0);

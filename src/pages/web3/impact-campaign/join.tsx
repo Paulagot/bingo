@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 import Web3QuizWizard from '../../../components/Quiz/Wizard/Web3QuizWizard';
-import { JoinRoomFlow } from '../../../components/Quiz/joinroom/JoinRoomFlow';
+import { JoinRoomFlow } from '../../../components/Quiz/joinroom/JoinRoomFlow.tsx';
 import { QuizSocketProvider } from '../../../components/Quiz/sockets/QuizSocketProvider';
 import type { SupportedChain } from '../../../chains/types';
 

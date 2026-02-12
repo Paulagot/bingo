@@ -85,8 +85,9 @@ export async function getAccessToken() {
     return s.toLowerCase().startsWith('bearer ') ? s : `Bearer ${s}`;
   }
 
-  // 2) quick return if cached and not expiring soon
-  if (cachedToken && Date.now() < (cachedToken.exp || 0) - 10_000) {
+  // 2) quick return if cached and not expiring soon (refresh 1 hour before expiry)
+  const ONE_HOUR_MS = 60 * 60 * 1000; // 1 hour in milliseconds
+  if (cachedToken && Date.now() < (cachedToken.exp || 0) - ONE_HOUR_MS) {
     return cachedToken.token;
   }
 
@@ -131,8 +132,9 @@ export async function getAccessToken() {
   if (mode === 'password') {
     // Attempt: if we have a cached refresh token, use it first to refresh
     const persistedRefresh = loadRefreshFromDisk();
-    // prefer persisted refresh if no cachedToken or cachedToken expired
-    if (persistedRefresh && !(cachedToken && Date.now() < (cachedToken.exp || 0) - 10_000)) {
+    // prefer persisted refresh if no cachedToken or cachedToken expired/expiring soon (within 1 hour)
+    const ONE_HOUR_MS = 60 * 60 * 1000;
+    if (persistedRefresh && !(cachedToken && Date.now() < (cachedToken.exp || 0) - ONE_HOUR_MS)) {
       try {
         const refreshUrl = `${baseUrl()}/v1/refresh-tokens`;
         const resp = await fetch(refreshUrl, {
@@ -164,8 +166,20 @@ export async function getAccessToken() {
 
     // If we reach here, either no persisted refresh or refresh failed -> do login with credentials
     // TGB expects the field "login" in the POST body (sandbox docs)
-    const login = process.env.TGB_USERNAME;
-    const password = process.env.TGB_PASSWORD;
+    let login = process.env.TGB_USERNAME;
+    let password = process.env.TGB_PASSWORD;
+    
+    // ===== FIX: URL decode password if it contains % (URL encoded) =====
+    if (password && password.includes('%')) {
+      try {
+        password = decodeURIComponent(password);
+        console.log('[TGB Auth] Decoded URL-encoded password');
+      } catch (e) {
+        console.warn('[TGB Auth] Failed to decode password, using as-is');
+      }
+    }
+    // ===== END FIX =====
+    
     if (!login || !password) {
       throw new Error('TGB login/password not configured (set TGB_USERNAME and TGB_PASSWORD) for password auth mode');
     }
@@ -225,6 +239,5 @@ export async function getAccessToken() {
 export function tgbBaseUrl() {
   return baseUrl();
 }
-
 
 

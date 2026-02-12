@@ -4,6 +4,7 @@ import { create } from 'zustand';
 export type PaymentMethod =
   | 'cash'
   | 'instant payment'
+  | 'pay_admin'
   | 'card'
   | 'web3'
   | 'unknown';

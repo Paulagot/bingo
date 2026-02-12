@@ -53,7 +53,8 @@ const PlayerListPanel: React.FC = () => {
 
   const [newName, setNewName] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [editingPlayer, setEditingPlayer] = useState<any | null>(null);
+ const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
+
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -154,33 +155,22 @@ const PlayerListPanel: React.FC = () => {
   };
 
   // ✅ NEW: Confirm payment handler (Step 2B will fully implement socket handler)
-  const handleConfirmPayment = (playerId: string) => {
-    if (!socket || !roomId) {
-      console.error('[PlayerListPanel] Cannot confirm payment: no socket or roomId');
-      return;
-    }
+ const handleConfirmPayment = (playerId: string) => {
+  if (!socket || !roomId) return;
 
-    const player = players.find(p => p.id === playerId);
-    if (!player) {
-      console.error('[PlayerListPanel] Cannot find player:', playerId);
-      return;
-    }
+  const player = players.find(p => p.id === playerId);
+  if (!player) return;
 
-    console.log('[PlayerListPanel] Confirming payment for player:', {
-      playerId,
-      playerName: player.name,
-      paymentReference: player.paymentReference,
-    });
+  socket.emit('confirm_player_payment', {
+    roomId,
+    playerId,
+    adminNotes: `Confirmed in room by staff`, // optional
+  });
+};
 
-    // ✅ Emit confirm_player_payment event
-    socket.emit('confirm_player_payment', {
-      roomId,
-      playerId,
-      confirmedBy: config?.hostId || 'host', // Use host ID from config
-    });
-  };
 
-  const isEditModalOpen = !!editingPlayer;
+  const isEditModalOpen = !!editingPlayerId;
+
 
   return (
     <div className="bg-gray-50 rounded-xl p-6 shadow-md">
@@ -295,18 +285,19 @@ const PlayerListPanel: React.FC = () => {
       )}
 
       {/* Shared Add/Edit Modal */}
-      <AddPlayerModal
-        isOpen={showModal || isEditModalOpen}
-        onClose={() => {
-          setShowModal(false);
-          setEditingPlayer(null);
-          setNewName('');
-        }}
-        initialName={editingPlayer?.name ?? newName}
-        roomId={roomId}
-        mode={editingPlayer ? 'edit' : 'add'}
-        playerToEdit={editingPlayer ?? undefined}
-      />
+  <AddPlayerModal
+  isOpen={showModal || isEditModalOpen}
+  onClose={() => {
+    setShowModal(false);
+    setEditingPlayerId(null);
+    setNewName('');
+  }}
+  initialName={showModal ? newName : ''} // edit mode will hydrate from store
+  roomId={roomId}
+  mode={editingPlayerId ? 'edit' : 'add'}
+  playerIdToEdit={editingPlayerId}
+/>
+
 
       {/* Empty State */}
       {players.length === 0 ? (
@@ -442,45 +433,48 @@ const PlayerListPanel: React.FC = () => {
                             )}
                           </div>
 
-                          {/* Action Buttons */}
-                          <div className="flex flex-col gap-2">
-                            {/* ✅ STEP 2A: Confirm Payment Button (only for pending players) */}
-                            {isPending && (
-                              <button
-                                onClick={() => handleConfirmPayment(player.id)}
-                                className="inline-flex items-center gap-1.5 rounded-lg border-2 border-green-300 bg-white px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-50 transition-all"
-                              >
-                                <CheckCircle2 className="h-3.5 w-3.5" />
-                                Confirm Payment
-                              </button>
-                            )}
+                       {/* Action Buttons */}
+<div className="flex flex-col gap-2">
+  {/* ✅ Show "Confirm Payment" ONLY for pending (instant payment claimed but not confirmed) */}
+  {isPending && (
+    <button
+      onClick={() => handleConfirmPayment(player.id)}
+      className="inline-flex items-center gap-1.5 rounded-lg border-2 border-green-300 bg-white px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-50 transition-all"
+    >
+      <CheckCircle2 className="h-3.5 w-3.5" />
+      Confirm Payment
+    </button>
+  )}
 
-                            <button
-                              onClick={() => setSelectedPlayerId(isShowingQR ? null : player.id)}
-                              className="inline-flex items-center gap-1.5 rounded-lg border-2 border-indigo-300 bg-white px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 transition-all"
-                            >
-                              <QrCode className="h-3.5 w-3.5" />
-                              {isShowingQR ? 'Hide' : 'Invite'}
-                            </button>
+  {/* QR Code button - always available */}
+  <button
+    onClick={() => setSelectedPlayerId(isShowingQR ? null : player.id)}
+    className="inline-flex items-center gap-1.5 rounded-lg border-2 border-indigo-300 bg-white px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 transition-all"
+  >
+    <QrCode className="h-3.5 w-3.5" />
+    {isShowingQR ? 'Hide' : 'Invite'}
+  </button>
 
-                            {!isWeb3 && (
-                              <button
-                                onClick={() => setEditingPlayer(player)}
-                                className="inline-flex items-center gap-1.5 rounded-lg border-2 border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition-all"
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                                Edit
-                              </button>
-                            )}
+  {/* ✅ Show "Edit" ONLY for: Web2 rooms + pay_admin method + NOT yet paid */}
+  {!isWeb3 && player.paymentMethod === 'pay_admin' && !isPaid && (
+    <button
+      onClick={() => setEditingPlayerId(player.id)}
+      className="inline-flex items-center gap-1.5 rounded-lg border-2 border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition-all"
+    >
+      <Pencil className="h-3.5 w-3.5" />
+      Edit
+    </button>
+  )}
 
-                            <button
-                              onClick={() => toggleDisqualification(player.id)}
-                              className="inline-flex items-center gap-1.5 rounded-lg border-2 border-red-300 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 transition-all"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                              Disqualify
-                            </button>
-                          </div>
+  {/* Disqualify button - always available */}
+  <button
+    onClick={() => toggleDisqualification(player.id)}
+    className="inline-flex items-center gap-1.5 rounded-lg border-2 border-red-300 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 transition-all"
+  >
+    <X className="h-3.5 w-3.5" />
+    Disqualify
+  </button>
+</div>
                         </div>
 
                         {/* QR Code Section */}
