@@ -21,7 +21,7 @@ interface RoomConfig {
   fundraisingOptions: Record<string, boolean>;
   fundraisingPrices: Record<string, number>;
   currencySymbol: string;
-  clubId?: string; // ✅ ADD THIS
+  clubId?: string;
 
   // Web3 fields
   web3Chain?: string;
@@ -61,22 +61,23 @@ export const Web2PaymentStep: React.FC<Web2PaymentStepProps> = ({
   const { socket } = useQuizSocket();
   const navigate = useNavigate();
   
-  // ✅ NEW: Payment choice state
   const [paymentChoice, setPaymentChoice] = useState<PaymentChoice>(null);
   const [paymentMethods, setPaymentMethods] = useState<ClubPaymentMethod[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasAvailableMethods, setHasAvailableMethods] = useState<boolean | null>(null);
 
-  log('render', {
-    roomId,
-    playerName,
-    paymentMethod: roomConfig.paymentMethod,
-    entryFee: roomConfig.entryFee,
-    currencySymbol: roomConfig.currencySymbol,
-    selectedExtras,
-    paymentChoice,
-    clubId: roomConfig.clubId,
-  });
+  // log('render', {
+  //   roomId,
+  //   playerName,
+  //   paymentMethod: roomConfig.paymentMethod,
+  //   entryFee: roomConfig.entryFee,
+  //   currencySymbol: roomConfig.currencySymbol,
+  //   selectedExtras,
+  //   paymentChoice,
+  //   clubId: roomConfig.clubId,
+  //   hasAvailableMethods,
+  // });
 
   // Compute totals
   const { extrasTotal, totalAmount } = useMemo(() => {
@@ -91,26 +92,53 @@ export const Web2PaymentStep: React.FC<Web2PaymentStepProps> = ({
     };
   }, [selectedExtras, roomConfig.entryFee, roomConfig.fundraisingPrices]);
 
-  // ✅ NEW: Fetch payment methods when instant_payment is selected
+  // ✅ Check on mount if instant payment is available
   useEffect(() => {
-    if (paymentChoice === 'instant_payment' && roomConfig.clubId) {
+    log('🔍 Checking available payment methods on mount');
+    checkAvailablePaymentMethods();
+  }, [roomId]);
+
+  const checkAvailablePaymentMethods = async () => {
+    log('🔍 checkAvailablePaymentMethods called for roomId:', roomId);
+    
+    try {
+      const url = `/api/quiz-rooms/${roomId}/available-payment-methods`;
+      log('📡 Fetching:', url);
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      log('📥 Response:', data);
+      
+      if (data.ok) {
+        const hasMethod = data.paymentMethods.length > 0;
+        log('✅ Has available methods:', hasMethod, 'Count:', data.paymentMethods.length);
+        setHasAvailableMethods(hasMethod);
+      } else {
+        log('❌ Response not ok:', data.error);
+        setHasAvailableMethods(false);
+      }
+    } catch (err) {
+      console.error('❌ Error checking payment methods:', err);
+      setHasAvailableMethods(false);
+    }
+  };
+
+  // ✅ Fetch payment methods when instant_payment is selected
+  useEffect(() => {
+    if (paymentChoice === 'instant_payment') {
       fetchPaymentMethods();
     }
-  }, [paymentChoice, roomConfig.clubId]);
+  }, [paymentChoice, roomId]);
 
   const fetchPaymentMethods = async () => {
-    if (!roomConfig.clubId) {
-      setError('Club ID not available');
-      return;
-    }
-
     setLoading(true);
     setError(null);
     
     try {
-      log('Fetching payment methods for club:', roomConfig.clubId);
+      log('Fetching payment methods for room:', roomId);
       
-      const response = await fetch(`/api/payment-methods/${roomConfig.clubId}`);
+      const response = await fetch(`/api/quiz-rooms/${roomId}/available-payment-methods`);
       const data = await response.json();
       
       if (!data.ok) {
@@ -121,7 +149,11 @@ export const Web2PaymentStep: React.FC<Web2PaymentStepProps> = ({
       setPaymentMethods(data.paymentMethods);
       
       if (data.paymentMethods.length === 0) {
-        setError('No instant payment methods configured. Please choose "Pay Host Directly".');
+        if (data.hasLinkedMethods === false) {
+          setError('No payment methods are configured for this quiz. Please choose "Pay Host Directly".');
+        } else {
+          setError('No enabled payment methods available. Please choose "Pay Host Directly".');
+        }
         setPaymentChoice(null);
       }
       
@@ -192,7 +224,7 @@ export const Web2PaymentStep: React.FC<Web2PaymentStepProps> = ({
         roomConfig={roomConfig}
         selectedExtras={selectedExtras}
         paymentMethods={paymentMethods}
-        onBack={() => setPaymentChoice(null)} // Back to choice screen
+        onBack={() => setPaymentChoice(null)}
         onClose={onClose}
       />
     );
@@ -215,6 +247,16 @@ export const Web2PaymentStep: React.FC<Web2PaymentStepProps> = ({
             </p>
           </div>
         </div>
+
+        {/* ✅ DEBUG INFO - Remove after testing
+        {DEBUG && (
+          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs font-mono">
+            <div>hasAvailableMethods: {String(hasAvailableMethods)}</div>
+            <div>paymentChoice: {paymentChoice || 'null'}</div>
+            <div>loading: {String(loading)}</div>
+            <div>roomId: {roomId}</div>
+          </div>
+        )} */}
 
         {/* Payment Summary */}
         <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
@@ -272,7 +314,17 @@ export const Web2PaymentStep: React.FC<Web2PaymentStepProps> = ({
           </div>
         )}
 
-        {/* Loading State */}
+        {/* Loading State for initial check */}
+        {hasAvailableMethods === null && (
+          <div className="mb-4 rounded-lg border-2 border-blue-200 bg-blue-50 p-4">
+            <div className="flex items-center justify-center space-x-3">
+              <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-blue-600"></div>
+              <span className="text-blue-800">Checking payment options...</span>
+            </div>
+          </div>
+        )}
+
+        {/* Loading State for fetching methods */}
         {loading && (
           <div className="mb-4 rounded-lg border-2 border-blue-200 bg-blue-50 p-4">
             <div className="flex items-center justify-center space-x-3">
@@ -282,12 +334,12 @@ export const Web2PaymentStep: React.FC<Web2PaymentStepProps> = ({
           </div>
         )}
 
-        {/* ✅ NEW: Payment Choice Cards */}
-        {!paymentChoice && !loading && (
+        {/* Payment Choice Cards */}
+        {!paymentChoice && !loading && hasAvailableMethods !== null && (
           <div className="space-y-4">
             <h3 className="font-semibold text-gray-900 mb-3">How would you like to pay?</h3>
             
-            {/* Option 1: Pay Host Directly */}
+            {/* Option 1: Pay Host Directly - Always show */}
             <button
               onClick={() => setPaymentChoice('pay_admin')}
               className="w-full text-left rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-indigo-500 hover:bg-indigo-50 transition group"
@@ -306,28 +358,39 @@ export const Web2PaymentStep: React.FC<Web2PaymentStepProps> = ({
               </div>
             </button>
 
-            {/* Option 2: Instant Payment */}
-            <button
-              onClick={() => setPaymentChoice('instant_payment')}
-              className="w-full text-left rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-blue-500 hover:bg-blue-50 transition group"
-            >
-              <div className="flex items-center space-x-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 group-hover:bg-blue-200">
-                  <Zap className="h-6 w-6 text-blue-600" />
-                </div>
-                <div className="flex-1">
-                  <div className="font-semibold text-gray-900">Pay Now (Instant Payment)</div>
-                  <div className="text-sm text-gray-600">
-                    Pay via Revolut, bank transfer, or QR code
+            {/* Option 2: Instant Payment - Only show if methods are linked */}
+            {hasAvailableMethods && (
+              <button
+                onClick={() => setPaymentChoice('instant_payment')}
+                className="w-full text-left rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-blue-500 hover:bg-blue-50 transition group"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 group-hover:bg-blue-200">
+                    <Zap className="h-6 w-6 text-blue-600" />
                   </div>
+                  <div className="flex-1">
+                    <div className="font-semibold text-gray-900">Pay Now (Instant Payment)</div>
+                    <div className="text-sm text-gray-600">
+                      Pay via Revolut, bank transfer, or QR code
+                    </div>
+                  </div>
+                  <div className="text-blue-600">→</div>
                 </div>
-                <div className="text-blue-600">→</div>
+              </button>
+            )}
+
+            {/* Info message if no instant payment available */}
+            {hasAvailableMethods === false && (
+              <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+                <p className="text-sm text-yellow-800">
+                  ℹ️ Instant payment is not available for this quiz. Please pay the host directly.
+                </p>
               </div>
-            </button>
+            )}
           </div>
         )}
 
-        {/* ✅ Show "Pay Admin" flow if selected */}
+        {/* Show "Pay Admin" flow if selected */}
         {paymentChoice === 'pay_admin' && (
           <div className="space-y-4">
             <button

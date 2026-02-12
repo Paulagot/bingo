@@ -13,6 +13,7 @@ export function normalizePaymentMethod(raw?: string | null): PaymentMethod {
   // Direct matches
   if (lower === 'cash') return 'cash';
   if (lower === 'instant_payment' || lower === 'instant payment') return 'instant_payment';
+  if (lower === 'pay_admin' || lower === 'pay admin' || lower === 'admin') return 'pay_admin'; // ✅ NEW
   if (lower === 'card' || lower === 'card tap') return 'card';
   if (lower === 'stripe') return 'stripe';
   
@@ -26,6 +27,7 @@ export function normalizePaymentMethod(raw?: string | null): PaymentMethod {
   return 'other';
 }
 
+
 /**
  * Get display label for payment method
  */
@@ -33,6 +35,7 @@ export function getPaymentMethodLabel(method: PaymentMethod): string {
   const labels: Record<PaymentMethod, string> = {
     cash: 'Cash',
     instant_payment: 'Instant Payment',
+    pay_admin: 'Pay Admin', // ✅ NEW
     card: 'Card Tap',
     stripe: 'Card (Stripe)',
     other: 'Other',
@@ -48,6 +51,7 @@ export function getPaymentMethodIcon(method: PaymentMethod): string {
   const icons: Record<PaymentMethod, string> = {
     cash: '💶',
     instant_payment: '📱',
+    pay_admin: '🧾', // ✅ NEW
     card: '💳',
     stripe: '💳',
     other: '❓',

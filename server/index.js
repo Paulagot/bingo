@@ -57,6 +57,12 @@ import { logger, loggers, logRequest, logResponse } from './config/logging.js';
 import web2RoomsApi from './quiz/api/web2-rooms.js';
 import eventIntegrationsApi from './mgtsystem/routes/eventIntegrations.js';
 import paymentMethodsApi from './mgtsystem/routes/paymentMethods.js';
+import reconciliationRoutes from './mgtsystem/routes/quizReconciliation.js';
+import ticketsRouter from './mgtsystem/routes/quizTicketsRouter.js';
+import quizPaymentMethodsRoutes from './mgtsystem/routes/quizPaymentMethodsRoutes.js';
+import quizLatePayments from './mgtsystem/routes/quizLatePayments.js';
+
+import quizStatsRoutes from './mgtsystem/routes/quizStats.js';
 
 
 const app = express();
@@ -318,18 +324,22 @@ app.use((req, res, next) => {
 });
 
 // Mount quiz and other API routers
+
+console.log('🛠️ Setting up routes...');
 app.use('/quiz/api/community-registration', communityRegistrationApi);
 app.use('/quiz/api/impactcampaign/pledge', impactCampaignPledgeApi);
 app.use('/api/impact-campaign/leaderboard', impact_campaign_leaderboard);
 app.use('/quiz/api', web2RoomsApi);
 app.use('/', eventIntegrationsApi);
-// Around line 200 with other app.use() calls
 app.use('/api/payment-methods', paymentMethodsApi);
-
-
-console.log('🛠️ Setting up routes...');
+app.use('/api/quiz-reconciliation', reconciliationRoutes);
+app.use('/api/quiz/tickets', ticketsRouter);
+app.use('/api/quiz/web2', quizStatsRoutes);
+app.use('/api', quizPaymentMethodsRoutes);  
 app.use('/quiz/api', createRoomApi);
-console.log('🔗 Setting up community registration route...');
+app.use('/api/mgtsystem/quiz-late-payments', quizLatePayments);
+ // ✅ New late payments routes
+
 
 console.log('✅ Routes setup complete');
 

@@ -119,7 +119,7 @@ export default function NotificationsTicker({ items, className }: NotificationsT
 
       <style>{`
         .ticker {
-          animation: ticker-marquee 26s linear infinite;
+          animation: ticker-marquee 40s linear infinite;
         }
         .group:hover .ticker {
           animation-play-state: paused;

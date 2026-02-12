@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Users, AlertCircle, Check, ChevronRight, DollarSign, Sparkles } from 'lucide-react';
 import { WizardStepProps } from './WizardStepProps';
 import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
@@ -25,6 +25,97 @@ const Character = ({ message }: { message: string }) => {
   );
 };
 
+/**
+ * GridPicker
+ * - Click to open a grid popup
+ * - Closes on outside click
+ */
+function GridPicker({
+  label,
+  value,
+  placeholder = '--',
+  options,
+  columns,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  placeholder?: string;
+  options: string[];
+  columns: number; // controls grid layout (e.g. 6 for 6x4)
+  onChange: (next: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  // Close when clicking outside
+  useEffect(() => {
+    const handleDown = (e: MouseEvent) => {
+      if (!rootRef.current) return;
+      if (!rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleDown);
+    return () => document.removeEventListener('mousedown', handleDown);
+  }, []);
+
+  return (
+    <div className="space-y-1" ref={rootRef}>
+      <label className="text-fg/80 text-xs font-medium sm:text-sm">{label}</label>
+
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="border-border w-full rounded-lg border-2 px-3 py-2.5 text-left text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3"
+        >
+          {value ? value : <span className="text-fg/50">{placeholder}</span>}
+        </button>
+
+        {open && (
+          <div className="absolute z-50 mt-2 w-full rounded-lg border bg-white p-2 shadow-lg">
+            <div
+              className="grid gap-2"
+              style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+            >
+              {options.map((opt) => {
+                const selected = opt === value;
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => {
+                      onChange(opt);
+                      setOpen(false);
+                    }}
+                    className={[
+                      'rounded-lg border px-2 py-2 text-sm font-medium transition',
+                      selected
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                        : 'border-border bg-white hover:bg-gray-50',
+                    ].join(' ')}
+                  >
+                    {opt}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="rounded-md px-2 py-1 text-xs text-fg/70 hover:bg-gray-50"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) => {
   const [error, setError] = useState('');
 
@@ -46,26 +137,22 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
 
   const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
 
-  // Convert 24-hour to 12-hour format with AM/PM
+  // Convert ISO -> local date/hour/minute (24h), round minutes to nearest 5
   const isoToLocalParts = (iso?: string) => {
-    if (!iso) return { date: '', hour: '', minute: '', period: 'AM' };
+    if (!iso) return { date: '', hour: '', minute: '' };
     const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return { date: '', hour: '', minute: '', period: 'AM' };
+    if (Number.isNaN(d.getTime())) return { date: '', hour: '', minute: '' };
 
     const pad = (n: number) => String(n).padStart(2, '0');
     const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-    
-    const hours24 = d.getHours();
-    const period = hours24 >= 12 ? 'PM' : 'AM';
-    const hours12 = hours24 % 12 || 12; // Convert 0 to 12
-    const hour = String(hours12);
-    
-    // Round to nearest 15-minute interval
+
+    const hour = pad(d.getHours());
+
     const minutes = d.getMinutes();
-    const roundedMinutes = Math.round(minutes / 15) * 15;
-    const minute = String(roundedMinutes === 60 ? 0 : roundedMinutes);
-    
-    return { date, hour, minute, period };
+    const rounded = Math.round(minutes / 5) * 5;
+    const minute = pad(rounded === 60 ? 0 : rounded);
+
+    return { date, hour, minute };
   };
 
   const storedSchedule = useMemo(() => {
@@ -75,32 +162,25 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
   const [scheduleDate, setScheduleDate] = useState(storedSchedule.date);
   const [scheduleHour, setScheduleHour] = useState(storedSchedule.hour);
   const [scheduleMinute, setScheduleMinute] = useState(storedSchedule.minute);
-  const [schedulePeriod, setSchedulePeriod] = useState<'AM' | 'PM'>(storedSchedule.period as 'AM' | 'PM');
 
   useEffect(() => {
     setScheduleDate(storedSchedule.date);
     setScheduleHour(storedSchedule.hour);
     setScheduleMinute(storedSchedule.minute);
-    setSchedulePeriod(storedSchedule.period as 'AM' | 'PM');
-  }, [storedSchedule.date, storedSchedule.hour, storedSchedule.minute, storedSchedule.period]);
+  }, [storedSchedule.date, storedSchedule.hour, storedSchedule.minute]);
 
-  const applySchedule = (date: string, hour: string, minute: string, period: 'AM' | 'PM') => {
+  const applySchedule = (date: string, hour: string, minute: string) => {
     if (!date || hour === '' || minute === '') {
       setEventDateTime(undefined);
       updateSetupConfig({ timeZone: undefined } as any);
       return;
     }
 
-    // Convert 12-hour to 24-hour format
-    let hours24 = parseInt(hour, 10);
-    if (period === 'AM') {
-      if (hours24 === 12) hours24 = 0; // 12 AM is 00:00
-    } else {
-      if (hours24 !== 12) hours24 += 12; // PM hours except 12 PM
-    }
-
     const pad = (n: number) => String(n).padStart(2, '0');
-    const iso = new Date(`${date}T${pad(hours24)}:${pad(parseInt(minute, 10))}:00`).toISOString();
+    const h = parseInt(hour, 10);
+    const m = parseInt(minute, 10);
+
+    const iso = new Date(`${date}T${pad(h)}:${pad(m)}:00`).toISOString();
     setEventDateTime(iso);
     updateSetupConfig({ timeZone: tz } as any);
   };
@@ -111,7 +191,6 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
     setScheduleDate('');
     setScheduleHour('');
     setScheduleMinute('');
-    setSchedulePeriod('AM');
     setError('');
   };
 
@@ -179,11 +258,17 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
       ? '🎉 Perfect! Your quiz is fully configured and ready to continue!'
       : "Hi there! Let's set up your quiz together. Fill in the details below to get started.";
 
-  // 12-hour format: 1-12
-  const hourOptions = useMemo(() => Array.from({ length: 12 }, (_, i) => String(i + 1)), []);
-  
-  // 15-minute intervals: 00, 15, 30, 45
-  const minuteOptions = useMemo(() => ['00', '15', '30', '45'], []);
+  // 24 hours: 00..23
+  const hourOptions = useMemo(
+    () => Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')),
+    []
+  );
+
+  // 5-minute intervals: 00..55
+  const minuteOptions = useMemo(
+    () => Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0')),
+    []
+  );
 
   return (
     <div className="w-full space-y-3 px-2 pb-4 sm:space-y-6 sm:px-4">
@@ -322,7 +407,7 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
         </div>
       </div>
 
-      {/* Scheduling (Web2 only) — 12-hour format with AM/PM */}
+      {/* Scheduling (Web2 only) — 24-hour grid + 5-min grid */}
       {flow === 'web2' && (
         <div
           className={`bg-muted rounded-lg border-2 p-4 shadow-sm transition-all sm:rounded-xl sm:p-6 ${
@@ -354,70 +439,41 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
                   onChange={(e) => {
                     const next = e.target.value;
                     setScheduleDate(next);
-                    applySchedule(next, scheduleHour, scheduleMinute, schedulePeriod);
+                    applySchedule(next, scheduleHour, scheduleMinute);
                     setError('');
                   }}
                   className="border-border w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3"
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-fg/80 text-xs font-medium sm:text-sm">Hour</label>
-                <select
+              {/* Hour: 6 x 4 */}
+              <div className="sm:col-span-2">
+                <GridPicker
+                  label="Hour"
                   value={scheduleHour}
-                  onChange={(e) => {
-                    const next = e.target.value;
+                  options={hourOptions}
+                  columns={6} // ✅ 6x4 block (24)
+                  onChange={(next) => {
                     setScheduleHour(next);
-                    applySchedule(scheduleDate, next, scheduleMinute, schedulePeriod);
+                    applySchedule(scheduleDate, next, scheduleMinute);
                     setError('');
                   }}
-                  className="border-border w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3"
-                >
-                  <option value="">--</option>
-                  {hourOptions.map((h) => (
-                    <option key={h} value={h}>
-                      {h}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-fg/80 text-xs font-medium sm:text-sm">Minute</label>
-                <select
+              {/* Minute: 4 x 3 */}
+              <div className="sm:col-span-2">
+                <GridPicker
+                  label="Minute"
                   value={scheduleMinute}
-                  onChange={(e) => {
-                    const next = e.target.value;
+                  options={minuteOptions}
+                  columns={4} // ✅ 4x3 block (12)
+                  onChange={(next) => {
                     setScheduleMinute(next);
-                    applySchedule(scheduleDate, scheduleHour, next, schedulePeriod);
+                    applySchedule(scheduleDate, scheduleHour, next);
                     setError('');
                   }}
-                  className="border-border w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3"
-                >
-                  <option value="">--</option>
-                  {minuteOptions.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1 sm:col-span-2">
-                <label className="text-fg/80 text-xs font-medium sm:text-sm">Period</label>
-                <select
-                  value={schedulePeriod}
-                  onChange={(e) => {
-                    const next = e.target.value as 'AM' | 'PM';
-                    setSchedulePeriod(next);
-                    applySchedule(scheduleDate, scheduleHour, scheduleMinute, next);
-                    setError('');
-                  }}
-                  className="border-border w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3"
-                >
-                  <option value="AM">AM</option>
-                  <option value="PM">PM</option>
-                </select>
+                />
               </div>
             </div>
 

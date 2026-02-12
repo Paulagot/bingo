@@ -1,5 +1,5 @@
 // src/components/Quiz/dashboard/AddPlayerModal.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Dialog } from '@headlessui/react';
 import { usePlayerStore, type PaymentMethod } from '../hooks/usePlayerStore';
 import { useQuizConfig } from '../hooks/useQuizConfig';
@@ -13,22 +13,75 @@ interface AddPlayerModalProps {
   initialName: string;
   roomId: string;
 
-  /** 
+  /**
    * mode = "add": create a new player via join_quiz_room
    * mode = "edit": update an existing player via update_player
    */
   mode?: 'add' | 'edit';
-  playerToEdit?: any; // You can replace `any` with your Player type
+
+  // Optional legacy prop (kept so existing call sites don't break)
+  playerToEdit?: any;
+
+  // ✅ Step 2B: prefer editing by id so modal always hydrates from latest store state
+  playerIdToEdit?: string | null;
 }
 
-const debug = true;
+const debug = false;
 
 /** ---------- Helpers ---------- */
 const LAST_PM_KEY = 'fr.lastPaymentMethod';
-const allowedMethods: PaymentMethod[] = ['cash', 'instant payment', 'card', 'web3', 'unknown'];
+
+// Keep UI PaymentMethod values compatible with your existing store type.
+// (We will still send canonical values to backend using toCanonicalPaymentMethod())
+const allowedMethods: PaymentMethod[] = [
+  'cash',
+  'instant payment',
+  'pay_admin',
+  'card',
+  'web3',
+  'unknown',
+];
 
 function isAllowedMethod(v: any): v is PaymentMethod {
   return typeof v === 'string' && (allowedMethods as string[]).includes(v);
+}
+
+// ✅ Convert UI/store values -> backend canonical enum values
+// DB enum: 'cash' | 'instant_payment' | 'pay_admin' | 'card' | 'stripe' | 'other'
+function toCanonicalPaymentMethod(pm: PaymentMethod | string | null | undefined): string {
+  if (!pm) return 'other';
+  const v = String(pm).toLowerCase().trim();
+
+  // Direct canonical
+  if (v === 'cash') return 'cash';
+  if (v === 'pay_admin' || v === 'pay admin' || v === 'admin' || v === 'pay_host' || v === 'pay host') return 'pay_admin';
+  if (v === 'card' || v === 'card tap' || v === 'credit_card' || v === 'debit_card') return 'card';
+  if (v === 'stripe' || v === 'stripe_checkout') return 'stripe';
+  if (v === 'other') return 'other';
+
+  // UI legacy
+  if (v === 'instant payment' || v === 'instant' || v === 'instant_payment') return 'instant_payment';
+
+  // Provider aliases
+  if (
+    v === 'revolut' || v.includes('revolut') ||
+    v === 'zippypay' || v.includes('zippy') ||
+    v === 'bank_transfer' || v === 'bank' || v.includes('bank') ||
+    v === 'paypal' || v.includes('paypal')
+  ) {
+    return 'instant_payment';
+  }
+
+  // Legacy umbrella
+  if (v.includes('cash_or_revolut')) return 'instant_payment';
+
+  // Web3 (backend may treat separately, but don't pollute DB enum)
+  if (v === 'web3' || v.includes('crypto')) return 'other';
+
+  // Unknown
+  if (v === 'unknown') return 'other';
+
+  return 'other';
 }
 
 function getDefaultPaymentMethod(config: any): PaymentMethod {
@@ -45,28 +98,25 @@ function getDefaultPaymentMethod(config: any): PaymentMethod {
   } catch {}
 
   // d) Neutral fallback
-  return 'cash'; // ✅ Changed from 'unknown' to 'cash' for better UX
+  return 'cash';
 }
 
-// ✅ NEW: Helper to ensure valid payment method from existing player data
+// ✅ Ensure valid payment method from existing player data (including legacy/canonical variants)
 function ensureValidPaymentMethod(value: any): PaymentMethod {
   if (typeof value === 'string') {
-    const lower = value.toLowerCase();
-    
-    // Direct match
-    if (isAllowedMethod(value)) {
-      return value as PaymentMethod;
-    }
-    
-    // Handle common variations
-    if (lower.includes('instant') || lower === 'revolut') return 'instant payment';
-    if (lower === 'other') return 'cash'; // Treat 'other' as 'cash'
-    if (lower.includes('cash')) return 'cash';
+    const lower = value.toLowerCase().trim();
+
+    // Exact UI/store values
+    if (isAllowedMethod(value)) return value as PaymentMethod;
+
+    // Canonical/legacy mappings back into UI/store values
+    if (lower === 'pay_admin' || lower.includes('pay admin') || lower.includes('admin')) return 'pay_admin';
+    if (lower === 'instant_payment' || lower.includes('instant') || lower === 'revolut') return 'instant payment';
+    if (lower === 'cash') return 'cash';
     if (lower.includes('card')) return 'card';
     if (lower.includes('web3') || lower.includes('crypto')) return 'web3';
+    if (lower === 'other') return 'cash';
   }
-  
-  // Default to cash for invalid/unknown values
   return 'cash';
 }
 
@@ -77,7 +127,8 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
   initialName,
   roomId,
   mode = 'add',
-  playerToEdit,
+  playerIdToEdit,
+  playerToEdit, // legacy fallback
 }) => {
   const { config } = useQuizConfig();
   const { players } = usePlayerStore();
@@ -90,6 +141,16 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
   const maxPlayers = isWeb3 ? Number.POSITIVE_INFINITY : (config?.roomCaps?.maxPlayers ?? 20);
   const atCapacity = isWeb3 ? false : ((players?.length || 0) >= maxPlayers);
 
+  // ✅ Step 2B: resolve the player from the latest store state
+  const livePlayerToEdit = useMemo(() => {
+    if (effectiveMode !== 'edit') return null;
+    if (!playerIdToEdit) return null;
+    return players.find((p: any) => p.id === playerIdToEdit) || null;
+  }, [effectiveMode, playerIdToEdit, players]);
+
+  // Legacy fallback for safety
+  const resolvedPlayerToEdit = livePlayerToEdit || playerToEdit || null;
+
   // Local state
   const [name, setName] = useState(initialName);
   const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
@@ -101,20 +162,13 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
   const currency = config?.currencySymbol || '€';
   const entryFee = Number(config?.entryFee) || 0;
 
-  const enabledExtras = Object.entries(config?.fundraisingOptions || {}).filter(
-    ([, enabled]) => enabled
-  );
+  const enabledExtras = Object.entries(config?.fundraisingOptions || {}).filter(([, enabled]) => !!enabled);
 
   const handleToggleExtra = (key: string) => {
-    setSelectedExtras((prev) =>
-      prev.includes(key) ? prev.filter((e) => e !== key) : [...prev, key]
-    );
+    setSelectedExtras((prev) => (prev.includes(key) ? prev.filter((e) => e !== key) : [...prev, key]));
   };
 
-  const totalExtras = selectedExtras.reduce(
-    (sum, key) => sum + (config?.fundraisingPrices?.[key] || 0),
-    0
-  );
+  const totalExtras = selectedExtras.reduce((sum, key) => sum + (config?.fundraisingPrices?.[key] || 0), 0);
   const total = entryFee + totalExtras;
 
   const handleSubmit = () => {
@@ -122,12 +176,12 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
     if (!trimmedName) return;
 
     // 1) prevent duplicate names
-    const nameAlreadyUsed = players.some((p) => {
-      if (effectiveMode === 'edit' && playerToEdit && p.id === playerToEdit.id) {
+    const nameAlreadyUsed = players.some((p: any) => {
+      if (effectiveMode === 'edit' && resolvedPlayerToEdit && p.id === resolvedPlayerToEdit.id) {
         // allow the same player to keep their own name
         return false;
       }
-      return p.name.toLowerCase() === trimmedName.toLowerCase();
+      return String(p.name || '').toLowerCase() === trimmedName.toLowerCase();
     });
 
     if (nameAlreadyUsed) {
@@ -140,21 +194,24 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
       return;
     }
 
-    // ✅ FIXED: Use paymentMethod directly (it's already validated)
+    // ✅ Always send canonical values to backend
+    const canonicalMethod = toCanonicalPaymentMethod(paymentMethod);
+
     if (effectiveMode === 'add') {
       // ADD MODE: create a brand new player
       const newPlayer = {
         id: nanoid(),
         name: trimmedName,
         paid,
-        paymentMethod, // ✅ Use the validated payment method
+        // Keep UI/store value locally, but backend should see canonical
+        paymentMethod: canonicalMethod as any,
         credits: 0,
         extras: selectedExtras,
         extraPayments: Object.fromEntries(
           selectedExtras.map((key) => [
             key,
             {
-              method: paymentMethod, // ✅ Use same method for all extras
+              method: canonicalMethod as any,
               amount: config?.fundraisingPrices?.[key] || 0,
             },
           ])
@@ -174,33 +231,37 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
         setAdded(false);
         onClose();
       }, 1200);
-    } else if (effectiveMode === 'edit' && playerToEdit) {
-      // EDIT MODE: update existing player via update_player
+    } else if (effectiveMode === 'edit') {
+      const editingId = playerIdToEdit || resolvedPlayerToEdit?.id;
+
+      if (!editingId) {
+        console.error('[AddPlayerModal] edit mode missing playerIdToEdit');
+        return;
+      }
+
       const updates = {
         name: trimmedName,
         paid,
-        paymentMethod, // ✅ Use the validated payment method
+        paymentMethod: canonicalMethod as any,
         extras: selectedExtras,
         extraPayments: Object.fromEntries(
           selectedExtras.map((key) => [
             key,
             {
-              method: paymentMethod, // ✅ Use same method for all extras
+              method: canonicalMethod as any,
               amount: config?.fundraisingPrices?.[key] || 0,
             },
           ])
         ),
       };
 
-      if (debug) {
-        console.log('[AddPlayerModal] submitting updates:', updates);
-      }
+      if (debug) console.log('[AddPlayerModal] submitting updates:', { editingId, updates });
 
       socket.emit(
         'update_player',
         {
           roomId,
-          playerId: playerToEdit.id,
+          playerId: editingId,
           updates,
         },
         (res?: any) => {
@@ -212,7 +273,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
         }
       );
 
-      if (debug) console.log('→ [AddPlayerModal] Emitted update_player:', updates);
+      if (debug) console.log('→ [AddPlayerModal] Emitted update_player:', { editingId, updates });
 
       setAdded(true);
       setTimeout(() => {
@@ -222,44 +283,63 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
     }
   };
 
-  // ✅ FIXED: Reset / hydrate fields when modal opens with proper validation
+  // ✅ Step 2B: Reset / hydrate fields when modal opens
+  // Important: In edit mode, ONLY hydrate once we have the resolved player from the store.
   useEffect(() => {
-    if (isOpen) {
-      if (effectiveMode === 'edit' && playerToEdit) {
-        // Populate from existing player
-        setName(playerToEdit.name || initialName || '');
-        setSelectedExtras(Array.isArray(playerToEdit.extras) ? playerToEdit.extras : []);
-        
-        // ✅ CRITICAL FIX: Properly validate and set payment method
-        const existingMethod = playerToEdit.paymentMethod;
-        const validMethod = ensureValidPaymentMethod(existingMethod);
-        setPaymentMethod(validMethod);
-        
-        setPaid(!!playerToEdit.paid);
-        
+    if (!isOpen) return;
+
+    if (effectiveMode === 'edit') {
+      const p = resolvedPlayerToEdit;
+
+      if (!p) {
         if (debug) {
-          console.log('[AddPlayerModal] Edit mode hydration:', {
-            playerId: playerToEdit.id,
-            existingMethod,
-            validMethod,
-            paid: playerToEdit.paid,
-            extras: playerToEdit.extras
+          console.log('[AddPlayerModal] ⏳ Edit mode open but player not resolved yet', {
+            playerIdToEdit,
+            playersCount: players?.length || 0,
           });
         }
-      } else {
-        // Fresh add mode
-        setName(initialName);
-        setSelectedExtras([]);
-        setPaymentMethod(getDefaultPaymentMethod(config));
-        setPaid(false);
+        return;
       }
-      setAdded(false);
-      setNameError('');
-    }
-  }, [isOpen, initialName, config, effectiveMode, playerToEdit]);
 
-  const buttonDisabledAdd =
-    !paid || !name.trim() || (!isWeb3 && atCapacity);
+      setName(p.name || initialName || '');
+      setSelectedExtras(Array.isArray(p.extras) ? p.extras : []);
+
+      const existingMethod = p.paymentMethod;
+      const validMethod = ensureValidPaymentMethod(existingMethod);
+      setPaymentMethod(validMethod);
+
+      setPaid(!!p.paid);
+
+      if (debug) {
+        console.log('[AddPlayerModal] ✅ Edit mode hydration (LIVE):', {
+          playerId: p.id,
+          existingMethod,
+          validMethod,
+          paid: p.paid,
+          extras: p.extras,
+        });
+      }
+    } else {
+      // Fresh add mode
+      setName(initialName);
+      setSelectedExtras([]);
+      setPaymentMethod(getDefaultPaymentMethod(config));
+      setPaid(false);
+    }
+
+    setAdded(false);
+    setNameError('');
+  }, [
+    isOpen,
+    effectiveMode,
+    initialName,
+    config,
+    playerIdToEdit,
+    resolvedPlayerToEdit,
+    players?.length,
+  ]);
+
+  const buttonDisabledAdd = !paid || !name.trim() || (!isWeb3 && atCapacity);
   const buttonDisabledEdit = !name.trim(); // allow unpaid edits
 
   const disableButton = effectiveMode === 'add' ? buttonDisabledAdd : buttonDisabledEdit;
@@ -270,9 +350,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
         <div className="fixed inset-0 bg-black opacity-30" aria-hidden="true" />
 
         <div className="bg-muted relative z-50 w-full max-w-md rounded-xl p-6 shadow-xl">
-          <Dialog.Title className="heading-2">
-            {effectiveMode === 'add' ? 'Add Player' : 'Edit Player'}
-          </Dialog.Title>
+          <Dialog.Title className="heading-2">{effectiveMode === 'add' ? 'Add Player' : 'Edit Player'}</Dialog.Title>
 
           <div className="space-y-3">
             {/* Name */}
@@ -298,14 +376,11 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
             {enabledExtras.length > 0 && (
               <div className="space-y-2">
                 {enabledExtras.map(([key]) => {
-                  const extra = fundraisingExtras[key];
+                  const extra = (fundraisingExtras as any)[key];
                   const price = config?.fundraisingPrices?.[key] || 0;
 
                   return (
-                    <label
-                      key={key}
-                      className="text-fg/80 flex items-center justify-between text-sm"
-                    >
+                    <label key={key} className="text-fg/80 flex items-center justify-between text-sm">
                       <span title={extra?.description || ''} className="flex items-center gap-2">
                         <input
                           type="checkbox"
@@ -317,7 +392,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
                       </span>
                       <span>
                         {currency}
-                        {price.toFixed(2)}
+                        {Number(price).toFixed(2)}
                       </span>
                     </label>
                   );
@@ -327,34 +402,32 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
 
             {/* Total */}
             <p className="mt-2 text-right font-semibold">
-              Total:{' '}
-              <span className="text-indigo-700">
-                {currency}
-                {total.toFixed(2)}
-              </span>
+              Total: <span className="text-indigo-700">{currency}{total.toFixed(2)}</span>
             </p>
 
             {/* Payment method */}
             <div className="mt-3">
-              <label className="text-fg/80 mb-1 block text-sm font-medium">
-                Payment Method
-              </label>
+              <label className="text-fg/80 mb-1 block text-sm font-medium">Payment Method</label>
               <select
                 value={paymentMethod}
                 onChange={(e) => {
                   const next = e.target.value as PaymentMethod;
                   setPaymentMethod(next);
+
                   // remember last used
                   try {
                     localStorage.setItem(LAST_PM_KEY, next);
                   } catch {}
-                  
+
                   if (debug) {
-                    console.log('[AddPlayerModal] Payment method changed to:', next);
+                    console.log('[AddPlayerModal] Payment method changed to:', next, {
+                      canonical: toCanonicalPaymentMethod(next),
+                    });
                   }
                 }}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2"
               >
+                <option value="pay_admin">🧾 Pay Admin (manual)</option>
                 <option value="cash">💶 Cash</option>
                 <option value="instant payment">📱 Instant payment</option>
                 <option value="card">💳 Card Tap</option>
@@ -390,9 +463,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
                 onClick={handleSubmit}
                 disabled={disableButton}
                 className={`w-1/2 rounded-lg py-2 font-semibold text-white transition ${
-                  disableButton
-                    ? 'cursor-not-allowed bg-gray-400'
-                    : 'bg-indigo-600 hover:bg-indigo-700'
+                  disableButton ? 'cursor-not-allowed bg-gray-400' : 'bg-indigo-600 hover:bg-indigo-700'
                 }`}
               >
                 {effectiveMode === 'add'
@@ -406,6 +477,17 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
                     : 'Save Changes'}
               </button>
             </div>
+
+            {debug && effectiveMode === 'edit' && (
+              <div className="mt-2 rounded-lg bg-gray-50 p-2 text-xs text-gray-600">
+                <div><strong>Debug</strong></div>
+                <div>playerIdToEdit: {String(playerIdToEdit || '')}</div>
+                <div>resolved: {resolvedPlayerToEdit?.id ? 'yes' : 'no'}</div>
+                <div>resolved.method(raw): {String(resolvedPlayerToEdit?.paymentMethod || '')}</div>
+                <div>ui.method: {String(paymentMethod)}</div>
+                <div>canonical(out): {toCanonicalPaymentMethod(paymentMethod)}</div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -414,6 +496,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
 };
 
 export default AddPlayerModal;
+
 
 
 

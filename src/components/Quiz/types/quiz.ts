@@ -362,6 +362,7 @@ export interface ReconciliationMeta  {
   // NEW
   prizeAwards?: PrizeAward[];
   finalLeaderboard?: LeaderboardEntry[];
+   ledger?: Array<any>;
 };
 
 

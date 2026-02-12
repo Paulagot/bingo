@@ -14,18 +14,12 @@ const OUT_PATH = (() => {
 
 // --- chosen 12 sandbox orgs (from your provided list) ---
 const TARGET_NAMES = [
-  'Uncommon Giving Sandbox',
-  'OnboardOrg In Sandbox',
-  'Alveus Sanctuary Sandbox',
-  'CSU Long Beach (Sandbox)',
-  'World Child Cancer Sandbox',
-  'GoFundMe Sandbox',
-  'Young Americans for Liberty Foundation Sandbox',
-  'goDonate Sandbox - GBP',
-  'ALS Network - Sandbox',
-  'Charity On Top Sandbox',
-  'The Giving Block Demo',
-  'Schwab Charitable - DAF Giving 360'
+  'Clean International',
+  'Identity Theft Resource Center',
+  // Add variations in case the exact name differs:
+  'ITRC',
+  'Identity Theft Resource',
+  'Clean International Inc',
 ];
 
 // liberal name matching helper
