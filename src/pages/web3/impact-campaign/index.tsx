@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 import Web3QuizWizard from '../../../components/Quiz/Wizard/Web3QuizWizard';
-import { JoinRoomFlow } from '../../../components/Quiz/joinroom/JoinRoomFlow1.tsx';
+import { JoinRoomFlow } from '../../../components/Quiz/joinroom/JoinRoomFlow.tsx';
 import { QuizSocketProvider } from '../../../components/Quiz/sockets/QuizSocketProvider';
 import type { SupportedChain } from '../../../chains/types';
 import { PledgeForm } from '../../../components/GeneralSite/Web3pages/PledgeForm';
