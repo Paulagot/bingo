@@ -97,87 +97,105 @@ class QuizPaymentMethodsService {
   }
 
   /**
- * Get available payment methods for a room (PUBLIC - for players joining)
- * Returns only enabled methods that are linked to this room
- * Does NOT require authentication
- */
-async getAvailablePaymentMethodsForRoom({ roomId }) {
-  const [quizRows] = await database.connection.execute(
-    `SELECT 
-      room_id, 
-      club_id, 
-      linked_payment_methods_json 
-     FROM fundraisely_web2_quiz_rooms 
-     WHERE room_id = ?
-     LIMIT 1`,
-    [roomId]
-  );
+   * Get available payment methods for a room (PUBLIC - for players joining)
+   * Returns only enabled methods that are linked to this room
+   * Does NOT require authentication
+   */
+  async getAvailablePaymentMethodsForRoom({ roomId }) {
+    console.log('[QuizPaymentMethodsService] Getting available payment methods for roomId:', roomId);
+    
+    const [quizRows] = await database.connection.execute(
+      `SELECT 
+        room_id, 
+        club_id, 
+        linked_payment_methods_json 
+       FROM fundraisely_web2_quiz_rooms 
+       WHERE room_id = ?
+       LIMIT 1`,
+      [roomId]
+    );
 
-  if (!quizRows?.length) {
-    throw new Error('Quiz room not found');
-  }
+    if (!quizRows?.length) {
+      throw new Error('Quiz room not found');
+    }
 
-  const room = quizRows[0];
-  const clubId = room.club_id;
-  
-  let linkedMethodIds = [];
-  if (room.linked_payment_methods_json) {
-    const linkedData = room.linked_payment_methods_json;
-    linkedMethodIds = linkedData.payment_method_ids || [];
-  }
+    const room = quizRows[0];
+    const clubId = room.club_id;
+    
+    console.log('[QuizPaymentMethodsService] Found room, club_id:', clubId);
+    console.log('[QuizPaymentMethodsService] linked_payment_methods_json:', room.linked_payment_methods_json);
+    
+    let linkedMethodIds = [];
+    if (room.linked_payment_methods_json) {
+      const linkedData = room.linked_payment_methods_json;
+      linkedMethodIds = linkedData.payment_method_ids || [];
+    }
 
-  if (linkedMethodIds.length === 0) {
+    console.log('[QuizPaymentMethodsService] Linked method IDs:', linkedMethodIds);
+
+    if (linkedMethodIds.length === 0) {
+      console.log('[QuizPaymentMethodsService] No linked payment methods');
+      return {
+        ok: false,
+        paymentMethods: [],
+        error: 'No payment methods available for this quiz. Please contact the host.'
+      };
+    }
+
+    const placeholders = linkedMethodIds.map(() => '?').join(',');
+    
+    const [methods] = await database.connection.execute(
+      `SELECT 
+        id,
+        club_id,
+        method_category,
+        provider_name,
+        method_label,
+        display_order,
+        is_enabled,
+        player_instructions,
+        method_config,
+        is_official_club_account
+      FROM fundraisely_club_payment_methods
+      WHERE club_id = ? 
+        AND id IN (${placeholders})
+        AND is_enabled = 1
+      ORDER BY display_order ASC, method_label ASC`,
+      [clubId, ...linkedMethodIds]
+    );
+
+    console.log('[QuizPaymentMethodsService] Found payment methods:', methods?.length || 0);
+
+    if (!methods || methods.length === 0) {
+      console.log('[QuizPaymentMethodsService] No enabled payment methods found');
+      return {
+        ok: false,
+        paymentMethods: [],
+        error: 'No payment methods available for this quiz. Please contact the host.'
+      };
+    }
+
+    // ✅ Transform snake_case to camelCase for frontend
+    const transformedMethods = methods.map(method => ({
+      id: method.id,
+      clubId: method.club_id,
+      methodCategory: method.method_category,
+      providerName: method.provider_name,
+      methodLabel: method.method_label,
+      displayOrder: method.display_order,
+      isEnabled: method.is_enabled === 1,
+      playerInstructions: method.player_instructions,
+      methodConfig: method.method_config, // Already parsed by MySQL
+      isOfficialClubAccount: method.is_official_club_account === 1,
+    }));
+
+    console.log('[QuizPaymentMethodsService] Returning transformed methods:', transformedMethods.length);
+
     return {
       ok: true,
-      paymentMethods: [],
-      total: 0,
-      hasLinkedMethods: false
+      paymentMethods: transformedMethods
     };
   }
-
-  const placeholders = linkedMethodIds.map(() => '?').join(',');
-  
-  const [methods] = await database.connection.execute(
-    `SELECT 
-      id,
-      club_id,
-      method_category,
-      provider_name,
-      method_label,
-      display_order,
-      is_enabled,
-      player_instructions,
-      method_config,
-      is_official_club_account
-    FROM fundraisely_club_payment_methods
-    WHERE club_id = ? 
-      AND id IN (${placeholders})
-      AND is_enabled = 1
-    ORDER BY display_order ASC, method_label ASC`,
-    [clubId, ...linkedMethodIds]
-  );
-
-  // ✅ Transform snake_case to camelCase for frontend
-  const transformedMethods = (methods || []).map(method => ({
-    id: method.id,
-    clubId: method.club_id,
-    methodCategory: method.method_category,
-    providerName: method.provider_name,
-    methodLabel: method.method_label, // ✅ Transform to camelCase
-    displayOrder: method.display_order,
-    isEnabled: method.is_enabled === 1,
-    playerInstructions: method.player_instructions,
-    methodConfig: method.method_config,
-    isOfficialClubAccount: method.is_official_club_account === 1,
-  }));
-
-  return {
-    ok: true,
-    paymentMethods: transformedMethods,
-    total: transformedMethods.length,
-    hasLinkedMethods: true
-  };
-}
 }
 
 export default QuizPaymentMethodsService;

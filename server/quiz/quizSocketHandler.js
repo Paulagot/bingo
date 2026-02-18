@@ -10,6 +10,7 @@ import { setupRecoveryHandlers } from './handlers/recoveryHandlers.js';
 import { setupReconciliationHandlers } from './handlers/reconciliationHandlers.js';
 import { setupPaymentHandlers } from './handlers/paymentHandlers.js';
 import { setupTicketHandlers } from './handlers/ticketHandlers.js';
+import { setupReconciliationApprovalHandlers } from './handlers/reconciliationApprovalHandler.js';
 
 
 export function setupQuizSocketHandlers(quizNamespace) {
@@ -28,6 +29,7 @@ export function setupQuizSocketHandlers(quizNamespace) {
     setupReconciliationHandlers(socket, quizNamespace);
     setupPaymentHandlers(socket, quizNamespace);
     setupTicketHandlers(socket, quizNamespace);
+    setupReconciliationApprovalHandlers(socket, quizNamespace);
 
 
   socket.on('disconnect', () => {

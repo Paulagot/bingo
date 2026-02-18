@@ -13,13 +13,14 @@ import PlayerListPanel from './PlayerListPanel';
 import AdminListPanel from './AdminListPanel';
 import PaymentReconciliationPanel from './PaymentReconciliation';
 import AssetUploadPanel from './AssetUploadPanel';
-
+import TicketsPanel from './TicketPanel';
 import BlockchainBadge from './BlockchainBadge';
 import PrizesTab from './PrizesTab';
 
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { useAdminStore } from '../hooks/useAdminStore';
 import { quizApi } from '../../../shared/api';
+
 
 
 import {
@@ -31,6 +32,7 @@ import {
   Info,
   Upload,
   Gift,
+  Ticket,
 } from 'lucide-react';
 import { getPrizeWorkflowStatus } from '../payments/prizeWorkflow';
 
@@ -41,7 +43,7 @@ const Web3Provider = lazy(() =>
 
 const DEBUG = false; // Enable debug logging
 
-type TabType = 'overview' | 'assets' | 'launch' | 'players' | 'admins' | 'prizes' | 'payments';
+type TabType = 'overview' | 'assets' | 'launch' | 'players' | 'admins' | 'tickets' | 'prizes' | 'payments';
 
 const uuid = () =>
   (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
@@ -613,6 +615,14 @@ useEffect(() => {
             count: admins?.length || 0,
           }]
         : []),
+            ...(!isWeb3
+      ? [{
+          id: 'tickets' as TabType,
+          label: 'Tickets',
+          icon: <Ticket className="h-4 w-4" />,
+          count: null, // Will be populated by the component
+        }]
+      : []),
       { id: 'players' as TabType, label: 'Players', icon: <Users className="h-4 w-4" />, count: players?.length || 0 },
       ...(isQuizComplete
         ? [{
@@ -1344,6 +1354,25 @@ if (!isWeb3 && dbHydrateError) {
                 <PlayerListPanel />
               </div>
             )}
+
+            {computedActiveTab === 'tickets' && !isWeb3 && (
+  <div className="space-y-6">
+    <div className="mb-4 flex items-center justify-between">
+      <h3 className="heading-2">
+        <Ticket className="h-5 w-5" />
+        <span>Ticket Management</span>
+      </h3>
+    </div>
+    <TicketsPanel 
+      roomId={roomId || ''} 
+      confirmer={{
+        id: hostId || config?.hostId || '',
+        name: config?.hostName || 'Host',
+        role: 'host', // or 'admin' if you have admin context
+      }}
+    />
+  </div>
+)}
 
             {computedActiveTab === 'admins' && !isWeb3 && (
               <div className="space-y-6">

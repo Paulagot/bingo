@@ -160,15 +160,15 @@ export function setupRecoveryHandlers(socket, namespace) {
       const isPlayerRole = role === 'player';
 
       // Capacity (Web2 only) — only enforce for players
-      if (isPlayerRole) {
-        const isWeb3 = room.config?.paymentMethod === 'web3' || room.config?.isWeb3Room === true;
-        if (!isWeb3) {
-          const limit = room.roomCaps?.maxPlayers ?? room.config?.roomCaps?.maxPlayers ?? 20;
-          if (room.players.length >= limit) {
-            return sendAck({ ok: false, error: `Room is full (limit ${limit}).` });
-          }
-        }
-      }
+  if (isPlayerRole) {
+  const isWeb3 = room.config?.paymentMethod === 'web3' || room.config?.isWeb3Room === true;
+  if (!isWeb3) {
+    const limit = room.roomCaps?.maxPlayers ?? room.config?.roomCaps?.maxPlayers ?? 20;
+    if (room.players.length >= limit) {
+      return sendAck({ ok: false, error: `Room is full (limit ${limit}).` });
+    }
+  }
+}
 
       // Uniqueness: disconnect any previous socket for this *player*
       const existingPlayer = room.players.find((p) => p.id === user.id);
@@ -249,6 +249,10 @@ if (!existingPlayer) {
 }
 
 if (!existingPlayer) {
+    if (isPlaceholderName(user.name, user.id) && !user.paymentClaimed && !user.paid) {
+    if (debug) console.warn('[Recovery] Skipping ghost player creation for', user.id);
+    return sendAck({ ok: false, error: 'Player not found. Please join the room first.' });
+  }
   addOrUpdatePlayer(roomId, { ...sanitizedUser, name: nameToUse });
   joinedUser = { ...sanitizedUser, name: nameToUse };
 

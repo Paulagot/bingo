@@ -1,7 +1,10 @@
 // src/components/Quiz/joinroom/JoinRoomFlow.refactored.tsx
+// UPDATED: Added capacity warnings for walk-in players
+
 import React, { useState, useEffect, lazy, Suspense, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { nanoid } from 'nanoid';
+import { AlertTriangle } from 'lucide-react'; // ✅ NEW IMPORT
 import { RoomVerificationStep } from './RoomVerificationStep';
 import { DemoPaymentStep } from './DemoPaymentStep';
 import type { SupportedChain } from '../../../chains/types';
@@ -83,8 +86,6 @@ interface TicketData {
   extras: string[];
   totalAmount: number;
   currency: string;
-
-  // Optional fields if your server includes them (safe to ignore if not present)
   paymentStatus?: 'payment_claimed' | 'payment_confirmed' | 'refunded' | string;
   redemptionStatus?: 'unredeemed' | 'blocked' | 'ready' | 'redeemed' | 'expired' | string;
 }
@@ -137,6 +138,15 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
   const [ticketData, setTicketData] = useState<TicketData | null>(null);
   const [validatingTicket, setValidatingTicket] = useState(false);
 
+  // ✅ NEW: Capacity tracking for walk-ins
+  const [capacity, setCapacity] = useState<{
+    maxCapacity: number;
+    availableForWalkIns: number;
+    reservedByTickets: number;
+    currentPlayers: number;
+  } | null>(null);
+  const [checkingCapacity, setCheckingCapacity] = useState(false);
+
   // Payment state
   const [paymentMethods, setPaymentMethods] = useState<ClubPaymentMethod[]>([]);
   const [selectedMethod, setSelectedMethod] = useState<ClubPaymentMethod | null>(null);
@@ -182,7 +192,50 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
     hasTicket: !!ticketData,
     ticketToken: !!ticketToken,
     selectedMethod: !!selectedMethod,
+    capacity,
   });
+
+  // ✅ NEW: Check walk-in capacity
+const checkWalkInCapacity = async (currentRoomId: string): Promise<boolean> => {
+  try {
+    setCheckingCapacity(true);
+    joinDebug('🔍 Checking walk-in capacity for room:', currentRoomId);
+
+    const response = await fetch(`/api/quiz/tickets/room/${currentRoomId}/info`);
+    const data = await response.json();
+    joinDebug('🔍 RAW capacity response:', JSON.stringify(data));
+
+    const cap = data.capacity;
+
+    if (response.ok && cap) {
+      // ✅ This endpoint uses availableForTickets, not availableForWalkIns
+      const availableSpots = cap.maxCapacity - (cap.totalTickets ?? 0);
+
+      setCapacity({
+        maxCapacity: cap.maxCapacity,
+        availableForWalkIns: availableSpots,
+        reservedByTickets: cap.totalTickets ?? 0,
+        currentPlayers: 0,
+      });
+
+      joinDebug('✅ Computed available walk-in spots:', availableSpots);
+
+      if (availableSpots <= 0) {
+        alert(`Sorry, this quiz is full. All ${cap.maxCapacity} spots are taken.`);
+        return false;
+      }
+      return true;
+    }
+
+    joinDebug('⚠️ No capacity info, allowing join');
+    return true;
+  } catch (err) {
+    console.error('[JoinFlow] Capacity check failed:', err);
+    return true;
+  } finally {
+    setCheckingCapacity(false);
+  }
+};
 
   // Check for ticket token in URL
   useEffect(() => {
@@ -209,11 +262,8 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
           setPlayerDetails({ playerName: response.ticket.playerName });
           setRoomId(response.ticket.roomId);
           setSelectedExtras(response.ticket.extras);
-
-          // ✅ IMPORTANT: ticket users should go to ticket step (not payment-instructions)
           setStep('ticket-redeem');
 
-          // Ensure we verify the correct room if URL prefilled differs
           if (prefilledRoomId !== response.ticket.roomId) {
             setIsAutoVerifying(true);
             socket.emit('verify_quiz_room', { roomId: response.ticket.roomId });
@@ -242,7 +292,7 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
 
       socket.emit('verify_quiz_room', { roomId: prefilledRoomId });
 
-      const handleVerification = (data: any) => {
+      const handleVerification = async (data: any) => {
         clearTimeout(timeout);
         setIsAutoVerifying(false);
 
@@ -252,7 +302,6 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
           return;
         }
 
-        // Set session storage for EVM networks
         if (data.web3Chain === 'evm' && data.evmNetwork) {
           sessionStorage.setItem('active-evm-network', data.evmNetwork);
           if (data.roomContractAddress) {
@@ -284,11 +333,16 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
 
         setPaymentFlow(flow);
 
-        // ✅ IMPORTANT: If this is a ticket join, DO NOT send them to payment-instructions
         if (ticketToken) {
           setStep('ticket-redeem');
         } else {
-          setStep('player-details');
+          // ✅ NEW: Check capacity for walk-ins before proceeding
+          const capacityOk = await checkWalkInCapacity(prefilledRoomId);
+          if (capacityOk) {
+            setStep('player-details');
+          } else {
+            setStep('verification');
+          }
         }
       };
 
@@ -350,7 +404,7 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
     }
   };
 
-  const handleRoomVerified = (config: any, roomId: string, playerName: string) => {
+  const handleRoomVerified = async (config: any, roomId: string, playerName: string) => {
     if (config.web3Chain === 'evm' && config.evmNetwork) {
       sessionStorage.setItem('active-evm-network', config.evmNetwork);
       if (config.roomContractAddress) {
@@ -385,13 +439,25 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
 
     setPaymentFlow(flow);
 
-    // ✅ if they're coming via ticket, keep them on ticket redeem
-    if (ticketToken) setStep('ticket-redeem');
-    else setStep('extras');
+    if (ticketToken) {
+      setStep('ticket-redeem');
+    } else {
+      // ✅ NEW: Check capacity for walk-ins
+      const capacityOk = await checkWalkInCapacity(roomId);
+      if (capacityOk) {
+        setStep('extras');
+      }
+    }
   };
 
-  const handleJoinAsUnpaid = () => {
+  const handleJoinAsUnpaid = async () => {
     if (!socket || !roomConfig) return;
+    
+    // ✅ NEW: Final capacity check before joining
+    const capacityOk = await checkWalkInCapacity(roomId);
+    if (!capacityOk) {
+      return; // Alert is shown in checkWalkInCapacity, just return here
+    }
 
     setJoiningRoom(true);
     const playerId = nanoid();
@@ -423,8 +489,12 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
     navigate(`/quiz/game/${roomId}/${playerId}`);
   };
 
-  const handleInstantPayment = () => {
+  const handleInstantPayment = async () => {
     if (!socket || !roomConfig || !selectedMethod) return;
+    
+    // ✅ NEW: Final capacity check before joining
+    const capacityOk = await checkWalkInCapacity(roomId);
+    if (!capacityOk) return;
 
     setJoiningRoom(true);
     const playerId = nanoid();
@@ -467,43 +537,50 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
     navigate(`/quiz/game/${roomId}/${playerId}`);
   };
 
-  const handleTicketRedeem = () => {
-    if (!socket || !ticketToken) return;
+   const handleTicketRedeem = () => {
+  if (!socket || !ticketToken) return;
 
-    setJoiningRoom(true);
-    const playerId = nanoid();
+  setJoiningRoom(true);
+  const playerId = nanoid();
 
-    socket.emit(
-      'redeem_ticket_and_join',
-      {
-        joinToken: ticketToken,
-        playerId,
-      },
-      (response: any) => {
-        if (response.ok) {
-          socket.emit('join_quiz_room', {
-            roomId: response.roomId,
-            user: {
-              ...response.playerData,
-              id: playerId,
-            },
-            role: 'player' as const,
-            ticketId: ticketData?.ticketId,
-          });
-
-          localStorage.setItem(`quizPlayerId:${response.roomId}`, playerId);
-          navigate(`/quiz/game/${response.roomId}/${playerId}`);
-        } else {
-          alert(response.error || 'Failed to redeem ticket');
-          setJoiningRoom(false);
-        }
+  socket.emit('redeem_ticket_and_join', { joinToken: ticketToken, playerId }, (response: any) => {
+    if (response.ok) {
+      if (ticketData?.ticketId) {
+        localStorage.setItem(`quizTicketId:${response.roomId}:${playerId}`, ticketData.ticketId);
       }
-    );
-  };
+
+      socket.emit('join_quiz_room', {
+        roomId: response.roomId,
+        user: { ...response.playerData, id: playerId },
+        role: 'player' as const,
+        ticketId: ticketData?.ticketId,
+      });
+
+      localStorage.setItem(`quizPlayerId:${response.roomId}`, playerId);
+      
+      // ✅ Pass player name via navigation state
+      navigate(`/quiz/game/${response.roomId}/${playerId}`, {
+        state: { 
+          playerName: response.playerData?.name || ticketData?.playerName,
+          paid: response.playerData?.paid ?? true,
+          paymentMethod: response.playerData?.paymentMethod || 'instant_payment',
+        }
+      });
+    } else {
+      alert(response.error || 'Failed to redeem ticket');
+      setJoiningRoom(false);
+    }
+  });
+};
+
 
   // Loading states
-  if (isAutoVerifying || validatingTicket) {
-    const message = validatingTicket ? 'Validating your ticket...' : `Verifying room ${prefilledRoomId}...`;
+  if (isAutoVerifying || validatingTicket || checkingCapacity) {
+    let message = 'Loading...';
+    if (validatingTicket) message = 'Validating your ticket...';
+    else if (checkingCapacity) message = 'Checking room availability...';
+    else if (isAutoVerifying) message = `Verifying room ${prefilledRoomId}...`;
+    
     return <FullScreenLoader message={message} />;
   }
 
@@ -534,7 +611,6 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
         <RoomVerificationStep onVerified={handleRoomVerified} onClose={onClose} />
       )}
 
-      {/* ✅ Ticket Redemption Step */}
       {step === 'ticket-redeem' && roomConfig && ticketData && ticketToken && (
         <StepLayout
           mode="modal"
@@ -544,10 +620,7 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
           footer={
             <div className="flex flex-col space-y-3 sm:flex-row sm:space-x-3 sm:space-y-0">
               <button
-                onClick={() => {
-                  // safest back for ticket users
-                  onClose();
-                }}
+                onClick={onClose}
                 className="flex items-center justify-center rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 sm:px-6 sm:py-3 sm:text-base"
               >
                 Close
@@ -568,7 +641,7 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
               <div className="flex items-start gap-3">
                 <div className="text-2xl">✅</div>
                 <div>
-                  <div className="font-semibold text-blue-900">You’re all set</div>
+                  <div className="font-semibold text-blue-900">You're all set</div>
                   <div className="text-sm text-blue-800">
                     Ticket holder: <span className="font-medium">{ticketData.playerName}</span>
                   </div>
@@ -601,33 +674,75 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
           </div>
         </StepLayout>
       )}
-
-      {step === 'player-details' && roomConfig && !ticketData && (
-        <StepLayout
-          mode="modal"
-          icon="🎯"
-          title={`Joining ${roomConfig.hostName ? `${roomConfig.hostName}'s` : 'the'} Game`}
-          subtitle={`Room ${roomId}`}
-          footer={
-            <ActionButtons
-              onBack={() => setStep('verification')}
-              onContinue={() => setStep('extras')}
-              continueLabel="Continue to Extras"
-              continueDisabled={!isPlayerDetailsValid}
-            />
-          }
-        >
-          <PlayerDetailsForm
-            formData={playerDetails}
-            onChange={setPlayerDetails}
-            mode="join"
-            totalAmount={totalAmount}
-            currencySymbol={roomConfig.currencySymbol}
-            extrasTotal={extrasTotal}
-            entryFee={roomConfig.entryFee}
+{step === 'player-details' && roomConfig && !ticketData && (
+  <>
+    {capacity && capacity.availableForWalkIns <= 0 ? (
+      <StepLayout
+        mode="modal"
+        icon="🚫"
+        title="Room Full"
+        subtitle={`Room ${roomId}`}
+        footer={
+          <button
+            onClick={onClose}
+            className="w-full rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 sm:px-6 sm:py-3 sm:text-base"
+          >
+            Close
+          </button>
+        }
+      >
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center">
+          <p className="font-semibold text-red-900">This quiz is full</p>
+          <p className="text-sm text-red-700 mt-1">
+            All {capacity.maxCapacity} spots are taken.
+          </p>
+        </div>
+      </StepLayout>
+    ) : (
+      <StepLayout
+        mode="modal"
+        icon="🎯"
+        title={`Joining ${roomConfig.hostName ? `${roomConfig.hostName}'s` : 'the'} Game`}
+        subtitle={`Room ${roomId}`}
+        footer={
+          <ActionButtons
+            onBack={() => setStep('verification')}
+            onContinue={() => setStep('extras')}
+            continueLabel="Continue to Extras"
+            continueDisabled={!isPlayerDetailsValid}
           />
-        </StepLayout>
-      )}
+        }
+      >
+        {capacity && capacity.availableForWalkIns > 0 && capacity.availableForWalkIns <= 5 && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
+              <div>
+                <div className="font-semibold text-amber-900">Limited availability</div>
+                <div className="text-sm text-amber-800">
+                  Only <strong>{capacity.availableForWalkIns}</strong> walk-in spot{capacity.availableForWalkIns === 1 ? '' : 's'} remaining.
+                  {capacity.reservedByTickets > 0 && (
+                    <> ({capacity.reservedByTickets} spots reserved by ticket holders)</>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <PlayerDetailsForm
+          formData={playerDetails}
+          onChange={setPlayerDetails}
+          mode="join"
+          totalAmount={totalAmount}
+          currencySymbol={roomConfig.currencySymbol}
+          extrasTotal={extrasTotal}
+          entryFee={roomConfig.entryFee}
+        />
+      </StepLayout>
+    )}
+  </>
+)}
 
       {step === 'extras' && roomConfig && (
         <StepLayout
@@ -643,6 +758,18 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
             />
           }
         >
+          {/* ✅ NEW: Capacity warning */}
+          {capacity && capacity.availableForWalkIns > 0 && capacity.availableForWalkIns <= 5 && (
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <span className="text-amber-900">
+                  Only <strong>{capacity.availableForWalkIns}</strong> walk-in spot{capacity.availableForWalkIns === 1 ? '' : 's'} remaining
+                </span>
+              </div>
+            </div>
+          )}
+
           <ExtrasSelector
             availableExtras={availableExtras}
             selectedExtras={selectedExtras}
@@ -709,7 +836,6 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
           footer={<ActionButtons onBack={() => setStep('extras')} />}
         >
           <div className="space-y-5">
-            {/* Amount Summary */}
             <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -850,13 +976,7 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
                 ? selectedMethod.methodConfig.link
                 : undefined
             }
-            revolutQR={
-              selectedMethod.providerName?.toLowerCase() === 'revolut' &&
-              selectedMethod.methodConfig &&
-              'qrCodeUrl' in selectedMethod.methodConfig
-                ? selectedMethod.methodConfig.qrCodeUrl
-                : undefined
-            }
+          
             error={null}
             hasEverCopied={hasCopiedReference}
             onCopied={() => setHasCopiedReference(true)}

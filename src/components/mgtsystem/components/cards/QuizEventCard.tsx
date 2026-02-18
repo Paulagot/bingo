@@ -2,13 +2,13 @@
 import { useMemo, useState, useEffect } from 'react';
 import {
   Play, Lock, ChevronDown, ChevronUp,
-  Trophy, Zap, Target, Layers, Info, 
+  Trophy, Zap, Target, Layers, Info,
   Link2, Unlink, Edit, Trash2, Clock, Ticket, CheckCircle, Copy, BarChart3,
-  Calendar, AlertCircle, Tag, CreditCard,  DollarSign, Plus,
+  Calendar, AlertCircle, Tag, CreditCard, DollarSign, Plus,
 } from 'lucide-react';
 
 import { TicketManagerModal } from '../../modals/QuizTicketmanagermodal';
-import { QuizFinancialReportModal } from '../../modals/QuizFinancialReportModal'; 
+import { QuizFinancialReportModal } from '../../modals/QuizFinancialReportModal';
 import type { Web2RoomListItem } from '@/shared/api/quiz.api';
 import type { RoomStats } from '../../services/quizRoomServices';
 import { formatDateTime, minutesUntil, safeJsonParse } from '../../utils/QuizGameUtils';
@@ -18,6 +18,8 @@ import MarkLatePaymentModal from '../../modals/QuizMarkLatePaymentModal';
 import { useAuthStore } from '../../../../features/auth';
 import quizLatePaymentsService from '../../services/QuizLatePaymentsService';
 
+// ✅ NEW: personalised round modal
+import { PersonalisedRoundModal } from '../../modals/QuizPersonalisedRoundModal';
 
 type Prize = { place: number; value: number; description?: string };
 type RoomCaps = { maxRounds: number; maxPlayers: number; extrasAllowed: string[]; roundTypesAllowed?: string[] };
@@ -44,13 +46,13 @@ export type ParsedConfig = {
   fundraisingPrices?: Record<string, number>;
 };
 
-const EXTRA_LABELS: Record<string, string> = { 
-  buyHint: 'Hint', 
-  restorePoints: 'Restore', 
-  freezeOutTeam: 'Freeze', 
-  robPoints: 'Rob', 
-  skipQuestion: 'Skip', 
-  doublePoints: '2x Points' 
+const EXTRA_LABELS: Record<string, string> = {
+  buyHint: 'Hint',
+  restorePoints: 'Restore',
+  freezeOutTeam: 'Freeze',
+  robPoints: 'Rob',
+  skipQuestion: 'Skip',
+  doublePoints: '2x Points'
 };
 
 export function QuizEventCard({
@@ -78,19 +80,22 @@ export function QuizEventCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [ticketModalOpen, setTicketModalOpen] = useState(false);
-  const [reportModalOpen, setReportModalOpen] = useState(false); 
+  const [reportModalOpen, setReportModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [latePaymentsOpen, setLatePaymentsOpen] = useState(false);
-const user = useAuthStore((s: any) => s.user);
-const confirmedBy = user?.id || user?.user_id || user?.club_user_id; // whichever your auth store uses
-const confirmedByName = user?.name || user?.full_name || user?.first_name || 'Admin';
-const confirmedByRole: 'host' | 'admin' = 'admin';
-const [outstandingCount, setOutstandingCount] = useState<number>(0);
+
+  // ✅ NEW: personalised round modal state
+  const [personalisedOpen, setPersonalisedOpen] = useState(false);
+
+  const user = useAuthStore((s: any) => s.user);
+  const confirmedBy = user?.id || user?.user_id || user?.club_user_id;
+  const confirmedByName = user?.name || user?.full_name || user?.first_name || 'Admin';
+  const confirmedByRole: 'host' | 'admin' = 'admin';
+  const [outstandingCount, setOutstandingCount] = useState<number>(0);
 
   const config = useMemo(() => safeJsonParse<ParsedConfig>(room.config_json, {} as ParsedConfig), [room.config_json]);
 
-  // Extract stats with fallbacks
   const ticketsSold = stats?.ticketsSold ?? 0;
   const uniquePlayers = stats?.uniquePlayers ?? 0;
   const totalIncome = stats?.totalIncome ?? 0;
@@ -114,18 +119,17 @@ const [outstandingCount, setOutstandingCount] = useState<number>(0);
     }
   };
 
-  // Placeholder handlers for new functionality
+  // ✅ UPDATED: open the modal instead of alert()
   const handlePersonalise = () => {
-    alert('Personalise functionality to be implemented');
+    setPersonalisedOpen(true);
   };
 
-const handleLinkPaymentMethod = () => {
-  setPaymentModalOpen(true);
-};
-
+  const handleLinkPaymentMethod = () => {
+    setPaymentModalOpen(true);
+  };
 
   const handleManageOutstandingPayments = () => {
-   setLatePaymentsOpen(true);
+    setLatePaymentsOpen(true);
   };
 
   const mins = minutesUntil(room.scheduled_at);
@@ -134,14 +138,14 @@ const handleLinkPaymentMethod = () => {
   const isCompleted = room.status === 'completed';
   const isCancelled = room.status === 'cancelled';
   const isLinked = !!linkedEventId;
-  
+
   const showReportButton = isCompleted;
-  
-  const canOpen = 
-    !isCompleted && 
-    !isCancelled && 
+
+  const canOpen =
+    !isCompleted &&
+    !isCancelled &&
     (isLive || (isScheduled && mins !== null && mins <= 60));
-  
+
   const canEdit = isScheduled && onEdit;
   const canCancel = isScheduled && onCancel;
   const isWeb2Room = config.paymentMethod !== 'web3';
@@ -156,7 +160,7 @@ const handleLinkPaymentMethod = () => {
   const currencySymbol = config.currencySymbol || '€';
   const selectedTemplate = config.selectedTemplate || 'Custom';
   const rounds = config.roundDefinitions || [];
-  
+
   const enabledExtras = Object.entries(config.fundraisingOptions || {})
     .filter(([_, enabled]) => enabled === true)
     .map(([key]) => ({
@@ -184,81 +188,85 @@ const handleLinkPaymentMethod = () => {
     }
   };
 
+  console.log('[OpenGate]', {
+    scheduled_at: room.scheduled_at,
+    time_zone: room.time_zone,
+    now: new Date().toISOString(),
+    mins,
+    status: room.status,
+  });
+
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '—';
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-GB', { 
+    return date.toLocaleDateString('en-GB', {
       weekday: 'short',
-      day: 'numeric', 
-      month: 'short', 
-      year: 'numeric' 
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
     });
   };
 
   const formatTime = (dateStr: string | null) => {
     if (!dateStr) return '';
     const date = new Date(dateStr);
-    return date.toLocaleTimeString('en-GB', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return date.toLocaleTimeString('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
-  // Check for linked payment methods when component mounts or room changes
-useEffect(() => {
-  const checkPaymentMethods = async () => {
-    if (!room.room_id || !isWeb2Room) {
-      setHasLinkedPaymentMethods(false);
-      return;
-    }
+  useEffect(() => {
+    const checkPaymentMethods = async () => {
+      if (!room.room_id || !isWeb2Room) {
+        setHasLinkedPaymentMethods(false);
+        return;
+      }
 
-    try {
-      const response = await quizPaymentMethodsService.getQuizPaymentMethods(room.room_id);
-      setHasLinkedPaymentMethods(response.linked_method_ids.length > 0);
-    } catch (err) {
-      console.error('Failed to check payment methods:', err);
-      setHasLinkedPaymentMethods(false);
-    }
-  };
+      try {
+        const response = await quizPaymentMethodsService.getQuizPaymentMethods(room.room_id);
+        setHasLinkedPaymentMethods(response.linked_method_ids.length > 0);
+      } catch (err) {
+        console.error('Failed to check payment methods:', err);
+        setHasLinkedPaymentMethods(false);
+      }
+    };
 
-  checkPaymentMethods();
-}, [room.room_id, isWeb2Room]);
+    checkPaymentMethods();
+  }, [room.room_id, isWeb2Room]);
 
-// ✅ NEW: Only show ticket actions if payment methods are linked
-const showTicketActionsWithPayment = showTicketActions && hasLinkedPaymentMethods;
+  const showTicketActionsWithPayment = showTicketActions && hasLinkedPaymentMethods;
 
-useEffect(() => {
-  const run = async () => {
-    if (!isCompleted) {
-      setOutstandingCount(0);
-      return;
-    }
-    try {
-      const res = await quizLatePaymentsService.getUnpaidPlayers(room.room_id);
-      setOutstandingCount(res.players?.length || 0);
-    } catch (e) {
-      setOutstandingCount(0);
-    }
-  };
-  run();
-}, [room.room_id, isCompleted]);
+  useEffect(() => {
+    const run = async () => {
+      if (!isCompleted) {
+        setOutstandingCount(0);
+        return;
+      }
+      try {
+        const res = await quizLatePaymentsService.getUnpaidPlayers(room.room_id);
+        setOutstandingCount(res.players?.length || 0);
+      } catch (e) {
+        setOutstandingCount(0);
+      }
+    };
+    run();
+  }, [room.room_id, isCompleted]);
 
   // ============================================================================
   // TABLE VIEW
   // ============================================================================
   const tableView = (
     <div className="border-b border-gray-100 bg-white hover:bg-gray-50 transition-colors">
-      <div className="flex items-center gap-3 p-3">
-        {/* Status - Fixed width */}
+      <div className="min-w-[1050px] flex items-center gap-3 p-3">
         <div className="w-24 flex-shrink-0">
           <span className={`px-2 py-1 rounded-full border text-xs font-semibold inline-block text-center w-full ${getStatusBadgeColor(room.status)}`}>
-            {room.status === 'scheduled' ? 'Scheduled' : 
-             room.status === 'live' ? 'Live' : 
-             room.status === 'completed' ? 'Done' : 'Cancelled'}
+            {room.status === 'scheduled' ? 'Scheduled' :
+              room.status === 'live' ? 'Live' :
+                room.status === 'completed' ? 'Done' : 'Cancelled'}
           </span>
         </div>
 
-        {/* Date/Time - Fixed width */}
         <div className="w-32 flex-shrink-0 text-xs">
           {room.scheduled_at ? (
             <>
@@ -274,12 +282,10 @@ useEffect(() => {
           )}
         </div>
 
-        {/* Entry Fee - Fixed width */}
         <div className="w-20 flex-shrink-0 text-xs font-semibold text-gray-900">
           {parseFloat(entryFee) > 0 ? `${currencySymbol}${entryFee}` : 'Free'}
         </div>
 
-        {/* Tickets Sold */}
         <div className="w-16 flex-shrink-0 text-xs font-semibold text-center">
           {stats ? (
             <span className="text-orange-700">{ticketsSold}</span>
@@ -288,7 +294,6 @@ useEffect(() => {
           )}
         </div>
 
-        {/* Unique Players */}
         <div className="w-16 flex-shrink-0 text-xs font-semibold text-center">
           {stats ? (
             <span className="text-indigo-700">{uniquePlayers}</span>
@@ -297,12 +302,10 @@ useEffect(() => {
           )}
         </div>
 
-        {/* Max Players */}
         <div className="w-16 flex-shrink-0 text-xs font-semibold text-center text-gray-700">
           {maxPlayers > 0 ? maxPlayers : '—'}
         </div>
 
-        {/* Total Income */}
         <div className="w-24 flex-shrink-0 text-xs font-semibold text-right">
           {stats && totalIncome > 0 ? (
             <span className="text-green-700">{currencySymbol}{totalIncome.toFixed(2)}</span>
@@ -311,7 +314,6 @@ useEffect(() => {
           )}
         </div>
 
-        {/* Extras - Flex */}
         <div className="flex-1 min-w-0 text-xs">
           {enabledExtras.length > 0 ? (
             <div className="flex items-center gap-1">
@@ -326,14 +328,11 @@ useEffect(() => {
           )}
         </div>
 
-        {/* Prizes - Reduced width to give more room for actions */}
         <div className="w-16 flex-shrink-0 text-xs font-semibold text-gray-900 text-right">
           {prizeValue > 0 ? `${currencySymbol}${prizeValue}` : '—'}
         </div>
 
-        {/* Actions - Increased width for more icons */}
-        <div className="w-80 flex items-center justify-end gap-1 flex-shrink-0">
-          {/* Edit (only for scheduled) */}
+        <div className="w-72 lg:w-80 flex items-center justify-end gap-1 flex-shrink-0">
           {canEdit && (
             <button
               type="button"
@@ -345,7 +344,6 @@ useEffect(() => {
             </button>
           )}
 
-          {/* Personalise (only for scheduled) */}
           {isScheduled && (
             <button
               type="button"
@@ -357,7 +355,6 @@ useEffect(() => {
             </button>
           )}
 
-          {/* Link Payment Method (only for scheduled) */}
           {isScheduled && (
             <button
               type="button"
@@ -368,50 +365,45 @@ useEffect(() => {
               <CreditCard className="h-3.5 w-3.5 text-emerald-700" />
             </button>
           )}
-      {/* Copy Ticket Link (only if payment methods linked) - ✅ Updated condition */}
-      
-  {showTicketActionsWithPayment && (
-    <button
-      type="button"
-      onClick={copyTicketLink}
-      className="p-1.5 rounded border border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors"
-      title={copied ? 'Copied!' : 'Copy ticket purchase link'}
-    >
-      {copied ? (
-        <CheckCircle className="h-3.5 w-3.5 text-green-600" />
-      ) : (
-        <Copy className="h-3.5 w-3.5 text-blue-700" />
-      )}
-    </button>
-  )}
-          
-  {/* Manage Tickets (only if payment methods linked) - ✅ Updated condition */}
-  {showTicketActionsWithPayment && (
-    <button
-      type="button"
-      onClick={() => setTicketModalOpen(true)}
-      className="p-1.5 rounded border border-purple-200 bg-purple-50 hover:bg-purple-100 transition-colors"
-      title="Manage tickets"
-    >
-      <Ticket className="h-3.5 w-3.5 text-purple-700" />
-    </button>
-  )}
 
-          {/* Link/Unlink Event (not cancelled) */}
+          {showTicketActionsWithPayment && (
+            <button
+              type="button"
+              onClick={copyTicketLink}
+              className="p-1.5 rounded border border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors"
+              title={copied ? 'Copied!' : 'Copy ticket purchase link'}
+            >
+              {copied ? (
+                <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+              ) : (
+                <Copy className="h-3.5 w-3.5 text-blue-700" />
+              )}
+            </button>
+          )}
+
+          {showTicketActionsWithPayment && (
+            <button
+              type="button"
+              onClick={() => setTicketModalOpen(true)}
+              className="p-1.5 rounded border border-purple-200 bg-purple-50 hover:bg-purple-100 transition-colors"
+              title="Manage tickets"
+            >
+              <Ticket className="h-3.5 w-3.5 text-purple-700" />
+            </button>
+          )}
+
           {!isCancelled && onLinkToEvent && onUnlinkFromEvent && (
             <button
               type="button"
               onClick={() => isLinked && onUnlinkFromEvent ? onUnlinkFromEvent(room) : onLinkToEvent?.(room)}
-              className={`p-1.5 rounded border transition-colors ${
-                isLinked ? 'border-indigo-200 bg-indigo-50 hover:bg-indigo-100' : 'border-indigo-200 hover:bg-indigo-50'
-              }`}
+              className={`p-1.5 rounded border transition-colors ${isLinked ? 'border-indigo-200 bg-indigo-50 hover:bg-indigo-100' : 'border-indigo-200 hover:bg-indigo-50'
+                }`}
               title={isLinked ? 'Unlink from event' : 'Link to event'}
             >
               {isLinked ? <Unlink className="h-3.5 w-3.5 text-indigo-700" /> : <Link2 className="h-3.5 w-3.5 text-indigo-700" />}
             </button>
           )}
 
-          {/* Cancel (only for scheduled) */}
           {canCancel && (
             <button
               type="button"
@@ -423,24 +415,22 @@ useEffect(() => {
             </button>
           )}
 
-          {/* Manage Outstanding Payments (only for completed) */}
-        {isCompleted && (
-  <button
-    type="button"
-    onClick={handleManageOutstandingPayments}
-    className="relative p-1.5 rounded border border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors"
-    title="Manage outstanding payments"
-  >
-    <DollarSign className="h-3.5 w-3.5 text-orange-700" />
-    {outstandingCount > 0 && (
-      <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] leading-[18px] text-center font-bold">
-        {outstandingCount}
-      </span>
-    )}
-  </button>
-)}
-          
-          {/* Financial Report (only for completed) */}
+          {isCompleted && (
+            <button
+              type="button"
+              onClick={handleManageOutstandingPayments}
+              className="relative p-1.5 rounded border border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors"
+              title="Manage outstanding payments"
+            >
+              <DollarSign className="h-3.5 w-3.5 text-orange-700" />
+              {outstandingCount > 0 && (
+                <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] leading-[18px] text-center font-bold">
+                  {outstandingCount}
+                </span>
+              )}
+            </button>
+          )}
+
           {showReportButton && (
             <button
               type="button"
@@ -451,23 +441,20 @@ useEffect(() => {
               <BarChart3 className="h-3.5 w-3.5 text-indigo-700" />
             </button>
           )}
-          
-          {/* Open (not completed/cancelled) */}
+
           {!isCompleted && !isCancelled && (
             <button
               type="button"
               onClick={() => onOpenRoom(room.room_id, room.host_id)}
               disabled={!canOpen}
-              className={`inline-flex items-center gap-1 rounded px-3 py-1.5 text-xs font-semibold transition whitespace-nowrap ${
-                canOpen ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-              }`}
+              className={`inline-flex items-center gap-1 rounded px-3 py-1.5 text-xs font-semibold transition whitespace-nowrap ${canOpen ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                }`}
             >
               {canOpen ? <Play className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
               Open
             </button>
           )}
-          
-          {/* Done badge (completed) */}
+
           {isCompleted && (
             <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-gray-100 text-gray-600 text-xs font-semibold">
               <CheckCircle className="h-3.5 w-3.5" />
@@ -476,8 +463,7 @@ useEffect(() => {
           )}
         </div>
       </div>
-      
-      {/* Linked Event Badge (table view) */}
+
       {isLinked && linkedEventTitle && (
         <div className="px-3 pb-2">
           <div className="flex items-center gap-2 text-xs text-indigo-700 bg-indigo-50 px-2 py-1 rounded border border-indigo-200 inline-flex">
@@ -506,12 +492,10 @@ useEffect(() => {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              {/* Status badge */}
               <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium border ${getStatusBadgeColor(room.status)}`}>
                 {room.status.charAt(0).toUpperCase() + room.status.slice(1)}
               </span>
 
-              {/* Time badge for scheduled */}
               {mins !== null && isScheduled && mins > 0 && (
                 <span className="inline-flex items-center rounded-full px-2.5 py-1 bg-orange-50 border border-orange-200 text-orange-700 text-xs font-medium">
                   <Clock className="h-3 w-3 mr-1" />
@@ -519,19 +503,16 @@ useEffect(() => {
                 </span>
               )}
 
-              {/* Template badge */}
               <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
                 {selectedTemplate}
               </span>
 
-              {/* Room ID */}
               <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-mono text-gray-600">
                 {room.room_id.slice(0, 8)}...
               </span>
             </div>
           </div>
 
-          {/* Quick Actions (Edit & Cancel only) */}
           <div className="flex shrink-0 items-center gap-1">
             {canEdit && (
               <button
@@ -543,7 +524,7 @@ useEffect(() => {
                 <Edit className="h-4 w-4" />
               </button>
             )}
-            
+
             {canCancel && (
               <button
                 type="button"
@@ -557,7 +538,6 @@ useEffect(() => {
           </div>
         </div>
 
-        {/* Linked Event Badge */}
         {isLinked && linkedEventTitle && (
           <div className="flex items-center gap-2 text-xs text-indigo-700 bg-indigo-50 px-3 py-2 rounded-lg border border-indigo-200">
             <Link2 className="h-3.5 w-3.5 flex-shrink-0" />
@@ -568,7 +548,6 @@ useEffect(() => {
 
       {/* Key Details */}
       <div className="p-4 space-y-3">
-        {/* Date & Time */}
         <div className="flex items-center gap-2 text-sm text-gray-700">
           <Clock className="h-4 w-4 text-gray-400 shrink-0" />
           <span className="truncate">
@@ -576,19 +555,16 @@ useEffect(() => {
           </span>
         </div>
 
-        {/* Host */}
         <div className="flex items-center gap-2 text-sm text-gray-700">
           <Target className="h-4 w-4 text-gray-400 shrink-0" />
           <span className="truncate">Host: <span className="font-semibold">{hostName}</span></span>
         </div>
 
-        {/* Template & Rounds */}
         <div className="flex items-center gap-2 text-sm text-gray-700">
           <Layers className="h-4 w-4 text-gray-400 shrink-0" />
           <span>{rounds.length} round{rounds.length !== 1 ? 's' : ''}</span>
         </div>
 
-        {/* Stats Row */}
         {stats && (
           <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-100">
             <div className="text-center">
@@ -616,7 +592,6 @@ useEffect(() => {
           </span>
         </div>
 
-        {/* Total Income */}
         {stats && totalIncome > 0 && (
           <div className="flex justify-between items-center text-sm">
             <span className="text-gray-600">Total Income:</span>
@@ -666,7 +641,6 @@ useEffect(() => {
 
       {/* Action Buttons */}
       <div className="p-4 border-t border-gray-100 space-y-2">
-        {/* Primary Action */}
         {!isCompleted && !isCancelled && (
           <button
             type="button"
@@ -687,138 +661,127 @@ useEffect(() => {
           </div>
         )}
 
-        {/* Secondary Actions - Reordered: Edit, Personalise, Link Payment, Copy Link, Tickets, Link Event, Cancel */}
-       <div className="grid grid-cols-2 gap-2">
-  {/* Edit (scheduled only) */}
-  {canEdit && (
-    <button
-      type="button"
-      onClick={() => onEdit(room)}
-      className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-    >
-      <Edit className="h-4 w-4" />
-      Edit
-    </button>
-  )}
+        <div className="grid grid-cols-2 gap-2">
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => onEdit(room)}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <Edit className="h-4 w-4" />
+              Edit
+            </button>
+          )}
 
-  {/* Add Personalised Round (scheduled only) - ✅ Changed icon to Plus */}
-  {isScheduled && (
-    <button
-      type="button"
-      onClick={handlePersonalise}
-      className="inline-flex items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
-    >
-      <Plus className="h-4 w-4" />
-      Add Round
-    </button>
-  )}
+          {isScheduled && (
+            <button
+              type="button"
+              onClick={handlePersonalise}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              Add Round
+            </button>
+          )}
 
-  {/* Link Payment Method (scheduled only) */}
-  {isScheduled && (
-    <button
-      type="button"
-      onClick={handleLinkPaymentMethod}
-      className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
-    >
-      <CreditCard className="h-4 w-4" />
-      Payment
-    </button>
-  )}
+          {isScheduled && (
+            <button
+              type="button"
+              onClick={handleLinkPaymentMethod}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
+            >
+              <CreditCard className="h-4 w-4" />
+              Payment
+            </button>
+          )}
 
-  {/* Copy Ticket Link (only if payment methods linked) - ✅ Updated condition */}
-  {showTicketActionsWithPayment && (
-    <button
-      type="button"
-      onClick={copyTicketLink}
-      className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors"
-    >
-      {copied ? (
-        <>
-          <CheckCircle className="h-4 w-4" />
-          Copied!
-        </>
-      ) : (
-        <>
-          <Copy className="h-4 w-4" />
-          Copy Link
-        </>
-      )}
-    </button>
-  )}
-  
-  {/* Manage Tickets (only if payment methods linked) - ✅ Updated condition */}
-  {showTicketActionsWithPayment && (
-    <button
-      type="button"
-      onClick={() => setTicketModalOpen(true)}
-      className="inline-flex items-center justify-center gap-2 rounded-lg border border-purple-200 bg-purple-50 px-3 py-2 text-sm font-medium text-purple-700 hover:bg-purple-100 transition-colors"
-    >
-      <Ticket className="h-4 w-4" />
-      Tickets
-    </button>
-  )}
+          {showTicketActionsWithPayment && (
+            <button
+              type="button"
+              onClick={copyTicketLink}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors"
+            >
+              {copied ? (
+                <>
+                  <CheckCircle className="h-4 w-4" />
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <Copy className="h-4 w-4" />
+                  Copy Link
+                </>
+              )}
+            </button>
+          )}
 
-  {/* Link/Unlink Event (not cancelled) */}
-  {!isCancelled && onLinkToEvent && onUnlinkFromEvent && (
-    <button
-      type="button"
-      onClick={() => isLinked && onUnlinkFromEvent ? onUnlinkFromEvent(room) : onLinkToEvent?.(room)}
-      className={`inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-        isLinked
-          ? 'border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
-          : 'border-indigo-200 text-indigo-700 hover:bg-indigo-50'
-      }`}
-    >
-      {isLinked ? (
-        <>
-          <Unlink className="h-4 w-4" />
-          Unlink
-        </>
-      ) : (
-        <>
-          <Link2 className="h-4 w-4" />
-          Link Event
-        </>
-      )}
-    </button>
-  )}
+          {showTicketActionsWithPayment && (
+            <button
+              type="button"
+              onClick={() => setTicketModalOpen(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-purple-200 bg-purple-50 px-3 py-2 text-sm font-medium text-purple-700 hover:bg-purple-100 transition-colors"
+            >
+              <Ticket className="h-4 w-4" />
+              Tickets
+            </button>
+          )}
 
-  {/* Cancel (scheduled only) */}
-  {canCancel && (
-    <button
-      type="button"
-      onClick={() => onCancel(room)}
-      className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100 transition-colors"
-    >
-      <Trash2 className="h-4 w-4" />
-      Cancel
-    </button>
-  )}
+          {!isCancelled && onLinkToEvent && onUnlinkFromEvent && (
+            <button
+              type="button"
+              onClick={() => isLinked && onUnlinkFromEvent ? onUnlinkFromEvent(room) : onLinkToEvent?.(room)}
+              className={`inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${isLinked
+                ? 'border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                : 'border-indigo-200 text-indigo-700 hover:bg-indigo-50'
+                }`}
+            >
+              {isLinked ? (
+                <>
+                  <Unlink className="h-4 w-4" />
+                  Unlink
+                </>
+              ) : (
+                <>
+                  <Link2 className="h-4 w-4" />
+                  Link Event
+                </>
+              )}
+            </button>
+          )}
 
-  {/* Manage Outstanding Payments (completed only) */}
-  {isCompleted && (
-    <button
-      type="button"
-      onClick={handleManageOutstandingPayments}
-      className="inline-flex items-center justify-center gap-2 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm font-medium text-orange-700 hover:bg-orange-100 transition-colors"
-    >
-      <DollarSign className="h-4 w-4" />
-      Payments
-    </button>
-  )}
-  
-  {/* Financial Report (completed only) */}
-  {showReportButton && (
-    <button
-      type="button"
-      onClick={() => setReportModalOpen(true)}
-      className="inline-flex items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
-    >
-      <BarChart3 className="h-4 w-4" />
-      Report
-    </button>
-  )}
-</div>
+          {canCancel && (
+            <button
+              type="button"
+              onClick={() => onCancel(room)}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100 transition-colors"
+            >
+              <Trash2 className="h-4 w-4" />
+              Cancel
+            </button>
+          )}
+
+          {isCompleted && (
+            <button
+              type="button"
+              onClick={handleManageOutstandingPayments}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm font-medium text-orange-700 hover:bg-orange-100 transition-colors"
+            >
+              <DollarSign className="h-4 w-4" />
+              Payments
+            </button>
+          )}
+
+          {showReportButton && (
+            <button
+              type="button"
+              onClick={() => setReportModalOpen(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
+            >
+              <BarChart3 className="h-4 w-4" />
+              Report
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Expandable Details */}
@@ -836,7 +799,6 @@ useEffect(() => {
 
         {expanded && (
           <div className="px-4 pb-4 space-y-4">
-            {/* Rounds */}
             {rounds.length > 0 ? (
               <div>
                 <div className="flex items-center gap-2 mb-3">
@@ -870,7 +832,6 @@ useEffect(() => {
               <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-500">No rounds configured</div>
             )}
 
-            {/* All Extras */}
             {enabledExtras.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-3">
@@ -889,7 +850,6 @@ useEffect(() => {
               </div>
             )}
 
-            {/* Prize Breakdown */}
             {config.prizes && config.prizes.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-3">
@@ -911,7 +871,6 @@ useEffect(() => {
         )}
       </div>
 
-      {/* Footer note */}
       {!canOpen && isScheduled && (
         <div className="px-4 pb-4">
           <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 p-2 rounded-lg">
@@ -927,16 +886,19 @@ useEffect(() => {
     <>
       {viewMode === 'table' ? tableView : cardView}
 
-      {/* Ticket Manager Modal */}
       {ticketModalOpen && (
         <TicketManagerModal
           roomId={room.room_id}
           roomName={`${formatDateTime(room.scheduled_at, room.time_zone)} - ${hostName}'s Quiz`}
           onClose={() => setTicketModalOpen(false)}
+          confirmer={{
+            id: confirmedBy,
+            name: confirmedByName,
+            role: confirmedByRole,
+          }}
         />
       )}
 
-      {/* Financial Report Modal */}
       {reportModalOpen && (
         <QuizFinancialReportModal
           roomId={room.room_id}
@@ -945,28 +907,39 @@ useEffect(() => {
           onClose={() => setReportModalOpen(false)}
         />
       )}
-{/* Payment Methods Modal */}
-<QuizPaymentMethodsModal
-  isOpen={paymentModalOpen}
-  roomId={room.room_id}
-  roomTitle={`${formatDateTime(room.scheduled_at, room.time_zone)} - ${hostName}'s Quiz`}
-  onClose={() => setPaymentModalOpen(false)}
-  onSuccess={() => {
-    console.log('Payment methods updated successfully');
-  }}
-/>
-     {latePaymentsOpen && (
-  <MarkLatePaymentModal
-    isOpen={latePaymentsOpen}
-    roomId={room.room_id}
-    confirmedBy={confirmedBy}
-    confirmedByName={confirmedByName}
-    confirmedByRole={confirmedByRole}
-    onClose={() => setLatePaymentsOpen(false)}
-  />
-)}
- 
+
+      <QuizPaymentMethodsModal
+        isOpen={paymentModalOpen}
+        roomId={room.room_id}
+        roomTitle={`${formatDateTime(room.scheduled_at, room.time_zone)} - ${hostName}'s Quiz`}
+        onClose={() => setPaymentModalOpen(false)}
+        onSuccess={() => {
+          console.log('Payment methods updated successfully');
+        }}
+      />
+
+      {latePaymentsOpen && (
+        <MarkLatePaymentModal
+          isOpen={latePaymentsOpen}
+          roomId={room.room_id}
+          confirmedBy={confirmedBy}
+          confirmedByName={confirmedByName}
+          confirmedByRole={confirmedByRole}
+          onClose={() => setLatePaymentsOpen(false)}
+        />
+      )}
+
+      {/* ✅ NEW: Personalised Round Modal */}
+      <PersonalisedRoundModal
+        isOpen={personalisedOpen}
+        onClose={() => setPersonalisedOpen(false)}
+        roomId={room.room_id}
+        roomTitle={`${formatDateTime(room.scheduled_at, room.time_zone)} - ${hostName}'s Quiz`}
+        onSuccess={() => {
+          // Optional: you can show a toast or refresh a badge if you add one later.
+          console.log('Personalised round saved');
+        }}
+      />
     </>
-    
   );
 }

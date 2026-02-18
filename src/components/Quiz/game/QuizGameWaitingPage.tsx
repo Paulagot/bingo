@@ -1,6 +1,6 @@
 // src/components/Quiz/game/QuizGameWaitingPage.tsx
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   AlertCircle,
   CheckCircle,
@@ -74,6 +74,7 @@ export default function QuizGameWaitingPage() {
   const [showArsenal, setShowArsenal] = useState(false);
 
   const hasJoinedRef = useRef(false);
+  const location = useLocation();
 
   const STORAGE_KEY = useMemo(() => {
     if (!roomId || !playerId) return null;
@@ -112,33 +113,51 @@ export default function QuizGameWaitingPage() {
     return !!phase && ['asking', 'reviewing', 'leaderboard', 'tiebreaker', 'launched', 'complete'].includes(phase);
   };
 
-  const joinOrRecover = () => {
-    if (!socket || !connected || !roomId || !playerId) return;
+  // Read ticketId from localStorage
+const ticketId = useMemo(() => {
+  if (!roomId || !playerId) return null;
+  return localStorage.getItem(`quizTicketId:${roomId}:${playerId}`);
+}, [roomId, playerId]);
 
-    if (hasJoinedRef.current) return;
-    hasJoinedRef.current = true;
+const joinOrRecover = () => {
+  if (!socket || !connected || !roomId || !playerId) return;
+  if (hasJoinedRef.current) return;
+  hasJoinedRef.current = true;
 
-    const userPayload: { id: string; name?: string } = { id: playerId };
-    if (playerData?.name) userPayload.name = playerData.name;
+  const userPayload: { id: string; name?: string } = { id: playerId };
+  if (playerData?.name) userPayload.name = playerData.name;
 
-    log('join_and_recover', { roomId, userPayload });
+  socket.emit('join_and_recover', { 
+    roomId, 
+    user: userPayload, 
+    role: 'player',
+    ticketId,  // ← pass it here
+  }, (res?: any) => {
+    if (!res?.ok) {
+      log('join_and_recover failed', res);
+      // ✅ Don't navigate away — just stay on the waiting page
+      hasJoinedRef.current = false;
+      return;
+    }
 
-    socket.emit('join_and_recover', { roomId, user: userPayload, role: 'player' }, (res?: any) => {
-      if (!res?.ok) {
-        log('join_and_recover failed', res);
-        navigate('/');
-        return;
-      }
+const snap = res.snap;
+if (snap?.roomState) setRoomState((prev) => ({ ...prev, ...snap.roomState }));
 
-      const snap = res.snap;
-      if (snap?.roomState) setRoomState((prev) => ({ ...prev, ...snap.roomState }));
+// ✅ Hydrate playerData from server on rejoin (cold load with no localStorage/navState)
+if (snap?.players && playerId) {
+  const me = snap.players.find((p: any) => p.id === playerId);
+  if (me && !playerData) {
+    setPlayerData(me as ServerPlayer);
+    try { localStorage.setItem(STORAGE_KEY!, JSON.stringify(me)); } catch {}
+  }
+}
 
-      const phase = snap?.roomState?.phase as RoomPhase | undefined;
-      if (phaseShouldRedirect(phase)) {
-        navigate(`/quiz/play/${roomId}/${playerId}`);
-      }
-    });
-  };
+const phase = snap?.roomState?.phase as RoomPhase | undefined;
+if (phaseShouldRedirect(phase)) {
+  navigate(`/quiz/play/${roomId}/${playerId}`);
+}
+  });
+};
 
   const getExtraInfo = (extraId: string) => {
     const found = Object.values(fundraisingExtraDefinitions).find((def: any) => {
@@ -165,14 +184,31 @@ export default function QuizGameWaitingPage() {
     }
   }, [STORAGE_KEY]);
 
-  useEffect(() => {
-    if (!STORAGE_KEY || !playerData) return;
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(playerData));
-    } catch {
-      // ignore
-    }
-  }, [STORAGE_KEY, playerData]);
+ useEffect(() => {
+  if (!STORAGE_KEY) return;
+
+  // ✅ First try navigation state (fresh join via ticket)
+  const navState = location.state as { playerName?: string; paid?: boolean; paymentMethod?: string } | null;
+  if (navState?.playerName) {
+    const seedData: ServerPlayer = {
+      id: playerId!,
+      name: navState.playerName,
+      paid: navState.paid ?? false,
+      paymentMethod: navState.paymentMethod || 'instant_payment',
+      credits: 0,
+      extras: [],
+    };
+    setPlayerData(seedData);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(seedData)); } catch {}
+    return;
+  }
+
+  // Fall back to localStorage cache (reconnect scenario)
+  try {
+    const cached = localStorage.getItem(STORAGE_KEY);
+    if (cached) setPlayerData(JSON.parse(cached));
+  } catch {}
+}, [STORAGE_KEY]);
 
   // Socket listeners
   useEffect(() => {
@@ -230,7 +266,7 @@ export default function QuizGameWaitingPage() {
   }, [socket, connected, roomId, playerId]);
 
   // Loading
-  if (!config || !playerData) {
+  if (!config ) {
     return (
       <div className="p-4 text-center sm:p-6">
         <div className="mb-4 animate-spin text-3xl sm:text-4xl">⏳</div>
@@ -241,8 +277,8 @@ export default function QuizGameWaitingPage() {
     );
   }
 
-  const isPaid = !!playerData.paid;
-  const isDQ = !!playerData.disqualified;
+  const isPaid = !!playerData?.paid;
+  const isDQ = !!playerData?.disqualified;
 
   // Shared “glass” look for all inner cards (inside gradient)
   const glassCard = 'rounded-2xl border border-white/20 bg-white/10 backdrop-blur-sm';
@@ -304,7 +340,7 @@ export default function QuizGameWaitingPage() {
 
               <div className="mt-1 text-xs text-white/75">
                 You’re signed in as{' '}
-                <span className="font-semibold text-white">{playerData.name || 'Player'}</span>
+                <span className="font-semibold text-white">{playerData?.name || 'Player'}</span>
                 {totalRounds ? <span className="text-white/60"> · {totalRounds} rounds total</span> : null}
               </div>
             </div>

@@ -105,11 +105,6 @@ export const TicketConfirmation: React.FC<TicketConfirmationProps> = ({ ticket }
             </div>
           </div>
 
-          <span
-            className={`hidden sm:inline-flex shrink-0 rounded-full border px-3 py-1 text-xs font-semibold ${status.badgeClass}`}
-          >
-            {ticket.paymentStatus.replace('_', ' ')}
-          </span>
         </div>
       </div>
 

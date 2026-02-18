@@ -276,11 +276,12 @@ const PricingPage: React.FC = () => {
                   <Bullet>
                   Run 3 real fundraising quiz with up to 20 participants</Bullet>
                   <Bullet>4-step setup wizard with templates</Bullet>
-                  <Bullet>General, Wipeout & Speed rounds plus tiebreakers</Bullet>
+                  <Bullet>General, Wipeout, Image ordering, Puzzel rounds & Speed rounds plus tiebreakers</Bullet>
                   <Bullet>Fundraising extras: Clue, Freeze, RobinHood, Restore</Bullet>
                   <Bullet>2 admin users for collaborative management</Bullet>
-                  <Bullet>Immediate launch, no scheduling available</Bullet>
-                  <Bullet>Payment tracking with auto-reconciliation</Bullet>
+                  <Bullet>Scheduler for quiz events</Bullet>
+                  <Bullet>Payment options - sell tickets in advance or payment on the night with cash or instant online payment. fund go direct to clubs/charities linked accounts. </Bullet>
+                  <Bullet>Public Ticketing Link</Bullet>
                   <Bullet>Basic sponsor showcase features</Bullet>
                   <Bullet>Audit ready post event reporting</Bullet>
                   <Bullet>Community Support</Bullet>

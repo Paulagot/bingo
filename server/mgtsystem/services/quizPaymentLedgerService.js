@@ -11,6 +11,10 @@ const LEDGER_TABLE = `${TABLE_PREFIX}quiz_payment_ledger`;
  * Create a ledger entry for expected payment (player joining)
  * Can create as 'expected' OR 'claimed' depending on paymentClaimed flag
  */
+/**
+ * Create a ledger entry for expected payment (player joining)
+ * Can create as 'expected', 'claimed', OR 'confirmed' depending on context
+ */
 export async function createExpectedPayment({
   roomId,
   clubId,
@@ -26,7 +30,14 @@ export async function createExpectedPayment({
   claimedAt = null,
   extraId = null,
   extraMetadata = null,
-  ticketId = null,  // ✅ NEW
+  ticketId = null,
+  
+  // ✅ NEW: Support admin-assigned confirmed payments
+  status = null,              // explicit status override
+  confirmedAt = null,
+  confirmedBy = null,
+  confirmedByName = null,
+  confirmedByRole = null,
 }) {
   // ✅ Check if ticket ledger entry already exists
   if (ticketId) {
@@ -56,14 +67,17 @@ export async function createExpectedPayment({
     }
   }
   
-  const status = claimedAt ? 'claimed' : 'expected';
+  // ✅ NEW: Determine status intelligently
+  // Priority: explicit status > confirmed > claimed > expected
+  const finalStatus = status || (confirmedAt ? 'confirmed' : (claimedAt ? 'claimed' : 'expected'));
   
   const sql = `
     INSERT INTO ${LEDGER_TABLE}
       (room_id, club_id, player_id, player_name, ledger_type, amount, currency, 
        status, payment_method, payment_source, club_payment_method_id, 
-       payment_reference, claimed_at, extra_id, extra_metadata, ticket_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       payment_reference, claimed_at, confirmed_at, confirmed_by, 
+       confirmed_by_name, confirmed_by_role, extra_id, extra_metadata, ticket_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
   
   const [result] = await connection.execute(sql, [
@@ -74,15 +88,19 @@ export async function createExpectedPayment({
     ledgerType, 
     amount, 
     currency,
-    status,
+    finalStatus,                    // ✅ Use calculated status
     paymentMethod, 
     paymentSource, 
     clubPaymentMethodId,
     paymentReference,
     claimedAt,
+    confirmedAt,                    // ✅ NEW
+    confirmedBy,                    // ✅ NEW
+    confirmedByName,                // ✅ NEW
+    confirmedByRole,                // ✅ NEW
     extraId, 
     extraMetadata ? JSON.stringify(extraMetadata) : null,
-    ticketId,  // ✅ NEW
+    ticketId,
   ]);
   
   return result.insertId;

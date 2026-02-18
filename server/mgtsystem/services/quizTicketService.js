@@ -1,7 +1,10 @@
 // server/quiz/services/quizTicketService.js
+// UPDATED: Added capacity checks before ticket purchase
+
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 import { nanoid } from 'nanoid';
 import { createExpectedPayment } from './quizPaymentLedgerService.js';
+import { canPurchaseTickets, getRoomCapacityStatus } from './quizCapacityService.js';
 
 const TICKETS_TABLE = `${TABLE_PREFIX}quiz_tickets`;
 const WEB2_ROOMS_TABLE = `${TABLE_PREFIX}web2_quiz_rooms`;
@@ -14,46 +17,58 @@ const DEBUG = true;
  */
 export async function getRoomConfig(roomId) {
   const sql = `
-    SELECT 
+    SELECT
       room_id,
       club_id,
+      status,
+      scheduled_at,
+      time_zone,
       config_json,
-      status
+      room_caps_json
     FROM ${WEB2_ROOMS_TABLE}
     WHERE room_id = ?
     LIMIT 1
   `;
-  
+
   const [rows] = await connection.execute(sql, [roomId]);
   const row = rows?.[0];
-  
+
   if (!row) {
     if (DEBUG) console.log('[TicketService] ❌ Room not found:', roomId);
     return null;
   }
-  
-  const config = typeof row.config_json === 'string' 
-    ? JSON.parse(row.config_json) 
-    : row.config_json;
-  
+
+  const config =
+    typeof row.config_json === 'string'
+      ? JSON.parse(row.config_json)
+      : (row.config_json || {});
+
+  // ✅ Parse room caps (THIS is what you were missing)
+  const roomCaps =
+    typeof row.room_caps_json === 'string'
+      ? JSON.parse(row.room_caps_json)
+      : (row.room_caps_json || {});
+
   // ✅ Block Web3 rooms
   if (config.paymentMethod === 'web3' || config.isWeb3Room === true) {
     if (DEBUG) console.log('[TicketService] ❌ Web3 room - tickets not supported:', roomId);
     return null;
   }
-  
+
   return {
     roomId: row.room_id,
     clubId: row.club_id,
     status: row.status,
+    scheduledAt: row.scheduled_at ?? null,
+    timeZone: row.time_zone ?? null,
     config,
+    roomCaps,
   };
 }
 
 /**
  * Create ticket with payment claim in ONE STEP
- * Only writes to DB when user confirms they've paid
- * Prevents abandoned "pending_payment" tickets
+ * ✅ NEW: Checks capacity BEFORE creating ticket
  */
 export async function createTicketWithPayment({
   roomId,
@@ -66,6 +81,29 @@ export async function createTicketWithPayment({
   paymentReference,
   clubPaymentMethodId = null,
 }) {
+  // ✅ STEP 0: CHECK CAPACITY FIRST
+  const capacityCheck = await canPurchaseTickets(roomId, 1);
+  
+  if (!capacityCheck.allowed) {
+    if (DEBUG) {
+      console.log('[TicketService] 🚫 Ticket purchase blocked:', {
+        roomId,
+        reason: capacityCheck.reason,
+        capacity: capacityCheck.capacity,
+      });
+    }
+    
+    throw new Error(capacityCheck.reason);
+  }
+  
+  if (DEBUG) {
+    console.log('[TicketService] ✅ Capacity check passed:', {
+      roomId,
+      availableForTickets: capacityCheck.capacity.availableForTickets,
+      maxCapacity: capacityCheck.capacity.maxCapacity,
+    });
+  }
+  
   // 1. Get room config
   const roomData = await getRoomConfig(roomId);
   
@@ -235,25 +273,25 @@ export async function confirmTicketPayment({
   // 2. Update ticket
   const sql = `
     UPDATE ${TICKETS_TABLE}
-  SET
-    payment_status = 'payment_confirmed',
-    redemption_status = 'ready',
-    confirmed_at = NOW(),
-    confirmed_by = ?,
-    confirmed_by_name = ?,
-    confirmed_by_role = ?,
-    admin_notes = ?,
-    updated_at = NOW()
-  WHERE ticket_id = ?
-`;
+    SET
+      payment_status = 'payment_confirmed',
+      redemption_status = 'ready',
+      confirmed_at = NOW(),
+      confirmed_by = ?,
+      confirmed_by_name = ?,
+      confirmed_by_role = ?,
+      admin_notes = ?,
+      updated_at = NOW()
+    WHERE ticket_id = ?
+  `;
   
-await connection.execute(sql, [
-  confirmedBy,
-  confirmedByName || null,
-  confirmedByRole || null,
-  adminNotes,
-  ticketId
-]);
+  await connection.execute(sql, [
+    confirmedBy,
+    confirmedByName || null,
+    confirmedByRole || null,
+    adminNotes,
+    ticketId
+  ]);
   
   // 3. Update ledger entries
   const playerId = `ticket_${ticketId}`;
@@ -315,6 +353,7 @@ export async function getRoomTickets(roomId) {
 
 /**
  * Redeem ticket (use to join room)
+ * ✅ NEW: Tickets always have priority - they already reserved capacity
  */
 export async function redeemTicket({
   joinToken,
@@ -339,6 +378,9 @@ export async function redeemTicket({
   if (ticket.redemption_status !== 'ready') {
     throw new Error('Ticket not ready for redemption');
   }
+  
+  // ✅ NOTE: We don't check capacity here because tickets ALWAYS have priority
+  // They already reserved their spot when purchased
   
   // 3. Mark as redeemed
   const sql = `
@@ -393,8 +435,6 @@ export async function redeemTicket({
   };
 }
 
-// server/quiz/services/quizTicketService.js
-
 export async function getRoomSchedule(roomId) {
   const sql = `
     SELECT room_id, status, scheduled_at, time_zone
@@ -409,7 +449,6 @@ export async function getRoomSchedule(roomId) {
 // configurable join window
 export const JOIN_WINDOW_MINUTES = 10;
 
-// In computeJoinWindow function
 export function computeJoinWindow(roomRow) {
   const scheduledAt = roomRow?.scheduled_at ? new Date(roomRow.scheduled_at) : null;
   const joinOpensAt = scheduledAt
@@ -419,7 +458,7 @@ export function computeJoinWindow(roomRow) {
   const now = new Date();
   const roomStatus = roomRow?.status || null;
 
-  // ✅ FIX: Allow join if time window is open OR room is live
+  // ✅ Allow join if time window is open OR room is live
   const canJoinByTime = !!joinOpensAt && now.getTime() >= joinOpensAt.getTime();
   const canJoinByStatus = roomStatus === 'live';
   

@@ -14,8 +14,8 @@ const HiddenObjectReview: React.FC<Props> = ({ puzzle, foundIds }) => {
   const foundSet = useMemo(() => new Set(foundIds), [foundIds]);
 
   return (
-    <div className="space-y-3">
-      {/* ✅ Header with puzzle progress */}
+    <div className="min-h-[100dvh] flex flex-col gap-3">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="text-sm font-medium">
           📋 Review • Hidden Object
@@ -33,19 +33,18 @@ const HiddenObjectReview: React.FC<Props> = ({ puzzle, foundIds }) => {
         </div>
       </div>
 
-      {/* Image with answer markers */}
-      <div className="rounded-xl overflow-hidden border bg-white">
-        <div className="relative">
+      {/* ✅ Image uses remaining height */}
+      <div className="flex-1 min-h-0 rounded-xl overflow-hidden border bg-white">
+        <div className="relative h-full w-full flex items-center justify-center bg-gray-50">
           <img
             ref={imgRef}
             src={puzzle.imageUrl}
             alt="Hidden object review"
-            className="w-full h-auto select-none"
+            className="max-w-full max-h-full w-auto h-full object-contain select-none"
             draggable={false}
             onLoad={() => setImgReady(true)}
           />
 
-          {/* Show all item locations after image loads */}
           {imgReady &&
             puzzle.items.map((it) => {
               const b = it.bbox;
@@ -71,7 +70,7 @@ const HiddenObjectReview: React.FC<Props> = ({ puzzle, foundIds }) => {
         </div>
       </div>
 
-      {/* Items summary */}
+      {/* Items summary (kept, but won’t push image off-screen) */}
       <div className="rounded-xl border bg-white p-3">
         <div className="text-xs text-gray-600 mb-2">All items</div>
         <div className="flex flex-wrap gap-2">

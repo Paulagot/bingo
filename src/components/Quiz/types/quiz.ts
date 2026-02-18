@@ -178,6 +178,11 @@ export interface QuizConfig {
   evmNetwork?: 'base' | 'baseSepolia' | 'polygon' | 'polygonAmoy';
   solanaCluster?: 'mainnet' | 'devnet';
   stellarNetwork?: 'public' | 'testnet';
+    admins?: Array<{
+    id: string;
+    name: string;
+    socketId?: string;
+  }>;
 }
 
 export type ExtrasPanelProps = {

@@ -1,5 +1,5 @@
 // src/components/Quiz/payments/ReconciliationApproval.tsx
-// IMPROVED: Better error logging and debugging
+// HYBRID: Works for both hosts (HTTP + auth) and admins (socket)
 
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
@@ -24,6 +24,10 @@ export default function ReconciliationApproval({ compact = false }: Props) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // Check if user is host or admin
+  const authToken = localStorage.getItem('auth_token');
+  const isHost = !!authToken; // Hosts have auth tokens
+
   useEffect(() => {
     setApprovedBy(rec.approvedBy || '');
     setNotes(rec.notes || '');
@@ -39,25 +43,28 @@ export default function ReconciliationApproval({ compact = false }: Props) {
     }, 300);
   };
 
+  // ✅ HYBRID: Use HTTP for hosts, socket for admins
   const onApprove = async () => {
     const ts = new Date().toISOString();
     const totals = calculateReconciliationTotals(config);
     const clubId = (config as any)?.clubId || '';
 
-console.log('🔍 Payment Ledger Debug:', {
-  hasPaymentLedger: !!(config as any)?.paymentLedger,
-  ledgerLength: (config as any)?.paymentLedger?.length || 0,
-  ledgerSample: (config as any)?.paymentLedger?.slice(0, 3),
-  confirmedCount: (config as any)?.paymentLedger?.filter((p: any) => p.status === 'confirmed')?.length || 0,
-  allStatuses: [...new Set((config as any)?.paymentLedger?.map((p: any) => p.status) || [])]
-});
+    console.log('🔍 Payment Ledger Debug:', {
+      hasPaymentLedger: !!(config as any)?.paymentLedger,
+      ledgerLength: (config as any)?.paymentLedger?.length || 0,
+      ledgerSample: (config as any)?.paymentLedger?.slice(0, 3),
+      confirmedCount: (config as any)?.paymentLedger?.filter((p: any) => p.status === 'confirmed')?.length || 0,
+      allStatuses: [...new Set((config as any)?.paymentLedger?.map((p: any) => p.status) || [])]
+    });
     
     console.log('🔍 Approval Debug Info:', {
       roomId,
       clubId,
       hasConfig: !!config,
       totals,
-      approvedBy
+      approvedBy,
+      isHost,
+      method: isHost ? 'HTTP (host)' : 'Socket (admin)'
     });
     
     if (!clubId) {
@@ -77,13 +84,6 @@ console.log('🔍 Payment Ledger Debug:', {
     try {
       const adjustments = (config?.reconciliation as any)?.ledger || [];
       
-      // Get auth token
-      const authToken = localStorage.getItem('auth_token');
-      
-      if (!authToken) {
-        throw new Error('Not authenticated - please log in again');
-      }
-      
       const payload = {
         roomId,
         clubId,
@@ -97,51 +97,105 @@ console.log('🔍 Payment Ledger Debug:', {
         finalTotal: totals.reconciledTotal,
         adjustments
       };
-      
-      const url = `/api/quiz-reconciliation/room/${roomId}/approve`;
-      
-      console.log('📤 Sending reconciliation approval:', {
-        url,
-        method: 'POST',
-        payload,
-        hasToken: !!authToken,
-        tokenPreview: authToken ? `${authToken.substring(0, 20)}...` : 'none'
-      });
-      
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        },
-        body: JSON.stringify(payload)
-      });
-      
-      console.log('📥 Response received:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        headers: Object.fromEntries(response.headers.entries())
-      });
-      
-      if (!response.ok) {
-        let errorData;
-        const contentType = response.headers.get('content-type');
+
+      if (isHost) {
+        // ===== HOST PATH: Use HTTP with auth token =====
+        console.log('🔐 Using HTTP endpoint (authenticated host)');
         
-        if (contentType && contentType.includes('application/json')) {
-          errorData = await response.json();
-          console.error('❌ JSON Error response:', errorData);
-        } else {
-          const textResponse = await response.text();
-          console.error('❌ Non-JSON response:', textResponse);
-          throw new Error(`Server error: ${response.status} - ${textResponse.substring(0, 200)}`);
+        const url = `/api/quiz-reconciliation/room/${roomId}/approve`;
+        
+        console.log('📤 Sending reconciliation approval via HTTP:', {
+          url,
+          method: 'POST',
+          payload,
+          hasToken: !!authToken,
+          tokenPreview: authToken ? `${authToken.substring(0, 20)}...` : 'none'
+        });
+        
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify(payload)
+        });
+        
+        console.log('📥 HTTP Response received:', {
+          status: response.status,
+          statusText: response.statusText,
+          ok: response.ok
+        });
+        
+        if (!response.ok) {
+          let errorData;
+          const contentType = response.headers.get('content-type');
+          
+          if (contentType && contentType.includes('application/json')) {
+            errorData = await response.json();
+            console.error('❌ JSON Error response:', errorData);
+          } else {
+            const textResponse = await response.text();
+            console.error('❌ Non-JSON response:', textResponse);
+            throw new Error(`Server error: ${response.status} - ${textResponse.substring(0, 200)}`);
+          }
+          
+          throw new Error(errorData.error || errorData.message || `Server error: ${response.status}`);
         }
         
-        throw new Error(errorData.error || errorData.message || `Server error: ${response.status}`);
+        const result = await response.json();
+        console.log('✅ Reconciliation saved to database via HTTP:', result);
+        
+      } else {
+        // ===== ADMIN PATH: Use socket event =====
+        console.log('📡 Using socket event (admin without auth)');
+        
+        if (!socket) {
+          throw new Error('Socket connection not available');
+        }
+
+        // Get admin identity from URL or config
+        const searchParams = new URLSearchParams(window.location.search);
+        const memberId = searchParams.get('memberId') || 
+                        searchParams.get('adminId') || 
+                        '';
+
+        if (!memberId) {
+          throw new Error('Admin ID not found - cannot identify approver');
+        }
+
+        console.log('📤 Sending reconciliation approval via socket:', {
+          roomId,
+          approvedBy,
+          approvedById: memberId,
+          approvedAt: ts
+        });
+
+        // Use socket event with callback
+        await new Promise((resolve, reject) => {
+          socket.emit(
+            'approve_reconciliation',
+            {
+              roomId,
+              approvedBy,
+              approvedById: memberId,
+              approvedAt: ts,
+              notes: notes.trim() || null,
+            },
+            (response: any) => {
+              console.log('📥 Socket response received:', response);
+              
+              if (response?.ok) {
+                console.log('✅ Reconciliation saved to database via socket:', response);
+                resolve(response);
+              } else {
+                console.error('❌ Socket approval failed:', response);
+                reject(new Error(response?.error || response?.message || 'Socket approval failed'));
+              }
+            }
+          );
+        });
       }
-      
-      const result = await response.json();
-      console.log('✅ Reconciliation saved to database:', result);
       
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 5000);
@@ -151,7 +205,8 @@ console.log('🔍 Payment Ledger Debug:', {
       console.error('Error details:', {
         name: error instanceof Error ? error.name : 'Unknown',
         message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined,
+        method: isHost ? 'HTTP' : 'Socket'
       });
       setSaveError(error instanceof Error ? error.message : 'Unknown error');
     } finally {
@@ -204,7 +259,7 @@ console.log('🔍 Payment Ledger Debug:', {
             <div className="flex items-center gap-2">
               <Loader className="h-4 w-4 animate-spin text-blue-600" />
               <span className="text-sm text-blue-900 font-medium">
-                Saving reconciliation to database...
+                Saving reconciliation to database {isHost ? '(HTTP)' : '(socket)'}...
               </span>
             </div>
           </div>
@@ -346,6 +401,11 @@ console.log('🔍 Payment Ledger Debug:', {
               <div>
                 <strong>Important:</strong> Once approved, you cannot make further changes. 
                 Make sure all adjustments are correct before approving.
+                {!isHost && (
+                  <span className="block mt-1 text-purple-700 font-medium">
+                    🛡️ Admin mode: Using socket authentication
+                  </span>
+                )}
               </div>
             </div>
           </div>
