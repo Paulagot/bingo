@@ -1,7 +1,4 @@
 // src/components/Quiz/pages/QuizEventDashboard.tsx
-// ✅ TABLE VIEW IS NOW DEFAULT
-// ✅ Uses improved QuizEventCard for both views
-
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import NotificationsTicker from './NotificationsTicker';
@@ -13,10 +10,10 @@ import { QuizEventCard } from '../cards/QuizEventCard';
 import ManagePaymentMethodsModal from '../../modals/ManagePaymentMethodsModal';
 import QuizRoomsService, { type RoomStats } from '../../services/quizRoomServices';
 
-import { 
+import {
   CreditCard,
-  Calendar, 
-  Play, 
+  Calendar,
+  Play,
   PlusCircle,
   RefreshCw,
   Users,
@@ -25,14 +22,13 @@ import {
   CheckCircle,
   LayoutGrid,
   LayoutList,
- 
 } from 'lucide-react';
 
 import { quizApi } from '../../../../shared/api';
 import { useAuthStore } from '../../../../features/auth';
 import CancelQuizModal from '../../modals/CancelQuizModal';
 
-import type { 
+import type {
   Web2RoomListItem as Room,
   ParsedConfig,
 } from '../../../../shared/api/quiz.api';
@@ -45,7 +41,7 @@ const debug = false;
 
 function parseConfigJson(configStr: string | ParsedConfig | null | undefined, roomId?: string): ParsedConfig {
   const logPrefix = `[parseConfigJson${roomId ? ` ${roomId.slice(0, 8)}` : ''}]`;
-  
+
   if (configStr === undefined || !configStr) {
     if (debug) console.warn(`${logPrefix} ⚠️ No config_json provided`);
     return {};
@@ -75,14 +71,14 @@ function canUseEventLinking(ents: any): boolean {
     plan_id: ents?.plan_id,
     plan_code: ents?.plan_code,
   });
-  
+
   if (!ents) return false;
-  
+
   if (ents?.quiz_features?.eventLinking === true) return true;
   if (ents?.quizFeatures?.eventLinking === true) return true;
-  
+
   if (ents?.plan_code === 'DEV' || ents?.plan_id === 2) return true;
-  
+
   return false;
 }
 
@@ -112,7 +108,6 @@ function extractCreditsRemaining(ents: any): number {
 
 function extractMaxPlayers(ents: any): number {
   if (!ents) return 0;
-  
   const maxPlayers = ents.max_players_per_game || ents.maxPlayersPerGame || ents.maxPlayers || 0;
   return Number(maxPlayers);
 }
@@ -126,14 +121,28 @@ export default function QuizEventDashboard() {
   const [paymentMethodsOpen, setPaymentMethodsOpen] = useState(false);
   const clubId = useAuthStore((s: any) => s.club?.club_id || s.user?.club_id);
 
-  // ✅ TABLE VIEW IS NOW DEFAULT
+  // ✅ default table, but we will force cards on mobile
   const [viewMode, setViewMode] = useState<ViewMode>('table');
-  
+  const [isMobile, setIsMobile] = useState(false);
+
+  // ✅ Force cards on small screens
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 639px)'); // Tailwind sm breakpoint
+    const apply = () => {
+      const mobile = mq.matches;
+      setIsMobile(mobile);
+      if (mobile) setViewMode('cards');
+    };
+    apply();
+    mq.addEventListener?.('change', apply);
+    return () => mq.removeEventListener?.('change', apply);
+  }, []);
+
   const [editOpen, setEditOpen] = useState(false);
   const [editRoomId, setEditRoomId] = useState<string | null>(null);
   const [roomStats, setRoomStats] = useState<Record<string, RoomStats>>({});
-const [_statsLoading, setStatsLoading] = useState(false);
-  
+  const [_statsLoading, setStatsLoading] = useState(false);
+
   const openEditModal = (room: Room) => {
     setEditRoomId(room.room_id);
     setEditOpen(true);
@@ -152,10 +161,7 @@ const [_statsLoading, setStatsLoading] = useState(false);
     setLinkRoom(null);
   };
 
-  const closeEditModal = () => {
-    setEditOpen(false);
-    setEditRoomId(null);
-  };
+
 
   const [unlinkModalOpen, setUnlinkModalOpen] = useState(false);
   const [unlinkRoom, setUnlinkRoom] = useState<Room | null>(null);
@@ -198,14 +204,12 @@ const [_statsLoading, setStatsLoading] = useState(false);
     return [...rooms].sort((a, b) => {
       const aPriority = statusPriority[a.status] || 999;
       const bPriority = statusPriority[b.status] || 999;
-      
-      if (aPriority !== bPriority) {
-        return aPriority - bPriority;
-      }
+
+      if (aPriority !== bPriority) return aPriority - bPriority;
 
       const aTime = a.scheduled_at ? new Date(a.scheduled_at).getTime() : 0;
       const bTime = b.scheduled_at ? new Date(b.scheduled_at).getTime() : 0;
-      
+
       return aTime - bTime;
     });
   }, [rooms]);
@@ -215,7 +219,6 @@ const [_statsLoading, setStatsLoading] = useState(false);
     const upcoming = rooms.filter(r => r.status === 'scheduled').length;
     const live = rooms.filter(r => r.status === 'live').length;
     const completed = rooms.filter(r => r.status === 'completed').length;
-
     return { total, upcoming, live, completed };
   }, [rooms]);
 
@@ -224,15 +227,6 @@ const [_statsLoading, setStatsLoading] = useState(false);
       setEntsLoading(true);
       setEntsError(null);
       const data = await quizApi.getEntitlements();
-      
-      if (debug) console.log('🔍 [Entitlements Debug]', {
-        raw: data,
-        plan_id: data?.plan_id,
-        plan_code: data?.plan_code,
-        quiz_features: data?.quiz_features,
-        quizFeatures: data?.quizFeatures,
-      });
-      
       setEnts(data);
     } catch (e: any) {
       console.error('[QuizEventDashboard] Entitlements load failed:', e);
@@ -250,17 +244,13 @@ const [_statsLoading, setStatsLoading] = useState(false);
     }
 
     try {
-      if (debug) console.log('[QuizEventDashboard] 🔗 Loading linked events for', roomIds.length, 'rooms');
-      
       const response = await eventIntegrationsService.lookupLinks({
         integration_type: 'quiz_web2',
         external_refs: roomIds,
       });
-      
-      if (debug) console.log('[QuizEventDashboard] 🔗 Found', response.links?.length || 0, 'linked events');
 
       const linkMap: Record<string, { eventId: string; eventTitle: string }> = {};
-      
+
       for (const link of response.links || []) {
         if (link.external_ref && link.event_id && link.event_title) {
           linkMap[link.external_ref] = {
@@ -277,61 +267,47 @@ const [_statsLoading, setStatsLoading] = useState(false);
     }
   };
 
- // Add function to load stats (around line 250)
-const loadRoomStats = async (roomIds: string[]) => {
-  if (roomIds.length === 0) {
-    setRoomStats({});
-    return;
-  }
+  const loadRoomStats = async (roomIds: string[]) => {
+    if (roomIds.length === 0) {
+      setRoomStats({});
+      return;
+    }
 
-  try {
-    setStatsLoading(true);
-    
-    if (debug) console.log('[QuizEventDashboard] 📊 Loading stats for', roomIds.length, 'rooms');
-    
-    const stats = await QuizRoomsService.batchGetRoomStats(roomIds);
-    
-    if (debug) console.log('[QuizEventDashboard] ✅ Loaded stats:', stats);
-    
-    setRoomStats(stats);
-    
-  } catch (error) {
-    console.error('[QuizEventDashboard] ❌ Failed to load room stats:', error);
-    setRoomStats({});
-  } finally {
-    setStatsLoading(false);
-  }
-};
+    try {
+      setStatsLoading(true);
+      const stats = await QuizRoomsService.batchGetRoomStats(roomIds);
+      setRoomStats(stats);
+    } catch (error) {
+      console.error('[QuizEventDashboard] ❌ Failed to load room stats:', error);
+      setRoomStats({});
+    } finally {
+      setStatsLoading(false);
+    }
+  };
 
-// Update loadRooms function (around line 270)
-const loadRooms = async (s: StatusFilter) => {
-  try {
-    setRoomsLoading(true);
-    setRoomsError(null);
-    
-    if (debug) console.log('[QuizEventDashboard] 📡 Fetching rooms with status:', s);
-    const res = await quizApi.getWeb2RoomsList({ status: s, time: 'all' });
-    
-    if (debug) console.log('[QuizEventDashboard] 📥 Received rooms:', res.rooms?.length || 0);
-    
-    setRooms(res.rooms || []);
-    
-    const roomIds = (res.rooms || []).map(r => r.room_id);
-    
-    // ✅ Load both linked events AND stats in parallel
-    await Promise.all([
-      loadLinkedEvents(roomIds),
-      loadRoomStats(roomIds)  // ✅ ADD THIS LINE
-    ]);
-    
-  } catch (e: any) {
-    console.error('[QuizEventDashboard] ❌ Failed:', e);
-    setRooms([]);
-    setRoomsError(e?.message || 'Failed to load events');
-  } finally {
-    setRoomsLoading(false);
-  }
-};
+  const loadRooms = async (s: StatusFilter) => {
+    try {
+      setRoomsLoading(true);
+      setRoomsError(null);
+
+      const res = await quizApi.getWeb2RoomsList({ status: s, time: 'all' });
+
+      setRooms(res.rooms || []);
+
+      const roomIds = (res.rooms || []).map(r => r.room_id);
+
+      await Promise.all([
+        loadLinkedEvents(roomIds),
+        loadRoomStats(roomIds)
+      ]);
+    } catch (e: any) {
+      console.error('[QuizEventDashboard] ❌ Failed:', e);
+      setRooms([]);
+      setRoomsError(e?.message || 'Failed to load events');
+    } finally {
+      setRoomsLoading(false);
+    }
+  };
 
   const loadTicketStats = async () => {
     if (!clubId) {
@@ -341,41 +317,23 @@ const loadRooms = async (s: StatusFilter) => {
 
     try {
       setTicketStatsLoading(true);
-      
-      if (debug) console.log('[QuizEventDashboard] 📊 Loading ticket stats for club:', clubId);
-      
-      // Get all completed and live rooms to calculate stats
       const res = await quizApi.getWeb2RoomsList({ status: 'all', time: 'all' });
-      
+
       let totalTickets = 0;
       let totalIncome = 0;
-      
-      // Calculate from all rooms
+
       for (const room of res.rooms || []) {
-        // Parse config to get ticket sales info if available
         const config = parseConfigJson(room.config_json, room.room_id);
-        
-        // You might have ticket sales data in the room object or need a separate API call
-        // For now, we'll calculate based on entry fee and participants
-        // Adjust this based on your actual data structure
-        
+
         if (room.status === 'completed' || room.status === 'live') {
           const entryFee = parseFloat(config.entryFee || '0');
-          // If you have actual ticket sales count, use that
-          // const ticketsSold = room.tickets_sold || 0;
-          // For now, assuming max_players as a placeholder
-          // You should replace this with actual tickets sold data
           const participants = room.participants_count || 0;
-          
           totalTickets += participants;
           totalIncome += entryFee * participants;
         }
       }
-      
+
       setTicketStats({ totalTickets, totalIncome });
-      
-      if (debug) console.log('[QuizEventDashboard] 📊 Stats:', { totalTickets, totalIncome });
-      
     } catch (e: any) {
       console.error('[QuizEventDashboard] ❌ Failed to load ticket stats:', e);
       setTicketStats(null);
@@ -398,25 +356,20 @@ const loadRooms = async (s: StatusFilter) => {
   };
 
   const openRoom = (roomId: string, hostId: string) => {
-    if (debug) console.log('[QuizEventDashboard] 🧹 Clearing all Web3 state before opening Web2 room:', roomId);
-    
     localStorage.removeItem('quiz-setup-v2');
     localStorage.removeItem('quiz-admins');
     localStorage.removeItem('fundraisely-quiz-setup-draft');
     localStorage.removeItem('current-room-id');
     localStorage.removeItem('current-host-id');
     localStorage.removeItem('current-contract-address');
-    
+
     useQuizConfig.getState().resetConfig();
-    
-    if (debug) console.log('[QuizEventDashboard] ✅ Cleared, navigating to Web2 room');
-    
+
     navigate(`/quiz/host-dashboard/${roomId}?hostId=${encodeURIComponent(hostId)}`);
   };
 
   const handleEdit = (room: Room) => {
     if (room.status !== 'scheduled') return;
-    if (debug) console.log('[QuizEventDashboard] ✏️ Edit room:', room.room_id);
     openEditModal(room);
   };
 
@@ -472,28 +425,22 @@ const loadRooms = async (s: StatusFilter) => {
 
     try {
       setUnlinkLoading(true);
-      
-      if (debug) console.log('[QuizEventDashboard] 🔓 Unlinking room', unlinkRoom.room_id, 'from event', linked.eventId);
-      
+
       const integrationsResponse = await eventIntegrationsService.list(linked.eventId);
       const integration = integrationsResponse.integrations?.find(
         (int) => int.external_ref === unlinkRoom.room_id
       );
-      
-      if (!integration) {
-        throw new Error('Integration not found');
-      }
-      
+
+      if (!integration) throw new Error('Integration not found');
+
       await eventIntegrationsService.unlink(linked.eventId, integration.id);
-      
+
       setLinkedEvents(prev => {
         const updated = { ...prev };
         delete updated[unlinkRoom.room_id];
         return updated;
       });
 
-      if (debug) console.log('[QuizEventDashboard] ✅ Unlinked successfully');
-      
       setUnlinkModalOpen(false);
       setUnlinkRoom(null);
     } catch (e: any) {
@@ -519,8 +466,8 @@ const loadRooms = async (s: StatusFilter) => {
               <span className="font-semibold text-gray-900">{clubName}</span>
             </p>
           </div>
-          
-          <div className="flex gap-2">
+
+          <div className="flex gap-2 flex-wrap">
             <button
               type="button"
               onClick={() => navigate('/quiz/create-fundraising-quiz')}
@@ -530,6 +477,7 @@ const loadRooms = async (s: StatusFilter) => {
             >
               <Play className="h-4 w-4" />
               <span className="hidden sm:inline">Demo</span>
+              <span className="sm:hidden">Demo</span>
             </button>
 
             <button
@@ -541,6 +489,7 @@ const loadRooms = async (s: StatusFilter) => {
             >
               <CreditCard className="h-4 w-4" />
               <span className="hidden sm:inline">Payment Methods</span>
+              <span className="sm:hidden">Payments</span>
             </button>
 
             <button
@@ -548,11 +497,7 @@ const loadRooms = async (s: StatusFilter) => {
               onClick={goToWizard}
               disabled={!canLaunchWizard}
               className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition whitespace-nowrap
-                ${
-                  canLaunchWizard
-                    ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                    : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                }`}
+                ${canLaunchWizard ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}
             >
               <PlusCircle className="h-4 w-4" />
               Create Quiz
@@ -562,6 +507,8 @@ const loadRooms = async (s: StatusFilter) => {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-6">
+          {/* ... unchanged stats cards ... */}
+          {/* keep your existing content here */}
           <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4 shadow-sm">
             <div className="flex items-center gap-3">
               <div className="flex-shrink-0 p-2 rounded-lg bg-indigo-100">
@@ -635,34 +582,6 @@ const loadRooms = async (s: StatusFilter) => {
               </div>
             </div>
           </div>
-
-          {/* <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="flex-shrink-0 p-2 rounded-lg bg-orange-100">
-                <Ticket className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-gray-600">Tickets Sold</p>
-                <p className="text-lg sm:text-xl font-bold text-orange-600">
-                  {ticketStatsLoading ? '...' : ticketStats?.totalTickets || 0}
-                </p>
-              </div>
-            </div>
-          </div> */}
-
-          {/* <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="flex-shrink-0 p-2 rounded-lg bg-emerald-100">
-                <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-gray-600">Total Income</p>
-                <p className="text-lg sm:text-xl font-bold text-emerald-600">
-                  {ticketStatsLoading ? '...' : `€${ticketStats?.totalIncome.toFixed(2) || '0.00'}`}
-                </p>
-              </div>
-            </div>
-          </div> */}
         </div>
 
         {/* Filter Tabs + View Toggle */}
@@ -673,42 +592,41 @@ const loadRooms = async (s: StatusFilter) => {
                 <button
                   key={s}
                   onClick={() => setStatus(s)}
-                  className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors ${
-                    status === s
-                      ? 'bg-indigo-600 text-white shadow-sm'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                  className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors ${status === s
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
                 >
                   {s.charAt(0).toUpperCase() + s.slice(1)}
                 </button>
               ))}
             </div>
-            
-            {/* View Toggle */}
-            <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('table')}
-                className={`p-2 rounded-md transition-colors ${
-                  viewMode === 'table'
+
+            {/* ✅ Hide view toggle on mobile because we force cards */}
+            {!isMobile && (
+              <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setViewMode('table')}
+                  className={`p-2 rounded-md transition-colors ${viewMode === 'table'
                     ? 'bg-white text-indigo-600 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
-                title="Table view"
-              >
-                <LayoutList className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => setViewMode('cards')}
-                className={`p-2 rounded-md transition-colors ${
-                  viewMode === 'cards'
+                    }`}
+                  title="Table view"
+                >
+                  <LayoutList className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('cards')}
+                  className={`p-2 rounded-md transition-colors ${viewMode === 'cards'
                     ? 'bg-white text-indigo-600 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
-                title="Card view"
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </button>
-            </div>
+                    }`}
+                  title="Card view"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -750,11 +668,7 @@ const loadRooms = async (s: StatusFilter) => {
                     onClick={goToWizard}
                     disabled={!canLaunchWizard}
                     className={`inline-flex items-center gap-2 rounded-lg px-6 py-3 text-sm font-semibold shadow-sm transition
-                      ${
-                        canLaunchWizard
-                          ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                          : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                      }`}
+                      ${canLaunchWizard ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}
                   >
                     <PlusCircle className="h-5 w-5" />
                     Create Quiz Event
@@ -764,44 +678,63 @@ const loadRooms = async (s: StatusFilter) => {
             </div>
           ) : (
             <>
-              {/* Table Header (only for table view) */}
-          {viewMode === 'table' && (
-  <div className="bg-white rounded-t-xl border border-gray-200 border-b-0">
-    <div className="flex items-center gap-3 p-3 bg-gray-50">
-      <div className="w-24 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase">Status</div>
-      <div className="w-32 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase">Date</div>
-      <div className="w-20 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase">Fee</div>
-      <div className="w-16 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase text-center">Tickets</div>
-      <div className="w-16 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase text-center">Players</div>
-      <div className="w-16 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase text-center">Max</div>
-      <div className="w-24 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase text-right">Income</div>
-      <div className="flex-1 min-w-0 text-xs font-semibold text-gray-700 uppercase">Extras</div>
-      {/* Reduced prizes width from w-20 to w-16 to give more room to actions */}
-      <div className="w-16 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase text-right">Prizes</div>
-      {/* Increased actions width from w-64 to w-80 for more icons */}
-      <div className="w-80 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase text-right">Actions</div>
-    </div>
-  </div>
-)}
-              
-              {/* Cards/Rows */}
-              <div className={viewMode === 'cards' ? 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3' : 'bg-white rounded-b-xl border border-gray-200 overflow-hidden'}>
-                {sortedRooms.map((room) => (
-                  <QuizEventCard
-                    key={room.room_id}
-                    room={room}
-                     stats={roomStats[room.room_id]}
-                    viewMode={viewMode}
-                    onOpenRoom={openRoom}
-                    onEdit={handleEdit}
-                    onCancel={handleCancel}
-                    onLinkToEvent={showEventLinking ? openLinkModal : undefined}
-                    onUnlinkFromEvent={showEventLinking ? handleUnlinkRequest : undefined}
-                    linkedEventTitle={linkedEvents[room.room_id]?.eventTitle}
-                    linkedEventId={linkedEvents[room.room_id]?.eventId}
-                  />
-                ))}
-              </div>
+              {/* ✅ TABLE HEADER + ROWS IN A HORIZONTAL SCROLLER */}
+              {viewMode === 'table' ? (
+                <div className="overflow-x-auto">
+                  {/* header */}
+                  <div className="bg-white rounded-t-xl border border-gray-200 border-b-0 min-w-[1050px]">
+                    <div className="flex items-center gap-3 p-3 bg-gray-50">
+                      <div className="w-24 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase">Status</div>
+                      <div className="w-32 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase">Date</div>
+                      <div className="w-20 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase">Fee</div>
+                      <div className="w-16 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase text-center">Tickets</div>
+                      <div className="w-16 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase text-center">Players</div>
+                      <div className="w-16 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase text-center">Max</div>
+                      <div className="w-24 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase text-right">Income</div>
+                      <div className="flex-1 min-w-0 text-xs font-semibold text-gray-700 uppercase">Extras</div>
+                      <div className="w-16 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase text-right">Prizes</div>
+                      <div className="w-80 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase text-right">Actions</div>
+                    </div>
+                  </div>
+
+                  {/* avoid double rounding: header has top, rows have bottom */}
+                  <div className="bg-white rounded-b-xl border border-gray-200 border-t-0 overflow-hidden min-w-[1050px]">
+                    {sortedRooms.map((room) => (
+                      <QuizEventCard
+                        key={room.room_id}
+                        room={room}
+                        stats={roomStats[room.room_id]}
+                        viewMode={viewMode}
+                        onOpenRoom={openRoom}
+                        onEdit={handleEdit}
+                        onCancel={handleCancel}
+                        onLinkToEvent={showEventLinking ? openLinkModal : undefined}
+                        onUnlinkFromEvent={showEventLinking ? handleUnlinkRequest : undefined}
+                        linkedEventTitle={linkedEvents[room.room_id]?.eventTitle}
+                        linkedEventId={linkedEvents[room.room_id]?.eventId}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {sortedRooms.map((room) => (
+                    <QuizEventCard
+                      key={room.room_id}
+                      room={room}
+                      stats={roomStats[room.room_id]}
+                      viewMode={viewMode}
+                      onOpenRoom={openRoom}
+                      onEdit={handleEdit}
+                      onCancel={handleCancel}
+                      onLinkToEvent={showEventLinking ? openLinkModal : undefined}
+                      onUnlinkFromEvent={showEventLinking ? handleUnlinkRequest : undefined}
+                      linkedEventTitle={linkedEvents[room.room_id]?.eventTitle}
+                      linkedEventId={linkedEvents[room.room_id]?.eventId}
+                    />
+                  ))}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -811,7 +744,10 @@ const loadRooms = async (s: StatusFilter) => {
       {editOpen && editRoomId && (
         <EditWeb2QuizWizardModal
           roomId={editRoomId}
-          onClose={closeEditModal}
+          onClose={() => {
+            setEditOpen(false);
+            setEditRoomId(null);
+          }}
           onSaved={handleEditSaved}
         />
       )}

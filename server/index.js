@@ -61,6 +61,7 @@ import reconciliationRoutes from './mgtsystem/routes/quizReconciliation.js';
 import ticketsRouter from './mgtsystem/routes/quizTicketsRouter.js';
 import quizPaymentMethodsRoutes from './mgtsystem/routes/quizPaymentMethodsRoutes.js';
 import quizLatePayments from './mgtsystem/routes/quizLatePayments.js';
+import quizPersonalisedRoundRouter from './mgtsystem/routes/quizPersonalisedRoundRouter.js';
 
 import quizStatsRoutes from './mgtsystem/routes/quizStats.js';
 
@@ -338,7 +339,7 @@ app.use('/api/quiz/web2', quizStatsRoutes);
 app.use('/api', quizPaymentMethodsRoutes);  
 app.use('/quiz/api', createRoomApi);
 app.use('/api/mgtsystem/quiz-late-payments', quizLatePayments);
- // ✅ New late payments routes
+app.use('/api/quiz/personalised-round', quizPersonalisedRoundRouter);
 
 
 console.log('✅ Routes setup complete');

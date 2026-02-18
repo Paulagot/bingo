@@ -402,7 +402,8 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
         <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3 sm:mt-4">
           <p className="text-xs text-blue-800 sm:text-sm">
             <strong>Payment Collection:</strong> You'll collect entry fees manually from participants using cash, tap card, or
-            instant transsfer when they arrive.
+            instant payment when they arrive. <br />
+              <strong>Ticket Sales:</strong> Link a payment method to sell tickets in advance and guarantee your attendance numbers. We currently support Instant Payment with manual verification, with more options coming soon!
           </p>
         </div>
       </div>

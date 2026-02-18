@@ -9,6 +9,7 @@ import { roundTypeDefinitions, fundraisingExtraDefinitions } from '../quiz/quizM
 import { handleGlobalExtra } from './handlers/globalExtrasHandler.js';
 import { resetGlobalExtrasForNewRound } from './handlers/globalExtrasHandler.js';
 import { FreezeService } from '../quiz/gameplayEngines/services/FreezeServices.js';
+import { getPersonalisedRoundByRoom } from '../mgtsystem/services/quizPersonalisedRoundService.js';
 
 const quizRooms = new Map();
 const debug = false;
@@ -42,6 +43,77 @@ export function loadClosestNumberBank() {
     console.error('[TB] failed to load closest.json:', e?.message);
     return [];
   }
+}
+
+function toInjectedWipeoutRound(personalised) {
+  const qs = Array.isArray(personalised?.questions) ? personalised.questions : [];
+  const count = Math.min(qs.length, 6);
+
+  return {
+    roundType: 'wipeout',
+    category: null,        // you said: don’t need category
+    difficulty: 'medium',  // ✅ keep scoring on medium
+    roundNumber: 1,        // temporary, we renumber after insert
+    config: {
+      questionsPerRound: count, // ✅ 6 max
+      timePerQuestion: 22,      // keep wipeout defaults unless you want 30
+      // keep any wipeout penalties if your scoring uses them:
+      pointsLostPerWrong: 2,
+      pointsLostPerUnanswered: 3,
+    },
+
+    // ✅ marker fields so wipeoutEngine can detect it
+    isPersonalised: true,
+    personalisedRoundId: personalised.id,
+  };
+}
+
+function renumberRounds(rounds) {
+  return rounds.map((r, idx) => ({ ...r, roundNumber: idx + 1 }));
+}
+
+export async function applyPersonalisedRoundIfAny(roomId, clubId) {
+  const room = quizRooms.get(roomId);
+  if (!room) return false;
+  if (room.personalisedUsed) return true;
+
+  const personalised = await getPersonalisedRoundByRoom({ roomId, clubId });
+  if (!personalised || personalised.isEnabled === false) {
+    room.personalisedUsed = true;
+    return false;
+  }
+
+  const qCount = Array.isArray(personalised.questions) ? personalised.questions.length : 0;
+  if (qCount === 0) {
+    room.personalisedUsed = true;
+    return false;
+  }
+
+  // store it for engine use
+  room.personalisedRound = personalised;
+
+  // inject into config.roundDefinitions
+  const base = Array.isArray(room.config.roundDefinitions) ? room.config.roundDefinitions : [];
+  const injectedRound = toInjectedWipeoutRound(personalised);
+
+  const merged =
+    personalised.position === 'first'
+      ? [injectedRound, ...base]
+      : [...base, injectedRound];
+
+  room.config.roundDefinitions = renumberRounds(merged);
+  room.config.roundCount = room.config.roundDefinitions.length;
+
+  room.personalisedUsed = true;
+
+  console.log('[quizRoomManager] ✅ Personalised round injected', {
+    roomId,
+    position: personalised.position,
+    questions: Math.min(qCount, 6),
+    totalRounds: room.config.roundCount,
+  });
+
+  return true;
 }
 
 
@@ -264,6 +336,8 @@ const finalConfig = {
     questionBankTiebreak: loadClosestNumberBank(),
     tiebreaker: null,
      tiebreakerAwards: {}, 
+       personalisedRound: null,     // ✅ holds DB round + questions once loaded
+    personalisedUsed: false,     // ✅ optional: prevent double-inject
   });
 
   if (debug) console.log(`[quizRoomManager] ✅ Room ${roomId} created with ${roundDefinitions.length} rounds`);

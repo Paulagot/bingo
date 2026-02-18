@@ -167,7 +167,7 @@ export const Web2PaymentStep: React.FC<Web2PaymentStepProps> = ({
   };
 
   // ✅ EXISTING: Join Room as UNPAID (Pay Admin flow)
-  const handleJoinAsUnpaid = () => {
+  const handleJoinAsUnpaid = async() => {
     log('handleJoinAsUnpaid clicked');
 
     if (!socket) {
@@ -180,6 +180,18 @@ export const Web2PaymentStep: React.FC<Web2PaymentStepProps> = ({
       log('aborting join: empty trimmed name');
       return;
     }
+      try {
+    const response = await fetch(`/api/quiz/tickets/room/${roomId}/info`);
+    const data = await response.json();
+    const cap = data.capacity ?? data;
+    if (cap && cap.availableForWalkIns <= 0) {
+      alert(`Sorry, this quiz is now full (${cap.maxCapacity} players maximum).`);
+      return;
+    }
+  } catch (err) {
+    console.error('[Web2PaymentStep] Capacity check failed:', err);
+    // allow through — socket will be final guard
+  }
 
     const playerId = nanoid();
     log('generated playerId', playerId);

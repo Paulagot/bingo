@@ -1,6 +1,16 @@
 // src/components/Quiz/shared/PaymentInstructions.tsx
 import React, { useState, useMemo } from 'react';
-import { ChevronLeft, Copy, Check, ExternalLink, AlertCircle, CreditCard, Lock, Smartphone, Building2 } from 'lucide-react';
+import {
+  ChevronLeft,
+  Copy,
+  Check,
+  ExternalLink,
+  AlertCircle,
+  CreditCard,
+  Lock,
+  Smartphone,
+  Building2
+} from 'lucide-react';
 
 // Use a flexible type that works with both ticket and join flow types
 export interface ClubPaymentMethod {
@@ -30,20 +40,22 @@ interface PaymentInstructionsProps {
 function ProviderBadge({ providerName }: { providerName: string | null | undefined }) {
   const meta = useMemo(() => {
     const p = providerName?.toLowerCase();
-    if (p === 'revolut') return { 
-      icon: <Smartphone className="h-4 w-4" />, 
-      label: 'Revolut', 
-      cls: 'bg-blue-50 text-blue-700 border-blue-200' 
-    };
-    if (p === 'bank_transfer') return { 
-      icon: <Building2 className="h-4 w-4" />, 
-      label: 'Bank Transfer', 
-      cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-    };
-    return { 
-      icon: <CreditCard className="h-4 w-4" />, 
-      label: providerName || 'Payment', 
-      cls: 'bg-gray-50 text-gray-700 border-gray-200' 
+    if (p === 'revolut')
+      return {
+        icon: <Smartphone className="h-4 w-4" />,
+        label: 'Revolut',
+        cls: 'bg-blue-50 text-blue-700 border-blue-200'
+      };
+    if (p === 'bank_transfer')
+      return {
+        icon: <Building2 className="h-4 w-4" />,
+        label: 'Bank Transfer',
+        cls: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+      };
+    return {
+      icon: <CreditCard className="h-4 w-4" />,
+      label: providerName || 'Payment',
+      cls: 'bg-gray-50 text-gray-700 border-gray-200'
     };
   }, [providerName]);
 
@@ -91,6 +103,12 @@ function CopyButton({
   );
 }
 
+function getStringConfig(config: any, key: string): string | undefined {
+  if (!config) return undefined;
+  const v = config?.[key];
+  return typeof v === 'string' && v.trim().length > 0 ? v.trim() : undefined;
+}
+
 export const PaymentInstructions: React.FC<PaymentInstructionsProps> = ({
   method,
   paymentReference,
@@ -103,17 +121,11 @@ export const PaymentInstructions: React.FC<PaymentInstructionsProps> = ({
 }) => {
   const [hasEverCopied, setHasEverCopied] = useState(false);
 
-  const revolutLink = method.providerName?.toLowerCase() === 'revolut' &&
-    method.methodConfig &&
-    'link' in method.methodConfig
-    ? method.methodConfig.link
-    : undefined;
+  const providerKey = method.providerName?.toLowerCase();
+  const isRevolut = providerKey === 'revolut';
 
-  const revolutQR = method.providerName?.toLowerCase() === 'revolut' &&
-    method.methodConfig &&
-    'qrCodeUrl' in method.methodConfig
-    ? method.methodConfig.qrCodeUrl
-    : undefined;
+  // ✅ Revolut is link-only now
+  const revolutLink = isRevolut ? getStringConfig(method.methodConfig, 'link') : undefined;
 
   return (
     <>
@@ -123,7 +135,6 @@ export const PaymentInstructions: React.FC<PaymentInstructionsProps> = ({
         totalAmount={totalAmount}
         currencySymbol={currencySymbol}
         revolutLink={revolutLink}
-        revolutQR={revolutQR}
         error={error}
         hasEverCopied={hasEverCopied}
         onCopied={() => setHasEverCopied(true)}
@@ -145,7 +156,6 @@ export const PaymentInstructionsContent: React.FC<{
   totalAmount: number;
   currencySymbol: string;
   revolutLink?: string | null;
-  revolutQR?: string | null;
   error?: string | null;
   hasEverCopied: boolean;
   onCopied: () => void;
@@ -155,11 +165,13 @@ export const PaymentInstructionsContent: React.FC<{
   totalAmount,
   currencySymbol,
   revolutLink,
-  revolutQR,
   error,
   hasEverCopied,
   onCopied,
 }) => {
+  const providerKey = method.providerName?.toLowerCase();
+  const isRevolut = providerKey === 'revolut';
+
   return (
     <div className="space-y-5">
       {/* Amount / method summary */}
@@ -177,9 +189,11 @@ export const PaymentInstructionsContent: React.FC<{
       </div>
 
       {/* Reference (copy-to-unlock) */}
-      <div className={`rounded-2xl border-2 p-4 sm:p-5 transition-all ${
-        hasEverCopied ? 'border-green-300 bg-green-50' : 'border-amber-300 bg-amber-50'
-      }`}>
+      <div
+        className={`rounded-2xl border-2 p-4 sm:p-5 transition-all ${
+          hasEverCopied ? 'border-green-300 bg-green-50' : 'border-amber-300 bg-amber-50'
+        }`}
+      >
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
@@ -193,11 +207,7 @@ export const PaymentInstructionsContent: React.FC<{
             </p>
           </div>
 
-          <CopyButton
-            value={paymentReference}
-            label="Copy"
-            onCopied={onCopied}
-          />
+          <CopyButton value={paymentReference} label="Copy" onCopied={onCopied} />
         </div>
 
         <div className="mt-4">
@@ -209,26 +219,24 @@ export const PaymentInstructionsContent: React.FC<{
             <div className="mt-3 rounded-xl border border-amber-200 bg-white/60 p-3">
               <div className="flex items-start gap-2">
                 <Lock className="h-4 w-4 text-amber-700 mt-0.5" />
-                <p className="text-xs text-amber-800">
-                  The "I've paid" button unlocks after you copy the reference.
-                </p>
+                <p className="text-xs text-amber-800">The "I've paid" button unlocks after you copy the reference.</p>
               </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Revolut Payment */}
-      {method.providerName?.toLowerCase() === 'revolut' && (
+      {/* Revolut Payment (link-only) */}
+      {isRevolut && (
         <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 space-y-3">
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-sm font-bold text-gray-900">Pay using Revolut</div>
-              <div className="text-sm text-gray-600">Open the link or scan the QR code</div>
+              <div className="text-sm text-gray-600">Open the payment link, then paste your reference</div>
             </div>
           </div>
 
-          {revolutLink && (
+          {revolutLink ? (
             <a
               href={revolutLink}
               target="_blank"
@@ -238,23 +246,21 @@ export const PaymentInstructionsContent: React.FC<{
               <span>Open Revolut payment</span>
               <ExternalLink className="h-5 w-5" />
             </a>
-          )}
-
-          {revolutQR && (
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <div className="mb-2 text-sm font-semibold text-gray-800">Scan QR</div>
-              <img
-                src={revolutQR}
-                alt="Revolut QR Code"
-                className="mx-auto h-48 w-48 rounded-lg border border-gray-200 bg-white"
-              />
+          ) : (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-700 mt-0.5" />
+                <p className="text-sm text-amber-900">
+                  The host hasn’t added a Revolut payment link yet. Please contact the host for payment details.
+                </p>
+              </div>
             </div>
           )}
         </div>
       )}
 
       {/* Bank Transfer */}
-      {method.providerName?.toLowerCase() === 'bank_transfer' && method.methodConfig && (
+      {providerKey === 'bank_transfer' && method.methodConfig && (
         <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 space-y-3">
           <div className="flex items-center justify-between">
             <div className="text-sm font-bold text-gray-900">Bank details</div>
@@ -335,9 +341,7 @@ export const PaymentInstructionsFooter: React.FC<{
         <div className="flex items-center justify-center gap-2">
           {!hasEverCopied && <Lock className="h-4 w-4" />}
           {confirming && <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />}
-          <span>
-            {confirming ? 'Processing...' : hasEverCopied ? "I've completed payment" : 'Copy reference to continue'}
-          </span>
+          <span>{confirming ? 'Processing...' : hasEverCopied ? "I've completed payment" : 'Copy reference to continue'}</span>
         </div>
       </button>
 

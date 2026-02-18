@@ -1,4 +1,6 @@
-// server/quiz/api/ticketsRouter.js
+// server/quiz/api/quzTicketsRouter.js
+// UPDATED: Shows capacity info and blocks purchases when full
+
 import express from 'express';
 import authenticateToken from '../../middleware/auth.js';
 import {
@@ -11,11 +13,12 @@ import {
   getRoomSchedule,
   computeJoinWindow,
   JOIN_WINDOW_MINUTES,
-  
 } from '../services/quizTicketService.js';
 
-
-
+import {
+  getRoomCapacityStatus,
+  getCapacityMessage,
+} from '../services/quizCapacityService.js';
 
 const router = express.Router();
 
@@ -47,7 +50,9 @@ router.get('/room/:roomId/info', async (req, res) => {
     
     const { config, clubId, status } = roomData;
     
-    // Return only public info needed for ticket purchase
+    const capacity = await getRoomCapacityStatus(roomId, 0);
+    const capacityMessage = getCapacityMessage(capacity);
+    
     return res.status(200).json({
       roomId,
       clubId,
@@ -59,6 +64,14 @@ router.get('/room/:roomId/info', async (req, res) => {
       fundraisingPrices: config.fundraisingPrices || {},
       eventDateTime: config.eventDateTime,
       timeZone: config.timeZone,
+      capacity: {
+        maxCapacity: capacity.maxCapacity,
+        availableForTickets: capacity.availableForTickets,
+        totalTickets: capacity.totalTickets,
+        ticketSalesOpen: capacity.ticketSalesOpen,
+        ticketSalesCloseReason: capacity.ticketSalesCloseReason,
+        message: capacityMessage,
+      },
     });
     
   } catch (err) {
@@ -70,7 +83,6 @@ router.get('/room/:roomId/info', async (req, res) => {
 /**
  * POST /api/quiz/tickets/create-with-payment
  * Create ticket with payment claim in one step (public)
- * Only called AFTER user confirms they've paid
  */
 router.post('/create-with-payment', async (req, res) => {
   try {
@@ -86,14 +98,12 @@ router.post('/create-with-payment', async (req, res) => {
       clubPaymentMethodId,
     } = req.body;
     
-    // Validation
     if (!roomId || !purchaserName || !purchaserEmail || !paymentMethod || !paymentReference) {
       return res.status(400).json({ 
         error: 'roomId, purchaserName, purchaserEmail, paymentMethod, and paymentReference are required' 
       });
     }
     
-    // Basic email validation
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(purchaserEmail)) {
       return res.status(400).json({ error: 'Invalid email address' });
     }
@@ -137,9 +147,22 @@ router.post('/create-with-payment', async (req, res) => {
     
   } catch (err) {
     console.error('[Tickets API] ❌ Error creating ticket:', err);
+    
+    const errorMessage = err.message;
+    
+    if (errorMessage.includes('SOLD OUT') || 
+        errorMessage.includes('spot') || 
+        errorMessage.includes('capacity') ||
+        errorMessage.includes('Ticket sales closed')) {
+      return res.status(409).json({
+        error: 'capacity_exceeded',
+        message: errorMessage,
+      });
+    }
+    
     return res.status(500).json({ 
       error: 'Failed to create ticket',
-      message: err.message 
+      message: errorMessage 
     });
   }
 });
@@ -166,11 +189,9 @@ router.get('/:ticketId/status', async (req, res) => {
       ? JSON.parse(ticket.extras)
       : ticket.extras || [];
 
-    // ✅ room schedule + join window
     const roomRow = await getRoomSchedule(ticket.room_id);
     const windowInfo = roomRow ? computeJoinWindow(roomRow) : null;
 
-    // ✅ ticket must be confirmed + ready
     const ticketReady =
       ticket.payment_status === 'payment_confirmed' &&
       ticket.redemption_status === 'ready';
@@ -194,8 +215,6 @@ router.get('/:ticketId/status', async (req, res) => {
       confirmedAt: ticket.confirmed_at,
       redeemedAt: ticket.redeemed_at,
       joinToken: ticket.join_token,
-
-      // ✅ new fields for UI gating + friendly messaging
       roomStatus: windowInfo?.roomStatus || null,
       scheduledAt: windowInfo?.scheduledAt ? windowInfo.scheduledAt.toISOString() : null,
       joinOpensAt: windowInfo?.joinOpensAt ? windowInfo.joinOpensAt.toISOString() : null,
@@ -207,7 +226,6 @@ router.get('/:ticketId/status', async (req, res) => {
     return res.status(500).json({ error: 'internal_error' });
   }
 });
-
 
 /* -------------------------------------------------------------------------- */
 /*                    AUTHENTICATED ROUTES (Host/Admin only)                  */
@@ -228,7 +246,6 @@ router.get('/room/:roomId', async (req, res) => {
       return res.status(400).json({ error: 'roomId required' });
     }
     
-    // Verify room belongs to this club
     const roomData = await getRoomConfig(roomId);
     
     if (!roomData) {
@@ -240,8 +257,8 @@ router.get('/room/:roomId', async (req, res) => {
     }
     
     const tickets = await getRoomTickets(roomId);
+    const capacity = await getRoomCapacityStatus(roomId, 0);
     
-    // Format for frontend
     const formatted = tickets.map(t => {
       const extras = typeof t.extras === 'string' 
         ? JSON.parse(t.extras) 
@@ -274,6 +291,16 @@ router.get('/room/:roomId', async (req, res) => {
     return res.status(200).json({
       ok: true,
       tickets: formatted,
+      capacitySummary: {
+        maxCapacity: capacity.maxCapacity,
+        totalTickets: capacity.totalTickets,
+        claimedTickets: capacity.claimedTickets,
+        confirmedTickets: capacity.confirmedTickets,
+        redeemedTickets: capacity.redeemedTickets,
+        availableForTickets: capacity.availableForTickets,
+        ticketSalesOpen: capacity.ticketSalesOpen,
+        message: getCapacityMessage(capacity),
+      },
     });
     
   } catch (err) {
@@ -284,53 +311,82 @@ router.get('/room/:roomId', async (req, res) => {
 
 /**
  * PATCH /api/quiz/tickets/:ticketId/confirm
- * Host confirms payment (authenticated)
+ * Host or admin confirms a ticket payment (authenticated)
+ *
+ * The frontend sends confirmedBy / confirmedByName / confirmedByRole in the
+ * request body. We trust those values (the route is already auth-guarded) and
+ * fall back to the JWT user only when they are absent.
  */
 router.patch('/:ticketId/confirm', async (req, res) => {
   try {
     const { ticketId } = req.params;
-    const { adminNotes } = req.body;
     const clubId = req.club_id;
-    const userId = req.user?.id;
-    const userName = req.user?.name || 'Admin';
-    
+
     if (!ticketId) {
       return res.status(400).json({ error: 'ticketId required' });
     }
-    
+
+    // ✅ Prefer values sent by the frontend (host dashboard / admin dashboard)
+    //    Fall back to the JWT user if the body fields are missing.
+    const {
+      confirmedBy: bodyConfirmedBy,
+      confirmedByName: bodyConfirmedByName,
+      confirmedByRole: bodyConfirmedByRole,
+      adminNotes,
+    } = req.body;
+
+    const confirmedBy   = bodyConfirmedBy   || req.user?.id   || null;
+    const confirmedByName = bodyConfirmedByName || req.user?.name || 'Admin';
+    const confirmedByRole = bodyConfirmedByRole || 'admin';
+
+    if (!confirmedBy) {
+      return res.status(400).json({
+        error: 'confirmedBy is required — pass it in the request body or ensure the JWT user is valid',
+      });
+    }
+
+    if (DEBUG) {
+      console.log('[Tickets API] 🔍 Confirm request:', {
+        ticketId,
+        confirmedBy,
+        confirmedByName,
+        confirmedByRole,
+      });
+    }
+
     // Verify ticket belongs to this club
     const ticket = await getTicket(ticketId);
-    
+
     if (!ticket) {
       return res.status(404).json({ error: 'Ticket not found' });
     }
-    
+
     if (ticket.club_id !== clubId) {
       return res.status(403).json({ error: 'Forbidden' });
     }
-    
+
     await confirmTicketPayment({
       ticketId,
-      confirmedBy: userId,
-      confirmedByName: userName,
-      confirmedByRole: 'admin', // Could also support 'host' role
+      confirmedBy,
+      confirmedByName,
+      confirmedByRole,
       adminNotes: adminNotes || null,
     });
-    
+
     if (DEBUG) {
-      console.log('[Tickets API] ✅ Payment confirmed by:', userName);
+      console.log('[Tickets API] ✅ Payment confirmed by:', confirmedByName, `(${confirmedByRole})`);
     }
-    
+
     return res.status(200).json({
       ok: true,
       message: 'Payment confirmed. Ticket is now ready for redemption.',
     });
-    
+
   } catch (err) {
     console.error('[Tickets API] ❌ Error confirming payment:', err);
     return res.status(500).json({ 
       error: 'Failed to confirm payment',
-      message: err.message 
+      message: err.message,
     });
   }
 });

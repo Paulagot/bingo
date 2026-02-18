@@ -1,7 +1,7 @@
 // src/components/mgtsystem/modals/PaymentMethodForm.tsx
 
 import { useMemo, useState } from 'react';
-import { Building2, User, QrCode } from 'lucide-react';
+import { Building2, User, QrCode, Info } from 'lucide-react';
 import type { PaymentMethodCategory, InstantPaymentProvider } from '../../../shared/types/payment';
 import type { ClubPaymentMethodWithMeta, PaymentMethodFormData } from '../../../shared/types/paymentMethods';
 
@@ -14,52 +14,53 @@ interface PaymentMethodFormProps {
 
 const CATEGORIES: { value: PaymentMethodCategory; label: string }[] = [
   { value: 'instant_payment', label: 'Instant Payment' },
-  // { value: 'card', label: 'Card Payment' },
-  // { value: 'stripe', label: 'Stripe' },
-  // { value: 'other', label: 'Other' },
 ];
 
-// Expanded UK-friendly providers (manual verification; link/QR supported for most)
 const PROVIDERS: { value: InstantPaymentProvider; label: string; category: PaymentMethodCategory }[] = [
   { value: 'revolut', label: 'Revolut', category: 'instant_payment' },
   { value: 'bank_transfer', label: 'Bank Transfer (Faster Payments / IBAN)', category: 'instant_payment' },
   { value: 'paypal', label: 'PayPal', category: 'instant_payment' },
-  { value: 'monzo', label: 'Monzo ', category: 'instant_payment' },
-  { value: 'starling', label: 'Starling ', category: 'instant_payment' },
-  { value: 'wise', label: 'Wise ', category: 'instant_payment' },
+  { value: 'monzo', label: 'Monzo', category: 'instant_payment' },
+  { value: 'starling', label: 'Starling', category: 'instant_payment' },
+  { value: 'wise', label: 'Wise', category: 'instant_payment' },
   { value: 'cashapp', label: 'Cash App', category: 'instant_payment' },
-  // { value: 'open_banking_pay_by_bank', label: 'Pay by Bank (Open Banking) — coming soon', category: 'instant_payment' },
   { value: 'zippypay', label: 'ZippyPay', category: 'instant_payment' },
-  { value: 'other', label: 'Other ', category: 'instant_payment' },
+  { value: 'other', label: 'Other', category: 'instant_payment' },
 ];
 
 type Config = Record<string, any>;
-
 type LinkPreset = { linkLabel: string; linkPlaceholder: string };
 
 const PROVIDER_PRESETS: Record<string, LinkPreset> = {
-  revolut: { linkLabel: 'Revolut Link', linkPlaceholder: 'https://revolut.me/yourhandle' },
-  paypal: { linkLabel: 'PayPal Link', linkPlaceholder: 'https://paypal.me/yourhandle' },
-  monzo: { linkLabel: 'Monzo Link', linkPlaceholder: 'https://monzo.me/yourhandle' },
-  starling: { linkLabel: 'Starling Payment Link', linkPlaceholder: 'https://...' },
-  wise: { linkLabel: 'Wise Payment Link', linkPlaceholder: 'https://...' },
-  cashapp: { linkLabel: 'Cash App Link', linkPlaceholder: 'https://cash.app/$yourcashtag' },
-  open_banking_pay_by_bank: { linkLabel: 'Pay by Bank Link', linkPlaceholder: 'https://...' },
-  zippypay: { linkLabel: 'ZippyPay Link', linkPlaceholder: 'https://...' },
-  other: { linkLabel: 'Payment Link', linkPlaceholder: 'https://...' },
+  revolut: { linkLabel: 'Revolut payment link', linkPlaceholder: 'https://revolut.me/yourhandle' },
+  paypal: { linkLabel: 'PayPal link', linkPlaceholder: 'https://paypal.me/yourhandle' },
+  monzo: { linkLabel: 'Monzo link', linkPlaceholder: 'https://monzo.me/yourhandle' },
+  starling: { linkLabel: 'Starling payment link', linkPlaceholder: 'https://...' },
+  wise: { linkLabel: 'Wise payment link', linkPlaceholder: 'https://...' },
+  cashapp: { linkLabel: 'Cash App link', linkPlaceholder: 'https://cash.app/$yourcashtag' },
+  zippypay: { linkLabel: 'ZippyPay link', linkPlaceholder: 'https://...' },
+  other: { linkLabel: 'Payment link', linkPlaceholder: 'https://...' },
 };
 
 const DEFAULT_LINK_PRESET: LinkPreset = {
-  linkLabel: 'Payment Link',
+  linkLabel: 'Payment link',
   linkPlaceholder: 'https://...',
 };
 
-const getLinkPreset = (key: string): LinkPreset => {
-  return PROVIDER_PRESETS[key] ?? DEFAULT_LINK_PRESET;
-};
+const getLinkPreset = (key: string): LinkPreset => PROVIDER_PRESETS[key] ?? DEFAULT_LINK_PRESET;
 
 function isTruthyString(v: any): v is string {
   return typeof v === 'string' && v.trim().length > 0;
+}
+
+function sanitizeConfigForProvider(providerKey: string, config: Config): Config {
+  // Prevent stale fields from other providers being saved
+  if (providerKey === 'revolut') {
+    const next: Config = {};
+    if (isTruthyString(config?.link)) next.link = String(config.link).trim();
+    return next;
+  }
+  return { ...(config || {}) };
 }
 
 export default function PaymentMethodForm({ method, onSave, onCancel, loading }: PaymentMethodFormProps) {
@@ -88,8 +89,9 @@ export default function PaymentMethodForm({ method, onSave, onCancel, loading }:
 
   const isBankTransfer = providerKey === 'bank_transfer';
   const isZippyPay = providerKey === 'zippypay';
+  const isRevolut = providerKey === 'revolut';
 
-  // For most providers we support link/QR. Bank transfer uses bank fields, but we still allow QR/link optionally.
+  // For most providers we support link/QR. Bank transfer uses bank fields.
   const supportsLinkQr = !!providerKey && !isBankTransfer;
 
   const shouldShowInstantFields =
@@ -108,8 +110,6 @@ export default function PaymentMethodForm({ method, onSave, onCancel, loading }:
   };
 
   const resetConfigForProvider = (nextProvider: string | null) => {
-    // Keep predictable and avoid stale fields:
-    // switching provider wipes methodConfig. (You can soften this later if you want.)
     setFormData(prev => ({
       ...prev,
       providerName: (nextProvider as any) || null,
@@ -133,11 +133,16 @@ export default function PaymentMethodForm({ method, onSave, onCancel, loading }:
             newErrors.config = 'IBAN or Account Number is required';
           }
 
-          // Optional warning-as-error: if they use UK account number, sort code is recommended
           if (isTruthyString(config?.accountNumber) && !isTruthyString(config?.sortCode)) {
             newErrors.config = 'Sort Code is recommended when using an Account Number';
           }
+        } else if (isRevolut) {
+          // ✅ Revolut: link only (no QR)
+          if (!isTruthyString(config?.link)) {
+            newErrors.config = 'A Revolut payment link is required';
+          }
         } else {
+          // Other providers: link OR QR
           if (!isTruthyString(config?.link) && !isTruthyString(config?.qrCodeUrl)) {
             newErrors.config = 'At least a payment link or QR code URL is required';
           }
@@ -151,76 +156,79 @@ export default function PaymentMethodForm({ method, onSave, onCancel, loading }:
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!validate()) return;
 
+    const sanitized = sanitizeConfigForProvider(providerKey, config);
+
     try {
-      await onSave(formData);
+      await onSave({
+        ...formData,
+        methodConfig: sanitized,
+      });
     } catch (error) {
       console.error('Form submission error:', error);
     }
   };
 
+  // ✅ FIXED: remove those `//` lines that were rendering as "///"
   const renderInstantCommonFields = () => {
     if (!shouldShowInstantFields) return null;
+    return null;
+  };
+
+  const renderRevolutHelp = () => {
+    if (!shouldShowInstantFields || !isRevolut) return null;
 
     return (
-      <>
-        {/* <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Reference Hint (Recommended)
-          </label>
-          <input
-            type="text"
-            value={config?.referenceHint || ''}
-            onChange={(e) => updateConfig('referenceHint', e.target.value)}
-            placeholder="e.g., Use your name + team name"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            This helps admins match payments to players during reconciliation.
+      <div className="mt-3 rounded-lg border border-indigo-200 bg-indigo-50 p-3 flex items-start gap-2">
+        <Info className="h-4 w-4 text-indigo-600 mt-0.5 flex-shrink-0" />
+        <div className="text-sm text-indigo-900">
+          <div className="font-semibold mb-1">How to get your Revolut payment link</div>
+          <ol className="list-decimal pl-5 space-y-1">
+            <li>Open Revolut</li>
+            <li>Go to <span className="font-medium">Payments</span> → <span className="font-medium">Request</span></li>
+            <li>Select <span className="font-medium">Payment link</span> / <span className="font-medium">Share link</span></li>
+            <li>Copy the link and paste it here</li>
+          </ol>
+          <p className="text-xs text-indigo-800 mt-2">
+            Don’t set a fixed amount — players may add extras, so the amount can vary.
           </p>
-        </div> */}
-
-        {/* <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Admin Verification Hint (Optional)
-          </label>
-          <input
-            type="text"
-            value={config?.verificationHint || ''}
-            onChange={(e) => updateConfig('verificationHint', e.target.value)}
-            placeholder="e.g., Look for £5 from John Smith ref TIGERS"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-          />
-        </div> */}
-      </>
+        </div>
+      </div>
     );
   };
 
-  const renderLinkQrFields = () => {
-    if (!shouldShowInstantFields) return null;
+ const renderLinkQrFields = () => {
+  if (!shouldShowInstantFields) return null;
 
-    // For bank transfer, allow QR/link optionally (some banks can generate QR/payment links),
-    // but do not require them.
-    const showLinkQr = supportsLinkQr || isBankTransfer;
-    if (!showLinkQr) return null;
+  // ✅ Bank transfer should NOT show payment link / QR fields
+  if (isBankTransfer) return null;
 
-    return (
-      <>
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            {linkPreset.linkLabel}
-          </label>
-          <input
-            type="url"
-            value={config?.link || ''}
-            onChange={(e) => updateConfig('link', e.target.value)}
-            placeholder={linkPreset.linkPlaceholder}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-          />
-        </div>
+  // For all other non-bank providers:
+  if (!supportsLinkQr) return null;
 
+  return (
+    <>
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          {linkPreset.linkLabel}
+        </label>
+        <input
+          type="url"
+          value={config?.link || ''}
+          onChange={(e) => updateConfig('link', e.target.value)}
+          placeholder={linkPreset.linkPlaceholder}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        />
+        {isRevolut && (
+          <p className="text-xs text-gray-500 mt-1">
+            Paste your Revolut payment link (e.g. revolut.me). We don’t use QR for Revolut to keep it simple.
+          </p>
+        )}
+      </div>
+
+      {/* ✅ QR stays available for other providers, but not Revolut */}
+      {!isRevolut && (
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
             <QrCode className="h-4 w-4" />
@@ -233,22 +241,11 @@ export default function PaymentMethodForm({ method, onSave, onCancel, loading }:
             placeholder="https://example.com/qr-code.png"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           />
-
-          {isTruthyString(config?.qrCodeUrl) ? (
-            <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-              <p className="text-xs font-semibold text-gray-700 mb-2">QR Preview</p>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={config.qrCodeUrl}
-                alt="QR code preview"
-                className="max-h-40 rounded bg-white border border-gray-200 p-2"
-              />
-            </div>
-          ) : null}
         </div>
-      </>
-    );
-  };
+      )}
+    </>
+  );
+};
 
   const renderBankTransferFields = () => {
     if (!shouldShowInstantFields || !isBankTransfer) return null;
@@ -281,7 +278,6 @@ export default function PaymentMethodForm({ method, onSave, onCancel, loading }:
           />
         </div>
 
-        {/* IE/EU */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -310,7 +306,6 @@ export default function PaymentMethodForm({ method, onSave, onCancel, loading }:
           </div>
         </div>
 
-        {/* UK */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -417,13 +412,11 @@ export default function PaymentMethodForm({ method, onSave, onCancel, loading }:
             </option>
           ))}
         </select>
+
         {errors.providerName && <p className="text-xs text-red-600 mt-1">{errors.providerName}</p>}
 
-        {providerKey === 'open_banking_pay_by_bank' ? (
-          <p className="text-xs text-amber-700 mt-2">
-            Note: This is manual for now (link/QR). Later we can add API verification.
-          </p>
-        ) : null}
+        {/* ✅ Revolut help under dropdown */}
+        {renderRevolutHelp()}
       </div>
 
       {/* Label */}

@@ -32,7 +32,7 @@ export function initRound(roomId, namespace) {
   const roundType = roundConfig.roundType;
   const questionsPerRound = roundConfig.config?.questionsPerRound || 8;
 
-  // Extract filters
+  // Extract filters (normal rounds)
   const desiredDifficulty = roundConfig.difficulty;
   const desiredCategory = roundConfig.category;
 
@@ -52,28 +52,62 @@ export function initRound(roomId, namespace) {
     console.log(`[wipeoutEngine] 🔍 Loading questions for round ${room.currentRound}`);
     console.log(`[wipeoutEngine] 📋 Type: ${roundType}, Category: ${desiredCategory}, Difficulty: ${desiredDifficulty}`);
     console.log(`[wipeoutEngine] 🎯 Need: ${questionsPerRound} questions`);
+    console.log(`[wipeoutEngine] 🧩 isPersonalised?`, !!roundConfig.isPersonalised);
   }
 
-  // ✅ UPDATED: Pass roomId to enable global question tracking
-  const selectedQuestions = QuestionService.loadAndFilterQuestions(
-    roomId,      // ← NEW: Pass roomId for global tracking
-    roundType, 
-    desiredCategory, 
-    desiredDifficulty, 
-    questionsPerRound,
-    debug
-  );
+  // ---------------------------------------------------------------------------
+  // ✅ NEW: choose question source
+  // ---------------------------------------------------------------------------
+  let selectedQuestions = [];
 
-  if (debug) {
-    console.log(`[wipeoutEngine] ✅ Selected ${selectedQuestions.length} questions for round ${room.currentRound}`);
-    const actualBreakdown = selectedQuestions.reduce((acc, q) => {
-      const cat = q.category || 'unknown';
-      const diff = q.difficulty || 'unknown';
-      const key = `${cat}/${diff}`;
-      acc[key] = (acc[key] || 0) + 1;
-      return acc;
-    }, {});
-    console.log(`[wipeoutEngine] 📊 Selected question breakdown:`, actualBreakdown);
+  // If this round was injected from DB as a personalised wipeout round
+  if (roundConfig.isPersonalised && room.personalisedRound?.questions?.length) {
+    const raw = room.personalisedRound.questions.slice(0, Math.min(questionsPerRound, 6));
+
+    selectedQuestions = raw.map((q, idx) => {
+      const opts = Array.isArray(q.answers) ? q.answers.slice(0, 4) : [];
+
+      // Ensure exactly 4 options
+      while (opts.length < 4) opts.push('');
+      const correctAnswer = opts[q.correctIndex] ?? '';
+
+      return {
+        id: `pr_${room.personalisedRound.id}_${idx + 1}`, // unique id so it won't collide
+        text: q.questionText,
+        options: opts,
+        correctAnswer,
+        clue: null,         // ✅ no clue for personalised
+        difficulty: 'medium', // ✅ force medium for scoring
+        category: null,
+        source: 'personalised',
+      };
+    });
+
+    if (debug) {
+      console.log(`[wipeoutEngine] ✅ Using personalised questions: ${selectedQuestions.length}`);
+    }
+  } else {
+    // Normal wipeout behaviour (combined_questions.json via QuestionService)
+    selectedQuestions = QuestionService.loadAndFilterQuestions(
+      roomId, // global question tracking
+      roundType,
+      desiredCategory,
+      desiredDifficulty,
+      questionsPerRound,
+      debug
+    );
+
+    if (debug) {
+      console.log(`[wipeoutEngine] ✅ Selected ${selectedQuestions.length} questions for round ${room.currentRound}`);
+      const actualBreakdown = selectedQuestions.reduce((acc, q) => {
+        const cat = q.category || 'unknown';
+        const diff = q.difficulty || 'unknown';
+        const key = `${cat}/${diff}`;
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {});
+      console.log(`[wipeoutEngine] 📊 Selected question breakdown:`, actualBreakdown);
+    }
   }
 
   setQuestionsForCurrentRound(roomId, selectedQuestions);
@@ -82,7 +116,6 @@ export function initRound(roomId, namespace) {
   // Reset per-round extras tracking AND per-round penalty debt
   Object.values(room.playerData).forEach(pd => {
     pd.usedExtrasThisRound = {};
-  
   });
 
   room.currentQuestionIndex = -1;
