@@ -6,6 +6,10 @@ import { nanoid } from 'nanoid';
 import { createExpectedPayment } from './quizPaymentLedgerService.js';
 import { canPurchaseTickets, getRoomCapacityStatus } from './quizCapacityService.js';
 
+import Stripe from 'stripe';
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' });
+
+
 const TICKETS_TABLE = `${TABLE_PREFIX}quiz_tickets`;
 const WEB2_ROOMS_TABLE = `${TABLE_PREFIX}web2_quiz_rooms`;
 
@@ -259,18 +263,10 @@ export async function confirmTicketPayment({
   confirmedByRole,
   adminNotes = null,
 }) {
-  // 1. Get ticket
   const ticket = await getTicket(ticketId);
-  
-  if (!ticket) {
-    throw new Error('Ticket not found');
-  }
-  
-  if (ticket.payment_status === 'payment_confirmed') {
-    throw new Error('Ticket payment already confirmed');
-  }
-  
-  // 2. Update ticket
+  if (!ticket) throw new Error('Ticket not found');
+  if (ticket.payment_status === 'payment_confirmed') throw new Error('Ticket payment already confirmed');
+
   const sql = `
     UPDATE ${TICKETS_TABLE}
     SET
@@ -284,7 +280,7 @@ export async function confirmTicketPayment({
       updated_at = NOW()
     WHERE ticket_id = ?
   `;
-  
+
   await connection.execute(sql, [
     confirmedBy,
     confirmedByName || null,
@@ -292,13 +288,10 @@ export async function confirmTicketPayment({
     adminNotes,
     ticketId
   ]);
-  
-  // 3. Update ledger entries
+
   const playerId = `ticket_${ticketId}`;
-  
-  // Import confirmPayment from ledger service
   const { confirmPayment } = await import('./quizPaymentLedgerService.js');
-  
+
   await confirmPayment({
     roomId: ticket.room_id,
     playerId,
@@ -307,7 +300,7 @@ export async function confirmTicketPayment({
     confirmedByRole,
     adminNotes,
   });
-  
+
   if (DEBUG) {
     console.log('[TicketService] ✅ Ticket payment confirmed:', {
       ticketId,
@@ -315,7 +308,44 @@ export async function confirmTicketPayment({
       confirmedByName,
     });
   }
-  
+
+  // ✅ Send confirmation email (non-fatal if it fails)
+  try {
+    const { sendTicketConfirmationEmail, getTicketWithRoomConfig } = await import('../../utils/ticketEmail.js');
+    const ticketRow = await getTicketWithRoomConfig(ticketId);
+
+    if (ticketRow) {
+      const config = typeof ticketRow.config_json === 'string'
+        ? JSON.parse(ticketRow.config_json)
+        : ticketRow.config_json;
+
+      const extras = typeof ticketRow.extras === 'string'
+        ? JSON.parse(ticketRow.extras)
+        : ticketRow.extras || [];
+
+      await sendTicketConfirmationEmail({
+        ticketId,
+        purchaserEmail: ticketRow.purchaser_email,
+        purchaserName: ticketRow.purchaser_name,
+        playerName: ticketRow.player_name,
+        entryFee: ticketRow.entry_fee,
+        extrasTotal: ticketRow.extras_total,
+        totalAmount: ticketRow.total_amount,
+        currency: ticketRow.currency,
+        currencySymbol: config?.currencySymbol || '€',
+        extras,
+        clubId: ticketRow.club_id,
+        hostName: config?.hostName,
+        eventDateTime: config?.eventDateTime,
+        timeZone: config?.timeZone,
+      });
+
+      console.log('[TicketService] ✅ Confirmation email sent to:', ticketRow.purchaser_email);
+    }
+  } catch (emailErr) {
+    console.error('[TicketService] ⚠️ Email send failed (non-fatal):', emailErr.message);
+  }
+
   return { ok: true, ticketId };
 }
 
@@ -472,5 +502,180 @@ export function computeJoinWindow(roomRow) {
     scheduledAt,
     joinOpensAt,
     canJoinNow,
+  };
+}
+
+// NEW
+export async function createTicketStripeCheckout({
+  roomId,
+  purchaserName,
+  purchaserEmail,
+  purchaserPhone = null,
+  playerName = null,
+  selectedExtras = [],
+  appOrigin,
+}) {
+  // 0) capacity check
+  const capacityCheck = await canPurchaseTickets(roomId, 1);
+  if (!capacityCheck.allowed) throw new Error(capacityCheck.reason);
+
+  // 1) room config
+  const roomData = await getRoomConfig(roomId);
+  if (!roomData) throw new Error('Room not found or not available for ticket purchase');
+
+  const { clubId, config } = roomData;
+
+  // 2) compute prices
+  const entryFee = parseFloat(config.entryFee || 0);
+  const currency =
+    config.currencySymbol === '€' ? 'EUR'
+    : config.currencySymbol === '£' ? 'GBP'
+    : config.currencySymbol === '$' ? 'USD'
+    : 'EUR';
+
+  let extrasTotal = 0;
+  const extrasWithPrices = [];
+
+  for (const extraId of selectedExtras) {
+    const price = config.fundraisingPrices?.[extraId] || 0;
+    if (price > 0) {
+      extrasTotal += price;
+      extrasWithPrices.push({ extraId, price });
+    }
+  }
+
+  const totalAmount = entryFee + extrasTotal;
+
+  // ✅ Stripe wants amount in the smallest unit (cents)
+  const totalAmountCents = Math.round(totalAmount * 100);
+
+  // 3) get connected stripe account (ready + enabled)
+  const stripeConn = await getEnabledReadyStripeForClub(clubId);
+  if (!stripeConn?.accountId) throw new Error('stripe_not_ready_or_disabled');
+
+  // 4) create ticket (reserved, but blocked until webhook confirms)
+  const ticketId = nanoid(12);
+  const joinToken = nanoid(16);
+
+  await connection.execute(
+    `
+    INSERT INTO ${TICKETS_TABLE}
+      (ticket_id, room_id, club_id, purchaser_name, purchaser_email, purchaser_phone,
+       player_name, entry_fee, extras, extras_total, total_amount, currency,
+       payment_status, payment_method, payment_reference, club_payment_method_id,
+       redemption_status, join_token)
+    VALUES
+      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'payment_claimed', 'stripe', NULL, ?, 'blocked', ?)
+    `,
+    [
+      ticketId,
+      roomId,
+      clubId,
+      purchaserName,
+      purchaserEmail,
+      purchaserPhone,
+      playerName || purchaserName,
+      entryFee,
+      JSON.stringify(extrasWithPrices),
+      extrasTotal,
+      totalAmount,
+      currency,
+      stripeConn.clubPaymentMethodId,
+      joinToken,
+    ]
+  );
+
+  // 5) create ledger rows as EXPECTED (not claimed yet)
+  const tempPlayerId = `ticket_${ticketId}`;
+
+  const entryLedgerId = await createExpectedPayment({
+    roomId,
+    clubId,
+    playerId: tempPlayerId,
+    playerName: playerName || purchaserName,
+    ledgerType: 'entry_fee',
+    amount: entryFee,
+    currency,
+    paymentMethod: 'stripe',
+    paymentSource: 'player_selected',
+    clubPaymentMethodId: stripeConn.clubPaymentMethodId,
+    ticketId,
+    status: 'expected',
+  });
+
+  for (const extra of extrasWithPrices) {
+    await createExpectedPayment({
+      roomId,
+      clubId,
+      playerId: tempPlayerId,
+      playerName: playerName || purchaserName,
+      ledgerType: 'extra_purchase',
+      amount: extra.price,
+      currency,
+      paymentMethod: 'stripe',
+      paymentSource: 'player_selected',
+      clubPaymentMethodId: stripeConn.clubPaymentMethodId,
+      ticketId,
+      status: 'expected',
+      extraId: extra.extraId,
+      extraMetadata: extra,
+    });
+  }
+
+  // set ticket.ledger_id to entry fee ledger row (like you do today)
+  await connection.execute(
+    `UPDATE ${TICKETS_TABLE} SET ledger_id = ? WHERE ticket_id = ?`,
+    [entryLedgerId, ticketId]
+  );
+
+  // 6) Create Stripe checkout session ON CONNECTED ACCOUNT
+  const origin = appOrigin || process.env.APP_URL || 'http://localhost:5173';
+
+  const session = await stripe.checkout.sessions.create(
+    {
+      mode: 'payment',
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: currency.toLowerCase(),
+            unit_amount: totalAmountCents,
+            product_data: { name: `Quiz Ticket (${roomId})` },
+          },
+        },
+      ],
+      success_url: `${origin}/quiz/${roomId}/tickets/success?ticketId=${ticketId}&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/quiz/${roomId}/tickets/cancel?ticketId=${ticketId}&session_id={CHECKOUT_SESSION_ID}`,
+
+      metadata: {
+        type: 'ticket_purchase',
+        ticketId,
+        roomId,
+        clubId,
+        tempPlayerId,
+      },
+    },
+    { stripeAccount: stripeConn.accountId }
+  );
+
+  // 7) store session id on ticket + ledger rows (reference)
+  await connection.execute(
+    `UPDATE ${TICKETS_TABLE} 
+     SET payment_reference = ?, updated_at = NOW()
+     WHERE ticket_id = ?`,
+    [session.id, ticketId]
+  );
+
+  await connection.execute(
+    `UPDATE ${TABLE_PREFIX}quiz_payment_ledger
+     SET payment_reference = ?, updated_at = NOW()
+     WHERE ticket_id = ?`,
+    [session.id, ticketId]
+  );
+
+  return {
+    url: session.url,
+    ticketId,
+    joinToken,
   };
 }

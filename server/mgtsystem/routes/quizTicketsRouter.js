@@ -1,4 +1,4 @@
-// server/quiz/api/quzTicketsRouter.js
+// server/quiz/api/quizTicketsRouter.js
 // UPDATED: Shows capacity info and blocks purchases when full
 
 import express from 'express';
@@ -19,6 +19,8 @@ import {
   getRoomCapacityStatus,
   getCapacityMessage,
 } from '../services/quizCapacityService.js';
+
+import { createTicketAndStripeSession } from '../../stripe/stripeTicketCheckoutService.js';
 
 const router = express.Router();
 
@@ -167,6 +169,53 @@ router.post('/create-with-payment', async (req, res) => {
   }
 });
 
+router.post('/stripe/checkout', async (req, res) => {
+  try {
+    const {
+      roomId,
+      purchaserName,
+      purchaserEmail,
+      purchaserPhone,
+      playerName,
+      selectedExtras,
+      appOrigin,
+    } = req.body;
+
+    if (!roomId || !purchaserName || !purchaserEmail) {
+      return res.status(400).json({ error: 'missing_required_fields' });
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(purchaserEmail)) {
+      return res.status(400).json({ error: 'Invalid email address' });
+    }
+
+    const result = await createTicketAndStripeSession({
+      roomId,
+      purchaserName: purchaserName.trim(),
+      purchaserEmail: purchaserEmail.trim(),
+      purchaserPhone: purchaserPhone?.trim() || null,
+      playerName: playerName?.trim() || null,
+      selectedExtras: Array.isArray(selectedExtras) ? selectedExtras : [],
+      appOrigin,
+    });
+
+    return res.status(200).json({ ok: true, url: result.url, ticketId: result.ticketId });
+  } catch (err) {
+    const msg = err?.message || 'stripe_checkout_failed';
+
+    // capacity blocking -> 409 like your existing route
+    if (
+      msg.includes('SOLD OUT') ||
+      msg.includes('capacity') ||
+      msg.includes('Ticket sales closed')
+    ) {
+      return res.status(409).json({ error: 'capacity_exceeded', message: msg });
+    }
+
+    return res.status(500).json({ error: 'stripe_checkout_failed', message: msg });
+  }
+});
+
 /**
  * GET /api/quiz/tickets/:ticketId/status
  * Check ticket status (public)
@@ -226,6 +275,8 @@ router.get('/:ticketId/status', async (req, res) => {
     return res.status(500).json({ error: 'internal_error' });
   }
 });
+
+
 
 /* -------------------------------------------------------------------------- */
 /*                    AUTHENTICATED ROUTES (Host/Admin only)                  */

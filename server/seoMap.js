@@ -162,12 +162,12 @@ export function getSeoForPath(reqPath, hostOrigin) {
 },
 // server/seoMap.js (inside byPath)
 '/campaigns/clubs-league': {
-  title: 'Junior Sports Clubs Quiz League (Dates TBC) — Family Fundraiser for U8 to U10 | FundRaisely',
+  title: 'Junior Sports Clubs Quiz League 2026 — Family Fundraiser for U8 to U10 | FundRaisely',
   description:
-    'Join the FundRaisely Junior Sports Clubs Quiz League. Your club runs one family quiz night Dates TBC, raises funds for junior teams, and competes for prizes and a €2,000 club grant. Limited to 50 clubs.',
+    'Join the FundRaisely Junior Sports Clubs Quiz League. Your club runs one family quiz night before 30 June 2026, raises funds for junior teams, and competes for prizes and a €2,000 club grant. Limited to 25 clubs.',
   canonical: ABS(hostOrigin, '/campaigns/clubs-league'),
   keywords:
-    'club fundraising, quiz night fundraiser, youth sports fundraising, GAA fundraiser, soccer club fundraiser, family quiz night, Dates TBC fundraising',
+    'club fundraising, quiz night fundraiser, youth sports fundraising, GAA fundraiser, soccer club fundraiser, family quiz night, fundraising',
   image: ABS(hostOrigin, '/og/fundraisely.png'), // optional if you have it
   type: 'event',
   robots: 'index, follow',

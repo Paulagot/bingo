@@ -63,7 +63,7 @@ export async function createExpectedPayment({
         ledgerType,
         extraId
       });
-      return existing[0].ledger_id;
+     return existing[0].id;
     }
   }
   

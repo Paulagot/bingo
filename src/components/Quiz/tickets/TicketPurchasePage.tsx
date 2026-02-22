@@ -26,7 +26,8 @@ type TicketStep =
   | 'player-details'
   | 'extras'
   | 'payment-method'
-  | 'checking-capacity' // ✅ NEW: Show while checking capacity
+  | 'checking-capacity'
+  |'redirecting-to-stripe' // ✅ NEW: Show while checking capacity
   | 'payment-instructions'
   | 'creating-ticket'
   | 'complete';
@@ -143,6 +144,40 @@ export const TicketPurchasePage: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Failed to load payment methods');
     }
   };
+
+  const startStripeCheckout = async (_method: ClubPaymentMethod) => {
+  try {
+    setStep('checking-capacity'); // reuses your existing spinner
+    setError(null);
+
+    const response = await fetch('/api/quiz/tickets/stripe/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        roomId,
+        purchaserName: playerDetails.purchaserName,
+        purchaserEmail: playerDetails.purchaserEmail,
+        purchaserPhone: playerDetails.purchaserPhone,
+        playerName: playerDetails.playerName,
+        selectedExtras,
+        appOrigin: window.location.origin,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to start checkout');
+    }
+
+    // Leave your app and go to Stripe's hosted payment page
+    window.location.href = data.url;
+
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Stripe checkout failed');
+    setStep('payment-method');
+  }
+};
 
   // ✅ NEW: Check capacity BEFORE showing payment instructions
   const checkCapacityBeforePayment = async (method: ClubPaymentMethod) => {
@@ -454,13 +489,16 @@ export const TicketPurchasePage: React.FC = () => {
             />
           }
         >
-          <PaymentMethodSelector
-            paymentMethods={paymentMethods}
-            onSelect={(method) => {
-              // ✅ CRITICAL: Check capacity BEFORE showing payment instructions
-              checkCapacityBeforePayment(method);
-            }}
-          />
+       <PaymentMethodSelector
+  paymentMethods={paymentMethods}
+  onSelect={(method) => {
+    if (method.methodCategory === 'stripe') {
+      startStripeCheckout(method);
+    } else {
+      checkCapacityBeforePayment(method);
+    }
+  }}
+/>
         </StepLayout>
       )}
 

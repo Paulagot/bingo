@@ -155,6 +155,7 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
   const [paymentReference] = useState(() => `QUIZ-${nanoid(6).toUpperCase()}`);
   const [joiningRoom, setJoiningRoom] = useState(false);
   const [hasCopiedReference, setHasCopiedReference] = useState(false);
+  const [_error, setError] = useState<string | null>(null);
 
   // Form state
   const [playerDetails, setPlayerDetails] = useState<PlayerDetailsFormData>({
@@ -488,6 +489,42 @@ const checkWalkInCapacity = async (currentRoomId: string): Promise<boolean> => {
     localStorage.setItem(`quizPlayerId:${roomId}`, playerId);
     navigate(`/quiz/game/${roomId}/${playerId}`);
   };
+
+  const startStripeCheckout = async (_method: ClubPaymentMethod) => {
+ try {
+    console.log('[startStripeCheckout] 🚀 Starting...', { roomId, playerName: playerDetails.playerName });
+    setJoiningRoom(true);
+
+    sessionStorage.setItem(`stripe-walkin-name:${roomId}`, playerDetails.playerName);
+    sessionStorage.setItem(`stripe-walkin-extras:${roomId}`, JSON.stringify(selectedExtras));
+
+    console.log('[startStripeCheckout] 📡 Calling API...');
+
+    const response = await fetch('/api/stripe/walkin-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        roomId,
+        playerName: playerDetails.playerName,
+        selectedExtras,
+        appOrigin: window.location.origin,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to start checkout');
+    }
+
+    // Leave the app — player goes to Stripe
+    window.location.href = data.url;
+
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Stripe checkout failed');
+    setJoiningRoom(false);
+  }
+};
 
   const handleInstantPayment = async () => {
     if (!socket || !roomConfig || !selectedMethod) return;
@@ -938,14 +975,19 @@ const checkWalkInCapacity = async (currentRoomId: string): Promise<boolean> => {
           subtitle="Choose how you'd like to pay"
           footer={<ActionButtons onBack={() => setStep('payment-choice')} />}
         >
-          <PaymentMethodSelector
-            paymentMethods={paymentMethods}
-            onSelect={(method) => {
-              setSelectedMethod(method);
-              setStep('payment-instructions');
-            }}
-            loading={loadingMethods}
-          />
+<PaymentMethodSelector
+  paymentMethods={paymentMethods}
+  onSelect={(method) => {
+    console.log('[JoinFlow] Method selected:', method.methodCategory, method); // ✅ add this
+    if (method.methodCategory === 'stripe') {
+      startStripeCheckout(method);
+    } else {
+      setSelectedMethod(method);
+      setStep('payment-instructions');
+    }
+  }}
+  loading={loadingMethods}
+/>
         </StepLayout>
       )}
 

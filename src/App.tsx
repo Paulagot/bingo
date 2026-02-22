@@ -47,6 +47,17 @@ const TicketStatusChecker = lazy(() =>
   import('./components/Quiz/tickets/TicketStatusChecker').then(m => ({ default: m.TicketStatusChecker }))
 );
 
+const StripeQuizTicketSuccess = lazy(() => 
+  import('./components/Quiz/tickets/stripeQuizTicketSuccess').then(m => ({ default: m.StripeQuizTicketSuccess }))
+);
+const StripeQuizTicketCancel = lazy(() => 
+  import('./components/Quiz/tickets/stripeQuizTicketCancel').then(m => ({ default: m.StripeQuizTicketCancel }))
+);
+
+const StripeWalkinSuccess = lazy(() =>
+  import('./components/Quiz/joinroom/StripeWalkinSuccess').then(m => ({ default: m.StripeWalkinSuccess }))
+);
+
 // Lazy Web3 hub + impact campaign pages
 const Web3HubPage = lazy(() => import('./pages/web3'));
 const ImpactCampaignOverview = lazy(() => import('./pages/web3/impact-campaign'));
@@ -150,6 +161,36 @@ export default function App() {
                 </Suspense>
               }
             />
+
+            {/* ✅ NEW: Stripe success and cancel */}
+<Route
+  path="/tickets/:ticketId/success"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Confirming payment..." />}>
+      <StripeQuizTicketSuccess />
+    </Suspense>
+  }
+/>
+
+<Route
+  path="/tickets/:ticketId/cancel"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+      <StripeQuizTicketCancel />
+    </Suspense>
+  }
+/>
+
+<Route
+  path="/quiz/:roomId/join-success"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Confirming payment..." />}>
+      <QuizSocketProvider>
+        <StripeWalkinSuccess />
+      </QuizSocketProvider>
+    </Suspense>
+  }
+/>
 
             {/* ✅ Quiz Creation - NO Web3Provider (wizard handles it internally) */}
             <Route

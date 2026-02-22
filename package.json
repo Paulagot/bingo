@@ -80,6 +80,7 @@
     "react-router-dom": "^6.22.2",
     "socket.io": "^4.8.1",
     "sonner": "^2.0.7",
+    "stripe": "^20.3.1",
     "uuid": "^11.1.0",
     "viem": "^2.40.3",
     "wagmi": "^3.0.2",
