@@ -14,7 +14,7 @@ export type ClubLeaguePledgePayload = {
   email: string;
   role: ClubRole;
   roleOther?: string;
-  campaign: 'clubs_league_march_2026';
+  campaign: 'clubs_league_2026';
 };
 
 type Props = {
@@ -60,7 +60,7 @@ export const ClubLeaguePledgeForm: React.FC<Props> = ({
       email: email.trim(),
       role,
       roleOther: role === 'Other' ? roleOther.trim() : undefined,
-      campaign: 'clubs_league_march_2026',
+      campaign: 'clubs_league_2026',
     };
 
     try {
@@ -101,7 +101,7 @@ export const ClubLeaguePledgeForm: React.FC<Props> = ({
     <div>
       <h3 className="text-indigo-900 text-xl font-bold">{compactTitle}</h3>
       <p className="mt-2 text-sm text-indigo-900/70 leading-relaxed">
-        Limited to <strong>50 clubs</strong>. Pledge now to get the full support pack and reserve a spot for the league.
+        Limited to <strong>25 clubs</strong>. Pledge now to get the full support pack and reserve a spot for the league.
       </p>
 
       <div className="mt-4 rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4">
@@ -109,13 +109,13 @@ export const ClubLeaguePledgeForm: React.FC<Props> = ({
           <li className="flex items-start gap-2">
             <CheckCircle className="h-4 w-4 mt-0.5 text-green-600" />
             <span>
-              Registration &amp; payment deadline: <strong>TBC</strong>
+              Registration <strong>is essential</strong> we will contact you with the league pack and next steps after you pledge.
             </span>
           </li>
           <li className="flex items-start gap-2">
             <CheckCircle className="h-4 w-4 mt-0.5 text-green-600" />
             <span>
-              Your club quiz night must run during: <strong>date TBC</strong>
+              Your club quiz night must run before: <strong>30 June '26</strong>
             </span>
           </li>
           <li className="flex items-start gap-2">

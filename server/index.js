@@ -64,7 +64,8 @@ import quizLatePayments from './mgtsystem/routes/quizLatePayments.js';
 import quizPersonalisedRoundRouter from './mgtsystem/routes/quizPersonalisedRoundRouter.js';
 
 import quizStatsRoutes from './mgtsystem/routes/quizStats.js';
-
+import { stripeRouter } from './stripe/stripeRoutes.js';
+import { stripeWebhookHandler } from './stripe/stripeWebhooks.js';
 
 const app = express();
 
@@ -88,15 +89,17 @@ app.get('/health', (req, res) => {
 
 app.use(cors());
 
+// ✅ Stripe webhook MUST be raw and MUST be mounted before express.json()
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), stripeWebhookHandler);
+
 // Accept JSON bodies (existing)
-app.use(express.json({ limit: '100kb' }));
-// Accept raw/text bodies too (TGB may send raw encrypted string bodies)
-app.use(express.text({ type: 'text/*', limit: '100kb' }));
-// JSON body parser - Express will automatically handle parsing errors
 app.use(express.json({ 
   limit: '100kb',
   strict: true
 }));
+// Accept raw/text bodies too (TGB may send raw encrypted string bodies)
+app.use(express.text({ type: 'text/*', limit: '100kb' }));
+
 
 // Handle JSON parsing errors (Express throws SyntaxError for invalid JSON)
 app.use((err, req, res, next) => {
@@ -178,6 +181,13 @@ app.use((req, res, next) => {
    ────────────────────────────────────────────────────────── */
 app.post('/api/tgb/create-deposit-address', createDepositAddress);
 app.post('/api/tgb/webhook', tgbWebhookHandler);
+
+/* ──────────────────────────────────────────────────────────
+   Stripe endpoints (paymnt creation + webhook)
+   Keep these grouped and mounted early (before heavy middleware)
+   ────────────────────────────────────────────────────────── */
+   app.set('trust proxy', 1);
+   app.use('/api/stripe', stripeRouter);
 
 /* ──────────────────────────────────────────────────────────
    Security headers (safe defaults; CSP in Report-Only)
