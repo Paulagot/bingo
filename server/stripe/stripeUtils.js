@@ -6,7 +6,8 @@ const ALLOWED_APP_ORIGINS = new Set([
   'https://www.fundraisely.ie',
   'https://fundraisely.co.uk',
   'https://www.fundraisely.co.uk',
- 'https://fundraisely-staging.up.railway.app'
+ 'https://fundraisely-staging.up.railway.app',
+  'http://fundraisely-staging.up.railway.app'
 ]);
 
 export const getBaseUrl = (req) => {

@@ -90,7 +90,7 @@ app.get('/health', (req, res) => {
 app.use(cors());
 
 // ✅ Stripe webhook MUST be raw and MUST be mounted before express.json()
-app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), stripeWebhookHandler);
+app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), stripeWebhookHandler);
 
 // Accept JSON bodies (existing)
 app.use(express.json({ 
