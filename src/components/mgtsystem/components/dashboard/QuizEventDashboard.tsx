@@ -1,6 +1,6 @@
 // src/components/Quiz/pages/QuizEventDashboard.tsx
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import NotificationsTicker from './NotificationsTicker';
 import EditWeb2QuizWizardModal from '../../../Quiz/Wizard/EditWeb2QuizWizardModal';
 import { eventIntegrationsService } from '../../services/EventIntegrationsService';
@@ -9,6 +9,7 @@ import UnlinkConfirmModal from '../../modals/Unlinkconfirmmodal';
 import { QuizEventCard } from '../cards/QuizEventCard';
 import ManagePaymentMethodsModal from '../../modals/ManagePaymentMethodsModal';
 import QuizRoomsService, { type RoomStats } from '../../services/quizRoomServices';
+import { quizPaymentMethodsService } from '../../services/QuizPaymentMethodsService';
 
 import {
   CreditCard,
@@ -64,21 +65,10 @@ function parseConfigJson(configStr: string | ParsedConfig | null | undefined, ro
 }
 
 function canUseEventLinking(ents: any): boolean {
-  if (debug) console.log('🔍 [canUseEventLinking] Checking:', {
-    ents,
-    hasQuizFeatures: !!ents?.quiz_features,
-    eventLinking: ents?.quiz_features?.eventLinking,
-    plan_id: ents?.plan_id,
-    plan_code: ents?.plan_code,
-  });
-
   if (!ents) return false;
-
   if (ents?.quiz_features?.eventLinking === true) return true;
   if (ents?.quizFeatures?.eventLinking === true) return true;
-
   if (ents?.plan_code === 'DEV' || ents?.plan_id === 2) return true;
-
   return false;
 }
 
@@ -113,21 +103,35 @@ function extractMaxPlayers(ents: any): number {
 }
 
 export default function QuizEventDashboard() {
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  // ── Auth (must be declared before any useEffect that references it) ──
+  const clubId = useAuthStore((s: any) => s.club?.club_id || s.user?.club_id);
   const clubName = useAuthStore(
     (s: any) => s.user?.club_name || s.user?.clubName || s.user?.club?.name || 'Your Club'
   );
-  const [paymentMethodsOpen, setPaymentMethodsOpen] = useState(false);
-  const clubId = useAuthStore((s: any) => s.club?.club_id || s.user?.club_id);
 
-  // ✅ default table, but we will force cards on mobile
+  // ── Payment modal state ──
+  const [showPaymentModal, setShowPaymentModal] = useState(false);   // auto-opened by Stripe return
+  const [paymentMethodsOpen, setPaymentMethodsOpen] = useState(false); // opened by button
+  const [paymentMethodMap, setPaymentMethodMap] = useState<Record<string, boolean>>({});
+
+  // Auto-open payment modal when returning from Stripe — wait for clubId first
+  useEffect(() => {
+    if (!clubId) return;
+    const stripeParam = searchParams.get('stripe');
+    if (stripeParam === 'return' || stripeParam === 'refresh') {
+      setShowPaymentModal(true);
+    }
+  }, [clubId]); // runs once auth is ready
+
+  // ── View / layout ──
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [isMobile, setIsMobile] = useState(false);
 
-  // ✅ Force cards on small screens
   useEffect(() => {
-    const mq = window.matchMedia('(max-width: 639px)'); // Tailwind sm breakpoint
+    const mq = window.matchMedia('(max-width: 639px)');
     const apply = () => {
       const mobile = mq.matches;
       setIsMobile(mobile);
@@ -138,16 +142,16 @@ export default function QuizEventDashboard() {
     return () => mq.removeEventListener?.('change', apply);
   }, []);
 
+  // ── Edit modal ──
   const [editOpen, setEditOpen] = useState(false);
   const [editRoomId, setEditRoomId] = useState<string | null>(null);
-  const [roomStats, setRoomStats] = useState<Record<string, RoomStats>>({});
-  const [_statsLoading, setStatsLoading] = useState(false);
 
   const openEditModal = (room: Room) => {
     setEditRoomId(room.room_id);
     setEditOpen(true);
   };
 
+  // ── Link / unlink modal ──
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkRoom, setLinkRoom] = useState<Room | null>(null);
 
@@ -161,29 +165,31 @@ export default function QuizEventDashboard() {
     setLinkRoom(null);
   };
 
-
-
   const [unlinkModalOpen, setUnlinkModalOpen] = useState(false);
   const [unlinkRoom, setUnlinkRoom] = useState<Room | null>(null);
   const [unlinkLoading, setUnlinkLoading] = useState(false);
 
+  // ── Entitlements ──
   const [ents, setEnts] = useState<any>(null);
   const [entsLoading, setEntsLoading] = useState(true);
   const [entsError, setEntsError] = useState<string | null>(null);
   const showEventLinking = useMemo(() => canUseEventLinking(ents), [ents]);
 
+  // ── Rooms ──
   const [status, setStatus] = useState<StatusFilter>('all');
-
   const [rooms, setRooms] = useState<Room[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
   const [roomsError, setRoomsError] = useState<string | null>(null);
-
   const [linkedEvents, setLinkedEvents] = useState<Record<string, { eventId: string; eventTitle: string }>>({});
+  const [roomStats, setRoomStats] = useState<Record<string, RoomStats>>({});
+  const [_statsLoading, setStatsLoading] = useState(false);
 
+  // ── Derived ──
   const creditsRemaining = useMemo(() => extractCreditsRemaining(ents), [ents]);
   const maxPlayersFromPlan = useMemo(() => extractMaxPlayers(ents), [ents]);
   const canLaunchWizard = !entsLoading && !entsError && creditsRemaining > 0;
 
+  // ── Cancel modal ──
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelRoom, setCancelRoom] = useState<Room | null>(null);
   const [cancelConfig, setCancelConfig] = useState<ParsedConfig | null>(null);
@@ -194,34 +200,25 @@ export default function QuizEventDashboard() {
   const [_ticketStatsLoading, setTicketStatsLoading] = useState(true);
 
   const sortedRooms = useMemo(() => {
-    const statusPriority: Record<string, number> = {
-      live: 1,
-      scheduled: 2,
-      completed: 3,
-      cancelled: 4,
-    };
-
+    const statusPriority: Record<string, number> = { live: 1, scheduled: 2, completed: 3, cancelled: 4 };
     return [...rooms].sort((a, b) => {
       const aPriority = statusPriority[a.status] || 999;
       const bPriority = statusPriority[b.status] || 999;
-
       if (aPriority !== bPriority) return aPriority - bPriority;
-
       const aTime = a.scheduled_at ? new Date(a.scheduled_at).getTime() : 0;
       const bTime = b.scheduled_at ? new Date(b.scheduled_at).getTime() : 0;
-
       return aTime - bTime;
     });
   }, [rooms]);
 
-  const stats = useMemo(() => {
-    const total = rooms.length;
-    const upcoming = rooms.filter(r => r.status === 'scheduled').length;
-    const live = rooms.filter(r => r.status === 'live').length;
-    const completed = rooms.filter(r => r.status === 'completed').length;
-    return { total, upcoming, live, completed };
-  }, [rooms]);
+  const stats = useMemo(() => ({
+    total: rooms.length,
+    upcoming: rooms.filter(r => r.status === 'scheduled').length,
+    live: rooms.filter(r => r.status === 'live').length,
+    completed: rooms.filter(r => r.status === 'completed').length,
+  }), [rooms]);
 
+  // ── Data loaders ──
   const loadEntitlements = async () => {
     try {
       setEntsLoading(true);
@@ -238,28 +235,18 @@ export default function QuizEventDashboard() {
   };
 
   const loadLinkedEvents = async (roomIds: string[]) => {
-    if (roomIds.length === 0) {
-      setLinkedEvents({});
-      return;
-    }
-
+    if (roomIds.length === 0) { setLinkedEvents({}); return; }
     try {
       const response = await eventIntegrationsService.lookupLinks({
         integration_type: 'quiz_web2',
         external_refs: roomIds,
       });
-
       const linkMap: Record<string, { eventId: string; eventTitle: string }> = {};
-
       for (const link of response.links || []) {
         if (link.external_ref && link.event_id && link.event_title) {
-          linkMap[link.external_ref] = {
-            eventId: link.event_id,
-            eventTitle: link.event_title,
-          };
+          linkMap[link.external_ref] = { eventId: link.event_id, eventTitle: link.event_title };
         }
       }
-
       setLinkedEvents(linkMap);
     } catch (e: any) {
       console.error('[QuizEventDashboard] ❌ Failed to load linked events:', e);
@@ -268,15 +255,11 @@ export default function QuizEventDashboard() {
   };
 
   const loadRoomStats = async (roomIds: string[]) => {
-    if (roomIds.length === 0) {
-      setRoomStats({});
-      return;
-    }
-
+    if (roomIds.length === 0) { setRoomStats({}); return; }
     try {
       setStatsLoading(true);
-      const stats = await QuizRoomsService.batchGetRoomStats(roomIds);
-      setRoomStats(stats);
+      const s = await QuizRoomsService.batchGetRoomStats(roomIds);
+      setRoomStats(s);
     } catch (error) {
       console.error('[QuizEventDashboard] ❌ Failed to load room stats:', error);
       setRoomStats({});
@@ -285,20 +268,36 @@ export default function QuizEventDashboard() {
     }
   };
 
+  // Load once per room list — NOT per card
+  const loadPaymentMethodFlags = async (roomIds: string[]) => {
+    if (roomIds.length === 0) { setPaymentMethodMap({}); return; }
+    try {
+      const results = await Promise.all(
+        roomIds.map(id =>
+          quizPaymentMethodsService.getQuizPaymentMethods(id)
+            .then(res => ({ id, hasLinked: res.linked_method_ids.length > 0 }))
+            .catch(() => ({ id, hasLinked: false }))
+        )
+      );
+      const map: Record<string, boolean> = {};
+      results.forEach(r => { map[r.id] = r.hasLinked; });
+      setPaymentMethodMap(map);
+    } catch (e) {
+      console.error('[QuizEventDashboard] Failed to load payment method flags:', e);
+    }
+  };
+
   const loadRooms = async (s: StatusFilter) => {
     try {
       setRoomsLoading(true);
       setRoomsError(null);
-
       const res = await quizApi.getWeb2RoomsList({ status: s, time: 'all' });
-
       setRooms(res.rooms || []);
-
       const roomIds = (res.rooms || []).map(r => r.room_id);
-
       await Promise.all([
         loadLinkedEvents(roomIds),
-        loadRoomStats(roomIds)
+        loadRoomStats(roomIds),
+        loadPaymentMethodFlags(roomIds),
       ]);
     } catch (e: any) {
       console.error('[QuizEventDashboard] ❌ Failed:', e);
@@ -310,21 +309,14 @@ export default function QuizEventDashboard() {
   };
 
   const loadTicketStats = async () => {
-    if (!clubId) {
-      setTicketStatsLoading(false);
-      return;
-    }
-
+    if (!clubId) { setTicketStatsLoading(false); return; }
     try {
       setTicketStatsLoading(true);
       const res = await quizApi.getWeb2RoomsList({ status: 'all', time: 'all' });
-
       let totalTickets = 0;
       let totalIncome = 0;
-
       for (const room of res.rooms || []) {
         const config = parseConfigJson(room.config_json, room.room_id);
-
         if (room.status === 'completed' || room.status === 'live') {
           const entryFee = parseFloat(config.entryFee || '0');
           const participants = room.participants_count || 0;
@@ -332,7 +324,6 @@ export default function QuizEventDashboard() {
           totalIncome += entryFee * participants;
         }
       }
-
       setTicketStats({ totalTickets, totalIncome });
     } catch (e: any) {
       console.error('[QuizEventDashboard] ❌ Failed to load ticket stats:', e);
@@ -351,9 +342,8 @@ export default function QuizEventDashboard() {
     loadRooms(status);
   }, [status]);
 
-  const goToWizard = () => {
-    navigate('/quiz/create-fundraising-quiz?openWizard=1');
-  };
+  // ── Handlers ──
+  const goToWizard = () => navigate('/quiz/create-fundraising-quiz?openWizard=1');
 
   const openRoom = (roomId: string, hostId: string) => {
     localStorage.removeItem('quiz-setup-v2');
@@ -362,9 +352,7 @@ export default function QuizEventDashboard() {
     localStorage.removeItem('current-room-id');
     localStorage.removeItem('current-host-id');
     localStorage.removeItem('current-contract-address');
-
     useQuizConfig.getState().resetConfig();
-
     navigate(`/quiz/host-dashboard/${roomId}?hostId=${encodeURIComponent(hostId)}`);
   };
 
@@ -373,9 +361,7 @@ export default function QuizEventDashboard() {
     openEditModal(room);
   };
 
-  const handleEditSaved = async () => {
-    await loadRooms(status);
-  };
+  const handleEditSaved = async () => { await loadRooms(status); };
 
   const handleCancel = (room: Room) => {
     setCancelError(null);
@@ -386,13 +372,10 @@ export default function QuizEventDashboard() {
 
   const confirmCancel = async () => {
     if (!cancelRoom) return;
-
     try {
       setCancelLoading(true);
       setCancelError(null);
-
       await quizApi.cancelWeb2Room(cancelRoom.room_id);
-
       setRooms((prev) =>
         prev.map((r) =>
           r.room_id === cancelRoom.room_id
@@ -400,7 +383,6 @@ export default function QuizEventDashboard() {
             : r
         )
       );
-
       setCancelOpen(false);
       setCancelRoom(null);
       setCancelConfig(null);
@@ -419,28 +401,21 @@ export default function QuizEventDashboard() {
 
   const confirmUnlink = async () => {
     if (!unlinkRoom) return;
-
     const linked = linkedEvents[unlinkRoom.room_id];
     if (!linked) return;
-
     try {
       setUnlinkLoading(true);
-
       const integrationsResponse = await eventIntegrationsService.list(linked.eventId);
       const integration = integrationsResponse.integrations?.find(
         (int) => int.external_ref === unlinkRoom.room_id
       );
-
       if (!integration) throw new Error('Integration not found');
-
       await eventIntegrationsService.unlink(linked.eventId, integration.id);
-
       setLinkedEvents(prev => {
         const updated = { ...prev };
         delete updated[unlinkRoom.room_id];
         return updated;
       });
-
       setUnlinkModalOpen(false);
       setUnlinkRoom(null);
     } catch (e: any) {
@@ -451,6 +426,32 @@ export default function QuizEventDashboard() {
     }
   };
 
+  // Refresh payment flags for a single room after its modal closes with changes
+  const handlePaymentMethodSuccess = async (roomId: string) => {
+    try {
+      const res = await quizPaymentMethodsService.getQuizPaymentMethods(roomId);
+      setPaymentMethodMap(prev => ({ ...prev, [roomId]: res.linked_method_ids.length > 0 }));
+    } catch {
+      // silently ignore
+    }
+  };
+
+  // ── Shared card props helper ──
+  const sharedCardProps = (room: Room) => ({
+    room,
+    stats: roomStats[room.room_id],
+    hasLinkedPaymentMethods: paymentMethodMap[room.room_id] ?? false,
+    onOpenRoom: openRoom,
+    onEdit: handleEdit,
+    onCancel: handleCancel,
+    onLinkToEvent: showEventLinking ? openLinkModal : undefined,
+    onUnlinkFromEvent: showEventLinking ? handleUnlinkRequest : undefined,
+    linkedEventTitle: linkedEvents[room.room_id]?.eventTitle,
+    linkedEventId: linkedEvents[room.room_id]?.eventId,
+    onPaymentMethodSuccess: handlePaymentMethodSuccess,
+  });
+
+  // ── Render ──
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
       <div className="container mx-auto max-w-7xl px-4 py-6 sm:py-8">
@@ -471,8 +472,7 @@ export default function QuizEventDashboard() {
             <button
               type="button"
               onClick={() => navigate('/quiz/create-fundraising-quiz')}
-              className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition whitespace-nowrap
-                        bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+              className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition whitespace-nowrap bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
               title="View demo"
             >
               <Play className="h-4 w-4" />
@@ -483,8 +483,7 @@ export default function QuizEventDashboard() {
             <button
               type="button"
               onClick={() => setPaymentMethodsOpen(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition whitespace-nowrap
-                        bg-green-100 text-green-700 hover:bg-green-200"
+              className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition whitespace-nowrap bg-green-100 text-green-700 hover:bg-green-200"
               title="Manage payment methods"
             >
               <CreditCard className="h-4 w-4" />
@@ -507,8 +506,6 @@ export default function QuizEventDashboard() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-6">
-          {/* ... unchanged stats cards ... */}
-          {/* keep your existing content here */}
           <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4 shadow-sm">
             <div className="flex items-center gap-3">
               <div className="flex-shrink-0 p-2 rounded-lg bg-indigo-100">
@@ -592,35 +589,31 @@ export default function QuizEventDashboard() {
                 <button
                   key={s}
                   onClick={() => setStatus(s)}
-                  className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors ${status === s
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                  className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors ${
+                    status === s ? 'bg-indigo-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
                 >
                   {s.charAt(0).toUpperCase() + s.slice(1)}
                 </button>
               ))}
             </div>
 
-            {/* ✅ Hide view toggle on mobile because we force cards */}
             {!isMobile && (
               <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
                 <button
                   onClick={() => setViewMode('table')}
-                  className={`p-2 rounded-md transition-colors ${viewMode === 'table'
-                    ? 'bg-white text-indigo-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                    }`}
+                  className={`p-2 rounded-md transition-colors ${
+                    viewMode === 'table' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                  }`}
                   title="Table view"
                 >
                   <LayoutList className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => setViewMode('cards')}
-                  className={`p-2 rounded-md transition-colors ${viewMode === 'cards'
-                    ? 'bg-white text-indigo-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                    }`}
+                  className={`p-2 rounded-md transition-colors ${
+                    viewMode === 'cards' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                  }`}
                   title="Card view"
                 >
                   <LayoutGrid className="h-4 w-4" />
@@ -678,10 +671,8 @@ export default function QuizEventDashboard() {
             </div>
           ) : (
             <>
-              {/* ✅ TABLE HEADER + ROWS IN A HORIZONTAL SCROLLER */}
               {viewMode === 'table' ? (
                 <div className="overflow-x-auto">
-                  {/* header */}
                   <div className="bg-white rounded-t-xl border border-gray-200 border-b-0 min-w-[1050px]">
                     <div className="flex items-center gap-3 p-3 bg-gray-50">
                       <div className="w-24 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase">Status</div>
@@ -697,21 +688,12 @@ export default function QuizEventDashboard() {
                     </div>
                   </div>
 
-                  {/* avoid double rounding: header has top, rows have bottom */}
                   <div className="bg-white rounded-b-xl border border-gray-200 border-t-0 overflow-hidden min-w-[1050px]">
                     {sortedRooms.map((room) => (
                       <QuizEventCard
                         key={room.room_id}
-                        room={room}
-                        stats={roomStats[room.room_id]}
-                        viewMode={viewMode}
-                        onOpenRoom={openRoom}
-                        onEdit={handleEdit}
-                        onCancel={handleCancel}
-                        onLinkToEvent={showEventLinking ? openLinkModal : undefined}
-                        onUnlinkFromEvent={showEventLinking ? handleUnlinkRequest : undefined}
-                        linkedEventTitle={linkedEvents[room.room_id]?.eventTitle}
-                        linkedEventId={linkedEvents[room.room_id]?.eventId}
+                        viewMode="table"
+                        {...sharedCardProps(room)}
                       />
                     ))}
                   </div>
@@ -721,16 +703,8 @@ export default function QuizEventDashboard() {
                   {sortedRooms.map((room) => (
                     <QuizEventCard
                       key={room.room_id}
-                      room={room}
-                      stats={roomStats[room.room_id]}
-                      viewMode={viewMode}
-                      onOpenRoom={openRoom}
-                      onEdit={handleEdit}
-                      onCancel={handleCancel}
-                      onLinkToEvent={showEventLinking ? openLinkModal : undefined}
-                      onUnlinkFromEvent={showEventLinking ? handleUnlinkRequest : undefined}
-                      linkedEventTitle={linkedEvents[room.room_id]?.eventTitle}
-                      linkedEventId={linkedEvents[room.room_id]?.eventId}
+                      viewMode="cards"
+                      {...sharedCardProps(room)}
                     />
                   ))}
                 </div>
@@ -740,14 +714,11 @@ export default function QuizEventDashboard() {
         </div>
       </div>
 
-      {/* Modals */}
+      {/* ── Modals ── */}
       {editOpen && editRoomId && (
         <EditWeb2QuizWizardModal
           roomId={editRoomId}
-          onClose={() => {
-            setEditOpen(false);
-            setEditRoomId(null);
-          }}
+          onClose={() => { setEditOpen(false); setEditRoomId(null); }}
           onSaved={handleEditSaved}
         />
       )}
@@ -756,9 +727,7 @@ export default function QuizEventDashboard() {
         open={linkOpen}
         room={linkRoom}
         onClose={closeLinkModal}
-        onLinked={async () => {
-          await loadRooms(status);
-        }}
+        onLinked={async () => { await loadRooms(status); }}
       />
 
       <UnlinkConfirmModal
@@ -766,10 +735,7 @@ export default function QuizEventDashboard() {
         eventTitle={unlinkRoom ? linkedEvents[unlinkRoom.room_id]?.eventTitle || 'Unknown Event' : ''}
         onConfirm={confirmUnlink}
         onCancel={() => {
-          if (!unlinkLoading) {
-            setUnlinkModalOpen(false);
-            setUnlinkRoom(null);
-          }
+          if (!unlinkLoading) { setUnlinkModalOpen(false); setUnlinkRoom(null); }
         }}
         loading={unlinkLoading}
       />
@@ -790,10 +756,14 @@ export default function QuizEventDashboard() {
         onConfirm={confirmCancel}
       />
 
-      {paymentMethodsOpen && clubId && (
+      {/* Single payment modal — handles both Stripe return auto-open and button open */}
+      {(showPaymentModal || paymentMethodsOpen) && clubId && (
         <ManagePaymentMethodsModal
           clubId={clubId}
-          onClose={() => setPaymentMethodsOpen(false)}
+          onClose={() => {
+            setShowPaymentModal(false);
+            setPaymentMethodsOpen(false);
+          }}
         />
       )}
     </div>
