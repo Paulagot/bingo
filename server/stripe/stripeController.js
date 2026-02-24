@@ -40,8 +40,8 @@ export const startStripeConnect = async (req, res) => {
     const baseUrl = getBaseUrl(req);
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
-      refresh_url: `${baseUrl}/club/settings/payments?stripe=refresh`,
-      return_url: `${baseUrl}/club/settings/payments?stripe=return`,
+      refresh_url: `${baseUrl}/quiz/eventdashboard?stripe=refresh`,
+  return_url:  `${baseUrl}/quiz/eventdashboard?stripe=return`,
       type: 'account_onboarding',
     });
 

@@ -111,6 +111,14 @@ async function confirmWalkinLedger({
 }
 
 export async function stripeWebhookHandler(req, res) {
+   console.log('[StripeWebhook] 🔔 Webhook received!');
+  console.log('[StripeWebhook] Method:', req.method);
+  console.log('[StripeWebhook] Headers:', {
+    'stripe-signature': req.headers['stripe-signature'] ? 'present' : 'MISSING',
+    'stripe-account': req.headers['stripe-account'] || 'NOT PRESENT (platform account)',
+  });
+  console.log('[StripeWebhook] Body type:', typeof req.body);
+  console.log('[StripeWebhook] Body is Buffer:', Buffer.isBuffer(req.body));
   const sig = req.headers['stripe-signature'];
   const connectAccountId = req.headers['stripe-account'];
 

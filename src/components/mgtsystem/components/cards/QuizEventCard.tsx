@@ -13,7 +13,6 @@ import type { Web2RoomListItem } from '@/shared/api/quiz.api';
 import type { RoomStats } from '../../services/quizRoomServices';
 import { formatDateTime, minutesUntil, safeJsonParse } from '../../utils/QuizGameUtils';
 import { QuizPaymentMethodsModal } from '../../modals/QuizPaymentMethodsModal';
-import { quizPaymentMethodsService } from '../../services/QuizPaymentMethodsService';
 import MarkLatePaymentModal from '../../modals/QuizMarkLatePaymentModal';
 import { useAuthStore } from '../../../../features/auth';
 import quizLatePaymentsService from '../../services/QuizLatePaymentsService';
@@ -63,6 +62,7 @@ export function QuizEventCard({
   onCancel,
   onLinkToEvent,
   onUnlinkFromEvent,
+  hasLinkedPaymentMethods = false,
   linkedEventTitle,
   linkedEventId,
   viewMode = 'table',
@@ -74,6 +74,7 @@ export function QuizEventCard({
   onCancel?: (room: Web2RoomListItem) => void;
   onLinkToEvent?: (room: Web2RoomListItem) => void;
   onUnlinkFromEvent?: (room: Web2RoomListItem) => void;
+  hasLinkedPaymentMethods?: boolean;
   linkedEventTitle?: string | null;
   linkedEventId?: string | null;
   viewMode?: 'cards' | 'table';
@@ -150,7 +151,7 @@ export function QuizEventCard({
   const canCancel = isScheduled && onCancel;
   const isWeb2Room = config.paymentMethod !== 'web3';
   const showTicketActions = isWeb2Room && !isCompleted && !isCancelled;
-  const [hasLinkedPaymentMethods, setHasLinkedPaymentMethods] = useState(false);
+
 
   const prizeCount = config.prizes?.length || 0;
   const prizeValue = config.prizes?.reduce((sum, p) => sum + (p.value || 0), 0) || 0;
@@ -188,13 +189,7 @@ export function QuizEventCard({
     }
   };
 
-  console.log('[OpenGate]', {
-    scheduled_at: room.scheduled_at,
-    time_zone: room.time_zone,
-    now: new Date().toISOString(),
-    mins,
-    status: room.status,
-  });
+
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '—';
@@ -216,24 +211,7 @@ export function QuizEventCard({
     });
   };
 
-  useEffect(() => {
-    const checkPaymentMethods = async () => {
-      if (!room.room_id || !isWeb2Room) {
-        setHasLinkedPaymentMethods(false);
-        return;
-      }
-
-      try {
-        const response = await quizPaymentMethodsService.getQuizPaymentMethods(room.room_id);
-        setHasLinkedPaymentMethods(response.linked_method_ids.length > 0);
-      } catch (err) {
-        console.error('Failed to check payment methods:', err);
-        setHasLinkedPaymentMethods(false);
-      }
-    };
-
-    checkPaymentMethods();
-  }, [room.room_id, isWeb2Room]);
+ 
 
   const showTicketActionsWithPayment = showTicketActions && hasLinkedPaymentMethods;
 
