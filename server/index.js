@@ -66,6 +66,7 @@ import quizPersonalisedRoundRouter from './mgtsystem/routes/quizPersonalisedRoun
 import quizStatsRoutes from './mgtsystem/routes/quizStats.js';
 import { stripeRouter } from './stripe/stripeRoutes.js';
 import { stripeWebhookHandler } from './stripe/stripeWebhooks.js';
+import frameRoutes from './quiz/api/frameRoutes.js';
 
 const app = express();
 
@@ -99,7 +100,7 @@ app.use(express.json({
 }));
 // Accept raw/text bodies too (TGB may send raw encrypted string bodies)
 app.use(express.text({ type: 'text/*', limit: '100kb' }));
-
+app.use('/frame', frameRoutes)
 
 // Handle JSON parsing errors (Express throws SyntaxError for invalid JSON)
 app.use((err, req, res, next) => {
