@@ -393,7 +393,7 @@ export function useSolanaEndRoom() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              organizationId: charityOrgId,
+               organizationId: Number(charityOrgId),
               currency: currency,
               network: tgbNetwork,
               amount: charityDecimal,

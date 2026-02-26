@@ -33,6 +33,9 @@ import ClubsLeaguePage from './pages/campaigns/ClubsLeaguePage';
 import QuizEventDashboard from './components/mgtsystem/components/dashboard/QuizEventDashboard';
 import { ConditionalWeb3Wrapper } from './components/Quiz/ConditionalWeb3Wrapper';
 
+import { sdk } from '@farcaster/frame-sdk'
+
+
 // Lazy quiz parts
 const QuizRoutes = lazy(() => import('./components/Quiz/QuizRoutes'));
 const QuizSocketProvider = lazy(() =>
@@ -105,6 +108,10 @@ export default function App() {
   useEffect(() => {
     initialize();
   }, [initialize]);
+
+  useEffect(() => {
+  sdk.actions.ready()
+}, [])
 
   return (
     <ErrorBoundary>
