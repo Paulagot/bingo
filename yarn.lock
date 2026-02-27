@@ -728,7 +728,7 @@
     ox "^0.4.4"
     zod "^3.25.0"
 
-"@farcaster/miniapp-sdk@0.2.3":
+"@farcaster/miniapp-sdk@^0.2.3", "@farcaster/miniapp-sdk@0.2.3":
   version "0.2.3"
   resolved "https://registry.npmjs.org/@farcaster/miniapp-sdk/-/miniapp-sdk-0.2.3.tgz"
   integrity sha512-FwxqGcYCXw3HyGfDuchFUmQN9Gd49jTJs585zzQv6l1Oba6A/vVVCYohEG6QxRT6b/UrdemImpNMGTnqAZ3hKw==
