@@ -143,9 +143,9 @@ app.get('/.well-known/farcaster.json', (req, res) => {
       version: "1",
       name: "FundRaisely Quiz",
       homeUrl: `${BASE_URL}/web3/impact-campaign/join`,
-      iconUrl: `${BASE_URL}/splash-image.png`,         // 200x200
-      imageUrl: `${BASE_URL}/embed-image.png`,         // 3:2 ratio
-      splashImageUrl: `${BASE_URL}/splash-image.png`,  // 200x200
+      iconUrl: `${BASE_URL}/icon.png`,            // ← 1024x1024
+      imageUrl: `${BASE_URL}/embed-image.png`,    // ← 900x600 (3:2)
+      splashImageUrl: `${BASE_URL}/splash.png`,   // ← 200x200
       splashBackgroundColor: "#0f0f1a",
       subtitle: "Play. Raise. Impact.",
       description: "Join a Web3 fundraising quiz — support real causes on-chain.",
