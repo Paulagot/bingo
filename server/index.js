@@ -153,7 +153,7 @@ app.get('/.well-known/farcaster.json', (req, res) => {
       name: 'FundRaisely Quiz',
       homeUrl: `${BASE_URL}/web3/impact-campaign/join`,
       iconUrl: `${BASE_URL}/icon.png`,
-     imageUrl: `${BASE_URL}/frame/image`,
+      imageUrl: `${BASE_URL}/embed-image.png`,
       splashImageUrl: `${BASE_URL}/splash.png`,
       splashBackgroundColor: '#0f0f1a',
       subtitle: 'Play. Raise. Impact.',
@@ -161,10 +161,10 @@ app.get('/.well-known/farcaster.json', (req, res) => {
       description: 'Join a Web3 fundraising quiz — support real causes on-chain.',
       primaryCategory: 'social',
       tags: ['quiz', 'fundraising', 'web3', 'base'],
-      heroImageUrl: `${BASE_URL}/frame/image`,
+      heroImageUrl: `${BASE_URL}/embed-image.png`,
      ogTitle: 'FundRaisely Fundraising Quiz',
       ogDescription: 'Play, raise, and make an impact on-chain.',
-     ogImageUrl: `${BASE_URL}/frame/image`,
+      ogImageUrl: `${BASE_URL}/embed-image.png`
     }
   });
 });
