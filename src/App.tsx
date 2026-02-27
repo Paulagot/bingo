@@ -35,6 +35,9 @@ import { ConditionalWeb3Wrapper } from './components/Quiz/ConditionalWeb3Wrapper
 
 import { sdk } from '@farcaster/miniapp-sdk'
 
+  useEffect(() => {
+  sdk.actions.ready()
+}, [])
 
 // Lazy quiz parts
 const QuizRoutes = lazy(() => import('./components/Quiz/QuizRoutes'));
@@ -109,9 +112,7 @@ export default function App() {
     initialize();
   }, [initialize]);
 
-  useEffect(() => {
-  sdk.actions.ready()
-}, [])
+
 
   return (
     <ErrorBoundary>

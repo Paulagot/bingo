@@ -133,7 +133,7 @@ app.use((err, req, res, next) => {
 });
 
 
-app.use('/frame', frameRoutes)
+
 // Base Mini App manifest — MUST be at this exact path
 app.get('/.well-known/farcaster.json', (req, res) => {
   res.json({
