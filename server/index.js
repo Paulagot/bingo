@@ -157,6 +157,7 @@ app.get('/.well-known/farcaster.json', (req, res) => {
       splashImageUrl: `${BASE_URL}/splash.png`,
       splashBackgroundColor: '#0f0f1a',
       subtitle: 'Play. Raise. Impact.',
+      tagline: 'Play. Raise. Impact.',      
       description: 'Join a Web3 fundraising quiz — support real causes on-chain.',
       primaryCategory: 'social',
       tags: ['quiz', 'fundraising', 'web3', 'base'],
@@ -278,7 +279,7 @@ const cspDirectives = {
     'https://verify.walletconnect.com',
     'https://verify.walletconnect.org',
   ],
-  frameAncestors: ["'self'"],
+ frameAncestors: ["'self'", "https://base.org", "https://*.base.org", "https://farcaster.xyz", "https://*.farcaster.xyz"],
   connectSrc: ALLOWED_CONNECT,
   upgradeInsecureRequests: [],
 };

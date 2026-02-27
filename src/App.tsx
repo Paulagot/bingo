@@ -33,7 +33,7 @@ import ClubsLeaguePage from './pages/campaigns/ClubsLeaguePage';
 import QuizEventDashboard from './components/mgtsystem/components/dashboard/QuizEventDashboard';
 import { ConditionalWeb3Wrapper } from './components/Quiz/ConditionalWeb3Wrapper';
 
-// import { sdk } from '@farcaster/miniapp-sdk'
+import { sdk } from '@farcaster/miniapp-sdk'
 
 
 
@@ -111,9 +111,7 @@ export default function App() {
   }, [initialize]);
 
 useEffect(() => {
-  import('@farcaster/miniapp-sdk').then(({ sdk }) => {
-    sdk.actions.ready().catch(console.error);
-  }).catch(console.error);
+  sdk.actions.ready().catch(console.error);
 }, []);
 
   return (
