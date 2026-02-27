@@ -100,7 +100,7 @@ app.use(express.json({
 }));
 // Accept raw/text bodies too (TGB may send raw encrypted string bodies)
 app.use(express.text({ type: 'text/*', limit: '100kb' }));
-app.use('/frame', frameRoutes)
+
 
 // Handle JSON parsing errors (Express throws SyntaxError for invalid JSON)
 app.use((err, req, res, next) => {
@@ -130,6 +130,36 @@ app.use((err, req, res, next) => {
     }
   }
   next(err);
+});
+
+
+app.use('/frame', frameRoutes)
+// Base Mini App manifest — MUST be at this exact path
+app.get('/.well-known/farcaster.json', (req, res) => {
+  res.json({
+    accountAssociation: {
+      // Leave empty for now — fill in after step 5 of Base Build
+      header: "",
+      payload: "",
+      signature: ""
+    },
+    miniapp: {
+      version: "1",
+      name: "FundRaisely Quiz",
+      homeUrl: `${process.env.BASE_URL}/web3/impact-campaign/join`,
+      iconUrl: `${process.env.BASE_URL}/frame/image`,
+      splashImageUrl: `${process.env.BASE_URL}/frame/image`,
+      splashBackgroundColor: "#0f0f1a",
+      subtitle: "Play. Raise. Impact.",
+      description: "Join a Web3 fundraising quiz — support real causes on-chain.",
+      primaryCategory: "social",
+      tags: ["quiz", "fundraising", "web3", "base"],
+      heroImageUrl: `${process.env.BASE_URL}/frame/image`,
+      ogTitle: "FundRaisely — Web3 Fundraising Quiz",
+      ogDescription: "Play, raise, and make an impact on-chain.",
+      ogImageUrl: `${process.env.BASE_URL}/frame/image`
+    }
+  });
 });
 
 app.use((req, res, next) => {
