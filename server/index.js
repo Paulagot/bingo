@@ -162,7 +162,7 @@ app.get('/.well-known/farcaster.json', (req, res) => {
       primaryCategory: 'social',
       tags: ['quiz', 'fundraising', 'web3', 'base'],
       heroImageUrl: `${BASE_URL}/embed-image.png`,
-      ogTitle: 'FundRaisely — Web3 Fundraising Quiz',
+     ogTitle: 'FundRaisely Fundraising Quiz',
       ogDescription: 'Play, raise, and make an impact on-chain.',
       ogImageUrl: `${BASE_URL}/embed-image.png`
     }
@@ -226,7 +226,7 @@ app.use(helmet({
   xPoweredBy: false,
   crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-  crossOriginResourcePolicy: { policy: 'same-site' },
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
 
 const ALLOWED_CONNECT = [
@@ -279,7 +279,7 @@ const cspDirectives = {
     'https://verify.walletconnect.com',
     'https://verify.walletconnect.org',
   ],
- frameAncestors: ["'self'", "https://base.org", "https://*.base.org", "https://farcaster.xyz", "https://*.farcaster.xyz"],
+ frameAncestors:["*"],
   connectSrc: ALLOWED_CONNECT,
   upgradeInsecureRequests: [],
 };
