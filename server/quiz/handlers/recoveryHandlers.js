@@ -160,7 +160,9 @@ export function setupRecoveryHandlers(socket, namespace) {
       const isPlayerRole = role === 'player';
 
       // Capacity (Web2 only) — only enforce for players
-  if (isPlayerRole) {
+const existingPlayer = room.players.find(p => p.id === user.id);
+
+if (isPlayerRole && !existingPlayer) {
   const isWeb3 = room.config?.paymentMethod === 'web3' || room.config?.isWeb3Room === true;
   if (!isWeb3) {
     const limit = room.roomCaps?.maxPlayers ?? room.config?.roomCaps?.maxPlayers ?? 20;
@@ -171,7 +173,7 @@ export function setupRecoveryHandlers(socket, namespace) {
 }
 
       // Uniqueness: disconnect any previous socket for this *player*
-      const existingPlayer = room.players.find((p) => p.id === user.id);
+   
       const existingSession = getPlayerSession(roomId, user.id);
       const prevSocketId = existingSession?.socketId || existingPlayer?.socketId;
 

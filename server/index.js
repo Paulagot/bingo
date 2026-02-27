@@ -137,29 +137,24 @@ app.use((err, req, res, next) => {
 // Base Mini App manifest — MUST be at this exact path
 app.get('/.well-known/farcaster.json', (req, res) => {
   const BASE_URL = process.env.BASE_URL || 'https://fundraisely-staging.up.railway.app';
-  
   res.json({
-    accountAssociation: {
-      header: "",
-      payload: "",
-      signature: ""
-    },
+    accountAssociation: { header: "", payload: "", signature: "" },
     miniapp: {
       version: "1",
       name: "FundRaisely Quiz",
       homeUrl: `${BASE_URL}/web3/impact-campaign/join`,
-      iconUrl: `${BASE_URL}/frame/image`,
-      imageUrl: `${BASE_URL}/frame/image`,        // ✅ ADD THIS — Base Build requires it
-      splashImageUrl: `${BASE_URL}/frame/image`,
+      iconUrl: `${BASE_URL}/splash-image.png`,         // 200x200
+      imageUrl: `${BASE_URL}/embed-image.png`,         // 3:2 ratio
+      splashImageUrl: `${BASE_URL}/splash-image.png`,  // 200x200
       splashBackgroundColor: "#0f0f1a",
       subtitle: "Play. Raise. Impact.",
       description: "Join a Web3 fundraising quiz — support real causes on-chain.",
       primaryCategory: "social",
       tags: ["quiz", "fundraising", "web3", "base"],
-      heroImageUrl: `${BASE_URL}/frame/image`,
+      heroImageUrl: `${BASE_URL}/embed-image.png`,
       ogTitle: "FundRaisely — Web3 Fundraising Quiz",
       ogDescription: "Play, raise, and make an impact on-chain.",
-      ogImageUrl: `${BASE_URL}/frame/image`
+      ogImageUrl: `${BASE_URL}/embed-image.png`
     }
   });
 });
