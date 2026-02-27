@@ -30,3 +30,4 @@ router.get('/', (req, res) => {
 <body>FundRaisely Mini App</body>
 </html>`);
 });
+export default router;
