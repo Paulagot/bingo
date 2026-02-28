@@ -90,6 +90,7 @@ router.get('/', (req, res) => {
 <html>
 <head>
   <meta charset="utf-8"/>
+  <meta name="base:app_id" content="69a1865e991116aebf36caae" />
   <title>FundRaisely — Web3 Fundraising Quiz</title>
   <meta name="fc:miniapp" content='${miniappEmbed}' />
   <meta name="fc:frame" content='${miniappEmbed}' />
