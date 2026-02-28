@@ -72,7 +72,7 @@ router.get('/', (req, res) => {
   res.setHeader('Content-Type', 'text/html');
 
   const miniappEmbed = JSON.stringify({
-    version: '1',
+    version: 'next',
     imageUrl: `${BASE_URL}/embed-image.png`,
     button: {
       title: '🎮 Join a Fundraising Quiz',
