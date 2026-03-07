@@ -205,6 +205,15 @@ const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) =
           <ChevronLeft className="h-4 w-4" />
           <span>Back</span>
         </button>
+          <div className="rounded bg-black/80 p-3 text-xs text-white font-mono space-y-1">
+    <div>selectedChain: {selectedChain ?? 'null'}</div>
+    <div>isWalletConnected: {String(isWalletConnected)}</div>
+    <div>configComplete: {String(!!(setupConfig.hostName && setupConfig.roundDefinitions?.length && selectedChain))}</div>
+    <div>canLaunch: {String(canLaunch)}</div>
+    <div>walletAddress: {currentWallet?.address ?? 'null'}</div>
+    <div>web3Chain: {setupConfig.web3Chain ?? 'null'}</div>
+    <div>evmNetwork: {(setupConfig as any).evmNetwork ?? 'null'}</div>
+  </div>
 
         <button
           type="button"
