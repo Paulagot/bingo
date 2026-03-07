@@ -3,11 +3,12 @@ import { useMemo } from 'react';
 import { useQuizSetupStore } from '../components/Quiz/hooks/useQuizSetupStore';
 import { useQuizConfig } from '../components/Quiz/hooks/useQuizConfig';
 import { useWalletStore } from '../stores/walletStore';
-import { useAppKitAccount } from '@reown/appkit/react';
+import { useSafeAppKitAccount } from './useSafeAppKit';
 import { useStellarWallet } from '../chains/stellar/useStellarWallet';
 import type { SupportedChain, WalletError } from '../chains/types';
 import { useWalletActions } from '../hooks/useWalletActions';
 import type { EvmNetworkKey } from '../chains/evm/config/networks'
+
 
 const hasPositiveAmount = (value: unknown): boolean => {
   if (typeof value === 'number') return value > 0;
@@ -44,7 +45,7 @@ export const useQuizChainIntegration = (opts?: Options) => {
   const { config } = useQuizConfig();
 
   // ✅ Read directly from AppKit for EVM/Solana
-  const appKitAccount = useAppKitAccount();
+ const appKitAccount = useSafeAppKitAccount();
 
   // ✅ Read from Stellar wallet (not managed by AppKit)
   const stellarWallet = useStellarWallet();

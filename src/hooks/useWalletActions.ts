@@ -4,14 +4,15 @@ import { useCallback, useMemo, useEffect } from "react";
 import { useWalletStore } from "../stores/walletStore";
 import { useQuizSetupStore } from "../components/Quiz/hooks/useQuizSetupStore";
 
-// Reown AppKit - direct hooks
 import {
-  useAppKitAccount,
   useAppKitProvider,
   useDisconnect,
-  useAppKitNetwork,
-  useAppKit,
 } from "@reown/appkit/react";
+import {
+  useSafeAppKitAccount,
+  useSafeAppKitNetwork,
+  useSafeAppKit,
+} from "./useSafeAppKit";
 
 import { WalletErrorCode } from "../chains/types";
 import { useStellarWallet } from "../chains/stellar/useStellarWallet";
@@ -102,13 +103,14 @@ export function useWalletActions(options?: WalletActionsOptions) {
   const setupConfig = options?.externalSetupConfig || storeSetupConfig;
 
   // AppKit hooks
-  const appKitAccount = useAppKitAccount();
+  const appKitAccount = useSafeAppKitAccount();
+const { caipNetwork, switchNetwork } = useSafeAppKitNetwork();
+const { open: openAppKitModal } = useSafeAppKit();
+
   const { walletProvider: evmWalletProvider } = useAppKitProvider("eip155");
   const { walletProvider: solanaWalletProvider } = useAppKitProvider("solana");
   const { disconnect: disconnectAppKit } = useDisconnect();
-  const { open: openAppKitModal } = useAppKit();
-  
-  const { caipNetwork, switchNetwork } = useAppKitNetwork();
+ 
 
   // Stellar wallet
   const stellarWallet = useStellarWallet();
