@@ -14,6 +14,7 @@ import React, { useEffect, useState } from 'react';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { useMiniAppContext } from '../context/MiniAppContext';
 import { Web3Provider } from './Web3Provider';
+import { WalletProvider } from '../context/WalletContext';
 
 interface Props {
   children: React.ReactNode;
@@ -76,13 +77,15 @@ async function buildMiniAppWagmiProviders(ethProvider: any) {
     console.warn('[MiniAppWeb3Provider] Auto-connect warning:', e);
   }
 
-  const Providers: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>
+const Providers: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <WagmiProvider config={config}>
+    <QueryClientProvider client={queryClient}>
+      <WalletProvider roomConfig={{ web3Chain: 'evm', evmNetwork: 'baseSepolia' }}>
         {children}
-      </QueryClientProvider>
-    </WagmiProvider>
-  );
+      </WalletProvider>
+    </QueryClientProvider>
+  </WagmiProvider>
+);
 
   return Providers;
 }
