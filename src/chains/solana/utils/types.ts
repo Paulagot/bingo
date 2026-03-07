@@ -9,6 +9,15 @@ import type { PublicKey, Connection } from '@solana/web3.js';
 import type { AnchorProvider, Program } from '@coral-xyz/anchor';
 import type { Prize } from '@/components/Quiz/types/quiz';
 
+// ✅ UPDATED: import SolanaTokenCode from new multi-token config
+// This replaces the old local type 'SolanaTokenSymbol = USDC | PYUSD | USDT'
+// and supports all 11 tokens: SOL, USDG, JUP, BONK, WIF, JTO, KMNO,  TRUMP, MEW, PYTH
+import type { SolanaTokenCode } from '../config/solanaTokenConfig';
+
+// Re-export so other files that imported SolanaTokenSymbol from here can
+// switch to SolanaTokenCode without changing their import path (optional convenience)
+export type { SolanaTokenCode };
+
 /**
  * Solana contract context
  * Similar to EVM's context but with Anchor-specific types
@@ -27,9 +36,11 @@ export interface SolanaContractContext {
 export type SolanaCluster = 'mainnet' | 'devnet' | 'testnet';
 
 /**
- * Supported SPL token symbols
+ * @deprecated Use SolanaTokenCode from solanaTokenConfig instead.
+ * Kept temporarily so old imports don't break during migration.
+ * Delete once all usages are updated.
  */
-export type SolanaTokenSymbol = 'USDC' | 'PYUSD' | 'USDT';
+export type SolanaTokenSymbol = SolanaTokenCode;
 
 // ============================================================================
 // POOL ROOM TYPES
@@ -44,12 +55,12 @@ export type SolanaTokenSymbol = 'USDC' | 'PYUSD' | 'USDT';
  */
 export interface CreatePoolRoomParams {
   roomId: string;
-  currency: SolanaTokenSymbol;
-  entryFee: number; // In token units (e.g., 1.5 USDC)
+  currency: SolanaTokenCode; // ✅ updated: was SolanaTokenSymbol
+  entryFee: number;          // In token units (e.g., 1.5 USDG)
   maxPlayers: number;
-  hostFeePct: number; // 0-5
-  prizePoolPct: number; // 0-40
-  charityName?: string; // Optional charity memo for display (max 28 chars)
+  hostFeePct: number;        // 0-5
+  prizePoolPct: number;      // 0-40
+  charityName?: string;      // Optional charity memo for display (max 28 chars)
   prizeSplits?: {
     first: number;
     second?: number;
@@ -59,12 +70,11 @@ export interface CreatePoolRoomParams {
 
 /**
  * Pool room creation result
- * Mirrors EvmDeployResult structure
  */
 export interface CreatePoolRoomResult {
   success: true;
   contractAddress: string; // Room PDA (base58)
-  txHash: string; // Transaction signature
+  txHash: string;
   explorerUrl?: string;
 }
 
@@ -79,12 +89,12 @@ export interface CreatePoolRoomResult {
  */
 export interface CreateAssetRoomParams {
   roomId: string;
-  currency: SolanaTokenSymbol;
+  currency: SolanaTokenCode; // ✅ updated: was SolanaTokenSymbol
   entryFee: number;
   maxPlayers: number;
-  hostFeePct: number; // 0-5
+  hostFeePct: number;   // 0-5
   charityName?: string; // Optional charity memo for display (max 28 chars)
-  expectedPrizes: Prize[]; // Must have at least 1 prize
+  expectedPrizes: Prize[];
 }
 
 /**
@@ -95,8 +105,8 @@ export interface CreateAssetRoomResult {
   contractAddress: string;
   txHash: string;
   explorerUrl?: string;
-  roomVault: string; // Entry fee vault address
-  expectedPrizes: number; // Number of prizes to deposit
+  roomVault: string;
+  expectedPrizes: number;
   status: 'AwaitingFunding';
 }
 
@@ -105,9 +115,9 @@ export interface CreateAssetRoomResult {
  */
 export interface AddPrizeAssetParams {
   roomId: string;
-  roomAddress: string | PublicKey; // Room PDA
-  prizeIndex: number; // 0 = first place, 1 = second, 2 = third
-  prizeMint: string | PublicKey; // Token mint for the prize
+  roomAddress: string | PublicKey;
+  prizeIndex: number;
+  prizeMint: string | PublicKey;
 }
 
 /**
@@ -118,8 +128,8 @@ export interface AddPrizeAssetResult {
   txHash: string;
   explorerUrl?: string;
   prizeIndex: number;
-  newStatus: string; // 'PartiallyFunded' or 'Ready'
-  allDeposited: boolean; // True if all prizes now deposited
+  newStatus: string;
+  allDeposited: boolean;
 }
 
 // ============================================================================
@@ -128,14 +138,13 @@ export interface AddPrizeAssetResult {
 
 /**
  * Join room parameters
- * Mirrors EVM join parameters
  */
 export interface JoinRoomParams {
   roomId: string;
-  roomAddress?: PublicKey; // Optional: provide room PDA directly
-  entryFee?: number; // Optional: will fetch from room if not provided
-  extrasAmount?: number; // Additional donation beyond entry fee
-  currency?: SolanaTokenSymbol; // Optional: will fetch from room if not provided
+  roomAddress?: PublicKey;
+  entryFee?: number;
+  extrasAmount?: number;
+  currency?: SolanaTokenCode; // ✅ updated: was SolanaTokenSymbol
 }
 
 /**
@@ -145,7 +154,7 @@ export interface JoinRoomResult {
   success: boolean;
   txHash: string;
   explorerUrl?: string;
-  alreadyPaid?: boolean; 
+  alreadyPaid?: boolean;
 }
 
 // ============================================================================
@@ -154,17 +163,14 @@ export interface JoinRoomResult {
 
 /**
  * Distribute prizes parameters
- * 
- * NOTE: This is where charityWallet is provided! It's generated dynamically
- * from TGB API right before distribution.
  */
 export interface DistributePrizesParams {
   roomId: string;
   roomAddress: PublicKey;
-  winners: PublicKey[]; // Winner wallet addresses
-  charityOrgId?: string; // For TGB integration (hook will call TGB API)
-  charityWallet?: PublicKey; // Optional fallback if TGB fails or no TGB integration
-  charityAmountPreview?: string; // Expected charity amount (for validation)
+  winners: PublicKey[];
+  charityOrgId?: string;
+  charityWallet?: PublicKey;
+  charityAmountPreview?: string;
 }
 
 /**
@@ -174,28 +180,22 @@ export interface DistributePrizesResult {
   success: true;
   txHash: string;
   explorerUrl?: string;
-  charityAmount?: string; // Actual charity amount from blockchain event
-  declareWinnersTxHash?: string; // Solana-specific: declare_winners transaction
-  cleanupTxHash?: string; // Solana-specific: cleanup_room transaction (if called)
-  rentReclaimed?: number; // Solana-specific: rent reclaimed in lamports
-  tgbDepositAddress?: string; // TGB deposit address for charity
+  charityAmount?: string;
+  declareWinnersTxHash?: string;
+  cleanupTxHash?: string;
+  rentReclaimed?: number;
+  tgbDepositAddress?: string;
 }
 
 // ============================================================================
 // CLOSE JOINING TYPES
 // ============================================================================
 
-/**
- * Close joining parameters
- */
 export interface CloseJoiningParams {
   roomId: string;
   hostPubkey: PublicKey;
 }
 
-/**
- * Close joining result
- */
 export interface CloseJoiningResult {
   success: true;
   txHash: string;
@@ -206,18 +206,12 @@ export interface CloseJoiningResult {
 // DECLARE WINNERS TYPES
 // ============================================================================
 
-/**
- * Declare winners parameters
- */
 export interface DeclareWinnersParams {
   roomId: string;
   hostPubkey: PublicKey;
   winners: PublicKey[];
 }
 
-/**
- * Declare winners result
- */
 export interface DeclareWinnersResult {
   success: true;
   txHash: string;
@@ -228,21 +222,15 @@ export interface DeclareWinnersResult {
 // CLEANUP ROOM TYPES
 // ============================================================================
 
-/**
- * Cleanup room parameters
- */
 export interface CleanupRoomParams {
   roomId: string;
   hostPubkey: PublicKey;
 }
 
-/**
- * Cleanup room result
- */
 export interface CleanupRoomResult {
   success: true;
   txHash: string;
-  rentReclaimed: number; // Lamports reclaimed
+  rentReclaimed: number;
   explorerUrl?: string;
 }
 
@@ -250,34 +238,23 @@ export interface CleanupRoomResult {
 // VALIDATION TYPES
 // ============================================================================
 
-/**
- * Validation result
- * Used by validation utilities
- */
 export interface ValidationResult {
   success: boolean;
   errors: string[];
 }
 
-/**
- * Fee structure breakdown (in basis points)
- */
 export interface FeeStructure {
-  platform: number; // Platform fee (20% = 2000 BPS)
-  host: number; // Host fee (0-5% = 0-500 BPS)
-  prizePool: number; // Prize pool (0-40% = 0-4000 BPS)
-  charity: number; // Charity (remainder)
-  total: number; // Should always equal 10000 (100%)
+  platform: number;
+  host: number;
+  prizePool: number;
+  charity: number;
+  total: number;
 }
 
 // ============================================================================
-// ON-CHAIN ACCOUNT TYPES (for reference)
+// ON-CHAIN ACCOUNT TYPES
 // ============================================================================
 
-/**
- * GlobalConfig account structure
- * These match the Rust program's account layouts
- */
 export interface GlobalConfigAccount {
   platformWallet: PublicKey;
   charityWallet: PublicKey;
@@ -286,9 +263,6 @@ export interface GlobalConfigAccount {
   admin: PublicKey;
 }
 
-/**
- * Room account structure (simplified)
- */
 export interface RoomAccount {
   host: PublicKey;
   roomId: string;
@@ -304,9 +278,6 @@ export interface RoomAccount {
   winners?: PublicKey[];
 }
 
-/**
- * PlayerEntry account structure
- */
 export interface PlayerEntryAccount {
   player: PublicKey;
   room: PublicKey;

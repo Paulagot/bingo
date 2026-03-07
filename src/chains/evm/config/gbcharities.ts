@@ -13,9 +13,9 @@ export type Charity = {
 // NOTE: Fill this list once from TGB and commit to your repo.
 // You can keep ~20 entries for your allowlist.
 export const CHARITIES: Charity[] = [
-  { id: 12345, name: 'Bright Horizons Foundation', logoUrl: '' },  // no quotes
-  { id: 67890, name: "Little Oaks Children's Fund", logoUrl: '' }, // no quotes
-  { id: 11111, name: 'RiverAid Clean Water', logoUrl: '' },        // no quotes
+  { id: 1189134587, name: 'Identity Theft Resource Center', logoUrl: '' },  // no quotes
+  { id: 1189132503, name: "Clean International", logoUrl: '' }, // no quotes
+
 ];
 
 // convenience lookups

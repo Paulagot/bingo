@@ -317,7 +317,7 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
             txHash,
             charityAmount: charityAmount ?? null,
             charityWallet: finalCharityWallet,
-            charityName: data.charityName || null,
+           charityName: data.charityName || data.charityOrgId || null,
             network: networkForBackend,
             web3Chain: web3ChainForBackend,
           });
@@ -359,7 +359,7 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
             success: false,
             error: errorMsg,
             charityWallet: data.charityAddress || null,
-            charityName: data.charityName || null,
+           charityName: data.charityName || data.charityOrgId || null,
           });
 
           setState({ status: 'error', error: errorMsg });
@@ -374,7 +374,7 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
           success: false,
           error: errorMessage,
           charityWallet: data.charityAddress || null,
-          charityName: data.charityName || null,
+         charityName: data.charityName || data.charityOrgId || null,
         });
 
         setState({ status: 'error', error: errorMessage });

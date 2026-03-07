@@ -151,7 +151,7 @@ app.get('/.well-known/farcaster.json', (req, res) => {
   miniapp: {
   version: '1',
   name: 'FundRaisely Quiz',
-  homeUrl: `${BASE_URL}/web3/impact-campaign/join`,
+  homeUrl: `${BASE_URL}/mini-app/host`,
   iconUrl: `${BASE_URL}/icon.png`,
   imageUrl: `${BASE_URL}/embed-image.png`,
   splashImageUrl: `${BASE_URL}/splash.png`,
