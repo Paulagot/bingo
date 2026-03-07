@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
 import { getChainId } from 'wagmi/actions';
-import { wagmiConfig } from '../../../../src/config/index';
+import { useConfig } from 'wagmi';                          // ← ADD
 import { resolveEvmTarget, type ResolvedEvmTarget } from '../utils/evmSelect';
-
+// ← REMOVE the wagmiConfig import from config/index entirely
 
 export interface EvmSetupConfig {
   evmNetwork?: string;
@@ -12,13 +12,9 @@ export interface EvmSetupConfig {
   [key: string]: any;
 }
 
-/**
- * Shared EVM utilities and state access
- */
 export function useEvmShared() {
-  /**
-   * Get current setup configuration from localStorage
-   */
+  const wagmiConfig = useConfig();                          // ← ADD: reads from nearest WagmiProvider
+
   const getSetupConfig = useCallback((): EvmSetupConfig => {
     try {
       const stored = localStorage.getItem('setupConfig');
@@ -29,9 +25,6 @@ export function useEvmShared() {
     }
   }, []);
 
-  /**
-   * Resolve the target EVM network based on setup and wallet state
-   */
   const resolveTarget = useCallback(async (): Promise<ResolvedEvmTarget> => {
     let runtimeChainId: number | null = null;
     try {
@@ -47,7 +40,7 @@ export function useEvmShared() {
       setupKey: setupKey ?? null,
       runtimeChainId: runtimeChainId ?? null,
     });
-  }, [getSetupConfig]);
+  }, [wagmiConfig, getSetupConfig]);
 
   return {
     wagmiConfig,
