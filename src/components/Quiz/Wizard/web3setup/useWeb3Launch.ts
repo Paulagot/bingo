@@ -78,15 +78,27 @@ export function useWeb3Launch({ onResetToFirst: _onResetToFirst, onBack: _onBack
   const { setFullConfig } = useQuizConfig();
   const { socket, connected } = useQuizSocket();
   
-  const {
-    selectedChain,
-    isWalletConnected,
-    walletReadiness,
-    currentWallet,
-    getNetworkDisplayName,
-  } = useQuizChainIntegration();
+const {
+  selectedChain,
+  isWalletConnected,
+  walletReadiness,
+  currentWallet,
+  getNetworkDisplayName,
+} = useQuizChainIntegration({
+  externalConfig: {
+    web3Chain: setupConfig.web3Chain,
+    evmNetwork: (setupConfig as any).evmNetwork,
+    solanaCluster: (setupConfig as any).solanaCluster,
+    stellarNetwork: setupConfig.stellarNetwork,
+  }
+});
 
-  const walletActions = useWalletActions();
+const walletActions = useWalletActions({
+  externalSetupConfig: {
+    web3Chain: setupConfig.web3Chain,
+    evmNetwork: (setupConfig as any).evmNetwork,
+  }
+});
   const contractActions = useContractActions();
 
   // Local state
