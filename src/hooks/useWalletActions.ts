@@ -3,6 +3,8 @@
 import { useCallback, useMemo, useEffect } from "react";
 import { useWalletStore } from "../stores/walletStore";
 import { useQuizSetupStore } from "../components/Quiz/hooks/useQuizSetupStore";
+import { useMiniAppContext } from '../context/MiniAppContext';
+import { useAccount } from 'wagmi';
 
 import {
   useAppKitProvider,
@@ -101,6 +103,8 @@ export function useWalletActions(options?: WalletActionsOptions) {
   // ✅ Get setupConfig for use in other helpers
   const { setupConfig: storeSetupConfig } = useQuizSetupStore();
   const setupConfig = options?.externalSetupConfig || storeSetupConfig;
+  const { isMiniApp } = useMiniAppContext();
+const wagmiAccount = useAccount();
 
   // AppKit hooks
   const appKitAccount = useSafeAppKitAccount();
@@ -232,14 +236,16 @@ const { open: openAppKitModal } = useSafeAppKit();
      HELPER: Get actual connected chain family
   -------------------------------------------------------------- */
   const getActualChainFamily = useCallback((): ChainFamily => {
-    const network = caipNetwork?.caipNetworkId;
-    
-    if (stellarWallet.isConnected) return 'stellar';
-    if (network?.startsWith('eip155:')) return 'evm';
-    if (network?.startsWith('solana:')) return 'solana';
-    
-    return null;
-  }, [caipNetwork?.caipNetworkId, stellarWallet.isConnected]);
+      if (isMiniApp) {
+    return wagmiAccount.isConnected ? 'evm' : null;
+  }
+   
+  const network = caipNetwork?.caipNetworkId;
+  if (stellarWallet.isConnected) return 'stellar';
+  if (network?.startsWith('eip155:')) return 'evm';
+  if (network?.startsWith('solana:')) return 'solana';
+  return null;
+}, [isMiniApp, wagmiAccount.isConnected, caipNetwork?.caipNetworkId, stellarWallet.isConnected]);
 
   /* -------------------------------------------------------------
      HELPER: Check if on correct network
