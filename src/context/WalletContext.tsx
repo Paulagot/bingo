@@ -1,10 +1,12 @@
 // src/contexts/WalletContext.tsx
 import React, { createContext, useContext, useMemo, useEffect, useState } from 'react';
-import { useAppKitAccount } from '@reown/appkit/react';
+
 import { useStellarWallet } from '../chains/stellar/useStellarWallet';
-import type { SupportedChain } from '../chains/types';
+
 import { useWalletActions } from '../hooks/useWalletActions';
-import { useMiniAppContext } from '../context/MiniAppContext';
+
+import { useSafeAppKitAccount } from '../hooks/useSafeAppKit';
+
 
 interface WalletContextValue {
   chainFamily: 'evm' | 'solana' | 'stellar' | null;
@@ -50,12 +52,8 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({
   }, []);
   
  
-const { isMiniApp } = useMiniAppContext();
- // Get wallet state from AppKit (will be safe after delay)
-const appKitAccount = isMiniApp
-  ? { address: undefined, isConnected: false, status: 'disconnected' as const }
-  : // eslint-disable-next-line react-hooks/rules-of-hooks
-    useAppKitAccount();
+
+const appKitAccount = useSafeAppKitAccount();
   const stellarWallet = useStellarWallet();
   
   // Get wallet actions with explicit config
