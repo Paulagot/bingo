@@ -1,30 +1,30 @@
 /**
  * Solana Asset Room Creation Hook
- * 
+ *
  * Creates asset-based fundraising rooms where prizes are pre-deposited SPL tokens
  * rather than percentages of the entry fee pool. Mirrors useEvmDeploy asset room structure.
- * 
+ *
  * ## Flow:
  * 1. Create room (init_asset_room) - Room status: AwaitingFunding
  * 2. Add prizes (add_prize_asset) - One transaction per prize
  * 3. Once all prizes deposited - Room status: Ready
  * 4. Players can join
- * 
+ *
  * ## Usage
- * 
+ *
  * ```typescript
  * const { createAssetRoom } = useSolanaCreateAssetRoom();
- * 
+ *
  * const result = await createAssetRoom({
  *   roomId: 'quiz-night-2024',
- *   currency: 'USDC',
+ *   currency: 'USDG',       // entry fee token
  *   entryFee: 5.0,
  *   maxPlayers: 100,
  *   hostFeePct: 2,
  *   charityName: 'Red Cross',
  *   expectedPrizes: [
- *     { place: 1, tokenAddress: 'USDC...', amount: 100 }, // Use tokenAddress for Solana too
- *     { place: 2, tokenAddress: 'USDC...', amount: 50 },
+ *     { place: 1, tokenAddress: '<mint>', amount: 100 },
+ *     { place: 2, tokenAddress: '<mint>', amount: 50 },
  *   ],
  * });
  * ```
@@ -37,27 +37,35 @@ import { BN } from '@coral-xyz/anchor';
 
 import { useSolanaShared } from './useSolanaShared';
 import { SOLANA_CONTRACT, calculateFeeBps } from '../config/contracts';
-import { getTokenConfig, amountToLamports } from '../config/tokens';
-import { 
-  deriveGlobalConfigPDA, 
-  deriveRoomPDA, 
+
+// ✅ UPDATED: use new multi-token config — replaces getTokenConfig + amountToLamports from tokens.ts
+import {
+  SOLANA_TOKENS,
+  getTokenByMint,
+  toRawAmount,
+  type SolanaTokenCode,
+} from '../config/solanaTokenConfig';
+
+import {
+  deriveGlobalConfigPDA,
+  deriveRoomPDA,
   deriveRoomVaultPDA,
-  deriveTokenRegistryPDA 
+  deriveTokenRegistryPDA,
 } from '../utils/pda';
-import { 
-  buildTransaction, 
-  simulateTransaction, 
-  formatTransactionError 
+import {
+  buildTransaction,
+  simulateTransaction,
+  formatTransactionError,
 } from '../utils/transaction-helpers';
 import { validateAssetRoomParams } from '../utils/validation';
 import type { CreateAssetRoomParams, CreateAssetRoomResult } from '../utils/types';
 
 export function useSolanaCreateAssetRoom() {
-  const { 
-    publicKey, 
-    connection, 
-    provider, 
-    program, 
+  const {
+    publicKey,
+    connection,
+    provider,
+    program,
     isConnected,
     cluster,
     getTxExplorerUrl,
@@ -79,7 +87,7 @@ export function useSolanaCreateAssetRoom() {
       // ============================================================================
       // Step 1: Connection & Wallet Validation
       // ============================================================================
-      
+
       if (!isConnected || !publicKey || !program || !provider || !connection) {
         console.error('[Solana][CreateAssetRoom] ❌ Wallet not connected');
         throw new Error('Wallet not connected. Please connect your Solana wallet.');
@@ -91,9 +99,9 @@ export function useSolanaCreateAssetRoom() {
       // ============================================================================
       // Step 2: Input Validation
       // ============================================================================
-      
+
       console.log('[Solana][CreateAssetRoom] 🔍 Validating parameters...');
-      
+
       const validation = validateAssetRoomParams(params);
       if (!validation.success) {
         console.error('[Solana][CreateAssetRoom] ❌ Validation failed:', validation.errors);
@@ -103,185 +111,154 @@ export function useSolanaCreateAssetRoom() {
       console.log('[Solana][CreateAssetRoom] ✅ All validations passed');
 
       // ============================================================================
-      // Step 3: Token Configuration
+      // Step 3: Entry Fee Token Configuration
       // ============================================================================
-      
-      console.log('[Solana][CreateAssetRoom] 💰 Getting token configuration...');
-      
-      const tokenConfig = getTokenConfig(params.currency, cluster);
-      const feeTokenMint = tokenConfig.mint;
-      
+
+      console.log('[Solana][CreateAssetRoom] 💰 Getting entry fee token configuration...');
+
+      // ✅ UPDATED: look up from new config — supports all 11 tokens
+      const entryTokenCode = params.currency as SolanaTokenCode;
+      const entryTokenConfig = SOLANA_TOKENS[entryTokenCode];
+
+      if (!entryTokenConfig) {
+        throw new Error(`Unsupported entry fee token: ${params.currency}`);
+      }
+
+      // SOL uses wSOL mint for SPL token transfers
+      const WSOL_MINT = 'So11111111111111111111111111111111111111112';
+      const entryMintAddress = entryTokenConfig.isNative ? WSOL_MINT : entryTokenConfig.mint;
+
+      if (!entryMintAddress) {
+        throw new Error(`No mint address for entry fee token: ${entryTokenCode}`);
+      }
+
+      const feeTokenMint = new PublicKey(entryMintAddress);
+
       console.log('[Solana][CreateAssetRoom] Entry fee token:', {
-        symbol: tokenConfig.symbol,
-        name: tokenConfig.name,
+        code: entryTokenConfig.code,
+        name: entryTokenConfig.name,
         mint: feeTokenMint.toBase58(),
-        decimals: tokenConfig.decimals,
+        decimals: entryTokenConfig.decimals,
       });
 
       // ============================================================================
-      // Step 4: Convert Amounts to Lamports
+      // Step 4: Convert Entry Fee to Raw Units
       // ============================================================================
-      
-      console.log('[Solana][CreateAssetRoom] 🔢 Converting amounts to lamports...');
-      
-      const entryFeeLamports = amountToLamports(params.entryFee, params.currency);
-      
+
+      console.log('[Solana][CreateAssetRoom] 🔢 Converting entry fee to raw units...');
+
+      // ✅ UPDATED: toRawAmount — no float math
+      const entryFeeRaw = toRawAmount(params.entryFee, entryTokenCode);
+
       console.log('[Solana][CreateAssetRoom] Entry fee:', {
-        human: `${params.entryFee} ${params.currency}`,
-        lamports: entryFeeLamports.toString(),
+        display: `${params.entryFee} ${entryTokenCode}`,
+        raw: entryFeeRaw.toString(),
       });
 
       // ============================================================================
       // Step 5: Process Prize Configuration
       // ============================================================================
-      
+
       console.log('[Solana][CreateAssetRoom] 🏆 Processing prize configuration...');
-      
+
       if (!params.expectedPrizes || params.expectedPrizes.length === 0) {
         throw new Error('Asset room requires at least one prize configured.');
       }
 
-      // Sort prizes by place
       const sortedPrizes = [...params.expectedPrizes].sort((a, b) => a.place - b.place);
-      
+
       if (sortedPrizes[0]?.place !== 1) {
         throw new Error('First place prize (place 1) is required for asset rooms.');
       }
 
-      // Extract first 3 prizes (Solana supports up to 3)
-      const prize1 = sortedPrizes[0];
-      const prize2 = sortedPrizes.find(p => p.place === 2);
-      const prize3 = sortedPrizes.find(p => p.place === 3);
+      /**
+       * Convert a single prize into the values the contract expects.
+       *
+       * ⚠️  IMPORTANT: prize amounts use the PRIZE TOKEN's decimals, not the
+       * entry fee token's decimals. For example, if the prize is 100 BONK
+       * (5 decimals), the raw amount is 100 * 10^5 = 10_000_000.
+       * We look up the prize mint in our token config to get the right decimals.
+       * If the prize mint is unknown (e.g. an NFT or unlisted token) we fall back
+       * to treating the supplied amount as already in raw units (amount = 1 for NFTs).
+       */
+      const processPrize = (prize: typeof sortedPrizes[0], label: string) => {
+        if (!prize.tokenAddress) {
+          throw new Error(`${label} must have a tokenAddress (mint address)`);
+        }
 
-      // Validate and convert prize 1 (required)
-      if (!prize1) {
-        throw new Error('Prize 1 is required');
-      }
+        const prizeMint = new PublicKey(prize.tokenAddress);
+        const isNFT = prize.tokenType === 'nft';
+        const rawAmount = prize.amount ? Number(prize.amount) : 1;
 
-      // Get mint from tokenAddress (Prize uses tokenAddress for both EVM and Solana)
-      const mintAddress = prize1.tokenAddress;
-      if (!mintAddress) {
-        throw new Error('Prize 1 must have a tokenAddress (mint address for Solana)');
-      }
-      
-      const prize1Mint = new PublicKey(mintAddress);
-      
-      // ✅ CORRECT: Only check explicit Solana tokenType
-      const isNFT1 = prize1.tokenType === 'nft';
-      
-      // Parse amount - ensure it's a number
-      const amount1 = prize1.amount ? Number(prize1.amount) : 1;
-      
-      // ✅ VALIDATE: If marked as NFT, amount MUST be 1
-      if (isNFT1 && amount1 !== 1) {
-        throw new Error(
-          `Prize 1: NFT detected (tokenType: ${prize1.tokenType}) but amount is ${amount1}. ` +
-          `NFTs must have amount = 1.`
-        );
-      }
-      
-      const prize1Type = isNFT1 ? 1 : 0; // 0 = FungibleToken, 1 = NFT
-      
-      const prize1Amount = new BN(
-        amountToLamports(amount1, params.currency).toString()
-      );
-
-      console.log('[Solana][CreateAssetRoom] Prize 1:', {
-        place: 1,
-        type: prize1Type === 1 ? 'NFT' : 'Fungible',
-        mint: prize1Mint.toBase58(),
-        amount: prize1Amount.toString(),
-        rawAmount: amount1,
-        tokenType: prize1.tokenType,
-      });
-
-      // Process prize 2 (optional)
-      let prize2Type: number | null = null;
-      let prize2Mint: PublicKey | null = null;
-      let prize2Amount: BN | null = null;
-
-      if (prize2 && prize2.tokenAddress) {
-        prize2Mint = new PublicKey(prize2.tokenAddress);
-        
-        // ✅ CORRECT: Only check explicit Solana tokenType
-        const isNFT2 = prize2.tokenType === 'nft';
-        
-        const amount2 = prize2.amount ? Number(prize2.amount) : 1;
-        
-        // ✅ VALIDATE: If marked as NFT, amount MUST be 1
-        if (isNFT2 && amount2 !== 1) {
+        if (isNFT && rawAmount !== 1) {
           throw new Error(
-            `Prize 2: NFT detected (tokenType: ${prize2.tokenType}) but amount is ${amount2}. ` +
-            `NFTs must have amount = 1.`
+            `${label}: NFT detected (tokenType: ${prize.tokenType}) but amount is ${rawAmount}. NFTs must have amount = 1.`
           );
         }
-        
-        prize2Type = isNFT2 ? 1 : 0;
-        prize2Amount = new BN(
-          amountToLamports(amount2, params.currency).toString()
-        );
-        
-        console.log('[Solana][CreateAssetRoom] Prize 2:', {
-          place: 2,
-          type: prize2Type === 1 ? 'NFT' : 'Fungible',
-          mint: prize2Mint.toBase58(),
-          amount: prize2Amount.toString(),
-          rawAmount: amount2,
-          tokenType: prize2.tokenType,
-        });
-      }
 
-      // Process prize 3 (optional)
-      let prize3Type: number | null = null;
-      let prize3Mint: PublicKey | null = null;
-      let prize3Amount: BN | null = null;
+        // ✅ UPDATED: look up prize token decimals from config
+        // If prize mint is in our supported list, use toRawAmount for correct decimals
+        // If not (e.g. unknown NFT mint), treat amount as raw units directly
+        let prizeAmountRaw: bigint;
 
-      if (prize3 && prize3.tokenAddress) {
-        prize3Mint = new PublicKey(prize3.tokenAddress);
-        
-        // ✅ CORRECT: Only check explicit Solana tokenType
-        const isNFT3 = prize3.tokenType === 'nft';
-        
-        const amount3 = prize3.amount ? Number(prize3.amount) : 1;
-        
-        // ✅ VALIDATE: If marked as NFT, amount MUST be 1
-        if (isNFT3 && amount3 !== 1) {
-          throw new Error(
-            `Prize 3: NFT detected (tokenType: ${prize3.tokenType}) but amount is ${amount3}. ` +
-            `NFTs must have amount = 1.`
-          );
+        if (isNFT) {
+          // NFTs: always 1 raw unit
+          prizeAmountRaw = 1n;
+        } else {
+          const prizeTokenConfig = getTokenByMint(prize.tokenAddress);
+          if (prizeTokenConfig) {
+            // Known token — convert display amount using correct decimals
+            prizeAmountRaw = toRawAmount(rawAmount, prizeTokenConfig.code);
+            console.log(`[Solana][CreateAssetRoom] ${label} token resolved:`, prizeTokenConfig.code, `(${prizeTokenConfig.decimals} decimals)`);
+          } else {
+            // Unknown token — caller is responsible for passing raw amount
+            // Log a warning so it's visible during testing
+            console.warn(
+              `[Solana][CreateAssetRoom] ⚠️ ${label} mint ${prize.tokenAddress} not in supported token list. ` +
+              `Treating amount ${rawAmount} as raw units. Make sure this is correct.`
+            );
+            prizeAmountRaw = BigInt(rawAmount);
+          }
         }
-        
-        prize3Type = isNFT3 ? 1 : 0;
-        prize3Amount = new BN(
-          amountToLamports(amount3, params.currency).toString()
-        );
-        
-        console.log('[Solana][CreateAssetRoom] Prize 3:', {
-          place: 3,
-          type: prize3Type === 1 ? 'NFT' : 'Fungible',
-          mint: prize3Mint.toBase58(),
-          amount: prize3Amount.toString(),
-          rawAmount: amount3,
-          tokenType: prize3.tokenType,
+
+        const prizeType = isNFT ? 1 : 0; // 0 = FungibleToken, 1 = NFT
+
+        console.log(`[Solana][CreateAssetRoom] ${label}:`, {
+          place: prize.place,
+          type: prizeType === 1 ? 'NFT' : 'Fungible',
+          mint: prizeMint.toBase58(),
+          amountDisplay: rawAmount,
+          amountRaw: prizeAmountRaw.toString(),
+          tokenType: prize.tokenType,
         });
-      }
+
+        return {
+          mint: prizeMint,
+          type: prizeType,
+          amount: new BN(prizeAmountRaw.toString()),
+          typeArg: prizeType === 1 ? { nft: {} } : { fungibleToken: {} },
+        };
+      };
+
+      const prize1 = processPrize(sortedPrizes[0], 'Prize 1');
+      const prize2Raw = sortedPrizes.find(p => p.place === 2);
+      const prize3Raw = sortedPrizes.find(p => p.place === 3);
+
+      const prize2 = prize2Raw?.tokenAddress ? processPrize(prize2Raw, 'Prize 2') : null;
+      const prize3 = prize3Raw?.tokenAddress ? processPrize(prize3Raw, 'Prize 3') : null;
 
       // ============================================================================
       // Step 6: Calculate Fee Structure (BPS)
       // ============================================================================
-      
+
       console.log('[Solana][CreateAssetRoom] 📊 Calculating fee structure...');
-      
-      // Asset rooms: entry fees go to platform (20%) + charity (75-80%) + host (0-5%)
+
+      // Asset rooms: prizes are pre-deposited assets, so no prize_pool_bps
+      // Entry fees split: platform (20%) + host (0-5%) + charity (remainder)
       const hostFeeBps = Math.floor((params.hostFeePct || 0) * 100);
-      
-      // Platform is always 20% (2000 BPS)
       const platformBps = 2000;
-      
-      // Charity gets the rest (after platform and host)
       const charityBps = 10000 - platformBps - hostFeeBps;
-      
+
       console.log('[Solana][CreateAssetRoom] Fee breakdown (BPS):', {
         platform: `${platformBps} BPS (20%)`,
         host: `${hostFeeBps} BPS (${hostFeeBps / 100}%)`,
@@ -292,14 +269,14 @@ export function useSolanaCreateAssetRoom() {
       // ============================================================================
       // Step 7: Derive PDAs
       // ============================================================================
-      
+
       console.log('[Solana][CreateAssetRoom] 🔑 Deriving PDAs...');
-      
+
       const [globalConfig] = deriveGlobalConfigPDA();
       const [tokenRegistry] = deriveTokenRegistryPDA();
       const [room] = deriveRoomPDA(publicKey, params.roomId);
       const [roomVault] = deriveRoomVaultPDA(room);
-      
+
       console.log('[Solana][CreateAssetRoom] PDAs:', {
         globalConfig: globalConfig.toBase58(),
         tokenRegistry: tokenRegistry.toBase58(),
@@ -310,78 +287,72 @@ export function useSolanaCreateAssetRoom() {
       // ============================================================================
       // Step 8: Check Wallet Balance
       // ============================================================================
-      
+
       console.log('[Solana][CreateAssetRoom] 💰 Checking wallet balance...');
-      
+
       const balance = await connection.getBalance(publicKey);
       const balanceSOL = balance / 1e9;
-      
+
       console.log('[Solana][CreateAssetRoom] Wallet balance:', {
         lamports: balance,
         SOL: balanceSOL.toFixed(4),
       });
-      
+
       const estimatedRent = 0.01; // Higher for asset room (room + prize vaults)
       const estimatedFees = 0.001;
-      const totalRequired = estimatedRent + estimatedFees;
-      
-      if (balanceSOL < totalRequired) {
-        console.error('[Solana][CreateAssetRoom] ❌ Insufficient SOL');
+
+      if (balanceSOL < estimatedRent + estimatedFees) {
         throw new Error(
-          `Insufficient SOL for asset room creation. Required: ${totalRequired.toFixed(4)} SOL, ` +
+          `Insufficient SOL for asset room creation. Required: ~${(estimatedRent + estimatedFees).toFixed(4)} SOL, ` +
           `Current balance: ${balanceSOL.toFixed(4)} SOL`
         );
       }
-      
+
       console.log('[Solana][CreateAssetRoom] ✅ Sufficient balance for rent + fees');
 
       // ============================================================================
       // Step 9: Build Instruction
       // ============================================================================
-      
+
       console.log('[Solana][CreateAssetRoom] 🔨 Building init_asset_room instruction...');
-      
+
       const charityMemo = params.charityName?.substring(0, SOLANA_CONTRACT.MAX_CHARITY_MEMO) || 'Quiz charity';
-      
+
       console.log('[Solana][CreateAssetRoom] Instruction parameters:', {
         roomId: params.roomId,
-        entryFee: entryFeeLamports.toString(),
+        entryFee: entryFeeRaw.toString(),
         maxPlayers: params.maxPlayers,
         hostFeeBps,
         charityMemo,
-        prize1: { type: prize1Type, mint: prize1Mint.toBase58(), amount: prize1Amount.toString() },
-        prize2: prize2Mint ? { type: prize2Type, mint: prize2Mint.toBase58(), amount: prize2Amount?.toString() } : null,
-        prize3: prize3Mint ? { type: prize3Type, mint: prize3Mint.toBase58(), amount: prize3Amount?.toString() } : null,
+        prize1: { type: prize1.type, mint: prize1.mint.toBase58(), amount: prize1.amount.toString() },
+        prize2: prize2 ? { type: prize2.type, mint: prize2.mint.toBase58(), amount: prize2.amount.toString() } : null,
+        prize3: prize3 ? { type: prize3.type, mint: prize3.mint.toBase58(), amount: prize3.amount.toString() } : null,
       });
 
       let instruction;
       try {
-        if (!program || !program.methods) {
-          throw new Error('Program methods not available');
-        }
-        
-        const programMethods = program.methods as any;
-        
-        instruction = await programMethods
+        if (!program?.methods) throw new Error('Program methods not available');
+
+        instruction = await (program.methods as any)
           .initAssetRoom(
             params.roomId,
-            new BN(entryFeeLamports.toString()),
+            new BN(entryFeeRaw.toString()),  // ✅ BigInt → BN
             params.maxPlayers,
             hostFeeBps,
             charityMemo,
             null, // expirationSlots
             // Prize 1 (required)
-            prize1Type === 1 ? { nft: {} } : { fungibleToken: {} },
-            prize1Mint,
-            prize1Amount,
+            prize1.typeArg,
+            prize1.mint,
+            prize1.amount,
             // Prize 2 (optional)
-            prize2Type !== null ? (prize2Type === 1 ? { nft: {} } : { fungibleToken: {} }) : null,
-            prize2Mint,
-            prize2Amount,
+            prize2?.typeArg ?? null,
+            prize2?.mint ?? null,
+            prize2?.amount ?? null,
             // Prize 3 (optional)
-            prize3Type !== null ? (prize3Type === 1 ? { nft: {} } : { fungibleToken: {} }) : null,
-            prize3Mint,
-            prize3Amount,
+            prize3?.typeArg ?? null,
+            prize3?.mint ?? null,
+            prize3?.amount ?? null,
           )
           .accounts({
             room,
@@ -395,7 +366,7 @@ export function useSolanaCreateAssetRoom() {
             rent: SYSVAR_RENT_PUBKEY,
           })
           .instruction();
-        
+
         console.log('[Solana][CreateAssetRoom] ✅ Instruction built successfully');
       } catch (error: any) {
         console.error('[Solana][CreateAssetRoom] ❌ Failed to build instruction:', error);
@@ -405,9 +376,9 @@ export function useSolanaCreateAssetRoom() {
       // ============================================================================
       // Step 10: Build Transaction
       // ============================================================================
-      
+
       console.log('[Solana][CreateAssetRoom] 📦 Building transaction...');
-      
+
       let transaction;
       try {
         transaction = await buildTransaction(connection, [instruction], publicKey);
@@ -420,61 +391,54 @@ export function useSolanaCreateAssetRoom() {
       // ============================================================================
       // Step 11: Simulate Transaction
       // ============================================================================
-      
+
       console.log('[Solana][CreateAssetRoom] 🧪 Simulating transaction...');
-      
+
       const simResult = await simulateTransaction(connection, transaction);
-      
+
       if (!simResult.success) {
         console.error('[Solana][CreateAssetRoom] ❌ Simulation failed');
         console.error('[Solana][CreateAssetRoom] Error:', simResult.error);
         console.error('[Solana][CreateAssetRoom] Logs:', simResult.logs);
-        
-        const errorMsg = formatTransactionError(simResult.error);
-        throw new Error(`Transaction simulation failed: ${errorMsg}`);
+        throw new Error(`Transaction simulation failed: ${formatTransactionError(simResult.error)}`);
       }
-      
+
       console.log('[Solana][CreateAssetRoom] ✅ Simulation successful');
 
       // ============================================================================
       // Step 12: Send and Confirm Transaction
       // ============================================================================
-      
+
       console.log('[Solana][CreateAssetRoom] 📤 Sending transaction...');
-      
+
       let signature: string;
       try {
         signature = await provider.sendAndConfirm(transaction, [], {
           skipPreflight: false,
           commitment: 'confirmed',
         });
-        
+
         console.log('[Solana][CreateAssetRoom] ✅ Transaction confirmed');
         console.log('[Solana][CreateAssetRoom] 📝 Signature:', signature);
       } catch (error: any) {
         console.error('[Solana][CreateAssetRoom] ❌ Transaction failed:', error);
-        
-        const errorMsg = formatTransactionError(error);
-        throw new Error(`Transaction failed: ${errorMsg}`);
+        throw new Error(`Transaction failed: ${formatTransactionError(error)}`);
       }
 
       // ============================================================================
-      // Step 13: Success!
+      // Step 13: Return Result
       // ============================================================================
-      
+
       const explorerUrl = getTxExplorerUrl(signature);
-      
+
       console.log('[Solana][CreateAssetRoom] ✅ Asset room created successfully!');
       console.log('[Solana][CreateAssetRoom] 📍 Room address:', room.toBase58());
       console.log('[Solana][CreateAssetRoom] 📍 Room vault:', roomVault.toBase58());
-      console.log('[Solana][CreateAssetRoom] 💰 Entry fee:', `${params.entryFee} ${params.currency}`);
+      console.log('[Solana][CreateAssetRoom] 💰 Entry fee:', `${params.entryFee} ${entryTokenCode}`);
       console.log('[Solana][CreateAssetRoom] 👥 Max players:', params.maxPlayers);
       console.log('[Solana][CreateAssetRoom] 🎁 Prizes to deposit:', sortedPrizes.length);
       console.log('[Solana][CreateAssetRoom] ⚠️  Status: AwaitingFunding');
-      console.log('[Solana][CreateAssetRoom] 📋 Next steps:');
-      console.log('[Solana][CreateAssetRoom]   1. Call addPrizeAsset for each prize');
-      console.log('[Solana][CreateAssetRoom]   2. Room status will change to Ready');
-      console.log('[Solana][CreateAssetRoom]   3. Players can join');
+      console.log('[Solana][CreateAssetRoom] 📋 Next: call addPrizeAsset for each prize slot');
 
       return {
         success: true,

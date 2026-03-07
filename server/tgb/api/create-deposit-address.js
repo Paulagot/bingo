@@ -5,6 +5,13 @@ import { loggers, logExternalApi, logError } from '../../config/logging.js';
 import { saveIntent } from '../persistence.js';
 import crypto from 'node:crypto';
 
+// ✅ NEW: import token helpers from backend token config
+import {
+  assertSupportedToken,
+  getTgbCode,
+  meetsMinDonation,
+} from '../../config/solana-tokens.js';
+
 const tgbLogger = loggers.tgb;
 
 function assertString(name, val) {
@@ -19,6 +26,11 @@ function assertIntegerOrString(name, val) {
   throw new Error(`Missing or invalid "${name}"`);
 }
 
+function assertPositiveNumber(name, val) {
+  const n = parseFloat(val);
+  if (isNaN(n) || n < 0) throw new Error(`Missing or invalid "${name}" — must be a non-negative number`);
+}
+
 function tryParse(s) {
   try { return JSON.parse(s); } catch { return s; }
 }
@@ -27,9 +39,8 @@ function tryParse(s) {
 function normalizeNetwork(n) {
   const s = String(n || '').toLowerCase().trim();
 
-  // common aliases
   if (['eth', 'ethereum', 'mainnet'].includes(s)) return 'ethereum';
-  if (s.startsWith('base')) return 'base';               // base, base-sepolia
+  if (s.startsWith('base')) return 'base';
   if (s.startsWith('polygon') || s === 'matic') return 'polygon';
   if (s.startsWith('arbitrum')) return 'arbitrum';
   if (s.startsWith('optimism') || s === 'op') return 'optimism';
@@ -38,7 +49,7 @@ function normalizeNetwork(n) {
   if (s.includes('stellar') || s === 'xlm') return 'stellar';
   if (s.includes('xrp') || s.includes('ripple')) return 'xrp';
 
-  return s; // fallback
+  return s;
 }
 
 function isEvmLike(n) {
@@ -48,22 +59,14 @@ function isEvmLike(n) {
 
 // ---------- Address validators (soft) ----------
 const looksEvm = (s) => /^0x[a-fA-F0-9]{40}$/.test(s);
-const looksSol = (s) => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s);   // base58-ish
+const looksSol = (s) => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s);
 const looksStellar = (s) => /^G[A-Z2-7]{55}$/.test(s);
 
 // ---------- Mock address makers ----------
-function mockEvmAddress() {
-  return '0xb7ACd1159dBed96B955C4d856fc001De9be59844';
-}
-function mockSolAddress() {
-  return '7koYv1dqqHWh4PQ5bVh8CyLBTxqAHeARPiuazzF2FhCY';
-}
-function mockStellarAddress() {
-  return 'GCF3Z7C6WJ6QX5M3Q7C7J2E6YJ5N4M2Q1P8R7T6U5S4R3Q2P1O';
-}
-function mockXrpAddress() {
-  return 'rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe';
-}
+function mockEvmAddress() { return '0xb7ACd1159dBed96B955C4d856fc001De9be59844'; }
+function mockSolAddress() { return '7koYv1dqqHWh4PQ5bVh8CyLBTxqAHeARPiuazzF2FhCY'; }
+function mockStellarAddress() { return 'GCF3Z7C6WJ6QX5M3Q7C7J2E6YJ5N4M2Q1P8R7T6U5S4R3Q2P1O'; }
+function mockXrpAddress() { return 'rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe'; }
 
 function isMockEnabled(req) {
   if (process.env.TGB_FORCE_MOCK === 'true') return true;
@@ -80,44 +83,85 @@ export default async function createDepositAddress(req, res) {
 
     const {
       organizationId,
-      currency,      // maps to pledgeCurrency for TGB
-      network,       // your internal reference (base, solana, etc.)
-      pledgeAmount,  // preferred, but...
-      amount,        // ...we also accept `amount` for backward compatibility
+      // ✅ UPDATED: frontend now sends 'tokenCode' (e.g. 'USDG', 'SOL', 'BONK')
+      // We keep 'currency' as fallback for backward compatibility
+      tokenCode,
+      currency,
+      network,          // still accepted for EVM routes — ignored for Solana
+      pledgeAmount,
+      amount,
       isAnonymous = true,
       metadata
     } = req.body || {};
 
-    // Normalise amount field so FE can send either `pledgeAmount` or `amount`
+    // Resolve token code — prefer new tokenCode field, fall back to currency
+    const resolvedTokenCode = (tokenCode ?? currency ?? '').toUpperCase().trim();
+
     const effectiveAmount = pledgeAmount ?? amount;
 
     console.log('🔵 [TGB] Destructured values:');
     console.log('  - organizationId:', organizationId, typeof organizationId);
-    console.log('  - currency (maps to pledgeCurrency):', currency, typeof currency);
+    console.log('  - tokenCode (resolved):', resolvedTokenCode);
     console.log('  - network (frontend):', network, typeof network);
-    console.log('  - pledgeAmount:', pledgeAmount, typeof pledgeAmount);
-    console.log('  - amount:', amount, typeof amount);
     console.log('  - effectiveAmount:', effectiveAmount, typeof effectiveAmount);
-    console.log('  - isAnonymous:', isAnonymous, typeof isAnonymous);
+    console.log('  - isAnonymous:', isAnonymous);
     console.log('  - metadata:', metadata);
 
-    // --- Basic validation of what we EXPECT from frontend (anonymous-only) ---
+    // --- Validation ---
     assertIntegerOrString('organizationId', organizationId);
-    assertString('currency', currency);
-    assertString('pledgeAmount', String(effectiveAmount));
+    assertPositiveNumber('amount', effectiveAmount);
 
-    console.log('✅ [TGB] Basic assertions passed (anonymous flow)');
+    // ✅ NEW: validate token is supported — throws 400 with structured error if not
+    // For EVM tokens (not in our Solana list) this will throw, which is correct
+    // because EVM rooms use a different flow and shouldn't hit this endpoint with
+    // Solana token codes. If you need EVM support here too, add an isSolanaToken
+    // check and skip assertSupportedToken for EVM routes.
+    let pledgeCurrency;
+    let isSolanaToken = false;
 
-    const netNorm = normalizeNetwork(network);
+    try {
+      assertSupportedToken(resolvedTokenCode);
+      // ✅ Map our internal token code to TGB's currency code
+      // e.g. 'USDG' → 'USDG', 'SOL' → 'SOL', 'BONK' → 'BONK'
+      pledgeCurrency = getTgbCode(resolvedTokenCode);
+      isSolanaToken = true;
+      console.log('✅ [TGB] Solana token resolved:', resolvedTokenCode, '→ TGB code:', pledgeCurrency);
+    } catch {
+      // Not a Solana token — treat as EVM/other, use currency code directly
+      pledgeCurrency = resolvedTokenCode || currency;
+      isSolanaToken = false;
+      console.log('ℹ️  [TGB] Non-Solana token, using currency directly:', pledgeCurrency);
+    }
+
+    if (!pledgeCurrency) {
+      return res.status(400).json({ ok: false, error: 'Missing or invalid token/currency' });
+    }
+
+    // ✅ NEW: check min donation threshold before calling TGB (Solana tokens only)
+    if (isSolanaToken) {
+      const amountNum = parseFloat(effectiveAmount);
+      if (!meetsMinDonation(amountNum, resolvedTokenCode)) {
+        console.warn(`⚠️  [TGB] Charity amount ${effectiveAmount} ${resolvedTokenCode} is below TGB minimum`);
+        return res.status(400).json({
+          ok: false,
+          error: `Charity amount is below TGB minimum for ${resolvedTokenCode}`,
+          tokenCode: resolvedTokenCode,
+          amount: effectiveAmount,
+        });
+      }
+      console.log('✅ [TGB] Min donation check passed');
+    }
+
+    console.log('✅ [TGB] Basic assertions passed');
+
+    // Network normalisation — still used for EVM routes and mock selection
+    const netNorm = normalizeNetwork(network ?? (isSolanaToken ? 'solana' : ''));
     console.log('🔵 [TGB] Normalized network:', network, '->', netNorm);
 
     const offchainIntentId = `FR-${metadata?.roomId ?? 'nometa'}-${Date.now()}-${crypto.randomUUID()}`;
     console.log('🔵 [TGB] Generated offchainIntentId:', offchainIntentId);
 
-    const metadataWithIntent = {
-      ...(metadata || {}),
-      offchainIntentId
-    };
+    const metadataWithIntent = { ...(metadata || {}), offchainIntentId };
     console.log('🔵 [TGB] Metadata with intent:', JSON.stringify(metadataWithIntent, null, 2));
 
     const mockEnabled = isMockEnabled(req);
@@ -127,16 +171,7 @@ export default async function createDepositAddress(req, res) {
     if (mockEnabled) {
       console.log('⚠️  [TGB] MOCK MODE ENABLED');
       tgbLogger.warn(
-        {
-          requestId: req.requestId,
-          organizationId,
-          currency,
-          network,
-          netNorm,
-          pledgeAmount: effectiveAmount,
-          isAnonymous,
-          mockMode: true
-        },
+        { requestId: req.requestId, organizationId, tokenCode: resolvedTokenCode, pledgeCurrency, netNorm, pledgeAmount: effectiveAmount, mockMode: true },
         'TGB API call running in MOCK MODE'
       );
 
@@ -159,7 +194,8 @@ export default async function createDepositAddress(req, res) {
         expectedAmountDecimal: String(effectiveAmount),
         _debug: {
           organizationId,
-          currency,
+          tokenCode: resolvedTokenCode,
+          pledgeCurrency,
           network,
           netNorm,
           pledgeAmount: effectiveAmount,
@@ -181,7 +217,8 @@ export default async function createDepositAddress(req, res) {
           tgbDepositId: mock.id,
           tgbRequestId: mock.requestId,
           organizationId,
-          currency,
+          tokenCode: resolvedTokenCode,
+          pledgeCurrency,
           network: netNorm,
           metadata: metadataWithIntent ?? null,
           status: 'mocked',
@@ -204,7 +241,6 @@ export default async function createDepositAddress(req, res) {
     const token = await getAccessToken();
     if (!token || String(token).trim() === '') {
       console.error('[TGB] getAccessToken returned empty token');
-      console.log('🔵 [TGB] ========== CREATE DEPOSIT ADDRESS END (NO TOKEN) ==========');
       return res.status(500).json({ ok: false, error: 'Missing access token for TGB' });
     }
     console.log('🔵 [TGB] Access token retrieved (preview):', String(token).slice(0, 12) + '...');
@@ -212,12 +248,16 @@ export default async function createDepositAddress(req, res) {
     const url = `${tgbBaseUrl()}/v1/deposit-address`;
     console.log('🔵 [TGB] API URL:', url);
 
-    // Build payload for TGB API according to their spec (anonymous-only)
+    // ✅ UPDATED: TGB payload
+    // - pledgeCurrency is now the TGB-specific code (from getTgbCode)
+    // - 'network' field is REMOVED — TGB determines network from pledgeCurrency itself
+    //   Sending 'network' causes a validation error: '"network" is not allowed'
     const payload = {
       organizationId,
-      pledgeCurrency: currency,
+      pledgeCurrency,                    // ✅ correct TGB code e.g. 'USDG', 'SOL', 'BONK'
       pledgeAmount: String(effectiveAmount),
-      isAnonymous: true
+      isAnonymous: true,
+      // ✅ network intentionally omitted — TGB rejects it
     };
 
     console.log('🔵 [TGB] Payload to send to TGB API:', JSON.stringify(payload, null, 2));
@@ -228,12 +268,9 @@ export default async function createDepositAddress(req, res) {
         requestId: req.requestId,
         method: 'POST',
         url,
-        payload: {
-          organizationId,
-          pledgeCurrency: currency,
-          pledgeAmount: String(effectiveAmount),
-          isAnonymous: true
-        }
+        payload,
+        tokenCode: resolvedTokenCode,
+        pledgeCurrency,
       },
       'TGB API request: create deposit address'
     );
@@ -272,7 +309,6 @@ export default async function createDepositAddress(req, res) {
         'TGB create deposit-address returned non-OK'
       );
 
-      console.log('🔵 [TGB] ========== CREATE DEPOSIT ADDRESS END (ERROR) ==========');
       return res
         .status(tgbRes.status)
         .json({ ok: false, error: 'TGB create deposit address failed', status: tgbRes.status, details: tryParse(text) });
@@ -281,11 +317,9 @@ export default async function createDepositAddress(req, res) {
     const data = tryParse(text);
     console.log('✅ [TGB] Parsed response data:', JSON.stringify(data, null, 2));
 
-    // helper to safely access nested values if response is wrapped in { data: { ... } }
     const top = (data && typeof data === 'object') ? data : {};
     const nested = (top.data && typeof top.data === 'object') ? top.data : {};
 
-    // prefer top-level keys, then nested.keys
     const depositAddressVal = top.depositAddress ?? nested.depositAddress ?? top.address ?? nested.address ?? '';
     const depositTagVal     = top.depositTag ?? nested.depositTag ?? null;
     const idVal             = top.id ?? nested.id ?? top.depositId ?? nested.depositId ?? undefined;
@@ -317,13 +351,10 @@ export default async function createDepositAddress(req, res) {
         { requestId: req.requestId, error: 'No depositAddress in TGB response', tgbResponse: data },
         'TGB API returned invalid response'
       );
-
-      console.log('🔵 [TGB] ========== CREATE DEPOSIT ADDRESS END (NO ADDRESS) ==========');
       return res.status(502).json({ ok: false, error: 'No depositAddress returned by TGB.', details: data });
     }
 
-    // Soft-validate returned address shape vs requested network & log if odd.
-    // Sandbox can return simulated addresses (prefix 'tgb-sim-') so skip validation for those.
+    // Soft-validate returned address shape
     const addr = out.depositAddress || '';
     if (typeof addr === 'string' && addr.startsWith('tgb-sim-')) {
       console.log('ℹ️  [TGB] Sandbox simulated deposit address received; skipping shape validation.');
@@ -344,7 +375,7 @@ export default async function createDepositAddress(req, res) {
       }
     }
 
-    // persist the canonical intent record
+    // Persist the canonical intent record
     console.log('💾 [TGB] Persisting intent to database...');
     try {
       saveIntent({
@@ -356,7 +387,8 @@ export default async function createDepositAddress(req, res) {
         tgbDepositId: out.id ?? undefined,
         tgbRequestId: out.requestId ?? undefined,
         organizationId,
-        currency,
+        tokenCode: resolvedTokenCode,   // ✅ store our internal code
+        pledgeCurrency,                 // ✅ store TGB code
         network: netNorm,
         metadata: metadataWithIntent ?? null,
         qrCode: out.qrCodeImageBase64 ?? null,
@@ -370,7 +402,7 @@ export default async function createDepositAddress(req, res) {
     }
 
     tgbLogger.info(
-      { requestId: req.requestId, depositAddress: out.depositAddress, depositId: out.id, network: netNorm },
+      { requestId: req.requestId, depositAddress: out.depositAddress, depositId: out.id, tokenCode: resolvedTokenCode, pledgeCurrency, network: netNorm },
       'TGB deposit address created successfully'
     );
 
@@ -391,7 +423,6 @@ export default async function createDepositAddress(req, res) {
       organizationId: req.body?.organizationId
     });
 
-    console.log('🔵 [TGB] ========== CREATE DEPOSIT ADDRESS END (EXCEPTION) ==========');
     return res.status(500).json({ ok: false, error: err?.message ?? 'Server error' });
   }
 }

@@ -19,6 +19,9 @@ import { useSolanaCreateAssetRoom } from '../chains/solana/hooks/useSolanaCreate
 import { useSolanaJoinRoom } from '../chains/solana/hooks/useSolanaJoinRoom';
 import { useSolanaEndRoom } from '../chains/solana/hooks/useSolanaEndRoom';
 
+// ✅ FIXED: correct type name is SolanaTokenCode, not SolanaTokenSymbol
+import type { SolanaTokenCode } from '../chains/solana/config/solanaTokenConfig';
+
 import type { Prize } from '../components/Quiz/types/quiz';
 
 /** ---------- Types ---------- */
@@ -90,10 +93,10 @@ type DistributeResult =
       rentReclaimed?: number | undefined;
       error?: string | undefined;
       charityAmount?: string | undefined;
-      tgbDepositAddress?: string | undefined;  // ✅ ADD THIS
+      tgbDepositAddress?: string | undefined;
       declareWinnersTxHash?: string | undefined;
-      tgbDepositMemo?: string | undefined;  // ✅ ADD THIS  
-      tbgDepositAddress?: string | undefined;  // ✅ ADD THIS
+      tgbDepositMemo?: string | undefined;
+      tbgDepositAddress?: string | undefined;
     }
   | { success: false; error: string };
 
@@ -117,6 +120,9 @@ export function useContractActions(opts?: Options) {
   const { joinRoom: solanaJoinRoom } = useSolanaJoinRoom();
   const { endRoom: solanaEndRoom } = useSolanaEndRoom();
 
+  // ✅ FIXED: removed misplaced currencySymbol line that was here referencing
+  // an undefined 'currency' variable. Currency is resolved inside each function below.
+
   /** ---------------- JOIN ROOM ---------------- */
   const joinRoom = useMemo(() => {
     if (effectiveChain === 'stellar') {
@@ -133,69 +139,56 @@ export function useContractActions(opts?: Options) {
     }
 
     if (effectiveChain === 'solana') {
-      // ✅ Solana join room implementation
       return async ({ roomId, feeAmount, extrasAmount, roomAddress, currency }: JoinArgs): Promise<JoinResult> => {
         console.log('[useContractActions][joinRoom] 🎮 Solana join room');
         console.log('[useContractActions][joinRoom] Params:', { roomId, feeAmount, extrasAmount, roomAddress, currency });
-        
+
         try {
-          // Validate roomAddress is provided
           if (!roomAddress) {
             console.error('[useContractActions][joinRoom] ❌ Missing room address');
-            return { 
-              success: false, 
-              error: 'Room address required for Solana join. Please provide the room PDA.' 
+            return {
+              success: false,
+              error: 'Room address required for Solana join. Please provide the room PDA.',
             };
           }
 
-          // Convert roomAddress to PublicKey if it's a string
           let roomPDA: PublicKey;
           try {
-            roomPDA = typeof roomAddress === 'string' 
-              ? new PublicKey(roomAddress) 
+            roomPDA = typeof roomAddress === 'string'
+              ? new PublicKey(roomAddress)
               : roomAddress;
-            
             console.log('[useContractActions][joinRoom] 📍 Room PDA:', roomPDA.toBase58());
           } catch (e: any) {
             console.error('[useContractActions][joinRoom] ❌ Invalid room address:', e);
-            return {
-              success: false,
-              error: `Invalid room address: ${e.message}`
-            };
+            return { success: false, error: `Invalid room address: ${e.message}` };
           }
 
-          // Parse amounts
           const entryFeeNum = feeAmount ? parseFloat(String(feeAmount)) : undefined;
           const extrasNum = extrasAmount ? parseFloat(String(extrasAmount)) : 0;
-          const currencySymbol = (currency ?? 'USDC').toUpperCase() as 'USDC' | 'PYUSD' | 'USDT';
+
+          // ✅ UPDATED: default to USDG, typed as SolanaTokenCode
+          const currencyCode = (currency ?? 'USDG').toUpperCase() as SolanaTokenCode;
 
           console.log('[useContractActions][joinRoom] 💵 Payment:', {
             entryFee: entryFeeNum,
             extras: extrasNum,
-            currency: currencySymbol,
+            currency: currencyCode,
           });
 
-          // Call the Solana join room hook
           const result = await solanaJoinRoom({
             roomId,
             roomAddress: roomPDA,
             entryFee: entryFeeNum,
             extrasAmount: extrasNum,
-            currency: currencySymbol,
+            currency: currencyCode,
           });
-          
+
           console.log('[useContractActions][joinRoom] ✅ Join successful:', result);
-          
-          return {
-            success: true,
-            txHash: result.txHash,
-          };
+
+          return { success: true, txHash: result.txHash };
         } catch (e: any) {
           console.error('[useContractActions][joinRoom] ❌ Solana join error:', e);
-          return { 
-            success: false, 
-            error: e?.message || 'Failed to join Solana room' 
-          };
+          return { success: false, error: e?.message || 'Failed to join Solana room' };
         }
       };
     }
@@ -222,15 +215,12 @@ export function useContractActions(opts?: Options) {
     }
 
     if (effectiveChain === 'solana') {
-      // ✅ Solana prize distribution with two-step flow (declare_winners + end_room)
       return async ({
         roomId,
         winners,
         roomAddress,
         charityOrgId,
         charityAddress,
-        charityAmountPreview,
-        charityCurrency,
       }: DistributeArgs): Promise<DistributeResult> => {
         console.log('[useContractActions][distributePrizes] 🏆 Solana prize distribution');
         console.log('[useContractActions][distributePrizes] Params:', {
@@ -238,18 +228,14 @@ export function useContractActions(opts?: Options) {
           winnersCount: winners.length,
           roomAddress,
           charityOrgId,
-          charityAmountPreview,
-          charityCurrency,
         });
 
         try {
-          // Validate room address
           if (!roomAddress) {
             console.error('[useContractActions][distributePrizes] ❌ Missing room address');
             return { success: false, error: 'Missing room address for distribution' };
           }
 
-          // Map winners to addresses
           const winnerAddresses = winners
             .map((w) => w.address)
             .filter((addr): addr is string => !!addr);
@@ -261,35 +247,26 @@ export function useContractActions(opts?: Options) {
 
           console.log('[useContractActions][distributePrizes] 🏅 Winners:', winnerAddresses);
 
-          // Convert roomAddress to PublicKey
           let roomPDA: PublicKey;
           try {
-            roomPDA = typeof roomAddress === 'string' 
-              ? new PublicKey(roomAddress) 
+            roomPDA = typeof roomAddress === 'string'
+              ? new PublicKey(roomAddress)
               : roomAddress;
           } catch (e: any) {
             console.error('[useContractActions][distributePrizes] ❌ Invalid room address:', e);
-            return {
-              success: false,
-              error: `Invalid room address: ${e.message}`
-            };
+            return { success: false, error: `Invalid room address: ${e.message}` };
           }
 
-          // Convert winner addresses to PublicKeys
           const winnerPublicKeys: PublicKey[] = [];
           for (const addr of winnerAddresses) {
             try {
               winnerPublicKeys.push(new PublicKey(addr));
             } catch (e: any) {
               console.error('[useContractActions][distributePrizes] ❌ Invalid winner address:', addr);
-              return {
-                success: false,
-                error: `Invalid winner address: ${addr}`
-              };
+              return { success: false, error: `Invalid winner address: ${addr}` };
             }
           }
 
-          // Prepare fallback charity wallet (if provided)
           let charityWalletPubkey: PublicKey | undefined;
           if (charityAddress) {
             try {
@@ -300,22 +277,20 @@ export function useContractActions(opts?: Options) {
             }
           }
 
-          // Call the Solana end room hook (two-step flow)
           console.log('[useContractActions][distributePrizes] 🚀 Calling useSolanaEndRoom...');
-          
+
           const result = await solanaEndRoom({
             roomId,
             roomAddress: roomPDA,
             winners: winnerPublicKeys,
             charityOrgId: charityOrgId ?? undefined,
-            charityWallet: charityWalletPubkey, // Can be undefined - hook will use TGB or require this
+            charityWallet: charityWalletPubkey,
           });
 
           console.log('[useContractActions][distributePrizes] ✅ Prize distribution successful:', result);
 
-          // Extract declareWinnersTxHash if present (for logging)
-          const declareWinnersTxHash = 'declareWinnersTxHash' in result 
-            ? result.declareWinnersTxHash 
+          const declareWinnersTxHash = 'declareWinnersTxHash' in result
+            ? result.declareWinnersTxHash
             : undefined;
 
           if (declareWinnersTxHash) {
@@ -328,15 +303,11 @@ export function useContractActions(opts?: Options) {
             explorerUrl: result.explorerUrl,
             charityAmount: result.charityAmount,
             tgbDepositAddress: result.tgbDepositAddress,
-            // Pass through declareWinnersTxHash if present
-            declareWinnersTxHash: declareWinnersTxHash,
+            declareWinnersTxHash,
           };
         } catch (e: any) {
           console.error('[useContractActions][distributePrizes] ❌ Solana distribution error:', e);
-          return { 
-            success: false, 
-            error: e?.message || 'Solana prize distribution failed' 
-          };
+          return { success: false, error: e?.message || 'Solana prize distribution failed' };
         }
       };
     }
@@ -355,9 +326,7 @@ export function useContractActions(opts?: Options) {
       console.log('[useContractActions][deploy] Params:', params);
 
       if (effectiveChain === 'stellar') {
-        throw new Error(
-          'Stellar deployment must be handled through StellarLaunchSection component'
-        );
+        throw new Error('Stellar deployment must be handled through StellarLaunchSection component');
       }
 
       if (effectiveChain === 'evm') {
@@ -367,12 +336,11 @@ export function useContractActions(opts?: Options) {
 
       if (effectiveChain === 'solana') {
         console.log('[useContractActions][deploy] ➡️  Delegating to Solana');
-        
-        // ✅ Map DeployParams to Solana params
-        const currency = (params.currency ?? 'USDC').toUpperCase() as 'USDC' | 'PYUSD' | 'USDT';
-        
+
+        // ✅ UPDATED: default to USDG, typed as SolanaTokenCode
+        const currency = (params.currency ?? 'USDG').toUpperCase() as SolanaTokenCode;
+
         if (params.prizeMode === 'assets') {
-          // ✅ Asset room creation
           console.log('[useContractActions][deploy] Creating asset room with params:', {
             roomId: params.roomId,
             currency,
@@ -382,7 +350,6 @@ export function useContractActions(opts?: Options) {
             expectedPrizes: params.expectedPrizes?.length,
           });
 
-          // Validate expectedPrizes
           if (!params.expectedPrizes || params.expectedPrizes.length === 0) {
             throw new Error('Asset room requires at least one prize');
           }
@@ -391,17 +358,13 @@ export function useContractActions(opts?: Options) {
             roomId: params.roomId,
             currency,
             entryFee: parseFloat(String(params.entryFee ?? '1.0')),
-            maxPlayers: 100, // TODO: Make this configurable in UI
+            maxPlayers: 100,
             hostFeePct: params.hostFeePct ?? 0,
             charityName: params.charityName,
             expectedPrizes: params.expectedPrizes,
           });
 
           console.log('[useContractActions][deploy] ✅ Solana asset room created:', result);
-          console.log('[useContractActions][deploy] ⚠️  Next steps:');
-          console.log('[useContractActions][deploy]   - Room status: AwaitingFunding');
-          console.log('[useContractActions][deploy]   - Host must deposit', result.expectedPrizes, 'prizes');
-          console.log('[useContractActions][deploy]   - Call addPrizeAsset for each prize');
 
           return {
             success: true,
@@ -410,7 +373,6 @@ export function useContractActions(opts?: Options) {
             explorerUrl: result.explorerUrl,
           };
         } else {
-          // ✅ Pool room creation
           console.log('[useContractActions][deploy] Creating pool room with params:', {
             roomId: params.roomId,
             currency,
@@ -420,12 +382,12 @@ export function useContractActions(opts?: Options) {
             charityName: params.charityName,
             prizeSplits: params.prizeSplits,
           });
-          
+
           const result = await solanaCreatePoolRoom({
             roomId: params.roomId,
             currency,
             entryFee: parseFloat(String(params.entryFee ?? '1.0')),
-            maxPlayers: 100, // TODO: Make this configurable in UI
+            maxPlayers: 100,
             hostFeePct: params.hostFeePct ?? 0,
             prizePoolPct: params.prizePoolPct ?? 0,
             charityName: params.charityName,

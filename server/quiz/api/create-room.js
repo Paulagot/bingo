@@ -896,7 +896,7 @@ router.get('/me/entitlements', async (req, res) => {
       const web3DefaultEntitlements = {
         plan_id: null,
         plan_code: 'WEB3_DEFAULT',
-        max_players_per_game: 10000,
+        max_players_per_game: 100,
         max_rounds: 100,
         round_types_allowed: '*',
         extras_allowed: '*',
@@ -928,7 +928,7 @@ router.get('/me/entitlements', async (req, res) => {
       const web3DefaultEntitlements = {
         plan_id: null,
         plan_code: 'WEB3_FALLBACK',
-        max_players_per_game: 10000,
+        max_players_per_game: 100,
         max_rounds: 100,
         round_types_allowed: '*',
         extras_allowed: '*',
@@ -954,7 +954,7 @@ router.get('/me/entitlements', async (req, res) => {
       const web3DefaultEntitlements = {
         plan_id: null,
         plan_code: 'WEB3_ERROR_FALLBACK',
-        max_players_per_game: 10000,
+        max_players_per_game: 100,
         max_rounds: 100,
         round_types_allowed: '*',
         extras_allowed: '*',

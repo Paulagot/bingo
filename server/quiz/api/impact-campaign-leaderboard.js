@@ -5,13 +5,13 @@ import { connection, TABLE_PREFIX } from '../../config/database.js';
 const router = express.Router();
 
 /**
- * Calculate points based on total_raised and fee_token
- * - Normal tokens: total_raised * 2
- * - USDGLO: total_raised * 2.5
+ * Calculate points based on total_raised_eur and fee_token
+ * - Normal tokens: total_raised_eur * 2
+ * - USDGLO: total_raised_eur * 2.5
  */
-function calculatePoints(totalRaised, feeToken) {
+function calculatePoints(totalRaisedEur, feeToken) {
   const multiplier = feeToken === 'USDGLO' ? 2.5 : 2.0;
-  return totalRaised * multiplier;
+  return totalRaisedEur * multiplier;
 }
 
 /**
@@ -19,17 +19,17 @@ function calculatePoints(totalRaised, feeToken) {
  */
 function getDateRange(period) {
   const ranges = {
-    feb2026: {
-      start: '2026-02-01 00:00:00',
-      end: '2026-02-28 23:59:59',
-    },
-    mar2026: {
-      start: '2026-03-01 00:00:00',
-      end: '2026-03-31 23:59:59',
-    },
     apr2026: {
       start: '2026-04-01 00:00:00',
       end: '2026-04-30 23:59:59',
+    },
+    may2026: {
+      start: '2026-05-01 00:00:00',
+      end: '2026-05-31 23:59:59',
+    },
+    jun2026: {
+      start: '2026-06-01 00:00:00',
+      end: '2026-06-30 23:59:59',
     },
     all: null, // No filtering
   };
@@ -59,13 +59,13 @@ router.get('/hosts', async (req, res) => {
       params = [dateRange.start, dateRange.end];
     }
 
-    // Query to get all events with date filtering
+    // Query to get all events with date filtering — using EUR fields
     const query = `
       SELECT 
         host_wallet,
         host_name,
         fee_token,
-        total_raised,
+        total_raised_eur,
         created_at
       FROM ${table}
       ${whereClause}
@@ -83,7 +83,7 @@ router.get('/hosts', async (req, res) => {
       if (!wallet) continue; // Skip if no wallet
 
       const points = calculatePoints(
-        parseFloat(row.total_raised || 0),
+        parseFloat(row.total_raised_eur || 0),
         row.fee_token
       );
 
@@ -155,13 +155,13 @@ router.get('/networks', async (req, res) => {
       params = [dateRange.start, dateRange.end];
     }
 
-    // Query to get all events with date filtering
+    // Query to get all events with date filtering — using EUR fields
     const query = `
       SELECT 
         network,
         chain,
         fee_token,
-        total_raised
+        total_raised_eur
       FROM ${table}
       ${whereClause}
     `;
@@ -177,7 +177,7 @@ router.get('/networks', async (req, res) => {
       if (!network) continue; // Skip if no network
 
       const points = calculatePoints(
-        parseFloat(row.total_raised || 0),
+        parseFloat(row.total_raised_eur || 0),
         row.fee_token
       );
 
@@ -248,13 +248,14 @@ router.get('/stats', async (req, res) => {
       params = [dateRange.start, dateRange.end];
     }
 
+    // Using EUR columns for all money totals
     const query = `
       SELECT 
         COUNT(*) as total_events,
         COUNT(DISTINCT host_wallet) as unique_hosts,
         COUNT(DISTINCT network) as unique_networks,
-        SUM(total_raised) as total_raised,
-        SUM(charity_amount) as total_charity,
+        SUM(total_raised_eur) as total_raised_eur,
+        SUM(charity_amount_eur) as total_charity_eur,
         SUM(number_of_players) as total_players
       FROM ${table}
       ${whereClause}
@@ -269,8 +270,8 @@ router.get('/stats', async (req, res) => {
         totalEvents: parseInt(stats.total_events || 0),
         uniqueHosts: parseInt(stats.unique_hosts || 0),
         uniqueNetworks: parseInt(stats.unique_networks || 0),
-        totalRaised: parseFloat(stats.total_raised || 0).toFixed(4),
-        totalCharity: parseFloat(stats.total_charity || 0).toFixed(4),
+        totalRaised: parseFloat(stats.total_raised_eur || 0).toFixed(2),
+        totalCharity: parseFloat(stats.total_charity_eur || 0).toFixed(2),
         totalPlayers: parseInt(stats.total_players || 0),
       },
       generatedAt: new Date().toISOString(),

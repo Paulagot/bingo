@@ -478,7 +478,7 @@ export function TestCampaign() {
         </div>
       </section>
 
-      <Hfooter />
+     
     </div>
   );
 }

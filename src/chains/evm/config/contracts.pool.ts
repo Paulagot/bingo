@@ -45,7 +45,7 @@ const DUMMY_ADDR = '0x1111111111111111111111111111111111111111' as const;
 
 export const POOL_FACTORY = {
   // --- Base ---
-  base:        DUMMY_ADDR, // TODO: replace with Base mainnet factory
+  base:        '0x67189E653F45F205c5Bc6F55e529D15b7B888F46', // TODO: replace with Base mainnet factory
   baseSepolia: '0x1407B51e43F5983B72577d1dB70AB107820c2e75' as const, // existing
 
   // --- BNB Smart Chain ---

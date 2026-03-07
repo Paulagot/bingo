@@ -61,6 +61,9 @@ const StripeQuizTicketCancel = lazy(() =>
 const StripeWalkinSuccess = lazy(() =>
   import('./components/Quiz/joinroom/StripeWalkinSuccess').then(m => ({ default: m.StripeWalkinSuccess }))
 );
+const MiniAppHostPage = lazy(() =>
+  import('./pages/mini-app/MiniAppHostPage').then(m => ({ default: m.MiniAppHostPage }))
+);
 
 // Lazy Web3 hub + impact campaign pages
 const Web3HubPage = lazy(() => import('./pages/web3'));
@@ -99,7 +102,7 @@ export default function App() {
   const { pathname } = location;
 
   const hideOnPaths = ['/BingoBlitz'];
-  const hideOnPrefixes = ['/quiz/game', '/quiz/play', '/quiz/host-dashboard', '/quiz/host-controls'];
+  const hideOnPrefixes = ['/quiz/game', '/quiz/play', '/quiz/host-dashboard', '/quiz/host-controls',  '/mini-app', '/tickets'];
   const showHeader =
     !hideOnPaths.includes(pathname) &&
     !hideOnPrefixes.some((p) => pathname === p || pathname.startsWith(p + '/'));
@@ -278,6 +281,15 @@ useEffect(() => {
             <Route path="/Web3-Impact-Event" element={<Navigate to="/web3/impact-campaign" replace />} />
             <Route path="/web3-impact-event" element={<Navigate to="/web3/impact-campaign" replace />} />
             <Route path="/web3-fundraising-quiz" element={<Navigate to="/web3" replace />} />
+
+            <Route
+  path="/mini-app/host"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading Mini App..." />}>
+      <MiniAppHostPage />
+    </Suspense>
+  }
+/>
 
             {/* 404 */}
             <Route

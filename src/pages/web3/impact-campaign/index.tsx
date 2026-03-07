@@ -337,7 +337,8 @@ const ImpactCampaignOverview: React.FC = () => {
                 <section className="px-4 py-12 bg-gradient-to-r from-purple-50 to-indigo-50">
                   <div className="container mx-auto max-w-6xl">
                     <div className="rounded-2xl border border-indigo-100 bg-white p-8 shadow-sm">
-                      <h2 className="text-indigo-900 mb-6 text-2xl font-bold">Supported Chains & Tokens (2025)</h2>
+                      <h2 className="text-indigo-900 mb-6 text-2xl font-bold">Supported Chains & Tokens (2026)</h2>
+                      <h4 className="text-indigo-900 mb-5 text-1xl font-bold">Also available on Base mini app's</h4>
                       <div className="grid gap-8 md:grid-cols-3 mb-6">
                         <div>
                           <div className="flex items-center gap-3 mb-2">
@@ -346,7 +347,7 @@ const ImpactCampaignOverview: React.FC = () => {
                             </div>
                             <h3 className="text-indigo-900 font-bold text-lg">Solana</h3>
                           </div>
-                          <p className="text-sm text-indigo-900/70"> USDC · PYUSD</p>
+                          <p className="text-sm text-indigo-900/70"> SOL · USDG· JUP · JTO · PYTH · KMNO · WIF · BONK · MEW · TRUMP</p>
                         </div>
                         <div>
                           <div className="flex items-center gap-3 mb-2">

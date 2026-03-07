@@ -150,7 +150,9 @@ export interface QuizConfig {
   web3Chain?: string;
   web3Currency?: string;
   web3Charity?: string;
+  web3CharityId?: string | null;
   web3ChairtyOrgId?: string; // ✅ ADD THIS for TGB
+  web3CharityName?: string | null;
   web3PrizeSplit?: {
     charity: number;
     host: number;
