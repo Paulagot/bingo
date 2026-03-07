@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
 import type { SupportedChain } from '../../../chains/types';
+import { useMiniAppContext } from '../../../context/MiniAppContext';
 
 // ✅ IMPORT Web3Provider directly (not lazy)
 import { Web3Provider } from '../../Web3Provider';
@@ -16,10 +17,10 @@ import StepWeb3QuizSetup from './StepWeb3QuizSetup';
 // ✅ Only lazy load Step 6 (not the provider)
 const StepWeb3ReviewLaunch = lazy(() => import('./StepWeb3ReviewLaunch'));
 
-const DEBUG = false;
+const DEBUG = true;
 
 const debugLog = (src: string, msg: string, data?: any) => {
-  if (DEBUG) console.log(`🧙‍♂️ [${src}] ${msg}`, data ?? '');
+  if (DEBUG) console.log(`🧙 [${src}] ${msg}`, data ?? '');
 };
 
 interface QuizWizardProps {
@@ -39,10 +40,11 @@ const LoadingSpinner = () => (
   </div>
 );
 
-export default function QuizWeb3Wizard({ onComplete, onChainUpdate  }: QuizWizardProps) {
+export default function QuizWeb3Wizard({ onComplete, onChainUpdate }: QuizWizardProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const { setupConfig, setStep, setFlow } = useQuizSetupStore();
-  
+  const { isMiniApp } = useMiniAppContext();
+
   // ✅ Track if we've ever reached review step (to persist Web3Provider)
   const [hasReachedReview, setHasReachedReview] = useState(false);
 
@@ -53,7 +55,7 @@ export default function QuizWeb3Wizard({ onComplete, onChainUpdate  }: QuizWizar
 
   const currentStep = steps[currentStepIndex];
   const isReviewStep = currentStep === 'review';
-  
+
   // ✅ Once we reach review, keep Web3Provider mounted
   useEffect(() => {
     if (isReviewStep && !hasReachedReview) {
@@ -92,7 +94,7 @@ export default function QuizWeb3Wizard({ onComplete, onChainUpdate  }: QuizWizar
 
   const renderStepContent = () => {
     debugLog('Web3Wizard', '⚡ Rendering step:', currentStep);
-    
+
     switch (currentStep) {
       case 'setup':
         return <StepWeb3QuizSetup onNext={goNext} onChainUpdate={onChainUpdate} onResetToFirst={resetToFirst} />;
@@ -124,7 +126,6 @@ export default function QuizWeb3Wizard({ onComplete, onChainUpdate  }: QuizWizar
       <div className="mb-6 text-center">
         <h1 className="heading-1">Create Web3 Impact Quiz</h1>
       </div>
-
       <div className="bg-muted rounded-xl p-6 shadow-lg">
         {renderStepContent()}
       </div>
@@ -133,11 +134,18 @@ export default function QuizWeb3Wizard({ onComplete, onChainUpdate  }: QuizWizar
 
   // ✅ If we've reached review OR currently on review, wrap with Web3Provider
   if (hasReachedReview || isReviewStep) {
+    // In mini app, MiniAppWeb3Provider is already mounted above us in the tree.
+    // Mounting Web3Provider again would init AppKit and break the mini app wagmi config.
+    if (isMiniApp) {
+      debugLog('Web3Wizard', '🎯 Mini app detected - skipping Web3Provider wrapper, already provided above');
+      return content;
+    }
+
     debugLog('Web3Wizard', '🌐 Rendering with Web3Provider wrapper', {
       hasReachedReview,
-      isReviewStep
+      isReviewStep,
     });
-    
+
     return (
       <Web3Provider force>
         {content}
