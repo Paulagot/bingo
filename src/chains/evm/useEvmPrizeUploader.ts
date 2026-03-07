@@ -8,7 +8,7 @@ import {
   readContract,
 } from '@wagmi/core';
 
-import { wagmiConfig } from '../../config';
+import { useConfig } from 'wagmi';
 
 /* ----------------------------------------
  * Token ABIs
@@ -86,6 +86,7 @@ type PrizeSlotInfo = {
 
 export function useEvmPrizeUploader(params: CommonArgs) {
   const { roomAddress, sender, chainId } = params;
+  const wagmiConfig = useConfig();
 
   const requireBasics = () => {
     if (!roomAddress) throw new Error('Missing roomAddress');
