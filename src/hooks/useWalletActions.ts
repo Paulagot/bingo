@@ -4,7 +4,7 @@ import { useCallback, useMemo, useEffect } from "react";
 import { useWalletStore } from "../stores/walletStore";
 import { useQuizSetupStore } from "../components/Quiz/hooks/useQuizSetupStore";
 import { useMiniAppContext } from '../context/MiniAppContext';
-import { useAccount } from 'wagmi';
+import { useConnection } from 'wagmi';  // ← wagmi v3: useAccount renamed to useConnection
 
 import {
   useAppKitProvider,
@@ -27,18 +27,18 @@ interface WalletActionsOptions {
   externalSetupConfig?: any;
 }
 
+const DEBUG = true;
+const log = (...args: any[]) => DEBUG && console.log('[useWalletActions]', ...args);
+
 /* -------------------------------------------------------------
    Determine CHAIN FAMILY (memoized)
-   ✅ NOW ACCEPTS EXTERNAL CONFIG AS PARAMETER
 -------------------------------------------------------------- */
 function useResolvedChainFamily(externalSetupConfig?: any): ChainFamily {
   const { config } = useQuizConfig();
   const { setupConfig: storeSetupConfig } = useQuizSetupStore();
-  
-  // ✅ Use external config if provided, otherwise use store
   const setupConfig = externalSetupConfig || storeSetupConfig;
-  
-  console.log('[useResolvedChainFamily] Inputs:', {
+
+  log('[useResolvedChainFamily] Inputs:', {
     setupConfig_web3Chain: setupConfig?.web3Chain,
     config_web3Chain: config?.web3Chain,
     config_evmNetwork: config?.evmNetwork,
@@ -48,41 +48,35 @@ function useResolvedChainFamily(externalSetupConfig?: any): ChainFamily {
     hasSetupConfig: !!setupConfig,
     isExternalConfig: !!externalSetupConfig,
   });
-  
+
   return useMemo(() => {
-    // 1. Check setupConfig.web3Chain (during wizard or external)
     if (setupConfig?.web3Chain) {
       const chain = setupConfig.web3Chain;
       if (chain === 'evm' || chain === 'solana' || chain === 'stellar') {
-        console.log('[useResolvedChainFamily] ✅ From setupConfig:', chain);
+        log('[useResolvedChainFamily] ✅ From setupConfig:', chain);
         return chain;
       }
     }
-
-    // 2. Check config.web3Chain (after deployment)
     if (config?.web3Chain) {
       const chain = config.web3Chain;
       if (chain === 'evm' || chain === 'solana' || chain === 'stellar') {
-        console.log('[useResolvedChainFamily] ✅ From config:', chain);
+        log('[useResolvedChainFamily] ✅ From config:', chain);
         return chain;
       }
     }
-
-    // 3. Fallback to detecting from network config
     if (config?.evmNetwork) {
-      console.log('[useResolvedChainFamily] ✅ Detected EVM from evmNetwork:', config.evmNetwork);
+      log('[useResolvedChainFamily] ✅ Detected EVM from evmNetwork:', config.evmNetwork);
       return "evm";
     }
     if (config?.solanaCluster) {
-      console.log('[useResolvedChainFamily] ✅ Detected Solana from solanaCluster');
+      log('[useResolvedChainFamily] ✅ Detected Solana from solanaCluster');
       return "solana";
     }
     if (config?.stellarNetwork) {
-      console.log('[useResolvedChainFamily] ✅ Detected Stellar from stellarNetwork');
+      log('[useResolvedChainFamily] ✅ Detected Stellar from stellarNetwork');
       return "stellar";
     }
-
-    console.log('[useResolvedChainFamily] ❌ No chain detected, returning null');
+    log('[useResolvedChainFamily] ❌ No chain detected, returning null');
     return null;
   }, [
     setupConfig?.web3Chain,
@@ -97,30 +91,37 @@ function useResolvedChainFamily(externalSetupConfig?: any): ChainFamily {
    MAIN HOOK
 -------------------------------------------------------------- */
 export function useWalletActions(options?: WalletActionsOptions) {
-  // ✅ Pass external config directly to useResolvedChainFamily
   const chainFamily = useResolvedChainFamily(options?.externalSetupConfig);
-
-  // ✅ Get setupConfig for use in other helpers
   const { setupConfig: storeSetupConfig } = useQuizSetupStore();
   const setupConfig = options?.externalSetupConfig || storeSetupConfig;
+
+  // Mini app detection
   const { isMiniApp } = useMiniAppContext();
-const wagmiAccount = useAccount();
+
+  // wagmi v3: useConnection replaces useAccount
+  const { address: wagmiAddress, isConnected: wagmiIsConnected, status: wagmiStatus } = useConnection();
+
+  log('🔍 Mini app state:', {
+    isMiniApp,
+    wagmiConnected: wagmiIsConnected,
+    wagmiAddress,
+    wagmiStatus,
+  });
 
   // AppKit hooks
   const appKitAccount = useSafeAppKitAccount();
-const { caipNetwork, switchNetwork } = useSafeAppKitNetwork();
-const { open: openAppKitModal } = useSafeAppKit();
+  const { caipNetwork, switchNetwork } = useSafeAppKitNetwork();
+  const { open: openAppKitModal } = useSafeAppKit();
 
   const { walletProvider: evmWalletProvider } = useAppKitProvider("eip155");
   const { walletProvider: solanaWalletProvider } = useAppKitProvider("solana");
   const { disconnect: disconnectAppKit } = useDisconnect();
- 
 
   // Stellar wallet
   const stellarWallet = useStellarWallet();
   const { updateStellarWallet } = useWalletStore();
 
-  console.log("🎯 [useWalletActions] State:", {
+  log('🎯 State:', {
     chainFamily,
     appKitConnected: appKitAccount.isConnected,
     appKitAddress: appKitAccount.address,
@@ -137,26 +138,19 @@ const { open: openAppKitModal } = useSafeAppKit();
   -------------------------------------------------------------- */
   const connectStellar = useCallback(async () => {
     try {
-      console.log("🔗 [Stellar] Attempting connection...");
+      log('🔗 [Stellar] Attempting connection...');
       await stellarWallet.connect();
-
-      if (!stellarWallet.address) {
-        throw new Error("Stellar wallet not connected");
-      }
-
-      console.log("✅ [Stellar] Connected:", stellarWallet.address);
-
+      if (!stellarWallet.address) throw new Error("Stellar wallet not connected");
+      log('✅ [Stellar] Connected:', stellarWallet.address);
       updateStellarWallet({
         address: stellarWallet.address,
         publicKey: stellarWallet.publicKey ?? undefined,
         isConnected: true,
         error: null,
       });
-
       return { success: true, address: stellarWallet.address };
     } catch (err: any) {
-      console.error("❌ [Stellar] Connection failed:", err);
-      
+      log('❌ [Stellar] Connection failed:', err);
       updateStellarWallet({
         address: null,
         isConnected: false,
@@ -173,19 +167,13 @@ const { open: openAppKitModal } = useSafeAppKit();
 
   const disconnectStellar = useCallback(async () => {
     try {
-      console.log("🔌 [Stellar] Disconnecting...");
+      log('🔌 [Stellar] Disconnecting...');
       await stellarWallet.disconnect();
-      
-      updateStellarWallet({
-        address: null,
-        isConnected: false,
-        error: null,
-      });
-      
-      console.log("✅ [Stellar] Disconnected");
+      updateStellarWallet({ address: null, isConnected: false, error: null });
+      log('✅ [Stellar] Disconnected');
       return { success: true };
     } catch (err) {
-      console.error("❌ [Stellar] Disconnect failed:", err);
+      log('❌ [Stellar] Disconnect failed:', err);
       return { success: false, error: err };
     }
   }, [stellarWallet, updateStellarWallet]);
@@ -195,20 +183,16 @@ const { open: openAppKitModal } = useSafeAppKit();
   -------------------------------------------------------------- */
   const getChainId = useCallback((): number | undefined => {
     if (chainFamily !== 'evm') return undefined;
-    
     const caipNetworkId = caipNetwork?.caipNetworkId;
     if (!caipNetworkId) return undefined;
-    
     if (caipNetworkId.includes(':')) {
       const parts = caipNetworkId.split(':');
       const chainIdStr = parts[1];
-      
       if (chainIdStr) {
         const parsed = parseInt(chainIdStr, 10);
         return isNaN(parsed) ? undefined : parsed;
       }
     }
-    
     return undefined;
   }, [chainFamily, caipNetwork?.caipNetworkId]);
 
@@ -217,18 +201,15 @@ const { open: openAppKitModal } = useSafeAppKit();
   -------------------------------------------------------------- */
   const getExpectedNetwork = useCallback(() => {
     if (chainFamily !== 'evm') return null;
-    
     const expectedNetworkKey = setupConfig?.evmNetwork as EvmNetworkKey | undefined;
     if (!expectedNetworkKey) return null;
-    
     return getMetaByKey(expectedNetworkKey);
   }, [chainFamily, setupConfig?.evmNetwork]);
 
   /* -------------------------------------------------------------
-     HELPER: Get expected chain family from quiz config
+     HELPER: Get expected chain family
   -------------------------------------------------------------- */
   const getExpectedChainFamily = useCallback((): ChainFamily => {
-    // ✅ Use the resolved chainFamily which already considers external config
     return chainFamily;
   }, [chainFamily]);
 
@@ -236,16 +217,16 @@ const { open: openAppKitModal } = useSafeAppKit();
      HELPER: Get actual connected chain family
   -------------------------------------------------------------- */
   const getActualChainFamily = useCallback((): ChainFamily => {
-      if (isMiniApp) {
-    return wagmiAccount.isConnected ? 'evm' : null;
-  }
-   
-  const network = caipNetwork?.caipNetworkId;
-  if (stellarWallet.isConnected) return 'stellar';
-  if (network?.startsWith('eip155:')) return 'evm';
-  if (network?.startsWith('solana:')) return 'solana';
-  return null;
-}, [isMiniApp, wagmiAccount.isConnected, caipNetwork?.caipNetworkId, stellarWallet.isConnected]);
+    if (isMiniApp) {
+      log('🎯 [getActualChainFamily] Mini app - wagmiIsConnected:', wagmiIsConnected);
+      return wagmiIsConnected ? 'evm' : null;
+    }
+    const network = caipNetwork?.caipNetworkId;
+    if (stellarWallet.isConnected) return 'stellar';
+    if (network?.startsWith('eip155:')) return 'evm';
+    if (network?.startsWith('solana:')) return 'solana';
+    return null;
+  }, [isMiniApp, wagmiIsConnected, caipNetwork?.caipNetworkId, stellarWallet.isConnected]);
 
   /* -------------------------------------------------------------
      HELPER: Check if on correct network
@@ -253,76 +234,69 @@ const { open: openAppKitModal } = useSafeAppKit();
   const isOnCorrectNetwork = useCallback((): boolean => {
     const expectedFamily = getExpectedChainFamily();
     const actualFamily = getActualChainFamily();
-    
-    console.log('🔍 [Network Check] Chain Family:', {
-      expected: expectedFamily,
-      actual: actualFamily,
-    });
-    
+
+    log('🔍 [Network Check] Chain Family:', { expected: expectedFamily, actual: actualFamily });
+
     if (expectedFamily !== actualFamily) {
-      console.log('❌ [Network Check] Chain family mismatch!');
+      log('❌ [Network Check] Chain family mismatch!');
       return false;
     }
-    
+
     if (expectedFamily === 'evm') {
       const expectedMeta = getExpectedNetwork();
       if (!expectedMeta) {
-        console.log('⚠️ [Network Check] No expected EVM network configured');
+        log('⚠️ [Network Check] No expected EVM network configured');
         return true;
       }
-      
       const currentChainId = getChainId();
       const isCorrect = currentChainId === expectedMeta.id;
-      
-      console.log('🔍 [Network Check] EVM Network:', {
+      log('🔍 [Network Check] EVM Network:', {
         current: currentChainId,
         expected: expectedMeta.id,
         expectedName: expectedMeta.name,
         isCorrect,
       });
-      
       return isCorrect;
     }
-    
-    console.log('✅ [Network Check] Chain family matches:', expectedFamily);
+
+    log('✅ [Network Check] Chain family matches:', expectedFamily);
     return true;
   }, [getExpectedChainFamily, getActualChainFamily, getChainId, getExpectedNetwork]);
 
   /* -------------------------------------------------------------
-     AUTO-SWITCH EVM NETWORK EFFECT (only when connected to correct chain family)
+     AUTO-SWITCH EVM NETWORK EFFECT
   -------------------------------------------------------------- */
   useEffect(() => {
     const expectedFamily = getExpectedChainFamily();
     const actualFamily = getActualChainFamily();
-    
+
     if (expectedFamily !== 'evm') return;
     if (actualFamily !== 'evm') {
-      console.log('⚠️ [Auto-Switch] Cannot switch - wrong chain family');
+      log('⚠️ [Auto-Switch] Cannot switch - wrong chain family');
       return;
     }
-    
+
+    // In mini app, chain switching is not needed — locked to Base Sepolia
+    if (isMiniApp) return;
+
     if (!appKitAccount.isConnected) return;
     if (!switchNetwork) return;
-    
+
     const expectedMeta = getExpectedNetwork();
     const currentChainId = getChainId();
-    
+
     if (expectedMeta && currentChainId && currentChainId !== expectedMeta.id) {
-      console.log('🔄 [EVM] Auto-switching to expected network...', {
+      log('🔄 [EVM] Auto-switching to expected network...', {
         from: currentChainId,
         to: expectedMeta.id,
         toName: expectedMeta.name,
       });
-      
       switchNetwork(expectedMeta)
-        .then(() => {
-          console.log(`✅ [EVM] Successfully switched to ${expectedMeta.name}`);
-        })
-        .catch((err) => {
-          console.error('❌ [EVM] Auto-switch failed:', err);
-        });
+        .then(() => log(`✅ [EVM] Successfully switched to ${expectedMeta.name}`))
+        .catch((err) => log('❌ [EVM] Auto-switch failed:', err));
     }
   }, [
+    isMiniApp,
     getExpectedChainFamily,
     getActualChainFamily,
     appKitAccount.isConnected,
@@ -335,44 +309,31 @@ const { open: openAppKitModal } = useSafeAppKit();
      UNIFIED CONNECT
   -------------------------------------------------------------- */
   const connect = useCallback(async () => {
-    console.log("🚀 [Unified Connect] Chain family:", chainFamily);
-    
-    if (chainFamily === 'stellar') {
-      return connectStellar();
-    }
-    
+    log('🚀 [Unified Connect] Chain family:', chainFamily, 'isMiniApp:', isMiniApp);
+
+    if (chainFamily === 'stellar') return connectStellar();
+
     if (chainFamily === 'evm' || chainFamily === 'solana') {
+      // In mini app, wallet is auto-connected via SDK — nothing to do
+      if (isMiniApp) {
+        log('🎯 [Connect] Mini app - wallet already connected via SDK');
+        return { success: true, address: wagmiAddress ?? null };
+      }
+
       try {
-        console.log(`🔗 [${chainFamily.toUpperCase()}] Current state:`, {
-          address: appKitAccount.address,
-          isConnected: appKitAccount.isConnected,
-          status: appKitAccount.status,
-          network: caipNetwork?.name,
-          networkId: caipNetwork?.caipNetworkId,
-        });
-        
         if (appKitAccount.address && appKitAccount.isConnected) {
-          console.log(`✅ [${chainFamily.toUpperCase()}] Already connected:`, appKitAccount.address);
+          log(`✅ Already connected:`, appKitAccount.address);
           return { success: true, address: appKitAccount.address };
         }
-        
-        console.log(`🔗 [${chainFamily.toUpperCase()}] Opening AppKit modal...`);
+        log(`🔗 Opening AppKit modal...`);
         await openAppKitModal();
-        
-        console.log(`📱 [${chainFamily.toUpperCase()}] Modal opened, waiting for user action...`);
-        
-        return { 
-          success: true, 
-          address: null,
-          pending: true,
-        };
-        
+        return { success: true, address: null, pending: true };
       } catch (err: any) {
-        console.error(`❌ [${chainFamily?.toUpperCase()}] Connection failed:`, err);
+        log(`❌ Connection failed:`, err);
         return { success: false, error: err };
       }
     }
-    
+
     return {
       success: false,
       error: {
@@ -381,36 +342,27 @@ const { open: openAppKitModal } = useSafeAppKit();
         timestamp: new Date(),
       },
     };
-  }, [
-    chainFamily, 
-    connectStellar, 
-    openAppKitModal, 
-    appKitAccount, 
-    caipNetwork,
-  ]);
+  }, [chainFamily, isMiniApp, wagmiAddress, connectStellar, openAppKitModal, appKitAccount]);
 
   /* -------------------------------------------------------------
      UNIFIED DISCONNECT
   -------------------------------------------------------------- */
   const disconnect = useCallback(async () => {
-    console.log("🔌 [Unified Disconnect] Chain family:", chainFamily);
-    
-    if (chainFamily === 'stellar') {
-      return disconnectStellar();
-    }
-    
+    log('🔌 [Unified Disconnect] Chain family:', chainFamily);
+
+    if (chainFamily === 'stellar') return disconnectStellar();
+
     if (chainFamily === 'evm' || chainFamily === 'solana') {
       try {
-        console.log(`🔌 [${chainFamily.toUpperCase()}] Disconnecting via AppKit...`);
         await disconnectAppKit();
-        console.log(`✅ [${chainFamily.toUpperCase()}] Disconnected`);
+        log(`✅ Disconnected`);
         return { success: true };
       } catch (err) {
-        console.error(`❌ [${chainFamily?.toUpperCase()}] Disconnect failed:`, err);
+        log(`❌ Disconnect failed:`, err);
         return { success: false, error: err };
       }
     }
-    
+
     return {
       success: false,
       error: {
@@ -425,6 +377,7 @@ const { open: openAppKitModal } = useSafeAppKit();
      HELPER: Get current address
   -------------------------------------------------------------- */
   const getAddress = useCallback((): string | null => {
+    if (isMiniApp) return wagmiAddress ?? null;
     switch (chainFamily) {
       case 'evm':
       case 'solana':
@@ -434,42 +387,30 @@ const { open: openAppKitModal } = useSafeAppKit();
       default:
         return null;
     }
-  }, [chainFamily, appKitAccount.address, stellarWallet.address]);
+  }, [isMiniApp, wagmiAddress, chainFamily, appKitAccount.address, stellarWallet.address]);
 
   /* -------------------------------------------------------------
      HELPER: Check if connected
   -------------------------------------------------------------- */
   const isConnected = useCallback((): boolean => {
-    const network = caipNetwork?.caipNetworkId;
+    if (isMiniApp) return wagmiIsConnected;
 
+    const network = caipNetwork?.caipNetworkId;
     switch (chainFamily) {
       case 'evm':
-        return (
-          appKitAccount.isConnected &&
-          !!evmWalletProvider &&
-          !!network?.startsWith('eip155:')
-        );
-
+        return appKitAccount.isConnected && !!evmWalletProvider && !!network?.startsWith('eip155:');
       case 'solana':
-        return (
-          appKitAccount.isConnected &&
-          !!solanaWalletProvider &&
-          !!network?.startsWith('solana:')
-        );
-
+        return appKitAccount.isConnected && !!solanaWalletProvider && !!network?.startsWith('solana:');
       case 'stellar':
         return stellarWallet.isConnected ?? false;
-
       default:
         return false;
     }
   }, [
-    chainFamily,
-    appKitAccount.isConnected,
-    evmWalletProvider,
-    solanaWalletProvider,
-    caipNetwork?.caipNetworkId,
-    stellarWallet.isConnected,
+    isMiniApp, wagmiIsConnected,
+    chainFamily, appKitAccount.isConnected,
+    evmWalletProvider, solanaWalletProvider,
+    caipNetwork?.caipNetworkId, stellarWallet.isConnected,
   ]);
 
   /* -------------------------------------------------------------
@@ -478,18 +419,18 @@ const { open: openAppKitModal } = useSafeAppKit();
   const getNetworkInfo = useCallback(() => {
     const expectedFamily = getExpectedChainFamily();
     const actualFamily = getActualChainFamily();
-    
+
     let currentNetwork = '';
     let expectedNetwork = '';
-    
+
     if (actualFamily === 'solana') {
       currentNetwork = caipNetwork?.name || 'Solana Devnet';
     } else if (actualFamily === 'evm') {
-      currentNetwork = caipNetwork?.name || 'EVM';
+      currentNetwork = isMiniApp ? 'Base Sepolia' : (caipNetwork?.name || 'EVM');
     } else if (actualFamily === 'stellar') {
       currentNetwork = 'Stellar';
     }
-    
+
     if (expectedFamily === 'evm') {
       const expectedMeta = getExpectedNetwork();
       expectedNetwork = expectedMeta?.name || 'EVM';
@@ -499,9 +440,9 @@ const { open: openAppKitModal } = useSafeAppKit();
     } else if (expectedFamily === 'stellar') {
       expectedNetwork = 'Stellar';
     }
-    
+
     const isCorrect = isOnCorrectNetwork();
-    
+
     return {
       currentChainId: getChainId(),
       currentNetwork,
@@ -510,6 +451,7 @@ const { open: openAppKitModal } = useSafeAppKit();
       isCorrect,
     };
   }, [
+    isMiniApp,
     getExpectedChainFamily,
     getActualChainFamily,
     getChainId,
@@ -524,27 +466,27 @@ const { open: openAppKitModal } = useSafeAppKit();
   -------------------------------------------------------------- */
   return {
     chainFamily,
-    
+
     account: {
-      address: appKitAccount.address,
-      isConnected: appKitAccount.isConnected,
-      status: appKitAccount.status,
+      address: isMiniApp ? (wagmiAddress ?? null) : (appKitAccount.address ?? null),
+      isConnected: isMiniApp ? wagmiIsConnected : appKitAccount.isConnected,
+      status: isMiniApp ? wagmiStatus : appKitAccount.status,
     },
-    
+
     stellarAccount: {
       address: stellarWallet.address,
       isConnected: stellarWallet.isConnected,
       publicKey: stellarWallet.publicKey,
     },
-    
+
     evmWalletProvider,
     solanaWalletProvider,
     caipNetwork,
-    
+
     connect,
     disconnect,
     switchNetwork,
-    
+
     getAddress,
     isConnected,
     getChainId,
