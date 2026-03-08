@@ -232,6 +232,10 @@ export function useWalletActions(options?: WalletActionsOptions) {
      HELPER: Check if on correct network
   -------------------------------------------------------------- */
   const isOnCorrectNetwork = useCallback((): boolean => {
+      if (isMiniApp) {
+    log('🎯 [Network Check] Mini app - locked to correct network');
+    return wagmiIsConnected;
+  }
     const expectedFamily = getExpectedChainFamily();
     const actualFamily = getActualChainFamily();
 
@@ -417,6 +421,15 @@ export function useWalletActions(options?: WalletActionsOptions) {
      HELPER: Get network info
   -------------------------------------------------------------- */
   const getNetworkInfo = useCallback(() => {
+      if (isMiniApp) {
+    return {
+      currentChainId: 84532,
+      currentNetwork: 'Base Sepolia',
+      expectedChainId: 84532,
+      expectedNetwork: 'Base Sepolia',
+      isCorrect: wagmiIsConnected,
+    };
+  }
     const expectedFamily = getExpectedChainFamily();
     const actualFamily = getActualChainFamily();
 

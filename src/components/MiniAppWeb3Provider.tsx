@@ -76,6 +76,16 @@ async function buildMiniAppWagmiProviders(ethProvider: any) {
     // Already connected or connection failed — not fatal
     console.warn('[MiniAppWeb3Provider] Auto-connect warning:', e);
   }
+try {
+  const chainIdHex = '0x' + baseSepolia.id.toString(16);
+  await ethProvider.request({
+    method: 'wallet_switchEthereumChain',
+    params: [{ chainId: chainIdHex }],
+  });
+  console.log('[MiniAppWeb3Provider] ✅ Switched to chain:', baseSepolia.id);
+} catch (e) {
+  console.warn('[MiniAppWeb3Provider] ⚠️ Chain switch warning:', e);
+}
 
 const Providers: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <WagmiProvider config={config}>
