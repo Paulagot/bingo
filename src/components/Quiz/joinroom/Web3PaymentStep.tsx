@@ -16,6 +16,7 @@ import {
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { useWallet } from '../../../context/WalletContext';
 import { useContractActions } from '../../../hooks/useContractActions';
+import { useMiniAppContext } from '../../../context/MiniAppContext';
 import type { SupportedChain } from '../../../chains/types';
 
 interface RoomConfig {
@@ -50,17 +51,23 @@ export const Web3PaymentStep: React.FC<{
   const navigate = useNavigate();
   const { socket } = useQuizSocket();
 
-  // ✅ Use WalletContext instead of calling hooks directly
   const wallet = useWallet();
-  const { 
-    address: walletAddress, 
+  const {
+    address: walletAddress,
     isConnected: isWalletConnected,
     chainFamily,
     networkInfo,
-    actions: walletActions 
+    actions: walletActions,
   } = wallet;
 
   const { joinRoom } = useContractActions({ chainOverride: chainOverride ?? null });
+
+  // ✅ Mini app context
+  const { isMiniApp, walletAddress: miniAppAddress } = useMiniAppContext();
+
+  // When in mini app, use SDK-provided wallet state
+  const effectiveAddress = isMiniApp ? miniAppAddress : walletAddress;
+  const effectivelyConnected = isMiniApp ? !!miniAppAddress : isWalletConnected;
 
   const extrasTotal = selectedExtras.reduce(
     (sum, key) => sum + (roomConfig.fundraisingPrices[key] || 0),
@@ -73,12 +80,12 @@ export const Web3PaymentStep: React.FC<{
   const [txHash, setTxHash] = useState('');
   const [alreadyPaid, setAlreadyPaid] = useState(false);
 
-  // Check if connected to wrong chain family
   const actualChainFamily = walletActions.getActualChainFamily();
   const expectedChainFamily = walletActions.getExpectedChainFamily();
-  const wrongChainFamily = actualChainFamily !== expectedChainFamily 
-    && actualChainFamily !== null 
-    && expectedChainFamily !== null;
+  const wrongChainFamily =
+    actualChainFamily !== expectedChainFamily &&
+    actualChainFamily !== null &&
+    expectedChainFamily !== null;
 
   const isOnCorrectNetwork = walletActions.isOnCorrectNetwork();
 
@@ -88,11 +95,12 @@ export const Web3PaymentStep: React.FC<{
       setPaymentStatus('connecting');
 
       const result = await walletActions.connect();
-      
+
       if (!result.success) {
-        const errorMsg = 'error' in result && result.error?.message 
-          ? result.error.message 
-          : 'Failed to connect wallet';
+        const errorMsg =
+          'error' in result && result.error?.message
+            ? result.error.message
+            : 'Failed to connect wallet';
         throw new Error(errorMsg);
       }
 
@@ -107,19 +115,22 @@ export const Web3PaymentStep: React.FC<{
     try {
       setError('');
 
-      if (!isWalletConnected) {
-        await handleWalletConnect();
-        return;
-      }
-
-      if (wrongChainFamily) {
-        setError(`Please disconnect and connect with a ${expectedChainFamily?.toUpperCase()} wallet`);
-        return;
-      }
-
-      if (!isOnCorrectNetwork) {
-        setError(`Please switch to ${networkInfo.expectedNetwork} in your wallet`);
-        return;
+      if (!isMiniApp) {
+        // Normal browser checks — skipped entirely inside the mini app
+        if (!isWalletConnected) {
+          await handleWalletConnect();
+          return;
+        }
+        if (wrongChainFamily) {
+          setError(
+            `Please disconnect and connect with a ${expectedChainFamily?.toUpperCase()} wallet`
+          );
+          return;
+        }
+        if (!isOnCorrectNetwork) {
+          setError(`Please switch to ${networkInfo.expectedNetwork} in your wallet`);
+          return;
+        }
       }
 
       if (!roomConfig.roomContractAddress) {
@@ -142,7 +153,7 @@ export const Web3PaymentStep: React.FC<{
         setAlreadyPaid(true);
         setTxHash('already-paid');
         setPaymentStatus('joining');
-        
+
         const playerId = nanoid();
 
         socket?.emit('join_quiz_room', {
@@ -153,13 +164,17 @@ export const Web3PaymentStep: React.FC<{
             paid: true,
             paymentMethod: 'web3',
             web3TxHash: 'already-paid',
-            web3Address: walletAddress,
+            web3Address: effectiveAddress,
             web3Chain: chainFamily,
             extras: selectedExtras,
             extraPayments: Object.fromEntries(
               selectedExtras.map((key) => [
                 key,
-                { method: 'web3', amount: roomConfig.fundraisingPrices[key], txHash: 'already-paid' },
+                {
+                  method: 'web3',
+                  amount: roomConfig.fundraisingPrices[key],
+                  txHash: 'already-paid',
+                },
               ])
             ),
           },
@@ -167,12 +182,8 @@ export const Web3PaymentStep: React.FC<{
         });
 
         localStorage.setItem(`quizPlayerId:${roomId}`, playerId);
-
         setPaymentStatus('success');
-        setTimeout(() => {
-          navigate(`/quiz/game/${roomId}/${playerId}`);
-        }, 1000);
-        
+        setTimeout(() => navigate(`/quiz/game/${roomId}/${playerId}`), 1000);
         return;
       }
 
@@ -192,13 +203,17 @@ export const Web3PaymentStep: React.FC<{
           paid: true,
           paymentMethod: 'web3',
           web3TxHash: result.txHash,
-          web3Address: walletAddress,
+          web3Address: effectiveAddress,
           web3Chain: chainFamily,
           extras: selectedExtras,
           extraPayments: Object.fromEntries(
             selectedExtras.map((key) => [
               key,
-              { method: 'web3', amount: roomConfig.fundraisingPrices[key], txHash: result.txHash },
+              {
+                method: 'web3',
+                amount: roomConfig.fundraisingPrices[key],
+                txHash: result.txHash,
+              },
             ])
           ),
         },
@@ -206,19 +221,17 @@ export const Web3PaymentStep: React.FC<{
       });
 
       localStorage.setItem(`quizPlayerId:${roomId}`, playerId);
-
       setPaymentStatus('success');
-      setTimeout(() => {
-        navigate(`/quiz/game/${roomId}/${playerId}`);
-      }, 1000);
+      setTimeout(() => navigate(`/quiz/game/${roomId}/${playerId}`), 1000);
     } catch (e: any) {
       console.error('Join failed:', e);
-      
-      if (e.message?.includes('already been processed') || 
-          e.message?.includes('already processed')) {
+
+      if (
+        e.message?.includes('already been processed') ||
+        e.message?.includes('already processed')
+      ) {
         console.warn('[Web3Payment] ⚠️ Transaction already processed, retrying...');
         setError('Transaction already processed. Checking entry status...');
-        
         setTimeout(() => {
           setError('');
           handleWeb3Join();
@@ -231,35 +244,38 @@ export const Web3PaymentStep: React.FC<{
   };
 
   const formattedAddr =
-    walletAddress && walletAddress.length > 10
-      ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
-      : walletAddress;
-
-  const STATUS_MAP: Record<Exclude<PaymentStatus, 'idle'>, { icon: JSX.Element; text: string; color: string }> = {
+    effectiveAddress && effectiveAddress.length > 10
+      ? `${effectiveAddress.slice(0, 6)}...${effectiveAddress.slice(-4)}`
+      : effectiveAddress;
+      
+const STATUS_MAP: Record<
+  Exclude<PaymentStatus, 'idle'>,
+  { icon: React.ReactElement; text: string; color: string }
+> = {
     connecting: {
       icon: <Loader className="h-5 w-5 animate-spin" />,
       text: `Connecting ${networkInfo.expectedNetwork}...`,
-      color: 'text-blue-600'
+      color: 'text-blue-600',
     },
     paying: {
       icon: <Loader className="h-5 w-5 animate-spin" />,
       text: alreadyPaid ? 'Already paid! Reconnecting...' : 'Processing payment...',
-      color: alreadyPaid ? 'text-green-600' : 'text-yellow-600'
+      color: alreadyPaid ? 'text-green-600' : 'text-yellow-600',
     },
     confirming: {
       icon: <Loader className="h-5 w-5 animate-spin" />,
       text: 'Confirming...',
-      color: 'text-orange-600'
+      color: 'text-orange-600',
     },
     joining: {
       icon: <Loader className="h-5 w-5 animate-spin" />,
       text: 'Joining...',
-      color: 'text-green-600'
+      color: 'text-green-600',
     },
     success: {
       icon: <CheckCircle className="h-5 w-5" />,
       text: 'Success! Redirecting...',
-      color: 'text-green-600'
+      color: 'text-green-600',
     },
   };
 
@@ -267,6 +283,7 @@ export const Web3PaymentStep: React.FC<{
 
   return (
     <div className="p-4 sm:p-6">
+      {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-blue-600 text-lg text-white">
@@ -274,34 +291,54 @@ export const Web3PaymentStep: React.FC<{
           </div>
           <div>
             <h2 className="text-fg text-xl font-bold">Web3 Payment</h2>
-            <p className="text-fg/70 text-sm">Pay with {networkInfo.expectedNetwork} to join</p>
+            <p className="text-fg/70 text-sm">
+              Pay with {networkInfo.expectedNetwork} to join
+            </p>
           </div>
         </div>
-        <button
-          onClick={onClose}
-          className="rounded-md border px-3 py-1 text-sm"
-        >
+        <button onClick={onClose} className="rounded-md border px-3 py-1 text-sm">
           <X className="h-4 w-4" />
         </button>
       </div>
 
-      {/* Quiz Requirements Info */}
+      {/* Network info banner */}
       <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
         <div className="flex items-center space-x-2">
-          <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0" />
+          <AlertCircle className="h-5 w-5 flex-shrink-0 text-blue-600" />
           <div>
             <p className="text-sm font-medium text-blue-800">
               This quiz uses {networkInfo.expectedNetwork}
             </p>
-            <p className="text-xs text-blue-600">
-              Make sure you have a {expectedChainFamily?.toUpperCase()} wallet ready
-            </p>
+            {!isMiniApp && (
+              <p className="text-xs text-blue-600">
+                Make sure you have a {expectedChainFamily?.toUpperCase()} wallet ready
+              </p>
+            )}
           </div>
         </div>
       </div>
 
+      {/* Wallet connection area */}
       <div className="mb-4 rounded-lg border border-purple-200 bg-purple-50 p-4">
-        {!isWalletConnected ? (
+        {isMiniApp ? (
+          // ✅ Mini app — wallet already connected via SDK
+          <div className="rounded-lg border border-green-200 bg-green-50 p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-medium text-green-800">
+                  Base Wallet Connected
+                </div>
+                <div className="text-xs font-mono text-green-600">
+                  {effectiveAddress
+                    ? `${effectiveAddress.slice(0, 6)}...${effectiveAddress.slice(-4)}`
+                    : 'Connecting...'}
+                </div>
+              </div>
+              <span className="text-lg text-green-500">✓</span>
+            </div>
+          </div>
+        ) : !isWalletConnected ? (
+          // Normal browser — not connected
           <button
             onClick={handleWalletConnect}
             disabled={paymentStatus === 'connecting'}
@@ -315,25 +352,26 @@ export const Web3PaymentStep: React.FC<{
             ) : (
               <>
                 <PlugZap className="h-4 w-4" />
-                <span className="ml-2">Connect {networkInfo.expectedNetwork} Wallet</span>
+                <span className="ml-2">
+                  Connect {networkInfo.expectedNetwork} Wallet
+                </span>
               </>
             )}
           </button>
         ) : (
+          // Normal browser — connected
           <>
-            {/* Wrong Chain Family Warning */}
             {wrongChainFamily && (
               <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3">
                 <div className="flex items-start space-x-2">
-                  <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600" />
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-red-800">
-                      Wrong Blockchain
-                    </p>
+                    <p className="text-sm font-medium text-red-800">Wrong Blockchain</p>
                     <p className="text-xs text-red-700 mt-1">
-                      You're connected to <strong>{actualChainFamily?.toUpperCase()}</strong>, 
-                      but this quiz requires <strong>{expectedChainFamily?.toUpperCase()}</strong>.
-                      Please disconnect and reconnect with the correct wallet.
+                      You're connected to{' '}
+                      <strong>{actualChainFamily?.toUpperCase()}</strong>, but this quiz
+                      requires <strong>{expectedChainFamily?.toUpperCase()}</strong>. Please
+                      disconnect and reconnect with the correct wallet.
                     </p>
                     <button
                       onClick={async () => {
@@ -349,41 +387,44 @@ export const Web3PaymentStep: React.FC<{
               </div>
             )}
 
-            {/* Wallet Display */}
-            <div className={`rounded-lg border p-3 ${
-              wrongChainFamily 
-                ? 'border-red-200 bg-red-50' 
-                : isOnCorrectNetwork 
-                  ? 'border-green-200 bg-green-50' 
+            <div
+              className={`rounded-lg border p-3 ${
+                wrongChainFamily
+                  ? 'border-red-200 bg-red-50'
+                  : isOnCorrectNetwork
+                  ? 'border-green-200 bg-green-50'
                   : 'border-orange-200 bg-orange-50'
-            }`}>
+              }`}
+            >
               <div className="flex items-center justify-between">
                 <div>
-                  <div className={`text-sm font-medium ${
-                    wrongChainFamily
-                      ? 'text-red-800'
-                      : isOnCorrectNetwork 
-                        ? 'text-green-800' 
+                  <div
+                    className={`text-sm font-medium ${
+                      wrongChainFamily
+                        ? 'text-red-800'
+                        : isOnCorrectNetwork
+                        ? 'text-green-800'
                         : 'text-orange-800'
-                  }`}>
+                    }`}
+                  >
                     {wrongChainFamily
                       ? `Wrong Blockchain (${actualChainFamily?.toUpperCase()})`
-                      : isOnCorrectNetwork 
-                        ? `${networkInfo.expectedNetwork} Connected` 
-                        : `${networkInfo.currentNetwork} Connected`
-                    }
+                      : isOnCorrectNetwork
+                      ? `${networkInfo.expectedNetwork} Connected`
+                      : `${networkInfo.currentNetwork} Connected`}
                   </div>
-                  <div className={`text-xs font-mono ${
-                    wrongChainFamily
-                      ? 'text-red-600'
-                      : isOnCorrectNetwork 
-                        ? 'text-green-600' 
+                  <div
+                    className={`text-xs font-mono ${
+                      wrongChainFamily
+                        ? 'text-red-600'
+                        : isOnCorrectNetwork
+                        ? 'text-green-600'
                         : 'text-orange-600'
-                  }`}>
+                    }`}
+                  >
                     {formattedAddr}
                   </div>
                 </div>
-
                 <button
                   onClick={async () => {
                     setError('');
@@ -396,17 +437,15 @@ export const Web3PaymentStep: React.FC<{
               </div>
             </div>
 
-            {/* Wrong Network Warning (only if correct chain family but wrong network) */}
             {!wrongChainFamily && !isOnCorrectNetwork && (
               <div className="mt-3 rounded-lg border border-orange-200 bg-orange-50 p-3">
                 <div className="flex items-start space-x-2">
-                  <AlertTriangle className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
+                  <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-orange-600" />
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-orange-800">
-                      Wrong Network
-                    </p>
+                    <p className="text-sm font-medium text-orange-800">Wrong Network</p>
                     <p className="text-xs text-orange-700 mt-1">
-                      Your wallet is on <strong>{networkInfo.currentNetwork}</strong>, but this quiz requires <strong>{networkInfo.expectedNetwork}</strong>.
+                      Your wallet is on <strong>{networkInfo.currentNetwork}</strong>, but
+                      this quiz requires <strong>{networkInfo.expectedNetwork}</strong>.
                       Please switch networks in your wallet.
                     </p>
                   </div>
@@ -417,35 +456,44 @@ export const Web3PaymentStep: React.FC<{
         )}
       </div>
 
+      {/* Error display */}
       {error && (
-        <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 flex items-center space-x-2">
+        <div className="mb-3 flex items-center space-x-2 rounded-lg border border-red-200 bg-red-50 p-3">
           <AlertCircle className="h-5 w-5 text-red-500" />
           <p className="text-sm text-red-700">{error}</p>
         </div>
       )}
 
+      {/* Payment status */}
       {status && (
-        <div className="mb-4 rounded-lg border bg-gray-50 p-4 flex items-center space-x-3">
+        <div className="mb-4 flex items-center space-x-3 rounded-lg border bg-gray-50 p-4">
           <div className={status.color}>{status.icon}</div>
           <span className={`font-medium ${status.color}`}>{status.text}</span>
-          {txHash && txHash !== 'already-paid' && <span className="text-xs">{txHash.slice(0, 16)}…</span>}
+          {txHash && txHash !== 'already-paid' && (
+            <span className="text-xs">{txHash.slice(0, 16)}…</span>
+          )}
         </div>
       )}
 
+      {/* Footer buttons */}
       <div className="flex justify-end space-x-2 border-t pt-4">
         <button
           onClick={onBack}
           disabled={paymentStatus !== 'idle'}
           className="rounded-lg bg-gray-100 px-4 py-2 text-sm disabled:opacity-50"
         >
-          <ChevronLeft className="h-4 w-4 inline-block mr-1" />
+          <ChevronLeft className="mr-1 inline-block h-4 w-4" />
           Back
         </button>
 
-        {isWalletConnected && !wrongChainFamily && (
+        {/* Show pay button when: in mini app, OR connected on correct network */}
+        {(isMiniApp || (effectivelyConnected && !wrongChainFamily)) && (
           <button
             onClick={handleWeb3Join}
-            disabled={paymentStatus !== 'idle' || !isOnCorrectNetwork}
+            disabled={
+              paymentStatus !== 'idle' ||
+              (!isMiniApp && !isOnCorrectNetwork)
+            }
             className="rounded-lg bg-purple-600 px-4 py-2 text-sm text-white disabled:opacity-50"
           >
             Pay {roomConfig.currencySymbol}
