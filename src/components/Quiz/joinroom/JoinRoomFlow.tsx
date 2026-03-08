@@ -10,7 +10,7 @@ import { DemoPaymentStep } from './DemoPaymentStep';
 import type { SupportedChain } from '../../../chains/types';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { useQuizConfig } from '../hooks/useQuizConfig';
-import { WalletProvider } from '../../../context/WalletContext';
+
 import { normalizePaymentMethod } from '../../../shared/utils/paymentMethods';
 
 // Shared components
@@ -20,11 +20,9 @@ import { ExtrasSelector, useExtrasSelection } from '../shared/ExtrasSelector';
 import { PaymentMethodSelector, type ClubPaymentMethod } from '../shared/PaymentMethodSelector';
 import { PaymentInstructionsContent, PaymentInstructionsFooter } from '../shared/PaymentInstructions';
 import { ActionButtons, PayAdminButton } from '../shared/ActionButtons';
+import { MiniAppWeb3Provider } from '../../../components/MiniAppWeb3Provider';
 
-// Lazy load Web3 components
-const Web3Provider = lazy(() =>
-  import('../../../components/Web3Provider').then(m => ({ default: m.Web3Provider }))
-);
+
 
 const Web3PaymentStep = lazy(() =>
   import('./Web3PaymentStep').then(m => ({ default: m.Web3PaymentStep }))
@@ -832,37 +830,35 @@ const checkWalkInCapacity = async (currentRoomId: string): Promise<boolean> => {
       )}
 
       {step === 'payment-choice' && roomConfig && paymentFlow === 'web3' && (
-        detectedChain ? (
-          <Suspense fallback={<LoadingSpinner />}>
-            <Web3Provider key="web3-payment-provider">
-              <WalletProvider
-                roomConfig={{
-                  web3Chain: roomConfig.web3Chain,
-                  evmNetwork: roomConfig.evmNetwork,
-                  solanaCluster: roomConfig.solanaCluster,
-                  stellarNetwork: roomConfig.stellarNetwork,
-                }}
-              >
-                <Web3PaymentStep
-                  chainOverride={detectedChain}
-                  roomId={roomId}
-                  playerName={playerDetails.playerName}
-                  roomConfig={roomConfig}
-                  selectedExtras={selectedExtras}
-                  onBack={() => setStep('extras')}
-                  onClose={onClose}
-                />
-              </WalletProvider>
-            </Web3Provider>
-          </Suspense>
-        ) : (
-          <div className="p-6">
-            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
-              Detecting blockchain network… Please wait.
-            </div>
-          </div>
-        )
-      )}
+  detectedChain ? (
+    <Suspense fallback={<LoadingSpinner />}>
+      <MiniAppWeb3Provider
+        roomConfig={{
+          web3Chain: roomConfig.web3Chain,
+          evmNetwork: roomConfig.evmNetwork,
+          solanaCluster: roomConfig.solanaCluster,
+          stellarNetwork: roomConfig.stellarNetwork,
+        }}
+      >
+        <Web3PaymentStep
+          chainOverride={detectedChain}
+          roomId={roomId}
+          playerName={playerDetails.playerName}
+          roomConfig={roomConfig}
+          selectedExtras={selectedExtras}
+          onBack={() => setStep('extras')}
+          onClose={onClose}
+        />
+      </MiniAppWeb3Provider>
+    </Suspense>
+  ) : (
+    <div className="p-6">
+      <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+        Detecting blockchain network… Please wait.
+      </div>
+    </div>
+  )
+)}
 
       {step === 'payment-choice' && roomConfig && paymentFlow === 'web2' && (
         <StepLayout

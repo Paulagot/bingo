@@ -18,6 +18,12 @@ import { WalletProvider } from '../context/WalletContext';
 
 interface Props {
   children: React.ReactNode;
+    roomConfig?: {
+    web3Chain?: string;
+    evmNetwork?: string;
+    solanaCluster?: string;
+    stellarNetwork?: string;
+  };
 }
 
 type ProviderState =
@@ -100,7 +106,7 @@ const Providers: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   return Providers;
 }
 
-export const MiniAppWeb3Provider: React.FC<Props> = ({ children }) => {
+export const MiniAppWeb3Provider: React.FC<Props> = ({ children, roomConfig }) => {
   const { isMiniApp, isLoading: contextLoading } = useMiniAppContext();
   const [state, setState] = useState<ProviderState>({ status: 'loading' });
 
@@ -143,11 +149,13 @@ export const MiniAppWeb3Provider: React.FC<Props> = ({ children }) => {
     return <LoadingScreen />;
   }
 
-  if (state.status === 'fallback') {
-    // Outside mini app — fall back to Reown/AppKit as normal
+   if (state.status === 'fallback') {
     return (
       <Web3Provider force>
-        {children}
+        {/* ✅ Use passed roomConfig, fall back to baseSepolia default for host route */}
+        <WalletProvider roomConfig={roomConfig ?? { web3Chain: 'evm', evmNetwork: 'baseSepolia' }}>
+          {children}
+        </WalletProvider>
       </Web3Provider>
     );
   }
