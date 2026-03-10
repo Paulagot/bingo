@@ -70,6 +70,7 @@ const Web3HubPage = lazy(() => import('./pages/web3'));
 const ImpactCampaignOverview = lazy(() => import('./pages/web3/impact-campaign'));
 const ImpactCampaignJoin = lazy(() => import('./pages/web3/impact-campaign/join'));
 const ImpactCampaignLeaderboard = lazy(() => import('./pages/web3/impact-campaign/leaderboard'));
+const ImpactCampaignBaseApp = lazy(() => import('./pages/web3/impact-campaign/MiniAppLandingPage'));
 
 const LoadingSpinner = ({
   message = 'Loading...',
@@ -272,6 +273,7 @@ useEffect(() => {
                     
                     {/* ✅ Join page - Wizard handles Web3Provider internally at step 6 */}
                     <Route path="impact-campaign/join" element={<ImpactCampaignJoin />} />
+                    <Route path="impact-campaign/baseapp" element={<ImpactCampaignBaseApp />} />
                   </Routes>
                 </Suspense>
               }
