@@ -159,13 +159,17 @@ app.get('/.well-known/farcaster.json', (req, res) => {
       splashBackgroundColor: '#0f0f1a',
       tagline: 'Host. Play. Raise. Impact.',
       subtitle: 'Host. Play. Raise. Impact.',
-      description: 'Host or Join a fundraising quiz — support real causes on-chain.',
+      description: 'Turn your community into a force for good. Host or join a quiz night where every entry fee goes directly to a verified charity.',
+      ogTitle: 'FundRaisely — Web3 Fundraising Quiz',
+      ogDescription: 'Turn your community into a force for good. Host or join a quiz night where every entry fee goes directly to a verified charity.',
       primaryCategory: 'social',
       tags: ['quiz', 'fundraising', 'web3', 'base'],
       heroImageUrl: `${BASE_URL}/embed-image.png`,
-      screenshotUrls: [`${BASE_URL}/embed-image.png`],
-      ogTitle: 'FundRaisely Fundraising Quiz',
-      ogDescription: 'Host, Play, raise, and make an impact on-chain.',
+     screenshotUrls: [
+  `${BASE_URL}/Picture2.png`,
+  `${BASE_URL}/Picture3.png`,
+  `${BASE_URL}/Picture4.png`,
+],
       ogImageUrl: `${BASE_URL}/embed-image.png`
     }
   });
