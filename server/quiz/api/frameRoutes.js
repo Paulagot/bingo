@@ -1,9 +1,14 @@
+// server/routes/frameRoutes.ts  (or .js)
+//
+// CHANGE: TARGET_PATH updated from /web3/impact-campaign/join
+//         to /web3/impact-campaign/baseapp  (the new mini-app-optimised page)
+
 import express from 'express';
 
 const router = express.Router();
 
-const BASE_URL = process.env.BASE_URL || 'https://fundraisely-staging.up.railway.app';
-const TARGET_PATH = '/web3/impact-campaign/join';
+const BASE_URL    = process.env.BASE_URL || 'https://fundraisely-staging.up.railway.app';
+const TARGET_PATH = '/web3/impact-campaign/baseapp';    // ← updated
 
 // ─────────────────────────────────────────────
 // GET /frame/image  — rendered HTML banner (legacy/fallback)
@@ -79,7 +84,7 @@ router.get('/', (req, res) => {
       action: {
         type: 'launch_frame',
         name: 'FundRaisely Quiz',
-        url: `${BASE_URL}${TARGET_PATH}`,
+        url: `${BASE_URL}${TARGET_PATH}`,           // → /web3/impact-campaign/baseapp
         splashImageUrl: `${BASE_URL}/splash.png`,
         splashBackgroundColor: '#0f0f1a'
       }
@@ -93,10 +98,10 @@ router.get('/', (req, res) => {
   <meta name="base:app_id" content="69a1865e991116aebf36caae" />
   <title>FundRaisely — Web3 Fundraising Quiz</title>
   <meta name="fc:miniapp" content='${miniappEmbed}' />
-  <meta name="fc:frame" content='${miniappEmbed}' />
-  <meta property="og:title" content="FundRaisely — Web3 Fundraising Quiz" />
+  <meta name="fc:frame"   content='${miniappEmbed}' />
+  <meta property="og:title"       content="FundRaisely — Web3 Fundraising Quiz" />
   <meta property="og:description" content="Play, raise, and make an impact on-chain." />
-  <meta property="og:image" content="${BASE_URL}/embed-image.png" />
+  <meta property="og:image"       content="${BASE_URL}/embed-image.png" />
 </head>
 <body>FundRaisely Mini App</body>
 </html>`);

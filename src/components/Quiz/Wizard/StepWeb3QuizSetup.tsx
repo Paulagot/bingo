@@ -426,10 +426,10 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
           </label>
           <select
             value={charityId}
-            onChange={(e) => {
-              const id = e.target.value || '';
-              setCharityId(id);
-              const c = getGbCharityById(id || undefined);
+           onChange={(e) => {
+  const id = e.target.value || '';
+  setCharityId(id);
+  const c = getGbCharityById(Number(id) || undefined);  // ✅ now passing a number
 
               console.log('🏥 [Charity] Selected:', {
                 id,

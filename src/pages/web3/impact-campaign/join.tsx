@@ -18,6 +18,8 @@ import { QuizSocketProvider } from '../../../components/Quiz/sockets/QuizSocketP
 import type { SupportedChain } from '../../../chains/types';
 import { MiniAppProvider } from '../../../context/MiniAppContext';
 import { MiniAppWeb3Provider } from '../../../components/MiniAppWeb3Provider';
+import { useMiniAppContext } from '../../../context/MiniAppContext';
+import { MiniAppLandingInner } from './MiniAppLandingPage';
 
 /** ─────────────────────────────────────────────────────────────────────────────
  * Helpers
@@ -78,7 +80,7 @@ const DASHBOARD_VIDEO_ID = 'Sf9e8_IGdFU';
 const INGAME_VIDEO_ID = 'd5zyT5zf-wI';
 const REPORTING_VIDEO_ID = 'REPORTING01_';
 
-const JoinImpactCampaignPage: React.FC = () => {
+const JoinImpactCampaignPageFull: React.FC = () => {
   const [selectedChain, setSelectedChain] = useState<SupportedChain | null>(null);
   const [showWizard, setShowWizard] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
@@ -649,12 +651,20 @@ const JoinImpactCampaignPage: React.FC = () => {
   );
 };
 
-// Named export so other files can still import directly if needed
+const JoinImpactCampaignPage: React.FC = () => {
+  const { isMiniApp } = useMiniAppContext();
+
+  if (isMiniApp) {
+    // Mini app: slim dark page — no videos, no FAQs
+    return <MiniAppLandingInner />;
+  }
+
+  // Full web experience — all videos, sections, CTAs
+  return <JoinImpactCampaignPageFull />;
+};
+
 export { JoinImpactCampaignPage };
 
-// Default export is wrapped with mini app providers.
-// Inside Base app: auto-connects SDK wallet, locks to Base Sepolia.
-// Outside Base app: falls back to normal Reown/AppKit.
 const JoinImpactCampaignPageWithMiniApp: React.FC = () => (
   <MiniAppProvider>
     <MiniAppWeb3Provider>
@@ -664,7 +674,3 @@ const JoinImpactCampaignPageWithMiniApp: React.FC = () => (
 );
 
 export default JoinImpactCampaignPageWithMiniApp;
-
-
-
-

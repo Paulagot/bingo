@@ -66,6 +66,7 @@ export function QuizEventCard({
   linkedEventTitle,
   linkedEventId,
   viewMode = 'table',
+  featureAccess,
 }: {
   room: Web2RoomListItem;
   stats?: RoomStats;
@@ -78,6 +79,11 @@ export function QuizEventCard({
   linkedEventTitle?: string | null;
   linkedEventId?: string | null;
   viewMode?: 'cards' | 'table';
+  featureAccess?: {
+    eventLinking?: boolean;
+    quizPayments?: boolean;
+    ticketing?: boolean;
+  };
 }) {
   const [expanded, setExpanded] = useState(false);
   const [ticketModalOpen, setTicketModalOpen] = useState(false);
@@ -211,9 +217,12 @@ export function QuizEventCard({
     });
   };
 
- 
+const canUseQuizPayments = featureAccess?.quizPayments === true;
+const canUseTicketing = featureAccess?.ticketing === true;
 
-  const showTicketActionsWithPayment = showTicketActions && hasLinkedPaymentMethods;
+const showPaymentMethodButton = isScheduled && canUseQuizPayments;
+const showTicketActionsWithPayment =
+  showTicketActions && canUseTicketing && hasLinkedPaymentMethods;
 
   useEffect(() => {
     const run = async () => {
@@ -332,17 +341,16 @@ export function QuizEventCard({
               <Plus className="h-3.5 w-3.5 text-indigo-700" />
             </button>
           )}
-
-          {isScheduled && (
-            <button
-              type="button"
-              onClick={handleLinkPaymentMethod}
-              className="p-1.5 rounded border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-colors"
-              title="Link payment method"
-            >
-              <CreditCard className="h-3.5 w-3.5 text-emerald-700" />
-            </button>
-          )}
+{showPaymentMethodButton && (
+  <button
+    type="button"
+    onClick={handleLinkPaymentMethod}
+    className="p-1.5 rounded border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+    title="Link payment method"
+  >
+    <CreditCard className="h-3.5 w-3.5 text-emerald-700" />
+  </button>
+)}
 
           {showTicketActionsWithPayment && (
             <button
@@ -661,17 +669,16 @@ export function QuizEventCard({
               Add Round
             </button>
           )}
-
-          {isScheduled && (
-            <button
-              type="button"
-              onClick={handleLinkPaymentMethod}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
-            >
-              <CreditCard className="h-4 w-4" />
-              Payment
-            </button>
-          )}
+{showPaymentMethodButton && (
+  <button
+    type="button"
+    onClick={handleLinkPaymentMethod}
+    className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
+  >
+    <CreditCard className="h-4 w-4" />
+    Payment
+  </button>
+)}
 
           {showTicketActionsWithPayment && (
             <button
