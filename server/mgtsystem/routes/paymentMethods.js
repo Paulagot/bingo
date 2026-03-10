@@ -10,8 +10,22 @@ import {
   updateDisplayOrders,
 } from '../services/paymentMethodsService.js';
 import { authenticateToken } from '../../middleware/auth.js';
+import { resolveEntitlements, hasQuizFeature } from '../../policy/entitlements.js';
 
 const router = express.Router();
+
+async function requireQuizPaymentsFeature(clubId) {
+  const entitlements = await resolveEntitlements({ userId: clubId });
+
+  if (!hasQuizFeature(entitlements, 'quizPayments')) {
+    const err = new Error('Quiz payment methods are not included in your plan');
+    err.statusCode = 403;
+    err.code = 'FEATURE_NOT_ALLOWED';
+    throw err;
+  }
+
+  return entitlements;
+}
 
 /**
  * GET /api/payment-methods/:clubId
@@ -59,13 +73,14 @@ router.get('/:clubId/manage', authenticateToken, async (req, res) => {
   try {
     const { clubId } = req.params;
     
-    // Verify user has access to this club
     if (req.user.club_id !== clubId) {
       return res.status(403).json({ 
         ok: false, 
         error: 'Not authorized to manage this club\'s payment methods' 
       });
     }
+
+    await requireQuizPaymentsFeature(clubId);
     
     console.log(`📋 Fetching all payment methods for club management: ${clubId}`);
     
@@ -79,6 +94,14 @@ router.get('/:clubId/manage', authenticateToken, async (req, res) => {
     });
     
   } catch (error) {
+    if (error?.statusCode === 403) {
+      return res.status(403).json({
+        ok: false,
+        error: error.message,
+        code: error.code,
+      });
+    }
+
     console.error('❌ Error fetching payment methods for management:', error);
     res.status(500).json({ 
       ok: false, 
@@ -97,13 +120,14 @@ router.post('/:clubId', authenticateToken, async (req, res) => {
   try {
     const { clubId } = req.params;
     
-    // Verify user has access to this club
     if (req.user.club_id !== clubId) {
       return res.status(403).json({ 
         ok: false, 
         error: 'Not authorized to create payment methods for this club' 
       });
     }
+
+    await requireQuizPaymentsFeature(clubId);
     
     const {
       methodCategory,
@@ -116,7 +140,6 @@ router.post('/:clubId', authenticateToken, async (req, res) => {
       isOfficialClubAccount,
     } = req.body;
     
-    // Validation
     if (!methodCategory || !methodLabel) {
       return res.status(400).json({
         ok: false,
@@ -141,7 +164,6 @@ router.post('/:clubId', authenticateToken, async (req, res) => {
     
     console.log(`✅ Created payment method with ID: ${newId}`);
     
-    // Fetch the created method to return full data
     const created = await getPaymentMethodById(newId, clubId);
     
     res.json({ 
@@ -150,6 +172,14 @@ router.post('/:clubId', authenticateToken, async (req, res) => {
     });
     
   } catch (error) {
+    if (error?.statusCode === 403) {
+      return res.status(403).json({
+        ok: false,
+        error: error.message,
+        code: error.code,
+      });
+    }
+
     console.error('❌ Error creating payment method:', error);
     res.status(500).json({ 
       ok: false, 
@@ -158,7 +188,6 @@ router.post('/:clubId', authenticateToken, async (req, res) => {
     });
   }
 });
-
 /**
  * PUT /api/payment-methods/:clubId/:methodId
  * Update existing payment method
@@ -175,7 +204,7 @@ router.put('/:clubId/:methodId', authenticateToken, async (req, res) => {
         error: 'Not authorized to update this club\'s payment methods' 
       });
     }
-    
+    await requireQuizPaymentsFeature(clubId);
     const {
       methodCategory,
       providerName,
@@ -254,6 +283,7 @@ router.delete('/:clubId/:methodId', authenticateToken, async (req, res) => {
         error: 'Not authorized to delete this club\'s payment methods' 
       });
     }
+    await requireQuizPaymentsFeature(clubId);
     
     console.log(`🗑️ Deleting payment method ${methodId} for club ${clubId}`);
     
@@ -300,7 +330,7 @@ router.patch('/:clubId/reorder', authenticateToken, async (req, res) => {
         error: 'Not authorized to reorder this club\'s payment methods' 
       });
     }
-    
+    await requireQuizPaymentsFeature(clubId);
     // Validation
     if (!Array.isArray(orders) || orders.length === 0) {
       return res.status(400).json({

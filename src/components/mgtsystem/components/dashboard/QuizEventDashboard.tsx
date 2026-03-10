@@ -1,4 +1,4 @@
-// src/components/Quiz/pages/QuizEventDashboard.tsx
+// src/components/mgtsystem/components/dashboard/QuizEventDashboard.tsx
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import NotificationsTicker from './NotificationsTicker';
@@ -64,13 +64,17 @@ function parseConfigJson(configStr: string | ParsedConfig | null | undefined, ro
   return {};
 }
 
-function canUseEventLinking(ents: any): boolean {
-  if (!ents) return false;
-  if (ents?.quiz_features?.eventLinking === true) return true;
-  if (ents?.quizFeatures?.eventLinking === true) return true;
-  if (ents?.plan_code === 'DEV' || ents?.plan_id === 2) return true;
-  return false;
+function getQuizFeatureAccess(ents: any) {
+  const features = ents?.quiz_features || ents?.quizFeatures || {};
+
+  return {
+    eventLinking: features?.eventLinking === true,
+    quizPayments: features?.quizPayments === true,
+    ticketing: features?.ticketing === true,
+  };
 }
+
+
 
 function extractCreditsRemaining(ents: any): number {
   if (!ents) return 0;
@@ -173,7 +177,10 @@ export default function QuizEventDashboard() {
   const [ents, setEnts] = useState<any>(null);
   const [entsLoading, setEntsLoading] = useState(true);
   const [entsError, setEntsError] = useState<string | null>(null);
-  const showEventLinking = useMemo(() => canUseEventLinking(ents), [ents]);
+ const featureAccess = useMemo(() => getQuizFeatureAccess(ents), [ents]);
+const showEventLinking = featureAccess.eventLinking;
+const showQuizPayments = featureAccess.quizPayments;
+
 
   // ── Rooms ──
   const [status, setStatus] = useState<StatusFilter>('all');
@@ -437,19 +444,20 @@ export default function QuizEventDashboard() {
   };
 
   // ── Shared card props helper ──
-  const sharedCardProps = (room: Room) => ({
-    room,
-    stats: roomStats[room.room_id],
-    hasLinkedPaymentMethods: paymentMethodMap[room.room_id] ?? false,
-    onOpenRoom: openRoom,
-    onEdit: handleEdit,
-    onCancel: handleCancel,
-    onLinkToEvent: showEventLinking ? openLinkModal : undefined,
-    onUnlinkFromEvent: showEventLinking ? handleUnlinkRequest : undefined,
-    linkedEventTitle: linkedEvents[room.room_id]?.eventTitle,
-    linkedEventId: linkedEvents[room.room_id]?.eventId,
-    onPaymentMethodSuccess: handlePaymentMethodSuccess,
-  });
+const sharedCardProps = (room: Room) => ({
+  room,
+  stats: roomStats[room.room_id],
+  hasLinkedPaymentMethods: paymentMethodMap[room.room_id] ?? false,
+  onOpenRoom: openRoom,
+  onEdit: handleEdit,
+  onCancel: handleCancel,
+  onLinkToEvent: showEventLinking ? openLinkModal : undefined,
+  onUnlinkFromEvent: showEventLinking ? handleUnlinkRequest : undefined,
+  linkedEventTitle: linkedEvents[room.room_id]?.eventTitle,
+  linkedEventId: linkedEvents[room.room_id]?.eventId,
+  onPaymentMethodSuccess: handlePaymentMethodSuccess,
+  featureAccess,
+});
 
   // ── Render ──
   return (
@@ -480,16 +488,18 @@ export default function QuizEventDashboard() {
               <span className="sm:hidden">Demo</span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => setPaymentMethodsOpen(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition whitespace-nowrap bg-green-100 text-green-700 hover:bg-green-200"
-              title="Manage payment methods"
-            >
-              <CreditCard className="h-4 w-4" />
-              <span className="hidden sm:inline">Payment Methods</span>
-              <span className="sm:hidden">Payments</span>
-            </button>
+          {showQuizPayments && (
+  <button
+    type="button"
+    onClick={() => setPaymentMethodsOpen(true)}
+    className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition whitespace-nowrap bg-green-100 text-green-700 hover:bg-green-200"
+    title="Manage payment methods"
+  >
+    <CreditCard className="h-4 w-4" />
+    <span className="hidden sm:inline">Payment Methods</span>
+    <span className="sm:hidden">Payments</span>
+  </button>
+)}
 
             <button
               type="button"

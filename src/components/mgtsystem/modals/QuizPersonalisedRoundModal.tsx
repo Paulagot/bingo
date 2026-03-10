@@ -370,12 +370,7 @@ export const PersonalisedRoundModal: React.FC<Props> = ({
                 ))}
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-900">
-                  This only saves the personalised content. Next step is linking it into your round engine
-                  (injecting this round as first/last and loading questions from DB).
-                </p>
-              </div>
+        
             </>
           )}
         </div>

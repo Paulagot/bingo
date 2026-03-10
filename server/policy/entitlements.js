@@ -263,3 +263,14 @@ export async function grantCredits(clubId, amount) {
   }
 }
 
+export function hasQuizFeature(entitlements, featureKey) {
+  if (!entitlements) return false;
+
+  const features =
+    entitlements.quiz_features ||
+    entitlements.quizFeatures ||
+    {};
+
+  return features?.[featureKey] === true;
+}
+

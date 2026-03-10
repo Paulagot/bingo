@@ -1,3 +1,4 @@
+//src/components/Quiz/hooks/useEntitlements.ts
 import { useEffect, useState } from 'react';
 
 export interface Entitlements {
