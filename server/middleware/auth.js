@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { pool } from '../config/database.js';
+import { connection } from '../config/database.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-dev-secret';
 
@@ -20,7 +20,7 @@ export const authenticateToken = async (req, res, next) => {
   }
 
   try {
-    const [rows] = await pool.execute(
+    const [rows] = await connection.execute(
       `SELECT u.*, c.name as club_name
        FROM fundraisely_users u
        JOIN fundraisely_clubs c ON u.club_id = c.id

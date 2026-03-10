@@ -19,9 +19,7 @@ import type { SupportedChain } from '../../../chains/types';
 // ─── Inner page (needs MiniApp context) ──────────────────────────────────────
 
 const MiniAppLandingInner: React.FC = () => {
-  // useMiniAppContext is the correct hook name — useMiniApp does not exist
-  // user/avatar fields don't exist yet in MiniAppContext — that's a later task
-
+  const { isMiniApp, user } = useMiniAppContext();
 
   const [showWizard, setShowWizard] = useState(false);
   const [showJoin, setShowJoin]     = useState(false);
@@ -77,8 +75,31 @@ const MiniAppLandingInner: React.FC = () => {
             Web3 Impact Campaign · 2026
           </div>
 
-          <h1 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl">
-            Play. Raise.{' '}
+          {/* Personalised greeting when Farcaster user is available */}
+          {user && (
+            <div className="mb-4 flex items-center justify-center gap-2">
+              {user.pfpUrl ? (
+                <img
+                  src={user.pfpUrl}
+                  alt={user.displayName ?? user.username ?? 'User'}
+                  className="h-8 w-8 rounded-full border-2 border-indigo-500/50 object-cover"
+                />
+              ) : (
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-500/20 text-xs font-bold text-indigo-300">
+                 {(user?.displayName ?? user?.username ?? '?').charAt(0).toUpperCase()}
+                </div>
+              )}
+              <p className="text-sm text-slate-400">
+                Hey{' '}
+                <span className="font-semibold text-white">
+                  {user.displayName ?? `@${user.username}`}
+                </span>{' '}
+                👋
+              </p>
+            </div>
+          )}
+
+          <h1 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl">            Play. Raise.{' '}
             <span className="bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">
               Impact.
             </span>

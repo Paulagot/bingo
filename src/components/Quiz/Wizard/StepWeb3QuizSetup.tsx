@@ -360,12 +360,12 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
       <span>Blockchain</span>
     </label>
     <div className="flex items-center gap-2 rounded-xl border-2 border-blue-200 bg-blue-50 px-3 py-2.5">
-      <span className="text-sm font-semibold text-blue-800">Base Sepolia</span>
+      <span className="text-sm font-semibold text-blue-800">Base</span>
       <span className="ml-auto rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-600">
         Locked — Mini App
       </span>
     </div>
-    <p className="text-fg/60 text-xs">EVM · Base testnet (mini app mode)</p>
+    <p className="text-fg/60 text-xs">EVM · Base (mini app mode)</p>
   </div>
 )}
 

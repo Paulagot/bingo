@@ -40,7 +40,7 @@ const BlockchainWalletSection: React.FC<Props> = ({
 }) => {
   const currency = setupConfig.web3Currency || "USDGLO";
   
-const { isMiniApp, walletAddress: miniAppAddress } = useMiniAppContext();
+ const { isMiniApp, walletAddress: miniAppAddress, user } = useMiniAppContext();
 
   const formattedAddress = walletAddress && walletAddress.length > 10
     ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
@@ -114,18 +114,54 @@ const { isMiniApp, walletAddress: miniAppAddress } = useMiniAppContext();
         </div>
       )}
 
-     {isMiniApp ? (
-  <div className="flex items-center gap-2 rounded-xl border-2 border-emerald-200 bg-emerald-50 px-3 py-2.5 mb-3">
-    <div className="h-2 w-2 rounded-full bg-emerald-500" />
-    <span className="text-sm font-medium text-emerald-800">
-      {miniAppAddress
-        ? `${miniAppAddress.slice(0, 6)}…${miniAppAddress.slice(-4)}`
-        : 'Wallet connected'}
-    </span>
-    <span className="ml-auto rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-600">
-      Base Mini App
-    </span>
-  </div>
+ {isMiniApp ? (
+        <div className="mb-3 rounded-xl border-2 border-emerald-200 bg-emerald-50 p-3">
+          <div className="flex items-center gap-3">
+            {/* Avatar */}
+            {user?.pfpUrl ? (
+              <img
+                src={user.pfpUrl}
+                alt={user.displayName ?? user.username ?? 'User'}
+                className="h-9 w-9 rounded-full border-2 border-emerald-300 object-cover flex-shrink-0"
+              />
+            ) : (
+              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-emerald-200 text-sm font-bold text-emerald-700">
+               {(user?.displayName ?? user?.username ?? '?').charAt(0).toUpperCase()}
+              </div>
+            )}
+
+            {/* Name + username */}
+            <div className="min-w-0 flex-1">
+              {user?.displayName && (
+                <p className="truncate text-sm font-semibold text-emerald-900">
+                  {user.displayName}
+                </p>
+              )}
+              {user?.username && (
+                <p className="truncate text-xs text-emerald-600">
+                  @{user.username}
+                </p>
+              )}
+              {/* Fallback: no user fields yet — show truncated address */}
+              {!user?.displayName && !user?.username && miniAppAddress && (
+                <p className="font-mono text-xs text-emerald-700">
+                  {miniAppAddress.slice(0, 6)}…{miniAppAddress.slice(-4)}
+                </p>
+              )}
+            </div>
+
+            <span className="flex-shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-600">
+              Base Mini App
+            </span>
+          </div>
+
+          {/* Wallet address shown small below — useful for debugging, subtle in prod */}
+          {miniAppAddress && (
+            <p className="mt-2 font-mono text-[10px] text-emerald-500 text-center">
+              {miniAppAddress.slice(0, 6)}…{miniAppAddress.slice(-4)}
+            </p>
+          )}
+        </div>
 ) : !isWalletConnected ? (
   <div className="mb-3">
     <button
