@@ -80,7 +80,7 @@ router.get('/', (req, res) => {
     version: 'next',
     imageUrl: `${BASE_URL}/embed-image.png`,
     button: {
-      title: '🎮 Join a Fundraising Quiz',
+      title: '🎮Host or Join a Fundraising Quiz',
       action: {
         type: 'launch_frame',
         name: 'FundRaisely Quiz',

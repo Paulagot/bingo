@@ -72,7 +72,7 @@ const MiniAppLandingInner: React.FC = () => {
         <header className="mb-8 text-center">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-300">
             <Sparkles className="h-3 w-3" />
-            Web3 Impact Campaign · 2026
+            Web3 Makes an Impact
           </div>
 
           {/* Personalised greeting when Farcaster user is available */}
@@ -99,14 +99,14 @@ const MiniAppLandingInner: React.FC = () => {
             </div>
           )}
 
-          <h1 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl">            Play. Raise.{' '}
+          <h1 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl">           Host. Play. Raise.{' '}
             <span className="bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">
               Impact.
             </span>
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-slate-400 sm:text-base">
-            Host a crypto quiz for your community. Entry fees flow{' '}
-            <span className="text-white font-medium">directly to charity on-chain</span> —
+            Host a quiz with your web3 community. Entry fees flow{' '}
+            <span className="text-white font-medium">directly to charity on-chain</span> -
             no middlemen, full transparency.
           </p>
         </header>
@@ -134,11 +134,11 @@ const MiniAppLandingInner: React.FC = () => {
             <p className="mt-0.5 text-[11px] text-slate-400">To Charity</p>
           </div>
           <div className="text-center">
-            <p className="text-xl font-black text-indigo-400">≤40%</p>
-            <p className="mt-0.5 text-[11px] text-slate-400">Host Prizes</p>
+            <p className="text-xl font-black text-indigo-400">~40%</p>
+            <p className="mt-0.5 text-[11px] text-slate-400">Prizes</p>
           </div>
           <div className="text-center">
-            <p className="text-xl font-black text-purple-400">5%</p>
+            <p className="text-xl font-black text-purple-400">~5%</p>
             <p className="mt-0.5 text-[11px] text-slate-400">Host Earn</p>
           </div>
         </div>
@@ -158,7 +158,7 @@ const MiniAppLandingInner: React.FC = () => {
           <ul className="mb-5 space-y-2">
             {[
               { icon: Heart,   text: 'Choose a verified charity to support' },
-              { icon: Zap,     text: 'Set entry fee in USDC, SOL or USDGLO' },
+              { icon: Zap,     text: 'Set entry fee in USDor USDGLO' },
               { icon: Trophy,  text: 'Earn up to 5% of the room as host' },
               { icon: Shield,  text: 'Smart contract splits funds on-chain' },
             ].map(({ icon: Icon, text }) => (
@@ -178,7 +178,7 @@ const MiniAppLandingInner: React.FC = () => {
           </button>
 
           <p className="mt-2.5 text-center text-[11px] text-slate-500">
-            Live on Base, Avalanche &amp; Solana · Setup takes ~2 minutes
+            Live on Base · Setup takes ~2 minutes
           </p>
         </div>
 
@@ -195,8 +195,8 @@ const MiniAppLandingInner: React.FC = () => {
           </div>
 
           <p className="mb-4 text-sm text-slate-400">
-            Connect your wallet, pay the entry fee, pick your power-ups and compete —
-            your entry goes straight to charity.
+            Connect your wallet, pay the entry fee, pick your power-ups and compete -
+            your entry goes straight to charity & prizes are automatically distributed on-chain.
           </p>
 
           <button
