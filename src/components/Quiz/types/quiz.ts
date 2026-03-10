@@ -150,7 +150,9 @@ export interface QuizConfig {
   web3Chain?: string;
   web3Currency?: string;
   web3Charity?: string;
-  web3ChairtyOrgId?: string; // ✅ ADD THIS for TGB
+  web3CharityId?: string | null;
+  web3CharityOrgId?: string; 
+  web3CharityName?: string | null;
   web3PrizeSplit?: {
     charity: number;
     host: number;
@@ -178,6 +180,11 @@ export interface QuizConfig {
   evmNetwork?: 'base' | 'baseSepolia' | 'polygon' | 'polygonAmoy';
   solanaCluster?: 'mainnet' | 'devnet';
   stellarNetwork?: 'public' | 'testnet';
+    admins?: Array<{
+    id: string;
+    name: string;
+    socketId?: string;
+  }>;
 }
 
 export type ExtrasPanelProps = {
@@ -362,6 +369,7 @@ export interface ReconciliationMeta  {
   // NEW
   prizeAwards?: PrizeAward[];
   finalLeaderboard?: LeaderboardEntry[];
+   ledger?: Array<any>;
 };
 
 

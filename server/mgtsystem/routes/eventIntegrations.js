@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticateToken } from '../../middleware/auth.js';
 import EventIntegrationsService from '../services/EventIntegrationsService.js';
+import { resolveEntitlements, hasQuizFeature } from '../../policy/entitlements.js';
 
 const router = express.Router();
 const svc = new EventIntegrationsService();
@@ -96,6 +97,16 @@ router.post('/api/events/:eventId/integrations', authenticateToken, async (req, 
       return res.status(400).json({ error: 'integration_type and external_ref are required' });
     }
 
+    // 🔒 PLAN FEATURE CHECK
+    const entitlements = await resolveEntitlements({ userId: clubId });
+
+    if (!hasQuizFeature(entitlements, 'eventLinking')) {
+      return res.status(403).json({
+        error: 'Event linking is not included in your plan',
+        code: 'FEATURE_NOT_ALLOWED'
+      });
+    }
+
     const integration = await svc.addIntegration({
       eventId,
       clubId,
@@ -131,7 +142,18 @@ router.delete('/api/events/:eventId/integrations/:integrationId', authenticateTo
     const { eventId, integrationId } = req.params;
     const clubId = req.club_id;
 
+    // 🔒 PLAN FEATURE CHECK
+    const entitlements = await resolveEntitlements({ userId: clubId });
+
+    if (!hasQuizFeature(entitlements, 'eventLinking')) {
+      return res.status(403).json({
+        error: 'Event linking is not included in your plan',
+        code: 'FEATURE_NOT_ALLOWED'
+      });
+    }
+
     const ok = await svc.removeIntegration({ eventId, integrationId, clubId });
+
     if (!ok) return res.status(404).json({ error: 'Integration not found' });
 
     res.json({ message: 'Integration unlinked' });

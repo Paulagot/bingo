@@ -1,4 +1,4 @@
-// src/App.tsx - FULLY UPDATED VERSION
+// src/App.tsx - FULLY UPDATED VERSION WITH TICKET ROUTES
 
 import { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
@@ -33,10 +33,36 @@ import ClubsLeaguePage from './pages/campaigns/ClubsLeaguePage';
 import QuizEventDashboard from './components/mgtsystem/components/dashboard/QuizEventDashboard';
 import { ConditionalWeb3Wrapper } from './components/Quiz/ConditionalWeb3Wrapper';
 
+import { sdk } from '@farcaster/miniapp-sdk'
+
+
+
 // Lazy quiz parts
 const QuizRoutes = lazy(() => import('./components/Quiz/QuizRoutes'));
 const QuizSocketProvider = lazy(() =>
   import('./components/Quiz/sockets/QuizSocketProvider').then((m) => ({ default: m.QuizSocketProvider }))
+);
+
+// ✅ NEW: Lazy load ticket components
+const TicketPurchasePage = lazy(() => 
+  import('./components/Quiz/tickets/TicketPurchasePage').then(m => ({ default: m.TicketPurchasePage }))
+);
+const TicketStatusChecker = lazy(() => 
+  import('./components/Quiz/tickets/TicketStatusChecker').then(m => ({ default: m.TicketStatusChecker }))
+);
+
+const StripeQuizTicketSuccess = lazy(() => 
+  import('./components/Quiz/tickets/stripeQuizTicketSuccess').then(m => ({ default: m.StripeQuizTicketSuccess }))
+);
+const StripeQuizTicketCancel = lazy(() => 
+  import('./components/Quiz/tickets/stripeQuizTicketCancel').then(m => ({ default: m.StripeQuizTicketCancel }))
+);
+
+const StripeWalkinSuccess = lazy(() =>
+  import('./components/Quiz/joinroom/StripeWalkinSuccess').then(m => ({ default: m.StripeWalkinSuccess }))
+);
+const MiniAppHostPage = lazy(() =>
+  import('./pages/mini-app/MiniAppHostPage').then(m => ({ default: m.MiniAppHostPage }))
 );
 
 // Lazy Web3 hub + impact campaign pages
@@ -44,6 +70,7 @@ const Web3HubPage = lazy(() => import('./pages/web3'));
 const ImpactCampaignOverview = lazy(() => import('./pages/web3/impact-campaign'));
 const ImpactCampaignJoin = lazy(() => import('./pages/web3/impact-campaign/join'));
 const ImpactCampaignLeaderboard = lazy(() => import('./pages/web3/impact-campaign/leaderboard'));
+const ImpactCampaignBaseApp = lazy(() => import('./pages/web3/impact-campaign/MiniAppLandingPage'));
 
 const LoadingSpinner = ({
   message = 'Loading...',
@@ -61,7 +88,7 @@ const LoadingSpinner = ({
   </div>
 );
 
-// ✅ FIXED: Only gameplay routes need sockets (exclude /quiz/join)
+// ✅ FIXED: Only gameplay routes need sockets (exclude /quiz/join and /tickets/*)
 const isGameRoute = (pathname: string) =>
   /^\/quiz\/(game|play|host-dashboard|host-controls|admin-join|join)\b/.test(pathname);
 
@@ -76,7 +103,7 @@ export default function App() {
   const { pathname } = location;
 
   const hideOnPaths = ['/BingoBlitz'];
-  const hideOnPrefixes = ['/quiz/game', '/quiz/play', '/quiz/host-dashboard', '/quiz/host-controls'];
+  const hideOnPrefixes = ['/quiz/game', '/quiz/play', '/quiz/host-dashboard', '/quiz/host-controls',  '/mini-app', '/tickets'];
   const showHeader =
     !hideOnPaths.includes(pathname) &&
     !hideOnPrefixes.some((p) => pathname === p || pathname.startsWith(p + '/'));
@@ -86,6 +113,10 @@ export default function App() {
   useEffect(() => {
     initialize();
   }, [initialize]);
+
+useEffect(() => {
+  sdk.actions.ready().catch(console.error);
+}, []);
 
   return (
     <ErrorBoundary>
@@ -123,6 +154,55 @@ export default function App() {
                 </Suspense>
               }
             />
+
+            {/* ✅ NEW: Ticket routes (public, no auth required) */}
+            <Route
+              path="/tickets/buy/:roomId"
+              element={
+                <Suspense fallback={<LoadingSpinner message="Loading Ticket Purchase" />}>
+                  <TicketPurchasePage />
+                </Suspense>
+              }
+            />
+            
+            <Route
+              path="/tickets/status/:ticketId"
+              element={
+                <Suspense fallback={<LoadingSpinner message="Loading Ticket Status" />}>
+                  <TicketStatusChecker />
+                </Suspense>
+              }
+            />
+
+            {/* ✅ NEW: Stripe success and cancel */}
+<Route
+  path="/tickets/:ticketId/success"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Confirming payment..." />}>
+      <StripeQuizTicketSuccess />
+    </Suspense>
+  }
+/>
+
+<Route
+  path="/tickets/:ticketId/cancel"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+      <StripeQuizTicketCancel />
+    </Suspense>
+  }
+/>
+
+<Route
+  path="/quiz/:roomId/join-success"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Confirming payment..." />}>
+      <QuizSocketProvider>
+        <StripeWalkinSuccess />
+      </QuizSocketProvider>
+    </Suspense>
+  }
+/>
 
             {/* ✅ Quiz Creation - NO Web3Provider (wizard handles it internally) */}
             <Route
@@ -193,6 +273,7 @@ export default function App() {
                     
                     {/* ✅ Join page - Wizard handles Web3Provider internally at step 6 */}
                     <Route path="impact-campaign/join" element={<ImpactCampaignJoin />} />
+                    <Route path="impact-campaign/baseapp" element={<ImpactCampaignBaseApp />} />
                   </Routes>
                 </Suspense>
               }
@@ -202,6 +283,15 @@ export default function App() {
             <Route path="/Web3-Impact-Event" element={<Navigate to="/web3/impact-campaign" replace />} />
             <Route path="/web3-impact-event" element={<Navigate to="/web3/impact-campaign" replace />} />
             <Route path="/web3-fundraising-quiz" element={<Navigate to="/web3" replace />} />
+
+            <Route
+  path="/mini-app/host"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading Mini App..." />}>
+      <MiniAppHostPage />
+    </Suspense>
+  }
+/>
 
             {/* 404 */}
             <Route

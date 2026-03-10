@@ -160,18 +160,20 @@ export function setupRecoveryHandlers(socket, namespace) {
       const isPlayerRole = role === 'player';
 
       // Capacity (Web2 only) — only enforce for players
-      if (isPlayerRole) {
-        const isWeb3 = room.config?.paymentMethod === 'web3' || room.config?.isWeb3Room === true;
-        if (!isWeb3) {
-          const limit = room.roomCaps?.maxPlayers ?? room.config?.roomCaps?.maxPlayers ?? 20;
-          if (room.players.length >= limit) {
-            return sendAck({ ok: false, error: `Room is full (limit ${limit}).` });
-          }
-        }
-      }
+const existingPlayer = room.players.find(p => p.id === user.id);
+
+if (isPlayerRole && !existingPlayer) {
+  const isWeb3 = room.config?.paymentMethod === 'web3' || room.config?.isWeb3Room === true;
+  if (!isWeb3) {
+    const limit = room.roomCaps?.maxPlayers ?? room.config?.roomCaps?.maxPlayers ?? 20;
+    if (room.players.length >= limit) {
+      return sendAck({ ok: false, error: `Room is full (limit ${limit}).` });
+    }
+  }
+}
 
       // Uniqueness: disconnect any previous socket for this *player*
-      const existingPlayer = room.players.find((p) => p.id === user.id);
+   
       const existingSession = getPlayerSession(roomId, user.id);
       const prevSocketId = existingSession?.socketId || existingPlayer?.socketId;
 
@@ -249,6 +251,10 @@ if (!existingPlayer) {
 }
 
 if (!existingPlayer) {
+    if (isPlaceholderName(user.name, user.id) && !user.paymentClaimed && !user.paid) {
+    if (debug) console.warn('[Recovery] Skipping ghost player creation for', user.id);
+    return sendAck({ ok: false, error: 'Player not found. Please join the room first.' });
+  }
   addOrUpdatePlayer(roomId, { ...sanitizedUser, name: nameToUse });
   joinedUser = { ...sanitizedUser, name: nameToUse };
 
@@ -370,18 +376,48 @@ if (!existingPlayer) {
 
       const playersLite = room.players.map((p) => ({ id: p.id, name: p.name }));
 
-      const snap = {
-        roomState,
-        players: playersLite,
-        config: {
-          hostName: room.config.hostName,
-          currencySymbol: room.config.currencySymbol || '€',
-          fundraisingOptions: room.config.fundraisingOptions || {},
-          fundraisingPrices: room.config.fundraisingPrices || {},
-          roundDefinitions: room.config.roundDefinitions || [],
-          roomCaps: room.roomCaps || room.config.roomCaps || { maxPlayers: 20 },
-        },
-      };
+const snap = {
+  roomState,
+
+  // Keep lite list for quick UI lists; full state should still arrive via room_state/full_room_state.
+  players: playersLite,
+
+  // ✅ IMPORTANT: recovery must include enough config for post-game tabs (prizes, reconciliation, endedAt)
+config: {
+    // core identity
+    roomId: room.config.roomId || roomId,
+    hostId: room.config.hostId,
+    hostName: room.config.hostName,
+    currencySymbol: room.config.currencySymbol || '€',
+
+    // gameplay setup (existing)
+    fundraisingOptions: room.config.fundraisingOptions || {},
+    fundraisingPrices: room.config.fundraisingPrices || {},
+    roundDefinitions: room.config.roundDefinitions || [],
+    roomCaps: room.roomCaps || room.config.roomCaps || { maxPlayers: 20 },
+
+    // ✅ PATCH 1: Enhanced reconciliation with proper defaults
+    prizes: Array.isArray(room.config.prizes) ? room.config.prizes : [],
+    reconciliation: room.config.reconciliation || { 
+      ledger: [], 
+      prizeAwards: [],
+      approvedAt: null,
+      approvedBy: null
+    },
+
+    // ✅ important for cleanup timer + "quiz complete" UI
+    endedAt: (room.config.endedAt ?? room.endedAt ?? null),
+
+    // ✅ optional but helpful if different parts of UI read from config-level leaderboard
+    finalLeaderboard: (room.config.finalLeaderboard ?? null),
+
+    // ✅ optional: if some screens read web3 flags / payment mode
+    paymentMethod: room.config.paymentMethod,
+    isWeb3Room: room.config.isWeb3Room === true,
+    entryFee: room.config.entryFee,
+  },
+};
+
 
       // ----------------------------
       // Phase-specific hydration
@@ -638,6 +674,28 @@ if (!existingPlayer) {
         if (roundType === 'hidden_object') {
           const hoSnap = buildHiddenObjectSnap(room, user.id, room.currentPhase);
           if (hoSnap) snap.hiddenObject = hoSnap;
+        }
+
+         if (role === 'host' || role === 'admin') {
+          const recon = room.config?.reconciliation;
+          if (recon) {
+            // Add reconciliation directly to snapshot for easy access
+            snap.reconciliation = {
+              ledger: recon.ledger || [],
+              prizeAwards: recon.prizeAwards || [],
+              approvedAt: recon.approvedAt,
+              approvedBy: recon.approvedBy,
+              notes: recon.notes
+            };
+            
+            if (debug) {
+              console.log('[Recovery] 💰 Including reconciliation for', role, ':', {
+                ledgerEntries: snap.reconciliation.ledger.length,
+                prizeAwards: snap.reconciliation.prizeAwards.length,
+                approved: !!snap.reconciliation.approvedAt
+              });
+            }
+          }
         }
 
         if (Array.isArray(room.finalLeaderboard) && room.finalLeaderboard.length) {

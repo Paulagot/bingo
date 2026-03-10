@@ -281,9 +281,9 @@ export default function FoundingPartnersPage() {
           <div className="mt-8 grid md:grid-cols-3 gap-6">
             <RoadmapTile
               // status="Live"
-              status="In build"
+              status="live"
               title="Quiz App"
-              desc="Host, play, report — online or in-person. Same user limits as Pro."
+              desc="Host, play, report- online or in-person. Same user limits as Pro."
               icon={<Gamepad2 className="h-5 w-5" />}
               gradient="bg-gradient-to-br from-green-500 to-emerald-500"
             />
@@ -313,7 +313,7 @@ export default function FoundingPartnersPage() {
             <RoadmapTile
               status="Planned"
               title="Other Games of Skill"
-              desc="Treasure hunts, auctions, spot-the-ball — built for fundraising."
+              desc="Treasure hunts, auctions, spot-the-ball - built for fundraising."
               icon={<Trophy className="h-5 w-5" />}
               gradient="bg-gradient-to-br from-indigo-500 to-purple-500"
             />

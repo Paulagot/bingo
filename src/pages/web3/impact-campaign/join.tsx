@@ -13,9 +13,13 @@ import {
 } from 'lucide-react';
 
 import Web3QuizWizard from '../../../components/Quiz/Wizard/Web3QuizWizard';
-import { JoinRoomFlow } from '../../../components/Quiz/joinroom/JoinRoomFlow';
+import { JoinRoomFlow } from '../../../components/Quiz/joinroom/JoinRoomFlow.tsx';
 import { QuizSocketProvider } from '../../../components/Quiz/sockets/QuizSocketProvider';
 import type { SupportedChain } from '../../../chains/types';
+import { MiniAppProvider } from '../../../context/MiniAppContext';
+import { MiniAppWeb3Provider } from '../../../components/MiniAppWeb3Provider';
+import { useMiniAppContext } from '../../../context/MiniAppContext';
+import { MiniAppLandingInner } from './MiniAppLandingPage';
 
 /** ─────────────────────────────────────────────────────────────────────────────
  * Helpers
@@ -71,12 +75,12 @@ const YouTubeBlock: React.FC<YouTubeBlockProps> = ({ title, youtubeUrlOrId, clas
 /** ─────────────────────────────────────────────────────────────────────────────
  * Replace these with your real YouTube IDs when ready
  * ────────────────────────────────────────────────────────────────────────────*/
-const SETUP_VIDEO_ID = 'v0mutwIyqb0';      // e.g., 'AbCdEfGhIJK'
-const DASHBOARD_VIDEO_ID = 'Sf9e8_IGdFU';   // placeholder
+const SETUP_VIDEO_ID = 'v0mutwIyqb0';
+const DASHBOARD_VIDEO_ID = 'Sf9e8_IGdFU';
 const INGAME_VIDEO_ID = 'd5zyT5zf-wI';
 const REPORTING_VIDEO_ID = 'REPORTING01_';
 
-const JoinImpactCampaignPage: React.FC = () => {
+const JoinImpactCampaignPageFull: React.FC = () => {
   const [selectedChain, setSelectedChain] = useState<SupportedChain | null>(null);
   const [showWizard, setShowWizard] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
@@ -96,10 +100,6 @@ const JoinImpactCampaignPage: React.FC = () => {
     []
   );
 
-  /* ──────────────────────────────────────────────────────────────────────────
-   * SEO Structured Data
-   * For YouTube: contentUrl -> watch URL, embedUrl -> nocookie embed URL
-   * ────────────────────────────────────────────────────────────────────────*/
   const breadcrumbsJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -257,6 +257,9 @@ const JoinImpactCampaignPage: React.FC = () => {
                   <p className="text-indigo-900/80 mb-6 leading-relaxed">
                     Have a room code or link from a host? Open the join flow, connect a wallet, select in-game extras (you will need them!), pay the fee and you're in.
                   </p>
+                   <p className="text-indigo-900/80 mb-6 leading-relaxed">
+                    If you are using a mobile wallet, please use the in app browser to access the quiz and connect your wallet. If you are on desktop, you can connect with a browser extension wallet or a mobile wallet via WalletConnect.
+                  </p>
 
                   <div className="flex flex-wrap gap-3 mb-6">
                     <button
@@ -303,7 +306,6 @@ const JoinImpactCampaignPage: React.FC = () => {
             <div className="space-y-16">
               {/* Row 2: Setup Wizard */}
               <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-start">
-                {/* Left: Steps */}
                 <div className="space-y-6">
                   <h2 className="text-3xl font-bold text-gray-900">Setup Wizard</h2>
                   <div className="space-y-4">
@@ -345,7 +347,6 @@ const JoinImpactCampaignPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Right: Setup YouTube */}
                 <div className="relative">
                   <div className="aspect-[1874/986] overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-100 to-purple-100 shadow-2xl max-h-[700px] group">
                     <YouTubeBlock
@@ -370,7 +371,6 @@ const JoinImpactCampaignPage: React.FC = () => {
 
               {/* Row 3: Dashboard */}
               <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-start">
-                {/* Left: Dashboard YouTube */}
                 <div className="relative">
                   <div className="aspect-[1874/986] overflow-hidden rounded-2xl bg-gradient-to-br from-purple-100 to-pink-100 shadow-2xl max-h-[700px] group">
                     <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50">
@@ -394,7 +394,6 @@ const JoinImpactCampaignPage: React.FC = () => {
                   <div className="absolute -top-4 -right-4 h-32 w-32 rounded-full bg-pink-400 opacity-20 blur-2xl" />
                 </div>
 
-                {/* Right: Steps */}
                 <div className="space-y-6">
                   <h2 className="text-3xl font-bold text-gray-900">Dashboard View</h2>
                   <div className="space-y-4">
@@ -421,7 +420,6 @@ const JoinImpactCampaignPage: React.FC = () => {
 
               {/* Row 4: In-Game */}
               <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-start">
-                {/* Left: Steps */}
                 <div className="space-y-6">
                   <h2 className="text-3xl font-bold text-gray-900">In-Game View - Host</h2>
                   <div className="space-y-4">
@@ -447,7 +445,6 @@ const JoinImpactCampaignPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Right: YouTube */}
                 <div className="relative">
                   <div className="aspect-[1874/986] overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-100 to-teal-100 shadow-2xl max-h-[700px] group">
                     <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-50">
@@ -474,7 +471,6 @@ const JoinImpactCampaignPage: React.FC = () => {
 
               {/* Row 5: Reporting */}
               <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-start">
-                {/* Left: YouTube */}
                 <div className="relative">
                   <div className="aspect-[1874/986] overflow-hidden rounded-2xl bg-gradient-to-br from-amber-100 to-orange-100 shadow-2xl max-h-[700px] group">
                     <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-amber-50 to-orange-50">
@@ -498,7 +494,6 @@ const JoinImpactCampaignPage: React.FC = () => {
                   <div className="absolute -top-4 -right-4 h-32 w-32 rounded-full bg-orange-400 opacity-20 blur-2xl" />
                 </div>
 
-                {/* Right: Steps */}
                 <div className="space-y-6">
                   <h2 className="text-3xl font-bold text-gray-900">End of Game Screen and Prize distribution</h2>
                   <div className="space-y-4">
@@ -522,7 +517,7 @@ const JoinImpactCampaignPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Fullscreen Modal (YouTube) */}
+              {/* Fullscreen Modal */}
               {fullscreenMedia && (
                 <div
                   className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4"
@@ -537,7 +532,6 @@ const JoinImpactCampaignPage: React.FC = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
-
                   <div className="max-h-[90vh] max-w-[90vw] w-full" onClick={(e) => e.stopPropagation()}>
                     {fullscreenMedia === 'setup' && (
                       <YouTubeBlock title="Quiz setup walkthrough - fullscreen" youtubeUrlOrId={SETUP_VIDEO_ID} />
@@ -561,7 +555,8 @@ const JoinImpactCampaignPage: React.FC = () => {
           <section className="px-4 py-12 bg-gradient-to-r from-purple-50 to-indigo-50">
             <div className="container mx-auto max-w-6xl">
               <div className="rounded-2xl border border-indigo-100 bg-white p-8 shadow-sm">
-                <h2 className="text-indigo-900 mb-6 text-2xl font-bold">Supported Chains & Tokens (2025)</h2>
+                <h2 className="text-indigo-900 mb-6 text-2xl font-bold">Supported Chains & Tokens (2026)</h2>
+               <h4 className="text-indigo-900 mb-5 text-1xl font-bold">Also available on Base mini app's</h4>
                 <div className="grid gap-8 md:grid-cols-3 mb-6">
                   <div>
                     <div className="flex items-center gap-3 mb-2">
@@ -570,7 +565,7 @@ const JoinImpactCampaignPage: React.FC = () => {
                       </div>
                       <h3 className="text-indigo-900 font-bold text-lg">Solana</h3>
                     </div>
-                    <p className="text-sm text-indigo-900/70"> · USDC · PYUSD</p>
+                    <p className="text-sm text-indigo-900/70"> SOL · USDG· JUP · JTO · PYTH · KMNO · WIF · BONK · MEW · TRUMP</p>
                   </div>
                   <div>
                     <div className="flex items-center gap-3 mb-2">
@@ -648,9 +643,7 @@ const JoinImpactCampaignPage: React.FC = () => {
           <JoinRoomFlow
             key="impact-join-flow"
             onClose={() => setShowJoinModal(false)}
-            onChainDetected={() => {
-              /* optional: hook chain detection to UX here */
-            }}
+            onChainDetected={() => {}}
           />
         </QuizSocketProvider>
       )}
@@ -658,8 +651,26 @@ const JoinImpactCampaignPage: React.FC = () => {
   );
 };
 
-export default JoinImpactCampaignPage;
+const JoinImpactCampaignPage: React.FC = () => {
+  const { isMiniApp } = useMiniAppContext();
 
+  if (isMiniApp) {
+    // Mini app: slim dark page — no videos, no FAQs
+    return <MiniAppLandingInner />;
+  }
 
+  // Full web experience — all videos, sections, CTAs
+  return <JoinImpactCampaignPageFull />;
+};
 
+export { JoinImpactCampaignPage };
 
+const JoinImpactCampaignPageWithMiniApp: React.FC = () => (
+  <MiniAppProvider>
+    <MiniAppWeb3Provider>
+      <JoinImpactCampaignPage />
+    </MiniAppWeb3Provider>
+  </MiniAppProvider>
+);
+
+export default JoinImpactCampaignPageWithMiniApp;

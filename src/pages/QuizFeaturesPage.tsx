@@ -353,31 +353,33 @@ const QuizFeaturesPage: React.FC = () => {
       </section>
 
       {/* Payment & Financial Management */}
+         {/* Ticketing & Payment Reconciliation */}
       <section className="px-4 pt-8">
         <div className="container mx-auto max-w-6xl">
           <div className="rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
-            <h2 className="text-indigo-900 text-3xl font-bold mb-2">Payment & Financial Management</h2>
+            <h2 className="text-indigo-900 text-3xl font-bold mb-2">Ticketing & Payment Reconciliation</h2>
             <p className="text-indigo-900/70 text-lg mb-6">
-              Support your community's preferred payment methods with comprehensive financial tracking and automated reconciliation.
+              Sell tickets with Stripe, and track every payment — including cash and instant transfers — with a purpose-built
+              reconciliation system designed for real community events.
             </p>
 
             <div className="grid gap-6 md:grid-cols-3">
               <FeatureCard
                 icon={<CreditCard className="h-5 w-5" />}
-                title="Flexible Payment Collection"
-                desc="Support cash collection and instant digital payments through platforms like Revolut. This flexibility ensures no community member is excluded due to payment preferences."
-                gradient="from-violet-600 to-indigo-700"
+                title="Stripe Ticketing & Checkout"
+                desc="Sell tickets online with secure Stripe checkout. Tickets are tracked in real time, reducing admin workload and giving you a clean, professional entry flow for supporters."
+                gradient="from-sky-600 to-indigo-700"
               />
               <FeatureCard
-                icon={<Users className="h-5 w-5" />}
-                title="Administrative Payment Tracking"
-                desc="Empower volunteer teams with tools allowing multiple admins to mark payments received and specify collection methods, distributing administrative burden effectively."
-                gradient="from-lime-500 to-green-600"
+                icon={<Smartphone className="h-5 w-5" />}
+                title="Cash + Instant Payment Tracking"
+                desc="Track Revolut, Wise, bank transfer and cash payments with a unique expected vs received system — so you can run the event your community prefers without losing visibility."
+                gradient="from-violet-600 to-purple-700"
               />
               <FeatureCard
                 icon={<FileText className="h-5 w-5" />}
-                title="Automated Reconciliation"
-                desc="Eliminate manual reconciliation with real-time financial updates. Generate comprehensive, audit-ready reports for transparency and regulatory compliance."
+                title="Real-Time Reconciliation & Reporting"
+                desc="Live reconciliation updates as payments are confirmed, with clear breakdowns you can use for committee reporting, transparency, and audit-ready summaries after the event."
                 gradient="from-slate-600 to-gray-700"
               />
             </div>

@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { SEO } from '../../../components/SEO';
 
-type Period = 'all' | 'feb2026' | 'mar2026' | 'apr2026';
+type Period = 'all' | 'apr2026' | 'may2026' | 'jun2026';
 
 interface HostEntry {
   rank: number;
@@ -45,9 +45,9 @@ interface Stats {
 
 const periodLabels: Record<Period, string> = {
   all: 'All Time',
-  feb2026: 'February 2026',
-  mar2026: 'March 2026',
   apr2026: 'April 2026',
+  may2026: 'May 2026',
+  jun2026: 'June 2026',
 };
 
 const ImpactCampaignLeaderboard: React.FC = () => {
@@ -197,7 +197,7 @@ const ImpactCampaignLeaderboard: React.FC = () => {
                   </div>
                   <span className="text-green-200 text-sm font-medium">Total Raised</span>
                 </div>
-                <p className="text-5xl font-black text-white">${parseFloat(stats.totalRaised).toLocaleString()}</p>
+                <p className="text-5xl font-black text-white">€{parseFloat(stats.totalRaised).toLocaleString()}</p>
                 <p className="mt-1 text-green-300 text-xs">on-chain</p>
               </div>
             </div>
@@ -211,7 +211,7 @@ const ImpactCampaignLeaderboard: React.FC = () => {
                   </div>
                   <span className="text-pink-200 text-sm font-medium">To Charity</span>
                 </div>
-                <p className="text-5xl font-black text-white">${parseFloat(stats.totalCharity).toLocaleString()}</p>
+                <p className="text-5xl font-black text-white">€{parseFloat(stats.totalCharity).toLocaleString()}</p>
                 <p className="mt-1 text-pink-300 text-xs">making real impact</p>
               </div>
             </div>
@@ -428,7 +428,7 @@ const ImpactCampaignLeaderboard: React.FC = () => {
                 <p className="text-purple-200 text-lg">No networks found for this period</p>
               </div>
             ) : (
-              networkLeaderboard.map((entry, index) => (
+              networkLeaderboard.map((entry) => (
                 <div
                   key={entry.network}
                   className={`group rounded-2xl overflow-hidden transition-all hover:scale-[1.02] ${
@@ -495,11 +495,11 @@ const ImpactCampaignLeaderboard: React.FC = () => {
               <div className="space-y-2 text-purple-100">
                 <p className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-yellow-400" />
-                  <span><strong>Standard tokens:</strong> Total Raised × 2 points</span>
+                  <span><strong>Standard tokens:</strong> Total Raised (€) × 2 points</span>
                 </p>
                 <p className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-green-400" />
-                  <span><strong className="text-green-300">USDGLO (Glo Dollar):</strong> Total Raised × 2.5 points — <em>bonus for impact!</em></span>
+                  <span><strong className="text-green-300">USDGLO (Glo Dollar):</strong> Total Raised (€) × 2.5 points — <em>bonus for impact!</em></span>
                 </p>
               </div>
             </div>

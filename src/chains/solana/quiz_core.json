@@ -55,9 +55,6 @@
         },
         {
           "name": "prize_vault",
-          "docs": [
-            "The handler checks if it exists, creates it if needed, and initializes it as a TokenAccount."
-          ],
           "writable": true
         },
         {
@@ -91,96 +88,6 @@
         {
           "name": "prize_index",
           "type": "u8"
-        }
-      ]
-    },
-    {
-      "name": "cleanup_room",
-      "docs": [
-        "Clean up a room after it has ended"
-      ],
-      "discriminator": [
-        68,
-        85,
-        10,
-        56,
-        80,
-        219,
-        249,
-        43
-      ],
-      "accounts": [
-        {
-          "name": "room",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  114,
-                  111,
-                  111,
-                  109
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "room.host",
-                "account": "Room"
-              },
-              {
-                "kind": "arg",
-                "path": "room_id"
-              }
-            ]
-          }
-        },
-        {
-          "name": "room_vault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  114,
-                  111,
-                  111,
-                  109,
-                  45,
-                  118,
-                  97,
-                  117,
-                  108,
-                  116
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "room"
-              }
-            ]
-          }
-        },
-        {
-          "name": "recipient",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-        },
-        {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "room_id",
-          "type": "string"
         }
       ]
     },
@@ -344,7 +251,7 @@
     {
       "name": "end_room",
       "docs": [
-        "Host ends the room and distributes prizes"
+        "Host ends the room, distributes prizes, and closes all accounts"
       ],
       "discriminator": [
         102,
@@ -359,6 +266,9 @@
       "accounts": [
         {
           "name": "room",
+          "docs": [
+            "Room PDA — closed at end of instruction, rent sent to platform_wallet"
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -385,6 +295,9 @@
         },
         {
           "name": "room_vault",
+          "docs": [
+            "Room vault — closed via CPI in handler after all transfers, rent to platform_wallet"
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -415,6 +328,13 @@
         },
         {
           "name": "platform_token_account",
+          "docs": [
+            "Platform token account — receives platform fee tokens"
+          ],
+          "writable": true
+        },
+        {
+          "name": "platform_wallet",
           "writable": true
         },
         {
@@ -438,6 +358,10 @@
         {
           "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [

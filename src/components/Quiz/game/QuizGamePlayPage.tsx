@@ -948,15 +948,18 @@ const timestamp = Date.now();
       }
     };
 
-  const handleQuizError = ({ message }: { message: string }) => {
-  if (debug) console.error('[Client] quiz_error:', message);
+const handleQuizError = ({ message, code }: { message: string; code?: string }) => {
+  if (debug) console.error('[Client] quiz_error:', message, code);
 
-  if (message.includes('Room not found') || message.includes('Player not found')) {
-    showNotification('error', message);
-    navigate('/quiz/game');
+  // Only navigate away if the room itself is gone
+  if (message.includes('Room not found')) {
+    showNotification('error', 'This quiz room no longer exists.');
+    navigate('/quiz');
     return;
   }
-  // stay on page for other errors (multi-tab, etc.)
+
+  // Everything else — full room, player not found, multi-tab — just show notification
+  // Player not found will self-heal on the next join_and_recover attempt
   showNotification('error', message);
 };
 

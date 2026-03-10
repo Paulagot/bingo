@@ -16,8 +16,8 @@ export type HiddenObjectPuzzle = {
   totalSeconds: number;
   itemTarget: number;
   items: Item[];
-  puzzleNumber?: number;    // ✅ NEW
-  totalPuzzles?: number;    // ✅ NEW
+  puzzleNumber?: number;
+  totalPuzzles?: number;
 };
 
 type Props = {
@@ -36,17 +36,14 @@ const HiddenObjectAsking: React.FC<Props> = ({
   const { socket } = useQuizSocket();
   const imgRef = useRef<HTMLImageElement | null>(null);
 
-  // ===== Timer state (similar to SpeedAsking) =====
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const [fractionLeft, setFractionLeft] = useState<number>(1);
   const [countdown, setCountdown] = useState<{ message: string; color: string; secondsLeft: number } | null>(null);
 
-  // Authoritative refs for smooth interpolation
   const endsAtRef = useRef<number | null>(null);
   const totalMsRef = useRef<number | null>(null);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Reset when puzzle changes
   useEffect(() => {
     endsAtRef.current = null;
     totalMsRef.current = null;
@@ -55,7 +52,6 @@ const HiddenObjectAsking: React.FC<Props> = ({
     setCountdown(null);
   }, [puzzle.puzzleId]);
 
-  // Listen to server's countdown
   useEffect(() => {
     if (!socket) return;
 
@@ -76,23 +72,20 @@ const HiddenObjectAsking: React.FC<Props> = ({
       }
     };
 
-    // Listen for countdown effects (3-2-1)
     const onCountdown = (effect: { message: string; color: string; secondsLeft: number }) => {
       setCountdown(effect);
-      // Clear countdown after animation
       setTimeout(() => setCountdown(null), 600);
     };
 
     socket.on('round_time_remaining', onRemain);
     socket.on('countdown_effect', onCountdown);
-    
+
     return () => {
       socket.off('round_time_remaining', onRemain);
       socket.off('countdown_effect', onCountdown);
     };
   }, [socket]);
 
-  // Smoothly tick between server events
   useEffect(() => {
     if (finished) {
       if (tickRef.current) {
@@ -128,7 +121,6 @@ const HiddenObjectAsking: React.FC<Props> = ({
     };
   }, [finished]);
 
-  // Helper functions for styling
   const getTimerClass = () => {
     if (secondsLeft === null) return 'timer-progress';
     if (secondsLeft <= 3) return 'timer-progress danger';
@@ -165,124 +157,53 @@ const HiddenObjectAsking: React.FC<Props> = ({
       return x >= b.x && y >= b.y && x <= b.x + b.w && y <= b.y + b.h;
     });
 
-    if (hit) {
-      onTap(hit.id, x, y);
-    }
+    if (hit) onTap(hit.id, x, y);
   };
 
   return (
     <>
       <style>{`
-        /* Circular Timer Styles (from SpeedAsking) */
-        .circular-timer {
-          position: relative;
-          width: 60px;
-          height: 60px;
-        }
-        @media (max-width: 480px) {
-          .circular-timer {
-            width: 50px;
-            height: 50px;
-          }
-        }
-        .timer-ring {
-          position: absolute;
-          width: 100%;
-          height: 100%;
-          transform: rotate(-90deg);
-        }
-        .timer-ring circle {
-          fill: none;
-          stroke-width: 4;
-        }
-        .timer-bg {
-          stroke: #e2e8f0;
-        }
-        .timer-progress {
-          stroke: #10b981;
-          stroke-linecap: round;
-          stroke-dasharray: 157;
-          transition: stroke-dashoffset 0.1s linear, stroke 0.2s ease;
-        }
-        .timer-progress.warning {
-          stroke: #f59e0b;
-        }
-        .timer-progress.danger {
-          stroke: #ef4444;
-          animation: timerPulse 0.5s infinite;
-        }
-        @keyframes timerPulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.7; }
-        }
-        .timer-text {
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          font-weight: 700;
-          font-size: 16px;
-          color: #1e293b;
-        }
-        @media (max-width: 480px) {
-          .timer-text {
-            font-size: 14px;
-          }
-        }
+        .circular-timer { position: relative; width: 60px; height: 60px; }
+        @media (max-width: 480px) { .circular-timer { width: 50px; height: 50px; } }
+        .timer-ring { position: absolute; width: 100%; height: 100%; transform: rotate(-90deg); }
+        .timer-ring circle { fill: none; stroke-width: 4; }
+        .timer-bg { stroke: #e2e8f0; }
+        .timer-progress { stroke: #10b981; stroke-linecap: round; stroke-dasharray: 157; transition: stroke-dashoffset 0.1s linear, stroke 0.2s ease; }
+        .timer-progress.warning { stroke: #f59e0b; }
+        .timer-progress.danger { stroke: #ef4444; animation: timerPulse 0.5s infinite; }
+        @keyframes timerPulse { 0%,100%{opacity:1} 50%{opacity:.7} }
+        .timer-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-weight: 700; font-size: 16px; color: #1e293b; }
+        @media (max-width: 480px) { .timer-text { font-size: 14px; } }
 
-        /* Countdown Overlay (3-2-1) */
         .countdown-overlay {
-          position: fixed;
-          top: 50%;
-          left: 50%;
+          position: fixed; top: 50%; left: 50%;
           transform: translate(-50%, -50%);
-          font-size: 5.5rem;
-          font-weight: 800;
-          z-index: 1000;
-          pointer-events: none;
+          font-size: 5.5rem; font-weight: 800;
+          z-index: 1000; pointer-events: none;
           opacity: 0.6;
-          text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+          text-shadow: 0 4px 20px rgba(0,0,0,0.3);
           animation: gentleBounce 0.6s ease-in-out;
         }
-        @media (max-width: 640px) {
-          .countdown-overlay {
-            font-size: 3.5rem;
-          }
-        }
+        @media (max-width: 640px) { .countdown-overlay { font-size: 3.5rem; } }
         @keyframes gentleBounce {
-          0% {
-            transform: translate(-50%, -50%) scale(0.8);
-            opacity: 0.3;
-          }
-          50% {
-            transform: translate(-50%, -50%) scale(1.1);
-            opacity: 0.7;
-          }
-          100% {
-            transform: translate(-50%, -50%) scale(1);
-            opacity: 0.6;
-          }
+          0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.3; }
+          50% { transform: translate(-50%, -50%) scale(1.1); opacity: 0.7; }
+          100% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
         }
-        .countdown-3 {
-          color: rgba(16, 185, 129, 0.7);
-        }
-        .countdown-2 {
-          color: rgba(245, 158, 11, 0.7);
-        }
-        .countdown-1 {
-          color: rgba(239, 68, 68, 0.7);
-        }
+        .countdown-3 { color: rgba(16, 185, 129, 0.7); }
+        .countdown-2 { color: rgba(245, 158, 11, 0.7); }
+        .countdown-1 { color: rgba(239, 68, 68, 0.7); }
       `}</style>
 
-      <div className="space-y-3">
-        {/* Countdown overlay (3-2-1) */}
+      {/* ✅ Full-screen column layout so header + checklist + image fit */}
+      <div className="min-h-[100dvh] flex flex-col gap-3">
         {countdown && (
           <div className={`countdown-overlay ${getCountdownClass()}`}>
             {countdown.message}
           </div>
         )}
 
-        {/* Header with timer and progress */}
+        {/* Header */}
         <div className="flex items-center justify-between">
           <div className="text-sm font-medium">
             🔎 Find It Fast
@@ -295,8 +216,7 @@ const HiddenObjectAsking: React.FC<Props> = ({
               {puzzle.difficulty.toUpperCase()}
             </span>
           </div>
-          
-          {/* Circular Timer */}
+
           <div className="circular-timer">
             <svg className="timer-ring" viewBox="0 0 50 50">
               <circle cx="25" cy="25" r="25" className="timer-bg" />
@@ -335,39 +255,35 @@ const HiddenObjectAsking: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* Clickable puzzle image */}
-     <div className="rounded-xl overflow-hidden border bg-white max-h-[65vh] sm:max-h-[70vh]">
-  <div className="relative flex items-center justify-center bg-gray-50">
-    <img
-      ref={imgRef}
-      src={puzzle.imageUrl}
-      alt="Hidden object puzzle"
-      className="
-        w-full 
-        max-h-[60vh] 
-        object-contain 
-        select-none 
-        cursor-crosshair 
-        mx-auto
-      "
-      onClick={handleClick}
-      draggable={false}
-    />
+        {/* ✅ Image area takes remaining space; no scrolling needed */}
+        <div className="flex-1 min-h-0 rounded-xl overflow-hidden border bg-white">
+          <div className="relative h-full w-full flex items-center justify-center bg-gray-50">
+            <img
+              ref={imgRef}
+              src={puzzle.imageUrl}
+              alt="Hidden object puzzle"
+              className="
+                select-none cursor-crosshair
+                max-w-full max-h-full
+                w-auto h-full
+                object-contain
+              "
+              onClick={handleClick}
+              draggable={false}
+            />
 
-    {/* Progress overlay */}
-    <div className="absolute top-3 left-3 bg-white/90 rounded-lg px-3 py-2 text-xs shadow-lg">
-      Found:
-      <span className="font-semibold text-green-600">
-        {foundIds.length}
-      </span>
-      / {puzzle.itemTarget}
-      {finished && (
-        <span className="ml-2 font-semibold text-green-600">✅ Complete!</span>
-      )}
-    </div>
-  </div>
-</div>
-
+            <div className="absolute top-3 left-3 bg-white/90 rounded-lg px-3 py-2 text-xs shadow-lg">
+              Found:{' '}
+              <span className="font-semibold text-green-600">
+                {foundIds.length}
+              </span>
+              / {puzzle.itemTarget}
+              {finished && (
+                <span className="ml-2 font-semibold text-green-600">✅ Complete!</span>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </>
   );

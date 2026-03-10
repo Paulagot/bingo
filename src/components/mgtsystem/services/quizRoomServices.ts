@@ -20,6 +20,7 @@ export interface ListWeb2RoomsParams {
   status?: StatusFilter;
   time?: TimeFilter;
 }
+
 export interface ListWeb2RoomsResponse {
   rooms: Web2RoomRow[];
 }
@@ -34,6 +35,13 @@ export interface Entitlements {
   [k: string]: unknown;
 }
 
+// ✅ ADD THIS INTERFACE
+export interface RoomStats {
+  ticketsSold: number;
+  uniquePlayers: number;
+  totalIncome: number;
+}
+
 class QuizRoomsService extends BaseService {
   getEntitlements() {
     return this.request<Entitlements>(`/quiz/entitlements`);
@@ -43,7 +51,35 @@ class QuizRoomsService extends BaseService {
     const qs = this.buildQueryString(params as Record<string, any>);
     return this.request<ListWeb2RoomsResponse>(`/quiz/web2/rooms?${qs}`);
   }
+  
+  /**
+   * Get statistics for a specific room
+   */
+  async getRoomStats(roomId: string): Promise<RoomStats> {
+    const response = await this.request<{ ok: boolean; stats: RoomStats }>(
+      `/quiz/web2/rooms/${roomId}/stats`
+    );
+    return response.stats;
+  }
+  
+  /**
+   * Batch load stats for multiple rooms (efficient - single DB query!)
+   */
+  async batchGetRoomStats(roomIds: string[]): Promise<Record<string, RoomStats>> {
+    if (roomIds.length === 0) {
+      return {};
+    }
+    
+    const response = await this.request<{ ok: boolean; stats: Record<string, RoomStats> }>(
+      `/quiz/web2/rooms/batch-stats`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ roomIds })
+      }
+    );
+    
+    return response.stats;
+  }
 }
 
 export default new QuizRoomsService();
-

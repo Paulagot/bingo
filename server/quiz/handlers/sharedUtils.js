@@ -3,6 +3,7 @@ const debug = false;
 
 import { createSolutionBuilder } from 'typescript';
 import { getQuizRoom } from '../quizRoomManager.js';
+import database from '../../config/database.js';
 
 // NEW: single emitter for standardized room_config payload
 // Emits legacy-compatible room_config payload (raw object), now with hostId + roomId
@@ -38,8 +39,9 @@ export function setupSharedHandlers(socket, namespace) {
     });
   });
 
+// ✅ CORRECT - Make the handler async and await the query
 socket.on('verify_quiz_room', ({ roomId }) => {
-  import('../quizRoomManager.js').then(({ getQuizRoom }) => {
+  import('../quizRoomManager.js').then(async ({ getQuizRoom }) => {  // ✅ Add async here
     const room = getQuizRoom(roomId);
     if (!room) {
       socket.emit('quiz_room_verification_result', { 
@@ -49,30 +51,30 @@ socket.on('verify_quiz_room', ({ roomId }) => {
     }
 
     // pull everything the client will need
-const {
-  entryFee    = '0',
-  fundraisingOptions = {},
-  fundraisingPrices  = {},
-  paymentMethod,
-  demoMode    = false,
-  // Add Web3-specific fields
-  web3Chain,
-  web3Currency,
-  roomContractAddress,   // ✅ CORRECT - this is what setup saves!
-  evmNetwork,
-  solanaCluster,   
-  hostName,
-  gameType,
-  roundDefinitions,
-  currencySymbol,
-  clubId,  // ✅ ADD THIS LINE
+    const {
+      entryFee    = '0',
+      fundraisingOptions = {},
+      fundraisingPrices  = {},
+      paymentMethod,
+      demoMode    = false,
+      // Add Web3-specific fields
+      web3Chain,
+      web3Currency,
+      roomContractAddress,
+      evmNetwork,
+      solanaCluster,   
+      hostName,
+      gameType,
+      roundDefinitions,
+      currencySymbol,
+      clubId,
       hostId
-} = room.config;
+    } = room.config;
 
     const response = {
       exists: true,
-       clubId: clubId || hostId || 'unknown',
-      paymentMethod: paymentMethod ||'unknown',
+      clubId: clubId || hostId || 'unknown',
+      paymentMethod: paymentMethod || 'unknown',
       entryFee: Number(entryFee),
       fundraisingOptions,
       fundraisingPrices,
@@ -85,16 +87,41 @@ const {
     };
 
     // Add Web3-specific fields if it's a Web3 room
-if (paymentMethod === 'web3') {
-  response.web3Chain = web3Chain  || 'stellar';
-  response.web3Currency = web3Currency || 'XLM';
-  response.roomContractAddress = roomContractAddress || null;  // ✅ Use the canonical field directly
-  response.evmNetwork = evmNetwork || null;
-  response.solanaCluster = solanaCluster || null;
-}
+    if (paymentMethod === 'web3') {
+      response.web3Chain = web3Chain || 'stellar';
+      response.web3Currency = web3Currency || 'XLM';
+      response.roomContractAddress = roomContractAddress || null;
+      response.evmNetwork = evmNetwork || null;
+      response.solanaCluster = solanaCluster || null;
+    }
+
+    // ✅ Check if room has linked payment methods (with await)
+    try {
+      const [linkedMethodsRows] = await database.connection.execute(
+        `SELECT linked_payment_methods_json 
+         FROM fundraisely_web2_quiz_rooms 
+         WHERE room_id = ?`,
+        [roomId]
+      );
+      
+      let hasLinkedPaymentMethods = false;
+      if (linkedMethodsRows?.[0]?.linked_payment_methods_json) {
+        const linkedData = linkedMethodsRows[0].linked_payment_methods_json;
+        hasLinkedPaymentMethods = (linkedData.payment_method_ids || []).length > 0;
+      }
+      
+      response.hasLinkedPaymentMethods = hasLinkedPaymentMethods;
+    } catch (err) {
+      console.error('[verify_quiz_room] Error checking linked payment methods:', err);
+      // Don't fail the whole verification, just set to false
+      response.hasLinkedPaymentMethods = false;
+    }
 
     socket.emit('quiz_room_verification_result', response);
     if (debug) console.log(`[SharedUtils] 🔍 Room verification for ${roomId}:`, response);
+  }).catch(err => {
+    console.error('[verify_quiz_room] Error:', err);
+    socket.emit('quiz_room_verification_result', { exists: false });
   });
 });
 
@@ -250,8 +277,7 @@ export function emitFullRoomState(socket, namespace, roomId) {
 
 
 // Export shared utility functions that might be used by multiple handlers
-export function resetRoundExtrasTrackingWrapper(roomId) {
-  return import('../quizRoomManager.js').then(({ resetRoundExtrasTracking }) => {
-    return resetRoundExtrasTracking(roomId);
-  });
+export async function resetRoundExtrasTrackingWrapper(roomId) {
+  const { resetRoundExtrasTracking } = await import('../quizRoomManager.js');
+  return resetRoundExtrasTracking(roomId);
 }

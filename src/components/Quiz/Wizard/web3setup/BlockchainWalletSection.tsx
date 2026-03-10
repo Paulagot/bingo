@@ -1,6 +1,8 @@
 // src/components/Quiz/Wizard/web3setup/BlockchainWalletSection.tsx
 import React from "react";
 import { Shield, ExternalLink, Wallet, CheckCircle, AlertTriangle } from "lucide-react";
+import { useMiniAppContext } from '../../../../context/MiniAppContext';
+
 
 interface Props {
   setupConfig: any;
@@ -38,6 +40,8 @@ const BlockchainWalletSection: React.FC<Props> = ({
 }) => {
   const currency = setupConfig.web3Currency || "USDGLO";
   
+ const { isMiniApp, walletAddress: miniAppAddress, user } = useMiniAppContext();
+
   const formattedAddress = walletAddress && walletAddress.length > 10
     ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
     : walletAddress;
@@ -110,60 +114,107 @@ const BlockchainWalletSection: React.FC<Props> = ({
         </div>
       )}
 
-      {!isWalletConnected ? (
-        <div className="mb-3">
-          <button
-            onClick={handleWalletConnect}
-            className="flex w-full items-center justify-center space-x-2 rounded-lg bg-purple-600 px-4 py-3 font-medium text-white hover:bg-purple-700 transition-colors"
-          >
-            <Wallet className="h-4 w-4" />
-            <span>Connect {displayNetworkName} Wallet</span>
-          </button>
-          <p className="mt-2 text-xs text-purple-600 text-center">
-            A modal will open to select your wallet
-          </p>
-        </div>
-      ) : (
-        <div className="mb-3 space-y-2">
-          <div className={`rounded-lg border p-3 ${
-            isOnCorrectNetwork 
-              ? 'border-green-200 bg-green-50' 
-              : 'border-orange-200 bg-orange-50'
-          }`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                {isOnCorrectNetwork ? (
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                ) : (
-                  <AlertTriangle className="h-4 w-4 text-orange-600" />
-                )}
-           <span className={`text-sm font-medium ${
-  isOnCorrectNetwork ? 'text-green-800' : 'text-orange-800'
-}`}>
-  {isOnCorrectNetwork 
-    ? `${displayNetworkName} Wallet Connected`
-    : `${actualNetwork} Wallet Connected`  // ✅ Show ACTUAL network when wrong
-  }
-</span>
+ {isMiniApp ? (
+        <div className="mb-3 rounded-xl border-2 border-emerald-200 bg-emerald-50 p-3">
+          <div className="flex items-center gap-3">
+            {/* Avatar */}
+            {user?.pfpUrl ? (
+              <img
+                src={user.pfpUrl}
+                alt={user.displayName ?? user.username ?? 'User'}
+                className="h-9 w-9 rounded-full border-2 border-emerald-300 object-cover flex-shrink-0"
+              />
+            ) : (
+              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-emerald-200 text-sm font-bold text-emerald-700">
+               {(user?.displayName ?? user?.username ?? '?').charAt(0).toUpperCase()}
               </div>
-            </div>
-            {formattedAddress && (
-              <p className={`mt-1 text-xs font-mono ${
-                isOnCorrectNetwork ? 'text-green-700' : 'text-orange-700'
-              }`}>
-                {formattedAddress}
-              </p>
             )}
+
+            {/* Name + username */}
+            <div className="min-w-0 flex-1">
+              {user?.displayName && (
+                <p className="truncate text-sm font-semibold text-emerald-900">
+                  {user.displayName}
+                </p>
+              )}
+              {user?.username && (
+                <p className="truncate text-xs text-emerald-600">
+                  @{user.username}
+                </p>
+              )}
+              {/* Fallback: no user fields yet — show truncated address */}
+              {!user?.displayName && !user?.username && miniAppAddress && (
+                <p className="font-mono text-xs text-emerald-700">
+                  {miniAppAddress.slice(0, 6)}…{miniAppAddress.slice(-4)}
+                </p>
+              )}
+            </div>
+
+            <span className="flex-shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-600">
+              Base Mini App
+            </span>
           </div>
 
-          <button
-            onClick={handleWalletDisconnect}
-            className="w-full rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-          >
-            Disconnect Wallet
-          </button>
+          {/* Wallet address shown small below — useful for debugging, subtle in prod */}
+          {miniAppAddress && (
+            <p className="mt-2 font-mono text-[10px] text-emerald-500 text-center">
+              {miniAppAddress.slice(0, 6)}…{miniAppAddress.slice(-4)}
+            </p>
+          )}
         </div>
+) : !isWalletConnected ? (
+  <div className="mb-3">
+    <button
+      onClick={handleWalletConnect}
+      className="flex w-full items-center justify-center space-x-2 rounded-lg bg-purple-600 px-4 py-3 font-medium text-white hover:bg-purple-700 transition-colors"
+    >
+      <Wallet className="h-4 w-4" />
+      <span>Connect {displayNetworkName} Wallet</span>
+    </button>
+    <p className="mt-2 text-xs text-purple-600 text-center">
+      A modal will open to select your wallet
+    </p>
+  </div>
+) : (
+  <div className="mb-3 space-y-2">
+    <div className={`rounded-lg border p-3 ${
+      isOnCorrectNetwork 
+        ? 'border-green-200 bg-green-50' 
+        : 'border-orange-200 bg-orange-50'
+    }`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          {isOnCorrectNetwork ? (
+            <CheckCircle className="h-4 w-4 text-green-600" />
+          ) : (
+            <AlertTriangle className="h-4 w-4 text-orange-600" />
+          )}
+          <span className={`text-sm font-medium ${
+            isOnCorrectNetwork ? 'text-green-800' : 'text-orange-800'
+          }`}>
+            {isOnCorrectNetwork 
+              ? `${displayNetworkName} Wallet Connected`
+              : `${actualNetwork} Wallet Connected`
+            }
+          </span>
+        </div>
+      </div>
+      {formattedAddress && (
+        <p className={`mt-1 text-xs font-mono ${
+          isOnCorrectNetwork ? 'text-green-700' : 'text-orange-700'
+        }`}>
+          {formattedAddress}
+        </p>
       )}
+    </div>
+    <button
+      onClick={handleWalletDisconnect}
+      className="w-full rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+    >
+      Disconnect Wallet
+    </button>
+  </div>
+)}
 
       {contractAddress && (
         <div className="bg-muted mt-3 rounded-lg border border-purple-200 p-3">

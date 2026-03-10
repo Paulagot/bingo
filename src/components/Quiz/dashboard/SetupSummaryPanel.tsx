@@ -1,5 +1,5 @@
 // src/components/Quiz/dashboard/SetupSummaryPanel.tsx
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuizConfig } from '../hooks/useQuizConfig';
 import { Link } from 'react-router-dom';
 

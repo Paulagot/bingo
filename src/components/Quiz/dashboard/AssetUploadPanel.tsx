@@ -19,10 +19,12 @@ import SolanaAssetUpload from './SolanaAssetUpload';
  * This component determines which blockchain is active and renders the
  * corresponding child component (Stellar, EVM, or Solana).
  */
+
+
 const AssetUploadPanel: React.FC = () => {
   const { config } = useQuizConfig();
-  const { selectedChain, activeChain, isWalletConnected, getChainDisplayName, currentWallet } =
-    useQuizChainIntegration();
+  const { selectedChain, isWalletConnected, getChainDisplayName, currentWallet } =
+    useQuizChainIntegration();  // remove activeChain from destructure
 
   const prizes = config?.prizes || [];
   const assetPrizes = useMemo(() => getAssetPrizes(prizes), [prizes]);
@@ -30,60 +32,50 @@ const AssetUploadPanel: React.FC = () => {
 
   const showDebugInfo = process.env.NODE_ENV === 'development';
 
-  // If no digital asset prizes configured, show empty state
   if (assetPrizes.length === 0) {
     return (
       <div className="space-y-6">
         {showDebugInfo && (
-          <DebugInfoPanel
-            data={{
-              selectedChain,
-              activeChain,
-              isWalletConnected,
-              currentWallet: currentWallet?.address,
-              hasAssets: false,
-              totalPrizes: prizes.length,
-              assetPrizes: assetPrizes.length,
-            }}
-          />
+          <DebugInfoPanel data={{
+            selectedChain,
+            isWalletConnected,
+            currentWallet: currentWallet?.address,
+            hasAssets: false,
+            totalPrizes: prizes.length,
+          }} />
         )}
-
-        <EmptyState {...(activeChain && { chainName: getChainDisplayName(activeChain) })} />
+        <EmptyState {...(selectedChain && { chainName: getChainDisplayName(selectedChain) })} />
       </div>
     );
   }
 
-  // Route to chain-specific implementation
-  if (activeChain === 'stellar') {
+  // Route on selectedChain, not activeChain
+  if (selectedChain === 'stellar') {
     return <StellarAssetUpload chainName={getChainDisplayName('stellar')} />;
   }
 
-  if (activeChain === 'evm') {
+  if (selectedChain === 'evm') {
     return <EvmAssetUpload chainName={getChainDisplayName('evm')} />;
   }
 
-  if (activeChain === 'solana') {
+  if (selectedChain === 'solana') {
     return <SolanaAssetUpload chainName={getChainDisplayName('solana')} />;
   }
 
-  // No active chain or unknown chain
+  // Fallback - no chain detected
   return (
     <div className="space-y-6">
       {showDebugInfo && (
-        <DebugInfoPanel
-          data={{
-            selectedChain,
-            activeChain,
-            isWalletConnected,
-            currentWallet: currentWallet?.address,
-            hasAssets: true,
-            totalPrizes: prizes.length,
-            assetPrizes: assetPrizes.length,
-            stats,
-          }}
-        />
+        <DebugInfoPanel data={{
+          selectedChain,
+          isWalletConnected,
+          currentWallet: currentWallet?.address,
+          configWeb3Chain: config?.web3Chain,
+          totalPrizes: prizes.length,
+          assetPrizes: assetPrizes.length,
+          stats,
+        }} />
       )}
-
       <div className="rounded-xl border-2 border-yellow-200 bg-yellow-50 p-6">
         <div className="flex items-center space-x-3 mb-4">
           <AlertTriangle className="h-6 w-6 text-yellow-600" />
@@ -96,7 +88,7 @@ const AssetUploadPanel: React.FC = () => {
           <p className="font-medium mb-2">Current Configuration:</p>
           <ul className="list-disc list-inside space-y-1">
             <li>Selected Chain: {selectedChain || 'None'}</li>
-            <li>Active Chain: {activeChain || 'None'}</li>
+            <li>Config web3Chain: {config?.web3Chain || 'None'}</li>
             <li>Total Prizes: {prizes.length}</li>
             <li>Asset Prizes: {assetPrizes.length}</li>
             <li>Wallet Connected: {isWalletConnected ? 'Yes' : 'No'}</li>

@@ -1,7 +1,7 @@
 // Backend API Route - Updated with strong Web3 proof validation (multichain ready)
 //server/quiz/api/create-room.js
 import express from 'express';
-import { createQuizRoom, removeQuizRoom } from '../quizRoomManager.js';
+import { createQuizRoom, removeQuizRoom, applyPersonalisedRoundIfAny } from '../quizRoomManager.js';
 import {
   resolveEntitlements,
   checkCaps,
@@ -896,7 +896,7 @@ router.get('/me/entitlements', async (req, res) => {
       const web3DefaultEntitlements = {
         plan_id: null,
         plan_code: 'WEB3_DEFAULT',
-        max_players_per_game: 10000,
+        max_players_per_game: 100,
         max_rounds: 100,
         round_types_allowed: '*',
         extras_allowed: '*',
@@ -928,7 +928,7 @@ router.get('/me/entitlements', async (req, res) => {
       const web3DefaultEntitlements = {
         plan_id: null,
         plan_code: 'WEB3_FALLBACK',
-        max_players_per_game: 10000,
+        max_players_per_game: 100,
         max_rounds: 100,
         round_types_allowed: '*',
         extras_allowed: '*',
@@ -954,7 +954,7 @@ router.get('/me/entitlements', async (req, res) => {
       const web3DefaultEntitlements = {
         plan_id: null,
         plan_code: 'WEB3_ERROR_FALLBACK',
-        max_players_per_game: 10000,
+        max_players_per_game: 100,
         max_rounds: 100,
         round_types_allowed: '*',
         extras_allowed: '*',
@@ -1091,6 +1091,8 @@ if (disallowedExtras.length) {
           'Failed to create room (invalid config, questions missing, or room already exists)',
       });
     }
+
+    await applyPersonalisedRoundIfAny({ roomId, clubId });
 
    const okCredit = await consumeCredit(clubId);
 if (!okCredit) {
@@ -1255,6 +1257,8 @@ router.get('/web2/rooms', authenticateToken, async (req, res) => {
  * Hydrate a Web2 room from DB into memory (for Host Dashboard)
  * This allows refresh-safe room access
  */
+// ✅ REPLACE your entire hydrate route with this
+
 router.post('/web2/rooms/:roomId/hydrate', authenticateToken, async (req, res) => {
   console.log('========================================');
   console.log('[API] 🎯 HYDRATE ENDPOINT HIT!');
@@ -1262,7 +1266,7 @@ router.post('/web2/rooms/:roomId/hydrate', authenticateToken, async (req, res) =
   console.log('[API] 🎯 Room ID from params:', req.params.roomId);
   console.log('[API] 🎯 Club ID from auth:', req.club_id);
   console.log('========================================');
-  
+
   try {
     const { roomId } = req.params;
     const clubId = req.club_id;
@@ -1280,7 +1284,7 @@ router.post('/web2/rooms/:roomId/hydrate', authenticateToken, async (req, res) =
     console.log('[API] 🔄 Hydrating room from DB:', roomId);
     console.log('[API] 📋 SQL query params:', { roomId, clubId });
 
-    // 1. Load from database
+    // 1) Load from database
     const sql = `
       SELECT
         room_id,
@@ -1301,7 +1305,7 @@ router.post('/web2/rooms/:roomId/hydrate', authenticateToken, async (req, res) =
     console.log('[API] 🔍 Executing SQL query...');
     const [rows] = await connection.execute(sql, [roomId, clubId]);
     console.log('[API] 📊 SQL query returned rows:', rows?.length || 0);
-    
+
     const row = rows?.[0];
 
     if (!row) {
@@ -1314,71 +1318,95 @@ router.post('/web2/rooms/:roomId/hydrate', authenticateToken, async (req, res) =
       host_id: row.host_id,
       club_id: row.club_id,
       status: row.status,
-      has_config: !!row.config_json
+      has_config: !!row.config_json,
     });
 
-    // 2. Parse config
+    // 2) Parse config_json
     console.log('[API] 📦 Parsing config_json...');
-    const config = typeof row.config_json === 'string' 
-      ? JSON.parse(row.config_json) 
-      : row.config_json;
+    const dbConfig =
+      typeof row.config_json === 'string'
+        ? JSON.parse(row.config_json)
+        : (row.config_json || {});
 
-         config.clubId = row.club_id;
-    config.hostId = row.host_id;
-    
-    console.log('[API] ✅ Config parsed, keys:', Object.keys(config || {}));
+    // ensure IDs are present for downstream logic
+    dbConfig.clubId = row.club_id;
+    dbConfig.hostId = row.host_id;
+    dbConfig.roomId = row.room_id;
 
-    // ✅ 3. CHECK if room already exists in memory
+    console.log('[API] ✅ Config parsed, keys:', Object.keys(dbConfig || {}));
+
+    // 3) Check if room already exists in memory
     console.log('[API] 🔍 Checking if room already exists in memory...');
     const { getQuizRoom } = await import('../quizRoomManager.js');
     const existingRoom = getQuizRoom(row.room_id);
-    
-if (existingRoom) {
-  console.log('[API] ✅ Room already exists in memory, skipping creation');
-  console.log('[API] ✅ Sending success response (room already hydrated)');
-  
-  // ✅ CRITICAL FIX: Include roomId and hostId in config
-  const configWithIds = {
-    ...config,
-    roomId: row.room_id,
-    hostId: row.host_id,
-    clubId: row.club_id,
-  };
-  
-  return res.status(200).json({
-    roomId: row.room_id,
-    hostId: row.host_id,
-    status: row.status,
-    config: configWithIds,  // ✅ Send config WITH roomId
-    hydrated: true,
-    alreadyExisted: true,
-    clubId: row.club_id,
-  });
-}
 
-    // 4. Create room in memory (only if it doesn't exist)
+    if (existingRoom) {
+      console.log('[API] ✅ Room already exists in memory, skipping creation');
+
+      // ✅ Apply personalised round AFTER we know room exists in memory
+      try {
+        await applyPersonalisedRoundIfAny(row.room_id, clubId);
+      } catch (e) {
+        console.error('[API] ⚠️ Personalised round inject failed (existing room):', e);
+      }
+
+      const memRoom = getQuizRoom(row.room_id);
+      const configWithIds = {
+        ...(memRoom?.config || dbConfig),
+        roomId: row.room_id,
+        hostId: row.host_id,
+        clubId: row.club_id,
+      };
+
+      console.log('[API] ✅ Sending success response (already existed)');
+      return res.status(200).json({
+        roomId: row.room_id,
+        hostId: row.host_id,
+        status: row.status,
+        config: configWithIds,
+        hydrated: true,
+        alreadyExisted: true,
+        clubId: row.club_id,
+      });
+    }
+
+    // 4) Create room in memory
     console.log('[API] 🏗️ Room not in memory, creating it now...');
     console.log('[API] 🏗️ Calling createQuizRoom...');
     console.log('[API] 🏗️ Params:', {
       roomId: row.room_id,
       hostId: row.host_id,
-      hasConfig: !!config,
-      configKeys: Object.keys(config || {})
+      hasConfig: !!dbConfig,
+      configKeys: Object.keys(dbConfig || {}),
     });
-    
-    const created = createQuizRoom(row.room_id, row.host_id, config);
-    
+
+    const created = createQuizRoom(row.room_id, row.host_id, dbConfig);
     console.log('[API] 📊 createQuizRoom returned:', created);
 
     if (!created) {
       console.error('[API] ❌ createQuizRoom returned false - failed to create');
       console.error('[API] ❌ Config summary:', {
-        hasRoundDefinitions: !!config?.roundDefinitions,
-        roundCount: config?.roundDefinitions?.length,
-        hasRoomCaps: !!config?.roomCaps,
+        hasRoundDefinitions: !!dbConfig?.roundDefinitions,
+        roundCount: dbConfig?.roundDefinitions?.length,
+        hasRoomCaps: !!dbConfig?.roomCaps,
       });
       return res.status(500).json({ error: 'failed_to_hydrate' });
     }
+
+    // ✅ 5) Apply personalised round AFTER room is created in memory
+    try {
+      await applyPersonalisedRoundIfAny(row.room_id, clubId);
+    } catch (e) {
+      console.error('[API] ⚠️ Personalised round inject failed (new room):', e);
+    }
+
+    const memRoom = getQuizRoom(row.room_id);
+    const finalConfig = {
+      ...(memRoom?.config || dbConfig),
+      roomId: row.room_id,
+      hostId: row.host_id,
+      clubId: row.club_id,
+    };
 
     console.log('[API] ✅ Room successfully hydrated into memory:', roomId);
     console.log('[API] ✅ Sending success response to client');
@@ -1387,10 +1415,11 @@ if (existingRoom) {
       roomId: row.room_id,
       hostId: row.host_id,
       status: row.status,
-      config,
+      config: finalConfig, // ✅ return the memory config (includes injected round if any)
       hydrated: true,
+      alreadyExisted: false,
+      clubId: row.club_id,
     });
-
   } catch (err) {
     console.error('========================================');
     console.error('[API] ❌❌❌ HYDRATE ERROR');

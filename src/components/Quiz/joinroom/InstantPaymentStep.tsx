@@ -1,10 +1,15 @@
 // src/components/Quiz/joinroom/InstantPaymentStep.tsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Check, Copy, ExternalLink, Loader } from 'lucide-react';
 import { nanoid } from 'nanoid';
 import { useNavigate } from 'react-router-dom';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import type { ClubPaymentMethod } from '../../../shared/types/payment';
+
+const DEBUG = true;
+const log = (...args: any[]) => {
+  if (DEBUG) console.log('[InstantPaymentStep]', ...args);
+};
 
 interface RoomConfig {
   exists: boolean;
@@ -14,7 +19,7 @@ interface RoomConfig {
   fundraisingOptions: Record<string, boolean>;
   fundraisingPrices: Record<string, number>;
   currencySymbol: string;
-  clubId?: string; // ✅ ADD THIS
+  clubId?: string;
 
   // Web3 fields
   web3Chain?: string;
@@ -37,7 +42,7 @@ interface InstantPaymentStepProps {
   playerName: string;
   roomConfig: RoomConfig;
   selectedExtras: string[];
-  paymentMethods: ClubPaymentMethod[]; // Fetched from backend
+  paymentMethods: ClubPaymentMethod[];
   onBack: () => void;
   onClose: () => void;
 }
@@ -58,6 +63,16 @@ export const InstantPaymentStep: React.FC<InstantPaymentStepProps> = ({
   const [hasPaid, setHasPaid] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // ✅ Debug log on mount and when paymentMethods change
+  useEffect(() => {
+    log('Component mounted/updated', {
+      paymentMethodsCount: paymentMethods.length,
+      paymentMethods,
+      selectedMethod,
+      hasPaid,
+    });
+  }, [paymentMethods, selectedMethod, hasPaid]);
   
   const { extrasTotal, totalAmount } = useMemo(() => {
     const extrasTotal = selectedExtras.reduce((sum, extraId) => {
@@ -80,54 +95,54 @@ export const InstantPaymentStep: React.FC<InstantPaymentStepProps> = ({
   };
   
   const handleClaimPayment = () => {
-  if (!socket || !selectedMethod) return;
-  
-  setClaiming(true);
-  
-  const playerId = nanoid();
-  const extraPayments = Object.fromEntries(
-    selectedExtras.map((extraId) => [
-      extraId,
-      {
-        method: 'instant_payment',
-        amount: roomConfig.fundraisingPrices[extraId] || 0,
+    if (!socket || !selectedMethod) return;
+    
+    setClaiming(true);
+    
+    const playerId = nanoid();
+    const extraPayments = Object.fromEntries(
+      selectedExtras.map((extraId) => [
+        extraId,
+        {
+          method: 'instant_payment',
+          amount: roomConfig.fundraisingPrices[extraId] || 0,
+        },
+      ])
+    );
+    
+    // Join room with payment claimed flag
+    socket.emit('join_quiz_room', {
+      roomId,
+      user: {
+        id: playerId,
+        name: playerName.trim(),
+        paid: false,
+        paymentClaimed: true,
+        paymentMethod: 'instant_payment',
+        paymentReference,
+        clubPaymentMethodId: selectedMethod.id,
+        credits: 0,
+        extras: selectedExtras,
+        extraPayments,
       },
-    ])
-  );
-  
-  // Join room with payment claimed flag
-  socket.emit('join_quiz_room', {
-    roomId,
-    user: {
-      id: playerId,
-      name: playerName.trim(),
-      paid: false, // Not confirmed yet
-      paymentClaimed: true,
+      role: 'player' as const,
+    });
+    
+    // Claim payment in ledger
+    socket.emit('claim_payment', {
+      roomId,
+      playerId,
       paymentMethod: 'instant_payment',
       paymentReference,
-      clubPaymentMethodId: selectedMethod.id, // ✅ ADD THIS
-      credits: 0,
-      extras: selectedExtras,
-      extraPayments,
-    },
-    role: 'player' as const,
-  });
-  
-  // Claim payment in ledger
-  socket.emit('claim_payment', {
-    roomId,
-    playerId,
-    paymentMethod: 'instant_payment',
-    paymentReference,
-    clubPaymentMethodId: selectedMethod.id, // ✅ ADD THIS
-  });
-  
-  // Store for reconnect
-  localStorage.setItem(`quizPlayerId:${roomId}`, playerId);
-  
-  // Navigate to game (player sees "Payment Pending" badge)
-  navigate(`/quiz/game/${roomId}/${playerId}`);
-};
+      clubPaymentMethodId: selectedMethod.id,
+    });
+    
+    // Store for reconnect
+    localStorage.setItem(`quizPlayerId:${roomId}`, playerId);
+    
+    // Navigate to game
+    navigate(`/quiz/game/${roomId}/${playerId}`);
+  };
   
   return (
     <div className="flex flex-col h-full max-h-screen">
@@ -144,6 +159,8 @@ export const InstantPaymentStep: React.FC<InstantPaymentStepProps> = ({
             </p>
           </div>
         </div>
+
+   
         
         {/* Amount Summary */}
         <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
@@ -162,13 +179,16 @@ export const InstantPaymentStep: React.FC<InstantPaymentStepProps> = ({
         </div>
         
         {/* Step 1: Select Payment Method */}
-        {!selectedMethod && (
+        {!selectedMethod && paymentMethods.length > 0 && (
           <div className="space-y-3">
             <h3 className="font-semibold text-gray-900">Choose Payment Method</h3>
             {paymentMethods.map((method) => (
               <button
                 key={method.id}
-                onClick={() => setSelectedMethod(method)}
+                onClick={() => {
+                  log('Payment method selected:', method);
+                  setSelectedMethod(method);
+                }}
                 className="w-full text-left rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-blue-500 hover:bg-blue-50 transition"
               >
                 <div className="flex items-center justify-between">
@@ -184,12 +204,24 @@ export const InstantPaymentStep: React.FC<InstantPaymentStepProps> = ({
             ))}
           </div>
         )}
+
+        {/* No payment methods available */}
+        {!selectedMethod && paymentMethods.length === 0 && (
+          <div className="rounded-lg border-2 border-red-200 bg-red-50 p-4">
+            <p className="text-sm text-red-700">
+              No payment methods available. Please go back and choose "Pay Host Directly".
+            </p>
+          </div>
+        )}
         
         {/* Step 2: Payment Instructions */}
         {selectedMethod && !hasPaid && (
           <div className="space-y-4">
             <button
-              onClick={() => setSelectedMethod(null)}
+              onClick={() => {
+                log('Clearing selected method');
+                setSelectedMethod(null);
+              }}
               className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -199,56 +231,63 @@ export const InstantPaymentStep: React.FC<InstantPaymentStepProps> = ({
             <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-4">
               <h3 className="font-semibold text-blue-900 mb-3">Payment Instructions</h3>
               
-          {/* Revolut */}
-{selectedMethod.providerName === 'revolut' && (
-  <div className="space-y-3">
-    {selectedMethod.methodConfig && 'link' in selectedMethod.methodConfig && selectedMethod.methodConfig.link && (
-      
-       <a> href={selectedMethod.methodConfig.link}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center justify-between rounded-lg bg-white p-3 border border-blue-200 hover:bg-blue-100"
-      
-        <span className="font-medium">Open Revolut Payment</span>
-        <ExternalLink className="h-4 w-4" />
-      </a>
-    )}
-    {selectedMethod.methodConfig && 'qrCodeUrl' in selectedMethod.methodConfig && selectedMethod.methodConfig.qrCodeUrl && (
-      <div className="bg-white rounded-lg p-3 border border-blue-200">
-        <p className="text-sm text-gray-600 mb-2">Or scan QR code:</p>
-        <img
-          src={selectedMethod.methodConfig.qrCodeUrl}
-          alt="Revolut QR Code"
-          className="w-48 h-48 mx-auto"
-        />
-      </div>
-    )}
-  </div>
-)}
-              
-              {/* Bank Transfer */}
-              {selectedMethod.providerName === 'bank_transfer' && selectedMethod.methodConfig && 'iban' in selectedMethod.methodConfig && (
-                <div className="bg-white rounded-lg p-3 border border-blue-200 space-y-2 text-sm">
-                  {selectedMethod.methodConfig.accountName && (
-                    <div>
-                      <span className="font-medium">Account Name: </span>
-                      {selectedMethod.methodConfig.accountName}
-                    </div>
-                  )}
-                  {selectedMethod.methodConfig.iban && (
-                    <div>
-                      <span className="font-medium">IBAN: </span>
-                      {selectedMethod.methodConfig.iban}
-                    </div>
-                  )}
-                  {selectedMethod.methodConfig.bic && (
-                    <div>
-                      <span className="font-medium">BIC: </span>
-                      {selectedMethod.methodConfig.bic}
-                    </div>
-                  )}
+              {/* Revolut */}
+              {selectedMethod.providerName === 'revolut' && (
+                <div className="space-y-3">
+                  {selectedMethod.methodConfig &&
+                    'link' in selectedMethod.methodConfig &&
+                    selectedMethod.methodConfig.link && (
+                      <a>
+                        href={selectedMethod.methodConfig.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-between rounded-lg bg-white p-3 border border-blue-200 hover:bg-blue-100"
+                      
+                        <span className="font-medium">Open Revolut Payment</span>
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    )}
+
+                  {selectedMethod.methodConfig && 
+                    'qrCodeUrl' in selectedMethod.methodConfig && 
+                    selectedMethod.methodConfig.qrCodeUrl && (
+                      <div className="bg-white rounded-lg p-3 border border-blue-200">
+                        <p className="text-sm text-gray-600 mb-2">Or scan QR code:</p>
+                        <img
+                          src={selectedMethod.methodConfig.qrCodeUrl}
+                          alt="Revolut QR Code"
+                          className="w-48 h-48 mx-auto"
+                        />
+                      </div>
+                    )}
                 </div>
               )}
+              
+              {/* Bank Transfer */}
+              {selectedMethod.providerName === 'bank_transfer' && 
+                selectedMethod.methodConfig && 
+                'iban' in selectedMethod.methodConfig && (
+                  <div className="bg-white rounded-lg p-3 border border-blue-200 space-y-2 text-sm">
+                    {selectedMethod.methodConfig.accountName && (
+                      <div>
+                        <span className="font-medium">Account Name: </span>
+                        {selectedMethod.methodConfig.accountName}
+                      </div>
+                    )}
+                    {selectedMethod.methodConfig.iban && (
+                      <div>
+                        <span className="font-medium">IBAN: </span>
+                        {selectedMethod.methodConfig.iban}
+                      </div>
+                    )}
+                    {selectedMethod.methodConfig.bic && (
+                      <div>
+                        <span className="font-medium">BIC: </span>
+                        {selectedMethod.methodConfig.bic}
+                      </div>
+                    )}
+                  </div>
+                )}
               
               {/* Player Instructions (if provided) */}
               {selectedMethod.playerInstructions && (
@@ -278,7 +317,10 @@ export const InstantPaymentStep: React.FC<InstantPaymentStepProps> = ({
             
             {/* Confirm Payment Button */}
             <button
-              onClick={() => setHasPaid(true)}
+              onClick={() => {
+                log('User confirmed payment');
+                setHasPaid(true);
+              }}
               className="w-full rounded-lg bg-green-600 px-4 py-3 text-white font-semibold hover:bg-green-700"
             >
               I've Completed the Payment

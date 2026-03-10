@@ -1,12 +1,13 @@
 // src/components/Quiz/dashboard/PaymentReconciliationPanel.tsx
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+
 
 import { usePlayerStore } from '../hooks/usePlayerStore';
 import { useQuizConfig } from '../hooks/useQuizConfig';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { cleanupQuizRoom } from '../utils/cleanupQuizRoom';
 import { useRoomIdentity } from '../hooks/useRoomIdentity';
+
 
 import {
   Lock,
@@ -93,27 +94,19 @@ const PaymentReconciliationPanel: React.FC = () => {
   const { players } = usePlayerStore();
   const { config, currentPhase } = useQuizConfig();
   const { socket } = useQuizSocket();
-  const navigate = useNavigate();
+
 
   const { roomId } = useRoomIdentity();
   const isComplete = currentPhase === 'complete';
 
-  // Prize dependency checks
-  const awards = (config?.reconciliation as any)?.prizeAwards || [];
-  const prizePlaces = new Set((config?.prizes || []).map((p: any) => p.place));
-  const finalStatuses = new Set(['collected', 'delivered', 'unclaimed', 'refused', 'canceled']);
-  const declaredByPlace = new Map<number, any>();
-  for (const a of awards) if (typeof a?.place === 'number') declaredByPlace.set(a.place, a);
 
-  const allDeclared = prizePlaces.size > 0 && [...prizePlaces].every(pl => declaredByPlace.has(pl));
-  const allResolved = prizePlaces.size > 0 && [...prizePlaces].every(pl => finalStatuses.has(declaredByPlace.get(pl)?.status));
-  const prizesDone = allDeclared && allResolved;
+
 
   const currency = config?.currencySymbol || '€';
   const entryFee = parseFloat(config?.entryFee || '0');
 
   // Lock status
-  const isLocked = !isComplete || !prizesDone;
+  const isLocked = !isComplete 
   const approvedAt = (config?.reconciliation as any)?.approvedAt;
   const isApproved = !!approvedAt;
 
@@ -260,24 +253,7 @@ useEffect(() => {
         </div>
       )}
 
-      {/* Prizes incomplete */}
-      {isComplete && !prizesDone && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
-            <div>
-              <strong className="text-amber-900">Complete prize distribution first</strong>
-              <p className="text-sm text-amber-800 mt-1">All prizes must be awarded before reconciliation.</p>
-              <button
-                onClick={() => navigate(`?tab=prizes`)}
-                className="mt-2 rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-medium hover:bg-amber-100"
-              >
-                Go to Prizes →
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* STEP 1 ---------------------------------------------------------------- */}
       <div className="bg-white rounded-xl border-2 border-gray-200 p-6">

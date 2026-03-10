@@ -77,10 +77,7 @@ export const IllustrativeOutcomesPanel: React.FC<Props> = ({
               <Sparkles className="h-4 w-4" />
               Extras (max): <strong className="ml-1">+€{maxExtrasPerFamily} / family</strong>
             </div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-indigo-100 px-3 py-1 text-indigo-700 text-sm font-medium">
-              <Target className="h-4 w-4" />
-              League fee: <strong className="ml-1">€{leagueFee}</strong>
-            </div>
+          
             <div className="inline-flex items-center gap-2 rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-amber-800 text-sm">
               <Info className="h-4 w-4" />
               Clubs keep quiz income — FundRaisely does not take a %.
@@ -105,16 +102,12 @@ export const IllustrativeOutcomesPanel: React.FC<Props> = ({
                   value={`€${ticketGross.toLocaleString()}`}
                   sub={`${families} families × €${ticketPrice}`}
                 />
-                <StatCard
-                  label="Ticket-only net to club (after league fee)"
-                  value={`€${netTicketOnly.toLocaleString()}`}
-                  sub={`€${ticketGross.toLocaleString()} − €${leagueFee}`}
-                />
+             
               </div>
             </div>
 
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-6">
-              <div className="mb-2 text-sm font-semibold text-indigo-900">With in-game extras (optional uplift)</div>
+              <div className="mb-2 text-sm font-semibold text-indigo-900">With FundRaisely's in-game extras (optional uplift)</div>
 
               <div className="text-sm text-indigo-900/80 leading-relaxed">
                 Example assumption: <strong>{Math.round(extrasAttachRate * 100)}%</strong> of families choose all extras
@@ -132,12 +125,7 @@ export const IllustrativeOutcomesPanel: React.FC<Props> = ({
                   value={`€${totalGross.toLocaleString()}`}
                   sub={`€${ticketGross.toLocaleString()} + €${extrasGross.toLocaleString()}`}
                 />
-                <StatCard
-                  label="Net to club (after league fee)"
-                  value={`€${netWithExtras.toLocaleString()}`}
-                  sub={`€${totalGross.toLocaleString()} − €${leagueFee}`}
-                  tone="success"
-                />
+              
               </div>
             </div>
           </div>

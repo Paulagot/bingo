@@ -918,7 +918,10 @@ socket.on('tiebreak:proceed_to_completion', ({ roomId }) => {
     evmNetwork: room.config.evmNetwork,
     roomAddress: room.config.roomContractAddress || room.config.web3ContractAddress,
     charityOrgId: room.config.web3CharityId,
-    charityName: room.config.web3CharityName,
+      charityName:
+    room.config.web3CharityName ||
+    room.config.web3Charity ||
+    null,
     charityAddress: room.config.web3CharityAddress,
     charityCurrency: room.config.web3Currency || 'USDC',
     charityAmountPreview,

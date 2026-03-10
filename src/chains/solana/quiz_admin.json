@@ -1048,7 +1048,7 @@
           {
             "name": "max_prize_pool_bps",
             "docs": [
-              "Maximum prize pool in basis points (3500 = 35%)"
+              "Maximum prize pool in basis points (4000 = 40%)"
             ],
             "type": "u16"
           },

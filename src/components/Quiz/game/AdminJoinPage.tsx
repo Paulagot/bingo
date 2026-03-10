@@ -7,8 +7,10 @@ import { usePlayerStore } from '../hooks/usePlayerStore';
 import PlayerListPanel from '../dashboard/PlayerListPanel';
 import SetupSummaryPanel from '../dashboard/SetupSummaryPanel';
 import SharedFinancialTabs from '../dashboard/SharedFinancialTabs';
-import { Users, Shield, Info } from 'lucide-react';
+import  { TicketsPanelSocket } from '../dashboard/TicketsPanelSocket'; // ✅ ADD THIS
+import { Users, Shield, Info, Ticket } from 'lucide-react'; // ✅ ADD Ticket
 import type { QuizConfig } from '../types/quiz';
+import { getPrizeWorkflowStatus } from '../payments/prizeWorkflow';
 
 type RoomRole = 'admin' | 'host';
 
@@ -36,7 +38,8 @@ function loadCtx(roomId: string): { role?: RoomRole; memberId?: string } | null 
   }
 }
 
-type TabType = 'overview' | 'players' | 'financial';
+// ✅ UPDATE: Add 'tickets' to TabType
+type TabType = 'overview' | 'players' | 'tickets' | 'financial';
 
 const AdminJoinPage: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();
@@ -60,6 +63,11 @@ const AdminJoinPage: React.FC = () => {
 
   // Check if quiz is complete
   const isQuizComplete = currentPhase === 'complete';
+
+  // ✅ NEW: Get persisted context to extract admin info
+  const persisted = useMemo(() => loadCtx(roomId || ''), [roomId]);
+  const adminId = linkMemberId || persisted?.memberId || '';
+  const adminName = config?.admins?.find((a: any) => a.id === adminId)?.name || 'Admin';
 
   // Helper to unwrap `{config: ...}` or receive raw `QuizConfig`
   const coerceToConfig = (payload: any): QuizConfig | null => {
@@ -95,26 +103,8 @@ const AdminJoinPage: React.FC = () => {
 
   // === PRIZE WORKFLOW STATUS ===
   const { prizeWorkflowComplete } = useMemo(() => {
-    const awards = (config?.reconciliation?.prizeAwards || []) as any[];
-    const prizePlaces = new Set((config?.prizes || []).map((p: any) => p.place));
-   const finalStatuses = new Set(['collected', 'delivered', 'unclaimed', 'refused', 'canceled']);
-    const declaredByPlace = new Map<number, any>();
-    
-    for (const a of awards) {
-      if (typeof a?.place === 'number') {
-        declaredByPlace.set(a.place, a);
-      }
-    }
-    
-    const allDeclared = prizePlaces.size > 0 && 
-      [...prizePlaces].every(pl => declaredByPlace.has(pl));
-    const allResolved = prizePlaces.size > 0 && 
-      [...prizePlaces].every(pl => finalStatuses.has(declaredByPlace.get(pl)?.status));
-    
-    return {
-      prizeWorkflowComplete: allDeclared && allResolved,
-    };
-  }, [config?.reconciliation?.prizeAwards, config?.prizes]);
+    return getPrizeWorkflowStatus(config);
+  }, [config?.prizes, config?.reconciliation?.prizeAwards]);
 
   // 1) On mount / connection, join + request config/state
   useEffect(() => {
@@ -217,7 +207,6 @@ const AdminJoinPage: React.FC = () => {
   }
 
   // 3) If role=host, we'll be redirected in the effect. Show a small fallback.
-  const persisted = loadCtx(roomId);
   if (persisted?.role === 'host') {
     return (
       <div className="text-fg/70 mx-auto max-w-4xl p-4 text-center">
@@ -225,6 +214,9 @@ const AdminJoinPage: React.FC = () => {
       </div>
     );
   }
+
+  // ✅ Check if room is Web3 (hide tickets for Web3 rooms)
+  const isWeb3Room = config?.paymentMethod === 'web3' || config?.isWeb3Room === true;
 
   // Build tabs based on quiz state
   const tabs = [
@@ -240,6 +232,13 @@ const AdminJoinPage: React.FC = () => {
       icon: <Users className="h-4 w-4" />,
       count: players?.length || 0,
     },
+    // ✅ NEW: Add tickets tab for Web2 rooms (between players and financial)
+    ...(!isWeb3Room ? [{
+      id: 'tickets' as TabType,
+      label: 'Tickets',
+      icon: <Ticket className="h-4 w-4" />,
+      count: null,
+    }] : []),
     // Only show financial tab after quiz is complete
     ...(isQuizComplete ? [{
       id: 'financial' as TabType,
@@ -324,6 +323,20 @@ const AdminJoinPage: React.FC = () => {
               </div>
             )}
 
+            {/* ✅ NEW: Tickets Tab */}
+             {activeTab === 'tickets' && !isWeb3Room && (
+              <div className="space-y-6">
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="flex items-center space-x-2 text-xl font-semibold">
+                    <Ticket className="h-5 w-5" />
+                    <span>Ticket Management</span>
+                  </h3>
+                </div>
+                {/* ✅ Socket-based version - no auth token needed */}
+                <TicketsPanelSocket roomId={roomId || ''} />
+              </div>
+            )}
+
             {activeTab === 'financial' && isQuizComplete && (
               <SharedFinancialTabs
                 role="admin"
@@ -345,7 +358,7 @@ const AdminJoinPage: React.FC = () => {
               <div className="text-sm text-blue-800">
                 <p className="mb-1 font-medium">Admin Access Level</p>
                 <p>
-                  As an admin, you can view quiz configuration and help manage players. The Prizes & Payments tab will become available after the quiz is completed.
+                  As an admin, you can view quiz configuration, manage players, and confirm ticket payments. The Prizes & Payments tab will become available after the quiz is completed.
                 </p>
               </div>
             </div>

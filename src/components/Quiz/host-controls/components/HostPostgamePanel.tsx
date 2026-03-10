@@ -1,8 +1,9 @@
-// HostPostgamePanel.tsx
+// src/components/Quiz/host-controls/components/HostPostgamePanel.tsx
 import React, { useEffect } from 'react';
-import { Trophy, Crown, Medal, Award } from 'lucide-react';
+import { Trophy, Crown, Medal, Award, Heart } from 'lucide-react';
 import FinalQuizStats from '../components/FinalQuizStats';
 import { Web3PrizeDistributionRouter } from '../prizes/Web3PrizeDistributionRouter';
+import { type PrizeDistributionData } from '../prizes/Web3PrizeDistributionPanel';
 
 type Phase =
   | 'waiting'
@@ -29,15 +30,11 @@ interface HostPostgamePanelProps {
   hasFinalStats: boolean;
   allRoundsStats: any[];
   roomId: string;
-  paymentMethod?: string; // 'web3' | 'cash_or_revolut' | ...
+  paymentMethod?: string;
   debug?: boolean;
   onReturnToDashboard?: () => void;
-  onPhaseChange?: (p: Phase) => void; // kept for compatibility, but not used now
-
-  // callback to trigger cleanup/end game
+  onPhaseChange?: (p: Phase) => void;
   onEndGame?: () => void;
-
-  // current/total rounds to prevent showing post-game during intermediate rounds
   currentRound?: number;
   totalRounds?: number;
 }
@@ -56,10 +53,12 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
   currentRound,
   totalRounds,
 }) => {
-  // ✅ HOOK #1 - Always called
+  // ✅ HOOK #1
   const [prizeDistributionComplete, setPrizeDistributionComplete] = React.useState(false);
 
-  // Calculate all your derived state BEFORE the effect
+  // ✅ HOOK #2 — stores charity/prize info as it arrives
+  const [charityData, setCharityData] = React.useState<PrizeDistributionData | null>(null);
+
   const isComplete = phase === 'complete';
   const isDistributing = phase === 'distributing_prizes';
   const isWeb3Flow = paymentMethod === 'web3';
@@ -69,21 +68,42 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
     typeof totalRounds === 'number' &&
     currentRound >= totalRounds;
 
-  // ✅ HOOK #2 - Always called (moved BEFORE early returns)
+  // ✅ HOOK #3 — rehydrate charityData from localStorage on mount (survives remounts)
+  useEffect(() => {
+    if (!roomId) return;
+    try {
+      const saved = localStorage.getItem(`charityData:${roomId}`);
+      if (saved) {
+        const parsed = JSON.parse(saved) as PrizeDistributionData;
+        setCharityData(parsed);
+        // If we have confirmed data, also restore the distribution complete flag
+        if (parsed.confirmedCharityAmount != null) {
+          setPrizeDistributionComplete(true);
+        }
+      }
+    } catch { /* ignore */ }
+  }, [roomId]);
+
+  // ✅ HOOK #4 — persist charityData to localStorage whenever it changes
+  useEffect(() => {
+    if (!roomId || !charityData) return;
+    try {
+      localStorage.setItem(`charityData:${roomId}`, JSON.stringify(charityData));
+    } catch { /* ignore */ }
+  }, [charityData, roomId]);
+
+  // ✅ HOOK #5 — cleanup timer after successful distribution
   useEffect(() => {
     if (!prizeDistributionComplete || !isWeb3Flow) return;
-
     console.log('🎯 Prizes distributed successfully. Starting cleanup timer...');
-
     const cleanupTimer = setTimeout(() => {
       console.log('🧹 Triggering end game cleanup...');
+      try { localStorage.removeItem(`charityData:${roomId}`); } catch { /* ignore */ }
       onEndGame?.();
     }, 60000);
-
     return () => clearTimeout(cleanupTimer);
-  }, [prizeDistributionComplete, isWeb3Flow, onEndGame]);
+  }, [prizeDistributionComplete, isWeb3Flow, onEndGame, roomId]);
 
-  // ✅ NOW early returns are safe - all hooks have been called
   if (debug && (isComplete || isDistributing)) {
     console.log('[HostPostgamePanel] Phase check:', {
       phase,
@@ -98,7 +118,7 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
 
   if ((isComplete || isDistributing) && !isFinalRound) {
     console.warn(
-      '[HostPostgamePanel] Phase is complete/distributing but not on final round. Hiding post-game panel.',
+      '[HostPostgamePanel] Not on final round — hiding post-game panel.',
       { phase, currentRound, totalRounds, isFinalRound }
     );
     return null;
@@ -106,11 +126,16 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
 
   if (!(isComplete || isDistributing)) return null;
 
-  // ✅ All hooks called above - now safe to render JSX
+  // Derived display values
+  const charityConfirmed =
+    prizeDistributionComplete && charityData?.confirmedCharityAmount != null;
+  const displayAmount =
+    charityData?.confirmedCharityAmount ?? charityData?.charityAmount ?? null;
+  const displayCurrency = charityData?.charityCurrency ?? 'SOL';
 
   return (
     <div className="space-y-6">
-      {/* Complete state banner (only when phase === complete) */}
+      {/* Quiz Complete Banner */}
       {isComplete && (
         <div className="mb-6 rounded-xl border-2 border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50 p-8 text-center">
           <div className="mb-4 text-6xl">🎉</div>
@@ -123,6 +148,7 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
         </div>
       )}
 
+  
       {/* Final Leaderboard */}
       {leaderboard.length > 0 && (
         <div className="bg-muted mb-6 rounded-xl border-2 border-green-200 p-6 shadow-lg">
@@ -132,7 +158,6 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
               <span>Final Quiz Results</span>
             </h3>
           </div>
-
           <div className="rounded-lg bg-gradient-to-r from-green-50 to-blue-50 p-6">
             <div className="mb-4 text-center">
               <h4 className="mb-2 text-xl font-bold text-green-800">🏆 Final Rankings</h4>
@@ -193,11 +218,16 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
             <div>allRoundsStats length: {allRoundsStats.length}</div>
             <div>Web3 Flow: {isWeb3Flow ? '✅' : '❌'}</div>
             <div>Prize Distribution Complete: {prizeDistributionComplete ? '✅' : '❌'}</div>
+            <div>Charity Name: {charityData?.charityName ?? '—'}</div>
+            <div>
+              Display Amount: {displayAmount ?? '—'} {displayCurrency}
+            </div>
+            <div>Confirmed: {charityConfirmed ? '✅' : '❌'}</div>
           </div>
         </div>
       )}
 
-      {/* Final Stats – always shown when postgame is visible, if we have them */}
+      {/* Final Stats */}
       {(hasFinalStats || allRoundsStats.length > 0) && (
         <FinalQuizStats
           allRoundsStats={allRoundsStats}
@@ -206,20 +236,17 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
         />
       )}
 
-      {/* Web3 Prize Distribution (EVM + Solana, always on-chain, button-driven) */}
+      {/* Web3 Prize Distribution */}
       {isWeb3Flow && (
         <div className="mt-8 border-t-4 border-green-300 pt-6">
           <Web3PrizeDistributionRouter
             roomId={roomId}
             leaderboard={leaderboard}
-            onStatusChange={(status) => {
-              console.log('🎯 Prize Router Status:', status);
-
-              // IMPORTANT: Do NOT drive distribution from phase.
-              // The underlying Web3PrizeDistributionPanel only starts
-              // distribution when the host clicks the button.
-
-              // We only care about success here, to start cleanup.
+            onStatusChange={(status, data) => {
+              console.log('🎯 Prize Router Status:', status, data);
+              if (data) {
+                setCharityData((prev) => ({ ...prev, ...data }));
+              }
               if (status === 'success') {
                 setPrizeDistributionComplete(true);
               }
@@ -227,8 +254,63 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
           />
         </div>
       )}
+          {/* Charity Impact Banner — amber preview while distributing, green when confirmed */}
+      {isWeb3Flow && charityData?.charityName && (
+        <div
+          className={`rounded-xl border-2 p-5 ${
+            charityConfirmed
+              ? 'border-green-300 bg-gradient-to-r from-green-50 to-emerald-50'
+              : 'border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50'
+          }`}
+        >
+          <div className="flex items-center space-x-3">
+            <Heart
+              className={`h-6 w-6 flex-shrink-0 ${
+                charityConfirmed ? 'text-green-600' : 'text-amber-500'
+              }`}
+            />
+            <div className="flex-1">
+              <h4
+                className={`text-lg font-bold ${
+                  charityConfirmed ? 'text-green-800' : 'text-amber-800'
+                }`}
+              >
+                {charityConfirmed
+                  ? '✅ Charity Donation Confirmed'
+                  : '🔄 Charity Donation Pending...'}
+              </h4>
+              <p
+                className={`mt-0.5 text-sm ${
+                  charityConfirmed ? 'text-green-700' : 'text-amber-700'
+                }`}
+              >
+                <span className="font-semibold">{charityData.charityName}</span>
+                {displayAmount != null ? (
+                  <>
+                    {' '}will receive{' '}
+                    <span className="font-bold">
+                      {displayAmount} {displayCurrency}
+                    </span>{' '}
+                    from this quiz
+                  </>
+                ) : (
+                  ' — calculating amount...'
+                )}
+              </p>
+            </div>
+            {charityConfirmed && <span className="text-3xl">💚</span>}
+          </div>
 
-      {/* Return to Dashboard button for non-web3 flows */}
+          {/* Confirmed tx hash */}
+          {charityConfirmed && charityData.txHash && (
+            <div className="mt-3 break-all rounded-lg bg-green-100 px-3 py-2 font-mono text-xs text-green-700">
+              Tx: {charityData.txHash}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Return to Dashboard — non-web3 */}
       {!isWeb3Flow && isComplete && (
         <div className="mt-8 text-center">
           <button
@@ -241,7 +323,7 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
         </div>
       )}
 
-      {/* Auto-cleanup countdown for web3 flows (after successful on-chain distribution) */}
+      {/* Auto-cleanup countdown — web3 post-distribution */}
       {isWeb3Flow && prizeDistributionComplete && (
         <div className="mt-6 rounded-xl border-2 border-blue-200 bg-blue-50 p-6 text-center">
           <div className="mb-2 text-4xl">⏳</div>
@@ -252,7 +334,10 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
             This quiz will automatically clean up in 60 seconds...
           </p>
           <button
-            onClick={onEndGame}
+            onClick={() => {
+              try { localStorage.removeItem(`charityData:${roomId}`); } catch { /* ignore */ }
+              onEndGame?.();
+            }}
             className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
           >
             End Game Now

@@ -2,18 +2,27 @@
 import * as React from 'react';
 import { Loader } from 'lucide-react';
 import { useQuizSocket } from '../../sockets/QuizSocketProvider';
-
 import { useContractActions } from '../../../../hooks/useContractActions';
 import { useWallet } from '../../../../context/WalletContext';
 
 type LeaderboardEntry = { id: string; name: string; score: number };
-
 type PrizeRouterStatus = 'idle' | 'running' | 'success' | 'failed';
+
+export type PrizeDistributionData = {
+  charityName?: string | null;
+  charityAmount?: string | null;
+  confirmedCharityAmount?: string | null;
+  charityCurrency?: string | null;
+  charityWallet?: string | null;
+  txHash?: string | null;
+  network?: string | null;
+  web3Chain?: string | null;
+};
 
 interface Props {
   roomId: string;
   leaderboard: LeaderboardEntry[];
-  onStatusChange?: (s: PrizeRouterStatus) => void;
+  onStatusChange?: (s: PrizeRouterStatus, data?: PrizeDistributionData) => void;
 }
 
 type PrizeStatus = 'idle' | 'distributing' | 'success' | 'error' | 'connecting';
@@ -29,7 +38,7 @@ type InitiatePrizeDistributionPayload = {
   roomAddress?: string;
   charityOrgId?: string;
   charityName?: string;
-  charityAddress?: string; // NOTE: often null on Solana until TGB is called
+  charityAddress?: string;
   charityAmountPreview?: string;
   charityCurrency?: string;
 };
@@ -39,11 +48,9 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
   onStatusChange,
 }) => {
   const { socket } = useQuizSocket();
-  
-  const wallet = useWallet(); 
+  const wallet = useWallet();
   const { distributePrizes } = useContractActions();
 
-  // ✅ Helper function to get chain display name from wallet context
   const getChainDisplayName = () => {
     switch (wallet.chainFamily) {
       case 'evm': return 'EVM';
@@ -59,15 +66,48 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
     status: PrizeStatus;
     txHash?: string;
     error?: string;
-  }>({
-    status: 'idle',
-  });
+  }>({ status: 'idle' });
 
-  // Prevent emitting prize_distribution_completed multiple times from the frontend.
+  // Stores latest charity data so error/retry paths can still reference it
+  const charityPreviewRef = React.useRef<PrizeDistributionData | null>(null);
+
   const sentCompletionRef = React.useRef(false);
   React.useEffect(() => {
     sentCompletionRef.current = false;
   }, [roomId]);
+
+  // ✅ Writes charityData to localStorage synchronously so it survives
+  // React remounts before state/effects have a chance to flush
+  const persistCharityData = React.useCallback(
+    (data: PrizeDistributionData) => {
+      if (!roomId) return;
+      try {
+        const key = `charityData:${roomId}`;
+        const existing = localStorage.getItem(key);
+        const prev = existing ? JSON.parse(existing) : {};
+        localStorage.setItem(key, JSON.stringify({ ...prev, ...data }));
+        console.log('💾 [Panel] Wrote charityData to localStorage:', key, data);
+      } catch (e) {
+        console.warn('⚠️ [Panel] Failed to write charityData to localStorage:', e);
+      }
+    },
+    [roomId]
+  );
+
+  // ✅ Calls onStatusChange directly and synchronously — also persists to
+  // localStorage immediately so data survives remounts
+  const notifyParent = React.useCallback(
+    (status: PrizeRouterStatus, data?: PrizeDistributionData) => {
+      console.log('📣 [Panel] notifyParent:', status, data);
+
+      if (data) {
+        persistCharityData(data);
+      }
+
+      onStatusChange?.(status, data);
+    },
+    [onStatusChange, persistCharityData]
+  );
 
   const emitCompletionOnce = React.useCallback(
     (payload: {
@@ -79,17 +119,13 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
       charityWallet?: string | null;
       charityName?: string | null;
       network?: string;
-      web3Chain?: string; 
+      web3Chain?: string;
     }) => {
       if (!socket) return;
-
       if (sentCompletionRef.current) {
-        console.warn(
-          '⚠️ [Frontend] prize_distribution_completed already sent. Skipping duplicate emit.'
-        );
+        console.warn('⚠️ [Frontend] prize_distribution_completed already sent. Skipping.');
         return;
       }
-
       sentCompletionRef.current = true;
       console.log('📤 [Frontend] Emitting prize_distribution_completed ONCE:', payload);
       socket.emit('prize_distribution_completed', payload);
@@ -97,60 +133,37 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
     [socket]
   );
 
-  // Restore UI state if user refreshes after a successful distribution
+  // Restore UI state after refresh
   React.useEffect(() => {
     try {
       const saved = localStorage.getItem(DIST_KEY);
       if (saved) {
-        const parsed = JSON.parse(saved) as {
-          txHash?: string;
-          cleanupTxHash?: string;
-          rentReclaimed?: number;
-        };
+        const parsed = JSON.parse(saved) as { txHash?: string };
         if (parsed?.txHash) {
           setState({ status: 'success', txHash: parsed.txHash });
         }
       }
-    } catch {
-      // ignore JSON errors
-    }
+    } catch { /* ignore */ }
   }, [DIST_KEY]);
-
-  // Bubble status to parent (if used)
-  React.useEffect(() => {
-    if (!onStatusChange) return;
-
-    const routerStatus: PrizeRouterStatus =
-      state.status === 'distributing' || state.status === 'connecting'
-        ? 'running'
-        : state.status === 'success'
-        ? 'success'
-        : state.status === 'error'
-        ? 'failed'
-        : 'idle';
-
-    onStatusChange(routerStatus);
-  }, [state.status, onStatusChange]);
 
   const handleDistributeClick = async () => {
     if (state.status === 'success') return;
 
-    // ✅ FIX: isConnected is a property, not a method
     if (!wallet.isConnected) {
       setState({ status: 'connecting' });
+      notifyParent('running');
 
-      // ✅ FIX: connect is inside wallet.actions
       const res = await wallet.actions.connect();
       if (!res.success) {
-        setState({
-          status: 'error',
-          error: res.error?.message || 'Failed to connect wallet',
-        });
+        const errorMsg = 'error' in res && res.error ? (typeof res.error === 'object' && 'message' in res.error ? (res.error as any).message : String(res.error)) : 'Failed to connect wallet';
+        setState({ status: 'error', error: errorMsg });
+        notifyParent('failed');
         return;
       }
     }
 
     setState({ status: 'distributing' });
+    notifyParent('running');
     socket?.emit('end_quiz_and_distribute_prizes', { roomId });
   };
 
@@ -162,8 +175,17 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
 
       console.log('🎯 [Frontend] Received initiate_prize_distribution:', data);
 
+      // ✅ Build preview immediately and notify + persist synchronously
+      const preview: PrizeDistributionData = {
+        charityName: data.charityName || data.charityOrgId || null,
+        charityAmount: data.charityAmountPreview || null,
+        charityCurrency: data.charityCurrency || 'USDC',
+        charityWallet: data.charityAddress || null,
+      };
+      charityPreviewRef.current = preview;
+      notifyParent('running', preview);
+
       try {
-        // Winners are currently passed as addresses, not player ids
         const winnersPayload = (data.winners || []).map((addr, idx) => ({
           playerId: addr,
           address: addr,
@@ -199,8 +221,6 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
           charityCurrency: data.charityCurrency,
         };
 
-        // If backend ever supplies Solana charityAddress, treat it as charityWallet.
-        // But usually charityAddress is null for Solana, because we fetch it (TGB) inside the hook.
         if (data.web3Chain === 'solana' && data.charityAddress) {
           distributeParams.charityWallet = data.charityAddress;
           console.log('🎯 [Frontend] Using provided charity wallet for Solana:', data.charityAddress);
@@ -212,85 +232,55 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
 
         if (result && result.success) {
           const txHash = 'txHash' in result ? (result as any).txHash : undefined;
-          if (!txHash) {
-            throw new Error('Success returned but no transaction hash provided');
-          }
+          if (!txHash) throw new Error('Success returned but no transaction hash provided');
 
-          console.log('✅ [Frontend] Prize distribution successful:', txHash);
-
-          // ✅ Extract exact charity amount from chain event parsing (if available)
-          const charityAmount =
-            'charityAmount' in result ? (result as any).charityAmount : undefined;
+          const charityAmount = 'charityAmount' in result ? (result as any).charityAmount : undefined;
 
           if (charityAmount) {
             console.log('💰 [Frontend] Charity amount from on-chain event:', charityAmount);
           } else {
-            console.warn(
-              '⚠️ [Frontend] No charityAmount returned from chain parsing (will still proceed).'
-            );
+            console.warn('⚠️ [Frontend] No charityAmount returned from chain parsing (will still proceed).');
           }
 
-          // Optional cleanup fields for Solana PDA close flow etc.
-          const cleanupTxHash =
-            'cleanupTxHash' in result ? (result as any).cleanupTxHash : undefined;
-          const rentReclaimed =
-            'rentReclaimed' in result ? (result as any).rentReclaimed : undefined;
-
-          const cleanupError =
-            'error' in result && typeof (result as any).error === 'string'
-              ? ((result as any).error as string)
-              : undefined;
+          const cleanupTxHash = 'cleanupTxHash' in result ? (result as any).cleanupTxHash : undefined;
+          const rentReclaimed = 'rentReclaimed' in result ? (result as any).rentReclaimed : undefined;
+          const cleanupError = 'error' in result && typeof (result as any).error === 'string'
+            ? (result as any).error as string
+            : undefined;
 
           if (cleanupTxHash) {
             console.log('✅ [Frontend] PDA closed and rent reclaimed:', cleanupTxHash);
-            console.log(
-              `💰 [Frontend] Rent reclaimed: ${
-                rentReclaimed ? (rentReclaimed / 1e9).toFixed(4) : 'N/A'
-              } SOL`
-            );
-          } else if (cleanupError && cleanupError.includes('PDA cleanup failed')) {
+            console.log(`💰 [Frontend] Rent reclaimed: ${rentReclaimed ? (rentReclaimed / 1e9).toFixed(4) : 'N/A'} SOL`);
+          } else if (cleanupError?.includes('PDA cleanup failed')) {
             console.warn('⚠️ [Frontend] PDA cleanup failed:', cleanupError);
           }
 
-          // ✅ CRITICAL: get TGB deposit address across ALL chains (including Solana)
           const tgbCharityWallet =
-            // Solana hook returns tgbDepositAddress
             ('tgbDepositAddress' in result ? (result as any).tgbDepositAddress : null) ||
-            // Some chains might return charityWallet
             ('charityWallet' in result ? (result as any).charityWallet : null) ||
             null;
 
           if (tgbCharityWallet) {
             console.log('💰 [Frontend] TGB charity wallet from result:', tgbCharityWallet);
           } else {
-            console.warn(
-              '⚠️ [Frontend] No TGB charity wallet returned by hook result (will fallback).'
-            );
+            console.warn('⚠️ [Frontend] No TGB charity wallet returned by hook result (will fallback).');
           }
 
-          // Prefer: on-chain / TGB-derived deposit address, then config-provided, then any param
           const finalCharityWallet =
-            tgbCharityWallet ||
-            data.charityAddress ||
-            distributeParams.charityWallet ||
-            null;
+            tgbCharityWallet || data.charityAddress || distributeParams.charityWallet || null;
 
-          // ✅ Get network/cluster for both EVM and Solana
           const setupConfig = JSON.parse(localStorage.getItem('setupConfig') || '{}');
-
           let networkForBackend: string;
           let web3ChainForBackend: string;
 
           if (data.web3Chain === 'solana') {
-            // ✅ Priority: backend > localStorage > safe default
             const cluster = data.solanaNetwork || setupConfig.solanaCluster || 'devnet';
             networkForBackend = cluster === 'testnet' ? 'devnet' : cluster;
             web3ChainForBackend = 'solana';
-            
             console.log('🔍 [Solana Network Debug]:', {
               backendSolanaNetwork: data.solanaNetwork,
               localStorageCluster: setupConfig.solanaCluster,
-              finalNetwork: networkForBackend
+              finalNetwork: networkForBackend,
             });
           } else if (data.web3Chain === 'evm') {
             networkForBackend = data.evmNetwork || setupConfig.evmNetwork || 'base-sepolia';
@@ -299,6 +289,18 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
             networkForBackend = data.evmNetwork || setupConfig.evmNetwork || 'unknown';
             web3ChainForBackend = data.web3Chain || 'unknown';
           }
+
+          // ✅ Build confirmed data and notify + persist synchronously before setState
+          const confirmedData: PrizeDistributionData = {
+            ...preview,
+            confirmedCharityAmount: charityAmount ?? preview.charityAmount ?? null,
+            charityWallet: finalCharityWallet,
+            txHash,
+            network: networkForBackend,
+            web3Chain: web3ChainForBackend,
+          };
+          charityPreviewRef.current = confirmedData;
+          notifyParent('success', confirmedData);
 
           console.log('📤 [Frontend] Sending prize_distribution_completed with:', {
             roomId: data.roomId,
@@ -310,47 +312,34 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
             web3Chain: web3ChainForBackend,
           });
 
-          // ✅ Emit once (prevents duplicates)
           emitCompletionOnce({
             roomId: data.roomId,
             success: true,
             txHash,
             charityAmount: charityAmount ?? null,
             charityWallet: finalCharityWallet,
-            charityName: data.charityName || null,
+            charityName: data.charityName || data.charityOrgId || null,
             network: networkForBackend,
             web3Chain: web3ChainForBackend,
           });
 
-          // Update UI
           const newState: { status: PrizeStatus; txHash?: string; error?: string } = {
             status: 'success',
             txHash,
           };
-
-          if (cleanupError && cleanupError.includes('PDA cleanup failed')) {
+          if (cleanupError?.includes('PDA cleanup failed')) {
             newState.error = cleanupError;
           }
-
           setState(newState);
 
-          // Persist
           try {
-            localStorage.setItem(
-              DIST_KEY,
-              JSON.stringify({
-                txHash,
-                cleanupTxHash,
-                rentReclaimed,
-              })
-            );
+            localStorage.setItem(DIST_KEY, JSON.stringify({ txHash, cleanupTxHash, rentReclaimed }));
           } catch (err) {
             console.warn('Failed to save to localStorage:', err);
           }
         } else {
           const errorMsg =
-            (result && 'error' in result ? (result as any).error : null) ||
-            'Unknown error occurred';
+            (result && 'error' in result ? (result as any).error : null) || 'Unknown error occurred';
 
           console.error('❌ [Frontend] Prize distribution failed:', errorMsg);
 
@@ -359,9 +348,10 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
             success: false,
             error: errorMsg,
             charityWallet: data.charityAddress || null,
-            charityName: data.charityName || null,
+            charityName: data.charityName || data.charityOrgId || null,
           });
 
+          notifyParent('failed', charityPreviewRef.current ?? undefined);
           setState({ status: 'error', error: errorMsg });
         }
       } catch (err: any) {
@@ -374,21 +364,18 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
           success: false,
           error: errorMessage,
           charityWallet: data.charityAddress || null,
-          charityName: data.charityName || null,
+          charityName: data.charityName || data.charityOrgId || null,
         });
 
+        notifyParent('failed', charityPreviewRef.current ?? undefined);
         setState({ status: 'error', error: errorMessage });
       }
     };
 
     socket.on('initiate_prize_distribution', handlePrizeDistribution);
+    return () => { socket.off('initiate_prize_distribution', handlePrizeDistribution); };
+  }, [socket, roomId, distributePrizes, DIST_KEY, emitCompletionOnce, notifyParent]);
 
-    return () => {
-      socket.off('initiate_prize_distribution', handlePrizeDistribution);
-    };
-  }, [socket, roomId, distributePrizes, DIST_KEY, emitCompletionOnce]);
-
-  // ✅ FIX: isConnected is a property, not a method
   const connected = wallet.isConnected;
 
   return (
@@ -459,29 +446,25 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
                   Prizes Distributed Successfully!
                 </h3>
               </div>
-
               {state.txHash && (
-                <div className="text-center space-y-2">
+                <div className="space-y-2 text-center">
                   <p className="text-sm text-green-600">
                     <strong>Distribution:</strong>{' '}
                     <code className="rounded bg-green-100 px-2 py-1">{state.txHash}</code>
                   </p>
-
-                  {state.error && state.error.includes('PDA cleanup failed') && (
+                  {state.error?.includes('PDA cleanup failed') && (
                     <div className="mt-3 rounded-lg border-2 border-orange-200 bg-orange-50 p-3">
                       <p className="mb-1 text-sm font-semibold text-orange-800">
                         ⚠️ PDA Cleanup Failed
                       </p>
                       <p className="text-xs text-orange-700">{state.error}</p>
                       <p className="mt-2 text-xs italic text-orange-600">
-                        The PDA was not closed automatically. You can manually close it to reclaim
-                        rent later.
+                        The PDA was not closed automatically. You can manually close it to reclaim rent later.
                       </p>
                     </div>
                   )}
                 </div>
               )}
-
               <p className="mt-2 text-xs text-green-700">
                 You can't distribute again for this room.
               </p>
@@ -496,15 +479,12 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
                   Prize Distribution Failed
                 </h3>
               </div>
-
               <p className="text-center text-sm text-red-600">
                 Error: {state.error ?? 'Unknown error'}
               </p>
-
               <div className="mt-4 text-center">
                 <button
                   onClick={() => {
-                    // Allow retry. Also allow another completion emit if they retry.
                     sentCompletionRef.current = false;
                     setState({ status: 'idle' });
                   }}

@@ -78,15 +78,27 @@ export function useWeb3Launch({ onResetToFirst: _onResetToFirst, onBack: _onBack
   const { setFullConfig } = useQuizConfig();
   const { socket, connected } = useQuizSocket();
   
-  const {
-    selectedChain,
-    isWalletConnected,
-    walletReadiness,
-    currentWallet,
-    getNetworkDisplayName,
-  } = useQuizChainIntegration();
+const {
+  selectedChain,
+  isWalletConnected,
+  walletReadiness,
+  currentWallet,
+  getNetworkDisplayName,
+} = useQuizChainIntegration({
+  externalConfig: {
+    web3Chain: setupConfig.web3Chain,
+    evmNetwork: (setupConfig as any).evmNetwork,
+    solanaCluster: (setupConfig as any).solanaCluster,
+    stellarNetwork: setupConfig.stellarNetwork,
+  }
+});
 
-  const walletActions = useWalletActions();
+const walletActions = useWalletActions({
+  externalSetupConfig: {
+    web3Chain: setupConfig.web3Chain,
+    evmNetwork: (setupConfig as any).evmNetwork,
+  }
+});
   const contractActions = useContractActions();
 
   // Local state
@@ -141,6 +153,7 @@ export function useWeb3Launch({ onResetToFirst: _onResetToFirst, onBack: _onBack
     prizeSplits: setupConfig.prizeSplits,
     prizes: setupConfig.prizes,
     web3CharityAddress: (setupConfig as any)?.web3CharityAddress,
+    web3CharityName: (setupConfig as any)?.web3CharityName, 
     web3Charity: (setupConfig as any)?.web3Charity,
     charityName: (setupConfig as any)?.charityName,
     hostName: setupConfig.hostName,
@@ -157,6 +170,7 @@ export function useWeb3Launch({ onResetToFirst: _onResetToFirst, onBack: _onBack
     (setupConfig as any)?.web3CharityAddress,
     (setupConfig as any)?.web3Charity,
     (setupConfig as any)?.charityName,
+    (setupConfig as any)?.web3CharityName, 
     setupConfig.hostName,
     setupConfig.eventDateTime,
     setupConfig.roundDefinitions,
@@ -301,6 +315,13 @@ export function useWeb3Launch({ onResetToFirst: _onResetToFirst, onBack: _onBack
   // handleLaunch (your full original logic + clear draft on success)
   const handleLaunch = useCallback(async () => {
     if (launchState !== "ready" && launchState !== "error") return;
+
+      console.log('🔍 [Launch] setupConfig charity fields:', {
+    web3CharityName: (setupConfig as any)?.web3CharityName,
+    web3Charity: (setupConfig as any)?.web3Charity,
+    web3CharityId: (setupConfig as any)?.web3CharityId,
+    web3CharityOrgId: (setupConfig as any)?.web3CharityOrgId,
+  });
 
     setLaunchError(null);
 

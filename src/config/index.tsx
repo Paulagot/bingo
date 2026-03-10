@@ -30,6 +30,11 @@ import {
 
 import type { AppKitNetwork } from "@reown/appkit/networks";
 import { http } from "wagmi";
+import { Attribution } from 'ox/erc8021';
+
+const DATA_SUFFIX = Attribution.toDataSuffix({
+  codes: ['bc_vpqki8ri'],
+});
 
 // ---------------------------------------------
 // 🔐 Project ID
@@ -131,6 +136,7 @@ export const wagmiAdapter = new WagmiAdapter({
   networks: networks as unknown as [AppKitNetwork, ...AppKitNetwork[]],
   transports: evmTransports,
   ssr: true,
+   dataSuffix: DATA_SUFFIX,
 });
 
 export const solanaWeb3JsAdapter = new SolanaAdapter({

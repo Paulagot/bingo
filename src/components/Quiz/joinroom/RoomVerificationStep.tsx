@@ -69,6 +69,7 @@ export const RoomVerificationStep: React.FC<RoomVerificationStepProps> = ({
         <div>
           <h2 className="text-fg text-xl font-bold sm:text-2xl">Join Quiz Game</h2>
           <p className="text-fg/70 text-sm sm:text-base">Enter your details to join the fun!</p>
+           <p className="text-fg/70 text-sm sm:text-base">for Web3 Users only: If you are using a mobile wallet, please use the in app browser to access the quiz and connect your wallet. If you are on desktop, you can connect with a browser extension wallet or a mobile wallet via WalletConnect.</p>
         </div>
       </div>
 

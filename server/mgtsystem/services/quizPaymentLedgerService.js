@@ -11,6 +11,10 @@ const LEDGER_TABLE = `${TABLE_PREFIX}quiz_payment_ledger`;
  * Create a ledger entry for expected payment (player joining)
  * Can create as 'expected' OR 'claimed' depending on paymentClaimed flag
  */
+/**
+ * Create a ledger entry for expected payment (player joining)
+ * Can create as 'expected', 'claimed', OR 'confirmed' depending on context
+ */
 export async function createExpectedPayment({
   roomId,
   clubId,
@@ -22,20 +26,58 @@ export async function createExpectedPayment({
   paymentMethod = 'unknown',
   paymentSource = 'player_selected',
   clubPaymentMethodId = null,
-  paymentReference = null, // ✅ ADD THIS
-  claimedAt = null, // ✅ ADD THIS
+  paymentReference = null,
+  claimedAt = null,
   extraId = null,
   extraMetadata = null,
+  ticketId = null,
+  
+  // ✅ NEW: Support admin-assigned confirmed payments
+  status = null,              // explicit status override
+  confirmedAt = null,
+  confirmedBy = null,
+  confirmedByName = null,
+  confirmedByRole = null,
 }) {
-  // ✅ Determine status based on whether it was claimed
-  const status = claimedAt ? 'claimed' : 'expected';
+  // ✅ Check if ticket ledger entry already exists
+  if (ticketId) {
+    const checkSql = `
+      SELECT id 
+      FROM ${LEDGER_TABLE}
+      WHERE ticket_id = ? 
+        AND ledger_type = ?
+        AND (extra_id = ? OR (extra_id IS NULL AND ? IS NULL))
+      LIMIT 1
+    `;
+    
+    const [existing] = await connection.execute(checkSql, [
+      ticketId,
+      ledgerType,
+      extraId,
+      extraId
+    ]);
+    
+    if (existing.length > 0) {
+      console.log('[Ledger] ⚠️ Ticket entry already exists, skipping:', {
+        ticketId,
+        ledgerType,
+        extraId
+      });
+     return existing[0].id;
+    }
+  }
+  
+  // ✅ NEW: Determine status intelligently
+  // Priority: explicit status > confirmed > claimed > expected
+  const finalStatus = status || (confirmedAt ? 'confirmed' : (claimedAt ? 'claimed' : 'expected'));
   
   const sql = `
-    INSERT INTO fundraisely_quiz_payment_ledger
+    INSERT INTO ${LEDGER_TABLE}
       (room_id, club_id, player_id, player_name, ledger_type, amount, currency, 
        status, payment_method, payment_source, club_payment_method_id, 
-       payment_reference, claimed_at, extra_id, extra_metadata)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       payment_reference, claimed_at, confirmed_at, confirmed_by, 
+       confirmed_by_name, confirmed_by_role, extra_id, extra_metadata, ticket_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
   
   const [result] = await connection.execute(sql, [
@@ -46,14 +88,19 @@ export async function createExpectedPayment({
     ledgerType, 
     amount, 
     currency,
-    status, // ✅ Dynamic: 'expected' or 'claimed'
+    finalStatus,                    // ✅ Use calculated status
     paymentMethod, 
     paymentSource, 
     clubPaymentMethodId,
-    paymentReference, // ✅ NEW
-    claimedAt, // ✅ NEW
+    paymentReference,
+    claimedAt,
+    confirmedAt,                    // ✅ NEW
+    confirmedBy,                    // ✅ NEW
+    confirmedByName,                // ✅ NEW
+    confirmedByRole,                // ✅ NEW
     extraId, 
-    extraMetadata ? JSON.stringify(extraMetadata) : null
+    extraMetadata ? JSON.stringify(extraMetadata) : null,
+    ticketId,
   ]);
   
   return result.insertId;
@@ -105,51 +152,60 @@ export async function claimPayment({
 export async function confirmPayment({
   roomId,
   playerId,
-  confirmedBy, // admin/host user_id
-  paymentMethod = null, // ✅ NEW: Allow admin to specify actual method
-  clubPaymentMethodId = null, // ✅ NEW
-  adminNotes = null,
+  confirmedBy,
+  confirmedByName,
+  confirmedByRole,
+  adminNotes,
+
+  // ✅ NEW:
+  paymentMethod = null,
+  clubPaymentMethodId = null,
 }) {
-  // Build dynamic SQL based on what's provided
-  const updates = [
-    "status = 'confirmed'",
-    "confirmed_at = NOW()",
-    "confirmed_by = ?",
-    "updated_at = NOW()"
-  ];
-  
-  const params = [confirmedBy];
-  
-  if (paymentMethod) {
-    updates.push("payment_method = ?");
-    params.push(paymentMethod);
+  const confirmerId = confirmedBy ?? null;
+
+  if (!roomId || !playerId || !confirmerId) {
+    console.warn('[Ledger] ❌ confirmPayment missing required fields', { roomId, playerId, confirmedBy });
+    return { ok: false, updated: 0 };
   }
-  
-  if (clubPaymentMethodId) {
-    updates.push("club_payment_method_id = ?");
-    params.push(clubPaymentMethodId);
-  }
-  
-  if (adminNotes) {
-    updates.push("admin_notes = ?");
-    params.push(adminNotes);
-  }
-  
-  // Add WHERE clause params
-  params.push(roomId, playerId);
-  
+
+  const name = confirmedByName ?? null;
+  const role = confirmedByRole ?? null;
+  const notes = adminNotes ?? null;
+
+  // ✅ Update ALL ledger rows (entry + extras)
+  // ✅ Only override payment_method/club_payment_method_id if provided
   const sql = `
-    UPDATE fundraisely_quiz_payment_ledger
-    SET ${updates.join(', ')}
-    WHERE room_id = ? 
-      AND player_id = ? 
-      AND status IN ('expected', 'claimed')
+    UPDATE ${LEDGER_TABLE}
+    SET
+      status = 'confirmed',
+      payment_method = COALESCE(?, payment_method),
+      club_payment_method_id = COALESCE(?, club_payment_method_id),
+      confirmed_at = NOW(),
+      confirmed_by = ?,
+      confirmed_by_name = ?,
+      confirmed_by_role = ?,
+      admin_notes = ?,
+      updated_at = NOW()
+    WHERE room_id = ?
+      AND player_id = ?
+      AND status IN ('claimed', 'expected')
   `;
-  
+
+  const params = [
+    paymentMethod,                 // can be null → keep existing
+    clubPaymentMethodId,           // can be null → keep existing
+    confirmerId,
+    name,
+    role,
+    notes,
+    roomId,
+    playerId,
+  ];
+
   const [result] = await connection.execute(sql, params);
-  
-  return result.affectedRows > 0;
+  return { ok: result.affectedRows > 0, updated: result.affectedRows };
 }
+
 
 /**
  * Get payment summary for a room (for reconciliation)

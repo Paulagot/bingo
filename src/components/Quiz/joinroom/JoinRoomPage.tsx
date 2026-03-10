@@ -1,6 +1,6 @@
 
 import { useNavigate, useParams } from 'react-router-dom';
-import { JoinRoomFlow } from '../joinroom/JoinRoomFlow';
+import { JoinRoomFlow } from './JoinRoomFlow.tsx';
 
 const JoinRoomPage = () => {
   const navigate = useNavigate();

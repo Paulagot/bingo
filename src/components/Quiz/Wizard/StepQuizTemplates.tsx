@@ -1,6 +1,16 @@
 // src/components/Quiz/Wizard/StepQuizTemplates.tsx
 import React, { useMemo, useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Clock, Trophy, CheckCircle, X, Filter as FilterIcon, Sparkles } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Trophy,
+ 
+  CheckCircle as CheckCircle2,
+  X,
+  Filter as FilterIcon,
+} from 'lucide-react';
+
 import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
 import type { RoundTypeId, RoundConfig } from '../types/quiz';
 import { roundTypeDefaults, roundTypeMap } from '../constants/quiztypeconstants';
@@ -19,8 +29,11 @@ import {
   SelectItem,
 } from '../Wizard/select';
 
-const Debug = false
+const Debug = false;
 
+// ───────────────────────────────────────────────────────────────────────────────
+// Extras helper
+// ───────────────────────────────────────────────────────────────────────────────
 function buildEnabledExtrasForRound(roundType: RoundTypeId) {
   const enabledExtras: Record<string, boolean> = {};
 
@@ -35,7 +48,7 @@ function buildEnabledExtrasForRound(roundType: RoundTypeId) {
 }
 
 if (Debug) {
-  const ids = quizTemplates.map(t => t.id);
+  const ids = quizTemplates.map((t) => t.id);
   console.log('[Templates] All template IDs from constants:', ids);
 }
 
@@ -58,7 +71,7 @@ function computeRoundMinutes(round: RoundLite): number {
   if (round.type === 'hidden_object') {
     const puzzles = cfg.questionsPerRound || 0;
     const timePerPuzzle = cfg.hiddenObject?.timeLimitSeconds || 45;
-    const seconds = puzzles * timePerPuzzle * 1.5; // 1.5 = asking + brief review
+    const seconds = puzzles * timePerPuzzle * 1.5; // asking + brief review
     return Math.round((seconds / 60) * 10) / 10;
   }
 
@@ -109,6 +122,8 @@ function calculateDuration(
 }
 
 // ───────────────────────────────────────────────────────────────────────────────
+// Character bubble
+// ───────────────────────────────────────────────────────────────────────────────
 const Character = ({ message }: { message: string }) => {
   const getBubbleColor = (): string => {
     if (message.includes('Perfect!') || message.includes('🎉')) return 'bg-green-50 border-green-200';
@@ -132,6 +147,8 @@ const Character = ({ message }: { message: string }) => {
   );
 };
 
+// ───────────────────────────────────────────────────────────────────────────────
+// Filters
 // ───────────────────────────────────────────────────────────────────────────────
 type FilterState = {
   audience: 'All' | string;
@@ -171,41 +188,9 @@ function collectFilterOptions(templates: QuizTemplate[]) {
   };
 }
 
-function forceIncludeTemplates(
-  list: QuizTemplate[],
-  baseTemplates: QuizTemplate[],
-  max: number,
-  opts: { ids?: string[]; names?: string[] }
-) {
-  const ids = opts.ids ?? [];
-  const names = opts.names ?? [];
-
-  const forced = baseTemplates.filter(
-    (t) => ids.includes(t.id) || names.includes(t.name)
-  );
-
-  // Remove anything that is forced from the rest (prevents duplicates)
-  const rest = list.filter(
-    (t) => !ids.includes(t.id) && !names.includes(t.name)
-  );
-
-  return [...forced, ...rest].slice(0, max);
-}
-
-
-// Default "Most popular" when no filters are active
-function pickMostPopular(templates: QuizTemplate[], max = 8) {
-  const score = (t: QuizTemplate) => {
-    let s = 0;
-    if (t.difficulty === 'Medium') s += 3;
-    if (t.tags.includes('Duration: ≈60m') || t.tags.includes('Duration: ≈65m') || t.tags.includes('Duration: ≈55m') || t.tags.includes('Duration: ≈70m')) s += 2;
-    if (t.tags.includes('Audience: Family Friendly') || t.tags.includes('Audience: Adults')) s += 2;
-    if (t.tags.some(tag => tag.startsWith('Topic: Mixed') || tag.startsWith('Topic: General'))) s += 1;
-    return s;
-  };
-  return [...templates].sort((a, b) => score(b) - score(a)).slice(0, max);
-}
-
+// ───────────────────────────────────────────────────────────────────────────────
+// Component
+// ───────────────────────────────────────────────────────────────────────────────
 const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst }) => {
   const { setupConfig, setTemplate, updateSetupConfig, flow } = useQuizSetupStore();
 
@@ -242,52 +227,27 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
 
     // Hide demo unless Dev plan
     if (!isDevPlan) {
-      list = list.filter(t => t.id !== 'demo-quiz');
+      list = list.filter((t) => t.id !== 'demo-quiz');
     }
 
     // Ensure demo-quiz appears first only if present (i.e., devs)
     list.sort((a, b) => (a.id === 'demo-quiz' ? -1 : b.id === 'demo-quiz' ? 1 : 0));
 
-    if (Debug) console.log('[Templates] isDevPlan:', isDevPlan, 'baseTemplates ids:', list.map(t => t.id));
+    if (Debug) console.log('[Templates] isDevPlan:', isDevPlan, 'baseTemplates ids:', list.map((t) => t.id));
     return list;
   }, [isDevPlan]);
 
   const filterOptions = useMemo(() => collectFilterOptions(baseTemplates), [baseTemplates]);
+
   const anyFilterActive =
-    filters.audience !== 'All' || filters.topic !== 'All' || filters.difficulty !== 'All' || filters.duration !== 'All';
+    filters.audience !== 'All' ||
+    filters.topic !== 'All' ||
+    filters.difficulty !== 'All' ||
+    filters.duration !== 'All';
 
+  // ✅ Always start from ALL templates; filters narrow the list.
   const filteredTemplates = useMemo(() => {
-    const active =
-      filters.audience !== 'All' || filters.topic !== 'All' || filters.difficulty !== 'All' || filters.duration !== 'All';
-
-    // Start with either all (when filtering) or the "popular" slice
-   let start = active ? baseTemplates : pickMostPopular(baseTemplates, 8);
-
-// ✅ Force include a specific template in the unfiltered "Most popular" view
-if (!active) {
-  start = forceIncludeTemplates(start, baseTemplates, 8, {
-    // Prefer id if possible (safer)
-    ids: ['Sample'],
-    // OR by name (works too)
-    // names: ['Kids Marathon'],
-  });
-}
-
-    // Only force/prioritise demo in the unfiltered view for Dev plan
-    if (!active && isDevPlan) {
-      const hasDemo = start.some(t => t.id === 'demo-quiz');
-      if (!hasDemo) {
-        const demo = baseTemplates.find(t => t.id === 'demo-quiz');
-        if (demo) start = [demo, ...start].slice(0, 8);
-      } else {
-        start = [
-          ...start.filter(t => t.id === 'demo-quiz'),
-          ...start.filter(t => t.id !== 'demo-quiz'),
-        ];
-      }
-    }
-
-    const list = start.filter((t) => {
+    const list = baseTemplates.filter((t) => {
       const hasAudience = filters.audience === 'All' || t.tags.some((tag) => tag === `Audience: ${filters.audience}`);
       const hasTopic = filters.topic === 'All' || t.tags.some((tag) => tag === `Topic: ${filters.topic}`);
       const hasDifficulty = filters.difficulty === 'All' || t.difficulty === filters.difficulty;
@@ -296,16 +256,30 @@ if (!active) {
     });
 
     if (Debug) {
-      console.log('[Templates] anyFilterActive:', active);
-      console.log('[Templates] filteredTemplates ids:', list.map(t => t.id));
+      console.log('[Templates] anyFilterActive:', anyFilterActive);
+      console.log('[Templates] filteredTemplates ids:', list.map((t) => t.id));
     }
 
     return list;
-  }, [filters, baseTemplates, isDevPlan]);
+  }, [filters, baseTemplates, anyFilterActive]);
+
+  const totalAvailable = baseTemplates.length;
+  const shownCount = filteredTemplates.length;
 
   const getRoundTypeInfo = (type: RoundTypeId, customConfig?: Partial<RoundConfig>) => {
     const roundType = roundTypeMap[type];
-    const icon = type === 'general_trivia' ? '🧠' : type === 'wipeout' ? '💀' : type === 'speed_round' ? '⚡' : type === 'hidden_object' ? '🔎' : type === 'order_image' ? '🔢' : '❓';
+    const icon =
+      type === 'general_trivia'
+        ? '🧠'
+        : type === 'wipeout'
+        ? '💀'
+        : type === 'speed_round'
+        ? '⚡'
+        : type === 'hidden_object'
+        ? '🔎'
+        : type === 'order_image'
+        ? '🔢'
+        : '❓';
 
     if (roundType) {
       const time = computeRoundMinutes({ type, customConfig });
@@ -337,24 +311,23 @@ if (!active) {
     if (!template) return;
 
     // ✅ Templates are authoritative - no overrides
-  const roundDefinitions = template.rounds.map((round, index) => {
-  const defaults = roundTypeDefaults[round.type] ?? ({} as RoundConfig);
+    const roundDefinitions = template.rounds.map((round, index) => {
+      const defaults = roundTypeDefaults[round.type] ?? ({} as RoundConfig);
 
-  const cfg = {
-    ...defaults,
-    ...(round.customConfig ?? {}),
-  } as RoundConfig;
+      const cfg = {
+        ...defaults,
+        ...(round.customConfig ?? {}),
+      } as RoundConfig;
 
-  return {
-    roundNumber: index + 1,
-    roundType: round.type,
-    category: round.category,
-    difficulty: round.difficulty,
-    config: cfg,
-    enabledExtras: buildEnabledExtrasForRound(round.type), // ✅ not {}
-  };
-});
-
+      return {
+        roundNumber: index + 1,
+        roundType: round.type,
+        category: round.category,
+        difficulty: round.difficulty,
+        config: cfg,
+        enabledExtras: buildEnabledExtrasForRound(round.type),
+      };
+    });
 
     updateSetupConfig({
       roundDefinitions,
@@ -392,7 +365,7 @@ if (!active) {
       <div className="px-1">
         <h2 className="heading-2">Step 2 of 4: Select Quiz</h2>
         <div className="text-fg/70 mt-0.5 text-xs sm:text-sm">
-          Pick a preconfigured quiz. Use filters to match your audience and time.
+          Browse all templates below, or use filters to narrow by audience and time.
         </div>
       </div>
 
@@ -403,11 +376,7 @@ if (!active) {
         <div className="mb-2 flex items-center gap-2">
           <FilterIcon className="h-4 w-4 text-indigo-700" />
           <div className="text-sm font-medium text-indigo-900">Filters</div>
-          {!anyFilterActive && (
-            <div className="ml-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
-              <Sparkles className="h-3 w-3" /> Most popular
-            </div>
-          )}
+
           {anyFilterActive && (
             <button
               type="button"
@@ -420,7 +389,7 @@ if (!active) {
           )}
         </div>
 
-        {/* Styled dropdown row (shadcn Select with styled content) */}
+        {/* Styled dropdown row */}
         <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-4 sm:gap-4">
           <SelectField
             label="Audience"
@@ -453,6 +422,29 @@ if (!active) {
         </div>
       </div>
 
+      {/* ✅ Showing X of Y */}
+      <div className="flex items-center justify-between px-1">
+        <div className="text-fg/70 text-xs sm:text-sm">
+          Showing <span className="font-semibold text-fg">{shownCount}</span> of{' '}
+          <span className="font-semibold text-fg">{totalAvailable}</span> templates
+          {anyFilterActive && (
+            <span className="ml-2 text-fg/60">
+              {shownCount === 0 ? '(No matches — try clearing filters)' : '(Filtered)'}
+            </span>
+          )}
+        </div>
+
+        {anyFilterActive && (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="text-xs sm:text-sm font-medium text-indigo-700 hover:text-indigo-900"
+          >
+            View all →
+          </button>
+        )}
+      </div>
+
       {/* Template Grid */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
         {filteredTemplates.map((template) => {
@@ -467,7 +459,7 @@ if (!active) {
             >
               {selectedTemplate === template.id && (
                 <div className="absolute right-2 top-2">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <CheckCircle2 className="h-5 w-5 text-green-600" />
                 </div>
               )}
 
@@ -528,13 +520,31 @@ if (!active) {
         })}
       </div>
 
+      {/* Empty state (if filters hide everything) */}
+      {filteredTemplates.length === 0 && (
+        <div className="rounded-lg border border-orange-200 bg-orange-50 p-3 sm:p-4">
+          <div className="text-sm font-medium text-orange-900">No templates match your filters.</div>
+          <div className="mt-1 text-xs text-orange-800 sm:text-sm">
+            Try clearing one or more filters to see more options.
+          </div>
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="mt-3 inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white px-4 py-2 text-sm font-medium text-orange-800 hover:bg-orange-100"
+          >
+            <X className="h-4 w-4" />
+            Clear filters
+          </button>
+        </div>
+      )}
+
       {/* Help */}
       <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 sm:p-4">
         <h4 className="mb-2 text-sm font-medium text-blue-900 sm:text-base">💡 Quick Guide</h4>
         <ul className="space-y-1 text-xs text-blue-800 sm:text-sm">
-          <li>• Times include asking, review/leaderboard, and scheduled breaks (heuristic-based)</li>
-          <li>• Breaks are placed smartly by audience, difficulty, and quiz length</li>
-          <li>• When no filters are applied you'll see "Most popular" — swap to real data later</li>
+          <li>• You are browsing the full library — use filters to narrow it down.</li>
+          <li>• Times include asking, review/leaderboard, and scheduled breaks (heuristic-based).</li>
+          <li>• Breaks are placed smartly by audience, difficulty, and quiz length.</li>
         </ul>
       </div>
 
@@ -578,8 +588,15 @@ function TemplateStructure({
   template: QuizTemplate;
   expandedTemplate: string | null;
   setExpandedTemplate: (id: string | null) => void;
-  getRoundTypeInfo: (type: RoundTypeId, customConfig?: Partial<RoundConfig>) => {
-    icon: string; name: string; time: number; questionsCount?: number; timed?: number;
+  getRoundTypeInfo: (
+    type: RoundTypeId,
+    customConfig?: Partial<RoundConfig>
+  ) => {
+    icon: string;
+    name: string;
+    time: number;
+    questionsCount?: number;
+    timed?: number;
   };
   breakPositions: number[];
   totalMinutes: number;
@@ -689,8 +706,7 @@ function TemplateStructure({
           {template.rounds.length > 3 && (
             <div className="text-fg/60 pl-6 text-xs">
               +{template.rounds.length - 3} more rounds
-              {breakPositions.length > 0 &&
-                ` • ${breakPositions.length} break${breakPositions.length > 1 ? 's' : ''}`}
+              {breakPositions.length > 0 && ` • ${breakPositions.length} break${breakPositions.length > 1 ? 's' : ''}`}
             </div>
           )}
         </div>
@@ -721,6 +737,7 @@ function SelectField({
   return (
     <div className="flex flex-col gap-1">
       <span className="text-[11px] font-medium text-fg/70 uppercase tracking-wide">{label}</span>
+
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger className="w-full rounded-full border border-border bg-white pl-3 pr-8 py-2 text-sm text-fg shadow-sm focus:outline-none">
           <div className="flex w-full items-center gap-2">
@@ -728,12 +745,8 @@ function SelectField({
             <SelectValue placeholder="All" />
           </div>
         </SelectTrigger>
-        <SelectContent
-          className="
-            z-50 max-h-64 overflow-y-auto rounded-xl border border-border bg-white p-1 shadow-2xl
-            [--scrollbar-thumb:theme(colors.gray.300)]
-          "
-        >
+
+        <SelectContent className="z-50 max-h-64 overflow-y-auto rounded-xl border border-border bg-white p-1 shadow-2xl">
           {options.map((opt) => (
             <SelectItem
               key={opt}
@@ -748,11 +761,6 @@ function SelectField({
             >
               <div className="flex items-center gap-2">
                 <span className="text-fg">{opt}</span>
-                {opt !== 'All' && (
-                  <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-[10px] text-fg/70">
-                    Filter
-                  </span>
-                )}
               </div>
             </SelectItem>
           ))}
