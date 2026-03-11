@@ -62,24 +62,39 @@ export const useQuizChainIntegration = (opts?: Options) => {
   const activeChain = useWalletStore((s) => s.activeChain) as SupportedChain | null;
 
   // Merge external config with internal config
-  const effectiveConfig = useMemo(() => {
+const effectiveConfig = useMemo(() => {
+  // 🔥 If externalConfig is provided, trust it completely — don't merge with
+  // stale config/setupConfig values which may be from a previous session
+  if (opts?.externalConfig?.web3Chain) {
     return {
-      web3Chain: opts?.externalConfig?.web3Chain || setupConfig?.web3Chain || config?.web3Chain,
-      evmNetwork: opts?.externalConfig?.evmNetwork || (setupConfig as any)?.evmNetwork || config?.evmNetwork,
-      solanaCluster: opts?.externalConfig?.solanaCluster || (setupConfig as any)?.solanaCluster || config?.solanaCluster,
-      stellarNetwork: opts?.externalConfig?.stellarNetwork || (setupConfig as any)?.stellarNetwork || config?.stellarNetwork,
+      web3Chain: opts.externalConfig.web3Chain,
+      evmNetwork: opts.externalConfig.evmNetwork,
+      solanaCluster: opts.externalConfig.solanaCluster,
+      stellarNetwork: opts.externalConfig.stellarNetwork,
     };
-  }, [
-    opts?.externalConfig,
-    setupConfig?.web3Chain,
-    config?.web3Chain,
-    (setupConfig as any)?.evmNetwork,
-    config?.evmNetwork,
-    (setupConfig as any)?.solanaCluster,
-    config?.solanaCluster,
-    (setupConfig as any)?.stellarNetwork,
-    config?.stellarNetwork,
-  ]);
+  }
+
+  // No external config — use internal stores
+  return {
+    web3Chain: setupConfig?.web3Chain || config?.web3Chain,
+    evmNetwork: (setupConfig as any)?.evmNetwork || config?.evmNetwork,
+    solanaCluster: (setupConfig as any)?.solanaCluster || config?.solanaCluster,
+    stellarNetwork: (setupConfig as any)?.stellarNetwork || config?.stellarNetwork,
+  };
+}, [
+  opts?.externalConfig?.web3Chain,
+  opts?.externalConfig?.evmNetwork,
+  opts?.externalConfig?.solanaCluster,
+  opts?.externalConfig?.stellarNetwork,
+  setupConfig?.web3Chain,
+  config?.web3Chain,
+  (setupConfig as any)?.evmNetwork,
+  config?.evmNetwork,
+  (setupConfig as any)?.solanaCluster,
+  config?.solanaCluster,
+  (setupConfig as any)?.stellarNetwork,
+  config?.stellarNetwork,
+]);
 
   // Determine selected chain
   const selectedChain: SupportedChain | null = useMemo(() => {

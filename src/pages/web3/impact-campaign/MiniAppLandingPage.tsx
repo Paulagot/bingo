@@ -19,7 +19,7 @@ import type { SupportedChain } from '../../../chains/types';
 // ─── Inner page (needs MiniApp context) ──────────────────────────────────────
 
 const MiniAppLandingInner: React.FC = () => {
-  const { isMiniApp, user } = useMiniAppContext();
+  const {  user } = useMiniAppContext();
 
   const [showWizard, setShowWizard] = useState(false);
   const [showJoin, setShowJoin]     = useState(false);
