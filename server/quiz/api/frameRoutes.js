@@ -103,7 +103,13 @@ router.get('/', (req, res) => {
   <meta property="og:description" content="Play, raise, and make an impact on-chain." />
   <meta property="og:image"       content="${BASE_URL}/embed-image.png" />
 </head>
-<body>FundRaisely Mini App</body>
+<body>
+  <script>window.location.replace('${BASE_URL}${TARGET_PATH}');</script>
+  <noscript>
+    <meta http-equiv="refresh" content="0;url=${BASE_URL}${TARGET_PATH}" />
+  </noscript>
+  <p>Redirecting to FundRaisely...</p>
+</body>
 </html>`);
 });
 
