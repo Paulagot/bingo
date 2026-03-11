@@ -89,27 +89,28 @@ export const Web3PaymentStep: React.FC<{
 
   const isOnCorrectNetwork = walletActions.isOnCorrectNetwork();
 
-  const handleWalletConnect = async () => {
-    try {
-      setError('');
-      setPaymentStatus('connecting');
+ const handleWalletConnect = async () => {
+  try {
+    setError('');
+    setPaymentStatus('connecting');
 
-      const result = await walletActions.connect();
+    const result = await walletActions.connect();
 
-      if (!result.success) {
-        const errorMsg =
-          'error' in result && result.error?.message
-            ? result.error.message
-            : 'Failed to connect wallet';
-        throw new Error(errorMsg);
-      }
-
-      setPaymentStatus('idle');
-    } catch (e: any) {
-      setError(e.message || 'Failed to connect wallet');
-      setPaymentStatus('idle');
+    if (!result.success) {
+      // 🔥 FIX: narrow the union before accessing .error
+      const errorMsg =
+        'error' in result && result.error?.message
+          ? result.error.message
+          : 'Failed to connect wallet';
+      throw new Error(errorMsg);
     }
-  };
+
+    setPaymentStatus('idle');
+  } catch (e: any) {
+    setError(e.message || 'Failed to connect wallet');
+    setPaymentStatus('idle');
+  }
+};
 
   const handleWeb3Join = async () => {
     try {

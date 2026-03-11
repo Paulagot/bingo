@@ -45,20 +45,21 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = fa
     return false;
   }, [force, config?.web3Chain, (config as any)?.paymentMethod, (config as any)?.isWeb3Room]);
 
+  // 🔥 FIX: Extract primitives first so roomConfig memo only changes
+  // when actual VALUES change, not when useQuizConfig returns a new object reference
+  const web3Chain = config?.web3Chain;
+  const evmNetwork = config?.evmNetwork;
+  const solanaCluster = (config as any)?.solanaCluster ?? (config as any)?.solanaNetwork;
+  const stellarNetwork = config?.stellarNetwork;
+
   const roomConfig = useMemo(
     () => ({
-      web3Chain: config?.web3Chain,
-      evmNetwork: config?.evmNetwork,
-      solanaCluster: (config as any)?.solanaCluster || (config as any)?.solanaNetwork,
-      stellarNetwork: config?.stellarNetwork,
+      web3Chain,
+      evmNetwork,
+      solanaCluster,
+      stellarNetwork,
     }),
-    [
-      config?.web3Chain,
-      config?.evmNetwork,
-      (config as any)?.solanaCluster,
-      (config as any)?.solanaNetwork,
-      config?.stellarNetwork,
-    ]
+    [web3Chain, evmNetwork, solanaCluster, stellarNetwork]
   );
 
   useEffect(() => {
@@ -103,13 +104,13 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = fa
           appKitModule,
           wagmiModule,
           queryModule,
-          _solanaModule, // 🔥 Prefixed with underscore - needed for import but not directly used
+          _solanaModule,
           configModule,
         ] = await Promise.all([
           import('@reown/appkit/react'),
           import('wagmi'),
           import('@tanstack/react-query'),
-          import('@reown/appkit-adapter-solana/react'), // Still imported for side effects
+          import('@reown/appkit-adapter-solana/react'),
           import('../config'),
         ]);
 
@@ -128,58 +129,50 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = fa
           defaultOptions: { queries: { staleTime: 90_000, gcTime: 600_000 } },
         });
 
-if (!appKitInstance) {
-  console.log('🔧 [Web3Provider] Creating AppKit instance');
-  
-  appKitInstance = createAppKit({
-    adapters: [wagmiAdapter, solanaWeb3JsAdapter],
-    projectId,
-    networks,
-    metadata,
-    
-    themeMode: 'dark',
-    themeVariables: {
-      '--w3m-z-index': 2147483647,
-      '--w3m-accent': '#6366f1',
-    },
-    
-    // 🔥 Wallet display configuration
-    allWallets: 'SHOW',
-    
-    featuredWalletIds: [
-      'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
-      'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa', // Coinbase
-      '19177a98252e07ddfc9af2083ba8e07ef627cb6103467ffebb3f8f4205fd7927', // Phantom
-      '38f5d18bd8522c244bdd70cb4a68e0e718865155811c043f052fb9f1c51de662', // Backpack
-      'c03dfee351b6fcc421b4494ea33b9d4b92a984f87aa76d1663bb28705e95034a', // Exodus
-    ],
-    
-    // 🔥 Disable social/email features
-    features: {
-      socials: false,
-      email: false,
-      emailShowWallets: false,
-      analytics: false, // Disable analytics
-      swaps: false, // Disable swaps
-      onramp: false, // Disable on-ramp
-    },
-    
-    // 🔥 CRITICAL: Enable all connection methods
-    enableWalletConnect: true,
-    enableInjected: true,
-    enableEIP6963: true,
-    enableCoinbase: true,
-    
-    // 🔥 CRITICAL for mobile: Allow all Coinbase wallet types
-    coinbasePreference: 'all', // Changed from 'smartWalletOnly'
-    
-    // 🔥 Add these for better mobile support
-    
-    defaultNetwork: networks[0],
-  });
-  
-  console.log('✅ [Web3Provider] AppKit instance created');
-}
+        if (!appKitInstance) {
+          console.log('🔧 [Web3Provider] Creating AppKit instance');
+          
+          appKitInstance = createAppKit({
+            adapters: [wagmiAdapter, solanaWeb3JsAdapter],
+            projectId,
+            networks,
+            metadata,
+            
+            themeMode: 'dark',
+            themeVariables: {
+              '--w3m-z-index': 2147483647,
+              '--w3m-accent': '#6366f1',
+            },
+            
+            allWallets: 'SHOW',
+            
+            featuredWalletIds: [
+              'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
+              'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa', // Coinbase
+              '19177a98252e07ddfc9af2083ba8e07ef627cb6103467ffebb3f8f4205fd7927', // Phantom
+              '38f5d18bd8522c244bdd70cb4a68e0e718865155811c043f052fb9f1c51de662', // Backpack
+              'c03dfee351b6fcc421b4494ea33b9d4b92a984f87aa76d1663bb28705e95034a', // Exodus
+            ],
+            
+            features: {
+              socials: false,
+              email: false,
+              emailShowWallets: false,
+              analytics: false,
+              swaps: false,
+              onramp: false,
+            },
+            
+            enableWalletConnect: true,
+            enableInjected: true,
+            enableEIP6963: true,
+            enableCoinbase: true,
+            coinbasePreference: 'all',
+            defaultNetwork: networks[0],
+          });
+          
+          console.log('✅ [Web3Provider] AppKit instance created');
+        }
 
         const result = {
           AppKitProvider,

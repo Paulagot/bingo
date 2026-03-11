@@ -242,26 +242,27 @@ const walletActions = useWalletActions({
   );
 
   // Improved: Save draft BEFORE connect
-  const handleWalletConnect = useCallback(async () => {
-    console.log("[useWeb3Launch] handleWalletConnect called");
+const handleWalletConnect = useCallback(async () => {
+  console.log("[useWeb3Launch] handleWalletConnect called");
 
-    // Save current quiz setup before opening wallet modal (handles reloads)
-    saveQuizDraft(setupConfig);
+  saveQuizDraft(setupConfig);
 
-    try {
-      const res = await walletActions.connect();
-      
-      if (!res.success) {
-        console.error("[useWeb3Launch] Wallet connection failed:", res.error);
-        throw new Error(res.error?.message || "Wallet connection failed");
-      }
-      
-      console.log("[useWeb3Launch] Wallet connected successfully");
-    } catch (err) {
-      console.error("[useWeb3Launch] Wallet connection error:", err);
-      setLaunchError(err instanceof Error ? err.message : "Wallet connection failed");
+  try {
+    const res = await walletActions.connect();
+    
+    if (!res.success) {
+      // 🔥 FIX: use 'error' in res guard before accessing .error
+      const errorMsg = ('error' in res && res.error?.message) ? res.error.message : "Wallet connection failed";
+      console.error("[useWeb3Launch] Wallet connection failed:", 'error' in res ? res.error : 'unknown');
+      throw new Error(errorMsg);
     }
-  }, [walletActions.connect, setupConfig]);  // Depend on setupConfig for save
+    
+    console.log("[useWeb3Launch] Wallet connected successfully");
+  } catch (err) {
+    console.error("[useWeb3Launch] Wallet connection error:", err);
+    setLaunchError(err instanceof Error ? err.message : "Wallet connection failed");
+  }
+}, [walletActions.connect, setupConfig]);
 
   const handleWalletDisconnect = useCallback(async () => {
     try {

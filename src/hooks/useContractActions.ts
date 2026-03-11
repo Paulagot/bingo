@@ -12,6 +12,7 @@ import type { SupportedChain } from '../chains/types';
 import { useEvmJoin } from '../chains/evm/hooks/useEvmJoin';
 import { useEvmDeploy } from '../chains/evm/hooks/useEvmDeploy';
 import { useEvmDistributePrizes } from '../chains/evm/hooks/useEvmDistributePrizes';
+import { setDeploymentInProgress } from './useWalletActions';
 
 /* ------------------------- Solana hooks ------------------------- */
 import { useSolanaCreatePoolRoom } from '../chains/solana/hooks/useSolanaCreatePoolRoom';
@@ -320,24 +321,27 @@ export function useContractActions(opts?: Options) {
 
   /** ---------------- DEPLOY ---------------- */
   const deploy = useCallback(
-    async (params: DeployParams): Promise<DeployResult> => {
-      console.log('[useContractActions][deploy] 🚀 Starting deployment');
-      console.log('[useContractActions][deploy] Effective chain:', effectiveChain);
-      console.log('[useContractActions][deploy] Params:', params);
+  async (params: DeployParams): Promise<DeployResult> => {
+    console.log('[useContractActions][deploy] 🚀 Starting deployment');
+    console.log('[useContractActions][deploy] Effective chain:', effectiveChain);
+    console.log('[useContractActions][deploy] Params:', params);
 
+    // 🔥 Raise the flag — prevents auto-switch from firing mid-deployment
+    setDeploymentInProgress(true);
+
+    try {
       if (effectiveChain === 'stellar') {
         throw new Error('Stellar deployment must be handled through StellarLaunchSection component');
       }
 
       if (effectiveChain === 'evm') {
         console.log('[useContractActions][deploy] ➡️  Delegating to EVM');
-        return evmDeploy(params);
+        return await evmDeploy(params);
       }
 
       if (effectiveChain === 'solana') {
         console.log('[useContractActions][deploy] ➡️  Delegating to Solana');
 
-        // ✅ UPDATED: default to USDG, typed as SolanaTokenCode
         const currency = (params.currency ?? 'USDG').toUpperCase() as SolanaTokenCode;
 
         if (params.prizeMode === 'assets') {
@@ -406,9 +410,15 @@ export function useContractActions(opts?: Options) {
       }
 
       throw new Error(`Deployment not implemented for ${effectiveChain} chain`);
-    },
-    [effectiveChain, evmDeploy, solanaCreatePoolRoom, solanaCreateAssetRoom]
-  );
+
+    } finally {
+      // 🔥 Always lower the flag — even if deployment throws
+      setDeploymentInProgress(false);
+      console.log('[useContractActions][deploy] 🏁 Deployment flag cleared');
+    }
+  },
+  [effectiveChain, evmDeploy, solanaCreatePoolRoom, solanaCreateAssetRoom]
+);
 
   return { deploy, joinRoom, distributePrizes };
 }

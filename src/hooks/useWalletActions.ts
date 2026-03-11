@@ -4,7 +4,7 @@ import { useCallback, useMemo, useEffect } from "react";
 import { useWalletStore } from "../stores/walletStore";
 import { useQuizSetupStore } from "../components/Quiz/hooks/useQuizSetupStore";
 import { useMiniAppContext } from '../context/MiniAppContext';
-import { useConnection } from 'wagmi';  // ← wagmi v3: useAccount renamed to useConnection
+import { useConnection } from 'wagmi';
 
 import {
   useAppKitProvider,
@@ -19,7 +19,7 @@ import {
 import { WalletErrorCode } from "../chains/types";
 import { useStellarWallet } from "../chains/stellar/useStellarWallet";
 import { useQuizConfig } from "../components/Quiz/hooks/useQuizConfig";
-import { getMetaByKey, getKeyById, type EvmNetworkKey } from "../chains/evm/config/networks";
+import { getMetaByKey, type EvmNetworkKey } from "../chains/evm/config/networks";
 
 type ChainFamily = 'evm' | 'solana' | 'stellar' | null;
 
@@ -29,6 +29,18 @@ interface WalletActionsOptions {
 
 const DEBUG = true;
 const log = (...args: any[]) => DEBUG && console.log('[useWalletActions]', ...args);
+
+// 🔥 Module-level switch guard — shared across ALL hook instances
+// Prevents multiple simultaneous auto-switches when several consumers
+// of useWalletActions are mounted at the same time
+let globalSwitchInProgress = false;
+let globalSwitchTarget: number | null = null;
+
+// 🔥 NEW: Prevents auto-switch from firing during contract deployment
+let globalDeploymentInProgress = false;
+export const setDeploymentInProgress = (val: boolean) => {
+  globalDeploymentInProgress = val;
+};
 
 /* -------------------------------------------------------------
    Determine CHAIN FAMILY (memoized)
@@ -88,6 +100,48 @@ function useResolvedChainFamily(externalSetupConfig?: any): ChainFamily {
 }
 
 /* -------------------------------------------------------------
+   EIP-1193 direct network switch
+   Pushes wallet_switchEthereumChain to the actual wallet (e.g. MetaMask)
+   rather than just updating AppKit's internal state.
+-------------------------------------------------------------- */
+async function switchViaEIP1193(
+  provider: any,
+  chainId: number,
+  chainName: string,
+  rpcUrl: string,
+  nativeCurrency: { name: string; symbol: string; decimals: number },
+  blockExplorer: string
+): Promise<void> {
+  const chainIdHex = `0x${chainId.toString(16)}`;
+
+  try {
+    await provider.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: chainIdHex }],
+    });
+    log(`✅ [EIP-1193] Switched to chain ${chainId}`);
+  } catch (switchErr: any) {
+    // Error code 4902 = chain not added to wallet yet
+    if (switchErr?.code === 4902 || switchErr?.code === -32603) {
+      log(`⚠️ [EIP-1193] Chain ${chainId} not in wallet, attempting to add...`);
+      await provider.request({
+        method: 'wallet_addEthereumChain',
+        params: [{
+          chainId: chainIdHex,
+          chainName,
+          rpcUrls: [rpcUrl],
+          nativeCurrency,
+          blockExplorerUrls: [blockExplorer],
+        }],
+      });
+      log(`✅ [EIP-1193] Chain ${chainId} added and switched`);
+    } else {
+      throw switchErr;
+    }
+  }
+}
+
+/* -------------------------------------------------------------
    MAIN HOOK
 -------------------------------------------------------------- */
 export function useWalletActions(options?: WalletActionsOptions) {
@@ -98,7 +152,7 @@ export function useWalletActions(options?: WalletActionsOptions) {
   // Mini app detection
   const { isMiniApp } = useMiniAppContext();
 
-  // wagmi v3: useConnection replaces useAccount
+  // wagmi v3: useConnection is the correct hook
   const { address: wagmiAddress, isConnected: wagmiIsConnected, status: wagmiStatus } = useConnection();
 
   log('🔍 Mini app state:', {
@@ -131,6 +185,7 @@ export function useWalletActions(options?: WalletActionsOptions) {
     stellarConnected: stellarWallet.isConnected,
     stellarAddress: stellarWallet.address,
     hasExternalConfig: !!options?.externalSetupConfig,
+    hasEvmProvider: !!evmWalletProvider,
   });
 
   /* -------------------------------------------------------------
@@ -221,28 +276,50 @@ export function useWalletActions(options?: WalletActionsOptions) {
       log('🎯 [getActualChainFamily] Mini app - wagmiIsConnected:', wagmiIsConnected);
       return wagmiIsConnected ? 'evm' : null;
     }
+
+    // 🔥 FIX: If AppKit is connected but caipNetwork hasn't settled yet
+    // (hydration gap after mount), return expected family to avoid false mismatch
+    if (appKitAccount.isConnected && !caipNetwork?.caipNetworkId) {
+      log('⚠️ [getActualChainFamily] AppKit connected but caipNetwork not yet settled, using expected family');
+      return chainFamily;
+    }
+
     const network = caipNetwork?.caipNetworkId;
     if (stellarWallet.isConnected) return 'stellar';
     if (network?.startsWith('eip155:')) return 'evm';
     if (network?.startsWith('solana:')) return 'solana';
     return null;
-  }, [isMiniApp, wagmiIsConnected, caipNetwork?.caipNetworkId, stellarWallet.isConnected]);
+  }, [
+    isMiniApp,
+    wagmiIsConnected,
+    appKitAccount.isConnected,
+    caipNetwork?.caipNetworkId,
+    stellarWallet.isConnected,
+    chainFamily,
+  ]);
 
   /* -------------------------------------------------------------
      HELPER: Check if on correct network
   -------------------------------------------------------------- */
   const isOnCorrectNetwork = useCallback((): boolean => {
-      if (isMiniApp) {
-    log('🎯 [Network Check] Mini app - locked to correct network');
-    return wagmiIsConnected;
-  }
+    if (isMiniApp) {
+      log('🎯 [Network Check] Mini app - locked to correct network');
+      return wagmiIsConnected;
+    }
+
     const expectedFamily = getExpectedChainFamily();
     const actualFamily = getActualChainFamily();
 
-    log('🔍 [Network Check] Chain Family:', { expected: expectedFamily, actual: actualFamily });
+    log('🔍 [Network Check] Chain Family:', JSON.stringify({ expected: expectedFamily, actual: actualFamily }));
 
     if (expectedFamily !== actualFamily) {
-      log('❌ [Network Check] Chain family mismatch!');
+      log('❌ [Network Check] Chain family mismatch!', JSON.stringify({
+        expectedFamily,
+        actualFamily,
+        caipNetworkId: caipNetwork?.caipNetworkId,
+        appKitConnected: appKitAccount.isConnected,
+        appKitStatus: appKitAccount.status,
+      }));
       return false;
     }
 
@@ -254,59 +331,130 @@ export function useWalletActions(options?: WalletActionsOptions) {
       }
       const currentChainId = getChainId();
       const isCorrect = currentChainId === expectedMeta.id;
-      log('🔍 [Network Check] EVM Network:', {
+      log('🔍 [Network Check] EVM Network:', JSON.stringify({
         current: currentChainId,
         expected: expectedMeta.id,
         expectedName: expectedMeta.name,
         isCorrect,
-      });
+      }));
       return isCorrect;
     }
 
     log('✅ [Network Check] Chain family matches:', expectedFamily);
     return true;
-  }, [getExpectedChainFamily, getActualChainFamily, getChainId, getExpectedNetwork]);
+  }, [
+    isMiniApp,
+    wagmiIsConnected,
+    getExpectedChainFamily,
+    getActualChainFamily,
+    getChainId,
+    getExpectedNetwork,
+    caipNetwork?.caipNetworkId,
+    appKitAccount.isConnected,
+    appKitAccount.status,
+  ]);
 
   /* -------------------------------------------------------------
      AUTO-SWITCH EVM NETWORK EFFECT
   -------------------------------------------------------------- */
   useEffect(() => {
-    const expectedFamily = getExpectedChainFamily();
-    const actualFamily = getActualChainFamily();
+    if (chainFamily !== 'evm') return;
+    if (isMiniApp) return;
 
-    if (expectedFamily !== 'evm') return;
-    if (actualFamily !== 'evm') {
-      log('⚠️ [Auto-Switch] Cannot switch - wrong chain family');
+    // 🔥 NEW: Don't switch networks during deployment
+if (globalDeploymentInProgress) {
+  log('⏭️ [Auto-Switch] Deployment in progress - skipping');
+  return;
+}
+    if (!appKitAccount.isConnected) return;
+
+    const expectedNetworkKey = (options?.externalSetupConfig || storeSetupConfig)?.evmNetwork as EvmNetworkKey | undefined;
+    if (!expectedNetworkKey) return;
+    const expectedMeta = getMetaByKey(expectedNetworkKey);
+    if (!expectedMeta) return;
+
+    const caipId = caipNetwork?.caipNetworkId;
+    if (!caipId) return;
+    if (!caipId.startsWith('eip155:')) {
+      log('⚠️ [Auto-Switch] Connected network is not EVM, skipping');
       return;
     }
 
-    // In mini app, chain switching is not needed — locked to Base Sepolia
-    if (isMiniApp) return;
+    const parts = caipId.split(':');
+    const currentChainId = parts[1] ? parseInt(parts[1], 10) : NaN;
+    if (isNaN(currentChainId)) return;
+    if (currentChainId === expectedMeta.id) return;
 
-    if (!appKitAccount.isConnected) return;
-    if (!switchNetwork) return;
-
-    const expectedMeta = getExpectedNetwork();
-    const currentChainId = getChainId();
-
-    if (expectedMeta && currentChainId && currentChainId !== expectedMeta.id) {
-      log('🔄 [EVM] Auto-switching to expected network...', {
-        from: currentChainId,
-        to: expectedMeta.id,
-        toName: expectedMeta.name,
-      });
-      switchNetwork(expectedMeta)
-        .then(() => log(`✅ [EVM] Successfully switched to ${expectedMeta.name}`))
-        .catch((err) => log('❌ [EVM] Auto-switch failed:', err));
+    if (globalSwitchInProgress && globalSwitchTarget === expectedMeta.id) {
+      log('⏭️ [Auto-Switch] Switch already in progress to', expectedMeta.name, '- skipping');
+      return;
     }
+    if (globalSwitchInProgress) {
+      log('⏭️ [Auto-Switch] Another switch in progress - skipping');
+      return;
+    }
+
+    log('🔄 [EVM] Auto-switching to expected network...', {
+      from: currentChainId,
+      to: expectedMeta.id,
+      toName: expectedMeta.name,
+      hasEIP1193Provider: !!evmWalletProvider,
+    });
+
+    globalSwitchInProgress = true;
+    globalSwitchTarget = typeof expectedMeta.id === 'number'
+      ? expectedMeta.id
+      : parseInt(String(expectedMeta.id), 10);
+
+      const rpcUrl = expectedMeta.rpcUrls?.default?.http?.[0] ?? '';
+const blockExplorer = expectedMeta.blockExplorers?.default?.url ?? '';
+const nativeCurrency = expectedMeta.nativeCurrency ?? { name: 'Ether', symbol: 'ETH', decimals: 18 };
+
+    const doSwitch = async () => {
+      try {
+        // 🔥 PRIMARY: Use EIP-1193 provider directly so the switch reaches
+        // the actual wallet (MetaMask etc.), not just AppKit's internal state
+        if (evmWalletProvider && (evmWalletProvider as any)?.request) {
+          log('🔌 [Auto-Switch] Using EIP-1193 direct provider switch');
+     await switchViaEIP1193(
+  evmWalletProvider,
+  expectedMeta.id as number,
+  expectedMeta.name,
+  rpcUrl,
+  nativeCurrency,
+  blockExplorer
+);
+          log(`✅ [EVM] EIP-1193 switch succeeded to ${expectedMeta.name}`);
+        } else if (switchNetwork) {
+          // 🔥 FALLBACK: AppKit switchNetwork if no direct provider yet
+          // (can happen briefly before provider is ready)
+          log('⚠️ [Auto-Switch] No EIP-1193 provider, falling back to AppKit switchNetwork');
+          await switchNetwork(expectedMeta);
+          log(`✅ [EVM] AppKit switch succeeded to ${expectedMeta.name}`);
+        } else {
+          log('❌ [Auto-Switch] No switch method available');
+        }
+      } catch (err) {
+        log('❌ [EVM] Auto-switch failed:', err);
+      } finally {
+        setTimeout(() => {
+          globalSwitchInProgress = false;
+          globalSwitchTarget = null;
+        }, 3000);
+      }
+    };
+
+    doSwitch();
+
   }, [
+    chainFamily,
     isMiniApp,
-    getExpectedChainFamily,
-    getActualChainFamily,
     appKitAccount.isConnected,
-    getExpectedNetwork,
-    getChainId,
+    evmWalletProvider,   // 🔥 added — needed for EIP-1193 path
     switchNetwork,
+    caipNetwork?.caipNetworkId,
+    options?.externalSetupConfig?.evmNetwork,
+    storeSetupConfig?.evmNetwork,
   ]);
 
   /* -------------------------------------------------------------
@@ -318,7 +466,6 @@ export function useWalletActions(options?: WalletActionsOptions) {
     if (chainFamily === 'stellar') return connectStellar();
 
     if (chainFamily === 'evm' || chainFamily === 'solana') {
-      // In mini app, wallet is auto-connected via SDK — nothing to do
       if (isMiniApp) {
         log('🎯 [Connect] Mini app - wallet already connected via SDK');
         return { success: true, address: wagmiAddress ?? null };
@@ -411,25 +558,30 @@ export function useWalletActions(options?: WalletActionsOptions) {
         return false;
     }
   }, [
-    isMiniApp, wagmiIsConnected,
-    chainFamily, appKitAccount.isConnected,
-    evmWalletProvider, solanaWalletProvider,
-    caipNetwork?.caipNetworkId, stellarWallet.isConnected,
+    isMiniApp,
+    wagmiIsConnected,
+    chainFamily,
+    appKitAccount.isConnected,
+    evmWalletProvider,
+    solanaWalletProvider,
+    caipNetwork?.caipNetworkId,
+    stellarWallet.isConnected,
   ]);
 
   /* -------------------------------------------------------------
      HELPER: Get network info
   -------------------------------------------------------------- */
   const getNetworkInfo = useCallback(() => {
-      if (isMiniApp) {
-    return {
-      currentChainId: 84532,
-      currentNetwork: 'Base Sepolia',
-      expectedChainId: 84532,
-      expectedNetwork: 'Base Sepolia',
-      isCorrect: wagmiIsConnected,
-    };
-  }
+    if (isMiniApp) {
+      return {
+        currentChainId: 8453,
+        currentNetwork: 'Base',
+        expectedChainId: 8453,
+        expectedNetwork: 'Base',
+        isCorrect: wagmiIsConnected,
+      };
+    }
+
     const expectedFamily = getExpectedChainFamily();
     const actualFamily = getActualChainFamily();
 
@@ -439,7 +591,7 @@ export function useWalletActions(options?: WalletActionsOptions) {
     if (actualFamily === 'solana') {
       currentNetwork = caipNetwork?.name || 'Solana Devnet';
     } else if (actualFamily === 'evm') {
-      currentNetwork = isMiniApp ? 'Base Sepolia' : (caipNetwork?.name || 'EVM');
+      currentNetwork = caipNetwork?.name || 'EVM';
     } else if (actualFamily === 'stellar') {
       currentNetwork = 'Stellar';
     }
@@ -465,6 +617,7 @@ export function useWalletActions(options?: WalletActionsOptions) {
     };
   }, [
     isMiniApp,
+    wagmiIsConnected,
     getExpectedChainFamily,
     getActualChainFamily,
     getChainId,
