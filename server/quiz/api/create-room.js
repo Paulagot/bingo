@@ -482,15 +482,10 @@ if (chain.toLowerCase() === 'solana') {
     setupConfig.deploymentTxHash = deploymentTxHash;
     setupConfig.web3Chain = setupConfig.web3ChainConfirmed || setupConfig.web3Chain || chain;
     
-    if (setupConfig.web3Chain === 'evm') {
-      setupConfig.evmNetwork = setupConfig.evmNetwork || req.body?.config?.evmNetwork || null;
-        console.log('========================================');
-  console.log('[API] ⛓️ EVM NETWORK RESOLUTION');
-  console.log('[API] ⛓️ evmNetwork from setupConfig:', evmNetworkFromConfig);
-  console.log('[API] ⛓️ evmNetwork from req.body.config:', evmNetworkFromBody);
-  console.log('[API] ⛓️ Final resolved evmNetwork:', evmNetworkFromConfig || evmNetworkFromBody || null);
-  console.log('========================================');
-    }
+ if (setupConfig.web3Chain === 'evm') {
+  setupConfig.evmNetwork = setupConfig.evmNetwork || req.body?.config?.evmNetwork || null;
+  console.log('[API] ⛓️ EVM NETWORK RESOLUTION - evmNetwork:', setupConfig.evmNetwork);
+}
 
     console.log('[API] 🔄 Starting room creation process...');
     console.log('[API] 📋 Web3 chain:', chain);
