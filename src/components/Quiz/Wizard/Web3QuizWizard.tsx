@@ -144,12 +144,19 @@ export default function QuizWeb3Wizard({ onComplete, onChainUpdate }: QuizWizard
     isReviewStep,
     force: hasReachedReview || isReviewStep,
   });
-
-  return (
-    <Web3Provider force={hasReachedReview || isReviewStep}>
-      {inner}
-    </Web3Provider>
-  );
+return (
+  <Web3Provider 
+    force={hasReachedReview || isReviewStep}
+    roomConfig={{
+      web3Chain: setupConfig.web3Chain,
+      evmNetwork: (setupConfig as any).evmNetwork,
+      solanaCluster: (setupConfig as any).solanaCluster,
+      stellarNetwork: setupConfig.stellarNetwork,
+    }}
+  >
+    {inner}
+  </Web3Provider>
+);
 }
 
 
