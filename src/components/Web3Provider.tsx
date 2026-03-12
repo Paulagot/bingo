@@ -3,9 +3,16 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { WalletProvider } from '../context/WalletContext';
 import { useQuizConfig } from './Quiz/hooks/useQuizConfig';
 
+
 interface Web3ProviderProps {
   children: React.ReactNode;
   force?: boolean;
+    roomConfig?: {
+    web3Chain?: string;
+    evmNetwork?: string;
+    solanaCluster?: string;
+    stellarNetwork?: string;
+  };
 }
 
 let initializationPromise: Promise<any> | null = null;
@@ -22,7 +29,7 @@ const Web3LoadingFallback: React.FC = () => (
   </div>
 );
 
-export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = false }) => {
+export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = false,  }) => {
   const [providers, setProviders] = useState(cachedProviders);
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout>();
@@ -119,7 +126,7 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = fa
         const { createAppKit, AppKitProvider } = appKitModule;
         const { WagmiProvider } = wagmiModule;
         const { QueryClient, QueryClientProvider } = queryModule;
-        const { wagmiAdapter, solanaWeb3JsAdapter, projectId, networks, metadata } = configModule;
+        const { wagmiAdapter, solanaWeb3JsAdapter, projectId, networks, metadata, solanaRpcUrls } = configModule;
 
         if (!projectId) {
           throw new Error('Missing VITE_PROJECT_ID environment variable');
@@ -137,6 +144,12 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = fa
             projectId,
             networks,
             metadata,
+
+customRpcUrls: {
+  'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': [{ url: solanaRpcUrls.mainnet }],   // mainnet
+  'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1': [{ url: solanaRpcUrls.devnet }],    // devnet
+  'solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z': [{ url: solanaRpcUrls.devnet }],    // testnet
+},
             
             themeMode: 'dark',
             themeVariables: {
@@ -253,7 +266,9 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = fa
     <AppKitProvider>
       <QueryClientProvider client={queryClient}>
         <WagmiProvider config={wagmiConfig}>
-          <WalletProvider roomConfig={roomConfig}>{children}</WalletProvider>
+         <WalletProvider roomConfig={roomConfig ?? { web3Chain, evmNetwork, solanaCluster, stellarNetwork }}>
+  {children}
+</WalletProvider>
         </WagmiProvider>
       </QueryClientProvider>
     </AppKitProvider>

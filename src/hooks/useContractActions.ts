@@ -411,11 +411,15 @@ export function useContractActions(opts?: Options) {
 
       throw new Error(`Deployment not implemented for ${effectiveChain} chain`);
 
-    } finally {
-      // 🔥 Always lower the flag — even if deployment throws
-      setDeploymentInProgress(false);
-      console.log('[useContractActions][deploy] 🏁 Deployment flag cleared');
-    }
+ } finally {
+  // 🔥 Delay clearing the flag so the auto-switch effect doesn't
+  // immediately fire on the re-render after a failed deployment.
+  // 2 seconds is enough for React to settle without blocking UX.
+  setTimeout(() => {
+    setDeploymentInProgress(false);
+    console.log('[useContractActions][deploy] 🏁 Deployment flag cleared');
+  }, 2000);
+}
   },
   [effectiveChain, evmDeploy, solanaCreatePoolRoom, solanaCreateAssetRoom]
 );

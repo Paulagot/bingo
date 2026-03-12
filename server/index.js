@@ -256,6 +256,7 @@ const ALLOWED_CONNECT = [
   'https://*.ankr.com',
   'https://*.llamarpc.com',
   'wss://avalanche-fuji.drpc.org',
+  'https://*.g.alchemy.com',
   ...(process.env.CSP_CONNECT_EXTRA?.split(',').map(s => s.trim()).filter(Boolean) ?? []),
 ];
 
