@@ -90,10 +90,10 @@ const CHOICES: Array<{
   { value: 'baseSepolia', label: 'Base Sepolia', description: 'EVM · Base testnet', kind: 'evm', evmNetwork: 'baseSepolia' },
   { value: 'avalancheFuji', label: 'Avalanche Fuji', description: 'EVM · Avalanche testnet', kind: 'evm', evmNetwork: 'avalancheFuji' },
   { value: 'solanaDevnet', label: 'Solana Devnet', description: 'Solana · Developer test network', kind: 'solana', solanaCluster: 'devnet' },
-
+  { value: 'base', label: 'Base', description: 'EVM · Coinbase L2 (mainnet)', kind: 'evm', evmNetwork: 'base' },
   // ----- COMMENTED OUT (uncomment when ready) -----
   // { value: 'stellar', label: 'Stellar', description: 'Fast, low-cost payments', kind: 'stellar' },
-  { value: 'base', label: 'Base', description: 'EVM · Coinbase L2 (mainnet)', kind: 'evm', evmNetwork: 'base' },
+
   // { value: 'bsc', label: 'BNB Smart Chain', description: 'EVM · BSC mainnet', kind: 'evm', evmNetwork: 'bsc' },
   // { value: 'bscTestnet', label: 'BNB Smart Chain Testnet', description: 'EVM · BSC testnet', kind: 'evm', evmNetwork: 'bscTestnet' },
   // { value: 'avalanche', label: 'Avalanche C-Chain', description: 'EVM · Avalanche mainnet', kind: 'evm', evmNetwork: 'avalanche' },
@@ -154,7 +154,7 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
   useEffect(() => {
   if (!isMiniApp) return;
   // Lock to Base Sepolia — no chain selection in mini app
-  setChoice('baseSepolia');
+  setChoice('base');
   setCurrency('USDC');
 }, [isMiniApp]);
 

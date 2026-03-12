@@ -359,6 +359,27 @@ router.post('/create-web3-room', async (req, res) => {
     
     const { config: setupConfig, roomId, hostId } = req.body;
 
+    // =============================================
+// 🔍 NETWORK DIAGNOSTIC LOGGING (add after destructuring req.body)
+// =============================================
+console.log('========================================');
+console.log('[API] 🌐 NETWORK FIELDS DIAGNOSTIC');
+console.log('[API] 🌐 Timestamp:', new Date().toISOString());
+console.log('[API] 🌐 web3Chain:', setupConfig?.web3Chain);
+console.log('[API] 🌐 web3ChainConfirmed:', setupConfig?.web3ChainConfirmed);
+console.log('[API] 🌐 evmNetwork:', setupConfig?.evmNetwork);
+console.log('[API] 🌐 solanaCluster:', setupConfig?.solanaCluster);
+console.log('[API] 🌐 stellarNetwork:', setupConfig?.stellarNetwork);
+console.log('[API] 🌐 hostWallet:', setupConfig?.hostWallet);
+console.log('[API] 🌐 hostWalletConfirmed:', setupConfig?.hostWalletConfirmed);
+console.log('[API] 🌐 roomContractAddress:', setupConfig?.roomContractAddress);
+console.log('[API] 🌐 deploymentTxHash:', setupConfig?.deploymentTxHash);
+console.log('[API] 🌐 entryFee:', setupConfig?.entryFee);
+console.log('[API] 🌐 web3Currency:', setupConfig?.web3Currency);
+console.log('[API] 🌐 isWeb3Room:', setupConfig?.isWeb3Room);
+console.log('[API] 🌐 paymentMethod:', setupConfig?.paymentMethod);
+console.log('========================================');
+
     // Basic validation
     if (!roomId || !hostId) {
       console.error('[API] ❌ Missing roomId or hostId in request');
@@ -463,6 +484,12 @@ if (chain.toLowerCase() === 'solana') {
     
     if (setupConfig.web3Chain === 'evm') {
       setupConfig.evmNetwork = setupConfig.evmNetwork || req.body?.config?.evmNetwork || null;
+        console.log('========================================');
+  console.log('[API] ⛓️ EVM NETWORK RESOLUTION');
+  console.log('[API] ⛓️ evmNetwork from setupConfig:', evmNetworkFromConfig);
+  console.log('[API] ⛓️ evmNetwork from req.body.config:', evmNetworkFromBody);
+  console.log('[API] ⛓️ Final resolved evmNetwork:', evmNetworkFromConfig || evmNetworkFromBody || null);
+  console.log('========================================');
     }
 
     console.log('[API] 🔄 Starting room creation process...');
