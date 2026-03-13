@@ -298,11 +298,14 @@ export function useEvmJoin() {
 
                 console.log('🔑 [joinRoom] Approval tx:', approveHash);
 
-                await waitForTransactionReceipt(wagmiConfig, {
-                  hash: approveHash,
-                  chainId,
-                  confirmations: 2,
-                });
+            // Approval receipt
+await waitForTransactionReceipt(wagmiConfig, {
+  hash: approveHash,
+  chainId,
+  confirmations: 1,    // ← drop to 1, 2 is unnecessarily slow
+  timeout: 60_000,     // ← wait up to 60 seconds
+  pollingInterval: 2_000, // ← poll every 2 seconds
+});
 
                 console.log('✅ [joinRoom] Approval confirmed');
 
@@ -367,10 +370,12 @@ export function useEvmJoin() {
 
           console.log('🎯 [joinRoom] Join tx:', joinHash);
 
-          await waitForTransactionReceipt(wagmiConfig, {
-            hash: joinHash,
-            chainId,
-          });
+       await waitForTransactionReceipt(wagmiConfig, {
+  hash: joinHash,
+  chainId,
+  timeout: 60_000,
+  pollingInterval: 2_000,
+});
 
           console.log('✅ [joinRoom] Successfully joined room');
           return { success: true, txHash: joinHash as `0x${string}` };
