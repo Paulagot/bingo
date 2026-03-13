@@ -2,8 +2,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuizConfig } from '../hooks/useQuizConfig';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
-import { useQuizChainIntegration } from '../../../hooks/useQuizChainIntegration';
 import { useRoomIdentity } from '../hooks/useRoomIdentity';
+import { toChainConfig } from '../../../types/chainConfig';
+import { useChainWallet } from '../../../hooks/useChainWallet';
 import { useQuizContract as useStellarQuizContract } from '../../../chains/stellar/useQuizContract';
 
 import {
@@ -42,9 +43,11 @@ const StellarAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
   const { config, setFullConfig } = useQuizConfig();
   const { socket, connected } = useQuizSocket();
   const { roomId } = useRoomIdentity();
-  const { isWalletConnected, currentWallet } = useQuizChainIntegration();
 
-  // Stellar-specific contract hook
+  const chainConfig = toChainConfig(config);
+  const { isConnected: isWalletConnected, address } = useChainWallet(chainConfig);
+
+  // Stellar-specific contract hook — untouched
   const stellarContract = useStellarQuizContract();
 
   const [copying, setCopying] = useState<string | null>(null);
@@ -167,7 +170,6 @@ const StellarAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
     }
   };
 
-  // Check if uploads can proceed (check if function exists and is truthy)
   const canProceedWithUploads = Boolean(
     web3ContractAddress &&
     roomId &&
@@ -180,12 +182,12 @@ const StellarAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
 
   return (
     <div className="space-y-6">
-      {/* Debug Info */}
+
       <DebugInfoPanel
         data={{
           chain: 'stellar',
           isWalletConnected,
-          currentWallet: currentWallet?.address,
+          currentWallet: address,
           web3ContractAddress,
           roomId,
           socketConnected: connected,
@@ -194,7 +196,6 @@ const StellarAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
         }}
       />
 
-      {/* Upload Status Overview */}
       <UploadStatusOverview
         chainName={chainName}
         totalAssets={stats.totalAssets}
@@ -205,7 +206,6 @@ const StellarAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
         allUploadsComplete={stats.allUploadsComplete}
       />
 
-      {/* Connection Status Notices */}
       <ConnectionStatusNotices
         isSocketConnected={connected}
         isWalletConnected={isWalletConnected}
@@ -213,12 +213,11 @@ const StellarAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
         chainName={chainName}
       />
 
-      {/* Contract Information */}
       <ContractInfoCard
         chainName={chainName}
         contractAddress={web3ContractAddress}
         roomId={roomId}
-        walletAddress={currentWallet?.address || undefined}
+        walletAddress={address || undefined}
         explorerBaseUrl="https://stellar.expert/explorer/testnet"
         isWalletConnected={isWalletConnected}
         onCopyAddress={async (addr: string) => copyToClipboard(addr, 'contract')}
@@ -229,7 +228,6 @@ const StellarAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
         }
       />
 
-      {/* Asset List */}
       <div className="bg-muted border-border rounded-xl border-2 p-6">
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center space-x-3">

@@ -1,8 +1,7 @@
 import { useCallback } from 'react';
 import { getChainId } from 'wagmi/actions';
-import { useConfig } from 'wagmi';                          // ← ADD
+import { useConfig } from 'wagmi';
 import { resolveEvmTarget, type ResolvedEvmTarget } from '../utils/evmSelect';
-// ← REMOVE the wagmiConfig import from config/index entirely
 
 export interface EvmSetupConfig {
   evmNetwork?: string;
@@ -13,8 +12,10 @@ export interface EvmSetupConfig {
 }
 
 export function useEvmShared() {
-  const wagmiConfig = useConfig();                          // ← ADD: reads from nearest WagmiProvider
+  const wagmiConfig = useConfig();
 
+  // getSetupConfig stays in the file — other callers (useEvmDeploy etc.) may use it.
+  // It is no longer called inside resolveTarget.
   const getSetupConfig = useCallback((): EvmSetupConfig => {
     try {
       const stored = localStorage.getItem('setupConfig');
@@ -25,6 +26,10 @@ export function useEvmShared() {
     }
   }, []);
 
+  // Step 2 change: setupKey is always null.
+  // resolveEvmTarget falls back to the live wagmi chainId, then to 'baseSepolia'.
+  // We never read localStorage here — stale host config was causing join flow
+  // to target the wrong network (e.g. 'base' when the room was on 'baseSepolia').
   const resolveTarget = useCallback(async (): Promise<ResolvedEvmTarget> => {
     let runtimeChainId: number | null = null;
     try {
@@ -33,14 +38,11 @@ export function useEvmShared() {
       runtimeChainId = null;
     }
 
-    const setup = getSetupConfig();
-    const setupKey = setup?.evmNetwork as string | undefined;
-
     return resolveEvmTarget({
-      setupKey: setupKey ?? null,
-      runtimeChainId: runtimeChainId ?? null,
+      setupKey: null,          // Never read from localStorage — trust live wagmi state
+      runtimeChainId,
     });
-  }, [wagmiConfig, getSetupConfig]);
+  }, [wagmiConfig]);            // getSetupConfig removed from deps — no longer called here
 
   return {
     wagmiConfig,

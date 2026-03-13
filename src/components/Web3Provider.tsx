@@ -1,18 +1,10 @@
 // src/components/Web3Provider.tsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { WalletProvider } from '../context/WalletContext';
 import { useQuizConfig } from './Quiz/hooks/useQuizConfig';
-
 
 interface Web3ProviderProps {
   children: React.ReactNode;
   force?: boolean;
-    roomConfig?: {
-    web3Chain?: string;
-    evmNetwork?: string;
-    solanaCluster?: string;
-    stellarNetwork?: string;
-  };
 }
 
 let initializationPromise: Promise<any> | null = null;
@@ -29,7 +21,7 @@ const Web3LoadingFallback: React.FC = () => (
   </div>
 );
 
-export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = false,  }) => {
+export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = false }) => {
   const [providers, setProviders] = useState(cachedProviders);
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout>();
@@ -51,23 +43,6 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = fa
 
     return false;
   }, [force, config?.web3Chain, (config as any)?.paymentMethod, (config as any)?.isWeb3Room]);
-
-  // 🔥 FIX: Extract primitives first so roomConfig memo only changes
-  // when actual VALUES change, not when useQuizConfig returns a new object reference
-  const web3Chain = config?.web3Chain;
-  const evmNetwork = config?.evmNetwork;
-  const solanaCluster = (config as any)?.solanaCluster ?? (config as any)?.solanaNetwork;
-  const stellarNetwork = config?.stellarNetwork;
-
-  const roomConfig = useMemo(
-    () => ({
-      web3Chain,
-      evmNetwork,
-      solanaCluster,
-      stellarNetwork,
-    }),
-    [web3Chain, evmNetwork, solanaCluster, stellarNetwork]
-  );
 
   useEffect(() => {
     if (!needsWeb3) return;
@@ -106,7 +81,7 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = fa
     initializationPromise = (async () => {
       try {
         console.log('📦 [Web3Provider] Loading modules...');
-        
+
         const [
           appKitModule,
           wagmiModule,
@@ -138,27 +113,27 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = fa
 
         if (!appKitInstance) {
           console.log('🔧 [Web3Provider] Creating AppKit instance');
-          
+
           appKitInstance = createAppKit({
             adapters: [wagmiAdapter, solanaWeb3JsAdapter],
             projectId,
             networks,
             metadata,
 
-customRpcUrls: {
-  'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': [{ url: solanaRpcUrls.mainnet }],   // mainnet
-  'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1': [{ url: solanaRpcUrls.devnet }],    // devnet
-  'solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z': [{ url: solanaRpcUrls.devnet }],    // testnet
-},
-            
+            customRpcUrls: {
+              'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': [{ url: solanaRpcUrls.mainnet }],
+              'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1': [{ url: solanaRpcUrls.devnet }],
+              'solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z': [{ url: solanaRpcUrls.devnet }],
+            },
+
             themeMode: 'dark',
             themeVariables: {
               '--w3m-z-index': 2147483647,
               '--w3m-accent': '#6366f1',
             },
-            
+
             allWallets: 'SHOW',
-            
+
             featuredWalletIds: [
               'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
               'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa', // Coinbase
@@ -166,7 +141,7 @@ customRpcUrls: {
               '38f5d18bd8522c244bdd70cb4a68e0e718865155811c043f052fb9f1c51de662', // Backpack
               'c03dfee351b6fcc421b4494ea33b9d4b92a984f87aa76d1663bb28705e95034a', // Exodus
             ],
-            
+
             features: {
               socials: false,
               email: false,
@@ -175,7 +150,7 @@ customRpcUrls: {
               swaps: false,
               onramp: false,
             },
-            
+
             enableWalletConnect: true,
             enableInjected: true,
             enableEIP6963: true,
@@ -183,7 +158,7 @@ customRpcUrls: {
             coinbasePreference: 'all',
             defaultNetwork: networks[0],
           });
-          
+
           console.log('✅ [Web3Provider] AppKit instance created');
         }
 
@@ -204,7 +179,7 @@ customRpcUrls: {
 
         console.log('✅ [Web3Provider] Initialization complete');
         return result;
-        
+
       } catch (err: any) {
         console.error('❌ [Web3Provider] Initialization error:', err);
         initializationPromise = null;
@@ -259,16 +234,14 @@ customRpcUrls: {
   }
 
   console.log('✅ [Web3Provider] Rendering with providers');
-  
+
   const { AppKitProvider, WagmiProvider, QueryClientProvider, queryClient, wagmiConfig } = providers;
 
   return (
     <AppKitProvider>
       <QueryClientProvider client={queryClient}>
         <WagmiProvider config={wagmiConfig}>
-         <WalletProvider roomConfig={roomConfig ?? { web3Chain, evmNetwork, solanaCluster, stellarNetwork }}>
-  {children}
-</WalletProvider>
+          {children}
         </WagmiProvider>
       </QueryClientProvider>
     </AppKitProvider>
