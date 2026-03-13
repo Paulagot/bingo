@@ -4,8 +4,9 @@ import type { Address } from 'viem';
 
 import { useQuizConfig } from '../hooks/useQuizConfig';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
-import { useQuizChainIntegration } from '../../../hooks/useQuizChainIntegration';
 import { useRoomIdentity } from '../hooks/useRoomIdentity';
+import { toChainConfig } from '../../../types/chainConfig';
+import { useChainWallet } from '../../../hooks/useChainWallet';
 import { getMetaByKey } from '../../../chains/evm/config/networks';
 import { useEvmPrizeUploader } from '../../../chains/evm/useEvmPrizeUploader';
 
@@ -37,20 +38,22 @@ import {
 
 const EvmAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
   const { config, setFullConfig } = useQuizConfig();
-  const { currentWallet, selectedEvmNetwork } = useQuizChainIntegration();
   const { roomId } = useRoomIdentity();
   const { socket, connected } = useQuizSocket();
 
-  const networkMeta = getMetaByKey(selectedEvmNetwork);
+  const chainConfig = toChainConfig(config);
+  const { address } = useChainWallet(chainConfig);
+
+  const networkMeta = getMetaByKey(config?.evmNetwork);
   const chainId = networkMeta?.id;
-  
+
   // ✅ FIX: Get explorer URL from blockExplorers (AppKit structure)
   const explorer = networkMeta?.blockExplorers?.default?.url;
 
   // The deployed AssetRoom contract for this quiz room
   const roomAddress = (
-    (config as any)?.roomContractAddress || 
-    config?.web3ContractAddress || 
+    (config as any)?.roomContractAddress ||
+    config?.web3ContractAddress ||
     config?.contractAddress
   ) as Address | undefined;
 
@@ -67,20 +70,20 @@ const EvmAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
   // ✅ Debug: Check what we have for uploader initialization
   console.log('[EvmAssetUpload] Uploader init check:', {
     roomAddress,
-    walletAddress: currentWallet?.address,
+    walletAddress: address,
     chainId,
     explorer,
     networkMeta: networkMeta?.name,
-    selectedEvmNetwork,
-    hasAllRequired: !!(roomAddress && currentWallet?.address && chainId && explorer),
+    evmNetwork: config?.evmNetwork,
+    hasAllRequired: !!(roomAddress && address && chainId && explorer),
   });
 
   // Instantiate uploader (or fallback dummy uploader)
-  const uploader = roomAddress && currentWallet?.address && chainId && explorer
+  const uploader = roomAddress && address && chainId && explorer
     ? useEvmPrizeUploader({
         roomAddress,
-        sender: currentWallet.address as Address,
-        chainId: typeof chainId === 'number' ? chainId : Number(chainId), // ✅ FIX: Ensure number type
+        sender: address as Address,
+        chainId: typeof chainId === 'number' ? chainId : Number(chainId),
       })
     : {
         uploadPrize: async () => ({ success: false as const, error: 'Not initialized' }),
@@ -132,11 +135,9 @@ const EvmAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
     const originalIndex = prizes.findIndex((p) => p.place === prize.place);
     if (originalIndex === -1) return;
 
-    // ✅ FIX: Get the existing prize (we know it exists because originalIndex !== -1)
     const existingPrize = updated[originalIndex];
-    if (!existingPrize) return; // Extra safety check for TypeScript
+    if (!existingPrize) return;
 
-    // ✅ FIX: Spread all existing properties to maintain type compatibility
     updated[originalIndex] = {
       ...existingPrize,
       uploadStatus: status,
@@ -199,8 +200,8 @@ const EvmAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
           prizeIndex: prize.place - 1,
           txHash: result.hash,
         });
-        
-        // ✅ FIX: Verify contract state after a delay (don't block UI)
+
+        // Verify contract state after a delay (don't block UI)
         setTimeout(async () => {
           try {
             console.log('[EvmAssetUpload] Verifying contract state...');
@@ -222,7 +223,7 @@ const EvmAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
   };
 
   const canProceedWithUploads =
-    Boolean(roomAddress && currentWallet?.address && chainId && connected);
+    Boolean(roomAddress && address && chainId && connected);
 
   const statusIcon = (status?: Prize['uploadStatus']) => {
     if (status === 'completed') return <CheckCircle className="h-4 w-4 text-green-600" />;
@@ -239,7 +240,7 @@ const EvmAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
           chain: 'evm',
           network: networkMeta?.name,
           chainId,
-          wallet: currentWallet?.address,
+          wallet: address,
           roomAddress,
           roomId,
           socket: connected,
@@ -259,7 +260,7 @@ const EvmAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
 
       <ConnectionStatusNotices
         isSocketConnected={connected}
-        isWalletConnected={!!currentWallet?.address}
+        isWalletConnected={!!address}
         isContractReady={!!roomAddress}
         chainName={chainName}
       />
@@ -268,9 +269,9 @@ const EvmAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
         chainName={chainName}
         contractAddress={roomAddress}
         roomId={roomId ?? undefined}
-        walletAddress={currentWallet?.address || undefined}
+        walletAddress={address || undefined}
         explorerBaseUrl={explorer}
-        isWalletConnected={!!currentWallet?.address}
+        isWalletConnected={!!address}
       />
 
       <div className="rounded-xl border-2 border-orange-200 bg-orange-50 p-4">

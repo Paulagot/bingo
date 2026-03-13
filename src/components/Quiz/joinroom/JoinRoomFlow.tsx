@@ -11,6 +11,7 @@ import type { SupportedChain } from '../../../chains/types';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { useQuizConfig } from '../hooks/useQuizConfig';
 
+import { Web3Provider } from '../../../components/Web3Provider';
 import { normalizePaymentMethod } from '../../../shared/utils/paymentMethods';
 
 // Shared components
@@ -20,7 +21,7 @@ import { ExtrasSelector, useExtrasSelection } from '../shared/ExtrasSelector';
 import { PaymentMethodSelector, type ClubPaymentMethod } from '../shared/PaymentMethodSelector';
 import { PaymentInstructionsContent, PaymentInstructionsFooter } from '../shared/PaymentInstructions';
 import { ActionButtons, PayAdminButton } from '../shared/ActionButtons';
-import { MiniAppWeb3Provider } from '../../../components/MiniAppWeb3Provider';
+
 
 
 
@@ -829,19 +830,21 @@ const checkWalkInCapacity = async (currentRoomId: string): Promise<boolean> => {
         />
       )}
 
-      {step === 'payment-choice' && roomConfig && paymentFlow === 'web3' && (
+// AFTER:
+{step === 'payment-choice' && roomConfig && paymentFlow === 'web3' && (
   detectedChain ? (
-    <Suspense fallback={<LoadingSpinner />}>
-      <MiniAppWeb3Provider
-        roomConfig={{
-          web3Chain: roomConfig.web3Chain,
-          evmNetwork: roomConfig.evmNetwork,
-          solanaCluster: roomConfig.solanaCluster,
-          stellarNetwork: roomConfig.stellarNetwork,
-        }}
-      >
+    <Web3Provider
+      force
+      roomConfig={{
+        web3Chain: roomConfig.web3Chain,
+        evmNetwork: roomConfig.evmNetwork,
+        solanaCluster: roomConfig.solanaCluster,
+        stellarNetwork: roomConfig.stellarNetwork,
+      }}
+    >
+      <Suspense fallback={<LoadingSpinner />}>
         <Web3PaymentStep
-          chainOverride={detectedChain}
+     
           roomId={roomId}
           playerName={playerDetails.playerName}
           roomConfig={roomConfig}
@@ -849,8 +852,8 @@ const checkWalkInCapacity = async (currentRoomId: string): Promise<boolean> => {
           onBack={() => setStep('extras')}
           onClose={onClose}
         />
-      </MiniAppWeb3Provider>
-    </Suspense>
+      </Suspense>
+    </Web3Provider>
   ) : (
     <div className="p-6">
       <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">

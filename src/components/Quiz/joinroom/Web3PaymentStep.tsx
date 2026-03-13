@@ -1,5 +1,4 @@
-// src/components/Quiz/joinroom/Web3PaymentStep.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { nanoid } from 'nanoid';
 import {
@@ -14,19 +13,19 @@ import {
 } from 'lucide-react';
 
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
-import { useWallet } from '../../../context/WalletContext';
+import { useChainWallet } from '../../../hooks/useChainWallet';
 import { useContractActions } from '../../../hooks/useContractActions';
 import { useMiniAppContext } from '../../../context/MiniAppContext';
-import type { SupportedChain } from '../../../chains/types';
+import type { ChainConfig } from '../../../types/chainConfig';
 
-interface RoomConfig {
+// Web3PaymentStep receives the full room data but only needs
+// ChainConfig fields for wallet/contract hooks.
+// Extra fields (entryFee, currencySymbol etc.) are kept in the local RoomData type.
+interface RoomData extends ChainConfig {
   paymentMethod: string;
   entryFee: number;
   fundraisingPrices: Record<string, number>;
   currencySymbol: string;
-  web3Chain?: string;
-  evmNetwork?: string;
-  solanaCluster?: string;
   roomContractAddress?: string;
   roomId: string;
 }
@@ -42,30 +41,45 @@ type PaymentStatus =
 export const Web3PaymentStep: React.FC<{
   roomId: string;
   playerName: string;
-  roomConfig: RoomConfig;
+  roomConfig: RoomData;
   selectedExtras: string[];
   onBack: () => void;
   onClose: () => void;
-  chainOverride?: SupportedChain;
-}> = ({ roomId, playerName, roomConfig, selectedExtras, onBack, onClose, chainOverride }) => {
+}> = ({ roomId, playerName, roomConfig, selectedExtras, onBack, onClose }) => {
   const navigate = useNavigate();
   const { socket } = useQuizSocket();
 
-  const wallet = useWallet();
+  // Both hooks receive the same chainConfig — one source of truth,
+  // no fighting between instances.
+  const chainConfig: ChainConfig = {
+    web3Chain: roomConfig.web3Chain,
+    evmNetwork: roomConfig.evmNetwork,
+    solanaCluster: roomConfig.solanaCluster,
+    stellarNetwork: roomConfig.stellarNetwork,
+  };
+
   const {
     address: walletAddress,
     isConnected: isWalletConnected,
-    chainFamily,
+    isOnCorrectNetwork,
     networkInfo,
-    actions: walletActions,
-  } = wallet;
+    chainFamily,
+    connect,
+    disconnect,
+    switchToCorrectNetwork,
+  } = useChainWallet(chainConfig);
 
-  const { joinRoom } = useContractActions({ chainOverride: chainOverride ?? null });
+  const { joinRoom } = useContractActions(chainConfig);
 
-  // ✅ Mini app context
+  // Mini app — wallet already connected via SDK
   const { isMiniApp, walletAddress: miniAppAddress } = useMiniAppContext();
 
-  // When in mini app, use SDK-provided wallet state
+  // Switch to correct network once when wallet connects (explicit, not automatic)
+  useEffect(() => {
+    if (!isWalletConnected || isMiniApp) return;
+    switchToCorrectNetwork();
+  }, [isWalletConnected]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const effectiveAddress = isMiniApp ? miniAppAddress : walletAddress;
   const effectivelyConnected = isMiniApp ? !!miniAppAddress : isWalletConnected;
 
@@ -80,52 +94,29 @@ export const Web3PaymentStep: React.FC<{
   const [txHash, setTxHash] = useState('');
   const [alreadyPaid, setAlreadyPaid] = useState(false);
 
-  const actualChainFamily = walletActions.getActualChainFamily();
-  const expectedChainFamily = walletActions.getExpectedChainFamily();
-  const wrongChainFamily =
-    actualChainFamily !== expectedChainFamily &&
-    actualChainFamily !== null &&
-    expectedChainFamily !== null;
-
-  const isOnCorrectNetwork = walletActions.isOnCorrectNetwork();
-
- const handleWalletConnect = async () => {
-  try {
-    setError('');
-    setPaymentStatus('connecting');
-
-    const result = await walletActions.connect();
-
-    if (!result.success) {
-      // 🔥 FIX: narrow the union before accessing .error
-      const errorMsg =
-        'error' in result && result.error?.message
-          ? result.error.message
-          : 'Failed to connect wallet';
-      throw new Error(errorMsg);
+  const handleWalletConnect = async () => {
+    try {
+      setError('');
+      setPaymentStatus('connecting');
+      const result = await connect();
+      if (!result.success) {
+        const errorMsg = result.error?.message ?? 'Failed to connect wallet';
+        throw new Error(errorMsg);
+      }
+      setPaymentStatus('idle');
+    } catch (e: any) {
+      setError(e.message || 'Failed to connect wallet');
+      setPaymentStatus('idle');
     }
-
-    setPaymentStatus('idle');
-  } catch (e: any) {
-    setError(e.message || 'Failed to connect wallet');
-    setPaymentStatus('idle');
-  }
-};
+  };
 
   const handleWeb3Join = async () => {
     try {
       setError('');
 
       if (!isMiniApp) {
-        // Normal browser checks — skipped entirely inside the mini app
         if (!isWalletConnected) {
           await handleWalletConnect();
-          return;
-        }
-        if (wrongChainFamily) {
-          setError(
-            `Please disconnect and connect with a ${expectedChainFamily?.toUpperCase()} wallet`
-          );
           return;
         }
         if (!isOnCorrectNetwork) {
@@ -171,11 +162,7 @@ export const Web3PaymentStep: React.FC<{
             extraPayments: Object.fromEntries(
               selectedExtras.map((key) => [
                 key,
-                {
-                  method: 'web3',
-                  amount: roomConfig.fundraisingPrices[key],
-                  txHash: 'already-paid',
-                },
+                { method: 'web3', amount: roomConfig.fundraisingPrices[key], txHash: 'already-paid' },
               ])
             ),
           },
@@ -210,11 +197,7 @@ export const Web3PaymentStep: React.FC<{
           extraPayments: Object.fromEntries(
             selectedExtras.map((key) => [
               key,
-              {
-                method: 'web3',
-                amount: roomConfig.fundraisingPrices[key],
-                txHash: result.txHash,
-              },
+              { method: 'web3', amount: roomConfig.fundraisingPrices[key], txHash: result.txHash },
             ])
           ),
         },
@@ -231,7 +214,6 @@ export const Web3PaymentStep: React.FC<{
         e.message?.includes('already been processed') ||
         e.message?.includes('already processed')
       ) {
-        console.warn('[Web3Payment] ⚠️ Transaction already processed, retrying...');
         setError('Transaction already processed. Checking entry status...');
         setTimeout(() => {
           setError('');
@@ -248,11 +230,11 @@ export const Web3PaymentStep: React.FC<{
     effectiveAddress && effectiveAddress.length > 10
       ? `${effectiveAddress.slice(0, 6)}...${effectiveAddress.slice(-4)}`
       : effectiveAddress;
-      
-const STATUS_MAP: Record<
-  Exclude<PaymentStatus, 'idle'>,
-  { icon: React.ReactElement; text: string; color: string }
-> = {
+
+  const STATUS_MAP: Record<
+    Exclude<PaymentStatus, 'idle'>,
+    { icon: React.ReactElement; text: string; color: string }
+  > = {
     connecting: {
       icon: <Loader className="h-5 w-5 animate-spin" />,
       text: `Connecting ${networkInfo.expectedNetwork}...`,
@@ -312,7 +294,7 @@ const STATUS_MAP: Record<
             </p>
             {!isMiniApp && (
               <p className="text-xs text-blue-600">
-                Make sure you have a {expectedChainFamily?.toUpperCase()} wallet ready
+                Make sure you have a {chainFamily?.toUpperCase()} wallet ready
               </p>
             )}
           </div>
@@ -322,13 +304,10 @@ const STATUS_MAP: Record<
       {/* Wallet connection area */}
       <div className="mb-4 rounded-lg border border-purple-200 bg-purple-50 p-4">
         {isMiniApp ? (
-          // ✅ Mini app — wallet already connected via SDK
           <div className="rounded-lg border border-green-200 bg-green-50 p-3">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm font-medium text-green-800">
-                  Base Wallet Connected
-                </div>
+                <div className="text-sm font-medium text-green-800">Base Wallet Connected</div>
                 <div className="text-xs font-mono text-green-600">
                   {effectiveAddress
                     ? `${effectiveAddress.slice(0, 6)}...${effectiveAddress.slice(-4)}`
@@ -339,7 +318,6 @@ const STATUS_MAP: Record<
             </div>
           </div>
         ) : !isWalletConnected ? (
-          // Normal browser — not connected
           <button
             onClick={handleWalletConnect}
             disabled={paymentStatus === 'connecting'}
@@ -353,35 +331,27 @@ const STATUS_MAP: Record<
             ) : (
               <>
                 <PlugZap className="h-4 w-4" />
-                <span className="ml-2">
-                  Connect {networkInfo.expectedNetwork} Wallet
-                </span>
+                <span className="ml-2">Connect {networkInfo.expectedNetwork} Wallet</span>
               </>
             )}
           </button>
         ) : (
-          // Normal browser — connected
           <>
-            {wrongChainFamily && (
-              <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3">
+            {!isOnCorrectNetwork && (
+              <div className="mb-3 rounded-lg border border-orange-200 bg-orange-50 p-3">
                 <div className="flex items-start space-x-2">
-                  <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600" />
+                  <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-orange-600" />
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-red-800">Wrong Blockchain</p>
-                    <p className="text-xs text-red-700 mt-1">
-                      You're connected to{' '}
-                      <strong>{actualChainFamily?.toUpperCase()}</strong>, but this quiz
-                      requires <strong>{expectedChainFamily?.toUpperCase()}</strong>. Please
-                      disconnect and reconnect with the correct wallet.
+                    <p className="text-sm font-medium text-orange-800">Wrong Network</p>
+                    <p className="text-xs text-orange-700 mt-1">
+                      Your wallet is on <strong>{networkInfo.currentNetwork}</strong>, but this quiz
+                      requires <strong>{networkInfo.expectedNetwork}</strong>.
                     </p>
                     <button
-                      onClick={async () => {
-                        setError('');
-                        await walletActions.disconnect();
-                      }}
-                      className="mt-2 rounded-md bg-red-600 px-3 py-1.5 text-xs text-white hover:bg-red-700"
+                      onClick={() => switchToCorrectNetwork()}
+                      className="mt-2 rounded-md bg-orange-600 px-3 py-1.5 text-xs text-white hover:bg-orange-700"
                     >
-                      Disconnect & Switch
+                      Switch Network
                     </button>
                   </div>
                 </div>
@@ -390,46 +360,26 @@ const STATUS_MAP: Record<
 
             <div
               className={`rounded-lg border p-3 ${
-                wrongChainFamily
-                  ? 'border-red-200 bg-red-50'
-                  : isOnCorrectNetwork
+                isOnCorrectNetwork
                   ? 'border-green-200 bg-green-50'
                   : 'border-orange-200 bg-orange-50'
               }`}
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <div
-                    className={`text-sm font-medium ${
-                      wrongChainFamily
-                        ? 'text-red-800'
-                        : isOnCorrectNetwork
-                        ? 'text-green-800'
-                        : 'text-orange-800'
-                    }`}
-                  >
-                    {wrongChainFamily
-                      ? `Wrong Blockchain (${actualChainFamily?.toUpperCase()})`
-                      : isOnCorrectNetwork
+                  <div className={`text-sm font-medium ${isOnCorrectNetwork ? 'text-green-800' : 'text-orange-800'}`}>
+                    {isOnCorrectNetwork
                       ? `${networkInfo.expectedNetwork} Connected`
-                      : `${networkInfo.currentNetwork} Connected`}
+                      : `${networkInfo.currentNetwork || 'Unknown'} Connected`}
                   </div>
-                  <div
-                    className={`text-xs font-mono ${
-                      wrongChainFamily
-                        ? 'text-red-600'
-                        : isOnCorrectNetwork
-                        ? 'text-green-600'
-                        : 'text-orange-600'
-                    }`}
-                  >
+                  <div className={`text-xs font-mono ${isOnCorrectNetwork ? 'text-green-600' : 'text-orange-600'}`}>
                     {formattedAddr}
                   </div>
                 </div>
                 <button
                   onClick={async () => {
                     setError('');
-                    await walletActions.disconnect();
+                    await disconnect();
                   }}
                   className="rounded-md border bg-red-50 px-2 py-1 text-xs text-red-700 hover:bg-red-100"
                 >
@@ -437,22 +387,6 @@ const STATUS_MAP: Record<
                 </button>
               </div>
             </div>
-
-            {!wrongChainFamily && !isOnCorrectNetwork && (
-              <div className="mt-3 rounded-lg border border-orange-200 bg-orange-50 p-3">
-                <div className="flex items-start space-x-2">
-                  <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-orange-600" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-orange-800">Wrong Network</p>
-                    <p className="text-xs text-orange-700 mt-1">
-                      Your wallet is on <strong>{networkInfo.currentNetwork}</strong>, but
-                      this quiz requires <strong>{networkInfo.expectedNetwork}</strong>.
-                      Please switch networks in your wallet.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
           </>
         )}
       </div>
@@ -487,18 +421,13 @@ const STATUS_MAP: Record<
           Back
         </button>
 
-        {/* Show pay button when: in mini app, OR connected on correct network */}
-        {(isMiniApp || (effectivelyConnected && !wrongChainFamily)) && (
+        {(isMiniApp || effectivelyConnected) && (
           <button
             onClick={handleWeb3Join}
-            disabled={
-              paymentStatus !== 'idle' ||
-              (!isMiniApp && !isOnCorrectNetwork)
-            }
+            disabled={paymentStatus !== 'idle' || (!isMiniApp && !isOnCorrectNetwork)}
             className="rounded-lg bg-purple-600 px-4 py-2 text-sm text-white disabled:opacity-50"
           >
-            Pay {roomConfig.currencySymbol}
-            {totalAmount.toFixed(2)}
+            Pay {roomConfig.currencySymbol}{totalAmount.toFixed(2)}
           </button>
         )}
       </div>

@@ -3,7 +3,7 @@
 import { FC } from "react";
 
 import { useQuizSetupStore } from "../hooks/useQuizSetupStore";
-import { useQuizChainIntegration } from "../../../hooks/useQuizChainIntegration";
+
 
 import ReviewHostEventSection from "./web3setup/ReviewHostEventSection";
 import ReviewPaymentPrizeSection from "./web3setup/ReviewPaymentPrizeSection";
@@ -15,7 +15,8 @@ import { useWeb3Launch } from "./web3setup/useWeb3Launch";
 import StellarLaunchSection from "./StellarLaunchSection";
 import ClearSetupButton from "./ClearSetupButton";
 
-
+import { useChainWallet } from "../../../hooks/useChainWallet";
+import { toChainConfig } from "../../../types/chainConfig";
 
 import {
   ChevronLeft,
@@ -29,21 +30,14 @@ const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) =
   const { setupConfig } = useQuizSetupStore();
   
   // ✅ Pass setupConfig as externalConfig (not externalSetupConfig)
-  const { 
-    selectedChain, 
-    getNetworkDisplayName, 
-    isWalletConnected, 
-    currentWallet,
-    networkInfo,
-    isOnCorrectNetwork,
-  } = useQuizChainIntegration({
-    externalConfig: {
-      web3Chain: setupConfig.web3Chain,
-      evmNetwork: (setupConfig as any).evmNetwork,
-      solanaCluster: (setupConfig as any).solanaCluster,
-      stellarNetwork: setupConfig.stellarNetwork,
-    }
-  });
+const chainConfig = toChainConfig(setupConfig);
+const {
+  chainFamily: selectedChain,
+  address: walletAddress,
+  isConnected: isWalletConnected,
+  isOnCorrectNetwork,
+  networkInfo,
+} = useChainWallet(chainConfig);
   
   const {
     // state
@@ -185,8 +179,8 @@ const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) =
         handleWalletConnect={handleWalletConnect}
         handleWalletDisconnect={handleWalletDisconnect}
         isWalletConnected={isWalletConnected}
-        walletAddress={currentWallet?.address ?? null}
-        networkName={getNetworkDisplayName()}
+        walletAddress={walletAddress ?? null}
+       networkName={networkInfo.expectedNetwork}
         isOnCorrectNetwork={isOnCorrectNetwork}
         actualNetwork={networkInfo.currentNetwork}
         expectedNetwork={networkInfo.expectedNetwork}

@@ -319,6 +319,9 @@ export function useSolanaCreatePoolRoom(params?: UseSolanaCreatePoolRoomParams) 
       // Step 11: Simulate Transaction
       // ============================================================================
 
+      console.log('[Solana] Connection RPC:', (connection as any)._rpcEndpoint);
+console.log('[Solana] Connection RPC:', connection.rpcEndpoint);
+
       console.log('[Solana][CreatePoolRoom] 🧪 Simulating transaction...');
 
       const simResult = await simulateTransaction(connection, transaction);

@@ -1,4 +1,3 @@
-// src/chains/evm/hooks/useEvmJoin.ts
 import { useCallback } from 'react';
 import { 
   writeContract, 
@@ -9,6 +8,9 @@ import {
 import { erc20Abi as ERC20_ABI } from 'viem';
 import { decimalToBigint } from '../utils/evmFormatting';
 import { useEvmShared } from './useEvmShared';
+// REMOVED: import { setDeploymentInProgress } from '../../../hooks/useWalletActions';
+// The module-level auto-switch flag is gone — no more cross-hook fighting.
+// The local transaction lock (total > 0n guard below) is kept as-is.
 import PoolRoomABI from '../../../abis/quiz/BaseQuizPoolRoom2.json';
 import AssetRoomABI from '../../../abis/quiz/BaseQuizAssetRoom.json';
 
@@ -100,7 +102,6 @@ async function assertFirstPrizeUploaded(params: {
 
 /**
  * Auto-detect if room is Asset or Pool type by probing for prizeCount.
- * Asset rooms have prizeCount; Pool rooms do not.
  */
 async function detectRoomType(params: {
   roomAddress: `0x${string}`;
@@ -118,10 +119,10 @@ async function detectRoomType(params: {
       chainId,
     });
 
-    console.log('✅ [detectRoomType] Detected AssetRoom - will check prize upload');
+    console.log('✅ [detectRoomType] Detected AssetRoom');
     return { isAssetRoom: true, abi: AssetRoomABI };
   } catch {
-    console.log('✅ [detectRoomType] Detected PoolRoom - no prize check needed');
+    console.log('✅ [detectRoomType] Detected PoolRoom');
     return { isAssetRoom: false, abi: PoolRoomABI };
   }
 }
@@ -158,14 +159,12 @@ export function useEvmJoin() {
 
         console.log('🔧 [joinRoom] Target network:', { key: target.key, id: chainId });
 
-        // Auto-detect room type
         const { isAssetRoom, abi: RoomABI } = await detectRoomType({
           roomAddress: roomAddr,
           chainId,
           wagmiConfig,
         });
 
-        // Check room state — must be Open (0) to join
         console.log('🔍 [joinRoom] Checking room state...');
         const roomState = await debugRoomState({
           roomAddress: roomAddr,
@@ -181,7 +180,6 @@ export function useEvmJoin() {
           };
         }
 
-        // Get token address and decimals
         const tokenAddr = (await readContract(wagmiConfig, {
           address: roomAddr,
           abi: RoomABI,
@@ -202,10 +200,6 @@ export function useEvmJoin() {
 
         console.log('🔧 [joinRoom] Token decimals:', decimals);
 
-        // Pool room: fee is passed explicitly from app config
-        // Asset room: contract stores and pulls the entry fee itself via join(extrasPaid)
-        //             but we still need to approve enough for the contract to pull (fee + extras)
-        //             so feeAmount from app config is used only for the approval calculation
         const feePaid = decimalToBigint(feeAmount ?? 0, decimals);
         const extrasPaid = decimalToBigint(extrasAmount ?? 0, decimals);
         const total = feePaid + extrasPaid;
@@ -219,12 +213,10 @@ export function useEvmJoin() {
           total: total.toString(),
         });
 
-        // Check if first prize is uploaded (Asset rooms only)
         if (isAssetRoom) {
           await assertFirstPrizeUploaded({ roomAddress: roomAddr, chainId, wagmiConfig });
         }
 
-        // Check if already joined
         const acct = getConnectedAccount(wagmiConfig);
 
         if (acct) {
@@ -247,7 +239,6 @@ export function useEvmJoin() {
             console.warn('⚠️ [joinRoom] Could not check join status:', e);
           }
 
-          // Check token balance
           if (total > 0n) {
             try {
               const balance = (await readContract(wagmiConfig, {
@@ -272,122 +263,121 @@ export function useEvmJoin() {
           }
         }
 
-        // Approve tokens if needed
-        if (total > 0n) {
-          const approveAcct = getConnectedAccount(wagmiConfig);
-          if (!approveAcct) {
-            return { success: false, error: 'No wallet connected' };
-          }
+        try {
+          if (total > 0n) {
+            const approveAcct = getConnectedAccount(wagmiConfig);
+            if (!approveAcct) {
+              return { success: false, error: 'No wallet connected' };
+            }
 
-          try {
-            const currentAllowance = (await readContract(wagmiConfig, {
-              address: tokenAddr,
-              abi: ERC20_ABI,
-              functionName: 'allowance',
-              args: [approveAcct, roomAddr],
-              chainId,
-            })) as bigint;
-
-            console.log('🔍 [joinRoom] Current allowance:', currentAllowance.toString());
-
-            if (currentAllowance >= total) {
-              console.log('✅ [joinRoom] Sufficient allowance already exists, skipping approval');
-            } else {
-              // Approve a generous amount to avoid repeated approvals
-              const approvalAmount = BigInt(1_000) * BigInt(10 ** decimals);
-
-              console.log('🔑 [joinRoom] Approving amount:', approvalAmount.toString());
-
-              const approveHash = await writeContract(wagmiConfig, {
+            try {
+              const currentAllowance = (await readContract(wagmiConfig, {
                 address: tokenAddr,
                 abi: ERC20_ABI,
-                functionName: 'approve',
-                args: [roomAddr, approvalAmount],
+                functionName: 'allowance',
+                args: [approveAcct, roomAddr],
                 chainId,
-              });
+              })) as bigint;
 
-              console.log('🔑 [joinRoom] Approval tx:', approveHash);
+              console.log('🔍 [joinRoom] Current allowance:', currentAllowance.toString());
 
-              await waitForTransactionReceipt(wagmiConfig, {
-                hash: approveHash,
-                chainId,
-                confirmations: 2,
-              });
+              if (currentAllowance >= total) {
+                console.log('✅ [joinRoom] Sufficient allowance already exists, skipping approval');
+              } else {
+                const approvalAmount = BigInt(1_000) * BigInt(10 ** decimals);
 
-              console.log('✅ [joinRoom] Approval confirmed');
+                console.log('🔑 [joinRoom] Approving amount:', approvalAmount.toString());
 
-              // Verify allowance was set
-              let retries = 3;
-              let verified = false;
+                const approveHash = await writeContract(wagmiConfig, {
+                  address: tokenAddr,
+                  abi: ERC20_ABI,
+                  functionName: 'approve',
+                  args: [roomAddr, approvalAmount],
+                  chainId,
+                });
 
-              while (retries > 0 && !verified) {
-                await new Promise((resolve) => setTimeout(resolve, 1500));
+                console.log('🔑 [joinRoom] Approval tx:', approveHash);
 
-                try {
-                  const newAllowance = (await readContract(wagmiConfig, {
-                    address: tokenAddr,
-                    abi: ERC20_ABI,
-                    functionName: 'allowance',
-                    args: [approveAcct, roomAddr],
-                    chainId,
-                  })) as bigint;
+                await waitForTransactionReceipt(wagmiConfig, {
+                  hash: approveHash,
+                  chainId,
+                  confirmations: 2,
+                });
 
-                  console.log(`🔍 [joinRoom] Allowance check (attempt ${4 - retries}):`, newAllowance.toString());
+                console.log('✅ [joinRoom] Approval confirmed');
 
-                  if (newAllowance >= total) {
-                    verified = true;
-                    console.log('✅ [joinRoom] Allowance verified');
+                let retries = 3;
+                let verified = false;
+
+                while (retries > 0 && !verified) {
+                  await new Promise((resolve) => setTimeout(resolve, 1500));
+
+                  try {
+                    const newAllowance = (await readContract(wagmiConfig, {
+                      address: tokenAddr,
+                      abi: ERC20_ABI,
+                      functionName: 'allowance',
+                      args: [approveAcct, roomAddr],
+                      chainId,
+                    })) as bigint;
+
+                    console.log(`🔍 [joinRoom] Allowance check (attempt ${4 - retries}):`, newAllowance.toString());
+
+                    if (newAllowance >= total) {
+                      verified = true;
+                      console.log('✅ [joinRoom] Allowance verified');
+                    }
+                  } catch (e) {
+                    console.warn(`⚠️ [joinRoom] Allowance check attempt ${4 - retries} failed:`, e);
                   }
-                } catch (e) {
-                  console.warn(`⚠️ [joinRoom] Allowance check attempt ${4 - retries} failed:`, e);
+
+                  retries--;
                 }
 
-                retries--;
+                if (!verified) {
+                  return {
+                    success: false,
+                    error: 'Token approval confirmed but allowance not readable. Please try joining again in a few seconds.',
+                  };
+                }
               }
-
-              if (!verified) {
-                return {
-                  success: false,
-                  error: 'Token approval confirmed but allowance not readable. Please try joining again in a few seconds.',
-                };
-              }
+            } catch (e: any) {
+              console.error('❌ [joinRoom] Approval error:', e);
+              return {
+                success: false,
+                error: `Failed to approve tokens: ${e?.message || 'Unknown error'}`,
+              };
             }
-          } catch (e: any) {
-            console.error('❌ [joinRoom] Approval error:', e);
-            return {
-              success: false,
-              error: `Failed to approve tokens: ${e?.message || 'Unknown error'}`,
-            };
           }
+
+          console.log('🎯 [joinRoom] Joining room:', {
+            isAssetRoom,
+            args: isAssetRoom
+              ? [extrasPaid.toString()]
+              : [feePaid.toString(), extrasPaid.toString()],
+          });
+
+          const joinHash = await writeContract(wagmiConfig, {
+            address: roomAddr,
+            abi: RoomABI,
+            functionName: 'join',
+            args: isAssetRoom ? [extrasPaid] : [feePaid, extrasPaid],
+            chainId,
+          });
+
+          console.log('🎯 [joinRoom] Join tx:', joinHash);
+
+          await waitForTransactionReceipt(wagmiConfig, {
+            hash: joinHash,
+            chainId,
+          });
+
+          console.log('✅ [joinRoom] Successfully joined room');
+          return { success: true, txHash: joinHash as `0x${string}` };
+
+        } finally {
+          // Local finally block — no module-level flag to clear
         }
-
-        // Join the room
-        // Pool room: join(feePaid, extrasPaid) — caller passes fee
-        // Asset room: join(extrasPaid) — contract pulls entry fee itself
-        console.log('🎯 [joinRoom] Joining room:', {
-          isAssetRoom,
-          args: isAssetRoom
-            ? [extrasPaid.toString()]
-            : [feePaid.toString(), extrasPaid.toString()],
-        });
-
-        const joinHash = await writeContract(wagmiConfig, {
-          address: roomAddr,
-          abi: RoomABI,
-          functionName: 'join',
-          args: isAssetRoom ? [extrasPaid] : [feePaid, extrasPaid],
-          chainId,
-        });
-
-        console.log('🎯 [joinRoom] Join tx:', joinHash);
-
-        await waitForTransactionReceipt(wagmiConfig, {
-          hash: joinHash,
-          chainId,
-        });
-
-        console.log('✅ [joinRoom] Successfully joined room');
-        return { success: true, txHash: joinHash as `0x${string}` };
 
       } catch (e: any) {
         console.error('❌ [joinRoom] Error:', e);
