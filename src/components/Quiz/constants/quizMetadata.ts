@@ -127,7 +127,7 @@ hidden_object: {
     difficulty: 'Easy–Hard',
     bestFor: 'Mixed groups, visual learners, competitive rounds',
     defaultConfig: {
-      questionsPerRound: 6,
+      questionsPerRound: 4,
       timePerQuestion: 30,
       pointsPerDifficulty: {
         easy: 2,
@@ -135,7 +135,7 @@ hidden_object: {
         hard: 6
       }
     },
-    extras: ['Freeze-out-Team', 'robPoints']
+    extras: [ 'robPoints']
   },
 
   // head_to_head: {
@@ -253,7 +253,7 @@ export const availableCategories: Record<RoundTypeId, string[]> = {
   wipeout: ['General Knowledge','Olympic Sports', 'Pop Music', 'History', 'World Capitals', 'Pop Culture', 'Web3', 'Children'],
   speed_round: ['Math', 'Emojis', 'Pop Music', 'Sport', 'Flags of the World' ],
   hidden_object: ['image', 'kids' ],
-  order_image: ['Technology'],
+  order_image: [ 'Art', 'Books', 'Business', 'Film', 'Food & Drink', 'Games', 'Geography', 'Music', 'Nature', 'Science', 'Space', 'Sport', 'Technology', 'TV', 'World History'],
   // media_puzzle: [...],
   // head_to_head: [...]
 };
