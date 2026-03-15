@@ -174,6 +174,7 @@ export default function EditWeb2QuizWizardModal({
   onComplete={handleSave}
   hideEntitlements
   titleOverride="Edit Your Fundraising Quiz"
+  isEditMode={true} 
 />
 
               </div>

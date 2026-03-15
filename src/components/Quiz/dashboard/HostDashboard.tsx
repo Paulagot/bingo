@@ -1,13 +1,10 @@
 // src/components/Quiz/dashboard/HostDashboard.tsx
 import React, { useEffect, useRef, useMemo, useState, lazy, Suspense } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-
-import type { QuizConfig } from '../types/quiz'
 import { useQuizConfig } from '../hooks/useQuizConfig';
 import { usePlayerStore } from '../hooks/usePlayerStore';
 import { useRoomIdentity } from '../hooks/useRoomIdentity';
 import { fullQuizReset } from '../utils/fullQuizReset';
-
 import SetupSummaryPanel from './SetupSummaryPanel';
 import PlayerListPanel from './PlayerListPanel';
 import AdminListPanel from './AdminListPanel';
@@ -67,7 +64,7 @@ const HostDashboardCore: React.FC = () => {
   const { config, setFullConfig, currentPhase, completedAt, hydrated } = useQuizConfig();
    const { roomId, hostId } = useRoomIdentity();
 
-   const isPostGamePhase = (phase: string | undefined): boolean => {
+   const isPostGamePhase = (phase: string | null | undefined): boolean => {
   return phase === 'complete' || 
          phase === 'distributing_prizes'
          ;
@@ -245,32 +242,28 @@ useEffect(() => {
       });
     }
     
-   setFullConfig((prev: QuizConfig) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        reconciliation: {
-          ...(prev.reconciliation || {}),
-          ...data
-        }
-      };
-    });
+const prev = useQuizConfig.getState().config;
+setFullConfig({
+  ...prev,
+  reconciliation: {
+    ...(prev.reconciliation || {}),
+    ...data
+  }
+});
   };
 
   const onReconUpdated = ({ roomId: rid, data }: any) => {
     if (rid !== roomId) return;
     if (DEBUG) console.log('[HostDashboard] 🔄 Reconciliation updated');
     
-    setFullConfig(prev => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        reconciliation: {
-          ...(prev.reconciliation || {}),
-          ...data
-        }
-      };
-    });
+  const prev = useQuizConfig.getState().config;
+setFullConfig({
+  ...prev,
+  reconciliation: {
+    ...(prev.reconciliation || {}),
+    ...data
+  }
+});
   };
 
   socket.on('reconciliation_state', onReconState);
@@ -1357,12 +1350,12 @@ if (!isWeb3 && dbHydrateError) {
 
             {computedActiveTab === 'tickets' && !isWeb3 && (
   <div className="space-y-6">
-    <div className="mb-4 flex items-center justify-between">
+    {/* <div className="mb-4 flex items-center justify-between">
       <h3 className="heading-2">
         <Ticket className="h-5 w-5" />
         <span>Ticket Management</span>
       </h3>
-    </div>
+    </div> */}
     <TicketsPanel 
       roomId={roomId || ''} 
       confirmer={{

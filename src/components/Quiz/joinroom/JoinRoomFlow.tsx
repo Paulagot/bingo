@@ -682,7 +682,7 @@ const checkWalkInCapacity = async (currentRoomId: string): Promise<boolean> => {
                     Ticket holder: <span className="font-medium">{ticketData.playerName}</span>
                   </div>
                   <div className="text-sm text-blue-800">
-                    Total paid: <span className="font-medium">{roomConfig.currencySymbol}{ticketData.totalAmount.toFixed(2)}</span>
+                    Total paid: <span className="font-medium">{roomConfig.currencySymbol}{ticketData.totalAmount.toFixed(8)}</span>
                   </div>
                 </div>
               </div>
@@ -830,17 +830,12 @@ const checkWalkInCapacity = async (currentRoomId: string): Promise<boolean> => {
         />
       )}
 
-// AFTER:
+
 {step === 'payment-choice' && roomConfig && paymentFlow === 'web3' && (
   detectedChain ? (
     <Web3Provider
       force
-      roomConfig={{
-        web3Chain: roomConfig.web3Chain,
-        evmNetwork: roomConfig.evmNetwork,
-        solanaCluster: roomConfig.solanaCluster,
-        stellarNetwork: roomConfig.stellarNetwork,
-      }}
+    
     >
       <Suspense fallback={<LoadingSpinner />}>
         <Web3PaymentStep
@@ -877,12 +872,12 @@ const checkWalkInCapacity = async (currentRoomId: string): Promise<boolean> => {
                 <div>
                   <div className="font-medium text-gray-900">Total to Pay</div>
                   <div className="text-sm text-gray-600">
-                    Entry: {roomConfig.currencySymbol}{roomConfig.entryFee.toFixed(2)}
-                    {extrasTotal > 0 && ` + Extras: ${roomConfig.currencySymbol}${extrasTotal.toFixed(2)}`}
+                    Entry: {roomConfig.currencySymbol}{roomConfig.entryFee}
+                    {extrasTotal > 0 && ` + Extras: ${roomConfig.currencySymbol}${extrasTotal}`}
                   </div>
                 </div>
                 <div className="text-2xl font-bold text-blue-900">
-                  {roomConfig.currencySymbol}{totalAmount.toFixed(2)}
+                  {roomConfig.currencySymbol}{totalAmount}
                 </div>
               </div>
             </div>

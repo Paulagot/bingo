@@ -38,12 +38,12 @@ export const ExtrasSelector: React.FC<ExtrasSelectorProps> = ({
           <div>
             <div className="font-medium text-gray-900">Total to Pay</div>
             <div className="text-sm text-gray-600">
-              Entry: {currencySymbol}{entryFee.toFixed(2)}
-              {extrasTotal > 0 && ` + Extras: ${currencySymbol}${extrasTotal.toFixed(2)}`}
+              Entry: {currencySymbol}{entryFee}
+              {extrasTotal > 0 && ` + Extras: ${currencySymbol}${extrasTotal}`}
             </div>
           </div>
           <div className="text-2xl font-bold text-blue-900">
-            {currencySymbol}{totalAmount.toFixed(2)}
+            {currencySymbol}{totalAmount}
           </div>
         </div>
       </div>

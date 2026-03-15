@@ -18,6 +18,7 @@ import OrderImageHostPanel from './OrderImageHostPanel';
 import OrderImageReviewPanel from './OrderImageReviewPanel';
 
 import type { HostControlsController } from '../../hooks/useHostControlsController';
+import HostPlayerLinksPanel from './HostPlayerLinksPanel';
 
 const HostControlsView: React.FC<{ roomId: string; controller: HostControlsController }> = ({
   roomId,
@@ -83,6 +84,8 @@ const HostControlsView: React.FC<{ roomId: string; controller: HostControlsContr
     handleEndGame,
     handleReturnToDashboard,
   } = controller;
+
+
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
@@ -309,6 +312,7 @@ const HostControlsView: React.FC<{ roomId: string; controller: HostControlsContr
           totalRounds={roomState.totalRounds}
           
         />
+        <HostPlayerLinksPanel roomId={roomId} players={playersInRoom} />
       </div>
     </div>
   );

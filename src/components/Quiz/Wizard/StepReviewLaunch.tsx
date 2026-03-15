@@ -63,7 +63,7 @@ const HeaderTile = () => (
   </div>
 );
 
-const StepReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) => {
+const StepReviewLaunch: FC<WizardStepProps> = ({ onBack, onNext, onResetToFirst, isEditMode }) => {
   const { setupConfig, roomId, hostId, setRoomIds, flow, resetSetupConfig  } = useQuizSetupStore();
   const { setFullConfig } = useQuizConfig();
   const navigate = useNavigate();
@@ -73,7 +73,7 @@ const StepReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) => {
   useEffect(() => {
     if (!connected || !socket) return;
 
-const handleCreated = ({ roomId }: { roomId: string }) => {
+const handleCreated = () => {
   resetSetupConfig({ keepIds: false });
   navigate('/quiz/eventdashboard');
 };
@@ -516,15 +516,15 @@ navigate('/quiz/eventdashboard');
                      onCleared={onResetToFirst}    // jumps to first step after clearing
                    />
 
-        <button
-          type="button"
-          onClick={handleLaunch}
-          className="btn-primary disabled:opacity-60"
-          disabled={isLaunching}
-        >
-          <Rocket className="h-4 w-4" />
-          <span>{isLaunching ? 'Launching…' : 'Ready to Schedule'}</span>
-        </button>
+       <button
+      type="button"
+     onClick={isEditMode ? onNext : handleLaunch} // ← fork here
+      className="btn-primary disabled:opacity-60"
+      disabled={isLaunching}
+    >
+      <Rocket className="h-4 w-4" />
+      <span>{isEditMode ? 'Save Changes' : (isLaunching ? 'Launching…' : 'Ready to Schedule')}</span>
+    </button>
       </div>
     </div>
   );

@@ -243,223 +243,208 @@ const showTicketActionsWithPayment =
   // ============================================================================
   // TABLE VIEW
   // ============================================================================
-  const tableView = (
-    <div className="border-b border-gray-100 bg-white hover:bg-gray-50 transition-colors">
-      <div className="min-w-[1050px] flex items-center gap-3 p-3">
-        <div className="w-24 flex-shrink-0">
-          <span className={`px-2 py-1 rounded-full border text-xs font-semibold inline-block text-center w-full ${getStatusBadgeColor(room.status)}`}>
-            {room.status === 'scheduled' ? 'Scheduled' :
-              room.status === 'live' ? 'Live' :
-                room.status === 'completed' ? 'Done' : 'Cancelled'}
-          </span>
-        </div>
-
-        <div className="w-32 flex-shrink-0 text-xs">
-          {room.scheduled_at ? (
-            <>
-              <div className="font-semibold text-gray-900">
-                {new Date(room.scheduled_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-              </div>
-              <div className="text-gray-500">
-                {new Date(room.scheduled_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-              </div>
-            </>
-          ) : (
-            <span className="text-gray-400">—</span>
-          )}
-        </div>
-
-        <div className="w-20 flex-shrink-0 text-xs font-semibold text-gray-900">
-          {parseFloat(entryFee) > 0 ? `${currencySymbol}${entryFee}` : 'Free'}
-        </div>
-
-        <div className="w-16 flex-shrink-0 text-xs font-semibold text-center">
-          {stats ? (
-            <span className="text-orange-700">{ticketsSold}</span>
-          ) : (
-            <span className="text-gray-400">—</span>
-          )}
-        </div>
-
-        <div className="w-16 flex-shrink-0 text-xs font-semibold text-center">
-          {stats ? (
-            <span className="text-indigo-700">{uniquePlayers}</span>
-          ) : (
-            <span className="text-gray-400">—</span>
-          )}
-        </div>
-
-        <div className="w-16 flex-shrink-0 text-xs font-semibold text-center text-gray-700">
-          {maxPlayers > 0 ? maxPlayers : '—'}
-        </div>
-
-        <div className="w-24 flex-shrink-0 text-xs font-semibold text-right">
-          {stats && totalIncome > 0 ? (
-            <span className="text-green-700">{currencySymbol}{totalIncome.toFixed(2)}</span>
-          ) : (
-            <span className="text-gray-400">—</span>
-          )}
-        </div>
-
-        <div className="flex-1 min-w-0 text-xs">
-          {enabledExtras.length > 0 ? (
-            <div className="flex items-center gap-1">
-              <Zap className="h-3 w-3 text-yellow-600 flex-shrink-0" />
-              <span className="text-gray-700 truncate">
-                {enabledExtras.slice(0, 2).map(e => e.label).join(', ')}
-                {enabledExtras.length > 2 && ` +${enabledExtras.length - 2}`}
-              </span>
-            </div>
-          ) : (
-            <span className="text-gray-400">None</span>
-          )}
-        </div>
-
-        <div className="w-16 flex-shrink-0 text-xs font-semibold text-gray-900 text-right">
-          {prizeValue > 0 ? `${currencySymbol}${prizeValue}` : '—'}
-        </div>
-
-        <div className="w-72 lg:w-80 flex items-center justify-end gap-1 flex-shrink-0">
-          {canEdit && (
-            <button
-              type="button"
-              onClick={() => onEdit(room)}
-              className="p-1.5 rounded border border-gray-300 hover:bg-gray-100 transition-colors"
-              title="Edit"
-            >
-              <Edit className="h-3.5 w-3.5 text-gray-700" />
-            </button>
-          )}
-
-          {isScheduled && (
-            <button
-              type="button"
-              onClick={handlePersonalise}
-              className="p-1.5 rounded border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 transition-colors"
-              title="Personalise questions"
-            >
-              <Plus className="h-3.5 w-3.5 text-indigo-700" />
-            </button>
-          )}
-{showPaymentMethodButton && (
-  <button
-    type="button"
-    onClick={handleLinkPaymentMethod}
-    className="p-1.5 rounded border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-colors"
-    title="Link payment method"
-  >
-    <CreditCard className="h-3.5 w-3.5 text-emerald-700" />
-  </button>
-)}
-
-          {showTicketActionsWithPayment && (
-            <button
-              type="button"
-              onClick={copyTicketLink}
-              className="p-1.5 rounded border border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors"
-              title={copied ? 'Copied!' : 'Copy ticket purchase link'}
-            >
-              {copied ? (
-                <CheckCircle className="h-3.5 w-3.5 text-green-600" />
-              ) : (
-                <Copy className="h-3.5 w-3.5 text-blue-700" />
-              )}
-            </button>
-          )}
-
-          {showTicketActionsWithPayment && (
-            <button
-              type="button"
-              onClick={() => setTicketModalOpen(true)}
-              className="p-1.5 rounded border border-purple-200 bg-purple-50 hover:bg-purple-100 transition-colors"
-              title="Manage tickets"
-            >
-              <Ticket className="h-3.5 w-3.5 text-purple-700" />
-            </button>
-          )}
-
-          {!isCancelled && onLinkToEvent && onUnlinkFromEvent && (
-            <button
-              type="button"
-              onClick={() => isLinked && onUnlinkFromEvent ? onUnlinkFromEvent(room) : onLinkToEvent?.(room)}
-              className={`p-1.5 rounded border transition-colors ${isLinked ? 'border-indigo-200 bg-indigo-50 hover:bg-indigo-100' : 'border-indigo-200 hover:bg-indigo-50'
-                }`}
-              title={isLinked ? 'Unlink from event' : 'Link to event'}
-            >
-              {isLinked ? <Unlink className="h-3.5 w-3.5 text-indigo-700" /> : <Link2 className="h-3.5 w-3.5 text-indigo-700" />}
-            </button>
-          )}
-
-          {canCancel && (
-            <button
-              type="button"
-              onClick={() => onCancel(room)}
-              className="p-1.5 rounded border border-red-200 hover:bg-red-50 transition-colors"
-              title="Cancel"
-            >
-              <Trash2 className="h-3.5 w-3.5 text-red-600" />
-            </button>
-          )}
-
-          {isCompleted && (
-            <button
-              type="button"
-              onClick={handleManageOutstandingPayments}
-              className="relative p-1.5 rounded border border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors"
-              title="Manage outstanding payments"
-            >
-              <DollarSign className="h-3.5 w-3.5 text-orange-700" />
-              {outstandingCount > 0 && (
-                <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] leading-[18px] text-center font-bold">
-                  {outstandingCount}
-                </span>
-              )}
-            </button>
-          )}
-
-          {showReportButton && (
-            <button
-              type="button"
-              onClick={() => setReportModalOpen(true)}
-              className="p-1.5 rounded border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 transition-colors"
-              title="View financial report"
-            >
-              <BarChart3 className="h-3.5 w-3.5 text-indigo-700" />
-            </button>
-          )}
-
-          {!isCompleted && !isCancelled && (
-            <button
-              type="button"
-              onClick={() => onOpenRoom(room.room_id, room.host_id)}
-              disabled={!canOpen}
-              className={`inline-flex items-center gap-1 rounded px-3 py-1.5 text-xs font-semibold transition whitespace-nowrap ${canOpen ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                }`}
-            >
-              {canOpen ? <Play className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
-              Open
-            </button>
-          )}
-
-          {isCompleted && (
-            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-gray-100 text-gray-600 text-xs font-semibold">
-              <CheckCircle className="h-3.5 w-3.5" />
-              Done
-            </span>
-          )}
-        </div>
+const tableView = (
+  <div className="border-b border-gray-100 bg-white hover:bg-gray-50 transition-colors">
+    <div className="min-w-[900px] flex items-center gap-4 p-4">
+      <div className="w-24 flex-shrink-0">
+        <span className={`px-2 py-1 rounded-full border text-xs font-semibold inline-block text-center w-full ${getStatusBadgeColor(room.status)}`}>
+          {room.status === 'scheduled' ? 'Scheduled' :
+            room.status === 'live' ? 'Live' :
+              room.status === 'completed' ? 'Done' : 'Cancelled'}
+        </span>
       </div>
 
-      {isLinked && linkedEventTitle && (
-        <div className="px-3 pb-2">
-          <div className="flex items-center gap-2 text-xs text-indigo-700 bg-indigo-50 px-2 py-1 rounded border border-indigo-200 inline-flex">
-            <Link2 className="h-3 w-3 flex-shrink-0" />
-            <span>Linked: <span className="font-semibold">{linkedEventTitle}</span></span>
-          </div>
-        </div>
-      )}
+      <div className="w-32 flex-shrink-0 text-xs">
+        {room.scheduled_at ? (
+          <>
+            <div className="font-semibold text-gray-900">
+              {new Date(room.scheduled_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </div>
+            <div className="text-gray-500">
+              {new Date(room.scheduled_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          </>
+        ) : (
+          <span className="text-gray-400">—</span>
+        )}
+      </div>
+
+      <div className="w-16 flex-shrink-0 text-xs font-semibold text-gray-900">
+        {parseFloat(entryFee) > 0 ? `${currencySymbol}${entryFee}` : 'Free'}
+      </div>
+
+      <div className="w-24 flex-shrink-0 text-xs font-semibold">
+        {stats && totalIncome > 0 ? (
+          <span className="text-green-700">{currencySymbol}{totalIncome.toFixed(2)}</span>
+        ) : (
+          <span className="text-gray-400">—</span>
+        )}
+      </div>
+
+      <div className="w-16 flex-shrink-0 text-xs font-semibold text-center">
+        {stats ? (
+          <span className="text-orange-700">{ticketsSold}</span>
+        ) : (
+          <span className="text-gray-400">—</span>
+        )}
+      </div>
+
+      <div className="w-16 flex-shrink-0 text-xs font-semibold text-center">
+        {stats ? (
+          <span className="text-indigo-700">{uniquePlayers}</span>
+        ) : (
+          <span className="text-gray-400">—</span>
+        )}
+      </div>
+
+      <div className="w-16 flex-shrink-0 text-xs font-semibold text-center text-gray-700">
+        {maxPlayers > 0 ? maxPlayers : '—'}
+      </div>
+
+      <div className="w-20 flex-shrink-0 text-xs font-semibold text-gray-900 text-right">
+        {prizeValue > 0 ? `${currencySymbol}${prizeValue}` : '—'}
+      </div>
+
+      <div className="flex-1 flex items-center justify-end gap-1.5">
+        {canEdit && (
+          <button
+            type="button"
+            onClick={() => onEdit(room)}
+            className="p-1.5 rounded border border-gray-300 hover:bg-gray-100 transition-colors"
+            title="Edit"
+          >
+            <Edit className="h-3.5 w-3.5 text-gray-700" />
+          </button>
+        )}
+
+        {isScheduled && (
+          <button
+            type="button"
+            onClick={handlePersonalise}
+            className="p-1.5 rounded border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 transition-colors"
+            title="Personalise questions"
+          >
+            <Plus className="h-3.5 w-3.5 text-indigo-700" />
+          </button>
+        )}
+
+        {showPaymentMethodButton && (
+          <button
+            type="button"
+            onClick={handleLinkPaymentMethod}
+            className="p-1.5 rounded border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+            title="Link payment method"
+          >
+            <CreditCard className="h-3.5 w-3.5 text-emerald-700" />
+          </button>
+        )}
+
+        {showTicketActionsWithPayment && (
+          <button
+            type="button"
+            onClick={copyTicketLink}
+            className="p-1.5 rounded border border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors"
+            title={copied ? 'Copied!' : 'Copy ticket purchase link'}
+          >
+            {copied ? (
+              <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+            ) : (
+              <Copy className="h-3.5 w-3.5 text-blue-700" />
+            )}
+          </button>
+        )}
+
+        {showTicketActionsWithPayment && (
+          <button
+            type="button"
+            onClick={() => setTicketModalOpen(true)}
+            className="p-1.5 rounded border border-purple-200 bg-purple-50 hover:bg-purple-100 transition-colors"
+            title="Manage tickets"
+          >
+            <Ticket className="h-3.5 w-3.5 text-purple-700" />
+          </button>
+        )}
+
+        {!isCancelled && onLinkToEvent && onUnlinkFromEvent && (
+          <button
+            type="button"
+            onClick={() => isLinked && onUnlinkFromEvent ? onUnlinkFromEvent(room) : onLinkToEvent?.(room)}
+            className={`p-1.5 rounded border transition-colors ${isLinked ? 'border-indigo-200 bg-indigo-50 hover:bg-indigo-100' : 'border-indigo-200 hover:bg-indigo-50'}`}
+            title={isLinked ? 'Unlink from event' : 'Link to event'}
+          >
+            {isLinked ? <Unlink className="h-3.5 w-3.5 text-indigo-700" /> : <Link2 className="h-3.5 w-3.5 text-indigo-700" />}
+          </button>
+        )}
+
+        {canCancel && (
+          <button
+            type="button"
+            onClick={() => onCancel(room)}
+            className="p-1.5 rounded border border-red-200 hover:bg-red-50 transition-colors"
+            title="Cancel"
+          >
+            <Trash2 className="h-3.5 w-3.5 text-red-600" />
+          </button>
+        )}
+
+        {isCompleted && (
+          <button
+            type="button"
+            onClick={handleManageOutstandingPayments}
+            className="relative p-1.5 rounded border border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors"
+            title="Manage outstanding payments"
+          >
+            <DollarSign className="h-3.5 w-3.5 text-orange-700" />
+            {outstandingCount > 0 && (
+              <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] leading-[18px] text-center font-bold">
+                {outstandingCount}
+              </span>
+            )}
+          </button>
+        )}
+
+        {showReportButton && (
+          <button
+            type="button"
+            onClick={() => setReportModalOpen(true)}
+            className="p-1.5 rounded border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 transition-colors"
+            title="View financial report"
+          >
+            <BarChart3 className="h-3.5 w-3.5 text-indigo-700" />
+          </button>
+        )}
+
+        {!isCompleted && !isCancelled && (
+          <button
+            type="button"
+            onClick={() => onOpenRoom(room.room_id, room.host_id)}
+            disabled={!canOpen}
+            className={`inline-flex items-center gap-1 rounded px-3 py-1.5 text-xs font-semibold transition whitespace-nowrap ${canOpen ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}
+          >
+            {canOpen ? <Play className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+            {canOpen ? 'Start Quiz' : 'Opens 1 hour before'}
+          </button>
+        )}
+
+        {isCompleted && (
+          <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-gray-100 text-gray-600 text-xs font-semibold">
+            <CheckCircle className="h-3.5 w-3.5" />
+            Done
+          </span>
+        )}
+      </div>
     </div>
-  );
+
+    {isLinked && linkedEventTitle && (
+      <div className="px-4 pb-3">
+        <div className="flex items-center gap-2 text-xs text-indigo-700 bg-indigo-50 px-2 py-1 rounded border border-indigo-200 inline-flex">
+          <Link2 className="h-3 w-3 flex-shrink-0" />
+          <span>Linked: <span className="font-semibold">{linkedEventTitle}</span></span>
+        </div>
+      </div>
+    )}
+  </div>
+);
 
   // ============================================================================
   // CARD VIEW
@@ -636,7 +621,7 @@ const showTicketActionsWithPayment =
               ${canOpen ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}
           >
             {canOpen ? <Play className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-            {canOpen ? 'Open Quiz Room' : 'Opens 1 hour before'}
+            {canOpen ? 'Start Quiz ' : 'Opens 1 hour before'}
           </button>
         )}
 
@@ -666,7 +651,7 @@ const showTicketActionsWithPayment =
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
             >
               <Plus className="h-4 w-4" />
-              Add Round
+             Personalise Round
             </button>
           )}
 {showPaymentMethodButton && (
@@ -676,7 +661,7 @@ const showTicketActionsWithPayment =
     className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
   >
     <CreditCard className="h-4 w-4" />
-    Payment
+     + Payment
   </button>
 )}
 
@@ -694,7 +679,7 @@ const showTicketActionsWithPayment =
               ) : (
                 <>
                   <Copy className="h-4 w-4" />
-                  Copy Link
+                  Sell Tickets
                 </>
               )}
             </button>
@@ -707,7 +692,7 @@ const showTicketActionsWithPayment =
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-purple-200 bg-purple-50 px-3 py-2 text-sm font-medium text-purple-700 hover:bg-purple-100 transition-colors"
             >
               <Ticket className="h-4 w-4" />
-              Tickets
+              Ticket Mgt
             </button>
           )}
 
