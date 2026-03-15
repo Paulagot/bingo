@@ -1,6 +1,17 @@
 import { useCallback } from 'react';
-import { readContract, writeContract, waitForTransactionReceipt, getConnection } from 'wagmi/actions';
-import { keccak256, stringToHex, erc20Abi as ERC20_ABI } from 'viem';
+import {
+  readContract,
+  writeContract,
+  waitForTransactionReceipt,
+  getConnection,
+} from 'wagmi/actions';
+import {
+  keccak256,
+  stringToHex,
+  erc20Abi as ERC20_ABI,
+  decodeEventLog,
+  toEventHash,
+} from 'viem';
 
 import { useEvmShared } from './useEvmShared';
 import { explorerFor } from '../utils/evmSelect';
@@ -30,9 +41,9 @@ export type EvmDistributeResult =
       success: true;
       txHash: `0x${string}`;
       explorerUrl?: string;
-        tgbDepositAddress?: string;  // ✅ NEW: TGB charity wallet address
-      charityAmount?: string; 
-      error?: string; // warnings
+      tgbDepositAddress?: string;
+      charityAmount?: string;
+      error?: string; // warnings only
     }
   | { success: false; error: string };
 
@@ -46,7 +57,8 @@ async function prepareWinnersArray(params: {
   isAssetRoom: boolean;
   wagmiConfig: any;
 }): Promise<{ addresses: `0x${string}`[]; warnings: string[] }> {
-  const { winners, roomAddress, chainId, roomABI, fallbackAddress, isAssetRoom, wagmiConfig } = params;
+  const { winners, roomAddress, chainId, roomABI, fallbackAddress, isAssetRoom, wagmiConfig } =
+    params;
   const warnings: string[] = [];
 
   // Step 1: Get expected number of winners from contract
@@ -97,39 +109,41 @@ async function prepareWinnersArray(params: {
       }
     }
   } else {
-    // Pool room
-   // Pool room
-try {
-  // ✅ TRY definedPrizePlaces() FIRST (this works)
-  expectedPlaces = (await readContract(wagmiConfig, {
-    address: roomAddress as `0x${string}`,
-    abi: roomABI,
-    functionName: 'definedPrizePlaces',
-    args: [],
-    chainId,
-  })) as number;
-  
-  console.log('✅ [EVM][Pool] Got expected places from definedPrizePlaces():', expectedPlaces);
-} catch (e: any) {
-  console.error('❌ [EVM][Pool] Failed to get definedPrizePlaces:', e);
-  
-  // ✅ FALLBACK: Try reading prize splits array
-  try {
-    const prizeSplits = (await readContract(wagmiConfig, {
-      address: roomAddress as `0x${string}`,
-      abi: roomABI,
-      functionName: 'prizeSplitsBps',
-      args: [],
-      chainId,
-    })) as [number, number, number];
+    // Pool room — try definedPrizePlaces() first, fall back to prizeSplitsBps
+    try {
+      expectedPlaces = (await readContract(wagmiConfig, {
+        address: roomAddress as `0x${string}`,
+        abi: roomABI,
+        functionName: 'definedPrizePlaces',
+        args: [],
+        chainId,
+      })) as number;
 
-    expectedPlaces = prizeSplits.filter((split) => split > 0).length;
-    console.log('📊 [EVM][Pool] Contract expects', expectedPlaces, 'winners from prizeSplitsBps. Prize splits:', prizeSplits);
-  } catch (e2: any) {
-    console.error('❌ [EVM][Pool] Failed to read prize splits from contract:', e2);
-    throw new Error('Cannot determine expected number of winners from pool room contract');
-  }
-}
+      console.log('✅ [EVM][Pool] Got expected places from definedPrizePlaces():', expectedPlaces);
+    } catch (e: any) {
+      console.error('❌ [EVM][Pool] Failed to get definedPrizePlaces:', e);
+
+      try {
+        const prizeSplits = (await readContract(wagmiConfig, {
+          address: roomAddress as `0x${string}`,
+          abi: roomABI,
+          functionName: 'prizeSplitsBps',
+          args: [],
+          chainId,
+        })) as [number, number, number];
+
+        expectedPlaces = prizeSplits.filter((split) => split > 0).length;
+        console.log(
+          '📊 [EVM][Pool] Contract expects',
+          expectedPlaces,
+          'winners from prizeSplitsBps. Prize splits:',
+          prizeSplits
+        );
+      } catch (e2: any) {
+        console.error('❌ [EVM][Pool] Failed to read prize splits from contract:', e2);
+        throw new Error('Cannot determine expected number of winners from pool room contract');
+      }
+    }
   }
 
   if (expectedPlaces === 0 || expectedPlaces > 3) {
@@ -171,10 +185,7 @@ try {
         `Only top ${expectedPlaces} will receive prizes.`
     );
     console.warn('⚠️ [EVM] Too many winners, truncating to', expectedPlaces);
-    return {
-      addresses: validAddresses.slice(0, expectedPlaces),
-      warnings,
-    };
+    return { addresses: validAddresses.slice(0, expectedPlaces), warnings };
   }
 
   if (validAddresses.length < expectedPlaces) {
@@ -210,10 +221,7 @@ export function useEvmDistributePrizes() {
         const roomAddress = args.roomAddress;
 
         if (!roomAddress || !/^0x[0-9a-fA-F]{40}$/.test(roomAddress)) {
-          return {
-            success: false,
-            error: 'Missing or invalid EVM room contract address',
-          };
+          return { success: false, error: 'Missing or invalid EVM room contract address' };
         }
 
         // Detect room type
@@ -291,15 +299,9 @@ export function useEvmDistributePrizes() {
 
           // 0 = Open, 1 = Locked, 2 = Settled, 3 = Refunding
           if (currentState === 2) {
-            return {
-              success: false,
-              error: 'Room already settled. Prizes have been distributed.',
-            };
+            return { success: false, error: 'Room already settled. Prizes have been distributed.' };
           } else if (currentState === 3) {
-            return {
-              success: false,
-              error: 'Room is in refunding state. Cannot distribute prizes.',
-            };
+            return { success: false, error: 'Room is in refunding state. Cannot distribute prizes.' };
           } else if (currentState === 1) {
             console.warn('⚠️ [EVM] Room already locked, skipping lock step');
           } else if (currentState === 0) {
@@ -349,8 +351,9 @@ export function useEvmDistributePrizes() {
         }
 
         // Get charity amount and token
+        // token is declared here so it's available for decimals lookup later
         let charityAmt: bigint;
-        let token: `0x${string}`;
+        let token: `0x${string}` | undefined;
         let recipientAddressForFinalize: `0x${string}` | null = null;
 
         if (isAssetRoom) {
@@ -429,7 +432,11 @@ export function useEvmDistributePrizes() {
 
         if (tgbOrgId && charityAmt > 0n) {
           try {
-            const currencySym = (setup?.currencySymbol || setup?.web3Currency || 'USDC').toUpperCase();
+            const currencySym = (
+              setup?.currencySymbol ||
+              setup?.web3Currency ||
+              'USDC'
+            ).toUpperCase();
             const tgbNetwork = getTgbNetworkLabel({
               web3Chain: 'evm',
               evmTargetKey: target.key,
@@ -437,7 +444,7 @@ export function useEvmDistributePrizes() {
             });
 
             const decimals = (await readContract(wagmiConfig, {
-              address: token,
+              address: token as `0x${string}`,
               abi: ERC20_ABI,
               functionName: 'decimals',
               chainId: target.id,
@@ -472,7 +479,9 @@ export function useEvmDistributePrizes() {
         if (!recipientAddressForFinalize) {
           const charityWallet = args.charityAddress;
           if (!charityWallet || !/^0x[0-9a-fA-F]{40}$/.test(charityWallet)) {
-            throw new Error('Invalid charity wallet address. Room configuration may be incomplete.');
+            throw new Error(
+              'Invalid charity wallet address. Room configuration may be incomplete.'
+            );
           }
           recipientAddressForFinalize = charityWallet as `0x${string}`;
         }
@@ -504,48 +513,57 @@ export function useEvmDistributePrizes() {
           throw new Error('Transaction reverted on-chain');
         }
 
-        let charityAmountFromEvent: string | undefined;
+        // ✅ FIXED: Parse RoomEnded event using viem's toEventHash + decodeEventLog
+        // Previously used keccak256(stringToHex(...)) which was wrong because
+        // stringToHex pads/truncates to 32 bytes, corrupting the topic hash.
+        // Also removed the dynamic ethers import which was fragile and could fail silently.
+    let charityAmountFromEvent: string | undefined;
 
 try {
-  // Find RoomEnded event in logs
-  const roomEndedLog = receipt.logs.find((log: any) => {
-    try {
-      const parsed = RoomABI.find((item: any) => 
-        item.type === 'event' && item.name === 'RoomEnded'
-      );
-      if (!parsed) return false;
-      
-      // Check if this log matches RoomEnded event signature
-      const eventSignature = `RoomEnded(uint256,address[],uint256)`;
-      const eventTopic = keccak256(stringToHex(eventSignature));
-      return log.topics[0] === eventTopic;
-    } catch {
-      return false;
-    }
-  });
+  const roomSettledTopic = toEventHash(
+    'RoomSettled(uint256,uint256,uint256,uint256,uint256)'
+  );
 
-  if (roomEndedLog) {
-    // Parse the event
-    const iface = new (await import('ethers')).Interface(RoomABI);
-    const decoded = iface.parseLog({
-      topics: roomEndedLog.topics,
-      data: roomEndedLog.data,
+  const roomSettledLog = receipt.logs.find(
+    (log: any) => log.topics[0] === roomSettledTopic
+  );
+
+  if (roomSettledLog) {
+    const decoded = decodeEventLog({
+      abi: RoomABI,
+      eventName: 'RoomSettled',
+      topics: roomSettledLog.topics as [`0x${string}`, ...`0x${string}`[]],
+      data: roomSettledLog.data,
     });
-    
-    if (decoded && decoded.args && decoded.args.charityAmount) {
-      // Convert bigint to decimal string (assuming 6 decimals for USDC)
+
+    if (decoded.args && 'charityPaid' in decoded.args) {
+      let decimals = 6;
+      if (token) {
+        try {
+          decimals = (await readContract(wagmiConfig, {
+            address: token,
+            abi: ERC20_ABI,
+            functionName: 'decimals',
+            chainId: target.id,
+          })) as number;
+        } catch {
+          console.warn('[EVM] Could not read token decimals, defaulting to 6');
+        }
+      }
+
       charityAmountFromEvent = bigintToDecimalString(
-        decoded.args.charityAmount,
-        6 // decimals
+        decoded.args.charityPaid as bigint,
+        decimals
       );
-      
-      console.log('[EVM] 💰 Charity amount from RoomEnded event:', charityAmountFromEvent);
+
+      console.log('[EVM] 💰 Charity amount from RoomSettled event:', charityAmountFromEvent);
     }
   } else {
-    console.warn('[EVM] ⚠️ Could not find RoomEnded event in transaction logs');
+    console.warn('[EVM] ⚠️ Could not find RoomSettled event in transaction logs');
+    console.log('[EVM] 🔍 Log topics found:', receipt.logs.map((l: any) => l.topics[0]));
   }
 } catch (parseError: any) {
-  console.error('[EVM] ❌ Failed to parse RoomEnded event:', parseError);
+  console.error('[EVM] ❌ Failed to parse RoomSettled event:', parseError);
 }
 
         const explorerUrl = explorerFor(target.key);
@@ -554,8 +572,8 @@ try {
           success: true,
           txHash: hash as `0x${string}`,
           explorerUrl: `${explorerUrl}/tx/${hash}`,
-           tgbDepositAddress: recipientAddressForFinalize, // ✅ NEW: Return TGB wallet
-  charityAmount: charityAmountFromEvent,  
+          tgbDepositAddress: recipientAddressForFinalize,
+          charityAmount: charityAmountFromEvent,
           error: warnings.length > 0 ? warnings.join('\n') : undefined,
         };
       } catch (e: any) {
@@ -568,7 +586,8 @@ try {
         } else if (errorMessage.includes('insufficient funds')) {
           errorMessage = 'Insufficient funds for gas fees';
         } else if (errorMessage.includes('bad state')) {
-          errorMessage = 'Room is not in correct state. May already be settled or not locked yet.';
+          errorMessage =
+            'Room is not in correct state. May already be settled or not locked yet.';
         } else if (errorMessage.includes('bad winners len')) {
           errorMessage =
             'Winner count mismatch. This should have been handled automatically - please report this bug.';
@@ -576,10 +595,7 @@ try {
           errorMessage = 'Contract execution reverted. Check if prizes can be distributed.';
         }
 
-        return {
-          success: false,
-          error: errorMessage,
-        };
+        return { success: false, error: errorMessage };
       }
     },
     [wagmiConfig, resolveTarget]

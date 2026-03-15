@@ -295,14 +295,19 @@ const res = await wallet.connect();
           }
 
           // ✅ Build confirmed data and notify + persist synchronously before setState
-          const confirmedData: PrizeDistributionData = {
-            ...preview,
-            confirmedCharityAmount: charityAmount ?? preview.charityAmount ?? null,
-            charityWallet: finalCharityWallet,
-            txHash,
-            network: networkForBackend,
-            web3Chain: web3ChainForBackend,
-          };
+     const confirmedData: PrizeDistributionData = {
+  ...preview,
+  // ✅ NEW: fall back through all available sources
+  confirmedCharityAmount:
+    charityAmount ??                    // from on-chain event (Solana)
+    preview.charityAmount ??            // from server preview
+    data.charityAmountPreview ??        // raw from socket payload
+    null,
+  charityWallet: finalCharityWallet,
+  txHash,
+  network: networkForBackend,
+  web3Chain: web3ChainForBackend,
+};
           charityPreviewRef.current = confirmedData;
           notifyParent('success', confirmedData);
 

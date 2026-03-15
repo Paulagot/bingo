@@ -22,7 +22,7 @@ interface OrderImageQuestion {
 interface OrderImageAskingProps {
   question: OrderImageQuestion;
   onSubmit: (order: string[]) => void;
-   onOrderChange?: (order: string[]) => void; 
+  onOrderChange?: (order: string[]) => void;
   isFrozen?: boolean;
   frozenNotice?: string | null;
   timeLeft: number | null;
@@ -32,267 +32,409 @@ interface OrderImageAskingProps {
 const OrderImageAsking: React.FC<OrderImageAskingProps> = ({
   question,
   onSubmit,
-  onOrderChange, 
+  onOrderChange,
   isFrozen = false,
   frozenNotice = null,
   timeLeft,
-  answerSubmitted
+  answerSubmitted,
 }) => {
-  
   const [items, setItems] = useState<OrderImageItem[]>(question.images || []);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [touchStartY, setTouchStartY] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-   console.log('🎨 [OrderImageAsking] Render:', {
-    questionId: question.id,
-    itemCount: items.length,
-    timeLeft,
-    answerSubmitted,
-    currentOrder: items.map(i => i.label)
-  });
-
-    useEffect(() => {
+  // Notify parent of order changes
+  useEffect(() => {
     if (items.length > 0 && !answerSubmitted && onOrderChange) {
-      const currentOrder = items.map(item => item.id);
-      onOrderChange(currentOrder);
+      onOrderChange(items.map(item => item.id));
     }
   }, [items, answerSubmitted, onOrderChange]);
 
   // Reset items when question changes
-
-    useEffect(() => {
+  useEffect(() => {
     if (question?.images && Array.isArray(question.images) && question.images.length > 0) {
-      console.log('🎨 [OrderImageAsking] Setting items:', question.images.map(i => i.label));
       setItems(question.images);
     }
   }, [question?.id, question?.images]);
 
-   useEffect(() => {
-    console.log('🎨 [OrderImageAsking] Render:', {
-      questionId: question?.id,
-      itemCount: items.length,
-      timeLeft,
-      answerSubmitted,
-      currentOrder: items.map(i => i.label)
-    });
-  }, [question?.id, items, timeLeft, answerSubmitted]);
-
-  // Handle drag start (desktop)
+  // Desktop drag handlers
   const handleDragStart = (index: number) => {
     setDraggedIndex(index);
   };
 
-  // Handle drag over (desktop)
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
-    
     if (draggedIndex === null || draggedIndex === index) return;
 
     const newItems = [...items];
     const draggedItem = newItems[draggedIndex];
-    
-    if (!draggedItem) return; // Safety check
-    
+    if (!draggedItem) return;
+
     newItems.splice(draggedIndex, 1);
     newItems.splice(index, 0, draggedItem);
-    
     setItems(newItems);
     setDraggedIndex(index);
   };
 
-  // Handle drag end (desktop)
-  const handleDragEnd = () => {
-    setDraggedIndex(null);
-  };
+  const handleDragEnd = () => setDraggedIndex(null);
 
-  // Handle touch start (mobile)
+  // Touch drag handlers
   const handleTouchStart = (e: React.TouchEvent, index: number) => {
     const touch = e.touches[0];
+    if (!touch) return;
     setDraggedIndex(index);
     setTouchStartY(touch.clientY);
   };
 
-  // Handle touch move (mobile)
-  const handleTouchMove = useCallback((e: TouchEvent) => {
-    if (draggedIndex === null || touchStartY === null) return;
-    
-    const touch = e.touches[0];
-    if (!touch) return; // Safety check for undefined touch
-    
-    e.preventDefault(); // Prevent scrolling while dragging
-    
-    const currentY = touch.clientY;
-    
-    // Determine which item we're hovering over based on Y position
-    if (!containerRef.current) return;
-    
-    const containerRect = containerRef.current.getBoundingClientRect();
-    const itemHeight = containerRect.height / items.length;
-    const relativeY = currentY - containerRect.top;
-    const targetIndex = Math.floor(relativeY / itemHeight);
-    
-    if (targetIndex >= 0 && targetIndex < items.length && targetIndex !== draggedIndex) {
-      const newItems = [...items];
-      const draggedItem = newItems[draggedIndex];
-      
-      if (!draggedItem) return; // Safety check
-      
-      newItems.splice(draggedIndex, 1);
-      newItems.splice(targetIndex, 0, draggedItem);
-      
-      setItems(newItems);
-      setDraggedIndex(targetIndex);
-      setTouchStartY(currentY); // Update start position
-    }
-  }, [draggedIndex, touchStartY, items]);
+  const handleTouchMove = useCallback(
+    (e: TouchEvent) => {
+      if (draggedIndex === null || touchStartY === null) return;
+      const touch = e.touches[0];
+      if (!touch) return;
+      e.preventDefault();
 
-  // Set up touch event listeners with { passive: false }
+      const currentY = touch.clientY;
+
+      // Find which item we're hovering over by checking each item's bounding rect
+      let targetIndex: number | null = null;
+      itemRefs.current.forEach((ref, idx) => {
+        if (!ref) return;
+        const rect = ref.getBoundingClientRect();
+        if (currentY >= rect.top && currentY <= rect.bottom) {
+          targetIndex = idx;
+        }
+      });
+
+      if (targetIndex !== null && targetIndex !== draggedIndex) {
+        const newItems = [...items];
+        const draggedItem = newItems[draggedIndex];
+        if (!draggedItem) return;
+        newItems.splice(draggedIndex, 1);
+        newItems.splice(targetIndex, 0, draggedItem);
+        setItems(newItems);
+        setDraggedIndex(targetIndex);
+        setTouchStartY(currentY);
+      }
+    },
+    [draggedIndex, touchStartY, items]
+  );
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-
-    // Add non-passive listener to allow preventDefault
-    container.addEventListener('touchmove', handleTouchMove as any, { passive: false });
-
-    return () => {
-      container.removeEventListener('touchmove', handleTouchMove as any);
-    };
+    container.addEventListener('touchmove', handleTouchMove as EventListener, { passive: false });
+    return () => container.removeEventListener('touchmove', handleTouchMove as EventListener);
   }, [handleTouchMove]);
 
-  // Handle touch end (mobile)
   const handleTouchEnd = () => {
     setDraggedIndex(null);
     setTouchStartY(null);
   };
 
-  // Handle submit
   const handleSubmit = () => {
     if (isFrozen || answerSubmitted) return;
-    
-    const order = items.map(item => item.id);
-    onSubmit(order);
+    onSubmit(items.map(item => item.id));
   };
 
-  // Auto-submit when time runs out
+  // Auto-submit on timeout
   useEffect(() => {
     if (timeLeft === 0 && !answerSubmitted && !isFrozen) {
       handleSubmit();
     }
   }, [timeLeft, answerSubmitted, isFrozen]);
 
+  const timerColor =
+    timeLeft !== null && timeLeft <= 5
+      ? '#ef4444'
+      : timeLeft !== null && timeLeft <= 10
+      ? '#f97316'
+      : '#3b82f6';
+
+  const timerPercent =
+    timeLeft !== null && question.timeLimit > 0
+      ? (timeLeft / question.timeLimit) * 100
+      : 100;
+
   return (
-    <div className="flex flex-col items-center gap-6 p-4">
-      {/* Header */}
-      <div className="w-full max-w-2xl text-center">
-        <div className="mb-2 flex items-center justify-between text-sm text-gray-500">
-          <span>Question {question.questionNumber}/{question.totalQuestions}</span>
+    /**
+     * LAYOUT STRATEGY (mobile-first):
+     * - The outer wrapper is a full-height flex column (min-h-dvh)
+     * - Sticky header contains: question meta + prompt + timer bar
+     * - Scrollable middle section holds the draggable list
+     * - Sticky footer holds the submit button
+     * This keeps the timer always visible and the list drag-friendly
+     * without the page itself scrolling underneath your finger.
+     */
+    <div className="flex flex-col" style={{ minHeight: '100dvh', background: '#f8fafc' }}>
+
+      {/* ── STICKY HEADER ── */}
+      <div
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 30,
+          background: '#fff',
+          borderBottom: '1px solid #e2e8f0',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+        }}
+      >
+        {/* Meta row */}
+        <div className="flex items-center justify-between px-4 pt-3 pb-1">
+          <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>
+            Q{question.questionNumber}/{question.totalQuestions}
+          </span>
           {question.difficulty && (
-            <span className="capitalize">{question.difficulty}</span>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                padding: '2px 10px',
+                borderRadius: 99,
+                background: '#f1f5f9',
+                color: '#475569',
+              }}
+            >
+              {question.difficulty}
+            </span>
+          )}
+          {/* Timer digit */}
+          {timeLeft !== null && (
+            <span
+              style={{
+                fontSize: 22,
+                fontWeight: 800,
+                color: timerColor,
+                minWidth: 44,
+                textAlign: 'right',
+                transition: 'color 0.3s',
+                animation: timeLeft <= 5 ? 'pulse 0.6s infinite alternate' : 'none',
+              }}
+            >
+              {timeLeft}s
+            </span>
           )}
         </div>
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">
-          {question.prompt}
-        </h2>
-        
-        {/* Timer */}
+
+        {/* Timer progress bar */}
         {timeLeft !== null && (
-          <div className={`text-3xl font-bold mb-4 ${
-            timeLeft <= 5 ? 'text-red-600 animate-pulse' : 
-            timeLeft <= 10 ? 'text-orange-500' : 
-            'text-blue-600'
-          }`}>
-            {timeLeft}s
+          <div style={{ height: 4, background: '#e2e8f0', margin: '0 0 2px' }}>
+            <div
+              style={{
+                height: '100%',
+                width: `${timerPercent}%`,
+                background: timerColor,
+                borderRadius: 2,
+                transition: 'width 1s linear, background 0.3s',
+              }}
+            />
           </div>
         )}
 
-        {/* Instructions */}
-        {!answerSubmitted && !isFrozen && (
-          <p className="text-sm text-gray-600 mb-4">
-            👆 Drag and drop to reorder, then tap Submit
-          </p>
-        )}
-      </div>
-
-      {/* Frozen Notice */}
-      {isFrozen && frozenNotice && (
-        <div className="w-full max-w-2xl p-4 bg-blue-100 border-2 border-blue-300 rounded-lg text-center">
-          <p className="text-blue-800 font-semibold">❄️ {frozenNotice}</p>
+        {/* Prompt */}
+        <div className="px-4 py-3">
+          <h2 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', lineHeight: 1.4, margin: 0 }}>
+            {question.prompt}
+          </h2>
+          {!answerSubmitted && !isFrozen && (
+            <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
+              ↕ Drag to reorder · then tap Submit
+            </p>
+          )}
         </div>
-      )}
 
-      {/* Image Grid */}
-      <div 
-        ref={containerRef}
-        className="w-full max-w-2xl space-y-3"
-      >
-        {items.map((item, index) => (
+        {/* Frozen notice */}
+        {isFrozen && frozenNotice && (
           <div
-            key={item.id}
-            draggable={!isFrozen && !answerSubmitted}
-            onDragStart={() => handleDragStart(index)}
-            onDragOver={(e) => handleDragOver(e, index)}
-            onDragEnd={handleDragEnd}
-            onTouchStart={(e) => handleTouchStart(e, index)}
-            onTouchEnd={handleTouchEnd}
-            className={`
-              relative flex items-center gap-4 p-4 rounded-xl border-2 transition-all
-              ${draggedIndex === index ? 'opacity-50 scale-95' : 'opacity-100 scale-100'}
-              ${isFrozen || answerSubmitted ? 'cursor-not-allowed bg-gray-100 border-gray-300' : 'cursor-move bg-white border-gray-300 hover:border-blue-400 hover:shadow-md'}
-            `}
             style={{
-              touchAction: 'none', // Prevent default touch behaviors
-              userSelect: 'none'
+              margin: '0 12px 10px',
+              padding: '8px 14px',
+              background: '#eff6ff',
+              border: '1.5px solid #93c5fd',
+              borderRadius: 10,
+              fontSize: 13,
+              color: '#1d4ed8',
+              fontWeight: 600,
             }}
           >
-            {/* Order Number */}
-            <div className="flex-shrink-0 w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center text-xl font-bold">
-              {index + 1}
-            </div>
-
-            {/* Image */}
-            <div className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden border border-gray-200">
-              <img 
-                src={item.imageUrl} 
-                alt={item.label}
-                className="w-full h-full object-cover"
-                draggable={false} // Prevent image from being draggable
-              />
-            </div>
-
-            {/* Label */}
-            <div className="flex-1">
-              <p className="text-lg font-semibold text-gray-800">{item.label}</p>
-            </div>
-
-            {/* Drag Handle Icon (visual indicator) */}
-            {!isFrozen && !answerSubmitted && (
-              <div className="flex-shrink-0 text-gray-400">
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/>
-                </svg>
-              </div>
-            )}
+            ❄️ {frozenNotice}
           </div>
-        ))}
+        )}
+
+        {answerSubmitted && (
+          <div
+            style={{
+              margin: '0 12px 10px',
+              padding: '8px 14px',
+              background: '#f0fdf4',
+              border: '1.5px solid #86efac',
+              borderRadius: 10,
+              fontSize: 13,
+              color: '#166534',
+              fontWeight: 600,
+            }}
+          >
+            ✅ Answer submitted!
+          </div>
+        )}
       </div>
 
-      {/* Submit Button */}
-      {!answerSubmitted && !isFrozen && (
-        <button
-          onClick={handleSubmit}
-          className="w-full max-w-md py-4 px-6 bg-green-600 hover:bg-green-700 text-white text-xl font-bold rounded-xl shadow-lg transition-all transform hover:scale-105 active:scale-95"
-        >
-          Submit Answer
-        </button>
-      )}
+      {/* ── SCROLLABLE DRAG LIST ── */}
+      <div
+        ref={containerRef}
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '12px 12px 8px',
+          // Prevent the page scroll from interfering during drag
+          WebkitOverflowScrolling: 'touch',
+        }}
+      >
+        {items.map((item, index) => {
+          const isDragging = draggedIndex === index;
+          return (
+            <div
+              key={item.id}
+              ref={el => { itemRefs.current[index] = el; }}
+              draggable={!isFrozen && !answerSubmitted}
+              onDragStart={() => handleDragStart(index)}
+              onDragOver={e => handleDragOver(e, index)}
+              onDragEnd={handleDragEnd}
+              onTouchStart={e => handleTouchStart(e, index)}
+              onTouchEnd={handleTouchEnd}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: '10px 12px',
+                marginBottom: 10,
+                borderRadius: 14,
+                border: `2px solid ${isDragging ? '#3b82f6' : '#e2e8f0'}`,
+                background: isDragging ? '#eff6ff' : '#fff',
+                boxShadow: isDragging
+                  ? '0 8px 24px rgba(59,130,246,0.18)'
+                  : '0 1px 4px rgba(0,0,0,0.06)',
+                opacity: isDragging ? 0.85 : 1,
+                transform: isDragging ? 'scale(0.98)' : 'scale(1)',
+                transition: 'border-color 0.15s, box-shadow 0.15s, transform 0.1s',
+                cursor: isFrozen || answerSubmitted ? 'not-allowed' : 'grab',
+                touchAction: 'none',
+                userSelect: 'none',
+                WebkitUserSelect: 'none',
+              }}
+            >
+              {/* Position badge */}
+              <div
+                style={{
+                  flexShrink: 0,
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  background: isDragging ? '#3b82f6' : '#1e40af',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 800,
+                  fontSize: 16,
+                }}
+              >
+                {index + 1}
+              </div>
 
-      {/* Submitted Message */}
-      {answerSubmitted && (
-        <div className="w-full max-w-md p-4 bg-green-100 border-2 border-green-300 rounded-lg text-center">
-          <p className="text-green-800 font-semibold">✅ Answer submitted!</p>
+              {/* Image */}
+              <div
+                style={{
+                  flexShrink: 0,
+                  width: 64,
+                  height: 64,
+                  borderRadius: 10,
+                  overflow: 'hidden',
+                  border: '1.5px solid #e2e8f0',
+                }}
+              >
+                <img
+                  src={item.imageUrl}
+                  alt={item.label}
+                  draggable={false}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                />
+              </div>
+
+              {/* Label */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p
+                  style={{
+                    fontSize: 15,
+                    fontWeight: 600,
+                    color: '#1e293b',
+                    margin: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {item.label}
+                </p>
+              </div>
+
+              {/* Drag handle */}
+              {!isFrozen && !answerSubmitted && (
+                <div style={{ flexShrink: 0, color: '#cbd5e1', padding: '0 2px' }}>
+                  {/* Three-line drag handle — clearer than dots on mobile */}
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+                    <rect y="3" width="18" height="2.5" rx="1.25" />
+                    <rect y="7.75" width="18" height="2.5" rx="1.25" />
+                    <rect y="12.5" width="18" height="2.5" rx="1.25" />
+                  </svg>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── STICKY FOOTER SUBMIT ── */}
+      {!answerSubmitted && !isFrozen && (
+        <div
+          style={{
+            position: 'sticky',
+            bottom: 0,
+            zIndex: 30,
+            padding: '10px 12px 14px',
+            background: 'linear-gradient(to bottom, rgba(248,250,252,0) 0%, #f8fafc 30%)',
+          }}
+        >
+          <button
+            onClick={handleSubmit}
+            style={{
+              width: '100%',
+              padding: '15px 0',
+              fontSize: 17,
+              fontWeight: 800,
+              borderRadius: 14,
+              border: 'none',
+              background: 'linear-gradient(135deg, #16a34a, #15803d)',
+              color: '#fff',
+              boxShadow: '0 4px 14px rgba(22,163,74,0.35)',
+              cursor: 'pointer',
+              letterSpacing: '0.02em',
+            }}
+          >
+            Submit Answer ✓
+          </button>
         </div>
       )}
+
+      {/* Pulse keyframe */}
+      <style>{`
+        @keyframes pulse {
+          from { opacity: 1; transform: scale(1); }
+          to   { opacity: 0.7; transform: scale(1.05); }
+        }
+      `}</style>
     </div>
   );
 };

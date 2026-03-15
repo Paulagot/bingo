@@ -427,7 +427,7 @@ export const Web3PaymentStep: React.FC<{
             disabled={paymentStatus !== 'idle' || (!isMiniApp && !isOnCorrectNetwork)}
             className="rounded-lg bg-purple-600 px-4 py-2 text-sm text-white disabled:opacity-50"
           >
-            Pay {roomConfig.currencySymbol}{totalAmount.toFixed(2)}
+            Pay {roomConfig.currencySymbol}{totalAmount}
           </button>
         )}
       </div>

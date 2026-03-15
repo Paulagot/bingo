@@ -155,7 +155,7 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
   if (!isMiniApp) return;
   // Lock to Base Sepolia — no chain selection in mini app
   setChoice('base');
-  setCurrency('USDC');
+ 
 }, [isMiniApp]);
 
   useEffect(() => { setFlow('web3'); }, [setFlow]);
