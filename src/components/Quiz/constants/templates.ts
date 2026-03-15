@@ -38,7 +38,7 @@ const quizTemplates: QuizTemplate[] = [
     rounds: [
         {
       type: 'order_image',  // ✅ NEW round type
-      category: 'Technology',  // or 'Historical Events', 'Size Comparison', 'Age Order'
+      category: 'Film',  // or 'Historical Events', 'Size Comparison', 'Age Order'
       difficulty: 'easy',  // easy, medium, or hard
       customConfig: {
         questionsPerRound: 2,  // Number of ordering questions
@@ -98,7 +98,7 @@ const quizTemplates: QuizTemplate[] = [
   rounds: [
         {
       type: 'order_image',  // ✅ NEW round type
-      category: 'Technology Timeline',  // or 'Historical Events', 'Size Comparison', 'Age Order'
+      category: 'Art',  // or 'Historical Events', 'Size Comparison', 'Age Order'
       difficulty: 'easy',  // easy, medium, or hard
       customConfig: {
         questionsPerRound: 2,  // Number of ordering questions
@@ -144,7 +144,7 @@ const quizTemplates: QuizTemplate[] = [
     icon: '🏃‍♂️',
     difficulty: 'Easy',
     rounds: [
-      { type: 'order_image', category: 'Technology Timeline', difficulty: 'easy' },
+      { type: 'order_image', category: 'Art', difficulty: 'easy' },
       { type: 'wipeout', category: 'Children', difficulty: 'easy' },
       { type: 'hidden_object',    category: 'Kids',     difficulty: 'hard' },
       { type: 'speed_round',    category: 'Math',   difficulty: 'easy' }     
@@ -345,7 +345,7 @@ const quizTemplates: QuizTemplate[] = [
 // -----------------------------------------------------------------------------
 
 // ~~~ TEENS: “Teens Hype Night”
-// ~~~ TEENS: “Teens Hype Night”
+
 {
   id: 'teens-hype-60',
   name: 'Teens Hype Night',
@@ -527,7 +527,7 @@ const quizTemplates: QuizTemplate[] = [
 // wipeout = 9m
 // speed_round = 5m
 // Breaks: 15m added automatically by the UI
-// Rounded to nearest 5 minutes
+// Rounded up to nearest 5 minutes
 //
 
 // ~~~ FAMILY: “Family Fiesta”
@@ -709,7 +709,7 @@ const quizTemplates: QuizTemplate[] = [
 // wipeout = 9m
 // speed_round = 5m
 // Breaks: 15m auto
-// Rounded to nearest 5 minutes
+// Rounded up to nearest 5 minutes
 //
 
 
