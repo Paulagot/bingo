@@ -212,7 +212,7 @@ const ClubsLeaguePage: React.FC = () => {
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-10">
             <div className="rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 p-6 text-center">
-              <div className="mb-3 text-3xl font-bold text-white">€15,000+</div>
+              <div className="mb-3 text-3xl font-bold text-white">€18,000+</div>
               <p className="text-white/80 text-sm leading-relaxed">Injected directly into grassroots sports clubs</p>
             </div>
             <div className="rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 p-6 text-center">
@@ -235,7 +235,7 @@ const ClubsLeaguePage: React.FC = () => {
               <div>
                 <h3 className="text-white text-xl font-bold mb-3">The Bigger Picture</h3>
                 <p className="text-white/80 leading-relaxed mb-4">
-                  The Junior Sports Clubs Quiz League will inject <strong className="text-white">€15,000+ directly into grassroots sports clubs</strong>, support equipment, facility costs and youth development, and create a coordinated national moment across communities nationwide.
+                  The Junior Sports Clubs Quiz League will inject <strong className="text-white">€18,000+ directly into grassroots sports clubs</strong>, support equipment, facility costs and youth development, and create a coordinated national moment across communities nationwide.
                 </p>
                 <p className="text-white/80 leading-relaxed">
                   This is not a one-off event. It is the <strong className="text-white">launch year of a model designed to grow</strong> — showcasing how structured, shared fundraising can scale nationally and deliver real, lasting impact for junior sport.
