@@ -11,27 +11,6 @@
  * - ✅ Winners visible on-chain before distribution
  * - ✅ More transparent and trustworthy
  * - ✅ Time to get TGB charity address between steps
- *
- * ## Usage
- *
- * ```typescript
- * const { endRoom } = useSolanaEndRoom();
- *
- * const result = await endRoom({
- *   roomId: 'quiz-123',
- *   roomAddress: roomPDA,
- *   winners: [alicePubkey, bobPubkey, carolPubkey],
- *   charityOrgId: 'tgb-org-id',  // Optional: for TGB integration
- *   charityWallet: fallbackPubkey, // Fallback if TGB fails
- * });
- *
- * if (result.success) {
- *   console.log('✅ Prizes distributed!');
- *   console.log('  Declare tx:', result.declareWinnersTxHash);
- *   console.log('  Distribute tx:', result.txHash);
- *   console.log('  Charity amount:', result.charityAmount);
- * }
- * ```
  */
 
 import { useCallback } from 'react';
@@ -53,7 +32,6 @@ import {
   formatTransactionError,
 } from '../utils/transaction-helpers';
 
-// ✅ Multi-token config — supports all 11 tokens + platform reserve wallet
 import {
   getTokenByMint,
   meetsMinDonation,
@@ -61,7 +39,6 @@ import {
   PLATFORM_CHARITY_RESERVE,
 } from '../config/solanaTokenConfig';
 
-// ✅ wSOL utilities — wrap/unwrap for native SOL rooms
 import {
   buildUnwrapSolInstruction,
   isNativeSolRoom,
@@ -75,9 +52,6 @@ import type {
   DistributePrizesResult,
 } from '../utils/types';
 
-/**
- * Hook for ending Solana quiz rooms and distributing prizes
- */
 export function useSolanaEndRoom() {
   const {
     publicKey,
@@ -85,13 +59,9 @@ export function useSolanaEndRoom() {
     connection,
     provider,
     isConnected,
-    cluster,
     getTxExplorerUrl,
   } = useSolanaShared();
 
-  /**
-   * End room and distribute prizes (two-step flow)
-   */
   const endRoom = useCallback(
     async (params: DistributePrizesParams): Promise<DistributePrizesResult> => {
       console.log('[Solana][EndRoom] 🏆 Starting two-step prize distribution...');
@@ -102,7 +72,7 @@ export function useSolanaEndRoom() {
       // ============================================================================
 
       if (!isConnected || !publicKey || !program || !connection || !provider) {
-        const missing = [];
+        const missing: string[] = [];
         if (!isConnected) missing.push('not connected');
         if (!publicKey) missing.push('no publicKey');
         if (!program) missing.push('no program');
@@ -127,7 +97,6 @@ export function useSolanaEndRoom() {
       if (!winners || winners.length === 0) throw new Error('At least one winner is required');
       if (winners.length > 10) throw new Error('Maximum 10 winners allowed');
 
-      // Convert winner addresses to PublicKeys
       let winnerPublicKeys: PublicKey[] = winners.map((addr) => {
         try {
           return typeof addr === 'string' ? new PublicKey(addr) : addr;
@@ -167,7 +136,6 @@ export function useSolanaEndRoom() {
       console.log('[Solana][EndRoom]   Entry fees:', totalEntryFees.toString());
       console.log('[Solana][EndRoom]   Extras:', totalExtrasFees.toString());
 
-      // ✅ Determine prize mode and allowed winner count (from on-chain config)
       const prizeMode = Object.keys(roomAccount.prizeMode)[0]; // 'poolSplit' or 'assetBased'
       console.log('[Solana][EndRoom]   Prize mode:', prizeMode);
 
@@ -181,9 +149,6 @@ export function useSolanaEndRoom() {
         throw new Error('This room has no prize slots configured (all prize_distribution entries are 0).');
       }
 
-      // ------------------------------------------------------------
-      // Asset-based rooms: also cap by prizes actually deposited
-      // ------------------------------------------------------------
       if (prizeMode === 'assetBased') {
         console.log('[Solana][EndRoom] 🎁 Asset-based room detected - validating prizes deposited...');
 
@@ -229,7 +194,6 @@ export function useSolanaEndRoom() {
           throw new Error('At least one winner is required');
         }
       } else {
-        // Pool split rooms: cap winners to expectedWinners from prize_distribution
         if (winnerPublicKeys.length > expectedWinners) {
           console.warn(
             `[Solana][EndRoom] ⚠️ Too many winners provided (${winnerPublicKeys.length}). Trimming to ${expectedWinners} based on prize_distribution.`
@@ -244,15 +208,12 @@ export function useSolanaEndRoom() {
       // STEP 4: Resolve token config from on-chain mint
       // ============================================================================
 
-      // ✅ UPDATED: Look up token by mint address — supports all 11 tokens
-      // No more hardcoded USDC/PYUSD/USDT checks
       const mintAddress = tokenMint.toBase58();
       const tokenConfig = getTokenByMint(mintAddress);
 
       if (!tokenConfig) {
         throw new Error(
-          `Unsupported token mint: ${mintAddress}. ` +
-          `This token is not in the approved token list.`
+          `Unsupported token mint: ${mintAddress}. This token is not in the approved token list.`
         );
       }
 
@@ -261,23 +222,20 @@ export function useSolanaEndRoom() {
 
       console.log('[Solana][EndRoom] ✅ Token resolved:', currency, `(${decimals} decimals)`);
 
-      // ✅ Detect SOL rooms — affects ATA derivation and unwrap logic
       const isSolRoom = isNativeSolRoom(tokenMint);
-      // For SOL rooms, the contract uses the wSOL mint for all SPL token operations
       const splMint = isSolRoom ? WSOL_MINT : tokenMint;
       console.log('[Solana][EndRoom] 🪙 SOL room (wSOL):', isSolRoom);
 
       // ============================================================================
-      // STEP 5: Calculate charity preview (for TGB API call)
+      // STEP 5: Calculate charity preview
       // ============================================================================
 
-      const PLATFORM_FEE_BPS = 2000; // 20% — matches GlobalConfig
+      const PLATFORM_FEE_BPS = 2000;
       const totalPool = totalEntryFees.add(totalExtrasFees);
 
       let charityAmountRaw: BN;
 
       if (prizeMode === 'assetBased') {
-        // Asset rooms: prizes are pre-deposited, so no prize_pool_bps deduction from fees
         console.log('[Solana][EndRoom] 💰 Asset room charity calculation:');
 
         const platformFee = totalPool.mul(new BN(PLATFORM_FEE_BPS)).div(new BN(10000));
@@ -290,7 +248,6 @@ export function useSolanaEndRoom() {
         console.log('[Solana][EndRoom]   Host fee:', hostFee.toString());
         console.log('[Solana][EndRoom]   Prize pool fee: 0 (asset-based)');
       } else {
-        // Pool room: deduct platform + host + prizes, charity gets the rest
         console.log('[Solana][EndRoom] 💰 Pool room charity calculation:');
 
         const platformFee = totalPool.mul(new BN(PLATFORM_FEE_BPS)).div(new BN(10000));
@@ -305,9 +262,8 @@ export function useSolanaEndRoom() {
         console.log('[Solana][EndRoom]   Prize fee:', prizeFee.toString());
       }
 
-      // ✅ UPDATED: Use toDisplayAmount utility — no float math on decimals
       const charityAmountDisplay = toDisplayAmount(BigInt(charityAmountRaw.toString()), currency);
-      const charityDecimal = charityAmountDisplay.toFixed(6); // Keep full precision for TGB
+      const charityDecimal = charityAmountDisplay.toFixed(6);
 
       console.log('[Solana][EndRoom]   Charity (raw):', charityAmountRaw.toString());
       console.log('[Solana][EndRoom]   Charity (display):', charityDecimal, currency);
@@ -333,7 +289,7 @@ export function useSolanaEndRoom() {
       console.log('[Solana][EndRoom]   Player entries:', playerEntryPDAs.length);
 
       // ============================================================================
-      // STEP 7A: DECLARE WINNERS (First Transaction)
+      // STEP 7A: DECLARE WINNERS
       // ============================================================================
 
       console.log('[Solana][EndRoom] 🥇 Step 1/2: Declaring winners on-chain...');
@@ -385,7 +341,7 @@ export function useSolanaEndRoom() {
       }
 
       // ============================================================================
-      // STEP 7B: GET TGB CHARITY ADDRESS (Between Transactions)
+      // STEP 7B: GET TGB CHARITY ADDRESS
       // ============================================================================
 
       let charityWallet: PublicKey;
@@ -394,15 +350,11 @@ export function useSolanaEndRoom() {
       if (charityOrgId && charityAmountNum > 0) {
         console.log('[Solana][EndRoom] 🌐 Getting TGB charity address...');
 
-        // ✅ UPDATED: Check min donation threshold before calling TGB
         if (!meetsMinDonation(charityAmountNum, currency)) {
           console.warn(
-            `[Solana][EndRoom] ⚠️ Charity amount ${charityDecimal} ${currency} is below ` +
-            `TGB minimum for this token. Using platform reserve wallet.`
+            `[Solana][EndRoom] ⚠️ Charity amount ${charityDecimal} ${currency} is below TGB minimum for this token. Using platform reserve wallet.`
           );
 
-          // ✅ Use provided fallback, or platform reserve wallet automatically
-          // Platform batches small charity amounts and forwards to charities manually
           const fallback = params.charityWallet ?? PLATFORM_CHARITY_RESERVE;
           charityWallet = typeof fallback === 'string'
             ? new PublicKey(fallback)
@@ -411,8 +363,6 @@ export function useSolanaEndRoom() {
           console.log('[Solana][EndRoom] ⚠️ Amount below TGB minimum — using reserve wallet:', charityWallet.toBase58());
         } else {
           try {
-            // ✅ UPDATED: Use getTgbCurrencyCode for correct TGB currency mapping
-            // and remove the 'network' field which TGB rejects
             console.log('[Solana][EndRoom] 💰 Charity amount:', charityDecimal, currency);
 
             const response = await fetch('/api/tgb/create-deposit-address', {
@@ -420,8 +370,7 @@ export function useSolanaEndRoom() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 organizationId: Number(charityOrgId),
-                tokenCode: currency,       // ✅ our internal code e.g. 'USDG', 'SOL', 'BONK'
-                // 'network' intentionally omitted — TGB rejects it
+                tokenCode: currency,
                 amount: charityDecimal,
                 metadata: { roomId },
               }),
@@ -438,7 +387,6 @@ export function useSolanaEndRoom() {
           } catch (tgbError: any) {
             console.warn('[Solana][EndRoom] ⚠️ TGB API failed, using fallback:', tgbError.message);
 
-            // ✅ Use provided fallback, or platform reserve wallet if none provided
             const fallback = params.charityWallet ?? PLATFORM_CHARITY_RESERVE;
             charityWallet = typeof fallback === 'string'
               ? new PublicKey(fallback)
@@ -448,7 +396,6 @@ export function useSolanaEndRoom() {
           }
         }
       } else {
-        // No charityOrgId — use provided wallet or platform reserve
         const fallback = params.charityWallet ?? PLATFORM_CHARITY_RESERVE;
         charityWallet = typeof fallback === 'string'
           ? new PublicKey(fallback)
@@ -468,8 +415,7 @@ export function useSolanaEndRoom() {
         throw new Error('GlobalConfig account not found');
       }
 
-      // Parse platform wallet from GlobalConfig (offset 8 = after discriminator)
-     const platformWalletOffset = 8 + 32;
+      const platformWalletOffset = 8 + 32;
       const platformWalletBytes = globalConfigData.data.slice(
         platformWalletOffset,
         platformWalletOffset + 32
@@ -482,17 +428,52 @@ export function useSolanaEndRoom() {
       const charityTokenAccount = await getAssociatedTokenAddress(splMint, charityWallet);
       const hostTokenAccount = await getAssociatedTokenAddress(splMint, host);
 
-      const winnerTokenAccounts: PublicKey[] = [];
+      // Fee-token winner ATAs
+      const winnerFeeTokenAccounts: PublicKey[] = [];
       for (const winner of winnerPublicKeys) {
         const winnerATA = await getAssociatedTokenAddress(splMint, winner);
-        winnerTokenAccounts.push(winnerATA);
+        winnerFeeTokenAccounts.push(winnerATA);
+      }
+
+      // Prize-token winner ATAs for asset rooms
+      const winnerPrizeTokenAccounts: PublicKey[] = [];
+
+      if (prizeMode === 'assetBased') {
+        console.log('[Solana][EndRoom] 🎁 Deriving winner prize-token ATAs...');
+
+        const prizeAssets = roomAccount.prizeAssets || [];
+
+        for (let prizeIndex = 0; prizeIndex < winnerPublicKeys.length; prizeIndex++) {
+          const winner = winnerPublicKeys[prizeIndex];
+          const prizeAsset = prizeAssets[prizeIndex];
+
+          if (!winner) {
+            throw new Error(`Missing winner at prize index ${prizeIndex}`);
+          }
+
+          if (!prizeAsset || !prizeAsset.deposited) {
+            throw new Error(
+              `Prize slot ${prizeIndex + 1} is not deposited but was matched to a winner`
+            );
+          }
+
+          const prizeMint = new PublicKey(prizeAsset.mint);
+          const winnerPrizeAta = await getAssociatedTokenAddress(prizeMint, winner);
+
+          winnerPrizeTokenAccounts.push(winnerPrizeAta);
+
+          console.log(
+            `[Solana][EndRoom]   Prize ${prizeIndex + 1}: winner ${winner.toBase58()} -> mint ${prizeMint.toBase58()} -> ATA ${winnerPrizeAta.toBase58()}`
+          );
+        }
       }
 
       console.log('[Solana][EndRoom] ✅ Token accounts derived');
       console.log('[Solana][EndRoom]   Platform ATA:', platformTokenAccount.toBase58());
       console.log('[Solana][EndRoom]   Charity ATA:', charityTokenAccount.toBase58());
       console.log('[Solana][EndRoom]   Host ATA:', hostTokenAccount.toBase58());
-      console.log('[Solana][EndRoom]   Winner ATAs:', winnerTokenAccounts.length);
+      console.log('[Solana][EndRoom]   Winner fee-token ATAs:', winnerFeeTokenAccounts.length);
+      console.log('[Solana][EndRoom]   Winner prize-token ATAs:', winnerPrizeTokenAccounts.length);
 
       // ============================================================================
       // STEP 8B: CREATE ATAs IF THEY DON'T EXIST
@@ -503,32 +484,57 @@ export function useSolanaEndRoom() {
       const { createAssociatedTokenAccountInstruction } = await import('@solana/spl-token');
       const ataInstructions: any[] = [];
 
-      const checkAndQueueAta = async (ata: PublicKey, owner: PublicKey, label: string) => {
+      const checkAndQueueAta = async (
+        ata: PublicKey,
+        owner: PublicKey,
+        mint: PublicKey,
+        label: string
+      ) => {
         const info = await connection.getAccountInfo(ata);
         if (!info) {
           console.log(`[Solana][EndRoom] 📝 Creating ${label} ATA...`);
           ataInstructions.push(
-            createAssociatedTokenAccountInstruction(publicKey, ata, owner, splMint)
+            createAssociatedTokenAccountInstruction(publicKey, ata, owner, mint)
           );
         }
       };
 
-      await checkAndQueueAta(platformTokenAccount, platformWallet, 'platform');
-      await checkAndQueueAta(charityTokenAccount, charityWallet, 'charity');
-      await checkAndQueueAta(hostTokenAccount, host, 'host');
+      await checkAndQueueAta(platformTokenAccount, platformWallet, splMint, 'platform');
+      await checkAndQueueAta(charityTokenAccount, charityWallet, splMint, 'charity');
+      await checkAndQueueAta(hostTokenAccount, host, splMint, 'host');
 
       for (let i = 0; i < winnerPublicKeys.length; i++) {
         const winner = winnerPublicKeys[i];
-        const winnerATA = winnerTokenAccounts[i];
-        if (!winner || !winnerATA) {
-          console.warn('[Solana][EndRoom] ⚠️ Skipping invalid winner at index:', i);
-          continue;
-        }
+        const winnerATA = winnerFeeTokenAccounts[i];
+        if (!winner || !winnerATA) continue;
+
         await checkAndQueueAta(
           winnerATA,
           winner,
-          `winner ${winner.toBase58().slice(0, 8)}...`
+          splMint,
+          `winner fee-token ${winner.toBase58().slice(0, 8)}...`
         );
+      }
+
+      if (prizeMode === 'assetBased') {
+        const prizeAssets = roomAccount.prizeAssets || [];
+
+        for (let i = 0; i < winnerPublicKeys.length; i++) {
+          const winner = winnerPublicKeys[i];
+          const winnerPrizeAta = winnerPrizeTokenAccounts[i];
+          const prizeAsset = prizeAssets[i];
+
+          if (!winner || !winnerPrizeAta || !prizeAsset) continue;
+
+          const prizeMint = new PublicKey(prizeAsset.mint);
+
+          await checkAndQueueAta(
+            winnerPrizeAta,
+            winner,
+            prizeMint,
+            `winner prize-token ${i + 1} (${winner.toBase58().slice(0, 8)}...)`
+          );
+        }
       }
 
       if (ataInstructions.length > 0) {
@@ -546,7 +552,7 @@ export function useSolanaEndRoom() {
       }
 
       // ============================================================================
-      // STEP 9: END ROOM (Second Transaction - Distribute Funds)
+      // STEP 9: END ROOM
       // ============================================================================
 
       console.log('[Solana][EndRoom] 💰 Step 2/2: Distributing prizes...');
@@ -561,39 +567,59 @@ export function useSolanaEndRoom() {
         throw new Error('Program methods not available');
       }
 
-      // Build remaining accounts based on prize mode
-      let remainingAccounts: any[] = [];
+      let remainingAccounts: Array<{
+        pubkey: PublicKey;
+        isSigner: boolean;
+        isWritable: boolean;
+      }> = [];
 
       if (prizeMode === 'assetBased') {
-        // Order per end_room.rs:
-        // [0..winners.len()]               = PlayerEntry PDAs
-        // [winners.len()..winners.len()*2] = Winner token accounts (ATAs)
-        // [winners.len()*2..+3]            = Prize vault accounts (all 3 slots)
+        // Contract order from end_room.rs:
+        // [0..winners_count]                 = winner fee-token ATAs
+        // [winners_count..winners_count*2]   = winner prize-token ATAs
+        // [winners_count*2..+3]              = prize vault PDAs
 
         console.log('[Solana][EndRoom] 🎁 Asset room - building remaining accounts in contract order');
 
-        playerEntryPDAs.forEach((pda, idx) => {
-          console.log('[Solana][EndRoom]   [' + idx + '] PlayerEntry PDA:', pda.toBase58());
-          remainingAccounts.push({ pubkey: pda, isSigner: false, isWritable: false });
+        winnerFeeTokenAccounts.forEach((ata, idx) => {
+          console.log(`[Solana][EndRoom]   [${idx}] Winner fee ATA:`, ata.toBase58());
+          remainingAccounts.push({
+            pubkey: ata,
+            isSigner: false,
+            isWritable: true,
+          });
         });
 
-        winnerTokenAccounts.forEach((ata, idx) => {
-          const accountIndex = playerEntryPDAs.length + idx;
-          console.log('[Solana][EndRoom]   [' + accountIndex + '] Winner ATA:', ata.toBase58());
-          remainingAccounts.push({ pubkey: ata, isSigner: false, isWritable: true });
+        winnerPrizeTokenAccounts.forEach((ata, idx) => {
+          const accountIndex = winnerFeeTokenAccounts.length + idx;
+          console.log(`[Solana][EndRoom]   [${accountIndex}] Winner prize ATA:`, ata.toBase58());
+          remainingAccounts.push({
+            pubkey: ata,
+            isSigner: false,
+            isWritable: true,
+          });
         });
 
         for (let i = 0; i < 3; i++) {
           const [prizeVault] = derivePrizeVaultPDA(roomPDA, i);
-          const accountIndex = playerEntryPDAs.length + winnerTokenAccounts.length + i;
-          console.log('[Solana][EndRoom]   [' + accountIndex + '] Prize Vault slot', i + 1, ':', prizeVault.toBase58());
-          remainingAccounts.push({ pubkey: prizeVault, isSigner: false, isWritable: true });
+          const accountIndex =
+            winnerFeeTokenAccounts.length + winnerPrizeTokenAccounts.length + i;
+
+          console.log(
+            `[Solana][EndRoom]   [${accountIndex}] Prize Vault slot ${i + 1}:`,
+            prizeVault.toBase58()
+          );
+
+          remainingAccounts.push({
+            pubkey: prizeVault,
+            isSigner: false,
+            isWritable: true,
+          });
         }
 
         console.log('[Solana][EndRoom]   Total remaining accounts:', remainingAccounts.length);
       } else {
-        // Pool room: only winner ATAs as remaining accounts
-        remainingAccounts = winnerTokenAccounts.map((ata) => ({
+        remainingAccounts = winnerFeeTokenAccounts.map((ata) => ({
           pubkey: ata,
           isSigner: false,
           isWritable: true,
@@ -607,42 +633,31 @@ export function useSolanaEndRoom() {
           roomId,
           charityWallet,
           intentIdHash,
-          [] // Empty — winners already declared in step 1
+          []
         )
         .accounts({
           room: roomPDA,
           roomVault: roomVault,
           globalConfig: globalConfig,
           platformTokenAccount: platformTokenAccount,
-           platformWallet: platformWallet,  
+          platformWallet: platformWallet,
           charityTokenAccount: charityTokenAccount,
           hostTokenAccount: hostTokenAccount,
           host: publicKey,
           charityWallet: charityWallet,
           tokenProgram: TOKEN_PROGRAM_ID,
-           systemProgram: SystemProgram.programId,
+          systemProgram: SystemProgram.programId,
         })
         .remainingAccounts(remainingAccounts)
         .instruction();
 
-      // ✅ For SOL rooms: append unwrap instructions for each winner so they
-      // receive native SOL instead of wSOL after distribution.
-      // We also unwrap the host and platform accounts if they received wSOL.
-      let endRoomInstructions = [endRoomInstruction];
+      const endRoomInstructions = [endRoomInstruction];
 
-   if (isSolRoom) {
-  console.log('[Solana][EndRoom] 🔓 SOL room — unwrapping host wSOL only');
-
-  // ✅ Only unwrap host — host is the signer of this transaction
-  // Winners must unwrap their own wSOL separately (they need to sign)
-  endRoomInstructions.push(await buildUnwrapSolInstruction(host));
-
-  // ❌ Cannot unwrap winners here — their signature is required
-  // Winners receive wSOL, and it auto-unwraps next time they use their wallet
-  // OR add an "unwrap" button in the UI for winners after the game
-
-  console.log('[Solana][EndRoom] ✅ Host unwrap instruction appended');
-}
+      if (isSolRoom) {
+        console.log('[Solana][EndRoom] 🔓 SOL room — unwrapping host wSOL only');
+        endRoomInstructions.push(await buildUnwrapSolInstruction(host));
+        console.log('[Solana][EndRoom] ✅ Host unwrap instruction appended');
+      }
 
       const endRoomTx = await buildTransaction(connection, endRoomInstructions, publicKey);
 
@@ -669,19 +684,19 @@ export function useSolanaEndRoom() {
       }
 
       // ============================================================================
-      // STEP 10: PARSE RoomEnded EVENT (Get Actual Charity Amount)
+      // STEP 10: PARSE RoomEnded EVENT
       // ============================================================================
 
       console.log('[Solana][EndRoom] 📊 Parsing RoomEnded event...');
 
-      let actualCharityAmount = charityDecimal; // Fallback to preview
+      let actualCharityAmount = charityDecimal;
 
       try {
         const { event, charityAmountDecimal } = await fetchAndParseRoomEndedEvent(
           connection,
           endRoomTxHash,
           decimals,
-          10 // Max 10 retries
+          10
         );
 
         if (event && charityAmountDecimal) {
@@ -726,9 +741,12 @@ export function useSolanaEndRoom() {
         charityAmount: actualCharityAmount,
         tgbDepositAddress: charityWallet.toBase58(),
         declareWinnersTxHash,
-      } as DistributePrizesResult & { declareWinnersTxHash: string; tgbDepositAddress: string };
+      } as DistributePrizesResult & {
+        declareWinnersTxHash: string;
+        tgbDepositAddress: string;
+      };
     },
-    [publicKey, program, connection, provider, isConnected, cluster, getTxExplorerUrl]
+    [publicKey, program, connection, provider, isConnected, getTxExplorerUrl]
   );
 
   return { endRoom };

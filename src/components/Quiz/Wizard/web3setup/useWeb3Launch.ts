@@ -4,19 +4,19 @@ import { useNavigate } from "react-router-dom";
 import { useQuizSetupStore } from "../../hooks/useQuizSetupStore";
 import { useQuizConfig } from "../../hooks/useQuizConfig";
 import { useQuizSocket } from "../../sockets/QuizSocketProvider";
-import { useQuizChainIntegration } from "../../../../hooks/useQuizChainIntegration";
-import { useWalletActions } from "../../../../hooks/useWalletActions";
+import { useChainWallet } from "../../../../hooks/useChainWallet";
 import { useContractActions } from "../../../../hooks/useContractActions";
+import { toChainConfig } from "../../../../types/chainConfig";
 
 import { generateRoomId, generateHostId } from "../../utils/idUtils";
 
 import type { DeployParams } from "../../../../hooks/useContractActions";
 
-// Move this outside component to prevent recreating on every render
+// REMOVED: useQuizChainIntegration, useWalletActions — replaced by useChainWallet + useContractActions
+
 const isInvalidTx = (tx?: string) =>
   !tx || tx === "pending" || tx === "transaction-submitted" || tx.length < 16;
 
-// Storage key for quiz setup persistence (critical for mobile reloads)
 const QUIZ_SETUP_STORAGE_KEY = "fundraisely-quiz-setup-draft";
 
 const saveQuizDraft = (setup: any) => {
@@ -28,16 +28,11 @@ const saveQuizDraft = (setup: any) => {
   }
 };
 
-
-
 const clearQuizDraft = () => {
   localStorage.removeItem(QUIZ_SETUP_STORAGE_KEY);
-  
-  // ✅ NEW: Also clear the setup store and admins
-  localStorage.removeItem('quiz-setup-v2');
-  localStorage.removeItem('quiz-admins');
-  
-  console.log('[useWeb3Launch] Cleared quiz draft and setup data');
+  localStorage.removeItem("quiz-setup-v2");
+  localStorage.removeItem("quiz-admins");
+  console.log("[useWeb3Launch] Cleared quiz draft and setup data");
 };
 
 export type Web3LaunchState =
@@ -54,16 +49,14 @@ interface UseWeb3LaunchArgs {
 }
 
 export function useWeb3Launch({ onResetToFirst: _onResetToFirst, onBack: _onBack }: UseWeb3LaunchArgs) {
-  // Only log on mount, not on every render
   const hasLoggedMount = useRef(false);
   if (!hasLoggedMount.current) {
     console.log("[useWeb3Launch] Hook initialized");
     hasLoggedMount.current = true;
   }
-  
+
   const navigate = useNavigate();
 
-  // Stores & hooks
   const {
     setupConfig,
     roomId,
@@ -71,35 +64,26 @@ export function useWeb3Launch({ onResetToFirst: _onResetToFirst, onBack: _onBack
     setRoomIds,
     clearRoomIds,
     hardReset,
-    // Assuming your store has a method to restore/merge setupConfig
-    // If not, add one like setSetupConfig or mergeSetupConfig in useQuizSetupStore
   } = useQuizSetupStore();
 
   const { setFullConfig } = useQuizConfig();
   const { socket, connected } = useQuizSocket();
-  
-const {
-  selectedChain,
-  isWalletConnected,
-  walletReadiness,
-  currentWallet,
-  getNetworkDisplayName,
-} = useQuizChainIntegration({
-  externalConfig: {
-    web3Chain: setupConfig.web3Chain,
-    evmNetwork: (setupConfig as any).evmNetwork,
-    solanaCluster: (setupConfig as any).solanaCluster,
-    stellarNetwork: setupConfig.stellarNetwork,
-  }
-});
 
-const walletActions = useWalletActions({
-  externalSetupConfig: {
-    web3Chain: setupConfig.web3Chain,
-    evmNetwork: (setupConfig as any).evmNetwork,
-  }
-});
-  const contractActions = useContractActions();
+  // ── Single config source ──────────────────────────────────────────────────
+  // Config flows down from setupConfig. No store reads inside the hooks.
+  const chainConfig = toChainConfig(setupConfig);
+
+  const {
+    chainFamily: selectedChain,
+    address,
+    isConnected: isWalletConnected,
+    networkInfo,
+    connect,
+    disconnect,
+  } = useChainWallet(chainConfig);
+
+  const { deploy } = useContractActions(chainConfig);
+  // ─────────────────────────────────────────────────────────────────────────
 
   // Local state
   const [launchState, setLaunchState] = useState<Web3LaunchState>("ready");
@@ -110,50 +94,45 @@ const walletActions = useWalletActions({
   const [deploymentStep, setDeploymentStep] = useState<string>("");
   const [deployTrigger, setDeployTrigger] = useState(0);
 
-
-  // Memoize complex derived values
   const configCheck = useMemo(() => {
     const hasHostName = !!setupConfig.hostName;
     const hasRounds = !!(setupConfig.roundDefinitions?.length);
     const configComplete = hasHostName && hasRounds && !!selectedChain;
-    
     return { hasHostName, hasRounds, configComplete };
-  }, [
-    setupConfig.hostName, 
-    setupConfig.roundDefinitions?.length, 
-    selectedChain
-  ]);
+  }, [setupConfig.hostName, setupConfig.roundDefinitions?.length, selectedChain]);
 
   const launchCheck = useMemo(() => {
     const canLaunch =
       configCheck.configComplete &&
       isWalletConnected &&
       (launchState === "ready" || launchState === "error");
-
     const isLaunching = launchState !== "ready" && launchState !== "error";
-
     return { canLaunch, isLaunching };
   }, [configCheck.configComplete, isWalletConnected, launchState]);
 
-  // Stable references for IDs
-  const resolvedRoomId = useMemo(() => 
-    roomId ?? localStorage.getItem("current-room-id") ?? generateRoomId(),
+  const resolvedRoomId = useMemo(
+    () => roomId ?? localStorage.getItem("current-room-id") ?? generateRoomId(),
     [roomId]
   );
 
-  const resolvedHostId = useMemo(() => 
-    hostId ?? localStorage.getItem("current-host-id") ?? generateHostId(),
+  const resolvedHostId = useMemo(
+    () => hostId ?? localStorage.getItem("current-host-id") ?? generateHostId(),
     [hostId]
   );
 
-  // buildDeployParams deps
+  // Helper: human-readable network name from networkInfo
+  const getNetworkDisplayName = useCallback(() => {
+    return networkInfo.expectedNetwork || selectedChain || "wallet";
+  }, [networkInfo.expectedNetwork, selectedChain]);
+
+  // Build deploy params — unchanged logic, just pulled from setupConfig directly
   const deployConfigDeps = useMemo(() => ({
     prizeMode: setupConfig.prizeMode,
     web3PrizeSplit: setupConfig.web3PrizeSplit,
     prizeSplits: setupConfig.prizeSplits,
     prizes: setupConfig.prizes,
     web3CharityAddress: (setupConfig as any)?.web3CharityAddress,
-    web3CharityName: (setupConfig as any)?.web3CharityName, 
+    web3CharityName: (setupConfig as any)?.web3CharityName,
     web3Charity: (setupConfig as any)?.web3Charity,
     charityName: (setupConfig as any)?.charityName,
     hostName: setupConfig.hostName,
@@ -170,7 +149,7 @@ const walletActions = useWalletActions({
     (setupConfig as any)?.web3CharityAddress,
     (setupConfig as any)?.web3Charity,
     (setupConfig as any)?.charityName,
-    (setupConfig as any)?.web3CharityName, 
+    (setupConfig as any)?.web3CharityName,
     setupConfig.hostName,
     setupConfig.eventDateTime,
     setupConfig.roundDefinitions,
@@ -241,39 +220,39 @@ const walletActions = useWalletActions({
     [deployConfigDeps]
   );
 
-  // Improved: Save draft BEFORE connect
+  // ── Wallet handlers ───────────────────────────────────────────────────────
   const handleWalletConnect = useCallback(async () => {
     console.log("[useWeb3Launch] handleWalletConnect called");
-
-    // Save current quiz setup before opening wallet modal (handles reloads)
     saveQuizDraft(setupConfig);
 
     try {
-      const res = await walletActions.connect();
-      
+      const res = await connect();
       if (!res.success) {
-        console.error("[useWeb3Launch] Wallet connection failed:", res.error);
-        throw new Error(res.error?.message || "Wallet connection failed");
+        const errorMsg =
+          res.error && typeof res.error === "object" && "message" in res.error
+            ? (res.error as any).message
+            : "Wallet connection failed";
+        throw new Error(errorMsg);
       }
-      
       console.log("[useWeb3Launch] Wallet connected successfully");
     } catch (err) {
       console.error("[useWeb3Launch] Wallet connection error:", err);
       setLaunchError(err instanceof Error ? err.message : "Wallet connection failed");
     }
-  }, [walletActions.connect, setupConfig]);  // Depend on setupConfig for save
+  }, [connect, setupConfig]);
 
   const handleWalletDisconnect = useCallback(async () => {
     try {
-      await walletActions.disconnect();
-      clearQuizDraft();  // Clean up draft
-      console.log("[useWeb3Launch] Wallet disconnected successfully");
+      await disconnect();
+      clearQuizDraft();
+      console.log("[useWeb3Launch] Wallet disconnected");
     } catch (err) {
       console.error("[useWeb3Launch] Wallet disconnection error:", err);
     }
-  }, [walletActions.disconnect]);
+  }, [disconnect]);
+  // ─────────────────────────────────────────────────────────────────────────
 
-  // Socket listeners (unchanged)
+  // Socket listeners
   useEffect(() => {
     if (!connected || !socket) return;
 
@@ -285,12 +264,12 @@ const walletActions = useWalletActions({
         localStorage.removeItem("current-room-id");
         localStorage.removeItem("current-host-id");
         localStorage.removeItem("current-contract-address");
-          localStorage.removeItem("quiz-setup-v2");
-  localStorage.removeItem("quiz-admins");
+        localStorage.removeItem("quiz-setup-v2");
+        localStorage.removeItem("quiz-admins");
       } catch {}
 
       hardReset();
-      clearQuizDraft();  // Clean up on full success
+      clearQuizDraft();
 
       setTimeout(() => {
         navigate(`/quiz/host-dashboard/${roomId}`);
@@ -312,16 +291,16 @@ const walletActions = useWalletActions({
     };
   }, [connected, socket, hardReset, navigate]);
 
-  // handleLaunch (your full original logic + clear draft on success)
+  // ── Main launch handler ───────────────────────────────────────────────────
   const handleLaunch = useCallback(async () => {
     if (launchState !== "ready" && launchState !== "error") return;
 
-      console.log('🔍 [Launch] setupConfig charity fields:', {
-    web3CharityName: (setupConfig as any)?.web3CharityName,
-    web3Charity: (setupConfig as any)?.web3Charity,
-    web3CharityId: (setupConfig as any)?.web3CharityId,
-    web3CharityOrgId: (setupConfig as any)?.web3CharityOrgId,
-  });
+    console.log("[Launch] setupConfig charity fields:", {
+      web3CharityName: (setupConfig as any)?.web3CharityName,
+      web3Charity: (setupConfig as any)?.web3Charity,
+      web3CharityId: (setupConfig as any)?.web3CharityId,
+      web3CharityOrgId: (setupConfig as any)?.web3CharityOrgId,
+    });
 
     setLaunchError(null);
 
@@ -330,7 +309,7 @@ const walletActions = useWalletActions({
       localStorage.removeItem("current-host-id");
       localStorage.removeItem("current-contract-address");
     } catch {}
-    
+
     clearRoomIds();
 
     if (!selectedChain) {
@@ -339,30 +318,22 @@ const walletActions = useWalletActions({
       return;
     }
 
-    const hostWalletMaybe =
-      currentWallet?.address ?? walletActions.getAddress?.() ?? null;
+    // address comes from useChainWallet — no secondary sources needed
+    const hostWallet = address ?? null;
 
-    const connectedNow =
-      walletReadiness?.status === "ready" ||
-      walletActions.isConnected?.() === true ||
-      !!hostWalletMaybe;
-
-    if (!connectedNow || !hostWalletMaybe) {
-      const errorMsg = `Connect your ${getNetworkDisplayName()} wallet first.`;
-      setLaunchError(errorMsg);
+    if (!isWalletConnected || !hostWallet) {
+      setLaunchError(`Connect your ${getNetworkDisplayName()} wallet first.`);
       setLaunchState("error");
       return;
     }
 
-    const hostWallet: string = hostWalletMaybe;
     setLaunchState("generating-ids");
 
     const newRoomId = generateRoomId();
     const newHostId = generateHostId();
-    
     setRoomIds(newRoomId, newHostId);
 
-    // Stellar handled externally
+    // Stellar is handled externally via StellarLaunchSection
     if (selectedChain === "stellar") {
       setLaunchState("deploying-contract");
       setDeploymentStep("Deploying Stellar contract…");
@@ -370,7 +341,7 @@ const walletActions = useWalletActions({
       return;
     }
 
-    // EVM or Solana deployment
+    // EVM or Solana
     try {
       setLaunchState("deploying-contract");
       setDeploymentStep(`Deploying ${getNetworkDisplayName()} contract…`);
@@ -379,7 +350,7 @@ const walletActions = useWalletActions({
       let deployRes;
 
       try {
-        deployRes = await contractActions.deploy(deployParams);
+        deployRes = await deploy(deployParams);
       } catch (err: any) {
         // Handle Solana duplicate signature
         if (err?.message?.includes("already been processed")) {
@@ -391,7 +362,7 @@ const walletActions = useWalletActions({
           setRoomIds(retryRoomId, retryHostId);
 
           const retryParams = buildDeployParams(retryRoomId, retryHostId, hostWallet);
-          deployRes = await contractActions.deploy(retryParams);
+          deployRes = await deploy(retryParams);
         } else {
           throw err;
         }
@@ -404,13 +375,12 @@ const walletActions = useWalletActions({
       setContractAddress(deployRes.contractAddress);
       setTxHash(deployRes.txHash);
       setExplorerUrl(deployRes.explorerUrl || null);
-
       setLaunchState("creating-room");
 
       const web3RoomConfig = {
         ...setupConfig,
         deploymentTxHash: deployRes.txHash,
-        hostWallet: hostWallet,
+        hostWallet,
         hostWalletConfirmed: hostWallet,
         paymentMethod: "web3" as const,
         isWeb3Room: true,
@@ -425,10 +395,10 @@ const walletActions = useWalletActions({
         solanaCluster: (setupConfig as any)?.solanaCluster,
         roomContractAddress: deployRes.contractAddress,
         web3CharityId: (setupConfig as any)?.web3CharityId,
-        web3CharityName: 
-          (setupConfig as any)?.web3CharityName ||     // Try direct field
-          (setupConfig as any)?.charityName ||         // Try alternate field
-          (setupConfig as any)?.web3Charity ||         // Try legacy field
+        web3CharityName:
+          (setupConfig as any)?.web3CharityName ||
+          (setupConfig as any)?.charityName ||
+          (setupConfig as any)?.web3Charity ||
           null,
         web3CharityAddress: (setupConfig as any)?.web3CharityAddress,
       };
@@ -453,7 +423,7 @@ const walletActions = useWalletActions({
           throw new Error("Empty server response.");
         }
         data = JSON.parse(text);
-      } catch (parseError) {
+      } catch {
         throw new Error(`Invalid or empty server response (${response.status})`);
       }
 
@@ -478,7 +448,7 @@ const walletActions = useWalletActions({
       });
 
       setLaunchState("success");
-      clearQuizDraft();  // Clean up draft on success
+      clearQuizDraft();
 
       setTimeout(() => {
         navigate(`/quiz/host-dashboard/${data.roomId}`);
@@ -499,86 +469,38 @@ const walletActions = useWalletActions({
   }, [
     launchState,
     selectedChain,
-    currentWallet?.address,
-    walletReadiness?.status,
-    walletActions.getAddress,
-    walletActions.isConnected,
+    address,
+    isWalletConnected,
     getNetworkDisplayName,
     setRoomIds,
-    buildDeployParams,
-    contractActions.deploy,
-    setupConfig,
     clearRoomIds,
+    buildDeployParams,
+    deploy,
+    setupConfig,
     setFullConfig,
     navigate,
   ]);
+  // ─────────────────────────────────────────────────────────────────────────
 
-  // Message for UI (unchanged)
   const currentMessage = useMemo(() => {
-    if (launchState === "generating-ids") {
-      return {
-        expression: "generating",
-        message: "Generating unique room and host IDs…",
-      };
-    }
-    
-    if (launchState === "deploying-contract") {
-      return {
-        expression: "deploying",
-        message: deploymentStep || `Deploying quiz contract on ${getNetworkDisplayName()}…`,
-      };
-    }
-    
-    if (launchState === "creating-room") {
-      return {
-        expression: "creating",
-        message: "Creating your Web3 quiz room and finalizing…",
-      };
-    }
-    
-    if (launchState === "success") {
-      return {
-        expression: "success",
-        message: "🎉 Deployed! Redirecting to your host dashboard…",
-      };
-    }
-    
-    if (launchState === "error") {
-      return {
-        expression: "error",
-        message: `Web3 launch failed: ${launchError}. Check wallet + network and try again.`,
-      };
-    }
-    
-    if (!configCheck.configComplete) {
-      return {
-        expression: "warning",
-        message: "Review your config. Ensure host, rounds, and Web3 payment settings are complete.",
-      };
-    }
-    
-    if (!isWalletConnected) {
-      return {
-        expression: "wallet",
-        message: `Connect your ${getNetworkDisplayName()} wallet to deploy.`,
-      };
-    }
-    
-    return {
-      expression: "ready",
-      message: `All set! You're ready to deploy on ${getNetworkDisplayName()}. Review everything below, then deploy.`,
-    };
-  }, [
-    launchState,
-    deploymentStep,
-    launchError,
-    configCheck.configComplete,
-    isWalletConnected,
-    getNetworkDisplayName,
-  ]);
+    if (launchState === "generating-ids")
+      return { expression: "generating", message: "Generating unique room and host IDs…" };
+    if (launchState === "deploying-contract")
+      return { expression: "deploying", message: deploymentStep || `Deploying quiz contract on ${getNetworkDisplayName()}…` };
+    if (launchState === "creating-room")
+      return { expression: "creating", message: "Creating your Web3 quiz room and finalizing…" };
+    if (launchState === "success")
+      return { expression: "success", message: "🎉 Deployed! Redirecting to your host dashboard…" };
+    if (launchState === "error")
+      return { expression: "error", message: `Web3 launch failed: ${launchError}. Check wallet + network and try again.` };
+    if (!configCheck.configComplete)
+      return { expression: "warning", message: "Review your config. Ensure host, rounds, and Web3 payment settings are complete." };
+    if (!isWalletConnected)
+      return { expression: "wallet", message: `Connect your ${getNetworkDisplayName()} wallet to deploy.` };
+    return { expression: "ready", message: `All set! Ready to deploy on ${getNetworkDisplayName()}. Review everything, then deploy.` };
+  }, [launchState, deploymentStep, launchError, configCheck.configComplete, isWalletConnected, getNetworkDisplayName]);
 
   return {
-    // State
     launchState,
     launchError,
     contractAddress,
@@ -586,20 +508,14 @@ const walletActions = useWalletActions({
     explorerUrl,
     deploymentStep,
     deployTrigger,
-
-    // Helpers
     resolvedRoomId,
     resolvedHostId,
     canLaunch: launchCheck.canLaunch,
     isLaunching: launchCheck.isLaunching,
     currentMessage,
-
-    // Handlers
     handleLaunch,
     handleWalletConnect,
     handleWalletDisconnect,
-
-    // Setters (for Stellar)
     setDeploymentStep,
     setContractAddress,
     setTxHash,

@@ -65,7 +65,7 @@ const ClubsLeaguePage: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
       <SEO
         title="Junior Sports Clubs Quiz League 2026 — Family Fundraiser for Junior Sports Clubs | FundRaisely"
-        description="Join the FundRaisely Junior Sports Clubs Quiz League. Your club runs one family quiz night before the deadline, raises funds for junior teams, and competes for prizes and a sponsored club grant. Limited to 25 clubs."
+        description="Join the FundRaisely Junior Sports Clubs Quiz League. Your club runs one family quiz night before the deadline, raises funds for junior teams, and competes for prizes and a sponsored club grant. Limited to 30 clubs."
         keywords="club fundraising, quiz night fundraiser, youth sports fundraising, GAA fundraiser, soccer club fundraiser, school hall quiz night, Ireland fundraising, UK fundraising, junior sports clubs"
         type="event"
         structuredData={[breadcrumbsJsonLd, eventJsonLd]}
@@ -84,7 +84,7 @@ const ClubsLeaguePage: React.FC = () => {
 
         <div className="container relative z-10 mx-auto max-w-6xl text-center">
           <span className="inline-flex items-center gap-2 rounded-full bg-indigo-100 px-3 py-1 text-indigo-700 text-sm font-medium">
-            <Sparkles className="h-4 w-4" /> Limited to 25 clubs
+            <Sparkles className="h-4 w-4" /> Limited to 30 clubs
           </span>
 
           <h1 className="mt-4 bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-transparent text-4xl md:text-6xl font-bold">
@@ -97,13 +97,11 @@ const ClubsLeaguePage: React.FC = () => {
 
        <p className="mx-auto mt-4 max-w-3xl text-indigo-900/70 text-lg md:text-xl leading-relaxed">
   Host a Fundraising Family Quiz Night on FundRaisely with your junior section, raise funds for your{' '}
-  <strong>Club</strong>, and compete in the FundRaisely Junior Club Quiz League.
-  Each team must include at least one U14 (or younger) club member.
-  Prizes include a <strong>sponsored club grant</strong>{' '}
-  <span className="text-indigo-500 text-sm">(announcement coming soon)</span>.
+  <strong>Club</strong>, and compete in the FundRaisely Junior Club Quiz League FINAL.
+
 </p>
 
-          <div className="mt-7 flex flex-wrap justify-center gap-3">
+           <div className="mt-7 flex flex-wrap justify-center gap-3">
             <a
               href="#pledge"
               className="rounded-xl bg-indigo-600 px-6 py-3 font-semibold text-white hover:bg-indigo-700 transition-colors shadow-md"
@@ -121,6 +119,27 @@ const ClubsLeaguePage: React.FC = () => {
           <p className="mt-4 text-sm text-indigo-900/60">
             Registration required by <strong>date TBC</strong>.
           </p>
+        </div>
+      </section>
+
+       {/* Sponsor Banner */}
+      <section className="px-4 py-8 bg-amber-50 border-y border-amber-200">
+        <div className="container mx-auto max-w-6xl">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Star className="h-6 w-6 text-amber-500 flex-shrink-0" />
+              <div>
+                <p className="font-bold text-amber-900 text-lg">Sponsorship Opportunity — Naming Rights Available</p>
+                <p className="text-amber-800/80 text-sm leading-relaxed">
+                  We are currently partnering with a title sponsor for the Junior Sports Clubs Quiz League. The sponsor will receive full naming rights across all league communications, prizes, and coverage.
+                </p>
+              </div>
+            </div>
+            <div className="flex-shrink-0 rounded-xl bg-amber-100 border border-amber-300 px-5 py-3 text-center">
+              <p className="text-xs text-amber-700 font-medium uppercase tracking-wide">Sponsor Announcement</p>
+              <p className="text-amber-900 font-bold">To Follow</p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -197,11 +216,11 @@ const ClubsLeaguePage: React.FC = () => {
               <p className="text-white/80 text-sm leading-relaxed">Injected directly into grassroots sports clubs</p>
             </div>
             <div className="rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 p-6 text-center">
-              <div className="mb-3 text-3xl font-bold text-white">25</div>
+              <div className="mb-3 text-3xl font-bold text-white">30</div>
               <p className="text-white/80 text-sm leading-relaxed">Clubs supported with equipment, facilities and youth development</p>
             </div>
             <div className="rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 p-6 text-center">
-              <div className="mb-3 text-3xl font-bold text-white">25+</div>
+              <div className="mb-3 text-3xl font-bold text-white">30+</div>
               <p className="text-white/80 text-sm leading-relaxed">Communities united in one national fundraising moment</p>
             </div>
             <div className="rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 p-6 text-center">
@@ -316,7 +335,7 @@ const ClubsLeaguePage: React.FC = () => {
               <h2 className="text-indigo-900 mb-4 text-2xl md:text-3xl font-bold">How It Works</h2>
               <ol className="list-decimal space-y-3 pl-5 text-indigo-900/80 leading-relaxed">
                 <li>
-                  <strong>Pledge now</strong> to reserve a league spot (limited to 25 clubs).
+                  <strong>Pledge now</strong> to reserve a league spot (limited to 30 clubs).
                 </li>
                 <li>
                   Complete registration.
@@ -385,7 +404,7 @@ const ClubsLeaguePage: React.FC = () => {
               <span>Pledge Your Club</span>
               <ArrowRight className="h-6 w-6" />
             </a>
-            <p className="mt-4 text-sm opacity-80">Cap: 25 clubs</p>
+            <p className="mt-4 text-sm opacity-80">Cap: 30 clubs</p>
           </div>
         </div>
       </section>

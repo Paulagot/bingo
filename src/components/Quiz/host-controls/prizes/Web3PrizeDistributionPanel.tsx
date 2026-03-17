@@ -3,7 +3,10 @@ import * as React from 'react';
 import { Loader } from 'lucide-react';
 import { useQuizSocket } from '../../sockets/QuizSocketProvider';
 import { useContractActions } from '../../../../hooks/useContractActions';
-import { useWallet } from '../../../../context/WalletContext';
+
+import { useChainWallet } from '../../../../hooks/useChainWallet';
+import { useQuizConfig } from '../../hooks/useQuizConfig';
+import { toChainConfig } from '../../../../types/chainConfig';
 
 type LeaderboardEntry = { id: string; name: string; score: number };
 type PrizeRouterStatus = 'idle' | 'running' | 'success' | 'failed';
@@ -48,8 +51,10 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
   onStatusChange,
 }) => {
   const { socket } = useQuizSocket();
-  const wallet = useWallet();
-  const { distributePrizes } = useContractActions();
+  const { config } = useQuizConfig();
+const chainConfig = toChainConfig(config);
+const wallet = useChainWallet(chainConfig);
+const { distributePrizes } = useContractActions(chainConfig);
 
   const getChainDisplayName = () => {
     switch (wallet.chainFamily) {
@@ -152,8 +157,7 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
     if (!wallet.isConnected) {
       setState({ status: 'connecting' });
       notifyParent('running');
-
-      const res = await wallet.actions.connect();
+const res = await wallet.connect();
       if (!res.success) {
         const errorMsg = 'error' in res && res.error ? (typeof res.error === 'object' && 'message' in res.error ? (res.error as any).message : String(res.error)) : 'Failed to connect wallet';
         setState({ status: 'error', error: errorMsg });
@@ -291,14 +295,19 @@ export const Web3PrizeDistributionPanel: React.FC<Props> = ({
           }
 
           // ✅ Build confirmed data and notify + persist synchronously before setState
-          const confirmedData: PrizeDistributionData = {
-            ...preview,
-            confirmedCharityAmount: charityAmount ?? preview.charityAmount ?? null,
-            charityWallet: finalCharityWallet,
-            txHash,
-            network: networkForBackend,
-            web3Chain: web3ChainForBackend,
-          };
+     const confirmedData: PrizeDistributionData = {
+  ...preview,
+  // ✅ NEW: fall back through all available sources
+  confirmedCharityAmount:
+    charityAmount ??                    // from on-chain event (Solana)
+    preview.charityAmount ??            // from server preview
+    data.charityAmountPreview ??        // raw from socket payload
+    null,
+  charityWallet: finalCharityWallet,
+  txHash,
+  network: networkForBackend,
+  web3Chain: web3ChainForBackend,
+};
           charityPreviewRef.current = confirmedData;
           notifyParent('success', confirmedData);
 

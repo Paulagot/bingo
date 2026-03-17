@@ -91,8 +91,8 @@ const UsecaseClubsPage: React.FC = () => {
     mainEntity: [
       { '@type': 'Question', name: 'How can FundRaisely help our club raise funds?', acceptedAnswer: { '@type': 'Answer', text: 'Run engaging quizzes with ticketing, extras, and sponsor visibility, maximising revenue without adding volunteer burden.' } },
       { '@type': 'Question', name: 'Is it easy for volunteers to manage?', acceptedAnswer: { '@type': 'Answer', text: 'Yes. The 4‑step wizard, clear roles, and automated scoring/reconciliation make it straightforward for anyone.' } },
-      { '@type': 'Question', name: 'Can we customise the content?', acceptedAnswer: { '@type': 'Answer', text: 'Choose from ready round types and add club‑specific themes to boost relevance and fun.' } },
-      { '@type': 'Question', name: 'Can we accept Revolut or cash and still reconcile?', acceptedAnswer: { '@type': 'Answer', text: 'Admins mark payments as received by method; the reconciliation panel compares expected vs. received across entry fees and extras.' } },
+      { '@type': 'Question', name: 'Can we customise the content?', acceptedAnswer: { '@type': 'Answer', text: 'Choose from ready round types and add club‑specific themes to boost relevance and fun. Add a personalsed round for a unique touch.' } },
+      { '@type': 'Question', name: 'Can we accept Card, Instant Payment, and cash and still reconcile?', acceptedAnswer: { '@type': 'Answer', text: 'Yes.  We are the only platform that aids in the tracking and reporing Cash, instant payment like Revolut or Wise and Card. Card payments auto verify via secure connection with Stripe. For cash and instant payment methods, admins mark payments as received by method; the reconciliation panel compares expected vs. received across entry fees and extras.' } },
       { '@type': 'Question', name: 'What if Wi‑Fi is weak?', acceptedAnswer: { '@type': 'Answer', text: 'Optimised for mobile data and variable venue connectivity. We share venue setup tips and hotspot fallbacks.' } },
       { '@type': 'Question', name: 'What reporting will the committee get?', acceptedAnswer: { '@type': 'Answer', text: 'Income reconciliation, prize logs with sponsors, participation stats, and CSV/PDF exports for clear, audit‑ready records.' } },
     ],
@@ -161,7 +161,7 @@ const UsecaseClubsPage: React.FC = () => {
               <Bullet2>Mobile play with live scoring and leaderboards</Bullet2>
               <Bullet2>Streamlined payment tracking and audit‑ready reconciliation</Bullet2>
               <Bullet2>Strengthen bonds across teams and age groups</Bullet2>
-              <Bullet2>SOON: Customise content to reflect club identity</Bullet2>
+              <Bullet2>Customise round content to reflect club identity</Bullet2>
             </ul>
           </div>
         </div>
@@ -193,7 +193,7 @@ const UsecaseClubsPage: React.FC = () => {
               number="3"
               icon={<DollarSign className="h-5 w-5" />}
               title="Collect Funds Seamlessly"
-              points={['Cash, Revolut, and other methods', 'Admins mark payments received', 'Extras encourage additional giving']}
+              points={['Card, Cash, Instant Payment', 'Ticket sales tracking', 'Extras encourage additional giving']}
             />
             <StepCard2
               number="4"
@@ -234,7 +234,7 @@ const UsecaseClubsPage: React.FC = () => {
             <FeatureCard2 icon={<Zap className="h-5 w-5" />} title="Simplify Volunteer Management" desc="Intuitive setup, automated scoring, and easy payment tracking reduce workload." />
             <FeatureCard2 icon={<Target className="h-5 w-5" />} title="Engaging Interactive Experience" desc="Timers, leaderboards, and extras keep energy high and donations flowing." />
             <FeatureCard2 icon={<TrendingUp className="h-5 w-5" />} title="Transparent Reporting" desc="Reconciliation and CSV/PDF exports keep committees confident and informed." />
-            <FeatureCard2 icon={<Heart className="h-5 w-5" />} title="Customisable for Your Club" desc=" Sponsor shout‑outs available now and soon you can use club‑themed rounds to make it truly yours." />
+            <FeatureCard2 icon={<Heart className="h-5 w-5" />} title="Customisable for Your Club" desc=" Sponsor shout‑outs available now and you can use club‑themed rounds to make it truly yours." />
           </div>
         </div>
       </section>
@@ -269,7 +269,7 @@ const UsecaseClubsPage: React.FC = () => {
             <FAQItem2 question="How can FundRaisely help our club raise funds?" answer="Run engaging quizzes with ticketing, extras, and sponsor visibility, maximising revenue without adding volunteer burden." />
             <FAQItem2 question="Is it easy for volunteers to manage?" answer="Yes. The 4‑step wizard, clear roles, and automated scoring/reconciliation make it straightforward for anyone." />
             <FAQItem2 question="Can we customise the content?" answer="Choose from ready round types and add club‑specific themes to boost relevance and fun." />
-            <FAQItem2 question="Can we accept Revolut or cash and still reconcile?" answer="Admins mark payments as received by method; the reconciliation panel compares expected vs. received across entry fees and extras." />
+            <FAQItem2 question="Can we accept Card, Instant Payment, and cash and still reconcile?" answer="Yes.  We are the only platform that aids in the tracking and reporing Cash, instant payment like Revolut or Wise and Card. Card payments auto verify via secure connection with Stripe. For cash and instant payment methods, admins mark payments as received by method; the reconciliation panel compares expected vs. received across entry fees and extras." />
             <FAQItem2 question="What if Wi‑Fi is weak?" answer="We’re optimised for mobile data and variable venue connectivity. We share venue setup tips and hotspot fallbacks." />
             <FAQItem2 question="What reporting will the committee get?" answer="Income reconciliation, prize logs with sponsors, participation stats, and CSV/PDF exports for clear, audit‑ready records." />
           </div>

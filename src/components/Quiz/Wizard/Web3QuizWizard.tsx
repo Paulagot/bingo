@@ -44,8 +44,6 @@ export default function QuizWeb3Wizard({ onComplete, onChainUpdate }: QuizWizard
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const { setupConfig, setStep, setFlow } = useQuizSetupStore();
   const { isMiniApp } = useMiniAppContext();
-
-  // ✅ Track if we've ever reached review step (to persist Web3Provider)
   const [hasReachedReview, setHasReachedReview] = useState(false);
 
   const renderCountRef = useRef(0);
@@ -56,7 +54,6 @@ export default function QuizWeb3Wizard({ onComplete, onChainUpdate }: QuizWizard
   const currentStep = steps[currentStepIndex];
   const isReviewStep = currentStep === 'review';
 
-  // ✅ Once we reach review, keep Web3Provider mounted
   useEffect(() => {
     if (isReviewStep && !hasReachedReview) {
       debugLog('Web3Wizard', '🌐 First time reaching review step - mounting Web3Provider permanently');
@@ -121,7 +118,7 @@ export default function QuizWeb3Wizard({ onComplete, onChainUpdate }: QuizWizard
     }
   };
 
-  const content = (
+  const inner = (
     <div className="mx-auto max-w-3xl px-4 py-10">
       <div className="mb-6 text-center">
         <h1 className="heading-1">Create Web3 Impact Quiz</h1>
@@ -132,30 +129,34 @@ export default function QuizWeb3Wizard({ onComplete, onChainUpdate }: QuizWizard
     </div>
   );
 
-  // ✅ If we've reached review OR currently on review, wrap with Web3Provider
-  if (hasReachedReview || isReviewStep) {
-    // In mini app, MiniAppWeb3Provider is already mounted above us in the tree.
-    // Mounting Web3Provider again would init AppKit and break the mini app wagmi config.
-    if (isMiniApp) {
-      debugLog('Web3Wizard', '🎯 Mini app detected - skipping Web3Provider wrapper, already provided above');
-      return content;
-    }
-
-    debugLog('Web3Wizard', '🌐 Rendering with Web3Provider wrapper', {
-      hasReachedReview,
-      isReviewStep,
-    });
-
-    return (
-      <Web3Provider force>
-        {content}
-      </Web3Provider>
-    );
+  // 🔥 Mini app: Web3Provider already mounted above us in the tree
+  if (isMiniApp) {
+    debugLog('Web3Wizard', '🎯 Mini app - no Web3Provider wrapper needed');
+    return inner;
   }
 
-  // ✅ Steps 1-5: No Web3Provider needed yet
-  debugLog('Web3Wizard', '⚡ Rendering without Web3Provider');
-  return content;
+  // 🔥 Always render Web3Provider in the same position in the tree.
+  // Before review: force=false so it only mounts if config says web3 is needed.
+  // After review: force=true to ensure it stays mounted.
+  // This prevents WalletProvider from remounting on every render.
+  debugLog('Web3Wizard', '🌐 Rendering with Web3Provider wrapper', {
+    hasReachedReview,
+    isReviewStep,
+    force: hasReachedReview || isReviewStep,
+  });
+return (
+  <Web3Provider 
+    force={hasReachedReview || isReviewStep}
+    roomConfig={{
+      web3Chain: setupConfig.web3Chain,
+      evmNetwork: (setupConfig as any).evmNetwork,
+      solanaCluster: (setupConfig as any).solanaCluster,
+      stellarNetwork: setupConfig.stellarNetwork,
+    }}
+  >
+    {inner}
+  </Web3Provider>
+);
 }
 
 

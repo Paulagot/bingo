@@ -11,12 +11,13 @@
  * Pool Room:  feeToken === prizeToken === charityToken (host picks one)
  * Asset Room: feeToken only (prizes are host-uploaded assets)
  *
- * ⚠️  All mint addresses are Solana MAINNET.
+ * ⚠️  All mint addresses below are Solana MAINNET unless overridden.
  *     For devnet testing, override via SOLANA_TOKEN_OVERRIDES env or mock config.
  */
 
 export type SolanaTokenCode =
   | 'SOL'
+  | 'USDC'
   | 'USDG'
   | 'JUP'
   | 'BONK'
@@ -80,30 +81,45 @@ export interface SolanaTokenConfig {
 // ---------------------------------------------------------------------------
 
 export const SOLANA_TOKENS: Record<SolanaTokenCode, SolanaTokenConfig> = {
-
   SOL: {
     code: 'SOL',
     name: 'Solana',
-    mint: null,                                             // native — no mint
-    decimals: 9,                                            // 1 SOL = 1_000_000_000 lamports
+    mint: null,
+    decimals: 9,
     isNative: true,
     tgbCode: 'SOL',
     tgbMinDonation: 0.00001,
     minEntryFee: 0.01,
-    logoUrl: 'https://static.tgbwidget.com/currency_images%2F1dffe878-2164-4a11-902c-04ec7df9cca9.png',
+    logoUrl:
+      'https://static.tgbwidget.com/currency_images%2F1dffe878-2164-4a11-902c-04ec7df9cca9.png',
     coingeckoId: 'solana',
+  },
+
+  USDC: {
+    code: 'USDC',
+    name: 'USD Coin',
+    mint: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
+    decimals: 6,
+    isNative: false,
+    tgbCode: 'USDC',
+    tgbMinDonation: 0.1,
+    minEntryFee: 0.5,
+    logoUrl:
+      'https://static.tgbwidget.com/currency_images/2213a5bb-31d9-447c-a931-49858d28f2f2.png',
+    coingeckoId: 'usd-coin',
   },
 
   USDG: {
     code: 'USDG',
     name: 'Global Dollar',
-    mint: '2u1tszSeqZ3qBWF3uNGPFc8TzMk2tdiwknnRMWGWjGWH',   // Paxos / Solflare verified
-    decimals: 6,                                            // 1 USDG = 1_000_000 units
+    mint: '2u1tszSeqZ3qBWF3uNGPFc8TzMk2tdiwknnRMWGWjGWH',
+    decimals: 6,
     isNative: false,
     tgbCode: 'USDG',
     tgbMinDonation: 0.1,
     minEntryFee: 0.5,
-    logoUrl: 'https://static.tgbwidget.com/currency_images/e39e781c-7917-4ad8-b34e-9e037c4b4b1c.png',
+    logoUrl:
+      'https://static.tgbwidget.com/currency_images/e39e781c-7917-4ad8-b34e-9e037c4b4b1c.png',
     coingeckoId: 'global-dollar',
   },
 
@@ -116,7 +132,8 @@ export const SOLANA_TOKENS: Record<SolanaTokenCode, SolanaTokenConfig> = {
     tgbCode: 'JUP',
     tgbMinDonation: 0.3,
     minEntryFee: 1,
-    logoUrl: 'https://static.tgbwidget.com/currency_images/0b318f9a-18b0-48fe-a423-59b145e6971b.png',
+    logoUrl:
+      'https://static.tgbwidget.com/currency_images/0b318f9a-18b0-48fe-a423-59b145e6971b.png',
     coingeckoId: 'jupiter-exchange-solana',
   },
 
@@ -124,12 +141,13 @@ export const SOLANA_TOKENS: Record<SolanaTokenCode, SolanaTokenConfig> = {
     code: 'BONK',
     name: 'Bonk',
     mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',
-    decimals: 5,                                            // ⚠️  5 decimals — not 6!
+    decimals: 5,
     isNative: false,
     tgbCode: 'BONK',
     tgbMinDonation: 4000,
     minEntryFee: 10000,
-    logoUrl: 'https://static.tgbwidget.com/currency_images/47c4992a-b4b8-4bd3-aae3-64173629844d.png',
+    logoUrl:
+      'https://static.tgbwidget.com/currency_images/47c4992a-b4b8-4bd3-aae3-64173629844d.png',
     coingeckoId: 'bonk',
   },
 
@@ -142,7 +160,8 @@ export const SOLANA_TOKENS: Record<SolanaTokenCode, SolanaTokenConfig> = {
     tgbCode: 'WIF',
     tgbMinDonation: 0.07,
     minEntryFee: 0.5,
-    logoUrl: 'https://static.tgbwidget.com/currency_images/49e34fff-e9c2-4127-8fb3-286360fac3ac.png',
+    logoUrl:
+      'https://static.tgbwidget.com/currency_images/49e34fff-e9c2-4127-8fb3-286360fac3ac.png',
     coingeckoId: 'dogwifcoin',
   },
 
@@ -150,12 +169,13 @@ export const SOLANA_TOKENS: Record<SolanaTokenCode, SolanaTokenConfig> = {
     code: 'JTO',
     name: 'JITO',
     mint: 'jtojtomepa8b1E2XlyriygzsChXTrqE73RM4BdWUGEm',
-    decimals: 9,                                            // ⚠️  9 decimals like SOL
+    decimals: 9,
     isNative: false,
     tgbCode: 'JTO',
     tgbMinDonation: 0.05,
     minEntryFee: 0.5,
-    logoUrl: 'https://static.tgbwidget.com/currency_images/985fdb8e-d90c-4fe6-b7e7-35a33a4f3943.png',
+    logoUrl:
+      'https://static.tgbwidget.com/currency_images/985fdb8e-d90c-4fe6-b7e7-35a33a4f3943.png',
     coingeckoId: 'jito-governance-token',
   },
 
@@ -168,11 +188,10 @@ export const SOLANA_TOKENS: Record<SolanaTokenCode, SolanaTokenConfig> = {
     tgbCode: 'KMNO',
     tgbMinDonation: 1,
     minEntryFee: 5,
-    logoUrl: 'https://static.tgbwidget.com/currency_images/24085e62-0663-4467-a423-1341d232a1da.png',
+    logoUrl:
+      'https://static.tgbwidget.com/currency_images/24085e62-0663-4467-a423-1341d232a1da.png',
     coingeckoId: 'kamino',
   },
-
-
 
   TRUMP: {
     code: 'TRUMP',
@@ -183,7 +202,8 @@ export const SOLANA_TOKENS: Record<SolanaTokenCode, SolanaTokenConfig> = {
     tgbCode: 'TRUMP',
     tgbMinDonation: 0.01,
     minEntryFee: 0.1,
-    logoUrl: 'https://static.tgbwidget.com/currency_images/bf24a293-6f19-4ed5-8a40-ba032f45fb18.png',
+    logoUrl:
+      'https://static.tgbwidget.com/currency_images/bf24a293-6f19-4ed5-8a40-ba032f45fb18.png',
     coingeckoId: 'official-trump',
   },
 
@@ -191,12 +211,13 @@ export const SOLANA_TOKENS: Record<SolanaTokenCode, SolanaTokenConfig> = {
     code: 'MEW',
     name: 'cat in a dogs world',
     mint: 'MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5',
-    decimals: 5,                                            // ⚠️  5 decimals like BONK
+    decimals: 5,
     isNative: false,
     tgbCode: 'MEW',
     tgbMinDonation: 10,
     minEntryFee: 50,
-    logoUrl: 'https://static.tgbwidget.com/currency_images/ac8bcaa4-2245-4bc3-a2ca-daa7c7d9bc53.png',
+    logoUrl:
+      'https://static.tgbwidget.com/currency_images/ac8bcaa4-2245-4bc3-a2ca-daa7c7d9bc53.png',
     coingeckoId: 'cat-in-a-dogs-world',
   },
 
@@ -209,19 +230,20 @@ export const SOLANA_TOKENS: Record<SolanaTokenCode, SolanaTokenConfig> = {
     tgbCode: 'PYTH',
     tgbMinDonation: 0.2,
     minEntryFee: 1,
-    logoUrl: 'https://static.tgbwidget.com/currency_images/f761d7a6-986a-45e3-950d-b23fdb4b627b.png',
+    logoUrl:
+      'https://static.tgbwidget.com/currency_images/f761d7a6-986a-45e3-950d-b23fdb4b627b.png',
     coingeckoId: 'pyth-network',
   },
-
 } as const;
 
 // ---------------------------------------------------------------------------
 // Ordered list for UI display (host token selector)
-// SOL and stablecoin first, then by ecosystem familiarity
+// SOL and stables first, then by ecosystem familiarity
 // ---------------------------------------------------------------------------
 
 export const SOLANA_TOKEN_LIST: SolanaTokenCode[] = [
   'SOL',
+  'USDC',
   'USDG',
   'JUP',
   'JTO',
@@ -231,23 +253,48 @@ export const SOLANA_TOKEN_LIST: SolanaTokenCode[] = [
   'BONK',
   'MEW',
   'TRUMP',
- 
 ];
 
 // ---------------------------------------------------------------------------
 // Utility helpers
 // ---------------------------------------------------------------------------
 
+function normalizeAmountInput(value: string | number): string {
+  const str = String(value).trim();
+
+  if (!str) {
+    throw new Error('Amount is required');
+  }
+
+  return str.startsWith('.') ? `0${str}` : str;
+}
+
 /**
  * Convert a display amount (what the user types) to raw on-chain units.
  * e.g. toRawAmount(1.5, 'SOL') → 1_500_000_000n
+ * e.g. toRawAmount('0.01', 'USDC') → 10_000n
  *
- * Uses BigInt to avoid floating-point precision bugs.
+ * Uses string parsing + BigInt to avoid floating-point precision bugs.
  */
-export function toRawAmount(displayAmount: number, code: SolanaTokenCode): bigint {
+export function toRawAmount(displayAmount: string | number, code: SolanaTokenCode): bigint {
   const { decimals } = SOLANA_TOKENS[code];
-  // Multiply by 10^decimals, round to avoid float drift
-  const raw = Math.round(displayAmount * Math.pow(10, decimals));
+  const normalized = normalizeAmountInput(displayAmount);
+
+  if (!/^\d+(\.\d+)?$/.test(normalized)) {
+    throw new Error(`Invalid amount: ${displayAmount}`);
+  }
+
+  const [whole, fraction = ''] = normalized.split('.');
+
+  if (fraction.length > decimals) {
+    throw new Error(
+      `Too many decimal places for ${code}. Max ${decimals}, got ${fraction.length}.`
+    );
+  }
+
+  const paddedFraction = fraction.padEnd(decimals, '0');
+  const raw = `${whole}${paddedFraction}`.replace(/^0+/, '') || '0';
+
   return BigInt(raw);
 }
 
@@ -267,7 +314,6 @@ export function toDisplayAmount(rawAmount: bigint, code: SolanaTokenCode): numbe
 export function formatTokenAmount(displayAmount: number, code: SolanaTokenCode): string {
   const { decimals } = SOLANA_TOKENS[code];
 
-  // Show fewer decimals for large-unit tokens (BONK, MEW)
   const maxFractionDigits = decimals <= 5 ? 0 : 4;
 
   const formatted = new Intl.NumberFormat('en-US', {
@@ -299,11 +345,10 @@ export function meetsMinDonation(displayAmount: number, code: SolanaTokenCode): 
  * Returns null if the mint isn't in our supported list.
  */
 export function getTokenByMint(mint: string): SolanaTokenConfig | null {
-  // ✅ wSOL mint maps to SOL config
   const WSOL_MINT = 'So11111111111111111111111111111111111111112';
-  if (mint === WSOL_MINT) return SOLANA_TOKENS['SOL'];
-  
-  return Object.values(SOLANA_TOKENS).find(t => t.mint === mint) ?? null;
+  if (mint === WSOL_MINT) return SOLANA_TOKENS.SOL;
+
+  return Object.values(SOLANA_TOKENS).find((t) => t.mint === mint) ?? null;
 }
 
 // ---------------------------------------------------------------------------

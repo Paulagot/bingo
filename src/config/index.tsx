@@ -109,23 +109,48 @@ type EvmTransportMap = Record<number, HttpTransport>;
 export const evmTransports: EvmTransportMap = {
   // Testnets
   [sepolia.id]: http("https://rpc.sepolia.org"),
-  [baseSepolia.id]: http("https://sepolia.base.org"),
+  [baseSepolia.id]: http(
+    import.meta.env.VITE_ALCHEMY_KEY
+      ? `https://base-sepolia.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_KEY}`
+      : "https://sepolia.base.org"
+  ),
   [optimismSepolia.id]: http("https://sepolia.optimism.io"),
   [arbitrumSepolia.id]: http("https://sepolia-rollup.arbitrum.io/rpc"),
   [bscTestnet.id]: http("https://data-seed-prebsc-1-s1.binance.org:8545"),
-  [avalancheFuji.id]: http("https://api.avax-test.network/ext/bc/C/rpc"),
+  [avalancheFuji.id]: http(
+    import.meta.env.VITE_ALCHEMY_KEY
+      ? `https://avax-fuji.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_KEY}`
+      : "https://api.avax-test.network/ext/bc/C/rpc"
+  ),
   [seiTestnet.id]: http("https://evm-rpc-testnet.sei-apis.com"),
   [polygonAmoy.id]: http("https://rpc-amoy.polygon.technology"),
 
   // Mainnets
   [mainnet.id]: http("https://eth.llamarpc.com"),
-  [base.id]: http("https://mainnet.base.org"),
+  [base.id]: http(
+    import.meta.env.VITE_ALCHEMY_KEY
+      ? `https://base-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_KEY}`
+      : "https://mainnet.base.org"
+  ),
   [optimism.id]: http("https://mainnet.optimism.io"),
   [arbitrum.id]: http("https://arb1.arbitrum.io/rpc"),
   [bsc.id]: http("https://bsc-dataseed.binance.org"),
-  [avalanche.id]: http("https://api.avax.network/ext/bc/C/rpc"),
+  [avalanche.id]: http(
+    import.meta.env.VITE_ALCHEMY_KEY
+      ? `https://avax-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_KEY}`
+      : "https://api.avax.network/ext/bc/C/rpc"
+  ),
   [sei.id]: http("https://evm-rpc.sei-apis.com"),
   [polygon.id]: http("https://polygon-rpc.com"),
+};
+
+export const solanaRpcUrls = {
+  mainnet: import.meta.env.VITE_ALCHEMY_KEY
+    ? `https://solana-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_KEY}`
+    : "https://api.mainnet-beta.solana.com",
+  devnet: import.meta.env.VITE_ALCHEMY_KEY
+    ? `https://solana-devnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_KEY}`
+    : "https://api.devnet.solana.com",
 };
 
 // ---------------------------------------------

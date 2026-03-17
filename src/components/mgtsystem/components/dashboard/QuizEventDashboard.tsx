@@ -131,7 +131,7 @@ export default function QuizEventDashboard() {
   }, [clubId]); // runs once auth is ready
 
   // ── View / layout ──
-  const [viewMode, setViewMode] = useState<ViewMode>('table');
+ const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -352,16 +352,17 @@ const showQuizPayments = featureAccess.quizPayments;
   // ── Handlers ──
   const goToWizard = () => navigate('/quiz/create-fundraising-quiz?openWizard=1');
 
-  const openRoom = (roomId: string, hostId: string) => {
-    localStorage.removeItem('quiz-setup-v2');
-    localStorage.removeItem('quiz-admins');
-    localStorage.removeItem('fundraisely-quiz-setup-draft');
-    localStorage.removeItem('current-room-id');
-    localStorage.removeItem('current-host-id');
-    localStorage.removeItem('current-contract-address');
-    useQuizConfig.getState().resetConfig();
-    navigate(`/quiz/host-dashboard/${roomId}?hostId=${encodeURIComponent(hostId)}`);
-  };
+const openRoom = (roomId: string, hostId: string) => {
+  localStorage.removeItem('quiz-setup-v2');
+  localStorage.removeItem('quiz-admins');
+  localStorage.removeItem('fundraisely-quiz-setup-draft');
+  localStorage.removeItem('current-room-id');
+  localStorage.removeItem('current-host-id');
+  localStorage.removeItem('current-contract-address');
+  useQuizConfig.getState().resetConfig();
+  const url = `/quiz/host-dashboard/${roomId}?hostId=${encodeURIComponent(hostId)}`;
+  window.open(url, '_blank');
+};
 
   const handleEdit = (room: Room) => {
     if (room.status !== 'scheduled') return;
@@ -683,19 +684,20 @@ const sharedCardProps = (room: Room) => ({
             <>
               {viewMode === 'table' ? (
                 <div className="overflow-x-auto">
-                  <div className="bg-white rounded-t-xl border border-gray-200 border-b-0 min-w-[1050px]">
-                    <div className="flex items-center gap-3 p-3 bg-gray-50">
-                      <div className="w-24 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase">Status</div>
-                      <div className="w-32 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase">Date</div>
-                      <div className="w-20 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase">Fee</div>
-                      <div className="w-16 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase text-center">Tickets</div>
-                      <div className="w-16 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase text-center">Players</div>
-                      <div className="w-16 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase text-center">Max</div>
-                      <div className="w-24 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase text-right">Income</div>
-                      <div className="flex-1 min-w-0 text-xs font-semibold text-gray-700 uppercase">Extras</div>
-                      <div className="w-16 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase text-right">Prizes</div>
-                      <div className="w-80 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase text-right">Actions</div>
-                    </div>
+                  <div className="bg-white rounded-t-xl border border-gray-200 border-b-0 min-w-[900px] ">
+ <div className="bg-white rounded-t-xl border border-gray-200 border-b-0 min-w-[900px]">
+  <div className="flex items-center gap-4 p-4 bg-gray-50">
+    <div className="w-24 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase">Status</div>
+    <div className="w-32 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase">Date</div>
+    <div className="w-16 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase">Fee</div>
+    <div className="w-24 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase">Income</div>
+    <div className="w-16 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase text-center">Tickets</div>
+    <div className="w-16 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase text-center">Players</div>
+    <div className="w-16 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase text-center">Max</div>
+    <div className="w-20 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase text-right">Prizes</div>
+    <div className="flex-1 text-xs font-semibold text-gray-700 uppercase text-right">Actions</div>
+  </div>
+</div>
                   </div>
 
                   <div className="bg-white rounded-b-xl border border-gray-200 border-t-0 overflow-hidden min-w-[1050px]">

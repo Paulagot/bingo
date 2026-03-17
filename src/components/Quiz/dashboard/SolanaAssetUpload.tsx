@@ -2,8 +2,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuizConfig } from '../hooks/useQuizConfig';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
-import { useQuizChainIntegration } from '../../../hooks/useQuizChainIntegration';
 import { useRoomIdentity } from '../hooks/useRoomIdentity';
+import { toChainConfig } from '../../../types/chainConfig';
+import { useChainWallet } from '../../../hooks/useChainWallet';
 import { useSolanaAddPrizeAsset } from '../../../chains/solana/hooks/useSolanaAddPrizeAsset';
 import { useSolanaShared } from '../../../chains/solana/hooks/useSolanaShared';
 import { getSolanaExplorerUrl, getSolanaExplorerTxUrl } from '../../../chains/solana/config/networks';
@@ -15,7 +16,6 @@ import {
   ExternalLink,
   Copy,
   Trophy,
-  
 } from 'lucide-react';
 
 import type { Prize } from '../types/quiz';
@@ -33,7 +33,6 @@ import {
   UploadStatusOverview,
   ConnectionStatusNotices,
   ContractInfoCard,
- 
 } from './AssetUploadShared';
 
 /**
@@ -44,14 +43,14 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
   const { config, setFullConfig } = useQuizConfig();
   const { socket, connected } = useQuizSocket();
   const { roomId } = useRoomIdentity();
-  const { isWalletConnected, currentWallet } = useQuizChainIntegration();
 
-  // ✅ NEW: Use the proper hook for adding prize assets
+  const chainConfig = toChainConfig(config);
+  const { isConnected: isWalletConnected, address } = useChainWallet(chainConfig);
+
+  // ✅ Solana hooks stay completely untouched
   const { addPrizeAsset } = useSolanaAddPrizeAsset();
-  
-  // Get cluster info for dynamic explorer URL
   const { cluster } = useSolanaShared();
-  
+
   // Map cluster names: Solana SDK uses 'mainnet-beta', our config uses 'mainnet'
   const normalizeCluster = (cluster: string | undefined): 'mainnet' | 'devnet' | 'testnet' => {
     if (cluster === 'mainnet-beta') return 'mainnet';
@@ -59,7 +58,7 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
     if (cluster === 'testnet') return 'testnet';
     return 'devnet'; // default
   };
-  
+
   const normalizedCluster = normalizeCluster(cluster);
   const explorerBaseUrl = getSolanaExplorerUrl(normalizedCluster);
 
@@ -144,14 +143,13 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
       console.log('[Solana] Depositing prize asset:', {
         roomId,
         roomAddress: web3ContractAddress,
-        prizeIndex: prize.place - 1, // Convert to 0-based index
+        prizeIndex: prize.place - 1,
         prizeMint: prize.tokenAddress,
       });
 
-      // ✅ NEW: Use the new hook API
       const result = await addPrizeAsset({
         roomId,
-        roomAddress: web3ContractAddress, // This is the room PDA
+        roomAddress: web3ContractAddress,
         prizeIndex: prize.place - 1, // Convert 1-based place to 0-based index
         prizeMint: prize.tokenAddress,
       });
@@ -165,7 +163,7 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
         });
 
         updatePrizeStatus(prizeIndex, 'completed', result.txHash);
-        
+
         // Notify backend
         socket.emit('asset_upload_success', {
           roomId,
@@ -173,7 +171,6 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
           txHash: result.txHash,
         });
 
-        // If all prizes are deposited, log success
         if (result.allDeposited) {
           console.log('[Solana] 🎉 All prizes deposited! Room is ready for players.');
         }
@@ -184,7 +181,6 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
     } catch (e: any) {
       console.error('[Solana] Prize deposit failed:', e);
 
-      // Enhanced error logging
       if (e.message) {
         console.error('[Solana] Error message:', e.message);
       }
@@ -192,13 +188,11 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
         console.error('[Solana] Transaction logs:', e.logs);
       }
 
-      // Get full logs if SendTransactionError
       if (e && typeof e.getLogs === 'function') {
         try {
           const logs = await e.getLogs();
           console.error('[Solana] Full transaction logs:', logs);
 
-          // Parse Anchor error from logs for better diagnostics
           const logString = logs.join('\n');
           const anchorErrorMatch = logString.match(
             /AnchorError caused by account: (\w+)\. Error Code: (\w+)\. Error Number: (\d+)\. Error Message: ([^.]+)/
@@ -214,7 +208,6 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
               fullLogs: logs,
             });
 
-            // Provide user-friendly error message for common errors
             if (errorCode === 'AccountNotInitialized' && account === 'prize_vault') {
               console.error('[Solana] Issue: Prize vault PDA token account not initialized. The contract should create it automatically.');
             }
@@ -241,8 +234,6 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
     updatePrizeStatus(prizeIndex, 'pending');
   };
 
-
-
   /**
    * Copy text to clipboard
    */
@@ -256,7 +247,6 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
     }
   };
 
-  // Check if uploads can proceed
   const canProceedWithUploads = Boolean(
     web3ContractAddress &&
     roomId &&
@@ -268,8 +258,6 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
   return (
     <div className="space-y-6">
 
-
-      {/* Upload Status Overview */}
       <UploadStatusOverview
         chainName={chainName}
         totalAssets={stats.totalAssets}
@@ -280,20 +268,18 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
         allUploadsComplete={stats.allUploadsComplete}
       />
 
-      {/* Connection Status Notices */}
       <ConnectionStatusNotices
         isSocketConnected={connected}
         isWalletConnected={isWalletConnected}
-        isContractReady={true} // Solana doesn't have a separate "contract ready" state
+        isContractReady={true}
         chainName={chainName}
       />
 
-      {/* Contract Information */}
       <ContractInfoCard
         chainName={chainName}
         contractAddress={web3ContractAddress}
         roomId={roomId || undefined}
-        walletAddress={currentWallet?.address || undefined}
+        walletAddress={address || undefined}
         explorerBaseUrl={explorerBaseUrl}
         isWalletConnected={isWalletConnected}
         onCopyAddress={async (addr: string) => copyToClipboard(addr, 'contract')}
@@ -304,7 +290,6 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
         }
       />
 
-      {/* Asset List */}
       <div className="bg-muted border-border rounded-xl border-2 p-6">
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -424,8 +409,6 @@ const SolanaAssetUpload: React.FC<BaseAssetUploadProps> = ({ chainName }) => {
             </div>
           ))}
         </div>
-
-    
       </div>
     </div>
   );

@@ -90,7 +90,6 @@ export default defineConfig(({ mode }) => {
               'wagmi',
               'viem',
               'ethers',
-              
             ],
 
             // Reown
@@ -98,6 +97,16 @@ export default defineConfig(({ mode }) => {
               '@reown/appkit',
               '@reown/appkit-adapter-solana',
               '@reown/appkit-adapter-wagmi'
+            ],
+
+            // Farcaster (isolated — large dep tree with ox sub-deps)
+            'farcaster': [
+              '@farcaster/miniapp-sdk',
+            ],
+
+            // Base Account (isolated — large dep tree with ox sub-deps)
+            'base-account': [
+              '@base-org/account',
             ],
 
             // UI and util libs
@@ -113,7 +122,7 @@ export default defineConfig(({ mode }) => {
       },
 
       chunkSizeWarningLimit: 1500,
-      sourcemap: true,
+      sourcemap: false, // Disabled — sourcemaps consume 30-40% extra RAM during build
       cssCodeSplit: true,
       minify: 'esbuild',
       target: 'esnext',
@@ -167,10 +176,10 @@ export default defineConfig(({ mode }) => {
           target: 'http://localhost:3001',
           changeOrigin: true,
         },
-         '/api/quiz-reconciliation': {  // ← Add this
-      target: 'http://localhost:3001',
-      changeOrigin: true,
-    }
+        '/api/quiz-reconciliation': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+        }
       },
       fs: { cachedChecks: false },
     },

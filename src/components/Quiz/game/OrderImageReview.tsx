@@ -1,29 +1,23 @@
 // src/components/Quiz/game/OrderImageReview.tsx
 import React from 'react';
 
-// Get the base URL dynamically from the browser's current location
 const getBaseUrl = () => {
-  if (typeof window !== 'undefined') {
-    // In browser: use the current origin (e.g., https://example.ie or https://example.co.uk)
-    return window.location.origin;
-  }
-  // Fallback for SSR or when window is not available
+  if (typeof window !== 'undefined') return window.location.origin;
   return import.meta.env.VITE_SITE_ORIGIN || 'http://localhost:3001';
 };
 
 const getFullImageUrl = (url: string) => {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  
-  const baseUrl = getBaseUrl();
-  return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+  const base = getBaseUrl();
+  return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
 };
 
 interface OrderImageItem {
   id: string;
   label: string;
   imageUrl: string;
-  url?: string; // Backend might send 'url' instead of 'imageUrl'
+  url?: string;
   order: number;
 }
 
@@ -37,7 +31,7 @@ interface OrderImageQuestion {
 
 interface OrderImageReviewProps {
   question: OrderImageQuestion;
-  playerOrder: string[] | null; // Array of image IDs in player's submitted order
+  playerOrder: string[] | null;
   questionNumber?: number;
   totalQuestions?: number;
 }
@@ -46,181 +40,305 @@ const OrderImageReview: React.FC<OrderImageReviewProps> = ({
   question,
   playerOrder,
   questionNumber,
-  totalQuestions
+  totalQuestions,
 }) => {
-  // Sort images by correct order
   const correctOrderImages = [...question.images].sort((a, b) => a.order - b.order);
-  
-  // Build player's order (if they submitted)
-  const playerOrderImages = playerOrder 
-    ? playerOrder.map(id => question.images.find(img => img.id === id)).filter(Boolean) as OrderImageItem[]
+
+  const playerOrderImages = playerOrder
+    ? (playerOrder
+        .map(id => question.images.find(img => img.id === id))
+        .filter(Boolean) as OrderImageItem[])
     : null;
 
-  // Check if player got it correct
-  const isCorrect = playerOrder && playerOrder.length === question.images.length &&
+  const isCorrect =
+    playerOrder &&
+    playerOrder.length === question.images.length &&
     playerOrder.every((id, index) => {
       const img = question.images.find(i => i.id === id);
       return img && img.order === index + 1;
     });
 
-  // Helper to get image URL (handles both 'imageUrl' and 'url' fields)
-  const getImageUrl = (item: OrderImageItem) => {
-    const rawUrl = item.imageUrl || item.url || '';
-    return getFullImageUrl(rawUrl);
-  };
+  const getImgUrl = (item: OrderImageItem) =>
+    getFullImageUrl(item.imageUrl || item.url || '');
 
   return (
-    <div className="flex flex-col items-center gap-6 p-4">
-      {/* Header */}
-      <div className="w-full max-w-4xl text-center">
+    <div style={{ minHeight: '100dvh', background: '#f8fafc', display: 'flex', flexDirection: 'column' }}>
+
+      {/* ── STICKY HEADER ── */}
+      <div
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 30,
+          background: '#fff',
+          borderBottom: '1px solid #e2e8f0',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          padding: '12px 16px 14px',
+        }}
+      >
         {questionNumber && totalQuestions && (
-          <div className="mb-2 text-sm text-gray-500">
-            Question {questionNumber}/{totalQuestions}
-          </div>
+          <p style={{ fontSize: 12, color: '#94a3b8', margin: '0 0 4px', fontWeight: 500 }}>
+            Question {questionNumber} / {totalQuestions}
+          </p>
         )}
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">
+        <h2 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', margin: '0 0 8px', lineHeight: 1.4 }}>
           {question.prompt}
         </h2>
+
+        {/* Result badge */}
+        {playerOrder ? (
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '5px 14px',
+              borderRadius: 99,
+              background: isCorrect ? '#dcfce7' : '#fee2e2',
+              border: `1.5px solid ${isCorrect ? '#86efac' : '#fca5a5'}`,
+              fontSize: 13,
+              fontWeight: 700,
+              color: isCorrect ? '#166534' : '#991b1b',
+            }}
+          >
+            {isCorrect ? '✅ Correct!' : '❌ Incorrect'}
+          </div>
+        ) : (
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '5px 14px',
+              borderRadius: 99,
+              background: '#fef9c3',
+              border: '1.5px solid #fde047',
+              fontSize: 13,
+              fontWeight: 700,
+              color: '#854d0e',
+            }}
+          >
+            ⏰ No answer submitted
+          </div>
+        )}
+
         {question.difficulty && (
-          <span className="inline-block px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-sm capitalize mb-4">
+          <span
+            style={{
+              marginLeft: 8,
+              fontSize: 11,
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              padding: '2px 10px',
+              borderRadius: 99,
+              background: '#f1f5f9',
+              color: '#475569',
+            }}
+          >
             {question.difficulty}
           </span>
         )}
       </div>
 
-      {/* Result Badge */}
-      {playerOrder && (
-        <div className={`w-full max-w-md p-4 rounded-lg text-center ${
-          isCorrect 
-            ? 'bg-green-100 border-2 border-green-300' 
-            : 'bg-red-100 border-2 border-red-300'
-        }`}>
-          <p className={`text-xl font-bold ${isCorrect ? 'text-green-800' : 'text-red-800'}`}>
-            {isCorrect ? '✅ Correct!' : '❌ Incorrect'}
-          </p>
-        </div>
-      )}
+      {/* ── SCROLLABLE CONTENT ── */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '14px 12px 20px' }}>
 
-      {/* No Answer */}
-      {!playerOrder && (
-        <div className="w-full max-w-md p-4 bg-yellow-100 border-2 border-yellow-300 rounded-lg text-center">
-          <p className="text-yellow-800 font-semibold">⏰ No answer submitted</p>
-        </div>
-      )}
-
-      <div className="w-full max-w-4xl grid md:grid-cols-2 gap-6">
-        {/* Correct Order */}
-        <div className="space-y-3">
-          <h3 className="text-xl font-bold text-green-700 text-center mb-4">
-            ✅ Correct Order
-          </h3>
-          {correctOrderImages.map((item, index) => (
-            <div
-              key={item.id}
-              className="flex items-center gap-4 p-4 bg-green-50 border-2 border-green-300 rounded-xl"
+        {/* On mobile: stack correct then player; on wide screens: side-by-side */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
+            gap: 16,
+          }}
+        >
+          {/* CORRECT ORDER */}
+          <section>
+            <h3
+              style={{
+                fontSize: 13,
+                fontWeight: 800,
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                color: '#16a34a',
+                margin: '0 0 10px',
+              }}
             >
-              {/* Position */}
-              <div className="flex-shrink-0 w-12 h-12 bg-green-600 text-white rounded-full flex items-center justify-center text-xl font-bold">
-                {index + 1}
-              </div>
-
-              {/* Image */}
-              <div className="flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border border-green-300">
-                <img 
-                  src={getImageUrl(item)} 
-                  alt={item.label}
-                  className="w-full h-full object-cover"
+              ✅ Correct Order
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {correctOrderImages.map((item, index) => (
+                <ReviewRow
+                  key={item.id}
+                  position={index + 1}
+                  item={item}
+                  imgUrl={getImgUrl(item)}
+                  variant="correct"
                 />
-              </div>
-
-              {/* Label */}
-              <div className="flex-1">
-                <p className="text-lg font-semibold text-gray-800">{item.label}</p>
-              </div>
+              ))}
             </div>
-          ))}
+          </section>
+
+          {/* PLAYER ORDER */}
+          {playerOrderImages ? (
+            <section>
+              <h3
+                style={{
+                  fontSize: 13,
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  color: isCorrect ? '#16a34a' : '#dc2626',
+                  margin: '0 0 10px',
+                }}
+              >
+                {isCorrect ? '✅' : '❌'} Your Answer
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {playerOrderImages.map((item, index) => {
+                  const inRightSpot = item.order === index + 1;
+                  return (
+                    <ReviewRow
+                      key={item.id}
+                      position={index + 1}
+                      item={item}
+                      imgUrl={getImgUrl(item)}
+                      variant={inRightSpot ? 'correct' : 'wrong'}
+                      wrongPositionLabel={!inRightSpot ? `Should be #${item.order}` : undefined}
+                    />
+                  );
+                })}
+              </div>
+            </section>
+          ) : (
+            <section
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '32px 16px',
+                color: '#94a3b8',
+                fontSize: 15,
+                textAlign: 'center',
+              }}
+            >
+              You didn't submit an answer
+            </section>
+          )}
         </div>
 
-        {/* Player's Order */}
-        {playerOrderImages && (
-          <div className="space-y-3">
-            <h3 className={`text-xl font-bold text-center mb-4 ${
-              isCorrect ? 'text-green-700' : 'text-red-700'
-            }`}>
-              {isCorrect ? '✅' : '❌'} Your Answer
-            </h3>
-            {playerOrderImages.map((item, index) => {
-              // Check if this item is in the correct position
-              const correctPosition = item.order === index + 1;
-              
-              return (
-                <div
-                  key={item.id}
-                  className={`flex items-center gap-4 p-4 rounded-xl border-2 ${
-                    correctPosition 
-                      ? 'bg-green-50 border-green-300' 
-                      : 'bg-red-50 border-red-300'
-                  }`}
-                >
-                  {/* Position */}
-                  <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold text-white ${
-                    correctPosition ? 'bg-green-600' : 'bg-red-600'
-                  }`}>
-                    {index + 1}
-                  </div>
-
-                  {/* Image */}
-                  <div className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border ${
-                    correctPosition ? 'border-green-300' : 'border-red-300'
-                  }`}>
-                    <img 
-                      src={getImageUrl(item)} 
-                      alt={item.label}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-
-                  {/* Label */}
-                  <div className="flex-1">
-                    <p className="text-lg font-semibold text-gray-800">{item.label}</p>
-                    {!correctPosition && (
-                      <p className="text-sm text-red-600 mt-1">
-                        Should be position {item.order}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Indicator */}
-                  <div className="flex-shrink-0">
-                    {correctPosition ? (
-                      <span className="text-2xl">✅</span>
-                    ) : (
-                      <span className="text-2xl">❌</span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* No Answer - Show Correct Order Only */}
-        {!playerOrderImages && (
-          <div className="flex items-center justify-center">
-            <div className="text-center text-gray-500">
-              <p className="text-lg">You did not submit an answer</p>
-            </div>
+        {/* Category note */}
+        {question.category && (
+          <div
+            style={{
+              marginTop: 16,
+              padding: '10px 14px',
+              background: '#eff6ff',
+              border: '1px solid #bfdbfe',
+              borderRadius: 10,
+              fontSize: 13,
+              color: '#1e40af',
+              textAlign: 'center',
+            }}
+          >
+            <strong>Category:</strong> {question.category}
           </div>
         )}
       </div>
+    </div>
+  );
+};
 
-      {/* Educational note */}
-      {question.category && (
-        <div className="w-full max-w-4xl p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm text-blue-800 text-center">
-            <strong>Category:</strong> {question.category}
+// ── Shared row sub-component ──────────────────────────────────────────────────
+interface ReviewRowProps {
+  position: number;
+  item: OrderImageItem;
+  imgUrl: string;
+  variant: 'correct' | 'wrong' | 'neutral';
+  wrongPositionLabel?: string;
+}
+
+const ReviewRow: React.FC<ReviewRowProps> = ({ position, item, imgUrl, variant, wrongPositionLabel }) => {
+  const palette = {
+    correct: { bg: '#f0fdf4', border: '#86efac', badge: '#16a34a', icon: '✅' },
+    wrong:   { bg: '#fff1f2', border: '#fca5a5', badge: '#dc2626', icon: '❌' },
+    neutral: { bg: '#f8fafc', border: '#e2e8f0', badge: '#475569', icon: '' },
+  }[variant];
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '9px 12px',
+        borderRadius: 12,
+        border: `2px solid ${palette.border}`,
+        background: palette.bg,
+      }}
+    >
+      {/* Badge */}
+      <div
+        style={{
+          flexShrink: 0,
+          width: 32,
+          height: 32,
+          borderRadius: '50%',
+          background: palette.badge,
+          color: '#fff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontWeight: 800,
+          fontSize: 14,
+        }}
+      >
+        {position}
+      </div>
+
+      {/* Image */}
+      <div
+        style={{
+          flexShrink: 0,
+          width: 52,
+          height: 52,
+          borderRadius: 8,
+          overflow: 'hidden',
+          border: `1.5px solid ${palette.border}`,
+        }}
+      >
+        <img
+          src={imgUrl}
+          alt={item.label}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        />
+      </div>
+
+      {/* Label */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p
+          style={{
+            fontSize: 14,
+            fontWeight: 600,
+            color: '#1e293b',
+            margin: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {item.label}
+        </p>
+        {wrongPositionLabel && (
+          <p style={{ fontSize: 11, color: '#dc2626', margin: '2px 0 0', fontWeight: 500 }}>
+            {wrongPositionLabel}
           </p>
-        </div>
+        )}
+      </div>
+
+      {/* Icon */}
+      {palette.icon && (
+        <span style={{ flexShrink: 0, fontSize: 16 }}>{palette.icon}</span>
       )}
     </div>
   );

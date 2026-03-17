@@ -4,6 +4,12 @@ import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Web3Provider } from '../Web3Provider';
 
+interface RoomConfig {
+  web3Chain?: string;
+  evmNetwork?: string;
+  solanaCluster?: string;
+  stellarNetwork?: string;
+}
 
 interface ConditionalWeb3WrapperProps {
   children: React.ReactNode;
@@ -18,13 +24,15 @@ const LoadingFallback: React.FC = () => (
   </div>
 );
 
-// Simplified version
 export const ConditionalWeb3Wrapper: React.FC<ConditionalWeb3WrapperProps> = ({ children }) => {
   const location = useLocation();
   const [isWeb3Room, setIsWeb3Room] = useState<boolean | null>(null);
+  const [roomConfig, setRoomConfig] = useState<RoomConfig | null>(null);
 
   useEffect(() => {
-    const roomIdMatch = location.pathname.match(/\/quiz\/(join|game|play|admin-join|host-dashboard|host-controls)\/([^\/]+)/);
+    const roomIdMatch = location.pathname.match(
+      /\/quiz\/(join|game|play|admin-join|host-dashboard|host-controls)\/([^\/]+)/
+    );
     const roomId = roomIdMatch?.[2];
 
     if (!roomId) {
@@ -34,18 +42,36 @@ export const ConditionalWeb3Wrapper: React.FC<ConditionalWeb3WrapperProps> = ({ 
 
     fetch(`/quiz/api/rooms/${roomId}/info`)
       .then(res => res.ok ? res.json() : { isWeb3: false })
-      .then(data => setIsWeb3Room(data.isWeb3 || false))
-      .catch(() => setIsWeb3Room(false));
+      .then(data => {
+        setIsWeb3Room(data.isWeb3 || false);
+        // ✅ Extract chain config from the room info response
+        // so WalletProvider initializes with the correct network immediately
+        if (data.isWeb3) {
+          setRoomConfig({
+            web3Chain: data.web3Chain,
+            evmNetwork: data.evmNetwork,
+            solanaCluster: data.solanaCluster,
+            stellarNetwork: data.stellarNetwork,
+          });
+        }
+      })
+      .catch(() => {
+        setIsWeb3Room(false);
+      });
   }, [location.pathname]);
 
   if (isWeb3Room === null) {
     return <LoadingFallback />;
   }
 
-  // ✅ Force Web3Provider if it's a Web3 room
-  return isWeb3Room ? (
-    <Web3Provider force>{children}</Web3Provider>
-  ) : (
-    <>{children}</>
+  if (!isWeb3Room) {
+    return <>{children}</>;
+  }
+
+  // ✅ Pass roomConfig so WalletProvider doesn't initialize with undefined network
+  return (
+    <Web3Provider force roomConfig={roomConfig ?? undefined}>
+      {children}
+    </Web3Provider>
   );
 };

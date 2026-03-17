@@ -18,6 +18,7 @@ interface QuizWizardProps {
   onComplete?: () => void;
   hideEntitlements?: boolean; // ✅ NEW
   titleOverride?: string;     // ✅ optional, nice for edit
+  isEditMode?: boolean; 
 }
 
 const steps = ['setup', 'templates', 'rounds', 'fundraising', 'stepPrizes', 'review'] as const;
@@ -36,6 +37,7 @@ export default function QuizWizard({
   onComplete,
   hideEntitlements,
   titleOverride,
+  isEditMode,
 }: QuizWizardProps) {
   const { setupConfig, currentStep, setStep } = useQuizSetupStore();
   const { ents } = useEntitlements();
@@ -92,29 +94,26 @@ export default function QuizWizard({
       case 'stepPrizes':
         return <StepPrizes onNext={goNext} onBack={goBack} onResetToFirst={resetToFirst} />;
       case 'review':
-        return <StepReviewLaunch onNext={goNext} onBack={goBack} onResetToFirst={resetToFirst} />;
+        return <StepReviewLaunch onNext={goNext} onBack={goBack} onResetToFirst={resetToFirst} isEditMode={isEditMode} />;
       default:
         // Fallback (shouldn’t happen, but keeps TS happy and UI resilient)
-        return <StepQuizSetup onNext={goNext} onResetToFirst={resetToFirst} />;
+        return <StepQuizSetup onNext={goNext} onResetToFirst={resetToFirst}  />;
     }
   };
 
-  return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
-<div className="mb-6 text-center">
-  <h1 className="heading-1">
-    {titleOverride ?? 'Create Your Fundraising Quiz'}
-  </h1>
-
-  {!hideEntitlements && (
-    <EntitlementsBar ents={ents} className="inline-block" />
-  )}
-</div>
-
-
-
-      <div className="bg-muted rounded-xl p-6 shadow-lg">{renderStep()}</div>
+return (
+  <div className={isEditMode ? '' : 'mx-auto max-w-3xl px-4 py-10'}>
+    {/* title only when not edit mode, since modal has its own header */}
+    {!isEditMode && (
+      <div className="mb-6 text-center">
+        <h1 className="heading-1">{titleOverride ?? 'Create Your Fundraising Quiz'}</h1>
+        {!hideEntitlements && <EntitlementsBar ents={ents} className="inline-block" />}
+      </div>
+    )}
+    <div className={isEditMode ? '' : 'bg-muted rounded-xl p-6 shadow-lg'}>
+      {renderStep()}
     </div>
-  );
+  </div>
+);
 }
 

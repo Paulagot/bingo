@@ -1,11 +1,19 @@
 /**
- * Multi-Chain Contract Actions Hook
- * Orchestrates blockchain actions across EVM, Solana, and Stellar
+ * useContractActions — orchestrates blockchain actions across EVM, Solana, Stellar.
+ *
+ * CHANGED in wallet layer consolidation (Step 3):
+ * - Now accepts `chainConfig: ChainConfig` as a required parameter
+ * - No longer calls useQuizChainIntegration internally
+ * - No longer imports setDeploymentInProgress (auto-switch is gone)
+ * - Chain family is derived from chainConfig via useChainWallet
+ *
+ * The deploy/join/distribute logic itself is unchanged.
  */
 
 import { useCallback, useMemo } from 'react';
 import { PublicKey } from '@solana/web3.js';
-import { useQuizChainIntegration } from './useQuizChainIntegration';
+import { useChainWallet } from './useChainWallet';
+import type { ChainConfig } from '../types/chainConfig';
 import type { SupportedChain } from '../chains/types';
 
 /* ------------------------- EVM hooks ------------------------- */
@@ -19,9 +27,7 @@ import { useSolanaCreateAssetRoom } from '../chains/solana/hooks/useSolanaCreate
 import { useSolanaJoinRoom } from '../chains/solana/hooks/useSolanaJoinRoom';
 import { useSolanaEndRoom } from '../chains/solana/hooks/useSolanaEndRoom';
 
-// ✅ FIXED: correct type name is SolanaTokenCode, not SolanaTokenSymbol
 import type { SolanaTokenCode } from '../chains/solana/config/solanaTokenConfig';
-
 import type { Prize } from '../components/Quiz/types/quiz';
 
 /** ---------- Types ---------- */
@@ -88,26 +94,23 @@ type DistributeResult =
   | {
       success: true;
       txHash: string;
-      explorerUrl?: string | undefined;
-      cleanupTxHash?: string | undefined;
-      rentReclaimed?: number | undefined;
-      error?: string | undefined;
-      charityAmount?: string | undefined;
-      tgbDepositAddress?: string | undefined;
-      declareWinnersTxHash?: string | undefined;
-      tgbDepositMemo?: string | undefined;
-      tbgDepositAddress?: string | undefined;
+      explorerUrl?: string;
+      cleanupTxHash?: string;
+      rentReclaimed?: number;
+      error?: string;
+      charityAmount?: string;
+      tgbDepositAddress?: string;
+      declareWinnersTxHash?: string;
+      tgbDepositMemo?: string;
+      tbgDepositAddress?: string;
     }
   | { success: false; error: string };
 
-type Options = { chainOverride?: SupportedChain | null };
-
 /* ---------------- Main hook ---------------- */
-export function useContractActions(opts?: Options) {
-  const { selectedChain } = useQuizChainIntegration({
-    chainOverride: opts?.chainOverride ?? null,
-  });
-  const effectiveChain = (opts?.chainOverride ?? selectedChain) as SupportedChain | null;
+export function useContractActions(chainConfig: ChainConfig) {
+  // chainFamily comes from the config parameter — no store reads
+  const { chainFamily } = useChainWallet(chainConfig);
+  const effectiveChain = chainFamily as SupportedChain | null;
 
   // EVM hooks
   const { joinRoom: evmJoinRoom } = useEvmJoin();
@@ -120,18 +123,13 @@ export function useContractActions(opts?: Options) {
   const { joinRoom: solanaJoinRoom } = useSolanaJoinRoom();
   const { endRoom: solanaEndRoom } = useSolanaEndRoom();
 
-  // ✅ FIXED: removed misplaced currencySymbol line that was here referencing
-  // an undefined 'currency' variable. Currency is resolved inside each function below.
-
   /** ---------------- JOIN ROOM ---------------- */
   const joinRoom = useMemo(() => {
     if (effectiveChain === 'stellar') {
-      return async (_args: JoinArgs): Promise<JoinResult> => {
-        return {
-          success: false,
-          error: 'Stellar join must be handled through StellarLaunchSection component',
-        };
-      };
+      return async (_args: JoinArgs): Promise<JoinResult> => ({
+        success: false,
+        error: 'Stellar join must be handled through StellarLaunchSection component',
+      });
     }
 
     if (effectiveChain === 'evm') {
@@ -140,40 +138,23 @@ export function useContractActions(opts?: Options) {
 
     if (effectiveChain === 'solana') {
       return async ({ roomId, feeAmount, extrasAmount, roomAddress, currency }: JoinArgs): Promise<JoinResult> => {
-        console.log('[useContractActions][joinRoom] 🎮 Solana join room');
-        console.log('[useContractActions][joinRoom] Params:', { roomId, feeAmount, extrasAmount, roomAddress, currency });
+        console.log('[useContractActions][joinRoom] 🎮 Solana join room', { roomId, feeAmount, extrasAmount, roomAddress, currency });
 
         try {
           if (!roomAddress) {
-            console.error('[useContractActions][joinRoom] ❌ Missing room address');
-            return {
-              success: false,
-              error: 'Room address required for Solana join. Please provide the room PDA.',
-            };
+            return { success: false, error: 'Room address required for Solana join.' };
           }
 
           let roomPDA: PublicKey;
           try {
-            roomPDA = typeof roomAddress === 'string'
-              ? new PublicKey(roomAddress)
-              : roomAddress;
-            console.log('[useContractActions][joinRoom] 📍 Room PDA:', roomPDA.toBase58());
+            roomPDA = typeof roomAddress === 'string' ? new PublicKey(roomAddress) : roomAddress;
           } catch (e: any) {
-            console.error('[useContractActions][joinRoom] ❌ Invalid room address:', e);
             return { success: false, error: `Invalid room address: ${e.message}` };
           }
 
           const entryFeeNum = feeAmount ? parseFloat(String(feeAmount)) : undefined;
           const extrasNum = extrasAmount ? parseFloat(String(extrasAmount)) : 0;
-
-          // ✅ UPDATED: default to USDG, typed as SolanaTokenCode
           const currencyCode = (currency ?? 'USDG').toUpperCase() as SolanaTokenCode;
-
-          console.log('[useContractActions][joinRoom] 💵 Payment:', {
-            entryFee: entryFeeNum,
-            extras: extrasNum,
-            currency: currencyCode,
-          });
 
           const result = await solanaJoinRoom({
             roomId,
@@ -183,11 +164,8 @@ export function useContractActions(opts?: Options) {
             currency: currencyCode,
           });
 
-          console.log('[useContractActions][joinRoom] ✅ Join successful:', result);
-
           return { success: true, txHash: result.txHash };
         } catch (e: any) {
-          console.error('[useContractActions][joinRoom] ❌ Solana join error:', e);
           return { success: false, error: e?.message || 'Failed to join Solana room' };
         }
       };
@@ -202,12 +180,10 @@ export function useContractActions(opts?: Options) {
   /** ---------------- DISTRIBUTE PRIZES ---------------- */
   const distributePrizes = useMemo(() => {
     if (effectiveChain === 'stellar') {
-      return async (): Promise<DistributeResult> => {
-        return {
-          success: false,
-          error: 'Stellar prize distribution must be handled through StellarLaunchSection component',
-        };
-      };
+      return async (): Promise<DistributeResult> => ({
+        success: false,
+        error: 'Stellar prize distribution must be handled through StellarLaunchSection component',
+      });
     }
 
     if (effectiveChain === 'evm') {
@@ -215,45 +191,19 @@ export function useContractActions(opts?: Options) {
     }
 
     if (effectiveChain === 'solana') {
-      return async ({
-        roomId,
-        winners,
-        roomAddress,
-        charityOrgId,
-        charityAddress,
-      }: DistributeArgs): Promise<DistributeResult> => {
-        console.log('[useContractActions][distributePrizes] 🏆 Solana prize distribution');
-        console.log('[useContractActions][distributePrizes] Params:', {
-          roomId,
-          winnersCount: winners.length,
-          roomAddress,
-          charityOrgId,
-        });
+      return async ({ roomId, winners, roomAddress, charityOrgId, charityAddress }: DistributeArgs): Promise<DistributeResult> => {
+        console.log('[useContractActions][distributePrizes] 🏆 Solana', { roomId, winnersCount: winners.length });
 
         try {
-          if (!roomAddress) {
-            console.error('[useContractActions][distributePrizes] ❌ Missing room address');
-            return { success: false, error: 'Missing room address for distribution' };
-          }
+          if (!roomAddress) return { success: false, error: 'Missing room address for distribution' };
 
-          const winnerAddresses = winners
-            .map((w) => w.address)
-            .filter((addr): addr is string => !!addr);
-
-          if (winnerAddresses.length === 0) {
-            console.error('[useContractActions][distributePrizes] ❌ No valid winner addresses');
-            return { success: false, error: 'No valid winner addresses' };
-          }
-
-          console.log('[useContractActions][distributePrizes] 🏅 Winners:', winnerAddresses);
+          const winnerAddresses = winners.map((w) => w.address).filter((a): a is string => !!a);
+          if (winnerAddresses.length === 0) return { success: false, error: 'No valid winner addresses' };
 
           let roomPDA: PublicKey;
           try {
-            roomPDA = typeof roomAddress === 'string'
-              ? new PublicKey(roomAddress)
-              : roomAddress;
+            roomPDA = typeof roomAddress === 'string' ? new PublicKey(roomAddress) : roomAddress;
           } catch (e: any) {
-            console.error('[useContractActions][distributePrizes] ❌ Invalid room address:', e);
             return { success: false, error: `Invalid room address: ${e.message}` };
           }
 
@@ -262,22 +212,14 @@ export function useContractActions(opts?: Options) {
             try {
               winnerPublicKeys.push(new PublicKey(addr));
             } catch (e: any) {
-              console.error('[useContractActions][distributePrizes] ❌ Invalid winner address:', addr);
               return { success: false, error: `Invalid winner address: ${addr}` };
             }
           }
 
           let charityWalletPubkey: PublicKey | undefined;
           if (charityAddress) {
-            try {
-              charityWalletPubkey = new PublicKey(charityAddress);
-              console.log('[useContractActions][distributePrizes] 📍 Fallback charity wallet:', charityWalletPubkey.toBase58());
-            } catch (e: any) {
-              console.warn('[useContractActions][distributePrizes] ⚠️ Invalid charity address, will use TGB only:', e);
-            }
+            try { charityWalletPubkey = new PublicKey(charityAddress); } catch {}
           }
-
-          console.log('[useContractActions][distributePrizes] 🚀 Calling useSolanaEndRoom...');
 
           const result = await solanaEndRoom({
             roomId,
@@ -287,15 +229,7 @@ export function useContractActions(opts?: Options) {
             charityWallet: charityWalletPubkey,
           });
 
-          console.log('[useContractActions][distributePrizes] ✅ Prize distribution successful:', result);
-
-          const declareWinnersTxHash = 'declareWinnersTxHash' in result
-            ? result.declareWinnersTxHash
-            : undefined;
-
-          if (declareWinnersTxHash) {
-            console.log('[useContractActions][distributePrizes] 📝 Declare winners tx:', declareWinnersTxHash);
-          }
+          const declareWinnersTxHash = 'declareWinnersTxHash' in result ? result.declareWinnersTxHash : undefined;
 
           return {
             success: true,
@@ -306,7 +240,6 @@ export function useContractActions(opts?: Options) {
             declareWinnersTxHash,
           };
         } catch (e: any) {
-          console.error('[useContractActions][distributePrizes] ❌ Solana distribution error:', e);
           return { success: false, error: e?.message || 'Solana prize distribution failed' };
         }
       };
@@ -321,39 +254,28 @@ export function useContractActions(opts?: Options) {
   /** ---------------- DEPLOY ---------------- */
   const deploy = useCallback(
     async (params: DeployParams): Promise<DeployResult> => {
-      console.log('[useContractActions][deploy] 🚀 Starting deployment');
-      console.log('[useContractActions][deploy] Effective chain:', effectiveChain);
-      console.log('[useContractActions][deploy] Params:', params);
+      console.log('[useContractActions][deploy] 🚀 chain:', effectiveChain, 'params:', params);
+
+      // Note: no setDeploymentInProgress here — the auto-switch useEffect is gone.
+      // useEvmJoin still uses its own local lock during the approve+join sequence,
+      // which is fine because that's purely within a single async function, not a
+      // module-level flag fighting across hook instances.
 
       if (effectiveChain === 'stellar') {
         throw new Error('Stellar deployment must be handled through StellarLaunchSection component');
       }
 
       if (effectiveChain === 'evm') {
-        console.log('[useContractActions][deploy] ➡️  Delegating to EVM');
         return evmDeploy(params);
       }
 
       if (effectiveChain === 'solana') {
-        console.log('[useContractActions][deploy] ➡️  Delegating to Solana');
-
-        // ✅ UPDATED: default to USDG, typed as SolanaTokenCode
         const currency = (params.currency ?? 'USDG').toUpperCase() as SolanaTokenCode;
 
         if (params.prizeMode === 'assets') {
-          console.log('[useContractActions][deploy] Creating asset room with params:', {
-            roomId: params.roomId,
-            currency,
-            entryFee: params.entryFee,
-            hostFeePct: params.hostFeePct,
-            charityName: params.charityName,
-            expectedPrizes: params.expectedPrizes?.length,
-          });
-
           if (!params.expectedPrizes || params.expectedPrizes.length === 0) {
             throw new Error('Asset room requires at least one prize');
           }
-
           const result = await solanaCreateAssetRoom({
             roomId: params.roomId,
             currency,
@@ -363,9 +285,6 @@ export function useContractActions(opts?: Options) {
             charityName: params.charityName,
             expectedPrizes: params.expectedPrizes,
           });
-
-          console.log('[useContractActions][deploy] ✅ Solana asset room created:', result);
-
           return {
             success: true,
             contractAddress: result.contractAddress,
@@ -373,16 +292,6 @@ export function useContractActions(opts?: Options) {
             explorerUrl: result.explorerUrl,
           };
         } else {
-          console.log('[useContractActions][deploy] Creating pool room with params:', {
-            roomId: params.roomId,
-            currency,
-            entryFee: params.entryFee,
-            hostFeePct: params.hostFeePct,
-            prizePoolPct: params.prizePoolPct,
-            charityName: params.charityName,
-            prizeSplits: params.prizeSplits,
-          });
-
           const result = await solanaCreatePoolRoom({
             roomId: params.roomId,
             currency,
@@ -393,9 +302,6 @@ export function useContractActions(opts?: Options) {
             charityName: params.charityName,
             prizeSplits: params.prizeSplits,
           });
-
-          console.log('[useContractActions][deploy] ✅ Solana pool room created:', result);
-
           return {
             success: true,
             contractAddress: result.contractAddress,

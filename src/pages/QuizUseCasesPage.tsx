@@ -25,7 +25,8 @@ interface ColorScheme {
 }
 
 // Color scheme for each use case
-const colorSchemes: Record<string, ColorScheme> = {
+type ColorSchemeKey = 'schools' | 'clubs' | 'charities' | 'community';
+const colorSchemes: Record<ColorSchemeKey, ColorScheme> = {
   schools: {
     iconBg: 'bg-gradient-to-br from-blue-500 to-cyan-500',
     iconColor: 'text-white',
@@ -412,7 +413,7 @@ const QuizUsecaseIndexPage: React.FC = () => {
                 <Shield className="h-8 w-8" />
               </div>
               <h3 className="text-indigo-900 text-xl font-semibold mb-3">Professional Question Content</h3>
-              <p className="text-indigo-900/70">Access our curated question banks with General Trivia, Wipeout, and Speed Round content, or create custom questions tailored to your audience and cause.</p>
+              <p className="text-indigo-900/70">Access our curated question banks with General Trivia, Wipeout, Hidden Object, Order Image and Speed Round content, and optionally create custom questions tailored to your audience and cause.</p>
             </div>
           </div>
         </div>
