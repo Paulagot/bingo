@@ -125,11 +125,11 @@ const ImpactRibbon: React.FC = () => (
             bullets={[
               {
                 icon: <Calendar className="h-5 w-5 text-yellow-200" />,
-                text: 'Run 1 club quiz night before 30 June 2026 (limited to 25 clubs)',
+                text: 'Run 1 club quiz night before 30 June 2026 (limited to 30 clubs)',
               },
               {
                 icon: <Trophy className="h-5 w-5 text-emerald-200" />,
-                text: 'Prizes + national final + €2,000 club grant (subject to entries)',
+                text: 'Prizes + national final + €3,000 club grant (subject to entries)',
               },
               {
                 icon: <Users className="h-5 w-5 text-indigo-200" />,

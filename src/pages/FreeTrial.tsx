@@ -106,7 +106,7 @@ const FreeTrial: React.FC = () => {
 
         <div className="container mx-auto max-w-6xl text-center relative z-10">
           <span className="inline-flex items-center gap-2 rounded-full bg-green-100 px-4 py-2 text-green-700 text-sm font-bold border border-green-200">
-            <Sparkles aria-hidden="true" className="h-4 w-4" /> FREE TRIAL — No Credit Card Needed
+            <Sparkles aria-hidden="true" className="h-4 w-4" /> FREE TRIAL - No Credit Card Needed
           </span>
 
           <h1 className="mt-4 pb-2 bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-transparent text-4xl md:text-6xl font-bold">
@@ -114,13 +114,12 @@ const FreeTrial: React.FC = () => {
           </h1>
 
           <h2 className="mt-4 text-indigo-800 text-xl md:text-2xl font-semibold leading-snug">
-            Set up in minutes, play on mobile, reconcile in a click — a little bit of showtime, a lot of transparency
+            Set up in minutes, play on mobile, reconcile in a click - a little bit of showtime, a lot of transparency
           </h2>
 
           <p className="mx-auto mt-4 max-w-3xl text-indigo-900/70 text-lg md:text-xl">
             4-step wizard, prebuilt templates or custom rounds, live scoring & leaderboards, and audit-ready reporting.
-            Collect cash or share an instant payment link; once an admin marks each player as paid and selects the method,
-            reconciliation updates automatically.
+            Sell Tickets, Collect card, cash or share an instant payment link; reconciliation updates automatically.
           </p>
 
           {/* Enhanced CTA section */}
@@ -162,12 +161,7 @@ const FreeTrial: React.FC = () => {
               </div>
             </div>
 
-            <div className="rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-white inline-flex items-start gap-3 text-sm text-left max-w-3xl mx-auto">
-              <Clock className="h-4 w-4 mt-0.5 flex-shrink-0" />
-              <span>
-                <strong>No scheduling on the free trial:</strong> create your quiz about <strong>30 minutes before doors open</strong>, invite teams, and you're ready to go.
-              </span>
-            </div>
+         
           </div>
 
           {/* Target audience callout */}
@@ -207,7 +201,7 @@ const FreeTrial: React.FC = () => {
                 <Users aria-hidden="true" className="h-6 w-6 text-white" />
               </div>
               <h3 className="text-white mb-2 text-lg font-bold">4-Step Setup Wizard</h3>
-              <p className="text-white/80">Create your event in minutes — ticketing, extras, capacity, and room link/QR.</p>
+              <p className="text-white/80">Create your event in minutes - ticketing, extras, capacity, and room link/QR.</p>
             </div>
 
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300">
@@ -215,7 +209,7 @@ const FreeTrial: React.FC = () => {
                 <Shield aria-hidden="true" className="h-6 w-6 text-white" />
               </div>
               <h3 className="text-white mb-2 text-lg font-bold">Templates</h3>
-              <p className="text-white/80">Pick from prebuilt quiz templates.</p>
+              <p className="text-white/80">Pick from prebuilt quiz templates and add your own personalised round.</p>
             </div>
 
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300">
@@ -223,7 +217,7 @@ const FreeTrial: React.FC = () => {
                 <Zap aria-hidden="true" className="h-6 w-6 text-white" />
               </div>
               <h3 className="text-white mb-2 text-lg font-bold">Round Types + Tiebreakers</h3>
-              <p className="text-white/80">General Trivia, Wipeout, and Speed Round — plus ready-to-run tiebreakers.</p>
+              <p className="text-white/80">General Trivia, Wipeout, Hidden Object, Order Image and Speed Round - plus ready-to-run tiebreakers.</p>
             </div>
           </div>
 
@@ -233,7 +227,7 @@ const FreeTrial: React.FC = () => {
                 <Sparkles aria-hidden="true" className="h-6 w-6 text-white" />
               </div>
               <h3 className="text-white mb-2 text-lg font-bold">Fundraising Extras</h3>
-              <p className="text-white/80">Clue, Freeze, RobinHood (RobPoints), Restore — boost engagement and funds.</p>
+              <p className="text-white/80">Clue, Freeze, RobinHood (RobPoints), Restore -boost engagement and funds.</p>
             </div>
 
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300">
@@ -249,7 +243,7 @@ const FreeTrial: React.FC = () => {
                 <CreditCard aria-hidden="true" className="h-6 w-6 text-white" />
               </div>
               <h3 className="text-white mb-2 text-lg font-bold">Payments & Reconciliation</h3>
-              <p className="text-white/80">Collect cash or share instant links. Mark paid once — exports are audit-ready.</p>
+              <p className="text-white/80">Collect card, cash or share instant links. Sell Tickets in advance or collect payments at the door.</p>
             </div>
           </div>
 
@@ -257,7 +251,7 @@ const FreeTrial: React.FC = () => {
             <h4 className="text-white mb-3 font-semibold">Also included on the free trial</h4>
             <ul className="grid gap-3 md:grid-cols-2">
               <li className="flex items-start gap-2 text-white/85"><Check className="h-4 w-4 mt-1 text-green-300" /> Basic sponsor showcase features</li>
-              <li className="flex items-start gap-2 text-white/85"><Check className="h-4 w-4 mt-1 text-green-300" /> Immediate launch (no scheduling)</li>
+              <li className="flex items-start gap-2 text-white/85"><Check className="h-4 w-4 mt-1 text-green-300" /> Scheduling</li>
               <li className="flex items-start gap-2 text-white/85"><Check className="h-4 w-4 mt-1 text-green-300" /> Audit-ready post-event reporting</li>
               <li className="flex items-start gap-2 text-white/85"><Check className="h-4 w-4 mt-1 text-green-300" /> Community support</li>
             </ul>
@@ -281,7 +275,7 @@ const FreeTrial: React.FC = () => {
           <div className="mb-12 text-center">
             <h2 className="text-indigo-900 mb-4 text-3xl font-bold">Complete end-to-end fundraising flow</h2>
             <p className="text-indigo-900/70 mx-auto max-w-2xl text-lg">
-              Everything you need to run a memorable, accountable quiz night — from setup to final tally.
+              Everything you need to run a memorable, accountable quiz night - from setup to final tally.
             </p>
           </div>
 
@@ -291,7 +285,7 @@ const FreeTrial: React.FC = () => {
               <ul className="space-y-3">
                 <ListItem>Set ticket price and enable fundraising extras</ListItem>
                 <ListItem>Invite teams with a join link or QR code</ListItem>
-                <ListItem>Collect payments (cash or instant link) and mark paid + method</ListItem>
+                <ListItem>Collect payments (card,cash or instant link) with full tracking and payment reconciliation</ListItem>
               </ul>
               <ul className="space-y-3">
                 <ListItem>Run the quiz live with mobile play, auto-scoring, and leaderboards</ListItem>
@@ -321,7 +315,7 @@ const FreeTrial: React.FC = () => {
                 Try each fundraising extra (Clue, Freeze, RobinHood/RobPoints, Restore), mark payments, and export a report.
               </p>
               <ul className="space-y-2">
-                <ListItem>Create the event ~30 minutes before your rehearsal start</ListItem>
+                <ListItem>Create the event</ListItem>
                 <ListItem>Share the QR link and join on mobile</ListItem>
                 <ListItem>Test tiebreakers and the scoreboard reveal</ListItem>
               </ul>
@@ -334,7 +328,7 @@ const FreeTrial: React.FC = () => {
                 extras work their magic. You'll finish the night with an <strong>audit-ready total</strong>.
               </p>
               <ul className="space-y-2">
-                <ListItem>Create the quiz ~30 minutes before doors open (no scheduling on trial)</ListItem>
+                <ListItem>Create the quiz</ListItem>
                 <ListItem>Seat teams, confirm payments, and start the show</ListItem>
                 <ListItem>Download reconciliation & results before you pack up</ListItem>
               </ul>
@@ -418,13 +412,12 @@ const FreeTrial: React.FC = () => {
           <div className="grid gap-6 md:grid-cols-2">
             <div className="bg-white rounded-xl p-6 shadow-lg border border-indigo-100/50">
               <h3 className="text-indigo-900 mb-2 text-lg font-semibold">Do I need a credit card?</h3>
-              <p className="text-indigo-900/70">No — create a free account and claim your credits without a card.</p>
+              <p className="text-indigo-900/70">No - create a free account and claim your credits without a card.</p>
             </div>
             <div className="bg-white rounded-xl p-6 shadow-lg border border-indigo-100/50">
               <h3 className="text-indigo-900 mb-2 text-lg font-semibold">Is it for in-person only?</h3>
               <p className="text-indigo-900/70">
-                Yes for now, it's optimised for in-person events. Collect cash or use an instant payment link; once admins mark paid
-                and choose the method, reconciliation is automatic and exportable.
+               Not al all, it's optimised for in-person, online or hybrid events. Collect card, cash or use an instant payment link; reconciliation is automatic and exportable.
               </p>
             </div>
             <div className="bg-white rounded-xl p-6 shadow-lg border border-indigo-100/50">
@@ -434,7 +427,7 @@ const FreeTrial: React.FC = () => {
             <div className="bg-white rounded-xl p-6 shadow-lg border border-indigo-100/50">
               <h3 className="text-indigo-900 mb-2 text-lg font-semibold">Can I schedule a quiz?</h3>
               <p className="text-indigo-900/70">
-                Not on the free trial. Create your quiz about 30 minutes before doors open, invite teams, and go.
+                Yes of course. Scheduling is included in the free trial so you can set up your quiz in advance, share the join link with teams, and open the room when you're ready to start.
               </p>
             </div>
           </div>

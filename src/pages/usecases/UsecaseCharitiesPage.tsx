@@ -126,7 +126,7 @@ const UsecaseCharitiesPage: React.FC = () => {
         acceptedAnswer: {
           '@type': 'Answer',
           text:
-            'Admins mark payments by method (cash & other instant payment options). The reconciliation panel compares expected vs. received across entry fees and extras, exportable to CSV/PDF.'
+            'Our unique system works for you.  Sell Tickets and manage payments seamlessly. cash & other instant payment options available for real world fundarising. The reconciliation panel compares expected vs. received across entry fees and extras, exportable to CSV/PDF.'
         }
       },
       {
@@ -283,8 +283,7 @@ const UsecaseCharitiesPage: React.FC = () => {
               icon={<DollarSign className="h-5 w-5" />}
               title="Track Donations Clearly"
               points={[
-                'Cash, Revolut, and other methods',
-                'Admins mark payments received',
+                'Card, Cash, Instant Payment, we track them all',
                 'Extras encourage additional giving'
               ]}
             />
@@ -391,7 +390,7 @@ const UsecaseCharitiesPage: React.FC = () => {
             />
             <FAQItem
               question="How are payments and donations tracked?"
-              answer="Admins mark payments by method (cash,other instant payment options). The reconciliation panel compares expected vs. received across entry and extras."
+              answer="AOur unique system works for you.  Sell Tickets and manage payments seamlessly. cash & other instant payment options available for real world fundarising. The reconciliation panel compares expected vs. received across entry fees and extras, exportable to CSV/PDF."
             />
             <FAQItem
               question="Is donor data secure?"

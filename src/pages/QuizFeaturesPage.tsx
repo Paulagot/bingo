@@ -170,7 +170,7 @@ const QuizFeaturesPage: React.FC = () => {
         name: 'Can we collect both cash and digital payments?',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: 'Yes, FundRaisely supports flexible payment collection including cash, Revolut, and other instant payment methods. Admins can mark payments as received and specify the collection method, with automatic reconciliation updating in real-time.',
+          text: 'Yes, FundRaisely supports flexible payment collection including card, cash, Revolut, and other instant payment methods. We are the only ones that will help you track cash and instant payments, card payment is secure with Stripe.',
         },
       },
       {
@@ -556,9 +556,7 @@ const QuizFeaturesPage: React.FC = () => {
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
               <h3 className="text-indigo-900 mb-3 text-lg font-semibold">Can we collect both cash and digital payments?</h3>
               <p className="text-indigo-900/70">
-                Yes, FundRaisely supports flexible payment collection including cash, Revolut, and other instant payment methods.
-                Admins can mark payments as received and specify the collection method, with automatic reconciliation updating in
-                real-time.
+                 Yes, FundRaisely supports flexible payment collection including card, cash, Revolut, and other instant payment methods. We are the only ones that will help you track cash and instant payments, card payment is secure with Stripe.
               </p>
             </div>
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">

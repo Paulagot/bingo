@@ -315,7 +315,7 @@ export default function HowItWorksPage() {
                   </div>
                 </div>
                 <p className="text-indigo-900/70 leading-relaxed">
-                  Choose from our pre-configured round types like General Trivia, Wipeout, or Speed Round. You can select a pre configured quiz from the quiz templates .
+                  Choose from our pre-configured round types like General Trivia, Wipeout, Hidden Object, Order Image or Speed Round. You can select a pre configured quiz from the quiz templates .
                 </p>
               </div>
 
