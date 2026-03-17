@@ -5,7 +5,6 @@ import {
   ChevronRight,
   Clock,
   Trophy,
- 
   CheckCircle as CheckCircle2,
   X,
   Filter as FilterIcon,
@@ -36,14 +35,12 @@ const Debug = false;
 // ───────────────────────────────────────────────────────────────────────────────
 function buildEnabledExtrasForRound(roundType: RoundTypeId) {
   const enabledExtras: Record<string, boolean> = {};
-
   for (const [extraId, def] of Object.entries(fundraisingExtraDefinitions)) {
     const applicable = Array.isArray(def.applicableTo) ? def.applicableTo : [];
     if (applicable.includes(roundType)) {
-      enabledExtras[extraId] = false; // default off (user toggles later)
+      enabledExtras[extraId] = false;
     }
   }
-
   return enabledExtras;
 }
 
@@ -61,21 +58,18 @@ function computeRoundMinutes(round: RoundLite): number {
   const defaults = roundTypeDefaults[round.type];
   const cfg: RoundConfig = { ...defaults, ...(round.customConfig ?? {}) };
 
-  // ✅ Speed round: totalTimeSeconds × 4
   if (round.type === 'speed_round' && cfg.totalTimeSeconds) {
     const seconds = cfg.totalTimeSeconds * 4;
     return Math.round((seconds / 60) * 10) / 10;
   }
 
-  // ✅ Hidden object: questionsPerRound × timeLimitSeconds × 1.5 (asking + review)
   if (round.type === 'hidden_object') {
     const puzzles = cfg.questionsPerRound || 0;
     const timePerPuzzle = cfg.hiddenObject?.timeLimitSeconds || 45;
-    const seconds = puzzles * timePerPuzzle * 1.5; // asking + brief review
+    const seconds = puzzles * timePerPuzzle * 1.5;
     return Math.round((seconds / 60) * 10) / 10;
   }
 
-  // ✅ Standard rounds: questions × timePerQuestion × 3
   const q = cfg.questionsPerRound || 0;
   const t = cfg.timePerQuestion || 0;
   const seconds = q * t * 3;
@@ -111,7 +105,7 @@ function calculateDuration(
   rounds: QuizTemplate['rounds'],
   difficulty: QuizTemplate['difficulty'],
   tags: string[]
-) {
+): number {
   const quizMinutes = rounds.reduce(
     (total, r) => total + computeRoundMinutes({ type: r.type, customConfig: r.customConfig }),
     0
@@ -119,6 +113,30 @@ function calculateDuration(
   const breakPositions = getBreakPositionsByStrategy(rounds, difficulty, tags);
   const breakMinutes = breakPositions.length * BREAK_MINUTES;
   return Math.round(quizMinutes + breakMinutes);
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Duration bucket helpers
+// ───────────────────────────────────────────────────────────────────────────────
+// Buckets are computed from the live calculateDuration() value, not from tags.
+// This means the filter always reflects reality, regardless of what the tag says.
+
+type DurationBucket = 'Under 45 min' | '45–60 min' | '60–75 min' | '75–90 min' | '90 min+';
+
+const DURATION_BUCKETS: DurationBucket[] = [
+  'Under 45 min',
+  '45–60 min',
+  '60–75 min',
+  '75–90 min',
+  '90 min+',
+];
+
+function getDurationBucket(minutes: number): DurationBucket {
+  if (minutes < 45) return 'Under 45 min';
+  if (minutes < 60) return '45–60 min';
+  if (minutes < 75) return '60–75 min';
+  if (minutes < 90) return '75–90 min';
+  return '90 min+';
 }
 
 // ───────────────────────────────────────────────────────────────────────────────
@@ -151,10 +169,10 @@ const Character = ({ message }: { message: string }) => {
 // Filters
 // ───────────────────────────────────────────────────────────────────────────────
 type FilterState = {
-  audience: 'All' | string;
-  topic: 'All' | string;
-  difficulty: 'All' | 'Easy' | 'Medium' | 'Hard';
-  duration: 'All' | string;
+  audience: string;       // 'All' | any Audience tag value
+  topic: string;          // 'All' | any Topic tag value
+  difficulty: string;     // 'All' | 'Easy' | 'Medium' | 'Hard'
+  duration: string;       // 'All' | DurationBucket
 };
 
 function parseTagValue(tag: string, prefix: string): string | null {
@@ -162,29 +180,46 @@ function parseTagValue(tag: string, prefix: string): string | null {
   return tag.slice(prefix.length).trim();
 }
 
-function collectFilterOptions(templates: QuizTemplate[]) {
+// Collect filter options.
+// Duration is derived from live calculateDuration() values, NOT from Duration: tags.
+// We pass pre-computed durations in so this stays a pure function.
+function collectFilterOptions(
+  templates: QuizTemplate[],
+  computedDurations: Map<string, number>
+) {
   const audiences = new Set<string>();
   const topics = new Set<string>();
-  const durations = new Set<string>();
-  const difficulties = new Set<'Easy' | 'Medium' | 'Hard'>();
+  const difficulties = new Set<string>();
+  const durationBuckets = new Set<DurationBucket>();
 
   templates.forEach((t) => {
     difficulties.add(t.difficulty);
+
     t.tags.forEach((tag) => {
       const a = parseTagValue(tag, 'Audience: ');
       if (a) audiences.add(a);
+
       const tp = parseTagValue(tag, 'Topic: ');
+      // Exclude 'Format: Online' appearing in topics — it's not a topic
       if (tp) topics.add(tp);
-      const d = parseTagValue(tag, 'Duration: ');
-      if (d) durations.add(d);
+
+      // Intentionally ignore 'Duration: ...' tags — we use computed buckets instead
     });
+
+    const mins = computedDurations.get(t.id);
+    if (mins !== undefined) {
+      durationBuckets.add(getDurationBucket(mins));
+    }
   });
+
+  // Sort duration buckets in the canonical order
+  const sortedDurationBuckets = DURATION_BUCKETS.filter((b) => durationBuckets.has(b));
 
   return {
     audiences: ['All', ...Array.from(audiences).sort()],
     topics: ['All', ...Array.from(topics).sort()],
     difficulties: ['All', ...Array.from(difficulties).sort()],
-    durations: ['All', ...Array.from(durations).sort()],
+    durations: ['All', ...sortedDurationBuckets],
   };
 }
 
@@ -194,7 +229,6 @@ function collectFilterOptions(templates: QuizTemplate[]) {
 const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst }) => {
   const { setupConfig, setTemplate, updateSetupConfig, flow } = useQuizSetupStore();
 
-  // ── Entitlements load (logged-in users only). If unauth (web3-only), this fails → not Dev.
   const [ents, setEnts] = useState<any | null>(null);
   const [_entsLoaded, setEntsLoaded] = useState(false);
 
@@ -221,23 +255,29 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
 
   const selectedTemplate = setupConfig.selectedTemplate ?? null;
 
-  // Base list — hide demo for non-devs; prioritise for devs
+  // Base list — hide demo for non-devs
   const baseTemplates = useMemo(() => {
     let list = [...quizTemplates];
-
-    // Hide demo unless Dev plan
-    if (!isDevPlan) {
-      list = list.filter((t) => t.id !== 'demo-quiz');
-    }
-
-    // Ensure demo-quiz appears first only if present (i.e., devs)
+    if (!isDevPlan) list = list.filter((t) => t.id !== 'demo-quiz');
     list.sort((a, b) => (a.id === 'demo-quiz' ? -1 : b.id === 'demo-quiz' ? 1 : 0));
-
     if (Debug) console.log('[Templates] isDevPlan:', isDevPlan, 'baseTemplates ids:', list.map((t) => t.id));
     return list;
   }, [isDevPlan]);
 
-  const filterOptions = useMemo(() => collectFilterOptions(baseTemplates), [baseTemplates]);
+  // Pre-compute all durations once. Keyed by template id.
+  // This is the single source of truth for duration values across filtering AND display.
+  const computedDurations = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const t of baseTemplates) {
+      map.set(t.id, calculateDuration(t.rounds, t.difficulty, t.tags));
+    }
+    return map;
+  }, [baseTemplates]);
+
+  const filterOptions = useMemo(
+    () => collectFilterOptions(baseTemplates, computedDurations),
+    [baseTemplates, computedDurations]
+  );
 
   const anyFilterActive =
     filters.audience !== 'All' ||
@@ -245,13 +285,22 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
     filters.difficulty !== 'All' ||
     filters.duration !== 'All';
 
-  // ✅ Always start from ALL templates; filters narrow the list.
   const filteredTemplates = useMemo(() => {
     const list = baseTemplates.filter((t) => {
-      const hasAudience = filters.audience === 'All' || t.tags.some((tag) => tag === `Audience: ${filters.audience}`);
-      const hasTopic = filters.topic === 'All' || t.tags.some((tag) => tag === `Topic: ${filters.topic}`);
-      const hasDifficulty = filters.difficulty === 'All' || t.difficulty === filters.difficulty;
-      const hasDuration = filters.duration === 'All' || t.tags.some((tag) => tag === `Duration: ${filters.duration}`);
+      const hasAudience =
+        filters.audience === 'All' || t.tags.some((tag) => tag === `Audience: ${filters.audience}`);
+
+      const hasTopic =
+        filters.topic === 'All' || t.tags.some((tag) => tag === `Topic: ${filters.topic}`);
+
+      const hasDifficulty =
+        filters.difficulty === 'All' || t.difficulty === filters.difficulty;
+
+      // Duration: compare the computed bucket, not the tag string
+      const hasDuration =
+        filters.duration === 'All' ||
+        getDurationBucket(computedDurations.get(t.id) ?? 0) === filters.duration;
+
       return hasAudience && hasTopic && hasDifficulty && hasDuration;
     });
 
@@ -261,7 +310,7 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
     }
 
     return list;
-  }, [filters, baseTemplates, anyFilterActive]);
+  }, [filters, baseTemplates, computedDurations, anyFilterActive]);
 
   const totalAvailable = baseTemplates.length;
   const shownCount = filteredTemplates.length;
@@ -269,23 +318,19 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
   const getRoundTypeInfo = (type: RoundTypeId, customConfig?: Partial<RoundConfig>) => {
     const roundType = roundTypeMap[type];
     const icon =
-      type === 'general_trivia'
-        ? '🧠'
-        : type === 'wipeout'
-        ? '💀'
-        : type === 'speed_round'
-        ? '⚡'
-        : type === 'hidden_object'
-        ? '🔎'
-        : type === 'order_image'
-        ? '🔢'
-        : '❓';
+      type === 'general_trivia' ? '🧠'
+      : type === 'wipeout'      ? '💀'
+      : type === 'speed_round'  ? '⚡'
+      : type === 'hidden_object'? '🔎'
+      : type === 'order_image'  ? '🔢'
+      : '❓';
 
     if (roundType) {
       const time = computeRoundMinutes({ type, customConfig });
       const defaults = roundTypeDefaults[type];
       const cfg = { ...defaults, ...(customConfig ?? {}) };
-      const questionsCount = type === 'speed_round' ? undefined : (cfg.questionsPerRound ?? 6);
+      const questionsCount =
+        type === 'speed_round' ? undefined : (cfg.questionsPerRound ?? 6);
 
       return {
         icon,
@@ -295,11 +340,16 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
         timed: type === 'speed_round' ? (cfg.totalTimeSeconds ?? 0) : undefined,
       };
     }
-    return { icon: '❓', name: 'Unknown', time: 10, questionsCount: 6 as number | undefined, timed: undefined };
+    return {
+      icon: '❓',
+      name: 'Unknown',
+      time: 10,
+      questionsCount: 6 as number | undefined,
+      timed: undefined,
+    };
   };
 
   const handleTemplateSelect = (templateId: string) => {
-    // 🚫 Block demo for non-devs
     if (templateId === 'demo-quiz' && !isDevPlan) {
       console.warn('[Templates] Blocked non-dev from selecting demo-quiz');
       return;
@@ -310,14 +360,9 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
     const template = baseTemplates.find((t) => t.id === templateId);
     if (!template) return;
 
-    // ✅ Templates are authoritative - no overrides
     const roundDefinitions = template.rounds.map((round, index) => {
       const defaults = roundTypeDefaults[round.type] ?? ({} as RoundConfig);
-
-      const cfg = {
-        ...defaults,
-        ...(round.customConfig ?? {}),
-      } as RoundConfig;
+      const cfg = { ...defaults, ...(round.customConfig ?? {}) } as RoundConfig;
 
       return {
         roundNumber: index + 1,
@@ -337,20 +382,17 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
 
   const getDifficultyBadge = (difficulty: 'Easy' | 'Medium' | 'Hard') => {
     switch (difficulty) {
-      case 'Easy':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'Medium':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'Hard':
-        return 'bg-red-100 text-red-800 border-red-200';
-      default:
-        return 'bg-muted text-fg border-border';
+      case 'Easy':   return 'bg-green-100 text-green-800 border-green-200';
+      case 'Medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'Hard':   return 'bg-red-100 text-red-800 border-red-200';
+      default:       return 'bg-muted text-fg border-border';
     }
   };
 
   const getCurrentMessage = () => {
     if (!selectedTemplate) return 'Choose a ready-made quiz to get started quickly.';
-    if (selectedTemplate === 'custom') return "Perfect! You'll be able to build your quiz exactly how you want it.";
+    if (selectedTemplate === 'custom')
+      return "Perfect! You'll be able to build your quiz exactly how you want it.";
     const template = baseTemplates.find((t) => t.id === selectedTemplate);
     return `Excellent choice! "${template?.name}" is ready to go. Just a few more steps!`;
   };
@@ -389,40 +431,40 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
           )}
         </div>
 
-        {/* Styled dropdown row */}
         <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-4 sm:gap-4">
           <SelectField
             label="Audience"
             value={filters.audience}
             options={filterOptions.audiences}
-            onChange={(v) => setFilters((f) => ({ ...f, audience: v as FilterState['audience'] }))}
+            onChange={(v) => setFilters((f) => ({ ...f, audience: v }))}
             leftIcon="👥"
           />
           <SelectField
             label="Topic"
             value={filters.topic}
             options={filterOptions.topics}
-            onChange={(v) => setFilters((f) => ({ ...f, topic: v as FilterState['topic'] }))}
+            onChange={(v) => setFilters((f) => ({ ...f, topic: v }))}
             leftIcon="🏷️"
           />
           <SelectField
             label="Difficulty"
             value={filters.difficulty}
             options={filterOptions.difficulties}
-            onChange={(v) => setFilters((f) => ({ ...f, difficulty: v as FilterState['difficulty'] }))}
+            onChange={(v) => setFilters((f) => ({ ...f, difficulty: v }))}
             leftIcon="🎯"
           />
+          {/* Duration: uses computed buckets — not raw Duration: tags */}
           <SelectField
             label="Duration"
             value={filters.duration}
             options={filterOptions.durations}
-            onChange={(v) => setFilters((f) => ({ ...f, duration: v as FilterState['duration'] }))}
+            onChange={(v) => setFilters((f) => ({ ...f, duration: v }))}
             leftIcon="⏱️"
           />
         </div>
       </div>
 
-      {/* ✅ Showing X of Y */}
+      {/* Showing X of Y */}
       <div className="flex items-center justify-between px-1">
         <div className="text-fg/70 text-xs sm:text-sm">
           Showing <span className="font-semibold text-fg">{shownCount}</span> of{' '}
@@ -448,8 +490,13 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
       {/* Template Grid */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
         {filteredTemplates.map((template) => {
-          const totalMinutes = calculateDuration(template.rounds, template.difficulty, template.tags);
-          const breakPositions = getBreakPositionsByStrategy(template.rounds, template.difficulty, template.tags);
+          // Use the pre-computed value — no recalculation per render
+          const totalMinutes = computedDurations.get(template.id) ?? 0;
+          const breakPositions = getBreakPositionsByStrategy(
+            template.rounds,
+            template.difficulty,
+            template.tags
+          );
 
           return (
             <div
@@ -494,15 +541,19 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
                 </span>
               </div>
 
+              {/* Tags — filter out Duration: tags since we show computed time above */}
               <div className="mb-3 flex flex-wrap gap-1">
-                {template.tags.slice(0, 3).map((tag) => (
-                  <span key={tag} className="text-fg/80 rounded bg-muted px-2 py-0.5 text-xs">
-                    {tag}
-                  </span>
-                ))}
-                {template.tags.length > 3 && (
+                {template.tags
+                  .filter((tag) => !tag.startsWith('Duration: '))
+                  .slice(0, 3)
+                  .map((tag) => (
+                    <span key={tag} className="text-fg/80 rounded bg-muted px-2 py-0.5 text-xs">
+                      {tag}
+                    </span>
+                  ))}
+                {template.tags.filter((tag) => !tag.startsWith('Duration: ')).length > 3 && (
                   <span className="text-fg/80 rounded bg-muted px-2 py-0.5 text-xs">
-                    +{template.tags.length - 3} more
+                    +{template.tags.filter((tag) => !tag.startsWith('Duration: ')).length - 3} more
                   </span>
                 )}
               </div>
@@ -520,7 +571,7 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
         })}
       </div>
 
-      {/* Empty state (if filters hide everything) */}
+      {/* Empty state */}
       {filteredTemplates.length === 0 && (
         <div className="rounded-lg border border-orange-200 bg-orange-50 p-3 sm:p-4">
           <div className="text-sm font-medium text-orange-900">No templates match your filters.</div>
@@ -543,8 +594,8 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
         <h4 className="mb-2 text-sm font-medium text-blue-900 sm:text-base">💡 Quick Guide</h4>
         <ul className="space-y-1 text-xs text-blue-800 sm:text-sm">
           <li>• You are browsing the full library — use filters to narrow it down.</li>
-          <li>• Times include asking, review/leaderboard, and scheduled breaks (heuristic-based).</li>
-          <li>• Breaks are placed smartly by audience, difficulty, and quiz length.</li>
+          <li>• Times include question time, reviews, leaderboards, and breaks.</li>
+          <li>• Duration filter uses actual calculated times, not estimates.</li>
         </ul>
       </div>
 
@@ -577,6 +628,9 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
   );
 };
 
+// ───────────────────────────────────────────────────────────────────────────────
+// TemplateStructure (unchanged except receives pre-computed totalMinutes)
+// ───────────────────────────────────────────────────────────────────────────────
 function TemplateStructure({
   template,
   expandedTemplate,
@@ -669,7 +723,8 @@ function TemplateStructure({
                 <span className="font-medium">
                   {Math.round(
                     template.rounds.reduce(
-                      (total, round) => total + getRoundTypeInfo(round.type, round.customConfig).time,
+                      (total, round) =>
+                        total + getRoundTypeInfo(round.type, round.customConfig).time,
                       0
                     )
                   )}
@@ -706,7 +761,8 @@ function TemplateStructure({
           {template.rounds.length > 3 && (
             <div className="text-fg/60 pl-6 text-xs">
               +{template.rounds.length - 3} more rounds
-              {breakPositions.length > 0 && ` • ${breakPositions.length} break${breakPositions.length > 1 ? 's' : ''}`}
+              {breakPositions.length > 0 &&
+                ` • ${breakPositions.length} break${breakPositions.length > 1 ? 's' : ''}`}
             </div>
           )}
         </div>
@@ -717,10 +773,9 @@ function TemplateStructure({
 
 export default StepQuizTemplates;
 
-/** ———————————————————————————————————————————————————————————
- * SelectField using shadcn/ui with styled dropdown CONTENT.
- * Native <select> can't be fully styled; this solves it.
- * ——————————————————————————————————————————————————————————— */
+// ───────────────────────────────────────────────────────────────────────────────
+// SelectField
+// ───────────────────────────────────────────────────────────────────────────────
 function SelectField({
   label,
   value,
