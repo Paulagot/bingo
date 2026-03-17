@@ -111,7 +111,7 @@ const UsecaseSchoolPage: React.FC = () => {
         acceptedAnswer: {
           '@type': 'Answer',
           text:
-            "FundRaisely offers pre-loaded family-friendly and child-freindly templates. Simply select the appropriate template during setup.",
+            "FundRaisely offers pre-loaded family-friendly and child-freindly templates. Simply select the appropriate template during setup and add a personalised round for a unique touch.",
         },
       },
       {
@@ -129,7 +129,7 @@ const UsecaseSchoolPage: React.FC = () => {
         acceptedAnswer: {
           '@type': 'Answer',
           text:
-            'FundRaisely supports real-world school fundraising. Collect cash at the door or share instant payment links (like Revolut). Admins simply mark who has paid and the payment method, and our reconciliation system automatically tracks everything with exportable reports perfect for school committees.',
+            'FundRaisely supports real-world school fundraising.Sell tickets in advance and Collect cash at the door or share instant payment links (like Revolut). Admins simply mark who has paid cash or via instant payment method, and our reconciliation system automatically tracks everything with exportable reports perfect for school committees.',
         },
       },
       {
@@ -138,7 +138,7 @@ const UsecaseSchoolPage: React.FC = () => {
         acceptedAnswer: {
           '@type': 'Answer',
           text:
-            'Players join with a screen name or team name only; volunteers track payments. We provide secure, professional reporting.',
+            'Players join with a screen name or team name only; We do not collect any personal identifiable information. We provide secure, professional reporting.',
         },
       },
       {
@@ -219,9 +219,9 @@ const UsecaseSchoolPage: React.FC = () => {
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             <FeatureCard icon={<Clock className="h-5 w-5" />} title="Effortless Setup" desc="Our intuitive 4-step event setup wizard lets volunteers organise a professional quiz night in minutes." />
             <FeatureCard icon={<Zap className="h-5 w-5" />} title="Maximised Engagement" desc="Gamified extras like “Freeze” and “Robin Hood” keep families entertained and boost fundraising." />
-            <FeatureCard icon={<FileText className="h-5 w-5" />} title="Transparent Tracking" desc="Manual payment tracking and reconciliation reports ease the burden on treasurers." />
+            <FeatureCard icon={<FileText className="h-5 w-5" />} title="Transparent Tracking" desc="Tickting and Cash/Instant payment tracking and reconciliation reports ease the burden on treasurers." />
             <FeatureCard icon={<Users className="h-5 w-5" />} title="Community Building" desc="Bring parents, teachers, and students together for a memorable night that builds school spirit." />
-            <FeatureCard icon={<BookOpen className="h-5 w-5" />} title="Tailored Content" desc="Pre-loaded quiz templates to suit different age groups." />
+            <FeatureCard icon={<BookOpen className="h-5 w-5" />} title="Tailored Content" desc="Pre-loaded quiz templates to suit different age groups. Pesonalised rounds for a unique touch." />
             <FeatureCard icon={<Shield className="h-5 w-5" />} title="Safe & Secure" desc="Minimal data collection and clear roles to support privacy and safeguarding." />
           </div>
         </div>
@@ -393,7 +393,7 @@ const UsecaseSchoolPage: React.FC = () => {
           <div className="grid gap-6 md:grid-cols-2">
             <FAQItem
               question="How can we ensure child-friendly content in our school fundraising quiz?"
-              answer="FundRaisely offers pre-loaded family-friendly and child-freindly templates. Simply select the appropriate template during setup. "
+              answer="FundRaisely offers pre-loaded family-friendly and child-freindly templates. Simply select the appropriate template during setup and add a personalised round for a unique touch."
             />
             <FAQItem
               question="Is it easy for PTA volunteers to manage a fundraising quiz event?"
@@ -401,11 +401,11 @@ const UsecaseSchoolPage: React.FC = () => {
             />
             <FAQItem
               question="How do we handle ticket sales and payments for school quiz events?"
-              answer="Collect cash at the door or share instant payment links (like Revolut). Admins mark method; reconciliation handles the rest."
+              answer="FundRaisely supports real-world school fundraising.Sell tickets in advance and Collect cash at the door or share instant payment links (like Revolut). Admins simply mark who has paid cash or via instant payment method, and our reconciliation system automatically tracks everything with exportable reports perfect for school committees."
             />
             <FAQItem
               question="What about data privacy for students and families?"
-              answer="Players join with a screen name or team name only; volunteers track payments. We provide secure, professional reporting."
+              answer="Players join with a screen name or team name only; We do not collect any personal identifiable information. We provide secure, professional reporting."
             />
             <FAQItem
               question="How big can our school quiz be on the free trial?"
@@ -413,7 +413,7 @@ const UsecaseSchoolPage: React.FC = () => {
             />
             <FAQItem
               question="Can we run in-person or online?"
-              answer="FundRaisely supports mobile-led in-person events, soon online/hybrid too."
+              answer="FundRaisely supports mobile-led in-person events or online/hybrid events."
             />
           </div>
         </div>

@@ -20,7 +20,7 @@ const items = [
   { 
     icon: BarChart, 
     title: 'Dynamic Live Quizzes: Engaging & Seamless', 
-    copy: 'Captivate your audience with real-time scoring, dynamic General Trivia, Wipeout, and Speed Rounds, complete with auto-tiebreakers and ready-to-run templates for a truly magical event experience.',
+    copy: 'Captivate your audience with real-time scoring, dynamic General Trivia, Wipeout, Hidden Object, Order Image and Speed Rounds, complete with auto-tiebreakers and ready-to-run templates for a truly magical event experience.',
     gradient: 'from-green-500 to-teal-500',
     bgGradient: 'from-green-50 to-teal-50'
   },

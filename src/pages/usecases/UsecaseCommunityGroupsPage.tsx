@@ -241,7 +241,7 @@ const UsecaseCommunityGroupsPage: React.FC = () => {
             </FeatureCard>
 
             <FeatureCard icon={<Calendar className="h-5 w-5" />} title="Event-Night Flow" gradient="from-purple-500 to-fuchsia-600">
-              Optimised for in-person events: collect cash or instant payments, mark attendees paid, and go live.
+              Optimised for in-person, online or hybrid events: Sell Tickets, collect cash or instant payments, and go live.
             </FeatureCard>
 
             <FeatureCard icon={<Megaphone className="h-5 w-5" />} title="Community-First Design" gradient="from-teal-500 to-cyan-600">
@@ -335,14 +335,7 @@ const UsecaseCommunityGroupsPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="mt-8 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 inline-flex items-start gap-3 text-sm max-w-4xl mx-auto">
-            <Calendar className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            <span>
-              <strong>No scheduling on the free trial:</strong> set up your quiz about <strong>30 minutes before doors open</strong>,
-              invite teams, and you’re ready to go.
-            </span>
-          </div>
-        </div>
+              </div>
       </section>
 
       {/* FAQ (kept, expanded above via JSON-LD) */}
@@ -360,14 +353,14 @@ const UsecaseCommunityGroupsPage: React.FC = () => {
             <div className="rounded-lg border border-indigo-100 bg-white p-4">
               <h3 className="font-semibold text-indigo-900">Can non-technical volunteers run it?</h3>
               <p className="mt-1 text-indigo-900/80">
-                Yes, a 4-step wizard, QR joins, and automatic scoring keep everything simple. Mark payments as received and your
+                Yes, a 4-step wizard, QR joins, and automatic scoring keep everything simple. Card sales, cash and instant payments can be accepted, and your
                 reconciliation updates automatically.
               </p>
             </div>
             <div className="rounded-lg border border-indigo-100 bg-white p-4">
               <h3 className="font-semibold text-indigo-900">Can we customise questions and themes?</h3>
               <p className="mt-1 text-indigo-900/80">
-                Absolutely. Start with templates or build your own rounds — from scripture or club lore to local history and
+                Absolutely. Start with templates and build your own round — from scripture or club lore to local history and
                 cultural festivals.
               </p>
             </div>
