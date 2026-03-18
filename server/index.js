@@ -66,6 +66,7 @@ import quizStatsRoutes from './mgtsystem/routes/quizStats.js';
 import { stripeRouter } from './stripe/stripeRoutes.js';
 import { stripeWebhookHandler } from './stripe/stripeWebhooks.js';
 import frameRoutes from './quiz/api/frameRoutes.js';
+import pledgeRouter from './mgtsystem/routes/pledgesRouter.js';
 
 const app = express();
 
@@ -358,6 +359,7 @@ app.use('/api', quizPaymentMethodsRoutes);
 app.use('/quiz/api', createRoomApi);
 app.use('/api/mgtsystem/quiz-late-payments', quizLatePayments);
 app.use('/api/quiz/personalised-round', quizPersonalisedRoundRouter);
+app.use('/api/pledges', pledgeRouter); 
 console.log('✅ Routes setup complete');
 
 console.log('📋 Registered routes:');
