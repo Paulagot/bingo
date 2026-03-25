@@ -14,9 +14,11 @@ export const getSocket = (): Socket => {
     socket.disconnect();
     socket = null;
   }
+const serverUrl = import.meta.env.PROD
+  ? window.location.origin
+  : import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
 
-  const serverUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
-  console.log('🎮 [Elimination] Creating new socket connection to:', serverUrl);
+console.log('🎮 [Elimination] Creating new socket connection to:', serverUrl);
 
   socket = io(serverUrl, {
     path: '/socket.io',
