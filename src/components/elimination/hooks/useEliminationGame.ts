@@ -3,7 +3,7 @@ import type {
   EliminationGameState,
   EliminationRoom,
   EliminationPlayer,
-  ActiveRound,
+
   RoundResult,
   GameView,
   RoundIntroPayload,
@@ -148,7 +148,9 @@ const reducer = (state: EliminationGameState, action: Action): EliminationGameSt
       return {
         ...state,
         winner: action.payload,
-        view: 'winner',
+        // Eliminated players transition to 'game_over' — they see a simplified end screen
+        // Surviving players and host see the full winner view
+        view: state.localPlayer?.eliminated ? 'game_over' : 'winner',
         activeRound: null,
       };
 

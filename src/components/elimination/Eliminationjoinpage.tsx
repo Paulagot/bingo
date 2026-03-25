@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { emitJoinRoom } from './services/eliminationSocket';
 import { getSocket } from './services/eliminationSocket';
@@ -13,12 +13,23 @@ export const EliminationJoinPage: React.FC = () => {
   const { roomId: roomIdFromUrl } = useParams<{ roomId?: string }>();
   const navigate = useNavigate();
 
+  // Clear any stale session when landing on join page
+  // Prevents old playerId/roomId from interfering with a fresh join
+  useState(() => {
+    ['elim_room_id','elim_player_id','elim_host_id','elim_player_name','elim_is_host']
+      .forEach(k => sessionStorage.removeItem(k));
+  });
+
   const [name, setName] = useState('');
   const [roomCode, setRoomCode] = useState(roomIdFromUrl ?? '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Listen for socket room_state confirmation after joining
+  // Use a ref for name so the socket listener never needs to re-register
+  const nameRef = React.useRef(name);
+  useEffect(() => { nameRef.current = name; }, [name]);
+
+  // Register socket listeners once on mount — stable, not dependent on name state
   useEffect(() => {
     const socket = getSocket();
 
@@ -26,25 +37,36 @@ export const EliminationJoinPage: React.FC = () => {
       console.log('🎮 [Join] room_state received:', data);
       const room: EliminationRoom = data.roomSnapshot ?? data;
 
-      // Find ourselves in the player list by name
-      const me = room.players.find(
-        p => p.name.toLowerCase() === name.toLowerCase(),
-      );
+      // Server now sends yourPlayerId directly — no need to search by name
+      // This is the definitive fix for duplicate name confusion
+      const assignedPlayerId: string | undefined = data.yourPlayerId;
+      const assignedName: string | undefined = data.yourName;
 
-      if (!me) {
-        console.warn('[Join] Could not find player in room state');
-        setLoading(false);
-        setError('Could not join room. Please try again.');
+      if (!assignedPlayerId) {
+        // Fallback for older server versions — find by exact name only
+        const me = room.players.find(
+          p => p.name.toLowerCase() === nameRef.current.toLowerCase().trim()
+        );
+        if (!me) {
+          console.warn('[Join] No yourPlayerId and could not find by name');
+          setLoading(false);
+          setError('Could not join room. Please try again.');
+          return;
+        }
+        sessionStorage.setItem(SESSION_ROOM_ID, room.roomId);
+        sessionStorage.setItem(SESSION_PLAYER_ID, me.playerId);
+        sessionStorage.setItem(SESSION_PLAYER_NAME, me.name);
+        sessionStorage.setItem(SESSION_IS_HOST, 'false');
+        navigate('/elimination', { replace: true });
         return;
       }
 
-      // Persist session
+      // Use the server-assigned identity directly
       sessionStorage.setItem(SESSION_ROOM_ID, room.roomId);
-      sessionStorage.setItem(SESSION_PLAYER_ID, me.playerId);
-      sessionStorage.setItem(SESSION_PLAYER_NAME, me.name);
+      sessionStorage.setItem(SESSION_PLAYER_ID, assignedPlayerId);
+      sessionStorage.setItem(SESSION_PLAYER_NAME, assignedName ?? nameRef.current);
       sessionStorage.setItem(SESSION_IS_HOST, 'false');
 
-      // Navigate to the main game page which will pick up session storage
       navigate('/elimination', { replace: true });
     };
 
@@ -61,7 +83,7 @@ export const EliminationJoinPage: React.FC = () => {
       socket.off('elimination_room_state', handleRoomState);
       socket.off('elimination_error', handleError);
     };
-  }, [name, navigate]);
+  }, [navigate]); // stable — only navigate as dep
 
   const handleJoin = () => {
     const trimmedName = name.trim();
@@ -121,7 +143,7 @@ export const EliminationJoinPage: React.FC = () => {
             onChange={e => setRoomCode(e.target.value)}
             onKeyDown={handleKeyDown}
             maxLength={40}
-            style={{ ...styles.input, letterSpacing: '0.12em', fontFamily: "'DM Mono', monospace" }}
+            style={{ ...styles.input, letterSpacing: '0.12em', fontFamily: "'Inter', system-ui, sans-serif" }}
           />
         </div>
 
@@ -150,7 +172,7 @@ export const EliminationJoinPage: React.FC = () => {
 const styles: Record<string, React.CSSProperties> = {
   page: {
     background: '#080c14',
-    fontFamily: "'Syne', sans-serif",
+    fontFamily: "'Bebas Neue', 'Impact', sans-serif",
     color: '#ffffff',
     position: 'relative',
     overflow: 'hidden',
@@ -164,13 +186,13 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'rgba(255,255,255,0.35)',
     cursor: 'pointer',
     fontSize: '13px',
-    fontFamily: "'Syne', sans-serif",
+    fontFamily: "'Bebas Neue', 'Impact', sans-serif",
   },
   eyebrow: {
     fontSize: '11px',
     letterSpacing: '0.3em',
     color: 'rgba(0,229,255,0.5)',
-    fontFamily: "'DM Mono', monospace",
+    fontFamily: "'Inter', system-ui, sans-serif",
     textTransform: 'uppercase',
     marginBottom: '8px',
   },
@@ -190,7 +212,7 @@ const styles: Record<string, React.CSSProperties> = {
   label: {
     display: 'block',
     fontSize: '10px',
-    fontFamily: "'DM Mono', monospace",
+    fontFamily: "'Inter', system-ui, sans-serif",
     letterSpacing: '0.15em',
     color: 'rgba(255,255,255,0.4)',
     textTransform: 'uppercase' as const,
@@ -204,7 +226,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '8px',
     color: '#ffffff',
     fontSize: '15px',
-    fontFamily: "'Syne', sans-serif",
+    fontFamily: "'Bebas Neue', 'Impact', sans-serif",
     outline: 'none',
     boxSizing: 'border-box' as const,
   },
@@ -219,14 +241,14 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 700,
     letterSpacing: '0.1em',
     textTransform: 'uppercase' as const,
-    fontFamily: "'Syne', sans-serif",
+    fontFamily: "'Bebas Neue', 'Impact', sans-serif",
     boxShadow: '0 0 20px rgba(0,229,255,0.15)',
     marginTop: '4px',
   },
   error: {
     color: '#ff3b5c',
     fontSize: '12px',
-    fontFamily: "'DM Mono', monospace",
+    fontFamily: "'Inter', system-ui, sans-serif",
     margin: 0,
   },
   ring1: {

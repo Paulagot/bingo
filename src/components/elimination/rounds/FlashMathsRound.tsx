@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import type { FlashMathsConfig, FlashMathsSubmission } from '../types/elimination';
+import { useAutoSubmit } from '../hooks/useAutoSubmit';
 
 interface Props {
   config: FlashMathsConfig;
@@ -7,12 +8,14 @@ interface Props {
   playerId: string;
   onSubmit: (s: FlashMathsSubmission) => void;
   hasSubmitted: boolean;
+  endsAt?: number;
 }
 
 const PALETTE = ['#00e5ff','#ff3b5c','#ffe600','#00ff94','#bf5af2','#ff9f0a'];
 const col = (id: string) => { let h=0; for(let i=0;i<id.length;i++) h=(h*31+id.charCodeAt(i))>>>0; return PALETTE[h%PALETTE.length]!; };
 
-export const FlashMathsRound: React.FC<Props> = ({ config, roundId, playerId, onSubmit, hasSubmitted }) => {
+export const FlashMathsRound: React.FC<Props> = ({ config, roundId, playerId, onSubmit, hasSubmitted, endsAt,
+}) => {
   const colour = col(roundId);
   const [showNumbers, setShowNumbers] = useState(true);
   const [value, setValue] = useState('');
@@ -30,6 +33,15 @@ export const FlashMathsRound: React.FC<Props> = ({ config, roundId, playerId, on
     }, config.displayDurationMs);
     return () => clearTimeout(t);
   }, [roundId, config.displayDurationMs]);
+
+  const handleAutoSubmit = useCallback(() => {
+    const num = parseInt(value, 10);
+    if (locked || hasSubmitted) return;
+    setLocked(true);
+    onSubmit({ roundId, playerId, roundType: 'flash_maths', submittedAt: Date.now(), value: isNaN(num) ? 0 : num });
+  }, [value, locked, hasSubmitted, roundId, playerId, onSubmit]);
+
+  const { isFlashing } = useAutoSubmit(hasSubmitted || showNumbers, endsAt ?? null, handleAutoSubmit);
 
   const handleSubmit = useCallback(() => {
     const num = parseInt(value, 10);
@@ -107,14 +119,15 @@ export const FlashMathsRound: React.FC<Props> = ({ config, roundId, playerId, on
           {!hasSubmitted && (
             <button onPointerDown={handleSubmit} disabled={!value || locked} style={{
               width: '100%', padding: '14px', borderRadius: '8px',
-              background: value ? `${colour}18` : 'rgba(255,255,255,0.04)',
-              border: `1px solid ${value ? colour+'66' : 'rgba(255,255,255,0.08)'}`,
+              background: isFlashing ? `${colour}30` : (value ? `${colour}18` : 'rgba(255,255,255,0.04)'),
+              border: `1px solid ${isFlashing ? colour+'cc' : (value ? colour+'66' : 'rgba(255,255,255,0.08)')}`,
               color: value ? colour : 'rgba(255,255,255,0.3)',
               fontFamily: 'Inter', fontSize: '14px', fontWeight: 600,
               cursor: value && !locked ? 'pointer' : 'default',
               letterSpacing: '0.1em', textTransform: 'uppercase' as const,
+              animation: isFlashing && !locked ? 'pulse 0.6s ease-in-out infinite alternate' : 'none',
             }}>
-              {locked ? 'Locked' : 'Submit'}
+              {locked ? 'Locked' : isFlashing ? '⚡ Submit Now!' : 'Submit'}
             </button>
           )}
         </div>

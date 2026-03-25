@@ -31,8 +31,8 @@ export const applyEliminations = (roomId, roundNumber, rankedResults) => {
 
   const schedule = ELIMINATION_SCHEDULE[roundNumber];
 
-  if (roundNumber === 1) {
-    // Never eliminate in round 1
+  if (roundNumber <= 2) {
+    // Rounds 1 & 2 are safe rounds — no elimination
     return [];
   }
 

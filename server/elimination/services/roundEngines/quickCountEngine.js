@@ -33,8 +33,9 @@ export const generateRoundConfig = ({ difficulty = 1 } = {}) => {
   const dotRadius = randomBetween(0.012, 0.03);
 
   // Flash duration shortens with difficulty
+  // Extra second added for readability
   const displayDurationMs = Math.round(
-    Math.max(400, randomBetween(1800 - difficulty * 300, 2500 - difficulty * 300))
+    Math.max(1400, randomBetween(2800 - difficulty * 300, 3500 - difficulty * 300))
   );
 
   return {

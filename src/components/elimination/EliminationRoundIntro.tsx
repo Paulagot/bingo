@@ -63,9 +63,49 @@ const ROUND_TYPE_META: Record<RoundType, { label: string; glyph: string; descrip
 
 const ELIMINATION_DESCRIPTIONS: Record<string, (count: number, active: number) => string> = {
   none: () => 'No eliminations this round — precision practice',
-  percentage: (count) => `The ${count} least precise player${count === 1 ? '' : 's'} will be eliminated`,
+  percentage: (count) => `The ${count} bottom player${count === 1 ? '' : 's'} will be eliminated`,
   reduce_to_three: (count) => `${count} players will be cut — only 3 advance to the final`,
   final: () => 'One player wins — everyone else is eliminated',
+};
+
+// Typewriter text component with blinking cursor
+const TypewriterText: React.FC<{ text: string; style?: React.CSSProperties }> = ({ text, style }) => {
+  const displayed = useTypewriter(text, 90);
+  const done = displayed.length >= text.length;
+  return (
+    <p style={style}>
+      {displayed}
+      {!done && (
+        <span style={{
+          display: 'inline-block',
+          width: '2px',
+          height: '1em',
+          background: 'currentColor',
+          marginLeft: '2px',
+          verticalAlign: 'text-bottom',
+          animation: 'blink 0.7s step-end infinite',
+        }} />
+      )}
+      <style>{`@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }`}</style>
+    </p>
+  );
+};
+
+// Typewriter hook — reveals text one character at a time
+const useTypewriter = (text: string, delay = 35): string => {
+  const [displayed, setDisplayed] = useState('');
+  useEffect(() => {
+    setDisplayed('');
+    if (!text) return;
+    let i = 0;
+    const interval = setInterval(() => {
+      i++;
+      setDisplayed(text.slice(0, i));
+      if (i >= text.length) clearInterval(interval);
+    }, delay);
+    return () => clearInterval(interval);
+  }, [text, delay]);
+  return displayed;
 };
 
 export const EliminationRoundIntro: React.FC<Props> = ({
@@ -141,7 +181,7 @@ export const EliminationRoundIntro: React.FC<Props> = ({
         <h1 style={s.title}>{meta.label}</h1>
 
         {/* Instruction */}
-        <p style={s.instruction}>{meta.description}</p>
+        <TypewriterText text={meta.description} style={s.instruction} />
 
         {/* Divider */}
         <div style={s.divider} />

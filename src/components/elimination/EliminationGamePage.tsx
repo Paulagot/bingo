@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useEliminationGame } from './hooks/useEliminationGame';
 import { useEliminationSocket } from './hooks/useEliminationSocket';
 import { useRoundTimer } from './hooks/useRoundTimer';
@@ -9,6 +9,8 @@ import { EliminationRoundIntro } from './EliminationRoundIntro';
 import { EliminationResultsPanel } from './EliminationResultsPanel';
 import { EliminationRevealPanel } from './EliminationRevealPanel';
 import { EliminationHostReveal } from './EliminationHotReveal';
+import { EliminationSoundToggle } from './EliminationSoundToggle';
+import { playRoundStart, playRoundIntro, playReveal, playEliminated, playWinner, playSubmit, playCountdownTick } from './utils/sounds';
 import { EliminationEliminatedView } from './EliminationEliminatedView';
 import { EliminationWinnerView } from './EliminationWinnerView';
 import { emitStartGame, emitSubmitAnswer, emitJoinRoom, emitHostJoin } from './services/eliminationSocket';
@@ -75,6 +77,23 @@ export const EliminationGamePage: React.FC = () => {
     state.view === 'round_active',
   );
 
+  // ── Sound effects on view changes ──────────────────────────────────────────
+  const prevViewRef = React.useRef<string>('');
+  useEffect(() => {
+    const view = state.view;
+    if (view === prevViewRef.current) return;
+    prevViewRef.current = view;
+    if (view === 'eliminated' || view === 'game_over') playEliminated();
+    if (view === 'winner') playWinner();
+  }, [state.view]);
+
+  // Countdown tick in last 3 seconds
+  useEffect(() => {
+    if (state.view === 'round_active' && roundTimer.secondsRemaining <= 3 && roundTimer.secondsRemaining > 0) {
+      playCountdownTick();
+    }
+  }, [state.view, roundTimer.secondsRemaining]);
+
   // ── Socket events ───────────────────────────────────────────────────────────
   useEliminationSocket({
     onRoomState: useCallback((data: any) => {
@@ -112,13 +131,14 @@ export const EliminationGamePage: React.FC = () => {
 
     onRoundIntro: useCallback((data: RoundIntroPayload) => {
       setIntroPayload(data);
+      playRoundIntro();
       onRoundIntro(data);
     }, [onRoundIntro]),
 
     onRoundStarted: useCallback((data: RoundStartedPayload) => {
       setIntroPayload(null);
-      // Reset submission flags for all players at round start
       setWaitingPlayers(prev => prev.map((p: any) => ({ ...p, hasSubmittedCurrentRound: false })));
+      playRoundStart();
       onRoundStarted(data);
     }, [onRoundStarted]),
 
@@ -136,6 +156,7 @@ export const EliminationGamePage: React.FC = () => {
 
     onRoundReveal: useCallback((data: RoundRevealPayload) => {
       console.log('🎮 [Elimination] round reveal, round:', data.roundNumber);
+      playReveal();
       onRoundReveal(data.results, data.roundNumber, data.roundType);
     }, [onRoundReveal]),
 
@@ -267,6 +288,7 @@ export const EliminationGamePage: React.FC = () => {
   const handleSubmit = useCallback((submission: RoundSubmission) => {
     if (!roomId || !localPlayerId) return;
     emitSubmitAnswer(roomId, localPlayerId, submission);
+    playSubmit();
     onSubmissionSent();
   }, [roomId, localPlayerId, onSubmissionSent]);
 
@@ -341,6 +363,9 @@ export const EliminationGamePage: React.FC = () => {
             <span style={{ ...styles.hudType, fontFamily: "'Bebas Neue', 'Impact', sans-serif", fontSize: '22px', letterSpacing: '0.02em' }}>
               {roundTypeLabel(state.activeRound.roundType).toUpperCase()}
             </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <EliminationSoundToggle />
           </div>
           <div style={{
             ...styles.hudTimer,
@@ -475,6 +500,22 @@ export const EliminationGamePage: React.FC = () => {
     );
   }
 
+  // GAME OVER for eliminated players — game ended while they were spectating
+  if (state.view === 'game_over') {
+    return (
+      <EliminationEliminatedView
+        playerName={localPlayerName}
+        eliminatedInRound={localPlayer?.eliminatedInRound ?? 0}
+        activePlayers={0}
+        totalPlayers={waitingPlayers.length}
+        gameOver={true}
+        winnerName={state.winner?.winnerName}
+        onLeave={handleReset}
+        autoLeaveSeconds={60}
+      />
+    );
+  }
+
   // WINNER
   if (state.view === 'winner' && state.winner) {
     return (
@@ -564,13 +605,13 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '0 2px 2px 0',
   },
   instructionBar: {
-    padding: '10px 20px',
+    
     fontSize: '15px',
     color: 'rgba(255,255,255,0.7)',
     fontFamily: "'Inter', system-ui, sans-serif",
     letterSpacing: '0.03em',
     borderBottom: '1px solid rgba(255,255,255,0.05)',
-  
+    padding: '12px 20px',
   },
   roundEyebrow: {
     fontSize: '11px',

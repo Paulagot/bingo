@@ -329,3 +329,18 @@ export const getActivePlayers = (roomId) => {
  */
 export const getActivePlayerCount = (roomId) =>
   getActivePlayers(roomId).length;
+
+// ─── Periodic cleanup ─────────────────────────────────────────────────────────
+// Remove ended/stale rooms from memory every 30 minutes
+setInterval(() => {
+  const TWO_HOURS = 2 * 60 * 60 * 1000;
+  const now = Date.now();
+  for (const [roomId, room] of rooms.entries()) {
+    const age = now - (room.createdAt ?? 0);
+    const isEnded = room.status === 'ended';
+    if (isEnded && age > TWO_HOURS) {
+      rooms.delete(roomId);
+      console.log('[Elimination] Cleaned up stale room:', roomId);
+    }
+  }
+}, 30 * 60 * 1000);

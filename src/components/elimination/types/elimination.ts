@@ -264,6 +264,7 @@ export type GameView =
   | 'round_reveal'
   | 'round_results'
   | 'eliminated'
+  | 'game_over'
   | 'winner';
 
 export interface EliminationGameState {
