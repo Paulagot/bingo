@@ -41,6 +41,7 @@ import tgbWebhookHandler from './tgb/api/webhook.js';
 
 import contactRoute from './routes/contact.js';
 import passwordResetRoute from './routes/passwordReset.js';
+import eliminationRoutes from './elimination/routes/eliminationRoutes.js';
 
 // ✅ NEW: import mailer verify helper
 import { verifyMailer } from './utils/mailer.js';
@@ -67,6 +68,10 @@ import { stripeRouter } from './stripe/stripeRoutes.js';
 import { stripeWebhookHandler } from './stripe/stripeWebhooks.js';
 import frameRoutes from './quiz/api/frameRoutes.js';
 import pledgeRouter from './mgtsystem/routes/pledgesRouter.js';
+import puzzleRouter from './puzzles/routes/puzzleRoutes.js';
+import challengeRouter from './puzzles/routes/challengeRoutes.js';
+import supporterAuthRouter      from './supporters/routes/supporterAuthRoutes.js';
+import puzzleSubscriptionRouter from './puzzles/routes/puzzleSubscriptionRoutes.js';
 
 const app = express();
 
@@ -360,6 +365,11 @@ app.use('/quiz/api', createRoomApi);
 app.use('/api/mgtsystem/quiz-late-payments', quizLatePayments);
 app.use('/api/quiz/personalised-round', quizPersonalisedRoundRouter);
 app.use('/api/pledges', pledgeRouter); 
+app.use('/api/elimination', eliminationRoutes); 
+app.use('/api/puzzles', puzzleRouter);
+app.use('/api/puzzle-challenges', challengeRouter);
+app.use('/api/supporter-auth',       supporterAuthRouter);
+app.use('/api/puzzle-subscriptions', puzzleSubscriptionRouter);
 console.log('✅ Routes setup complete');
 
 console.log('📋 Registered routes:');
