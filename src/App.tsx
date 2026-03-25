@@ -33,6 +33,7 @@ import ClubsLeaguePage from './pages/campaigns/ClubsLeaguePage';
 import QuizEventDashboard from './components/mgtsystem/components/dashboard/QuizEventDashboard';
 import { ConditionalWeb3Wrapper } from './components/Quiz/ConditionalWeb3Wrapper';
 
+
 import { sdk } from '@farcaster/miniapp-sdk'
 
 
@@ -64,6 +65,27 @@ const StripeWalkinSuccess = lazy(() =>
 const MiniAppHostPage = lazy(() =>
   import('./pages/mini-app/MiniAppHostPage').then(m => ({ default: m.MiniAppHostPage }))
 );
+
+const EliminationGamePage = lazy(() =>
+  import('./components/elimination/EliminationGamePage').then(m => ({ default: m.EliminationGamePage }))
+);
+
+const EliminationJoinPage = lazy(() =>
+  import('./components/elimination/Eliminationjoinpage').then(m => ({ default: m.EliminationJoinPage }))
+);
+
+const PuzzlePage = lazy(() => import('./components/puzzles/pages/PuzzlePage'));
+
+const PuzzleDevTestPage = lazy(() => import('./components/puzzles/pages/Puzzledevtestpage'));
+
+const ChallengeDashboardPage  = lazy(() => import('./components/puzzles/pages/ChallengeDashboardPage'));
+const ChallengeCreatePage     = lazy(() => import('./components/puzzles/pages/ChallengeCreatePage'));
+const ChallengeDetailPage     = lazy(() => import('./components/puzzles/pages/ChallengeDetailPage'));
+const ChallengeLeaderboardPage = lazy(() => import('./components/puzzles/pages/ChallengeLeaderboardPage'));
+const PuzzleJoinPage       = lazy(() => import('./components/puzzles/pages/PuzzleJoinPage'));
+const PuzzleCheckEmailPage = lazy(() => import('./components/puzzles/pages/PuzzleCheckEmailPage'));
+const PuzzleAuthPage       = lazy(() => import('./components/puzzles/pages/PuzzleAuthPage'));
+const PlayerChallengePage  = lazy(() => import('./components/puzzles/pages/PlayerChallengePage'));
 
 // Lazy Web3 hub + impact campaign pages
 const Web3HubPage = lazy(() => import('./pages/web3'));
@@ -103,7 +125,7 @@ export default function App() {
   const { pathname } = location;
 
   const hideOnPaths = ['/BingoBlitz'];
-  const hideOnPrefixes = ['/quiz/game', '/quiz/play', '/quiz/host-dashboard', '/quiz/host-controls',  '/mini-app', '/tickets'];
+  const hideOnPrefixes = ['/quiz/game', '/quiz/play', '/quiz/host-dashboard', '/quiz/host-controls', '/mini-app', '/tickets', '/elimination'];
   const showHeader =
     !hideOnPaths.includes(pathname) &&
     !hideOnPrefixes.some((p) => pathname === p || pathname.startsWith(p + '/'));
@@ -292,6 +314,97 @@ useEffect(() => {
     </Suspense>
   }
 />
+
+<Route
+  path="/elimination/join/:roomId"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+      <EliminationJoinPage />
+    </Suspense>
+  }
+/>
+
+<Route
+  path="/elimination"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading Elimination Game" />}>
+      <EliminationGamePage />
+    </Suspense>
+  }
+/>
+<Route
+  path="/dev/puzzles"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+      <PuzzleDevTestPage />
+    </Suspense>
+  }
+/>
+{/* ── Puzzle routes — ORDER MATTERS: specific paths before /:challengeId ── */}
+
+<Route path="/challenges" element={
+  <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+    <ChallengeDashboardPage />
+  </Suspense>
+} />
+
+<Route path="/challenges/create" element={
+  <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+    <ChallengeCreatePage />
+  </Suspense>
+} />
+
+{/* These three must come BEFORE /challenges/:challengeId */}
+<Route path="/challenges/:challengeId/play" element={
+  <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+    <PlayerChallengePage />
+  </Suspense>
+} />
+
+<Route path="/challenges/:challengeId/puzzle/:week" element={
+  <Suspense fallback={<LoadingSpinner message="Loading Puzzle..." />}>
+    <PuzzlePage />
+  </Suspense>
+} />
+
+<Route path="/challenges/:challengeId/leaderboard" element={
+  <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+    <ChallengeLeaderboardPage />
+  </Suspense>
+} />
+
+{/* Generic /:challengeId LAST — catches /challenges/:challengeId only */}
+<Route path="/challenges/:challengeId" element={
+  <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+    <ChallengeDetailPage />
+  </Suspense>
+} />
+
+{/* Public join routes */}
+<Route path="/join/puzzle/:joinCode" element={
+  <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+    <PuzzleJoinPage />
+  </Suspense>
+} />
+
+<Route path="/join/puzzle/challenge/:challengeId" element={
+  <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+    <PuzzleJoinPage />
+  </Suspense>
+} />
+
+{/* Magic link flow */}
+<Route path="/puzzle-check-email" element={
+  <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+    <PuzzleCheckEmailPage />
+  </Suspense>
+} />
+
+<Route path="/puzzle-auth" element={
+  <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+    <PuzzleAuthPage />
+  </Suspense>
+} />
 
             {/* 404 */}
             <Route

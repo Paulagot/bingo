@@ -5,6 +5,7 @@ import { clearAutoPlayInterval, startAutoPlay, callNextNumber } from './gameLogi
 import { createRoom, getRoom, deleteRoom, emitRoomUpdate, setPaymentsFinalized } from './roomManager.js';
 import { isRateLimited } from './socketRateLimiter.js';
 import { setupQuizSocketHandlers } from './quiz/quizSocketHandler.js'
+import { registerEliminationSockets } from './elimination/sockets/eliminationSocketHandler.js';
 
 
 
@@ -14,6 +15,9 @@ export function setupSocketHandlers(io) {
       console.log('🎯 About to initialize quiz namespace...');
   setupQuizSocketHandlers(io.of('/quiz'));
   console.log('✅ Quiz socket handlers registered');
+
+  registerEliminationSockets(io);
+   console.log('✅ Elimination socket handlers registered');
 
   io.on('connection', (socket) => {
     console.log('👤 User connected:', socket.id, 'from', socket.handshake.address);
