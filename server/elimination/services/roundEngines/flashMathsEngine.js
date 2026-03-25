@@ -21,9 +21,9 @@ export const generateRoundConfig = ({ difficulty = 1 } = {}) => {
   const actualSum = numbers.reduce((a, b) => a + b, 0);
 
   // Flash duration: shorter = harder
-  // Longer display time since we now have more numbers — 3–5 seconds
+  // Extra second added for readability
   const displayDurationMs = Math.round(
-    Math.max(2000, randomBetween(3000 - difficulty * 200, 5000 - difficulty * 200))
+    Math.max(3000, randomBetween(4000 - difficulty * 200, 6000 - difficulty * 200))
   );
 
   // Layout: spread numbers across screen randomly

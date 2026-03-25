@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createRoom } from './services/eliminationApi';
 import { emitJoinRoom } from './services/eliminationSocket';
 
@@ -8,10 +8,10 @@ interface Props {
 
 export const EliminationLobbyPage: React.FC<Props> = ({ onJoined }) => {
   // Clear any stale session when landing on lobby
-  useState(() => {
+  useEffect(() => {
     ['elim_room_id','elim_player_id','elim_host_id','elim_player_name','elim_is_host']
       .forEach(k => sessionStorage.removeItem(k));
-  });
+  }, []);
 
   const [mode, setMode] = useState<'choose' | 'host' | 'join'>('choose');
   const [name, setName] = useState('');
@@ -107,16 +107,16 @@ export const EliminationLobbyPage: React.FC<Props> = ({ onJoined }) => {
 
 const styles: Record<string, React.CSSProperties> = {
   page: {
-    background: '#080c14',
-    fontFamily: "'Syne', sans-serif",
+    background: '#0a0a0f',
+    fontFamily: "'Barlow Condensed', sans-serif",
     position: 'relative',
     overflow: 'hidden',
   },
   eyebrow: {
     fontSize: '11px',
     letterSpacing: '0.3em',
-    color: 'rgba(0,229,255,0.5)',
-    fontFamily: "'DM Mono', monospace",
+    color: 'rgba(255,255,255,0.55)',
+    fontFamily: "'IBM Plex Mono', monospace",
     textTransform: 'uppercase',
     marginBottom: '8px',
   },
@@ -144,7 +144,7 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: '0.1em',
     textTransform: 'uppercase' as const,
     cursor: 'pointer',
-    fontFamily: "'Syne', sans-serif",
+    fontFamily: "'Barlow Condensed', sans-serif",
     boxShadow: '0 0 20px rgba(0,229,255,0.15)',
   },
   btnSecondary: {
@@ -158,7 +158,7 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: '0.1em',
     textTransform: 'uppercase' as const,
     cursor: 'pointer',
-    fontFamily: "'Syne', sans-serif",
+    fontFamily: "'Barlow Condensed', sans-serif",
   },
   input: {
     padding: '14px 16px',
@@ -167,7 +167,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '8px',
     color: '#ffffff',
     fontSize: '15px',
-    fontFamily: "'Syne', sans-serif",
+    fontFamily: "'Barlow Condensed', sans-serif",
     outline: 'none',
   },
   back: {
@@ -177,13 +177,13 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     fontSize: '13px',
     padding: '0',
-    fontFamily: "'Syne', sans-serif",
+    fontFamily: "'Barlow Condensed', sans-serif",
     textAlign: 'left' as const,
   },
   error: {
     color: '#ff3b5c',
     fontSize: '12px',
-    fontFamily: "'DM Mono', monospace",
+    fontFamily: "'IBM Plex Mono', monospace",
     margin: 0,
   },
   ring1: {

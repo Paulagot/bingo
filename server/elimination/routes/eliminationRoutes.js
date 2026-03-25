@@ -1,4 +1,8 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
+
+const eliminationCreateLimiter = rateLimit({ windowMs: 60*60*1000, max: 10, message: { error: 'Too many rooms created. Try again later.' } });
+const eliminationRoomLimiter = rateLimit({ windowMs: 60*1000, max: 60, message: { error: 'Too many requests.' } });
 import {
   createRoom,
   getRoom,
@@ -14,7 +18,7 @@ const router = express.Router();
 
 // ─── POST /api/elimination/rooms ──────────────────────────────────────────────
 // Host creates a new room.
-router.post('/rooms', (req, res) => {
+router.post('/rooms', eliminationCreateLimiter, (req, res) => {
   try {
     const { hostName, hostId } = req.body;
 
@@ -45,7 +49,7 @@ router.post('/rooms', (req, res) => {
 
 // ─── GET /api/elimination/rooms/:roomId ───────────────────────────────────────
 // Retrieve a room snapshot (for waiting room or recovery).
-router.get('/rooms/:roomId', (req, res) => {
+router.get('/rooms/:roomId', eliminationRoomLimiter, (req, res) => {
   try {
     const { roomId } = req.params;
     const snapshot = getRoomSnapshot(roomId);

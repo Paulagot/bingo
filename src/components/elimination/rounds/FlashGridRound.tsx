@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useAutoSubmit } from '../hooks/useAutoSubmit';
 import type { FlashGridConfig, FlashGridSubmission } from '../types/elimination';
 
 interface Props {
@@ -7,12 +8,13 @@ interface Props {
   playerId: string;
   onSubmit: (s: FlashGridSubmission) => void;
   hasSubmitted: boolean;
+  endsAt?: number;
 }
 
 const PALETTE = ['#00e5ff','#ff3b5c','#ffe600','#00ff94','#bf5af2','#ff9f0a'];
 const col = (id: string) => { let h=0; for(let i=0;i<id.length;i++) h=(h*31+id.charCodeAt(i))>>>0; return PALETTE[h%PALETTE.length]!; };
 
-export const FlashGridRound: React.FC<Props> = ({ config, roundId, playerId, onSubmit, hasSubmitted }) => {
+export const FlashGridRound: React.FC<Props> = ({ config, roundId, playerId, onSubmit, hasSubmitted, endsAt }) => {
   const colour = col(roundId);
   const { gridSize, flashCells, flashDurationMs } = config;
   const [phase, setPhase] = useState<'flashing' | 'hidden' | 'done'>('flashing');
@@ -49,6 +51,16 @@ export const FlashGridRound: React.FC<Props> = ({ config, roundId, playerId, onS
     });
   }, [hasSubmitted, phase, flashCells.length, gridSize, roundId, playerId, onSubmit]);
 
+  const handleAutoSubmit = useCallback(() => {
+    if (submitted.current || hasSubmitted) return;
+    submitted.current = true;
+    const normTaps = taps.map(t => ({
+      x: (t.col + 0.5) / gridSize,
+      y: (t.row + 0.5) / gridSize,
+    }));
+    onSubmit({ roundId, playerId, roundType: 'flash_grid', submittedAt: Date.now(), taps: normTaps });
+  }, [hasSubmitted, taps, gridSize, roundId, playerId, onSubmit]);
+
   const handleLock = useCallback(() => {
     if (submitted.current || hasSubmitted) return;
     submitted.current = true;
@@ -58,6 +70,8 @@ export const FlashGridRound: React.FC<Props> = ({ config, roundId, playerId, onS
     }));
     onSubmit({ roundId, playerId, roundType: 'flash_grid', submittedAt: Date.now(), taps: normTaps });
   }, [hasSubmitted, taps, gridSize, roundId, playerId, onSubmit]);
+
+  const { isFlashing } = useAutoSubmit(hasSubmitted || phase === 'flashing', endsAt ?? null, handleAutoSubmit);
 
   const flashSet = new Set(flashCells.map(c => `${c.row},${c.col}`));
   const tapSet = new Set(taps.map(t => `${t.row},${t.col}`));
@@ -114,11 +128,13 @@ export const FlashGridRound: React.FC<Props> = ({ config, roundId, playerId, onS
       {phase === 'hidden' && !hasSubmitted && (
         <button onPointerDown={handleLock} style={{
           padding: '12px 32px', borderRadius: '8px', cursor: 'pointer',
-          background: `${colour}18`, border: `1px solid ${colour}66`,
+          background: isFlashing ? `${colour}30` : `${colour}18`,
+          border: `1px solid ${isFlashing ? colour+'cc' : colour+'66'}`,
           color: colour, fontFamily: 'Inter, system-ui', fontSize: '13px',
-          fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase',
+          fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' as const,
+          animation: isFlashing ? 'pulse 0.6s ease-in-out infinite alternate' : 'none',
         }}>
-          Submit ({taps.length}/{flashCells.length})
+          {isFlashing ? `⚡ Submit!` : `Submit (${taps.length}/${flashCells.length})`}
         </button>
       )}
       {hasSubmitted && (

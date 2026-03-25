@@ -3,6 +3,7 @@ import {
   startRoom,
   advanceRound,
   endRoom,
+  deleteRoom,
   getActivePlayers,
   getRoomSnapshot,
 } from './eliminationRoomManager.js';
@@ -87,7 +88,7 @@ export const startGame = async (roomId, emit) => {
     // Calculate how many will be eliminated this round
     let eliminationCount = 0;
     let eliminationMode = 'none';
-    if (roundNumber === 1) {
+    if (roundNumber <= 2) {
       eliminationCount = 0;
       eliminationMode = 'none';
     } else if (roundNumber === GAME_RULES.TOTAL_ROUNDS) {
@@ -198,6 +199,11 @@ export const startGame = async (roomId, emit) => {
         finalStandings: resultPayload,
         roomSnapshot: getRoomSnapshot(roomId),
       });
+
+      // Wait for winner screen auto-close (60s) then emit ROOM_ENDED and clean up
+      await delay(62000);
+      emit(SERVER_EVENTS.ROOM_ENDED, { roomId, reason: 'game_complete' });
+      deleteRoom(roomId);
 
       return; // game over
     }

@@ -14,24 +14,46 @@ export const getSocket = (): Socket => {
     socket.disconnect();
     socket = null;
   }
-const serverUrl = import.meta.env.PROD
-  ? window.location.origin
-  : import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
 
-console.log('🎮 [Elimination] Creating new socket connection to:', serverUrl);
+  const serverUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
+  console.log('🎮 [Elimination] Creating new socket connection to:', serverUrl);
 
   socket = io(serverUrl, {
     path: '/socket.io',
-    transports: ['websocket'],
-    reconnectionAttempts: 5,
+    transports: ['websocket', 'polling'], // polling fallback for flaky mobile
+    reconnectionAttempts: 20,             // more attempts for mobile interruptions
     reconnectionDelay: 1000,
-    // Don't auto-connect — we control when events are emitted
+    reconnectionDelayMax: 5000,
     autoConnect: true,
   });
 
-  socket.on('connect', () =>
-    console.log('🎮 [Elimination] Socket connected:', socket?.id),
-  );
+  // When phone comes back from background (Snapchat, WhatsApp, phone call),
+  // the page becomes visible again — force socket reconnect if disconnected
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible' && socket && !socket.connected) {
+      console.log('🎮 [Elimination] Page visible again — reconnecting socket');
+      socket.connect();
+    }
+  };
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+
+  socket.on('connect', () => {
+    console.log('🎮 [Elimination] Socket connected:', socket?.id);
+    // On reconnect, re-announce ourselves to the server so it updates our socket.id
+    // This covers: Snapchat/WhatsApp interruptions, phone calls, tab switches
+    const roomId = sessionStorage.getItem('elim_room_id');
+    const playerId = sessionStorage.getItem('elim_player_id');
+    const hostId = sessionStorage.getItem('elim_host_id');
+    const isHost = sessionStorage.getItem('elim_is_host') === 'true';
+
+    if (roomId && isHost && hostId) {
+      console.log('🎮 [Elimination] Re-announcing host after reconnect');
+      socket?.emit('host_join_elimination_room', { roomId, hostId });
+    } else if (roomId && playerId) {
+      console.log('🎮 [Elimination] Re-announcing player after reconnect');
+      socket?.emit('reconnect_elimination_player', { roomId, playerId });
+    }
+  });
   socket.on('disconnect', (reason) =>
     console.warn('🎮 [Elimination] Socket disconnected:', reason),
   );

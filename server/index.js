@@ -486,7 +486,7 @@ if (process.env.NODE_ENV === 'production') {
         filePath.endsWith('.woff')
       ) {
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-        console.log(`💾 Setting 1-year cache for: ${path.basename(filePath)}`);
+        // console.log(`💾 Setting 1-year cache for: ${path.basename(filePath)}`);
       } else {
         res.setHeader('Cache-Control', 'public, max-age=31536000');
       }

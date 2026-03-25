@@ -31,33 +31,35 @@ export const ROUND_TYPE = {
 
 // ─── Game Rules ───────────────────────────────────────────────────────────────
 export const GAME_RULES = {
-  MIN_PLAYERS: 2,
+  MIN_PLAYERS: 3,
   MAX_PLAYERS: 100,
   TOTAL_ROUNDS: 8,
-  FIRST_ELIMINATING_ROUND: 2, // round 1 is non-eliminating
+  FIRST_ELIMINATING_ROUND: 3, // rounds 1 & 2 are safe — no elimination
 };
 
 // ─── Elimination Schedule ─────────────────────────────────────────────────────
-// Keyed by round number. Value is the fraction of active players to eliminate.
-// Round 7 is special: server reduces to 2–3 players regardless of %.
-// Round 8: final, winner determined from remaining players.
+// Rounds 1 & 2: no elimination — everyone plays freely
+// Round 3: gentle start — only bottom 5% cut
+// Rounds 4–6: gradually increase pressure
+// Round 7: reduce to 2–3 finalists
+// Round 8: final round — one winner
 export const ELIMINATION_SCHEDULE = {
   1: 0,       // no elimination
-  2: 0.20,
-  3: 0.20,
-  4: 0.25,
-  5: 0.25,
-  6: 0.35,
+  2: 0,       // no elimination
+  3: 0.05,    // bottom 5% only
+  4: 0.15,
+  5: 0.20,
+  6: 0.30,
   7: null,    // special: reduce to 2–3 players
   8: null,    // final round: 1 winner
 };
 
-export const ROUND_7_TARGET_FINALISTS = 3; // aim to reduce to this many for round 7
+export const ROUND_7_TARGET_FINALISTS = 3; // reduce to this many for round 7
 export const ROUND_8_TARGET_WINNER = 1;
 
 // ─── Timing (ms) ─────────────────────────────────────────────────────────────
 export const TIMING = {
-  INTRO_DURATION_MS: 15000,      // 5s reading + 5s countdown
+  INTRO_DURATION_MS: 12000,      // 5s reading + 5s countdown
   INTRO_COUNTDOWN_MS: 5000,      // when countdown begins within intro
   REVEAL_DURATION_MS: 10000,     // reveal phase — show correct answer (server waits this long)
   RESULTS_DURATION_MS: 8000,     // scores/leaderboard phase before next round

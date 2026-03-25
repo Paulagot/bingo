@@ -34,7 +34,7 @@ export const generateRoundConfig = ({ difficulty = 1 } = {}) => {
   );
 
   // Shape size
-  const shapeSize = randomBetween(0.12, 0.25);
+  const shapeSize = randomBetween(0.15, 0.30);
 
   // Target visible duration
   const targetVisibleMs = Math.round(

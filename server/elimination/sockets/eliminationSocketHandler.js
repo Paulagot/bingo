@@ -7,6 +7,7 @@ import {
 import { startGame } from '../services/eliminationGameService.js';
 import { recordSubmission } from '../services/eliminationRoundService.js';
 import { reconnectPlayer, handleDisconnect } from '../services/eliminationReconnectionService.js';
+import { checkSocketRate, cleanupSocket } from '../utils/socketRateLimit.js';
 import {
   validateJoin,
   validateStart,
@@ -30,10 +31,30 @@ export const registerEliminationSockets = (io) => {
   const emitToRoom = (roomId, event, payload) =>
     io.to(roomId).emit(event, payload);
 
+  // Sanitise a player name — trim, strip HTML, limit length
+  const sanitiseName = (name) => {
+    if (typeof name !== 'string') return 'Player';
+    return name
+      .trim()
+      .replace(/<[^>]*>/g, '')     // strip HTML tags
+      .replace(/[^\w\s\-'.]/g, '') // only allow safe chars
+      .slice(0, 32);               // max 32 chars
+  };
+
+  // Rate limit wrapper — rejects event and emits error if over limit
+  const rateCheck = (socket, event) => {
+    if (!checkSocketRate(socket.id, event)) {
+      socket.emit(SERVER_EVENTS.ERROR, { message: 'Too many requests. Slow down.' });
+      return false;
+    }
+    return true;
+  };
+
   io.on('connection', (socket) => {
 
     // ── HOST JOIN (no player entry, socket room only) ──────────────────────────
     socket.on('host_join_elimination_room', ({ roomId, hostId }) => {
+      if (!rateCheck(socket, 'host_join_elimination_room')) return;
       try {
         console.log('🎮 [Elimination] host_join_elimination_room:', { roomId, hostId });
         const room = getRoom(roomId);
@@ -56,8 +77,10 @@ export const registerEliminationSockets = (io) => {
 
     // ── PLAYER JOIN ROOM ──────────────────────────────────────────────────────
     socket.on(CLIENT_EVENTS.JOIN_ROOM, ({ roomId, playerId, name }) => {
+      if (!rateCheck(socket, 'join_elimination_room')) return;
       try {
-        console.log('🎮 [Elimination] join_elimination_room:', { roomId, playerId, name });
+        const name_safe = sanitiseName(name);
+        console.log('🎮 [Elimination] join_elimination_room:', { roomId, playerId, name: name_safe });
 
         // Reconnect flow — playerId already exists
         if (playerId) {
@@ -66,20 +89,38 @@ export const registerEliminationSockets = (io) => {
             return socket.emit(SERVER_EVENTS.ERROR, { message: result.error });
           }
           socket.join(roomId);
-          socket.emit(SERVER_EVENTS.ROOM_STATE, result.snapshot);
+          socket.emit(SERVER_EVENTS.ROOM_STATE, {
+            ...result.snapshot,
+            yourPlayerId: playerId,
+          });
           emitToRoom(roomId, SERVER_EVENTS.WAITING_ROOM_UPDATE, { players: getAllPlayers(roomId) });
           return;
         }
 
-        // New player join flow
-        const { valid, error, room } = validateJoin(roomId);
+        const { valid, error } = validateJoin(roomId);
         if (!valid) return socket.emit(SERVER_EVENTS.ERROR, { message: error });
 
-        const { player } = addPlayer(roomId, { name, socketId: socket.id });
+        // Make name unique — if "sarah" exists, new player becomes "sarah 2", then "sarah 3" etc.
+        const room = getRoom(roomId);
+        let uniqueName = name_safe || 'Player';
+        if (room) {
+          const existingNames = Object.values(room.players).map(p => p.name.toLowerCase());
+          if (existingNames.includes(uniqueName.toLowerCase())) {
+            let suffix = 2;
+            while (existingNames.includes(`${uniqueName.toLowerCase()} ${suffix}`)) suffix++;
+            uniqueName = `${uniqueName} ${suffix}`;
+          }
+        }
+
+        const { player } = addPlayer(roomId, { name: uniqueName, socketId: socket.id });
         socket.join(roomId);
 
-        // Confirm to joining player
-        socket.emit(SERVER_EVENTS.ROOM_STATE, getRoomSnapshot(roomId));
+        // Confirm to joining player — include their playerId so client doesn't need to guess by name
+        socket.emit(SERVER_EVENTS.ROOM_STATE, {
+          ...getRoomSnapshot(roomId),
+          yourPlayerId: player.playerId,
+          yourName: player.name,
+        });
 
         // Notify everyone in room (including host) of updated player list
         emitToRoom(roomId, SERVER_EVENTS.WAITING_ROOM_UPDATE, { players: getAllPlayers(roomId) });
@@ -90,6 +131,7 @@ export const registerEliminationSockets = (io) => {
 
     // ── START GAME ────────────────────────────────────────────────────────────
     socket.on(CLIENT_EVENTS.START_GAME, ({ roomId, hostId }) => {
+      if (!rateCheck(socket, 'start_elimination_game')) return;
       try {
         const { valid, error } = validateStart(roomId, hostId);
         if (!valid) return socket.emit(SERVER_EVENTS.ERROR, { message: error });
@@ -105,6 +147,14 @@ export const registerEliminationSockets = (io) => {
 
     // ── SUBMIT ANSWER ─────────────────────────────────────────────────────────
     socket.on(CLIENT_EVENTS.SUBMIT_ANSWER, ({ roomId, playerId, submission }) => {
+      if (!rateCheck(socket, 'submit_round_answer')) return;
+      // Reject oversized payloads (max 1KB)
+      try {
+        const payloadSize = JSON.stringify(submission || {}).length;
+        if (payloadSize > 1024) {
+          return socket.emit(SERVER_EVENTS.ERROR, { message: 'Submission too large.' });
+        }
+      } catch {}
       try {
         const { valid, error, activeRound } = validateRoundSubmission(roomId, playerId, submission);
         if (!valid) return socket.emit(SERVER_EVENTS.ERROR, { message: error });
@@ -118,6 +168,7 @@ export const registerEliminationSockets = (io) => {
 
     // ── RECONNECT (explicit) ──────────────────────────────────────────────────
     socket.on(CLIENT_EVENTS.RECONNECT_PLAYER, ({ roomId, playerId }) => {
+      if (!rateCheck(socket, 'reconnect_elimination_player')) return;
       try {
         const result = reconnectPlayer(roomId, playerId, socket.id);
         if (!result.success) return socket.emit(SERVER_EVENTS.ERROR, { message: result.error });
@@ -136,6 +187,7 @@ export const registerEliminationSockets = (io) => {
 
     // ── DISCONNECT ────────────────────────────────────────────────────────────
     socket.on('disconnect', () => {
+      cleanupSocket(socket.id); // remove rate limit entries
       const found = findPlayerBySocket(socket.id);
       if (!found) return;
       const { room, player } = found;

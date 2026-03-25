@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { EliminationPlayer } from './types/elimination';
-import { QRCodeSVG } from './utils/qrCode';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface Props {
   roomId: string;
@@ -78,12 +78,9 @@ export const EliminationWaitingRoom: React.FC<Props> = ({
           {showQR && (
             <div style={styles.qrWrapper}>
               <div style={styles.qrFrame}>
-                <QRCodeSVG value={joinUrl} size={25} cellSize={9} fgColor="#00e5ff" bgColor="#080c14" />
+                <QRCodeSVG value={joinUrl} size={180} fgColor="#00e5ff" bgColor="#0a0b0f" />
               </div>
               <p style={styles.qrHint}>Players scan to join on mobile</p>
-              <p style={styles.qrDisclaimer}>
-                Visual placeholder — install <code>qrcode</code> npm package for scannable QR codes
-              </p>
             </div>
           )}
         </div>
