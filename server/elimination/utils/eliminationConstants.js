@@ -17,21 +17,25 @@ export const ROUND_PHASE = {
 
 // ─── Round Types ─────────────────────────────────────────────────────────────
 export const ROUND_TYPE = {
-  TRUE_CENTRE:    'true_centre',
-  MIDPOINT_SPLIT: 'midpoint_split',
-  STOP_THE_BAR:   'stop_the_bar',
-  DRAW_ANGLE:     'draw_angle',
-  FLASH_GRID:     'flash_grid',
-  QUICK_COUNT:    'quick_count',
-  FLASH_MATHS:    'flash_maths',
-  LINE_LENGTH:    'line_length',
-  BALANCE_POINT:  'balance_point',
-  PATTERN_ALIGN:  'pattern_align',
+  TRUE_CENTRE:       'true_centre',
+  MIDPOINT_SPLIT:    'midpoint_split',
+  STOP_THE_BAR:      'stop_the_bar',
+  DRAW_ANGLE:        'draw_angle',
+  FLASH_GRID:        'flash_grid',
+  QUICK_COUNT:       'quick_count',
+  FLASH_MATHS:       'flash_maths',
+  LINE_LENGTH:       'line_length',
+  BALANCE_POINT:     'balance_point',
+  PATTERN_ALIGN:     'pattern_align',
+  SEQUENCE_GAP:      'sequence_gap',
+  COLOUR_COUNT:      'colour_count',
+  TIME_ESTIMATION:   'time_estimation',
+  CHARACTER_COUNT:   'character_count',
 };
 
 // ─── Game Rules ───────────────────────────────────────────────────────────────
 export const GAME_RULES = {
-  MIN_PLAYERS: 3,
+  MIN_PLAYERS: 2,
   MAX_PLAYERS: 100,
   TOTAL_ROUNDS: 8,
   FIRST_ELIMINATING_ROUND: 3, // rounds 1 & 2 are safe — no elimination
@@ -59,7 +63,7 @@ export const ROUND_8_TARGET_WINNER = 1;
 
 // ─── Timing (ms) ─────────────────────────────────────────────────────────────
 export const TIMING = {
-  INTRO_DURATION_MS: 12000,      // 5s reading + 5s countdown
+  INTRO_DURATION_MS: 10000,      // 5s reading + 5s countdown
   INTRO_COUNTDOWN_MS: 5000,      // when countdown begins within intro
   REVEAL_DURATION_MS: 10000,     // reveal phase — show correct answer (server waits this long)
   RESULTS_DURATION_MS: 8000,     // scores/leaderboard phase before next round
@@ -68,16 +72,20 @@ export const TIMING = {
 
 // ─── Round Durations by type (ms) ────────────────────────────────────────────
 export const ROUND_DURATION = {
-  [ROUND_TYPE.TRUE_CENTRE]:    15000,
-  [ROUND_TYPE.MIDPOINT_SPLIT]: 15000,
-  [ROUND_TYPE.STOP_THE_BAR]:   12000,
-  [ROUND_TYPE.DRAW_ANGLE]:     18000,
-  [ROUND_TYPE.FLASH_GRID]:     20000,
-  [ROUND_TYPE.QUICK_COUNT]:    18000,
-  [ROUND_TYPE.FLASH_MATHS]:    20000,
-  [ROUND_TYPE.LINE_LENGTH]:    18000,
-  [ROUND_TYPE.BALANCE_POINT]:  15000,
-  [ROUND_TYPE.PATTERN_ALIGN]:  20000,
+  [ROUND_TYPE.TRUE_CENTRE]:       15000,
+  [ROUND_TYPE.MIDPOINT_SPLIT]:    15000,
+  [ROUND_TYPE.STOP_THE_BAR]:      12000,
+  [ROUND_TYPE.DRAW_ANGLE]:        18000,
+  [ROUND_TYPE.FLASH_GRID]:        20000,
+  [ROUND_TYPE.QUICK_COUNT]:       18000,
+  [ROUND_TYPE.FLASH_MATHS]:       20000,
+  [ROUND_TYPE.LINE_LENGTH]:       18000,
+  [ROUND_TYPE.BALANCE_POINT]:     15000,
+  [ROUND_TYPE.PATTERN_ALIGN]:     20000,
+  [ROUND_TYPE.SEQUENCE_GAP]:      18000,
+  [ROUND_TYPE.COLOUR_COUNT]:      18000,
+  [ROUND_TYPE.TIME_ESTIMATION]:   15000,
+  [ROUND_TYPE.CHARACTER_COUNT]:   18000,
 };
 
 // ─── Socket Events: Client → Server ──────────────────────────────────────────
@@ -120,6 +128,10 @@ export const ALL_ROUND_TYPES = [
   ROUND_TYPE.LINE_LENGTH,
   ROUND_TYPE.BALANCE_POINT,
   ROUND_TYPE.PATTERN_ALIGN,
+  ROUND_TYPE.SEQUENCE_GAP,
+  ROUND_TYPE.COLOUR_COUNT,
+  ROUND_TYPE.TIME_ESTIMATION,
+  ROUND_TYPE.CHARACTER_COUNT,
 ];
 
 // Fallback static sequence (used if random sequence fails)

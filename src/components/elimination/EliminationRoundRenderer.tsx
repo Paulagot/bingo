@@ -8,6 +8,10 @@ import { FlashMathsRound } from './rounds/FlashMathsRound';
 import { LineLengthRound } from './rounds/LineLengthRound';
 import { BalancePointRound } from './rounds/BalancePointRound';
 import { PatternAlignRound } from './rounds/PatternAlignRound';
+import { SequenceGapRound } from './rounds/SequenceGapRound';
+import { ColourCountRound } from './rounds/ColourCountRound';
+import { TimeEstimationRound } from './rounds/TimeEstimationRound';
+import { CharacterCountRound } from './rounds/CharacterCountRound';
 import type { ActiveRound, RoundSubmission } from './types/elimination';
 
 interface Props {
@@ -40,6 +44,10 @@ export const EliminationRoundRenderer: React.FC<Props> = ({
     case 'line_length':    return <LineLengthRound    config={config} {...common} />;
     case 'balance_point':  return <BalancePointRound  config={config} {...common} />;
     case 'pattern_align':  return <PatternAlignRound  config={config} {...common} />;
+    case 'sequence_gap':   return <SequenceGapRound   config={config} {...common} />;
+    case 'colour_count':   return <ColourCountRound   config={config} {...common} />;
+    case 'time_estimation':return <TimeEstimationRound config={config} {...common} />;
+    case 'character_count':return <CharacterCountRound config={config} {...common} />;
     default:
       return (
         <div style={{ color: 'rgba(255,255,255,0.3)', fontFamily: 'Inter', fontSize: '14px', textAlign: 'center', padding: '40px' }}>

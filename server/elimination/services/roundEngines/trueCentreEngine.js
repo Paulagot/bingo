@@ -29,31 +29,29 @@ export const generateRoundConfig = ({ difficulty = 1, lastShape = null } = {}) =
     : SHAPE_TYPES;
   const shapeType = randomFrom(available.length > 0 ? available : SHAPE_TYPES);
 
-  // Wide size range — small to large, randomised each round
-  // difficulty shrinks the min size so late rounds can produce tiny shapes
-  const minSize = Math.max(0.08, 0.08 + (1 - difficulty * 0.04));
-  const maxSize = Math.max(minSize + 0.05, 0.45 - (difficulty - 1) * 0.03);
+  // Size range — capped to ensure shape always fits comfortably on screen
+  const minSize = Math.max(0.08, 0.10 - (difficulty - 1) * 0.01);
+  const maxSize = Math.min(0.32, 0.22 + (difficulty === 1 ? 0.10 : 0));
   const baseSize = randomBetween(minSize, maxSize);
 
-  // Rectangles get a randomised aspect ratio — sometimes wide, sometimes tall
+  // Rectangles — keep aspect ratio moderate so they don't overflow
   let width, height;
   if (shapeType === 'rectangle') {
-    const aspect = randomBetween(1.3, 3.5);
-    // 50% chance wide, 50% chance tall
+    const aspect = randomBetween(1.3, 2.2); // tighter range
     if (Math.random() > 0.5) {
-      width = baseSize * aspect;
+      width = Math.min(0.55, baseSize * aspect);
       height = baseSize;
     } else {
       width = baseSize;
-      height = baseSize * aspect;
+      height = Math.min(0.55, baseSize * aspect);
     }
   } else {
     width = baseSize;
     height = baseSize;
   }
 
-  // Position: keep shape fully within viewport
-  const margin = 0.08;
+  // Position: generous margin to keep shape fully visible
+  const margin = 0.12;
   const cx = randomBetween(margin + width / 2, 1 - margin - width / 2);
   const cy = randomBetween(margin + height / 2, 1 - margin - height / 2);
 

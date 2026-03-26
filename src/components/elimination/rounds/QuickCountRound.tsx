@@ -58,7 +58,7 @@ export const QuickCountRound: React.FC<Props> = ({ config, roundId, playerId, on
   return (
     <div className="w-full flex flex-col items-center gap-5">
       {/* Dot canvas */}
-      <div style={{ position: 'relative', width: '100%', aspectRatio: '1/1' }}>
+      <div style={{ position: 'relative', width: '100%', aspectRatio: '1/1', maxHeight: 'min(50vh, 340px)' }}>
         <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%', display: 'block' }}>
           <defs>
             <pattern id={`qcg-${roundId}`} width="10" height="10" patternUnits="userSpaceOnUse">

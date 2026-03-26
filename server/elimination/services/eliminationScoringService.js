@@ -8,6 +8,10 @@ import * as flashMathsEngine from './roundEngines/flashMathsEngine.js';
 import * as lineLengthEngine from './roundEngines/lineLengthEngine.js';
 import * as balancePointEngine from './roundEngines/balancePointEngine.js';
 import * as patternAlignEngine from './roundEngines/patternAlignEngine.js';
+import * as sequenceGapEngine from './roundEngines/sequenceGapEngine.js';
+import * as colourCountEngine from './roundEngines/colourCountEngine.js';
+import * as timeEstimationEngine from './roundEngines/timeEstimationEngine.js';
+import * as characterCountEngine from './roundEngines/characterCountEngine.js';
 import { ROUND_TYPE } from '../utils/eliminationConstants.js';
 import { rankByScore, calcSpeedBonus } from '../utils/eliminationHelpers.js';
 
@@ -22,7 +26,11 @@ const ENGINES = {
   [ROUND_TYPE.FLASH_MATHS]:    flashMathsEngine,
   [ROUND_TYPE.LINE_LENGTH]:    lineLengthEngine,
   [ROUND_TYPE.BALANCE_POINT]:  balancePointEngine,
-  [ROUND_TYPE.PATTERN_ALIGN]:  patternAlignEngine,
+  [ROUND_TYPE.PATTERN_ALIGN]:     patternAlignEngine,
+  [ROUND_TYPE.SEQUENCE_GAP]:      sequenceGapEngine,
+  [ROUND_TYPE.COLOUR_COUNT]:      colourCountEngine,
+  [ROUND_TYPE.TIME_ESTIMATION]:   timeEstimationEngine,
+  [ROUND_TYPE.CHARACTER_COUNT]:   characterCountEngine,
 };
 
 const getEngine = (roundType) => {

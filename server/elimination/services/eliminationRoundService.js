@@ -63,7 +63,7 @@ export const activateRound = (roomId, roundId) => {
   roundState.endsAt = endsAt;
 
   // Stop the Bar needs server start time for position derivation
-  if (roundState.generatedConfig.roundType === 'stop_the_bar') {
+  if (['stop_the_bar', 'time_estimation'].includes(roundState.generatedConfig.roundType)) {
     roundState.generatedConfig.roundStartTimestamp = startedAt;
   }
 

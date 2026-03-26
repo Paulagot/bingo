@@ -15,7 +15,7 @@ const PALETTE = ['#00e5ff','#ff3b5c','#ffe600','#00ff94','#bf5af2','#ff9f0a'];
 const col = (id: string) => { let h=0; for(let i=0;i<id.length;i++) h=(h*31+id.charCodeAt(i))>>>0; return PALETTE[h%PALETTE.length]!; };
 const toRad = (d: number) => (d * Math.PI) / 180;
 
-export const DrawAngleRound: React.FC<Props> = ({ config, roundId, playerId, onSubmit, hasSubmitted ,  endsAt,
+export const DrawAngleRound: React.FC<Props> = ({ config, roundId, playerId, onSubmit, hasSubmitted,   endsAt,
 }) => {
   const colour = col(roundId);
   const [angle, setAngle] = useState(config.initialAngle);
@@ -68,11 +68,13 @@ export const DrawAngleRound: React.FC<Props> = ({ config, roundId, playerId, onS
   const cy = config.anchorY * 100;
   const len = config.lineLength * 100;
   const rad = toRad(angle - 90);
-  const ex = cx + len * Math.cos(rad);
-  const ey = cy + len * Math.sin(rad);
+  // Clamp endpoints to stay within SVG viewBox (2–98 range)
+  const clampSVG = (v: number) => Math.min(97, Math.max(3, v));
+  const ex = clampSVG(cx + len * Math.cos(rad));
+  const ey = clampSVG(cy + len * Math.sin(rad));
   const trad = toRad(config.targetAngle - 90);
-  const tex = cx + len * Math.cos(trad);
-  const tey = cy + len * Math.sin(trad);
+  const tex = clampSVG(cx + len * Math.cos(trad));
+  const tey = clampSVG(cy + len * Math.sin(trad));
 
   return (
     <div className="w-full flex flex-col items-center gap-6" style={{ touchAction: 'none' }}>
@@ -80,7 +82,7 @@ export const DrawAngleRound: React.FC<Props> = ({ config, roundId, playerId, onS
         ref={containerRef}
         viewBox="0 0 100 100"
         className="w-full"
-        style={{ aspectRatio: '1/1', cursor: hasSubmitted ? 'default' : 'crosshair' }}
+        style={{ width: '100%', aspectRatio: '1/1', maxHeight: 'min(50vh, 320px)', cursor: hasSubmitted ? 'default' : 'crosshair' }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

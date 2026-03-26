@@ -354,7 +354,7 @@ export const EliminationGamePage: React.FC = () => {
           pointerEvents: 'none',
         }} />
 
-        {/* HUD */}
+        {/* HUD — hide timer for time_estimation (would be cheating) */}
         <div style={styles.hud}>
           <div style={styles.hudLeft}>
             <span style={{ ...styles.hudRound, color: `${rc.primary}99` }}>
@@ -366,27 +366,31 @@ export const EliminationGamePage: React.FC = () => {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <EliminationSoundToggle />
-          </div>
-          <div style={{
-            ...styles.hudTimer,
-            color: isUrgent ? '#ff3b5c' : rc.primary,
-            fontFamily: "'Inter', system-ui, sans-serif",
-            fontSize: '42px',
-            filter: isUrgent ? 'drop-shadow(0 0 12px #ff2d5566)' : `drop-shadow(0 0 8px ${rc.glow})`,
-          }}>
-            {roundTimer.secondsRemaining}
+            {state.activeRound.roundType !== 'time_estimation' && (
+              <div style={{
+                ...styles.hudTimer,
+                color: isUrgent ? '#ff3b5c' : rc.primary,
+                fontFamily: "'Inter', system-ui, sans-serif",
+                fontSize: '42px',
+                filter: isUrgent ? 'drop-shadow(0 0 12px #ff2d5566)' : `drop-shadow(0 0 8px ${rc.glow})`,
+              }}>
+                {roundTimer.secondsRemaining}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Timer bar */}
-        <div style={styles.timerTrack}>
-          <div style={{
-            ...styles.timerBar,
-            width: `${(1 - roundTimer.progress) * 100}%`,
-            background: isUrgent ? '#ff3b5c' : rc.primary,
-            boxShadow: `0 0 8px ${isUrgent ? '#ff3b5c66' : rc.glow}`,
-          }} />
-        </div>
+        {/* Timer bar — hidden for time_estimation */}
+        {state.activeRound.roundType !== 'time_estimation' && (
+          <div style={styles.timerTrack}>
+            <div style={{
+              ...styles.timerBar,
+              width: `${(1 - roundTimer.progress) * 100}%`,
+              background: isUrgent ? '#ff3b5c' : rc.primary,
+              boxShadow: `0 0 8px ${isUrgent ? '#ff3b5c66' : rc.glow}`,
+            }} />
+          </div>
+        )}
 
         {/* Instruction */}
         <div style={{
@@ -407,7 +411,7 @@ export const EliminationGamePage: React.FC = () => {
           }
         `}</style>
         {/* Round component */}
-        <div className="flex-1 flex items-center justify-center" style={{ padding: '8px', overflow: 'hidden' }}>
+        <div className="flex-1 flex items-center justify-center" style={{ padding: '8px', overflowY: 'auto', overflowX: 'hidden', minHeight: 0 }}>
           {isHost ? (
             <div style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center',
@@ -427,7 +431,7 @@ export const EliminationGamePage: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div style={{ width: '100%', maxWidth: 'min(420px, calc(100vh - 200px))', aspectRatio: '1/1' }}>
+            <div style={{ width: '100%', maxWidth: 'min(420px, 100vw - 16px)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <EliminationRoundRenderer
                 activeRound={state.activeRound}
                 playerId={localPlayerId ?? ''}
@@ -553,7 +557,11 @@ const ROUND_INSTRUCTIONS: Record<string, string> = {
   flash_maths:    'Enter the total of all numbers shown',
   line_length:    'Drag to match the reference line length',
   balance_point:  'Tap where the beam would balance',
-  pattern_align:  'Move and rotate the shape to match the target',
+  pattern_align:    'Move and rotate the shape to match the target',
+  sequence_gap:     'What number is missing from the sequence?',
+  colour_count:     'Count the target colour shapes',
+  time_estimation:  'Tap when the target time has passed',
+  character_count:  'Count the target characters',
 };
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -605,13 +613,13 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '0 2px 2px 0',
   },
   instructionBar: {
-    
+    padding: '10px 20px',
     fontSize: '15px',
     color: 'rgba(255,255,255,0.7)',
     fontFamily: "'Inter', system-ui, sans-serif",
     letterSpacing: '0.03em',
     borderBottom: '1px solid rgba(255,255,255,0.05)',
-    padding: '12px 20px',
+   
   },
   roundEyebrow: {
     fontSize: '11px',

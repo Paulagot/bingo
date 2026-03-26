@@ -1,6 +1,6 @@
 import {
   randomBetween,
-  clamp,
+
   errorToScore,
   calcSpeedBonus,
 } from '../../utils/eliminationHelpers.js';
@@ -18,9 +18,9 @@ export const generateRoundConfig = ({ difficulty = 1 } = {}) => {
     initialAngle = Math.round(randomBetween(5, 175));
   }
 
-  // Anchor near centre, randomised slightly
-  const anchorX = randomBetween(0.35, 0.65);
-  const anchorY = randomBetween(0.35, 0.65);
+  // Anchor near centre — keep well away from edges so line never exits viewport
+  const anchorX = randomBetween(0.40, 0.60);
+  const anchorY = randomBetween(0.40, 0.60);
 
   // Guide visibility: V1 always shows guide briefly
   const guideVisibleMs = Math.round(randomBetween(1500, 2500));

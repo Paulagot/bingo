@@ -44,6 +44,7 @@ export const EliminationResultsPanel: React.FC<Props> = ({
       const t = setTimeout(() => setShowElimBanner(true), 400);
       return () => clearTimeout(t);
     }
+    return undefined;
   }, [revealed, results.length, eliminatedIds.length]);
 
   return (
@@ -167,12 +168,12 @@ export const EliminationResultsPanel: React.FC<Props> = ({
 
 const s: Record<string, React.CSSProperties> = {
   page: {
-    minHeight: '100vh',
+    minHeight: '100dvh',
     display: 'flex',
     flexDirection: 'column',
     padding: '24px',
-    background: '#080c14',
-    fontFamily: "'Syne', sans-serif",
+    background: '#0a0a0f',
+    fontFamily: "'Barlow Condensed', sans-serif",
     color: '#ffffff',
   },
   header: {
@@ -182,10 +183,10 @@ const s: Record<string, React.CSSProperties> = {
     marginBottom: '20px',
   },
   eyebrow: {
-    fontFamily: "'DM Mono', monospace",
+    fontFamily: "'IBM Plex Mono', monospace",
     fontSize: '10px',
     letterSpacing: '0.2em',
-    color: 'rgba(255,255,255,0.3)',
+    color: 'rgba(255,255,255,0.45)',
     textTransform: 'uppercase',
     marginBottom: '4px',
   },
@@ -200,14 +201,14 @@ const s: Record<string, React.CSSProperties> = {
     paddingTop: '4px',
   },
   survivorNum: {
-    fontFamily: "'DM Mono', monospace",
+    fontFamily: "'IBM Plex Mono', monospace",
     fontSize: '28px',
     fontWeight: 800,
     color: '#ffffff',
   },
   survivorLabel: {
     fontSize: '12px',
-    color: 'rgba(255,255,255,0.3)',
+    color: 'rgba(255,255,255,0.45)',
   },
   myResult: {
     display: 'flex',
@@ -219,7 +220,7 @@ const s: Record<string, React.CSSProperties> = {
     marginBottom: '12px',
   },
   myRank: {
-    fontFamily: "'DM Mono', monospace",
+    fontFamily: "'IBM Plex Mono', monospace",
     fontSize: '24px',
     fontWeight: 800,
     minWidth: '52px',
@@ -229,23 +230,23 @@ const s: Record<string, React.CSSProperties> = {
     flex: 1,
   },
   myLabel: {
-    fontFamily: "'DM Mono', monospace",
+    fontFamily: "'IBM Plex Mono', monospace",
     fontSize: '9px',
     letterSpacing: '0.15em',
-    color: 'rgba(255,255,255,0.3)',
+    color: 'rgba(255,255,255,0.45)',
     textTransform: 'uppercase',
     marginBottom: '2px',
   },
   myScore: {
     fontSize: '24px',
     fontWeight: 700,
-    fontFamily: "'DM Mono', monospace",
+    fontFamily: "'IBM Plex Mono', monospace",
   },
   myBadge: {
     padding: '4px 10px',
     borderRadius: '4px',
     fontSize: '10px',
-    fontFamily: "'DM Mono', monospace",
+    fontFamily: "'IBM Plex Mono', monospace",
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
     whiteSpace: 'nowrap',
@@ -266,7 +267,7 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 800,
   },
   elimBannerText: {
-    fontFamily: "'DM Mono', monospace",
+    fontFamily: "'IBM Plex Mono', monospace",
     fontSize: '12px',
     color: 'rgba(255,59,92,0.8)',
     letterSpacing: '0.06em',
@@ -287,7 +288,7 @@ const s: Record<string, React.CSSProperties> = {
     border: '1px solid',
   },
   rowRank: {
-    fontFamily: "'DM Mono', monospace",
+    fontFamily: "'IBM Plex Mono', monospace",
     fontSize: '13px',
     minWidth: '28px',
     fontWeight: 600,
@@ -302,7 +303,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   youTag: {
     fontSize: '9px',
-    fontFamily: "'DM Mono', monospace",
+    fontFamily: "'IBM Plex Mono', monospace",
     color: 'rgba(255,255,255,0.5)',
     background: 'rgba(255,255,255,0.08)',
     padding: '1px 5px',
@@ -310,7 +311,7 @@ const s: Record<string, React.CSSProperties> = {
     letterSpacing: '0.08em',
   },
   rowScore: {
-    fontFamily: "'DM Mono', monospace",
+    fontFamily: "'IBM Plex Mono', monospace",
     fontSize: '12px',
   },
   elimMark: {
@@ -327,7 +328,7 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: '8px',
     color: 'rgba(255,255,255,0.4)',
     fontSize: '13px',
-    fontFamily: "'Syne', sans-serif",
+    fontFamily: "'Barlow Condensed', sans-serif",
     letterSpacing: '0.08em',
     cursor: 'pointer',
   },

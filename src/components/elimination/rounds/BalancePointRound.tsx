@@ -76,7 +76,7 @@ export const BalancePointRound: React.FC<Props> = ({ config, roundId, playerId, 
       <svg
         ref={svgRef}
         viewBox="0 0 100 75"
-        style={{ width: '100%', display: 'block', touchAction: 'none',
+        style={{ width: '100%', maxHeight: 'min(45vh, 280px)', display: 'block', touchAction: 'none',
           cursor: hasSubmitted ? 'default' : dragging ? 'grabbing' : 'grab' }}
         onPointerDown={onDown}
         onPointerMove={onMove}
