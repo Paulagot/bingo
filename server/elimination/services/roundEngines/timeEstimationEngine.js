@@ -24,7 +24,12 @@ export const validateSubmission = (submission) => {
 
 export const scoreSubmission = (submission, config, roundStartTimestamp) => {
   // Server computes actual elapsed time — never trust client
-  const actualElapsed = submission.submittedAt - roundStartTimestamp;
+  // Use config.roundStartTimestamp as fallback if third arg is null
+  const startTs = roundStartTimestamp ?? config.roundStartTimestamp;
+  if (!startTs || !submission.submittedAt) {
+    return { score: 0, precisionScore: 0, speedBonus: 0, errorDistance: 1, diff: config.targetTimeMs, actualElapsed: 0 };
+  }
+  const actualElapsed = submission.submittedAt - startTs;
   const diff = Math.abs(actualElapsed - config.targetTimeMs);
 
   // Normalise: perfect = 0ms off, max error = targetTimeMs (100% off)

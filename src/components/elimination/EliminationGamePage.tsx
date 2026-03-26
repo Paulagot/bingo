@@ -11,6 +11,7 @@ import { EliminationRevealPanel } from './EliminationRevealPanel';
 import { EliminationHostReveal } from './EliminationHotReveal';
 import { EliminationSoundToggle } from './EliminationSoundToggle';
 import { playRoundStart, playRoundIntro, playReveal, playEliminated, playWinner, playSubmit, playCountdownTick } from './utils/sounds';
+import { useWakeLock } from './hooks/useWakeLock';
 import { EliminationEliminatedView } from './EliminationEliminatedView';
 import { EliminationWinnerView } from './EliminationWinnerView';
 import { emitStartGame, emitSubmitAnswer, emitJoinRoom, emitHostJoin } from './services/eliminationSocket';
@@ -78,6 +79,10 @@ export const EliminationGamePage: React.FC = () => {
   );
 
   // ── Sound effects on view changes ──────────────────────────────────────────
+  // Keep screen awake during active game
+  const gameIsActive = !['lobby', 'waiting'].includes(state.view);
+  useWakeLock(gameIsActive);
+
   const prevViewRef = React.useRef<string>('');
   useEffect(() => {
     const view = state.view;

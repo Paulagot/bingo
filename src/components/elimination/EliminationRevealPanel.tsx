@@ -462,7 +462,7 @@ const FlashMathsRevealCanvas: React.FC<{ reveal: FlashMathsReveal; colour: strin
     {reveal.playerAnswer != null && (
       <text x="50" y="52" textAnchor="middle" fill="rgba(255,255,255,0.45)"
         fontSize="3.5" fontFamily="Inter">
-        You answered {reveal.playerAnswer} · {reveal.difference === 0 ? 'Correct!' : `off by ${Math.abs(reveal.difference ?? 0)}`}
+        {reveal.playerAnswer != null && `You answered ${reveal.playerAnswer}${reveal.difference === 0 ? ' · Correct!' : ''}`}
       </text>
     )}
   </svg>
@@ -695,10 +695,10 @@ const ColourCountRevealCanvas: React.FC<{ reveal: ColourCountReveal; colour: str
 
 // ─── Time Estimation reveal ───────────────────────────────────────────────────
 const TimeEstimationRevealCanvas: React.FC<{ reveal: TimeEstimationReveal; colour: string }> = ({ reveal, colour }) => {
-  const target = reveal.targetTimeMs / 1000;
-  const player = reveal.playerTimeMs / 1000;
-  const diff = Math.abs(reveal.difference) / 1000;
-  const maxBar = Math.max(target, player) * 1.2;
+  const target = (reveal.targetTimeMs ?? 0) / 1000;
+  const player = (reveal.playerTimeMs ?? 0) / 1000;
+  const diff = Math.abs(reveal.difference ?? 0) / 1000;
+  const maxBar = Math.max(target, player || target) * 1.2 || 1;
   const targetW = (target / maxBar) * 80;
   const playerW = (player / maxBar) * 80;
 
@@ -713,7 +713,7 @@ const TimeEstimationRevealCanvas: React.FC<{ reveal: TimeEstimationReveal; colou
       <text x={10 + playerW + 2} y="31" fill="rgba(255,255,255,0.6)" fontSize="3.5" fontFamily="Inter">{player.toFixed(1)}s you</text>
       {/* Diff */}
       <text x="50" y="46" textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize="3.2" fontFamily="Inter">
-        {diff < 0.2 ? 'Almost perfect!' : `${diff.toFixed(1)}s off`}
+        {player > 0 ? (diff < 0.3 ? 'Almost perfect!' : `${diff.toFixed(1)}s off`) : 'No answer recorded'}
       </text>
     </svg>
   );

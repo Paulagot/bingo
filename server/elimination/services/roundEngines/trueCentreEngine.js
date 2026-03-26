@@ -30,8 +30,9 @@ export const generateRoundConfig = ({ difficulty = 1, lastShape = null } = {}) =
   const shapeType = randomFrom(available.length > 0 ? available : SHAPE_TYPES);
 
   // Size range — capped to ensure shape always fits comfortably on screen
-  const minSize = Math.max(0.08, 0.10 - (difficulty - 1) * 0.01);
-  const maxSize = Math.min(0.32, 0.22 + (difficulty === 1 ? 0.10 : 0));
+  // Bigger minimum so shapes are always clearly visible on mobile
+  const minSize = Math.max(0.18, 0.22 - (difficulty - 1) * 0.02);
+  const maxSize = Math.min(0.38, 0.30 + (difficulty === 1 ? 0.08 : 0));
   const baseSize = randomBetween(minSize, maxSize);
 
   // Rectangles — keep aspect ratio moderate so they don't overflow

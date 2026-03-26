@@ -1,6 +1,6 @@
 import {
   randomBetween,
-
+  clamp,
   errorToScore,
   calcSpeedBonus,
 } from '../../utils/eliminationHelpers.js';

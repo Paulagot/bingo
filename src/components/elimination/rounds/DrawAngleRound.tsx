@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
-import type { DrawAngleConfig, DrawAngleSubmission } from '../types/elimination';
 import { useAutoSubmit } from '../hooks/useAutoSubmit';
+import type { DrawAngleConfig, DrawAngleSubmission } from '../types/elimination';
 
 interface Props {
   config: DrawAngleConfig;
@@ -15,7 +15,7 @@ const PALETTE = ['#00e5ff','#ff3b5c','#ffe600','#00ff94','#bf5af2','#ff9f0a'];
 const col = (id: string) => { let h=0; for(let i=0;i<id.length;i++) h=(h*31+id.charCodeAt(i))>>>0; return PALETTE[h%PALETTE.length]!; };
 const toRad = (d: number) => (d * Math.PI) / 180;
 
-export const DrawAngleRound: React.FC<Props> = ({ config, roundId, playerId, onSubmit, hasSubmitted,   endsAt,
+export const DrawAngleRound: React.FC<Props> = ({ config, roundId, playerId, onSubmit, hasSubmitted , endsAt,
 }) => {
   const colour = col(roundId);
   const [angle, setAngle] = useState(config.initialAngle);
@@ -62,7 +62,7 @@ export const DrawAngleRound: React.FC<Props> = ({ config, roundId, playerId, onS
     onSubmit({ roundId, playerId, roundType: 'draw_angle', submittedAt: Date.now(), angle });
   }, [hasSubmitted, roundId, playerId, angle, onSubmit]);
 
-  const { isFlashing } = useAutoSubmit(hasSubmitted, endsAt ?? null, handleLock);
+  useAutoSubmit(hasSubmitted, endsAt ?? null, handleLock);
 
   const cx = config.anchorX * 100;
   const cy = config.anchorY * 100;
@@ -113,18 +113,6 @@ export const DrawAngleRound: React.FC<Props> = ({ config, roundId, playerId, onS
 
 
       </svg>
-
-      <button onPointerDown={handleLock} disabled={hasSubmitted} style={{
-        padding: '14px 40px', borderRadius: '8px', cursor: hasSubmitted ? 'default' : 'pointer',
-        background: hasSubmitted ? `${colour}08` : isFlashing ? `${colour}30` : `${colour}18`,
-        border: `1px solid ${hasSubmitted ? colour+'22' : isFlashing ? colour+'cc' : colour+'88'}`,
-        animation: isFlashing && !hasSubmitted ? 'pulse 0.6s ease-in-out infinite alternate' : 'none',
-        color: hasSubmitted ? `${colour}44` : colour,
-        fontFamily: 'Inter, system-ui', fontSize: '14px', fontWeight: 600,
-        letterSpacing: '0.1em', textTransform: 'uppercase',
-      }}>
-        {hasSubmitted ? 'Locked' : isFlashing ? '⚡ Lock Now!' : 'Lock Angle'}
-      </button>
 
       <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '13px', fontFamily: 'Inter, system-ui', margin: 0 }}>
         Drag to rotate the line
