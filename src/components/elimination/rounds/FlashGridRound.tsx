@@ -14,7 +14,8 @@ interface Props {
 const PALETTE = ['#00e5ff','#ff3b5c','#ffe600','#00ff94','#bf5af2','#ff9f0a'];
 const col = (id: string) => { let h=0; for(let i=0;i<id.length;i++) h=(h*31+id.charCodeAt(i))>>>0; return PALETTE[h%PALETTE.length]!; };
 
-export const FlashGridRound: React.FC<Props> = ({ config, roundId, playerId, onSubmit, hasSubmitted, endsAt }) => {
+export const FlashGridRound: React.FC<Props> = ({ config, roundId, playerId, onSubmit, hasSubmitted, endsAt,
+}) => {
   const colour = col(roundId);
   const { gridSize, flashCells, flashDurationMs } = config;
   const [phase, setPhase] = useState<'flashing' | 'hidden' | 'done'>('flashing');
@@ -92,9 +93,9 @@ export const FlashGridRound: React.FC<Props> = ({ config, roundId, playerId, onS
       <div style={{
         display: 'grid',
         gridTemplateColumns: `repeat(${gridSize}, 1fr)`,
-        gap: '6px',
+        gap: '4px',
         width: '100%',
-        maxWidth: '320px',
+        maxWidth: 'min(320px, 60vw)',
       }}>
         {Array.from({ length: gridSize * gridSize }, (_, i) => {
           const row = Math.floor(i / gridSize);

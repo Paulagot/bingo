@@ -127,7 +127,7 @@ export const EliminationWinnerView: React.FC<Props> = ({
 
 const s: Record<string, React.CSSProperties> = {
   page: {
-    minHeight: '100vh',
+    minHeight: '100dvh',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',

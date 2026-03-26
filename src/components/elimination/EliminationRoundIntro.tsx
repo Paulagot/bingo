@@ -59,11 +59,31 @@ const ROUND_TYPE_META: Record<RoundType, { label: string; glyph: string; descrip
     glyph: '◈',
     description: 'Move and rotate the shape to match the target position shown briefly',
   },
+  sequence_gap: {
+    label: 'Sequence Gap',
+    glyph: '…',
+    description: 'A number sequence flashes with one value missing — estimate what it was',
+  },
+  colour_count: {
+    label: 'Colour Count',
+    glyph: '⬤',
+    description: 'Coloured shapes flash — count how many match the target colour',
+  },
+  time_estimation: {
+    label: 'Time Estimation',
+    glyph: '⏱',
+    description: 'No clock shown — tap when you think the target time has passed',
+  },
+  character_count: {
+    label: 'Character Count',
+    glyph: 'A?',
+    description: 'Letters flash on screen — count how many match the target character',
+  },
 };
 
 const ELIMINATION_DESCRIPTIONS: Record<string, (count: number, active: number) => string> = {
   none: () => 'No eliminations this round — precision practice',
-  percentage: (count) => `The ${count} bottom player${count === 1 ? '' : 's'} will be eliminated`,
+  percentage: (count) => `The ${count} least precise player${count === 1 ? '' : 's'} will be eliminated`,
   reduce_to_three: (count) => `${count} players will be cut — only 3 advance to the final`,
   final: () => 'One player wins — everyone else is eliminated',
 };
@@ -250,7 +270,7 @@ export const EliminationRoundIntro: React.FC<Props> = ({
 
 const s: Record<string, React.CSSProperties> = {
   page: {
-    minHeight: '100vh',
+    minHeight: '100dvh',
     display: 'flex',
     flexDirection: 'column',
     background: '#0a0a0f',

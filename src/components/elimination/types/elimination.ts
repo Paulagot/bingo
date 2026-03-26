@@ -1,5 +1,5 @@
 // ─── Round Types ──────────────────────────────────────────────────────────────
-export type RoundType = 'true_centre' | 'midpoint_split' | 'stop_the_bar' | 'draw_angle' | 'flash_grid' | 'quick_count' | 'flash_maths' | 'line_length' | 'balance_point' | 'pattern_align';
+export type RoundType = 'true_centre' | 'midpoint_split' | 'stop_the_bar' | 'draw_angle' | 'flash_grid' | 'quick_count' | 'flash_maths' | 'line_length' | 'balance_point' | 'pattern_align' | 'sequence_gap' | 'colour_count' | 'time_estimation' | 'character_count';
 
 export type RoomStatus = 'waiting' | 'active' | 'results' | 'ended';
 
@@ -112,7 +112,44 @@ export interface PatternAlignConfig {
   durationMs: number;
 }
 
-export type RoundConfig = TrueCentreConfig | MidpointSplitConfig | StopTheBarConfig | DrawAngleConfig | FlashGridConfig | QuickCountConfig | FlashMathsConfig | LineLengthConfig | BalancePointConfig | PatternAlignConfig;
+export interface SequenceGapConfig {
+  roundType: 'sequence_gap';
+  sequence: (number | null)[];
+  missingIndex: number;
+  actualValue: number;
+  patternType: 'linear' | 'step' | 'growing';
+  displayDurationMs: number;
+  durationMs: number;
+}
+
+export interface ColourCountConfig {
+  roundType: 'colour_count';
+  shapes: { x: number; y: number; colour: string; hex: string; shapeType: string; size: number }[];
+  targetColour: string;
+  targetHex: string;
+  targetLabel: string;
+  actualCount: number;
+  displayDurationMs: number;
+  durationMs: number;
+}
+
+export interface TimeEstimationConfig {
+  roundType: 'time_estimation';
+  targetTimeMs: number;
+  roundStartTimestamp: number | null;
+  durationMs: number;
+}
+
+export interface CharacterCountConfig {
+  roundType: 'character_count';
+  characters: { x: number; y: number; value: string; isTarget: boolean; fontSize: number; rotation: number }[];
+  targetCharacter: string;
+  actualCount: number;
+  displayDurationMs: number;
+  durationMs: number;
+}
+
+export type RoundConfig = TrueCentreConfig | MidpointSplitConfig | StopTheBarConfig | DrawAngleConfig | FlashGridConfig | QuickCountConfig | FlashMathsConfig | LineLengthConfig | BalancePointConfig | PatternAlignConfig | SequenceGapConfig | ColourCountConfig | TimeEstimationConfig | CharacterCountConfig;
 
 // ─── Submissions (discriminated union) ────────────────────────────────────────
 export interface TrueCentreSubmission {
@@ -148,6 +185,11 @@ export interface LineLengthSubmission { roundId: string; playerId: string; round
 export interface BalancePointSubmission { roundId: string; playerId: string; roundType: 'balance_point'; submittedAt: number; x: number; }
 export interface PatternAlignSubmission { roundId: string; playerId: string; roundType: 'pattern_align'; submittedAt: number; position: { x: number; y: number }; rotation: number; }
 
+export interface SequenceGapSubmission { roundId: string; playerId: string; roundType: 'sequence_gap'; submittedAt: number; value: number; }
+export interface ColourCountSubmission { roundId: string; playerId: string; roundType: 'colour_count'; submittedAt: number; value: number; }
+export interface TimeEstimationSubmission { roundId: string; playerId: string; roundType: 'time_estimation'; submittedAt: number; }
+export interface CharacterCountSubmission { roundId: string; playerId: string; roundType: 'character_count'; submittedAt: number; value: number; }
+
 export type RoundSubmission =
   | TrueCentreSubmission
   | MidpointSplitSubmission
@@ -158,7 +200,11 @@ export type RoundSubmission =
   | FlashMathsSubmission
   | LineLengthSubmission
   | BalancePointSubmission
-  | PatternAlignSubmission;
+  | PatternAlignSubmission
+  | SequenceGapSubmission
+  | ColourCountSubmission
+  | TimeEstimationSubmission
+  | CharacterCountSubmission;
 
 // ─── Reveal Data (new round types) ───────────────────────────────────────────
 export interface DrawAngleReveal { roundType: 'draw_angle'; targetAngle: number; playerAngle: number; difference: number; errorDistance: number; score: number; }
@@ -167,6 +213,11 @@ export interface QuickCountReveal { roundType: 'quick_count'; actualCount: numbe
 export interface FlashMathsReveal { roundType: 'flash_maths'; numbers: number[]; actualSum: number; playerAnswer: number; difference: number; errorDistance: number; score: number; }
 export interface LineLengthReveal { roundType: 'line_length'; targetLength: number; playerLength: number; difference: number; orientation: string; errorDistance: number; score: number; }
 export interface BalancePointReveal { roundType: 'balance_point'; centreOfMass: number; playerX: number; weights: { position: number; weight: number }[]; errorDistance: number; score: number; }
+export interface SequenceGapReveal { roundType: 'sequence_gap'; sequence: (number|null)[]; actualValue: number; missingIndex: number; playerAnswer: number; difference: number; patternType: string; errorDistance: number; score: number; }
+export interface ColourCountReveal { roundType: 'colour_count'; shapes: any[]; targetColour: string; targetHex: string; targetLabel: string; actualCount: number; playerAnswer: number; difference: number; errorDistance: number; score: number; }
+export interface TimeEstimationReveal { roundType: 'time_estimation'; targetTimeMs: number; playerTimeMs: number; difference: number; errorDistance: number; score: number; }
+export interface CharacterCountReveal { roundType: 'character_count'; characters: any[]; targetCharacter: string; actualCount: number; playerAnswer: number; difference: number; errorDistance: number; score: number; }
+
 export interface PatternAlignReveal { roundType: 'pattern_align'; targetX: number; targetY: number; targetRotation: number; playerX: number; playerY: number; playerRotation: number; positionError: number; rotationDiff: number; errorDistance: number; score: number; }
 
 // ─── Results ──────────────────────────────────────────────────────────────────
@@ -177,7 +228,7 @@ export interface RoundResult {
   rank: number;
   survived: boolean;
   didSubmit: boolean;
-  revealData: TrueCentreReveal | MidpointSplitReveal | StopTheBarReveal | DrawAngleReveal | FlashGridReveal | QuickCountReveal | FlashMathsReveal | LineLengthReveal | BalancePointReveal | PatternAlignReveal | null;
+  revealData: TrueCentreReveal | MidpointSplitReveal | StopTheBarReveal | DrawAngleReveal | FlashGridReveal | QuickCountReveal | FlashMathsReveal | LineLengthReveal | BalancePointReveal | PatternAlignReveal | SequenceGapReveal | ColourCountReveal | TimeEstimationReveal | CharacterCountReveal | null;
 }
 
 export interface TrueCentreReveal {

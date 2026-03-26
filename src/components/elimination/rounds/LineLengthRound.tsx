@@ -14,7 +14,7 @@ interface Props {
 const PALETTE = ['#00e5ff','#ff3b5c','#ffe600','#00ff94','#bf5af2','#ff9f0a'];
 const col = (id: string) => { let h=0; for(let i=0;i<id.length;i++) h=(h*31+id.charCodeAt(i))>>>0; return PALETTE[h%PALETTE.length]!; };
 
-export const LineLengthRound: React.FC<Props> = ({ config, roundId, playerId, onSubmit, hasSubmitted ,  endsAt,
+export const LineLengthRound: React.FC<Props> = ({ config, roundId, playerId, onSubmit, hasSubmitted, endsAt,
 }) => {
   const colour = col(roundId);
   const containerRef = useRef<SVGSVGElement>(null);
@@ -74,7 +74,7 @@ export const LineLengthRound: React.FC<Props> = ({ config, roundId, playerId, on
       <svg
         ref={containerRef}
         viewBox="0 0 100 100"
-        style={{ width: '100%', aspectRatio: '1/1', cursor: hasSubmitted ? 'default' : 'crosshair' }}
+        style={{ width: '100%', aspectRatio: '1/1', maxHeight: 'min(45vh, 280px)', cursor: hasSubmitted ? 'default' : 'crosshair' }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

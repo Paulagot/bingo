@@ -57,7 +57,7 @@ export const FlashMathsRound: React.FC<Props> = ({ config, roundId, playerId, on
   return (
     <div className="w-full flex flex-col items-center gap-6">
       {/* Number flash canvas */}
-      <div style={{ position: 'relative', width: '100%', aspectRatio: '1/1' }}>
+      <div style={{ position: 'relative', width: '100%', aspectRatio: '1/1', maxHeight: 'min(50vh, 340px)' }}>
         <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
           <rect width="100" height="100" fill="transparent" />
           {showNumbers && config.numbers.map((n, i) => {

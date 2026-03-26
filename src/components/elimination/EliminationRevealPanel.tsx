@@ -162,10 +162,13 @@ export const EliminationRevealPanel: React.FC<Props> = ({
 
 // ─── Per-round-type reveal canvas ─────────────────────────────────────────────
 
+import type { SequenceGapReveal, ColourCountReveal, TimeEstimationReveal, CharacterCountReveal } from './types/elimination';
+
 type AnyReveal =
   | TrueCentreReveal | MidpointSplitReveal | StopTheBarReveal
   | DrawAngleReveal | FlashGridReveal | QuickCountReveal
-  | FlashMathsReveal | LineLengthReveal | BalancePointReveal | PatternAlignReveal;
+  | FlashMathsReveal | LineLengthReveal | BalancePointReveal | PatternAlignReveal
+  | SequenceGapReveal | ColourCountReveal | TimeEstimationReveal | CharacterCountReveal;
 
 interface RevealCanvasProps {
   reveal: AnyReveal;
@@ -204,6 +207,18 @@ const RevealCanvas: React.FC<RevealCanvasProps> = ({ reveal, config, roundId, co
   }
   if (reveal.roundType === 'pattern_align') {
     return <PatternAlignRevealCanvas reveal={reveal as PatternAlignReveal} config={config} colour={colour} />;
+  }
+  if (reveal.roundType === 'sequence_gap') {
+    return <SequenceGapRevealCanvas reveal={reveal as SequenceGapReveal} colour={colour} />;
+  }
+  if (reveal.roundType === 'colour_count') {
+    return <ColourCountRevealCanvas reveal={reveal as ColourCountReveal} colour={colour} />;
+  }
+  if (reveal.roundType === 'time_estimation') {
+    return <TimeEstimationRevealCanvas reveal={reveal as TimeEstimationReveal} colour={colour} />;
+  }
+  if (reveal.roundType === 'character_count') {
+    return <CharacterCountRevealCanvas reveal={reveal as CharacterCountReveal} colour={colour} />;
   }
   return null;
 };
@@ -422,7 +437,7 @@ const QuickCountRevealCanvas: React.FC<{ reveal: QuickCountReveal; colour: strin
     {reveal.playerGuess != null && (
       <text x="50" y="95" textAnchor="middle" fill="rgba(255,255,255,0.4)"
         fontSize="3.2" fontFamily="Inter">
-        You guessed {reveal.playerGuess} · {Math.abs(reveal.difference ?? 0) === 0 ? 'Perfect!' : `off by ${Math.abs(reveal.difference ?? 0)}`}
+        You guessed {reveal.playerGuess}{reveal.difference != null ? (reveal.difference === 0 ? ' · Perfect!' : ` · off by ${Math.abs(reveal.difference)}`) : ''}
       </text>
     )}
   </svg>
@@ -476,7 +491,7 @@ const LineLengthRevealCanvas: React.FC<{ reveal: LineLengthReveal; colour: strin
       <text x="50" y="52" textAnchor="middle" fill="rgba(255,255,255,0.35)"
         fontSize="3" fontFamily="Inter">
         {reveal.playerLength != null
-          ? `Off by ${(Math.abs(reveal.difference ?? 0) * 100).toFixed(1)}%`
+          ? (reveal.difference === 0 ? 'Perfect match!' : `Off by ${(Math.abs(reveal.difference ?? 0) * 100).toFixed(0)} units`)
           : 'No answer submitted'}
       </text>
     </svg>
@@ -630,10 +645,107 @@ const PatternAlignRevealCanvas: React.FC<{ reveal: PatternAlignReveal; config: a
   );
 };
 
+// ─── Sequence Gap reveal ─────────────────────────────────────────────────────
+const SequenceGapRevealCanvas: React.FC<{ reveal: SequenceGapReveal; colour: string }> = ({ reveal, colour }) => {
+  const fullSeq = [...reveal.sequence];
+  fullSeq[reveal.missingIndex] = reveal.actualValue;
+  return (
+    <div style={{ padding: '8px 0', width: '100%' }}>
+      <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '12px' }}>
+        {fullSeq.map((v, i) => (
+          <div key={i} style={{
+            width: '52px', height: '52px', borderRadius: '8px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: i === reveal.missingIndex ? `${colour}18` : 'rgba(255,255,255,0.05)',
+            border: `1px solid ${i === reveal.missingIndex ? colour : 'rgba(255,255,255,0.1)'}`,
+            fontFamily: "'Bebas Neue', Impact, sans-serif", fontSize: '22px',
+            color: i === reveal.missingIndex ? colour : 'rgba(255,255,255,0.7)',
+            boxShadow: i === reveal.missingIndex ? `0 0 8px ${colour}44` : 'none',
+          }}>{v}</div>
+        ))}
+      </div>
+      <div style={{ textAlign: 'center', fontFamily: 'Inter', fontSize: '13px', color: 'rgba(255,255,255,0.4)' }}>
+        Missing value was <strong style={{ color: colour }}>{reveal.actualValue}</strong>
+        {reveal.playerAnswer != null && ` · You guessed ${reveal.playerAnswer} · off by ${Math.abs(reveal.difference ?? 0)}`}
+      </div>
+    </div>
+  );
+};
+
+// ─── Colour Count reveal ──────────────────────────────────────────────────────
+const ColourCountRevealCanvas: React.FC<{ reveal: ColourCountReveal; colour: string }> = ({ reveal }) => (
+  <div style={{ width: '100%' }}>
+    <svg viewBox="0 0 100 100" style={{ width: '100%', aspectRatio: '1/1', display: 'block' }}>
+      <rect width="100" height="100" fill="rgba(255,255,255,0.01)" />
+      {reveal.shapes?.map((s: any, i: number) => {
+        const cx = s.x * 100; const cy = s.y * 100; const r = s.size * 100 / 2;
+        const isTarget = s.colour === reveal.targetColour;
+        const opacity = isTarget ? 1 : 0.25;
+        return s.shapeType === 'circle'
+          ? <circle key={i} cx={cx} cy={cy} r={r} fill={s.hex} opacity={opacity} />
+          : <rect key={i} x={cx-r} y={cy-r} width={r*2} height={r*2} rx="1.5" fill={s.hex} opacity={opacity} />;
+      })}
+    </svg>
+    <div style={{ textAlign: 'center', fontFamily: 'Inter', fontSize: '13px', color: 'rgba(255,255,255,0.4)', marginTop: '8px' }}>
+      <strong style={{ color: reveal.targetHex }}>{reveal.actualCount} {reveal.targetLabel}</strong> shapes
+      {reveal.playerAnswer != null && ` · You guessed ${reveal.playerAnswer}`}
+    </div>
+  </div>
+);
+
+// ─── Time Estimation reveal ───────────────────────────────────────────────────
+const TimeEstimationRevealCanvas: React.FC<{ reveal: TimeEstimationReveal; colour: string }> = ({ reveal, colour }) => {
+  const target = reveal.targetTimeMs / 1000;
+  const player = reveal.playerTimeMs / 1000;
+  const diff = Math.abs(reveal.difference) / 1000;
+  const maxBar = Math.max(target, player) * 1.2;
+  const targetW = (target / maxBar) * 80;
+  const playerW = (player / maxBar) * 80;
+
+  return (
+    <svg viewBox="0 0 100 50" style={{ width: '100%', display: 'block' }}>
+      <rect width="100" height="50" fill="rgba(255,255,255,0.01)" />
+      {/* Target bar */}
+      <rect x="10" y="8" width={targetW} height="10" rx="2" fill={`${colour}40`} stroke={colour} strokeWidth="0.5" />
+      <text x={10 + targetW + 2} y="15" fill={colour} fontSize="3.5" fontFamily="Inter">{target}s target</text>
+      {/* Player bar */}
+      <rect x="10" y="24" width={playerW} height="10" rx="2" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.5)" strokeWidth="0.5" />
+      <text x={10 + playerW + 2} y="31" fill="rgba(255,255,255,0.6)" fontSize="3.5" fontFamily="Inter">{player.toFixed(1)}s you</text>
+      {/* Diff */}
+      <text x="50" y="46" textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize="3.2" fontFamily="Inter">
+        {diff < 0.2 ? 'Almost perfect!' : `${diff.toFixed(1)}s off`}
+      </text>
+    </svg>
+  );
+};
+
+// ─── Character Count reveal ───────────────────────────────────────────────────
+const CharacterCountRevealCanvas: React.FC<{ reveal: CharacterCountReveal; colour: string }> = ({ reveal, colour }) => (
+  <div style={{ width: '100%' }}>
+    <svg viewBox="0 0 100 100" style={{ width: '100%', aspectRatio: '1/1', display: 'block' }}>
+      <rect width="100" height="100" fill="rgba(255,255,255,0.01)" />
+      {reveal.characters?.map((c: any, i: number) => (
+        <text key={i} x={c.x * 100} y={c.y * 100}
+          textAnchor="middle" dominantBaseline="middle"
+          fill={c.value === reveal.targetCharacter ? colour : 'rgba(255,255,255,0.2)'}
+          fontSize={c.fontSize * 100}
+          fontFamily="'Bebas Neue', Impact, sans-serif"
+          fontWeight="700"
+          transform={`rotate(${c.rotation}, ${c.x * 100}, ${c.y * 100})`}
+        >{c.value}</text>
+      ))}
+    </svg>
+    <div style={{ textAlign: 'center', fontFamily: 'Inter', fontSize: '13px', color: 'rgba(255,255,255,0.4)', marginTop: '8px' }}>
+      <strong style={{ color: colour }}>{reveal.actualCount}× '{reveal.targetCharacter}'</strong> in the grid
+      {reveal.playerAnswer != null && ` · You guessed ${reveal.playerAnswer}`}
+    </div>
+  </div>
+);
+
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s: Record<string, React.CSSProperties> = {
   page: {
-    minHeight: '100vh',
+    minHeight: '100dvh',
     display: 'flex',
     flexDirection: 'column',
     color: '#ffffff',
@@ -653,10 +765,10 @@ const s: Record<string, React.CSSProperties> = {
   title: {
     fontSize: '32px',
     fontWeight: 800,
- 
+    letterSpacing: '-0.01em',
     margin: 0,
     fontFamily: "'Bebas Neue', 'Impact', sans-serif",
-    letterSpacing: '0.04em',
+   
   },
   canvasWrap: {
     flex: 1,
