@@ -12,7 +12,8 @@ const ORIENTATIONS = ['horizontal', 'vertical', 'diagonal'];
 
 export const generateRoundConfig = ({ difficulty = 1 } = {}) => {
   // Target length 0.15–0.7 of viewport — wide range for variety
-  const targetLength = randomBetween(0.15, 0.70);
+  // Minimum 0.30 so line is always clearly visible on mobile screens
+  const targetLength = randomBetween(0.30, 0.70);
 
   const orientation = ORIENTATIONS[Math.floor(Math.random() * ORIENTATIONS.length)];
 

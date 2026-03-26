@@ -41,7 +41,7 @@ export const CharacterCountRound: React.FC<Props> = ({ config, roundId, playerId
     onSubmit({ roundId, playerId, roundType: 'character_count', submittedAt: Date.now(), value: isNaN(num) ? 0 : num });
   }, [value, locked, hasSubmitted, roundId, playerId, onSubmit]);
 
-  const { isFlashing } = useAutoSubmit(hasSubmitted || show, endsAt ?? null, handleAuto);
+  useAutoSubmit(hasSubmitted || show, endsAt ?? null, handleAuto);
 
   return (
     <div className="w-full flex flex-col items-center gap-5">
@@ -116,20 +116,6 @@ export const CharacterCountRound: React.FC<Props> = ({ config, roundId, playerId
             <button onPointerDown={() => setValue(v => String(Math.max(0, parseInt(v||'0',10)-1)))} style={btnS(colour)}>−</button>
             <button onPointerDown={() => setValue(v => String(parseInt(v||'0',10)+1))} style={btnS(colour)}>+</button>
           </div>
-          {!hasSubmitted && (
-            <button onPointerDown={handleSubmit} disabled={!value || locked} style={{
-              width: '100%', padding: '13px', borderRadius: '8px',
-              background: isFlashing ? `${colour}30` : (value ? `${colour}18` : 'rgba(255,255,255,0.04)'),
-              border: `1px solid ${isFlashing ? colour+'cc' : (value ? colour+'66' : 'rgba(255,255,255,0.08)')}`,
-              color: value ? colour : 'rgba(255,255,255,0.3)',
-              fontFamily: 'Inter', fontSize: '14px', fontWeight: 600,
-              cursor: value && !locked ? 'pointer' : 'default',
-              letterSpacing: '0.1em', textTransform: 'uppercase' as const,
-              animation: isFlashing && !locked ? 'pulse 0.6s ease-in-out infinite alternate' : 'none',
-            }}>
-              {locked ? 'Locked' : isFlashing ? '⚡ Submit!' : 'Submit'}
-            </button>
-          )}
         </div>
       )}
     </div>

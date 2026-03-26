@@ -14,7 +14,7 @@ interface Props {
 const PALETTE = ['#00e5ff','#ff3b5c','#ffe600','#00ff94','#bf5af2','#ff9f0a'];
 const col = (id: string) => { let h=0; for(let i=0;i<id.length;i++) h=(h*31+id.charCodeAt(i))>>>0; return PALETTE[h%PALETTE.length]!; };
 
-export const FlashGridRound: React.FC<Props> = ({ config, roundId, playerId, onSubmit, hasSubmitted, endsAt,
+export const FlashGridRound: React.FC<Props> = ({ config, roundId, playerId, onSubmit, hasSubmitted ,  endsAt,
 }) => {
   const colour = col(roundId);
   const { gridSize, flashCells, flashDurationMs } = config;
@@ -62,17 +62,9 @@ export const FlashGridRound: React.FC<Props> = ({ config, roundId, playerId, onS
     onSubmit({ roundId, playerId, roundType: 'flash_grid', submittedAt: Date.now(), taps: normTaps });
   }, [hasSubmitted, taps, gridSize, roundId, playerId, onSubmit]);
 
-  const handleLock = useCallback(() => {
-    if (submitted.current || hasSubmitted) return;
-    submitted.current = true;
-    const normTaps = taps.map(t => ({
-      x: (t.col + 0.5) / gridSize,
-      y: (t.row + 0.5) / gridSize,
-    }));
-    onSubmit({ roundId, playerId, roundType: 'flash_grid', submittedAt: Date.now(), taps: normTaps });
-  }, [hasSubmitted, taps, gridSize, roundId, playerId, onSubmit]);
 
-  const { isFlashing } = useAutoSubmit(hasSubmitted || phase === 'flashing', endsAt ?? null, handleAutoSubmit);
+
+  useAutoSubmit(hasSubmitted || phase === 'flashing', endsAt ?? null, handleAutoSubmit);
 
   const flashSet = new Set(flashCells.map(c => `${c.row},${c.col}`));
   const tapSet = new Set(taps.map(t => `${t.row},${t.col}`));
@@ -119,25 +111,13 @@ export const FlashGridRound: React.FC<Props> = ({ config, roundId, playerId, onS
                     : 'rgba(255,255,255,0.03)',
                 cursor: hasSubmitted || phase === 'flashing' ? 'default' : 'pointer',
                 transition: 'background 0.15s, border-color 0.15s',
-                boxShadow: isFlashing ? `0 0 12px ${colour}66` : 'none',
+                boxShadow: isFlashing ? `0 0 16px ${colour}99, inset 0 0 8px ${colour}44` : 'none',
               }}
             />
           );
         })}
       </div>
 
-      {phase === 'hidden' && !hasSubmitted && (
-        <button onPointerDown={handleLock} style={{
-          padding: '12px 32px', borderRadius: '8px', cursor: 'pointer',
-          background: isFlashing ? `${colour}30` : `${colour}18`,
-          border: `1px solid ${isFlashing ? colour+'cc' : colour+'66'}`,
-          color: colour, fontFamily: 'Inter, system-ui', fontSize: '13px',
-          fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' as const,
-          animation: isFlashing ? 'pulse 0.6s ease-in-out infinite alternate' : 'none',
-        }}>
-          {isFlashing ? `⚡ Submit!` : `Submit (${taps.length}/${flashCells.length})`}
-        </button>
-      )}
       {hasSubmitted && (
         <p style={{ color: `${colour}88`, fontFamily: 'Inter, system-ui', fontSize: '13px' }}>Answer locked</p>
       )}

@@ -41,7 +41,7 @@ export const SequenceGapRound: React.FC<Props> = ({ config, roundId, playerId, o
     onSubmit({ roundId, playerId, roundType: 'sequence_gap', submittedAt: Date.now(), value: isNaN(num) ? 0 : num });
   }, [value, locked, hasSubmitted, roundId, playerId, onSubmit]);
 
-  const { isFlashing } = useAutoSubmit(hasSubmitted || showSeq, endsAt ?? null, handleAutoSubmit);
+  useAutoSubmit(hasSubmitted || showSeq, endsAt ?? null, handleAutoSubmit);
 
   return (
     <div className="w-full flex flex-col items-center gap-6">
@@ -90,34 +90,9 @@ export const SequenceGapRound: React.FC<Props> = ({ config, roundId, playerId, o
               letterSpacing: '0.08em', textAlign: 'center', outline: 'none',
             }}
           />
-          <div className="flex gap-3 items-center">
-            <button onPointerDown={() => setValue(v => String(parseInt(v||'0',10)-1))} style={btn(colour)}>−</button>
-            <button onPointerDown={() => setValue(v => String(parseInt(v||'0',10)+1))} style={btn(colour)}>+</button>
-          </div>
-          {!hasSubmitted && (
-            <button onPointerDown={handleSubmit} disabled={!value || locked} style={{
-              width: '100%', padding: '14px', borderRadius: '8px',
-              background: isFlashing ? `${colour}30` : (value ? `${colour}18` : 'rgba(255,255,255,0.04)'),
-              border: `1px solid ${isFlashing ? colour+'cc' : (value ? colour+'66' : 'rgba(255,255,255,0.08)')}`,
-              color: value ? colour : 'rgba(255,255,255,0.3)',
-              fontFamily: 'Inter', fontSize: '14px', fontWeight: 600,
-              cursor: value && !locked ? 'pointer' : 'default',
-              letterSpacing: '0.1em', textTransform: 'uppercase' as const,
-              animation: isFlashing && !locked ? 'pulse 0.6s ease-in-out infinite alternate' : 'none',
-            }}>
-              {locked ? 'Locked' : isFlashing ? '⚡ Submit!' : 'Submit'}
-            </button>
-          )}
         </div>
       )}
       {showSeq && <p style={{ color: colour, fontFamily: 'Inter', fontSize: '14px', fontWeight: 600 }}>What number is missing?</p>}
     </div>
   );
 };
-
-const btn = (c: string): React.CSSProperties => ({
-  width: '44px', height: '44px', borderRadius: '50%',
-  background: `${c}18`, border: `1px solid ${c}44`,
-  color: c, fontSize: '22px', cursor: 'pointer',
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
-});

@@ -14,7 +14,7 @@ interface Props {
 const PALETTE = ['#00e5ff','#ff3b5c','#ffe600','#00ff94','#bf5af2','#ff9f0a'];
 const col = (id: string) => { let h=0; for(let i=0;i<id.length;i++) h=(h*31+id.charCodeAt(i))>>>0; return PALETTE[h%PALETTE.length]!; };
 
-export const BalancePointRound: React.FC<Props> = ({ config, roundId, playerId, onSubmit, hasSubmitted, endsAt,
+export const BalancePointRound: React.FC<Props> = ({ config, roundId, playerId, onSubmit, hasSubmitted,   endsAt,
 }) => {
   const colour = col(roundId);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -56,7 +56,7 @@ export const BalancePointRound: React.FC<Props> = ({ config, roundId, playerId, 
     onSubmit({ roundId, playerId, roundType: 'balance_point', submittedAt: Date.now(), x: moveableX });
   }, [locked, hasSubmitted, moveableX, roundId, playerId, onSubmit]);
 
-  const { isFlashing } = useAutoSubmit(hasSubmitted, endsAt ?? null, handleLock);
+  useAutoSubmit(hasSubmitted, endsAt ?? null, handleLock);
 
   const maxW = Math.max(...config.weights.map(w => w.weight));
   const lineY = 38;
@@ -146,18 +146,6 @@ export const BalancePointRound: React.FC<Props> = ({ config, roundId, playerId, 
             fill={`${colour}88`} fontSize="3" fontFamily="Inter">Locked in</text>
         )}
       </svg>
-
-      {!hasSubmitted && !locked && (
-        <button onPointerDown={handleLock} style={{
-          animation: isFlashing ? 'pulse 0.6s ease-in-out infinite alternate' : 'none',
-          padding: '12px 36px', borderRadius: '8px', cursor: 'pointer',
-          background: `${colour}18`, border: `1px solid ${colour}66`,
-          color: colour, fontFamily: 'Inter', fontSize: '14px', fontWeight: 600,
-          letterSpacing: '0.08em', textTransform: 'uppercase' as const,
-        }}>
-          Lock Position
-        </button>
-      )}
     </div>
   );
 };

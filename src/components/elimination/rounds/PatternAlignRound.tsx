@@ -113,7 +113,7 @@ export const PatternAlignRound: React.FC<Props> = ({ config, roundId, playerId, 
       position: pos, rotation: Math.round(rotation) });
   }, [hasSubmitted, roundId, playerId, pos, rotation, onSubmit]);
 
-  const { isFlashing } = useAutoSubmit(hasSubmitted, endsAt ?? null, handleLock);
+  useAutoSubmit(hasSubmitted, endsAt ?? null, handleLock);
 
   // Keep shapeCentre ref in sync
   useEffect(() => { shapeCentre.current = pos; }, [pos]);
@@ -186,19 +186,6 @@ export const PatternAlignRound: React.FC<Props> = ({ config, roundId, playerId, 
             Drag edge to rotate
           </div>
         </div>
-      )}
-
-      {!showTarget && !hasSubmitted && (
-        <button onPointerDown={handleLock} style={{
-          padding: '12px 36px', borderRadius: '8px', cursor: 'pointer',
-          background: isFlashing ? `${colour}30` : `${colour}18`,
-          border: `1px solid ${isFlashing ? colour+'cc' : colour+'66'}`,
-          color: colour, fontFamily: 'Inter', fontSize: '14px', fontWeight: 600,
-          letterSpacing: '0.1em', textTransform: 'uppercase' as const,
-          animation: isFlashing ? 'pulse 0.6s ease-in-out infinite alternate' : 'none',
-        }}>
-          {isFlashing ? '⚡ Lock!' : 'Lock Position'}
-        </button>
       )}
 
       {showTarget && (

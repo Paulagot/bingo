@@ -14,7 +14,7 @@ interface Props {
 const PALETTE = ['#00e5ff','#ff3b5c','#ffe600','#00ff94','#bf5af2','#ff9f0a'];
 const col = (id: string) => { let h=0; for(let i=0;i<id.length;i++) h=(h*31+id.charCodeAt(i))>>>0; return PALETTE[h%PALETTE.length]!; };
 
-export const FlashMathsRound: React.FC<Props> = ({ config, roundId, playerId, onSubmit, hasSubmitted, endsAt,
+export const FlashMathsRound: React.FC<Props> = ({ config, roundId, playerId, onSubmit, hasSubmitted , endsAt,
 }) => {
   const colour = col(roundId);
   const [showNumbers, setShowNumbers] = useState(true);
@@ -41,7 +41,7 @@ export const FlashMathsRound: React.FC<Props> = ({ config, roundId, playerId, on
     onSubmit({ roundId, playerId, roundType: 'flash_maths', submittedAt: Date.now(), value: isNaN(num) ? 0 : num });
   }, [value, locked, hasSubmitted, roundId, playerId, onSubmit]);
 
-  const { isFlashing } = useAutoSubmit(hasSubmitted || showNumbers, endsAt ?? null, handleAutoSubmit);
+  useAutoSubmit(hasSubmitted || showNumbers, endsAt ?? null, handleAutoSubmit);
 
   const handleSubmit = useCallback(() => {
     const num = parseInt(value, 10);
@@ -115,21 +115,6 @@ export const FlashMathsRound: React.FC<Props> = ({ config, roundId, playerId, on
             <button onPointerDown={() => setValue(v => String(parseInt(v||'0',10)+1))}
               style={btnS(colour)}>+</button>
           </div>
-
-          {!hasSubmitted && (
-            <button onPointerDown={handleSubmit} disabled={!value || locked} style={{
-              width: '100%', padding: '14px', borderRadius: '8px',
-              background: isFlashing ? `${colour}30` : (value ? `${colour}18` : 'rgba(255,255,255,0.04)'),
-              border: `1px solid ${isFlashing ? colour+'cc' : (value ? colour+'66' : 'rgba(255,255,255,0.08)')}`,
-              color: value ? colour : 'rgba(255,255,255,0.3)',
-              fontFamily: 'Inter', fontSize: '14px', fontWeight: 600,
-              cursor: value && !locked ? 'pointer' : 'default',
-              letterSpacing: '0.1em', textTransform: 'uppercase' as const,
-              animation: isFlashing && !locked ? 'pulse 0.6s ease-in-out infinite alternate' : 'none',
-            }}>
-              {locked ? 'Locked' : isFlashing ? '⚡ Submit Now!' : 'Submit'}
-            </button>
-          )}
         </div>
       )}
 

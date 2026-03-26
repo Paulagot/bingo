@@ -102,12 +102,14 @@ export const scoreSubmission = (submission, config, roundStartTimestamp) => {
 
 export const formatRevealData = (submission, config, scoringResult) => ({
   roundType: ROUND_TYPE.PATTERN_ALIGN,
+  shapeType: config.shapeType,   // included so reveal canvas knows what to draw
+  shapeSize: config.shapeSize,
   targetX: config.targetX,
   targetY: config.targetY,
   targetRotation: config.targetRotation,
-  playerX: submission.position.x,
-  playerY: submission.position.y,
-  playerRotation: submission.rotation,
+  playerX: submission?.position?.x,
+  playerY: submission?.position?.y,
+  playerRotation: submission?.rotation,
   positionError: scoringResult.positionError,
   rotationDiff: scoringResult.rotationDiff,
   errorDistance: scoringResult.errorDistance,
