@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useEliminationGame } from './hooks/useEliminationGame';
 import { useEliminationSocket } from './hooks/useEliminationSocket';
 import { useRoundTimer } from './hooks/useRoundTimer';
@@ -30,13 +31,26 @@ import type {
 
 // ─── Local session storage keys ───────────────────────────────────────────────
 const SESSION_ROOM_ID = 'elim_room_id';
-const SESSION_PLAYER_ID = 'elim_player_id';   // players only
-const SESSION_HOST_ID = 'elim_host_id';       // host only
+const SESSION_PLAYER_ID = 'elim_player_id';
+const SESSION_HOST_ID = 'elim_host_id';
 const SESSION_PLAYER_NAME = 'elim_player_name';
 const SESSION_IS_HOST = 'elim_is_host';
+const SESSION_ONCHAIN_ROOM_ID = 'elim_onchain_room_id';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const clearEliminationSession = () => {
+  sessionStorage.removeItem(SESSION_ROOM_ID);
+  sessionStorage.removeItem(SESSION_PLAYER_ID);
+  sessionStorage.removeItem(SESSION_HOST_ID);
+  sessionStorage.removeItem(SESSION_PLAYER_NAME);
+  sessionStorage.removeItem(SESSION_IS_HOST);
+  sessionStorage.removeItem(SESSION_ONCHAIN_ROOM_ID);
+};
 
 export const EliminationGamePage: React.FC = () => {
-  // ── Session identity ────────────────────────────────────────────────────────
+  const navigate = useNavigate();
+
+  // ── Session identity ──────────────────────────────────────────────────────
   const [roomId, setRoomId] = useState<string | null>(
     () => sessionStorage.getItem(SESSION_ROOM_ID),
   );
@@ -50,12 +64,13 @@ export const EliminationGamePage: React.FC = () => {
     () => sessionStorage.getItem(SESSION_IS_HOST) === 'true',
   );
 
-  // ── Local player list — updated directly from socket so host sees joins immediately
+  // ── Local player list ─────────────────────────────────────────────────────
   const [waitingPlayers, setWaitingPlayers] = useState<any[]>([]);
 
-  // ── Intro countdown state ───────────────────────────────────────────────────
+  // ── Intro countdown state ─────────────────────────────────────────────────
   const [introPayload, setIntroPayload] = useState<RoundIntroPayload | null>(null);
-  // ── Game state ──────────────────────────────────────────────────────────────
+
+  // ── Game state ────────────────────────────────────────────────────────────
   const {
     state,
     setRoom,
@@ -72,17 +87,17 @@ export const EliminationGamePage: React.FC = () => {
     setError,
   } = useEliminationGame(localPlayerId);
 
-  // ── Timers ──────────────────────────────────────────────────────────────────
+  // ── Timers ────────────────────────────────────────────────────────────────
   const roundTimer = useRoundTimer(
     state.activeRound?.endsAt ?? null,
     state.view === 'round_active',
   );
 
-  // ── Sound effects on view changes ──────────────────────────────────────────
-  // Keep screen awake during active game
+  // ── Wake lock during active game ──────────────────────────────────────────
   const gameIsActive = !['lobby', 'waiting'].includes(state.view);
   useWakeLock(gameIsActive);
 
+  // ── Sound effects on view changes ─────────────────────────────────────────
   const prevViewRef = React.useRef<string>('');
   useEffect(() => {
     const view = state.view;
@@ -92,23 +107,40 @@ export const EliminationGamePage: React.FC = () => {
     if (view === 'winner') playWinner();
   }, [state.view]);
 
-  // Countdown tick in last 3 seconds
+  // ── Countdown tick in last 3 seconds ──────────────────────────────────────
   useEffect(() => {
-    if (state.view === 'round_active' && roundTimer.secondsRemaining <= 3 && roundTimer.secondsRemaining > 0) {
+    if (
+      state.view === 'round_active' &&
+      roundTimer.secondsRemaining <= 3 &&
+      roundTimer.secondsRemaining > 0
+    ) {
       playCountdownTick();
     }
   }, [state.view, roundTimer.secondsRemaining]);
 
-  // ── Socket events ───────────────────────────────────────────────────────────
+  
+
+  // ── Full cleanup + navigate ───────────────────────────────────────────────
+  const handleCleanupAndNavigate = useCallback((room?: any) => {
+    const wasWeb3 = room?.paymentMode === 'web3'
+      || (state.room as any)?.paymentMode === 'web3';
+
+    clearEliminationSession();
+    setRoomId(null);
+    setLocalPlayerId(null);
+    onRoomEnded();
+
+    navigate(wasWeb3 ? '/web3/elimination' : '/elimination', { replace: true });
+  }, [onRoomEnded, navigate, state.room]);
+
+  // ── Socket events ─────────────────────────────────────────────────────────
   useEliminationSocket({
     onRoomState: useCallback((data: any) => {
-      // Handles both direct room snapshots and reconnect snapshots
       const room: EliminationRoom = data.roomSnapshot ?? data;
       console.log('🎮 [onRoomState] received, players:', room.players?.length, room.players?.map((p: any) => p.name));
       setRoom(room);
       setWaitingPlayers(room.players ?? []);
 
-      // For non-host players who joined without a playerId, resolve from room by name
       const currentIsHost = sessionStorage.getItem(SESSION_IS_HOST) === 'true';
       if (!currentIsHost) {
         const currentPlayerId = sessionStorage.getItem(SESSION_PLAYER_ID);
@@ -142,20 +174,23 @@ export const EliminationGamePage: React.FC = () => {
 
     onRoundStarted: useCallback((data: RoundStartedPayload) => {
       setIntroPayload(null);
-      setWaitingPlayers(prev => prev.map((p: any) => ({ ...p, hasSubmittedCurrentRound: false })));
+      setWaitingPlayers(prev =>
+        prev.map((p: any) => ({ ...p, hasSubmittedCurrentRound: false }))
+      );
       playRoundStart();
       onRoundStarted(data);
     }, [onRoundStarted]),
 
     onSubmissionReceived: useCallback((data: { playerId: string; roundId: string }) => {
       onSubmissionSent();
-      // Update waitingPlayers so host submission count stays live
       if (data?.playerId) {
-        setWaitingPlayers(prev => prev.map((p: any) =>
-          p.playerId === data.playerId
-            ? { ...p, hasSubmittedCurrentRound: true }
-            : p
-        ));
+        setWaitingPlayers(prev =>
+          prev.map((p: any) =>
+            p.playerId === data.playerId
+              ? { ...p, hasSubmittedCurrentRound: true }
+              : p
+          )
+        );
       }
     }, [onSubmissionSent]),
 
@@ -166,20 +201,18 @@ export const EliminationGamePage: React.FC = () => {
     }, [onRoundReveal]),
 
     onRoundResults: useCallback((data: RoundResultsPayload) => {
-      // Pass results without eliminated IDs yet — wait for onPlayersEliminated
       onRoundResults(data.results, [], data.roundNumber);
     }, [onRoundResults]),
 
     onPlayersEliminated: useCallback((data: EliminatedPayload) => {
-      // Now we have the eliminated IDs — re-trigger with full info
       onRoundResults(state.lastResults ?? [], data.eliminatedPlayerIds, data.roundNumber);
-
-      // Mark eliminated players in waitingPlayers so counts are correct
-      setWaitingPlayers(prev => prev.map(p =>
-        data.eliminatedPlayerIds.includes(p.playerId)
-          ? { ...p, eliminated: true }
-          : p
-      ));
+      setWaitingPlayers(prev =>
+        prev.map(p =>
+          data.eliminatedPlayerIds.includes(p.playerId)
+            ? { ...p, eliminated: true }
+            : p
+        )
+      );
     }, [onRoundResults, state.lastResults]),
 
     onNextRound: useCallback(() => {
@@ -191,19 +224,20 @@ export const EliminationGamePage: React.FC = () => {
     }, [onWinnerDeclared]),
 
     onRoomEnded: useCallback(() => {
-      onRoomEnded();
-      sessionStorage.clear();
-    }, [onRoomEnded]),
+      console.log('🎮 [Elimination] ROOM_ENDED received — cleaning up');
+      handleCleanupAndNavigate();
+    }, [handleCleanupAndNavigate]),
+
+    onRoomCancelled: useCallback(() => {
+  console.log('🎮 [Elimination] Room cancelled — cleaning up');
+  handleCleanupAndNavigate();
+}, [handleCleanupAndNavigate]),
 
     onError: useCallback((data: { message: string }) => {
       console.warn('🎮 [Elimination] Socket error:', data.message);
-      // If the room no longer exists (e.g. server restarted), clear session and go to lobby
       if (data.message === 'Room not found') {
-        console.log('🎮 [Elimination] Stale session detected — clearing and returning to lobby');
-        sessionStorage.removeItem('elim_room_id');
-        sessionStorage.removeItem('elim_player_id');
-        sessionStorage.removeItem('elim_player_name');
-        sessionStorage.removeItem('elim_is_host');
+        console.log('🎮 [Elimination] Stale session — clearing and returning to lobby');
+        clearEliminationSession();
         setRoomId(null);
         setLocalPlayerId(null);
       } else {
@@ -212,9 +246,7 @@ export const EliminationGamePage: React.FC = () => {
     }, [setError]),
   });
 
-  // ── Reconnect on mount ONLY for genuine page reloads, not fresh lobby flows
-  // We detect a fresh flow by checking if lobby is actively being used
-  // (sessionStorage is cleared in handleReset, so stale data = previous session)
+  // ── Reconnect on mount ────────────────────────────────────────────────────
   const initialRoomId = sessionStorage.getItem(SESSION_ROOM_ID);
   const initialIsHost = sessionStorage.getItem(SESSION_IS_HOST) === 'true';
   const initialHostId = sessionStorage.getItem(SESSION_HOST_ID);
@@ -222,21 +254,18 @@ export const EliminationGamePage: React.FC = () => {
   const initialName = sessionStorage.getItem(SESSION_PLAYER_NAME) ?? '';
 
   useEffect(() => {
-    // Need at minimum a roomId and either a hostId or playerId
     const hasHostSession = initialRoomId && initialIsHost && initialHostId;
     const hasPlayerSession = initialRoomId && !initialIsHost && initialPlayerId;
     if (!hasHostSession && !hasPlayerSession) return;
 
     const idToCheck = initialRoomId!;
 
-    // Verify room still exists (server may have restarted)
     fetch(`/api/elimination/rooms/${idToCheck}`)
       .then(r => r.json())
       .then(data => {
         if (!data.success) {
           console.log('🎮 [Elimination] Stale session — room gone, clearing');
-          ['elim_room_id','elim_player_id','elim_host_id','elim_player_name','elim_is_host']
-            .forEach(k => sessionStorage.removeItem(k));
+          clearEliminationSession();
           return;
         }
         if (hasHostSession) {
@@ -252,13 +281,12 @@ export const EliminationGamePage: React.FC = () => {
         }
       })
       .catch(() => {
-        ['elim_room_id','elim_player_id','elim_host_id','elim_player_name','elim_is_host']
-          .forEach(k => sessionStorage.removeItem(k));
+        clearEliminationSession();
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Handlers ────────────────────────────────────────────────────────────────
+  // ── Handlers ──────────────────────────────────────────────────────────────
   const handleJoined = useCallback((
     newRoomId: string,
     newPlayerId: string,
@@ -275,7 +303,6 @@ export const EliminationGamePage: React.FC = () => {
     sessionStorage.setItem(SESSION_IS_HOST, String(host));
 
     if (host) {
-      // Store hostId separately — never mixed with player IDs
       sessionStorage.setItem(SESSION_HOST_ID, newPlayerId);
       sessionStorage.removeItem(SESSION_PLAYER_ID);
       emitHostJoin(newRoomId, newPlayerId);
@@ -297,18 +324,12 @@ export const EliminationGamePage: React.FC = () => {
     onSubmissionSent();
   }, [roomId, localPlayerId, onSubmissionSent]);
 
+  // handleReset — manual "Return to lobby" button
   const handleReset = useCallback(() => {
-    sessionStorage.removeItem(SESSION_ROOM_ID);
-    sessionStorage.removeItem(SESSION_PLAYER_ID);
-    sessionStorage.removeItem(SESSION_HOST_ID);
-    sessionStorage.removeItem(SESSION_PLAYER_NAME);
-    sessionStorage.removeItem(SESSION_IS_HOST);
-    setRoomId(null);
-    setLocalPlayerId(null);
-    onRoomEnded();
-  }, [onRoomEnded]);
+    handleCleanupAndNavigate();
+  }, [handleCleanupAndNavigate]);
 
-  // ── Render ──────────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
   const room = state.room;
   const localPlayer = state.localPlayer ?? room?.players.find(p => p.playerId === localPlayerId);
 
@@ -317,18 +338,21 @@ export const EliminationGamePage: React.FC = () => {
     return <EliminationLobbyPage onJoined={handleJoined} />;
   }
 
-  // WAITING ROOM — roomId set but game not started yet
+  // WAITING ROOM
   if (state.view === 'lobby' || state.view === 'waiting') {
     return (
-      <EliminationWaitingRoom
-        roomId={roomId}
-        players={waitingPlayers}
-        isHost={isHost}
-        localPlayerId={localPlayerId ?? ''}
-        onStart={handleStart}
-        onLeave={handleReset}
-        minPlayers={2}
-      />
+ <EliminationWaitingRoom
+  roomId={roomId}
+  players={waitingPlayers}
+  isHost={isHost}
+  localPlayerId={localPlayerId ?? ''}
+  onStart={handleStart}
+  onLeave={handleReset}
+  minPlayers={2}
+  roomData={state.room}
+  hostId={sessionStorage.getItem(SESSION_HOST_ID) ?? undefined}
+  onCancelled={handleReset}
+/>
     );
   }
 
@@ -346,26 +370,30 @@ export const EliminationGamePage: React.FC = () => {
   // ROUND ACTIVE
   if (state.view === 'round_active' && state.activeRound) {
     const hasSubmitted = localPlayer?.hasSubmittedCurrentRound ?? false;
-
     const rc = getRoundColour(state.activeRound.roundNumber);
     const isUrgent = roundTimer.secondsRemaining <= 3;
 
     return (
       <div className="min-h-screen flex flex-col" style={{ ...styles.page, background: BASE_BG }}>
-        {/* Colour bleed — subtle tint at top */}
+        {/* Colour bleed */}
         <div style={{
           position: 'absolute', top: 0, left: 0, right: 0, height: '180px',
           background: `linear-gradient(180deg, ${rc.tint} 0%, transparent 100%)`,
           pointerEvents: 'none',
         }} />
 
-        {/* HUD — hide timer for time_estimation (would be cheating) */}
+        {/* HUD */}
         <div style={styles.hud}>
           <div style={styles.hudLeft}>
             <span style={{ ...styles.hudRound, color: `${rc.primary}99` }}>
               Round {state.activeRound.roundNumber} of 8
             </span>
-            <span style={{ ...styles.hudType, fontFamily: "'Bebas Neue', 'Impact', sans-serif", fontSize: '22px', letterSpacing: '0.02em' }}>
+            <span style={{
+              ...styles.hudType,
+              fontFamily: "'Bebas Neue', 'Impact', sans-serif",
+              fontSize: '22px',
+              letterSpacing: '0.02em',
+            }}>
               {roundTypeLabel(state.activeRound.roundType).toUpperCase()}
             </span>
           </div>
@@ -377,7 +405,9 @@ export const EliminationGamePage: React.FC = () => {
                 color: isUrgent ? '#ff3b5c' : rc.primary,
                 fontFamily: "'Inter', system-ui, sans-serif",
                 fontSize: '42px',
-                filter: isUrgent ? 'drop-shadow(0 0 12px #ff2d5566)' : `drop-shadow(0 0 8px ${rc.glow})`,
+                filter: isUrgent
+                  ? 'drop-shadow(0 0 12px #ff2d5566)'
+                  : `drop-shadow(0 0 8px ${rc.glow})`,
               }}>
                 {roundTimer.secondsRemaining}
               </div>
@@ -385,7 +415,7 @@ export const EliminationGamePage: React.FC = () => {
           </div>
         </div>
 
-        {/* Timer bar — hidden for time_estimation */}
+        {/* Timer bar */}
         {state.activeRound.roundType !== 'time_estimation' && (
           <div style={styles.timerTrack}>
             <div style={{
@@ -397,7 +427,7 @@ export const EliminationGamePage: React.FC = () => {
           </div>
         )}
 
-        {/* Instruction */}
+        {/* Instruction bar */}
         <div style={{
           ...styles.instructionBar,
           borderBottom: `1px solid ${rc.primary}22`,
@@ -405,7 +435,7 @@ export const EliminationGamePage: React.FC = () => {
           fontFamily: "'Inter', system-ui, sans-serif",
         }}>
           {hasSubmitted
-            ? `✓ Locked in — waiting for others`
+            ? '✓ Locked in — waiting for others'
             : ROUND_INSTRUCTIONS[state.activeRound.roundType]}
         </div>
 
@@ -415,28 +445,52 @@ export const EliminationGamePage: React.FC = () => {
             to   { opacity: 0.85; box-shadow: 0 0 0 6px rgba(255,255,255,0); }
           }
         `}</style>
+
         {/* Round component */}
-        <div className="flex-1 flex items-center justify-center" style={{ padding: '8px', overflowY: 'auto', overflowX: 'hidden', minHeight: 0 }}>
+        <div
+          className="flex-1 flex items-center justify-center"
+          style={{ padding: '8px', overflowY: 'auto', overflowX: 'hidden', minHeight: 0 }}
+        >
           {isHost ? (
             <div style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center',
               gap: '12px', padding: '24px', textAlign: 'center',
             }}>
               <div style={{ fontSize: '32px', marginBottom: '8px' }}>👁</div>
-              <p style={{ color: 'rgba(255,255,255,0.5)', fontFamily: 'Inter', fontSize: '14px', margin: 0 }}>
+              <p style={{
+                color: 'rgba(255,255,255,0.5)',
+                fontFamily: 'Inter',
+                fontSize: '14px',
+                margin: 0,
+              }}>
                 You are the host — watching live
               </p>
               <div style={{
                 marginTop: '8px', padding: '12px 20px', borderRadius: '8px',
-                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)',
               }}>
-                <p style={{ color: 'rgba(255,255,255,0.3)', fontFamily: 'Inter', fontSize: '12px', margin: 0, letterSpacing: '0.06em' }}>
-                  {waitingPlayers.filter((p: any) => p.hasSubmittedCurrentRound).length} / {waitingPlayers.filter((p: any) => !p.eliminated).length} submitted
+                <p style={{
+                  color: 'rgba(255,255,255,0.3)',
+                  fontFamily: 'Inter',
+                  fontSize: '12px',
+                  margin: 0,
+                  letterSpacing: '0.06em',
+                }}>
+                  {waitingPlayers.filter((p: any) => p.hasSubmittedCurrentRound).length}
+                  {' / '}
+                  {waitingPlayers.filter((p: any) => !p.eliminated).length} submitted
                 </p>
               </div>
             </div>
           ) : (
-            <div style={{ width: '100%', maxWidth: 'min(420px, 100vw - 16px)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{
+              width: '100%',
+              maxWidth: 'min(420px, 100vw - 16px)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+            }}>
               <EliminationRoundRenderer
                 activeRound={state.activeRound}
                 playerId={localPlayerId ?? ''}
@@ -455,10 +509,9 @@ export const EliminationGamePage: React.FC = () => {
     );
   }
 
-  // REVEAL — players see their answer vs correct; host sees everyone's results
+  // REVEAL
   if (state.view === 'round_reveal' && state.lastResults) {
     if (isHost) {
-      // Host sees a leaderboard-style view of all players during reveal
       return (
         <EliminationHostReveal
           activeRound={state.activeRound}
@@ -509,7 +562,7 @@ export const EliminationGamePage: React.FC = () => {
     );
   }
 
-  // GAME OVER for eliminated players — game ended while they were spectating
+  // GAME OVER for eliminated players
   if (state.view === 'game_over') {
     return (
       <EliminationEliminatedView
@@ -535,17 +588,29 @@ export const EliminationGamePage: React.FC = () => {
         players={waitingPlayers}
         localPlayerId={localPlayerId ?? ''}
         onClose={handleReset}
+        isHost={isHost}
+        hostId={sessionStorage.getItem(SESSION_HOST_ID) ?? undefined}
+        roomId={roomId ?? undefined}
+        roomData={state.room as any}
       />
     );
   }
 
-  // FALLBACK — should rarely show
+  // FALLBACK
   return (
     <div className="min-h-screen flex items-center justify-center" style={styles.page}>
-      <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <div style={{
+        textAlign: 'center',
+        color: 'rgba(255,255,255,0.3)',
+        fontFamily: "'Inter', system-ui, sans-serif",
+      }}>
         <div style={{ fontSize: '32px', marginBottom: '12px' }}>⟳</div>
         <div>Connecting…</div>
-        {state.error && <div style={{ color: '#ff3b5c', marginTop: '8px', fontSize: '13px' }}>{state.error}</div>}
+        {state.error && (
+          <div style={{ color: '#ff3b5c', marginTop: '8px', fontSize: '13px' }}>
+            {state.error}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -553,15 +618,15 @@ export const EliminationGamePage: React.FC = () => {
 
 // ─── Round instructions ───────────────────────────────────────────────────────
 const ROUND_INSTRUCTIONS: Record<string, string> = {
-  true_centre:    'Tap the exact centre of the shape',
-  midpoint_split: 'Tap the exact midpoint between A and B',
-  stop_the_bar:   'Tap STOP when the marker hits the target',
-  draw_angle:     'Drag the line to match the target angle',
-  flash_grid:     'Tap the cells that lit up',
-  quick_count:    'Enter how many dots you saw',
-  flash_maths:    'Enter the total of all numbers shown',
-  line_length:    'Drag to match the reference line length',
-  balance_point:  'Tap where the beam would balance',
+  true_centre:      'Tap the exact centre of the shape',
+  midpoint_split:   'Tap the exact midpoint between A and B',
+  stop_the_bar:     'Tap STOP when the marker hits the target',
+  draw_angle:       'Drag the line to match the target angle',
+  flash_grid:       'Tap the cells that lit up',
+  quick_count:      'Enter how many dots you saw',
+  flash_maths:      'Enter the total of all numbers shown',
+  line_length:      'Drag to match the reference line length',
+  balance_point:    'Tap where the beam would balance',
   pattern_align:    'Move and rotate the shape to match the target',
   sequence_gap:     'What number is missing from the sequence?',
   colour_count:     'Count the target colour shapes',
@@ -624,7 +689,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: "'Inter', system-ui, sans-serif",
     letterSpacing: '0.03em',
     borderBottom: '1px solid rgba(255,255,255,0.05)',
-   
   },
   roundEyebrow: {
     fontSize: '11px',

@@ -11,6 +11,7 @@ export function Header() {
   const [mobileQuizOpen, setMobileQuizOpen] = useState(false);
   const [mobilePricingOpen, setMobilePricingOpen] = useState(false);
   const [mobileCampaignsOpen, setMobileCampaignsOpen] = useState(false);
+  const [mobileWeb3Open, setMobileWeb3Open] = useState(false);
 
   const { isAuthenticated, user, club, logout } = useAuth();
 
@@ -28,8 +29,15 @@ export function Header() {
   // Routes
   const ROUTES = {
     // Campaigns
-    impactCampaign: '/web3/impact-campaign',
     clubsLeague: '/campaigns/clubs-league',
+
+    // Web3 Fundraising
+    web3Overview: '/web3',
+    web3Quiz: '/web3/quiz',
+    web3Elimination: '/web3/elimination',
+    web3Features: '/web3/features',
+    web3Partners: '/web3/partners',
+    web3Testimonials: '/web3/testimonials',
 
     pricing: '/pricing',
     foundingPartner: '/founding-partners',
@@ -51,7 +59,7 @@ export function Header() {
 
   // Page flags
   const onFreeTrial = isCurrent(ROUTES.freeTrial);
-  const onCampaigns = isCurrent(ROUTES.impactCampaign) || isCurrent(ROUTES.clubsLeague);
+ 
 
   return (
     <header className="bg-white/90 fixed inset-x-0 top-0 z-50 shadow-sm backdrop-blur-sm">
@@ -109,6 +117,8 @@ export function Header() {
             </div>
           </div>
 
+     
+
           {/* Pricing (dropdown with Founding Partners + Pricing) */}
           <div className="relative group">
             <button
@@ -148,11 +158,6 @@ export function Header() {
 
             <div className="invisible absolute left-0 top-full w-72 rounded-lg border border-gray-100 bg-white py-2 opacity-0 shadow-lg transition-all duration-150 group-hover:visible group-hover:opacity-100">
               <div className="flex flex-col">
-                {hideIfCurrent(ROUTES.impactCampaign) && (
-                  <Link to={ROUTES.impactCampaign} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                    Web3 Impact Campaign
-                  </Link>
-                )}
                 {hideIfCurrent(ROUTES.clubsLeague) && (
                   <Link to={ROUTES.clubsLeague} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
                     Junior Clubs Fundraising Quiz League
@@ -175,6 +180,52 @@ export function Header() {
               Login
             </Link>
           )}
+
+               {/* Web3 Fundraising (dropdown) */}
+          <div className="relative group">
+            <button
+              className="flex items-center gap-1 text-sm font-medium text-indigo-700 hover:text-indigo-900"
+              aria-haspopup="true"
+              aria-expanded="false"
+            >
+              Web3 Hub
+              <ChevronDown className="h-4 w-4" />
+            </button>
+            <div className="invisible absolute left-0 top-full w-72 rounded-lg border border-gray-100 bg-white py-2 opacity-0 shadow-lg transition-all duration-150 group-hover:visible group-hover:opacity-100">
+              <div className="flex flex-col">
+                {hideIfCurrent(ROUTES.web3Overview) && (
+                  <Link to={ROUTES.web3Overview} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                    Overview
+                  </Link>
+                )}
+                {hideIfCurrent(ROUTES.web3Quiz) && (
+                  <Link to={ROUTES.web3Quiz} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                    Web3 Quiz
+                  </Link>
+                )}
+                {hideIfCurrent(ROUTES.web3Elimination) && (
+                  <Link to={ROUTES.web3Elimination} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                    Web3 Elimination
+                  </Link>
+                )}
+                {hideIfCurrent(ROUTES.web3Features) && (
+                  <Link to={ROUTES.web3Features} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                    Crypto-Powered Features
+                  </Link>
+                )}
+                {hideIfCurrent(ROUTES.web3Partners) && (
+                  <Link to={ROUTES.web3Partners} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                    Web3 Fundraising Partners
+                  </Link>
+                )}
+                {hideIfCurrent(ROUTES.web3Testimonials) && (
+                  <Link to={ROUTES.web3Testimonials} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                    Crypto Fundraising Testimonials
+                  </Link>
+                )}
+              </div>
+            </div>
+          </div>
 
           {/* Auth-dependent action */}
           {isAuthenticated ? (
@@ -286,6 +337,74 @@ export function Header() {
               </div>
             )}
 
+            {/* Web3 Fundraising accordion */}
+            <button
+              onClick={() => setMobileWeb3Open((v) => !v)}
+              className="flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-sm font-medium text-indigo-700 hover:bg-indigo-50"
+              aria-expanded={mobileWeb3Open}
+            >
+              <span>Web3 Fundraising</span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${mobileWeb3Open ? 'rotate-180' : ''}`} />
+            </button>
+            {mobileWeb3Open && (
+              <div className="ml-2 flex flex-col">
+                {hideIfCurrent(ROUTES.web3Overview) && (
+                  <Link
+                    to={ROUTES.web3Overview}
+                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Overview
+                  </Link>
+                )}
+                {hideIfCurrent(ROUTES.web3Quiz) && (
+                  <Link
+                    to={ROUTES.web3Quiz}
+                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Web3 Quiz
+                  </Link>
+                )}
+                {hideIfCurrent(ROUTES.web3Elimination) && (
+                  <Link
+                    to={ROUTES.web3Elimination}
+                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Web3 Elimination
+                  </Link>
+                )}
+                {hideIfCurrent(ROUTES.web3Features) && (
+                  <Link
+                    to={ROUTES.web3Features}
+                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Crypto-Powered Features
+                  </Link>
+                )}
+                {hideIfCurrent(ROUTES.web3Partners) && (
+                  <Link
+                    to={ROUTES.web3Partners}
+                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Web3 Fundraising Partners
+                  </Link>
+                )}
+                {hideIfCurrent(ROUTES.web3Testimonials) && (
+                  <Link
+                    to={ROUTES.web3Testimonials}
+                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Crypto Fundraising Testimonials
+                  </Link>
+                )}
+              </div>
+            )}
+
             {/* Pricing accordion */}
             <button
               onClick={() => setMobilePricingOpen((v) => !v)}
@@ -329,15 +448,6 @@ export function Header() {
             </button>
             {mobileCampaignsOpen && (
               <div className="ml-2 flex flex-col">
-                {hideIfCurrent(ROUTES.impactCampaign) && (
-                  <Link
-                    to={ROUTES.impactCampaign}
-                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Web3 Impact Campaign
-                  </Link>
-                )}
                 {hideIfCurrent(ROUTES.clubsLeague) && (
                   <Link
                     to={ROUTES.clubsLeague}

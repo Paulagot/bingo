@@ -18,27 +18,51 @@ import { applyEliminations, determineWinner } from './eliminationEliminationServ
 import { delay } from '../utils/eliminationTimers.js';
 import {
   GAME_RULES,
-  DEFAULT_ROUND_SEQUENCE,
   ALL_ROUND_TYPES,
   SERVER_EVENTS,
   TIMING,
   ELIMINATION_SCHEDULE,
-  ROUND_7_TARGET_FINALISTS,
 } from '../utils/eliminationConstants.js';
+
+// ─── Wait for web3 finalize confirmation ─────────────────────────────────────
+// Polls room.settled every 5 seconds, up to 15 minutes.
+// Returns true if settled, false if timed out.
+const waitForFinalize = async (roomId) => {
+  const MAX_WAIT_MS = 15 * 60 * 1000;  // 15 minutes
+  const POLL_INTERVAL_MS = 5000;        // check every 5 seconds
+  let waited = 0;
+
+  console.log(`[Elimination] Web3 room ${roomId} — waiting for finalize_game tx...`);
+
+  while (waited < MAX_WAIT_MS) {
+    await delay(POLL_INTERVAL_MS);
+    waited += POLL_INTERVAL_MS;
+
+    const room = getRoom(roomId);
+
+    // Room already deleted or settled
+    if (!room) return true;
+    if (room.settled) {
+      console.log(`[Elimination] Room ${roomId} finalized after ${waited / 1000}s`);
+      return true;
+    }
+
+    // Log progress every minute
+    if (waited % 60000 === 0) {
+      console.log(`[Elimination] Still waiting for finalize on room ${roomId} (${waited / 1000}s elapsed)`);
+    }
+  }
+
+  console.warn(`[Elimination] Room ${roomId} not finalized after 15 minutes — forcing cleanup`);
+  return false;
+};
 
 /**
  * Start the game for a room.
- * Locks the player list, builds the round type sequence, then runs the game loop.
- *
- * @param {string} roomId
- * @param {Function} emit   - fn(event, payload) — broadcasts to the room
  */
 export const startGame = async (roomId, emit) => {
-  // Build a randomised 8-round sequence — no type appears more than once.
-  // We have 10 types and only need 8, so just shuffle and take first 8.
   const buildRoundSequence = () => {
     const pool = [...ALL_ROUND_TYPES];
-    // Fisher-Yates shuffle
     for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [pool[i], pool[j]] = [pool[j], pool[i]];
@@ -47,9 +71,7 @@ export const startGame = async (roomId, emit) => {
   };
 
   const roundTypeSequence = buildRoundSequence();
-
-  // We'll store round IDs here; but startRoom takes type sequence for now
-  const room = startRoom(roomId, []); // will fill roundSequence below
+  const room = startRoom(roomId, []);
   if (!room) throw new Error('Failed to start room');
 
   emit(SERVER_EVENTS.GAME_STARTED, {
@@ -62,32 +84,28 @@ export const startGame = async (roomId, emit) => {
   });
 
   // ─── Round Loop ────────────────────────────────────────────────────────────
-  let lastShape = null; // track last shape to avoid repeats in True Centre
+  let lastShape = null;
+
   for (let i = 0; i < GAME_RULES.TOTAL_ROUNDS; i++) {
     const roundNumber = i + 1;
     const roundType = roundTypeSequence[i];
-
-    // Difficulty increases gently each round
     const difficulty = 1 + (roundNumber - 1) * 0.15;
 
-    // Create round state
     const roundState = createRound(roomId, roundNumber, roundType, difficulty, lastShape);
-    // Track shape so next True Centre round picks a different one
     if (roundState.generatedConfig?.shapeType) {
       lastShape = roundState.generatedConfig.shapeType;
     }
     const { roundId } = roundState;
 
-    // Track round ID in room sequence
     room.roundSequence.push(roundId);
     room.activeRoundIndex = i;
 
     // ── INTRO ────────────────────────────────────────────────────────────────
     const activeCount = getActivePlayers(roomId).length;
 
-    // Calculate how many will be eliminated this round
     let eliminationCount = 0;
     let eliminationMode = 'none';
+
     if (roundNumber <= 2) {
       eliminationCount = 0;
       eliminationMode = 'none';
@@ -131,9 +149,8 @@ export const startGame = async (roomId, emit) => {
       endsAt: activeState.endsAt,
     });
 
-    // Wait for round timer to expire, plus a grace period for network lag
     await delay(activeState.generatedConfig.durationMs);
-    await delay(1500); // 1.5s grace — lets late submissions arrive before scoring
+    await delay(1500);
 
     // ── SCORING ──────────────────────────────────────────────────────────────
     const rankedResults = closeAndScoreRound(roomId, roundId);
@@ -142,26 +159,23 @@ export const startGame = async (roomId, emit) => {
     const eliminatedThisRound = applyEliminations(roomId, roundNumber, rankedResults);
     recordRoundEliminations(roomId, roundId, eliminatedThisRound);
 
-    // Annotate results with survived flag
     const resultPayload = rankedResults.map((r) => ({
       ...r,
       survived: !eliminatedThisRound.includes(r.playerId),
     }));
 
-    // ── PHASE 1: REVEAL — show correct answer + each player's answer ─────────
-    // Emit reveal data per player so each client can show their own result
+    // ── REVEAL ───────────────────────────────────────────────────────────────
     emit(SERVER_EVENTS.ROUND_REVEAL, {
       roundId,
       roundNumber,
       roundType,
-      results: resultPayload,        // includes revealData per player
+      results: resultPayload,
       revealDurationMs: TIMING.REVEAL_DURATION_MS,
     });
 
-    // Server waits the full reveal duration before broadcasting scores
     await delay(TIMING.REVEAL_DURATION_MS);
 
-    // ── PHASE 2: RESULTS — scores and leaderboard ─────────────────────────────
+    // ── RESULTS ───────────────────────────────────────────────────────────────
     emit(SERVER_EVENTS.ROUND_RESULTS, {
       roundId,
       roundNumber,
@@ -178,7 +192,7 @@ export const startGame = async (roomId, emit) => {
 
     completeRound(roomId, roundId);
 
-    // ── FINAL ROUND? ─────────────────────────────────────────────────────────
+    // ── FINAL ROUND ───────────────────────────────────────────────────────────
     if (roundNumber === GAME_RULES.TOTAL_ROUNDS) {
       const activePlayers = getActivePlayers(roomId);
       const currentRoom = getRoom(roomId);
@@ -193,6 +207,7 @@ export const startGame = async (roomId, emit) => {
       endRoom(roomId, winnerId);
 
       const winner = currentRoom.players[winnerId];
+
       emit(SERVER_EVENTS.WINNER_DECLARED, {
         winnerId,
         winnerName: winner?.name ?? 'Unknown',
@@ -200,12 +215,25 @@ export const startGame = async (roomId, emit) => {
         roomSnapshot: getRoomSnapshot(roomId),
       });
 
-      // Wait for winner screen auto-close (60s) then emit ROOM_ENDED and clean up
-      await delay(62000);
-      emit(SERVER_EVENTS.ROOM_ENDED, { roomId, reason: 'game_complete' });
-      deleteRoom(roomId);
+      // ── Web3 rooms: wait for finalize_game tx before cleanup ──────────────
+      const roomAfterWin = getRoom(roomId);
+      const isWeb3Room = roomAfterWin?.paymentMode === 'web3';
 
-      return; // game over
+  if (isWeb3Room) {
+  await delay(5000);
+  await waitForFinalize(roomId);
+} else {
+  await delay(62000);
+}
+
+// Emit ROOM_ENDED and give clients time to receive it before deleting
+emit(SERVER_EVENTS.ROOM_ENDED, { roomId, reason: 'game_complete' });
+console.log(`[Elimination] ROOM_ENDED emitted for ${roomId} — waiting 3s before cleanup`);
+await delay(3000);  // ← give clients time to receive the event
+deleteRoom(roomId);
+console.log(`[Elimination] Room ${roomId} deleted`);
+
+      return;
     }
 
     // ── TRANSITION TO NEXT ROUND ─────────────────────────────────────────────

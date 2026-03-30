@@ -1,7 +1,7 @@
 // src/pages/web3fundraiser.tsx
 import React, { useState, useCallback } from 'react';
 import { Globe, Heart, Users, DollarSign, CheckCircle, ArrowRight, Sparkles, Shield, Zap } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+
 import { SEO } from '../components/SEO';
 import Web3QuizWizard from '../components/Quiz/Wizard/Web3QuizWizard';
 import { JoinRoomFlow } from '../components/Quiz/joinroom/JoinRoomFlow.tsx';
@@ -22,8 +22,8 @@ const FundraisingLaunchPage: React.FC = () => {
   const [showWeb3Wizard, setShowWeb3Wizard] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [selectedChain, setSelectedChain] = useState<SupportedChain | null>(null);
-  const [detectedChain, setDetectedChain] = useState<SupportedChain | null>(null);
-  const navigate = useNavigate();
+  const [_detectedChain, setDetectedChain] = useState<SupportedChain | null>(null);
+
 
   // Web3 Quiz handlers
   const handleWeb3WizardComplete = () => {

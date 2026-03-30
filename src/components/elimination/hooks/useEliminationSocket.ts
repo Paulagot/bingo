@@ -23,6 +23,7 @@ interface UseEliminationSocketOptions {
   onNextRound: (data: { nextRoundNumber: number; transitionDelayMs: number }) => void;
   onWinnerDeclared: (data: WinnerPayload) => void;
   onRoomEnded: () => void;
+  onRoomCancelled: () => void;  // ← add this
   onError: (data: { message: string }) => void;
 }
 
@@ -51,6 +52,7 @@ export const useEliminationSocket = (options: UseEliminationSocketOptions) => {
       onWinnerDeclared:      (d: WinnerPayload)         => optionsRef.current.onWinnerDeclared(d),
       onRoomEnded:           ()                        => optionsRef.current.onRoomEnded(),
       onError:               (d: { message: string })  => optionsRef.current.onError(d),
+      onRoomCancelled:       ()                        => optionsRef.current.onRoomCancelled?.(),
     };
 
     socket.on('elimination_room_state',          handlers.onRoomState);
@@ -66,6 +68,7 @@ export const useEliminationSocket = (options: UseEliminationSocketOptions) => {
     socket.on('elimination_winner_declared',     handlers.onWinnerDeclared);
     socket.on('elimination_room_ended',          handlers.onRoomEnded);
     socket.on('elimination_error',               handlers.onError);
+    socket.on('elimination_room_cancelled', handlers.onRoomCancelled);
 
     return () => {
       socket.off('elimination_room_state',          handlers.onRoomState);
@@ -81,6 +84,7 @@ export const useEliminationSocket = (options: UseEliminationSocketOptions) => {
       socket.off('elimination_winner_declared',     handlers.onWinnerDeclared);
       socket.off('elimination_room_ended',          handlers.onRoomEnded);
       socket.off('elimination_error',               handlers.onError);
+      socket.off('elimination_room_cancelled', handlers.onRoomCancelled);
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 };

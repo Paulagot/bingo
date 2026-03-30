@@ -18,7 +18,24 @@ const rooms = new Map();
  * @param {{ hostId: string, hostName: string, hostSocketId: string }} opts
  * @returns {Object} room
  */
-export const createRoom = ({ hostId, hostName, hostSocketId }) => {
+export const createRoom = ({
+  hostId,
+  hostName,
+  hostSocketId,
+  // ── web3 fields (all optional — null for web2 rooms) ──
+  paymentMode = 'web2',       // 'web2' | 'web3'
+  web3Chain = null,           // 'solana' | 'evm'
+  solanaCluster = null,       // 'devnet' | 'mainnet'
+  feeMint = null,             // token mint pubkey string
+  entryFee = null,            // number in token base units
+  roomPda = null,             // on-chain room PDA address string
+  hostWallet = null,          // host's wallet pubkey string
+  charityOrgId = null,        // TGB org ID (resolved to wallet at finalize)
+  charityName = null, 
+  evmChain = null,            // for future EVM support
+  evmContractAddress = null,  // for future EVM support
+   onChainRoomId = null,  
+}) => {
   const roomId = generateRoomId();
 
   const room = {
@@ -27,16 +44,31 @@ export const createRoom = ({ hostId, hostName, hostSocketId }) => {
     hostName,
     hostSocketId,
     status: ROOM_STATUS.WAITING,
-    players: {},                // playerId → player object
+    players: {},
     activeRoundIndex: -1,
     totalRounds: GAME_RULES.TOTAL_ROUNDS,
-    roundSequence: [],          // array of round type strings
-    rounds: {},                 // roundId → round state
+    roundSequence: [],
+    rounds: {},
     eliminatedPlayerIds: [],
     winnerPlayerId: null,
     createdAt: isoNow(),
     startedAt: null,
     endedAt: null,
+    
+
+    // ── web3 fields ──────────────────────────────────────
+    paymentMode,
+    web3Chain,
+    solanaCluster,
+    feeMint,
+    entryFee,
+    roomPda,
+    hostWallet,
+    charityOrgId,
+    evmChain,
+    charityName,
+    evmContractAddress,
+     onChainRoomId,
   };
 
   rooms.set(roomId, room);
@@ -64,7 +96,7 @@ export const getAllRooms = () => [...rooms.values()];
  * Add a new player to a waiting room.
  * @returns {{ room: Object, player: Object }} or throws if room full / not waiting.
  */
-export const addPlayer = (roomId, { name, socketId }) => {
+export const addPlayer = (roomId, { name, socketId, txSignature = null, walletAddress = null }) => {
   const room = getRoom(roomId);
   if (!room) throw new Error('Room not found');
   if (room.status !== ROOM_STATUS.WAITING)
@@ -83,8 +115,10 @@ export const addPlayer = (roomId, { name, socketId }) => {
     joinedAt: isoNow(),
     lastSeenAt: isoNow(),
     cumulativeScore: 0,
-    roundScores: {},            // roundNumber → score
+    roundScores: {},
     hasSubmittedCurrentRound: false,
+    txSignature: txSignature,
+    walletAddress: walletAddress,
   };
 
   room.players[playerId] = player;
@@ -270,6 +304,18 @@ export const getRoomSnapshot = (roomId) => {
     createdAt: room.createdAt,
     startedAt: room.startedAt,
     endedAt: room.endedAt,
+
+    // ── web3 fields — needed by join page to detect mode ──
+    paymentMode: room.paymentMode,
+    web3Chain: room.web3Chain,
+    solanaCluster: room.solanaCluster,
+    feeMint: room.feeMint,
+    entryFee: room.entryFee,
+    roomPda: room.roomPda,
+    hostWallet: room.hostWallet,
+    charityOrgId: room.charityOrgId,
+    onChainRoomId: room.onChainRoomId, 
+     charityName: room.charityName,
   };
 };
 

@@ -1,5 +1,6 @@
 /**
  * Solana Contract Configuration
+ * src/chains/solana/config/contracts.ts
  * 
  * Defines the quiz_core program for Solana fundraising rooms.
  * Unlike EVM which has separate factory contracts for pool and asset rooms,
