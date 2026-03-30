@@ -1,14 +1,25 @@
-import type React from 'react';
+import React from 'react';
 import { SEO } from '../../components/SEO';
-import { Header } from '../../components/GeneralSite2/Header';
-import SiteFooter from '../../components/GeneralSite2/SiteFooter';
-import { Link } from 'react-router-dom';
-import { Sparkles, ArrowRight, ExternalLink } from 'lucide-react';
+import { Web3Header } from '../../components/GeneralSite2/Web3Header';
 
-/** Absolute URL helpers */
+import {
+
+  ExternalLink,
+  HeartHandshake,
+  Globe,
+  Users,
+  Zap,
+  BadgeCheck,
+  MessageCircle,
+  Trophy,
+  Crosshair,
+  Target,
+} from 'lucide-react';
+
+/* -------------------------------------------------------------------------- */
+/* URL helpers                                                                  */
+/* -------------------------------------------------------------------------- */
 function getOrigin(): string {
-  const env = (import.meta as any)?.env?.VITE_SITE_ORIGIN as string | undefined;
-  if (env) return env.replace(/\/$/, '');
   if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin.replace(/\/$/, '');
   return 'https://fundraisely.ie';
 }
@@ -17,179 +28,156 @@ function abs(path: string) {
   return `${getOrigin()}${p}`;
 }
 
-/** Respect Vite's base for assets served from /public */
 const BASE_URL = (import.meta as any)?.env?.BASE_URL ?? '/';
 const withBase = (p: string) => `${BASE_URL}${p.replace(/^\/+/, '')}`;
 
+/* -------------------------------------------------------------------------- */
+/* Design tokens (identical to Web3 index and features)                        */
+/* bg-[#0a0e14]   near-black base                                              */
+/* bg-[#0f1520]   card surface                                                 */
+/* border-[#1e2d42] subtle grid lines                                          */
+/* text-[#a3f542]  acid green                                                  */
+/* text-[#6ef0d4]  teal (charity)                                              */
+/* -------------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------------- */
+/* Shared components                                                            */
+/* -------------------------------------------------------------------------- */
+const W3Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <div className={`rounded-2xl border border-[#1e2d42] bg-[#0f1520] p-6 ${className}`}>{children}</div>
+);
+
+const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <span className="inline-flex items-center gap-2 rounded-full border border-[#a3f542]/30 bg-[#a3f542]/10 px-4 py-1.5 font-mono text-sm font-semibold uppercase tracking-widest text-[#a3f542]">
+    {children}
+  </span>
+);
+
+/* -------------------------------------------------------------------------- */
+/* Partner types                                                                */
+/* -------------------------------------------------------------------------- */
 type Partner = {
   name: string;
   href?: string;
-  imgSrc: string; // path relative to /public (e.g., 'partner/glo.svg')
+  imgSrc: string;
   imgAlt?: string;
   tagline?: string;
 };
 
-type LogoGridProps = {
+/* -------------------------------------------------------------------------- */
+/* Logo card                                                                    */
+/* -------------------------------------------------------------------------- */
+const PartnerCard: React.FC<{
+  partner: Partner;
+  large?: boolean;
+}> = ({ partner, large = false }) => {
+  const inner = (
+    <div className="group relative flex h-full flex-col items-center justify-center rounded-2xl border border-[#1e2d42] bg-[#0f1520] p-6 transition-all duration-300 hover:border-[#a3f542]/30 hover:bg-[#141c2b]">
+      <div className={`mb-4 flex w-full items-center justify-center ${large ? 'min-h-[120px]' : 'min-h-[72px]'}`}>
+        <img
+          src={withBase(partner.imgSrc)}
+          alt={partner.imgAlt ?? partner.name}
+          loading="lazy"
+          width={220}
+          height={100}
+          className={`w-auto object-contain ${large ? 'max-h-28 max-w-[320px]' : 'max-h-16 max-w-[180px]'}`}
+          onError={e => {
+            (e.currentTarget as HTMLImageElement).style.opacity = '0.3';
+          }}
+        />
+      </div>
+      <div className="text-center">
+        <p className="font-mono text-sm font-bold text-white">{partner.name}</p>
+        {partner.tagline && (
+          <p className="mt-1 text-xs leading-relaxed text-white/40 whitespace-pre-line">{partner.tagline}</p>
+        )}
+      </div>
+      {partner.href && (
+        <ExternalLink className="absolute right-3 top-3 h-3.5 w-3.5 text-[#a3f542]/40 opacity-0 transition-opacity group-hover:opacity-100" />
+      )}
+    </div>
+  );
+
+  if (partner.href) {
+    return (
+      <a href={partner.href} target="_blank" rel="noreferrer" aria-label={`${partner.name} partner link`} className="block h-full">
+        {inner}
+      </a>
+    );
+  }
+  return <div className="h-full">{inner}</div>;
+};
+
+/* -------------------------------------------------------------------------- */
+/* Logo grid section                                                            */
+/* -------------------------------------------------------------------------- */
+const PartnerGrid: React.FC<{
+  label: React.ReactNode;
   title: string;
   blurb?: string;
   partners: Partner[];
-  /** Tailwind grid cols override */
-  gridClassName?: string;
-  /** Logo sizing overrides */
-  logoClassName?: string;
-  /** Card padding overrides */
-  cardClassName?: string;
-  /** Use a “logo stage” wrapper (used for featured charity grid only) */
-  useLogoStage?: boolean;
-  /** Max width classes (featured charity grid only) */
-  logoMaxWidthClassName?: string;
-};
-
-function LogoGrid({
-  title,
-  blurb,
-  partners,
-  gridClassName,
-  logoClassName,
-  cardClassName,
-  useLogoStage = false,
-  logoMaxWidthClassName,
-}: LogoGridProps) {
-  return (
-    <section className="mt-12">
-      <h2 className="text-indigo-900 text-3xl font-bold mb-4">{title}</h2>
-      {blurb && <p className="text-indigo-900/70 text-lg mb-6 max-w-3xl">{blurb}</p>}
-
-      <div
-        className={gridClassName ?? 'grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'}
-        aria-label={`${title} logos`}
-      >
-        {partners.map((p) => {
-          const imgEl = (
-            <img
-              src={withBase(p.imgSrc)}
-              alt={p.imgAlt || p.name}
-              loading="lazy"
-              width={220}
-              height={100}
-              className={[
-                // ✅ ORIGINAL behavior for non-featured grids
-                'w-auto object-contain mb-4',
-                // Default original size (matches your first version)
-                logoClassName ?? 'h-16',
-                // Optional max width (used only for featured charity grid)
-                logoMaxWidthClassName ?? '',
-              ].join(' ')}
-              onError={(e) => {
-                // Quick visual hint if path/case is wrong
-                (e.currentTarget as HTMLImageElement).style.display = 'none';
-                const fallback = document.createElement('div');
-                fallback.textContent = '⚠️ image not found';
-                fallback.style.fontSize = '12px';
-                fallback.style.color = '#b91c1c';
-                e.currentTarget.parentElement?.appendChild(fallback);
-              }}
-            />
-          );
-
-          const card = (
-            <div
-              className={[
-                'group relative rounded-2xl border border-gray-100 bg-white p-6 shadow-sm hover:shadow-lg transition-all duration-300 h-full',
-                'flex flex-col items-center justify-center',
-                cardClassName ?? '',
-              ].join(' ')}
-            >
-              {/* ✅ Only charities get the “logo stage” wrapper */}
-              {useLogoStage ? (
-                <div className="w-full flex items-center justify-center mb-5">{imgEl}</div>
-              ) : (
-                imgEl
-              )}
-
-              <div className="text-center">
-                <div className="text-indigo-900 font-bold mb-1">{p.name}</div>
-                {p.tagline && (
-                  <div className="text-indigo-800/70 text-sm leading-relaxed whitespace-pre-line">
-                    {p.tagline}
-                  </div>
-                )}
-              </div>
-
-              {p.href && (
-                <ExternalLink className="absolute top-3 right-3 h-4 w-4 text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-              )}
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/0 to-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-            </div>
-          );
-
-          return (
-            <div key={p.name} className="h-full">
-              {p.href ? (
-                <a
-                  href={p.href}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label={`${p.name} partner link`}
-                  className="block h-full"
-                >
-                  {card}
-                </a>
-              ) : (
-                card
-              )}
-            </div>
-          );
-        })}
+  cols?: string;
+  large?: boolean;
+}> = ({ label, title, blurb, partners, cols = 'sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4', large = false }) => (
+  <section className="relative z-10 py-12">
+    <div className="container mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+      <div className="mb-8 text-center">
+        <SectionLabel>{label}</SectionLabel>
+        <h2 className="mt-4 font-mono text-3xl font-bold text-white">{title}</h2>
+        {blurb && <p className="mx-auto mt-3 max-w-2xl text-white/50">{blurb}</p>}
       </div>
-    </section>
-  );
-}
+      <div className={`grid gap-4 ${cols}`}>
+        {partners.map(p => (
+          <PartnerCard key={p.name} partner={p} large={large} />
+        ))}
+      </div>
+    </div>
+  </section>
+);
 
+/* -------------------------------------------------------------------------- */
+/* Page                                                                         */
+/* -------------------------------------------------------------------------- */
 const Web3Partners: React.FC = () => {
-  // ✅ Featured Verified Charity Partners
+
   const verifiedCharities: Partner[] = [
     {
       name: 'Identity Theft Resource Center (ITRC)',
       href: 'https://www.idtheftcenter.org/',
       imgSrc: 'partner/ITRCLogo.jpg',
       tagline:
-        'Your life, your identity.\nThe ITRC, a non-profit founded in 1999, supports victims of identity theft, fraud, and scams and offers identity protection education — free of charge. Web3 is still full of scams, we get the need for this.',
+        'Your life, your identity.\nThe ITRC, a non-profit founded in 1999, supports victims of identity theft, fraud, and scams and offers identity protection education — free of charge.',
     },
     {
       name: 'CLEAN International',
       href: 'https://cleaninternational.org/',
       imgSrc: 'partner/Clean_international.png',
       tagline:
-        'Protecting and providing water worldwide\nFocused on water stressed regions and communities in need, CLEAN International is equipping communities worldwide with the infrastructure needed for sustainable clean water for years to come!',
+        'Protecting and providing water worldwide.\nFocused on water stressed regions and communities in need, CLEAN International is equipping communities worldwide with sustainable clean water infrastructure.',
     },
   ];
 
-  // ✅ Infrastructure (Stellar removed)
   const infra: Partner[] = [
     { name: 'Glo Dollar (GLO)', href: 'https://www.glodollar.org/', imgSrc: 'partner/glo.svg', tagline: 'Impact-aligned stablecoin' },
-    { name: 'The Giving Block', href: 'https://www.thegivingblock.com/', imgSrc: 'partner/thegivingblock.webp', tagline: 'Direct-to-charity routing' },
-    { name: 'Solana', href: 'https://solana.com/', imgSrc: 'partner/Solana-Logo.png', tagline: 'Quiz fundraising contract, Low-fee, high-throughput events' },
-    { name: 'Base (EVM)', href: 'https://base.org/', imgSrc: 'partner/Base_square_blue.svg', tagline: 'Quiz fundraising contract on Base and building Base Mini-app' },
+    { name: 'The Giving Block', href: 'https://www.thegivingblock.com/', imgSrc: 'partner/thegivingblock.webp', tagline: 'Charity verification and direct-to-charity routing' },
+    { name: 'Solana', href: 'https://solana.com/', imgSrc: 'partner/Solana-Logo.png', tagline: 'Smart contract platform for quiz and elimination events' },
+    { name: 'Base (EVM)', href: 'https://base.org/', imgSrc: 'partner/Base_square_blue.svg', tagline: 'Smart contract platform and Base Mini-app' },
   ];
 
-  // ✅ Media (Stellar EU removed)
   const media: Partner[] = [
-    { name: 'Blockleaders', href: 'https://blockleaders.io/', imgSrc: 'partner/blockleaders_logo.jpeg', tagline: 'Coverage & awareness' },
-    { name: 'Superteam Ireland', href: 'https://www.linkedin.com/company/superteam-ireland/', imgSrc: 'partner/superteam_ireland_logo.jpeg', tagline: 'Demos & amplification' },
+    { name: 'Blockleaders', href: 'https://blockleaders.io/', imgSrc: 'partner/blockleaders_logo.jpeg', tagline: 'Coverage and awareness' },
+    { name: 'Superteam Ireland', href: 'https://www.linkedin.com/company/superteam-ireland/', imgSrc: 'partner/superteam_ireland_logo.jpeg', tagline: 'Demos and amplification' },
     { name: 'Base Ireland', href: 'https://x.com/base_ireland', imgSrc: 'partner/base_irelands.jpg', tagline: 'Ecosystem amplification' },
     { name: 'WiBT Women in Blockchain Talks', href: 'https://womeninblockchaintalks.com/', imgSrc: 'partner/wibt.jpg', tagline: 'Ecosystem amplification' },
     { name: 'Glo Dollar (GLO)', href: 'https://www.glodollar.org/', imgSrc: 'partner/glo.svg', tagline: 'Amplification' },
-    { name: 'The Giving Block', href: 'https://www.thegivingblock.com/', imgSrc: 'partner/thegivingblock.webp', tagline: 'Coverage & awareness' },
-    { name: 'Eth Dublin', href: 'https://www.ethdublin.io/', imgSrc: 'partner/ethdublin.jpeg', tagline: 'Believes in the mission ' },
+    { name: 'The Giving Block', href: 'https://www.thegivingblock.com/', imgSrc: 'partner/thegivingblock.webp', tagline: 'Coverage and awareness' },
+    { name: 'Eth Dublin', href: 'https://www.ethdublin.io/', imgSrc: 'partner/ethdublin.jpeg', tagline: 'Believes in the mission' },
   ];
 
-  // ✅ Early backers (Stellar EU removed)
   const earlyBackers: Partner[] = [
     { name: 'Superteam Ireland', href: 'https://www.linkedin.com/company/superteam-ireland/', imgSrc: 'partner/superteam_ireland_logo.jpeg', tagline: 'Powering product velocity' },
   ];
 
-  // JSON-LD Structured Data
   const breadcrumbsJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -203,18 +191,18 @@ const Web3Partners: React.FC = () => {
   const collectionPageJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'CollectionPage',
-    name: 'Web3 Fundraising Partners — Wallets, Chains, Bridges & Charity Rails | FundRaisely',
+    name: 'Web3 Fundraising Partners: Verified Charities, Infrastructure and Community | FundRaisely',
     description:
-      "Meet the partners powering FundRaisely: verified charity partners for the Web3 Impact Campaign, plus infrastructure and community partners including The Giving Block, Glo Dollar, Solana, and Base.",
+      'Meet the partners behind FundRaisely: verified charities, blockchain infrastructure on Solana and Base, The Giving Block for charity verification, and media and community partners across the Web3 ecosystem.',
     url: abs('/web3/partners'),
     hasPart: [
       {
         '@type': 'ItemList',
-        name: 'Impact Campaign Verified Charity Partners',
+        name: 'Verified Charity Partners',
         itemListElement: verifiedCharities.map((p, i) => ({
           '@type': 'ListItem',
           position: i + 1,
-          item: { '@type': 'Organization', name: p.name, url: p.href || undefined },
+          item: { '@type': 'Organization', name: p.name, url: p.href },
         })),
       },
       {
@@ -223,203 +211,258 @@ const Web3Partners: React.FC = () => {
         itemListElement: infra.map((p, i) => ({
           '@type': 'ListItem',
           position: i + 1,
-          item: { '@type': 'Organization', name: p.name, url: p.href || undefined },
+          item: { '@type': 'Organization', name: p.name, url: p.href },
         })),
       },
       {
         '@type': 'ItemList',
-        name: 'Media & Community Partners',
+        name: 'Media and Community Partners',
         itemListElement: media.map((p, i) => ({
           '@type': 'ListItem',
           position: i + 1,
-          item: { '@type': 'Organization', name: p.name, url: p.href || undefined },
-        })),
-      },
-      {
-        '@type': 'ItemList',
-        name: 'Early Backers',
-        itemListElement: earlyBackers.map((p, i) => ({
-          '@type': 'ListItem',
-          position: i + 1,
-          item: { '@type': 'Organization', name: p.name, url: p.href || undefined },
+          item: { '@type': 'Organization', name: p.name, url: p.href },
         })),
       },
     ],
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
+    <div className="min-h-screen w-full overflow-x-hidden bg-[#0a0e14]">
+
+      {/* Grid texture */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-0"
+        style={{
+          backgroundImage:
+            'linear-gradient(rgba(163,245,66,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(163,245,66,0.03) 1px, transparent 1px)',
+          backgroundSize: '48px 48px',
+        }}
+      />
+
       <SEO
-        title="Web3 Fundraising Partners — Wallets, Chains, Bridges & Charity Rails | FundRaisely"
-        description="Meet FundRaisely’s partners powering Web3 fundraising: verified charity partners for the ʼ26 Web3 Impact Campaign, plus infrastructure and community partners including The Giving Block, Glo Dollar, Solana, and Base."
-        keywords="web3 partners, crypto fundraising infrastructure, blockchain charity partners, solana, base, the giving block, glo dollar, verified charity partners, impact campaign"
+        title="Web3 Fundraising Partners: Verified Charities, Infrastructure and Community | FundRaisely"
+        description="Meet the partners behind FundRaisely: verified charities, blockchain infrastructure on Solana and Base, The Giving Block for charity verification, and media and community partners."
+        keywords="web3 partners, crypto fundraising, blockchain charity, solana, base, the giving block, glo dollar, verified charities, web3 fundraising platform"
         structuredData={[breadcrumbsJsonLd, collectionPageJsonLd]}
         domainStrategy="geographic"
       />
 
-      <Header />
+      <Web3Header />
 
-      {/* Hero Section */}
-      <section className="relative px-4 pt-12 pb-8">
-        <div className="absolute -left-10 -top-10 h-32 w-32 rounded-full bg-purple-300/30 blur-2xl" />
-        <div className="absolute -right-10 top-20 h-40 w-40 rounded-full bg-indigo-300/30 blur-2xl" />
+      {/* ================================================================== */}
+      {/* Hero                                                                 */}
+      {/* ================================================================== */}
+      <section className="relative z-10 pb-12 pt-16">
+        <div className="container mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col items-center text-center">
+            <SectionLabel><Globe className="h-4 w-4" /> Ecosystem Partners</SectionLabel>
 
-        <div className="container relative z-10 mx-auto max-w-6xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full bg-purple-100 px-3 py-1 text-purple-700 text-sm font-medium">
-            <Sparkles className="h-4 w-4" /> Ecosystem Partners
-          </span>
+            <h1 className="mt-6 font-mono text-4xl font-bold leading-tight text-white sm:text-5xl md:text-6xl">
+              The partners that make <br />
+              <span className="text-[#a3f542]">FundRaisely work.</span>
+            </h1>
 
-          <h1 className="mt-4 bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-transparent text-4xl md:text-6xl font-bold">
-            Web3 Fundraising Partners
-          </h1>
-          <p className="mt-2 text-2xl md:text-3xl font-semibold text-indigo-900">
-            Verified Charities, Infrastructure, Media & Community
-          </p>
-
-          <p className="mx-auto mt-4 max-w-3xl text-indigo-900/70 text-lg md:text-xl">
-            FundRaisely is powered by best-in-class Web3 partners. For the ʼ26 Web3 Impact Campaign, funds are routed
-            directly to verified charities via The Giving Block — alongside multi-chain infrastructure and community
-            partners helping us scale transparent impact.
-          </p>
-
-          <div className="mt-7 flex flex-wrap justify-center gap-3">
-            <Link
-              to="/web3/features"
-              className="rounded-xl bg-indigo-700 px-6 py-3 text-white font-semibold shadow-md hover:bg-indigo-800 inline-flex items-center gap-2 transition"
-            >
-              Explore Features <ArrowRight className="h-5 w-5" />
-            </Link>
-            <Link
-              to="/contact"
-              className="rounded-xl bg-white px-6 py-3 text-indigo-700 font-semibold shadow-md hover:bg-indigo-50 inline-flex items-center gap-2 border border-indigo-200 transition"
-            >
-              Become a Partner
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Partner Grids */}
-      <section className="px-4 pt-8 pb-12">
-        <div className="container mx-auto max-w-6xl">
-          {/* ✅ ONLY charities are bigger */}
-          <LogoGrid
-            title="Impact Campaign Verified Charity Partners"
-            blurb="We have partnered with the following verified charities for the ʼ26 Web3 Impact Campaign — all funds are routed directly to the charity via The Giving Block."
-            partners={verifiedCharities}
-            gridClassName="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2"
-            cardClassName="p-8 md:p-10"
-            useLogoStage
-            // Bigger logo just for charities
-            logoClassName="h-28 sm:h-32 md:h-32"
-            // Keep wide logos looking good
-            logoMaxWidthClassName="max-w-[360px]"
-          />
-
-          {/* ✅ Everything else uses ORIGINAL logo size */}
-          <LogoGrid
-            title="Infrastructure Partners"
-            blurb="Wallets, smart contract platforms, bridges, and stablecoins that power FundRaisely's multi-chain fundraising architecture."
-            partners={infra}
-            // original logo size
-            logoClassName="h-16"
-          />
-
-          <LogoGrid
-            title="Media & Community Partners"
-            blurb="Publications, developer communities, and event platforms helping us reach clubs, charities, and on-chain ecosystems."
-            partners={media}
-            // original logo size
-            logoClassName="h-16"
-          />
-
-          <LogoGrid
-            title="Early Backers"
-            blurb="Supporters and advisors who believed in transparent impact early and continue to help us scale."
-            partners={earlyBackers}
-            // original logo size
-            logoClassName="h-16"
-          />
-        </div>
-      </section>
-
-      {/* What Our Partners Enable */}
-      <section className="px-4 pb-12">
-        <div className="container mx-auto max-w-6xl">
-          <div className="rounded-2xl border border-gray-100 bg-gradient-to-br from-indigo-50 to-purple-50 p-8 shadow-sm">
-            <h2 className="text-indigo-900 text-3xl font-bold mb-4">What Our Partners Enable</h2>
-            <div className="space-y-4 text-indigo-800/80 leading-relaxed">
-              <p>
-                FundRaisely is powered by a growing ecosystem of charity, infrastructure, media, and community partners —
-                all committed to making transparent, high-impact fundraising accessible to everyone.
-              </p>
-
-              <p>
-                <strong className="text-indigo-900">Verified Charity Partnerships:</strong> For the ʼ26 Web3 Impact Campaign,
-                funds are routed directly to verified charity partners via{' '}
-                <strong className="text-indigo-900">The Giving Block</strong>, ensuring transparent, direct-to-charity flows
-                with no custodial holding.
-              </p>
-
-              <p>
-                <strong className="text-indigo-900">Multi-Chain Infrastructure:</strong> Solana and Base provide the rails
-                for FundRaisely’s quiz fundraising smart contracts, delivering low-fee, high-throughput, and transparent
-                event flows across Web3 ecosystems.
-              </p>
-
-              <p>
-                <strong className="text-indigo-900">Stablecoins for Good:</strong> Through Glo Dollar (GLO), clubs and
-                players can fundraise using impact-aligned digital currencies — stable value with global accessibility.
-              </p>
-
-              <p>
-                <strong className="text-indigo-900">Direct-to-Charity Routing:</strong> The Giving Block powers seamless
-                on-chain donations to verified charities, so every fundraiser can route proceeds transparently and verifiably.
-              </p>
-
-              <p>
-                <strong className="text-indigo-900">Community & Ecosystem Amplification:</strong> Media and community partners
-                like Blockleaders, Superteam Ireland, Base Ireland, and Women in Blockchain Talks help us reach new audiences,
-                host demo events, and spotlight clubs making a difference.
-              </p>
-
-              <p>
-                <strong className="text-indigo-900">Early Backers & Builders:</strong> Support from partners such as Superteam
-                Ireland fuels our product development and early impact initiatives — helping FundRaisely scale faster and
-                empower more fundraisers worldwide.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="px-4 pb-14">
-        <div className="container mx-auto max-w-6xl text-center">
-          <div className="rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 p-8 text-white shadow-lg">
-            <h3 className="text-3xl font-bold mb-3">Ready to Build on Web3 for Good?</h3>
-            <p className="text-white/90 mb-6 text-lg max-w-3xl mx-auto">
-              Join the growing ecosystem of clubs, charities, and communities leveraging blockchain technology for transparent, automated fundraising.
+            <p className="mt-6 max-w-2xl text-xl leading-relaxed text-white/70">
+              From the charities that receive funds, to the blockchains that move them, to the communities that
+              host events, FundRaisely is built on a network of partners who share the same goal: get more money
+              to good causes, transparently.
             </p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <Link
-                to="/web3/host"
-                className="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 text-indigo-700 font-bold shadow-lg hover:bg-indigo-50 transition"
-              >
-                Host an Event <ArrowRight className="h-5 w-5" />
-              </Link>
-              <Link
-                to="/web3"
-                className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-8 py-4 text-white font-bold border border-white/30 hover:bg-white/20 transition"
-              >
-                Web3 Overview
-              </Link>
+
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
+              <a href="/web3/features" className="inline-flex items-center gap-2 rounded-xl border border-[#a3f542]/40 bg-[#a3f542]/10 px-6 py-3 font-mono font-semibold text-[#a3f542] transition hover:border-[#a3f542]/80 hover:bg-[#a3f542]/20">
+                <Zap className="h-4 w-4" /> How it works
+              </a>
+              <a href="/contact" className="inline-flex items-center gap-2 rounded-xl border border-[#1e2d42] px-6 py-3 font-mono font-semibold text-white/60 transition hover:border-white/30 hover:text-white">
+                <MessageCircle className="h-4 w-4" /> Become a partner
+              </a>
+              <a href="/web3" className="inline-flex items-center gap-2 rounded-xl border border-[#1e2d42] px-6 py-3 font-mono font-semibold text-white/60 transition hover:border-white/30 hover:text-white">
+                <Target className="h-4 w-4" /> Web3 overview
+              </a>
+            </div>
+
+            {/* Stats */}
+            <div className="mt-12 flex w-full flex-wrap justify-center gap-8 border-t border-[#1e2d42] pt-8 sm:justify-between">
+              {[
+                { value: '2', label: 'verified charities' },
+                { value: 'SOL + BASE', label: 'chains' },
+                { value: 'Giving Block', label: 'charity verification' },
+                { value: '7+', label: 'community partners' },
+              ].map(({ value, label }) => (
+                <div key={label} className="text-center">
+                  <p className="font-mono text-2xl font-bold text-white">{value}</p>
+                  <p className="mt-0.5 font-mono text-xs uppercase tracking-widest text-white/30">{label}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </section>
 
-      <SiteFooter />
+      {/* ================================================================== */}
+      {/* Verified charities                                                   */}
+      {/* ================================================================== */}
+      <PartnerGrid
+        label={<><HeartHandshake className="h-4 w-4" /> Verified charities</>}
+        title="The causes your events support."
+        blurb="Every charity on FundRaisely is verified through The Giving Block. When a host selects one of these organisations, the smart contract sends funds directly to their verified wallet the moment the event ends."
+        partners={verifiedCharities}
+        cols="sm:grid-cols-1 md:grid-cols-2"
+        large
+      />
+
+      {/* Non-profit CTA */}
+      <section className="relative z-10 pb-4">
+        <div className="container mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+          <W3Card className="border-[#6ef0d4]/20 p-8">
+            <div className="grid gap-6 md:grid-cols-2 md:items-center">
+              <div>
+                <p className="font-mono text-xs uppercase tracking-widest text-[#6ef0d4]/60">For non-profits</p>
+                <h3 className="mt-2 font-mono text-2xl font-bold text-white">
+                  Is your organisation on the list?
+                </h3>
+                <p className="mt-3 text-base leading-relaxed text-white/60">
+                  FundRaisely will work with any non-profit that accepts crypto payments. Priority is given to
+                  organisations already verified with The Giving Block, but we welcome all qualifying non-profits.
+                  Get in touch to find out how to become a verified recipient.
+                </p>
+              </div>
+              <div className="flex flex-col gap-3 md:items-end">
+                <a
+                  href="/contact"
+                  className="inline-flex items-center gap-2 rounded-xl border border-[#6ef0d4]/40 bg-[#6ef0d4]/10 px-6 py-3 font-mono font-semibold text-[#6ef0d4] transition hover:border-[#6ef0d4]/80 hover:bg-[#6ef0d4]/20"
+                >
+                  <MessageCircle className="h-4 w-4" /> Get in touch
+                </a>
+                <a
+                  href="https://www.thegivingblock.com/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-xl border border-[#1e2d42] px-6 py-3 font-mono font-semibold text-white/50 transition hover:border-white/30 hover:text-white"
+                >
+                  <BadgeCheck className="h-4 w-4" /> The Giving Block
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              </div>
+            </div>
+          </W3Card>
+        </div>
+      </section>
+
+      {/* ================================================================== */}
+      {/* Infrastructure                                                       */}
+      {/* ================================================================== */}
+      <PartnerGrid
+        label={<><Zap className="h-4 w-4" /> Infrastructure</>}
+        title="The tech that runs every event."
+        blurb="Solana and Base provide the smart contract infrastructure for FundRaisely events. The Giving Block handles charity verification and direct-to-wallet routing. Glo Dollar brings impact-aligned stablecoin support."
+        partners={infra}
+        cols="sm:grid-cols-2 md:grid-cols-4"
+      />
+
+      {/* ================================================================== */}
+      {/* Media and community                                                  */}
+      {/* ================================================================== */}
+      <PartnerGrid
+        label={<><Users className="h-4 w-4" /> Media and community</>}
+        title="The communities spreading the word."
+        blurb="Publications, developer communities, and event networks helping FundRaisely reach clubs, charities, and Web3 ecosystems across Ireland and beyond."
+        partners={media}
+        cols="sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+      />
+
+      {/* ================================================================== */}
+      {/* Early backers                                                        */}
+      {/* ================================================================== */}
+      <PartnerGrid
+        label={<><Trophy className="h-4 w-4" /> Early backers</>}
+        title="The people who believed early."
+        blurb="Supporters and advisors who backed FundRaisely from the start and continue to help us build and grow."
+        partners={earlyBackers}
+        cols="sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+      />
+
+      {/* ================================================================== */}
+      {/* What our partners enable                                             */}
+      {/* ================================================================== */}
+      <section className="relative z-10 py-12">
+        <div className="container mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-8 text-center">
+            <SectionLabel><BadgeCheck className="h-4 w-4" /> What this means for hosts</SectionLabel>
+            <h2 className="mt-4 font-mono text-3xl font-bold text-white">
+              Every partner plays a role in every event.
+            </h2>
+            <p className="mx-auto mt-3 max-w-2xl text-white/50">
+              When you host an event on FundRaisely, this entire ecosystem is working behind the scenes.
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <W3Card className="border-[#6ef0d4]/20">
+              <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#6ef0d4]/20 bg-[#6ef0d4]/5">
+                <HeartHandshake className="h-5 w-5 text-[#6ef0d4]" />
+              </div>
+              <h3 className="mb-2 font-mono text-sm font-bold text-white">Charities your community can trust</h3>
+              <p className="text-base leading-relaxed text-white/60">
+                Every organisation on the platform has been vetted by The Giving Block. Players know the charity
+                is real before they pay their entry fee. There is no ambiguity and nothing to take on trust.
+              </p>
+            </W3Card>
+
+            <W3Card>
+              <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#1e2d42] bg-white/5">
+                <Zap className="h-5 w-5 text-white/60" />
+              </div>
+              <h3 className="mb-2 font-mono text-sm font-bold text-white">Infrastructure that keeps costs down</h3>
+              <p className="text-base leading-relaxed text-white/60">
+                Solana and Base are chosen specifically because they are fast and cheap to transact on. Low
+                gas fees mean more of every entry fee reaches the winner, the charity, and you as host.
+              </p>
+            </W3Card>
+
+            <W3Card className="border-[#a3f542]/20">
+              <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#a3f542]/20 bg-[#a3f542]/10">
+                <Users className="h-5 w-5 text-[#a3f542]" />
+              </div>
+              <h3 className="mb-2 font-mono text-sm font-bold text-white">Community that grows every event</h3>
+              <p className="text-base leading-relaxed text-white/60">
+                Media and community partners help events reach further. Blockleaders, Superteam Ireland, Base
+                Ireland, and others amplify what hosts are doing and bring new players into the ecosystem.
+              </p>
+            </W3Card>
+          </div>
+        </div>
+      </section>
+
+      {/* ================================================================== */}
+      {/* CTA                                                                  */}
+      {/* ================================================================== */}
+      <section className="relative z-10 pb-20 pt-4">
+        <div className="container mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+          <W3Card className="border-[#a3f542]/20 p-10 text-center">
+            <p className="font-mono text-xs uppercase tracking-widest text-[#a3f542]/60">Ready to host</p>
+            <h2 className="mt-3 font-mono text-4xl font-bold text-white">
+              Put the whole ecosystem to work.
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-white/50">
+              Every event you host on FundRaisely runs on this network of partners. Pick your game, choose your
+              charity, and let the platform handle the rest.
+            </p>
+            <div className="mt-8 flex flex-wrap justify-center gap-4">
+              <a href="/web3/elimination" className="inline-flex items-center gap-2 rounded-xl border border-orange-400/40 bg-orange-400/10 px-8 py-4 font-mono font-bold text-orange-400 transition hover:border-orange-400/80 hover:bg-orange-400/20">
+                <Crosshair className="h-5 w-5" /> Host Elimination
+              </a>
+              <a href="/web3/impact-campaign/join" className="inline-flex items-center gap-2 rounded-xl border border-[#a3f542]/40 bg-[#a3f542]/10 px-8 py-4 font-mono font-bold text-[#a3f542] transition hover:border-[#a3f542]/80 hover:bg-[#a3f542]/20">
+                <Trophy className="h-5 w-5" /> Host a Quiz
+              </a>
+              <a href="/contact" className="inline-flex items-center gap-2 rounded-xl border border-[#1e2d42] px-8 py-4 font-mono font-bold text-white/50 transition hover:border-white/30 hover:text-white">
+                <MessageCircle className="h-5 w-5" /> Become a partner
+              </a>
+            </div>
+          </W3Card>
+        </div>
+      </section>
+
     </div>
   );
 };

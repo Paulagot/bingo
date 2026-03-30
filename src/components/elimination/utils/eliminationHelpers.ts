@@ -97,3 +97,8 @@ export const roundTypeLabel = (type: string): string => {
   };
   return labels[type] ?? type;
 };
+
+import { v4 as uuidv4 } from 'uuid';
+
+export const generatePlayerId = (): string => `player_${uuidv4()}`;
+export const generateRoomId = (): string => `room_${uuidv4()}`;

@@ -18,6 +18,7 @@ import {
   SERVER_EVENTS,
   ROOM_STATUS,
 } from '../utils/eliminationConstants.js';
+import { Connection } from '@solana/web3.js';
 
 const getAllPlayers = (roomId) =>
   Object.values(getRoom(roomId)?.players ?? {}).map((p) => ({
@@ -27,21 +28,64 @@ const getAllPlayers = (roomId) =>
     eliminated: p.eliminated ?? false,
   }));
 
+// ── Web3 tx verification ──────────────────────────────────────────────────────
+const verifyWeb3JoinTx = async (txSignature, room) => {
+  try {
+    const cluster = room.solanaCluster ?? 'devnet';
+    const rpcUrl = cluster === 'mainnet'
+      ? 'https://api.mainnet-beta.solana.com'
+      : 'https://api.devnet.solana.com';
+
+    const connection = new Connection(rpcUrl, 'confirmed');
+
+    const tx = await connection.getTransaction(txSignature, {
+      commitment: 'confirmed',
+      maxSupportedTransactionVersion: 0,
+    });
+
+    if (!tx) {
+      return { valid: false, error: 'Payment transaction not found. Please try again.' };
+    }
+
+    if (tx.meta?.err) {
+      return { valid: false, error: 'Payment transaction failed on-chain.' };
+    }
+
+    let walletAddress = null;
+    try {
+      const accountKeys = tx.transaction.message.getAccountKeys
+        ? tx.transaction.message.getAccountKeys().staticAccountKeys
+        : tx.transaction.message.accountKeys;
+
+      if (accountKeys && accountKeys.length > 0) {
+        walletAddress = accountKeys[0].toBase58();
+      }
+    } catch (e) {
+      console.warn('[Elimination] Could not extract wallet from tx:', e.message);
+    }
+
+    console.log(`[Elimination] Web3 join tx verified: ${txSignature} wallet: ${walletAddress}`);
+    return { valid: true, walletAddress };
+
+  } catch (err) {
+    console.error('[Elimination] Web3 tx verification error:', err);
+    return { valid: false, error: 'Could not verify payment. Please try again.' };
+  }
+};
+
 export const registerEliminationSockets = (io) => {
   const emitToRoom = (roomId, event, payload) =>
     io.to(roomId).emit(event, payload);
 
-  // Sanitise a player name — trim, strip HTML, limit length
   const sanitiseName = (name) => {
     if (typeof name !== 'string') return 'Player';
     return name
       .trim()
-      .replace(/<[^>]*>/g, '')     // strip HTML tags
-      .replace(/[^\w\s\-'.]/g, '') // only allow safe chars
-      .slice(0, 32);               // max 32 chars
+      .replace(/<[^>]*>/g, '')
+      .replace(/[^\w\s\-'.]/g, '')
+      .slice(0, 32);
   };
 
-  // Rate limit wrapper — rejects event and emits error if over limit
   const rateCheck = (socket, event) => {
     if (!checkSocketRate(socket.id, event)) {
       socket.emit(SERVER_EVENTS.ERROR, { message: 'Too many requests. Slow down.' });
@@ -52,7 +96,7 @@ export const registerEliminationSockets = (io) => {
 
   io.on('connection', (socket) => {
 
-    // ── HOST JOIN (no player entry, socket room only) ──────────────────────────
+    // ── HOST JOIN ──────────────────────────────────────────────────────────────
     socket.on('host_join_elimination_room', ({ roomId, hostId }) => {
       if (!rateCheck(socket, 'host_join_elimination_room')) return;
       try {
@@ -65,24 +109,48 @@ export const registerEliminationSockets = (io) => {
         socket.join(roomId);
         console.log('🎮 [Elimination] Host joined socket room:', { roomId, hostId, socketId: socket.id });
 
-        // Send host the current room state
         socket.emit(SERVER_EVENTS.ROOM_STATE, getRoomSnapshot(roomId));
-
-        // Send host the current player list
         socket.emit(SERVER_EVENTS.WAITING_ROOM_UPDATE, { players: getAllPlayers(roomId) });
       } catch (err) {
         socket.emit(SERVER_EVENTS.ERROR, { message: err.message });
       }
     });
 
-    // ── PLAYER JOIN ROOM ──────────────────────────────────────────────────────
-    socket.on(CLIENT_EVENTS.JOIN_ROOM, ({ roomId, playerId, name }) => {
+    // ── HOST CANCEL ROOM ───────────────────────────────────────────────────────
+socket.on('host_cancel_elimination_room', ({ roomId, hostId }) => {
+  if (!rateCheck(socket, 'host_cancel_elimination_room')) return;
+  try {
+    const room = getRoom(roomId);
+    if (!room) return socket.emit(SERVER_EVENTS.ERROR, { message: 'Room not found' });
+    if (room.hostId !== hostId) return socket.emit(SERVER_EVENTS.ERROR, { message: 'Unauthorized' });
+
+    // Notify all players in the room
+    io.to(roomId).emit('elimination_room_cancelled', {
+      roomId,
+      reason: 'host_cancelled',
+      cancelTxHash: room.cancelTxHash ?? null,
+      refundTxHash: room.refundTxHash ?? null,
+    });
+
+    console.log(`[Elimination] Notified players of cancellation for room ${roomId}`);
+  } catch (err) {
+    socket.emit(SERVER_EVENTS.ERROR, { message: err.message });
+  }
+});
+
+    // ── PLAYER JOIN ROOM ───────────────────────────────────────────────────────
+    socket.on(CLIENT_EVENTS.JOIN_ROOM, async ({ roomId, playerId, name, txSignature }) => {
       if (!rateCheck(socket, 'join_elimination_room')) return;
       try {
         const name_safe = sanitiseName(name);
-        console.log('🎮 [Elimination] join_elimination_room:', { roomId, playerId, name: name_safe });
+        console.log('🎮 [Elimination] join_elimination_room:', {
+          roomId,
+          playerId,
+          name: name_safe,
+          isWeb3: !!txSignature,
+        });
 
-        // Reconnect flow — playerId already exists
+        // ── Reconnect flow ────────────────────────────────────────────────────
         if (playerId) {
           const result = reconnectPlayer(roomId, playerId, socket.id);
           if (!result.success) {
@@ -97,11 +165,37 @@ export const registerEliminationSockets = (io) => {
           return;
         }
 
+        // ── Validate room ─────────────────────────────────────────────────────
         const { valid, error } = validateJoin(roomId);
         if (!valid) return socket.emit(SERVER_EVENTS.ERROR, { message: error });
 
-        // Make name unique — if "sarah" exists, new player becomes "sarah 2", then "sarah 3" etc.
         const room = getRoom(roomId);
+
+        // ── Web3 payment verification ─────────────────────────────────────────
+        let verifiedWalletAddress = null;
+
+        if (room?.paymentMode === 'web3') {
+          if (!txSignature || typeof txSignature !== 'string') {
+            return socket.emit(SERVER_EVENTS.ERROR, {
+              message: 'Payment required to join this room.',
+            });
+          }
+
+          if (txSignature === 'already-joined') {
+            // Player already paid on-chain in a previous attempt — allow through
+            console.log(`[Elimination] already-joined bypass for room ${roomId}`);
+          } else {
+            // Verify the real transaction
+            const { valid: txValid, error: txError, walletAddress } = await verifyWeb3JoinTx(txSignature, room);
+            if (!txValid) {
+              return socket.emit(SERVER_EVENTS.ERROR, { message: txError });
+            }
+            verifiedWalletAddress = walletAddress;
+            console.log(`[Elimination] Web3 payment verified for room ${roomId} wallet: ${walletAddress}`);
+          }
+        }
+
+        // ── Make name unique ──────────────────────────────────────────────────
         let uniqueName = name_safe || 'Player';
         if (room) {
           const existingNames = Object.values(room.players).map(p => p.name.toLowerCase());
@@ -112,24 +206,31 @@ export const registerEliminationSockets = (io) => {
           }
         }
 
-        const { player } = addPlayer(roomId, { name: uniqueName, socketId: socket.id });
+        // ── Add player ────────────────────────────────────────────────────────
+        const { player } = addPlayer(roomId, {
+          name: uniqueName,
+          socketId: socket.id,
+          txSignature: txSignature ?? null,
+          walletAddress: verifiedWalletAddress,
+        });
+
         socket.join(roomId);
 
-        // Confirm to joining player — include their playerId so client doesn't need to guess by name
         socket.emit(SERVER_EVENTS.ROOM_STATE, {
           ...getRoomSnapshot(roomId),
           yourPlayerId: player.playerId,
           yourName: player.name,
         });
 
-        // Notify everyone in room (including host) of updated player list
         emitToRoom(roomId, SERVER_EVENTS.WAITING_ROOM_UPDATE, { players: getAllPlayers(roomId) });
+
       } catch (err) {
+        console.error('[Elimination] JOIN_ROOM error:', err);
         socket.emit(SERVER_EVENTS.ERROR, { message: err.message });
       }
     });
 
-    // ── START GAME ────────────────────────────────────────────────────────────
+    // ── START GAME ─────────────────────────────────────────────────────────────
     socket.on(CLIENT_EVENTS.START_GAME, ({ roomId, hostId }) => {
       if (!rateCheck(socket, 'start_elimination_game')) return;
       try {
@@ -145,10 +246,9 @@ export const registerEliminationSockets = (io) => {
       }
     });
 
-    // ── SUBMIT ANSWER ─────────────────────────────────────────────────────────
+    // ── SUBMIT ANSWER ──────────────────────────────────────────────────────────
     socket.on(CLIENT_EVENTS.SUBMIT_ANSWER, ({ roomId, playerId, submission }) => {
       if (!rateCheck(socket, 'submit_round_answer')) return;
-      // Reject oversized payloads (max 1KB)
       try {
         const payloadSize = JSON.stringify(submission || {}).length;
         if (payloadSize > 1024) {
@@ -166,7 +266,7 @@ export const registerEliminationSockets = (io) => {
       }
     });
 
-    // ── RECONNECT (explicit) ──────────────────────────────────────────────────
+    // ── RECONNECT (explicit) ───────────────────────────────────────────────────
     socket.on(CLIENT_EVENTS.RECONNECT_PLAYER, ({ roomId, playerId }) => {
       if (!rateCheck(socket, 'reconnect_elimination_player')) return;
       try {
@@ -179,22 +279,24 @@ export const registerEliminationSockets = (io) => {
       }
     });
 
-    // ── LEAVE ROOM ────────────────────────────────────────────────────────────
+    // ── LEAVE ROOM ─────────────────────────────────────────────────────────────
     socket.on(CLIENT_EVENTS.LEAVE_ROOM, ({ roomId, playerId }) => {
       socket.leave(roomId);
       handleDisconnect(roomId, playerId);
     });
 
-    // ── DISCONNECT ────────────────────────────────────────────────────────────
+    // ── DISCONNECT ─────────────────────────────────────────────────────────────
     socket.on('disconnect', () => {
-      cleanupSocket(socket.id); // remove rate limit entries
+      cleanupSocket(socket.id);
       const found = findPlayerBySocket(socket.id);
       if (!found) return;
       const { room, player } = found;
       handleDisconnect(room.roomId, player.playerId);
 
       if (room.status === ROOM_STATUS.WAITING) {
-        emitToRoom(room.roomId, SERVER_EVENTS.WAITING_ROOM_UPDATE, { players: getAllPlayers(room.roomId) });
+        emitToRoom(room.roomId, SERVER_EVENTS.WAITING_ROOM_UPDATE, {
+          players: getAllPlayers(room.roomId),
+        });
       }
     });
   });

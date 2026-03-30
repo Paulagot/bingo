@@ -74,6 +74,8 @@ const EliminationJoinPage = lazy(() =>
   import('./components/elimination/Eliminationjoinpage').then(m => ({ default: m.EliminationJoinPage }))
 );
 
+const Web3QuizPage = lazy(() => import('./pages/web3/quiz'));
+
 const PuzzlePage = lazy(() => import('./components/puzzles/pages/PuzzlePage'));
 
 const PuzzleDevTestPage = lazy(() => import('./components/puzzles/pages/Puzzledevtestpage'));
@@ -93,6 +95,12 @@ const ImpactCampaignOverview = lazy(() => import('./pages/web3/impact-campaign')
 const ImpactCampaignJoin = lazy(() => import('./pages/web3/impact-campaign/join'));
 const ImpactCampaignLeaderboard = lazy(() => import('./pages/web3/impact-campaign/leaderboard'));
 const ImpactCampaignBaseApp = lazy(() => import('./pages/web3/impact-campaign/MiniAppLandingPage'));
+// ADD this lazy import at the top with the others
+// const EliminationWeb3Page = lazy(() =>
+//   import('./components/elimination/EliminationWeb3Page')
+//     .then(m => ({ default: m.EliminationWeb3Page }))
+// );
+const Web3EliminationPage = lazy(() => import('./pages/web3/elimination'));
 
 const LoadingSpinner = ({
   message = 'Loading...',
@@ -290,12 +298,14 @@ useEffect(() => {
                     <Route path="features" element={<Web3Features />} />
                     <Route path="testimonials" element={<Web3Testimonials />} />
                     <Route path="partners" element={<Web3Partners />} />
+                     <Route path="quiz"    element={<Web3QuizPage />} /> 
                     <Route path="impact-campaign" element={<ImpactCampaignOverview />} />
                     <Route path="impact-campaign/leaderboard" element={<ImpactCampaignLeaderboard />} />
                     
                     {/* ✅ Join page - Wizard handles Web3Provider internally at step 6 */}
                     <Route path="impact-campaign/join" element={<ImpactCampaignJoin />} />
                     <Route path="impact-campaign/baseapp" element={<ImpactCampaignBaseApp />} />
+                    <Route path="elimination" element={<Web3EliminationPage />} />
                   </Routes>
                 </Suspense>
               }

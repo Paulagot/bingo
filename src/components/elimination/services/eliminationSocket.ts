@@ -76,8 +76,13 @@ export const disconnectSocket = (): void => {
 
 // ─── Emitters ─────────────────────────────────────────────────────────────────
 
-export const emitJoinRoom = (roomId: string, name: string, playerId?: string): void => {
-  getSocket().emit('join_elimination_room', { roomId, name, playerId });
+export const emitJoinRoom = (
+  roomId: string,
+  name: string,
+  playerId?: string,
+  txSignature?: string,   // ← add this
+): void => {
+  getSocket().emit('join_elimination_room', { roomId, name, playerId, txSignature });
 };
 
 export const emitStartGame = (roomId: string, hostId: string): void => {

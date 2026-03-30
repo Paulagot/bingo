@@ -16,32 +16,45 @@ const SiteFooter: React.FC = () => (
         <div className="absolute bottom-20 right-1/4 h-3 w-3 bg-white/40 rotate-12" />
       </div>
 
-      <div className="container mx-auto max-w-6xl px-4 py-16 grid gap-8 md:grid-cols-5 relative z-10">
+
+      <div className="container mx-auto max-w-6xl px-4 py-16 grid gap-8 md:grid-cols-4 relative z-10">
+
+         
+        <div>
+          <h4 className="mb-4 font-bold text-white">Non Profit Fundraising</h4>
+          <ul className="mt-3 space-y-3 text-sm text-white/80">           
+            <li><a href="/quiz/use-cases" className="transition-colors hover:text-white">Use Cases</a></li>
+       
+            <li><a href="/pricing" className="transition-colors hover:text-white">Pricing</a></li>
+            <li><a href="/founding-partners" className="transition-colors hover:text-white">Founding Partners</a></li>
+            <li><a href="/free-trial" className="transition-colors hover:text-white">Free Trial</a></li>
+            <li><a href="/testimonials" className="transition-colors hover:text-white">Testimonials</a></li>
+          </ul>
+        </div>
+
         <div>
           <h4 className="font-bold text-white mb-4">Quiz Fundraisers</h4>
           <ul className="mt-3 space-y-3 text-white/80 text-sm">
             <li><a href="/quiz/how-it-works" className="hover:text-white transition-colors">How It Works</a></li>
             <li><a href="/quiz/features" className="hover:text-white transition-colors">Features</a></li>
-            <li><a href="/quiz/use-cases" className="hover:text-white transition-colors">Use Cases</a></li>
             <li><a href="/quiz/demo" className="hover:text-white transition-colors">Demo Video</a></li>
-            <li><a href="/pricing" className="hover:text-white transition-colors">Pricing</a></li>
-            <li><a href="/founding-partners" className="hover:text-white transition-colors">Founding Partners</a></li>
-            <li><a href="/free-trial" className="hover:text-white transition-colors">Free Trial</a></li>
-            <li><a href="/testimonials" className="hover:text-white transition-colors">Testimonials</a></li>
+            
           </ul>
         </div>
 
         <div>
-          <h4 className="font-bold text-white mb-4">Web3 Quiz Fundraisers</h4>
+          <h4 className="font-bold text-white mb-4">Web3 Fundraisers</h4>
           <ul className="mt-3 space-y-3 text-white/80 text-sm">
             <li><a href="/web3/" className="hover:text-white transition-colors">Overview</a></li>
+            <li><a href="/web3/quiz" className="hover:text-white transition-colors">Web3 quiz</a></li>
+            <li><a href="/web3/elimination" className="hover:text-white transition-colors">Web3 Elimination</a></li>
             <li><a href="/web3/features" className="hover:text-white transition-colors">Crypto-Powered Features</a></li>
             <li><a href="/web3/partners" className="hover:text-white transition-colors">Web3 Fundraising Partners</a></li>
             <li><a href="/web3/testimonials" className="hover:text-white transition-colors">Crypto Fundraising Testimonials</a></li>
           </ul>
         </div>
 
-        <div>
+        {/* <div>
           <h4 className="font-bold text-white mb-4">Web3 Impact Campaign</h4>
           <ul className="mt-3 space-y-3 text-white/80 text-sm">
             <li><a href="/web3/impact-campaign" className="hover:text-white transition-colors">Overview</a></li>
@@ -49,15 +62,15 @@ const SiteFooter: React.FC = () => (
             <li><a href="/web3/impact-campaign/leaderboard" className="hover:text-white transition-colors">Leaderboard</a></li>
             
           </ul>
-        </div>
+        </div> */}
 
-        <div>
+        {/* <div>
           <h4 className="font-bold text-white mb-4">Geography</h4>
           <ul className="mt-3 space-y-3 text-white/80 text-sm">
             <li><a href="/ireland" className="hover:text-white transition-colors">Fundraising Software Ireland</a></li>
             <li><a href="/uk" className="hover:text-white transition-colors">Fundraising Software UK</a></li>
           </ul>
-        </div>
+        </div> */}
 
         <div>
           <h4 className="font-bold text-white mb-4">Company</h4>

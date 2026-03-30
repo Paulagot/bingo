@@ -1,7 +1,19 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { RoundResult, EliminationPlayer } from './types/elimination';
 import { formatScore } from './utils/eliminationHelpers';
 import { FONT_DISPLAY, FONT_BODY, GOLD, DANGER, BASE_BG } from './utils/designTokens';
+import { Web3Provider } from '../Web3Provider';
+import { EliminationFinalizeSection } from './EliminationFinalizeSection';
+
+interface Web3RoomData {
+  paymentMode: string;
+  roomPda: string;
+  feeMint: string;
+  entryFee: number;
+  solanaCluster: 'devnet' | 'mainnet';
+  charityOrgId: number | null;
+  onChainRoomId: string;
+}
 
 interface Props {
   winnerId: string;
@@ -11,31 +23,50 @@ interface Props {
   localPlayerId: string;
   onClose?: () => void;
   autoCloseSeconds?: number;
+  // ── web3 additions ──
+  isHost?: boolean;
+  hostId?: string;
+  roomId?: string;
+  roomData?: Web3RoomData | null;
 }
 
 export const EliminationWinnerView: React.FC<Props> = ({
-  winnerId, winnerName, finalStandings, players, localPlayerId,
-  onClose, autoCloseSeconds = 60,
+  winnerId,
+  winnerName,
+  finalStandings,
+  players,
+  localPlayerId,
+  onClose,
+  autoCloseSeconds = 60,
+  isHost = false,
+  hostId,
+  roomId,
+  roomData,
 }) => {
   const [countdown, setCountdown] = useState(autoCloseSeconds);
   const isWinner = localPlayerId === winnerId;
   const playerMap = Object.fromEntries(players.map(p => [p.playerId, p]));
 
-  // Auto-close countdown
+  const isWeb3Room = roomData?.paymentMode === 'web3';
+  const totalPlayers = players.length;
+
+  // Auto-close countdown — pause if host needs to finalize
+  const shouldAutoClose = onClose && !(isHost && isWeb3Room);
+
   useEffect(() => {
-    if (!onClose) return;
+    if (!shouldAutoClose) return;
     const interval = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
           clearInterval(interval);
-          onClose();
+          onClose?.();
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [onClose]);
+  }, [shouldAutoClose, onClose]);
 
   return (
     <div style={{ ...s.page, background: BASE_BG }}>
@@ -56,6 +87,19 @@ export const EliminationWinnerView: React.FC<Props> = ({
         <p style={{ ...s.congrats, fontFamily: FONT_BODY }}>
           You are the last one standing. Well played.
         </p>
+      )}
+
+      {/* ── Web3 finalize section — host only ── */}
+      {isHost && isWeb3Room && roomData && roomId && hostId && (
+        <Web3Provider force={true}>
+          <EliminationFinalizeSection
+            roomId={roomId}
+            hostId={hostId}
+            winnerPlayerId={winnerId}
+            roomData={{ ...roomData, totalPlayers }}
+            onComplete={onClose}
+          />
+        </Web3Provider>
       )}
 
       {/* Final standings */}
@@ -93,9 +137,7 @@ export const EliminationWinnerView: React.FC<Props> = ({
                 </span>
                 <span style={{ ...s.rowName, fontFamily: FONT_BODY }}>
                   {name}
-                  {isLocal && !isWin && (
-                    <span style={s.youTag}>you</span>
-                  )}
+                  {isLocal && !isWin && <span style={s.youTag}>you</span>}
                   {isWin && <span style={{ marginLeft: '8px', fontSize: '14px' }}>👑</span>}
                 </span>
                 <span style={{ ...s.rowScore, fontFamily: FONT_BODY }}>
@@ -107,8 +149,8 @@ export const EliminationWinnerView: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Auto-close CTA */}
-      {onClose && (
+      {/* Auto-close CTA — not shown to host on web3 rooms until finalized */}
+      {onClose && !(isHost && isWeb3Room) && (
         <div style={s.closeFoot}>
           <button onClick={onClose} style={{ ...s.closeBtn, fontFamily: FONT_BODY }}>
             Return to lobby
@@ -125,6 +167,7 @@ export const EliminationWinnerView: React.FC<Props> = ({
   );
 };
 
+// ── Styles (unchanged from original) ─────────────────────────────────────────
 const s: Record<string, React.CSSProperties> = {
   page: {
     minHeight: '100dvh',
@@ -202,9 +245,7 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: '8px',
     border: '1px solid',
   },
-  rank: {
-    minWidth: '32px',
-  },
+  rank: { minWidth: '32px' },
   rowName: {
     flex: 1,
     fontSize: '15px',

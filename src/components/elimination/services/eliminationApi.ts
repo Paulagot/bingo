@@ -41,3 +41,36 @@ export const endRoom = (roomId: string, hostId: string) =>
     method: 'POST',
     body: JSON.stringify({ hostId }),
   });
+
+  // ─── Create Web3 Room ─────────────────────────────────────────────────────────
+export interface CreateWeb3RoomPayload {
+  hostName: string;
+  hostId?: string;
+  hostWallet: string;
+  web3Chain: 'solana' | 'evm';
+  solanaCluster?: 'devnet' | 'mainnet';
+  feeMint: string;
+  entryFee: number;
+  roomPda: string;
+  charityOrgId?: number | null;
+  charityName?: string | null;
+  onChainRoomId?: string;
+}
+
+export interface CreateWeb3RoomResponse {
+  success: boolean;
+  roomId: string;
+  hostId: string;
+  status: string;
+  createdAt: string;
+  roomPda: string;
+  feeMint: string;
+  entryFee: number;
+  web3Chain: string;
+}
+
+export const createWeb3Room = (payload: CreateWeb3RoomPayload) =>
+  request<CreateWeb3RoomResponse>('/rooms/web3', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
