@@ -159,7 +159,7 @@ const Web3EliminationPage: React.FC = () => {
                 onClick={() => setShowForm(true)}
                 className="inline-flex items-center gap-2 rounded-xl border border-orange-400/40 bg-orange-400/10 px-8 py-4 font-mono text-lg font-bold text-orange-400 transition hover:border-orange-400/80 hover:bg-orange-400/20"
               >
-                <Crosshair className="h-5 w-5" /> Host Elimination
+                <Crosshair className="h-5 w-5" /> Launch Elimination
               </button>
               <a
                 href="/web3/quiz"
@@ -477,7 +477,7 @@ const Web3EliminationPage: React.FC = () => {
                   onClick={() => setShowForm(true)}
                   className="mt-5 w-full rounded-xl border border-orange-400/40 bg-orange-400/10 py-3 font-mono font-bold text-orange-400 transition hover:border-orange-400/80"
                 >
-                  Host Elimination
+                Host Elimination
                 </button>
               </div>
 
@@ -567,7 +567,7 @@ const Web3EliminationPage: React.FC = () => {
                 onClick={() => setShowForm(true)}
                 className="inline-flex items-center gap-2 rounded-xl border border-orange-400/40 bg-orange-400/10 px-8 py-4 font-mono font-bold text-orange-400 transition hover:border-orange-400/80 hover:bg-orange-400/20"
               >
-                <Crosshair className="h-5 w-5" /> Host Elimination
+                <Crosshair className="h-5 w-5" /> Launch Elimination
               </button>
               <a
                 href="/web3/quiz"

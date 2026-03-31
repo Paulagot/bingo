@@ -17,7 +17,6 @@
 
 export type SolanaTokenCode =
   | 'SOL'
-  | 'USDC'
   | 'USDG'
   | 'JUP'
   | 'BONK'
@@ -95,19 +94,19 @@ export const SOLANA_TOKENS: Record<SolanaTokenCode, SolanaTokenConfig> = {
     coingeckoId: 'solana',
   },
 
-  USDC: {
-    code: 'USDC',
-    name: 'USD Coin',
-    mint: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
-    decimals: 6,
-    isNative: false,
-    tgbCode: 'USDC',
-    tgbMinDonation: 0.1,
-    minEntryFee: 0.5,
-    logoUrl:
-      'https://static.tgbwidget.com/currency_images/2213a5bb-31d9-447c-a931-49858d28f2f2.png',
-    coingeckoId: 'usd-coin',
-  },
+  // USDC: {
+  //   code: 'USDC',
+  //   name: 'USD Coin',
+  //   mint: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
+  //   decimals: 6,
+  //   isNative: false,
+  //   tgbCode: 'USDC',
+  //   tgbMinDonation: 0.1,
+  //   minEntryFee: 0.5,
+  //   logoUrl:
+  //     'https://static.tgbwidget.com/currency_images/2213a5bb-31d9-447c-a931-49858d28f2f2.png',
+  //   coingeckoId: 'usd-coin',
+  // },
 
   USDG: {
     code: 'USDG',
@@ -243,7 +242,6 @@ export const SOLANA_TOKENS: Record<SolanaTokenCode, SolanaTokenConfig> = {
 
 export const SOLANA_TOKEN_LIST: SolanaTokenCode[] = [
   'SOL',
-  'USDC',
   'USDG',
   'JUP',
   'JTO',
