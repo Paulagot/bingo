@@ -1,4 +1,4 @@
-// src/components/Quiz/Wizard/hooks/useQuizSetupStore.ts
+  // src/components/Quiz/Wizard/hooks/useQuizSetupStore.ts
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { QuizConfig, RoundDefinition } from '../types/quiz';

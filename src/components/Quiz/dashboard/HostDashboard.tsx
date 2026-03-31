@@ -13,6 +13,7 @@ import AssetUploadPanel from './AssetUploadPanel';
 import TicketsPanel from './TicketPanel';
 import BlockchainBadge from './BlockchainBadge';
 import PrizesTab from './PrizesTab';
+import PoolTab from './PoolTab';
 
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { useAdminStore } from '../hooks/useAdminStore';
@@ -30,6 +31,7 @@ import {
   Upload,
   Gift,
   Ticket,
+  Coins,
 } from 'lucide-react';
 import { getPrizeWorkflowStatus } from '../payments/prizeWorkflow';
 
@@ -40,7 +42,7 @@ const Web3Provider = lazy(() =>
 
 const DEBUG = false; // Enable debug logging
 
-type TabType = 'overview' | 'assets' | 'launch' | 'players' | 'admins' | 'tickets' | 'prizes' | 'payments';
+type TabType = 'overview' | 'assets' | 'launch' | 'players' | 'admins' | 'tickets' | 'prizes' | 'payments' | 'pool';
 
 const uuid = () =>
   (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
@@ -589,57 +591,69 @@ useEffect(() => {
     return t;
   }, [location.search]);
 
-  const allTabs = useMemo(() => {
-    return [
-      { id: 'overview' as TabType, label: 'Overview', icon: <Settings className="h-4 w-4" />, count: null },
-      ...(isWeb3 && config?.prizeMode === 'assets'
-        ? [{
-            id: 'assets' as TabType,
-            label: 'Add Prizes to Contract',
-            icon: <Upload className="h-4 w-4" />,
-            count: config?.prizes?.filter((p: any) => p.uploadStatus === 'completed').length || 0,
-          }]
-        : []),
-      ...(!isWeb3
-        ? [{
-            id: 'admins' as TabType,
-            label: 'Admins',
-            icon: <Shield className="h-4 w-4" />,
-            count: admins?.length || 0,
-          }]
-        : []),
-            ...(!isWeb3
+const allTabs = useMemo(() => {
+  return [
+    { id: 'overview' as TabType, label: 'Overview', icon: <Settings className="h-4 w-4" />, count: null },
+    ...(isWeb3 && config?.prizeMode === 'assets'
+      ? [{
+          id: 'assets' as TabType,
+          label: 'Add Prizes to Contract',
+          icon: <Upload className="h-4 w-4" />,
+          count: config?.prizes?.filter((p: any) => p.uploadStatus === 'completed').length || 0,
+        }]
+      : []),
+    // ✅ Pool tab — Web3 rooms only
+    ...(isWeb3
+      ? [{
+          id: 'pool' as TabType,
+          label: 'Pool',
+          icon: <Coins className="h-4 w-4" />,
+          count: null,
+        }]
+      : []),
+    ...(!isWeb3
+      ? [{
+          id: 'admins' as TabType,
+          label: 'Admins',
+          icon: <Shield className="h-4 w-4" />,
+          count: admins?.length || 0,
+        }]
+      : []),
+    ...(!isWeb3
       ? [{
           id: 'tickets' as TabType,
           label: 'Tickets',
           icon: <Ticket className="h-4 w-4" />,
-          count: null, // Will be populated by the component
+          count: null,
         }]
       : []),
-      { id: 'players' as TabType, label: 'Players', icon: <Users className="h-4 w-4" />, count: players?.length || 0 },
-      ...(isQuizComplete
-        ? [{
-            id: 'prizes' as TabType,
-            label: 'Prizes',
-            icon: <Gift className="h-4 w-4" />,
-            count:
-              ((config?.reconciliation?.prizeAwards || []) as any[]).filter((a: any) =>
-                ['delivered', 'unclaimed', 'refused', 'returned', 'canceled'].includes(a?.status),
-              ).length || 0,
-          }]
-        : []),
-      { id: 'payments' as TabType, label: 'Payments', icon: <CreditCard className="h-4 w-4" />, count: null },
-      { id: 'launch' as TabType, label: 'Launch', icon: <Rocket className="h-4 w-4" />, count: null },
-    ] as const;
-  }, [
-    isWeb3,
-    config?.prizeMode,
-    config?.prizes,
-    admins?.length,
-    players?.length,
-    isQuizComplete,
-    config?.reconciliation?.prizeAwards,
-  ]);
+    { id: 'players' as TabType, label: 'Players', icon: <Users className="h-4 w-4" />, count: players?.length || 0 },
+    ...(isQuizComplete
+      ? [{
+          id: 'prizes' as TabType,
+          label: 'Prizes',
+          icon: <Gift className="h-4 w-4" />,
+          count:
+            ((config?.reconciliation?.prizeAwards || []) as any[]).filter((a: any) =>
+              ['delivered', 'unclaimed', 'refused', 'returned', 'canceled'].includes(a?.status),
+            ).length || 0,
+        }]
+      : []),
+    // ✅ Payments tab — Web2 rooms only
+    ...(!isWeb3
+      ? [{ id: 'payments' as TabType, label: 'Payments', icon: <CreditCard className="h-4 w-4" />, count: null }]
+      : []),
+    { id: 'launch' as TabType, label: 'Launch', icon: <Rocket className="h-4 w-4" />, count: null },
+  ] as const;
+}, [
+  isWeb3,
+  config?.prizeMode,
+  config?.prizes,
+  admins?.length,
+  players?.length,
+  isQuizComplete,
+  config?.reconciliation?.prizeAwards,
+]);
 
   const tabs = useMemo(() => {
     if (!postGameLock) return allTabs;
@@ -1389,6 +1403,9 @@ if (!isWeb3 && dbHydrateError) {
                 lockEdits={!!(config?.reconciliation as any)?.approvedAt}
               />
             )}
+            {computedActiveTab === 'pool' && isWeb3 && (
+  <PoolTab />
+)}
 
             {computedActiveTab === 'payments' && (
               <div className="space-y-6">

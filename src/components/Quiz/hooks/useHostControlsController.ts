@@ -132,7 +132,7 @@ function findPrizeBoundaryTies(
 
 export function useHostControlsController({ 
   roomId, 
-  hostId 
+
 }: { 
   roomId: string;
   hostId?: string;  // ✅ Add this
@@ -140,7 +140,7 @@ export function useHostControlsController({
   const navigate = useNavigate();
   const { socket, connected } = useQuizSocket();
   const { config } = useQuizConfig();
-  const effectiveHostId = hostId ?? config?.hostId ?? localStorage.getItem('current-host-id') ?? 'host';
+
 
   const [_timerActive, setTimerActive] = useState(false);
   const [playersInRoom, setPlayersInRoom] = useState<User[]>([]);
@@ -715,7 +715,7 @@ const handleEndGame = useCallback(async () => {
 
   if (!socket || !roomId) {
     console.warn('⚠️ [Host] No socket or roomId available');
-    if (config?.paymentMethod === 'web3' || config?.isWeb3Room) navigate('/web3/impact-campaign/');
+    if (config?.paymentMethod === 'web3' || config?.isWeb3Room) navigate('/web3/');
     else navigate('/');
     return;
   }
@@ -737,14 +737,14 @@ const handleEndGame = useCallback(async () => {
 
     // 3. Navigate away
     setTimeout(() => {
-      if (isWeb3) navigate('/web3/impact-campaign/');
+      if (isWeb3) navigate('/web3/');
       else navigate('/');
     }, 1000); // Small delay to ensure cleanup completes
 
   } catch (error) {
     console.error('❌ [Host] Error during cleanup:', error);
     // Still navigate even if cleanup fails
-    if (isWeb3) navigate('/web3/impact-campaign/');
+    if (isWeb3) navigate('/web3/');
     else navigate('/');
   }
 }, [socket, roomId, navigate, config?.paymentMethod, config?.isWeb3Room]);

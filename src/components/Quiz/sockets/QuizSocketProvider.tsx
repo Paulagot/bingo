@@ -150,7 +150,7 @@ export const QuizSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setTimeout(() => {
         if (isWeb3Room) {
           // Web3 flow: Everyone goes to impact campaign
-          window.location.href = '/web3/impact-campaign/';
+          window.location.href = '/web3';
         } else {
           // Web2 flow: Everyone goes to quiz home
           window.location.href = '/';
