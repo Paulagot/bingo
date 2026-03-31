@@ -1,27 +1,11 @@
 /**
  * Solana Join Room Hook
  *
- * Mirrors EVM's useEvmJoin.ts pattern for consistency.
- * Handles joining a Solana quiz room by paying entry fee + optional extras.
+ * ## What changed (new contract)
  *
- * ## What This Hook Does
- *
- * 1. Validates wallet connection
- * 2. Validates input parameters
- * 3. Derives required PDAs (room, playerEntry, roomVault)
- * 4. Gets player's token account
- * 5. Builds join_room instruction
- * 6. Simulates transaction
- * 7. Sends & confirms transaction
- * 8. Returns result with transaction signature
- *
- * ## Entry Fee vs Extras
- *
- * - **Entry Fee**: Required payment set by room.entry_fee
- *   - Subject to splits: Platform 20%, Host 0-5%, Prizes 0-40%, Charity 40%+
- * - **Extras**: Optional additional amount chosen by player
- *   - Goes proportionally to charity (same split as entry fees)
- *   - Maximizes fundraising impact
+ * - GlobalConfig PDA removed from join_room accounts
+ * - join_room instruction signature is unchanged: joinRoom(roomId, extrasAmount)
+ * - Everything else (wSOL wrap, balance checks, PDAs) is identical
  */
 
 import { useCallback } from 'react';
@@ -38,7 +22,6 @@ import { useSolanaShared } from './useSolanaShared';
 import {
   derivePlayerEntryPDA,
   deriveRoomVaultPDA,
-  deriveGlobalConfigPDA,
 } from '../utils/pda';
 import {
   buildTransaction,
@@ -46,21 +29,15 @@ import {
   formatTransactionError,
 } from '../utils/transaction-helpers';
 
-// ✅ UPDATED: use new multi-token config
 import {
   getTokenByMint,
   toRawAmount,
   type SolanaTokenCode,
 } from '../config/solanaTokenConfig';
 
-
-
 import { SOLANA_CONTRACT } from '../config/contracts';
 import type { JoinRoomParams, JoinRoomResult } from '../utils/types';
 
-/**
- * Hook for joining Solana quiz rooms
- */
 export function useSolanaJoinRoom() {
   const {
     publicKey,
@@ -76,7 +53,7 @@ export function useSolanaJoinRoom() {
    * Check if player already has an entry for this room
    */
   const checkExistingEntry = useCallback(async (
-    roomPDA: PublicKey,
+    roomPDA:         PublicKey,
     playerPublicKey: PublicKey
   ): Promise<boolean> => {
     if (!program) {
@@ -119,11 +96,11 @@ export function useSolanaJoinRoom() {
 
     if (!isConnected || !publicKey || !program || !connection || !provider) {
       const missing = [];
-      if (!isConnected) missing.push('not connected');
-      if (!publicKey) missing.push('no publicKey');
-      if (!program) missing.push('no program');
-      if (!connection) missing.push('no connection');
-      if (!provider) missing.push('no provider');
+      if (!isConnected)  missing.push('not connected');
+      if (!publicKey)    missing.push('no publicKey');
+      if (!program)      missing.push('no program');
+      if (!connection)   missing.push('no connection');
+      if (!provider)     missing.push('no provider');
 
       const error = `Wallet not ready: ${missing.join(', ')}`;
       console.error('[Solana][JoinRoom] ❌', error);
@@ -142,7 +119,9 @@ export function useSolanaJoinRoom() {
     if (!roomId || roomId.length === 0) throw new Error('Room ID is required');
 
     if (roomId.length > SOLANA_CONTRACT.MAX_ROOM_ID_LENGTH) {
-      throw new Error(`Room ID too long: ${roomId.length} chars (max ${SOLANA_CONTRACT.MAX_ROOM_ID_LENGTH})`);
+      throw new Error(
+        `Room ID too long: ${roomId.length} chars (max ${SOLANA_CONTRACT.MAX_ROOM_ID_LENGTH})`
+      );
     }
 
     if (extrasAmount < 0) throw new Error('Extras amount cannot be negative');
@@ -153,10 +132,10 @@ export function useSolanaJoinRoom() {
     // STEP 3: Get room data
     // ============================================================================
 
-    let roomPDA: PublicKey;
-    let feeTokenMint: PublicKey;
-    let entryFeeRaw: BN;
-    let tokenCode: SolanaTokenCode;
+    let roomPDA:         PublicKey;
+    let feeTokenMint:    PublicKey;
+    let entryFeeRaw:     BN;
+    let tokenCode:       SolanaTokenCode;
 
     try {
       if (params.roomAddress) {
@@ -176,8 +155,8 @@ export function useSolanaJoinRoom() {
       if (alreadyJoined) {
         console.log('[Solana][JoinRoom] ✅ Player already joined this room — returning success');
         return {
-          success: true,
-          txHash: 'already-joined',
+          success:     true,
+          txHash:      'already-joined',
           explorerUrl: getTxExplorerUrl(''),
           alreadyPaid: true,
         };
@@ -188,15 +167,14 @@ export function useSolanaJoinRoom() {
       const roomAccount = await (program.account as any).room.fetch(roomPDA);
 
       feeTokenMint = roomAccount.feeTokenMint as PublicKey;
-      entryFeeRaw = new BN(roomAccount.entryFee.toString());
+      entryFeeRaw  = new BN(roomAccount.entryFee.toString());
 
       console.log('[Solana][JoinRoom] ✅ Room data fetched:');
-      console.log('[Solana][JoinRoom]   Token mint:', feeTokenMint.toBase58());
+      console.log('[Solana][JoinRoom]   Token mint:   ', feeTokenMint.toBase58());
       console.log('[Solana][JoinRoom]   Entry fee (raw):', entryFeeRaw.toString());
       console.log('[Solana][JoinRoom]   Player count:', roomAccount.playerCount);
       console.log('[Solana][JoinRoom]   Max players:', roomAccount.maxPlayers);
 
-      // ✅ UPDATED: resolve token from on-chain mint address — supports all 11 tokens
       const tokenConfig = getTokenByMint(feeTokenMint.toBase58());
       if (!tokenConfig) {
         throw new Error(`Unsupported token mint: ${feeTokenMint.toBase58()}`);
@@ -213,43 +191,38 @@ export function useSolanaJoinRoom() {
     // STEP 4: Calculate amounts
     // ============================================================================
 
-    // Use on-chain entry fee directly (it's already in raw units)
-    // If caller provided entryFee in display units, convert it — otherwise use chain value
     let entryFeeBaseUnits: BN;
 
     if (params.entryFee !== undefined) {
-      // ✅ UPDATED: use toRawAmount — no float math
       entryFeeBaseUnits = new BN(toRawAmount(params.entryFee, tokenCode).toString());
       console.log('[Solana][JoinRoom] 💵 Entry fee from params:', params.entryFee, tokenCode, '→', entryFeeBaseUnits.toString());
     } else {
-      // Use the raw value from chain directly
       entryFeeBaseUnits = entryFeeRaw;
       console.log('[Solana][JoinRoom] 💵 Entry fee from chain (raw):', entryFeeBaseUnits.toString());
     }
 
-    // ✅ UPDATED: use toRawAmount for extras — no float math
     const extrasBaseUnits = new BN(toRawAmount(extrasAmount, tokenCode).toString());
-    const totalPayment = entryFeeBaseUnits.add(extrasBaseUnits);
+    const totalPayment    = entryFeeBaseUnits.add(extrasBaseUnits);
 
     console.log('[Solana][JoinRoom] 💵 Payment breakdown:');
     console.log('[Solana][JoinRoom]   Entry fee (raw):', entryFeeBaseUnits.toString());
-    console.log('[Solana][JoinRoom]   Extras (raw):', extrasBaseUnits.toString());
-    console.log('[Solana][JoinRoom]   Total payment (raw):', totalPayment.toString());
+    console.log('[Solana][JoinRoom]   Extras (raw):   ', extrasBaseUnits.toString());
+    console.log('[Solana][JoinRoom]   Total (raw):    ', totalPayment.toString());
 
     // ============================================================================
     // STEP 5: Derive PDAs
+    //
+    // NOTE: GlobalConfig PDA is GONE in the new contract.
     // ============================================================================
 
     console.log('[Solana][JoinRoom] 🔑 Deriving PDAs...');
 
-    const [globalConfig] = deriveGlobalConfigPDA();
     const [playerEntry] = derivePlayerEntryPDA(roomPDA, publicKey);
-    const [roomVault] = deriveRoomVaultPDA(roomPDA);
+    const [roomVault]   = deriveRoomVaultPDA(roomPDA);
 
     console.log('[Solana][JoinRoom] ✅ PDAs derived:');
-    console.log('[Solana][JoinRoom]   GlobalConfig:', globalConfig.toBase58());
     console.log('[Solana][JoinRoom]   PlayerEntry:', playerEntry.toBase58());
-    console.log('[Solana][JoinRoom]   RoomVault:', roomVault.toBase58());
+    console.log('[Solana][JoinRoom]   RoomVault:  ', roomVault.toBase58());
 
     // ============================================================================
     // STEP 6: Get player's token account
@@ -257,24 +230,21 @@ export function useSolanaJoinRoom() {
 
     console.log('[Solana][JoinRoom] 🔍 Getting player token account...');
 
-    // For SOL rooms the contract uses the wSOL mint — player ATA is always wSOL ATA
-    const isSolRoom = isNativeSolRoom(feeTokenMint);
-    const tokenMintForAta = isSolRoom ? WSOL_MINT : feeTokenMint;
-
+    const isSolRoom        = isNativeSolRoom(feeTokenMint);
+    const tokenMintForAta  = isSolRoom ? WSOL_MINT : feeTokenMint;
     const playerTokenAccount = await getAssociatedTokenAddress(tokenMintForAta, publicKey);
+
     console.log('[Solana][JoinRoom] ✅ Player token account:', playerTokenAccount.toBase58());
     console.log('[Solana][JoinRoom] 🪙 SOL room (needs wSOL wrap):', isSolRoom);
 
-    // For SPL token rooms — check existing balance
-    // For SOL rooms — skip this check, we'll wrap the exact amount needed
     if (!isSolRoom) {
       try {
-        const balance = await connection.getTokenAccountBalance(playerTokenAccount);
+        const balance    = await connection.getTokenAccountBalance(playerTokenAccount);
         const balanceRaw = BigInt(balance.value.amount);
         const requiredRaw = BigInt(totalPayment.toString());
 
         console.log('[Solana][JoinRoom] 💰 Token balance (raw):', balanceRaw.toString());
-        console.log('[Solana][JoinRoom] 💰 Required (raw):', requiredRaw.toString());
+        console.log('[Solana][JoinRoom] 💰 Required (raw):     ', requiredRaw.toString());
 
         if (balanceRaw < requiredRaw) {
           throw new Error(
@@ -284,19 +254,21 @@ export function useSolanaJoinRoom() {
         }
       } catch (error: any) {
         if (error.message.includes('could not find account')) {
-          throw new Error(`You don't have a ${tokenCode} token account. Please add ${tokenCode} to your wallet first.`);
+          throw new Error(
+            `You don't have a ${tokenCode} token account. ` +
+            `Please add ${tokenCode} to your wallet first.`
+          );
         }
         if (error.message.includes('Insufficient')) throw error;
         console.warn('[Solana][JoinRoom] ⚠️ Could not check balance:', error.message);
       }
     } else {
-      // SOL room — check native SOL balance instead
-      const solBalance = await connection.getBalance(publicKey);
+      const solBalance   = await connection.getBalance(publicKey);
       const requiredLamports = BigInt(totalPayment.toString());
-      const rentBuffer = 10_000_000n; // ~0.01 SOL buffer for rent + fees
+      const rentBuffer   = 10_000_000n; // ~0.01 SOL buffer for rent + fees
 
       console.log('[Solana][JoinRoom] 💰 Native SOL balance (lamports):', solBalance);
-      console.log('[Solana][JoinRoom] 💰 Required (lamports):', requiredLamports.toString());
+      console.log('[Solana][JoinRoom] 💰 Required (lamports):          ', requiredLamports.toString());
 
       if (BigInt(solBalance) < requiredLamports + rentBuffer) {
         throw new Error(
@@ -309,6 +281,8 @@ export function useSolanaJoinRoom() {
 
     // ============================================================================
     // STEP 7: Build and send transaction
+    //
+    // NOTE: globalConfig account is GONE from join_room accounts.
     // ============================================================================
 
     console.log('[Solana][JoinRoom] 🔨 Building join_room instruction...');
@@ -319,22 +293,19 @@ export function useSolanaJoinRoom() {
 
     const joinInstruction = await program.methods
       .joinRoom(roomId, extrasBaseUnits)
-      .accounts({
-        room: roomPDA,
+      .accountsStrict({
+        room:               roomPDA,
         playerEntry,
         roomVault,
         playerTokenAccount,
-        globalConfig,
-        player: publicKey,
-        tokenProgram: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
-        systemProgram: new PublicKey('11111111111111111111111111111111'),
+        player:             publicKey,
+        tokenProgram:       new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
+        systemProgram:      new PublicKey('11111111111111111111111111111111'),
       })
       .instruction();
 
     console.log('[Solana][JoinRoom] ✅ Join instruction built');
 
-    // For SOL rooms: prepend wrap instructions so the wSOL ATA is funded
-    // atomically in the same transaction as join_room
     let allInstructions = [joinInstruction];
 
     if (isSolRoom) {
@@ -344,7 +315,6 @@ export function useSolanaJoinRoom() {
         publicKey,
         BigInt(totalPayment.toString())
       );
-      // Wrap instructions go BEFORE join_room
       allInstructions = [...wrapIxs, joinInstruction];
       console.log('[Solana][JoinRoom] ✅ Wrap instructions prepended:', wrapIxs.length);
     }
@@ -374,8 +344,8 @@ export function useSolanaJoinRoom() {
       console.log('[Solana][JoinRoom] 📝 Signature:', signature);
 
       return {
-        success: true,
-        txHash: signature,
+        success:     true,
+        txHash:      signature,
         explorerUrl: getTxExplorerUrl(signature),
       };
     } catch (error: any) {

@@ -1,13 +1,16 @@
 /**
  * useContractActions — orchestrates blockchain actions across EVM, Solana, Stellar.
  *
- * CHANGED in wallet layer consolidation (Step 3):
- * - Now accepts `chainConfig: ChainConfig` as a required parameter
- * - No longer calls useQuizChainIntegration internally
- * - No longer imports setDeploymentInProgress (auto-switch is gone)
- * - Chain family is derived from chainConfig via useChainWallet
+ * ## Solana changes (new contract)
  *
- * The deploy/join/distribute logic itself is unchanged.
+ * deploy() Solana path:
+ * - Asset room branch REMOVED (init_asset_room is gone from new contract)
+ * - solanaCreatePoolRoom now only receives: roomId, currency, entryFee
+ *   All fee splits are fixed on-chain — hostFeePct, prizePoolPct,
+ *   charityName, prizeSplits are no longer passed.
+ *
+ * distributePrizes() Solana path:
+ * - Unchanged — solanaEndRoom signature is the same.
  */
 
 import { useCallback, useMemo } from 'react';
@@ -23,7 +26,6 @@ import { useEvmDistributePrizes } from '../chains/evm/hooks/useEvmDistributePriz
 
 /* ------------------------- Solana hooks ------------------------- */
 import { useSolanaCreatePoolRoom } from '../chains/solana/hooks/useSolanaCreatePoolRoom';
-import { useSolanaCreateAssetRoom } from '../chains/solana/hooks/useSolanaCreateAssetRoom';
 import { useSolanaJoinRoom } from '../chains/solana/hooks/useSolanaJoinRoom';
 import { useSolanaEndRoom } from '../chains/solana/hooks/useSolanaEndRoom';
 
@@ -32,96 +34,97 @@ import type { Prize } from '../components/Quiz/types/quiz';
 
 /** ---------- Types ---------- */
 export type DeployParams = {
-  roomId: string;
-  hostId: string;
-  currency?: string;
-  entryFee?: string | number;
-  hostFeePct?: number;
-  prizeMode?: 'split' | 'assets';
-  charityName?: string;
+  roomId:      string;
+  hostId:      string;
+  currency?:   string;
+  entryFee?:   string | number;
+  // EVM-only fields (ignored for Solana)
+  hostFeePct?:   number;
+  prizeMode?:    'split' | 'assets';
+  charityName?:  string;
   charityAddress?: string;
   prizePoolPct?: number;
-  prizeSplits?: { first: number; second?: number; third?: number };
+  prizeSplits?:  { first: number; second?: number; third?: number };
   expectedPrizes?: Prize[];
-  hostWallet: string;
+  hostWallet:  string;
   hostMetadata?: {
-    hostName?: string;
+    hostName?:      string;
     eventDateTime?: string;
-    totalRounds?: number;
+    totalRounds?:   number;
   };
 };
 
 export type DeployResult = {
-  success: true;
-  contractAddress: string;
-  txHash: string;
-  explorerUrl?: string;
+  success:          true;
+  contractAddress:  string;
+  txHash:           string;
+  explorerUrl?:     string;
 };
 
 type JoinArgs = {
-  roomId: string;
+  roomId:        string;
   extrasAmount?: string;
-  feeAmount?: any;
-  roomAddress?: any;
-  currency?: string;
+  feeAmount?:    any;
+  roomAddress?:  any;
+  currency?:     string;
 };
 
 type JoinResult =
-  | { success: true; txHash: string }
-  | { success: false; error: string };
+  | { success: true;  txHash: string }
+  | { success: false; error:  string };
 
 type DistributeArgs = {
-  roomId: string;
-  roomAddress?: string;
-  prizeMode?: 'assets' | 'split' | 'pool';
+  roomId:               string;
+  roomAddress?:         string;
+  prizeMode?:           'assets' | 'split' | 'pool';
   winners: Array<{
-    playerId: string;
-    address?: string | null;
-    rank?: number;
-    amount?: string;
+    playerId:  string;
+    address?:  string | null;
+    rank?:     number;
+    amount?:   string;
   }>;
-  charityOrgId?: string;
-  charityName?: string;
-  charityAddress?: string;
-  web3Chain?: string;
-  evmNetwork?: string;
-  charityWallet?: string;
+  charityOrgId?:         string;
+  charityName?:          string;
+  charityAddress?:       string;
+  web3Chain?:            string;
+  evmNetwork?:           string;
+  charityWallet?:        string;
   charityAmountPreview?: string;
-  charityCurrency?: string;
+  charityCurrency?:      string;
+  /** All players who joined — needed to build remainingAccounts for end_room */
+  allPlayers?:           string[];
 };
 
 type DistributeResult =
   | {
-      success: true;
-      txHash: string;
-      explorerUrl?: string;
-      cleanupTxHash?: string;
-      rentReclaimed?: number;
-      error?: string;
-      charityAmount?: string;
-      tgbDepositAddress?: string;
+      success:               true;
+      txHash:                string;
+      explorerUrl?:          string;
+      cleanupTxHash?:        string;
+      rentReclaimed?:        number;
+      error?:                string;
+      charityAmount?:        string;
+      tgbDepositAddress?:    string;
       declareWinnersTxHash?: string;
-      tgbDepositMemo?: string;
-      tbgDepositAddress?: string;
+      tgbDepositMemo?:       string;
+      tbgDepositAddress?:    string;
     }
   | { success: false; error: string };
 
 /* ---------------- Main hook ---------------- */
 export function useContractActions(chainConfig: ChainConfig) {
-  // chainFamily comes from the config parameter — no store reads
   const { chainFamily } = useChainWallet(chainConfig);
   const effectiveChain = chainFamily as SupportedChain | null;
 
   // EVM hooks
-  const { joinRoom: evmJoinRoom } = useEvmJoin();
-  const { deploy: evmDeploy } = useEvmDeploy();
-  const { distributePrizes: evmDistributePrizes } = useEvmDistributePrizes();
+  const { joinRoom: evmJoinRoom }           = useEvmJoin();
+  const { deploy: evmDeploy }               = useEvmDeploy();
+  const { distributePrizes: evmDistribute } = useEvmDistributePrizes();
 
   // Solana hooks
   const { createPoolRoom: solanaCreatePoolRoom } = useSolanaCreatePoolRoom();
-  const { createAssetRoom: solanaCreateAssetRoom } = useSolanaCreateAssetRoom();
-  const { joinRoom: solanaJoinRoom } = useSolanaJoinRoom();
-  const { endRoom: solanaEndRoom } = useSolanaEndRoom();
+  const { joinRoom: solanaJoinRoom }             = useSolanaJoinRoom();
+  const { endRoom: solanaEndRoom }               = useSolanaEndRoom();
 
   /** ---------------- JOIN ROOM ---------------- */
   const joinRoom = useMemo(() => {
@@ -132,18 +135,14 @@ export function useContractActions(chainConfig: ChainConfig) {
       });
     }
 
-    if (effectiveChain === 'evm') {
-      return evmJoinRoom;
-    }
+    if (effectiveChain === 'evm') return evmJoinRoom;
 
     if (effectiveChain === 'solana') {
       return async ({ roomId, feeAmount, extrasAmount, roomAddress, currency }: JoinArgs): Promise<JoinResult> => {
-        console.log('[useContractActions][joinRoom] 🎮 Solana join room', { roomId, feeAmount, extrasAmount, roomAddress, currency });
+        console.log('[useContractActions][joinRoom] Solana', { roomId, feeAmount, extrasAmount, roomAddress });
 
         try {
-          if (!roomAddress) {
-            return { success: false, error: 'Room address required for Solana join.' };
-          }
+          if (!roomAddress) return { success: false, error: 'Room address required for Solana join.' };
 
           let roomPDA: PublicKey;
           try {
@@ -152,16 +151,12 @@ export function useContractActions(chainConfig: ChainConfig) {
             return { success: false, error: `Invalid room address: ${e.message}` };
           }
 
-          const entryFeeNum = feeAmount ? parseFloat(String(feeAmount)) : undefined;
-          const extrasNum = extrasAmount ? parseFloat(String(extrasAmount)) : 0;
-          const currencyCode = (currency ?? 'USDG').toUpperCase() as SolanaTokenCode;
-
           const result = await solanaJoinRoom({
             roomId,
-            roomAddress: roomPDA,
-            entryFee: entryFeeNum,
-            extrasAmount: extrasNum,
-            currency: currencyCode,
+            roomAddress:   roomPDA,
+            entryFee:      feeAmount ? parseFloat(String(feeAmount)) : undefined,
+            extrasAmount:  extrasAmount ? parseFloat(String(extrasAmount)) : 0,
+            currency:      ((currency ?? 'USDG').toUpperCase()) as SolanaTokenCode,
           });
 
           return { success: true, txHash: result.txHash };
@@ -186,19 +181,29 @@ export function useContractActions(chainConfig: ChainConfig) {
       });
     }
 
-    if (effectiveChain === 'evm') {
-      return evmDistributePrizes;
-    }
+    if (effectiveChain === 'evm') return evmDistribute;
 
     if (effectiveChain === 'solana') {
-      return async ({ roomId, winners, roomAddress, charityOrgId, charityAddress }: DistributeArgs): Promise<DistributeResult> => {
-        console.log('[useContractActions][distributePrizes] 🏆 Solana', { roomId, winnersCount: winners.length });
+      return async ({
+        roomId,
+        winners,
+        roomAddress,
+        charityOrgId,
+        charityAddress,
+        allPlayers,
+      }: DistributeArgs): Promise<DistributeResult> => {
+        console.log('[useContractActions][distributePrizes] Solana', { roomId, winnersCount: winners.length });
 
         try {
           if (!roomAddress) return { success: false, error: 'Missing room address for distribution' };
 
-          const winnerAddresses = winners.map((w) => w.address).filter((a): a is string => !!a);
-          if (winnerAddresses.length === 0) return { success: false, error: 'No valid winner addresses' };
+          const winnerAddresses = winners
+            .map((w) => w.address)
+            .filter((a): a is string => !!a);
+
+          if (winnerAddresses.length === 0) {
+            return { success: false, error: 'No valid winner addresses' };
+          }
 
           let roomPDA: PublicKey;
           try {
@@ -209,11 +214,8 @@ export function useContractActions(chainConfig: ChainConfig) {
 
           const winnerPublicKeys: PublicKey[] = [];
           for (const addr of winnerAddresses) {
-            try {
-              winnerPublicKeys.push(new PublicKey(addr));
-            } catch (e: any) {
-              return { success: false, error: `Invalid winner address: ${addr}` };
-            }
+            try { winnerPublicKeys.push(new PublicKey(addr)); }
+            catch (e: any) { return { success: false, error: `Invalid winner address: ${addr}` }; }
           }
 
           let charityWalletPubkey: PublicKey | undefined;
@@ -221,22 +223,28 @@ export function useContractActions(chainConfig: ChainConfig) {
             try { charityWalletPubkey = new PublicKey(charityAddress); } catch {}
           }
 
+          // allPlayers: needed to build correct remainingAccounts for end_room.
+          // IDL error 6019 fires if the count doesn't match room.player_count.
+          const allPlayerPubkeys = allPlayers?.map((w) => new PublicKey(w));
+
           const result = await solanaEndRoom({
             roomId,
-            roomAddress: roomPDA,
-            winners: winnerPublicKeys,
+            roomAddress:  roomPDA,
+            winners:      winnerPublicKeys,
             charityOrgId: charityOrgId ?? undefined,
             charityWallet: charityWalletPubkey,
-          });
+            allPlayers:   allPlayerPubkeys,
+          } as any);
 
-          const declareWinnersTxHash = 'declareWinnersTxHash' in result ? result.declareWinnersTxHash : undefined;
+          const declareWinnersTxHash =
+            'declareWinnersTxHash' in result ? result.declareWinnersTxHash : undefined;
 
           return {
-            success: true,
-            txHash: result.txHash,
-            explorerUrl: result.explorerUrl,
-            charityAmount: result.charityAmount,
-            tgbDepositAddress: result.tgbDepositAddress,
+            success:              true,
+            txHash:               result.txHash,
+            explorerUrl:          result.explorerUrl,
+            charityAmount:        result.charityAmount,
+            tgbDepositAddress:    result.tgbDepositAddress,
             declareWinnersTxHash,
           };
         } catch (e: any) {
@@ -249,17 +257,12 @@ export function useContractActions(chainConfig: ChainConfig) {
       success: false,
       error: 'Prize distribution not implemented for this chain',
     });
-  }, [effectiveChain, evmDistributePrizes, solanaEndRoom]);
+  }, [effectiveChain, evmDistribute, solanaEndRoom]);
 
   /** ---------------- DEPLOY ---------------- */
   const deploy = useCallback(
     async (params: DeployParams): Promise<DeployResult> => {
-      console.log('[useContractActions][deploy] 🚀 chain:', effectiveChain, 'params:', params);
-
-      // Note: no setDeploymentInProgress here — the auto-switch useEffect is gone.
-      // useEvmJoin still uses its own local lock during the approve+join sequence,
-      // which is fine because that's purely within a single async function, not a
-      // module-level flag fighting across hook instances.
+      console.log('[useContractActions][deploy] chain:', effectiveChain, 'roomId:', params.roomId);
 
       if (effectiveChain === 'stellar') {
         throw new Error('Stellar deployment must be handled through StellarLaunchSection component');
@@ -270,50 +273,30 @@ export function useContractActions(chainConfig: ChainConfig) {
       }
 
       if (effectiveChain === 'solana') {
-        const currency = (params.currency ?? 'USDG').toUpperCase() as SolanaTokenCode;
+        // New contract: only roomId, currency, entryFee are needed.
+        // hostFeePct, prizePoolPct, charityName, prizeSplits, prizeMode,
+        // and expectedPrizes are all FIXED or GONE — do not pass them.
+        const currency = ((params.currency ?? 'USDG').toUpperCase()) as SolanaTokenCode;
 
-        if (params.prizeMode === 'assets') {
-          if (!params.expectedPrizes || params.expectedPrizes.length === 0) {
-            throw new Error('Asset room requires at least one prize');
-          }
-          const result = await solanaCreateAssetRoom({
-            roomId: params.roomId,
-            currency,
-            entryFee: parseFloat(String(params.entryFee ?? '1.0')),
-            maxPlayers: 100,
-            hostFeePct: params.hostFeePct ?? 0,
-            charityName: params.charityName,
-            expectedPrizes: params.expectedPrizes,
-          });
-          return {
-            success: true,
-            contractAddress: result.contractAddress,
-            txHash: result.txHash,
-            explorerUrl: result.explorerUrl,
-          };
-        } else {
-          const result = await solanaCreatePoolRoom({
-            roomId: params.roomId,
-            currency,
-            entryFee: parseFloat(String(params.entryFee ?? '1.0')),
-            maxPlayers: 100,
-            hostFeePct: params.hostFeePct ?? 0,
-            prizePoolPct: params.prizePoolPct ?? 0,
-            charityName: params.charityName,
-            prizeSplits: params.prizeSplits,
-          });
-          return {
-            success: true,
-            contractAddress: result.contractAddress,
-            txHash: result.txHash,
-            explorerUrl: result.explorerUrl,
-          };
-        }
+        const result = await solanaCreatePoolRoom({
+          roomId:   params.roomId,
+          currency,
+          entryFee: parseFloat(String(params.entryFee ?? '1.0')),
+          // maxPlayers kept as a UI concept but not sent to contract
+          maxPlayers: 100,
+        });
+
+        return {
+          success:         true,
+          contractAddress: result.contractAddress,
+          txHash:          result.txHash,
+          explorerUrl:     result.explorerUrl,
+        };
       }
 
       throw new Error(`Deployment not implemented for ${effectiveChain} chain`);
     },
-    [effectiveChain, evmDeploy, solanaCreatePoolRoom, solanaCreateAssetRoom]
+    [effectiveChain, evmDeploy, solanaCreatePoolRoom]
   );
 
   return { deploy, joinRoom, distributePrizes };

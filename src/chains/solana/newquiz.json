@@ -1,0 +1,1300 @@
+{
+  "address": "99uc6q3wfb59tLeMjUNzgiNexCNcKaAvG5yE4n5VRxkH",
+  "metadata": {
+    "name": "newquiz",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Fundraisely quiz — fixed fee splits, any SPL token"
+  },
+  "instructions": [
+    {
+      "name": "close_joining",
+      "docs": [
+        "Host locks the room — no new players can join after this."
+      ],
+      "discriminator": [
+        203,
+        245,
+        231,
+        125,
+        106,
+        208,
+        104,
+        176
+      ],
+      "accounts": [
+        {
+          "name": "room",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room.host",
+                "account": "Room"
+              },
+              {
+                "kind": "arg",
+                "path": "room_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "host",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "room"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "room_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "declare_winners",
+      "docs": [
+        "Host declares up to 2 winners (optional pre-step before end_room)."
+      ],
+      "discriminator": [
+        42,
+        228,
+        213,
+        39,
+        88,
+        35,
+        143,
+        71
+      ],
+      "accounts": [
+        {
+          "name": "room",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room.host",
+                "account": "Room"
+              },
+              {
+                "kind": "arg",
+                "path": "room_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "host",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "room"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "room_id",
+          "type": "string"
+        },
+        {
+          "name": "winners",
+          "type": {
+            "vec": "pubkey"
+          }
+        }
+      ]
+    },
+    {
+      "name": "emergency_close",
+      "docs": [
+        "Admin-only emergency shutdown.",
+        "Players refunded 100 % of tokens. Platform recovers only SOL rent.",
+        "Pass all PlayerEntry/token pairs in remaining_accounts."
+      ],
+      "discriminator": [
+        72,
+        5,
+        66,
+        138,
+        108,
+        194,
+        37,
+        175
+      ],
+      "accounts": [
+        {
+          "name": "room",
+          "docs": [
+            "Room closed at end — rent → platform_wallet"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room.host",
+                "account": "Room"
+              },
+              {
+                "kind": "arg",
+                "path": "room_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "room_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room"
+              }
+            ]
+          }
+        },
+        {
+          "name": "platform_wallet",
+          "docs": [
+            "Receives all rent from closed accounts."
+          ],
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "docs": [
+            "Admin signer — validated in handler against PLATFORM_ADMIN_PUBKEY constant"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "room_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "end_room",
+      "docs": [
+        "Distribute prizes and close the room.",
+        "Pass 1 or 2 winner token accounts + all PlayerEntry/token pairs in remaining_accounts.",
+        "If only 1 winner, the 2nd-place share goes to charity."
+      ],
+      "discriminator": [
+        102,
+        106,
+        181,
+        155,
+        61,
+        17,
+        40,
+        78
+      ],
+      "accounts": [
+        {
+          "name": "room",
+          "docs": [
+            "Room closed at end — rent → platform_wallet"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room.host",
+                "account": "Room"
+              },
+              {
+                "kind": "arg",
+                "path": "room_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "room_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room"
+              }
+            ]
+          }
+        },
+        {
+          "name": "platform_token_account",
+          "docs": [
+            "Platform token account — receives 15 % cut (any fee token)"
+          ],
+          "writable": true
+        },
+        {
+          "name": "platform_wallet",
+          "docs": [
+            "Receives all rent from closed accounts."
+          ],
+          "writable": true
+        },
+        {
+          "name": "charity_token_account",
+          "writable": true
+        },
+        {
+          "name": "host_token_account",
+          "writable": true
+        },
+        {
+          "name": "host",
+          "signer": true,
+          "relations": [
+            "room"
+          ]
+        },
+        {
+          "name": "charity_wallet"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "room_id",
+          "type": "string"
+        },
+        {
+          "name": "charity_wallet",
+          "type": "pubkey"
+        },
+        {
+          "name": "intent_id_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "winners",
+          "type": {
+            "vec": "pubkey"
+          }
+        }
+      ]
+    },
+    {
+      "name": "init_pool_room",
+      "docs": [
+        "Create a pool-based fundraising room.",
+        "Only room_id, entry_fee, and fee_token_mint needed — splits are fixed, no expiry."
+      ],
+      "discriminator": [
+        51,
+        17,
+        194,
+        102,
+        72,
+        127,
+        188,
+        37
+      ],
+      "accounts": [
+        {
+          "name": "room",
+          "docs": [
+            "Room PDA — host pays rent"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "host"
+              },
+              {
+                "kind": "arg",
+                "path": "room_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "room_vault",
+          "docs": [
+            "Room vault — created via CPI in handler (host pays rent)"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room"
+              }
+            ]
+          }
+        },
+        {
+          "name": "fee_token_mint",
+          "docs": [
+            "Any SPL token mint — no whitelist"
+          ]
+        },
+        {
+          "name": "host",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "room_id",
+          "type": "string"
+        },
+        {
+          "name": "entry_fee",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "join_room",
+      "docs": [
+        "Player pays entry_fee (+ optional extras) to join the room."
+      ],
+      "discriminator": [
+        95,
+        232,
+        188,
+        81,
+        124,
+        130,
+        78,
+        139
+      ],
+      "accounts": [
+        {
+          "name": "room",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room.host",
+                "account": "Room"
+              },
+              {
+                "kind": "arg",
+                "path": "room_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "player_entry",
+          "docs": [
+            "PlayerEntry PDA — player pays rent"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  121,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room"
+              },
+              {
+                "kind": "account",
+                "path": "player"
+              }
+            ]
+          }
+        },
+        {
+          "name": "room_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room"
+              }
+            ]
+          }
+        },
+        {
+          "name": "player_token_account",
+          "writable": true
+        },
+        {
+          "name": "player",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "room_id",
+          "type": "string"
+        },
+        {
+          "name": "extras_amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "refund_room",
+      "docs": [
+        "Host cancels the room: platform keeps 15 %, players get 85 % back.",
+        "Extras refunded 100 %. ALL rent goes to platform_wallet.",
+        "Pass all PlayerEntry/token pairs in remaining_accounts."
+      ],
+      "discriminator": [
+        244,
+        238,
+        123,
+        48,
+        50,
+        50,
+        210,
+        133
+      ],
+      "accounts": [
+        {
+          "name": "room",
+          "docs": [
+            "Room closed at end — rent → platform_wallet"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room.host",
+                "account": "Room"
+              },
+              {
+                "kind": "arg",
+                "path": "room_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "room_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room"
+              }
+            ]
+          }
+        },
+        {
+          "name": "platform_token_account",
+          "docs": [
+            "Platform receives its 15 % cut even on a host refund"
+          ],
+          "writable": true
+        },
+        {
+          "name": "platform_wallet",
+          "docs": [
+            "Receives all rent from closed accounts."
+          ],
+          "writable": true
+        },
+        {
+          "name": "host",
+          "signer": true,
+          "relations": [
+            "room"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "room_id",
+          "type": "string"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "PlayerEntry",
+      "discriminator": [
+        158,
+        6,
+        39,
+        104,
+        234,
+        4,
+        153,
+        255
+      ]
+    },
+    {
+      "name": "Room",
+      "discriminator": [
+        156,
+        199,
+        67,
+        27,
+        222,
+        23,
+        185,
+        94
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "EmergencyClose",
+      "discriminator": [
+        197,
+        39,
+        183,
+        227,
+        170,
+        144,
+        248,
+        103
+      ]
+    },
+    {
+      "name": "PlayerJoined",
+      "discriminator": [
+        39,
+        144,
+        49,
+        106,
+        108,
+        210,
+        183,
+        38
+      ]
+    },
+    {
+      "name": "RoomCreated",
+      "discriminator": [
+        9,
+        177,
+        128,
+        166,
+        26,
+        19,
+        14,
+        243
+      ]
+    },
+    {
+      "name": "RoomEnded",
+      "discriminator": [
+        204,
+        239,
+        146,
+        218,
+        190,
+        21,
+        193,
+        184
+      ]
+    },
+    {
+      "name": "RoomRefunded",
+      "discriminator": [
+        130,
+        254,
+        121,
+        123,
+        177,
+        246,
+        157,
+        201
+      ]
+    },
+    {
+      "name": "WinnersDeclared",
+      "discriminator": [
+        60,
+        25,
+        114,
+        88,
+        126,
+        49,
+        88,
+        136
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Unauthorized",
+      "msg": "Unauthorized"
+    },
+    {
+      "code": 6001,
+      "name": "RoomAlreadyEnded",
+      "msg": "Room already ended"
+    },
+    {
+      "code": 6002,
+      "name": "RoomAlreadyRefunded",
+      "msg": "Room already refunded"
+    },
+    {
+      "code": 6003,
+      "name": "InvalidRoomStatus",
+      "msg": "Invalid room status for this operation"
+    },
+    {
+      "code": 6004,
+      "name": "RoomFull",
+      "msg": "Room is full"
+    },
+    {
+      "code": 6005,
+      "name": "JoiningClosed",
+      "msg": "Room is no longer accepting new players"
+    },
+    {
+      "code": 6006,
+      "name": "NotEnoughPlayers",
+      "msg": "Not enough players — need at least 2 to end the room"
+    },
+    {
+      "code": 6007,
+      "name": "PlayerAlreadyJoined",
+      "msg": "Player already joined this room"
+    },
+    {
+      "code": 6008,
+      "name": "HostCannotBeWinner",
+      "msg": "Host cannot be a winner"
+    },
+    {
+      "code": 6009,
+      "name": "DuplicateWinner",
+      "msg": "Duplicate winner in winners list"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidWinnerCount",
+      "msg": "Exactly 2 winners required (1st and 2nd place)"
+    },
+    {
+      "code": 6011,
+      "name": "InvalidPlayerEntry",
+      "msg": "Winner did not join this room"
+    },
+    {
+      "code": 6012,
+      "name": "InvalidTokenOwner",
+      "msg": "Winner's token account owner does not match declared winner"
+    },
+    {
+      "code": 6013,
+      "name": "InvalidTokenMint",
+      "msg": "Token account mint does not match room fee token"
+    },
+    {
+      "code": 6014,
+      "name": "InvalidRoomId",
+      "msg": "Invalid room ID — must be 1–32 characters"
+    },
+    {
+      "code": 6015,
+      "name": "InvalidEntryFee",
+      "msg": "Invalid entry fee"
+    },
+    {
+      "code": 6016,
+      "name": "InvalidMaxPlayers",
+      "msg": "Invalid max_players — must be between 1 and 1000"
+    },
+    {
+      "code": 6017,
+      "name": "InvalidMemo",
+      "msg": "Invalid charity memo — max 28 characters"
+    },
+    {
+      "code": 6018,
+      "name": "InvalidVaultAccount",
+      "msg": "Vault account must be uninitialised before room creation"
+    },
+    {
+      "code": 6019,
+      "name": "RefundAccountMismatch",
+      "msg": "Refund account list length does not match player count"
+    },
+    {
+      "code": 6020,
+      "name": "ArithmeticOverflow",
+      "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 6021,
+      "name": "ArithmeticUnderflow",
+      "msg": "Arithmetic underflow"
+    }
+  ],
+  "types": [
+    {
+      "name": "EmergencyClose",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "room",
+            "type": "pubkey"
+          },
+          {
+            "name": "room_id",
+            "type": "string"
+          },
+          {
+            "name": "players_refunded",
+            "type": "u32"
+          },
+          {
+            "name": "total_refunded",
+            "docs": [
+              "All tokens returned to players; platform keeps only SOL rent"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "platform_wallet",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PlayerEntry",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "room",
+            "docs": [
+              "The room this entry belongs to"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "player",
+            "docs": [
+              "The player's wallet"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_paid",
+            "docs": [
+              "Total tokens transferred: entry_fee + any extras"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "joined_slot",
+            "docs": [
+              "Slot at which the player joined"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PlayerJoined",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "room",
+            "type": "pubkey"
+          },
+          {
+            "name": "room_id",
+            "type": "string"
+          },
+          {
+            "name": "player",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_paid",
+            "type": "u64"
+          },
+          {
+            "name": "player_count",
+            "type": "u32"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Room",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "room_id",
+            "type": "string"
+          },
+          {
+            "name": "host",
+            "type": "pubkey"
+          },
+          {
+            "name": "fee_token_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "entry_fee",
+            "type": "u64"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "RoomStatus"
+              }
+            }
+          },
+          {
+            "name": "player_count",
+            "type": "u32"
+          },
+          {
+            "name": "total_collected",
+            "type": "u64"
+          },
+          {
+            "name": "total_entry_fees",
+            "type": "u64"
+          },
+          {
+            "name": "total_extras_fees",
+            "type": "u64"
+          },
+          {
+            "name": "joining_closed",
+            "type": "bool"
+          },
+          {
+            "name": "ended",
+            "type": "bool"
+          },
+          {
+            "name": "creation_slot",
+            "type": "u64"
+          },
+          {
+            "name": "expiration_slot",
+            "type": "u64"
+          },
+          {
+            "name": "winners",
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RoomCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "room",
+            "type": "pubkey"
+          },
+          {
+            "name": "room_id",
+            "type": "string"
+          },
+          {
+            "name": "host",
+            "type": "pubkey"
+          },
+          {
+            "name": "fee_token_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "entry_fee",
+            "type": "u64"
+          },
+          {
+            "name": "max_players",
+            "type": "u32"
+          },
+          {
+            "name": "expiration_slot",
+            "docs": [
+              "0 = no expiry"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RoomEnded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "room",
+            "type": "pubkey"
+          },
+          {
+            "name": "room_id",
+            "type": "string"
+          },
+          {
+            "name": "winners",
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "total_distributed",
+            "type": "u64"
+          },
+          {
+            "name": "charity_amount",
+            "type": "u64"
+          },
+          {
+            "name": "intent_id_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RoomRefunded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "room",
+            "type": "pubkey"
+          },
+          {
+            "name": "room_id",
+            "type": "string"
+          },
+          {
+            "name": "player_count",
+            "type": "u32"
+          },
+          {
+            "name": "platform_retained",
+            "docs": [
+              "Platform retained 15 % of each entry fee"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RoomStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Ready"
+          },
+          {
+            "name": "Open"
+          },
+          {
+            "name": "JoiningClosed"
+          },
+          {
+            "name": "WinnersDeclared"
+          },
+          {
+            "name": "Ended"
+          },
+          {
+            "name": "Refunded"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WinnersDeclared",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "room",
+            "type": "pubkey"
+          },
+          {
+            "name": "room_id",
+            "type": "string"
+          },
+          {
+            "name": "winners",
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    }
+  ]
+}

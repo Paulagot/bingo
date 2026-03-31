@@ -6,7 +6,7 @@ import { useQuizSetupStore } from "../hooks/useQuizSetupStore";
 
 
 import ReviewHostEventSection from "./web3setup/ReviewHostEventSection";
-import ReviewPaymentPrizeSection from "./web3setup/ReviewPaymentPrizeSection";
+
 import ReviewQuizStructureSection from "./web3setup/ReviewQuizStructureSection";
 import BlockchainWalletSection from "./web3setup/BlockchainWalletSection";
 
@@ -145,7 +145,7 @@ const {
 
       {/* Sections */}
       <ReviewHostEventSection setupConfig={setupConfig} />
-      <ReviewPaymentPrizeSection setupConfig={setupConfig} />
+     
       <ReviewQuizStructureSection setupConfig={setupConfig} />
 
       {/* Stellar-only deploy block */}

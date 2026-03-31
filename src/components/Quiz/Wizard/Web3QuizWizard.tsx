@@ -121,7 +121,7 @@ export default function QuizWeb3Wizard({ onComplete, onChainUpdate }: QuizWizard
   const inner = (
     <div className="mx-auto max-w-3xl px-4 py-10">
       <div className="mb-6 text-center">
-        <h1 className="heading-1">Create Web3 Impact Quiz</h1>
+        <h1 className="heading-1">Create Web3 Quiz</h1>
       </div>
       <div className="bg-muted rounded-xl p-6 shadow-lg">
         {renderStepContent()}

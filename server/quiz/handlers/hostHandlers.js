@@ -1596,7 +1596,7 @@ try {
     console.log(`[Host] 📢 Sent cleanup completion notice to room ${roomId}`);
     console.log(
       `[Host] 🌐 isWeb3Room: ${isWeb3Room}, redirect → ${
-        isWeb3Room ? '/web3/impact-campaign/' : '/'
+        isWeb3Room ? '/web3/' : '/'
       }`
     );
   }
