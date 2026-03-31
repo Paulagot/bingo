@@ -265,7 +265,7 @@ const HostEarningsCalculator: React.FC = () => {
       )}
 
       <p className="mt-4 text-center text-sm leading-relaxed text-white/50">
-        Illustrative estimates only. FundRaisely does not guarantee earnings. Hosting is not employment and carries no contractual arrangement with FundRaisely.
+        Illustrative estimates only. Actual is in crypto reciepts, not euros. FundRaisely does not guarantee earnings. Hosting is not employment and carries no contractual arrangement with FundRaisely.
       </p>
     </div>
   );
@@ -279,16 +279,16 @@ const Web3MainIndex: React.FC = () => {
   const webPageJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
-    name: 'Web3 Fundraising: Host Quiz Nights and Elimination Games for Real-World Impact | FundRaisely',
+    name: 'Web3 Fundraising Marktplace: Host Quiz Nights and Elimination Games for Real-World Impact | FundRaisely',
     description:
       'Host Web3 quiz nights and elimination games with your community. Earn a percentage as host, support verified charities, and run transparent on-chain events on Solana and Base.',
     url: abs('/web3'),
     mainEntity: {
       '@type': 'SoftwareApplication',
-      name: 'FundRaisely Web3 Fundraising Platform',
+      name: 'FundRaisely Web3 Fundraising Marketplace Platform',
       applicationCategory: 'BusinessApplication',
       operatingSystem: 'Web',
-      description: 'Blockchain-powered fundraising platform for transparent quiz nights and elimination games.',
+      description: 'Blockchain-powered fundraising marketplace for transparent quiz nights and elimination games.',
       featureList: [
         'Quiz nights and elimination games',
         'Hosts earn a share of every event',
@@ -360,14 +360,14 @@ const Web3MainIndex: React.FC = () => {
       />
 
       <SEO
-        title="Web3 Fundraising: Host Quiz Nights and Elimination Games for Real-World Impact | FundRaisely"
+        title="Web3 Fundraising Marketplace: Host Quiz Nights and Elimination Games for Real-World Impact | FundRaisely"
         description="Host Web3 quiz nights and elimination games. Earn a share as host, support verified charities, and run transparent on-chain events on Solana and Base."
-        keywords="web3 fundraising, blockchain charity, host quiz night crypto, elimination game web3, on-chain donations, crypto charity events, Solana fundraising, Base fundraising, earn crypto hosting"
+        keywords="web3 fundraising, fundraising marketplace, blockchain charity, host quiz night crypto, elimination game web3, on-chain donations, crypto charity events, Solana fundraising, Base fundraising, earn crypto hosting"
         domainStrategy="geographic"
         image="/og/web3-hub.png"
         breadcrumbs={[
           { name: 'Home', item: '/' },
-          { name: 'Web3 Fundraising', item: '/web3' },
+          { name: 'Web3 Fundraising Marketplace', item: '/web3' },
         ]}
         structuredData={[webPageJsonLd, faqJsonLd]}
       />
@@ -381,7 +381,7 @@ const Web3MainIndex: React.FC = () => {
         <div className="container mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center text-center">
           <SectionLabel>
-            <Globe className="h-4 w-4" /> Web3 Fundraising
+            <Globe className="h-4 w-4" /> Web3 Fundraising Marketplace
           </SectionLabel>
 
           <h1 className="mt-6 font-mono text-4xl font-bold leading-tight text-white sm:text-5xl md:text-6xl">
@@ -389,9 +389,7 @@ const Web3MainIndex: React.FC = () => {
           </h1>
 
           <p className="mt-6 max-w-2xl text-xl leading-relaxed text-white/70">
-            Anyone with a Web3 wallet can host a quiz night or elimination game for their community, earn a share
-            of every entry fee, and send a guaranteed cut to a verified charity. No middlemen. No manual payouts.
-            The smart contract handles everything the moment your event ends.
+            FundRaisely's decentralised fundraising marketplace is where anyone can host live events and raise funds for verified charities. Choose a game, bring your community, and let smart contracts handle the payout automatically.
           </p>
 
           <div className="mt-8 flex flex-wrap justify-center gap-3">
@@ -412,10 +410,10 @@ const Web3MainIndex: React.FC = () => {
           {/* Stats bar */}
           <div className="mt-12 flex w-full flex-wrap justify-center gap-8 border-t border-[#1e2d42] pt-8 sm:justify-between">
             {[
-              { label: 'host cut / quiz', value: '25%' },
-              { label: 'host cut / elimination', value: '20%' },
-              { label: 'min. charity split', value: '30%' },
-              { label: 'chains', value: 'SOL + BASE' },
+              { label: 'Host share on quizzes', value: '25%' },
+              { label: 'Host share on elimination', value: '20%' },
+              { label: 'Guaranteed to charity', value: '30%' },
+              { label: 'Live on', value: 'SOL + BASE' },
             ].map(({ label, value }) => (
               <div key={label} className="text-center">
                 <p className="font-mono text-2xl font-bold text-white">{value}</p>
@@ -436,10 +434,10 @@ const Web3MainIndex: React.FC = () => {
             <SectionLabel><HandCoins className="h-4 w-4" /> Why host</SectionLabel>
             <h2 className="mt-4 font-mono text-3xl font-bold text-white">
               Your community is already there.<br />
-              <span className="text-[#a3f542]">Make something happen.</span>
+              <span className="text-[#a3f542]">Now give them something to join.</span>
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-white/50">
-              A pub crowd, a Discord server, a sports club, a college society. If they have a wallet, they can play.
+              A pub crowd, Telgram groups, X followers, a Discord server, a sports club, a college society or even streaming communities. If they have a wallet, they can play.
               FundRaisely gives you the event, the tech, and the payout. You bring the people.
             </p>
           </div>
@@ -448,7 +446,7 @@ const Web3MainIndex: React.FC = () => {
               <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#a3f542]/20 bg-[#a3f542]/10">
                 <HandCoins className="h-5 w-5 text-[#a3f542]" />
               </div>
-              <h3 className="mb-2 font-mono text-sm font-bold text-white">You get paid to host</h3>
+              <h3 className="mb-2 font-mono text-sm font-bold text-white">Earn a host share automatically</h3>
               <p className="text-base leading-relaxed text-white/60">
                 Earn 25% of all entry fees on every quiz and 20% on every elimination game. Paid automatically to
                 your wallet the moment the event ends. No invoices. No waiting. No chasing.
@@ -470,7 +468,7 @@ const Web3MainIndex: React.FC = () => {
               </div>
               <h3 className="mb-2 font-mono text-sm font-bold text-white">Built for real communities</h3>
               <p className="text-base leading-relaxed text-white/60">
-                Pub quizzes, Discord servers, sports clubs, DAOs, college societies. FundRaisely works wherever
+                Pub quizzes, sports clubs, college societies. DAOs, Discord servers,Telegram, X (Twitter), and streaming communities. FundRaisely works wherever
                 your people are. If they have a wallet, they can play.
               </p>
             </W3Card>
@@ -514,7 +512,7 @@ const Web3MainIndex: React.FC = () => {
                 <PayoutPill label="Platform" pct="15%" accent="border-[#1e2d42] bg-white/5" textAccent="text-white/40" />
               </div>
               <a href="/web3/quiz" className="inline-flex items-center gap-2 rounded-xl border border-[#a3f542]/40 bg-[#a3f542]/10 px-5 py-3 font-mono font-semibold text-[#a3f542] transition hover:border-[#a3f542]/80 hover:bg-[#a3f542]/20">
-                <Trophy className="h-4 w-4" /> Host a Quiz
+                <Trophy className="h-4 w-4" /> Learn more about the Quiz
               </a>
             </W3Card>
 
@@ -539,7 +537,7 @@ const Web3MainIndex: React.FC = () => {
                 <PayoutPill label="Platform" pct="15%" accent="border-[#1e2d42] bg-white/5" textAccent="text-white/40" />
               </div>
               <a href="/web3/elimination" className="inline-flex items-center gap-2 rounded-xl border border-orange-400/40 bg-orange-400/10 px-5 py-3 font-mono font-semibold text-orange-400 transition hover:border-orange-400/80 hover:bg-orange-400/20">
-                <Crosshair className="h-4 w-4" /> Host Elimination
+                <Crosshair className="h-4 w-4" /> Learn more about Elimination
               </a>
             </W3Card>
           </div>
@@ -555,7 +553,7 @@ const Web3MainIndex: React.FC = () => {
             <div className="mb-6 text-center">
               <SectionLabel><Coins className="h-4 w-4" /> Earnings estimator</SectionLabel>
               <h2 className="mt-4 font-mono text-3xl font-bold text-white">
-                See what hosting could look like for you
+                See what you could raise and earn
               </h2>
               <p className="mt-2 text-sm text-white/40">
                 Plug in your schedule and see a breakdown. Estimates only based on your inputs.
@@ -575,14 +573,14 @@ const Web3MainIndex: React.FC = () => {
           <div className="mb-8 text-center">
             <SectionLabel><ArrowRight className="h-4 w-4" /> How it works</SectionLabel>
             <h2 className="mt-4 font-mono text-3xl font-bold text-white">From idea to payout in four steps.</h2>
-            <p className="mx-auto mt-3 max-w-2xl text-white/50">No blockchain experience required.</p>
+            <p className="mx-auto mt-3 max-w-2xl text-white/50">From choosing a cause to automatic payout, everything is built to be simple for hosts and transparent for players. No blockchain experience required.</p>
           </div>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {[
               {
                 n: '01',
                 title: 'Choose your game',
-                body: 'Pick a quiz night or an elimination game. Both use the same guided setup wizard.',
+                body: 'Pick a quiz night or an elimination game. Both are super easy to setup and run, and both pay you a share of every entry fee. Host one or both. It’s up to you.',
               },
               {
                 n: '02',
@@ -621,7 +619,7 @@ const Web3MainIndex: React.FC = () => {
               Not policies. <span className="text-[#a3f542]">Code.</span>
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-white/50">
-              Smart contracts enforce these rules the same way for every host, every event, every time.
+              Every event follows the same payout logic. The charity allocation, winner share, host share, and platform fee are enforced transparently on-chain.
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -648,14 +646,14 @@ const Web3MainIndex: React.FC = () => {
         <div className="container mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
           <div className="mb-8 text-center">
             <SectionLabel><Wallet className="h-4 w-4" /> Platform</SectionLabel>
-            <h2 className="mt-4 font-mono text-3xl font-bold text-white">Everything you need. Nothing you don't.</h2>
+            <h2 className="mt-4 font-mono text-3xl font-bold text-white">Why hosts, players and non profits can trust it</h2>
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             <W3Card>
               <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#1e2d42] bg-white/5">
                 <Lock className="h-5 w-5 text-white/60" />
               </div>
-              <h3 className="mb-2 font-mono text-sm font-bold text-white">Smart contract payouts</h3>
+              <h3 className="mb-2 font-mono text-sm font-bold text-white">Automated payout logic</h3>
               <p className="text-base leading-relaxed text-white/60">
                 Entry fees are held and distributed by a smart contract. No one can alter the split, not even us.
                 Every payout is enforced by code and visible on-chain.
@@ -665,7 +663,7 @@ const Web3MainIndex: React.FC = () => {
               <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#1e2d42] bg-white/5">
                 <Wallet className="h-5 w-5 text-white/60" />
               </div>
-              <h3 className="mb-2 font-mono text-sm font-bold text-white">Connect any compatible wallet</h3>
+              <h3 className="mb-2 font-mono text-sm font-bold text-white">Wallet-based participation</h3>
               <p className="text-base leading-relaxed text-white/60">
                 Players connect their own wallet to join. No accounts, no signups, no card details. Works with
                 popular Solana and Base wallets right out of the box.
@@ -675,7 +673,7 @@ const Web3MainIndex: React.FC = () => {
               <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#6ef0d4]/20 bg-[#6ef0d4]/5">
                 <BadgeCheck className="h-5 w-5 text-[#6ef0d4]" />
               </div>
-              <h3 className="mb-2 font-mono text-sm font-bold text-white">Verified charities via The Giving Block</h3>
+              <h3 className="mb-2 font-mono text-sm font-bold text-white">Verified charity recipients</h3>
               <p className="text-base leading-relaxed text-white/60">
                 Every charity on FundRaisely has been vetted through The Giving Block. Your community donates
                 with confidence knowing their money reaches a legitimate cause.
@@ -695,17 +693,13 @@ const Web3MainIndex: React.FC = () => {
               <div>
                 <SectionLabel><Heart className="h-4 w-4" /> For non-profits</SectionLabel>
                 <h2 className="mt-4 font-mono text-3xl font-bold text-white">
-                  Become a verified <span className="text-[#6ef0d4]">recipient</span>
+                  Become a verified <span className="text-[#6ef0d4]">recipient on the marketplace</span>
                 </h2>
                 <p className="mt-4 leading-relaxed text-white/50">
-                  FundRaisely will work with any non-profit that accepts crypto payments. Once approved, your
-                  organisation can be chosen as the beneficiary for any quiz night or elimination game hosted on
-                  the platform, with funds sent directly to your wallet on-chain at the close of every event.
+                 If your organisation can receive crypto, it can be selected by hosts across the platform as the beneficiary of their events. That means people beyond your own audience can raise funds for your cause.
                 </p>
                 <p className="mt-3 leading-relaxed text-white/50">
-                  Priority is given to organisations already verified with The Giving Block, but we welcome all
-                  qualifying non-profits. If your organisation is not yet on The Giving Block, we can help point
-                  you in the right direction.
+                 You are not limited to running your own campaigns. On FundRaisely, anyone can choose your organisation as the charity beneficiary when hosting an event.
                 </p>
                 <p className="mt-3 leading-relaxed text-white/50">
                   Get in touch via the contact form and we will walk you through the process of becoming a
@@ -805,9 +799,13 @@ const Web3MainIndex: React.FC = () => {
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             {[
+               {
+                q: 'What makes FundRaisely different from a normal donation platform?',
+                a: 'FundRaisely is not just a donation page. It is a fundraising marketplace where hosts create live events, players pay to take part, and verified charities receive a guaranteed share through smart contract payouts.',
+              },
               {
                 q: 'How much do I actually earn as a host?',
-                a: 'You receive 25% of all entry fees on every quiz you run, and 20% on every elimination game, paid automatically to your wallet when the event ends. If 20 people pay 10 euros to play your quiz, you receive 50 euros. If you run three elimination games with 20 players at 5 euros each, that is 60 euros for roughly an hour of your time. Earnings depend entirely on your players and the events you run. FundRaisely does not guarantee any income.',
+                a: 'You receive 25% of all entry fees on every quiz you run, and 20% on every elimination game, paid automatically to your wallet when the event ends. If 20 people pay 10 USDC to play your quiz, you receive 50 USDC. If you run three elimination games with 20 players at 5 USDC each, that is 60 USDC for roughly an hour of your time. Earnings depend entirely on your players and the events you run. FundRaisely does not guarantee any income.',
               },
               {
                 q: 'Do I need to know anything about crypto to host?',

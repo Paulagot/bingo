@@ -259,7 +259,7 @@ const Web3Features: React.FC = () => {
           <div className="mb-8 text-center">
             <SectionLabel><SplitSquareHorizontal className="h-4 w-4" /> Payout splits</SectionLabel>
             <h2 className="mt-4 font-mono text-3xl font-bold text-white">
-              Every euro accounted for. <span className="text-[#a3f542]">Every time.</span>
+              Every crypto accounted for. <span className="text-[#a3f542]">Every time.</span>
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-white/50">
               The split is fixed in the contract before the event starts. Players know exactly where their entry fee
@@ -571,10 +571,11 @@ const Web3Features: React.FC = () => {
             {[
               { name: 'Phantom', chain: 'Solana', note: 'The most popular Solana wallet. Simple, fast, and widely used across Web3 gaming and DeFi communities.' },
               { name: 'Solflare', chain: 'Solana', note: 'A full-featured Solana wallet with strong multi-token support and hardware wallet compatibility.' },
+              { name: 'Backpack', chain: 'Solana/EVM', note: 'A multichain wallet supporting both Solana and EVM networks.' },
               { name: 'MetaMask', chain: 'Base (EVM)', note: 'The most widely used Ethereum and EVM wallet in the world. Works with Base out of the box.' },
               { name: 'Coinbase Wallet', chain: 'Base (EVM)', note: 'Built natively for Base. Easy onboarding for users coming from Coinbase exchange accounts.' },
               { name: 'WalletConnect', chain: 'Base (EVM)', note: 'Connects hundreds of EVM-compatible wallets via QR code or deeplink. Maximum compatibility for Base events.' },
-              { name: 'More coming', chain: 'Ongoing', note: 'We are continuously expanding wallet support. If your community uses a specific wallet, get in touch and we will look at adding it.' },
+              
             ].map(({ name, chain, note }) => (
               <W3Card key={name}>
                 <p className="mb-1 font-mono text-lg font-bold text-white">{name}</p>
