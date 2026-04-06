@@ -47,6 +47,7 @@ export const LineLengthRound: React.FC<Props> = ({ config, roundId, playerId, on
   const handlePointerDown = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
     if (hasSubmitted || !dragEnabled) return;
     dragging.current = true;
+    setHasDragged(true);
     setPlayerLength(getLengthFromEvent(e));
   }, [hasSubmitted, dragEnabled, getLengthFromEvent]);
 
@@ -57,11 +58,14 @@ export const LineLengthRound: React.FC<Props> = ({ config, roundId, playerId, on
 
   const handlePointerUp = useCallback(() => { dragging.current = false; }, []);
 
-  // Auto-submit only — no manual button
+  const [hasDragged, setHasDragged] = useState(false);
+  const [locked, setLocked] = useState(false);
+
   const handleSubmit = useCallback(() => {
-    if (hasSubmitted) return;
+    if (hasSubmitted || locked) return;
+    setLocked(true);
     onSubmit({ roundId, playerId, roundType: 'line_length', submittedAt: Date.now(), length: playerLength });
-  }, [hasSubmitted, roundId, playerId, playerLength, onSubmit]);
+  }, [hasSubmitted, locked, roundId, playerId, playerLength, onSubmit]);
 
   useAutoSubmit(hasSubmitted, endsAt ?? null, handleSubmit);
 
@@ -131,6 +135,23 @@ export const LineLengthRound: React.FC<Props> = ({ config, roundId, playerId, on
           </text>
         )}
       </svg>
+      {/* Lock button appears after first drag — submit early for speed bonus */}
+      {!showRef && hasDragged && !hasSubmitted && !locked && (
+        <button
+          onPointerDown={handleSubmit}
+          style={{
+            marginTop: '8px', padding: '10px 32px', borderRadius: '8px', cursor: 'pointer',
+            background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.25)',
+            color: '#ffffff', fontFamily: 'Inter', fontSize: '13px', fontWeight: 600,
+            letterSpacing: '0.08em', textTransform: 'uppercase' as const,
+          }}
+        >
+          Lock In ✓
+        </button>
+      )}
+      {(locked || hasSubmitted) && (
+        <p style={{ color: `${colour}88`, fontFamily: 'Inter', fontSize: '12px', margin: '8px 0 0' }}>Locked in</p>
+      )}
     </div>
   );
 };

@@ -25,12 +25,15 @@ export const useAutoSubmit = (
       return;
     }
 
+    // Fire 2000ms before endsAt — gives manual early submitters a meaningful
+    // speed bonus window. Server has 1.5s grace period on top of this.
+    const EARLY_MS = 2000;
     const t = setTimeout(() => {
       if (!firedRef.current && !hasSubmitted) {
         firedRef.current = true;
         onAutoSubmit();
       }
-    }, msLeft);
+    }, Math.max(0, msLeft - EARLY_MS));
 
     return () => clearTimeout(t);
   }, [hasSubmitted, endsAt, onAutoSubmit]);

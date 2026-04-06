@@ -15,11 +15,13 @@ const PALETTE = ['#00e5ff','#ff3b5c','#ffe600','#00ff94','#bf5af2','#ff9f0a'];
 const col = (id: string) => { let h=0; for(let i=0;i<id.length;i++) h=(h*31+id.charCodeAt(i))>>>0; return PALETTE[h%PALETTE.length]!; };
 const toRad = (d: number) => (d * Math.PI) / 180;
 
-export const DrawAngleRound: React.FC<Props> = ({ config, roundId, playerId, onSubmit, hasSubmitted , endsAt,
+export const DrawAngleRound: React.FC<Props> = ({ config, roundId, playerId, onSubmit, hasSubmitted, endsAt,
 }) => {
   const colour = col(roundId);
   const [angle, setAngle] = useState(config.initialAngle);
   const [showGuide, setShowGuide] = useState(true);
+  const [locked, setLocked] = useState(false);
+  const [hasMoved, setHasMoved] = useState(false);
   const containerRef = useRef<SVGSVGElement>(null);
   const dragging = useRef(false);
 
@@ -47,20 +49,23 @@ export const DrawAngleRound: React.FC<Props> = ({ config, roundId, playerId, onS
   const handlePointerDown = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
     if (hasSubmitted) return;
     dragging.current = true;
+    setHasMoved(true);
     setAngle(getAngleFromEvent(e));
   }, [hasSubmitted, getAngleFromEvent]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
     if (!dragging.current || hasSubmitted) return;
+    setHasMoved(true);
     setAngle(getAngleFromEvent(e));
   }, [hasSubmitted, getAngleFromEvent]);
 
   const handlePointerUp = useCallback(() => { dragging.current = false; }, []);
 
   const handleLock = useCallback(() => {
-    if (hasSubmitted) return;
+    if (hasSubmitted || locked) return;
+    setLocked(true);
     onSubmit({ roundId, playerId, roundType: 'draw_angle', submittedAt: Date.now(), angle });
-  }, [hasSubmitted, roundId, playerId, angle, onSubmit]);
+  }, [hasSubmitted, locked, roundId, playerId, angle, onSubmit]);
 
   useAutoSubmit(hasSubmitted, endsAt ?? null, handleLock);
 
@@ -114,9 +119,24 @@ export const DrawAngleRound: React.FC<Props> = ({ config, roundId, playerId, onS
 
       </svg>
 
-      <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '13px', fontFamily: 'Inter, system-ui', margin: 0 }}>
-        Drag to rotate the line
-      </p>
+      {!hasSubmitted && !locked && hasMoved && (
+        <button onPointerDown={handleLock} style={{
+          padding: '10px 32px', borderRadius: '8px', cursor: 'pointer',
+          background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.25)',
+          color: '#ffffff', fontFamily: 'Inter, system-ui', fontSize: '13px', fontWeight: 600,
+          letterSpacing: '0.08em', textTransform: 'uppercase' as const,
+        }}>
+          Lock In ✓
+        </button>
+      )}
+      {!hasMoved && !hasSubmitted && (
+        <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '13px', fontFamily: 'Inter, system-ui', margin: 0 }}>
+          Drag to rotate the line
+        </p>
+      )}
+      {(locked || hasSubmitted) && (
+        <p style={{ color: `${colour}88`, fontFamily: 'Inter, system-ui', fontSize: '12px', margin: 0 }}>Locked in</p>
+      )}
     </div>
   );
 };

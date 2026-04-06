@@ -155,6 +155,20 @@ export const EliminationWaitingRoom: React.FC<Props> = ({
             <span style={styles.roomCode}>{roomId}</span>
           </div>
 
+          {/* ── On-chain contract link — web3 rooms only ── */}
+{isWeb3Room && roomData?.roomPda && (
+  <a ref={`https://explorer.solana.com/address/${roomData.roomPda}${roomData.solanaCluster === 'devnet' ? '?cluster=devnet' : ''}`}
+    target="_blank"
+    rel="noopener noreferrer"
+    style={styles.contractLink}
+  >
+    <span style={styles.contractLinkLabel}>On-chain contract</span>
+    <span style={styles.contractLinkAddr}>
+      {roomData.roomPda.slice(0, 8)}…{roomData.roomPda.slice(-6)} ↗
+    </span>
+  </a>
+)}
+
           <div style={styles.linkRow}>
             <span style={styles.linkText} title={joinUrl}>
               {joinUrl.length > 42 ? joinUrl.slice(0, 42) + '…' : joinUrl}
@@ -381,4 +395,28 @@ const styles: Record<string, React.CSSProperties> = {
   hint: { textAlign: 'center' as const, fontSize: '12px', color: 'rgba(255,255,255,0.45)', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '12px' },
   leaveBtn: { background: 'none', border: '1px solid rgba(255,59,92,0.3)', borderRadius: '6px', color: 'rgba(255,59,92,0.6)', fontSize: '11px', fontFamily: "'IBM Plex Mono', monospace", padding: '5px 12px', cursor: 'pointer', letterSpacing: '0.1em' },
   waitingMsg: { textAlign: 'center' as const, fontSize: '13px', color: 'rgba(255,255,255,0.35)', fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.08em', paddingBottom: '16px' },
+  contractLink: {
+  display: 'flex',
+  flexDirection: 'column' as const,
+  gap: '2px',
+  padding: '8px 12px',
+  background: 'rgba(0,229,255,0.04)',
+  border: '1px solid rgba(0,229,255,0.15)',
+  borderRadius: '6px',
+  textDecoration: 'none',
+  cursor: 'pointer',
+},
+contractLinkLabel: {
+  fontSize: '9px',
+  fontFamily: "'IBM Plex Mono', monospace",
+  letterSpacing: '0.2em',
+  color: 'rgba(255,255,255,0.35)',
+  textTransform: 'uppercase' as const,
+},
+contractLinkAddr: {
+  fontSize: '12px',
+  fontFamily: "'IBM Plex Mono', monospace",
+  color: '#00e5ff',
+  letterSpacing: '0.05em',
+},
 };

@@ -14,13 +14,15 @@ interface Props {
 const PALETTE = ['#00e5ff','#ff3b5c','#ffe600','#00ff94','#bf5af2','#ff9f0a'];
 const col = (id: string) => { let h=0; for(let i=0;i<id.length;i++) h=(h*31+id.charCodeAt(i))>>>0; return PALETTE[h%PALETTE.length]!; };
 
-export const BalancePointRound: React.FC<Props> = ({ config, roundId, playerId, onSubmit, hasSubmitted,   endsAt,
+export const BalancePointRound: React.FC<Props> = ({ config, roundId, playerId, onSubmit, hasSubmitted ,  endsAt,
 }) => {
   const colour = col(roundId);
+  const [locked, setLocked] = useState(false);
+  const [hasDragged, setHasDragged] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
   const [moveableX, setMoveableX] = useState(0.5); // normalised 0–1
   const [dragging, setDragging] = useState(false);
-  const [locked, setLocked] = useState(false);
+  
 
   useEffect(() => {
     // Start moveable weight at a random position away from the answer
@@ -37,6 +39,7 @@ export const BalancePointRound: React.FC<Props> = ({ config, roundId, playerId, 
   const onDown = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
     if (hasSubmitted || locked) return;
     setDragging(true);
+    setHasDragged(true);
     setMoveableX(getNormX(e));
   }, [hasSubmitted, locked, getNormX]);
 
@@ -144,6 +147,11 @@ export const BalancePointRound: React.FC<Props> = ({ config, roundId, playerId, 
         {(locked || hasSubmitted) && (
           <text x="50" y="70" textAnchor="middle"
             fill={`${colour}88`} fontSize="3" fontFamily="Inter">Locked in</text>
+        )}
+        {/* Tap hint when not yet dragged */}
+        {!hasDragged && !hasSubmitted && (
+          <text x="50" y="70" textAnchor="middle"
+            fill="rgba(255,255,255,0.2)" fontSize="3" fontFamily="Inter">Drag the white weight</text>
         )}
       </svg>
     </div>

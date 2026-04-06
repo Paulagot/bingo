@@ -39,6 +39,8 @@ export const PatternAlignRound: React.FC<Props> = ({ config, roundId, playerId, 
   const [showTarget, setShowTarget] = useState(true);
   const [pos, setPos] = useState({ x: config.playerStartX, y: config.playerStartY });
   const [rotation, setRotation] = useState(config.playerStartRotation);
+  const [hasInteracted, _setHasInteracted] = useState(false);
+  const [locked, setLocked] = useState(false);
   const [hint, setHint] = useState(true); // show gesture hint briefly
 
   // Drag state
@@ -108,10 +110,11 @@ export const PatternAlignRound: React.FC<Props> = ({ config, roundId, playerId, 
   const onPointerUp = useCallback(() => { dragMode.current = null; }, []);
 
   const handleLock = useCallback(() => {
-    if (hasSubmitted) return;
+    if (hasSubmitted || locked) return;
+    setLocked(true);
     onSubmit({ roundId, playerId, roundType: 'pattern_align', submittedAt: Date.now(),
       position: pos, rotation: Math.round(rotation) });
-  }, [hasSubmitted, roundId, playerId, pos, rotation, onSubmit]);
+  }, [hasSubmitted, locked, roundId, playerId, pos, rotation, onSubmit]);
 
   useAutoSubmit(hasSubmitted, endsAt ?? null, handleLock);
 
@@ -188,13 +191,23 @@ export const PatternAlignRound: React.FC<Props> = ({ config, roundId, playerId, 
         </div>
       )}
 
+      {!showTarget && hasInteracted && !hasSubmitted && !locked && (
+        <button onPointerDown={handleLock} style={{
+          padding: '10px 32px', borderRadius: '8px', cursor: 'pointer',
+          background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.25)',
+          color: '#ffffff', fontFamily: 'Inter', fontSize: '13px', fontWeight: 600,
+          letterSpacing: '0.08em', textTransform: 'uppercase' as const,
+        }}>
+          Lock In ✓
+        </button>
+      )}
       {showTarget && (
         <p style={{ color: colour, fontFamily: 'Inter', fontSize: '14px', fontWeight: 600, margin: 0 }}>
           Memorise position &amp; rotation
         </p>
       )}
-      {hasSubmitted && (
-        <p style={{ color: `${colour}88`, fontFamily: 'Inter', fontSize: '13px', margin: 0 }}>Answer locked</p>
+      {(locked || hasSubmitted) && (
+        <p style={{ color: `${colour}88`, fontFamily: 'Inter', fontSize: '13px', margin: 0 }}>Locked in</p>
       )}
     </div>
   );
