@@ -27,7 +27,7 @@ export const Web3JoinSection: React.FC<Props> = ({
     solanaCluster: cluster,
   });
 
-  const { address: walletAddress, isConnected, connect } = useChainWallet(chainConfig);
+ const { address: walletAddress, isConnected, connect, disconnect } = useChainWallet(chainConfig);
   const { joinRoom: solanaJoinRoom } = useSolanaEliminationJoinRoom(cluster);
 
   const [paymentLoading, setPaymentLoading] = useState(false);
@@ -151,12 +151,34 @@ export const Web3JoinSection: React.FC<Props> = ({
       ) : (
         <>
           <div style={{
-            fontSize: '11px',
-            color: 'rgba(0,229,255,0.6)',
-            fontFamily: 'monospace',
-          }}>
-            ✓ {walletAddress?.slice(0, 6)}...{walletAddress?.slice(-4)}
-          </div>
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+}}>
+  <span style={{
+    fontSize: '11px',
+    color: 'rgba(0,229,255,0.6)',
+    fontFamily: 'monospace',
+  }}>
+    ✓ {walletAddress?.slice(0, 6)}...{walletAddress?.slice(-4)}
+  </span>
+  <button
+    onClick={() => disconnect()}
+    style={{
+      background: 'none',
+      border: '1px solid rgba(255,59,92,0.3)',
+      borderRadius: '4px',
+      color: 'rgba(255,59,92,0.6)',
+      fontSize: '10px',
+      fontFamily: "'IBM Plex Mono', monospace",
+      padding: '3px 8px',
+      cursor: 'pointer',
+      letterSpacing: '0.08em',
+    }}
+  >
+    Disconnect
+  </button>
+</div>
 
           {paymentError && (
             <p style={{

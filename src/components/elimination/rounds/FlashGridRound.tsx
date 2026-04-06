@@ -14,12 +14,13 @@ interface Props {
 const PALETTE = ['#00e5ff','#ff3b5c','#ffe600','#00ff94','#bf5af2','#ff9f0a'];
 const col = (id: string) => { let h=0; for(let i=0;i<id.length;i++) h=(h*31+id.charCodeAt(i))>>>0; return PALETTE[h%PALETTE.length]!; };
 
-export const FlashGridRound: React.FC<Props> = ({ config, roundId, playerId, onSubmit, hasSubmitted ,  endsAt,
+export const FlashGridRound: React.FC<Props> = ({ config, roundId, playerId, onSubmit, hasSubmitted, endsAt,
 }) => {
   const colour = col(roundId);
   const { gridSize, flashCells, flashDurationMs } = config;
   const [phase, setPhase] = useState<'flashing' | 'hidden' | 'done'>('flashing');
   const [taps, setTaps] = useState<{ row: number; col: number }[]>([]);
+  const [lockedIn, setLockedIn] = useState(false);
   const submitted = useRef(false);
 
   useEffect(() => {
@@ -62,7 +63,16 @@ export const FlashGridRound: React.FC<Props> = ({ config, roundId, playerId, onS
     onSubmit({ roundId, playerId, roundType: 'flash_grid', submittedAt: Date.now(), taps: normTaps });
   }, [hasSubmitted, taps, gridSize, roundId, playerId, onSubmit]);
 
-
+  const handleLock = useCallback(() => {
+    if (submitted.current || hasSubmitted || lockedIn) return;
+    setLockedIn(true);
+    submitted.current = true;
+    const normTaps = taps.map(t => ({
+      x: (t.col + 0.5) / gridSize,
+      y: (t.row + 0.5) / gridSize,
+    }));
+    onSubmit({ roundId, playerId, roundType: 'flash_grid', submittedAt: Date.now(), taps: normTaps });
+  }, [hasSubmitted, lockedIn, taps, gridSize, roundId, playerId, onSubmit]);
 
   useAutoSubmit(hasSubmitted || phase === 'flashing', endsAt ?? null, handleAutoSubmit);
 
@@ -118,7 +128,17 @@ export const FlashGridRound: React.FC<Props> = ({ config, roundId, playerId, onS
         })}
       </div>
 
-      {hasSubmitted && (
+      {phase === 'hidden' && taps.length > 0 && !hasSubmitted && !lockedIn && (
+        <button onPointerDown={handleLock} style={{
+          marginTop: '8px', padding: '10px 32px', borderRadius: '8px', cursor: 'pointer',
+          background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.25)',
+          color: '#ffffff', fontFamily: 'Inter, system-ui', fontSize: '13px', fontWeight: 600,
+          letterSpacing: '0.08em', textTransform: 'uppercase' as const,
+        }}>
+          Done ({taps.length}/{flashCells.length}) ✓
+        </button>
+      )}
+      {(hasSubmitted || lockedIn) && (
         <p style={{ color: `${colour}88`, fontFamily: 'Inter, system-ui', fontSize: '13px' }}>Answer locked</p>
       )}
     </div>

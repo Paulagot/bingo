@@ -173,10 +173,10 @@ const Web3Features: React.FC = () => {
 
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <a href="/web3/elimination" className="inline-flex items-center gap-2 rounded-xl border border-orange-400/40 bg-orange-400/10 px-6 py-3 font-mono font-semibold text-orange-400 transition hover:border-orange-400/80 hover:bg-orange-400/20">
-                <Crosshair className="h-4 w-4" /> Host Elimination
+                <Crosshair className="h-4 w-4" /> Explore Elimination
               </a>
               <a href="/web3/quiz" className="inline-flex items-center gap-2 rounded-xl border border-[#a3f542]/40 bg-[#a3f542]/10 px-6 py-3 font-mono font-semibold text-[#a3f542] transition hover:border-[#a3f542]/80 hover:bg-[#a3f542]/20">
-                <Trophy className="h-4 w-4" /> Host a Quiz
+                <Trophy className="h-4 w-4" /> Explore Quiz
               </a>
               <a href="/web3" className="inline-flex items-center gap-2 rounded-xl border border-[#1e2d42] px-6 py-3 font-mono font-semibold text-white/60 transition hover:border-white/30 hover:text-white">
                 <Target className="h-4 w-4" /> Web3 Overview
@@ -233,7 +233,7 @@ const Web3Features: React.FC = () => {
               {
                 n: '03',
                 title: 'Event runs',
-                body: 'The quiz or elimination game runs live. Every action is tracked. The contract monitors entry and is ready to execute the moment the host closes the event.',
+                body: 'The quiz or elimination game runs live. Hosts puts on a great event. The contract monitors entry and is ready to execute the moment the host closes the event.',
               },
               {
                 n: '04',
@@ -652,10 +652,10 @@ const Web3Features: React.FC = () => {
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-4">
               <a href="/web3/elimination" className="inline-flex items-center gap-2 rounded-xl border border-orange-400/40 bg-orange-400/10 px-8 py-4 font-mono font-bold text-orange-400 transition hover:border-orange-400/80 hover:bg-orange-400/20">
-                <Crosshair className="h-5 w-5" /> Host Elimination
+                <Crosshair className="h-5 w-5" /> Explore Elimination
               </a>
               <a href="/web3/quiz" className="inline-flex items-center gap-2 rounded-xl border border-[#a3f542]/40 bg-[#a3f542]/10 px-8 py-4 font-mono font-bold text-[#a3f542] transition hover:border-[#a3f542]/80 hover:bg-[#a3f542]/20">
-                <Trophy className="h-5 w-5" /> Host a Quiz
+                <Trophy className="h-5 w-5" /> Explore Quiz
               </a>
               <a href="/contact" className="inline-flex items-center gap-2 rounded-xl border border-[#1e2d42] px-8 py-4 font-mono font-bold text-white/50 transition hover:border-white/30 hover:text-white">
                 <MessageCircle className="h-5 w-5" /> Contact us
