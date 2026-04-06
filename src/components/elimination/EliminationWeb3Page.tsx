@@ -15,7 +15,7 @@ const CHAIN = 'solana' as const;
 // ── Inner component (inside Web3Provider) ─────────────────────────────────────
 const EliminationWeb3Inner: React.FC = () => {
   const [hostName, setHostName] = useState('');
-  const [tokenSymbol, setTokenSymbol] = useState('USDC');
+  const [tokenSymbol, setTokenSymbol] = useState('SOL');
   const [entryFeeDisplay, setEntryFeeDisplay] = useState('');
   const [charityId, setCharityId] = useState<string>('');
 

@@ -36,7 +36,7 @@ export const ROUND_TYPE = {
 // ─── Game Rules ───────────────────────────────────────────────────────────────
 export const GAME_RULES = {
   MIN_PLAYERS: 2,
-  MAX_PLAYERS: 100,
+  MAX_PLAYERS: 200,
   TOTAL_ROUNDS: 8,
   FIRST_ELIMINATING_ROUND: 3, // rounds 1 & 2 are safe — no elimination
 };
