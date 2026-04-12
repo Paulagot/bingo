@@ -1,6 +1,6 @@
 /**
  * Solana Network Configuration
- * 
+ * src/chains/solana/config/networks.ts
  * Defines supported Solana networks using AppKit's network objects.
  * This mirrors the EVM networks.ts structure for consistency.
  * 

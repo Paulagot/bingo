@@ -33,7 +33,7 @@ import { PublicKey, Connection } from '@solana/web3.js';
 import { AnchorProvider, Program } from '@coral-xyz/anchor';
 import type { Idl } from '@coral-xyz/anchor';
 
-import QuizCoreIDL from '../quiz_core.json';
+import NewQuizIDL from '../newquiz.json';
 import { SOLANA_CONTRACT } from '../config/contracts';
 import {
   getSolanaExplorerUrl,
@@ -198,25 +198,23 @@ export function useSolanaShared(params?: UseSolanaSharedParams): UseSolanaShared
   }, [walletAdapter, connection]);
 
   // Create program instance
-  const program = useMemo(() => {
-    if (!provider) {
-      if (debug) console.log('[Solana][Shared] ⏳ Program not ready: no provider');
-      return null;
-    }
+const program = useMemo(() => {
+  if (!provider) {
+    if (debug) console.log('[Solana][Shared] ⏳ Program not ready: no provider');
+    return null;
+  }
 
-    try {
-      const programId = SOLANA_CONTRACT.PROGRAM_ID.toBase58();
+  try {
+    if (debug) console.log('[Solana][Shared] ✅ Creating Program instance');
+    if (debug) console.log('[Solana][Shared] 📍 Program ID (IDL):', (NewQuizIDL as any).address);
+    if (debug) console.log('[Solana][Shared] 🌐 Cluster:', cluster);
 
-      if (debug) console.log('[Solana][Shared] ✅ Creating Program instance');
-      if (debug) console.log('[Solana][Shared] 📍 Program ID:', programId);
-      if (debug) console.log('[Solana][Shared] 🌐 Cluster:', cluster);
-
-      return new Program(QuizCoreIDL as Idl, provider);
-    } catch (error) {
-      if (debug) console.error('[Solana][Shared] ❌ Failed to create program:', error);
-      return null;
-    }
-  }, [provider]);
+    return new Program(NewQuizIDL as Idl, provider);
+  } catch (error) {
+    if (debug) console.error('[Solana][Shared] ❌ Failed to create program:', error);
+    return null;
+  }
+}, [provider, cluster]);
 
   // Explorer URLs
   const explorerUrl = useMemo(() => {

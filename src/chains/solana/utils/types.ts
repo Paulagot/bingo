@@ -54,17 +54,18 @@ export type SolanaTokenSymbol = SolanaTokenCode;
  * not at room creation. This enables dynamic TGB charity addresses.
  */
 export interface CreatePoolRoomParams {
-  roomId: string;
-  currency: SolanaTokenCode; // ✅ updated: was SolanaTokenSymbol
-  entryFee: number;          // In token units (e.g., 1.5 USDG)
-  maxPlayers: number;
-  hostFeePct: number;        // 0-5
-  prizePoolPct: number;      // 0-40
-  charityName?: string;      // Optional charity memo for display (max 28 chars)
+  roomId:       string;
+  currency:     SolanaTokenCode;
+  entryFee:     number;
+  // Optional — used by EVM, ignored by new Solana contract
+  maxPlayers?:   number;
+  hostFeePct?:   number;
+  prizePoolPct?: number;
+  charityName?:  string;
   prizeSplits?: {
-    first: number;
+    first:   number;
     second?: number;
-    third?: number;
+    third?:  number;
   };
 }
 

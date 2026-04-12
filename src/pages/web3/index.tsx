@@ -1,561 +1,678 @@
-import type React from 'react';
+// src/pages/web3/index.tsx
+import React, { useMemo } from 'react';
 import { SEO } from '../../components/SEO';
-import { Header } from '../../components/GeneralSite2/Header';
-import SiteFooter from '../../components/GeneralSite2/SiteFooter';
+import { Web3Header } from '../../components/GeneralSite2/Web3Header';
 import { currencyISO as iso } from '../../services/currency';
+
 import {
-  Heart,
+  Globe,
+  Calendar,
+  Rocket,
+  HeartHandshake,
+  ArrowRight,
+  Trophy,
+  Crosshair,
+  Wallet,
   Shield,
   Coins,
-  Sparkles,
-  ArrowRight,
   Users,
-  Globe,
-  Zap,
-  Lock,
-  TrendingUp,
+  BadgeCheck,
   Target,
-  Wallet,
-  FileCheck,
+  Zap,
+  MessageCircle,
+  Search,
+  CheckCircle2,
 } from 'lucide-react';
 
-/** Absolute URL helpers */
+/* -------------------------------------------------------------------------- */
+/* URL helpers                                                                  */
+/* -------------------------------------------------------------------------- */
 function getOrigin(): string {
-  const env = (import.meta as any)?.env?.VITE_SITE_ORIGIN as string | undefined;
-  if (env) return env.replace(/\/$/, '');
-  if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin.replace(/\/$/, '');
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin.replace(/\/$/, '');
+  }
   return 'https://fundraisely.ie';
 }
-function abs(path: string) {
+
+function abs(path: string): string {
   const p = path.startsWith('/') ? path : `/${path}`;
   return `${getOrigin()}${p}`;
 }
 
-/** UI cards */
-const FeatureCard: React.FC<{
-  icon: React.ReactNode;
-  title: string;
-  desc: string;
-  gradient?: string;
-}> = ({ icon, title, desc, gradient }) => (
-  <div className="group relative rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-lg">
-    <div
-      className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br shadow-lg transition-all duration-300 group-hover:shadow-xl ${
-        gradient ?? 'from-indigo-600 to-purple-600'
-      }`}
-    >
-      <div className="text-white">{icon}</div>
-    </div>
-    <h3 className="mb-2 text-lg font-bold text-indigo-900">{title}</h3>
-    <p className="leading-relaxed text-indigo-800/70">{desc}</p>
-    <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-white/0 to-white/5 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+/* -------------------------------------------------------------------------- */
+/* Shared UI                                                                    */
+/* -------------------------------------------------------------------------- */
+const W3Card: React.FC<{ children: React.ReactNode; className?: string }> = ({
+  children,
+  className = '',
+}) => (
+  <div className={`rounded-2xl border border-[#1e2d42] bg-[#0f1520] p-6 ${className}`}>
+    {children}
   </div>
 );
 
-const BenefitCard: React.FC<{
-  icon: React.ReactNode;
-  title: string;
-  desc: string;
-  highlight?: boolean;
-  iconGradient?: string;
-}> = ({ icon, title, desc, highlight = false, iconGradient }) => {
-  const defaultGrad = highlight ? 'from-purple-500 to-pink-500' : 'from-indigo-600 to-purple-600';
-  return (
-    <div
-      className={`group relative rounded-2xl border p-6 shadow-sm transition-all duration-300 hover:shadow-lg ${
-        highlight ? 'border-gray-100 bg-gradient-to-br from-purple-50 to-indigo-50' : 'border-gray-100 bg-white'
-      }`}
-    >
-      <div
-        className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br shadow-lg transition-all duration-300 group-hover:shadow-xl ${
-          iconGradient ?? defaultGrad
-        }`}
-      >
-        <div className="text-white">{icon}</div>
-      </div>
-      <h3 className="mb-2 text-lg font-bold text-indigo-900">{title}</h3>
-      <p className="leading-relaxed text-indigo-800/70">{desc}</p>
-      <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-white/0 to-white/5 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-    </div>
-  );
-};
+const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <span className="inline-flex items-center gap-2 rounded-full border border-[#a3f542]/30 bg-[#a3f542]/10 px-4 py-1.5 font-mono text-sm font-semibold uppercase tracking-widest text-[#a3f542]">
+    {children}
+  </span>
+);
 
+const StatPill: React.FC<{ value: string; label: string }> = ({ value, label }) => (
+  <div className="text-center">
+    <p className="font-mono text-2xl font-bold text-white">{value}</p>
+    <p className="mt-0.5 font-mono text-xs uppercase tracking-widest text-white/30">{label}</p>
+  </div>
+);
+
+const FAQCard: React.FC<{ q: string; a: string }> = ({ q, a }) => (
+  <W3Card className="h-full">
+    <h3 className="font-mono text-base font-bold text-white">{q}</h3>
+    <p className="mt-3 text-sm leading-relaxed text-white/60">{a}</p>
+  </W3Card>
+);
+
+/* -------------------------------------------------------------------------- */
+/* Page                                                                         */
+/* -------------------------------------------------------------------------- */
 const Web3MainIndex: React.FC = () => {
-  // -------- JSON-LD Structured Data --------
-  const webPageJsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'WebPage',
-    name: 'Web3 Fundraising — Transparent On-Chain Fundraisers for Real-World Impact | FundRaisely',
-    description:
-      'Host or join on-chain fundraising events with FundRaisely. Transparent smart contracts, verified charities, instant payouts, and audit-ready reports — powered by Web3 on Stellar, EVM, and Solana blockchains.',
-    url: abs('/web3'),
-    mainEntity: {
-      '@type': 'SoftwareApplication',
-      name: 'FundRaisely Web3 Fundraising Platform',
-      applicationCategory: 'BusinessApplication',
-      operatingSystem: 'Web',
+  const webPageJsonLd = useMemo(
+    () => ({
+      '@context': 'https://schema.org',
+      '@type': 'WebPage',
+      name: 'Web3 Fundraising Marketplace: Join Events, Host Events and Fund Verified Charities | FundRaisely',
       description:
-        'Blockchain-powered fundraising platform for transparent charity events with multi-chain support.',
-      featureList: [
-        'On-chain smart contracts',
-        'Multi-chain support (Stellar, EVM, Solana)',
-        'Instant charity payouts',
-        'Verifiable impact receipts',
-        'Transparent fee structure',
-        'Auditable transactions',
+        'Join live Web3 fundraising events or host your own. FundRaisely is a blockchain-powered fundraising marketplace for quiz nights and elimination games where hosts earn and verified charities receive their share automatically.',
+      url: abs('/web3'),
+      mainEntity: {
+        '@type': 'SoftwareApplication',
+        name: 'FundRaisely Web3 Fundraising Marketplace',
+        applicationCategory: 'BusinessApplication',
+        operatingSystem: 'Web',
+        description:
+          'Blockchain-powered fundraising marketplace for transparent quiz nights and elimination games on Solana and Base.',
+        featureList: [
+          'Public event discovery',
+          'Quiz nights and elimination games',
+          'Hosts earn a share of entry fees automatically',
+          'Verified charities and non-profits',
+          'Instant on-chain payouts via smart contracts',
+          'Wallet-based access and participation',
+          'Transparent fixed payout logic',
+        ],
+        offers: {
+          '@type': 'Offer',
+          price: '0',
+          priceCurrency: iso,
+          description: 'Free to browse and free to start hosting Web3 fundraising events',
+        },
+      },
+    }),
+    []
+  );
+
+  const faqItems = useMemo(
+    () => [
+      {
+        q: 'What makes FundRaisely different from a normal donation platform?',
+        a: 'FundRaisely is not just a donation page. It is a fundraising marketplace where hosts create live events, players pay to take part, and verified charities receive a guaranteed share through smart contract payouts.',
+      },
+      {
+        q: 'Do I have to understand crypto to take part?',
+        a: 'No. Players only need a supported wallet. Hosts also just need a wallet to get started. The event setup flow and payout logic are handled inside the platform, and the fundraising logic is built into the event structure.',
+      },
+      {
+        q: 'How do hosts make money?',
+        a: 'Hosts run the event, bring the community together, and receive a fixed share of entry fees automatically when the event ends. Quiz and elimination formats use different payout models, and exact earnings depend on the event size and fee chosen.',
+      },
+      {
+        q: 'How do I know the charity actually gets paid?',
+        a: 'The charity payout is handled on-chain through smart contract logic. Once the event finishes, the split is executed automatically and recorded publicly on the blockchain.',
+      },
+      {
+        q: 'What kinds of events can I join?',
+        a: 'Right now the marketplace focuses on live quiz nights and elimination games. Quiz events are longer, social, and leaderboard-based. Elimination is faster and more intense, with players knocked out round by round until one winner remains.',
+      },
+      {
+        q: 'Who are the causes and how are they chosen?',
+        a: 'FundRaisely works with approved non-profits and verified charity partners, with a strong emphasis on transparency and suitability for crypto-enabled fundraising. You can browse supported causes and partners on the causes page.',
+      },
+      {
+        q: 'Is hosting a job or guaranteed income?',
+        a: 'No. Hosting is not employment and there is no guaranteed income. FundRaisely is a platform that lets people run events and receive a pre-defined share of event fees if players join.',
+      },
+      {
+        q: 'Where should I go if I want to host rather than browse?',
+        a: 'Start on the host page. That is where the deeper information lives about event setup, formats, payout logic, and how to launch your first Web3 fundraiser.',
+      },
+    ],
+    []
+  );
+
+  const faqJsonLd = useMemo(
+    () => ({
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: faqItems.map(item => ({
+        '@type': 'Question',
+        name: item.q,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: item.a,
+        },
+      })),
+    }),
+    [faqItems]
+  );
+
+  const breadcrumbsJsonLd = useMemo(
+    () => ({
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: abs('/') },
+        { '@type': 'ListItem', position: 2, name: 'Web3 Fundraising Marketplace', item: abs('/web3') },
       ],
-      offers: {
-        '@type': 'Offer',
-        price: '0',
-        priceCurrency: iso, // dynamic ISO (e.g., GBP/EUR) from your service
-        description: 'Free to start hosting Web3 fundraising events',
-      },
-    },
-  };
-
-  const featureItemListJsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'ItemList',
-    name: 'Web3 Fundraising Features',
-    itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Transparent smart contract fundraising' },
-      { '@type': 'ListItem', position: 2, name: 'Multi-chain support: Stellar, EVM, Solana' },
-      { '@type': 'ListItem', position: 3, name: 'Instant automated charity payouts' },
-      { '@type': 'ListItem', position: 4, name: 'Verifiable on-chain impact receipts' },
-      { '@type': 'ListItem', position: 5, name: 'Auditable transaction history' },
-      { '@type': 'ListItem', position: 6, name: 'Community-driven fundraising events' },
-      { '@type': 'ListItem', position: 7, name: 'Minimum 40% guaranteed to charity' },
-    ],
-  };
-
-  const faqJsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'FAQPage',
-    mainEntity: [
-      {
-        '@type': 'Question',
-        name: 'Can I host a Web3 fundraiser any time?',
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: 'Yes. The Impact Campaign runs seasonally, but you can host your own on-chain fundraiser at any time using the same technology. The platform is available year-round.',
-        },
-      },
-      {
-        '@type': 'Question',
-        name: 'Do I need to be a crypto expert to use Web3 fundraising?',
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: 'No. The event wizard handles wallet connections, contract deployment, and payout setup automatically so you can focus on hosting.',
-        },
-      },
-      {
-        '@type': 'Question',
-        name: 'Where do the funds go in Web3 fundraising?',
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: 'Donations flow through a transparent smart contract, enforcing minimum allocations to charities (40%+), optional prizes, and platform fees. Every transaction is verifiable on-chain.',
-        },
-      },
-      {
-        '@type': 'Question',
-        name: 'What makes Web3 fundraising transparent?',
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: 'All transactions and payouts are recorded on the blockchain, creating an immutable, public record. Each event provides verifiable proof of funds raised and distributed.',
-        },
-      },
-      {
-        '@type': 'Question',
-        name: 'Which blockchains does FundRaisely support?',
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: 'FundRaisely supports Stellar (Soroban), EVM-compatible chains (e.g., Base), and Solana — with more networks planned.',
-        },
-      },
-      {
-        '@type': 'Question',
-        name: 'Do I need experience running quizzes or charity events?',
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: 'No. Our setup wizard is simple. You can be live in minutes. We provide questions, answers, autoscoring, leaderboard, and a tiebreaker.',
-        },
-      },
-      {
-        '@type': 'Question',
-        name: 'Do I need to find sponsors or prizes?',
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: 'No. It’s optional. You can allocate a portion of entry fees for prizes or upload NFTs/tokens as prizes to direct more funds to charity.',
-        },
-      },
-    ],
-  };
+    }),
+    []
+  );
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
+    <div className="min-h-screen w-full overflow-x-hidden bg-[#0a0e14]">
+      {/* Grid texture */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-0"
+        style={{
+          backgroundImage:
+            'linear-gradient(rgba(163,245,66,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(163,245,66,0.03) 1px, transparent 1px)',
+          backgroundSize: '48px 48px',
+        }}
+      />
+
       <SEO
-        title="Web3 Fundraising — Transparent On-Chain Fundraisers for Real-World Impact | FundRaisely"
-        description="Host or join on-chain fundraising events with FundRaisely. Transparent smart contracts, verified charities, instant payouts, and audit-ready reports — powered by Web3 on Stellar, EVM, and Solana blockchains."
-        keywords="web3 fundraising, blockchain charity, on-chain donations, transparent fundraising, crypto charity events, smart contract fundraising, Stellar Soroban, EVM charity, Solana fundraising, DAO fundraising"
+        title="Web3 Fundraising Marketplace: Join Events, Host Events and Fund Verified Charities | FundRaisely"
+        description="Discover live Web3 fundraising events, host quiz nights and elimination games, and support verified charities through transparent on-chain payout logic."
+        keywords="web3 fundraising marketplace, crypto charity events, host fundraising events, quiz night fundraiser, elimination fundraiser, blockchain fundraising platform, verified charity web3, on-chain fundraising events, host web3 fundraiser, play for charity"
         domainStrategy="geographic"
         image="/og/web3-hub.png"
         breadcrumbs={[
           { name: 'Home', item: '/' },
-          { name: 'Web3 Fundraising', item: '/web3' },
+          { name: 'Web3 Fundraising Marketplace', item: '/web3' },
         ]}
-        structuredData={[webPageJsonLd, featureItemListJsonLd, faqJsonLd]}
+        structuredData={[breadcrumbsJsonLd, webPageJsonLd, faqJsonLd]}
       />
 
-      <Header />
+      <Web3Header />
 
-      {/* Hero Section */}
-      <section className="relative px-4 pt-12 pb-8">
-        <div aria-hidden="true" className="absolute -left-10 -top-10 h-32 w-32 rounded-full bg-purple-300/30 blur-2xl" />
-        <div aria-hidden="true" className="absolute -right-10 top-20 h-40 w-40 rounded-full bg-indigo-300/30 blur-2xl" />
+      {/* ================================================================== */}
+      {/* Hero                                                               */}
+      {/* ================================================================== */}
+      <section className="relative z-10 pb-12 pt-28 sm:pt-32">
+        <div className="container mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col items-center text-center">
+            <SectionLabel>
+              <Globe className="h-4 w-4" /> Marketplace for impact
+            </SectionLabel>
 
-        <div className="container relative z-10 mx-auto max-w-6xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full bg-teal-100 px-3 py-1 text-sm font-medium text-teal-700">
-            <Globe className="h-4 w-4" aria-hidden="true" /> Web3 Fundraising Platform
-          </span>
+            <h1 className="mt-6 font-mono text-4xl font-bold leading-tight text-white sm:text-5xl md:text-6xl">
+              Web3 Fundraising Marketplace
+              <br />
+              <span className="text-purple-400">Join events. Host events. Fund real causes.</span>
+            </h1>
 
-          <h1 className="mt-4 bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-4xl font-bold text-transparent md:text-6xl">
-            Web3 Fundraising
-          </h1>
-          <p className="mt-2 text-2xl font-semibold text-indigo-900 md:text-3xl">
-            Transparent On-Chain Fundraisers for Real-World Impact
-          </p>
-
-          <p className="mx-auto mt-4 max-w-3xl text-lg text-indigo-900/70 md:text-xl">
-            FundRaisely brings Web3 transparency to community fundraising. Anyone with a wallet can create or join quiz
-            nights that route proceeds to verified charities with verifiable receipts. Built on Solana, Base, and Stellar.
-          </p>
-
-          <div className="mt-7 flex flex-wrap justify-center gap-3">
-            <a
-              href="/web3/impact-campaign/join"
-              className="inline-flex items-center gap-2 rounded-xl bg-indigo-700 px-6 py-3 font-semibold text-white shadow-md transition hover:bg-indigo-800"
-            >
-              <Zap className="h-5 w-5" aria-hidden="true" /> Host an On-Chain Event
-            </a>
-            <a
-              href="/web3/partners"
-              className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-white px-6 py-3 font-semibold text-indigo-700 shadow-md transition hover:bg-indigo-50"
-            >
-              <Target className="h-5 w-5" aria-hidden="true" /> Web3 Partners
-            </a>
-            <a
-              href="/web3/impact-campaign"
-              className="rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 px-6 py-3 font-semibold text-white shadow-md transition hover:scale-105 hover:shadow-lg"
-            >
-              Explore Impact Campaign
-            </a>
-            <a
-              href="/web3/features"
-              className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-white px-6 py-3 font-semibold text-indigo-700 shadow-md transition hover:bg-indigo-50"
-            >
-              <Target className="h-5 w-5" aria-hidden="true" /> Web3 Features
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* Why Web3 Fundraising Works */}
-      <section className="px-4 pt-8">
-        <div className="container mx-auto max-w-6xl">
-          <div className="mb-8 text-center">
-            <h2 className="mb-4 text-3xl font-bold text-indigo-900">Why Web3 Transforms Charitable Fundraising</h2>
-            <p className="mx-auto max-w-3xl text-lg text-indigo-900/70">
-              Blockchain eliminates trust barriers in fundraising, creating transparency and accountability while reducing
-              costs and increasing donor confidence.
-            </p>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-3">
-            <BenefitCard
-              icon={<Shield className="h-5 w-5" />}
-              title="Transparent by Design"
-              desc="Every entry fee, donation, and payout happens on-chain through verified smart contracts. No hidden fees—only verifiable code."
-              iconGradient="from-emerald-500 to-green-600"
-            />
-            <BenefitCard
-              icon={<Coins className="h-5 w-5" />}
-              title="Instant, Automated Payouts"
-              desc="Funds flow directly to charities, prize winners, and hosts based on contract logic. No manual transfers or delays."
-              highlight
-              iconGradient="from-amber-500 to-orange-600"
-            />
-            <BenefitCard
-              icon={<Users className="h-5 w-5" />}
-              title="Global Participation"
-              desc="Engage Web3 communities, DAOs, and crypto enthusiasts worldwide across multiple supported chains."
-              iconGradient="from-cyan-500 to-blue-600"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Core Web3 Features */}
-      <section className="px-4 pt-12">
-        <div className="container mx-auto max-w-6xl">
-          <div className="rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
-            <h2 className="mb-2 text-3xl font-bold text-indigo-900">Smart Contract Fundraising Features</h2>
-            <p className="mb-6 text-lg text-indigo-900/70">
-              Create trustless, transparent fundraising events with guaranteed charitable allocations and verifiable impact.
+            <p className="mt-6 max-w-3xl text-xl leading-relaxed text-white/70">
+              FundRaisely is a Web3 fundraising marketplace where people do more than donate.
+              They participate. Join live quiz nights and elimination games, or host your own event,
+              grow a community, and fund verified non-profits through transparent on-chain payout logic.
             </p>
 
-            <div className="grid gap-6 md:grid-cols-3">
-              <FeatureCard
-                icon={<Lock className="h-5 w-5" />}
-                title="Multi-Chain Smart Contracts"
-                desc="Run fundraising quizzes on Solana, Base, or Stellar (with more networks coming). Choose the chain that best serves your community and fees."
-                gradient="from-indigo-600 to-purple-700"
-              />
-              <FeatureCard
-                icon={<Wallet className="h-5 w-5" />}
-                title="Seamless Wallet Integration"
-                desc="Participants connect popular wallets across supported chains—no new accounts or PII required."
-                gradient="from-blue-500 to-cyan-600"
-              />
-              <FeatureCard
-                icon={<FileCheck className="h-5 w-5" />}
-                title="Verifiable Impact Receipts"
-                desc="Each event generates an on-chain receipt with cryptographic proof of transactions—ideal for grants and compliance."
-                gradient="from-green-500 to-emerald-600"
-              />
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
+              <a
+                href="/web3/events"
+                className="inline-flex items-center gap-2 rounded-xl border border-[#a3f542]/40 bg-[#a3f542]/10 px-6 py-3 font-mono font-semibold text-[#a3f542] transition hover:border-[#a3f542]/80 hover:bg-[#a3f542]/20"
+              >
+                <Calendar className="h-4 w-4" /> Find events
+              </a>
+
+              <a
+                href="/web3/host"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-6 py-3 font-mono font-semibold text-white/70 transition hover:border-white/30 hover:text-white"
+              >
+                <Rocket className="h-4 w-4" /> Host an event
+              </a>
+
+              <a
+                href="/web3/partners"
+                className="inline-flex items-center gap-2 rounded-xl border border-[#1e2d42] px-6 py-3 font-mono font-semibold text-white/60 transition hover:border-white/30 hover:text-white"
+              >
+                <BadgeCheck className="h-4 w-4" /> Browse causes
+              </a>
+            </div>
+
+            <div className="mt-12 flex w-full flex-wrap justify-center gap-8 border-t border-[#1e2d42] pt-8 sm:justify-between">
+              <StatPill value="Quiz + Elimination" label="live event formats" />
+              <StatPill value="Hosts earn" label="from every event" />
+              <StatPill value="Verified causes" label="can receive funds" />
+              <StatPill value="On-chain" label="payout transparency" />
             </div>
           </div>
         </div>
       </section>
 
-      {/* How It Works */}
-      <section className="px-4 pt-8">
-        <div className="container mx-auto max-w-6xl">
-          <div className="rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
-            <h2 className="mb-2 text-3xl font-bold text-indigo-900">How Web3 Fundraising Works</h2>
-            <p className="mb-6 text-lg text-indigo-900/70">
-              Our guided process makes blockchain fundraising accessible, handling the technical complexity behind the scenes.
-            </p>
+      {/* ================================================================== */}
+      {/* Marketplace explainer                                               */}
+      {/* ================================================================== */}
+      <section className="relative z-10 py-12">
+        <div className="container mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="grid items-start gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+            <W3Card className="h-full">
+              <SectionLabel>
+                <Target className="h-4 w-4" /> What this is
+              </SectionLabel>
 
-            <div className="grid gap-6 md:grid-cols-2">
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700">
-                    1
-                  </span>
-                  <div>
-                    <h3 className="mb-1 font-semibold text-indigo-900">Set Up Your Event</h3>
-                    <p className="text-sm text-indigo-800/70">
-                      Use the 4-step wizard, select a verified charity, and define entry fees, prize structures, and payout percentages.
-                    </p>
-                  </div>
-                </div>
+              <h2 className="mt-4 font-mono text-3xl font-bold text-white">
+                A fundraising marketplace, not just a donation page
+              </h2>
 
-                <div className="flex items-start gap-3">
-                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700">
-                    2
-                  </span>
-                  <div>
-                    <h3 className="mb-1 font-semibold text-indigo-900">Deploy Smart Contract</h3>
-                    <p className="text-sm text-indigo-800/70">
-                      The wizard deploys your fundraising smart contract to your chosen blockchain. Payout logic is immutable.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700">
-                    3
-                  </span>
-                  <div>
-                    <h3 className="mb-1 font-semibold text-indigo-900">Host and Play</h3>
-                    <p className="text-sm text-indigo-800/70">
-                      Run your live quiz with real-time leaderboards and engagement. All payments are collected by the contract.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700">
-                    4
-                  </span>
-                  <div>
-                    <h3 className="mb-1 font-semibold text-indigo-900">Automatic Distribution</h3>
-                    <p className="text-sm text-indigo-800/70">
-                      At the end, funds are instantly distributed: charity minimum, winner prizes, and host allocation per contract.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Platform Guarantees */}
-      <section className="px-4 pt-8">
-        <div className="container mx-auto max-w-6xl">
-          <div className="mb-8 text-center">
-            <h2 className="mb-4 text-3xl font-bold text-indigo-900">Platform Guarantees</h2>
-            <p className="mx-auto max-w-3xl text-lg text-indigo-900/70">
-              Smart contracts enforce transparent rules that protect charities, participants, and hosts alike.
-            </p>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-3">
-            <div className="rounded-2xl border border-yellow-100 bg-gradient-to-br from-yellow-50 to-amber-50 p-6 text-center shadow-sm">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-yellow-500 to-amber-600 shadow-lg">
-                <Sparkles className="h-8 w-8 text-white" aria-hidden="true" />
-              </div>
-              <h3 className="mb-2 text-3xl font-bold text-indigo-900">40%+</h3>
-              <p className="text-sm font-medium text-yellow-700">Minimum to Charity</p>
-              <p className="mt-2 text-xs text-indigo-800/60">Guaranteed in contract logic</p>
-            </div>
-
-            <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-indigo-50 p-6 text-center shadow-sm">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg">
-                <Heart className="h-8 w-8 text-white" aria-hidden="true" />
-              </div>
-              <h3 className="mb-2 text-3xl font-bold text-indigo-900">100%</h3>
-              <p className="text-sm font-medium text-blue-700">Auditable Transactions</p>
-              <p className="mt-2 text-xs text-indigo-800/60">Every event verifiable on-chain</p>
-            </div>
-
-            <div className="rounded-2xl border border-purple-100 bg-gradient-to-br from-purple-50 to-pink-50 p-6 text-center shadow-sm">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 shadow-lg">
-                <Zap className="h-8 w-8 text-white" aria-hidden="true" />
-              </div>
-              <h3 className="mb-2 text-3xl font-bold text-indigo-900">Multi-Chain</h3>
-              <p className="text-sm font-medium text-purple-700">Solana • Base • Stellar</p>
-              <p className="mt-2 text-xs text-indigo-800/60">Choose your preferred chain</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Annual Impact Campaign Banner */}
-      <section className="px-4 pt-12">
-        <div className="container mx-auto max-w-6xl">
-          <div className="rounded-2xl bg-gradient-to-r from-teal-600 to-cyan-600 p-8 text-white shadow-lg">
-            <div className="text-center">
-              <span className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-sm font-medium">
-                <TrendingUp className="h-4 w-4" aria-hidden="true" /> Annual Campaign
-              </span>
-              <h2 className="mb-3 text-3xl font-bold">The Web3 Annual Impact Campaign</h2>
-              <p className="mx-auto mb-6 max-w-3xl text-lg text-white/90">
-                Each year, we bring the Web3 community together for a three-month fundraising challenge—pooling impact
-                across communities to raise over $100,000 for verified charities. This is our first year—join us.
+              <p className="mt-4 max-w-3xl text-base leading-relaxed text-white/65">
+                Traditional fundraising usually starts with an ask. FundRaisely starts with an experience.
+                A host creates a live event. Players pay to join. A charity receives a built-in share.
+                The host gets rewarded for running it. The event becomes the fundraising engine.
               </p>
-              <div className="flex flex-wrap justify-center gap-4">
+
+              <p className="mt-4 max-w-3xl text-base leading-relaxed text-white/65">
+                That means the platform has to work for three groups at the same time: people looking for
+                something fun to join, people who want to host and grow a community, and causes that need
+                trust, visibility, and transparent funding.
+              </p>
+
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-[#1e2d42] bg-[#0a0e14] p-4">
+                  <p className="font-mono text-sm font-bold text-white">Players</p>
+                  <p className="mt-2 text-sm leading-relaxed text-white/55">
+                    Pay to participate in events that feel social, competitive, and worth showing up for.
+                  </p>
+                </div>
+                <div className="rounded-xl border border-[#1e2d42] bg-[#0a0e14] p-4">
+                  <p className="font-mono text-sm font-bold text-white">Hosts</p>
+                  <p className="mt-2 text-sm leading-relaxed text-white/55">
+                    Launch events, earn a share of entry fees, and build repeatable community activity.
+                  </p>
+                </div>
+                <div className="rounded-xl border border-[#1e2d42] bg-[#0a0e14] p-4">
+                  <p className="font-mono text-sm font-bold text-white">Causes</p>
+                  <p className="mt-2 text-sm leading-relaxed text-white/55">
+                    Receive funding through a model that is transparent, trackable, and built into the event.
+                  </p>
+                </div>
+              </div>
+            </W3Card>
+
+            <W3Card className="h-full">
+              <SectionLabel>
+                <Search className="h-4 w-4" /> Start here
+              </SectionLabel>
+
+              <div className="mt-4 space-y-4">
                 <a
-                  href="/web3/impact-campaign"
-                  className="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 font-bold text-teal-700 shadow-lg transition hover:bg-teal-50"
+                  href="/web3/events"
+                  className="block rounded-xl border border-[#a3f542]/20 bg-[#a3f542]/5 p-5 transition hover:border-[#a3f542]/40 hover:bg-[#a3f542]/10"
                 >
-                  Learn About the Campaign <ArrowRight className="h-5 w-5" aria-hidden="true" />
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="font-mono text-base font-bold text-white">Find live events</p>
+                      <p className="mt-2 text-sm leading-relaxed text-white/55">
+                        Browse upcoming quiz nights and elimination games, discover causes, and see what is happening now.
+                      </p>
+                    </div>
+                    <Calendar className="mt-1 h-5 w-5 text-[#a3f542]" />
+                  </div>
                 </a>
+
                 <a
-                  href="/web3/impact-campaign/leaderboard"
-                  className="inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-8 py-4 font-bold text-white transition hover:bg-white/20"
+                  href="/web3/host"
+                  className="block rounded-xl border border-white/10 bg-white/5 p-5 transition hover:border-white/20 hover:bg-white/10"
                 >
-                  View Campaign Leaderboard
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="font-mono text-base font-bold text-white">Host your own event</p>
+                      <p className="mt-2 text-sm leading-relaxed text-white/55">
+                        Learn how hosting works, how payout splits are structured, and which event format suits your community.
+                      </p>
+                    </div>
+                    <Rocket className="mt-1 h-5 w-5 text-white/70" />
+                  </div>
+                </a>
+
+                <a
+                  href="/web3/partners"
+                  className="block rounded-xl border border-[#6ef0d4]/20 bg-[#6ef0d4]/5 p-5 transition hover:border-[#6ef0d4]/40 hover:bg-[#6ef0d4]/10"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="font-mono text-base font-bold text-white">See supported causes</p>
+                      <p className="mt-2 text-sm leading-relaxed text-white/55">
+                        Explore verified non-profits, charity partners, and the trust layer behind the marketplace.
+                      </p>
+                    </div>
+                    <HeartHandshake className="mt-1 h-5 w-5 text-[#6ef0d4]" />
+                  </div>
                 </a>
               </div>
-            </div>
+            </W3Card>
           </div>
         </div>
       </section>
 
-      {/* FAQ Section */}
-      <section className="px-4 pt-12 pb-8">
-        <div className="container mx-auto max-w-6xl">
-          <h2 className="mb-8 text-center text-3xl font-bold text-indigo-900">
-            Web3 Fundraising — Frequently Asked Questions
-          </h2>
-          <div className="grid gap-6 md:grid-cols-2">
+      {/* ================================================================== */}
+      {/* How it works                                                       */}
+      {/* ================================================================== */}
+      <section className="relative z-10 py-12">
+        <div className="container mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-8 text-center">
+            <SectionLabel>
+              <Zap className="h-4 w-4" /> How it works
+            </SectionLabel>
+            <h2 className="mt-4 font-mono text-3xl font-bold text-white">
+              A simple flow for players, hosts and causes
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-white/60">
+              The homepage should explain the model clearly. The deeper setup details can live on the host
+              and features pages.
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-4">
             {[
               {
-                q: 'Can I host a Web3 fundraiser any time?',
-                a: 'Yes. The Impact Campaign is seasonal, but you can host your own on-chain fundraiser year-round using the same technology.',
+                n: '01',
+                title: 'A host launches an event',
+                body: 'Choose a format, set the fee, select the cause, and publish the event.',
               },
               {
-                q: 'Do I need to be a crypto expert to use Web3 fundraising?',
-                a: 'No. The event wizard handles wallet connections, contract deployment, and payout setup automatically.',
+                n: '02',
+                title: 'Players join and pay',
+                body: 'Participants connect, enter the event, and compete for prizes or bragging rights.',
               },
               {
-                q: 'Where do the funds go in Web3 fundraising?',
-                a: 'Donations flow through a transparent smart contract enforcing allocations to charity, prizes, and platform fees. All transactions are verifiable on-chain.',
+                n: '03',
+                title: 'The game runs live',
+                body: 'Quiz nights and elimination games create a social experience people actually want to join.',
               },
               {
-                q: 'What makes Web3 fundraising transparent?',
-                a: 'Transactions and payouts are publicly viewable on the blockchain, creating an immutable audit trail for each event.',
+                n: '04',
+                title: 'Payouts happen automatically',
+                body: 'When the event ends, the split is executed transparently and the cause receives its share.',
               },
-              {
-                q: 'Which blockchains does FundRaisely support?',
-                a: 'Stellar (Soroban), Base (EVM), and Solana—more coming soon.',
-              },
-              {
-                q: 'How do I verify that funds reached the charity?',
-                a: 'Each event provides a transaction hash you can check on a public explorer to confirm the amount, recipient wallet, and timestamp.',
-              },
-              {
-                q: 'Do I need experience running quizzes or charity events?',
-                a: 'No—the wizard plus pre-made content (questions, answers, autoscoring, leaderboard, tiebreaker) gets you live fast.',
-              },
-              {
-                q: 'Do I need to find sponsors or prizes?',
-                a: 'Optional. Use entry-fee funded prizes or upload NFTs/tokens as prizes to maximize charity allocations.',
-              },
-            ].map(({ q, a }) => (
-              <div key={q} className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-                <h3 className="mb-2 text-lg font-semibold text-indigo-900">{q}</h3>
-                <p className="text-indigo-900/70">{a}</p>
-              </div>
+            ].map(step => (
+              <W3Card key={step.n} className="h-full">
+                <p className="font-mono text-sm font-bold text-[#a3f542]">{step.n}</p>
+                <h3 className="mt-3 font-mono text-base font-bold text-white">{step.title}</h3>
+                <p className="mt-3 text-sm leading-relaxed text-white/55">{step.body}</p>
+              </W3Card>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Final CTA */}
-      <section className="px-4 pb-14 pt-8">
-        <div className="container mx-auto max-w-6xl text-center">
-          <div className="rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 p-8 text-white shadow-lg">
-            <h3 className="mb-3 text-3xl font-bold">Ready to Transform Charitable Giving with Web3?</h3>
-            <p className="mx-auto mb-6 max-w-3xl text-lg text-white/90">
-              Run transparent, on-chain fundraisers with instant payouts and verifiable impact.
-            </p>
-            <div className="flex flex-wrap justify-center gap-4">
+      {/* ================================================================== */}
+      {/* Event formats                                                      */}
+      {/* ================================================================== */}
+      <section className="relative z-10 py-12">
+        <div className="container mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-8 text-center">
+            <SectionLabel>
+              <Users className="h-4 w-4" /> Event formats
+            </SectionLabel>
+            <h2 className="mt-4 font-mono text-3xl font-bold text-white">
+              Two ways to bring people together
+            </h2>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <W3Card className="h-full">
+              <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#a3f542]/20 bg-[#a3f542]/10">
+                <Trophy className="h-5 w-5 text-[#a3f542]" />
+              </div>
+
+              <h3 className="font-mono text-xl font-bold text-white">Quiz nights</h3>
+              <p className="mt-3 text-base leading-relaxed text-white/60">
+                Longer-form social events with live scoring, leaderboards, prizes, and a format communities
+                already understand. Good for clubs, creators, DAOs, and online communities that want a deeper session.
+              </p>
+
+              <ul className="mt-5 space-y-2 text-sm text-white/55">
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 text-[#a3f542]" />
+                  Team or player participation
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 text-[#a3f542]" />
+                  Live scoring and social energy
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 text-[#a3f542]" />
+                  Strong fit for hosted community nights
+                </li>
+              </ul>
+
               <a
-                href="/web3/host"
-                className="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 font-bold text-indigo-700 shadow-lg transition hover:bg-indigo-50"
+                href="/web3/quiz"
+                className="mt-6 inline-flex items-center gap-2 font-mono text-sm font-semibold text-[#a3f542] transition hover:text-white"
               >
-                <Zap className="h-5 w-5" aria-hidden="true" />
-                Host an On-Chain Event
+                Explore quiz hosting <ArrowRight className="h-4 w-4" />
               </a>
+            </W3Card>
+
+            <W3Card className="h-full">
+              <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-orange-400/20 bg-orange-400/10">
+                <Crosshair className="h-5 w-5 text-orange-400" />
+              </div>
+
+              <h3 className="font-mono text-xl font-bold text-white">Elimination games</h3>
+              <p className="mt-3 text-base leading-relaxed text-white/60">
+                Shorter, faster, higher-intensity sessions where players are knocked out round by round until
+                one person remains. Good for spotlight fundraising moments, quick community events, and repeat play.
+              </p>
+
+              <ul className="mt-5 space-y-2 text-sm text-white/55">
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 text-orange-400" />
+                  Short-format, high-energy play
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 text-orange-400" />
+                  Easy to run multiple times
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 text-orange-400" />
+                  Strong fit for live fundraising moments
+                </li>
+              </ul>
+
               <a
-                href="/web3/partners"
-                className="rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 px-8 py-4 font-bold text-white shadow-lg transition hover:scale-105 hover:shadow-xl"
+                href="/web3/elimination"
+                className="mt-6 inline-flex items-center gap-2 font-mono text-sm font-semibold text-orange-400 transition hover:text-white"
               >
-                Web3 Partners
+                Explore elimination hosting <ArrowRight className="h-4 w-4" />
               </a>
-              <a
-                href="/web3/features"
-                className="inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-8 py-4 font-bold text-white transition hover:bg-white/20"
-              >
-                <Target className="h-5 w-5" aria-hidden="true" />
-                Web3 Features
-              </a>
-            </div>
+            </W3Card>
           </div>
         </div>
       </section>
 
-      <SiteFooter />
+      {/* ================================================================== */}
+      {/* Why different / trust                                              */}
+      {/* ================================================================== */}
+      <section className="relative z-10 py-12">
+        <div className="container mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-8 text-center">
+            <SectionLabel>
+              <Shield className="h-4 w-4" /> Why FundRaisely is different
+            </SectionLabel>
+            <h2 className="mt-4 font-mono text-3xl font-bold text-white">
+              Built for participation, trust and visibility
+            </h2>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {[
+              {
+                icon: <Coins className="h-5 w-5 text-[#a3f542]" />,
+                title: 'Hosts can earn',
+                body: 'The host is part of the model, not an afterthought. Running the event is rewarded through a fixed split.',
+              },
+              {
+                icon: <HeartHandshake className="h-5 w-5 text-[#6ef0d4]" />,
+                title: 'Causes are central',
+                body: 'The event is designed so that a verified cause receives a defined share as part of the event logic.',
+              },
+              {
+                icon: <Wallet className="h-5 w-5 text-white/80" />,
+                title: 'On-chain transparency',
+                body: 'Payouts are visible, traceable, and easier to verify than manual fundraiser handling.',
+              },
+              {
+                icon: <BadgeCheck className="h-5 w-5 text-amber-400" />,
+                title: 'Trust-focused marketplace',
+                body: 'Players, hosts and causes all need confidence. The marketplace structure is designed around that trust.',
+              },
+            ].map(item => (
+              <W3Card key={item.title} className="h-full">
+                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#1e2d42] bg-[#0a0e14]">
+                  {item.icon}
+                </div>
+                <h3 className="font-mono text-base font-bold text-white">{item.title}</h3>
+                <p className="mt-3 text-sm leading-relaxed text-white/55">{item.body}</p>
+              </W3Card>
+            ))}
+          </div>
+
+          <W3Card className="mt-6 border-[#6ef0d4]/15">
+            <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+              <div>
+                <h3 className="font-mono text-2xl font-bold text-white">
+                  Verified causes and transparent payout logic matter
+                </h3>
+                <p className="mt-4 text-base leading-relaxed text-white/60">
+                  A marketplace like this only works if people trust where the money goes. That is why the
+                  homepage still needs visible trust content. Players need to know they are funding something real.
+                  Hosts need confidence before they launch. Causes need clarity on how they are represented.
+                </p>
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <a
+                    href="/web3/partners"
+                    className="inline-flex items-center gap-2 rounded-xl border border-[#6ef0d4]/30 bg-[#6ef0d4]/10 px-5 py-3 font-mono text-sm font-semibold text-[#6ef0d4] transition hover:border-[#6ef0d4]/70 hover:bg-[#6ef0d4]/15"
+                  >
+                    <BadgeCheck className="h-4 w-4" /> View causes and partners
+                  </a>
+                  <a
+                    href="/web3/features"
+                    className="inline-flex items-center gap-2 rounded-xl border border-[#1e2d42] px-5 py-3 font-mono text-sm font-semibold text-white/65 transition hover:border-white/30 hover:text-white"
+                  >
+                    <Zap className="h-4 w-4" /> See platform features
+                  </a>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                <div className="rounded-xl border border-[#1e2d42] bg-[#0a0e14] p-4">
+                  <p className="font-mono text-sm font-bold text-white">For players</p>
+                  <p className="mt-2 text-sm text-white/55">
+                    “Where does my money go?”
+                  </p>
+                </div>
+                <div className="rounded-xl border border-[#1e2d42] bg-[#0a0e14] p-4">
+                  <p className="font-mono text-sm font-bold text-white">For hosts</p>
+                  <p className="mt-2 text-sm text-white/55">
+                    “Can I trust the payout model?”
+                  </p>
+                </div>
+                <div className="rounded-xl border border-[#1e2d42] bg-[#0a0e14] p-4">
+                  <p className="font-mono text-sm font-bold text-white">For causes</p>
+                  <p className="mt-2 text-sm text-white/55">
+                    “How are we represented and funded?”
+                  </p>
+                </div>
+              </div>
+            </div>
+          </W3Card>
+        </div>
+      </section>
+
+      {/* ================================================================== */}
+      {/* FAQ                                                                */}
+      {/* ================================================================== */}
+      <section className="relative z-10 py-12">
+        <div className="container mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-8 text-center">
+            <SectionLabel>
+              <MessageCircle className="h-4 w-4" /> FAQ
+            </SectionLabel>
+            <h2 className="mt-4 font-mono text-3xl font-bold text-white">
+              Common questions
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-white/60">
+              This section helps with both trust and search. Keep the visible answers aligned with the FAQ schema above.
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            {faqItems.map(item => (
+              <FAQCard key={item.q} q={item.q} a={item.a} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ================================================================== */}
+      {/* Final CTA                                                          */}
+      {/* ================================================================== */}
+      <section className="relative z-10 py-16">
+        <div className="container mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8">
+          <W3Card className="border-[#a3f542]/20 p-8 text-center sm:p-10">
+            <SectionLabel>
+              <ArrowRight className="h-4 w-4" /> Next step
+            </SectionLabel>
+
+            <h2 className="mt-4 font-mono text-3xl font-bold text-white sm:text-4xl">
+              Find an event or run your own
+            </h2>
+
+            <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-white/60">
+              Start with the path that matches your intent. Browse the marketplace, learn how hosting works,
+              or explore the causes behind the events.
+            </p>
+
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
+              <a
+                href="/web3/events"
+                className="inline-flex items-center gap-2 rounded-xl border border-[#a3f542]/40 bg-[#a3f542]/10 px-6 py-3 font-mono font-semibold text-[#a3f542] transition hover:border-[#a3f542]/80 hover:bg-[#a3f542]/20"
+              >
+                <Calendar className="h-4 w-4" /> Find events
+              </a>
+
+              <a
+                href="/web3/host"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-6 py-3 font-mono font-semibold text-white/70 transition hover:border-white/30 hover:text-white"
+              >
+                <Rocket className="h-4 w-4" /> Host an event
+              </a>
+
+              <a
+                href="/web3/partners"
+                className="inline-flex items-center gap-2 rounded-xl border border-[#1e2d42] px-6 py-3 font-mono font-semibold text-white/60 transition hover:border-white/30 hover:text-white"
+              >
+                <HeartHandshake className="h-4 w-4" /> Causes
+              </a>
+            </div>
+          </W3Card>
+        </div>
+      </section>
     </div>
   );
 };
 
 export default Web3MainIndex;
-
 
 

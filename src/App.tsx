@@ -17,6 +17,7 @@ import RequestPasswordReset from './components/auth/RequestPasswordReset';
 import ContactForm from './components/GeneralSite2/ContactForm';
 import FoundingPartnersPage from './pages/FoundingPartners';
 import BlogPost from './pages/BlogPost';
+import { ensureAppKitCreated } from './web3Init';
 
 import { useAuthStore } from './features/auth';
 import AuthPage from './components/auth/AuthPage';
@@ -32,6 +33,9 @@ import BlogAndResources from './pages/blog';
 import ClubsLeaguePage from './pages/campaigns/ClubsLeaguePage';
 import QuizEventDashboard from './components/mgtsystem/components/dashboard/QuizEventDashboard';
 import { ConditionalWeb3Wrapper } from './components/Quiz/ConditionalWeb3Wrapper';
+import { EliminationDevPage } from './components/elimination/EliminationDevPage';
+import { Web3Provider } from './components/Web3Provider';
+import EventsDiscoveryPage from './pages/web3/events'
 
 import { sdk } from '@farcaster/miniapp-sdk'
 
@@ -65,12 +69,46 @@ const MiniAppHostPage = lazy(() =>
   import('./pages/mini-app/MiniAppHostPage').then(m => ({ default: m.MiniAppHostPage }))
 );
 
+const EliminationGamePage = lazy(() =>
+  import('./components/elimination/EliminationGamePage').then(m => ({ default: m.EliminationGamePage }))
+);
+
+const EliminationJoinPage = lazy(() =>
+  import('./components/elimination/Eliminationjoinpage').then(m => ({ default: m.EliminationJoinPage }))
+);
+
+const Web3QuizPage = lazy(() => import('./pages/web3/quiz'));
+
+const PuzzlePage = lazy(() => import('./components/puzzles/pages/PuzzlePage'));
+
+const PuzzleDevTestPage = lazy(() => import('./components/puzzles/pages/Puzzledevtestpage'));
+
+const ChallengeDashboardPage  = lazy(() => import('./components/puzzles/pages/ChallengeDashboardPage'));
+const ChallengeCreatePage     = lazy(() => import('./components/puzzles/pages/ChallengeCreatePage'));
+const ChallengeDetailPage     = lazy(() => import('./components/puzzles/pages/ChallengeDetailPage'));
+const ChallengeLeaderboardPage = lazy(() => import('./components/puzzles/pages/ChallengeLeaderboardPage'));
+const PuzzleJoinPage       = lazy(() => import('./components/puzzles/pages/PuzzleJoinPage'));
+const PuzzleCheckEmailPage = lazy(() => import('./components/puzzles/pages/PuzzleCheckEmailPage'));
+const PuzzleAuthPage       = lazy(() => import('./components/puzzles/pages/PuzzleAuthPage'));
+const PlayerChallengePage  = lazy(() => import('./components/puzzles/pages/PlayerChallengePage'));
+
 // Lazy Web3 hub + impact campaign pages
 const Web3HubPage = lazy(() => import('./pages/web3'));
 const ImpactCampaignOverview = lazy(() => import('./pages/web3/impact-campaign'));
 const ImpactCampaignJoin = lazy(() => import('./pages/web3/impact-campaign/join'));
 const ImpactCampaignLeaderboard = lazy(() => import('./pages/web3/impact-campaign/leaderboard'));
 const ImpactCampaignBaseApp = lazy(() => import('./pages/web3/impact-campaign/MiniAppLandingPage'));
+// ADD this lazy import at the top with the others
+// const EliminationWeb3Page = lazy(() =>
+//   import('./components/elimination/EliminationWeb3Page')
+//     .then(m => ({ default: m.EliminationWeb3Page }))
+// );
+const Web3EliminationPage = lazy(() => import('./pages/web3/elimination'));
+const FundraisersDashboardPage = lazy(() =>
+  import('./pages/web3/FundraisersDashboardPage')
+);
+const Web3HostPage = lazy(() => import('./pages/web3/host'));
+const Web3CausesPage = lazy(() => import('./pages/web3/causes'));
 
 const LoadingSpinner = ({
   message = 'Loading...',
@@ -98,12 +136,13 @@ const needsWeb3Wrapper = (pathname: string) =>
   /^\/quiz\/(game|play|admin-join)\b/.test(pathname);
 
 export default function App() {
+   ensureAppKitCreated();
   const navigate = useNavigate();
   const location = useLocation();
   const { pathname } = location;
 
   const hideOnPaths = ['/BingoBlitz'];
-  const hideOnPrefixes = ['/quiz/game', '/quiz/play', '/quiz/host-dashboard', '/quiz/host-controls',  '/mini-app', '/tickets'];
+  const hideOnPrefixes = ['/quiz/game', '/quiz/play', '/quiz/host-dashboard', '/quiz/host-controls', '/mini-app', '/tickets', '/elimination',  '/web3'];
   const showHeader =
     !hideOnPaths.includes(pathname) &&
     !hideOnPrefixes.some((p) => pathname === p || pathname.startsWith(p + '/'));
@@ -137,6 +176,7 @@ useEffect(() => {
             <Route path="/legal/terms" element={<TermsOfUse />} />
             <Route path="/founding-partners" element={<FoundingPartnersPage />} />
             <Route path="/campaigns/clubs-league" element={<ClubsLeaguePage />} />
+            <Route path="/elimination/dev" element={<EliminationDevPage />} />
 
             {/* Auth routes */}
             <Route path="/signup" element={<Signup />} />
@@ -257,27 +297,33 @@ useEffect(() => {
               }
             />
 
-            {/* ✅ WEB3 Hub & Impact Campaign - NO Web3Provider at route level */}
-            <Route
-              path="/web3/*"
-              element={
-                <Suspense fallback={<LoadingSpinner message="Loading Web3" />}>
-                  <Routes>
-                    {/* All marketing pages - NO Web3Provider */}
-                    <Route path="" element={<Web3HubPage />} />
-                    <Route path="features" element={<Web3Features />} />
-                    <Route path="testimonials" element={<Web3Testimonials />} />
-                    <Route path="partners" element={<Web3Partners />} />
-                    <Route path="impact-campaign" element={<ImpactCampaignOverview />} />
-                    <Route path="impact-campaign/leaderboard" element={<ImpactCampaignLeaderboard />} />
-                    
-                    {/* ✅ Join page - Wizard handles Web3Provider internally at step 6 */}
-                    <Route path="impact-campaign/join" element={<ImpactCampaignJoin />} />
-                    <Route path="impact-campaign/baseapp" element={<ImpactCampaignBaseApp />} />
-                  </Routes>
-                </Suspense>
-              }
-            />
+         {/* ✅ WEB3 Hub & Impact Campaign - Web3Provider mounted so Wagmi EIP-6963 detection runs */}
+<Route
+  path="/web3/*"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading Web3" />}>
+      <Web3Provider force>
+        <Routes>
+          <Route path="" element={<Web3HubPage />} />
+          <Route path="features" element={<Web3Features />} />
+          <Route path="testimonials" element={<Web3Testimonials />} />
+          <Route path="partners" element={<Web3Partners />} />
+          <Route path="quiz" element={<Web3QuizPage />} />
+          <Route path="impact-campaign" element={<ImpactCampaignOverview />} />
+          <Route path="impact-campaign/leaderboard" element={<ImpactCampaignLeaderboard />} />
+          <Route path="events" element={<EventsDiscoveryPage />} />
+          <Route path="host" element={<Web3HostPage />} />
+          <Route path="causes" element={<Web3CausesPage />} />
+          {/* These self-wrap internally — alreadyMounted guard prevents double WagmiProvider */}
+          <Route path="impact-campaign/join" element={<ImpactCampaignJoin />} />
+          <Route path="impact-campaign/baseapp" element={<ImpactCampaignBaseApp />} />
+          <Route path="elimination" element={<Web3EliminationPage />} />
+          <Route path="fundraisersdashboard" element={<FundraisersDashboardPage />} />
+        </Routes>
+      </Web3Provider>
+    </Suspense>
+  }
+/>
 
             {/* Legacy redirects */}
             <Route path="/Web3-Impact-Event" element={<Navigate to="/web3/impact-campaign" replace />} />
@@ -292,6 +338,97 @@ useEffect(() => {
     </Suspense>
   }
 />
+
+<Route
+  path="/elimination/join/:roomId"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+      <EliminationJoinPage />
+    </Suspense>
+  }
+/>
+
+<Route
+  path="/elimination"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading Elimination Game" />}>
+      <EliminationGamePage />
+    </Suspense>
+  }
+/>
+<Route
+  path="/dev/puzzles"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+      <PuzzleDevTestPage />
+    </Suspense>
+  }
+/>
+{/* ── Puzzle routes — ORDER MATTERS: specific paths before /:challengeId ── */}
+
+<Route path="/challenges" element={
+  <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+    <ChallengeDashboardPage />
+  </Suspense>
+} />
+
+<Route path="/challenges/create" element={
+  <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+    <ChallengeCreatePage />
+  </Suspense>
+} />
+
+{/* These three must come BEFORE /challenges/:challengeId */}
+<Route path="/challenges/:challengeId/play" element={
+  <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+    <PlayerChallengePage />
+  </Suspense>
+} />
+
+<Route path="/challenges/:challengeId/puzzle/:week" element={
+  <Suspense fallback={<LoadingSpinner message="Loading Puzzle..." />}>
+    <PuzzlePage />
+  </Suspense>
+} />
+
+<Route path="/challenges/:challengeId/leaderboard" element={
+  <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+    <ChallengeLeaderboardPage />
+  </Suspense>
+} />
+
+{/* Generic /:challengeId LAST — catches /challenges/:challengeId only */}
+<Route path="/challenges/:challengeId" element={
+  <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+    <ChallengeDetailPage />
+  </Suspense>
+} />
+
+{/* Public join routes */}
+<Route path="/join/puzzle/:joinCode" element={
+  <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+    <PuzzleJoinPage />
+  </Suspense>
+} />
+
+<Route path="/join/puzzle/challenge/:challengeId" element={
+  <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+    <PuzzleJoinPage />
+  </Suspense>
+} />
+
+{/* Magic link flow */}
+<Route path="/puzzle-check-email" element={
+  <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+    <PuzzleCheckEmailPage />
+  </Suspense>
+} />
+
+<Route path="/puzzle-auth" element={
+  <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+    <PuzzleAuthPage />
+  </Suspense>
+} />
 
             {/* 404 */}
             <Route

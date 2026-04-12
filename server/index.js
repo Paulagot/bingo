@@ -41,6 +41,13 @@ import tgbWebhookHandler from './tgb/api/webhook.js';
 
 import contactRoute from './routes/contact.js';
 import passwordResetRoute from './routes/passwordReset.js';
+import eliminationRoutes from './elimination/routes/eliminationRoutes.js';
+// near the top with your other imports
+import eliminationDevRoutes from './elimination/routes/eliminationDevRoutes.js';
+import web3TransactionRoutes from './mgtsystem/routes/web3TransactionRoutes.js';
+import web3PublicEventsRoutes from './web3/routes/web3PublicEventsRoutes.js'
+
+
 
 // ✅ NEW: import mailer verify helper
 import { verifyMailer } from './utils/mailer.js';
@@ -67,6 +74,14 @@ import { stripeRouter } from './stripe/stripeRoutes.js';
 import { stripeWebhookHandler } from './stripe/stripeWebhooks.js';
 import frameRoutes from './quiz/api/frameRoutes.js';
 import pledgeRouter from './mgtsystem/routes/pledgesRouter.js';
+import puzzleRouter from './puzzles/routes/puzzleRoutes.js';
+import challengeRouter from './puzzles/routes/challengeRoutes.js';
+import supporterAuthRouter      from './supporters/routes/supporterAuthRoutes.js';
+import puzzleSubscriptionRouter from './puzzles/routes/puzzleSubscriptionRoutes.js';
+import web3AuthRoutes from './web3/routes/web3AuthRoutes.js';
+import web3FundraiserRoutes from './web3/routes/web3FundraiserRoutes.js'
+
+
 
 const app = express();
 
@@ -360,6 +375,17 @@ app.use('/quiz/api', createRoomApi);
 app.use('/api/mgtsystem/quiz-late-payments', quizLatePayments);
 app.use('/api/quiz/personalised-round', quizPersonalisedRoundRouter);
 app.use('/api/pledges', pledgeRouter); 
+app.use('/api/elimination', eliminationRoutes); 
+ app.use('/api/elimination/dev', eliminationDevRoutes);
+app.use('/api/puzzles', puzzleRouter);
+app.use('/api/puzzle-challenges', challengeRouter);
+app.use('/api/supporter-auth',       supporterAuthRouter);
+app.use('/api/puzzle-subscriptions', puzzleSubscriptionRouter);
+app.use('/api/web3-transactions', web3TransactionRoutes);
+app.use('/api/web3/auth', web3AuthRoutes);
+app.use('/api/web3/fundraisers', web3FundraiserRoutes)
+app.use('/api/web3/public-events', web3PublicEventsRoutes)
+
 console.log('✅ Routes setup complete');
 
 console.log('📋 Registered routes:');
@@ -476,7 +502,7 @@ if (process.env.NODE_ENV === 'production') {
         filePath.endsWith('.woff')
       ) {
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-        console.log(`💾 Setting 1-year cache for: ${path.basename(filePath)}`);
+        // console.log(`💾 Setting 1-year cache for: ${path.basename(filePath)}`);
       } else {
         res.setHeader('Cache-Control', 'public, max-age=31536000');
       }
@@ -568,6 +594,8 @@ const io = new Server(httpServer, {
     credentials: true
   }
 });
+
+app.set('io', io); // ← add this so we can access io in routes via req.app.get('io')
 
 try {
   seoRoutes(app);

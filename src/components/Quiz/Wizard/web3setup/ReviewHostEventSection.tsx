@@ -1,5 +1,5 @@
 import React from "react";
-import { User, Calendar, Clock, MapPin, Layers, Users, CheckCircle } from "lucide-react";
+import { User,  Layers, Users, CheckCircle } from "lucide-react";
 
 interface Props {
   setupConfig: any;

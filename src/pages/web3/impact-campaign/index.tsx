@@ -168,7 +168,7 @@ const ImpactCampaignOverview: React.FC = () => {
                   View Leaderboard
                 </Link>
                 <Link
-                  to="/web3/impact-campaign/join"
+                  to="/web3/quiz"
                   className="rounded-xl bg-indigo-600 px-6 py-3 font-semibold text-white hover:bg-indigo-700 transition-colors shadow-md"
                 >
                   Host / Join a Quiz

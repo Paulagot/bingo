@@ -568,58 +568,91 @@ const SetupSummaryPanel: React.FC = () => {
         </button>
 
         {expandedSections.prizes && (
-          <div className="border-t-2 border-gray-200 p-4 bg-gray-50">
-            {prizeMode === 'split' && prizeSplits ? (
-              <div className="space-y-2">
-                {Object.entries(prizeSplits).map(([place, percent]) => (
-                  <div
-                    key={place}
-                    className="flex items-center justify-between rounded-lg border-2 border-yellow-200 bg-white p-3"
-                  >
-                    <span className="font-semibold text-gray-900 capitalize">{place} place</span>
-                    <span className="rounded-full border border-yellow-300 bg-yellow-100 px-3 py-1 text-sm font-bold text-yellow-800">
-                      {percent}%
-                    </span>
-                  </div>
-                ))}
+  <div className="border-t-2 border-gray-200 p-4 bg-gray-50">
+    {/* ✅ Web3 rooms: show pool-based prize split */}
+    {isWeb3Room ? (
+      <div className="space-y-3">
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 mb-3">
+          <p className="text-xs text-blue-800 font-medium">
+            Prizes are funded from the entry fee pool collected by the smart contract.
+          </p>
+        </div>
+        {[
+          { place: 1, label: '1st place', pct: 18 },
+          { place: 2, label: '2nd place', pct: 12 },
+        ].map(({ place, label, pct }) => (
+          <div
+            key={place}
+            className="flex items-center justify-between rounded-lg border-2 border-yellow-200 bg-white p-3"
+          >
+            <div className="flex items-center gap-2">
+              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 text-white text-xs font-bold">
+                {place}
               </div>
-            ) : (prizeMode === 'assets' || prizeMode === 'split') && prizes ? (
-              <div className="space-y-3">
-                {prizes.map((prize: any, idx: number) => (
-                  <div key={idx} className="rounded-lg border-2 border-yellow-200 bg-white p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 text-white text-xs font-bold">
-                          {prize.place}
-                        </div>
-                        <span className="font-semibold text-gray-900 capitalize">
-                          {prize.place} place
-                        </span>
-                      </div>
-                      {prize.value && (
-                        <span className="rounded-full border border-yellow-300 bg-yellow-100 px-3 py-1 text-sm font-bold text-yellow-800">
-                          {currencySymbol ?? ''}
-                          {prize.value}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-sm text-gray-700">
-                      {prize.description}
-                      {prize.sponsor && (
-                        <span className="text-purple-600"> • Sponsored by {prize.sponsor}</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <Gift className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-gray-600 text-sm">No prizes configured</p>
-              </div>
-            )}
+              <span className="font-semibold text-gray-900 capitalize">{label}</span>
+            </div>
+            <span className="rounded-full border border-yellow-300 bg-yellow-100 px-3 py-1 text-sm font-bold text-yellow-800">
+              {pct}% of pool
+            </span>
           </div>
-        )}
+        ))}
+        <div className="flex items-center justify-between rounded-lg border-2 border-yellow-100 bg-gray-50 p-3">
+          <span className="text-sm font-semibold text-gray-700">Total prizes</span>
+          <span className="rounded-full border border-yellow-200 bg-yellow-50 px-3 py-1 text-sm font-bold text-yellow-700">
+            30% of pool
+          </span>
+        </div>
+      </div>
+    ) : prizeMode === 'split' && prizeSplits ? (
+      <div className="space-y-2">
+        {Object.entries(prizeSplits).map(([place, percent]) => (
+          <div
+            key={place}
+            className="flex items-center justify-between rounded-lg border-2 border-yellow-200 bg-white p-3"
+          >
+            <span className="font-semibold text-gray-900 capitalize">{place} place</span>
+            <span className="rounded-full border border-yellow-300 bg-yellow-100 px-3 py-1 text-sm font-bold text-yellow-800">
+              {percent}%
+            </span>
+          </div>
+        ))}
+      </div>
+    ) : (prizeMode === 'assets'  ) && prizes ? (
+      <div className="space-y-3">
+        {prizes.map((prize: any, idx: number) => (
+          <div key={idx} className="rounded-lg border-2 border-yellow-200 bg-white p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 text-white text-xs font-bold">
+                  {prize.place}
+                </div>
+                <span className="font-semibold text-gray-900 capitalize">
+                  {prize.place} place
+                </span>
+              </div>
+              {prize.value && (
+                <span className="rounded-full border border-yellow-300 bg-yellow-100 px-3 py-1 text-sm font-bold text-yellow-800">
+                  {currencySymbol ?? ''}{prize.value}
+                </span>
+              )}
+            </div>
+            <div className="text-sm text-gray-700">
+              {prize.description}
+              {prize.sponsor && (
+                <span className="text-purple-600"> • Sponsored by {prize.sponsor}</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <div className="text-center py-8">
+        <Gift className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+        <p className="text-gray-600 text-sm">No prizes configured</p>
+      </div>
+    )}
+  </div>
+)}
       </div>
     </div>
   );

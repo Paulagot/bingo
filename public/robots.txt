@@ -15,6 +15,8 @@ Allow: /web3/testimonials
 Allow: /web3/impact-campaign
 Allow: /web3/impact-campaign/join
 Allow: /web3/impact-campaign/leaderboard
+Allow: /web3/elimination
+Allow: /web3/quiz
 
 # Quiz marketing pages
 Allow: /quiz/demo

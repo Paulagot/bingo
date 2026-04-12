@@ -66,7 +66,7 @@ export const SEO: React.FC<SEOProps> = ({
     // Env-configured domains (fallbacks provided)
     const UK_DOMAIN = (import.meta as any)?.env?.VITE_UK_DOMAIN || 'https://fundraisely.co.uk';
     const IE_DOMAIN = (import.meta as any)?.env?.VITE_IE_DOMAIN || 'https://fundraisely.ie';
-    const X_DEFAULT = (import.meta as any)?.env?.VITE_SEO_X_DEFAULT_DOMAIN || UK_DOMAIN;
+    const X_DEFAULT = currentDomain.includes('.ie') ? IE_DOMAIN : UK_DOMAIN;
 
     // Helpers
     const setMetaTag = (name: string, content: string, useProperty = false, id?: string) => {
@@ -198,10 +198,13 @@ export const SEO: React.FC<SEOProps> = ({
       '/web3/features',
       '/web3/partners',
       '/web3/testimonials',
+      '/web3/elimination',
+      '/web3/quiz',
       // Impact campaign
       '/web3/impact-campaign',
       '/web3/impact-campaign/join',
       '/web3/impact-campaign/leaderboard',
+
       //  campaigns
        '/campaigns',
         '/campaigns/clubs-league',
