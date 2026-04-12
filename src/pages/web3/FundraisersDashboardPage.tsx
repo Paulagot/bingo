@@ -97,7 +97,7 @@ export default function FundraisersDashboardPage() {
       <Web3Header />
 
       {/* ── Sticky launch bar (below fixed header, above tab nav) ── */}
-      <div className="fl-launch-bar">
+      {/* <div className="fl-launch-bar">
         <div className="fl-launch-bar-inner">
           <span className="fl-launch-label">Launch a room</span>
           <div className="fl-launch-buttons">
@@ -117,7 +117,7 @@ export default function FundraisersDashboardPage() {
             </a>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* ── Tab nav ── */}
       <nav className="fl-tabnav">
@@ -337,7 +337,7 @@ export default function FundraisersDashboardPage() {
           background: #07070f;
           /* sits below the fixed header (64px) + launch bar (44px) */
           position: sticky;
-          top: 108px;
+          top: 64px;
           z-index: 97;
           overflow-x: auto;
           scrollbar-width: none;
@@ -384,7 +384,7 @@ export default function FundraisersDashboardPage() {
           flex-direction: column;
           gap: 1.5rem;
           /* Ensures programmatic scrolls (tab switch) always land below sticky bars */
-          scroll-margin-top: 160px;
+          scroll-margin-top: 116px;
         }
 
         /* ── Overview layout ───────────────────────────────────────── */

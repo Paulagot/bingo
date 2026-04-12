@@ -9,7 +9,7 @@ import {
   Trophy,
   Crosshair,
   ArrowRight,
-  Wallet,
+ 
   Shield,
   BadgeCheck,
   Calendar,
@@ -17,7 +17,7 @@ import {
   Search,
   MessageCircle,
   Users,
-  Zap,
+  
   CheckCircle2,
   Globe,
   Target,
