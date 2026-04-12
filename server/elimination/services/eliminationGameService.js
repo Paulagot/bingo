@@ -22,17 +22,18 @@ import {
   SERVER_EVENTS,
   TIMING,
   ELIMINATION_SCHEDULE,
+  ROUND_7_TARGET_FINALISTS,
 } from '../utils/eliminationConstants.js';
 
 // ─── Wait for web3 finalize confirmation ─────────────────────────────────────
 // Polls room.settled every 5 seconds, up to 15 minutes.
 // Returns true if settled, false if timed out.
 const waitForFinalize = async (roomId) => {
-  const MAX_WAIT_MS = 15 * 60 * 1000;  // 15 minutes
-  const POLL_INTERVAL_MS = 5000;        // check every 5 seconds
+  const MAX_WAIT_MS = 15 * 60 * 1000;
+  const POLL_INTERVAL_MS = 5000;
   let waited = 0;
 
-  console.log(`[Elimination] Web3 room ${roomId} — waiting for finalize_game tx...`);
+  // console.log(`[Elimination] Web3 room ${roomId} — waiting for finalize_game tx...`);
 
   while (waited < MAX_WAIT_MS) {
     await delay(POLL_INTERVAL_MS);
@@ -40,16 +41,14 @@ const waitForFinalize = async (roomId) => {
 
     const room = getRoom(roomId);
 
-    // Room already deleted or settled
     if (!room) return true;
     if (room.settled) {
-      console.log(`[Elimination] Room ${roomId} finalized after ${waited / 1000}s`);
+      // console.log(`[Elimination] Room ${roomId} finalized after ${waited / 1000}s`);
       return true;
     }
 
-    // Log progress every minute
     if (waited % 60000 === 0) {
-      console.log(`[Elimination] Still waiting for finalize on room ${roomId} (${waited / 1000}s elapsed)`);
+      // console.log(`[Elimination] Still waiting for finalize on room ${roomId} (${waited / 1000}s elapsed)`);
     }
   }
 
@@ -59,6 +58,9 @@ const waitForFinalize = async (roomId) => {
 
 /**
  * Start the game for a room.
+ *
+ * All round thresholds (safe rounds, finalist round, final round) are derived
+ * from GAME_RULES.TOTAL_ROUNDS — no magic numbers here.
  */
 export const startGame = async (roomId, emit) => {
   const buildRoundSequence = () => {
@@ -73,6 +75,9 @@ export const startGame = async (roomId, emit) => {
   const roundTypeSequence = buildRoundSequence();
   const room = startRoom(roomId, []);
   if (!room) throw new Error('Failed to start room');
+
+  // Derive finalist round once — used in intro announcements below
+  const finalistRound = GAME_RULES.TOTAL_ROUNDS - 1;
 
   emit(SERVER_EVENTS.GAME_STARTED, {
     roomId,
@@ -91,12 +96,20 @@ export const startGame = async (roomId, emit) => {
     const roundType = roundTypeSequence[i];
     const difficulty = 1 + (roundNumber - 1) * 0.15;
 
-    const roundState = createRound(roomId, roundNumber, roundType, difficulty, lastShape);
+    const roundState = createRound(
+      roomId,
+      roundNumber,
+      roundType,
+      difficulty,
+      lastShape,
+      GAME_RULES.TOTAL_ROUNDS,  // passed to engine for dynamic difficulty curve
+    );
+
     if (roundState.generatedConfig?.shapeType) {
       lastShape = roundState.generatedConfig.shapeType;
     }
-    const { roundId } = roundState;
 
+    const { roundId } = roundState;
     room.roundSequence.push(roundId);
     room.activeRoundIndex = i;
 
@@ -106,16 +119,23 @@ export const startGame = async (roomId, emit) => {
     let eliminationCount = 0;
     let eliminationMode = 'none';
 
-    if (roundNumber <= 2) {
+    if (roundNumber < GAME_RULES.FIRST_ELIMINATING_ROUND) {
+      // Safe rounds — no elimination announced
       eliminationCount = 0;
       eliminationMode = 'none';
+
     } else if (roundNumber === GAME_RULES.TOTAL_ROUNDS) {
+      // Final round — everyone but the winner goes
       eliminationCount = activeCount - 1;
       eliminationMode = 'final';
-    } else if (roundNumber === 7) {
-      eliminationCount = Math.max(0, activeCount - 3);
-      eliminationMode = 'reduce_to_three';
+
+    } else if (roundNumber === finalistRound) {
+      // Finalist round — reduce to target finalist count
+      eliminationCount = Math.max(0, activeCount - ROUND_7_TARGET_FINALISTS);
+      eliminationMode = 'reduce_to_finalists';
+
     } else {
+      // Middle rounds — percentage cut from schedule
       const schedule = ELIMINATION_SCHEDULE[roundNumber];
       if (typeof schedule === 'number' && schedule > 0) {
         eliminationCount = Math.min(Math.ceil(activeCount * schedule), activeCount - 1);
@@ -155,7 +175,7 @@ export const startGame = async (roomId, emit) => {
     // ── SCORING ──────────────────────────────────────────────────────────────
     const rankedResults = closeAndScoreRound(roomId, roundId);
 
-    // ── ELIMINATION ───────────────────────────────────────────────────────────
+    // ── ELIMINATION ──────────────────────────────────────────────────────────
     const eliminatedThisRound = applyEliminations(roomId, roundNumber, rankedResults);
     recordRoundEliminations(roomId, roundId, eliminatedThisRound);
 
@@ -175,7 +195,7 @@ export const startGame = async (roomId, emit) => {
 
     await delay(TIMING.REVEAL_DURATION_MS);
 
-    // ── RESULTS ───────────────────────────────────────────────────────────────
+    // ── RESULTS ──────────────────────────────────────────────────────────────
     emit(SERVER_EVENTS.ROUND_RESULTS, {
       roundId,
       roundNumber,
@@ -219,19 +239,18 @@ export const startGame = async (roomId, emit) => {
       const roomAfterWin = getRoom(roomId);
       const isWeb3Room = roomAfterWin?.paymentMode === 'web3';
 
-  if (isWeb3Room) {
-  await delay(5000);
-  await waitForFinalize(roomId);
-} else {
-  await delay(62000);
-}
+      if (isWeb3Room) {
+        await delay(5000);
+        await waitForFinalize(roomId);
+      } else {
+        await delay(62000);
+      }
 
-// Emit ROOM_ENDED and give clients time to receive it before deleting
-emit(SERVER_EVENTS.ROOM_ENDED, { roomId, reason: 'game_complete' });
-console.log(`[Elimination] ROOM_ENDED emitted for ${roomId} — waiting 3s before cleanup`);
-await delay(3000);  // ← give clients time to receive the event
-deleteRoom(roomId);
-console.log(`[Elimination] Room ${roomId} deleted`);
+      emit(SERVER_EVENTS.ROOM_ENDED, { roomId, reason: 'game_complete' });
+      // console.log(`[Elimination] ROOM_ENDED emitted for ${roomId} — waiting 3s before cleanup`);
+      await delay(3000);
+      deleteRoom(roomId);
+      // console.log(`[Elimination] Room ${roomId} deleted`);
 
       return;
     }

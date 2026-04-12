@@ -6,13 +6,13 @@ import { useQuizConfig } from "../../hooks/useQuizConfig";
 import { useQuizSocket } from "../../sockets/QuizSocketProvider";
 import { useChainWallet } from "../../../../hooks/useChainWallet";
 import { useContractActions } from "../../../../hooks/useContractActions";
-import { toChainConfig } from "../../../../types/chainConfig";
+import { useWeb3ChainConfig } from "../../../Web3Provider";
 
 import { generateRoomId, generateHostId } from "../../utils/idUtils";
 
 import type { DeployParams } from "../../../../hooks/useContractActions";
 
-// REMOVED: useQuizChainIntegration, useWalletActions — replaced by useChainWallet + useContractActions
+
 
 const isInvalidTx = (tx?: string) =>
   !tx || tx === "pending" || tx === "transaction-submitted" || tx.length < 16;
@@ -71,7 +71,7 @@ export function useWeb3Launch({ onResetToFirst: _onResetToFirst, onBack: _onBack
 
   // ── Single config source ──────────────────────────────────────────────────
   // Config flows down from setupConfig. No store reads inside the hooks.
-  const chainConfig = toChainConfig(setupConfig);
+const chainConfig = useWeb3ChainConfig();
 
   const {
     chainFamily: selectedChain,

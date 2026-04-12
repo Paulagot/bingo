@@ -4,33 +4,41 @@ import {
   clamp,
   errorToScore,
   calcSpeedBonus,
+  lerp,
 } from '../../utils/eliminationHelpers.js';
-import { ROUND_TYPE, ROUND_DURATION } from '../../utils/eliminationConstants.js';
+import { ROUND_TYPE, ROUND_DURATION, GAME_RULES } from '../../utils/eliminationConstants.js';
 
 // ─── Generate ─────────────────────────────────────────────────────────────────
 
-export const generateRoundConfig = ({ difficulty = 1 } = {}) => {
-  // 5–8 numbers, all single digit (1–9) — harder to track many small numbers
-  const termCount = Math.min(8, 5 + Math.floor((difficulty - 1) * 0.5));
+export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
+  // Normalise difficulty to 0–1 across the full round range
+  const safeTotalRounds = totalRounds ?? GAME_RULES.TOTAL_ROUNDS;
+  const maxDifficulty = 1 + (safeTotalRounds - 1) * 0.15;
+  const t = Math.min(1, Math.max(0, (difficulty - 1) / (maxDifficulty - 1)));
 
-  // All numbers 1–9 (single digit) — harder to track many of them
+  // Term count: genuinely increases across rounds
+  // Round 1: 5 numbers  →  Round 8: 8 numbers
+  const termCount = Math.round(lerp(5, 8, t));
+
+  // All numbers 1–9 (single digit)
   const numbers = Array.from({ length: termCount }, () =>
     Math.floor(randomBetween(1, 10))
   );
 
   const actualSum = numbers.reduce((a, b) => a + b, 0);
 
-  // Flash duration: shorter = harder
-  // Extra second added for readability
-  const displayDurationMs = Math.round(
-    Math.max(3000, randomBetween(4000 - difficulty * 200, 6000 - difficulty * 200))
-  );
+  // Flash duration: noticeably shorter as rounds progress but never punishing.
+  // Round 1: 4.5–6s  →  Round 8: 3–4s
+  // Floor raised from 2.5s — 8 numbers need at least 3s to register.
+  const minDisplay = Math.round(lerp(4500, 3000, t));
+  const maxDisplay = Math.round(lerp(6000, 4000, t));
+  const displayDurationMs = Math.round(randomBetween(minDisplay, maxDisplay));
 
   // Layout: spread numbers across screen randomly
   const positions = numbers.map(() => ({
     x: randomBetween(0.1, 0.9),
     y: randomBetween(0.1, 0.9),
-    fontSize: randomBetween(0.06, 0.12), // normalised font size
+    fontSize: randomBetween(0.06, 0.12),
   }));
 
   return {

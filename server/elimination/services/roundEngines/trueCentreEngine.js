@@ -4,8 +4,9 @@ import {
   distance,
   errorToScore,
   isValidNormalisedCoord,
+  lerp,
 } from '../../utils/eliminationHelpers.js';
-import { ROUND_TYPE, ROUND_DURATION } from '../../utils/eliminationConstants.js';
+import { ROUND_TYPE, ROUND_DURATION, GAME_RULES } from '../../utils/eliminationConstants.js';
 
 const SHAPE_TYPES = ['circle', 'square', 'rectangle', 'triangle', 'pentagon', 'hexagon', 'diamond'];
 
@@ -22,46 +23,47 @@ const pickShape = (lastShape = null) => {
 
 // ─── Generate ─────────────────────────────────────────────────────────────────
 
-export const generateRoundConfig = ({ difficulty = 1, lastShape = null } = {}) => {
-  // Avoid repeating the last shape type
+export const generateRoundConfig = ({ difficulty = 1, lastShape = null, totalRounds } = {}) => {
+  const safeTotalRounds = totalRounds ?? GAME_RULES.TOTAL_ROUNDS;
+  const maxDifficulty = 1 + (safeTotalRounds - 1) * 0.15;
+  const t = Math.min(1, Math.max(0, (difficulty - 1) / (maxDifficulty - 1)));
   const available = lastShape
     ? SHAPE_TYPES.filter(s => s !== lastShape)
     : SHAPE_TYPES;
   const shapeType = randomFrom(available.length > 0 ? available : SHAPE_TYPES);
 
-  // Size range — capped to ensure shape always fits comfortably on screen
-  // Bigger minimum so shapes are always clearly visible on mobile
-  const minSize = Math.max(0.18, 0.22 - (difficulty - 1) * 0.02);
-  const maxSize = Math.min(0.38, 0.30 + (difficulty === 1 ? 0.08 : 0));
+ 
+
+  const minSize = lerp(0.28, 0.13, t);
+  const maxSize = lerp(0.55, 0.28, t);
   const baseSize = randomBetween(minSize, maxSize);
 
-  // Rectangles — keep aspect ratio moderate so they don't overflow
   let width, height;
   if (shapeType === 'rectangle') {
-    const aspect = randomBetween(1.3, 2.2); // tighter range
+    const aspect = randomBetween(1.3, 2.2);
     if (Math.random() > 0.5) {
-      width = Math.min(0.55, baseSize * aspect);
+      width = Math.min(0.60, baseSize * aspect);
       height = baseSize;
     } else {
       width = baseSize;
-      height = Math.min(0.55, baseSize * aspect);
+      height = Math.min(0.60, baseSize * aspect);
     }
   } else {
     width = baseSize;
     height = baseSize;
   }
 
-  // Position: generous margin to keep shape fully visible
   const margin = 0.12;
   const cx = randomBetween(margin + width / 2, 1 - margin - width / 2);
   const cy = randomBetween(margin + height / 2, 1 - margin - height / 2);
 
-  // Rotation: circles never rotate, others rotate 0–180 for variety
-  const rotation = shapeType === 'circle' ? 0 : Math.round(randomBetween(0, 180));
+  // Rotation also scales with difficulty — easier rounds have less rotation
+  const maxRotation = Math.round(lerp(45, 180, t));
+  const rotation = shapeType === 'circle' ? 0 : Math.round(randomBetween(0, maxRotation));
 
   return {
     roundType: ROUND_TYPE.TRUE_CENTRE,
-    shapeType,  // returned so caller can pass as lastShape next round
+    shapeType,
     shapePosition: { x: cx, y: cy },
     shapeSize: { width, height },
     rotation,

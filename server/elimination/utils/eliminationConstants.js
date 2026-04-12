@@ -31,42 +31,58 @@ export const ROUND_TYPE = {
   COLOUR_COUNT:      'colour_count',
   TIME_ESTIMATION:   'time_estimation',
   CHARACTER_COUNT:   'character_count',
+  REACTION_TAP: 'reaction_tap',
+  MOVING_TARGET_TAP: 'moving_target_tap',
+  PATH_TRACE: 'path_trace',
 };
 
 // ─── Game Rules ───────────────────────────────────────────────────────────────
+// TOTAL_ROUNDS is the single number to change for 8 or 10 round games.
+// Everything else derives from it automatically.
 export const GAME_RULES = {
   MIN_PLAYERS: 2,
   MAX_PLAYERS: 200,
-  TOTAL_ROUNDS: 8,
-  FIRST_ELIMINATING_ROUND: 3, // rounds 1 & 2 are safe — no elimination
+  TOTAL_ROUNDS: 8,              // ← change to 10 for a 10-round game
+  FIRST_ELIMINATING_ROUND: 3,  // rounds 1 & 2 are always safe
 };
 
 // ─── Elimination Schedule ─────────────────────────────────────────────────────
-// Rounds 1 & 2: no elimination — everyone plays freely
-// Round 3: gentle start — only bottom 5% cut
-// Rounds 4–6: gradually increase pressure
-// Round 7: reduce to 2–3 finalists
-// Round 8: final round — one winner
-export const ELIMINATION_SCHEDULE = {
-  1: 0,       // no elimination
-  2: 0,       // no elimination
-  3: 0.05,    // bottom 5% only
-  4: 0.15,
-  5: 0.20,
-  6: 0.30,
-  7: null,    // special: reduce to 2–3 players
-  8: null,    // final round: 1 winner
+// Built dynamically from GAME_RULES so changing TOTAL_ROUNDS recalculates
+// the whole schedule automatically.
+const buildEliminationSchedule = (totalRounds) => {
+  const safeRounds = GAME_RULES.FIRST_ELIMINATING_ROUND - 1;
+  const finalistRound = totalRounds - 1;
+  const schedule = {};
+
+  for (let r = 1; r <= totalRounds; r++) {
+    if (r <= safeRounds) {
+      schedule[r] = 0;
+    } else if (r === finalistRound || r === totalRounds) {
+      schedule[r] = null;
+    } else {
+      const middleRoundCount = finalistRound - safeRounds - 1;
+      const position = r - safeRounds - 1;
+      const fraction = middleRoundCount <= 1
+        ? 0.05
+        : 0.05 + (position / (middleRoundCount - 1)) * 0.25;
+      schedule[r] = parseFloat(fraction.toFixed(2));
+    }
+  }
+
+  return schedule;
 };
 
-export const ROUND_7_TARGET_FINALISTS = 3; // reduce to this many for round 7
+export const ELIMINATION_SCHEDULE = buildEliminationSchedule(GAME_RULES.TOTAL_ROUNDS);
+
+export const ROUND_7_TARGET_FINALISTS = 3;
 export const ROUND_8_TARGET_WINNER = 1;
 
 // ─── Timing (ms) ─────────────────────────────────────────────────────────────
 export const TIMING = {
-  INTRO_DURATION_MS: 10000,      // 5s reading + 5s countdown
-  INTRO_COUNTDOWN_MS: 5000,      // when countdown begins within intro
-  REVEAL_DURATION_MS: 10000,     // reveal phase — show correct answer (server waits this long)
-  RESULTS_DURATION_MS: 8000,     // scores/leaderboard phase before next round
+  INTRO_DURATION_MS: 10000,
+  INTRO_COUNTDOWN_MS: 5000,
+  REVEAL_DURATION_MS: 10000,
+  RESULTS_DURATION_MS: 8000,
   DEFAULT_ROUND_DURATION_MS: 15000,
 };
 
@@ -86,6 +102,9 @@ export const ROUND_DURATION = {
   [ROUND_TYPE.COLOUR_COUNT]:      18000,
   [ROUND_TYPE.TIME_ESTIMATION]:   15000,
   [ROUND_TYPE.CHARACTER_COUNT]:   18000,
+   [ROUND_TYPE.REACTION_TAP]: 11000,
+  [ROUND_TYPE.MOVING_TARGET_TAP]: 15000,
+  [ROUND_TYPE.PATH_TRACE]: 19000,
 };
 
 // ─── Socket Events: Client → Server ──────────────────────────────────────────
@@ -94,6 +113,7 @@ export const CLIENT_EVENTS = {
   LEAVE_ROOM: 'leave_elimination_room',
   START_GAME: 'start_elimination_game',
   SUBMIT_ANSWER: 'submit_round_answer',
+  SUBMIT_START_PRESS: 'submit_time_estimation_start',  // ← time estimation START press
   RECONNECT_PLAYER: 'reconnect_elimination_player',
 };
 
@@ -114,9 +134,7 @@ export const SERVER_EVENTS = {
   ERROR: 'elimination_error',
 };
 
-// ─── Round sequence ──────────────────────────────────────────────────────────
-// 8 rounds — all 10 types available, sequence selected randomly per game.
-// This is the full pool; the game service picks 8 without repeating adjacent types.
+// ─── Round Pool ───────────────────────────────────────────────────────────────
 export const ALL_ROUND_TYPES = [
   ROUND_TYPE.TRUE_CENTRE,
   ROUND_TYPE.MIDPOINT_SPLIT,
@@ -132,9 +150,11 @@ export const ALL_ROUND_TYPES = [
   ROUND_TYPE.COLOUR_COUNT,
   ROUND_TYPE.TIME_ESTIMATION,
   ROUND_TYPE.CHARACTER_COUNT,
+   ROUND_TYPE.REACTION_TAP,
+  ROUND_TYPE.MOVING_TARGET_TAP,
+  ROUND_TYPE.PATH_TRACE,
 ];
 
-// Fallback static sequence (used if random sequence fails)
 export const DEFAULT_ROUND_SEQUENCE = [
   ROUND_TYPE.TRUE_CENTRE,
   ROUND_TYPE.QUICK_COUNT,

@@ -99,7 +99,32 @@ export const QuickCountRound: React.FC<Props> = ({ config, roundId, playerId, on
               letterSpacing: '0.08em', textAlign: 'center', outline: 'none',
             }}
           />
-
+{!locked && !hasSubmitted && (
+            <button
+              onClick={handleSubmit}
+              disabled={!value}
+              style={{
+                width: '100%',
+                padding: '12px 32px',
+                borderRadius: '8px',
+                border: `1px solid ${colour}`,
+                background: value ? `${colour}20` : 'transparent',
+                color: value ? colour : 'rgba(255,255,255,0.2)',
+                fontFamily: "'Bebas Neue', Impact, sans-serif",
+                fontSize: '16px',
+                letterSpacing: '0.05em',
+                cursor: value ? 'pointer' : 'not-allowed',
+                transition: 'all 0.2s',
+              }}
+            >
+              Lock In
+            </button>
+          )}
+          {(locked || hasSubmitted) && (
+            <p style={{ margin: 0, color: `${colour}88`, fontFamily: 'Inter', fontSize: '13px' }}>
+              Locked in
+            </p>
+          )}
 
         </div>
       )}

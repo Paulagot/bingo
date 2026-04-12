@@ -79,6 +79,21 @@ const ROUND_TYPE_META: Record<RoundType, { label: string; glyph: string; descrip
     glyph: 'A?',
     description: 'Letters flash on screen — count how many match the target character',
   },
+  reaction_tap: {
+  label: 'Reaction Tap',
+  glyph: '⚡',
+  description: 'Tap as fast as possible in the center of the target when the target flashes',
+},
+moving_target_tap: {
+  label: 'Moving Target',
+  glyph: '🎯',
+  description: 'Tap the moving target as accurately as possible',
+},
+path_trace: {
+  label: 'Path Trace',
+  glyph: '✏️',
+  description: 'Trace the path as closely as possible from memory',
+},
 };
 
 const ELIMINATION_DESCRIPTIONS: Record<string, (count: number, active: number) => string> = {

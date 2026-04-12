@@ -3,32 +3,46 @@ import {
   clamp,
   errorToScore,
   calcSpeedBonus,
+  lerp,
 } from '../../utils/eliminationHelpers.js';
-import { ROUND_TYPE, ROUND_DURATION } from '../../utils/eliminationConstants.js';
+import {
+  ROUND_TYPE,
+  ROUND_DURATION,
+  GAME_RULES,
+} from '../../utils/eliminationConstants.js';
 
 const ORIENTATIONS = ['horizontal', 'vertical', 'diagonal'];
 
 // ─── Generate ─────────────────────────────────────────────────────────────────
 
-export const generateRoundConfig = ({ difficulty = 1 } = {}) => {
-  // Target length 0.15–0.7 of viewport — wide range for variety
-  // Minimum 0.30 so line is always clearly visible on mobile screens
-  const targetLength = randomBetween(0.30, 0.70);
+export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
+  // ── Dynamic difficulty pattern (Section 0.2) ──────────────────────────────
+  const safeTotalRounds = totalRounds ?? GAME_RULES.TOTAL_ROUNDS;
+  const maxDifficulty = 1 + (safeTotalRounds - 1) * 0.15;
+  const t = Math.min(1, Math.max(0, (difficulty - 1) / (maxDifficulty - 1)));
+  const tCurved = Math.sqrt(t);
+
+  // ── Target length: bias toward shorter at high difficulty ─────────────────
+  // Short lines are harder to memorise and reproduce accurately
+  const targetLength = randomBetween(
+    lerp(0.30, 0.20, t),
+    lerp(0.70, 0.45, t),
+  );
 
   const orientation = ORIENTATIONS[Math.floor(Math.random() * ORIENTATIONS.length)];
 
-  // Reference line position — top half of screen
   const refX = randomBetween(0.15, 0.85);
   const refY = randomBetween(0.15, 0.40);
 
-  // Player line start — bottom half, randomised
-  const playerStartX = randomBetween(0.1, 0.5);
+  // ── Player start: further from centre at high difficulty ──────────────────
+  const playerStartX = randomBetween(
+    lerp(0.10, 0.05, t),
+    lerp(0.50, 0.25, t),
+  );
   const playerStartY = randomBetween(0.55, 0.75);
 
-  // Reference visible duration (show then hide)
-  const referenceDurationMs = Math.round(
-    Math.max(800, randomBetween(2500 - difficulty * 300, 3500 - difficulty * 300))
-  );
+  // ── Reference duration: 3200ms (easy) → 900ms (hard), sqrt-curved ────────
+  const referenceDurationMs = Math.round(lerp(3200, 900, tCurved));
 
   return {
     roundType: ROUND_TYPE.LINE_LENGTH,

@@ -39,7 +39,7 @@ export const PatternAlignRound: React.FC<Props> = ({ config, roundId, playerId, 
   const [showTarget, setShowTarget] = useState(true);
   const [pos, setPos] = useState({ x: config.playerStartX, y: config.playerStartY });
   const [rotation, setRotation] = useState(config.playerStartRotation);
-  const [hasInteracted, _setHasInteracted] = useState(false);
+  
   const [locked, setLocked] = useState(false);
   const [hint, setHint] = useState(true); // show gesture hint briefly
 
@@ -65,13 +65,13 @@ export const PatternAlignRound: React.FC<Props> = ({ config, roundId, playerId, 
   }, []);
 
   // Determine if pointer is near centre (move) or edge (rotate)
-  const getMode = useCallback((normX: number, normY: number): 'move' | 'rotate' => {
-    const dx = normX - shapeCentre.current.x;
-    const dy = normY - shapeCentre.current.y;
-    const dist = Math.sqrt(dx*dx + dy*dy);
-    const r = config.shapeSize * 0.8; // threshold
-    return dist < r ? 'move' : 'rotate';
-  }, [config.shapeSize]);
+const getMode = useCallback((normX: number, normY: number): 'move' | 'rotate' => {
+  const dx = normX - shapeCentre.current.x;
+  const dy = normY - shapeCentre.current.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  const threshold = config.shapeSize * 0.5; // inner 50% of shape = move, outer = rotate
+  return dist < threshold ? 'move' : 'rotate';
+}, [config.shapeSize]);
 
   const onPointerDown = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
     if (hasSubmitted || showTarget) return;
@@ -191,7 +191,7 @@ export const PatternAlignRound: React.FC<Props> = ({ config, roundId, playerId, 
         </div>
       )}
 
-      {!showTarget && hasInteracted && !hasSubmitted && !locked && (
+      {!showTarget && !hasSubmitted && !locked && (
         <button onPointerDown={handleLock} style={{
           padding: '10px 32px', borderRadius: '8px', cursor: 'pointer',
           background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.25)',

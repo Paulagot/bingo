@@ -75,6 +75,15 @@ function isMockEnabled(req) {
   return false;
 }
 
+// ---------- FundRaisely donor identity ----------
+// Sent to TGB on every donation so receipts and dashboards
+// show "FundRaisely" rather than "Anonymous Donor".
+const PLATFORM_DONOR = {
+  donorFirstName: 'FundRaisely',
+  donorLastName: '',
+  donorEmail: 'donations@fundraisely.com', // ← update to your real contact email
+};
+
 export default async function createDepositAddress(req, res) {
   try {
     console.log('🔵 [TGB] ========== CREATE DEPOSIT ADDRESS START ==========');
@@ -90,7 +99,6 @@ export default async function createDepositAddress(req, res) {
       network,          // still accepted for EVM routes — ignored for Solana
       pledgeAmount,
       amount,
-      isAnonymous = true,
       metadata
     } = req.body || {};
 
@@ -104,7 +112,6 @@ export default async function createDepositAddress(req, res) {
     console.log('  - tokenCode (resolved):', resolvedTokenCode);
     console.log('  - network (frontend):', network, typeof network);
     console.log('  - effectiveAmount:', effectiveAmount, typeof effectiveAmount);
-    console.log('  - isAnonymous:', isAnonymous);
     console.log('  - metadata:', metadata);
 
     // --- Validation ---
@@ -171,7 +178,16 @@ export default async function createDepositAddress(req, res) {
     if (mockEnabled) {
       console.log('⚠️  [TGB] MOCK MODE ENABLED');
       tgbLogger.warn(
-        { requestId: req.requestId, organizationId, tokenCode: resolvedTokenCode, pledgeCurrency, netNorm, pledgeAmount: effectiveAmount, mockMode: true },
+        {
+          requestId: req.requestId,
+          organizationId,
+          tokenCode: resolvedTokenCode,
+          pledgeCurrency,
+          netNorm,
+          pledgeAmount: effectiveAmount,
+          mockMode: true,
+          donor: PLATFORM_DONOR,
+        },
         'TGB API call running in MOCK MODE'
       );
 
@@ -199,7 +215,8 @@ export default async function createDepositAddress(req, res) {
           network,
           netNorm,
           pledgeAmount: effectiveAmount,
-          isAnonymous,
+          isAnonymous: false,
+          donor: PLATFORM_DONOR,
           metadata: metadataWithIntent,
           source: 'mock'
         }
@@ -249,15 +266,16 @@ export default async function createDepositAddress(req, res) {
     console.log('🔵 [TGB] API URL:', url);
 
     // ✅ UPDATED: TGB payload
-    // - pledgeCurrency is now the TGB-specific code (from getTgbCode)
-    // - 'network' field is REMOVED — TGB determines network from pledgeCurrency itself
-    //   Sending 'network' causes a validation error: '"network" is not allowed'
+    // - isAnonymous is false so TGB labels this donation as "FundRaisely" in
+    //   their dashboard and sends receipts to our platform email.
+    // - 'network' field is REMOVED — TGB determines network from pledgeCurrency
+    //   itself. Sending 'network' causes a validation error: '"network" is not allowed'
     const payload = {
       organizationId,
       pledgeCurrency,                    // ✅ correct TGB code e.g. 'USDG', 'SOL', 'BONK'
       pledgeAmount: String(effectiveAmount),
-      isAnonymous: true,
-      // ✅ network intentionally omitted — TGB rejects it
+      isAnonymous: false,
+      ...PLATFORM_DONOR,                 // donorFirstName, donorLastName, donorEmail
     };
 
     console.log('🔵 [TGB] Payload to send to TGB API:', JSON.stringify(payload, null, 2));
@@ -402,7 +420,14 @@ export default async function createDepositAddress(req, res) {
     }
 
     tgbLogger.info(
-      { requestId: req.requestId, depositAddress: out.depositAddress, depositId: out.id, tokenCode: resolvedTokenCode, pledgeCurrency, network: netNorm },
+      {
+        requestId: req.requestId,
+        depositAddress: out.depositAddress,
+        depositId: out.id,
+        tokenCode: resolvedTokenCode,
+        pledgeCurrency,
+        network: netNorm,
+      },
       'TGB deposit address created successfully'
     );
 

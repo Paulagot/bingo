@@ -90,19 +90,11 @@ export const errorToScore = (errorDistance, maxError = Math.SQRT2) => {
 const PRECISION_THRESHOLD = 0.15;  // only bonus if within 15% of correct
 const MAX_SPEED_BONUS = 100;       // max bonus points
 
-export const calcSpeedBonus = (submittedAt, startedAt, durationMs, errorDistance, roundType) => {
-  // No speed bonus for stop_the_bar — timing is already the whole mechanic
+export const calcSpeedBonus = (submittedAt, startedAt, durationMs, errorDistance, roundType, precisionThreshold = PRECISION_THRESHOLD) => {
   if (roundType === 'stop_the_bar') return 0;
-
-  // Only award when player was sufficiently precise
-  if (errorDistance == null || errorDistance > PRECISION_THRESHOLD) return 0;
-
-  // How much of the round had elapsed when they submitted (0 = instant, 1 = last second)
+  if (errorDistance == null || errorDistance > precisionThreshold) return 0;
   const elapsed = clamp(submittedAt - startedAt, 0, durationMs);
   const timeUsedFraction = elapsed / durationMs;
-
-  // Speed bonus: full bonus for submitting in first half, tapers to 0 by end
-  // Uses a simple linear decay: bonus = MAX * (1 - timeUsedFraction)
   const bonus = Math.round(MAX_SPEED_BONUS * (1 - timeUsedFraction));
   return Math.max(0, bonus);
 };
@@ -148,3 +140,11 @@ export const calcEliminationToTarget = (activeCount, targetSurvivors) => {
   const toElim = activeCount - targetSurvivors;
   return Math.max(0, Math.min(toElim, activeCount - 1));
 };
+
+/**
+ * Linear interpolation between two values.
+ * t is clamped to 0–1.
+ */
+export const lerp = (a, b, t) =>
+  a + (b - a) * Math.min(1, Math.max(0, t));
+

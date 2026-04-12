@@ -1,39 +1,50 @@
 import {
   randomBetween,
-  clamp,
+ 
   errorToScore,
   calcSpeedBonus,
+  lerp,
 } from '../../utils/eliminationHelpers.js';
-import { ROUND_TYPE, ROUND_DURATION } from '../../utils/eliminationConstants.js';
+import { ROUND_TYPE, ROUND_DURATION, GAME_RULES } from '../../utils/eliminationConstants.js';
 
 // ─── Generate ─────────────────────────────────────────────────────────────────
 
-export const generateRoundConfig = ({ difficulty = 1 } = {}) => {
-  // 3–5 weights, scales with difficulty
-  const weightCount = Math.min(5, 3 + Math.floor((difficulty - 1) * 0.4));
+export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
+  // ── Dynamic difficulty pattern (Section 0.2) ──────────────────────────────
+  const safeTotalRounds = totalRounds ?? GAME_RULES.TOTAL_ROUNDS;
+  const maxDifficulty = 1 + (safeTotalRounds - 1) * 0.15;
+  const t = Math.min(1, Math.max(0, (difficulty - 1) / (maxDifficulty - 1)));
 
-  // Generate weights with minimum spacing so they never overlap visually
-  const minSpacing = 0.18;
+  // ── Weight count: 3 (easy) → 6 (hard) ────────────────────────────────────
+  // More weights = harder to estimate the weighted average mentally
+  const weightCount = Math.round(lerp(3, 6, t));
+
+  // ── Weight range: 1–4 (easy) → 1–9 (hard) ────────────────────────────────
+  // Wider weight spread means more extreme, harder-to-eyeball imbalances
+  const maxWeight = Math.round(lerp(4, 9, t));
+
+  // ── Minimum spacing shrinks with difficulty ───────────────────────────────
+  // Closer weights are harder to distinguish visually
+  const minSpacing = lerp(0.20, 0.12, t);
+
+  // ── Generate positions with minimum spacing ───────────────────────────────
   const weights = [];
   let attempts = 0;
-  while (weights.length < weightCount && attempts < 200) {
+  while (weights.length < weightCount && attempts < 300) {
     attempts++;
     const position = randomBetween(0.08, 0.92);
     const tooClose = weights.some(w => Math.abs(w.position - position) < minSpacing);
     if (!tooClose) {
-      // Integer weights 1–8 — easy to understand visually
-      const weight = Math.floor(randomBetween(1, 9));
+      const weight = Math.floor(randomBetween(1, maxWeight + 1));
       weights.push({ position: Math.round(position * 100) / 100, weight });
     }
   }
-  // Sort by position so they appear left-to-right naturally
   weights.sort((a, b) => a.position - b.position);
 
-  // Compute true centre of mass: sum(w * x) / sum(w)
+  // ── Compute true centre of mass ───────────────────────────────────────────
   const totalWeight = weights.reduce((s, w) => s + w.weight, 0);
   const centreOfMass = weights.reduce((s, w) => s + w.weight * w.position, 0) / totalWeight;
 
-  // Line Y position on screen
   const lineY = randomBetween(0.40, 0.65);
 
   return {
@@ -64,7 +75,7 @@ export const scoreSubmission = (submission, config, roundStartTimestamp) => {
   const precisionScore = errorToScore(errorDistance, 1.0);
   const speedBonus = calcSpeedBonus(
     submission.submittedAt, roundStartTimestamp,
-    config.durationMs, errorDistance, config.roundType,
+    config.durationMs, errorDistance, config.roundType, 0.30,
   );
   return { score: precisionScore + speedBonus, precisionScore, speedBonus, errorDistance };
 };

@@ -12,25 +12,31 @@ import * as sequenceGapEngine from './roundEngines/sequenceGapEngine.js';
 import * as colourCountEngine from './roundEngines/colourCountEngine.js';
 import * as timeEstimationEngine from './roundEngines/timeEstimationEngine.js';
 import * as characterCountEngine from './roundEngines/characterCountEngine.js';
+import * as reactionTapEngine from './roundEngines/reactionTapEngine.js';
+import * as movingTargetTapEngine from './roundEngines/movingTargetTapEngine.js';
+import * as pathTraceEngine from './roundEngines/pathTraceEngine.js';
 import { ROUND_TYPE } from '../utils/eliminationConstants.js';
 import { rankByScore, calcSpeedBonus } from '../utils/eliminationHelpers.js';
 
 // ─── Engine Registry ──────────────────────────────────────────────────────────
 const ENGINES = {
-  [ROUND_TYPE.TRUE_CENTRE]:    trueCentreEngine,
-  [ROUND_TYPE.MIDPOINT_SPLIT]: midpointSplitEngine,
-  [ROUND_TYPE.STOP_THE_BAR]:   stopTheBarEngine,
-  [ROUND_TYPE.DRAW_ANGLE]:     drawAngleEngine,
-  [ROUND_TYPE.FLASH_GRID]:     flashGridEngine,
-  [ROUND_TYPE.QUICK_COUNT]:    quickCountEngine,
-  [ROUND_TYPE.FLASH_MATHS]:    flashMathsEngine,
-  [ROUND_TYPE.LINE_LENGTH]:    lineLengthEngine,
-  [ROUND_TYPE.BALANCE_POINT]:  balancePointEngine,
+  [ROUND_TYPE.TRUE_CENTRE]:       trueCentreEngine,
+  [ROUND_TYPE.MIDPOINT_SPLIT]:    midpointSplitEngine,
+  [ROUND_TYPE.STOP_THE_BAR]:      stopTheBarEngine,
+  [ROUND_TYPE.DRAW_ANGLE]:        drawAngleEngine,
+  [ROUND_TYPE.FLASH_GRID]:        flashGridEngine,
+  [ROUND_TYPE.QUICK_COUNT]:       quickCountEngine,
+  [ROUND_TYPE.FLASH_MATHS]:       flashMathsEngine,
+  [ROUND_TYPE.LINE_LENGTH]:       lineLengthEngine,
+  [ROUND_TYPE.BALANCE_POINT]:     balancePointEngine,
   [ROUND_TYPE.PATTERN_ALIGN]:     patternAlignEngine,
   [ROUND_TYPE.SEQUENCE_GAP]:      sequenceGapEngine,
   [ROUND_TYPE.COLOUR_COUNT]:      colourCountEngine,
   [ROUND_TYPE.TIME_ESTIMATION]:   timeEstimationEngine,
   [ROUND_TYPE.CHARACTER_COUNT]:   characterCountEngine,
+  [ROUND_TYPE.REACTION_TAP]: reactionTapEngine,
+  [ROUND_TYPE.MOVING_TARGET_TAP]: movingTargetTapEngine,
+  [ROUND_TYPE.PATH_TRACE]: pathTraceEngine,
 };
 
 const getEngine = (roundType) => {
@@ -81,27 +87,32 @@ export const buildReveal = (submission, config, scoringResult) =>
  */
 export const scoreRound = (submissions, config, activePlayerIds) => {
   const scoreMap = {};
-  const detailMap = {}; // store full scoring details per player
+  const detailMap = {};
 
   for (const playerId of activePlayerIds) {
     const submission = submissions[playerId];
     if (!submission) {
       scoreMap[playerId] = 0;
-      detailMap[playerId] = { score: 0, errorDistance: null, speedBonus: 0, precisionScore: 0 };
+      detailMap[playerId] = {
+        score: 0,
+        errorDistance: null,
+        speedBonus: 0,
+        precisionScore: 0,
+        playerStopPosition: undefined,
+        actualElapsed: undefined,
+      };
     } else {
       const result = scoreOne(submission, config);
 
-      // New engines (7 new types) calculate speedBonus internally and return it.
-      // Old engines (true_centre, midpoint_split, stop_the_bar) do not — we apply it here.
+      // New engines calculate speedBonus internally and return it.
+      // Old engines (true_centre, midpoint_split, stop_the_bar) do not — apply it here.
       let precisionScore, speedBonus, totalScore;
 
       if (result.speedBonus !== undefined) {
-        // Engine already applied speed bonus
         precisionScore = result.precisionScore ?? result.score;
         speedBonus = result.speedBonus;
         totalScore = result.score;
       } else {
-        // Old engine — apply speed bonus here
         precisionScore = result.score;
         speedBonus = calcSpeedBonus(
           submission.submittedAt,
@@ -117,23 +128,37 @@ export const scoreRound = (submissions, config, activePlayerIds) => {
       detailMap[playerId] = {
         score: totalScore,
         precisionScore,
+        diff: result.diff, 
         speedBonus,
         errorDistance: result.errorDistance,
         playerStopPosition: result.playerStopPosition,
+        actualElapsed: result.actualElapsed,   // ← carried through for time_estimation reveal
       };
     }
   }
 
   const ranked = rankByScore(scoreMap);
 
-  // Attach reveal data and scoring breakdown
   return ranked.map((entry) => {
     const submission = submissions[entry.playerId];
-    const detail = detailMap[entry.playerId] ?? { score: 0, errorDistance: null, speedBonus: 0 };
+    const detail = detailMap[entry.playerId] ?? {
+      score: 0,
+      errorDistance: null,
+      speedBonus: 0,
+      playerStopPosition: undefined,
+      actualElapsed: undefined,
+    };
 
-    // Build reveal using the raw precision result (without speed bonus added)
+    // Pass all engine-specific extras through to formatRevealData.
+    // Each engine only uses what it needs — extras are ignored.
     const rawResult = submission
-      ? { score: detail.precisionScore ?? detail.score, errorDistance: detail.errorDistance, playerStopPosition: detail.playerStopPosition }
+      ? {
+          score: detail.precisionScore ?? detail.score,
+          errorDistance: detail.errorDistance,
+          diff: detail.diff, 
+          playerStopPosition: detail.playerStopPosition,
+          actualElapsed: detail.actualElapsed,   // ← time_estimation needs this
+        }
       : { score: 0, errorDistance: null };
 
     const revealData = submission

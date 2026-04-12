@@ -8,6 +8,7 @@ interface Props {
     solanaCluster: 'devnet' | 'mainnet';
     feeMint: string;
     roomPda: string;
+    tokenCode?: string;  // ← added so cancel-confirm can record EUR correctly
   };
   players: Array<{ walletAddress?: string | null; [key: string]: any }>;
   onCancelled: () => void;

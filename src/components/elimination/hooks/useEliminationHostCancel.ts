@@ -24,6 +24,7 @@ export interface UseEliminationHostCancelParams {
     solanaCluster: 'devnet' | 'mainnet';
     feeMint: string;
     roomPda: string;
+    tokenCode?: string;
   };
   players: Array<{ walletAddress?: string | null }>;
   onCancelled?: () => void;
@@ -94,6 +95,7 @@ export function useEliminationHostCancel(params: UseEliminationHostCancelParams)
             hostId,
             cancelTxHash: result.cancelTxHash,
             refundTxHash: result.refundTxHash,
+            tokenCode:     roomData.tokenCode ?? 'UNKNOWN', 
           }),
         }
       );

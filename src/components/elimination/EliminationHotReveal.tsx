@@ -36,7 +36,6 @@ export const EliminationHostReveal: React.FC<Props> = ({
     return () => clearInterval(interval);
   }, [onContinue]);
 
-  // Get the correct answer description based on round type
   const getCorrectAnswer = (reveal: any): string => {
     if (!reveal) return '—';
     switch (reveal.roundType) {
@@ -50,6 +49,13 @@ export const EliminationHostReveal: React.FC<Props> = ({
       case 'balance_point': return `${(reveal.centreOfMass * 100).toFixed(1)}% along beam`;
       case 'flash_grid': return `${reveal.flashCells?.length} cells`;
       case 'pattern_align': return `At (${(reveal.targetX * 100).toFixed(0)}%, ${(reveal.targetY * 100).toFixed(0)}%) · ${reveal.targetRotation}°`;
+      case 'sequence_gap': return `Missing: ${reveal.actualValue}`;
+      case 'colour_count': return `${reveal.actualCount} ${reveal.targetLabel} shapes`;
+      case 'time_estimation': return `${((reveal.targetTimeMs ?? 0) / 1000).toFixed(1)}s`;
+      case 'character_count': return `${reveal.actualCount}× '${reveal.targetCharacter}'`;
+      case 'reaction_tap': return reveal.earlyTap ? 'Early tap penalty' : `Target at (${(reveal.targetPosition?.x * 100).toFixed(0)}%, ${(reveal.targetPosition?.y * 100).toFixed(0)}%)`;
+      case 'moving_target_tap': return `Target at (${(reveal.targetPosition?.x * 100).toFixed(0)}%, ${(reveal.targetPosition?.y * 100).toFixed(0)}%)`;
+      case 'path_trace': return `Completion: ${((reveal.completionRatio ?? 0) * 100).toFixed(0)}% avg`;
       default: return '—';
     }
   };
@@ -67,6 +73,13 @@ export const EliminationHostReveal: React.FC<Props> = ({
       case 'balance_point': return reveal.playerX != null ? `${(reveal.playerX * 100).toFixed(1)}%` : '—';
       case 'flash_grid': return reveal.playerTaps ? `${reveal.playerTaps.length} tapped` : '—';
       case 'pattern_align': return reveal.playerX != null ? `(${(reveal.playerX * 100).toFixed(0)}%, ${(reveal.playerY * 100).toFixed(0)}%) · ${reveal.playerRotation?.toFixed(0)}°` : '—';
+      case 'sequence_gap': return reveal.playerAnswer != null ? String(reveal.playerAnswer) : '—';
+      case 'colour_count': return reveal.playerAnswer != null ? String(reveal.playerAnswer) : '—';
+      case 'time_estimation': return reveal.playerTimeMs != null ? `${(reveal.playerTimeMs / 1000).toFixed(1)}s` : '—';
+      case 'character_count': return reveal.playerAnswer != null ? String(reveal.playerAnswer) : '—';
+      case 'reaction_tap': return reveal.reactionMs != null && !isNaN(reveal.reactionMs) ? `${Math.max(0, Math.round(reveal.reactionMs))}ms` : reveal.earlyTap ? 'Early tap' : '—';
+      case 'moving_target_tap': return reveal.playerTap ? `(${(reveal.playerTap.x * 100).toFixed(0)}%, ${(reveal.playerTap.y * 100).toFixed(0)}%)` : '—';
+      case 'path_trace': return reveal.completionRatio != null ? `${(reveal.completionRatio * 100).toFixed(0)}% complete` : '—';
       default: return '—';
     }
   };
@@ -75,92 +88,158 @@ export const EliminationHostReveal: React.FC<Props> = ({
 
   return (
     <div style={{
-      minHeight: '100dvh', display: 'flex', flexDirection: 'column',
+      minHeight: '100svh',
       background: `radial-gradient(ellipse at 50% 0%, ${rc.tint} 0%, #0a0b0f 55%)`,
-      color: '#ffffff', padding: '0 0 24px',
-      opacity: visible ? 1 : 0, transition: 'opacity 0.3s',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      opacity: visible ? 1 : 0,
+      transition: 'opacity 0.3s',
+      overflowY: 'auto',
     }}>
-      {/* Header */}
-      <div style={{ padding: '20px 20px 12px' }}>
-        <div style={{ fontSize: '11px', letterSpacing: '0.18em', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', fontFamily: 'Inter', marginBottom: '4px' }}>
-          Host View · Round {roundNumber} · {roundTypeLabel(activeRound?.roundType ?? '')}
-        </div>
-        <h2 style={{ fontSize: '28px', fontFamily: "'Bebas Neue', Impact, sans-serif", margin: 0, letterSpacing: '0.04em' }}>
-          Answer Reveal
-        </h2>
-      </div>
+      {/* Centred content column */}
+      <div style={{
+        width: '100%',
+        maxWidth: '680px',
+        display: 'flex',
+        flexDirection: 'column',
+        padding: '0 0 32px',
+        color: '#ffffff',
+        minHeight: '100svh',
+      }}>
 
-      {/* Correct answer banner */}
-      {firstReveal && (
-        <div style={{
-          margin: '0 20px 12px',
-          padding: '12px 16px',
-          borderRadius: '10px',
-          background: `${rc.primary}15`,
-          border: `1px solid ${rc.primary}40`,
-        }}>
-          <div style={{ fontSize: '10px', letterSpacing: '0.15em', color: `${rc.primary}88`, fontFamily: 'Inter', textTransform: 'uppercase', marginBottom: '4px' }}>
-            Correct Answer
+        {/* Header */}
+        <div style={{ padding: '20px 20px 12px' }}>
+          <div style={{
+            fontSize: '11px', letterSpacing: '0.18em',
+            color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase',
+            fontFamily: 'Inter', marginBottom: '4px',
+          }}>
+            Host View · Round {roundNumber} · {roundTypeLabel(activeRound?.roundType ?? '')}
           </div>
-          <div style={{ fontSize: '18px', fontFamily: "'Bebas Neue', Impact, sans-serif", color: rc.primary, letterSpacing: '0.06em' }}>
-            {getCorrectAnswer(firstReveal)}
-          </div>
+          <h2 style={{
+            fontSize: '28px', fontFamily: "'Bebas Neue', Impact, sans-serif",
+            margin: 0, letterSpacing: '0.04em',
+          }}>
+            Answer Reveal
+          </h2>
         </div>
-      )}
 
-      {/* All players results */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        {results.map((r, i) => {
-          const name = playerMap[r.playerId]?.name ?? '—';
-          const answer = getPlayerAnswer(r.revealData);
-          const errorPct = r.revealData?.errorDistance != null
-            ? `${(r.revealData.errorDistance * 100).toFixed(1)}% off`
-            : r.didSubmit ? '' : 'No answer';
-
-          return (
-            <div key={r.playerId} style={{
-              display: 'flex', alignItems: 'center', gap: '10px',
-              padding: '10px 14px', borderRadius: '8px',
-              background: i === 0 ? `${rc.primary}10` : 'rgba(255,255,255,0.03)',
-              border: `1px solid ${i === 0 ? rc.primary + '30' : 'rgba(255,255,255,0.06)'}`,
+        {/* Correct answer banner */}
+        {firstReveal && (
+          <div style={{
+            margin: '0 20px 12px', padding: '12px 16px',
+            borderRadius: '10px',
+            background: `${rc.primary}15`,
+            border: `1px solid ${rc.primary}40`,
+          }}>
+            <div style={{
+              fontSize: '10px', letterSpacing: '0.15em',
+              color: `${rc.primary}88`, fontFamily: 'Inter',
+              textTransform: 'uppercase', marginBottom: '4px',
             }}>
-              <span style={{ fontFamily: "'Bebas Neue', Impact, sans-serif", fontSize: '18px', minWidth: '28px',
-                color: i < 3 ? rc.primary : 'rgba(255,255,255,0.3)' }}>
-                #{r.rank}
-              </span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: 'Inter', fontSize: '14px', fontWeight: 600 }}>{name}</div>
-                <div style={{ fontFamily: 'Inter', fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '1px' }}>
-                  {answer}{errorPct ? ` · ${errorPct}` : ''}
-                </div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontFamily: "'Bebas Neue', Impact, sans-serif", fontSize: '20px',
-                  color: r.didSubmit ? '#ffffff' : 'rgba(255,255,255,0.2)' }}>
-                  {formatScore(r.score)}
-                </div>
-                {(r.speedBonus ?? 0) > 0 && (
-                  <div style={{ fontFamily: 'Inter', fontSize: '10px', color: '#30d158' }}>+{r.speedBonus} speed</div>
-                )}
-              </div>
+              Correct Answer
             </div>
-          );
-        })}
-      </div>
+            <div style={{
+              fontSize: '18px', fontFamily: "'Bebas Neue', Impact, sans-serif",
+              color: rc.primary, letterSpacing: '0.06em',
+            }}>
+              {getCorrectAnswer(firstReveal)}
+            </div>
+          </div>
+        )}
 
-      {/* Footer */}
-      <div style={{ padding: '16px 20px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-        <button onClick={onContinue} style={{
-          width: '100%', padding: '14px', background: 'rgba(255,255,255,0.05)',
-          border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px',
-          color: '#ffffff', fontSize: '14px', fontWeight: 600,
-          fontFamily: 'Inter', cursor: 'pointer', letterSpacing: '0.06em', textTransform: 'uppercase' as const,
+        {/* Player results list — scrollable */}
+        <div style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '0 20px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '4px',
         }}>
-          See Scores
-        </button>
-        <div style={{ fontFamily: 'Inter', fontSize: '12px', color: 'rgba(255,255,255,0.25)' }}>
-          Auto-advancing in <span style={{ color: countdown <= 5 ? '#ff3b5c' : 'rgba(255,255,255,0.5)' }}>{countdown}s</span>
+          {results.map((r, i) => {
+            const name = playerMap[r.playerId]?.name ?? '—';
+            const answer = getPlayerAnswer(r.revealData);
+            const errorPct = r.revealData?.errorDistance != null
+              ? `${(r.revealData.errorDistance * 100).toFixed(1)}% off`
+              : r.didSubmit ? '' : 'No answer';
+
+            return (
+              <div key={r.playerId} style={{
+                display: 'flex', alignItems: 'center', gap: '10px',
+                padding: '10px 14px', borderRadius: '8px',
+                background: i === 0 ? `${rc.primary}10` : 'rgba(255,255,255,0.03)',
+                border: `1px solid ${i === 0 ? rc.primary + '30' : 'rgba(255,255,255,0.06)'}`,
+              }}>
+                <span style={{
+                  fontFamily: "'Bebas Neue', Impact, sans-serif",
+                  fontSize: '18px', minWidth: '28px',
+                  color: i < 3 ? rc.primary : 'rgba(255,255,255,0.3)',
+                }}>
+                  #{r.rank}
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontFamily: 'Inter', fontSize: '14px', fontWeight: 600,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                    {name}
+                  </div>
+                  <div style={{
+                    fontFamily: 'Inter', fontSize: '11px',
+                    color: 'rgba(255,255,255,0.35)', marginTop: '1px',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                    {answer}{errorPct ? ` · ${errorPct}` : ''}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{
+                    fontFamily: "'Bebas Neue', Impact, sans-serif",
+                    fontSize: '20px',
+                    color: r.didSubmit ? '#ffffff' : 'rgba(255,255,255,0.2)',
+                  }}>
+                    {formatScore(r.score)}
+                  </div>
+                  {(r.speedBonus ?? 0) > 0 && (
+                    <div style={{ fontFamily: 'Inter', fontSize: '10px', color: '#30d158' }}>
+                      +{r.speedBonus} speed
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
+
+        {/* Footer */}
+        <div style={{
+          padding: '16px 20px 0',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '8px',
+        }}>
+          <button onClick={onContinue} style={{
+            width: '100%', padding: '14px',
+            background: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: '10px', color: '#ffffff',
+            fontSize: '14px', fontWeight: 600,
+            fontFamily: 'Inter', cursor: 'pointer',
+            letterSpacing: '0.06em', textTransform: 'uppercase' as const,
+          }}>
+            See Scores
+          </button>
+          <div style={{ fontFamily: 'Inter', fontSize: '12px', color: 'rgba(255,255,255,0.25)' }}>
+            Auto-advancing in{' '}
+            <span style={{ color: countdown <= 5 ? '#ff3b5c' : 'rgba(255,255,255,0.5)' }}>
+              {countdown}s
+            </span>
+          </div>
+        </div>
+
       </div>
     </div>
   );

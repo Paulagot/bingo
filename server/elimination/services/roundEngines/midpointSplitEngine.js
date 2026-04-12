@@ -5,23 +5,32 @@ import {
   distance,
   errorToScore,
   isValidNormalisedCoord,
+  lerp,
 } from '../../utils/eliminationHelpers.js';
-import { ROUND_TYPE, ROUND_DURATION } from '../../utils/eliminationConstants.js';
+import {
+  ROUND_TYPE,
+  ROUND_DURATION,
+  GAME_RULES,
+} from '../../utils/eliminationConstants.js';
 
 const LAYOUT_TYPES = ['horizontal', 'vertical', 'diagonal_up', 'diagonal_down'];
 
 // ─── Generate ─────────────────────────────────────────────────────────────────
 
-export const generateRoundConfig = ({ difficulty = 1 } = {}) => {
+export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
+  // ── Dynamic difficulty pattern (Section 0.2) ──────────────────────────────
+  const safeTotalRounds = totalRounds ?? GAME_RULES.TOTAL_ROUNDS;
+  const maxDifficulty = 1 + (safeTotalRounds - 1) * 0.15;
+  const t = Math.min(1, Math.max(0, (difficulty - 1) / (maxDifficulty - 1)));
+
   const layoutType = randomFrom(LAYOUT_TYPES);
   const margin = 0.12;
 
-  let ax, ay, bx, by;
-
-  // Separation range: wide variance so some rounds have nearby points,
-  // others have points nearly at opposite corners — looks very different
-  const minSep = 0.25 + (difficulty - 1) * 0.02;
+  // ── Separation: closer at high difficulty (harder to eyeball the midpoint) ─
+  const minSep = lerp(0.35, 0.20, t);
   const maxSep = 0.75;
+
+  let ax, ay, bx, by;
 
   switch (layoutType) {
     case 'horizontal':
@@ -52,7 +61,6 @@ export const generateRoundConfig = ({ difficulty = 1 } = {}) => {
       break;
   }
 
-  // Clamp to viewport
   bx = Math.min(bx, 1 - margin);
   by = Math.min(Math.max(by, margin), 1 - margin);
 
@@ -60,9 +68,17 @@ export const generateRoundConfig = ({ difficulty = 1 } = {}) => {
   const pointB = { x: bx, y: by };
   const actualMidpoint = midpoint(ax, ay, bx, by);
 
-  // Randomise visual properties for variety each round
-  const anchorSize = randomBetween(0.022, 0.055);  // anchor dot radius (normalised)
-  const lineThickness = randomBetween(0.8, 2.2);    // SVG stroke width
+  // ── Anchor size: smaller at high difficulty (harder to judge position) ─────
+  const anchorSize = randomBetween(
+    lerp(0.040, 0.018, t),
+    lerp(0.055, 0.028, t),
+  );
+
+  // ── Line thickness: thinner at high difficulty ────────────────────────────
+  const lineThickness = randomBetween(
+    lerp(1.6, 0.6, t),
+    lerp(2.2, 1.0, t),
+  );
 
   return {
     roundType: ROUND_TYPE.MIDPOINT_SPLIT,

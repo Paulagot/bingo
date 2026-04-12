@@ -123,7 +123,7 @@ const fmt = (n: number) => {
               <Coins className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-indigo-900">Prize Pool</h2>
+              <h2 className="text-2xl font-bold text-indigo-900">Total Pool</h2>
               <p className="text-sm text-indigo-700 mt-0.5">
                 Updates live as players join &amp; pay · {tokenName}
               </p>

@@ -109,7 +109,17 @@ export const TrueCentreRound: React.FC<Props> = ({
       ref={containerRef}
       onPointerDown={handleTap}
       className="relative w-full"
-      style={{ aspectRatio: '1/1', touchAction: 'none', cursor: hasSubmitted ? 'default' : 'crosshair', userSelect: 'none' }}
+     style={{
+  aspectRatio: '1/1',
+  width: '100%',
+  // Never taller than the viewport height minus space for UI chrome above/below
+  // clamp: min 280px, preferred 90vmin, max 520px
+  maxWidth: 'min(90vmin, 520px)',
+  margin: '0 auto',         // centres on desktop
+  touchAction: 'none',
+  cursor: hasSubmitted ? 'default' : 'crosshair',
+  userSelect: 'none',
+}}
     >
       <style>{`
         @keyframes shapePulse {
@@ -203,7 +213,7 @@ export const TrueCentreRound: React.FC<Props> = ({
         <div style={{
           position: 'absolute', inset: 0, display: 'flex',
           alignItems: 'flex-end', justifyContent: 'center',
-          paddingBottom: '12px', pointerEvents: 'none',
+          paddingBottom: '3%', pointerEvents: 'none',
         }}>
           <div style={{
             padding: '6px 16px',
@@ -211,7 +221,7 @@ export const TrueCentreRound: React.FC<Props> = ({
             background: 'rgba(8,12,20,0.85)',
             border: `1px solid ${palette.stroke}44`,
             color: 'rgba(255,255,255,0.6)',
-            fontSize: '10px',
+            fontSize: 'clamp(9px, 1.8vmin, 12px)',
             fontFamily: "'Inter', system-ui, sans-serif",
             letterSpacing: '0.2em',
             textTransform: 'uppercase',

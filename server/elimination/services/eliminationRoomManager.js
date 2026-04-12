@@ -327,6 +327,7 @@ const playerSnapshot = (p) => ({
   eliminatedInRound: p.eliminatedInRound,
   cumulativeScore: p.cumulativeScore,
   roundScores: p.roundScores,
+  walletAddress: p.walletAddress ?? null,
 });
 
 /**
@@ -386,7 +387,7 @@ setInterval(() => {
     const isEnded = room.status === 'ended';
     if (isEnded && age > TWO_HOURS) {
       rooms.delete(roomId);
-      console.log('[Elimination] Cleaned up stale room:', roomId);
+      // console.log('[Elimination] Cleaned up stale room:', roomId);
     }
   }
 }, 30 * 60 * 1000);

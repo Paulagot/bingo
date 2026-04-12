@@ -803,6 +803,8 @@ router.get('/rooms/:roomId/info', async (req, res) => {
         roomId, // ✅ ALWAYS use param roomId
         isWeb3, // ✅ ALWAYS boolean
         web3Chain: isWeb3 ? web3Chain : null, // ✅ stable
+        evmNetwork: isWeb3 ? (cfg.evmNetwork ?? null) : null,       // ← add
+  solanaCluster: isWeb3 ? (cfg.solanaCluster ?? null) : null,
       };
 
       console.log('[API] ✅ Returning MEMORY room info:', {
@@ -854,6 +856,8 @@ router.get('/rooms/:roomId/info', async (req, res) => {
       roomId: row.room_id ?? roomId, // ✅ stable
       isWeb3,                        // ✅ stable boolean
       web3Chain: isWeb3 ? web3Chain : null,
+      evmNetwork: isWeb3 ? (cfg.evmNetwork ?? null) : null,       // ← add
+  solanaCluster: isWeb3 ? (cfg.solanaCluster ?? null) : null,
     };
 
     console.log('[API] ✅ Returning DB room info:', roomInfo);

@@ -1,42 +1,56 @@
 import {
   randomBetween,
-  randomFrom,
   clamp,
   errorToScore,
   calcSpeedBonus,
+  lerp,
 } from '../../utils/eliminationHelpers.js';
-import { ROUND_TYPE, ROUND_DURATION } from '../../utils/eliminationConstants.js';
+import {
+  ROUND_TYPE,
+  ROUND_DURATION,
+  GAME_RULES,
+} from '../../utils/eliminationConstants.js';
 
 // ─── Generate ─────────────────────────────────────────────────────────────────
 
-export const generateRoundConfig = ({ difficulty = 1 } = {}) => {
-  // Dot count scales with difficulty: 5–35
-  const minCount = Math.floor(5 + difficulty * 2);
-  const maxCount = Math.floor(12 + difficulty * 4);
+export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
+  // ── Dynamic difficulty pattern (Section 0.2) ──────────────────────────────
+  const safeTotalRounds = totalRounds ?? GAME_RULES.TOTAL_ROUNDS;
+  const maxDifficulty = 1 + (safeTotalRounds - 1) * 0.15;
+  const t = Math.min(1, Math.max(0, (difficulty - 1) / (maxDifficulty - 1)));
+  const tCurved = Math.sqrt(t);
+
+  // ── Dot count: 5–15 (easy) → 20–30 (hard) ────────────────────────────────
+  const minCount = Math.round(lerp(5, 15, t));
+  const maxCount = Math.round(lerp(15, 25, t));
   const dotCount = Math.floor(randomBetween(minCount, maxCount));
 
-  // Generate random dot positions — use rejection sampling to avoid heavy overlap
+  // ── Dot spacing: looser (easy) → tighter (hard) ───────────────────────────
+  // Tightly packed dots are harder to count accurately
+  const minDist = randomBetween(
+    lerp(0.08, 0.04, t),
+    lerp(0.12, 0.06, t),
+  );
+
   const dots = [];
-  const minDist = randomBetween(0.04, 0.1); // spacing varies for visual interest
   let attempts = 0;
-  while (dots.length < dotCount && attempts < 300) {
+  while (dots.length < dotCount && attempts < 400) {
     attempts++;
     const x = randomBetween(0.05, 0.95);
     const y = randomBetween(0.05, 0.95);
     const tooClose = dots.some(d => Math.hypot(d.x - x, d.y - y) < minDist);
     if (!tooClose) dots.push({ x, y });
   }
-  // If we couldn't place all dots without overlap, accept what we have (still valid)
   const actualCount = dots.length;
 
-  // Dot size varies — some rounds have big dots, some tiny
-  const dotRadius = randomBetween(0.012, 0.03);
-
-  // Flash duration shortens with difficulty
-  // Extra second added for readability
-  const displayDurationMs = Math.round(
-    Math.max(1400, randomBetween(2800 - difficulty * 300, 3500 - difficulty * 300))
+  // ── Dot radius: smaller at high difficulty ────────────────────────────────
+  const dotRadius = randomBetween(
+    lerp(0.022, 0.010, t),
+    lerp(0.032, 0.016, t),
   );
+
+  // ── Display duration: 3200ms (easy) → 1400ms (hard), sqrt-curved ─────────
+  const displayDurationMs = Math.round(lerp(3200, 2000, tCurved));
 
   return {
     roundType: ROUND_TYPE.QUICK_COUNT,
@@ -65,12 +79,12 @@ export const validateSubmission = (submission) => {
 
 export const scoreSubmission = (submission, config, roundStartTimestamp) => {
   const diff = Math.abs(submission.value - config.dotCount);
-  // Normalise: 0 diff = perfect, maxAllowed = dotCount (100% wrong)
   const errorDistance = clamp(diff / config.dotCount, 0, 1);
   const precisionScore = errorToScore(errorDistance, 1.0);
   const speedBonus = calcSpeedBonus(
     submission.submittedAt, roundStartTimestamp,
     config.durationMs, errorDistance, config.roundType,
+    0.25, // wider threshold — count-based answers are harder to nail exactly
   );
   return { score: precisionScore + speedBonus, precisionScore, speedBonus, errorDistance, diff };
 };

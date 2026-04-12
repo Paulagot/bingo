@@ -11,13 +11,13 @@ const dbConfig = {
   database: process.env.DB_NAME || process.env.MYSQL_DATABASE || 'fundraisely_db',
   port: process.env.DB_PORT || process.env.MYSQL_PORT || 3306,
   waitForConnections: true,
-  enableKeepAlive: true,        // 👈 add this
-  keepAliveInitialDelay: 0,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 10000,  // 👈 change from 0 to 10000 (10s)
   connectionLimit: 30,
   queueLimit: 50,
-  ssl: { rejectUnauthorized: false } // Add this for AWS RDS
+  connectTimeout: 30000,         // 👈 add: 30s to establish connection
+  ssl: { rejectUnauthorized: false }
 };
-
 // Debug what the config actually contains
 console.log('🗄️ Database Config Debug:');
 console.log('Host:', dbConfig.host);
