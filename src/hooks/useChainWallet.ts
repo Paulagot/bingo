@@ -1,7 +1,7 @@
 /**
  * useChainWallet — unified wallet hook for all chains.
  *
- * REPLACES: useWalletActions, useQuizChainIntegration, useSafeAppKit (inlined)
+ 
  *
  * Key rules:
  * - Config flows IN as a parameter. This hook never reads from stores or localStorage.

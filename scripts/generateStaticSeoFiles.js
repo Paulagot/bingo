@@ -32,6 +32,8 @@ const publicPages = [
   { path: '/web3/features', priority: 0.8, changefreq: 'monthly' },
   { path: '/web3/partners', priority: 0.7, changefreq: 'monthly' },
   { path: '/web3/testimonials', priority: 0.7, changefreq: 'monthly' },
+  { path: '/web3/elimination', priority: 0.8, changefreq: 'monthly' },
+{ path: '/web3/quiz', priority: 0.8, changefreq: 'monthly' },
 ];
 
 // Optional: page-specific lastmod map (leave empty if not needed)
@@ -50,14 +52,15 @@ function dateFor(path) {
   return lastmodMap[path] || new Date().toISOString().split('T')[0];
 }
 
-function altHreflangLinks(_domain, path) {
-  // Always emit alternates for both domains and an x-default.
+function altHreflangLinks(domain, path) {
   const ukUrl = `https://${UK_HOST}${path}`;
   const ieUrl = `https://${IE_HOST}${path}`;
+  // x-default points to whichever domain this sitemap belongs to
+  const defaultUrl = domain === IE_HOST ? ieUrl : ukUrl;
   return [
     `    <xhtml:link rel="alternate" hreflang="en-GB" href="${ukUrl}" />`,
     `    <xhtml:link rel="alternate" hreflang="en-IE" href="${ieUrl}" />`,
-    `    <xhtml:link rel="alternate" hreflang="x-default" href="${ukUrl}" />`
+    `    <xhtml:link rel="alternate" hreflang="x-default" href="${defaultUrl}" />`
   ].join('\n');
 }
 
@@ -95,6 +98,8 @@ Allow: /web3/testimonials
 Allow: /web3/impact-campaign
 Allow: /web3/impact-campaign/join
 Allow: /web3/impact-campaign/leaderboard
+Allow: /web3/elimination
+Allow: /web3/quiz
 
 # Quiz marketing pages
 Allow: /quiz/demo

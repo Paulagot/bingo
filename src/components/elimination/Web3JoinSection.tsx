@@ -3,13 +3,14 @@ import { useChainWallet } from '../../hooks/useChainWallet';
 import { toChainConfig } from '../../types/chainConfig';
 import { useSolanaEliminationJoinRoom } from '../../chains/solana/hooks/useSolanaEliminationJoinRoom';
 import { getTokenByMint } from '../../chains/solana/config/solanaTokenConfig';
+import web3TransactionService from '../mgtsystem/services/Web3TransactionService';
 
 const WSOL_MINT = 'So11111111111111111111111111111111111111112';
 
 interface Props {
   roomData: any;
   name: string;
-  onPaymentDone: (txHash: string) => void;
+  onPaymentDone: (txHash: string, walletAddress: string) => void;  // ← add walletAddress
   onError: (msg: string) => void;
 }
 
@@ -44,64 +45,86 @@ export const Web3JoinSection: React.FC<Props> = ({
     ? (roomData.entryFee / Math.pow(10, decimals)).toFixed(4)
     : '—';
 
-  const handlePay = async () => {
-    if (!walletAddress) return;
-    const trimmedName = name.trim();
-    if (!trimmedName) {
-      setPaymentError('Enter your name first');
-      return;
+ const handlePay = async () => {
+  if (!walletAddress) return;
+  const trimmedName = name.trim();
+  if (!trimmedName) {
+    setPaymentError('Enter your name first');
+    return;
+  }
+ 
+  setPaymentError('');
+  setPaymentLoading(true);
+ 
+  try {
+    // ── Pre-payment server check (unchanged) ────────────────────────────
+    const checkRes = await fetch(`/api/elimination/rooms/${roomData.roomId}`);
+    const checkData = await checkRes.json();
+ 
+    if (!checkData.success) {
+      throw new Error('Room not found — it may have been cancelled.');
     }
-
-    setPaymentError('');
-    setPaymentLoading(true);
-
-    try {
-      // ── Pre-payment server check ────────────────────────────────────────
-      // Verify room is still joinable BEFORE paying on-chain.
-      // Prevents paying for a room that has started, is full, or was cancelled.
-      const checkRes = await fetch(`/api/elimination/rooms/${roomData.roomId}`);
-      const checkData = await checkRes.json();
-
-      if (!checkData.success) {
-        throw new Error('Room not found — it may have been cancelled.');
-      }
-
-      const roomStatus = checkData.room?.status;
-      if (roomStatus && roomStatus !== 'waiting') {
-        throw new Error(
-          roomStatus === 'cancelled'
-            ? 'This room has been cancelled.'
-            : 'This game has already started.'
-        );
-      }
-
-      const playerCount = checkData.room?.players?.length ?? 0;
-      if (playerCount >= 200) {
-        throw new Error('Room is full.');
-      }
-
-      console.log('[Web3JoinSection] Room check passed — proceeding with payment');
-
-      // ── On-chain payment ──────────────────────────────────────────────────
-      const result = await solanaJoinRoom({
-        roomId: roomData.roomId,
+ 
+    const roomStatus = checkData.room?.status;
+    if (roomStatus && roomStatus !== 'waiting') {
+      throw new Error(
+        roomStatus === 'cancelled'
+          ? 'This room has been cancelled.'
+          : 'This game has already started.'
+      );
+    }
+ 
+    const playerCount = checkData.room?.players?.length ?? 0;
+    if (playerCount >= 200) {
+      throw new Error('Room is full.');
+    }
+ 
+    // ── On-chain payment (unchanged) ─────────────────────────────────────
+    const result = await solanaJoinRoom({
+      roomId:    roomData.roomId,
+      roomPda:   roomData.roomPda,
+      feeMint:   feeMint,
+      entryFee:  roomData.entryFee,
+      currency:  feeMint,
+    });
+ 
+    if (!result.success) throw new Error((result as any).error ?? 'Payment failed');
+ 
+    // ── NEW: Record in ledger ─────────────────────────────────────────────
+    // Fire-and-forget — if this fails, the player can still join.
+    // The server will re-verify the tx independently before writing.
+    web3TransactionService.recordJoinPayment({
+      game_type:        'elimination',
+      room_id:          roomData.roomId,
+      wallet_address:   walletAddress,
+      chain:            'solana',
+      network:          cluster,            // already derived from roomData.solanaCluster
+      solana_cluster:   cluster as 'devnet' | 'mainnet',
+      tx_hash:          result.txHash,
+      fee_token:        tokenSymbol,        // already derived from feeMint
+      token_address:    feeMint,
+      amount:           roomData.entryFee,  // raw units — same value passed to contract
+      entry_fee_amount: roomData.entryFee,  // full amount is entry fee for elimination
+      extras_amount:    0,
+      donation_amount:  0,
+      metadata_json: {
         roomPda: roomData.roomPda,
-        feeMint: feeMint,
-        entryFee: roomData.entryFee,
-        currency: feeMint,
-      });
-
-      if (!result.success) throw new Error((result as any).error ?? 'Payment failed');
-      onPaymentDone(result.txHash);
-
-    } catch (err: any) {
-      const msg = err?.message ?? 'Payment failed';
-      setPaymentError(msg);
-      onError(msg);
-    } finally {
-      setPaymentLoading(false);
-    }
-  };
+      },
+    }).catch(err =>
+      console.warn('[Web3JoinSection] Ledger write failed (non-critical):', err?.message)
+    );
+ 
+    // ── Continue join flow (unchanged) ────────────────────────────────────
+    onPaymentDone(result.txHash , walletAddress);
+ 
+  } catch (err: any) {
+    const msg = err?.message ?? 'Payment failed';
+    setPaymentError(msg);
+    onError(msg);
+  } finally {
+    setPaymentLoading(false);
+  }
+};
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>

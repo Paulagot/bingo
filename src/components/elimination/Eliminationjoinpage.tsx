@@ -120,12 +120,12 @@ const EliminationJoinInner: React.FC = () => {
   }, [navigate]);
 
   // ── Web3 payment confirmed — emit join with tx signature ──────────────────
-const handleWeb3PaymentDone = (txHash: string) => {
+// EliminationJoinInner — update handler and emitJoinRoom call
+const handleWeb3PaymentDone = (txHash: string, walletAddress: string) => {
   setWeb3PaymentDone(true);
   setLoading(true);
   const roomId = (roomIdFromUrl || roomCode || '').trim();
-  console.log('[Web3Join] Emitting join roomId:', roomId, 'name:', nameRef.current, 'tx:', txHash);
-  emitJoinRoom(roomId, nameRef.current, undefined, txHash);
+  emitJoinRoom(roomId, nameRef.current, undefined, txHash, walletAddress);
 };
 
   // ── Web2 join ─────────────────────────────────────────────────────────────

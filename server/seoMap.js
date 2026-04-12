@@ -113,20 +113,7 @@ export function getSeoForPath(reqPath, hostOrigin) {
   keywords: 'how it works web3 fundraising, crypto quiz flow, on-chain transparency',
   image: ABS(hostOrigin, '/og/web3-how-it-works.png'),
 },
-'/web3/features': {
-  title: 'Crypto-Powered Features — Wallets, Power-Ups, On-Chain Receipts | FundRaisely',
-  description: 'Wallet integrations, power-ups, direct-to-charity routing, and exportable audit trails.',
-  canonical: ABS(hostOrigin, '/web3/features'),
-  keywords: 'crypto quiz features, web3 features, on-chain receipts, leaderboards',
-  image: ABS(hostOrigin, '/og/web3-features.png'),
-},
-'/web3/partners': {
-  title: 'Web3 Fundraising Partners — Exchanges, Wallets & Charity Rails | FundRaisely',
-  description: 'Meet the partners powering routing to verified charities and smooth crypto UX.',
-  canonical: ABS(hostOrigin, '/web3/partners'),
-  keywords: 'web3 partners, crypto donations partner, the giving block',
-  image: ABS(hostOrigin, '/og/web3-partners.png'),
-},
+
 '/web3/testimonials': {
   title: 'Crypto Fundraising Testimonials — Communities & DAOs Using FundRaisely',
   description: 'Stories from web3 communities running transparent, high-energy fundraisers.',
@@ -159,6 +146,38 @@ export function getSeoForPath(reqPath, hostOrigin) {
   keywords: 'web3 campaign leaderboard, crypto fundraising leaderboard',
   image: ABS(hostOrigin, '/og/web3-impact-leaderboard.png'),
   type: 'event',
+},
+'/web3/features': {
+  title: 'Web3 Fundraising Features: Smart Contracts, On-Chain Payouts & Verified Charities | FundRaisely',
+  description:
+    'How FundRaisely works: smart contract payout enforcement, verified non-profits via The Giving Block, multi-chain support on Solana and Base, and a transparent split for every event.',
+  canonical: ABS(hostOrigin, '/web3/features'),
+  keywords: 'web3 fundraising features, smart contract payouts, on-chain charity, Solana fundraising, Base fundraising, The Giving Block',
+  image: ABS(hostOrigin, '/og/web3-features.png'),
+},
+'/web3/elimination': {
+  title: 'Elimination Game Fundraising — On-Chain, Live Events | FundRaisely',
+  description:
+    'Host an elimination-style fundraising game on Solana or Base. Entry fees go into a smart contract. Last player standing wins. Charity gets 35% automatically.',
+  canonical: ABS(hostOrigin, '/web3/elimination'),
+  keywords: 'elimination game fundraiser, crypto elimination game, web3 fundraising game, on-chain elimination',
+  image: ABS(hostOrigin, '/og/web3-elimination.png'),
+},
+'/web3/quiz': {
+  title: 'Web3 Quiz Night Fundraising — Crypto-Powered, Transparent | FundRaisely',
+  description:
+    'Run a crypto quiz fundraiser on Solana or Base. Smart contracts handle entry fees and pay out winner, host, and charity the moment the quiz ends.',
+  canonical: ABS(hostOrigin, '/web3/quiz'),
+  keywords: 'web3 quiz night, crypto quiz fundraiser, blockchain quiz, on-chain trivia fundraiser',
+  image: ABS(hostOrigin, '/og/web3-quiz.png'),
+},
+'/web3/partners': {
+  title: 'Web3 Fundraising Partners — The Giving Block, Solana & Base | FundRaisely',
+  description:
+    'FundRaisely verifies every charity through The Giving Block and runs on Solana and Base. Meet the infrastructure behind transparent on-chain fundraising.',
+  canonical: ABS(hostOrigin, '/web3/partners'),
+  keywords: 'web3 partners, The Giving Block, crypto donations, Solana fundraising partner, Base fundraising',
+  image: ABS(hostOrigin, '/og/web3-partners.png'),
 },
 // server/seoMap.js (inside byPath)
 '/campaigns/clubs-league': {

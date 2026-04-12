@@ -3,34 +3,30 @@ import { io, Socket } from 'socket.io-client';
 let socket: Socket | null = null;
 
 export const getSocket = (): Socket => {
-  // If socket exists and is connected or connecting, reuse it
   if (socket && (socket.connected || socket.active)) {
     return socket;
   }
 
-  // Disconnect stale socket if it exists
   if (socket) {
     socket.removeAllListeners();
     socket.disconnect();
     socket = null;
   }
 
- const serverUrl = import.meta.env.PROD
-  ? window.location.origin
-  : import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
+  const serverUrl = import.meta.env.PROD
+    ? window.location.origin
+    : import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
   console.log('🎮 [Elimination] Creating new socket connection to:', serverUrl);
 
   socket = io(serverUrl, {
     path: '/socket.io',
-    transports: ['websocket', 'polling'], // polling fallback for flaky mobile
-    reconnectionAttempts: 20,             // more attempts for mobile interruptions
+    transports: ['websocket', 'polling'],
+    reconnectionAttempts: 20,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
     autoConnect: true,
   });
 
-  // When phone comes back from background (Snapchat, WhatsApp, phone call),
-  // the page becomes visible again — force socket reconnect if disconnected
   const handleVisibilityChange = () => {
     if (document.visibilityState === 'visible' && socket && !socket.connected) {
       console.log('🎮 [Elimination] Page visible again — reconnecting socket');
@@ -41,8 +37,6 @@ export const getSocket = (): Socket => {
 
   socket.on('connect', () => {
     console.log('🎮 [Elimination] Socket connected:', socket?.id);
-    // On reconnect, re-announce ourselves to the server so it updates our socket.id
-    // This covers: Snapchat/WhatsApp interruptions, phone calls, tab switches
     const roomId = sessionStorage.getItem('elim_room_id');
     const playerId = sessionStorage.getItem('elim_player_id');
     const hostId = sessionStorage.getItem('elim_host_id');
@@ -80,10 +74,18 @@ export const emitJoinRoom = (
   roomId: string,
   name: string,
   playerId?: string,
-  txSignature?: string,   // ← add this
+  txSignature?: string,
+  walletAddress?: string,   // ← add
 ): void => {
-  getSocket().emit('join_elimination_room', { roomId, name, playerId, txSignature });
-};
+  getSocket().emit('join_elimination_room', {
+    roomId,
+    name,
+    playerId,
+    txSignature,
+    isWeb3:        !!txSignature,       // ← true when txSignature present
+    walletAddress: walletAddress ?? null,
+  });
+}
 
 export const emitStartGame = (roomId: string, hostId: string): void => {
   getSocket().emit('start_elimination_game', { roomId, hostId });
@@ -107,4 +109,17 @@ export const emitReconnect = (roomId: string, playerId: string): void => {
 
 export const emitHostJoin = (roomId: string, hostId: string): void => {
   getSocket().emit('host_join_elimination_room', { roomId, hostId });
+};
+
+/**
+ * Emit when the player presses START in the Time Estimation round.
+ * The server records its own Date.now() as the authoritative start time —
+ * no client timestamp is trusted for scoring.
+ */
+export const emitStartPress = (
+  roomId: string,
+  playerId: string,
+  roundId: string,
+): void => {
+  getSocket().emit('submit_time_estimation_start', { roomId, playerId, roundId });
 };

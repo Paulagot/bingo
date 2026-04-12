@@ -5,7 +5,7 @@ import {
   getRoom,
 } from '../services/eliminationRoomManager.js';
 import { startGame } from '../services/eliminationGameService.js';
-import { recordSubmission } from '../services/eliminationRoundService.js';
+import { recordSubmission, recordStartPress } from '../services/eliminationRoundService.js';
 import { reconnectPlayer, handleDisconnect } from '../services/eliminationReconnectionService.js';
 import { checkSocketRate, cleanupSocket } from '../utils/socketRateLimit.js';
 import {
@@ -26,6 +26,7 @@ const getAllPlayers = (roomId) =>
     name: p.name,
     connected: p.connected,
     eliminated: p.eliminated ?? false,
+    walletAddress: p.walletAddress ?? null, 
   }));
 
 // ── Web3 tx verification ──────────────────────────────────────────────────────
@@ -117,26 +118,25 @@ export const registerEliminationSockets = (io) => {
     });
 
     // ── HOST CANCEL ROOM ───────────────────────────────────────────────────────
-socket.on('host_cancel_elimination_room', ({ roomId, hostId }) => {
-  if (!rateCheck(socket, 'host_cancel_elimination_room')) return;
-  try {
-    const room = getRoom(roomId);
-    if (!room) return socket.emit(SERVER_EVENTS.ERROR, { message: 'Room not found' });
-    if (room.hostId !== hostId) return socket.emit(SERVER_EVENTS.ERROR, { message: 'Unauthorized' });
+    socket.on('host_cancel_elimination_room', ({ roomId, hostId }) => {
+      if (!rateCheck(socket, 'host_cancel_elimination_room')) return;
+      try {
+        const room = getRoom(roomId);
+        if (!room) return socket.emit(SERVER_EVENTS.ERROR, { message: 'Room not found' });
+        if (room.hostId !== hostId) return socket.emit(SERVER_EVENTS.ERROR, { message: 'Unauthorized' });
 
-    // Notify all players in the room
-    io.to(roomId).emit('elimination_room_cancelled', {
-      roomId,
-      reason: 'host_cancelled',
-      cancelTxHash: room.cancelTxHash ?? null,
-      refundTxHash: room.refundTxHash ?? null,
+        io.to(roomId).emit('elimination_room_cancelled', {
+          roomId,
+          reason: 'host_cancelled',
+          cancelTxHash: room.cancelTxHash ?? null,
+          refundTxHash: room.refundTxHash ?? null,
+        });
+
+        console.log(`[Elimination] Notified players of cancellation for room ${roomId}`);
+      } catch (err) {
+        socket.emit(SERVER_EVENTS.ERROR, { message: err.message });
+      }
     });
-
-    console.log(`[Elimination] Notified players of cancellation for room ${roomId}`);
-  } catch (err) {
-    socket.emit(SERVER_EVENTS.ERROR, { message: err.message });
-  }
-});
 
     // ── PLAYER JOIN ROOM ───────────────────────────────────────────────────────
     socket.on(CLIENT_EVENTS.JOIN_ROOM, async ({ roomId, playerId, name, txSignature }) => {
@@ -182,10 +182,8 @@ socket.on('host_cancel_elimination_room', ({ roomId, hostId }) => {
           }
 
           if (txSignature === 'already-joined') {
-            // Player already paid on-chain in a previous attempt — allow through
             console.log(`[Elimination] already-joined bypass for room ${roomId}`);
           } else {
-            // Verify the real transaction
             const { valid: txValid, error: txError, walletAddress } = await verifyWeb3JoinTx(txSignature, room);
             if (!txValid) {
               return socket.emit(SERVER_EVENTS.ERROR, { message: txError });
@@ -251,7 +249,10 @@ socket.on('host_cancel_elimination_room', ({ roomId, hostId }) => {
       if (!rateCheck(socket, 'submit_round_answer')) return;
       try {
         const payloadSize = JSON.stringify(submission || {}).length;
-        if (payloadSize > 1024) {
+        // Path trace submissions contain arrays of points and need a higher limit.
+        // Other round types are well under 1KB — this limit covers both safely.
+        const sizeLimit = submission?.roundType === 'path_trace' ? 16384 : 1024;
+        if (payloadSize > sizeLimit) {
           return socket.emit(SERVER_EVENTS.ERROR, { message: 'Submission too large.' });
         }
       } catch {}
@@ -263,6 +264,19 @@ socket.on('host_cancel_elimination_room', ({ roomId, hostId }) => {
         socket.emit(SERVER_EVENTS.SUBMISSION_RECEIVED, { roundId: activeRound.roundId, playerId });
       } catch (err) {
         socket.emit(SERVER_EVENTS.ERROR, { message: err.message });
+      }
+    });
+
+    // ── TIME ESTIMATION: START PRESS ───────────────────────────────────────────
+    // Records the server-side timestamp of when the player pressed START.
+    // This is the authoritative start time for scoring — not the round
+    // activation time and not any client-supplied value.
+    socket.on(CLIENT_EVENTS.SUBMIT_START_PRESS, ({ roomId, playerId, roundId }) => {
+      if (!rateCheck(socket, 'submit_time_estimation_start')) return;
+      try {
+        recordStartPress(roomId, roundId, playerId);
+      } catch (err) {
+        console.warn('[Elimination] SUBMIT_START_PRESS error:', err.message);
       }
     });
 

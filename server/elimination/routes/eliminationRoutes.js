@@ -1,13 +1,15 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { syncEliminationImpactToDb } from '../services/syncEliminationImpactToDb.js';
-
+import { insertPrizePayout, insertWeb3Transaction } from '../../mgtsystem/services/web3TransactionService.js';
 
 const eliminationCreateLimiter = rateLimit({ windowMs: 60*60*1000, max: 10, message: { error: 'Too many rooms created. Try again later.' } });
 const eliminationRoomLimiter = rateLimit({ windowMs: 60*1000, max: 60, message: { error: 'Too many requests.' } });
+
 // Platform charity reserve wallet — used when TGB minimum not met
 // Matches PLATFORM_CHARITY_RESERVE in src/chains/solana/config/solanaTokenConfig.ts
 const PLATFORM_CHARITY_RESERVE = '4dBPGPU6tmsWSsGhHgNMK9QBADWLs9AxKL1Jh7hZeS6o';
+
 import {
   createRoom,
   getRoom,
@@ -147,55 +149,61 @@ router.post('/rooms/:roomId/finalize-prepare', async (req, res) => {
 
     const totalPlayers = Object.keys(room.players).length;
     const totalPoolRaw = totalPlayers * room.entryFee;
-   const winnerRaw   = Math.floor(totalPoolRaw * 0.30);
-const charityRaw  = Math.floor(totalPoolRaw * 0.35);
-const hostRaw     = Math.floor(totalPoolRaw * 0.20);
-const platformRaw = Math.floor(totalPoolRaw * 0.15);
+    const winnerRaw   = Math.floor(totalPoolRaw * 0.30);
+    const charityRaw  = Math.floor(totalPoolRaw * 0.35);
+    const hostRaw     = Math.floor(totalPoolRaw * 0.20);
+    const platformRaw = Math.floor(totalPoolRaw * 0.15);
+
+    // Store winner wallet on room so finalize-confirm can access it
+    room.winnerWallet = winnerPlayer.walletAddress;
+    room.winnerRaw    = winnerRaw;
 
     let charityWallet = null;
     let tgbDepositAddress = null;
 
- if (room.charityOrgId) {
-  try {
-    const charityDisplayAmount = req.body.charityDisplayAmount ?? '0';
-    const tokenCode = req.body.tokenCode ?? 'USDC';
+    if (room.charityOrgId) {
+      try {
+        const charityDisplayAmount = req.body.charityDisplayAmount ?? '0';
+        const tokenCode = req.body.tokenCode ?? 'USDC';
 
-    const tgbResponse = await fetch(
-      `${process.env.SERVER_URL ?? 'http://localhost:3001'}/api/tgb/create-deposit-address`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          organizationId: Number(room.charityOrgId),
-          tokenCode,
-          amount: charityDisplayAmount,
-          metadata: { roomId, gameType: 'elimination' },
-        }),
+        const tgbResponse = await fetch(
+          `${process.env.SERVER_URL ?? 'http://localhost:3001'}/api/tgb/create-deposit-address`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              organizationId: Number(room.charityOrgId),
+              tokenCode,
+              amount: charityDisplayAmount,
+              metadata: { roomId, gameType: 'elimination' },
+            }),
+          }
+        );
+
+        const tgbData = await tgbResponse.json();
+
+        if (tgbData.ok && tgbData.depositAddress) {
+          charityWallet = tgbData.depositAddress;
+          room.charityWallet = charityWallet;
+          tgbDepositAddress = tgbData.depositAddress;
+          console.log(`[Elimination] TGB charity wallet: ${charityWallet}`);
+        } else {
+          console.warn('[Elimination] TGB returned no address, using reserve:', tgbData);
+          charityWallet = PLATFORM_CHARITY_RESERVE;
+          room.charityWallet = charityWallet;  // ← ensure always saved on room
+        }
+      } catch (tgbErr) {
+        console.warn('[Elimination] TGB fetch failed, using reserve:', tgbErr.message);
+        charityWallet = PLATFORM_CHARITY_RESERVE;
+        room.charityWallet = charityWallet;  // ← ensure always saved on room
       }
-    );
-
-    const tgbData = await tgbResponse.json();
-
-    if (tgbData.ok && tgbData.depositAddress) {
-      charityWallet = tgbData.depositAddress;
-      room.charityWallet = charityWallet; 
-      tgbDepositAddress = tgbData.depositAddress;
-      console.log(`[Elimination] TGB charity wallet: ${charityWallet}`);
     } else {
-      console.warn('[Elimination] TGB returned no address, using reserve:', tgbData);
-     charityWallet = PLATFORM_CHARITY_RESERVE;
+      charityWallet = PLATFORM_CHARITY_RESERVE;
+      room.charityWallet = charityWallet;
     }
-  } catch (tgbErr) {
-    console.warn('[Elimination] TGB fetch failed, using reserve:', tgbErr.message);
-   charityWallet = PLATFORM_CHARITY_RESERVE;
-  }
-} else {
- charityWallet = PLATFORM_CHARITY_RESERVE;
- room.charityWallet = charityWallet;
-}
 
     if (!charityWallet) {
-      return res.status(500).json({ success: false, error: 'Could not resolve charity wallet. Set PLATFORM_CHARITY_RESERVE_WALLET env var.' });
+      return res.status(500).json({ success: false, error: 'Could not resolve charity wallet.' });
     }
 
     console.log(`[Elimination] Finalize prepared for room ${roomId}:`, {
@@ -205,21 +213,21 @@ const platformRaw = Math.floor(totalPoolRaw * 0.15);
       charityRaw,
     });
 
-   return res.json({
-  success: true,
-  winnerWallet:    winnerPlayer.walletAddress,
-  charityWallet,
-  tgbDepositAddress,
-  totalPoolRaw,
-  winnerRaw,
-  charityRaw,
-  hostRaw,
-  platformRaw,
-  feeMint:         room.feeMint,
-  roomPda:         room.roomPda,
-  onChainRoomId:   room.onChainRoomId,
-  solanaCluster:   room.solanaCluster,
-});
+    return res.json({
+      success: true,
+      winnerWallet:  winnerPlayer.walletAddress,
+      charityWallet,
+      tgbDepositAddress,
+      totalPoolRaw,
+      winnerRaw,
+      charityRaw,
+      hostRaw,
+      platformRaw,
+      feeMint:       room.feeMint,
+      roomPda:       room.roomPda,
+      onChainRoomId: room.onChainRoomId,
+      solanaCluster: room.solanaCluster,
+    });
 
   } catch (err) {
     console.error('[Elimination] POST /rooms/:roomId/finalize-prepare error:', err);
@@ -231,26 +239,61 @@ const platformRaw = Math.floor(totalPoolRaw * 0.15);
 router.post('/rooms/:roomId/finalize-confirm', async (req, res) => {
   try {
     const { roomId } = req.params;
-   const { hostId, txSignature, tokenCode } = req.body;
+    const { hostId, txSignature, tokenCode } = req.body;
 
     const room = getRoom(roomId);
     if (!room) return res.status(404).json({ success: false, error: 'Room not found' });
     if (room.hostId !== hostId) return res.status(403).json({ success: false, error: 'Unauthorized' });
 
-    const { Connection } = await import('@solana/web3.js');
-    const cluster = room.solanaCluster ?? 'devnet';
-    const rpcUrl = cluster === 'mainnet'
-      ? 'https://api.mainnet-beta.solana.com'
-      : 'https://api.devnet.solana.com';
+    // ── On-chain tx verification — Solana or EVM ─────────────────────────
+    if (room.web3Chain === 'evm') {
+      // EVM verification via public RPC
+      const RPC_URLS = {
+        base:         'https://mainnet.base.org',
+        base_sepolia: 'https://sepolia.base.org',
+        baseSepolia:  'https://sepolia.base.org',
+        ethereum:     'https://eth.llamarpc.com',
+        sepolia:      'https://rpc.sepolia.org',
+      };
+      const rpcUrl = RPC_URLS[room.evmChain] ?? RPC_URLS[room.solanaCluster] ?? null;
 
-    const connection = new Connection(rpcUrl, 'confirmed');
-    const tx = await connection.getTransaction(txSignature, {
-      commitment: 'confirmed',
-      maxSupportedTransactionVersion: 0,
-    });
+      if (!rpcUrl) {
+        console.warn(`[Elimination] Unknown EVM network for verification: ${room.evmChain}`);
+        // Unknown network — don't block finalize, just warn
+      } else {
+        const receiptRes = await fetch(rpcUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0', id: 1,
+            method: 'eth_getTransactionReceipt',
+            params: [txSignature],
+          }),
+        });
+        const receiptData = await receiptRes.json();
+        const receipt = receiptData?.result;
 
-    if (!tx || tx.meta?.err) {
-      return res.status(400).json({ success: false, error: 'Finalize transaction not confirmed' });
+        if (!receipt || receipt.status !== '0x1') {
+          return res.status(400).json({ success: false, error: 'Finalize transaction not confirmed on EVM' });
+        }
+      }
+    } else {
+      // Solana verification
+      const { Connection } = await import('@solana/web3.js');
+      const cluster = room.solanaCluster ?? 'devnet';
+      const rpcUrl = cluster === 'mainnet'
+        ? 'https://api.mainnet-beta.solana.com'
+        : 'https://api.devnet.solana.com';
+
+      const connection = new Connection(rpcUrl, 'confirmed');
+      const tx = await connection.getTransaction(txSignature, {
+        commitment: 'confirmed',
+        maxSupportedTransactionVersion: 0,
+      });
+
+      if (!tx || tx.meta?.err) {
+        return res.status(400).json({ success: false, error: 'Finalize transaction not confirmed on Solana' });
+      }
     }
 
     room.settled = true;
@@ -258,24 +301,46 @@ router.post('/rooms/:roomId/finalize-confirm', async (req, res) => {
     room.settledAt = new Date().toISOString();
 
     const totalPool = Object.keys(room.players).length * room.entryFee;
-syncEliminationImpactToDb({
-  roomId,
-  hostId:          room.hostId,
-  hostName:        room.hostName,
-  hostWallet:      room.hostWallet    ?? null,
-  charityWallet:   room.charityWallet ?? null,
-  charityName:     room.charityName   ?? null,
-  feeMint:         room.feeMint,
-  tokenCode: tokenCode ?? 'UNKNOWN',
-  chain:           room.web3Chain     ?? 'solana',
-  network:         room.solanaCluster ?? 'devnet',
-  totalRaised:     totalPool,
-  charityAmount:   Math.floor(totalPool * 0.35),
-  hostFeeAmount:   Math.floor(totalPool * 0.20),
-  numberOfPlayers: Object.keys(room.players).length,
-  txSignature,
-}).catch(err => console.error('[Elimination] DB sync failed (non-critical):', err));
-//
+
+    // ── Existing impact DB sync (unchanged) ───────────────────────────────
+    syncEliminationImpactToDb({
+      roomId,
+      hostId:          room.hostId,
+      hostName:        room.hostName,
+      hostWallet:      room.hostWallet    ?? null,
+      charityWallet:   room.charityWallet ?? null,
+      charityName:     room.charityName   ?? null,
+      feeMint:         room.feeMint,
+      tokenCode:       tokenCode ?? 'UNKNOWN',
+      chain:           room.web3Chain     ?? 'solana',
+      network:         room.solanaCluster ?? 'devnet',
+      totalRaised:     totalPool,
+      charityAmount:   Math.floor(totalPool * 0.35),
+      hostFeeAmount:   Math.floor(totalPool * 0.20),
+      numberOfPlayers: Object.keys(room.players).length,
+      txSignature,
+    }).catch(err => console.error('[Elimination] DB sync failed (non-critical):', err));
+
+    // ── NEW: Write prize payout to web3 transaction ledger ────────────────
+    // winnerWallet and winnerRaw were stored on the room object in finalize-prepare.
+    // The finalize tx is a single on-chain call that pays winner + charity + host,
+    // so we record it once here as the winner's prize_payout row.
+    insertPrizePayout({
+      game_type:      'elimination',
+      room_id:        roomId,
+      campaign_id:    null,
+      wallet_address: room.winnerWallet ?? 'unknown',
+      chain:          room.web3Chain    ?? 'solana',
+      network:        room.web3Chain === 'evm'
+                        ? (room.evmChain ?? 'unknown')
+                        : (room.solanaCluster ?? 'devnet'),
+      tx_hash:        txSignature,
+      fee_token:      tokenCode         ?? 'UNKNOWN',
+      token_address:  room.feeMint      ?? null,
+      amount:         room.winnerRaw    ?? Math.floor(totalPool * 0.30),
+    }).catch(err =>
+      console.error('[Elimination] Prize payout ledger write failed (non-critical):', err)
+    );
 
     console.log(`[Elimination] Room ${roomId} finalized. tx: ${txSignature}`);
 
@@ -331,27 +396,83 @@ router.post('/rooms/:roomId/end', (req, res) => {
 });
 
 // ─── POST /api/elimination/rooms/:roomId/cancel-confirm ───────────────────────
-// Called after host has signed cancel + refund on-chain.
-// Server marks room cancelled and notifies all clients.
 router.post('/rooms/:roomId/cancel-confirm', async (req, res) => {
   try {
     const { roomId } = req.params;
-    const { hostId, cancelTxHash, refundTxHash } = req.body;
+    const { hostId, cancelTxHash, refundTxHash, tokenCode } = req.body;
 
     const room = getRoom(roomId);
     if (!room) return res.status(404).json({ success: false, error: 'Room not found' });
     if (room.hostId !== hostId) return res.status(403).json({ success: false, error: 'Unauthorized' });
 
-    // Just mark it — socket handler will pick this up
+    // ── Snapshot before marking cancelled ────────────────────────────────
+    // The socket handler fires almost immediately after we respond and may
+    // call deleteRoom. Snapshotting here means ledger writes don't race
+    // against room deletion.
+    const roomSnapshot = {
+      paymentMode:   room.paymentMode,
+      web3Chain:     room.web3Chain,
+      evmChain:      room.evmChain,
+      solanaCluster: room.solanaCluster,
+      feeMint:       room.feeMint,
+      entryFee:      room.entryFee,
+      players:       Object.values(room.players ?? {}),
+    };
+
     room.cancelled = true;
     room.cancelledAt = new Date().toISOString();
     room.cancelTxHash = cancelTxHash ?? null;
     room.refundTxHash = refundTxHash ?? null;
-    room.status = 'cancelled'; 
+    room.status = 'cancelled';
 
-    console.log(`[Elimination] Room ${roomId} marked cancelled. cancelTx: ${cancelTxHash}`);
+    console.log(`[Elimination] Room ${roomId} marked cancelled. cancelTx: ${cancelTxHash} refundTx: ${refundTxHash ?? 'none'}`);
 
-    // Cleanup after delay — socket handler has time to notify players first
+    // ── Write refund rows to web3 transaction ledger ──────────────────────
+    // The refund tx is batched — one on-chain tx refunds all players.
+    // One row per player wallet so we have a full per-wallet record.
+    if (refundTxHash && roomSnapshot.paymentMode === 'web3') {
+      const network = roomSnapshot.web3Chain === 'evm'
+        ? (roomSnapshot.evmChain ?? 'unknown')
+        : (roomSnapshot.solanaCluster ?? 'devnet');
+
+      // tokenCode must come from the frontend body — feeMint is an address not a symbol
+      const resolvedTokenCode = tokenCode ?? 'UNKNOWN';
+
+      const playersWithWallets = roomSnapshot.players.filter(p => p.walletAddress);
+
+      if (playersWithWallets.length === 0) {
+        console.log(`[Elimination] No players with wallets to refund for room ${roomId}`);
+      } else {
+        const refundPromises = playersWithWallets.map(p =>
+          insertWeb3Transaction({
+            transaction_type: 'refund',
+            direction:        'out',
+            game_type:        'elimination',
+            room_id:          roomId,
+            campaign_id:      null,
+            wallet_address:   p.walletAddress,
+            chain:            roomSnapshot.web3Chain  ?? 'solana',
+            network,
+            tx_hash:          refundTxHash,
+            fee_token:        resolvedTokenCode,
+            token_address:    roomSnapshot.feeMint    ?? null,
+            amount:           roomSnapshot.entryFee   ?? 0,
+            entry_fee_amount: 0,
+            extras_amount:    0,
+            donation_amount:  0,
+            metadata_json:    { cancelTxHash: cancelTxHash ?? null },
+          }).catch(err =>
+            console.warn(`[Elimination] Refund ledger write failed for wallet ${p.walletAddress}:`, err.message)
+          )
+        );
+
+        await Promise.allSettled(refundPromises);
+        console.log(`[Elimination] Refund ledger rows written for ${playersWithWallets.length} players, room ${roomId}`);
+      }
+    } else if (!refundTxHash) {
+      console.log(`[Elimination] No refundTxHash received — skipping refund ledger write for room ${roomId}`);
+    }
+
     setTimeout(() => deleteRoom(roomId), 10000);
 
     return res.json({ success: true, message: 'Room cancelled' });

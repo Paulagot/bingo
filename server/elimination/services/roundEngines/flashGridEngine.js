@@ -9,35 +9,34 @@ import { ROUND_TYPE, ROUND_DURATION } from '../../utils/eliminationConstants.js'
 // ─── Generate ─────────────────────────────────────────────────────────────────
 
 export const generateRoundConfig = ({ difficulty = 1 } = {}) => {
-  // Grid size 5–7, harder at higher difficulty — bigger grids are harder to memorise
-  const gridSize = Math.min(7, 5 + Math.floor((difficulty - 1) * 0.3));
 
-  // Number of cells to flash: 4–10, scales with difficulty
-  const cellCount = Math.min(
-    Math.floor(gridSize * gridSize * 0.6), // max 60% of cells
-    Math.floor(randomBetween(4, 5 + difficulty * 1.5)),
+  // Grid: 4x4 at round 1, 6x6 at round 8
+  const gridSize = Math.min(6, 4 + Math.floor((difficulty - 1) * 2));
+
+  // Flash duration: fixed at 2000ms — difficulty comes from grid and cell count only
+  const flashDurationMs = 2000;
+
+  // Cell count: scales with grid size so the density feels consistent
+  // Round 1 (4x4): 4-5 cells   Round 5 (5x5): 6-7 cells   Round 8 (6x6): 8-10 cells
+  const minCells = 3 + Math.floor((difficulty - 1) * 5);
+  const maxCells = Math.min(
+    Math.floor(gridSize * gridSize * 0.5), // never more than 50% of grid
+    5 + Math.floor((difficulty - 1) * 5),
   );
+  const cellCount = Math.floor(randomBetween(minCells, maxCells + 1));
 
-  // Pick unique cells to flash
+  // Fisher-Yates shuffle to pick which cells flash
   const allCells = [];
   for (let r = 0; r < gridSize; r++) {
     for (let c = 0; c < gridSize; c++) {
       allCells.push({ row: r, col: c });
     }
   }
-
-  // Fisher-Yates shuffle then take first cellCount
   for (let i = allCells.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [allCells[i], allCells[j]] = [allCells[j], allCells[i]];
   }
   const flashCells = allCells.slice(0, cellCount);
-
-  // Flash duration shortens with difficulty
-  const flashDurationMs = Math.round(randomBetween(
-    Math.max(600, 1500 - difficulty * 200),
-    Math.max(1000, 2200 - difficulty * 200),
-  ));
 
   return {
     roundType: ROUND_TYPE.FLASH_GRID,

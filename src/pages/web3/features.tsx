@@ -128,6 +128,16 @@ const Web3Features: React.FC = () => {
     url: abs('/web3/features'),
   };
 
+  const serviceJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Service',
+  name: 'Web3 Fundraising Platform',
+  provider: { '@type': 'Organization', name: 'FundRaisely', url: abs('/') },
+  description: 'Smart contract-powered fundraising events on Solana and Base. Hosts run quiz nights or elimination games; entry fees are distributed automatically to winner, host, and verified charity.',
+  areaServed: ['IE', 'GB'],
+  serviceType: 'Fundraising Platform',
+};
+
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-[#0a0e14]">
 
@@ -147,7 +157,7 @@ const Web3Features: React.FC = () => {
         description="How FundRaisely works under the hood: smart contract payout enforcement, verified non-profits via The Giving Block, multi-chain support on Solana and Base, and a transparent split for every event."
         keywords="web3 fundraising features, smart contract payouts, on-chain charity, Solana fundraising, Base fundraising, The Giving Block, transparent splits, quiz night web3, elimination game crypto"
         domainStrategy="geographic"
-        structuredData={[breadcrumbsJsonLd, webPageJsonLd]}
+        structuredData={[breadcrumbsJsonLd, webPageJsonLd, serviceJsonLd]}
       />
 
       <Web3Header />
@@ -161,7 +171,7 @@ const Web3Features: React.FC = () => {
             <SectionLabel><Zap className="h-4 w-4" /> Platform Features</SectionLabel>
 
             <h1 className="mt-6 font-mono text-4xl font-bold leading-tight text-white sm:text-5xl md:text-6xl">
-              Built on blockchain.<br />
+              Web3 Fundraising Marketplace.<br />
               <span className="text-[#a3f542]">Transparent by default.</span>
             </h1>
 
@@ -186,7 +196,7 @@ const Web3Features: React.FC = () => {
             {/* Quick stats */}
             <div className="mt-12 flex w-full flex-wrap justify-center gap-8 border-t border-[#1e2d42] pt-8 sm:justify-between">
               {[
-                { value: 'SOL + BASE', label: 'supported chains' },
+                { value: 'SOL + (soon) BASE', label: 'supported chains' },
                 { value: 'USDC', label: 'primary token' },
                 { value: '100%', label: 'on-chain payouts' },
                 { value: 'Giving Block', label: 'charity verification' },
@@ -563,7 +573,7 @@ const Web3Features: React.FC = () => {
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-white/50">
               FundRaisely supports the most widely used wallets on both chains. No proprietary wallet required.
-              Players connect the wallet they already use.
+              Players connect the wallet they already use. Powered by Reown Appkit.
             </p>
           </div>
 

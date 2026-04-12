@@ -15,7 +15,7 @@ import { playRoundStart, playRoundIntro, playReveal, playEliminated, playWinner,
 import { useWakeLock } from './hooks/useWakeLock';
 import { EliminationEliminatedView } from './EliminationEliminatedView';
 import { EliminationWinnerView } from './EliminationWinnerView';
-import { emitStartGame, emitSubmitAnswer, emitJoinRoom, emitHostJoin } from './services/eliminationSocket';
+import { emitStartGame, emitSubmitAnswer, emitJoinRoom, emitHostJoin, emitStartPress } from './services/eliminationSocket';
 import { roundTypeLabel } from './utils/eliminationHelpers';
 import { getRoundColour, BASE_BG } from './utils/designTokens';
 import type {
@@ -64,10 +64,7 @@ export const EliminationGamePage: React.FC = () => {
     () => sessionStorage.getItem(SESSION_IS_HOST) === 'true',
   );
 
-  // ── Local player list ─────────────────────────────────────────────────────
   const [waitingPlayers, setWaitingPlayers] = useState<any[]>([]);
-
-  // ── Intro countdown state ─────────────────────────────────────────────────
   const [introPayload, setIntroPayload] = useState<RoundIntroPayload | null>(null);
 
   // ── Game state ────────────────────────────────────────────────────────────
@@ -87,17 +84,14 @@ export const EliminationGamePage: React.FC = () => {
     setError,
   } = useEliminationGame(localPlayerId);
 
-  // ── Timers ────────────────────────────────────────────────────────────────
   const roundTimer = useRoundTimer(
     state.activeRound?.endsAt ?? null,
     state.view === 'round_active',
   );
 
-  // ── Wake lock during active game ──────────────────────────────────────────
   const gameIsActive = !['lobby', 'waiting'].includes(state.view);
   useWakeLock(gameIsActive);
 
-  // ── Sound effects on view changes ─────────────────────────────────────────
   const prevViewRef = React.useRef<string>('');
   useEffect(() => {
     const view = state.view;
@@ -107,7 +101,6 @@ export const EliminationGamePage: React.FC = () => {
     if (view === 'winner') playWinner();
   }, [state.view]);
 
-  // ── Countdown tick in last 3 seconds ──────────────────────────────────────
   useEffect(() => {
     if (
       state.view === 'round_active' &&
@@ -117,8 +110,6 @@ export const EliminationGamePage: React.FC = () => {
       playCountdownTick();
     }
   }, [state.view, roundTimer.secondsRemaining]);
-
-  
 
   // ── Full cleanup + navigate ───────────────────────────────────────────────
   const handleCleanupAndNavigate = useCallback((room?: any) => {
@@ -137,7 +128,7 @@ export const EliminationGamePage: React.FC = () => {
   useEliminationSocket({
     onRoomState: useCallback((data: any) => {
       const room: EliminationRoom = data.roomSnapshot ?? data;
-      console.log('🎮 [onRoomState] received, players:', room.players?.length, room.players?.map((p: any) => p.name));
+      console.log('🎮 [onRoomState] received, players:', room.players?.length);
       setRoom(room);
       setWaitingPlayers(room.players ?? []);
 
@@ -148,7 +139,6 @@ export const EliminationGamePage: React.FC = () => {
         if ((!currentPlayerId || currentPlayerId === '') && currentName) {
           const match = room.players.find((p: any) => p.name === currentName);
           if (match) {
-            console.log('🎮 [onRoomState] resolved player playerId:', match.playerId);
             setLocalPlayerId(match.playerId);
             sessionStorage.setItem(SESSION_PLAYER_ID, match.playerId);
           }
@@ -157,7 +147,6 @@ export const EliminationGamePage: React.FC = () => {
     }, [setRoom]),
 
     onWaitingRoomUpdate: useCallback((data: { players: any[] }) => {
-      console.log('🎮 [Elimination] waiting room update, players:', data.players.length);
       setWaitingPlayers(data.players);
       updatePlayers(data.players);
     }, [updatePlayers]),
@@ -195,7 +184,6 @@ export const EliminationGamePage: React.FC = () => {
     }, [onSubmissionSent]),
 
     onRoundReveal: useCallback((data: RoundRevealPayload) => {
-      console.log('🎮 [Elimination] round reveal, round:', data.roundNumber);
       playReveal();
       onRoundReveal(data.results, data.roundNumber, data.roundType);
     }, [onRoundReveal]),
@@ -215,28 +203,22 @@ export const EliminationGamePage: React.FC = () => {
       );
     }, [onRoundResults, state.lastResults]),
 
-    onNextRound: useCallback(() => {
-      // transition handled by round intro socket event
-    }, []),
+    onNextRound: useCallback(() => {}, []),
 
     onWinnerDeclared: useCallback((data: WinnerPayload) => {
       onWinnerDeclared(data);
     }, [onWinnerDeclared]),
 
     onRoomEnded: useCallback(() => {
-      console.log('🎮 [Elimination] ROOM_ENDED received — cleaning up');
       handleCleanupAndNavigate();
     }, [handleCleanupAndNavigate]),
 
     onRoomCancelled: useCallback(() => {
-  console.log('🎮 [Elimination] Room cancelled — cleaning up');
-  handleCleanupAndNavigate();
-}, [handleCleanupAndNavigate]),
+      handleCleanupAndNavigate();
+    }, [handleCleanupAndNavigate]),
 
     onError: useCallback((data: { message: string }) => {
-      console.warn('🎮 [Elimination] Socket error:', data.message);
       if (data.message === 'Room not found') {
-        console.log('🎮 [Elimination] Stale session — clearing and returning to lobby');
         clearEliminationSession();
         setRoomId(null);
         setLocalPlayerId(null);
@@ -258,31 +240,21 @@ export const EliminationGamePage: React.FC = () => {
     const hasPlayerSession = initialRoomId && !initialIsHost && initialPlayerId;
     if (!hasHostSession && !hasPlayerSession) return;
 
-    const idToCheck = initialRoomId!;
-
-    fetch(`/api/elimination/rooms/${idToCheck}`)
+    fetch(`/api/elimination/rooms/${initialRoomId}`)
       .then(r => r.json())
       .then(data => {
-        if (!data.success) {
-          console.log('🎮 [Elimination] Stale session — room gone, clearing');
-          clearEliminationSession();
-          return;
-        }
+        if (!data.success) { clearEliminationSession(); return; }
         if (hasHostSession) {
-          console.log('🎮 [Elimination] Reconnecting host:', { roomId: idToCheck, hostId: initialHostId });
           setIsHost(true);
           setLocalPlayerId(initialHostId!);
           setLocalPlayerName(initialName);
-          setRoomId(idToCheck);
-          emitHostJoin(idToCheck, initialHostId!);
+          setRoomId(initialRoomId!);
+          emitHostJoin(initialRoomId!, initialHostId!);
         } else if (hasPlayerSession) {
-          console.log('🎮 [Elimination] Reconnecting player:', { roomId: idToCheck, playerId: initialPlayerId });
-          emitJoinRoom(idToCheck, initialName, initialPlayerId!);
+          emitJoinRoom(initialRoomId!, initialName, initialPlayerId!);
         }
       })
-      .catch(() => {
-        clearEliminationSession();
-      });
+      .catch(() => clearEliminationSession());
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -293,7 +265,6 @@ export const EliminationGamePage: React.FC = () => {
     name: string,
     host: boolean,
   ) => {
-    console.log('🎮 [Elimination] handleJoined called:', { newRoomId, newPlayerId, name, host });
     setRoomId(newRoomId);
     setLocalPlayerId(newPlayerId);
     setLocalPlayerName(name);
@@ -324,7 +295,12 @@ export const EliminationGamePage: React.FC = () => {
     onSubmissionSent();
   }, [roomId, localPlayerId, onSubmissionSent]);
 
-  // handleReset — manual "Return to lobby" button
+  // Emits the server-side START press timestamp for Time Estimation scoring
+  const handleStartPress = useCallback((roundId: string, playerId: string) => {
+    if (!roomId) return;
+    emitStartPress(roomId, playerId, roundId);
+  }, [roomId]);
+
   const handleReset = useCallback(() => {
     handleCleanupAndNavigate();
   }, [handleCleanupAndNavigate]);
@@ -333,30 +309,27 @@ export const EliminationGamePage: React.FC = () => {
   const room = state.room;
   const localPlayer = state.localPlayer ?? room?.players.find(p => p.playerId === localPlayerId);
 
-  // LOBBY — no room joined yet
   if (!roomId) {
     return <EliminationLobbyPage onJoined={handleJoined} />;
   }
 
-  // WAITING ROOM
   if (state.view === 'lobby' || state.view === 'waiting') {
     return (
- <EliminationWaitingRoom
-  roomId={roomId}
-  players={waitingPlayers}
-  isHost={isHost}
-  localPlayerId={localPlayerId ?? ''}
-  onStart={handleStart}
-  onLeave={handleReset}
-  minPlayers={2}
-  roomData={state.room}
-  hostId={sessionStorage.getItem(SESSION_HOST_ID) ?? undefined}
-  onCancelled={handleReset}
-/>
+      <EliminationWaitingRoom
+        roomId={roomId}
+        players={waitingPlayers}
+        isHost={isHost}
+        localPlayerId={localPlayerId ?? ''}
+        onStart={handleStart}
+        onLeave={handleReset}
+        minPlayers={2}
+        roomData={state.room}
+        hostId={sessionStorage.getItem(SESSION_HOST_ID) ?? undefined}
+        onCancelled={handleReset}
+      />
     );
   }
 
-  // ROUND INTRO
   if (state.view === 'round_intro' && introPayload) {
     return (
       <EliminationRoundIntro
@@ -367,7 +340,6 @@ export const EliminationGamePage: React.FC = () => {
     );
   }
 
-  // ROUND ACTIVE
   if (state.view === 'round_active' && state.activeRound) {
     const hasSubmitted = localPlayer?.hasSubmittedCurrentRound ?? false;
     const rc = getRoundColour(state.activeRound.roundNumber);
@@ -375,14 +347,12 @@ export const EliminationGamePage: React.FC = () => {
 
     return (
       <div className="min-h-screen flex flex-col" style={{ ...styles.page, background: BASE_BG }}>
-        {/* Colour bleed */}
         <div style={{
           position: 'absolute', top: 0, left: 0, right: 0, height: '180px',
           background: `linear-gradient(180deg, ${rc.tint} 0%, transparent 100%)`,
           pointerEvents: 'none',
         }} />
 
-        {/* HUD */}
         <div style={styles.hud}>
           <div style={styles.hudLeft}>
             <span style={{ ...styles.hudRound, color: `${rc.primary}99` }}>
@@ -415,7 +385,6 @@ export const EliminationGamePage: React.FC = () => {
           </div>
         </div>
 
-        {/* Timer bar */}
         {state.activeRound.roundType !== 'time_estimation' && (
           <div style={styles.timerTrack}>
             <div style={{
@@ -427,7 +396,6 @@ export const EliminationGamePage: React.FC = () => {
           </div>
         )}
 
-        {/* Instruction bar */}
         <div style={{
           ...styles.instructionBar,
           borderBottom: `1px solid ${rc.primary}22`,
@@ -446,7 +414,6 @@ export const EliminationGamePage: React.FC = () => {
           }
         `}</style>
 
-        {/* Round component */}
         <div
           className="flex-1 flex items-center justify-center"
           style={{ padding: '8px', overflowY: 'auto', overflowX: 'hidden', minHeight: 0 }}
@@ -457,31 +424,20 @@ export const EliminationGamePage: React.FC = () => {
               gap: '12px', padding: '24px', textAlign: 'center',
             }}>
               <div style={{ fontSize: '32px', marginBottom: '8px' }}>👁</div>
-              <p style={{
-                color: 'rgba(255,255,255,0.5)',
-                fontFamily: 'Inter',
-                fontSize: '14px',
-                margin: 0,
-              }}>
-                You are the host — watching live
+              <p style={{ color: 'rgba(255,255,255,0.5)', fontFamily: 'Inter', fontSize: '14px', margin: 0 }}>
+                You are the host — players are submitting answers on their devices. Keep an eye on the timer and encourage them to submit before time runs out!
               </p>
-              <div style={{
+              {/* <div style={{
                 marginTop: '8px', padding: '12px 20px', borderRadius: '8px',
                 background: 'rgba(255,255,255,0.04)',
                 border: '1px solid rgba(255,255,255,0.08)',
               }}>
-                <p style={{
-                  color: 'rgba(255,255,255,0.3)',
-                  fontFamily: 'Inter',
-                  fontSize: '12px',
-                  margin: 0,
-                  letterSpacing: '0.06em',
-                }}>
+                <p style={{ color: 'rgba(255,255,255,0.3)', fontFamily: 'Inter', fontSize: '12px', margin: 0, letterSpacing: '0.06em' }}>
                   {waitingPlayers.filter((p: any) => p.hasSubmittedCurrentRound).length}
                   {' / '}
                   {waitingPlayers.filter((p: any) => !p.eliminated).length} submitted
                 </p>
-              </div>
+              </div> */}
             </div>
           ) : (
             <div style={{
@@ -496,12 +452,12 @@ export const EliminationGamePage: React.FC = () => {
                 playerId={localPlayerId ?? ''}
                 hasSubmitted={hasSubmitted}
                 onSubmit={handleSubmit}
+                onStartPress={handleStartPress}
               />
             </div>
           )}
         </div>
 
-        {/* Error toast */}
         {state.error && (
           <div style={styles.errorToast}>{state.error}</div>
         )}
@@ -509,7 +465,6 @@ export const EliminationGamePage: React.FC = () => {
     );
   }
 
-  // REVEAL
   if (state.view === 'round_reveal' && state.lastResults) {
     if (isHost) {
       return (
@@ -533,7 +488,6 @@ export const EliminationGamePage: React.FC = () => {
     );
   }
 
-  // RESULTS
   if (state.view === 'round_results' && state.lastResults) {
     return (
       <EliminationResultsPanel
@@ -547,7 +501,6 @@ export const EliminationGamePage: React.FC = () => {
     );
   }
 
-  // ELIMINATED
   if (state.view === 'eliminated') {
     return (
       <EliminationEliminatedView
@@ -562,7 +515,6 @@ export const EliminationGamePage: React.FC = () => {
     );
   }
 
-  // GAME OVER for eliminated players
   if (state.view === 'game_over') {
     return (
       <EliminationEliminatedView
@@ -578,7 +530,6 @@ export const EliminationGamePage: React.FC = () => {
     );
   }
 
-  // WINNER
   if (state.view === 'winner' && state.winner) {
     return (
       <EliminationWinnerView
@@ -596,20 +547,13 @@ export const EliminationGamePage: React.FC = () => {
     );
   }
 
-  // FALLBACK
   return (
     <div className="min-h-screen flex items-center justify-center" style={styles.page}>
-      <div style={{
-        textAlign: 'center',
-        color: 'rgba(255,255,255,0.3)',
-        fontFamily: "'Inter', system-ui, sans-serif",
-      }}>
+      <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontFamily: "'Inter', system-ui, sans-serif" }}>
         <div style={{ fontSize: '32px', marginBottom: '12px' }}>⟳</div>
         <div>Connecting…</div>
         {state.error && (
-          <div style={{ color: '#ff3b5c', marginTop: '8px', fontSize: '13px' }}>
-            {state.error}
-          </div>
+          <div style={{ color: '#ff3b5c', marginTop: '8px', fontSize: '13px' }}>{state.error}</div>
         )}
       </div>
     </div>
@@ -689,41 +633,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: "'Inter', system-ui, sans-serif",
     letterSpacing: '0.03em',
     borderBottom: '1px solid rgba(255,255,255,0.05)',
-  },
-  roundEyebrow: {
-    fontSize: '11px',
-    letterSpacing: '0.25em',
-    color: 'rgba(0,229,255,0.5)',
-    fontFamily: "'Inter', system-ui, sans-serif",
-    textTransform: 'uppercase',
-    marginBottom: '12px',
-  },
-  roundIntroTitle: {
-    fontSize: '42px',
-    fontWeight: 800,
-    letterSpacing: '-0.02em',
-    margin: '0 0 12px',
-  },
-  roundInstruction: {
-    fontSize: '15px',
-    color: 'rgba(255,255,255,0.45)',
-    marginBottom: '32px',
-    fontFamily: "'Inter', system-ui, sans-serif",
-  },
-  introCountdown: {
-    fontSize: '96px',
-    fontWeight: 800,
-    fontFamily: "'Inter', system-ui, sans-serif",
-    color: '#00e5ff',
-    lineHeight: 1,
-    filter: 'drop-shadow(0 0 30px rgba(0,229,255,0.5))',
-    marginBottom: '16px',
-  },
-  activePlayers: {
-    fontSize: '12px',
-    color: 'rgba(255,255,255,0.3)',
-    fontFamily: "'Inter', system-ui, sans-serif",
-    letterSpacing: '0.1em',
   },
   errorToast: {
     position: 'fixed',

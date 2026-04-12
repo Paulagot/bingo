@@ -1,17 +1,36 @@
 // src/components/Web3Provider.tsx
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useQuizConfig } from './Quiz/hooks/useQuizConfig';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import type { ChainConfig } from '../types/chainConfig';
 
+// ─── Context ─────────────────────────────────────────────────────────────────
+interface Web3ChainContextValue {
+  chainConfig: ChainConfig;
+}
+
+const Web3ChainContext = createContext<Web3ChainContextValue>({
+  chainConfig: {},
+});
+
+// ← arrow function fixes Vite Fast Refresh incompatibility
+export const useWeb3ChainConfig = (): ChainConfig =>
+  useContext(Web3ChainContext).chainConfig;
+
+// ─── Mounted guard ────────────────────────────────────────────────────────────
+const Web3ProviderMountedContext = createContext(false);
+
+// ─── Provider props ───────────────────────────────────────────────────────────
 interface Web3ProviderProps {
   children: React.ReactNode;
   force?: boolean;
+  roomConfig?: ChainConfig;
 }
 
+// ─── Module-level cache ───────────────────────────────────────────────────────
 let initializationPromise: Promise<any> | null = null;
 let isInitialized = false;
 let cachedProviders: any | null = null;
-let appKitInstance: any = null;
 
+// ─── Loading fallback ─────────────────────────────────────────────────────────
 const Web3LoadingFallback: React.FC = () => (
   <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
     <div className="text-center">
@@ -21,57 +40,43 @@ const Web3LoadingFallback: React.FC = () => (
   </div>
 );
 
-export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = false }) => {
+// ─── Main component ───────────────────────────────────────────────────────────
+export const Web3Provider: React.FC<Web3ProviderProps> = ({
+  children,
+  force = false,
+  roomConfig = {},
+}) => {
+  const alreadyMounted = useContext(Web3ProviderMountedContext);
   const [providers, setProviders] = useState(cachedProviders);
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout>();
 
-  const { config } = useQuizConfig();
-
   const needsWeb3 = useMemo(() => {
     if (force) return true;
-
-    const paymentMethod = (config as any)?.paymentMethod;
-    const isWeb3RoomFlag = (config as any)?.isWeb3Room;
-
-    if (paymentMethod === 'web3') return true;
-    if (isWeb3RoomFlag === true) return true;
-    if (config?.web3Chain) return true;
-
+    if (roomConfig?.web3Chain) return true;
     const contractAddr = localStorage.getItem('current-contract-address');
     if (contractAddr) return true;
-
     return false;
-  }, [force, config?.web3Chain, (config as any)?.paymentMethod, (config as any)?.isWeb3Room]);
+  }, [force, roomConfig?.web3Chain]);
 
   useEffect(() => {
+    if (alreadyMounted) return;
     if (!needsWeb3) return;
 
     if (isInitialized && cachedProviders) {
-      console.log('✅ [Web3Provider] Using cached providers');
       setProviders(cachedProviders);
       return;
     }
 
     if (initializationPromise) {
-      console.log('⏳ [Web3Provider] Initialization in progress, waiting...');
       initializationPromise
-        .then((result) => {
-          console.log('✅ [Web3Provider] Providers ready from existing init');
-          setProviders(result);
-        })
-        .catch((err) => {
-          console.error('❌ [Web3Provider] Init failed:', err);
-          setLoadingError(err?.message || 'Unknown error');
-        });
+        .then(setProviders)
+        .catch((err) => setLoadingError(err?.message || 'Unknown error'));
       return;
     }
 
-    console.log('🚀 [Web3Provider] Starting new initialization');
-
     timeoutRef.current = setTimeout(() => {
       if (!providers) {
-        console.error('❌ [Web3Provider] Initialization timed out');
         setLoadingError('Web3 initialization timed out. Please refresh the page.');
         initializationPromise = null;
         isInitialized = false;
@@ -80,87 +85,21 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = fa
 
     initializationPromise = (async () => {
       try {
-        console.log('📦 [Web3Provider] Loading modules...');
-
-        const [
-          appKitModule,
-          wagmiModule,
-          queryModule,
-          _solanaModule,
-          configModule,
-        ] = await Promise.all([
-          import('@reown/appkit/react'),
+        const [wagmiModule, queryModule, appKitModule, configModule] = await Promise.all([
           import('wagmi'),
           import('@tanstack/react-query'),
-          import('@reown/appkit-adapter-solana/react'),
+          import('@reown/appkit/react'),
           import('../config'),
         ]);
 
-        console.log('✅ [Web3Provider] Modules loaded');
-
-        const { createAppKit, AppKitProvider } = appKitModule;
         const { WagmiProvider } = wagmiModule;
         const { QueryClient, QueryClientProvider } = queryModule;
-        const { wagmiAdapter, solanaWeb3JsAdapter, projectId, networks, metadata, solanaRpcUrls } = configModule;
-
-        if (!projectId) {
-          throw new Error('Missing VITE_PROJECT_ID environment variable');
-        }
+        const { AppKitProvider } = appKitModule;
+        const { wagmiAdapter } = configModule;
 
         const queryClient = new QueryClient({
           defaultOptions: { queries: { staleTime: 90_000, gcTime: 600_000 } },
         });
-
-        if (!appKitInstance) {
-          console.log('🔧 [Web3Provider] Creating AppKit instance');
-
-          appKitInstance = createAppKit({
-            adapters: [wagmiAdapter, solanaWeb3JsAdapter],
-            projectId,
-            networks,
-            metadata,
-
-            customRpcUrls: {
-              'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': [{ url: solanaRpcUrls.mainnet }],
-              'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1': [{ url: solanaRpcUrls.devnet }],
-              'solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z': [{ url: solanaRpcUrls.devnet }],
-            },
-
-            themeMode: 'dark',
-            themeVariables: {
-              '--w3m-z-index': 2147483647,
-              '--w3m-accent': '#6366f1',
-            },
-
-            allWallets: 'SHOW',
-
-            featuredWalletIds: [
-              'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
-              'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa', // Coinbase
-              '19177a98252e07ddfc9af2083ba8e07ef627cb6103467ffebb3f8f4205fd7927', // Phantom
-              '38f5d18bd8522c244bdd70cb4a68e0e718865155811c043f052fb9f1c51de662', // Backpack
-              'c03dfee351b6fcc421b4494ea33b9d4b92a984f87aa76d1663bb28705e95034a', // Exodus
-            ],
-
-            features: {
-              socials: false,
-              email: false,
-              emailShowWallets: false,
-              analytics: false,
-              swaps: false,
-              onramp: false,
-            },
-
-            enableWalletConnect: true,
-            enableInjected: true,
-            enableEIP6963: true,
-            enableCoinbase: true,
-            coinbasePreference: 'all',
-            defaultNetwork: networks[0],
-          });
-
-          console.log('✅ [Web3Provider] AppKit instance created');
-        }
 
         const result = {
           AppKitProvider,
@@ -172,16 +111,10 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = fa
 
         cachedProviders = result;
         isInitialized = true;
-
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-        }
-
-        console.log('✅ [Web3Provider] Initialization complete');
+        clearTimeout(timeoutRef.current);
         return result;
 
       } catch (err: any) {
-        console.error('❌ [Web3Provider] Initialization error:', err);
         initializationPromise = null;
         isInitialized = false;
         throw err;
@@ -189,26 +122,30 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = fa
     })();
 
     initializationPromise
-      .then((result) => {
-        console.log('✅ [Web3Provider] Setting providers');
-        setProviders(result);
-      })
-      .catch((err) => {
-        console.error('❌ [Web3Provider] Failed:', err);
-        setLoadingError(err?.message || 'Unknown error');
-      });
+      .then(setProviders)
+      .catch((err) => setLoadingError(err?.message || 'Unknown error'));
 
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, [needsWeb3]);
+    return () => clearTimeout(timeoutRef.current);
+  }, [needsWeb3, alreadyMounted]);
 
-  console.log('🔄 [Web3Provider] Render - providers:', !!providers, 'needsWeb3:', needsWeb3);
+  // ── Already mounted above — just update chainConfig context, skip providers ──
+  if (alreadyMounted) {
+    return (
+      <Web3ChainContext.Provider value={{ chainConfig: roomConfig }}>
+        {children}
+      </Web3ChainContext.Provider>
+    );
+  }
 
+  // ── Not a web3 page ───────────────────────────────────────────────────────
   if (!needsWeb3) {
-    return <>{children}</>;
+    return (
+      <Web3ChainContext.Provider value={{ chainConfig: roomConfig }}>
+        <Web3ProviderMountedContext.Provider value={true}>
+          {children}
+        </Web3ProviderMountedContext.Provider>
+      </Web3ChainContext.Provider>
+    );
   }
 
   if (loadingError) {
@@ -229,22 +166,22 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children, force = fa
     );
   }
 
-  if (!providers) {
-    return <Web3LoadingFallback />;
-  }
-
-  console.log('✅ [Web3Provider] Rendering with providers');
+  if (!providers) return <Web3LoadingFallback />;
 
   const { AppKitProvider, WagmiProvider, QueryClientProvider, queryClient, wagmiConfig } = providers;
 
   return (
-    <AppKitProvider>
-      <QueryClientProvider client={queryClient}>
-        <WagmiProvider config={wagmiConfig}>
-          {children}
-        </WagmiProvider>
-      </QueryClientProvider>
-    </AppKitProvider>
+    <Web3ChainContext.Provider value={{ chainConfig: roomConfig }}>
+      <Web3ProviderMountedContext.Provider value={true}>
+        <AppKitProvider>
+          <QueryClientProvider client={queryClient}>
+            <WagmiProvider config={wagmiConfig}>
+              {children}
+            </WagmiProvider>
+          </QueryClientProvider>
+        </AppKitProvider>
+      </Web3ProviderMountedContext.Provider>
+    </Web3ChainContext.Provider>
   );
 };
 

@@ -16,36 +16,48 @@ import {
 /**
  * Apply eliminations after a round completes.
  *
+ * Derives all round thresholds from GAME_RULES so changing TOTAL_ROUNDS
+ * in eliminationConstants.js is the only change needed.
+ *
+ *   Safe rounds      : 1 → FIRST_ELIMINATING_ROUND - 1  (no cuts)
+ *   Middle rounds    : FIRST_ELIMINATING_ROUND → TOTAL_ROUNDS - 2  (% cuts)
+ *   Finalist round   : TOTAL_ROUNDS - 1  (reduce to ROUND_7_TARGET_FINALISTS)
+ *   Final round      : TOTAL_ROUNDS  (everyone except rank 1 eliminated)
+ *
  * @param {string} roomId
  * @param {number} roundNumber         - 1-indexed
- * @param {Object[]} rankedResults     - sorted worst→best (ascending rank = better)
+ * @param {Object[]} rankedResults     - sorted by rank ascending (rank 1 = best)
  * @returns {string[]} eliminatedPlayerIds this round
  */
 export const applyEliminations = (roomId, roundNumber, rankedResults) => {
   const activeCount = getActivePlayerCount(roomId);
+  const finalistRound = GAME_RULES.TOTAL_ROUNDS - 1;
 
-  // Sort by rank descending: highest rank number = worst performer
+  // Sort worst-first: highest rank number = worst performer
   const sortedWorstFirst = [...rankedResults].sort((a, b) => b.rank - a.rank);
 
   let eliminationCount = 0;
 
-  const schedule = ELIMINATION_SCHEDULE[roundNumber];
-
-  if (roundNumber <= 2) {
-    // Rounds 1 & 2 are safe rounds — no elimination
+  if (roundNumber < GAME_RULES.FIRST_ELIMINATING_ROUND) {
+    // Safe rounds — no elimination
     return [];
   }
 
   if (roundNumber === GAME_RULES.TOTAL_ROUNDS) {
-    // Final round: everyone except rank 1 is eliminated
+    // Final round — everyone except the winner is eliminated
     eliminationCount = activeCount - 1;
-  } else if (roundNumber === 7) {
-    // Round 7: reduce to ROUND_7_TARGET_FINALISTS
+
+  } else if (roundNumber === finalistRound) {
+    // Finalist round — reduce to ROUND_7_TARGET_FINALISTS survivors
     eliminationCount = calcEliminationToTarget(activeCount, ROUND_7_TARGET_FINALISTS);
-  } else if (typeof schedule === 'number') {
-    eliminationCount = calcEliminationCount(activeCount, schedule);
+
   } else {
-    return [];
+    const schedule = ELIMINATION_SCHEDULE[roundNumber];
+    if (typeof schedule === 'number' && schedule > 0) {
+      eliminationCount = calcEliminationCount(activeCount, schedule);
+    } else {
+      return [];
+    }
   }
 
   const eliminated = [];
@@ -61,14 +73,15 @@ export const applyEliminations = (roomId, roundNumber, rankedResults) => {
 };
 
 /**
- * Determine the winner from remaining active players after round 8.
- * Tie-break:
- *   1. Lowest round 8 error (highest score)
- *   2. Fastest submission in round 8
- *   3. Lowest cumulative error (highest cumulative score)
+ * Determine the winner from remaining active players after the final round.
  *
- * @param {Object[]} rankedResults  - round 8 ranked results
- * @param {Object} submissions      - { playerId: submissionObj }
+ * Tie-break order:
+ *   1. Highest score in the final round
+ *   2. Earliest submission timestamp in the final round
+ *   3. Highest cumulative score across all rounds
+ *
+ * @param {Object[]} rankedResults  - final round ranked results
+ * @param {Object}   submissions    - { playerId: submissionObj }
  * @param {Object[]} players        - all player objects
  * @returns {string} winnerId
  */
@@ -79,7 +92,7 @@ export const determineWinner = (rankedResults, submissions, players) => {
   const playerMap = Object.fromEntries(players.map((p) => [p.playerId, p]));
 
   const candidates = [...rankedResults].sort((a, b) => {
-    // 1. Higher score = better (rank already sorted, but recheck)
+    // 1. Higher score = better
     if (b.score !== a.score) return b.score - a.score;
 
     // 2. Earlier submission timestamp
@@ -89,7 +102,7 @@ export const determineWinner = (rankedResults, submissions, players) => {
       return subA.submittedAt - subB.submittedAt;
     }
 
-    // 3. Higher cumulative score
+    // 3. Higher cumulative score as final tiebreaker
     const cumA = playerMap[a.playerId]?.cumulativeScore ?? 0;
     const cumB = playerMap[b.playerId]?.cumulativeScore ?? 0;
     return cumB - cumA;

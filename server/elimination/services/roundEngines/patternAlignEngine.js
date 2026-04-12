@@ -4,12 +4,18 @@ import {
   distance,
   errorToScore,
   calcSpeedBonus,
+  lerp,
 } from '../../utils/eliminationHelpers.js';
-import { ROUND_TYPE, ROUND_DURATION } from '../../utils/eliminationConstants.js';
+import {
+  ROUND_TYPE,
+  ROUND_DURATION,
+  GAME_RULES,
+} from '../../utils/eliminationConstants.js';
 
 const SHAPE_TYPES = ['square', 'triangle', 'pentagon', 'diamond', 'hexagon', 'rectangle'];
 
-// Angular difference handling wrap-around (0–360)
+const clampNorm = (v) => Math.min(0.9, Math.max(0.1, v));
+
 const angularDiff360 = (a, b) => {
   const diff = Math.abs(a - b) % 360;
   return Math.min(diff, 360 - diff);
@@ -17,29 +23,39 @@ const angularDiff360 = (a, b) => {
 
 // ─── Generate ─────────────────────────────────────────────────────────────────
 
-export const generateRoundConfig = ({ difficulty = 1 } = {}) => {
+export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
+  // ── Dynamic difficulty pattern (Section 0.2) ──────────────────────────────
+  const safeTotalRounds = totalRounds ?? GAME_RULES.TOTAL_ROUNDS;
+  const maxDifficulty = 1 + (safeTotalRounds - 1) * 0.15;
+  const t = Math.min(1, Math.max(0, (difficulty - 1) / (maxDifficulty - 1)));
+  const tCurved = Math.sqrt(t);
+
   const shapeType = randomFrom(SHAPE_TYPES);
 
-  // Target — random position and rotation
   const targetX = randomBetween(0.25, 0.75);
   const targetY = randomBetween(0.20, 0.60);
   const targetRotation = Math.round(randomBetween(0, 355));
 
-  // Player starts offset from target — more offset at higher difficulty
-  const maxOffset = 0.15 + (difficulty - 1) * 0.04;
+  // ── Player start offset: further away at high difficulty ──────────────────
+  const maxOffset = lerp(0.12, 0.28, t);
   const playerStartX = clampNorm(targetX + randomBetween(-maxOffset, maxOffset));
   const playerStartY = clampNorm(targetY + randomBetween(-maxOffset, maxOffset));
+
+  // ── Rotation offset: wider at high difficulty ─────────────────────────────
+  const minRotOffset = Math.round(lerp(20, 60, t));
+  const maxRotOffset = Math.round(lerp(80, 160, t));
   const playerStartRotation = Math.round(
-    (targetRotation + randomBetween(20, 80 + difficulty * 15)) % 360
+    (targetRotation + randomBetween(minRotOffset, maxRotOffset)) % 360
   );
 
-  // Shape size
-  const shapeSize = randomBetween(0.15, 0.30);
-
-  // Target visible duration
-  const targetVisibleMs = Math.round(
-    Math.max(600, randomBetween(2000 - difficulty * 250, 3000 - difficulty * 200))
+  // ── Shape size: bigger range, shrinks at high difficulty ──────────────────
+  const shapeSize = randomBetween(
+    lerp(0.24, 0.16, t),
+    lerp(0.38, 0.24, t),
   );
+
+  // ── Target visible duration: 3000ms (easy) → 1200ms (hard), sqrt-curved ───
+  const targetVisibleMs = Math.round(lerp(3000, 1200, tCurved));
 
   return {
     roundType: ROUND_TYPE.PATTERN_ALIGN,
@@ -55,8 +71,6 @@ export const generateRoundConfig = ({ difficulty = 1 } = {}) => {
     durationMs: ROUND_DURATION[ROUND_TYPE.PATTERN_ALIGN],
   };
 };
-
-const clampNorm = (v) => Math.min(0.9, Math.max(0.1, v));
 
 // ─── Validate ─────────────────────────────────────────────────────────────────
 
@@ -79,9 +93,8 @@ export const scoreSubmission = (submission, config, roundStartTimestamp) => {
     config.targetX, config.targetY,
   );
   const rotDiff = angularDiff360(submission.rotation, config.targetRotation);
-  const rotError = rotDiff / 180; // normalise to 0–1 (max 180° off)
+  const rotError = rotDiff / 180;
 
-  // Position and rotation weighted equally
   const errorDistance = (posError + rotError) / 2;
   const precisionScore = errorToScore(errorDistance, 1.0);
   const speedBonus = calcSpeedBonus(
@@ -102,7 +115,7 @@ export const scoreSubmission = (submission, config, roundStartTimestamp) => {
 
 export const formatRevealData = (submission, config, scoringResult) => ({
   roundType: ROUND_TYPE.PATTERN_ALIGN,
-  shapeType: config.shapeType,   // included so reveal canvas knows what to draw
+  shapeType: config.shapeType,
   shapeSize: config.shapeSize,
   targetX: config.targetX,
   targetY: config.targetY,

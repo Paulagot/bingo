@@ -143,17 +143,36 @@ export const BalancePointRound: React.FC<Props> = ({ config, roundId, playerId, 
           );
         })()}
 
-        {/* Lock indicator */}
-        {(locked || hasSubmitted) && (
-          <text x="50" y="70" textAnchor="middle"
-            fill={`${colour}88`} fontSize="3" fontFamily="Inter">Locked in</text>
-        )}
-        {/* Tap hint when not yet dragged */}
-        {!hasDragged && !hasSubmitted && (
-          <text x="50" y="70" textAnchor="middle"
-            fill="rgba(255,255,255,0.2)" fontSize="3" fontFamily="Inter">Drag the white weight</text>
-        )}
+   
       </svg>
+      {/* Lock-in button */}
+      {!locked && !hasSubmitted && (
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={handleLock}
+          style={{
+            marginTop: '4px',
+            padding: '12px 32px',
+            borderRadius: '8px',
+            border: `1px solid ${colour}`,
+            background: hasDragged ? `${colour}20` : 'transparent',
+            color: hasDragged ? colour : 'rgba(255,255,255,0.2)',
+            fontFamily: "'Bebas Neue', Impact, sans-serif",
+            fontSize: '16px',
+            letterSpacing: '0.05em',
+            cursor: hasDragged ? 'pointer' : 'not-allowed',
+            transition: 'all 0.2s',
+            pointerEvents: hasDragged ? 'auto' : 'none',
+          }}
+        >
+          Lock In
+        </button>
+      )}
+      {(locked || hasSubmitted) && (
+        <p style={{ margin: 0, color: `${colour}88`, fontFamily: 'Inter', fontSize: '13px' }}>
+          Locked in
+        </p>
+      )}
     </div>
   );
 };

@@ -157,7 +157,7 @@ export const EliminationWaitingRoom: React.FC<Props> = ({
 
           {/* ── On-chain contract link — web3 rooms only ── */}
 {isWeb3Room && roomData?.roomPda && (
-  <a ref={`https://explorer.solana.com/address/${roomData.roomPda}${roomData.solanaCluster === 'devnet' ? '?cluster=devnet' : ''}`}
+  <a href={`https://explorer.solana.com/address/${roomData.roomPda}${roomData.solanaCluster === 'devnet' ? '?cluster=devnet' : ''}`}
     target="_blank"
     rel="noopener noreferrer"
     style={styles.contractLink}
@@ -258,7 +258,10 @@ export const EliminationWaitingRoom: React.FC<Props> = ({
               <EliminationCancelSection
                 roomId={roomId}
                 hostId={hostId}
-                roomData={roomData}
+                 roomData={{
+        ...roomData,
+        tokenCode: getTokenByMint(roomData.feeMint)?.code ?? 'UNKNOWN',
+      }}
                 players={players}
                 onCancelled={onCancelled}
               />

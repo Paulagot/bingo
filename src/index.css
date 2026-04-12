@@ -25,3 +25,5 @@
 
 .animate-fade-in { animation: fade-in 120ms ease-out; }
 .animate-slide-up { animation: slide-up 160ms ease-out; }
+
+.font-mono { font-family: 'DM Mono', 'Courier New', monospace !important; }

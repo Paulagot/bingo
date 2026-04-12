@@ -3,27 +3,48 @@ import {
   clamp,
   errorToScore,
   calcSpeedBonus,
+  lerp,
 } from '../../utils/eliminationHelpers.js';
-import { ROUND_TYPE, ROUND_DURATION } from '../../utils/eliminationConstants.js';
+import {
+  ROUND_TYPE,
+  ROUND_DURATION,
+  GAME_RULES,
+} from '../../utils/eliminationConstants.js';
 
 // ─── Generate ─────────────────────────────────────────────────────────────────
 
-export const generateRoundConfig = ({ difficulty = 1 } = {}) => {
-  // Target angle 0–180° — harder difficulties use angles closer to each other
+export const generateRoundConfig = ({ difficulty = 1, totalRounds } = {}) => {
+  // ── Dynamic difficulty pattern (Section 0.2) ──────────────────────────────
+  const safeTotalRounds = totalRounds ?? GAME_RULES.TOTAL_ROUNDS;
+  const maxDifficulty = 1 + (safeTotalRounds - 1) * 0.15;
+  const t = Math.min(1, Math.max(0, (difficulty - 1) / (maxDifficulty - 1)));
+  const tCurved = Math.sqrt(t); // softer curve for timing mechanics
+
   const targetAngle = Math.round(randomBetween(5, 175));
 
-  // Initial angle offset so player always has to move: at least 20° away
+  // ── Initial offset: further from target at high difficulty ────────────────
+  // Easy: at least 20° away. Hard: at least 60° away — more rotation needed,
+  // more chance of overshooting
+  const minOffset = Math.round(lerp(20, 60, t));
   let initialAngle = Math.round(randomBetween(5, 175));
-  while (Math.abs(initialAngle - targetAngle) < 20) {
+  let attempts = 0;
+  while (Math.abs(initialAngle - targetAngle) < minOffset && attempts < 200) {
     initialAngle = Math.round(randomBetween(5, 175));
+    attempts++;
   }
 
-  // Anchor near centre — keep well away from edges so line never exits viewport
   const anchorX = randomBetween(0.40, 0.60);
   const anchorY = randomBetween(0.40, 0.60);
 
-  // Guide visibility: V1 always shows guide briefly
-  const guideVisibleMs = Math.round(randomBetween(1500, 2500));
+  // ── Guide visibility: shorter at high difficulty (less time to memorise) ──
+  // Uses tCurved so it doesn't drop too aggressively in early rounds
+  const guideVisibleMs = Math.round(lerp(2500, 800, tCurved));
+
+  // ── Line length: longer range, shorter at high difficulty ─────────────────
+  const lineLength = randomBetween(
+    lerp(0.40, 0.32, t),
+    lerp(0.50, 0.38, t),
+  );
 
   return {
     roundType: ROUND_TYPE.DRAW_ANGLE,
@@ -32,7 +53,7 @@ export const generateRoundConfig = ({ difficulty = 1 } = {}) => {
     anchorX,
     anchorY,
     guideVisibleMs,
-    lineLength: randomBetween(0.25, 0.4), // normalised line length
+    lineLength,
     durationMs: ROUND_DURATION[ROUND_TYPE.DRAW_ANGLE],
   };
 };
@@ -57,7 +78,6 @@ const angularDiff = (a, b) => {
 
 export const scoreSubmission = (submission, config, roundStartTimestamp) => {
   const diff = angularDiff(submission.angle, config.targetAngle);
-  // Normalise: 0° diff = perfect, 90° = worst possible
   const errorDistance = diff / 90;
   const precisionScore = errorToScore(errorDistance, 1.0);
   const speedBonus = calcSpeedBonus(

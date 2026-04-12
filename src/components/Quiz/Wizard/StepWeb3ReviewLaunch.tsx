@@ -1,12 +1,10 @@
 // src/components/Quiz/Wizard/StepWeb3ReviewLaunch.tsx
 
-import { FC } from "react";
+import { FC, useEffect } from "react";
 
 import { useQuizSetupStore } from "../hooks/useQuizSetupStore";
 
-
 import ReviewHostEventSection from "./web3setup/ReviewHostEventSection";
-
 import ReviewQuizStructureSection from "./web3setup/ReviewQuizStructureSection";
 import BlockchainWalletSection from "./web3setup/BlockchainWalletSection";
 
@@ -16,7 +14,7 @@ import StellarLaunchSection from "./StellarLaunchSection";
 import ClearSetupButton from "./ClearSetupButton";
 
 import { useChainWallet } from "../../../hooks/useChainWallet";
-import { toChainConfig } from "../../../types/chainConfig";
+import { useWeb3ChainConfig } from "../../Web3Provider"; // ← NEW
 
 import {
   ChevronLeft,
@@ -28,21 +26,29 @@ import type { WizardStepProps } from "./WizardStepProps";
 const StepWeb3ReviewLaunch: FC<WizardStepProps> = ({ onBack, onResetToFirst }) => {
 
   const { setupConfig } = useQuizSetupStore();
-  
-  // ✅ Pass setupConfig as externalConfig (not externalSetupConfig)
-const chainConfig = toChainConfig(setupConfig);
-const {
-  chainFamily: selectedChain,
-  address: walletAddress,
-  isConnected: isWalletConnected,
-  isOnCorrectNetwork,
-  networkInfo,
-} = useChainWallet(chainConfig);
+
+  // ← CHANGED: read chain config from context (set by Web3QuizWizard via Web3Provider)
+  // This is what was broken before — toChainConfig(setupConfig) was reading the right
+  // values but Web3Provider wasn't accepting roomConfig so nothing was wired up.
+  const chainConfig = useWeb3ChainConfig();
+
+  const {
+    chainFamily: selectedChain,
+    address: walletAddress,
+    isConnected: isWalletConnected,
+    isOnCorrectNetwork,
+    networkInfo,
+    switchToCorrectNetwork, // ← NEW: pull this out so we can call it
+  } = useChainWallet(chainConfig);
+
+  // ← NEW: trigger network switch once the wallet connects
+  useEffect(() => {
+    if (!isWalletConnected) return;
+    switchToCorrectNetwork();
+  }, [isWalletConnected, switchToCorrectNetwork]);
   
   const {
-    // state
     launchState,
- 
     canLaunch,
     isLaunching,
     resolvedRoomId,
@@ -50,16 +56,10 @@ const {
     contractAddress,
     txHash,
     explorerUrl,
-
-    // UI message
     currentMessage,
-
-    // event handlers
     handleLaunch,
     handleWalletConnect,
     handleWalletDisconnect,
-
-    // for Stellar section
     deployTrigger,
     setDeploymentStep,
     setContractAddress,
@@ -117,7 +117,6 @@ const {
       </div>
     );
   };
-   
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -145,7 +144,6 @@ const {
 
       {/* Sections */}
       <ReviewHostEventSection setupConfig={setupConfig} />
-     
       <ReviewQuizStructureSection setupConfig={setupConfig} />
 
       {/* Stellar-only deploy block */}
@@ -180,7 +178,7 @@ const {
         handleWalletDisconnect={handleWalletDisconnect}
         isWalletConnected={isWalletConnected}
         walletAddress={walletAddress ?? null}
-       networkName={networkInfo.expectedNetwork}
+        networkName={networkInfo.expectedNetwork}
         isOnCorrectNetwork={isOnCorrectNetwork}
         actualNetwork={networkInfo.currentNetwork}
         expectedNetwork={networkInfo.expectedNetwork}
@@ -199,7 +197,6 @@ const {
           <ChevronLeft className="h-4 w-4" />
           <span>Back</span>
         </button>
-          
 
         <button
           type="button"

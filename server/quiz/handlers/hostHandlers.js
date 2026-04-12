@@ -25,6 +25,7 @@ import { TiebreakerService } from '../gameplayEngines/services/TiebreakerService
 import { saveImpactCampaignEvent } from './saveImpactCampaignEvent.js';
 import { syncImpactEventToFundraiselyClubMgmt } from '../handlers/syncImpactEventToFundraiselyClubMgmt.js';
 import { rollupFundraiselyCampaignFinancials } from '../handlers/rollupFundraiselyCampaignFinancials.js';
+import { insertPrizePayout } from '../../mgtsystem/services/web3TransactionService.js';
 
 
 import { logPrizeDistributionInitiated, logPrizeDistributionSuccess, logPrizeDistributionFailure, logWeb3RoomConfig, logWinnerAddressMapping } from './blockchainLoggingHelper.js';
@@ -119,6 +120,21 @@ export function setupHostHandlers(socket, namespace) {
     }
   }
 
+// PATCH for hostHandlers.js — fix computeImpactEventTotals
+//
+// The quiz contract now has FIXED splits. web3PrizeSplit in room.config
+// is either absent or stale from the old dynamic fee system.
+// Replace computeImpactEventTotals with this version:
+
+// ── Fixed quiz web3 split constants ──────────────────────────────────────────
+const QUIZ_WEB3_SPLIT = {
+  host:      25,   // %
+  charity:   30,   // %
+  platform:  15,   // %
+  prize1st:  18,   // %
+  prize2nd:  12,   // %
+};
+
 function computeImpactEventTotals(room) {
   const entryFee = Number(room.config?.entryFee || 0);
 
@@ -138,33 +154,49 @@ function computeImpactEventTotals(room) {
 
   const totalRaised = totalEntryReceived + extrasRevenue;
 
-  const split = room.config?.web3PrizeSplit || {};
-  const charityPercent = Number(split.charity ?? 0);
-  const hostPercent = Number(
-    split.host ?? split.hostFee ?? split.hostFeePercent ?? 0
-  );
+  // ── Use fixed contract splits for web3 rooms ──────────────────────────────
+  // web3PrizeSplit in room.config is from the old dynamic-fee system and is
+  // no longer reliable. The contract now enforces fixed percentages.
+  const isWeb3Room = room.config?.paymentMethod === 'web3' || room.config?.isWeb3Room;
 
-  // ✅ FIX: Use 4 decimals for micro-transactions
-  const charityAmount =
-    charityPercent > 0
-      ? Number((totalRaised * charityPercent / 100).toFixed(4))
-      : null;
+  let charityPercent, hostPercent, platformPercent;
 
-  const hostFeeAmount =
-    hostPercent > 0
-      ? Number((totalRaised * hostPercent / 100).toFixed(4))
-      : null;
+  if (isWeb3Room) {
+    charityPercent  = QUIZ_WEB3_SPLIT.charity;   // 30
+    hostPercent     = QUIZ_WEB3_SPLIT.host;       // 25
+    platformPercent = QUIZ_WEB3_SPLIT.platform;   // 15
+  } else {
+    // Web2 rooms — still read from config (dynamic)
+    const split = room.config?.web3PrizeSplit || {};
+    charityPercent  = Number(split.charity  ?? 0);
+    hostPercent     = Number(split.host ?? split.hostFee ?? split.hostFeePercent ?? 0);
+    platformPercent = 0; // not tracked for web2
+  }
+
+  const charityAmount    = charityPercent  > 0
+    ? Number((totalRaised * charityPercent  / 100).toFixed(6))
+    : null;
+
+  const hostFeeAmount    = hostPercent     > 0
+    ? Number((totalRaised * hostPercent     / 100).toFixed(6))
+    : null;
+
+  const platformRevenue  = platformPercent > 0
+    ? Number((totalRaised * platformPercent / 100).toFixed(6))
+    : null;
 
   return {
     entryFee,
-    paidPlayersCount: paidPlayers.length,
-    totalEntryReceived: Number(totalEntryReceived.toFixed(4)),
-    extrasRevenue: Number(extrasRevenue.toFixed(4)),
-    totalRaised: Number(totalRaised.toFixed(4)),
+    paidPlayersCount:     paidPlayers.length,
+    totalEntryReceived:   Number(totalEntryReceived.toFixed(6)),
+    extrasRevenue:        Number(extrasRevenue.toFixed(6)),
+    totalRaised:          Number(totalRaised.toFixed(6)),
     charityPercent,
     hostPercent,
+    platformPercent,
     charityAmount,
     hostFeeAmount,
+    platformRevenue,
   };
 }
 
@@ -979,9 +1011,59 @@ socket.on(
     });
 
     if (success) {
-      room.prizeDistributionStatus = 'completed';
-      room.prizeDistributionTxHash = txHash;
-      room.currentPhase = 'complete';
+     room.prizeDistributionStatus = 'completed';
+room.prizeDistributionTxHash = txHash;
+room.currentPhase = 'complete';
+ 
+// ── Write prize payout to web3 transaction ledger ─────────────────────────
+// room.finalWinners is an array of wallet addresses (set in end_quiz_and_distribute_prizes)
+// The distribute tx pays all winners in one on-chain call — we record one row
+// per winner wallet so we have a full per-wallet ledger.
+if (txHash && Array.isArray(room.finalWinners) && room.finalWinners.length > 0) {
+  const resolvedChain   = web3Chain  ?? room.config?.web3Chain  ?? 'unknown';
+  const resolvedNetwork = network    ?? room.config?.web3Network ?? room.config?.evmNetwork ?? room.config?.solanaCluster ?? 'unknown';
+  const resolvedToken   = (room.config?.web3Currency ?? room.config?.currencySymbol ?? 'UNKNOWN').toUpperCase();
+ 
+  // entryFee is human-readable in the quiz — convert to raw for the ledger
+  const TOKEN_DECIMALS = {
+    USDC: 6, USDT: 6, SOL: 9, BONK: 5, PYUSD: 6, EURC: 6,
+    ETH: 18, MATIC: 18, BNB: 18,
+  };
+  const decimals = TOKEN_DECIMALS[resolvedToken] ?? 6;
+  const divisor  = Math.pow(10, decimals);
+  const entryFeeRaw = Math.round(parseFloat(room.config?.entryFee ?? '0') * divisor);
+  const totalPoolRaw = entryFeeRaw * (room.players?.filter(p => p.paid)?.length ?? 0);
+ 
+  const tokenAddress = room.config?.web3ContractAddress
+    ?? room.config?.contractAddress
+    ?? null;
+ 
+ const payoutPromises = room.finalWinners.map((winnerWallet, idx) => {
+  const rankPct = idx === 0
+    ? QUIZ_WEB3_SPLIT.prize1st / 100   // 0.18
+    : QUIZ_WEB3_SPLIT.prize2nd / 100;  // 0.12
+  const winnerAmount = Math.floor(totalPoolRaw * rankPct);
+
+  return insertPrizePayout({
+    game_type:      'quiz',
+    room_id:        roomId,
+    campaign_id:    null,
+    wallet_address: winnerWallet,
+    chain:          resolvedChain,
+    network:        resolvedNetwork,
+    tx_hash:        txHash,
+    fee_token:      resolvedToken,
+    token_address:  tokenAddress,
+    amount:         winnerAmount,
+  }).catch(err =>
+    console.warn(`[Quiz] Prize payout ledger write failed for wallet ${winnerWallet}:`, err.message)
+  );
+});
+ 
+  Promise.allSettled(payoutPromises).then(() => {
+    if (debug) console.log(`[Quiz] ✅ Prize payout ledger rows written for ${room.finalWinners.length} winner(s), room ${roomId}`);
+  });
+}
 
       // ✅ Store the final charity wallet IF provided
       if (charityWallet) {
