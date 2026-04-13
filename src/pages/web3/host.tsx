@@ -484,14 +484,14 @@ const Web3HostPage: React.FC = () => {
 
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <a
-                href="/web3/quiz?action=host"
+                href="/web3/quiz"
                 className="inline-flex items-center gap-2 rounded-xl border border-[#a3f542]/40 bg-[#a3f542]/10 px-6 py-3 font-mono font-semibold text-[#a3f542] transition hover:border-[#a3f542]/80 hover:bg-[#a3f542]/20"
               >
                 <Trophy className="h-4 w-4" /> Host a quiz
               </a>
 
               <a
-                href="/web3/elimination?action=host"
+                href="/web3/elimination"
                 className="inline-flex items-center gap-2 rounded-xl border border-orange-400/40 bg-orange-400/10 px-6 py-3 font-mono font-semibold text-orange-400 transition hover:border-orange-400/80 hover:bg-orange-400/20"
               >
                 <Crosshair className="h-4 w-4" /> Host elimination
