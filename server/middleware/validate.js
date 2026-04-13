@@ -20,7 +20,9 @@ export const resetConfirmSchema = z.object({
 
 export function validate(schema) {
   return (req, res, next) => {
+    console.log('🔍 Validate middleware hit for:', req.path);
     const parsed = schema.safeParse(req.body);
+    console.log('🔍 Parse result:', parsed.success, !parsed.success && parsed.error.flatten());
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.flatten() });
     }
