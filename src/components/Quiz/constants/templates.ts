@@ -89,53 +89,53 @@ const quizTemplates: QuizTemplate[] = [
     tags: ['Audience: Mixed','Topic: General','Duration: ≈7m'],
   },
 
-  {
-  id: 'test',
-  name: 'TEST – Hidden Object',
-  description: 'Temporary template to validate hidden object round end-to-end (delete later).',
-  icon: '🧪',
-  difficulty: 'Medium',
-  rounds: [
-        {
-      type: 'order_image',  // ✅ NEW round type
-      category: 'Art',  // or 'Historical Events', 'Size Comparison', 'Age Order'
-      difficulty: 'easy',  // easy, medium, or hard
-      customConfig: {
-        questionsPerRound: 2,  // Number of ordering questions
-        timePerQuestion: 30,   // 30 seconds per question
-        pointsPerDifficulty: { easy: 2, medium: 4, hard: 6 },
-      },},
+//   {
+//   id: 'test',
+//   name: 'TEST – Hidden Object',
+//   description: 'Temporary template to validate hidden object round end-to-end (delete later).',
+//   icon: '🧪',
+//   difficulty: 'Medium',
+//   rounds: [
+//         {
+//       type: 'order_image',  // ✅ NEW round type
+//       category: 'Art',  // or 'Historical Events', 'Size Comparison', 'Age Order'
+//       difficulty: 'easy',  // easy, medium, or hard
+//       customConfig: {
+//         questionsPerRound: 2,  // Number of ordering questions
+//         timePerQuestion: 30,   // 30 seconds per question
+//         pointsPerDifficulty: { easy: 2, medium: 4, hard: 6 },
+//       },},
       
-    // {
-    //   type: 'hidden_object',
-    //   category: 'kids',
-    //   difficulty: 'hard',
-    //   customConfig: {
-    //     // keep consistent with your RoundConfig shape
-    //     questionsPerRound: 2,
-    //     timePerQuestion: 0,
-    //     totalTimeSeconds: 15, // ✅ round duration
-    //     // optional if you added nested config:
-    //     // hiddenObject: { secondsToPoints: 1 }
-    //   }
-    // },
-    //  {
-    //   type: 'hidden_object',
-    //   category: 'kids',
-    //   difficulty: 'hard',
-    //   customConfig: {
-    //     // keep consistent with your RoundConfig shape
-    //     questionsPerRound: 1,
-    //     timePerQuestion: 0,
-    //     totalTimeSeconds: 45, // ✅ round duration
-    //     // optional if you added nested config:
-    //     // hiddenObject: { secondsToPoints: 1 }
-    //   }
-    // },
+//     // {
+//     //   type: 'hidden_object',
+//     //   category: 'kids',
+//     //   difficulty: 'hard',
+//     //   customConfig: {
+//     //     // keep consistent with your RoundConfig shape
+//     //     questionsPerRound: 2,
+//     //     timePerQuestion: 0,
+//     //     totalTimeSeconds: 15, // ✅ round duration
+//     //     // optional if you added nested config:
+//     //     // hiddenObject: { secondsToPoints: 1 }
+//     //   }
+//     // },
+//     //  {
+//     //   type: 'hidden_object',
+//     //   category: 'kids',
+//     //   difficulty: 'hard',
+//     //   customConfig: {
+//     //     // keep consistent with your RoundConfig shape
+//     //     questionsPerRound: 1,
+//     //     timePerQuestion: 0,
+//     //     totalTimeSeconds: 45, // ✅ round duration
+//     //     // optional if you added nested config:
+//     //     // hiddenObject: { secondsToPoints: 1 }
+//     //   }
+//     // },
 
-  ],
-  tags: ['Audience: Test', 'Topic: Hidden Object', 'Duration: ≈3m']
-},
+//   ],
+//   tags: ['Audience: Test', 'Topic: Hidden Object', 'Duration: ≈3m']
+// },
 
  {
     id: 'Sample',

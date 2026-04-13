@@ -435,6 +435,16 @@ app.get('/robots.txt', (req, res) => {
   });
 });
 
+// Add this BEFORE your express.static and SPA catch-all
+app.use((req, res, next) => {
+  try {
+    decodeURIComponent(req.path);
+    next();
+  } catch (e) {
+    res.status(400).end('Bad Request');
+  }
+});
+
 // Serve public static files (images, etc.)
 app.use(express.static(path.join(__dirname, '../public')));
 
