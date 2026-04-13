@@ -385,6 +385,8 @@ app.use('/api/web3-transactions', web3TransactionRoutes);
 app.use('/api/web3/auth', web3AuthRoutes);
 app.use('/api/web3/fundraisers', web3FundraiserRoutes)
 app.use('/api/web3/public-events', web3PublicEventsRoutes)
+app.use('/api/contact', contactRoute);
+app.use('/api/auth/reset', passwordResetRoute);
 
 console.log('✅ Routes setup complete');
 
@@ -619,12 +621,7 @@ try {
   console.error('⚠️ Failed to setup socket handlers:', error.message);
 }
 
-try {
-  app.use('/api/contact', contactRoute);
-  app.use('/api/auth/reset', passwordResetRoute);
-} catch (error) {
-  console.error('⚠️ Failed to setup API routes:', error.message);
-}
+
 
 /* ──────────────────────────────────────────────────────────
    Global error handler — must be last middleware
