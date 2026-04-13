@@ -52,29 +52,46 @@ type Cause = {
 
 const CauseCard: React.FC<{ cause: Cause }> = ({ cause }) => {
   const inner = (
-    <div className="group relative flex h-full flex-col items-center justify-center rounded-2xl border border-[#1e2d42] bg-[#0f1520] p-6 transition-all duration-300 hover:border-[#6ef0d4]/30 hover:bg-[#141c2b]">
-      <div className="mb-4 flex min-h-[120px] w-full items-center justify-center">
+    <div className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-[#1e2d42] bg-[#0f1520] transition-all duration-300 hover:border-[#6ef0d4]/35">
+      {/* Accent strip */}
+      <div className="h-1 w-full bg-gradient-to-r from-[#6ef0d4] to-[#3bb8a0] flex-shrink-0" />
+
+      {/* Logo area — contained background so logos don't float */}
+      <div className="flex min-h-[140px] w-full items-center justify-center border-b border-[#1e2d42] bg-[#141c2b] px-6 py-6">
         <img
           src={withBase(cause.imgSrc)}
           alt={cause.imgAlt ?? cause.name}
           loading="lazy"
-          width={220}
-          height={100}
-          className="max-h-28 max-w-[320px] w-auto object-contain"
+          width={320}
+          height={120}
+          className="max-h-28 max-w-[340px] w-full object-contain"
           onError={e => {
-            (e.currentTarget as HTMLImageElement).style.opacity = '0.3';
+            (e.currentTarget as HTMLImageElement).style.opacity = '0.25';
           }}
         />
       </div>
-      <div className="text-center">
-        <p className="font-mono text-sm font-bold text-white">{cause.name}</p>
+
+      {/* Body */}
+      <div className="flex flex-1 flex-col p-5">
+        <p className="font-mono text-base font-bold leading-snug text-white">
+          {cause.name}
+        </p>
+
         {cause.tagline && (
-          <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-white/40">{cause.tagline}</p>
+          <p className="mt-2.5 flex-1 whitespace-pre-line text-base leading-relaxed text-white">
+            {cause.tagline}
+          </p>
+        )}
+
+        {cause.href && (
+          <div className="mt-4 flex items-center gap-1.5 border-t border-[#1e2d42] pt-3.5">
+            <span className="font-mono text-xs font-semibold text-[#6ef0d4]">
+              {cause.href.replace(/^https?:\/\//, '')}
+            </span>
+            <ExternalLink className="h-3 w-3 text-[#6ef0d4]/60" />
+          </div>
         )}
       </div>
-      {cause.href && (
-        <ExternalLink className="absolute right-3 top-3 h-3.5 w-3.5 text-[#6ef0d4]/40 opacity-0 transition-opacity group-hover:opacity-100" />
-      )}
     </div>
   );
 

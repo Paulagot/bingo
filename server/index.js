@@ -385,6 +385,8 @@ app.use('/api/web3-transactions', web3TransactionRoutes);
 app.use('/api/web3/auth', web3AuthRoutes);
 app.use('/api/web3/fundraisers', web3FundraiserRoutes)
 app.use('/api/web3/public-events', web3PublicEventsRoutes)
+app.use('/api/contact', contactRoute);
+app.use('/api/auth/reset', passwordResetRoute);
 
 console.log('✅ Routes setup complete');
 
@@ -433,6 +435,16 @@ app.get('/robots.txt', (req, res) => {
       res.status(404).send('Robots.txt not found');
     }
   });
+});
+
+// Add this BEFORE your express.static and SPA catch-all
+app.use((req, res, next) => {
+  try {
+    decodeURIComponent(req.path);
+    next();
+  } catch (e) {
+    res.status(400).end('Bad Request');
+  }
 });
 
 // Serve public static files (images, etc.)
@@ -609,12 +621,7 @@ try {
   console.error('⚠️ Failed to setup socket handlers:', error.message);
 }
 
-try {
-  app.use('/api/contact', contactRoute);
-  app.use('/api/auth/reset', passwordResetRoute);
-} catch (error) {
-  console.error('⚠️ Failed to setup API routes:', error.message);
-}
+
 
 /* ──────────────────────────────────────────────────────────
    Global error handler — must be last middleware

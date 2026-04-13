@@ -8,7 +8,13 @@ import dns from 'node:dns/promises';
 const router = Router();
 const MAIL_TO_CONTACT = process.env.MAIL_TO_CONTACT;
 
-router.post('/', contactLimiter, validate(contactSchema), async (req, res) => {
+router.post('/', async (req, res) => {
+  console.log('📧 MAIL_TO_CONTACT:', MAIL_TO_CONTACT);
+  console.log('📧 RESEND_API_KEY set:', !!process.env.RESEND_API_KEY);
+  console.log('📧 req.body:', req.body);
+  console.log('📧 Contact route hit');
+  console.log('📧 Body:', JSON.stringify(req.body));
+
   const { name, email, message } = req.body;
 
   const adminHtml = `
