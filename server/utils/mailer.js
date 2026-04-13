@@ -5,9 +5,14 @@ const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: Number(process.env.SMTP_PORT || 587),
   secure: process.env.SMTP_SECURE === 'true',
-  requireTLS: true,  // forces STARTTLS on port 587
+  requireTLS: true,
+  connectionTimeout: 5000,
+  greetingTimeout: 5000,
+  socketTimeout: 5000,
   auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
   pool: true, maxConnections: 2, maxMessages: 50,
+  logger: true,  // ← adds detailed logs
+  debug: true,   // ← logs every SMTP command
 });
 
 export async function verifyMailer() {
