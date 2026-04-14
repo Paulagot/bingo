@@ -8,144 +8,37 @@ import {
   metadata,
   solanaRpcUrls,
 } from './config';
-import { baseSepolia } from '@reown/appkit/networks';
+import { baseSepolia } from '@reown/appkit/networks'; // ← add this import
 
 let appKitCreated = false;
 
-// ─── Wallet browser detection ─────────────────────────────────────────────────
-// Order matters: Backpack + Coinbase both spoof window.ethereum.isMetaMask = true,
-// so they must be detected before the MetaMask branch.
-type WalletBrowser = 'phantom' | 'backpack' | 'solflare' | 'metamask' | 'coinbase' | null;
-
-function detectWalletBrowser(): WalletBrowser {
-  const win = window as any;
-
-  // Phantom: window.phantom.solana.isPhantom is the canonical signal
-  if (win.phantom?.solana?.isPhantom) return 'phantom';
-
-  // Backpack: check window.backpack BEFORE isMetaMask — Backpack spoofs it
-  if (win.backpack?.isBackpack) return 'backpack';
-
-  // Solflare: injects window.solflare
-  if (win.solflare?.isSolflare) return 'solflare';
-
-  // Coinbase: also spoofs isMetaMask in some versions — check before MetaMask
-  if (win.ethereum?.isCoinbaseWallet) return 'coinbase';
-
-  // MetaMask: only after ruling out all the spoofers above
-  if (win.ethereum?.isMetaMask) return 'metamask';
-
-  return null;
-}
-
-// ─── Solana silent auto-connect ───────────────────────────────────────────────
-// Uses onlyIfTrusted so it only reconnects silently if the user approved before.
-// Throws harmlessly if not yet approved — no popup.
-async function autoConnectSolana(
-  walletBrowser: 'phantom' | 'backpack' | 'solflare'
-) {
-  const win = window as any;
-
-  try {
-    if (walletBrowser === 'phantom') {
-      const provider = win.phantom?.solana;
-      if (!provider?.isPhantom) return;
-
-      console.log('[web3Init] ⚡ Phantom silent connect...');
-      const resp = await provider.connect({ onlyIfTrusted: true });
-      console.log('[web3Init] ✅ Phantom:', resp.publicKey.toString());
-    }
-
-    if (walletBrowser === 'backpack') {
-      const provider = win.backpack?.solana;
-      if (!provider) return;
-
-      console.log('[web3Init] ⚡ Backpack Solana silent connect...');
-      await provider.connect({ onlyIfTrusted: true });
-      console.log('[web3Init] ✅ Backpack Solana connected');
-    }
-
-    if (walletBrowser === 'solflare') {
-      const provider = win.solflare;
-      if (!provider?.isSolflare) return;
-
-      // Solflare doesn't support onlyIfTrusted in all versions —
-      // check isConnected first to avoid triggering a popup
-      if (provider.isConnected) {
-        console.log('[web3Init] ✅ Solflare already connected:', provider.publicKey?.toString());
-        return;
-      }
-
-      console.log('[web3Init] ⚡ Solflare silent connect...');
-      await provider.connect({ onlyIfTrusted: true });
-      console.log('[web3Init] ✅ Solflare:', provider.publicKey?.toString());
-    }
-  } catch (err: any) {
-    // Expected when user hasn't approved yet — not a real error
-    console.log(`[web3Init] Silent Solana connect skipped (${walletBrowser}):`, err?.message);
-  }
-}
-
-// ─── EVM wagmi auto-connect ───────────────────────────────────────────────────
-// MetaMask uses the named EIP-6963 target for reliability.
-// Backpack and Coinbase use their own targets / generic injected.
-async function autoConnectViaWagmi(
-  walletBrowser: 'metamask' | 'coinbase' | 'backpack'
-) {
-  try {
-    const { connect } = await import('wagmi/actions');
-    const { injected } = await import('wagmi');           // ← moved here
-    const { wagmiConfig } = await import('./config');
-
-    if (walletBrowser === 'metamask') {
-      console.log('[web3Init] ⚡ MetaMask auto-connect via EIP-6963...');
-      await connect(wagmiConfig, {
-        connector: injected({ target: 'metaMask' }),
-      });
-      console.log('[web3Init] ✅ MetaMask connected');
-      return;
-    }
-
-    if (walletBrowser === 'coinbase') {
-      console.log('[web3Init] ⚡ Coinbase Wallet auto-connect...');
-      await connect(wagmiConfig, {
-        connector: injected({ target: 'coinbaseWallet' }),
-      });
-      console.log('[web3Init] ✅ Coinbase connected');
-      return;
-    }
-
-    if (walletBrowser === 'backpack') {
-      console.log('[web3Init] ⚡ Backpack EVM auto-connect...');
-      await connect(wagmiConfig, { connector: injected() });
-      console.log('[web3Init] ✅ Backpack EVM connected');
-    }
-  } catch (err: any) {
-    if (!err?.message?.includes('already connected')) {
-      console.warn(`[web3Init] wagmi auto-connect error (${walletBrowser}):`, err?.message);
-    }
-  }
-}
-
-// ─── Main export ──────────────────────────────────────────────────────────────
 export function ensureAppKitCreated() {
   if (appKitCreated) return;
   appKitCreated = true;
 
-  const walletBrowser = detectWalletBrowser();
-  console.log('[web3Init] 🌐 Wallet browser detected:', walletBrowser ?? 'none (standard browser)');
+  // ── Log 1: what does the browser see via EIP-6963 before AppKit init? ──
+  console.log('[web3Init] 🔍 Checking window.ethereum before AppKit init:');
+  console.log('[web3Init] window.ethereum exists:', !!(window as any).ethereum);
+  console.log('[web3Init] window.ethereum.isMetaMask:', !!(window as any).ethereum?.isMetaMask);
+  console.log('[web3Init] window.ethereum providers:', (window as any).ethereum?.providers?.map((p: any) => ({
+    isMetaMask: p.isMetaMask,
+    isBackpack: p.isBackpack,
+    isCoinbaseWallet: p.isCoinbaseWallet,
+  })));
 
-  // ── EIP-6963: register listener BEFORE dispatching request ────────────────
-  // AppKit must be listening before we fire the event, otherwise announcements
-  // from already-injected wallets are lost.
+  // ── Log 2: listen for EIP-6963 announcements ──
   window.addEventListener('eip6963:announceProvider', (event: any) => {
-    console.log('[web3Init] 📢 EIP-6963 announced:', {
+    console.log('[web3Init] 📢 EIP-6963 provider announced:', {
       name: event.detail?.info?.name,
       rdns: event.detail?.info?.rdns,
+      uuid: event.detail?.info?.uuid,
     });
   });
 
-  // ── Create AppKit ──────────────────────────────────────────────────────────
+  // ── Log 3: dispatch the request to trigger announcements ──
+  console.log('[web3Init] 📡 Dispatching eip6963:requestProvider...');
+  window.dispatchEvent(new Event('eip6963:requestProvider'));
+
   createAppKit({
     adapters: [wagmiAdapter, solanaWeb3JsAdapter],
     projectId,
@@ -167,9 +60,9 @@ export function ensureAppKitCreated() {
     allWallets: 'SHOW',
 
     featuredWalletIds: [
-      'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
-      'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa', // Coinbase
-      '19177a98252e07ddfc9af2083ba8e07ef627cb6103467ffebb3f8f4205fd7927', // Backpack
+      'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96',
+      'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa',
+      '19177a98252e07ddfc9af2083ba8e07ef627cb6103467ffebb3f8f4205fd7927',
       '38f5d18bd8522c244bdd70cb4a68e0e718865155811c043f052fb9f1c51de662',
       'c03dfee351b6fcc421b4494ea33b9d4b92a984f87aa76d1663bb28705e95034a',
     ],
@@ -188,31 +81,13 @@ export function ensureAppKitCreated() {
     enableEIP6963: true,
     enableCoinbase: true,
     coinbasePreference: 'all',
-    defaultNetwork: baseSepolia,
+    defaultNetwork: baseSepolia, // ← changed from networks[0]
   });
 
-  // ── Dispatch EIP-6963 request NOW — AppKit is listening ───────────────────
-  window.dispatchEvent(new Event('eip6963:requestProvider'));
-
-  // ── Auto-connect if inside a wallet in-app browser ────────────────────────
-  if (walletBrowser) {
-    // Solana auto-connect for Phantom, Backpack, Solflare
-    if (
-      walletBrowser === 'phantom' ||
-      walletBrowser === 'backpack' ||
-      walletBrowser === 'solflare'
-    ) {
-      autoConnectSolana(walletBrowser);
-    }
-
-    // EVM auto-connect for MetaMask, Coinbase, Backpack (supports both)
-    // Phantom is Solana-only in its in-app browser — intentionally excluded
-    if (
-      walletBrowser === 'metamask' ||
-      walletBrowser === 'coinbase' ||
-      walletBrowser === 'backpack'
-    ) {
-      autoConnectViaWagmi(walletBrowser);
-    }
-  }
+  // ── Log 4: what does AppKit know after init? ──
+  setTimeout(() => {
+    console.log('[web3Init] ⏱ 500ms after init — re-checking EIP-6963:');
+    window.dispatchEvent(new Event('eip6963:requestProvider'));
+    console.log('[web3Init] window.ethereum after init:', !!(window as any).ethereum);
+  }, 500);
 }

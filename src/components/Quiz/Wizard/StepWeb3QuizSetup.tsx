@@ -19,7 +19,7 @@ import { useMiniAppContext } from '../../../context/MiniAppContext';
 
 import { CHARITIES as CHARITY_DIR, getCharityById as getGbCharityById } from '../../../chains/evm/config/gbcharities';
 
-// ✅ UPDATED: import full 11-token list for Solana
+// ✅ import full 11-token list for Solana
 import { SOLANA_TOKEN_LIST, SOLANA_TOKENS } from '../../../chains/solana/config/solanaTokenConfig';
 
 interface StepWeb3QuizSetupProps extends WizardStepProps {
@@ -76,7 +76,7 @@ type EvmNetwork =
 
 type SolanaCluster = 'mainnet' | 'devnet';
 
-const ENABLED_CHOICES: ChoiceValue[] = ['baseSepolia', 'avalancheFuji', 'solanaDevnet', 'base'];
+const ENABLED_CHOICES: ChoiceValue[] = ['solanaDevnet'];
 
 const CHOICES: Array<{
   value: ChoiceValue;
@@ -87,13 +87,13 @@ const CHOICES: Array<{
   solanaCluster?: SolanaCluster;
 }> = [
   // ----- ENABLED -----
+  { value: 'solanaDevnet', label: 'Solana Devnet', description: 'Solana · Developer test network', kind: 'solana', solanaCluster: 'devnet' },
+
+  // ----- COMMENTED OUT (uncomment when ready) -----
   // { value: 'baseSepolia', label: 'Base Sepolia', description: 'EVM · Base testnet', kind: 'evm', evmNetwork: 'baseSepolia' },
   // { value: 'avalancheFuji', label: 'Avalanche Fuji', description: 'EVM · Avalanche testnet', kind: 'evm', evmNetwork: 'avalancheFuji' },
-  { value: 'solanaDevnet', label: 'Solana Devnet', description: 'Solana · Developer test network', kind: 'solana', solanaCluster: 'devnet' },
   // { value: 'base', label: 'Base', description: 'EVM · Coinbase L2 (mainnet)', kind: 'evm', evmNetwork: 'base' },
-  // ----- COMMENTED OUT (uncomment when ready) -----
   // { value: 'stellar', label: 'Stellar', description: 'Fast, low-cost payments', kind: 'stellar' },
-
   // { value: 'bsc', label: 'BNB Smart Chain', description: 'EVM · BSC mainnet', kind: 'evm', evmNetwork: 'bsc' },
   // { value: 'bscTestnet', label: 'BNB Smart Chain Testnet', description: 'EVM · BSC testnet', kind: 'evm', evmNetwork: 'bscTestnet' },
   // { value: 'avalanche', label: 'Avalanche C-Chain', description: 'EVM · Avalanche mainnet', kind: 'evm', evmNetwork: 'avalanche' },
@@ -101,6 +101,9 @@ const CHOICES: Array<{
   // { value: 'optimismSepolia', label: 'OP Sepolia', description: 'EVM · Optimism testnet', kind: 'evm', evmNetwork: 'optimismSepolia' },
   // { value: 'solanaMainnet', label: 'Solana (Mainnet)', description: 'High-speed, low-fee mainnet', kind: 'solana', solanaCluster: 'mainnet' },
 ];
+
+// ✅ The first enabled choice is the canonical default — derived from CHOICES, not hardcoded.
+const DEFAULT_CHOICE: ChoiceValue = CHOICES[0].value;
 
 const deriveChoiceFromConfig = (
   web3Chain?: string | null,
@@ -125,15 +128,14 @@ const deriveChoiceFromConfig = (
         return 'base';
     }
   }
-  return 'stellar';
+  return DEFAULT_CHOICE;
 };
 
-// ✅ UPDATED: returns all 11 Solana tokens for Solana choices
+// Returns token list for a given choice
 const getTokensForChoice = (choice: ChoiceValue) => {
   if (choice === 'stellar') return [{ value: 'XLM', label: 'XLM' }];
 
   if (choice === 'solanaMainnet' || choice === 'solanaDevnet') {
-    // Full 11-token list in display order (SOL first, then USDG, then ecosystem tokens)
     return SOLANA_TOKEN_LIST.map((code) => ({
       value: code,
       label: `${code} — ${SOLANA_TOKENS[code].name}`,
@@ -151,13 +153,6 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
   const { setupConfig, updateSetupConfig, setFlow } = useQuizSetupStore();
   const { isMiniApp } = useMiniAppContext();
 
-  useEffect(() => {
-  if (!isMiniApp) return;
-  // Lock to Base Sepolia — no chain selection in mini app
-  setChoice('base');
- 
-}, [isMiniApp]);
-
   useEffect(() => { setFlow('web3'); }, [setFlow]);
 
   const [hostName, setHostName] = useState(setupConfig.hostName || '');
@@ -169,16 +164,26 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
   );
 
   const enabledSet = useMemo(() => new Set(ENABLED_CHOICES), []);
-  const safeInitialChoice: ChoiceValue = enabledSet.has(derived) ? derived : 'baseSepolia';
+
+  // ✅ FIX 1: safeInitialChoice always resolves to something in CHOICES.
+  // If the derived value isn't in the enabled set, fall back to DEFAULT_CHOICE.
+  const safeInitialChoice: ChoiceValue = enabledSet.has(derived) ? derived : DEFAULT_CHOICE;
 
   const [choice, setChoice] = useState<ChoiceValue>(safeInitialChoice);
-  const [currency, setCurrency] = useState(setupConfig.web3Currency || 'USDGLO');
+  const [currency, setCurrency] = useState(setupConfig.web3Currency || 'USDG');
   const [charityId, setCharityId] = useState<string>((setupConfig as any).web3CharityOrgId || '');
   const [entryFee, setEntryFee] = useState(setupConfig.entryFee || '');
 
+  // ✅ FIX 1 (continued): isMiniApp effect now uses DEFAULT_CHOICE instead of a
+  // hardcoded 'base' that may not exist in the active CHOICES array.
+  useEffect(() => {
+    if (!isMiniApp) return;
+    setChoice(DEFAULT_CHOICE);
+  }, [isMiniApp]);
+
   const availableTokens = useMemo(() => getTokensForChoice(choice), [choice]);
 
-  // ✅ UPDATED: default to USDG for Solana (not USDC which isn't in our TGB list)
+  // Reset currency when chain changes, defaulting sensibly per chain type
   useEffect(() => {
     const tokenValues = availableTokens.map((t) => t.value);
     const fallback =
@@ -199,6 +204,8 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
   }, [hostName, choice, currency, entryFee, setupConfig]);
 
   const allSectionsComplete = completedSections.host && completedSections.web3;
+
+  // ✅ selectedInfo is typed as possibly undefined — no lying ! assertion
   const selectedInfo = CHOICES.find((c) => c.value === choice);
 
   const getCurrentMessage = () => {
@@ -225,7 +232,15 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
     const orgOk = Boolean((setupConfig as any).web3CharityOrgId);
     if (!orgOk) return setError('Please select a charity.');
 
-    const meta = selectedInfo!;
+    // ✅ FIX 2: Real null guard instead of the unsafe ! assertion.
+    // selectedInfo can be undefined if `choice` somehow isn't in CHOICES.
+    const meta = selectedInfo;
+    if (!meta) {
+      setError('Invalid blockchain selected. Please refresh and try again.');
+      console.error('🔗 [StepWeb3QuizSetup] handleSubmit: choice not found in CHOICES:', choice);
+      return;
+    }
+
     const web3Chain: SupportedChain = meta.kind;
     const evmNetwork = meta.kind === 'evm' ? meta.evmNetwork : undefined;
     const solanaCluster = meta.kind === 'solana' ? meta.solanaCluster : undefined;
@@ -334,45 +349,46 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-         {!isMiniApp && (
-  <div className="space-y-2">
-    <label className="text-fg/80 flex items-center gap-2 text-xs font-medium sm:text-sm">
-      <Wallet className="h-4 w-4" />
-      <span>Blockchain</span>
-    </label>
-    <select
-      value={choice}
-      onChange={(e) => handleChoiceChange(e.target.value as ChoiceValue)}
-      className="border-border w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3 sm:text-base"
-    >
-      {CHOICES.map((c) => (
-        <option key={c.value} value={c.value}>{c.label}</option>
-      ))}
-    </select>
-    <p className="text-fg/60 text-xs">{CHOICES.find(c => c.value === choice)?.description}</p>
-  </div>
-)}
+          {/* ✅ FIX 1 (display): isMiniApp locked label now shows selectedInfo?.label
+              so it always reflects whichever chain is actually DEFAULT_CHOICE. */}
+          {!isMiniApp && (
+            <div className="space-y-2">
+              <label className="text-fg/80 flex items-center gap-2 text-xs font-medium sm:text-sm">
+                <Wallet className="h-4 w-4" />
+                <span>Blockchain</span>
+              </label>
+              <select
+                value={choice}
+                onChange={(e) => handleChoiceChange(e.target.value as ChoiceValue)}
+                className="border-border w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3 sm:text-base"
+              >
+                {CHOICES.map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </select>
+              <p className="text-fg/60 text-xs">{selectedInfo?.description}</p>
+            </div>
+          )}
 
-{isMiniApp && (
-  <div className="space-y-2">
-    <label className="text-fg/80 flex items-center gap-2 text-xs font-medium sm:text-sm">
-      <Wallet className="h-4 w-4" />
-      <span>Blockchain</span>
-    </label>
-    <div className="flex items-center gap-2 rounded-xl border-2 border-blue-200 bg-blue-50 px-3 py-2.5">
-      <span className="text-sm font-semibold text-blue-800">Base</span>
-      <span className="ml-auto rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-600">
-        Locked — Mini App
-      </span>
-    </div>
-    <p className="text-fg/60 text-xs">EVM · Base (mini app mode)</p>
-  </div>
-)}
+          {isMiniApp && (
+            <div className="space-y-2">
+              <label className="text-fg/80 flex items-center gap-2 text-xs font-medium sm:text-sm">
+                <Wallet className="h-4 w-4" />
+                <span>Blockchain</span>
+              </label>
+              <div className="flex items-center gap-2 rounded-xl border-2 border-blue-200 bg-blue-50 px-3 py-2.5">
+                <span className="text-sm font-semibold text-blue-800">{selectedInfo?.label ?? DEFAULT_CHOICE}</span>
+                <span className="ml-auto rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-600">
+                  Locked — Mini App
+                </span>
+              </div>
+              <p className="text-fg/60 text-xs">{selectedInfo?.description}</p>
+            </div>
+          )}
 
           <div className="space-y-2">
             <label className="text-fg/80 flex items-center gap-2 text-xs font-medium sm:text-sm">
               <DollarSign className="h-4 w-4" />
-              {/* ✅ UPDATED: label reflects that Solana has more token choices */}
               <span>{isSolana ? 'Token' : 'Cryptocurrency'}</span>
             </label>
             <select
@@ -386,14 +402,14 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
             </select>
             <p className="text-fg/60 text-xs">
               {isSolana
-                ? `${availableTokens.length} tokens available on ${CHOICES.find(c => c.value === choice)?.label}`
-                : `Available tokens on ${CHOICES.find(c => c.value === choice)?.label}`
+                ? `${availableTokens.length} tokens available on ${selectedInfo?.label}`
+                : `Available tokens on ${selectedInfo?.label}`
               }
             </p>
           </div>
         </div>
 
-        {/* ✅ UPDATED: show USDG info instead of USDGLO for Solana */}
+        {/* USDG info banner */}
         {currency === 'USDG' && isSolana && (
           <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3">
             <div className="mb-1 flex items-center space-x-2">
@@ -426,10 +442,10 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
           </label>
           <select
             value={charityId}
-           onChange={(e) => {
-  const id = e.target.value || '';
-  setCharityId(id);
-  const c = getGbCharityById(Number(id) || undefined);  // ✅ now passing a number
+            onChange={(e) => {
+              const id = e.target.value || '';
+              setCharityId(id);
+              const c = getGbCharityById(Number(id) || undefined);
 
               console.log('🏥 [Charity] Selected:', {
                 id,
@@ -438,17 +454,17 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
               });
 
               updateSetupConfig({
-              web3CharityOrgId: id ? Number(id) : null,
+                web3CharityOrgId: id ? Number(id) : null,
                 web3CharityName: c?.name || null,
                 web3CharityId: id || null,
                 web3CharityAddress: null,
               } as any);
 
               console.log('🏥 [Charity] Saved to store:', {
-  web3CharityOrgId: id ? Number(id) : null,
-  web3CharityName: c?.name || null,
-  web3CharityId: id || null,
-});
+                web3CharityOrgId: id ? Number(id) : null,
+                web3CharityName: c?.name || null,
+                web3CharityId: id || null,
+              });
 
               setError('');
             }}
@@ -498,7 +514,6 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
                 className="border-border w-full rounded-lg border-2 py-2.5 pl-16 pr-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 sm:py-3 sm:pl-20 sm:pr-4 sm:text-base"
               />
             </div>
-            {/* ✅ NEW: show min entry fee hint for selected token */}
             {isSolana && currency && SOLANA_TOKENS[currency as keyof typeof SOLANA_TOKENS] && (
               <p className="text-fg/60 text-xs">
                 Minimum entry fee for {currency}: {SOLANA_TOKENS[currency as keyof typeof SOLANA_TOKENS].minEntryFee} {currency}
