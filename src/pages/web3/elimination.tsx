@@ -24,6 +24,7 @@ import {
   Layers3,
   Eye,
   Loader2,
+  PlayCircle,
 } from 'lucide-react';
 
 import { EliminationWeb3Page } from '../../components/elimination/EliminationWeb3Page';
@@ -83,13 +84,14 @@ const Web3EliminationPage: React.FC = () => {
     },
   });
 
-  const isBusy     = stage === 'connecting' || stage === 'signing' || stage === 'verifying';
+  const isBusy = stage === 'connecting' || stage === 'signing' || stage === 'verifying';
   const isVerified = stage === 'verified';
 
   const busyLabel =
-    stage === 'connecting' ? 'Connecting...'    :
-    stage === 'signing'    ? 'Sign to continue' :
-    stage === 'verifying'  ? 'Verifying...'     : null;
+    stage === 'connecting' ? 'Connecting...' :
+    stage === 'signing' ? 'Sign to continue' :
+    stage === 'verifying' ? 'Verifying...' :
+    null;
 
   function handleLaunchElimination() {
     if (isVerified) {
@@ -123,13 +125,19 @@ const Web3EliminationPage: React.FC = () => {
     </div>
   );
 
+  /* ── Video config ── */
+  const youtubeVideoId = 'UaKH90oQ5BE';
+  const youtubeWatchUrl = `https://www.youtube.com/watch?v=${youtubeVideoId}`;
+  const youtubeEmbedUrl = `https://www.youtube.com/embed/${youtubeVideoId}`;
+  const youtubeThumbnailUrl = `https://i.ytimg.com/vi/${youtubeVideoId}/maxresdefault.jpg`;
+
   /* ── Structured data ── */
   const breadcrumbsJsonLd = useMemo(
     () => ({
       '@context': 'https://schema.org',
       '@type': 'BreadcrumbList',
       itemListElement: [
-        { '@type': 'ListItem', position: 1, name: 'Home',             item: abs('/') },
+        { '@type': 'ListItem', position: 1, name: 'Home', item: abs('/') },
         { '@type': 'ListItem', position: 2, name: 'Web3 Fundraising', item: abs('/web3') },
         { '@type': 'ListItem', position: 3, name: 'Host Elimination', item: abs('/web3/elimination') },
       ],
@@ -200,6 +208,30 @@ const Web3EliminationPage: React.FC = () => {
     []
   );
 
+  const videoJsonLd = useMemo(
+    () => ({
+      '@context': 'https://schema.org',
+      '@type': 'VideoObject',
+      name: 'How to Setup and Host Elimination on FundRaisely Web3 Fundraising Marketplace',
+      description:
+        'A walkthrough showing users how to set up and host a Web3 elimination game on FundRaisely.',
+      thumbnailUrl: [youtubeThumbnailUrl],
+      embedUrl: youtubeEmbedUrl,
+      contentUrl: youtubeWatchUrl,
+      url: youtubeWatchUrl,
+      publisher: {
+        '@type': 'Organization',
+        name: 'FundRaisely',
+        url: abs('/'),
+      },
+      isPartOf: {
+        '@type': 'WebPage',
+        url: abs('/web3/elimination'),
+      },
+    }),
+    [youtubeEmbedUrl, youtubeThumbnailUrl, youtubeWatchUrl]
+  );
+
   /* ── If arrived via ?action=host from the event card, show setup form directly ── */
   if (showForm) {
     return (
@@ -233,12 +265,12 @@ const Web3EliminationPage: React.FC = () => {
         description="Run a fast, last-player-standing Web3 elimination game on Solana. Each game includes 8 skill-based rounds selected from a wider pool of 17 round types, with automated smart contract payouts to winner, host, charity, and platform."
         ukKeywords="web3 elimination game uk, host crypto fundraiser uk, last player standing blockchain uk, solana elimination uk, on-chain charity game uk, skill based live game uk"
         ieKeywords="web3 elimination game ireland, host crypto fundraiser ireland, last player standing blockchain ireland, solana elimination ireland, on-chain charity events ireland, skill based fundraising game ireland"
-        keywords="host web3 elimination game, crypto fundraising elimination, blockchain last player standing, solana elimination fundraiser, on-chain charity game, skill-based elimination game, live fundraising game, reaction game fundraiser, timing game crypto, web3 community event"
+        keywords="host web3 elimination game, crypto fundraising elimination, blockchain last player standing, solana elimination fundraiser, on-chain charity game, skill-based elimination game, live fundraising game, reaction game fundraiser, timing game crypto, web3 community event, how to host fundraisely elimination, fundraisely elimination tutorial"
         type="website"
         domainStrategy="geographic"
-        structuredData={[breadcrumbsJsonLd, webPageJsonLd, faqJsonLd]}
+        structuredData={[breadcrumbsJsonLd, webPageJsonLd, faqJsonLd, videoJsonLd]}
         breadcrumbs={[
-          { name: 'Home',             item: '/' },
+          { name: 'Home', item: '/' },
           { name: 'Web3 Fundraising', item: '/web3' },
           { name: 'Host Elimination', item: '/web3/elimination' },
         ]}
@@ -294,10 +326,10 @@ const Web3EliminationPage: React.FC = () => {
 
             <div className="mt-12 flex w-full flex-wrap justify-center gap-8 border-t border-[#1e2d42] pt-8 sm:justify-between">
               {[
-                { value: '8',       label: 'Rounds per game' },
-                { value: '17',      label: 'Round pool' },
+                { value: '8', label: 'Rounds per game' },
+                { value: '17', label: 'Round pool' },
                 { value: '~20 min', label: 'Per game' },
-                { value: '35%',     label: 'To charity' },
+                { value: '35%', label: 'To charity' },
               ].map(({ value, label }) => (
                 <div key={label} className="text-center">
                   <p className="font-mono text-2xl font-bold text-white">{value}</p>
@@ -330,24 +362,24 @@ const Web3EliminationPage: React.FC = () => {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {[
               {
-                n:     '01',
+                n: '01',
                 title: 'Players join',
-                body:  'Each player connects their Solana wallet and pays the entry fee directly into the smart contract before the game starts.',
+                body: 'Each player connects their Solana wallet and pays the entry fee directly into the smart contract before the game starts.',
               },
               {
-                n:     '02',
+                n: '02',
                 title: '8 rounds are played',
-                body:  'Each game uses 8 rounds selected from a wider pool of 17. Difficulty is randomised, so the challenge can build and shift from game to game.',
+                body: 'Each game uses 8 rounds selected from a wider pool of 17. Difficulty is randomised, so the challenge can build and shift from game to game.',
               },
               {
-                n:     '03',
+                n: '03',
                 title: 'Players are eliminated',
-                body:  'Round by round, the field gets smaller. Miss the challenge, react too slowly, or lose your edge, and you are out of that game.',
+                body: 'Round by round, the field gets smaller. Miss the challenge, react too slowly, or lose your edge, and you are out of that game.',
               },
               {
-                n:     '04',
+                n: '04',
                 title: 'Contract pays out',
-                body:  'When one player is left, the contract distributes the winner prize, your host cut, the charity share, and the platform fee automatically.',
+                body: 'When one player is left, the contract distributes the winner prize, your host cut, the charity share, and the platform fee automatically.',
               },
             ].map(({ n, title, body }) => (
               <W3Card key={n} className="border-orange-400/10">
@@ -357,6 +389,63 @@ const Web3EliminationPage: React.FC = () => {
               </W3Card>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ============================================================ */}
+      {/* Video walkthrough                                            */}
+      {/* ============================================================ */}
+      <section className="relative z-10 py-12">
+        <div className="container mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-8 text-center">
+            <SectionLabel>
+              <PlayCircle className="h-4 w-4" /> Watch the setup
+            </SectionLabel>
+            <h2 className="mt-4 font-mono text-3xl font-bold text-white">
+              See exactly how to host your first{' '}
+              <span className="text-orange-400">FundRaisely elimination game.</span>
+            </h2>
+            <p className="mx-auto mt-3 max-w-3xl text-white/50">
+              This walkthrough shows the host flow from setup to launch, so you can see what the
+              experience looks like before running your own event.
+            </p>
+          </div>
+
+          <W3Card className="overflow-hidden border-orange-400/20 p-3 sm:p-4">
+            <div className="overflow-hidden rounded-2xl border border-[#1e2d42] bg-black">
+              <div className="relative w-full" style={{ paddingTop: '56.25%' }}>
+                <iframe
+                  className="absolute left-0 top-0 h-full w-full"
+                  src={youtubeEmbedUrl}
+                  title="How to Setup and Host Elimination on FundRaisely Web3 Fundraising Marketplace"
+                  loading="lazy"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="font-mono text-sm font-bold text-white">
+                  Host walkthrough video
+                </h3>
+                <p className="mt-1 text-sm leading-relaxed text-white/50">
+                  Watch the full setup flow, then come back and launch your own elimination event.
+                </p>
+              </div>
+
+              <a
+                href={youtubeWatchUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl border border-orange-400/40 bg-orange-400/10 px-4 py-2.5 font-mono text-sm font-semibold text-orange-400 transition hover:border-orange-400/80 hover:bg-orange-400/20"
+              >
+                <PlayCircle className="h-4 w-4" /> Watch on YouTube
+              </a>
+            </div>
+          </W3Card>
         </div>
       </section>
 
@@ -383,23 +472,23 @@ const Web3EliminationPage: React.FC = () => {
             {[
               {
                 title: 'Fast micro-rounds',
-                body:  'Each round is quick to understand and easy to run live, so the pace stays high and the room stays engaged.',
-                icon:  Timer,
+                body: 'Each round is quick to understand and easy to run live, so the pace stays high and the room stays engaged.',
+                icon: Timer,
               },
               {
                 title: 'Skill-based format',
-                body:  'This is not built around long-form trivia. It is built around reaction, timing, precision, focus, and composure under pressure.',
-                icon:  Target,
+                body: 'This is not built around long-form trivia. It is built around reaction, timing, precision, focus, and composure under pressure.',
+                icon: Target,
               },
               {
                 title: 'Replayable by design',
-                body:  'Because games are built from a wider pool of round types, you can run the format more than once without it feeling stale.',
-                icon:  Zap,
+                body: 'Because games are built from a wider pool of round types, you can run the format more than once without it feeling stale.',
+                icon: Zap,
               },
               {
                 title: 'Pressure rises naturally',
-                body:  'The fewer players are left, the more every round matters. That creates tension without needing complicated mechanics.',
-                icon:  Flame,
+                body: 'The fewer players are left, the more every round matters. That creates tension without needing complicated mechanics.',
+                icon: Flame,
               },
             ].map(({ title, body, icon: Icon }) => (
               <W3Card key={title} className="border-orange-400/10">
@@ -437,33 +526,33 @@ const Web3EliminationPage: React.FC = () => {
             {[
               {
                 title: 'Precision rounds',
-                body:  'Players aim for exact answers, exact timing, or exact positioning. Close matters more than simply being first.',
-                icon:  Crosshair,
+                body: 'Players aim for exact answers, exact timing, or exact positioning. Close matters more than simply being first.',
+                icon: Crosshair,
               },
               {
                 title: 'Reaction rounds',
-                body:  'Fast decisions under pressure. Hesitation can be the difference between staying in and being eliminated.',
-                icon:  Zap,
+                body: 'Fast decisions under pressure. Hesitation can be the difference between staying in and being eliminated.',
+                icon: Zap,
               },
               {
                 title: 'Timing rounds',
-                body:  'Players trigger or stop at the right moment. Rhythm, nerve, and control matter just as much as speed.',
-                icon:  Timer,
+                body: 'Players trigger or stop at the right moment. Rhythm, nerve, and control matter just as much as speed.',
+                icon: Timer,
               },
               {
                 title: 'Memory rounds',
-                body:  'Short bursts of recall where players need to hold information and reproduce it under pressure.',
-                icon:  Brain,
+                body: 'Short bursts of recall where players need to hold information and reproduce it under pressure.',
+                icon: Brain,
               },
               {
                 title: 'Focus rounds',
-                body:  'Simple tasks become harder when countdowns, distractions, and shrinking margins raise the tension.',
-                icon:  Eye,
+                body: 'Simple tasks become harder when countdowns, distractions, and shrinking margins raise the tension.',
+                icon: Eye,
               },
               {
                 title: 'Difficulty scaling',
-                body:  'Rounds are selected from the wider pool and shaped by difficulty, so the pacing can rise and fall in different ways each time.',
-                icon:  Flame,
+                body: 'Rounds are selected from the wider pool and shaped by difficulty, so the pacing can rise and fall in different ways each time.',
+                icon: Flame,
               },
             ].map(({ title, body, icon: Icon }) => (
               <W3Card key={title}>
@@ -500,24 +589,24 @@ const Web3EliminationPage: React.FC = () => {
           <div className="grid gap-4 md:grid-cols-4">
             {[
               {
-                step:  '01',
+                step: '01',
                 title: 'Join',
-                body:  'Players scan in, connect their wallet, and enter the game. The host launches once the room is ready.',
+                body: 'Players scan in, connect their wallet, and enter the game. The host launches once the room is ready.',
               },
               {
-                step:  '02',
+                step: '02',
                 title: 'Survive',
-                body:  'Early rounds get everyone moving, but mistakes quickly start reducing the field.',
+                body: 'Early rounds get everyone moving, but mistakes quickly start reducing the field.',
               },
               {
-                step:  '03',
+                step: '03',
                 title: 'Watch the tension build',
-                body:  'As numbers drop, the room becomes louder, more focused, and more invested in who survives next.',
+                body: 'As numbers drop, the room becomes louder, more focused, and more invested in who survives next.',
               },
               {
-                step:  '04',
+                step: '04',
                 title: 'Finish cleanly',
-                body:  'One player remains, the contract pays out instantly, and the game is complete with no messy settlement afterward.',
+                body: 'One player remains, the contract pays out instantly, and the game is complete with no messy settlement afterward.',
               },
             ].map(({ step, title, body }) => (
               <W3Card key={step} className="border-orange-400/10">
@@ -553,9 +642,9 @@ const Web3EliminationPage: React.FC = () => {
             <div className="flex flex-wrap justify-center gap-4 py-2">
               {[
                 { label: 'You earn', pct: '20%', accent: 'border-orange-400/20 bg-orange-400/10', text: 'text-orange-400' },
-                { label: 'Winner',   pct: '30%', accent: 'border-amber-400/20 bg-amber-400/10',   text: 'text-amber-400' },
-                { label: 'Charity',  pct: '35%', accent: 'border-[#6ef0d4]/20 bg-[#6ef0d4]/10',   text: 'text-[#6ef0d4]' },
-                { label: 'Platform', pct: '15%', accent: 'border-[#1e2d42] bg-white/5',            text: 'text-white/40' },
+                { label: 'Winner', pct: '30%', accent: 'border-amber-400/20 bg-amber-400/10', text: 'text-amber-400' },
+                { label: 'Charity', pct: '35%', accent: 'border-[#6ef0d4]/20 bg-[#6ef0d4]/10', text: 'text-[#6ef0d4]' },
+                { label: 'Platform', pct: '15%', accent: 'border-[#1e2d42] bg-white/5', text: 'text-white/40' },
               ].map(({ label, pct, accent, text }) => (
                 <div key={label} className={`flex flex-col items-center rounded-xl border px-8 py-5 ${accent}`}>
                   <span className={`font-mono text-3xl font-bold ${text}`}>{pct}</span>
