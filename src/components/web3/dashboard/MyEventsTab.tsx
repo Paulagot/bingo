@@ -60,27 +60,27 @@ function statusColor(status: PublicEvent['status']): { bg: string; color: string
   switch (status) {
     case 'draft':
       return {
-        bg: 'rgba(255,255,255,0.05)',
-        color: 'rgba(255,255,255,0.4)',
-        border: 'rgba(255,255,255,0.1)',
+        bg: 'rgba(255,255,255,0.06)',
+        color: 'rgba(255,255,255,0.72)',
+        border: 'rgba(255,255,255,0.14)',
       }
     case 'published':
       return {
-        bg: 'rgba(99,255,180,0.08)',
-        color: '#63ffb4',
-        border: 'rgba(99,255,180,0.25)',
+        bg: 'rgba(99,255,180,0.12)',
+        color: '#7affc1',
+        border: 'rgba(99,255,180,0.34)',
       }
     case 'live':
       return {
-        bg: 'rgba(59,190,245,0.08)',
-        color: '#3bbef5',
-        border: 'rgba(59,190,245,0.25)',
+        bg: 'rgba(59,190,245,0.12)',
+        color: '#6cd2ff',
+        border: 'rgba(59,190,245,0.34)',
       }
     case 'ended':
       return {
-        bg: 'rgba(255,255,255,0.03)',
-        color: 'rgba(255,255,255,0.25)',
-        border: 'rgba(255,255,255,0.07)',
+        bg: 'rgba(255,255,255,0.04)',
+        color: 'rgba(255,255,255,0.50)',
+        border: 'rgba(255,255,255,0.10)',
       }
   }
 }
@@ -113,6 +113,42 @@ function getTokensForChain(chain: Chain) {
     code,
     name: SOLANA_TOKENS[code as keyof typeof SOLANA_TOKENS].name,
   }))
+}
+
+// ─── Shared inline style helpers ──────────────────────────────────────────────
+
+const panelStyle: React.CSSProperties = {
+  background: 'linear-gradient(180deg, rgba(19,19,31,0.98) 0%, rgba(13,13,23,0.98) 100%)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  borderRadius: 18,
+  boxShadow: '0 16px 50px rgba(0,0,0,0.28)',
+}
+
+const softMono: React.CSSProperties = {
+  fontFamily: "'DM Mono', monospace",
+}
+
+const sectionCardStyle: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  borderRadius: 16,
+  padding: '1rem',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '0.95rem',
+}
+
+const actionPillBase: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 6,
+  fontFamily: "'DM Mono', monospace",
+  fontSize: 11,
+  fontWeight: 500,
+  padding: '7px 14px',
+  borderRadius: 9,
+  textDecoration: 'none',
+  whiteSpace: 'nowrap',
 }
 
 // ─── Schedule Event Modal ─────────────────────────────────────────────────────
@@ -250,8 +286,8 @@ function ScheduleEventModal({ onClose, onSaved, hostName }: ScheduleModalProps) 
           position: fixed;
           inset: 0;
           z-index: 200;
-          background: rgba(0,0,0,0.82);
-          backdrop-filter: blur(8px);
+          background: rgba(3, 3, 8, 0.86);
+          backdrop-filter: blur(10px);
           display: flex;
           align-items: flex-end;
           justify-content: center;
@@ -266,30 +302,31 @@ function ScheduleEventModal({ onClose, onSaved, hostName }: ScheduleModalProps) 
 
         .fl-modal-sheet {
           position: relative;
-          background: #0f0f18;
-          border: 0.5px solid rgba(255,255,255,0.1);
           width: 100%;
-          max-width: 600px;
+          max-width: 720px;
           border-radius: 24px 24px 0 0;
           display: flex;
           flex-direction: column;
           max-height: 92dvh;
           font-family: 'DM Sans', sans-serif;
           overflow: hidden;
+          background: linear-gradient(180deg, #121220 0%, #0b0b14 100%);
+          border: 1px solid rgba(255,255,255,0.09);
+          box-shadow: 0 24px 80px rgba(0,0,0,0.45);
         }
 
         @media (min-width: 640px) {
           .fl-modal-sheet {
-            border-radius: 20px;
+            border-radius: 22px;
             max-height: 88vh;
           }
         }
 
         .fl-modal-handle {
-          width: 36px;
-          height: 4px;
-          background: rgba(255,255,255,0.18);
-          border-radius: 2px;
+          width: 42px;
+          height: 5px;
+          background: rgba(255,255,255,0.26);
+          border-radius: 999px;
           margin: 12px auto 0;
           flex-shrink: 0;
         }
@@ -303,12 +340,13 @@ function ScheduleEventModal({ onClose, onSaved, hostName }: ScheduleModalProps) 
         .fl-modal-header {
           flex-shrink: 0;
           padding: 1.25rem 1.5rem 1rem;
-          border-bottom: 0.5px solid rgba(255,255,255,0.08);
+          border-bottom: 1px solid rgba(255,255,255,0.07);
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
           gap: 12px;
-          background: #0f0f18;
+          background:
+            linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
           position: relative;
           z-index: 3;
         }
@@ -318,12 +356,14 @@ function ScheduleEventModal({ onClose, onSaved, hostName }: ScheduleModalProps) 
           overflow-y: auto;
           overscroll-behavior: contain;
           -webkit-overflow-scrolling: touch;
-          padding: 1.25rem 1.5rem;
+          padding: 1.25rem 1.5rem 1.5rem;
           display: flex;
           flex-direction: column;
           gap: 1rem;
           scrollbar-width: none;
           position: relative;
+          background:
+            linear-gradient(180deg, rgba(255,255,255,0.01) 0%, rgba(255,255,255,0) 100%);
         }
 
         .fl-modal-body::-webkit-scrollbar {
@@ -351,17 +391,17 @@ function ScheduleEventModal({ onClose, onSaved, hostName }: ScheduleModalProps) 
           }
 
           .fl-modal-body::-webkit-scrollbar-thumb:hover {
-            background: rgba(255,255,255,0.32);
+            background: rgba(255,255,255,0.34);
           }
         }
 
         .fl-modal-footer {
           flex-shrink: 0;
           padding: 1rem 1.5rem;
-          border-top: 0.5px solid rgba(255,255,255,0.08);
+          border-top: 1px solid rgba(255,255,255,0.07);
           display: flex;
           gap: 0.75rem;
-          background: #0f0f18;
+          background: rgba(10,10,17,0.96);
           position: relative;
           z-index: 3;
         }
@@ -369,75 +409,138 @@ function ScheduleEventModal({ onClose, onSaved, hostName }: ScheduleModalProps) 
         .fl-form-row {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 0.75rem;
+          gap: 0.85rem;
         }
 
-        @media (max-width: 420px) {
+        @media (max-width: 520px) {
           .fl-form-row {
             grid-template-columns: 1fr;
           }
+        }
+
+        @media (max-width: 420px) {
           .fl-modal-header {
             padding: 1rem 1.25rem 0.875rem;
           }
+
           .fl-modal-body {
-            padding: 1rem 1.25rem;
+            padding: 1rem 1.25rem 1.25rem;
           }
+
           .fl-modal-footer {
             padding: 0.875rem 1.25rem;
+            flex-direction: column;
           }
+        }
+
+        .fl-section-card {
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 16px;
+          padding: 1rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.95rem;
+        }
+
+        .fl-section-head {
+          display: flex;
+          flex-direction: column;
+          gap: 0.22rem;
+          margin-bottom: 0.1rem;
+        }
+
+        .fl-section-kicker {
+          font-family: 'DM Mono', monospace;
+          font-size: 10px;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: rgba(99,255,180,0.92);
+        }
+
+        .fl-section-title {
+          font-family: 'Syne', sans-serif;
+          font-size: 17px;
+          line-height: 1.15;
+          font-weight: 700;
+          color: #ffffff;
+          margin: 0;
+        }
+
+        .fl-section-copy {
+          font-size: 12px;
+          line-height: 1.5;
+          color: rgba(255,255,255,0.62);
+          margin: 0;
         }
 
         .fl-field {
           display: flex;
           flex-direction: column;
-          gap: 5px;
+          gap: 6px;
+          min-width: 0;
         }
 
         .fl-field-label {
           font-family: 'DM Mono', monospace;
-          font-size: 10px;
-          letter-spacing: 0.1em;
+          font-size: 11px;
+          letter-spacing: 0.08em;
           text-transform: uppercase;
-          color: rgba(255,255,255,0.62);
+          color: rgba(255,255,255,0.84);
         }
 
         .fl-field-label .fl-req {
-          color: rgba(99,255,180,0.9);
+          color: #7affc1;
           margin-left: 2px;
         }
 
-        .fl-input, .fl-select, .fl-textarea {
+        .fl-input,
+        .fl-select,
+        .fl-textarea {
           width: 100%;
           box-sizing: border-box;
-          background: #07070f;
-          border: 0.5px solid rgba(255,255,255,0.15);
-          border-radius: 8px;
-          padding: 10px 12px;
-          color: #fff;
+          background: rgba(7,7,15,0.96);
+          border: 1px solid rgba(255,255,255,0.15);
+          border-radius: 10px;
+          padding: 12px 13px;
+          color: #ffffff;
           font-size: 14px;
+          line-height: 1.4;
           font-family: 'DM Sans', sans-serif;
           outline: none;
-          transition: border-color 0.15s, box-shadow 0.15s;
+          transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
         }
 
-        .fl-input:focus, .fl-select:focus, .fl-textarea:focus {
-          border-color: rgba(99,255,180,0.45);
-          box-shadow: 0 0 0 1px rgba(99,255,180,0.12);
+        .fl-input:hover,
+        .fl-select:hover,
+        .fl-textarea:hover {
+          border-color: rgba(255,255,255,0.24);
         }
 
-        .fl-input::placeholder, .fl-textarea::placeholder {
-          color: rgba(255,255,255,0.24);
+        .fl-input:focus,
+        .fl-select:focus,
+        .fl-textarea:focus {
+          border-color: rgba(99,255,180,0.52);
+          box-shadow: 0 0 0 3px rgba(99,255,180,0.14);
+          background: rgba(9,9,18,1);
+        }
+
+        .fl-input::placeholder,
+        .fl-textarea::placeholder {
+          color: rgba(255,255,255,0.40);
         }
 
         .fl-input[disabled] {
-          opacity: 0.65;
+          opacity: 0.88;
           cursor: not-allowed;
+          color: rgba(255,255,255,0.88);
+          background: rgba(255,255,255,0.06);
         }
 
         .fl-select {
           appearance: none;
           -webkit-appearance: none;
-          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.55)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.72)' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
           background-repeat: no-repeat;
           background-position: right 12px center;
           padding-right: 36px;
@@ -450,12 +553,12 @@ function ScheduleEventModal({ onClose, onSaved, hostName }: ScheduleModalProps) 
         }
 
         .fl-select.fl-placeholder {
-          color: rgba(255,255,255,0.36);
+          color: rgba(255,255,255,0.55);
         }
 
         .fl-textarea {
           resize: vertical;
-          min-height: 80px;
+          min-height: 104px;
           line-height: 1.5;
         }
 
@@ -468,28 +571,28 @@ function ScheduleEventModal({ onClose, onSaved, hostName }: ScheduleModalProps) 
         .fl-char-count {
           font-family: 'DM Mono', monospace;
           font-size: 10px;
-          color: rgba(255,255,255,0.38);
+          color: rgba(255,255,255,0.56);
           text-align: right;
           margin-top: 2px;
         }
 
         .fl-error-banner {
-          background: rgba(251,113,133,0.08);
-          border: 0.5px solid rgba(251,113,133,0.3);
-          border-radius: 8px;
-          padding: 0.75rem 1rem;
-          color: #fb7185;
+          background: rgba(251,113,133,0.12);
+          border: 1px solid rgba(251,113,133,0.34);
+          border-radius: 12px;
+          padding: 0.85rem 1rem;
+          color: #ffc0cb;
           font-size: 13px;
           line-height: 1.5;
         }
 
         .fl-btn-draft {
           flex: 1;
-          padding: 11px 0;
-          border-radius: 10px;
-          background: transparent;
-          border: 0.5px solid rgba(255,255,255,0.18);
-          color: rgba(255,255,255,0.7);
+          padding: 12px 0;
+          border-radius: 11px;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.18);
+          color: rgba(255,255,255,0.88);
           font-family: 'DM Mono', monospace;
           font-size: 12px;
           cursor: pointer;
@@ -498,73 +601,52 @@ function ScheduleEventModal({ onClose, onSaved, hostName }: ScheduleModalProps) 
         }
 
         .fl-btn-draft:hover:not(:disabled) {
-          border-color: rgba(255,255,255,0.3);
-          color: rgba(255,255,255,0.9);
+          border-color: rgba(255,255,255,0.28);
+          background: rgba(255,255,255,0.08);
         }
 
         .fl-btn-publish {
-          flex: 2;
-          padding: 11px 0;
-          border-radius: 10px;
-          background: rgba(99,255,180,0.1);
-          border: 0.5px solid rgba(99,255,180,0.4);
-          color: #63ffb4;
+          flex: 1.35;
+          padding: 12px 0;
+          border-radius: 11px;
+          background: rgba(99,255,180,0.13);
+          border: 1px solid rgba(99,255,180,0.42);
+          color: #7affc1;
           font-family: 'DM Mono', monospace;
           font-size: 12px;
-          font-weight: 500;
+          font-weight: 600;
           cursor: pointer;
           transition: all 0.12s;
           white-space: nowrap;
         }
 
         .fl-btn-publish:hover:not(:disabled) {
-          background: rgba(99,255,180,0.16);
-          border-color: rgba(99,255,180,0.6);
+          background: rgba(99,255,180,0.18);
+          border-color: rgba(99,255,180,0.58);
         }
 
         .fl-btn-draft:disabled,
         .fl-btn-publish:disabled {
-          opacity: 0.5;
+          opacity: 0.55;
           cursor: not-allowed;
         }
 
-        .fl-section-divider {
-          font-family: 'DM Mono', monospace;
-          font-size: 10px;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
-          color: rgba(255,255,255,0.78);
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          margin: 0.5rem 0 0.25rem;
-          font-weight: 600;
-        }
-
-        .fl-section-divider::before,
-        .fl-section-divider::after {
-          content: '';
-          flex: 1;
-          height: 1px;
-          background: rgba(255,255,255,0.16);
-        }
-
         .fl-help-text {
-          font-family: 'DM Mono', monospace;
-          font-size: 10px;
-          color: rgba(255,255,255,0.38);
-          margin-top: 3px;
+          font-size: 12px;
+          line-height: 1.45;
+          color: rgba(255,255,255,0.62);
+          margin-top: 2px;
         }
 
         .fl-scroll-top {
           position: absolute;
           right: 16px;
-          bottom: 78px;
+          bottom: 84px;
           z-index: 4;
           border-radius: 999px;
-          border: 0.5px solid rgba(255,255,255,0.18);
-          background: rgba(21,21,34,0.96);
-          color: rgba(255,255,255,0.82);
+          border: 1px solid rgba(255,255,255,0.18);
+          background: rgba(19,19,32,0.96);
+          color: rgba(255,255,255,0.9);
           padding: 8px 12px;
           font-family: 'DM Mono', monospace;
           font-size: 11px;
@@ -575,7 +657,7 @@ function ScheduleEventModal({ onClose, onSaved, hostName }: ScheduleModalProps) 
 
         .fl-scroll-top:hover {
           color: #fff;
-          border-color: rgba(255,255,255,0.28);
+          border-color: rgba(255,255,255,0.3);
         }
 
         @media (max-width: 639px) {
@@ -585,7 +667,7 @@ function ScheduleEventModal({ onClose, onSaved, hostName }: ScheduleModalProps) 
         }
 
         .fl-bottom-spacer {
-          height: 0.25rem;
+          height: 0.2rem;
         }
       `}</style>
 
@@ -603,40 +685,44 @@ function ScheduleEventModal({ onClose, onSaved, hostName }: ScheduleModalProps) 
               <h2
                 style={{
                   fontFamily: "'Syne', sans-serif",
-                  fontSize: 18,
+                  fontSize: 22,
                   fontWeight: 700,
                   color: '#fff',
                   margin: 0,
-                  lineHeight: 1.2,
+                  lineHeight: 1.15,
                 }}
               >
                 List an Event
               </h2>
               <p
                 style={{
-                  fontFamily: "'DM Mono', monospace",
-                  fontSize: 11,
-                  color: 'rgba(255,255,255,0.42)',
-                  margin: '4px 0 0',
+                  fontSize: 13,
+                  lineHeight: 1.5,
+                  color: 'rgba(255,255,255,0.68)',
+                  margin: '6px 0 0',
+                  maxWidth: 460,
                 }}
               >
-                Schedule a public listing on the discovery page
+                Create a public event listing for the marketplace so people can discover and join your fundraiser.
               </p>
             </div>
 
             <button
               onClick={onClose}
               style={{
-                background: 'none',
-                border: 'none',
-                color: 'rgba(255,255,255,0.42)',
-                fontSize: 24,
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                color: 'rgba(255,255,255,0.72)',
+                fontSize: 22,
                 cursor: 'pointer',
                 lineHeight: 1,
-                padding: '0 0 0 8px',
+                width: 38,
+                height: 38,
+                borderRadius: 10,
                 flexShrink: 0,
               }}
               aria-label="Close"
+              type="button"
             >
               ×
             </button>
@@ -651,247 +737,280 @@ function ScheduleEventModal({ onClose, onSaved, hostName }: ScheduleModalProps) 
           <div ref={bodyRef} className="fl-modal-body" onScroll={handleBodyScroll}>
             {error && <div className="fl-error-banner">{error}</div>}
 
-            <div className="fl-section-divider">About your event</div>
+            <section className="fl-section-card">
+              <div className="fl-section-head">
+                <span className="fl-section-kicker">Section 1</span>
+                <h3 className="fl-section-title">About your event</h3>
+                <p className="fl-section-copy">
+                  Add the basics people will see first when they discover your event.
+                </p>
+              </div>
 
-            <div className="fl-field">
-              <label className="fl-field-label">
-                Community / host name <span className="fl-req">*</span>
-              </label>
-              <input
-                className="fl-input"
-                value={form.host_name}
-                onChange={e => set('host_name', e.target.value)}
-                placeholder="e.g. DeFi Dublin"
-                maxLength={255}
-              />
-            </div>
-
-            <div className="fl-field">
-              <label className="fl-field-label">
-                Event title <span className="fl-req">*</span>
-              </label>
-              <input
-                className="fl-input"
-                value={form.title}
-                onChange={e => set('title', e.target.value)}
-                placeholder="e.g. Web3 Trivia Night #5"
-                maxLength={255}
-              />
-            </div>
-
-            <div className="fl-field">
-              <label className="fl-field-label">
-                Event type <span className="fl-req">*</span>
-              </label>
-              <select
-                className={`fl-select${!form.event_type ? ' fl-placeholder' : ''}`}
-                value={form.event_type}
-                onChange={e => set('event_type', e.target.value as EventType)}
-              >
-                <option value="" disabled>
-                  Please select…
-                </option>
-                <option value="quiz">Quiz</option>
-                <option value="elimination">Elimination</option>
-              </select>
-            </div>
-
-            <div className="fl-field">
-              <label className="fl-field-label">
-                Description <span className="fl-req">*</span>
-              </label>
-              <textarea
-                className="fl-textarea"
-                value={form.description ?? ''}
-                onChange={e => set('description', e.target.value)}
-                placeholder="e.g. Join us for an amazing fun event where your participation has real impact — every entry fee goes directly to charity."
-                maxLength={280}
-                rows={3}
-              />
-              <div className="fl-char-count">{(form.description ?? '').length} / 280</div>
-            </div>
-
-            <div className="fl-section-divider">Date &amp; time</div>
-
-            <div className="fl-form-row">
               <div className="fl-field">
                 <label className="fl-field-label">
-                  Date <span className="fl-req">*</span>
+                  Community / host name <span className="fl-req">*</span>
                 </label>
                 <input
                   className="fl-input"
-                  type="date"
-                  value={form.event_date}
-                  min={today}
-                  onChange={e => set('event_date', e.target.value)}
+                  value={form.host_name}
+                  onChange={e => set('host_name', e.target.value)}
+                  placeholder="e.g. DeFi Dublin"
+                  maxLength={255}
                 />
               </div>
 
               <div className="fl-field">
                 <label className="fl-field-label">
-                  Start time <span className="fl-req">*</span>
+                  Event title <span className="fl-req">*</span>
                 </label>
                 <input
                   className="fl-input"
-                  type="time"
-                  value={form.start_time}
-                  onChange={e => set('start_time', e.target.value)}
+                  value={form.title}
+                  onChange={e => set('title', e.target.value)}
+                  placeholder="e.g. Web3 Trivia Night #5"
+                  maxLength={255}
                 />
               </div>
-            </div>
 
-            <div className="fl-field">
-              <label className="fl-field-label">
-                Timezone <span className="fl-req">*</span>
-              </label>
-              <input
-                className="fl-input"
-                value={form.time_zone}
-                onChange={e => set('time_zone', e.target.value)}
-                placeholder="e.g. Europe/Dublin"
-              />
-              <span className="fl-help-text">
-                Auto-detected from your browser — edit if needed
-              </span>
-            </div>
-
-            <div className="fl-section-divider">Where &amp; how to join</div>
-
-            <div className="fl-field">
-              <label className="fl-field-label">
-                Join link <span className="fl-req">*</span>
-              </label>
-              <input
-                className="fl-input"
-                type="text"
-                value={form.join_url}
-                onChange={e => set('join_url', e.target.value)}
-                onBlur={e => {
-                  const v = e.target.value.trim()
-                  if (v && !v.startsWith('http://') && !v.startsWith('https://')) {
-                    set('join_url', `https://${v}`)
-                  }
-                }}
-                placeholder="https://discord.gg/your-server"
-              />
-              <span className="fl-help-text">
-                Discord, Zoom, X Space, Telegram, Luma, Eventbrite — any link
-              </span>
-            </div>
-
-            <div className="fl-form-row">
               <div className="fl-field">
                 <label className="fl-field-label">
-                  Contact type <span className="fl-req">*</span>
+                  Event type <span className="fl-req">*</span>
                 </label>
                 <select
-                  className={`fl-select${!form.contact_type ? ' fl-placeholder' : ''}`}
-                  value={form.contact_type}
-                  onChange={e => set('contact_type', e.target.value as ContactType)}
+                  className={`fl-select${!form.event_type ? ' fl-placeholder' : ''}`}
+                  value={form.event_type}
+                  onChange={e => set('event_type', e.target.value as EventType)}
                 >
                   <option value="" disabled>
                     Please select…
                   </option>
-                  {(['telegram', 'x', 'discord', 'whatsapp', 'email', 'other'] as ContactType[]).map(
-                    t => (
-                      <option key={t} value={t}>
-                        {t === 'x' ? 'X (Twitter)' : t.charAt(0).toUpperCase() + t.slice(1)}
-                      </option>
-                    ),
-                  )}
+                  <option value="quiz">Quiz</option>
+                  <option value="elimination">Elimination</option>
                 </select>
               </div>
 
               <div className="fl-field">
                 <label className="fl-field-label">
-                  Contact handle <span className="fl-req">*</span>
+                  Description <span className="fl-req">*</span>
+                </label>
+                <textarea
+                  className="fl-textarea"
+                  value={form.description ?? ''}
+                  onChange={e => set('description', e.target.value)}
+                  placeholder="e.g. Join us for a fun live fundraiser where every entry has real impact and supports a verified cause."
+                  maxLength={280}
+                  rows={4}
+                />
+                <div className="fl-char-count">{(form.description ?? '').length} / 280</div>
+              </div>
+            </section>
+
+            <section className="fl-section-card">
+              <div className="fl-section-head">
+                <span className="fl-section-kicker">Section 2</span>
+                <h3 className="fl-section-title">Date &amp; time</h3>
+                <p className="fl-section-copy">
+                  Set when your event starts and confirm the timezone people should follow.
+                </p>
+              </div>
+
+              <div className="fl-form-row">
+                <div className="fl-field">
+                  <label className="fl-field-label">
+                    Date <span className="fl-req">*</span>
+                  </label>
+                  <input
+                    className="fl-input"
+                    type="date"
+                    value={form.event_date}
+                    min={today}
+                    onChange={e => set('event_date', e.target.value)}
+                  />
+                </div>
+
+                <div className="fl-field">
+                  <label className="fl-field-label">
+                    Start time <span className="fl-req">*</span>
+                  </label>
+                  <input
+                    className="fl-input"
+                    type="time"
+                    value={form.start_time}
+                    onChange={e => set('start_time', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="fl-field">
+                <label className="fl-field-label">
+                  Timezone <span className="fl-req">*</span>
                 </label>
                 <input
                   className="fl-input"
-                  value={form.contact_handle}
-                  onChange={e => set('contact_handle', e.target.value)}
-                  placeholder="@handle or email"
-                  maxLength={255}
+                  value={form.time_zone}
+                  onChange={e => set('time_zone', e.target.value)}
+                  placeholder="e.g. Europe/Dublin"
                 />
+                <span className="fl-help-text">
+                  Auto-detected from your browser. Change it if your audience is following a different timezone.
+                </span>
               </div>
-            </div>
+            </section>
 
-            <div className="fl-section-divider">Entry &amp; charity</div>
+            <section className="fl-section-card">
+              <div className="fl-section-head">
+                <span className="fl-section-kicker">Section 3</span>
+                <h3 className="fl-section-title">Where &amp; how to join</h3>
+                <p className="fl-section-copy">
+                  Add the main link people should use and the best contact method for questions.
+                </p>
+              </div>
 
-            <div className="fl-field">
-              <label className="fl-field-label">Chain</label>
-              <input className="fl-input" value="Solana" disabled />
-            </div>
-
-            <div className="fl-form-row">
               <div className="fl-field">
                 <label className="fl-field-label">
-                  Entry fee <span className="fl-req">*</span>
+                  Join link <span className="fl-req">*</span>
                 </label>
                 <input
                   className="fl-input"
                   type="text"
-                  inputMode="decimal"
-                  value={form.entry_fee || ''}
-                  onChange={e => {
-                    const v = e.target.value
-                    if (v === '' || /^\d*\.?\d{0,8}$/.test(v)) {
-                      set('entry_fee', v as any)
+                  value={form.join_url}
+                  onChange={e => set('join_url', e.target.value)}
+                  onBlur={e => {
+                    const v = e.target.value.trim()
+                    if (v && !v.startsWith('http://') && !v.startsWith('https://')) {
+                      set('join_url', `https://${v}`)
                     }
                   }}
-                  placeholder="e.g. 0.01"
+                  placeholder="https://discord.gg/your-server"
                 />
+                <span className="fl-help-text">
+                  Use the main place people should go to join or register: Discord, Zoom, X Space, Telegram, Luma, Eventbrite, and similar.
+                </span>
+              </div>
+
+              <div className="fl-form-row">
+                <div className="fl-field">
+                  <label className="fl-field-label">
+                    Contact type <span className="fl-req">*</span>
+                  </label>
+                  <select
+                    className={`fl-select${!form.contact_type ? ' fl-placeholder' : ''}`}
+                    value={form.contact_type}
+                    onChange={e => set('contact_type', e.target.value as ContactType)}
+                  >
+                    <option value="" disabled>
+                      Please select…
+                    </option>
+                    {(['telegram', 'x', 'discord', 'whatsapp', 'email', 'other'] as ContactType[]).map(
+                      t => (
+                        <option key={t} value={t}>
+                          {t === 'x' ? 'X (Twitter)' : t.charAt(0).toUpperCase() + t.slice(1)}
+                        </option>
+                      ),
+                    )}
+                  </select>
+                </div>
+
+                <div className="fl-field">
+                  <label className="fl-field-label">
+                    Contact handle <span className="fl-req">*</span>
+                  </label>
+                  <input
+                    className="fl-input"
+                    value={form.contact_handle}
+                    onChange={e => set('contact_handle', e.target.value)}
+                    placeholder="@handle or email"
+                    maxLength={255}
+                  />
+                </div>
+              </div>
+            </section>
+
+            <section className="fl-section-card">
+              <div className="fl-section-head">
+                <span className="fl-section-kicker">Section 4</span>
+                <h3 className="fl-section-title">Entry &amp; charity</h3>
+                <p className="fl-section-copy">
+                  Confirm the chain, price to join, token, and the cause this event supports.
+                </p>
+              </div>
+
+              <div className="fl-field">
+                <label className="fl-field-label">Chain</label>
+                <input className="fl-input" value="Solana" disabled />
+              </div>
+
+              <div className="fl-form-row">
+                <div className="fl-field">
+                  <label className="fl-field-label">
+                    Entry fee <span className="fl-req">*</span>
+                  </label>
+                  <input
+                    className="fl-input"
+                    type="text"
+                    inputMode="decimal"
+                    value={form.entry_fee || ''}
+                    onChange={e => {
+                      const v = e.target.value
+                      if (v === '' || /^\d*\.?\d{0,8}$/.test(v)) {
+                        set('entry_fee', v as any)
+                      }
+                    }}
+                    placeholder="e.g. 0.01"
+                  />
+                </div>
+
+                <div className="fl-field">
+                  <label className="fl-field-label">
+                    Token <span className="fl-req">*</span>
+                  </label>
+                  <select
+                    className="fl-select"
+                    value={form.fee_token}
+                    onChange={e => set('fee_token', e.target.value)}
+                  >
+                    {tokens.map(t => (
+                      <option key={t.code} value={t.code}>
+                        {t.code}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="fl-field">
                 <label className="fl-field-label">
-                  Token <span className="fl-req">*</span>
+                  Charity / cause <span className="fl-req">*</span>
                 </label>
                 <select
-                  className="fl-select"
-                  value={form.fee_token}
-                  onChange={e => set('fee_token', e.target.value)}
+                  className={`fl-select${!form.charity_id ? ' fl-placeholder' : ''}`}
+                  value={form.charity_id || ''}
+                  onChange={e => onCharityChange(parseInt(e.target.value))}
                 >
-                  {tokens.map(t => (
-                    <option key={t.code} value={t.code}>
-                      {t.code}
+                  <option value="" disabled>
+                    Please select a charity…
+                  </option>
+                  {CHARITIES.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
                     </option>
                   ))}
                 </select>
               </div>
-            </div>
-
-            <div className="fl-field">
-              <label className="fl-field-label">
-                Charity / cause <span className="fl-req">*</span>
-              </label>
-              <select
-                className={`fl-select${!form.charity_id ? ' fl-placeholder' : ''}`}
-                value={form.charity_id || ''}
-                onChange={e => onCharityChange(parseInt(e.target.value))}
-              >
-                <option value="" disabled>
-                  Please select a charity…
-                </option>
-                {CHARITIES.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            </section>
 
             <div className="fl-bottom-spacer" />
           </div>
 
           <div className="fl-modal-footer">
-            <button className="fl-btn-draft" onClick={() => handleSave(false)} disabled={saving}>
+            <button className="fl-btn-draft" onClick={() => handleSave(false)} disabled={saving} type="button">
               {saving ? 'Saving…' : 'Save draft'}
             </button>
             <button
               className="fl-btn-publish"
               onClick={() => handleSave(true)}
               disabled={saving}
+              type="button"
             >
               {saving ? 'Publishing…' : 'Save & publish'}
             </button>
@@ -924,13 +1043,11 @@ function EventCard({ event, origin, onPublish, onUnpublish, onDelete, loading }:
   return (
     <div
       style={{
-        background: '#0f0f18',
-        border: '0.5px solid rgba(255,255,255,0.07)',
-        borderRadius: 16,
-        padding: '1.25rem',
+        ...panelStyle,
+        padding: '1.15rem',
         display: 'flex',
         flexDirection: 'column',
-        gap: '0.875rem',
+        gap: '0.9rem',
       }}
     >
       <div
@@ -947,24 +1064,24 @@ function EventCard({ event, origin, onPublish, onUnpublish, onDelete, loading }:
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              marginBottom: 4,
+              marginBottom: 8,
               flexWrap: 'wrap',
             }}
           >
             <span
               style={{
-                fontFamily: "'DM Mono', monospace",
-                fontSize: 9,
+                ...softMono,
+                fontSize: 10,
                 letterSpacing: '0.1em',
-                padding: '2px 7px',
-                borderRadius: 4,
+                padding: '3px 8px',
+                borderRadius: 6,
                 textTransform: 'uppercase',
                 background:
                   event.event_type === 'quiz'
-                    ? 'rgba(163,245,66,0.08)'
-                    : 'rgba(251,146,60,0.08)',
-                color: event.event_type === 'quiz' ? '#a3f542' : '#fb923c',
-                border: `0.5px solid ${
+                    ? 'rgba(163,245,66,0.10)'
+                    : 'rgba(251,146,60,0.10)',
+                color: event.event_type === 'quiz' ? '#c8ff79' : '#ffb26a',
+                border: `1px solid ${
                   event.event_type === 'quiz'
                     ? 'rgba(163,245,66,0.25)'
                     : 'rgba(251,146,60,0.25)'
@@ -976,15 +1093,15 @@ function EventCard({ event, origin, onPublish, onUnpublish, onDelete, loading }:
 
             <span
               style={{
-                fontFamily: "'DM Mono', monospace",
-                fontSize: 9,
+                ...softMono,
+                fontSize: 10,
                 letterSpacing: '0.1em',
-                padding: '2px 7px',
-                borderRadius: 4,
+                padding: '3px 8px',
+                borderRadius: 6,
                 textTransform: 'uppercase',
                 background: sc.bg,
                 color: sc.color,
-                border: `0.5px solid ${sc.border}`,
+                border: `1px solid ${sc.border}`,
               }}
             >
               {event.status}
@@ -994,11 +1111,11 @@ function EventCard({ event, origin, onPublish, onUnpublish, onDelete, loading }:
           <h3
             style={{
               fontFamily: "'Syne', sans-serif",
-              fontSize: 16,
+              fontSize: 17,
               fontWeight: 700,
               color: '#fff',
               margin: 0,
-              lineHeight: 1.3,
+              lineHeight: 1.28,
             }}
           >
             {event.title}
@@ -1006,10 +1123,10 @@ function EventCard({ event, origin, onPublish, onUnpublish, onDelete, loading }:
 
           <p
             style={{
-              fontFamily: "'DM Mono', monospace",
+              ...softMono,
               fontSize: 11,
-              color: 'rgba(255,255,255,0.35)',
-              margin: '3px 0 0',
+              color: 'rgba(255,255,255,0.58)',
+              margin: '4px 0 0',
             }}
           >
             {event.host_name}
@@ -1017,7 +1134,14 @@ function EventCard({ event, origin, onPublish, onUnpublish, onDelete, loading }:
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem 1.5rem' }}>
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '0.6rem 1.2rem',
+          paddingTop: 2,
+        }}
+      >
         <MetaItem
           icon={<Calendar size={12} />}
           label={`${formatDate(event.event_date)} · ${formatTime(event.start_time, event.time_zone)}`}
@@ -1029,23 +1153,15 @@ function EventCard({ event, origin, onPublish, onUnpublish, onDelete, loading }:
         <MetaItem icon={<Link2 size={12} />} label={platformLabel(event.platform)} />
       </div>
 
-      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '0.55rem', flexWrap: 'wrap' }}>
         {event.status !== 'ended' && (
           <a
             href={launchPath}
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              fontFamily: "'DM Mono', monospace",
-              fontSize: 11,
-              fontWeight: 500,
-              padding: '6px 16px',
-              borderRadius: 8,
-              background: 'rgba(99,255,180,0.08)',
-              border: '0.5px solid rgba(99,255,180,0.3)',
-              color: '#63ffb4',
-              textDecoration: 'none',
+              ...actionPillBase,
+              background: 'rgba(99,255,180,0.10)',
+              border: '1px solid rgba(99,255,180,0.32)',
+              color: '#7affc1',
             }}
           >
             {event.event_type === 'quiz' ? (
@@ -1066,7 +1182,8 @@ function EventCard({ event, origin, onPublish, onUnpublish, onDelete, loading }:
           <button
             onClick={() => onPublish(event.id)}
             disabled={loading}
-            style={outlineBtn('rgba(99,255,180,0.3)', '#63ffb4')}
+            style={outlineBtn('rgba(99,255,180,0.3)', '#7affc1')}
+            type="button"
           >
             Publish
           </button>
@@ -1076,7 +1193,8 @@ function EventCard({ event, origin, onPublish, onUnpublish, onDelete, loading }:
           <button
             onClick={() => onUnpublish(event.id)}
             disabled={loading}
-            style={outlineBtn('rgba(255,255,255,0.15)', 'rgba(255,255,255,0.5)')}
+            style={outlineBtn('rgba(255,255,255,0.18)', 'rgba(255,255,255,0.82)')}
+            type="button"
           >
             Unpublish
           </button>
@@ -1086,7 +1204,9 @@ function EventCard({ event, origin, onPublish, onUnpublish, onDelete, loading }:
           <button
             onClick={() => onDelete(event.id)}
             disabled={loading}
-            style={outlineBtn('rgba(251,113,133,0.2)', '#fb7185')}
+            style={outlineBtn('rgba(251,113,133,0.24)', '#ff8ea3')}
+            type="button"
+            aria-label="Delete draft"
           >
             <Trash2 size={11} />
           </button>
@@ -1102,13 +1222,14 @@ function MetaItem({ icon, label }: { icon: React.ReactNode; label: string }) {
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: 5,
-        fontFamily: "'DM Mono', monospace",
+        gap: 6,
+        ...softMono,
         fontSize: 11,
-        color: 'rgba(255,255,255,0.45)',
+        lineHeight: 1.45,
+        color: 'rgba(255,255,255,0.72)',
       }}
     >
-      {icon}
+      <span style={{ color: 'rgba(255,255,255,0.54)', display: 'inline-flex' }}>{icon}</span>
       {label}
     </span>
   )
@@ -1116,15 +1237,9 @@ function MetaItem({ icon, label }: { icon: React.ReactNode; label: string }) {
 
 function outlineBtn(borderColor: string, color: string): React.CSSProperties {
   return {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 5,
-    fontFamily: "'DM Mono', monospace",
-    fontSize: 11,
-    padding: '6px 14px',
-    borderRadius: 8,
+    ...actionPillBase,
     background: 'transparent',
-    border: `0.5px solid ${borderColor}`,
+    border: `1px solid ${borderColor}`,
     color,
     cursor: 'pointer',
   }
@@ -1210,28 +1325,40 @@ export function MyEventsTab({ walletAddress, hostName }: MyEventsTabProps) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
+      <div
+        style={{
+          ...panelStyle,
+          padding: '1rem 1.1rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 16,
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
           <h2
             style={{
               fontFamily: "'Syne', sans-serif",
-              fontSize: 18,
+              fontSize: 20,
               fontWeight: 700,
               color: '#fff',
               margin: 0,
+              lineHeight: 1.15,
             }}
           >
             My Events
           </h2>
           <p
             style={{
-              fontFamily: "'DM Mono', monospace",
-              fontSize: 11,
-              color: 'rgba(255,255,255,0.35)',
-              margin: '4px 0 0',
+              fontSize: 13,
+              lineHeight: 1.5,
+              color: 'rgba(255,255,255,0.70)',
+              margin: '6px 0 0',
+              maxWidth: 560,
             }}
           >
-            Schedule and manage your public event listings
+            Schedule and manage the events you want listed on the public marketplace.
           </p>
         </div>
 
@@ -1240,18 +1367,19 @@ export function MyEventsTab({ walletAddress, hostName }: MyEventsTabProps) {
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 7,
-            fontFamily: "'DM Mono', monospace",
+            gap: 8,
+            ...softMono,
             fontSize: 12,
-            fontWeight: 500,
-            padding: '8px 18px',
-            borderRadius: 10,
-            background: 'rgba(99,255,180,0.08)',
-            border: '0.5px solid rgba(99,255,180,0.3)',
-            color: '#63ffb4',
+            fontWeight: 600,
+            padding: '10px 18px',
+            borderRadius: 11,
+            background: 'rgba(99,255,180,0.10)',
+            border: '1px solid rgba(99,255,180,0.34)',
+            color: '#7affc1',
             cursor: 'pointer',
             whiteSpace: 'nowrap',
           }}
+          type="button"
         >
           <Plus size={14} /> List an Event
         </button>
@@ -1260,13 +1388,14 @@ export function MyEventsTab({ walletAddress, hostName }: MyEventsTabProps) {
       {error && (
         <div
           style={{
-            background: 'rgba(251,113,133,0.08)',
-            border: '0.5px solid rgba(251,113,133,0.25)',
-            borderRadius: 10,
-            padding: '0.75rem 1rem',
-            color: '#fb7185',
+            background: 'rgba(251,113,133,0.12)',
+            border: '1px solid rgba(251,113,133,0.28)',
+            borderRadius: 12,
+            padding: '0.85rem 1rem',
+            color: '#ffc0cb',
             fontSize: 13,
-            fontFamily: "'DM Mono', monospace",
+            lineHeight: 1.5,
+            ...softMono,
           }}
         >
           {error}
@@ -1276,12 +1405,14 @@ export function MyEventsTab({ walletAddress, hostName }: MyEventsTabProps) {
       {loading && (
         <div
           style={{
+            ...panelStyle,
             padding: '3rem',
             textAlign: 'center',
-            fontFamily: "'DM Mono', monospace",
+            ...softMono,
             fontSize: 11,
-            color: 'rgba(255,255,255,0.3)',
+            color: 'rgba(255,255,255,0.52)',
             letterSpacing: '0.1em',
+            textTransform: 'uppercase',
           }}
         >
           Loading events…
@@ -1291,8 +1422,9 @@ export function MyEventsTab({ walletAddress, hostName }: MyEventsTabProps) {
       {!loading && events.length === 0 && (
         <div
           style={{
-            border: '0.5px dashed rgba(99,255,180,0.15)',
-            borderRadius: 16,
+            ...panelStyle,
+            borderStyle: 'dashed',
+            borderColor: 'rgba(99,255,180,0.16)',
             padding: '3rem 2rem',
             textAlign: 'center',
           }}
@@ -1300,10 +1432,10 @@ export function MyEventsTab({ walletAddress, hostName }: MyEventsTabProps) {
           <p
             style={{
               fontFamily: "'Syne', sans-serif",
-              fontSize: 16,
-              fontWeight: 600,
-              color: 'rgba(255,255,255,0.4)',
-              margin: '0 0 0.5rem',
+              fontSize: 18,
+              fontWeight: 700,
+              color: '#ffffff',
+              margin: '0 0 0.45rem',
             }}
           >
             No events yet
@@ -1311,9 +1443,9 @@ export function MyEventsTab({ walletAddress, hostName }: MyEventsTabProps) {
 
           <p
             style={{
-              fontFamily: "'DM Mono', monospace",
+              ...softMono,
               fontSize: 12,
-              color: 'rgba(255,255,255,0.3)',
+              color: 'rgba(255,255,255,0.62)',
               margin: '0 0 1.5rem',
             }}
           >
@@ -1326,15 +1458,16 @@ export function MyEventsTab({ walletAddress, hostName }: MyEventsTabProps) {
               display: 'inline-flex',
               alignItems: 'center',
               gap: 7,
-              fontFamily: "'DM Mono', monospace",
+              ...softMono,
               fontSize: 12,
-              padding: '8px 20px',
+              padding: '9px 18px',
               borderRadius: 10,
-              background: 'rgba(99,255,180,0.08)',
-              border: '0.5px solid rgba(99,255,180,0.3)',
-              color: '#63ffb4',
+              background: 'rgba(99,255,180,0.10)',
+              border: '1px solid rgba(99,255,180,0.32)',
+              color: '#7affc1',
               cursor: 'pointer',
             }}
+            type="button"
           >
             <Plus size={14} /> List an Event
           </button>
@@ -1430,17 +1563,18 @@ function EventGroup({
           background: 'none',
           border: 'none',
           cursor: collapsible ? 'pointer' : 'default',
-          padding: '0 0 0.75rem',
+          padding: '0 0 0.8rem',
           width: '100%',
         }}
+        type="button"
       >
         <span
           style={{
-            fontFamily: "'DM Mono', monospace",
-            fontSize: 10,
+            ...softMono,
+            fontSize: 11,
             letterSpacing: '0.12em',
             textTransform: 'uppercase',
-            color: 'rgba(255,255,255,0.35)',
+            color: 'rgba(255,255,255,0.78)',
           }}
         >
           {title}
@@ -1448,12 +1582,13 @@ function EventGroup({
 
         <span
           style={{
-            fontFamily: "'DM Mono', monospace",
+            ...softMono,
             fontSize: 10,
-            color: 'rgba(255,255,255,0.2)',
-            background: 'rgba(255,255,255,0.05)',
-            borderRadius: 4,
-            padding: '1px 6px',
+            color: 'rgba(255,255,255,0.74)',
+            background: 'rgba(255,255,255,0.07)',
+            border: '1px solid rgba(255,255,255,0.10)',
+            borderRadius: 999,
+            padding: '2px 8px',
           }}
         >
           {events.length}
@@ -1461,9 +1596,9 @@ function EventGroup({
 
         {collapsible &&
           (open ? (
-            <ChevronUp size={12} color="rgba(255,255,255,0.3)" />
+            <ChevronUp size={14} color="rgba(255,255,255,0.6)" />
           ) : (
-            <ChevronDown size={12} color="rgba(255,255,255,0.3)" />
+            <ChevronDown size={14} color="rgba(255,255,255,0.6)" />
           ))}
       </button>
 
@@ -1472,7 +1607,7 @@ function EventGroup({
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-            gap: '0.875rem',
+            gap: '0.95rem',
           }}
         >
           {events.map(event => (
