@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { SEO } from '../../components/SEO';
 import { Web3Header } from '../../components/GeneralSite2/Web3Header';
 import {

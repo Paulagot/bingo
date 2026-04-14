@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useDisconnect } from '@reown/appkit/react'
+
 import { Trophy, Crosshair } from 'lucide-react'
 import { Web3Header } from '../../components/GeneralSite2/Web3Header'
 import { useFundraiserDashboard } from '../../hooks/useFundraiserDashboard'
@@ -54,38 +54,40 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function FundraisersDashboardPage() {
   const navigate = useNavigate()
-  const { disconnect } = useDisconnect()
+  // const { disconnect } = useDisconnect()
 
   const token   = sessionStorage.getItem('web3_fundraiser_session') ?? ''
   const payload = decodeJwtPayload(token)
   const walletAddress = (payload?.wallet_address as string) ?? ''
-  const chainFamily   = (payload?.chain_family   as string) ?? ''
+
 
   // Redirect if no session
   React.useEffect(() => {
     if (!token) navigate('/web3', { replace: true })
   }, [token, navigate])
 
-  const [activeTab, setActiveTab]           = useState<TabId>('overview')
+ const [activeTab, setActiveTab] = useState<TabId>(() => {
+  if (typeof window !== 'undefined') {
+    const param = new URLSearchParams(window.location.search).get('tab');
+    if (param === 'events') return 'events';
+  }
+  return 'overview';
+});
   const [comingSoonOpen, setComingSoonOpen] = useState(false)
   const [comingSoonFeature, setComingSoonFeature] = useState('')
 
   const { data, loading, error, refetch } = useFundraiserDashboard()
 
-  function handleDisconnect() {
-    disconnect()
-    sessionStorage.removeItem('web3_fundraiser_session')
-    navigate('/web3', { replace: true })
-  }
+
 
   function openComingSoon(feature: string) {
     setComingSoonFeature(feature)
     setComingSoonOpen(true)
   }
 
-  const shortAddress = walletAddress
-    ? `${walletAddress.slice(0, 6)}\u2026${walletAddress.slice(-4)}`
-    : ''
+  // const shortAddress = walletAddress
+  //   ? `${walletAddress.slice(0, 6)}\u2026${walletAddress.slice(-4)}`
+  //   : ''
 
   const origin = getOrigin()
 
