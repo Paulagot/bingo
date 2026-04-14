@@ -1,12 +1,13 @@
 // src/components/GeneralSite/Header.tsx
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Gamepad2, Menu, X, ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/features/auth';
 
 export function Header() {
   const navigate = useNavigate();
   const location = useLocation();
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileQuizOpen, setMobileQuizOpen] = useState(false);
   const [mobilePricingOpen, setMobilePricingOpen] = useState(false);
@@ -15,7 +16,6 @@ export function Header() {
 
   const { isAuthenticated, user, club, logout } = useAuth();
 
-  // Normalize for consistent comparisons
   const normalizedPath = location.pathname.replace(/\/+$/, '').toLowerCase();
   const isCurrent = (path: string) =>
     normalizedPath === path.replace(/\/+$/, '').toLowerCase();
@@ -26,13 +26,22 @@ export function Header() {
     navigate('/');
   };
 
-  // Routes
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setMobileQuizOpen(false);
+    setMobilePricingOpen(false);
+    setMobileCampaignsOpen(false);
+    setMobileWeb3Open(false);
+  }, [location.pathname]);
+
   const ROUTES = {
     // Campaigns
     clubsLeague: '/campaigns/clubs-league',
 
     // Web3 Fundraising
-    web3Overview: '/web3',
+    web3Marketplace: '/web3',
+    web3Host: '/web3/host',
+    web3Causes: '/web3/causes',
     web3Quiz: '/web3/quiz',
     web3Elimination: '/web3/elimination',
     web3Features: '/web3/features',
@@ -45,7 +54,7 @@ export function Header() {
     login: '/auth',
     freeTrial: '/free-trial',
 
-    // Quiz Fundraisers subroutes
+    // Quiz Fundraisers
     howItWorks: '/quiz/how-it-works',
     features: '/quiz/features',
     useCases: '/quiz/use-cases',
@@ -57,18 +66,28 @@ export function Header() {
     eventDashboard: '/quiz/eventdashboard',
   };
 
-  // Page flags
   const onFreeTrial = isCurrent(ROUTES.freeTrial);
- 
+
+  const desktopLinkClass =
+    'text-sm font-medium text-indigo-700 transition-colors hover:text-indigo-900';
+
+  const dropdownItemClass =
+    'block px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 break-words';
+
+  const mobileTopButtonClass =
+    'flex w-full min-w-0 items-center justify-between rounded-md px-2 py-2 text-left text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-50';
+
+  const mobileSubLinkClass =
+    'block rounded-md px-2 py-2 text-sm text-indigo-700 transition-colors hover:bg-indigo-50 break-words';
 
   return (
-    <header className="bg-white/90 fixed inset-x-0 top-0 z-50 shadow-sm backdrop-blur-sm">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4">
+    <header className="fixed inset-x-0 top-0 z-50 overflow-x-clip border-b border-gray-100 bg-white/90 shadow-sm backdrop-blur-sm">
+      <div className="mx-auto flex h-16 w-full max-w-screen-xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Brand */}
-        <div className="flex items-center gap-2">
-          <Link to="/" className="flex items-center gap-2">
-            <Gamepad2 className="h-5 w-5 text-indigo-600 sm:h-6 sm:w-6" />
-            <h1 className="bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-lg font-bold text-transparent sm:text-xl">
+        <div className="min-w-0 flex-1 md:flex-none">
+          <Link to="/" className="flex min-w-0 items-center gap-2">
+            <Gamepad2 className="h-5 w-5 shrink-0 text-indigo-600 sm:h-6 sm:w-6" />
+            <h1 className="truncate bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-lg font-bold text-transparent sm:text-xl">
               FundRaisely
             </h1>
           </Link>
@@ -76,180 +95,193 @@ export function Header() {
 
         {/* Desktop nav */}
         <nav className="hidden items-center gap-6 md:flex">
-          {/* Quiz Fundraisers (dropdown) */}
-          <div className="relative group">
+          {/* Quiz Fundraisers */}
+          <div className="group relative">
             <button
               className="flex items-center gap-1 text-sm font-medium text-indigo-700 hover:text-indigo-900"
               aria-haspopup="true"
               aria-expanded="false"
+              type="button"
             >
               Quiz Fundraisers
               <ChevronDown className="h-4 w-4" />
             </button>
+
             <div className="invisible absolute left-0 top-full w-64 rounded-lg border border-gray-100 bg-white py-2 opacity-0 shadow-lg transition-all duration-150 group-hover:visible group-hover:opacity-100">
-              <div className="flex flex-col">
-                {hideIfCurrent(ROUTES.howItWorks) && (
-                  <Link to={ROUTES.howItWorks} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                    How it Works
-                  </Link>
-                )}
-                {hideIfCurrent(ROUTES.features) && (
-                  <Link to={ROUTES.features} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                    Features
-                  </Link>
-                )}
-                {hideIfCurrent(ROUTES.useCases) && (
-                  <Link to={ROUTES.useCases} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                    Use Cases (Schools, Clubs, Charities)
-                  </Link>
-                )}
-                {hideIfCurrent(ROUTES.demo) && (
-                  <Link to={ROUTES.demo} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                    Demo
-                  </Link>
-                )}
-                {hideIfCurrent(ROUTES.testimonials) && (
-                  <Link to={ROUTES.testimonials} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                    Testimonials
-                  </Link>
-                )}
-              </div>
+              {hideIfCurrent(ROUTES.howItWorks) && (
+                <Link to={ROUTES.howItWorks} className={dropdownItemClass}>
+                  How it Works
+                </Link>
+              )}
+              {hideIfCurrent(ROUTES.features) && (
+                <Link to={ROUTES.features} className={dropdownItemClass}>
+                  Features
+                </Link>
+              )}
+              {hideIfCurrent(ROUTES.useCases) && (
+                <Link to={ROUTES.useCases} className={dropdownItemClass}>
+                  Use Cases (Schools, Clubs, Charities)
+                </Link>
+              )}
+              {hideIfCurrent(ROUTES.demo) && (
+                <Link to={ROUTES.demo} className={dropdownItemClass}>
+                  Demo
+                </Link>
+              )}
+              {hideIfCurrent(ROUTES.testimonials) && (
+                <Link to={ROUTES.testimonials} className={dropdownItemClass}>
+                  Testimonials
+                </Link>
+              )}
             </div>
           </div>
 
-     
-
-          {/* Pricing (dropdown with Founding Partners + Pricing) */}
-          <div className="relative group">
+          {/* Pricing */}
+          <div className="group relative">
             <button
               className="flex items-center gap-1 text-sm font-medium text-indigo-700 hover:text-indigo-900"
               aria-haspopup="true"
               aria-expanded="false"
+              type="button"
             >
               Pricing
               <ChevronDown className="h-4 w-4" />
             </button>
+
             <div className="invisible absolute left-0 top-full w-64 rounded-lg border border-gray-100 bg-white py-2 opacity-0 shadow-lg transition-all duration-150 group-hover:visible group-hover:opacity-100">
-              <div className="flex flex-col">
-                {hideIfCurrent(ROUTES.foundingPartner) && (
-                  <Link to={ROUTES.foundingPartner} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                    Founding Partners
-                  </Link>
-                )}
-                {hideIfCurrent(ROUTES.pricing) && (
-                  <Link to={ROUTES.pricing} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                    Pricing
-                  </Link>
-                )}
-              </div>
+              {hideIfCurrent(ROUTES.foundingPartner) && (
+                <Link to={ROUTES.foundingPartner} className={dropdownItemClass}>
+                  Founding Partners
+                </Link>
+              )}
+              {hideIfCurrent(ROUTES.pricing) && (
+                <Link to={ROUTES.pricing} className={dropdownItemClass}>
+                  Pricing
+                </Link>
+              )}
             </div>
           </div>
 
-          {/* Campaigns (dropdown) */}
-          <div className="relative group">
+          {/* Campaigns */}
+          <div className="group relative">
             <button
               className="flex items-center gap-1 text-sm font-medium text-indigo-700 hover:text-indigo-900"
               aria-haspopup="true"
               aria-expanded="false"
+              type="button"
             >
               Campaigns
               <ChevronDown className="h-4 w-4" />
             </button>
 
             <div className="invisible absolute left-0 top-full w-72 rounded-lg border border-gray-100 bg-white py-2 opacity-0 shadow-lg transition-all duration-150 group-hover:visible group-hover:opacity-100">
-              <div className="flex flex-col">
-                {hideIfCurrent(ROUTES.clubsLeague) && (
-                  <Link to={ROUTES.clubsLeague} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                    Junior Clubs Fundraising Quiz League
-                  </Link>
-                )}
-              </div>
+              {hideIfCurrent(ROUTES.clubsLeague) && (
+                <Link to={ROUTES.clubsLeague} className={dropdownItemClass}>
+                  Junior Clubs Fundraising Quiz League
+                </Link>
+              )}
             </div>
           </div>
 
           {/* Blog */}
           {hideIfCurrent(ROUTES.blog) && (
-            <Link to={ROUTES.blog} className="text-sm font-medium text-indigo-700 hover:text-indigo-900">
+            <Link to={ROUTES.blog} className={desktopLinkClass}>
               Blog
             </Link>
           )}
 
-          {/* Login (hidden when authenticated) */}
+          {/* Login */}
           {!isAuthenticated && hideIfCurrent(ROUTES.login) && (
-            <Link to={ROUTES.login} className="text-sm font-medium text-indigo-700 hover:text-indigo-900">
+            <Link to={ROUTES.login} className={desktopLinkClass}>
               Login
             </Link>
           )}
 
-               {/* Web3 Fundraising (dropdown) */}
-          <div className="relative group">
+          {/* Web3 Fundraising */}
+          <div className="group relative">
             <button
               className="flex items-center gap-1 text-sm font-medium text-indigo-700 hover:text-indigo-900"
               aria-haspopup="true"
               aria-expanded="false"
+              type="button"
             >
-              Web3 Hub
+              Web3 Fundraising
               <ChevronDown className="h-4 w-4" />
             </button>
+
             <div className="invisible absolute left-0 top-full w-72 rounded-lg border border-gray-100 bg-white py-2 opacity-0 shadow-lg transition-all duration-150 group-hover:visible group-hover:opacity-100">
-              <div className="flex flex-col">
-                {hideIfCurrent(ROUTES.web3Overview) && (
-                  <Link to={ROUTES.web3Overview} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                    Overview
-                  </Link>
-                )}
-                {hideIfCurrent(ROUTES.web3Quiz) && (
-                  <Link to={ROUTES.web3Quiz} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                    Web3 Quiz
-                  </Link>
-                )}
-                {hideIfCurrent(ROUTES.web3Elimination) && (
-                  <Link to={ROUTES.web3Elimination} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                    Web3 Elimination
-                  </Link>
-                )}
-                {hideIfCurrent(ROUTES.web3Features) && (
-                  <Link to={ROUTES.web3Features} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                    Crypto-Powered Features
-                  </Link>
-                )}
-                {hideIfCurrent(ROUTES.web3Partners) && (
-                  <Link to={ROUTES.web3Partners} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                    Web3 Fundraising Partners
-                  </Link>
-                )}
-                {hideIfCurrent(ROUTES.web3Testimonials) && (
-                  <Link to={ROUTES.web3Testimonials} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                    Crypto Fundraising Testimonials
-                  </Link>
-                )}
-              </div>
+              {hideIfCurrent(ROUTES.web3Marketplace) && (
+                <Link to={ROUTES.web3Marketplace} className={dropdownItemClass}>
+                  Web3 Fundraising Marketplace
+                </Link>
+              )}
+              {hideIfCurrent(ROUTES.web3Host) && (
+                <Link to={ROUTES.web3Host} className={dropdownItemClass}>
+                  Host on FundRaisely
+                </Link>
+              )}
+              {hideIfCurrent(ROUTES.web3Causes) && (
+                <Link to={ROUTES.web3Causes} className={dropdownItemClass}>
+                  Causes
+                </Link>
+              )}
+              {hideIfCurrent(ROUTES.web3Quiz) && (
+                <Link to={ROUTES.web3Quiz} className={dropdownItemClass}>
+                  Web3 Quiz
+                </Link>
+              )}
+              {hideIfCurrent(ROUTES.web3Elimination) && (
+                <Link to={ROUTES.web3Elimination} className={dropdownItemClass}>
+                  Web3 Elimination
+                </Link>
+              )}
+              {hideIfCurrent(ROUTES.web3Features) && (
+                <Link to={ROUTES.web3Features} className={dropdownItemClass}>
+                  Crypto-Powered Features
+                </Link>
+              )}
+              {hideIfCurrent(ROUTES.web3Partners) && (
+                <Link to={ROUTES.web3Partners} className={dropdownItemClass}>
+                  Web3 Fundraising Partners
+                </Link>
+              )}
+              {hideIfCurrent(ROUTES.web3Testimonials) && (
+                <Link to={ROUTES.web3Testimonials} className={dropdownItemClass}>
+                  Crypto Fundraising Testimonials
+                </Link>
+              )}
             </div>
           </div>
 
           {/* Auth-dependent action */}
           {isAuthenticated ? (
-            <Link to={ROUTES.eventDashboard} className="text-sm font-semibold text-indigo-700 hover:text-indigo-900">
+            <Link
+              to={ROUTES.eventDashboard}
+              className="text-sm font-semibold text-indigo-700 hover:text-indigo-900"
+            >
               Quiz Dashboard
             </Link>
           ) : (
             !onFreeTrial && (
               <Link
                 to={ROUTES.freeTrial}
-                className="rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:from-purple-700 hover:to-indigo-700"
+                className="rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:from-purple-700 hover:to-indigo-700"
               >
                 Free Trial
               </Link>
             )
           )}
 
-          {/* Greeting + Logout when authed */}
+          {/* Greeting + Logout */}
           {isAuthenticated && (
             <>
-              <span className="text-sm text-gray-500">Hi, {club?.name ?? user?.name ?? user?.email}</span>
+              <span className="max-w-[220px] truncate text-sm text-gray-500">
+                Hi, {club?.name ?? user?.name ?? user?.email}
+              </span>
               <button
                 onClick={handleLogout}
                 className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100"
+                type="button"
               >
                 Log out
               </button>
@@ -259,11 +291,12 @@ export function Header() {
 
         {/* Mobile toggle */}
         <button
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="p-2 text-gray-700 transition-colors hover:text-indigo-600 md:hidden"
+          onClick={() => setMobileMenuOpen((v) => !v)}
+          className="ml-3 shrink-0 p-2 text-gray-700 transition-colors hover:text-indigo-600 md:hidden"
           aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
           aria-expanded={mobileMenuOpen}
           aria-controls="mobile-menu"
+          type="button"
         >
           {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
@@ -272,188 +305,154 @@ export function Header() {
       {/* Mobile menu */}
       {mobileMenuOpen && (
         <div
-          className="bg-white/95 border-t border-gray-100 shadow-lg backdrop-blur-sm md:hidden"
           id="mobile-menu"
           role="navigation"
           aria-label="Mobile navigation"
+          className="border-t border-gray-100 bg-white/95 shadow-lg backdrop-blur-sm md:hidden"
         >
-          <div className="container mx-auto space-y-2 px-4 py-4">
-            {/* Quiz Fundraisers accordion */}
+          <div className="mx-auto w-full max-w-screen-xl space-y-2 overflow-x-hidden px-4 py-4 sm:px-6">
+            {/* Quiz Fundraisers */}
             <button
               onClick={() => setMobileQuizOpen((v) => !v)}
-              className="flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-sm font-medium text-indigo-700 hover:bg-indigo-50"
+              className={mobileTopButtonClass}
               aria-expanded={mobileQuizOpen}
+              type="button"
             >
-              <span>Quiz Fundraisers</span>
-              <ChevronDown className={`h-4 w-4 transition-transform ${mobileQuizOpen ? 'rotate-180' : ''}`} />
+              <span className="min-w-0 pr-3">Quiz Fundraisers</span>
+              <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${mobileQuizOpen ? 'rotate-180' : ''}`} />
             </button>
+
             {mobileQuizOpen && (
-              <div className="ml-2 flex flex-col">
+              <div className="ml-2 flex min-w-0 flex-col">
                 {hideIfCurrent(ROUTES.howItWorks) && (
-                  <Link
-                    to={ROUTES.howItWorks}
-                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
+                  <Link to={ROUTES.howItWorks} className={mobileSubLinkClass}>
                     How it Works
                   </Link>
                 )}
                 {hideIfCurrent(ROUTES.features) && (
-                  <Link
-                    to={ROUTES.features}
-                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
+                  <Link to={ROUTES.features} className={mobileSubLinkClass}>
                     Features
                   </Link>
                 )}
                 {hideIfCurrent(ROUTES.useCases) && (
-                  <Link
-                    to={ROUTES.useCases}
-                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
+                  <Link to={ROUTES.useCases} className={mobileSubLinkClass}>
                     Use Cases (Schools, Clubs, Charities)
                   </Link>
                 )}
                 {hideIfCurrent(ROUTES.demo) && (
-                  <Link
-                    to={ROUTES.demo}
-                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
+                  <Link to={ROUTES.demo} className={mobileSubLinkClass}>
                     Demo
                   </Link>
                 )}
                 {hideIfCurrent(ROUTES.testimonials) && (
-                  <Link
-                    to={ROUTES.testimonials}
-                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
+                  <Link to={ROUTES.testimonials} className={mobileSubLinkClass}>
                     Testimonials
                   </Link>
                 )}
               </div>
             )}
 
-            {/* Web3 Fundraising accordion */}
+            {/* Web3 Fundraising */}
             <button
               onClick={() => setMobileWeb3Open((v) => !v)}
-              className="flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-sm font-medium text-indigo-700 hover:bg-indigo-50"
+              className={mobileTopButtonClass}
               aria-expanded={mobileWeb3Open}
+              type="button"
             >
-              <span>Web3 Fundraising</span>
-              <ChevronDown className={`h-4 w-4 transition-transform ${mobileWeb3Open ? 'rotate-180' : ''}`} />
+              <span className="min-w-0 pr-3">Web3 Fundraising</span>
+              <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${mobileWeb3Open ? 'rotate-180' : ''}`} />
             </button>
+
             {mobileWeb3Open && (
-              <div className="ml-2 flex flex-col">
-                {hideIfCurrent(ROUTES.web3Overview) && (
-                  <Link
-                    to={ROUTES.web3Overview}
-                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Overview
+              <div className="ml-2 flex min-w-0 flex-col">
+                {hideIfCurrent(ROUTES.web3Marketplace) && (
+                  <Link to={ROUTES.web3Marketplace} className={mobileSubLinkClass}>
+                    Web3 Fundraising Marketplace
+                  </Link>
+                )}
+                {hideIfCurrent(ROUTES.web3Host) && (
+                  <Link to={ROUTES.web3Host} className={mobileSubLinkClass}>
+                    Host on FundRaisely
+                  </Link>
+                )}
+                {hideIfCurrent(ROUTES.web3Causes) && (
+                  <Link to={ROUTES.web3Causes} className={mobileSubLinkClass}>
+                    Causes
                   </Link>
                 )}
                 {hideIfCurrent(ROUTES.web3Quiz) && (
-                  <Link
-                    to={ROUTES.web3Quiz}
-                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
+                  <Link to={ROUTES.web3Quiz} className={mobileSubLinkClass}>
                     Web3 Quiz
                   </Link>
                 )}
                 {hideIfCurrent(ROUTES.web3Elimination) && (
-                  <Link
-                    to={ROUTES.web3Elimination}
-                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
+                  <Link to={ROUTES.web3Elimination} className={mobileSubLinkClass}>
                     Web3 Elimination
                   </Link>
                 )}
                 {hideIfCurrent(ROUTES.web3Features) && (
-                  <Link
-                    to={ROUTES.web3Features}
-                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
+                  <Link to={ROUTES.web3Features} className={mobileSubLinkClass}>
                     Crypto-Powered Features
                   </Link>
                 )}
                 {hideIfCurrent(ROUTES.web3Partners) && (
-                  <Link
-                    to={ROUTES.web3Partners}
-                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
+                  <Link to={ROUTES.web3Partners} className={mobileSubLinkClass}>
                     Web3 Fundraising Partners
                   </Link>
                 )}
                 {hideIfCurrent(ROUTES.web3Testimonials) && (
-                  <Link
-                    to={ROUTES.web3Testimonials}
-                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
+                  <Link to={ROUTES.web3Testimonials} className={mobileSubLinkClass}>
                     Crypto Fundraising Testimonials
                   </Link>
                 )}
               </div>
             )}
 
-            {/* Pricing accordion */}
+            {/* Pricing */}
             <button
               onClick={() => setMobilePricingOpen((v) => !v)}
-              className="flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-sm font-medium text-indigo-700 hover:bg-indigo-50"
+              className={mobileTopButtonClass}
               aria-expanded={mobilePricingOpen}
+              type="button"
             >
-              <span>Pricing</span>
-              <ChevronDown className={`h-4 w-4 transition-transform ${mobilePricingOpen ? 'rotate-180' : ''}`} />
+              <span className="min-w-0 pr-3">Pricing</span>
+              <ChevronDown
+                className={`h-4 w-4 shrink-0 transition-transform ${mobilePricingOpen ? 'rotate-180' : ''}`}
+              />
             </button>
+
             {mobilePricingOpen && (
-              <div className="ml-2 flex flex-col">
+              <div className="ml-2 flex min-w-0 flex-col">
                 {hideIfCurrent(ROUTES.foundingPartner) && (
-                  <Link
-                    to={ROUTES.foundingPartner}
-                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
+                  <Link to={ROUTES.foundingPartner} className={mobileSubLinkClass}>
                     Founding Partners
                   </Link>
                 )}
                 {hideIfCurrent(ROUTES.pricing) && (
-                  <Link
-                    to={ROUTES.pricing}
-                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
+                  <Link to={ROUTES.pricing} className={mobileSubLinkClass}>
                     Pricing
                   </Link>
                 )}
               </div>
             )}
 
-            {/* Campaigns accordion */}
+            {/* Campaigns */}
             <button
               onClick={() => setMobileCampaignsOpen((v) => !v)}
-              className="flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-sm font-medium text-indigo-700 hover:bg-indigo-50"
+              className={mobileTopButtonClass}
               aria-expanded={mobileCampaignsOpen}
+              type="button"
             >
-              <span>Campaigns</span>
-              <ChevronDown className={`h-4 w-4 transition-transform ${mobileCampaignsOpen ? 'rotate-180' : ''}`} />
+              <span className="min-w-0 pr-3">Campaigns</span>
+              <ChevronDown
+                className={`h-4 w-4 shrink-0 transition-transform ${mobileCampaignsOpen ? 'rotate-180' : ''}`}
+              />
             </button>
+
             {mobileCampaignsOpen && (
-              <div className="ml-2 flex flex-col">
+              <div className="ml-2 flex min-w-0 flex-col">
                 {hideIfCurrent(ROUTES.clubsLeague) && (
-                  <Link
-                    to={ROUTES.clubsLeague}
-                    className="rounded-md px-2 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
+                  <Link to={ROUTES.clubsLeague} className={mobileSubLinkClass}>
                     Junior Clubs Fundraising Quiz League
                   </Link>
                 )}
@@ -462,41 +461,32 @@ export function Header() {
 
             {/* Blog */}
             {hideIfCurrent(ROUTES.blog) && (
-              <Link
-                to={ROUTES.blog}
-                className="block rounded-md px-2 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50"
-                onClick={() => setMobileMenuOpen(false)}
-              >
+              <Link to={ROUTES.blog} className="block rounded-md px-2 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50">
                 Blog
               </Link>
             )}
 
-            {/* Auth / Actions */}
+            {/* Login */}
             {!isAuthenticated && hideIfCurrent(ROUTES.login) && (
-              <Link
-                to={ROUTES.login}
-                className="block rounded-md px-2 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50"
-                onClick={() => setMobileMenuOpen(false)}
-              >
+              <Link to={ROUTES.login} className="block rounded-md px-2 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50">
                 Login
               </Link>
             )}
 
+            {/* Actions */}
             {isAuthenticated ? (
               <>
                 <Link
                   to={ROUTES.eventDashboard}
                   className="block rounded-md px-2 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50"
-                  onClick={() => setMobileMenuOpen(false)}
                 >
                   Quiz Dashboard
                 </Link>
+
                 <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    handleLogout();
-                  }}
+                  onClick={handleLogout}
                   className="mt-2 w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-left text-sm font-medium text-red-700 hover:bg-red-100"
+                  type="button"
                 >
                   Log out
                 </button>
@@ -505,8 +495,7 @@ export function Header() {
               !onFreeTrial && (
                 <Link
                   to={ROUTES.freeTrial}
-                  className="mt-1 block rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2 text-center text-sm font-semibold text-white shadow-sm hover:from-purple-700 hover:to-indigo-700"
-                  onClick={() => setMobileMenuOpen(false)}
+                  className="mt-1 block rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2 text-center text-sm font-semibold text-white shadow-sm transition hover:from-purple-700 hover:to-indigo-700"
                 >
                   Free Trial
                 </Link>
