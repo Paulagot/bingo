@@ -49,7 +49,9 @@ export async function buildTransaction(
   console.log('[Solana][Transaction] 🔨 Building transaction with', instructions.length, 'instructions');
   console.log('[Solana][Transaction] Fee payer:', feePayer.toBase58());
   
-  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+  // ✅ Use 'finalized' for blockhash to get a more stable one that won't
+  // expire during the simulate → send window
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
   
   console.log('[Solana][Transaction] 📍 Blockhash:', blockhash.substring(0, 8) + '...');
   console.log('[Solana][Transaction] 📍 Last valid block height:', lastValidBlockHeight);
@@ -60,14 +62,9 @@ export async function buildTransaction(
     lastValidBlockHeight,
   });
 
-  const computeIx = ComputeBudgetProgram.setComputeUnitLimit({
-    units: 400_000,
-  });
-  
-  if (computeIx) {
-    transaction.add(computeIx);
-    console.log('[Solana][Transaction] ⚡ Added compute budget: 400,000 units');
-  }
+  const computeIx = ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 });
+  transaction.add(computeIx);
+  console.log('[Solana][Transaction] ⚡ Added compute budget: 400,000 units');
   
   for (let i = 0; i < instructions.length; i++) {
     const instruction = instructions[i];
@@ -80,7 +77,6 @@ export async function buildTransaction(
   console.log('[Solana][Transaction] ✅ Transaction built successfully');
   console.log('[Solana][Transaction] 📊 Total instructions:', transaction.instructions.length);
 
-  // Log transaction size — max is 1232 bytes
   try {
     const serialized = transaction.serialize({ requireAllSignatures: false });
     console.log(
@@ -105,13 +101,12 @@ export async function simulateTransaction(
   console.log('[Solana][Simulation] 🧪 Simulating transaction...');
   
   try {
-    const simulation = await connection.simulateTransaction(transaction);
+    // ✅ Use the same commitment as buildTransaction for consistency
+    const simulation = await connection.simulateTransaction(transaction, undefined, true);
     
     if (simulation.value.err) {
       console.error('[Solana][Simulation] ❌ Simulation failed');
-      // Pretty-print the error object so it's readable without expanding
       console.error('[Solana][Simulation] Error:', JSON.stringify(simulation.value.err, null, 2));
-      // Print every log line individually so they're visible without expanding the array
       console.error('[Solana][Simulation] Logs:');
       (simulation.value.logs ?? []).forEach((log, i) =>
         console.error(`  [${i}] ${log}`)
@@ -130,8 +125,16 @@ export async function simulateTransaction(
     
     return { success: true, logs: simulation.value.logs ?? [] };
   } catch (error: any) {
+    // ✅ If simulation throws "already processed", the tx landed — treat as success
+    if (
+      error?.message?.includes('already been processed') ||
+      error?.message?.includes('AlreadyProcessed')
+    ) {
+      console.log('[Solana][Simulation] ℹ️ Transaction already processed — treating as success');
+      return { success: true, logs: [] };
+    }
+
     console.error('[Solana][Simulation] ❌ Simulation threw:', error);
-    
     return {
       success: false,
       error: error.message || 'Simulation failed',

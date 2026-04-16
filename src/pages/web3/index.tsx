@@ -194,7 +194,7 @@ const Web3MainIndex: React.FC = () => {
         description="Discover live Web3 fundraising events, host quiz nights and elimination games, and support verified charities through transparent on-chain payout logic."
         keywords="web3 fundraising marketplace, crypto charity events, host fundraising events, quiz night fundraiser, elimination fundraiser, blockchain fundraising platform, verified charity web3, on-chain fundraising events, host web3 fundraiser, play for charity"
         domainStrategy="geographic"
-        image="/og/web3-hub.png"
+        image="/fundraisely.png"
         breadcrumbs={[
           { name: 'Home', item: '/' },
           { name: 'Web3 Fundraising Marketplace', item: '/web3' },

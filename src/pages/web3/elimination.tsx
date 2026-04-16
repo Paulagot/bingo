@@ -70,10 +70,13 @@ const Web3EliminationPage: React.FC = () => {
 
   /* ── Form state — only used when arriving via ?action=host from event card ── */
   const [showForm, setShowForm] = useState(false);
+  const [eventId, setEventId] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setShowForm(new URLSearchParams(window.location.search).get('action') === 'host');
+      const params = new URLSearchParams(window.location.search);
+      setShowForm(params.get('action') === 'host');
+      setEventId(params.get('eventId'));
     }
   }, []);
 
@@ -242,7 +245,7 @@ const Web3EliminationPage: React.FC = () => {
         >
           <ArrowRight className="h-3.5 w-3.5 rotate-180" /> Back
         </button>
-        <EliminationWeb3Page />
+        <EliminationWeb3Page eventId={eventId} />
       </div>
     );
   }

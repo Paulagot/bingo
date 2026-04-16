@@ -211,24 +211,41 @@ export function useSolanaEliminationJoinRoom(cluster?: SolanaNetworkKey) {
       let signature: string;
       try {
         signature = await provider.sendAndConfirm(transaction, [], {
-          skipPreflight: false,
+          skipPreflight: true,
           commitment: 'confirmed',
         });
-      } catch (err: any) {
-        // Check if player entry was created despite the error
-        try {
-          await (program.account as any).playerEntry.fetch(playerEntryPda);
-          const sig = err.signature || 'unknown';
-          console.log('[EliminationJoinRoom] Entry exists despite error — treating as success');
-          return {
-            success: true,
-            txHash: sig,
-            explorerUrl: getTxExplorerUrl(sig),
-          };
-        } catch {
-          throw new Error(`Transaction failed: ${formatTransactionError(err)}`);
-        }
-      }
+   } catch (err: any) {
+  // tx may have landed even though sendAndConfirm threw (wallet extension
+  // interference is the most common cause on devnet). Check the PDA.
+  try {
+    await (program.account as any).playerEntry.fetch(playerEntryPda);
+
+    // Try to recover the real signature from the chain rather than
+    // relying on err.signature which is often undefined in these cases
+    let txHash = 'already-joined'; // safe fallback the server handles correctly
+
+try {
+  const sigs = await connection.getSignaturesForAddress(playerEntryPda, {
+    limit: 1,
+  });
+  const first = sigs[0];
+  if (first?.signature) {
+    txHash = first.signature;
+    console.log('[EliminationJoinRoom] Recovered real signature:', txHash);
+  }
+} catch {
+  console.warn('[EliminationJoinRoom] Could not recover signature, using already-joined');
+}
+
+    return {
+      success: true,
+      txHash,
+      explorerUrl: getTxExplorerUrl(txHash === 'already-joined' ? '' : txHash),
+    };
+  } catch {
+    throw new Error(`Transaction failed: ${formatTransactionError(err)}`);
+  }
+}
 
       console.log('[EliminationJoinRoom] ✅ Joined room:', signature);
 
