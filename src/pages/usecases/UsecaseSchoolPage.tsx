@@ -163,7 +163,7 @@ const UsecaseSchoolPage: React.FC = () => {
         keywords="school fundraising quiz, PTA quiz fundraiser, school trivia night, fundraising ideas for schools, school event quiz, easy school fundraiser, virtual school quiz, PTA event planning, school community quiz, fundraising for education, quiz night fundraiser, quiz fundraiser, fundraising quiz for parents"
         domainStrategy="geographic"
         structuredData={structuredData}
-        image={abs('/og/og-usecase-schools.jpg')}
+        image={abs('/fundraisely.png')}
       />
 
       <Header />

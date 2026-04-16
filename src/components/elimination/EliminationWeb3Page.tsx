@@ -1,41 +1,96 @@
-import React, { useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import { Web3Provider } from '../Web3Provider';
 
 import { CHARITIES, getCharityById } from '../../chains/evm/config/gbcharities';
 import { SOLANA_TOKEN_LIST, SOLANA_TOKENS } from '../../chains/solana/config/solanaTokenConfig';
 import { useEliminationWeb3Launch } from './hooks/useEliminationWeb3Launch';
 import type { EliminationWeb3Config } from './hooks/useEliminationWeb3Launch';
+import { getEventById } from '../../services/web3PublicEventsService';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 // For now Solana devnet only — add more chains as you enable them
 const CLUSTER = 'devnet' as const;
 const CHAIN = 'solana' as const;
+const WSOL_MINT = 'So11111111111111111111111111111111111111112';
 
+interface EliminationWeb3PageProps {
+  eventId?: string | null;
+}
+
+interface EliminationWeb3InnerProps {
+  eventId?: string | null;
+}
 
 // ── Inner component (inside Web3Provider) ─────────────────────────────────────
-const EliminationWeb3Inner: React.FC = () => {
+const EliminationWeb3Inner: React.FC<EliminationWeb3InnerProps> = ({ eventId }) => {
   const [hostName, setHostName] = useState('');
   const [tokenSymbol, setTokenSymbol] = useState('SOL');
   const [entryFeeDisplay, setEntryFeeDisplay] = useState('');
   const [charityId, setCharityId] = useState<string>('');
+  const [prefillLoading, setPrefillLoading] = useState(false);
+  const [prefillError, setPrefillError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!eventId) return;
+
+    let cancelled = false;
+
+    async function hydrateFromEvent() {
+      setPrefillLoading(true);
+      setPrefillError(null);
+
+      try {
+        const res = await getEventById(eventId as string);
+        const event = res?.event;
+
+        if (!event || cancelled) return;
+
+        const safeTokenSymbol =
+          event.fee_token &&
+          SOLANA_TOKENS[event.fee_token as keyof typeof SOLANA_TOKENS]
+            ? event.fee_token
+            : 'SOL';
+
+        setHostName(event.host_name ?? '');
+        setTokenSymbol(safeTokenSymbol);
+        setEntryFeeDisplay(
+          event.entry_fee !== null && event.entry_fee !== undefined
+            ? String(event.entry_fee)
+            : ''
+        );
+        setCharityId(event.charity_id ? String(event.charity_id) : '');
+      } catch (err: any) {
+        if (!cancelled) {
+          setPrefillError(err?.message ?? 'Failed to load event details');
+        }
+      } finally {
+        if (!cancelled) {
+          setPrefillLoading(false);
+        }
+      }
+    }
+
+    hydrateFromEvent();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [eventId]);
 
   const selectedToken = SOLANA_TOKENS[tokenSymbol as keyof typeof SOLANA_TOKENS];
   const charity = charityId ? getCharityById(Number(charityId)) : null;
 
   // Convert display amount to base units
-  const entryFeeBase = selectedToken && entryFeeDisplay
-    ? Math.round(parseFloat(entryFeeDisplay) * Math.pow(10, selectedToken.decimals))
-    : 0;
-
-    const WSOL_MINT = 'So11111111111111111111111111111111111111112';
+  const entryFeeBase =
+    selectedToken && entryFeeDisplay
+      ? Math.round(parseFloat(entryFeeDisplay) * Math.pow(10, selectedToken.decimals))
+      : 0;
 
   const config: EliminationWeb3Config = {
     hostName,
     web3Chain: CHAIN,
     solanaCluster: CLUSTER,
-    feeMint: selectedToken?.isNative
-    ? WSOL_MINT
-    : (selectedToken?.mint ?? ''), 
+    feeMint: selectedToken?.isNative ? WSOL_MINT : (selectedToken?.mint ?? ''),
     entryFee: entryFeeBase,
     entryFeeDisplay,
     tokenSymbol,
@@ -63,31 +118,88 @@ const EliminationWeb3Inner: React.FC = () => {
     !!charityId;
 
   return (
-    
     <div
       className="min-h-screen flex flex-col items-center justify-center p-6"
       style={{ background: '#0a0a0f', fontFamily: "'Barlow Condensed', sans-serif" }}
     >
-        <style>{`
-  .elim-select option {
-    background: #1a1a2e;
-    color: #ffffff;
-  }
-`}</style>
+      <style>{`
+        .elim-select option {
+          background: #1a1a2e;
+          color: #ffffff;
+        }
+      `}</style>
+
       {/* Header */}
       <div className="mb-10 text-center">
-        <div style={{ fontSize: '11px', letterSpacing: '0.3em', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', marginBottom: '8px' }}>
+        <div
+          style={{
+            fontSize: '11px',
+            letterSpacing: '0.3em',
+            color: 'rgba(255,255,255,0.4)',
+            textTransform: 'uppercase',
+            marginBottom: '8px',
+          }}
+        >
           FundRaisely · Web3
         </div>
-        <h1 style={{ fontSize: '48px', fontWeight: 800, color: '#ffffff', lineHeight: 1, marginBottom: '8px' }}>
+        <h1
+          style={{
+            fontSize: '48px',
+            fontWeight: 800,
+            color: '#ffffff',
+            lineHeight: 1,
+            marginBottom: '8px',
+          }}
+        >
           ELIMINATION
         </h1>
-        <div style={{ fontSize: '13px', color: 'rgba(0,229,255,0.7)', letterSpacing: '0.1em' }}>
+        <div
+          style={{
+            fontSize: '13px',
+            color: 'rgba(0,229,255,0.7)',
+            letterSpacing: '0.1em',
+          }}
+        >
           On-chain prize pool · Solana devnet
         </div>
       </div>
 
       <div className="w-full max-w-sm space-y-4">
+        {eventId && prefillLoading && (
+          <p
+            style={{
+              fontSize: '12px',
+              color: 'rgba(0,229,255,0.7)',
+              fontFamily: 'monospace',
+            }}
+          >
+            Loading event details...
+          </p>
+        )}
+
+        {eventId && !prefillLoading && !prefillError && (
+          <p
+            style={{
+              fontSize: '12px',
+              color: 'rgba(255,255,255,0.4)',
+              fontFamily: 'monospace',
+            }}
+          >
+            Event details loaded from your dashboard listing.
+          </p>
+        )}
+
+        {prefillError && (
+          <p
+            style={{
+              color: '#ff3b5c',
+              fontSize: '12px',
+              fontFamily: 'monospace',
+            }}
+          >
+            {prefillError}
+          </p>
+        )}
 
         {/* Host name */}
         <div>
@@ -104,7 +216,8 @@ const EliminationWeb3Inner: React.FC = () => {
         {/* Token */}
         <div>
           <label style={labelStyle}>Entry fee token</label>
-          <select className="elim-select"
+          <select
+            className="elim-select"
             value={tokenSymbol}
             onChange={e => setTokenSymbol(e.target.value)}
             style={inputStyle}
@@ -130,7 +243,13 @@ const EliminationWeb3Inner: React.FC = () => {
             style={inputStyle}
           />
           {selectedToken?.minEntryFee && (
-            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '4px' }}>
+            <p
+              style={{
+                fontSize: '11px',
+                color: 'rgba(255,255,255,0.3)',
+                marginTop: '4px',
+              }}
+            >
               Min: {selectedToken.minEntryFee} {tokenSymbol}
             </p>
           )}
@@ -139,45 +258,65 @@ const EliminationWeb3Inner: React.FC = () => {
         {/* Charity */}
         <div>
           <label style={labelStyle}>Charity</label>
-          <select className="elim-select"
+          <select
+            className="elim-select"
             value={charityId}
             onChange={e => setCharityId(e.target.value)}
             style={inputStyle}
           >
             <option value="">Select a charity...</option>
             {CHARITIES.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
             ))}
           </select>
         </div>
 
         {/* Wallet connection */}
-      
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '16px' }}>
-            {!isConnected ? (
-              <button onClick={handleConnect} style={btnPrimaryStyle}>
-                Connect Solana Wallet
-              </button>
-            ) : (
-              <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontSize: '12px', color: 'rgba(0,229,255,0.7)', marginBottom: '4px' }}>
-                  ✓ Connected · {networkInfo.expectedNetwork}
-                </div>
-                <div style={{ fontSize: '11px', fontFamily: 'monospace', color: 'rgba(255,255,255,0.4)' }}>
-                  {walletAddress?.slice(0, 6)}...{walletAddress?.slice(-4)}
-                </div>
-                <button
-                  onClick={handleDisconnect}
-                  style={{ marginTop: '6px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', fontSize: '11px', cursor: 'pointer' }}
-                >
-                  Disconnect
-                </button>
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '16px' }}>
+          {!isConnected ? (
+            <button onClick={handleConnect} style={btnPrimaryStyle}>
+              Connect Solana Wallet
+            </button>
+          ) : (
+            <div style={{ marginBottom: '12px' }}>
+              <div
+                style={{
+                  fontSize: '12px',
+                  color: 'rgba(0,229,255,0.7)',
+                  marginBottom: '4px',
+                }}
+              >
+                ✓ Connected · {networkInfo.expectedNetwork}
               </div>
-            )}
-          </div>
-       
+              <div
+                style={{
+                  fontSize: '11px',
+                  fontFamily: 'monospace',
+                  color: 'rgba(255,255,255,0.4)',
+                }}
+              >
+                {walletAddress?.slice(0, 6)}...{walletAddress?.slice(-4)}
+              </div>
+              <button
+                onClick={handleDisconnect}
+                style={{
+                  marginTop: '6px',
+                  background: 'none',
+                  border: 'none',
+                  color: 'rgba(255,255,255,0.3)',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                }}
+              >
+                Disconnect
+              </button>
+            </div>
+          )}
+        </div>
 
-        {/* Error */}
+        {/* Launch hook error */}
         {error && (
           <p style={{ color: '#ff3b5c', fontSize: '12px', fontFamily: 'monospace' }}>
             {error}
@@ -199,16 +338,22 @@ const EliminationWeb3Inner: React.FC = () => {
               ? 'Deploying contract...'
               : 'Creating room...'
             : launchState === 'success'
-            ? '✓ Launching...'
-            : 'Deploy & Launch Game'}
+              ? '✓ Launching...'
+              : 'Deploy & Launch Game'}
         </button>
 
         {/* Summary */}
         {isReady && (
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px' }}>
-            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', lineHeight: 1.6 }}>
-              Players pay {entryFeeDisplay || '—'} {tokenSymbol} on-chain to join.
-              Prize pool distributed to winner, host, platform, and {charity?.name ?? 'charity'} automatically.
+            <p
+              style={{
+                fontSize: '11px',
+                color: 'rgba(255,255,255,0.25)',
+                lineHeight: 1.6,
+              }}
+            >
+              Players pay {entryFeeDisplay || '—'} {tokenSymbol} on-chain to join. Prize pool
+              distributed to winner, host, platform, and {charity?.name ?? 'charity'} automatically.
             </p>
           </div>
         )}
@@ -218,10 +363,9 @@ const EliminationWeb3Inner: React.FC = () => {
 };
 
 // ── Outer wrapper — mounts Web3Provider ───────────────────────────────────────
-// EliminationWeb3Page.tsx — fix the wrapper
-export const EliminationWeb3Page: React.FC = () => (
+export const EliminationWeb3Page: React.FC<EliminationWeb3PageProps> = ({ eventId }) => (
   <Web3Provider force={true}>
-    <EliminationWeb3Inner />
+    <EliminationWeb3Inner eventId={eventId} />
   </Web3Provider>
 );
 
@@ -245,8 +389,7 @@ const inputStyle: React.CSSProperties = {
   fontSize: '15px',
   outline: 'none',
   fontFamily: "'Barlow Condensed', sans-serif",
-  // ── ADD THESE TWO ──
-  colorScheme: 'dark',          // tells browser to render option dropdowns in dark mode
+  colorScheme: 'dark',
 } as React.CSSProperties;
 
 const btnPrimaryStyle: React.CSSProperties = {

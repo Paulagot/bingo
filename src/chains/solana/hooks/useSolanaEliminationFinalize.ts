@@ -188,7 +188,7 @@ export function useSolanaEliminationFinalize(cluster?: SolanaNetworkKey) {
       let signature: string;
       try {
         signature = await provider.sendAndConfirm(transaction, [], {
-          skipPreflight: false,
+          skipPreflight: true,
           commitment: 'confirmed',
         });
       } catch (err: any) {

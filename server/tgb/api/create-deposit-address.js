@@ -79,9 +79,11 @@ function isMockEnabled(req) {
 // Sent to TGB on every donation so receipts and dashboards
 // show "FundRaisely" rather than "Anonymous Donor".
 const PLATFORM_DONOR = {
-  donorFirstName: 'FundRaisely',
-  donorLastName: '',
-  donorEmail: 'donations@fundraisely.com', // ← update to your real contact email
+  donor: {
+    firstName: 'FundRaisely',
+    lastName: 'Platform',
+    email: 'donations@fundraisely.com',
+  },
 };
 
 export default async function createDepositAddress(req, res) {
@@ -186,7 +188,7 @@ export default async function createDepositAddress(req, res) {
           netNorm,
           pledgeAmount: effectiveAmount,
           mockMode: true,
-          donor: PLATFORM_DONOR,
+         
         },
         'TGB API call running in MOCK MODE'
       );
@@ -215,8 +217,8 @@ export default async function createDepositAddress(req, res) {
           network,
           netNorm,
           pledgeAmount: effectiveAmount,
-          isAnonymous: false,
-          donor: PLATFORM_DONOR,
+          isAnonymous: true,
+         
           metadata: metadataWithIntent,
           source: 'mock'
         }
@@ -270,13 +272,14 @@ export default async function createDepositAddress(req, res) {
     //   their dashboard and sends receipts to our platform email.
     // - 'network' field is REMOVED — TGB determines network from pledgeCurrency
     //   itself. Sending 'network' causes a validation error: '"network" is not allowed'
-    const payload = {
-      organizationId,
-      pledgeCurrency,                    // ✅ correct TGB code e.g. 'USDG', 'SOL', 'BONK'
-      pledgeAmount: String(effectiveAmount),
-      isAnonymous: false,
-      ...PLATFORM_DONOR,                 // donorFirstName, donorLastName, donorEmail
-    };
+   // AFTER
+const payload = {
+  organizationId,
+  pledgeCurrency,
+  pledgeAmount: String(effectiveAmount),
+  isAnonymous: true,
+     // spreads as { donor: { firstName, lastName, email } }
+};
 
     console.log('🔵 [TGB] Payload to send to TGB API:', JSON.stringify(payload, null, 2));
 

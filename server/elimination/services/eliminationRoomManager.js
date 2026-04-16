@@ -54,6 +54,8 @@ export const createRoom = ({
     createdAt: isoNow(),
     startedAt: null,
     endedAt: null,
+    settled: false,
+closed: false,
     
 
     // ── web3 fields ──────────────────────────────────────
