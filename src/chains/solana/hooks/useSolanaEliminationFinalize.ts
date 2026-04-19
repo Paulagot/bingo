@@ -3,7 +3,7 @@
  * Host signs — distributes prizes to winner, host, platform, charity.
  */
 import { useCallback } from 'react';
-import { PublicKey, SystemProgram } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 import {
   TOKEN_PROGRAM_ID,
   getAssociatedTokenAddress,
@@ -19,6 +19,7 @@ import {
   buildTransaction,
   simulateTransaction,
   formatTransactionError,
+  waitForConfirmation
 } from '../utils/transaction-helpers';
 import type { SolanaNetworkKey } from '../config/networks';
 
@@ -138,16 +139,34 @@ export function useSolanaEliminationFinalize(cluster?: SolanaNetworkKey) {
       await checkAta(winnerToken, winner, 'winner');
       await checkAta(charityToken, charityWallet, 'charity');
 
-      if (ataInstructions.length > 0) {
-        console.log('[EliminationFinalize] Creating', ataInstructions.length, 'missing ATAs...');
-        const ataTx = await buildTransaction(connection, ataInstructions, publicKey);
-        try {
-          const ataSig = await provider.sendAndConfirm(ataTx, [], { commitment: 'confirmed' });
-          console.log('[EliminationFinalize] ATAs created:', ataSig);
-        } catch (err: any) {
-          throw new Error(`Failed to create token accounts: ${formatTransactionError(err)}`);
-        }
+  if (ataInstructions.length > 0) {
+  console.log('[EliminationFinalize] Creating', ataInstructions.length, 'missing ATAs...');
+  const ataTx = await buildTransaction(connection, ataInstructions, publicKey);
+
+  let ataSig: string | undefined;
+  try {
+    const signedAtaTx = await provider.wallet.signTransaction(ataTx);
+
+    ataSig = await connection.sendRawTransaction(
+      signedAtaTx.serialize(),
+      {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
       }
+    );
+
+    console.log('[EliminationFinalize] 📝 ATA signature:', ataSig);
+
+    const ataConfirmed = await waitForConfirmation(connection, ataSig, 60_000);
+    if (!ataConfirmed) {
+      throw new Error('ATA creation transaction was sent but not confirmed in time');
+    }
+
+    console.log('[EliminationFinalize] ATAs created:', ataSig);
+  } catch (err: any) {
+    throw new Error(`Failed to create token accounts: ${formatTransactionError(err)}`);
+  }
+}
 
       // ── Build finalize_game instruction ───────────────────────────────────
       let instruction;
@@ -185,17 +204,31 @@ export function useSolanaEliminationFinalize(cluster?: SolanaNetworkKey) {
 
       console.log('[EliminationFinalize] Simulation passed. Sending...');
 
-      let signature: string;
-      try {
-        signature = await provider.sendAndConfirm(transaction, [], {
-          skipPreflight: true,
-          commitment: 'confirmed',
-        });
-      } catch (err: any) {
-        throw new Error(`Transaction failed: ${formatTransactionError(err)}`);
-      }
+let signature: string | undefined;
+try {
+  const signedTx = await provider.wallet.signTransaction(transaction);
 
-      console.log('[EliminationFinalize] ✅ Finalized:', signature);
+  signature = await connection.sendRawTransaction(
+    signedTx.serialize(),
+    {
+      skipPreflight: false,
+      preflightCommitment: 'confirmed',
+    }
+  );
+
+  console.log('[EliminationFinalize] 📝 Signature:', signature);
+
+  const confirmed = await waitForConfirmation(connection, signature, 60_000);
+  if (!confirmed) {
+    throw new Error('Finalize transaction was sent but not confirmed in time');
+  }
+} catch (err: any) {
+  throw new Error(`Transaction failed: ${formatTransactionError(err)}`);
+}
+
+if (!signature) {
+  throw new Error('Transaction signature missing after send');
+}
 
       return {
         success: true,

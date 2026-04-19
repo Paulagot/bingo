@@ -152,8 +152,7 @@ export default function ChallengeCreatePage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Start Date *</label>
-              <input
-                type="date"
+              <input type="datetime-local"
                 value={startsAt}
                 onChange={e => setStartsAt(e.target.value)}
                 required

@@ -17,10 +17,15 @@ import type { SupportedChain } from '../../../chains/types';
 import ClearSetupButton from './ClearSetupButton';
 import { useMiniAppContext } from '../../../context/MiniAppContext';
 
-import { CHARITIES as CHARITY_DIR, getCharityById as getGbCharityById } from '../../../chains/evm/config/gbcharities';
+import {
+  CHARITIES as CHARITY_DIR,
+  getCharityById as getGbCharityById,
+} from '../../../chains/evm/config/gbcharities';
 
-// ✅ import full 11-token list for Solana
-import { SOLANA_TOKEN_LIST, SOLANA_TOKENS } from '../../../chains/solana/config/solanaTokenConfig';
+import {
+  SOLANA_TOKEN_LIST,
+  SOLANA_TOKENS,
+} from '../../../chains/solana/config/solanaTokenConfig';
 
 interface StepWeb3QuizSetupProps extends WizardStepProps {
   onChainUpdate?: (chain: SupportedChain) => void;
@@ -32,10 +37,10 @@ const Character = ({ message }: { message: string }) => {
     message.includes('Perfect!') || message.includes('🎉')
       ? 'bg-green-50 border-green-200'
       : message.includes('Excellent!') || message.includes('choice!')
-      ? 'bg-blue-50 border-blue-200'
-      : message.includes('ready') || message.includes('configured')
-      ? 'bg-indigo-50 border-indigo-200'
-      : 'bg-gray-50 border-border';
+        ? 'bg-blue-50 border-blue-200'
+        : message.includes('ready') || message.includes('configured')
+          ? 'bg-indigo-50 border-indigo-200'
+          : 'bg-gray-50 border-border';
 
   return (
     <div className="mb-3 flex items-center gap-2 sm:mb-6 sm:gap-4">
@@ -76,7 +81,7 @@ type EvmNetwork =
 
 type SolanaCluster = 'mainnet' | 'devnet';
 
-const ENABLED_CHOICES: ChoiceValue[] = ['solanaDevnet'];
+const ENABLED_CHOICES: ChoiceValue[] = ['solanaMainnet'];
 
 const CHOICES: Array<{
   value: ChoiceValue;
@@ -86,10 +91,10 @@ const CHOICES: Array<{
   evmNetwork?: EvmNetwork;
   solanaCluster?: SolanaCluster;
 }> = [
-  // ----- ENABLED -----
-  { value: 'solanaDevnet', label: 'Solana Devnet', description: 'Solana · Developer test network', kind: 'solana', solanaCluster: 'devnet' },
+  { value: 'solanaMainnet', label: 'Solana', description: 'High-speed, low-fee mainnet', kind: 'solana', solanaCluster: 'mainnet' },
 
-  // ----- COMMENTED OUT (uncomment when ready) -----
+  // Hidden for now
+  // { value: 'solanaDevnet', label: 'Solana Devnet', description: 'Solana · Developer test network', kind: 'solana', solanaCluster: 'devnet' },
   // { value: 'baseSepolia', label: 'Base Sepolia', description: 'EVM · Base testnet', kind: 'evm', evmNetwork: 'baseSepolia' },
   // { value: 'avalancheFuji', label: 'Avalanche Fuji', description: 'EVM · Avalanche testnet', kind: 'evm', evmNetwork: 'avalancheFuji' },
   // { value: 'base', label: 'Base', description: 'EVM · Coinbase L2 (mainnet)', kind: 'evm', evmNetwork: 'base' },
@@ -99,10 +104,8 @@ const CHOICES: Array<{
   // { value: 'avalanche', label: 'Avalanche C-Chain', description: 'EVM · Avalanche mainnet', kind: 'evm', evmNetwork: 'avalanche' },
   // { value: 'optimism', label: 'OP Mainnet', description: 'EVM · Optimism mainnet', kind: 'evm', evmNetwork: 'optimism' },
   // { value: 'optimismSepolia', label: 'OP Sepolia', description: 'EVM · Optimism testnet', kind: 'evm', evmNetwork: 'optimismSepolia' },
-  // { value: 'solanaMainnet', label: 'Solana (Mainnet)', description: 'High-speed, low-fee mainnet', kind: 'solana', solanaCluster: 'mainnet' },
 ];
 
-// ✅ The first enabled choice is the canonical default — derived from CHOICES, not hardcoded.
 const DEFAULT_CHOICE: ChoiceValue = CHOICES[0].value;
 
 const deriveChoiceFromConfig = (
@@ -131,7 +134,6 @@ const deriveChoiceFromConfig = (
   return DEFAULT_CHOICE;
 };
 
-// Returns token list for a given choice
 const getTokensForChoice = (choice: ChoiceValue) => {
   if (choice === 'stellar') return [{ value: 'XLM', label: 'XLM' }];
 
@@ -142,18 +144,22 @@ const getTokensForChoice = (choice: ChoiceValue) => {
     }));
   }
 
-  // EVM choices
   return [
     { value: 'USDC', label: 'USDC' },
-    // { value: 'USDGLO', label: 'Glo Dollar' },
   ];
 };
 
-const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUpdate, onResetToFirst }) => {
+const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({
+  onNext,
+  onChainUpdate,
+  onResetToFirst,
+}) => {
   const { setupConfig, updateSetupConfig, setFlow } = useQuizSetupStore();
   const { isMiniApp } = useMiniAppContext();
 
-  useEffect(() => { setFlow('web3'); }, [setFlow]);
+  useEffect(() => {
+    setFlow('web3');
+  }, [setFlow]);
 
   const [hostName, setHostName] = useState(setupConfig.hostName || '');
 
@@ -164,9 +170,6 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
   );
 
   const enabledSet = useMemo(() => new Set(ENABLED_CHOICES), []);
-
-  // ✅ FIX 1: safeInitialChoice always resolves to something in CHOICES.
-  // If the derived value isn't in the enabled set, fall back to DEFAULT_CHOICE.
   const safeInitialChoice: ChoiceValue = enabledSet.has(derived) ? derived : DEFAULT_CHOICE;
 
   const [choice, setChoice] = useState<ChoiceValue>(safeInitialChoice);
@@ -174,8 +177,6 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
   const [charityId, setCharityId] = useState<string>((setupConfig as any).web3CharityOrgId || '');
   const [entryFee, setEntryFee] = useState(setupConfig.entryFee || '');
 
-  // ✅ FIX 1 (continued): isMiniApp effect now uses DEFAULT_CHOICE instead of a
-  // hardcoded 'base' that may not exist in the active CHOICES array.
   useEffect(() => {
     if (!isMiniApp) return;
     setChoice(DEFAULT_CHOICE);
@@ -183,14 +184,18 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
 
   const availableTokens = useMemo(() => getTokensForChoice(choice), [choice]);
 
-  // Reset currency when chain changes, defaulting sensibly per chain type
   useEffect(() => {
     const tokenValues = availableTokens.map((t) => t.value);
     const fallback =
-      choice === 'stellar' ? 'XLM' :
-      choice === 'solanaMainnet' || choice === 'solanaDevnet' ? 'USDG' :
-      'USDGLO';
-    if (!tokenValues.includes(currency)) setCurrency(availableTokens[0]?.value || fallback);
+      choice === 'stellar'
+        ? 'XLM'
+        : choice === 'solanaMainnet' || choice === 'solanaDevnet'
+          ? 'USDG'
+          : 'USDGLO';
+
+    if (!tokenValues.includes(currency)) {
+      setCurrency(availableTokens[0]?.value || fallback);
+    }
   }, [choice, availableTokens, currency]);
 
   const [error, setError] = useState('');
@@ -204,36 +209,43 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
   }, [hostName, choice, currency, entryFee, setupConfig]);
 
   const allSectionsComplete = completedSections.host && completedSections.web3;
-
-  // ✅ selectedInfo is typed as possibly undefined — no lying ! assertion
   const selectedInfo = CHOICES.find((c) => c.value === choice);
 
   const getCurrentMessage = () => {
     const network = selectedInfo?.label || 'your network';
-    if (allSectionsComplete)
+    if (allSectionsComplete) {
       return `🎉 Perfect! Your Web3 quiz is configured—host set, ${network} selected, token chosen, and entry fee set.`;
-    if (!completedSections.host) return "Hi there! Let's set up your quiz together. Start with your host display name.";
+    }
+    if (!completedSections.host) {
+      return "Hi there! Let's set up your quiz together. Start with your host display name.";
+    }
     return `Great! Now configure your Web3 payments on ${network}: choose token, charity, and the crypto entry fee.`;
   };
 
   const handleChoiceChange = (newChoice: ChoiceValue) => {
     setChoice(newChoice);
     setError('');
-    const meta = CHOICES.find(c => c.value === newChoice);
+    const meta = CHOICES.find((c) => c.value === newChoice);
     if (meta) {
       console.log('🔗 [StepWeb3QuizSetup] Chain changed to:', meta.kind);
     }
   };
 
   const handleSubmit = () => {
-    if (!completedSections.host) return setError('Please enter a host name with at least 2 characters.');
-    const parsed = Number.parseFloat(entryFee.trim());
-    if (Number.isNaN(parsed) || parsed <= 0) return setError('Please enter a valid entry fee greater than 0.');
-    const orgOk = Boolean((setupConfig as any).web3CharityOrgId);
-    if (!orgOk) return setError('Please select a charity.');
+    if (!completedSections.host) {
+      return setError('Please enter a host name with at least 2 characters.');
+    }
 
-    // ✅ FIX 2: Real null guard instead of the unsafe ! assertion.
-    // selectedInfo can be undefined if `choice` somehow isn't in CHOICES.
+    const parsed = Number.parseFloat(entryFee.trim());
+    if (Number.isNaN(parsed) || parsed <= 0) {
+      return setError('Please enter a valid entry fee greater than 0.');
+    }
+
+    const orgOk = Boolean((setupConfig as any).web3CharityOrgId);
+    if (!orgOk) {
+      return setError('Please select a charity.');
+    }
+
     const meta = selectedInfo;
     if (!meta) {
       setError('Invalid blockchain selected. Please refresh and try again.');
@@ -264,13 +276,14 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
     onNext?.();
   };
 
-  useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, []);
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
   const isSolana = choice === 'solanaMainnet' || choice === 'solanaDevnet';
 
   return (
     <div className="w-full space-y-3 px-2 pb-4 sm:space-y-6 sm:px-4">
-      {/* Header */}
       <div className="mb-2 flex items-center justify-between px-1">
         <div>
           <h2 className="heading-2">Step 1 of 4: Web3 Quiz Setup</h2>
@@ -287,7 +300,6 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
 
       <Character message={getCurrentMessage()} />
 
-      {/* Host */}
       <div className={`bg-muted rounded-lg border-2 p-4 shadow-sm transition-all sm:rounded-xl sm:p-6 ${completedSections.host ? 'border-green-300 bg-green-50' : 'border-border'}`}>
         <div className="mb-3 flex items-start gap-3 sm:mb-4">
           <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-blue-100 text-xl sm:h-12 sm:w-12 sm:text-2xl">👤</div>
@@ -309,7 +321,10 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
             <input
               type="text"
               value={hostName}
-              onChange={(e) => { setHostName(e.target.value); setError(''); }}
+              onChange={(e) => {
+                setHostName(e.target.value);
+                setError('');
+              }}
               placeholder="e.g., Quiz Master Sarah, The Pub Quiz"
               className={`w-full rounded-lg border-2 px-3 py-2.5 pr-12 text-sm outline-none transition focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3 sm:pr-16 sm:text-base ${
                 completedSections.host ? 'border-green-300 bg-green-50 focus:border-green-500' : 'border-border focus:border-indigo-500'
@@ -325,7 +340,6 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
         </div>
       </div>
 
-      {/* Chain + Token */}
       <div className={`bg-muted rounded-lg border-2 p-4 shadow-sm transition-all sm:rounded-xl sm:p-6 ${completedSections.web3 ? 'border-green-300 bg-green-50' : 'border-border'}`}>
         <div className="mb-3 flex items-start gap-3 sm:mb-4">
           <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-xl sm:h-12 sm:w-12 sm:text-2xl">🔗</div>
@@ -349,8 +363,6 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {/* ✅ FIX 1 (display): isMiniApp locked label now shows selectedInfo?.label
-              so it always reflects whichever chain is actually DEFAULT_CHOICE. */}
           {!isMiniApp && (
             <div className="space-y-2">
               <label className="text-fg/80 flex items-center gap-2 text-xs font-medium sm:text-sm">
@@ -362,7 +374,7 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
                 onChange={(e) => handleChoiceChange(e.target.value as ChoiceValue)}
                 className="border-border w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3 sm:text-base"
               >
-                {CHOICES.map((c) => (
+                {CHOICES.filter((c) => enabledSet.has(c.value)).map((c) => (
                   <option key={c.value} value={c.value}>{c.label}</option>
                 ))}
               </select>
@@ -393,7 +405,10 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
             </label>
             <select
               value={currency}
-              onChange={(e) => { setCurrency(e.target.value); setError(''); }}
+              onChange={(e) => {
+                setCurrency(e.target.value);
+                setError('');
+              }}
               className="border-border w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3 sm:text-base"
             >
               {availableTokens.map((t) => (
@@ -403,13 +418,11 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
             <p className="text-fg/60 text-xs">
               {isSolana
                 ? `${availableTokens.length} tokens available on ${selectedInfo?.label}`
-                : `Available tokens on ${selectedInfo?.label}`
-              }
+                : `Available tokens on ${selectedInfo?.label}`}
             </p>
           </div>
         </div>
 
-        {/* USDG info banner */}
         {currency === 'USDG' && isSolana && (
           <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3">
             <div className="mb-1 flex items-center space-x-2">
@@ -434,7 +447,6 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
           </div>
         )}
 
-        {/* Charity */}
         <div className="mt-4 space-y-2">
           <label className="text-fg/80 flex items-center gap-2 text-xs font-medium sm:text-sm">
             <Heart className="h-4 w-4 text-red-500" />
@@ -479,7 +491,7 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
           </select>
 
           {charityId && (
-            <div className="rounded-md border border-indigo-200 bg-indigo-50 p-2 text-[11px] text-indigo-800 break-words">
+            <div className="rounded-md border border-indigo-200 bg-indigo-50 p-2 text-[11px] break-words text-indigo-800">
               TGB Org ID: {(setupConfig as any).web3CharityOrgId}
             </div>
           )}
@@ -487,7 +499,6 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
           <p className="text-fg/60 text-xs italic">Powered by The Giving Block and Coala Pay</p>
         </div>
 
-        {/* Entry Fee */}
         <div className="mt-4">
           <div className="mb-3 flex items-start gap-3 sm:mb-4">
             <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-green-100 text-xl sm:h-12 sm:w-12 sm:text-2xl">💰</div>
@@ -509,7 +520,10 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
                 min="0"
                 step="0.01"
                 value={entryFee}
-                onChange={(e) => { setEntryFee(e.target.value); setError(''); }}
+                onChange={(e) => {
+                  setEntryFee(e.target.value);
+                  setError('');
+                }}
                 placeholder="5.00"
                 className="border-border w-full rounded-lg border-2 py-2.5 pl-16 pr-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 sm:py-3 sm:pl-20 sm:pr-4 sm:text-base"
               />
@@ -535,7 +549,6 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
         </div>
       </div>
 
-      {/* Error */}
       {error && (
         <div className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
           <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
@@ -543,7 +556,6 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
         </div>
       )}
 
-      {/* Navigation */}
       <div className="border-border border-t pt-4 sm:pt-6">
         <button
           onClick={handleSubmit}
@@ -559,7 +571,6 @@ const StepWeb3QuizSetup: React.FC<StepWeb3QuizSetupProps> = ({ onNext, onChainUp
 };
 
 export default StepWeb3QuizSetup;
-
 
 
 

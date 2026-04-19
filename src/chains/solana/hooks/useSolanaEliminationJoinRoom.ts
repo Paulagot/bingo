@@ -21,6 +21,7 @@ import {
   buildTransaction,
   simulateTransaction,
   formatTransactionError,
+   waitForConfirmation,
 } from '../utils/transaction-helpers';
 import type { SolanaNetworkKey } from '../config/networks';
 
@@ -208,44 +209,52 @@ export function useSolanaEliminationJoinRoom(cluster?: SolanaNetworkKey) {
 
       console.log('[EliminationJoinRoom] Simulation passed — sending...');
 
-      let signature: string;
+      let signature: string | undefined;
       try {
-        signature = await provider.sendAndConfirm(transaction, [], {
+        const signedTx = await provider.wallet.signTransaction(transaction);
+
+        signature = await connection.sendRawTransaction(signedTx.serialize(), {
           skipPreflight: true,
-          commitment: 'confirmed',
+          preflightCommitment: 'confirmed',
         });
-   } catch (err: any) {
-  // tx may have landed even though sendAndConfirm threw (wallet extension
-  // interference is the most common cause on devnet). Check the PDA.
-  try {
-    await (program.account as any).playerEntry.fetch(playerEntryPda);
 
-    // Try to recover the real signature from the chain rather than
-    // relying on err.signature which is often undefined in these cases
-    let txHash = 'already-joined'; // safe fallback the server handles correctly
+        console.log('[EliminationJoinRoom] Sent transaction:', signature);
+        console.log('[EliminationJoinRoom] Waiting for confirmation...');
 
-try {
-  const sigs = await connection.getSignaturesForAddress(playerEntryPda, {
-    limit: 1,
-  });
-  const first = sigs[0];
-  if (first?.signature) {
-    txHash = first.signature;
-    console.log('[EliminationJoinRoom] Recovered real signature:', txHash);
-  }
-} catch {
-  console.warn('[EliminationJoinRoom] Could not recover signature, using already-joined');
-}
+        const confirmed = await waitForConfirmation(connection, signature, 60_000);
 
-    return {
-      success: true,
-      txHash,
-      explorerUrl: getTxExplorerUrl(txHash === 'already-joined' ? '' : txHash),
-    };
-  } catch {
-    throw new Error(`Transaction failed: ${formatTransactionError(err)}`);
-  }
-}
+        if (!confirmed) {
+          throw new Error('Transaction was sent but not confirmed in time');
+        }
+      } catch (err: any) {
+        // tx may have landed even though confirmation threw — check the PDA
+        try {
+          await (program.account as any).playerEntry.fetch(playerEntryPda);
+
+          let txHash = signature || 'already-joined';
+
+          try {
+            const sigs = await connection.getSignaturesForAddress(playerEntryPda, {
+              limit: 1,
+            });
+            const first = sigs[0];
+            if (first?.signature) {
+              txHash = first.signature;
+              console.log('[EliminationJoinRoom] Recovered real signature:', txHash);
+            }
+          } catch {
+            console.warn('[EliminationJoinRoom] Could not recover signature, using fallback');
+          }
+
+          return {
+            success: true,
+            txHash,
+            explorerUrl: getTxExplorerUrl(txHash === 'already-joined' ? '' : txHash),
+          };
+        } catch {
+          throw new Error(`Transaction failed: ${formatTransactionError(err)}`);
+        }
+      }
 
       console.log('[EliminationJoinRoom] ✅ Joined room:', signature);
 

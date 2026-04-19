@@ -21,7 +21,7 @@ export const Web3JoinSection: React.FC<Props> = ({
   onError,
 }) => {
   // ── Use cluster from roomData — never hardcode devnet ─────────────────────
-  const cluster = roomData.solanaCluster ?? 'devnet';
+  const cluster = roomData.solanaCluster ?? 'mainnet';
 
   const chainConfig = toChainConfig({
     web3Chain: roomData.web3Chain ?? 'solana',

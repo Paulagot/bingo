@@ -42,7 +42,7 @@ import {
 } from '../config/networks';
 import type { QuizConfig } from '@/components/Quiz/types/quiz';
 
-const debug = false;
+const debug = true;
 
 export interface UseSolanaSharedParams {
   /**
@@ -107,7 +107,7 @@ export function useSolanaShared(params?: UseSolanaSharedParams): UseSolanaShared
   // ✅ Get cluster EXPLICITLY from config, don't try to detect it from AppKit
   const cluster = useMemo(() => {
     const stored = setupConfig?.solanaCluster as SolanaNetworkKey | undefined;
-    const resolved = stored || 'devnet'; // Default to devnet
+    const resolved = stored || 'mainnet'; // Default to mainnet
 
     if (debug) console.log('[Solana][Shared] 📋 Cluster from config:', {
       fromConfig: stored,
@@ -125,11 +125,22 @@ export function useSolanaShared(params?: UseSolanaSharedParams): UseSolanaShared
 
   // ✅ Build connection directly from cluster config — bypasses AppKit's connection
   // which follows the wallet's network (mainnet) rather than our configured cluster.
-  const connection = useMemo(() => {
-    const rpcUrl = getSolanaRpcUrl(cluster);
-    if (debug) console.log('[Solana][Shared] 🔗 Creating connection to:', rpcUrl);
-    return new Connection(rpcUrl, 'confirmed');
-  }, [cluster]);
+const connection = useMemo(() => {
+  const rpcUrl = getSolanaRpcUrl(cluster);
+  const wsUrl = rpcUrl
+    .replace(/^https:\/\//, 'wss://')
+    .replace(/^http:\/\//, 'ws://');
+
+  if (debug) {
+    console.log('[Solana][Shared] 🔗 Creating connection to:', rpcUrl);
+    console.log('[Solana][Shared] 🔌 Using ws endpoint:', wsUrl);
+  }
+
+  return new Connection(rpcUrl, {
+    commitment: 'confirmed',
+    wsEndpoint: wsUrl,
+  });
+}, [cluster]);
 
   // Convert address string to PublicKey
   const publicKey = useMemo(() => {

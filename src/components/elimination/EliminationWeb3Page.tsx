@@ -7,9 +7,9 @@ import { useEliminationWeb3Launch } from './hooks/useEliminationWeb3Launch';
 import type { EliminationWeb3Config } from './hooks/useEliminationWeb3Launch';
 import { getEventById } from '../../services/web3PublicEventsService';
 
-// ── Config ────────────────────────────────────────────────────────────────────
+// ── Config ─────mainnet───────────────────────────────────────────────────────────────
 // For now Solana devnet only — add more chains as you enable them
-const CLUSTER = 'devnet' as const;
+const CLUSTER = 'mainnet' as const;
 const CHAIN = 'solana' as const;
 const WSOL_MINT = 'So11111111111111111111111111111111111111112';
 
@@ -160,7 +160,7 @@ const EliminationWeb3Inner: React.FC<EliminationWeb3InnerProps> = ({ eventId }) 
             letterSpacing: '0.1em',
           }}
         >
-          On-chain prize pool · Solana devnet
+          On-chain prize pool · Solana
         </div>
       </div>
 

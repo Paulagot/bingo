@@ -1,8 +1,6 @@
 /**
  * useChainWallet — unified wallet hook for all chains.
  *
- 
- *
  * Key rules:
  * - Config flows IN as a parameter. This hook never reads from stores or localStorage.
  * - switchToCorrectNetwork() is a function you call explicitly (e.g. in a useEffect
@@ -220,6 +218,17 @@ export function useChainWallet(chainConfig: ChainConfig): ChainWalletState {
   }, [chainFamily, chainConfig.evmNetwork]);
 
   // ---------------------------------------------------------------------------
+  // Derived: normalized Solana cluster
+  // Standardize missing / legacy mainnet-beta values to mainnet for UI logic.
+  // ---------------------------------------------------------------------------
+  const normalizedSolanaCluster = useMemo<'mainnet' | 'devnet' | 'testnet'>(() => {
+    const cluster = chainConfig.solanaCluster;
+    if (cluster === 'devnet' || cluster === 'testnet') return cluster;
+    if (cluster === 'mainnet-beta' || cluster === 'mainnet') return 'mainnet';
+    return 'mainnet';
+  }, [chainConfig.solanaCluster]);
+
+  // ---------------------------------------------------------------------------
   // Derived: current chain ID (EVM only)
   // ---------------------------------------------------------------------------
   const currentChainId = useMemo<number | undefined>(() => {
@@ -284,10 +293,13 @@ export function useChainWallet(chainConfig: ChainConfig): ChainWalletState {
     else if (actualChainFamily === 'stellar') currentNetwork = 'Stellar';
 
     let expectedNetwork = '';
-    if (chainFamily === 'evm') expectedNetwork = expectedEvmMeta?.name ?? 'EVM';
-    else if (chainFamily === 'solana') {
-      const cluster = chainConfig.solanaCluster ?? 'devnet';
-      expectedNetwork = cluster === 'mainnet-beta' ? 'Solana' : `Solana ${cluster}`;
+    if (chainFamily === 'evm') {
+      expectedNetwork = expectedEvmMeta?.name ?? 'EVM';
+    } else if (chainFamily === 'solana') {
+      expectedNetwork =
+        normalizedSolanaCluster === 'mainnet'
+          ? 'Solana'
+          : `Solana ${normalizedSolanaCluster}`;
     } else if (chainFamily === 'stellar') {
       expectedNetwork = chainConfig.stellarNetwork === 'mainnet' ? 'Stellar' : 'Stellar Testnet';
     }
@@ -298,7 +310,16 @@ export function useChainWallet(chainConfig: ChainConfig): ChainWalletState {
       currentChainId,
       expectedChainId: expectedEvmMeta?.id as number | undefined,
     };
-  }, [isMiniApp, actualChainFamily, chainFamily, caipNetwork?.name, expectedEvmMeta, currentChainId, chainConfig.solanaCluster, chainConfig.stellarNetwork]);
+  }, [
+    isMiniApp,
+    actualChainFamily,
+    chainFamily,
+    caipNetwork?.name,
+    expectedEvmMeta,
+    currentChainId,
+    normalizedSolanaCluster,
+    chainConfig.stellarNetwork,
+  ]);
 
   // ---------------------------------------------------------------------------
   // Actions
@@ -312,34 +333,35 @@ export function useChainWallet(chainConfig: ChainConfig): ChainWalletState {
         return { success: false, error: err };
       }
     }
-if (chainFamily === 'evm' || chainFamily === 'solana') {
-  if (isMiniApp) {
-    // Mini app wallet is already connected via SDK — nothing to do
-    return { success: true };
-  }
-  try {
-    // For Solana: always open modal — AppKit needs the correct namespace.
-    // For EVM: skip modal only if already connected AND on correct network.
-    const alreadyGood =
-      chainFamily === 'evm' &&
-      appKitAccount.isConnected &&
-      !!appKitAccount.address &&
-      isOnCorrectNetwork;
 
-    if (!alreadyGood) {
-      await openAppKitModal();
+    if (chainFamily === 'evm' || chainFamily === 'solana') {
+      if (isMiniApp) {
+        // Mini app wallet is already connected via SDK — nothing to do
+        return { success: true };
+      }
+      try {
+        // For Solana: always open modal — AppKit needs the correct namespace.
+        // For EVM: skip modal only if already connected AND on correct network.
+        const alreadyGood =
+          chainFamily === 'evm' &&
+          appKitAccount.isConnected &&
+          !!appKitAccount.address &&
+          isOnCorrectNetwork;
+
+        if (!alreadyGood) {
+          await openAppKitModal();
+        }
+        return { success: true };
+      } catch (err: any) {
+        return { success: false, error: err };
+      }
     }
-    return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err };
-  }
-}
 
     return {
       success: false,
       error: { code: WalletErrorCode.UNKNOWN_ERROR, message: 'NO_CHAIN_SELECTED' },
     };
-  }, [chainFamily, isMiniApp, appKitAccount.isConnected, appKitAccount.address, openAppKitModal, stellarWallet]);
+  }, [chainFamily, isMiniApp, appKitAccount.isConnected, appKitAccount.address, isOnCorrectNetwork, openAppKitModal, stellarWallet]);
 
   const disconnect = useCallback(async (): Promise<void> => {
     if (chainFamily === 'stellar') {

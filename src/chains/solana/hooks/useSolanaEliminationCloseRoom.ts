@@ -18,6 +18,7 @@ import {
   buildTransaction,
   simulateTransaction,
   formatTransactionError,
+  waitForConfirmation
 } from '../utils/transaction-helpers';
 import type { SolanaNetworkKey } from '../config/networks';
 
@@ -107,16 +108,31 @@ export function useSolanaEliminationCloseRoom(cluster?: SolanaNetworkKey) {
         console.error('[EliminationCloseRoom] Simulation failed:', simResult.logs);
         throw new Error(`Simulation failed: ${formatTransactionError(simResult.error)}`);
       }
+let signature: string | undefined;
+try {
+  const signedTx = await provider.wallet.signTransaction(transaction);
 
-      let signature: string;
-      try {
-        signature = await provider.sendAndConfirm(transaction, [], {
-          skipPreflight: true,
-          commitment: 'confirmed',
-        });
-      } catch (err: any) {
-        throw new Error(`close_room transaction failed: ${formatTransactionError(err)}`);
-      }
+  signature = await connection.sendRawTransaction(
+    signedTx.serialize(),
+    {
+      skipPreflight: false,
+      preflightCommitment: 'confirmed',
+    }
+  );
+
+  console.log('[EliminationCloseRoom] 📝 Signature:', signature);
+
+  const confirmed = await waitForConfirmation(connection, signature, 60_000);
+  if (!confirmed) {
+    throw new Error('close_room transaction was sent but not confirmed in time');
+  }
+} catch (err: any) {
+  throw new Error(`close_room transaction failed: ${formatTransactionError(err)}`);
+}
+
+if (!signature) {
+  throw new Error('Transaction signature missing after send');
+}
 
       console.log('[EliminationCloseRoom] ✅ Room closed:', signature);
 

@@ -26,7 +26,7 @@ export type EliminationDeployResult = {
 export function useEliminationContractActions(chainConfig: ChainConfig) {
   const { chainFamily } = useChainWallet(chainConfig);
 
-  const cluster = (chainConfig as any).solanaCluster as SolanaNetworkKey ?? 'devnet';
+  const cluster = (chainConfig as any).solanaCluster as SolanaNetworkKey ?? 'mainnet';
   const { createRoom: solanaCreateRoom } = useSolanaEliminationCreateRoom(cluster);
 
   const deploy = useCallback(

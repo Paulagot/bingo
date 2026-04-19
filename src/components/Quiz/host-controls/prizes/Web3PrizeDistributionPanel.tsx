@@ -278,7 +278,7 @@ const res = await wallet.connect();
           let web3ChainForBackend: string;
 
           if (data.web3Chain === 'solana') {
-            const cluster = data.solanaNetwork || setupConfig.solanaCluster || 'devnet';
+            const cluster = data.solanaNetwork || setupConfig.solanaCluster || 'mainnet';
             networkForBackend = cluster === 'testnet' ? 'devnet' : cluster;
             web3ChainForBackend = 'solana';
             console.log('🔍 [Solana Network Debug]:', {

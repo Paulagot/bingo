@@ -21,7 +21,7 @@ export const SOLANA_CONTRACT = {
   /**
    * Quiz Program ID (devnet)
    */
-  PROGRAM_ID: new PublicKey('99uc6q3wfb59tLeMjUNzgiNexCNcKaAvG5yE4n5VRxkH'),
+  PROGRAM_ID: new PublicKey('AMuhGgHziizhHzC4xETZUjyXBeVCjhbknMcXU5HPxocv'),
 
   /**
    * Platform wallet address string — your deployer wallet (`solana address` output).
