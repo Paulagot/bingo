@@ -364,8 +364,8 @@ useEffect(() => {
     </Suspense>
   }
 />
-{/* ── Puzzle routes — ORDER MATTERS: specific paths before /:challengeId ── */}
 
+{/* ── Challenge routes — ORDER MATTERS: specific paths before /:challengeId ── */}
 <Route path="/challenges" element={
   <Suspense fallback={<LoadingSpinner message="Loading..." />}>
     <ChallengeDashboardPage />
@@ -378,7 +378,7 @@ useEffect(() => {
   </Suspense>
 } />
 
-{/* These three must come BEFORE /challenges/:challengeId */}
+{/* Specific sub-routes BEFORE generic /:challengeId */}
 <Route path="/challenges/:challengeId/play" element={
   <Suspense fallback={<LoadingSpinner message="Loading..." />}>
     <PlayerChallengePage />
@@ -397,27 +397,29 @@ useEffect(() => {
   </Suspense>
 } />
 
-{/* Generic /:challengeId LAST — catches /challenges/:challengeId only */}
+{/* Generic /:challengeId LAST */}
 <Route path="/challenges/:challengeId" element={
   <Suspense fallback={<LoadingSpinner message="Loading..." />}>
     <ChallengeDetailPage />
   </Suspense>
 } />
 
-{/* Public join routes */}
-<Route path="/join/puzzle/:joinCode" element={
-  <Suspense fallback={<LoadingSpinner message="Loading..." />}>
-    <PuzzleJoinPage />
-  </Suspense>
-} />
-
+{/* ── Join routes — static segment BEFORE dynamic /:joinCode ── */}
+{/* /join/puzzle/challenge/:challengeId MUST come before /join/puzzle/:joinCode  */}
+{/* otherwise React Router matches "challenge" as the joinCode param            */}
 <Route path="/join/puzzle/challenge/:challengeId" element={
   <Suspense fallback={<LoadingSpinner message="Loading..." />}>
     <PuzzleJoinPage />
   </Suspense>
 } />
 
-{/* Magic link flow */}
+<Route path="/join/puzzle/:joinCode" element={
+  <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+    <PuzzleJoinPage />
+  </Suspense>
+} />
+
+{/* ── Magic link flow ── */}
 <Route path="/puzzle-check-email" element={
   <Suspense fallback={<LoadingSpinner message="Loading..." />}>
     <PuzzleCheckEmailPage />
@@ -429,7 +431,6 @@ useEffect(() => {
     <PuzzleAuthPage />
   </Suspense>
 } />
-
             {/* 404 */}
             <Route
               path="*"

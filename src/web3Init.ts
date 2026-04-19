@@ -8,7 +8,7 @@ import {
   metadata,
   solanaRpcUrls,
 } from './config';
-import { baseSepolia } from '@reown/appkit/networks'; // ← add this import
+import { solana } from '@reown/appkit/networks'; // ← add this import
 
 let appKitCreated = false;
 
@@ -81,7 +81,7 @@ export function ensureAppKitCreated() {
     enableEIP6963: true,
     enableCoinbase: true,
     coinbasePreference: 'all',
-    defaultNetwork: baseSepolia, // ← changed from networks[0]
+   defaultNetwork: solana,// ← changed from networks[0]
   });
 
   // ── Log 4: what does AppKit know after init? ──

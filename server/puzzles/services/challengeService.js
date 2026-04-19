@@ -169,11 +169,11 @@ export async function enrollPlayers({ challengeId, clubId, playerIds }) {
 export async function getEnrolledPlayers({ challengeId, clubId }) {
   const [rows] = await database.connection.execute(
     `SELECT
-       u.id, u.name, u.email,
+       s.id, s.name, s.email,
        cp.enrolled_at,
        cp.status
      FROM fundraisely_puzzle_challenge_players cp
-     JOIN fundraisely_users u ON u.id = cp.player_id
+     JOIN fundraisely_supporters s ON s.id = cp.player_id
      WHERE cp.challenge_id = ?
        AND cp.club_id = ?
      ORDER BY cp.enrolled_at ASC`,
@@ -188,18 +188,18 @@ export async function getLeaderboard({ challengeId }) {
   const [totals] = await database.connection.execute(
     `SELECT
        cp.player_id,
-       u.name  AS player_name,
+       s.name  AS player_name,
        COALESCE(SUM(ss.total_score), 0) AS total_score,
        COUNT(ss.id)                     AS weeks_completed
      FROM fundraisely_puzzle_challenge_players cp
-     JOIN fundraisely_users u ON u.id = cp.player_id
+    JOIN fundraisely_supporters s ON s.id = cp.player_id
      LEFT JOIN fundraisely_puzzle_submissions ss
        ON  ss.player_id   = cp.player_id
        AND ss.instance_id IN (
          SELECT id FROM fundraisely_puzzle_instances WHERE challenge_id = ?
        )
      WHERE cp.challenge_id = ?
-     GROUP BY cp.player_id, u.name
+     GROUP BY cp.player_id, s.name
      ORDER BY total_score DESC`,
     [challengeId, challengeId]
   );

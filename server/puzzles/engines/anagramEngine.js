@@ -150,23 +150,33 @@ export function validate(input, solution) {
 // ---------------------------------------------------------------------------
 
 /**
- * @param {{ validationResult: object, submission: object }} args
+ * @param {{ validationResult: object, submission?: object, timeTakenSeconds?: number }} args
  * @returns {PuzzleScoreResult}
  */
-export function score({ validationResult, submission }) {
+export function score({ validationResult, submission, timeTakenSeconds }) {
   if (!validationResult.valid) {
-    return { completed: false, correct: false, baseScore: 0, bonusScore: 0, penaltyScore: 0, totalScore: 0 };
+    return {
+      completed: false,
+      correct: false,
+      baseScore: 0,
+      bonusScore: 0,
+      penaltyScore: 0,
+      totalScore: 0,
+    };
   }
 
-  const bonusScore = calcTimeBonus(submission.timeTakenSeconds, 20, 30, 120);
+  const actualTimeTaken =
+    submission?.timeTakenSeconds ?? timeTakenSeconds ?? null;
+
+  const bonusScore = calcTimeBonus(actualTimeTaken, 20, 30, 120);
 
   return {
-    completed:    true,
-    correct:      true,
-    baseScore:    60,
+    completed: true,
+    correct: true,
+    baseScore: 60,
     bonusScore,
     penaltyScore: 0,
-    totalScore:   60 + bonusScore,
+    totalScore: 60 + bonusScore,
   };
 }
 

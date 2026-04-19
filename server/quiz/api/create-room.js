@@ -436,15 +436,15 @@ console.log('========================================');
       });
     }
 
-    // Set/force Web3 flags
-    setupConfig.isWeb3Room = true;
-    setupConfig.paymentMethod = 'web3';
+// Set/force Web3 flags
+setupConfig.isWeb3Room = true;
+setupConfig.paymentMethod = 'web3';
 
-    // ✅ ADD THIS SECTION - Normalize and save Solana cluster
+// Normalize Solana cluster for live rooms
 if (chain.toLowerCase() === 'solana') {
-  // Ensure solanaCluster is saved (frontend sends this)
-  setupConfig.solanaCluster = setupConfig.solanaCluster || 'devnet';
-  
+  setupConfig.solanaCluster =
+    setupConfig.solanaCluster === 'devnet' ? 'devnet' : 'mainnet';
+
   console.log('[API] 📋 Solana network configuration:', {
     solanaCluster: setupConfig.solanaCluster,
     web3Chain: chain
@@ -485,6 +485,11 @@ if (chain.toLowerCase() === 'solana') {
  if (setupConfig.web3Chain === 'evm') {
   setupConfig.evmNetwork = setupConfig.evmNetwork || req.body?.config?.evmNetwork || null;
   console.log('[API] ⛓️ EVM NETWORK RESOLUTION - evmNetwork:', setupConfig.evmNetwork);
+}
+
+if (setupConfig.web3Chain === 'solana') {
+  setupConfig.solanaCluster =
+    setupConfig.solanaCluster === 'devnet' ? 'devnet' : 'mainnet';
 }
 
     console.log('[API] 🔄 Starting room creation process...');

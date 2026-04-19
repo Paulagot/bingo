@@ -277,7 +277,7 @@ router.post('/rooms/:roomId/finalize-confirm', async (req, res) => {
       }
     } else {
       const { Connection } = await import('@solana/web3.js');
-      const cluster = room.solanaCluster ?? 'devnet';
+      const cluster = room.solanaCluster ?? 'mainnet';
       const rpcUrl = cluster === 'mainnet'
         ? 'https://api.mainnet-beta.solana.com'
         : 'https://api.devnet.solana.com';
@@ -309,7 +309,7 @@ router.post('/rooms/:roomId/finalize-confirm', async (req, res) => {
       feeMint: room.feeMint,
       tokenCode: tokenCode ?? 'UNKNOWN',
       chain: room.web3Chain ?? 'solana',
-      network: room.solanaCluster ?? 'devnet',
+      network: room.solanaCluster ?? 'mainnet',
       totalRaised: totalPool,
       charityAmount: Math.floor(totalPool * 0.35),
       hostFeeAmount: Math.floor(totalPool * 0.20),
@@ -450,7 +450,7 @@ router.post('/rooms/:roomId/cancel-confirm', async (req, res) => {
     if (refundTxHash && roomSnapshot.paymentMode === 'web3') {
       const network = roomSnapshot.web3Chain === 'evm'
         ? (roomSnapshot.evmChain ?? 'unknown')
-        : (roomSnapshot.solanaCluster ?? 'devnet');
+        : (roomSnapshot.solanaCluster ?? 'mainnet');
 
       const resolvedTokenCode = tokenCode ?? 'UNKNOWN';
       const playersWithWallets = roomSnapshot.players.filter((p) => p.walletAddress);

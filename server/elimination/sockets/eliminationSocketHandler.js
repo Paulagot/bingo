@@ -32,7 +32,7 @@ const getAllPlayers = (roomId) =>
 // ── Web3 tx verification ──────────────────────────────────────────────────────
 const verifyWeb3JoinTx = async (txSignature, room) => {
   try {
-    const cluster = room.solanaCluster ?? 'devnet';
+    const cluster = room.solanaCluster ?? 'mainnet';
     const rpcUrl = cluster === 'mainnet'
       ? 'https://api.mainnet-beta.solana.com'
       : 'https://api.devnet.solana.com';

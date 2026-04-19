@@ -1,7 +1,8 @@
-// src/chains/shared/tgbNetworks.ts
+// src/chains/tgbNetworks.ts
 /**
  * Single source of truth for The Giving Block network labels.
- * Keep this tiny table updated with the same keys you already use in resolveEvmTarget(...) and Solana cluster.
+ * Keep this tiny table updated with the same keys you already use in resolveEvmTarget(...)
+ * and Solana cluster handling.
  */
 
 export type TgbNetwork =
@@ -24,7 +25,7 @@ const MAP: Record<string, TgbNetwork> = {
   avalanche: 'avalanche',
   bsc: 'bsc',
 
-  // EVM testnets (map to their mainnet labels for TGB)
+  // EVM testnets → map to TGB mainnet labels
   baseSepolia: 'base',
   optimismSepolia: 'optimism',
   avalancheFuji: 'avalanche',
@@ -37,18 +38,24 @@ const MAP: Record<string, TgbNetwork> = {
 };
 
 /**
- * Returns the TGB label from your app’s network keys.
- * Safe fallback: returns `solana` if chain says solana; else returns input key.
+ * Returns the TGB label from your app's network keys.
+ * - Solana always resolves to `solana`
+ * - EVM testnets map to their TGB mainnet labels
+ * - Unknown values fall back safely to `base` for EVM
  */
 export function getTgbNetworkLabel(opts: {
   web3Chain: 'evm' | 'stellar' | 'solana';
-  evmTargetKey?: string | null;   // e.g., 'base', 'baseSepolia', 'avalancheFuji'
+  evmTargetKey?: string | null;
   solanaCluster?: 'mainnet' | 'devnet' | null;
 }): TgbNetwork {
   if (opts.web3Chain === 'solana') return 'solana';
-  const key =
-    opts.web3Chain === 'evm'
-      ? (opts.evmTargetKey || '')
-      : '';
-  return (MAP[key] as TgbNetwork) || (key.includes('solana') ? 'solana' : (key as TgbNetwork));
+
+  if (opts.web3Chain === 'evm') {
+    const key = opts.evmTargetKey || '';
+    return MAP[key] ?? 'base';
+  }
+
+  // Stellar should not use TGB network labels directly here.
+  // Fallback chosen only to keep return type safe.
+  return 'base';
 }

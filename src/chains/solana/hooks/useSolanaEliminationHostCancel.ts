@@ -19,6 +19,7 @@ import {
   buildTransaction,
   simulateTransaction,
   formatTransactionError,
+  waitForConfirmation
 } from '../utils/transaction-helpers';
 import type { SolanaNetworkKey } from '../config/networks';
 
@@ -96,16 +97,33 @@ export function useSolanaEliminationHostCancel(cluster?: SolanaNetworkKey) {
         throw new Error(`Cancel simulation failed: ${formatTransactionError(cancelSim.error)}`);
       }
 
-      let cancelTxHash: string;
-      try {
-        cancelTxHash = await provider.sendAndConfirm(cancelTx, [], {
-          skipPreflight: true,
-          commitment: 'confirmed',
-        });
-        console.log('[EliminationHostCancel] ✅ Room cancelled:', cancelTxHash);
-      } catch (err: any) {
-        throw new Error(`Cancel transaction failed: ${formatTransactionError(err)}`);
-      }
+     let cancelTxHash: string | undefined;
+try {
+  const signedCancelTx = await provider.wallet.signTransaction(cancelTx);
+
+  cancelTxHash = await connection.sendRawTransaction(
+    signedCancelTx.serialize(),
+    {
+      skipPreflight: false,
+      preflightCommitment: 'confirmed',
+    }
+  );
+
+  console.log('[EliminationHostCancel] 📝 Cancel signature:', cancelTxHash);
+
+  const cancelConfirmed = await waitForConfirmation(connection, cancelTxHash, 60_000);
+  if (!cancelConfirmed) {
+    throw new Error('Cancel transaction was sent but not confirmed in time');
+  }
+
+  console.log('[EliminationHostCancel] ✅ Room cancelled:', cancelTxHash);
+} catch (err: any) {
+  throw new Error(`Cancel transaction failed: ${formatTransactionError(err)}`);
+}
+
+if (!cancelTxHash) {
+  throw new Error('Cancel transaction signature missing after send');
+}
 
       // ── Step 2: host_refund_batch ─────────────────────────────────────────
       if (params.playerWallets.length === 0) {
@@ -209,15 +227,27 @@ export function useSolanaEliminationHostCancel(cluster?: SolanaNetworkKey) {
         throw new Error(`Refund simulation failed: ${formatTransactionError(refundSim.error)}`);
       }
 
-  let refundTxHash: string;
+let refundTxHash: string | undefined;
 try {
-  refundTxHash = await provider.sendAndConfirm(refundTx, [], {
-    skipPreflight: true,
-    commitment: 'confirmed',
-  });
+  const signedRefundTx = await provider.wallet.signTransaction(refundTx);
+
+  refundTxHash = await connection.sendRawTransaction(
+    signedRefundTx.serialize(),
+    {
+      skipPreflight: false,
+      preflightCommitment: 'confirmed',
+    }
+  );
+
+  console.log('[EliminationHostCancel] 📝 Refund signature:', refundTxHash);
+
+  const refundConfirmed = await waitForConfirmation(connection, refundTxHash, 60_000);
+  if (!refundConfirmed) {
+    throw new Error('Refund transaction was sent but not confirmed in time');
+  }
+
   console.log('[EliminationHostCancel] ✅ Refund batch complete:', refundTxHash);
 } catch (err: any) {
-  // "already processed" means the tx landed — recover the signature
   const alreadyProcessed =
     err?.message?.includes('already been processed') ||
     err?.message?.includes('AlreadyProcessed');
@@ -227,14 +257,18 @@ try {
     try {
       const sigs = await connection.getSignaturesForAddress(roomPda, { limit: 5 });
       const found = sigs.find(s => !s.err);
-      refundTxHash = found?.signature ?? err.signature ?? 'unknown';
+      refundTxHash = found?.signature ?? err?.signature ?? 'unknown';
       console.log('[EliminationHostCancel] ✅ Recovered refund signature:', refundTxHash);
     } catch {
-      refundTxHash = err.signature ?? 'unknown';
+      refundTxHash = err?.signature ?? 'unknown';
     }
   } else {
     throw new Error(`Refund transaction failed: ${formatTransactionError(err)}`);
   }
+}
+
+if (!refundTxHash) {
+  throw new Error('Refund transaction signature missing after send');
 }
 
       // ── Step 3: close_room (reclaim rent to platform) ─────────────────────

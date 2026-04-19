@@ -27,6 +27,7 @@ import {
   buildTransaction,
   simulateTransaction,
   formatTransactionError,
+  waitForConfirmation
 } from '../utils/transaction-helpers';
 
 import {
@@ -335,21 +336,68 @@ export function useSolanaJoinRoom() {
     console.log('[Solana][JoinRoom] ✅ Simulation successful');
 
     // Send
+     // Send
     console.log('[Solana][JoinRoom] 📤 Sending transaction...');
 
+    let signature: string | undefined;
+
     try {
-      const signature = await provider.sendAndConfirm(transaction);
+      const signedTx = await provider.wallet.signTransaction(transaction);
+
+      signature = await connection.sendRawTransaction(signedTx.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+      });
+
+      console.log('[Solana][JoinRoom] 📝 Signature:', signature);
+      console.log('[Solana][JoinRoom] ⏳ Waiting for confirmation...');
+
+      const confirmed = await waitForConfirmation(connection, signature, 60_000);
+
+      if (!confirmed) {
+        throw new Error('Transaction was sent but not confirmed in time');
+      }
 
       console.log('[Solana][JoinRoom] ✅ Transaction confirmed!');
-      console.log('[Solana][JoinRoom] 📝 Signature:', signature);
 
       return {
-        success:     true,
-        txHash:      signature,
+        success: true,
+        txHash: signature,
         explorerUrl: getTxExplorerUrl(signature),
       };
     } catch (error: any) {
       console.error('[Solana][JoinRoom] ❌ Transaction failed:', error);
+
+      // Check if player entry exists anyway — tx may have landed despite confirm error
+      try {
+        const existing = await (program.account as any).playerEntry.fetch(playerEntry);
+
+        if (existing) {
+          let txHash = signature || 'already-joined';
+
+          try {
+            const sigs = await connection.getSignaturesForAddress(playerEntry, {
+              limit: 1,
+            });
+            const first = sigs[0];
+            if (first?.signature) {
+              txHash = first.signature;
+              console.log('[Solana][JoinRoom] Recovered real signature:', txHash);
+            }
+          } catch {
+            console.warn('[Solana][JoinRoom] Could not recover signature, using fallback');
+          }
+
+          return {
+            success: true,
+            txHash,
+            explorerUrl: getTxExplorerUrl(txHash === 'already-joined' ? '' : txHash),
+          };
+        }
+      } catch {
+        // no entry found, treat as real failure
+      }
+
       throw new Error(formatTransactionError(error));
     }
 

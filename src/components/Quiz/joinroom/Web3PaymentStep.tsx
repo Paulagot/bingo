@@ -30,7 +30,7 @@ interface RoomData extends ChainConfig {
   roomContractAddress?: string;
   roomId: string;
 }
- 
+
 type PaymentStatus =
   | 'idle'
   | 'connecting'
@@ -38,7 +38,7 @@ type PaymentStatus =
   | 'confirming'
   | 'joining'
   | 'success';
- 
+
 export const Web3PaymentStep: React.FC<{
   roomId: string;
   playerName: string;
@@ -49,16 +49,14 @@ export const Web3PaymentStep: React.FC<{
 }> = ({ roomId, playerName, roomConfig, selectedExtras, onBack, onClose }) => {
   const navigate = useNavigate();
   const { socket } = useQuizSocket();
- 
-  // Both hooks receive the same chainConfig — one source of truth,
-  // no fighting between instances.
+
   const chainConfig: ChainConfig = {
     web3Chain: roomConfig.web3Chain,
     evmNetwork: roomConfig.evmNetwork,
     solanaCluster: roomConfig.solanaCluster,
     stellarNetwork: roomConfig.stellarNetwork,
   };
- 
+
   const {
     address: walletAddress,
     isConnected: isWalletConnected,
@@ -69,32 +67,30 @@ export const Web3PaymentStep: React.FC<{
     disconnect,
     switchToCorrectNetwork,
   } = useChainWallet(chainConfig);
- 
+
   const { joinRoom } = useContractActions(chainConfig);
- 
-  // Mini app — wallet already connected via SDK
+
   const { isMiniApp, walletAddress: miniAppAddress } = useMiniAppContext();
- 
-  // Switch to correct network once when wallet connects (explicit, not automatic)
+
   useEffect(() => {
     if (!isWalletConnected || isMiniApp) return;
     switchToCorrectNetwork();
   }, [isWalletConnected]); // eslint-disable-line react-hooks/exhaustive-deps
- 
+
   const effectiveAddress = isMiniApp ? miniAppAddress : walletAddress;
   const effectivelyConnected = isMiniApp ? !!miniAppAddress : isWalletConnected;
- 
+
   const extrasTotal = selectedExtras.reduce(
     (sum, key) => sum + (roomConfig.fundraisingPrices[key] || 0),
     0
   );
   const totalAmount = roomConfig.entryFee + extrasTotal;
- 
+
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('idle');
   const [error, setError] = useState('');
   const [txHash, setTxHash] = useState('');
   const [alreadyPaid, setAlreadyPaid] = useState(false);
- 
+
   const handleWalletConnect = async () => {
     try {
       setError('');
@@ -110,11 +106,11 @@ export const Web3PaymentStep: React.FC<{
       setPaymentStatus('idle');
     }
   };
- 
+
   const handleWeb3Join = async () => {
     try {
       setError('');
- 
+
       if (!isMiniApp) {
         if (!isWalletConnected) {
           await handleWalletConnect();
@@ -125,144 +121,149 @@ export const Web3PaymentStep: React.FC<{
           return;
         }
       }
- 
+
       if (!roomConfig.roomContractAddress) {
         throw new Error('Room contract address is required');
       }
- 
+
       setPaymentStatus('paying');
       const result = await joinRoom({
         roomId,
-        feeAmount:    roomConfig.entryFee,
+        feeAmount: roomConfig.entryFee,
         extrasAmount: extrasTotal.toString(),
-        roomAddress:  roomConfig.roomContractAddress,
-        currency:     roomConfig.currencySymbol,
+        roomAddress: roomConfig.roomContractAddress,
+        currency: roomConfig.currencySymbol,
       });
- 
+
       if (!result.success) throw new Error(result.error);
- 
-      // ── Already paid branch — no new tx to record ─────────────────────────
-      // The player previously paid on-chain. We skip the ledger write here
-      // because there is no new tx hash to record — the original join_payment
-      // row was (or should have been) written at the time of first payment.
+
       if ((result as any).alreadyPaid) {
         console.log('[Web3Payment] ✅ Player already paid, skipping to join');
         setAlreadyPaid(true);
         setTxHash('already-paid');
         setPaymentStatus('joining');
- 
+
         const playerId = nanoid();
- 
+
         socket?.emit('join_quiz_room', {
           roomId,
           user: {
-            id:            playerId,
-            name:          playerName,
-            paid:          true,
+            id: playerId,
+            name: playerName,
+            paid: true,
             paymentMethod: 'web3',
-            web3TxHash:    'already-paid',
-            web3Address:   effectiveAddress,
-            web3Chain:     chainFamily,
-            extras:        selectedExtras,
+            web3TxHash: 'already-paid',
+            web3Address: effectiveAddress,
+            web3Chain: chainFamily,
+            extras: selectedExtras,
             extraPayments: Object.fromEntries(
               selectedExtras.map((key) => [
                 key,
-                { method: 'web3', amount: roomConfig.fundraisingPrices[key], txHash: 'already-paid' },
+                {
+                  method: 'web3',
+                  amount: roomConfig.fundraisingPrices[key],
+                  txHash: 'already-paid',
+                },
               ])
             ),
           },
           role: 'player',
         });
- 
+
         localStorage.setItem(`quizPlayerId:${roomId}`, playerId);
         setPaymentStatus('success');
         setTimeout(() => navigate(`/quiz/game/${roomId}/${playerId}`), 1000);
         return;
       }
- 
-      // ── New payment confirmed ─────────────────────────────────────────────
+
       setTxHash(result.txHash || '');
       setPaymentStatus('confirming');
- 
-      // ── Record in ledger (fire-and-forget) ───────────────────────────────
-      // Called after the on-chain result comes back, before the socket emit.
-      // The server will re-verify the tx independently — we are just passing
-      // it the data we already have.
-      //
-      // NOTE on units: roomConfig.entryFee and extrasTotal are whatever unit
-      // your quiz contract uses. The EVM quiz contract works in raw token units
-      // (e.g. 1 USDC = 1_000_000). If your quiz stores human-readable amounts
-      // in roomConfig, multiply by the token's decimals before passing here.
-      // Check useContractActions to confirm what unit feeAmount expects.
-// ── Derive raw amounts and token info for ledger ──────────────────────
-// roomConfig.entryFee is human-readable (e.g. 0.001 SOL, 1.0 USDC)
-// We need raw units for the ledger. Decimals by token:
-const TOKEN_DECIMALS: Record<string, number> = {
-  USDC: 6, USDT: 6, SOL: 9, BONK: 5, PYUSD: 6, EURC: 6,
-  ETH: 18, MATIC: 18, BNB: 18,
-};
-const tokenSymbol   = (roomConfig.currencySymbol ?? 'UNKNOWN').toUpperCase();
-const decimals      = TOKEN_DECIMALS[tokenSymbol] ?? 6;
-const divisor       = Math.pow(10, decimals);
-const entryFeeRaw   = Math.round(roomConfig.entryFee * divisor);
-const extrasTotalRaw = Math.round(extrasTotal * divisor);
 
-web3TransactionService.recordJoinPayment({
-  game_type:        'quiz',
-  room_id:          roomId,
-  wallet_address:   effectiveAddress ?? '',
-  chain:            roomConfig.web3Chain === 'evm' ? 'evm' : 'solana',
-  network:          roomConfig.evmNetwork ?? roomConfig.solanaCluster ?? 'unknown',
-  solana_cluster:   roomConfig.web3Chain === 'solana'
-                      ? ((roomConfig.solanaCluster ?? 'devnet') as 'devnet' | 'mainnet')
-                      : undefined,
-  tx_hash:          result.txHash ?? '',
-  fee_token:        tokenSymbol,
-  token_address:    (roomConfig as any).web3ContractAddress
-                      ?? (roomConfig as any).contractAddress
-                      ?? null,
-  amount:           entryFeeRaw + extrasTotalRaw,
-  entry_fee_amount: entryFeeRaw,
-  extras_amount:    extrasTotalRaw,
-  donation_amount:  0,
-  metadata_json:    selectedExtras.length > 0 ? { selectedExtras } : null,
-}).catch(err =>
-  console.warn('[Web3PaymentStep] Ledger write failed (non-critical):', err?.message)
-);
- 
+      const TOKEN_DECIMALS: Record<string, number> = {
+        USDC: 6,
+        USDT: 6,
+        SOL: 9,
+        BONK: 5,
+        PYUSD: 6,
+        EURC: 6,
+        ETH: 18,
+        MATIC: 18,
+        BNB: 18,
+      };
+
+      const tokenSymbol = (roomConfig.currencySymbol ?? 'UNKNOWN').toUpperCase();
+      const decimals = TOKEN_DECIMALS[tokenSymbol] ?? 6;
+      const divisor = Math.pow(10, decimals);
+      const entryFeeRaw = Math.round(roomConfig.entryFee * divisor);
+      const extrasTotalRaw = Math.round(extrasTotal * divisor);
+
+      const resolvedSolanaCluster: 'devnet' | 'mainnet' =
+        roomConfig.solanaCluster === 'devnet' ? 'devnet' : 'mainnet';
+
+      web3TransactionService
+        .recordJoinPayment({
+          game_type: 'quiz',
+          room_id: roomId,
+          wallet_address: effectiveAddress ?? '',
+          chain: roomConfig.web3Chain === 'evm' ? 'evm' : 'solana',
+          network:
+            roomConfig.web3Chain === 'solana'
+              ? resolvedSolanaCluster
+              : roomConfig.evmNetwork ?? 'unknown',
+          solana_cluster:
+            roomConfig.web3Chain === 'solana' ? resolvedSolanaCluster : undefined,
+          tx_hash: result.txHash ?? '',
+          fee_token: tokenSymbol,
+          token_address:
+            (roomConfig as any).web3ContractAddress ??
+            (roomConfig as any).contractAddress ??
+            null,
+          amount: entryFeeRaw + extrasTotalRaw,
+          entry_fee_amount: entryFeeRaw,
+          extras_amount: extrasTotalRaw,
+          donation_amount: 0,
+          metadata_json: selectedExtras.length > 0 ? { selectedExtras } : null,
+        })
+        .catch((err) =>
+          console.warn('[Web3PaymentStep] Ledger write failed (non-critical):', err?.message)
+        );
+
       await new Promise((r) => setTimeout(r, 800));
- 
+
       setPaymentStatus('joining');
       const playerId = nanoid();
- 
+
       socket?.emit('join_quiz_room', {
         roomId,
         user: {
-          id:            playerId,
-          name:          playerName,
-          paid:          true,
+          id: playerId,
+          name: playerName,
+          paid: true,
           paymentMethod: 'web3',
-          web3TxHash:    result.txHash,
-          web3Address:   effectiveAddress,
-          web3Chain:     chainFamily,
-          extras:        selectedExtras,
+          web3TxHash: result.txHash,
+          web3Address: effectiveAddress,
+          web3Chain: chainFamily,
+          extras: selectedExtras,
           extraPayments: Object.fromEntries(
             selectedExtras.map((key) => [
               key,
-              { method: 'web3', amount: roomConfig.fundraisingPrices[key], txHash: result.txHash },
+              {
+                method: 'web3',
+                amount: roomConfig.fundraisingPrices[key],
+                txHash: result.txHash,
+              },
             ])
           ),
         },
         role: 'player',
       });
- 
+
       localStorage.setItem(`quizPlayerId:${roomId}`, playerId);
       setPaymentStatus('success');
       setTimeout(() => navigate(`/quiz/game/${roomId}/${playerId}`), 1000);
- 
     } catch (e: any) {
       console.error('Join failed:', e);
- 
+
       if (
         e.message?.includes('already been processed') ||
         e.message?.includes('already processed')
@@ -278,12 +279,12 @@ web3TransactionService.recordJoinPayment({
       }
     }
   };
- 
+
   const formattedAddr =
     effectiveAddress && effectiveAddress.length > 10
       ? `${effectiveAddress.slice(0, 6)}...${effectiveAddress.slice(-4)}`
       : effectiveAddress;
- 
+
   const STATUS_MAP: Record<
     Exclude<PaymentStatus, 'idle'>,
     { icon: React.ReactElement; text: string; color: string }
@@ -314,12 +315,11 @@ web3TransactionService.recordJoinPayment({
       color: 'text-green-600',
     },
   };
- 
+
   const status = paymentStatus === 'idle' ? null : STATUS_MAP[paymentStatus];
- 
+
   return (
     <div className="p-4 sm:p-6">
-      {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-blue-600 text-lg text-white">
@@ -336,8 +336,7 @@ web3TransactionService.recordJoinPayment({
           <X className="h-4 w-4" />
         </button>
       </div>
- 
-      {/* Network info banner */}
+
       <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
         <div className="flex items-center space-x-2">
           <AlertCircle className="h-5 w-5 flex-shrink-0 text-blue-600" />
@@ -353,8 +352,7 @@ web3TransactionService.recordJoinPayment({
           </div>
         </div>
       </div>
- 
-      {/* Wallet connection area */}
+
       <div className="mb-4 rounded-lg border border-purple-200 bg-purple-50 p-4">
         {isMiniApp ? (
           <div className="rounded-lg border border-green-200 bg-green-50 p-3">
@@ -396,7 +394,7 @@ web3TransactionService.recordJoinPayment({
                   <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-orange-600" />
                   <div className="flex-1">
                     <p className="text-sm font-medium text-orange-800">Wrong Network</p>
-                    <p className="text-xs text-orange-700 mt-1">
+                    <p className="mt-1 text-xs text-orange-700">
                       Your wallet is on <strong>{networkInfo.currentNetwork}</strong>, but this quiz
                       requires <strong>{networkInfo.expectedNetwork}</strong>.
                     </p>
@@ -410,7 +408,7 @@ web3TransactionService.recordJoinPayment({
                 </div>
               </div>
             )}
- 
+
             <div
               className={`rounded-lg border p-3 ${
                 isOnCorrectNetwork
@@ -420,12 +418,20 @@ web3TransactionService.recordJoinPayment({
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <div className={`text-sm font-medium ${isOnCorrectNetwork ? 'text-green-800' : 'text-orange-800'}`}>
+                  <div
+                    className={`text-sm font-medium ${
+                      isOnCorrectNetwork ? 'text-green-800' : 'text-orange-800'
+                    }`}
+                  >
                     {isOnCorrectNetwork
                       ? `${networkInfo.expectedNetwork} Connected`
                       : `${networkInfo.currentNetwork || 'Unknown'} Connected`}
                   </div>
-                  <div className={`text-xs font-mono ${isOnCorrectNetwork ? 'text-green-600' : 'text-orange-600'}`}>
+                  <div
+                    className={`text-xs font-mono ${
+                      isOnCorrectNetwork ? 'text-green-600' : 'text-orange-600'
+                    }`}
+                  >
                     {formattedAddr}
                   </div>
                 </div>
@@ -443,16 +449,14 @@ web3TransactionService.recordJoinPayment({
           </>
         )}
       </div>
- 
-      {/* Error display */}
+
       {error && (
         <div className="mb-3 flex items-center space-x-2 rounded-lg border border-red-200 bg-red-50 p-3">
           <AlertCircle className="h-5 w-5 text-red-500" />
           <p className="text-sm text-red-700">{error}</p>
         </div>
       )}
- 
-      {/* Payment status */}
+
       {status && (
         <div className="mb-4 flex items-center space-x-3 rounded-lg border bg-gray-50 p-4">
           <div className={status.color}>{status.icon}</div>
@@ -462,8 +466,7 @@ web3TransactionService.recordJoinPayment({
           )}
         </div>
       )}
- 
-      {/* Footer buttons */}
+
       <div className="flex justify-end space-x-2 border-t pt-4">
         <button
           onClick={onBack}
@@ -473,17 +476,20 @@ web3TransactionService.recordJoinPayment({
           <ChevronLeft className="mr-1 inline-block h-4 w-4" />
           Back
         </button>
- 
+
         {(isMiniApp || effectivelyConnected) && (
           <button
             onClick={handleWeb3Join}
             disabled={paymentStatus !== 'idle' || (!isMiniApp && !isOnCorrectNetwork)}
             className="rounded-lg bg-purple-600 px-4 py-2 text-sm text-white disabled:opacity-50"
           >
-            Pay {roomConfig.currencySymbol}{totalAmount}
+            Pay {roomConfig.currencySymbol}
+            {totalAmount}
           </button>
         )}
       </div>
     </div>
   );
 };
+
+export default Web3PaymentStep;
