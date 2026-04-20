@@ -270,7 +270,7 @@ export interface MemoryPairsAnswer {
 export interface PuzzleShellProps {
   puzzleType:         PuzzleType;
   title:              string;
-  instructions:       string;
+  instructions: string | string[];
   difficulty:         PuzzleDifficulty;
   puzzleData:         Record<string, unknown>;
   onSubmit:           (answer: Record<string, unknown>, timeTaken: number) => void;

@@ -16,7 +16,8 @@ const dbConfig = {
   connectionLimit: 30,
   queueLimit: 50,
   connectTimeout: 30000,         // 👈 add: 30s to establish connection
-  ssl: { rejectUnauthorized: false }
+  ssl: { rejectUnauthorized: false },
+  timezone: '+00:00'
 };
 // Debug what the config actually contains
 console.log('🗄️ Database Config Debug:');

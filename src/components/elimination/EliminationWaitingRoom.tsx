@@ -157,7 +157,7 @@ export const EliminationWaitingRoom: React.FC<Props> = ({
 
           {/* ── On-chain contract link — web3 rooms only ── */}
 {isWeb3Room && roomData?.roomPda && (
-  <a href={`https://explorer.solana.com/address/${roomData.roomPda}${roomData.solanaCluster === 'devnet' ? '?cluster=devnet' : ''}`}
+  <a href={`https://explorer.solana.com/address/${roomData.roomPda}${roomData.solanaCluster === 'mainnet' ? '?cluster=mainnet' : ''}`}
     target="_blank"
     rel="noopener noreferrer"
     style={styles.contractLink}

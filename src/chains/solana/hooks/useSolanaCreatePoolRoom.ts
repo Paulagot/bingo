@@ -8,7 +8,7 @@
  *   are fixed on-chain — no hostFeePct / prizePoolPct / prizeSplits params.
  * - No GlobalConfig PDA — removed from accounts
  * - No TokenRegistry PDA — removed from accounts
- * - Program ID updated to 99uc6q3wfb59tLeMjUNzgiNexCNcKaAvG5yE4n5VRxkH
+ * - Program ID updated to AMuhGgHziizhHzC4xETZUjyXBeVCjhbknMcXU5HPxocv
  *
  * ## Usage
  *
@@ -45,6 +45,7 @@ import {
   buildTransaction,
   simulateTransaction,
   formatTransactionError,
+  waitForConfirmation
 } from '../utils/transaction-helpers';
 import { validatePoolRoomParams } from '../utils/validation';
 import type { CreatePoolRoomParams, CreatePoolRoomResult } from '../utils/types';
@@ -278,37 +279,55 @@ export function useSolanaCreatePoolRoom(params?: UseSolanaCreatePoolRoomParams) 
 
       console.log('[Solana][CreatePoolRoom] 📤 Sending transaction...');
 
-      let signature: string;
-      try {
-        signature = await provider.sendAndConfirm(transaction, [], {
-          skipPreflight: false,
-          commitment:    'confirmed',
-        });
+let signature: string | undefined;
 
-        console.log('[Solana][CreatePoolRoom] ✅ Transaction confirmed');
-        console.log('[Solana][CreatePoolRoom] 📝 Signature:', signature);
-      } catch (error: any) {
-        console.error('[Solana][CreatePoolRoom] ❌ Transaction failed:', error);
+try {
+  const signedTx = await provider.wallet.signTransaction(transaction);
 
-        // Check if room was actually created despite the error
-        try {
-          const roomAccount = await (program.account as any).room.fetch(room);
-          if (roomAccount) {
-            console.log('[Solana][CreatePoolRoom] ⚠️ Room exists despite error — may have succeeded');
-            const sig = error.signature || error.transactionSignature || 'unknown';
-            return {
-              success:         true,
-              contractAddress: room.toBase58(),
-              txHash:          sig,
-              explorerUrl:     getTxExplorerUrl(sig),
-            };
-          }
-        } catch {
-          // Room doesn't exist — transaction truly failed
-        }
+  signature = await connection.sendRawTransaction(
+    signedTx.serialize(),
+    {
+      skipPreflight: false,
+      preflightCommitment: 'confirmed',
+    }
+  );
 
-        throw new Error(`Transaction failed: ${formatTransactionError(error)}`);
-      }
+  console.log('[Solana][CreatePoolRoom] 📝 Signature:', signature);
+
+  const confirmed = await waitForConfirmation(connection, signature, 60_000);
+
+  if (!confirmed) {
+    throw new Error('Transaction was sent but not confirmed in time');
+  }
+
+  console.log('[Solana][CreatePoolRoom] ✅ Transaction confirmed');
+
+} catch (error: any) {
+  console.error('[Solana][CreatePoolRoom] ❌ Transaction failed:', error);
+
+  try {
+    const roomAccount = await (program.account as any).room.fetch(room);
+
+    if (roomAccount) {
+      const sig =
+        error.signature ||
+        error.transactionSignature ||
+        signature ||
+        'unknown';
+
+      return {
+        success: true,
+        contractAddress: room.toBase58(),
+        txHash: sig,
+        explorerUrl: getTxExplorerUrl(sig),
+      };
+    }
+  } catch {
+    // ignore
+  }
+
+  throw new Error(`Transaction failed: ${formatTransactionError(error)}`);
+}
 
       // ============================================================================
       // Step 11: Return Result

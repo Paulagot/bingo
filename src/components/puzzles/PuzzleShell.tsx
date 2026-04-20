@@ -40,16 +40,16 @@ const PuzzleShell: React.FC<PuzzleShellProps> = ({
   //   • fresh puzzle                        → 'notStarted'
   const deriveInitialState = (): PuzzlePageState => {
     if (initiallyCompleted) return 'completed';
-    if (savedState)         return 'inProgress';
+    if (savedState) return 'inProgress';
     return 'notStarted';
   };
 
-  const [pageState, setPageState]       = useState<PuzzlePageState>(deriveInitialState);
+  const [pageState, setPageState] = useState<PuzzlePageState>(deriveInitialState);
   const [currentAnswer, setCurrentAnswer] = useState<Record<string, unknown>>(
     savedState ?? {}
   );
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const timerRef     = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number | null>(null);
 
   // When a score result arrives after the player submits THIS session,
@@ -67,6 +67,7 @@ const PuzzleShell: React.FC<PuzzleShellProps> = ({
       if (!startTimeRef.current) {
         startTimeRef.current = Date.now() - elapsedSeconds * 1000;
       }
+
       timerRef.current = setInterval(() => {
         const elapsed = Math.floor(
           (Date.now() - (startTimeRef.current ?? Date.now())) / 1000
@@ -76,13 +77,15 @@ const PuzzleShell: React.FC<PuzzleShellProps> = ({
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
     }
+
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [pageState]);
+  }, [pageState, elapsedSeconds]);
 
   const handleStart = useCallback(() => {
     startTimeRef.current = Date.now();
+    setElapsedSeconds(0);
     setPageState('inProgress');
   }, []);
 
@@ -133,7 +136,15 @@ const PuzzleShell: React.FC<PuzzleShellProps> = ({
       {/* Instructions — only shown before the puzzle starts */}
       {pageState === 'notStarted' && (
         <div className="px-6 py-5 bg-indigo-50 border-b border-indigo-100">
-          <p className="text-sm text-indigo-800 leading-relaxed">{instructions}</p>
+          {Array.isArray(instructions) ? (
+            <ul className="list-disc pl-5 space-y-2 text-sm text-indigo-800 leading-relaxed">
+              {instructions.map((item, index) => (
+                <li key={index}>{item}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-indigo-800 leading-relaxed">{instructions}</p>
+          )}
         </div>
       )}
 
@@ -156,6 +167,7 @@ const PuzzleShell: React.FC<PuzzleShellProps> = ({
               isReadOnly={isReadOnly}
             />
           )}
+
           {puzzleType === 'sequenceOrdering' && (
             <SequenceOrderingRenderer
               puzzleData={puzzleData}
@@ -164,6 +176,7 @@ const PuzzleShell: React.FC<PuzzleShellProps> = ({
               isReadOnly={isReadOnly}
             />
           )}
+
           {puzzleType === 'matchPairs' && (
             <MatchPairsRenderer
               puzzleData={puzzleData}
@@ -172,6 +185,7 @@ const PuzzleShell: React.FC<PuzzleShellProps> = ({
               isReadOnly={isReadOnly}
             />
           )}
+
           {puzzleType === 'wordSearch' && (
             <WordSearchRenderer
               puzzleData={puzzleData}
@@ -180,6 +194,7 @@ const PuzzleShell: React.FC<PuzzleShellProps> = ({
               isReadOnly={isReadOnly}
             />
           )}
+
           {puzzleType === 'slidingTile' && (
             <SlidingTileRenderer
               puzzleData={puzzleData}
@@ -188,6 +203,7 @@ const PuzzleShell: React.FC<PuzzleShellProps> = ({
               isReadOnly={isReadOnly}
             />
           )}
+
           {puzzleType === 'sudoku' && (
             <SudokuRenderer
               puzzleData={puzzleData}
@@ -196,6 +212,7 @@ const PuzzleShell: React.FC<PuzzleShellProps> = ({
               isReadOnly={isReadOnly}
             />
           )}
+
           {puzzleType === 'patternCompletion' && (
             <PatternCompletionRenderer
               puzzleData={puzzleData}
@@ -204,6 +221,7 @@ const PuzzleShell: React.FC<PuzzleShellProps> = ({
               isReadOnly={isReadOnly}
             />
           )}
+
           {puzzleType === 'wordLadder' && (
             <WordLadderRenderer
               puzzleData={puzzleData}
@@ -212,6 +230,7 @@ const PuzzleShell: React.FC<PuzzleShellProps> = ({
               isReadOnly={isReadOnly}
             />
           )}
+
           {puzzleType === 'cryptogram' && (
             <CryptogramRenderer
               puzzleData={puzzleData}
@@ -220,6 +239,7 @@ const PuzzleShell: React.FC<PuzzleShellProps> = ({
               isReadOnly={isReadOnly}
             />
           )}
+
           {puzzleType === 'numberPath' && (
             <NumberPathRenderer
               puzzleData={puzzleData}
@@ -228,6 +248,7 @@ const PuzzleShell: React.FC<PuzzleShellProps> = ({
               isReadOnly={isReadOnly}
             />
           )}
+
           {puzzleType === 'towersOfHanoi' && (
             <TowersOfHanoiRenderer
               puzzleData={puzzleData}
@@ -236,6 +257,7 @@ const PuzzleShell: React.FC<PuzzleShellProps> = ({
               isReadOnly={isReadOnly}
             />
           )}
+
           {puzzleType === 'nonogram' && (
             <NonogramRenderer
               puzzleData={puzzleData}
@@ -244,6 +266,7 @@ const PuzzleShell: React.FC<PuzzleShellProps> = ({
               isReadOnly={isReadOnly}
             />
           )}
+
           {puzzleType === 'memoryPairs' && (
             <MemoryPairsRenderer
               puzzleData={puzzleData}
@@ -251,6 +274,17 @@ const PuzzleShell: React.FC<PuzzleShellProps> = ({
               onAnswerChange={handleAnswerChange}
               isReadOnly={isReadOnly}
             />
+          )}
+
+          {/* Placeholder for puzzle types that exist in PuzzleMeta / PuzzleType
+              but do not have renderers wired here yet */}
+          {(puzzleType === 'deductionGrid' ||
+            puzzleType === 'spatialPacking' ||
+            puzzleType === 'spotDifference' ||
+            puzzleType === 'hiddenObject') && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              This puzzle type is recognised, but its renderer is not wired into PuzzleShell yet.
+            </div>
           )}
         </div>
       )}

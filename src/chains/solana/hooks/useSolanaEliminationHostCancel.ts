@@ -1,6 +1,6 @@
 /**
- * Calls host_cancel_room then host_refund_batch on the Elimination program.
- * Host signs both — no oracle needed.
+ * Calls host_cancel_room then host_refund_batch then close_room
+ * on the Elimination program. Host signs all — no oracle needed.
  * All player entry PDAs are derived client-side and passed as remaining accounts.
  */
 import { useCallback } from 'react';
@@ -14,17 +14,19 @@ import {
   useSolanaEliminationShared,
   ELIMINATION_SEEDS,
 } from './useSolanaEliminationShared';
+import { useSolanaEliminationCloseRoom } from './useSolanaEliminationCloseRoom';
 import {
   buildTransaction,
   simulateTransaction,
   formatTransactionError,
+  waitForConfirmation
 } from '../utils/transaction-helpers';
 import type { SolanaNetworkKey } from '../config/networks';
 
 export interface EliminationHostCancelParams {
   roomPda: string;
   feeMint: string;
-  playerWallets: string[];  // wallet addresses of all players who joined
+  playerWallets: string[];
 }
 
 export interface EliminationHostCancelResult {
@@ -43,6 +45,8 @@ export function useSolanaEliminationHostCancel(cluster?: SolanaNetworkKey) {
     isConnected,
     getTxExplorerUrl,
   } = useSolanaEliminationShared({ cluster });
+
+  const { closeRoom } = useSolanaEliminationCloseRoom(cluster);
 
   const cancelAndRefund = useCallback(
     async (params: EliminationHostCancelParams): Promise<EliminationHostCancelResult> => {
@@ -93,21 +97,47 @@ export function useSolanaEliminationHostCancel(cluster?: SolanaNetworkKey) {
         throw new Error(`Cancel simulation failed: ${formatTransactionError(cancelSim.error)}`);
       }
 
-      let cancelTxHash: string;
-      try {
-        cancelTxHash = await provider.sendAndConfirm(cancelTx, [], {
-          skipPreflight: false,
-          commitment: 'confirmed',
-        });
-        console.log('[EliminationHostCancel] ✅ Room cancelled:', cancelTxHash);
-      } catch (err: any) {
-        throw new Error(`Cancel transaction failed: ${formatTransactionError(err)}`);
-      }
+     let cancelTxHash: string | undefined;
+try {
+  const signedCancelTx = await provider.wallet.signTransaction(cancelTx);
+
+  cancelTxHash = await connection.sendRawTransaction(
+    signedCancelTx.serialize(),
+    {
+      skipPreflight: false,
+      preflightCommitment: 'confirmed',
+    }
+  );
+
+  console.log('[EliminationHostCancel] 📝 Cancel signature:', cancelTxHash);
+
+  const cancelConfirmed = await waitForConfirmation(connection, cancelTxHash, 60_000);
+  if (!cancelConfirmed) {
+    throw new Error('Cancel transaction was sent but not confirmed in time');
+  }
+
+  console.log('[EliminationHostCancel] ✅ Room cancelled:', cancelTxHash);
+} catch (err: any) {
+  throw new Error(`Cancel transaction failed: ${formatTransactionError(err)}`);
+}
+
+if (!cancelTxHash) {
+  throw new Error('Cancel transaction signature missing after send');
+}
 
       // ── Step 2: host_refund_batch ─────────────────────────────────────────
-      // Only run if there are players to refund
       if (params.playerWallets.length === 0) {
-        console.log('[EliminationHostCancel] No players to refund — done');
+        console.log('[EliminationHostCancel] No players to refund — skipping to close');
+
+        // Still close the room even with no players
+        try {
+          console.log('[EliminationHostCancel] Step 2: Closing room (no players)...');
+          await closeRoom({ roomPda: params.roomPda, feeMint: params.feeMint });
+          console.log('[EliminationHostCancel] ✅ Room closed');
+        } catch (closeErr: any) {
+          console.warn('[EliminationHostCancel] close_room failed (non-critical):', closeErr.message);
+        }
+
         return {
           success: true,
           cancelTxHash,
@@ -134,7 +164,6 @@ export function useSolanaEliminationHostCancel(cluster?: SolanaNetworkKey) {
           continue;
         }
 
-        // Derive player entry PDA
         const [playerEntryPda] = PublicKey.findProgramAddressSync(
           [
             Buffer.from(ELIMINATION_SEEDS.PLAYER_ENTRY),
@@ -144,12 +173,11 @@ export function useSolanaEliminationHostCancel(cluster?: SolanaNetworkKey) {
           program.programId
         );
 
-        // Derive player token ATA
         const playerToken = getAssociatedTokenAddressSync(feeMint, playerWallet);
 
         remainingAccounts.push(
           { pubkey: playerEntryPda, isSigner: false, isWritable: true },
-          { pubkey: playerToken, isSigner: false, isWritable: true },
+          { pubkey: playerToken,    isSigner: false, isWritable: true },
         );
 
         console.log(`[EliminationHostCancel]   Player ${walletStr.slice(0, 8)}... entry: ${playerEntryPda.toBase58().slice(0, 8)}...`);
@@ -157,6 +185,15 @@ export function useSolanaEliminationHostCancel(cluster?: SolanaNetworkKey) {
 
       if (remainingAccounts.length === 0) {
         console.log('[EliminationHostCancel] No valid player accounts — skipping refund batch');
+
+        try {
+          console.log('[EliminationHostCancel] Step 2: Closing room (no valid accounts)...');
+          await closeRoom({ roomPda: params.roomPda, feeMint: params.feeMint });
+          console.log('[EliminationHostCancel] ✅ Room closed');
+        } catch (closeErr: any) {
+          console.warn('[EliminationHostCancel] close_room failed (non-critical):', closeErr.message);
+        }
+
         return {
           success: true,
           cancelTxHash,
@@ -170,8 +207,8 @@ export function useSolanaEliminationHostCancel(cluster?: SolanaNetworkKey) {
         refundInstruction = await (program.methods as any)
           .hostRefundBatch()
           .accountsStrict({
-            host: publicKey,
-            room: roomPda,
+            host:         publicKey,
+            room:         roomPda,
             feeMint,
             roomVault,
             tokenProgram: TOKEN_PROGRAM_ID,
@@ -190,15 +227,59 @@ export function useSolanaEliminationHostCancel(cluster?: SolanaNetworkKey) {
         throw new Error(`Refund simulation failed: ${formatTransactionError(refundSim.error)}`);
       }
 
-      let refundTxHash: string;
+let refundTxHash: string | undefined;
+try {
+  const signedRefundTx = await provider.wallet.signTransaction(refundTx);
+
+  refundTxHash = await connection.sendRawTransaction(
+    signedRefundTx.serialize(),
+    {
+      skipPreflight: false,
+      preflightCommitment: 'confirmed',
+    }
+  );
+
+  console.log('[EliminationHostCancel] 📝 Refund signature:', refundTxHash);
+
+  const refundConfirmed = await waitForConfirmation(connection, refundTxHash, 60_000);
+  if (!refundConfirmed) {
+    throw new Error('Refund transaction was sent but not confirmed in time');
+  }
+
+  console.log('[EliminationHostCancel] ✅ Refund batch complete:', refundTxHash);
+} catch (err: any) {
+  const alreadyProcessed =
+    err?.message?.includes('already been processed') ||
+    err?.message?.includes('AlreadyProcessed');
+
+  if (alreadyProcessed) {
+    console.log('[EliminationHostCancel] Refund already processed — recovering signature');
+    try {
+      const sigs = await connection.getSignaturesForAddress(roomPda, { limit: 5 });
+      const found = sigs.find(s => !s.err);
+      refundTxHash = found?.signature ?? err?.signature ?? 'unknown';
+      console.log('[EliminationHostCancel] ✅ Recovered refund signature:', refundTxHash);
+    } catch {
+      refundTxHash = err?.signature ?? 'unknown';
+    }
+  } else {
+    throw new Error(`Refund transaction failed: ${formatTransactionError(err)}`);
+  }
+}
+
+if (!refundTxHash) {
+  throw new Error('Refund transaction signature missing after send');
+}
+
+      // ── Step 3: close_room (reclaim rent to platform) ─────────────────────
+      // Vault is now empty after refund batch — safe to close.
+      // Non-critical: cancel and refund are already done.
       try {
-        refundTxHash = await provider.sendAndConfirm(refundTx, [], {
-          skipPreflight: false,
-          commitment: 'confirmed',
-        });
-        console.log('[EliminationHostCancel] ✅ Refund batch complete:', refundTxHash);
-      } catch (err: any) {
-        throw new Error(`Refund transaction failed: ${formatTransactionError(err)}`);
+        console.log('[EliminationHostCancel] Step 3: Closing room to reclaim rent...');
+        await closeRoom({ roomPda: params.roomPda, feeMint: params.feeMint });
+        console.log('[EliminationHostCancel] ✅ Room closed');
+      } catch (closeErr: any) {
+        console.warn('[EliminationHostCancel] close_room failed (non-critical):', closeErr.message);
       }
 
       return {
@@ -208,7 +289,7 @@ export function useSolanaEliminationHostCancel(cluster?: SolanaNetworkKey) {
         explorerUrl: getTxExplorerUrl(refundTxHash),
       };
     },
-    [publicKey, connection, provider, program, isConnected, getTxExplorerUrl]
+    [publicKey, connection, provider, program, isConnected, getTxExplorerUrl, closeRoom]
   );
 
   return { cancelAndRefund };

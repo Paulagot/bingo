@@ -12,7 +12,7 @@ import EliminationIDL from '../elimination_game.json';
 import { getSolanaExplorerUrl, getSolanaRpcUrl, type SolanaNetworkKey } from '../config/networks';
 
 export const ELIMINATION_PROGRAM_ID = new PublicKey(
-  'H293FgpCNWfuGGKS6MZ93Q2LNtVHQP3ZMK5zFK65NkNE'
+  '27gprMMqQ3SKJ9bRAQFh2kkaP72GJEkVNaNm1HjEgqkM'
 );
 
 // PDA seeds — must match the Rust program exactly
@@ -29,7 +29,7 @@ export interface UseSolanaEliminationSharedParams {
 export function useSolanaEliminationShared(
   params?: UseSolanaEliminationSharedParams
 ) {
-  const cluster: SolanaNetworkKey = params?.cluster ?? 'devnet';
+  const cluster: SolanaNetworkKey = params?.cluster ?? 'mainnet';
 
   const { address, isConnected } = useAppKitAccount();
   const { walletProvider } = useAppKitProvider('solana');
@@ -82,6 +82,10 @@ export function useSolanaEliminationShared(
       ? `${base}/tx/${signature}`
       : `${base}/tx/${signature}?cluster=${cluster}`;
   };
+
+  console.log('[EliminationShared] cluster:', cluster);
+console.log('[EliminationShared] rpc endpoint:', connection.rpcEndpoint);
+console.log('[EliminationShared] program id:', program?.programId?.toBase58?.());
 
   return {
     publicKey,

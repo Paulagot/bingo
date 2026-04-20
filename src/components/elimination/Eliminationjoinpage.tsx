@@ -122,6 +122,16 @@ const EliminationJoinInner: React.FC = () => {
   // ── Web3 payment confirmed — emit join with tx signature ──────────────────
 // EliminationJoinInner — update handler and emitJoinRoom call
 const handleWeb3PaymentDone = (txHash: string, walletAddress: string) => {
+  // Guard: 'already-joined' is valid, real signatures are 87-88 chars base58
+  const isValidSig = txHash === 'already-joined' || 
+    (typeof txHash === 'string' && txHash.length >= 80 && txHash.length <= 100);
+
+  if (!isValidSig) {
+    console.error('[Web3Join] Invalid txHash received from payment hook:', txHash);
+    setError('Payment signature invalid — please try again.');
+    return;
+  }
+
   setWeb3PaymentDone(true);
   setLoading(true);
   const roomId = (roomIdFromUrl || roomCode || '').trim();

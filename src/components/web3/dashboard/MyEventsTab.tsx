@@ -1035,10 +1035,10 @@ interface EventCardProps {
 function EventCard({ event, origin, onPublish, onUnpublish, onDelete, loading }: EventCardProps) {
   const sc = statusColor(event.status)
 
-  const launchPath =
-    event.event_type === 'quiz'
-      ? `${origin}/web3/quiz?action=host`
-      : `${origin}/web3/elimination?action=host`
+ const launchPath =
+  event.event_type === 'quiz'
+    ? `${origin}/web3/quiz?action=host&eventId=${encodeURIComponent(event.id)}`
+    : `${origin}/web3/elimination?action=host&eventId=${encodeURIComponent(event.id)}`
 
   return (
     <div

@@ -337,7 +337,7 @@ const EventsDiscoveryPage: React.FC = () => {
         description="Browse live and upcoming Web3 fundraising quiz nights and elimination games. Discover events by host, cause, chain and format on the FundRaisely marketplace."
         keywords="web3 fundraising events, live crypto charity events, online quiz nights, elimination fundraiser, browse fundraising events, Solana charity events, Base fundraising events, join charity game online"
         domainStrategy="geographic"
-        image="/og/web3-events.png"
+        image="/fundraisely.png"
         breadcrumbs={[
           { name: 'Home', item: '/' },
           { name: 'Web3 Fundraising Marketplace', item: '/web3' },

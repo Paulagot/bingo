@@ -189,7 +189,7 @@ const UsecaseCharitiesPage: React.FC = () => {
         keywords="charity quiz fundraiser, non‑profit trivia night, compliance friendly fundraiser, donor reporting, audit ready reconciliation, grant application reporting"
         ukKeywords="charity quiz fundraiser UK, non‑profit fundraiser UK, donor reporting"
         ieKeywords="charity quiz fundraiser Ireland, non‑profit fundraiser Ireland, donor reporting"
-        image={abs('/og/og-usecase-charities.jpg')}
+        image={abs('/fundraisely.png')}
         structuredData={structuredData}
         domainStrategy="geographic"
       />

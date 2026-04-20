@@ -135,7 +135,7 @@ export const EliminationWinnerView: React.FC<Props> = ({
   const totalPlayers = players.length;
 
   // Auto-close countdown — pause if host needs to finalize
-  const shouldAutoClose = onClose && !(isHost && isWeb3Room && !finalized);
+const shouldAutoClose = onClose && !(isHost && isWeb3Room);
 
   useEffect(() => {
     if (!shouldAutoClose) return;
@@ -188,21 +188,18 @@ export const EliminationWinnerView: React.FC<Props> = ({
         />
       )}
 
-      {/* ── Web3 finalize section — host only ── */}
-      {isHost && isWeb3Room && roomData && roomId && hostId && !finalized && (
-        <Web3Provider force={true}>
-          <EliminationFinalizeSection
-            roomId={roomId}
-            hostId={hostId}
-            winnerPlayerId={winnerId}
-            roomData={{ ...roomData, totalPlayers }}
-            onComplete={() => {
-              handleFinalized();
-              onClose?.();
-            }}
-          />
-        </Web3Provider>
-      )}
+{/* ── Web3 finalize section — host only ── */}
+{isHost && isWeb3Room && roomData && roomId && hostId && (
+  <Web3Provider force={true}>
+    <EliminationFinalizeSection
+      roomId={roomId}
+      hostId={hostId}
+      winnerPlayerId={winnerId}
+      roomData={{ ...roomData, totalPlayers }}
+      onComplete={handleFinalized}  // ← just marks finalized, does NOT navigate
+    />
+  </Web3Provider>
+)}
 
       {/* Final standings */}
       <div style={s.standings}>

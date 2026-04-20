@@ -108,7 +108,7 @@ const UsecaseClubsPage: React.FC = () => {
         keywords="sports club fundraising quiz, club trivia night fundraiser, community club quiz night, fundraising for sports teams, social club quiz event, easy club fundraiser, virtual club quiz, team fundraising ideas, club event planning, fundraising quiz platform"
         ukKeywords="club quiz fundraiser UK, sports club quiz night, fundraising quiz platform"
         ieKeywords="club quiz fundraiser Ireland, sports club quiz night, fundraising quiz platform"
-        image={abs2('/og/og-usecase-clubs.jpg')}
+        image={abs2('/fundraisely.png')}
         domainStrategy="geographic"
         structuredData={structuredData}
       />

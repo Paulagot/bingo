@@ -15,24 +15,19 @@
     <meta name="base:app_id" content="69a1865e991116aebf36caae" />
 
     <!-- ✅ Solana RPC endpoint (environment-aware) -->
-    <script>
-      (function() {
-        const origin = window.location.origin;
-        const isStaging = origin.includes('staging') || origin.includes('localhost');
-        
-        // Only set RPC - let AppKit handle redirects
-        const rpcUrl = isStaging 
-          ? 'https://api.devnet.solana.com'
-          : 'https://api.mainnet-beta.solana.com';
-        
-        const rpcMeta = document.createElement('meta');
-        rpcMeta.setAttribute('name', 'solana:rpc');
-        rpcMeta.setAttribute('content', rpcUrl);
-        document.head.appendChild(rpcMeta);
-        
-        console.log('🔗 [Solana RPC]', rpcUrl);
-      })();
-    </script>
+<script>
+  (function() {
+    const rpcUrl = 'https://api.mainnet-beta.solana.com';
+
+    const rpcMeta = document.createElement('meta');
+    rpcMeta.setAttribute('name', 'solana:rpc');
+    rpcMeta.setAttribute('content', rpcUrl);
+    document.head.appendChild(rpcMeta);
+
+    console.log('🔗 [Solana RPC]', rpcUrl);
+  })();
+</script>
+   
 
     <!--app-head-->
 

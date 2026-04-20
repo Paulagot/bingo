@@ -25,15 +25,14 @@ import {
   ROUND_7_TARGET_FINALISTS,
 } from '../utils/eliminationConstants.js';
 
-// ─── Wait for web3 finalize confirmation ─────────────────────────────────────
-// Polls room.settled every 5 seconds, up to 15 minutes.
-// Returns true if settled, false if timed out.
-const waitForFinalize = async (roomId) => {
+// ─── Wait for full web3 finalize workflow completion ──────────────────────────
+// We do NOT end the room when payout is merely "settled".
+// We only end it when the host has finished the full finalize flow:
+// finalize_game -> finalize-confirm -> close_room attempt -> finalize-complete
+const waitForFinalizeWorkflowComplete = async (roomId) => {
   const MAX_WAIT_MS = 15 * 60 * 1000;
   const POLL_INTERVAL_MS = 5000;
   let waited = 0;
-
-  // console.log(`[Elimination] Web3 room ${roomId} — waiting for finalize_game tx...`);
 
   while (waited < MAX_WAIT_MS) {
     await delay(POLL_INTERVAL_MS);
@@ -41,18 +40,23 @@ const waitForFinalize = async (roomId) => {
 
     const room = getRoom(roomId);
 
+    // Room already removed elsewhere — nothing left to wait for
     if (!room) return true;
-    if (room.settled) {
-      // console.log(`[Elimination] Room ${roomId} finalized after ${waited / 1000}s`);
+
+    if (room.finalizeWorkflowComplete) {
       return true;
     }
 
     if (waited % 60000 === 0) {
-      // console.log(`[Elimination] Still waiting for finalize on room ${roomId} (${waited / 1000}s elapsed)`);
+      console.log(
+        `[Elimination] Still waiting for finalize workflow completion on room ${roomId} (${waited / 1000}s elapsed)`
+      );
     }
   }
 
-  console.warn(`[Elimination] Room ${roomId} not finalized after 15 minutes — forcing cleanup`);
+  console.warn(
+    `[Elimination] Room ${roomId} finalize workflow not completed after 15 minutes — forcing cleanup`
+  );
   return false;
 };
 
@@ -76,7 +80,16 @@ export const startGame = async (roomId, emit) => {
   const room = startRoom(roomId, []);
   if (!room) throw new Error('Failed to start room');
 
-  // Derive finalist round once — used in intro announcements below
+  // Reset any stale finalize flags just in case
+room.settled = false;
+room.finalizeWorkflowComplete = false;
+room.finalizeTxSignature = null;
+room.settledAt = null;
+room.finalizeCompletedAt = null;
+room.closeAttempted = false;
+room.closeSucceeded = false;
+room.closeTxHash = null;
+
   const finalistRound = GAME_RULES.TOTAL_ROUNDS - 1;
 
   emit(SERVER_EVENTS.GAME_STARTED, {
@@ -88,7 +101,6 @@ export const startGame = async (roomId, emit) => {
     })),
   });
 
-  // ─── Round Loop ────────────────────────────────────────────────────────────
   let lastShape = null;
 
   for (let i = 0; i < GAME_RULES.TOTAL_ROUNDS; i++) {
@@ -102,7 +114,7 @@ export const startGame = async (roomId, emit) => {
       roundType,
       difficulty,
       lastShape,
-      GAME_RULES.TOTAL_ROUNDS,  // passed to engine for dynamic difficulty curve
+      GAME_RULES.TOTAL_ROUNDS,
     );
 
     if (roundState.generatedConfig?.shapeType) {
@@ -120,22 +132,15 @@ export const startGame = async (roomId, emit) => {
     let eliminationMode = 'none';
 
     if (roundNumber < GAME_RULES.FIRST_ELIMINATING_ROUND) {
-      // Safe rounds — no elimination announced
       eliminationCount = 0;
       eliminationMode = 'none';
-
     } else if (roundNumber === GAME_RULES.TOTAL_ROUNDS) {
-      // Final round — everyone but the winner goes
       eliminationCount = activeCount - 1;
       eliminationMode = 'final';
-
     } else if (roundNumber === finalistRound) {
-      // Finalist round — reduce to target finalist count
       eliminationCount = Math.max(0, activeCount - ROUND_7_TARGET_FINALISTS);
       eliminationMode = 'reduce_to_finalists';
-
     } else {
-      // Middle rounds — percentage cut from schedule
       const schedule = ELIMINATION_SCHEDULE[roundNumber];
       if (typeof schedule === 'number' && schedule > 0) {
         eliminationCount = Math.min(Math.ceil(activeCount * schedule), activeCount - 1);
@@ -216,6 +221,10 @@ export const startGame = async (roomId, emit) => {
     if (roundNumber === GAME_RULES.TOTAL_ROUNDS) {
       const activePlayers = getActivePlayers(roomId);
       const currentRoom = getRoom(roomId);
+      if (!currentRoom) {
+        throw new Error(`Room ${roomId} missing at final round`);
+      }
+
       const roundStateRef = currentRoom.rounds[roundId];
 
       const winnerId = determineWinner(
@@ -224,10 +233,9 @@ export const startGame = async (roomId, emit) => {
         activePlayers.length > 0 ? activePlayers : Object.values(currentRoom.players),
       );
 
-      endRoom(roomId, winnerId);
-
       const winner = currentRoom.players[winnerId];
 
+      // Winner is known now, but for web3 rooms the room is NOT truly ended yet.
       emit(SERVER_EVENTS.WINNER_DECLARED, {
         winnerId,
         winnerName: winner?.name ?? 'Unknown',
@@ -235,22 +243,24 @@ export const startGame = async (roomId, emit) => {
         roomSnapshot: getRoomSnapshot(roomId),
       });
 
-      // ── Web3 rooms: wait for finalize_game tx before cleanup ──────────────
       const roomAfterWin = getRoom(roomId);
       const isWeb3Room = roomAfterWin?.paymentMode === 'web3';
 
       if (isWeb3Room) {
+        // Wait for the host to finish the full finalize workflow before ending the room
         await delay(5000);
-        await waitForFinalize(roomId);
+        await waitForFinalizeWorkflowComplete(roomId);
       } else {
+        // Web2 behaviour unchanged
         await delay(62000);
       }
 
+      endRoom(roomId, winnerId);
+
       emit(SERVER_EVENTS.ROOM_ENDED, { roomId, reason: 'game_complete' });
-      // console.log(`[Elimination] ROOM_ENDED emitted for ${roomId} — waiting 3s before cleanup`);
+
       await delay(3000);
       deleteRoom(roomId);
-      // console.log(`[Elimination] Room ${roomId} deleted`);
 
       return;
     }
@@ -258,7 +268,7 @@ export const startGame = async (roomId, emit) => {
     // ── TRANSITION TO NEXT ROUND ─────────────────────────────────────────────
     emit(SERVER_EVENTS.NEXT_ROUND, {
       nextRoundNumber: roundNumber + 1,
-      transitionDelayMs: TIMING.TRANSITION_DELAY_MS,
+      transitionDelayMs: TIMING.RESULTS_DURATION_MS,
       activePlayers: getActivePlayers(roomId).length,
     });
 

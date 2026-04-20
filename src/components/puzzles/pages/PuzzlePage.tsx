@@ -4,30 +4,33 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import PuzzleShell from '../PuzzleShell';
 import { puzzleService } from '../services/puzzleService';
+import { getPuzzleMeta } from '../PuzzleMeta';
 import type { PuzzleScoreResult, PuzzleInstance } from '../puzzleTypes';
 
 export default function PuzzlePage() {
   const { challengeId, week } = useParams<{ challengeId: string; week: string }>();
-  const navigate   = useNavigate();
+  const navigate = useNavigate();
   const weekNumber = parseInt(week ?? '1', 10);
 
-  const [puzzleInstance, setPuzzleInstance]     = useState<PuzzleInstance | null>(null);
-  const [savedProgress, setSavedProgress]       = useState<Record<string, unknown> | null>(null);
-  const [scoreResult, setScoreResult]           = useState<PuzzleScoreResult | null>(null);
+  const [puzzleInstance, setPuzzleInstance] = useState<PuzzleInstance | null>(null);
+  const [savedProgress, setSavedProgress] = useState<Record<string, unknown> | null>(null);
+  const [scoreResult, setScoreResult] = useState<PuzzleScoreResult | null>(null);
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
-  const [isLoading, setIsLoading]               = useState(true);
-  const [error, setError]                       = useState<string | null>(null);
-  const [locked, setLocked]                     = useState<{ unlocksAt: string } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [locked, setLocked] = useState<{ unlocksAt: string } | null>(null);
 
   useEffect(() => {
     if (!challengeId) return;
+
     setIsLoading(true);
     setError(null);
     setLocked(null);
 
     puzzleService.loadPuzzle(challengeId, weekNumber)
-      .then(data => {
+      .then((data) => {
         setPuzzleInstance(data.puzzle);
+
         if (data.previousSubmission) {
           setAlreadySubmitted(true);
           setScoreResult(data.previousSubmission);
@@ -48,12 +51,14 @@ export default function PuzzlePage() {
   const handleSubmit = useCallback(
     async (answer: Record<string, unknown>, timeTaken: number) => {
       if (!puzzleInstance) return;
+
       try {
         const result = await puzzleService.submitPuzzle(puzzleInstance.id, {
-          puzzleType:       puzzleInstance.puzzleType,
+          puzzleType: puzzleInstance.puzzleType,
           answer,
           timeTakenSeconds: timeTaken,
         });
+
         setScoreResult(result.score);
         if (result.alreadySubmitted) {
           setAlreadySubmitted(true);
@@ -68,6 +73,7 @@ export default function PuzzlePage() {
   const handleSaveProgress = useCallback(
     async (progressData: Record<string, unknown>) => {
       if (!puzzleInstance) return;
+
       try {
         await puzzleService.saveProgress(puzzleInstance.id, progressData);
         navigate(`/challenges/${challengeId}/play`);
@@ -79,6 +85,13 @@ export default function PuzzlePage() {
   );
 
   const backHref = `/challenges/${challengeId}/play`;
+
+  const resolvedPuzzleType = puzzleInstance?.puzzleType ?? 'anagram';
+  const resolvedDifficulty = puzzleInstance?.difficulty ?? 'medium';
+  const { title, instructions } = getPuzzleMeta(
+    resolvedPuzzleType,
+    resolvedDifficulty
+  );
 
   if (locked) {
     return (
@@ -121,10 +134,10 @@ export default function PuzzlePage() {
 
       {(isLoading || puzzleInstance) && (
         <PuzzleShell
-          puzzleType={puzzleInstance?.puzzleType ?? 'anagram'}
-          title={`Week ${weekNumber}`}
-          instructions=""
-          difficulty={puzzleInstance?.difficulty ?? 'medium'}
+          puzzleType={resolvedPuzzleType}
+          title={title}
+          instructions={instructions}
+          difficulty={resolvedDifficulty}
           puzzleData={puzzleInstance?.puzzleData ?? {}}
           onSubmit={handleSubmit}
           onSaveProgress={handleSaveProgress}

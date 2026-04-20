@@ -136,7 +136,7 @@ export default function PrivacyPreservingDonationsBlog() {
           name: "FundRaisely",
           logo: {
             "@type": "ImageObject",
-            url: `${origin}/images/brand/fundraisely-og.png`,
+            url: `${origin}/fundraisely.png`,
             width: 512,
             height: 512,
           },

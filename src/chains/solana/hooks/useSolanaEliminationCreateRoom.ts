@@ -12,7 +12,7 @@ import {
   ELIMINATION_SEEDS,
 } from './useSolanaEliminationShared';
 import { SOLANA_TOKENS, toRawAmount, type SolanaTokenCode } from '../config/solanaTokenConfig';
-import { buildTransaction, simulateTransaction, formatTransactionError } from '../utils/transaction-helpers';
+import { buildTransaction, simulateTransaction, formatTransactionError, waitForConfirmation } from '../utils/transaction-helpers';
 import type { SolanaNetworkKey } from '../config/networks';
 
 export interface CreateEliminationRoomParams {
@@ -95,6 +95,15 @@ export function useSolanaEliminationCreateRoom(cluster?: SolanaNetworkKey) {
         feeMint: feeMint.toBase58(),
       });
 
+        const programInfo = await connection.getAccountInfo(program.programId);
+console.log('[EliminationCreateRoom] Program account check:', {
+  programId: program.programId.toBase58(),
+  exists: !!programInfo,
+  executable: programInfo?.executable ?? false,
+  owner: programInfo?.owner?.toBase58?.(),
+  lamports: programInfo?.lamports,
+})
+
       // ── Build instruction ──
 // REPLACE the instruction building block (the try/catch around program.methods)
 // with this:
@@ -127,28 +136,43 @@ try {
         throw new Error(`Simulation failed: ${formatTransactionError(simResult.error)}`);
       }
 
-      let signature: string;
-      try {
-        signature = await provider.sendAndConfirm(transaction, [], {
-          skipPreflight: false,
-          commitment: 'confirmed',
-        });
-      } catch (err: any) {
-        // Check if room was created despite error
-        try {
-          await (program.account as any).room.fetch(roomPda);
-          const sig = err.signature || 'unknown';
-          return {
-            success: true,
-            contractAddress: roomPda.toBase58(),
-            roomVault: roomVault.toBase58(),
-            txHash: sig,
-            explorerUrl: getTxExplorerUrl(sig),
-          };
-        } catch {
-          throw new Error(`Transaction failed: ${formatTransactionError(err)}`);
-        }
-      }
+let signature: string | undefined;
+try {
+  const signedTx = await provider.wallet.signTransaction(transaction);
+
+  signature = await connection.sendRawTransaction(
+    signedTx.serialize(),
+    {
+      skipPreflight: false,
+      preflightCommitment: 'confirmed',
+    }
+  );
+
+  console.log('[EliminationCreateRoom] 📝 Signature:', signature);
+
+  const confirmed = await waitForConfirmation(connection, signature, 60_000);
+  if (!confirmed) {
+    throw new Error('Create room transaction was sent but not confirmed in time');
+  }
+} catch (err: any) {
+  try {
+    await (program.account as any).room.fetch(roomPda);
+    const sig = signature ?? err?.signature ?? 'unknown';
+    return {
+      success: true,
+      contractAddress: roomPda.toBase58(),
+      roomVault: roomVault.toBase58(),
+      txHash: sig,
+      explorerUrl: getTxExplorerUrl(sig),
+    };
+  } catch {
+    throw new Error(`Transaction failed: ${formatTransactionError(err)}`);
+  }
+}
+
+if (!signature) {
+  throw new Error('Transaction signature missing after send');
+}
 
       console.log('[EliminationCreateRoom] ✅ Room created:', roomPda.toBase58());
 
@@ -162,6 +186,8 @@ try {
     },
     [publicKey, connection, provider, program, isConnected, getTxExplorerUrl]
   );
+
+;
 
   return { createRoom };
 }
