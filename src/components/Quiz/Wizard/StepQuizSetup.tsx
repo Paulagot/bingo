@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Users, AlertCircle, Check, ChevronRight, DollarSign, Sparkles } from 'lucide-react';
+import { Users, AlertCircle, Check, ChevronRight, DollarSign, Sparkles, HeartHandshake } from 'lucide-react';
 import { WizardStepProps } from './WizardStepProps';
 import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
 import ClearSetupButton from './ClearSetupButton';
+import { fundraisingExtras } from '../types/quiz';
 
 const Character = ({ message }: { message: string }) => {
   const getBubbleColor = (): string => {
@@ -42,13 +43,12 @@ function GridPicker({
   value: string;
   placeholder?: string;
   options: string[];
-  columns: number; // controls grid layout (e.g. 6 for 6x4)
+  columns: number;
   onChange: (next: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
-  // Close when clicking outside
   useEffect(() => {
     const handleDown = (e: MouseEvent) => {
       if (!rootRef.current) return;
@@ -116,6 +116,8 @@ function GridPicker({
   );
 }
 
+type FundraisingMode = 'fixed_fee' | 'donation';
+
 const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) => {
   const [error, setError] = useState('');
 
@@ -134,8 +136,19 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
   const hostName = setupConfig.hostName ?? '';
   const entryFee = setupConfig.entryFee ?? '';
   const currencySymbol = setupConfig.currencySymbol ?? '€';
+  const fundraisingMode: FundraisingMode =
+    (setupConfig.fundraisingMode as FundraisingMode | undefined) ?? 'fixed_fee';
 
   const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
+
+  const allExtrasEnabled = useMemo(
+    () =>
+      Object.keys(fundraisingExtras).reduce<Record<string, boolean>>((acc, key) => {
+        acc[key] = true;
+        return acc;
+      }, {}),
+    []
+  );
 
   // Convert ISO -> local date/hour/minute (24h), round minutes to nearest 5
   const isoToLocalParts = (iso?: string) => {
@@ -145,7 +158,6 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
 
     const pad = (n: number) => String(n).padStart(2, '0');
     const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-
     const hour = pad(d.getHours());
 
     const minutes = d.getMinutes();
@@ -212,12 +224,15 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
   }, [setPaymentMethod]);
 
   useEffect(() => {
+    const hasValidFee = Boolean(entryFee && !isNaN(parseFloat(entryFee)) && parseFloat(entryFee) > 0);
+    const hasCurrency = Boolean(currencySymbol?.trim());
+
     setCompletedSections({
       host: hostName.trim().length >= 2,
-      payment: Boolean(entryFee && !isNaN(parseFloat(entryFee)) && parseFloat(entryFee) > 0),
+      payment: fundraisingMode === 'donation' ? hasCurrency : hasValidFee,
       schedule: flow === 'web2' ? scheduleComplete : true,
     });
-  }, [hostName, entryFee, flow, scheduleComplete]);
+  }, [hostName, entryFee, currencySymbol, fundraisingMode, flow, scheduleComplete]);
 
   const currencyOptions = [
     { symbol: '€', label: 'Euro (EUR)' },
@@ -226,15 +241,44 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
     { symbol: '₦', label: 'Nigerian Naira (NGN)' },
   ];
 
+  const handleSelectMode = (mode: FundraisingMode) => {
+    setError('');
+
+    if (mode === 'donation') {
+      setEntryFee('');
+      updateSetupConfig({
+        fundraisingMode: 'donation',
+        entryFee: '',
+        fundraisingOptions: allExtrasEnabled,
+        fundraisingPrices: {},
+        paymentMethod: 'cash_or_revolut',
+      } as any);
+      return;
+    }
+
+    updateSetupConfig({
+      fundraisingMode: 'fixed_fee',
+      fundraisingOptions: {},
+      fundraisingPrices: {},
+      paymentMethod: 'cash_or_revolut',
+    } as any);
+  };
+
   const handleSubmit = () => {
     if (!completedSections.host) {
       setError('Please enter a host name with at least 2 characters.');
       return;
     }
+
     if (!completedSections.payment) {
-      setError('Please enter a valid entry fee.');
+      setError(
+        fundraisingMode === 'donation'
+          ? 'Please choose a currency for your donation-based quiz.'
+          : 'Please enter a valid entry fee.'
+      );
       return;
     }
+
     if (!completedSections.schedule) {
       setError('Please choose a date, hour, and minute for your quiz.');
       return;
@@ -242,10 +286,17 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
 
     updateSetupConfig({
       hostName: hostName.trim(),
-      entryFee: entryFee.trim(),
+      fundraisingMode,
+      entryFee: fundraisingMode === 'donation' ? '' : entryFee.trim(),
       currencySymbol,
       paymentMethod: 'cash_or_revolut',
-    });
+      ...(fundraisingMode === 'donation'
+        ? {
+            fundraisingOptions: allExtrasEnabled,
+            fundraisingPrices: {},
+          }
+        : {}),
+    } as any);
 
     setError('');
     onNext?.();
@@ -253,18 +304,21 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
 
   const allSectionsComplete = Object.values(completedSections).every(Boolean);
 
-  const getCurrentMessage = () =>
-    allSectionsComplete
-      ? '🎉 Perfect! Your quiz is fully configured and ready to continue!'
-      : "Hi there! Let's set up your quiz together. Fill in the details below to get started.";
+  const getCurrentMessage = () => {
+    if (allSectionsComplete) {
+      return '🎉 Perfect! Your quiz is fully configured and ready to continue!';
+    }
+    if (fundraisingMode === 'donation') {
+      return "Great choice! Your players can donate what they want, and all extras will be included automatically.";
+    }
+    return "Hi there! Let's set up your quiz together. Fill in the details below to get started.";
+  };
 
-  // 24 hours: 00..23
   const hourOptions = useMemo(
     () => Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')),
     []
   );
 
-  // 5-minute intervals: 00..55
   const minuteOptions = useMemo(
     () => Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0')),
     []
@@ -326,11 +380,13 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
               <span className="text-xs text-gray-400">{hostName.length}/30</span>
             </div>
           </div>
-          <p className="text-fg/60 text-xs">Minimum 2 characters. This is how participants will see you during the quiz.</p>
+          <p className="text-fg/60 text-xs">
+            Minimum 2 characters. This is how participants will see you during the quiz.
+          </p>
         </div>
       </div>
 
-      {/* Entry Fee */}
+      {/* Payment Setup */}
       <div
         className={`bg-muted rounded-lg border-2 p-4 shadow-sm transition-all sm:rounded-xl sm:p-6 ${
           completedSections.payment ? 'border-green-300 bg-green-50' : 'border-border'
@@ -342,14 +398,55 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-fg text-sm font-semibold sm:text-base">Entry Fee</h3>
+              <h3 className="text-fg text-sm font-semibold sm:text-base">Payment Setup</h3>
               {completedSections.payment && <Check className="h-4 w-4 text-green-600 sm:h-5 sm:w-5" />}
             </div>
-            <p className="text-fg/70 text-xs sm:text-sm">Set the cost per participant (collected manually)</p>
+            <p className="text-fg/70 text-xs sm:text-sm">
+              Choose whether players pay a fixed fee or donate what they want
+            </p>
           </div>
         </div>
 
         <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-fg/80 flex items-center gap-2 text-xs font-medium sm:text-sm">
+              <HeartHandshake className="h-4 w-4" />
+              <span>Fundraising Model</span>
+            </label>
+
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => handleSelectMode('fixed_fee')}
+                className={`rounded-lg border-2 px-4 py-3 text-left text-sm transition sm:text-base ${
+                  fundraisingMode === 'fixed_fee'
+                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                    : 'border-border bg-white hover:bg-gray-50'
+                }`}
+              >
+                <div className="font-medium">Charge a fixed entry fee</div>
+                <div className="mt-1 text-xs opacity-80 sm:text-sm">
+                  Set one price for every participant
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSelectMode('donation')}
+                className={`rounded-lg border-2 px-4 py-3 text-left text-sm transition sm:text-base ${
+                  fundraisingMode === 'donation'
+                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                    : 'border-border bg-white hover:bg-gray-50'
+                }`}
+              >
+                <div className="font-medium">Let players donate what they want</div>
+                <div className="mt-1 text-xs opacity-80 sm:text-sm">
+                  Any amount is allowed, including 0
+                </div>
+              </button>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <label className="text-fg/80 flex items-center gap-2 text-xs font-medium sm:text-sm">
               <Sparkles className="h-4 w-4" />
@@ -357,7 +454,10 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
             </label>
             <select
               value={currencySymbol}
-              onChange={(e) => setCurrencySymbol(e.target.value)}
+              onChange={(e) => {
+                setCurrencySymbol(e.target.value);
+                setError('');
+              }}
               className="border-border w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3 sm:text-base"
             >
               {currencyOptions.map((opt) => (
@@ -368,42 +468,56 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
             </select>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-fg/80 flex items-center gap-2 text-xs font-medium sm:text-sm">
-              <DollarSign className="h-4 w-4" />
-              <span>
-                Amount <span className="text-red-500">*</span>
-              </span>
-            </label>
-            <div className="relative">
-              <span className="text-fg/60 absolute left-3 top-1/2 -translate-y-1/2 transform text-sm font-medium sm:text-base">
-                {currencySymbol}
-              </span>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={entryFee}
-                onChange={(e) => {
-                  setEntryFee(e.target.value);
-                  setError('');
-                }}
-                placeholder="5.00"
-                className={`w-full rounded-lg border-2 py-2.5 pl-7 pr-3 text-sm outline-none transition focus:ring-2 focus:ring-indigo-200 sm:py-3 sm:pl-8 sm:pr-4 sm:text-base ${
-                  completedSections.payment
-                    ? 'border-green-300 bg-green-50 focus:border-green-500'
-                    : 'border-border focus:border-indigo-500'
-                }`}
-              />
+          {fundraisingMode === 'fixed_fee' ? (
+            <div className="space-y-2">
+              <label className="text-fg/80 flex items-center gap-2 text-xs font-medium sm:text-sm">
+                <DollarSign className="h-4 w-4" />
+                <span>
+                  Amount <span className="text-red-500">*</span>
+                </span>
+              </label>
+              <div className="relative">
+                <span className="text-fg/60 absolute left-3 top-1/2 -translate-y-1/2 transform text-sm font-medium sm:text-base">
+                  {currencySymbol}
+                </span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={entryFee}
+                  onChange={(e) => {
+                    setEntryFee(e.target.value);
+                    setError('');
+                  }}
+                  placeholder="5.00"
+                  className={`w-full rounded-lg border-2 py-2.5 pl-7 pr-3 text-sm outline-none transition focus:ring-2 focus:ring-indigo-200 sm:py-3 sm:pl-8 sm:pr-4 sm:text-base ${
+                    completedSections.payment
+                      ? 'border-green-300 bg-green-50 focus:border-green-500'
+                      : 'border-border focus:border-indigo-500'
+                  }`}
+                />
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 sm:p-4">
+              <p className="text-xs text-blue-800 sm:text-sm">
+                <strong>Donation Mode:</strong> Players can donate any amount they want, including 0.
+                <br />
+                <strong>Extras Included:</strong> All quiz extras will be automatically included for
+                hosts and players, so you can skip separate extra pricing.
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3 sm:mt-4">
           <p className="text-xs text-blue-800 sm:text-sm">
-            <strong>Payment Collection:</strong> You'll collect entry fees manually from participants using cash, tap card, or
-            instant payment when they arrive. <br />
-              <strong>Ticket Sales:</strong> Link a payment method to sell tickets in advance and guarantee your attendance numbers. We currently support Instant Payment with manual verification, with more options coming soon!
+            <strong>Payment Collection:</strong> You'll collect payments manually from participants
+            using cash, tap card, or instant payment when they arrive.
+            <br />
+            <strong>Ticket Sales:</strong> Link a payment method to sell tickets in advance and
+            guarantee your attendance numbers. We currently support Instant Payment with manual
+            verification, with more options coming soon!
           </p>
         </div>
       </div>
@@ -447,13 +561,12 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
                 />
               </div>
 
-              {/* Hour: 6 x 4 */}
               <div className="sm:col-span-2">
                 <GridPicker
                   label="Hour"
                   value={scheduleHour}
                   options={hourOptions}
-                  columns={6} // ✅ 6x4 block (24)
+                  columns={6}
                   onChange={(next) => {
                     setScheduleHour(next);
                     applySchedule(scheduleDate, next, scheduleMinute);
@@ -462,13 +575,12 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
                 />
               </div>
 
-              {/* Minute: 4 x 3 */}
               <div className="sm:col-span-2">
                 <GridPicker
                   label="Minute"
                   value={scheduleMinute}
                   options={minuteOptions}
-                  columns={4} // ✅ 4x3 block (12)
+                  columns={4}
                   onChange={(next) => {
                     setScheduleMinute(next);
                     applySchedule(scheduleDate, scheduleHour, next);

@@ -1,25 +1,15 @@
 /**
  * Challenge Service
  * server/puzzles/services/challengeService.js
- *
- * PUZZLE_WEEK_DURATION_SECONDS env var controls week interval.
- * Default: 604800 (7 days). Set to 120 for 2-minute test intervals.
- * Note: unlocks_at is written at challenge creation time — changing the
- * env var only affects newly created challenges, not existing ones.
  */
 
 import database from '../../config/database.js';
 import { v4 as uuidv4 } from 'uuid';
 
-// ─── Week duration helper ─────────────────────────────────────────────────────
-// Read once at module load — server restart required to pick up changes.
-
 function getWeekMs() {
   const seconds = parseInt(process.env.PUZZLE_WEEK_DURATION_SECONDS ?? '604800', 10);
   return seconds * 1000;
 }
-
-// ─── Create ───────────────────────────────────────────────────────────────────
 
 export async function createChallenge({
   clubId,
@@ -36,10 +26,10 @@ export async function createChallenge({
     throw new Error('weeklyPrice is required for paid challenges');
   }
 
-  const id              = uuidv4();
-  const priceInCents    = isFree ? null : Math.round(weeklyPrice);
+  const id = uuidv4();
+  const priceInCents = isFree ? null : Math.round(weeklyPrice);
   const resolvedCurrency = currency ?? 'eur';
-  const weekMs          = getWeekMs();
+  const weekMs = getWeekMs();
 
   await database.connection.execute(
     `INSERT INTO fundraisely_puzzle_challenges
@@ -47,17 +37,22 @@ export async function createChallenge({
         weekly_price, currency, platform_fee_percent, is_free)
      VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, ?, 0, ?)`,
     [
-      id, clubId, title, description ?? null, totalWeeks, startsAt,
-      priceInCents, resolvedCurrency, isFree ? 1 : 0,
+      id,
+      clubId,
+      title,
+      description ?? null,
+      totalWeeks,
+      startsAt,
+      priceInCents,
+      resolvedCurrency,
+      isFree ? 1 : 0,
     ]
   );
 
-  // Insert schedule rows
   if (puzzleSchedule?.length) {
     const startsAtMs = new Date(startsAt).getTime();
 
     for (const entry of puzzleSchedule) {
-      // unlocks_at = challenge start + (week - 1) * weekMs
       const unlocksAt = new Date(startsAtMs + (entry.week - 1) * weekMs);
 
       await database.connection.execute(
@@ -70,7 +65,7 @@ export async function createChallenge({
           entry.week,
           entry.puzzleType,
           entry.difficulty ?? 'medium',
-          unlocksAt.toISOString().slice(0, 19).replace('T', ' '),
+          unlocksAt,
         ]
       );
     }
@@ -78,8 +73,6 @@ export async function createChallenge({
 
   return getChallengeById({ challengeId: id, clubId });
 }
-
-// ─── Read ─────────────────────────────────────────────────────────────────────
 
 export async function getChallengesByClub({ clubId }) {
   const [rows] = await database.connection.execute(
@@ -123,8 +116,6 @@ export async function getChallengeById({ challengeId, clubId }) {
   return { ...challenge, schedule };
 }
 
-// ─── Update ───────────────────────────────────────────────────────────────────
-
 export async function updateChallengeStatus({ challengeId, clubId, status }) {
   const allowed = ['draft', 'active', 'completed', 'cancelled'];
   if (!allowed.includes(status)) throw new Error(`Invalid status: ${status}`);
@@ -139,8 +130,6 @@ export async function updateChallengeStatus({ challengeId, clubId, status }) {
   if (result.affectedRows === 0) return null;
   return getChallengeById({ challengeId, clubId });
 }
-
-// ─── Players ──────────────────────────────────────────────────────────────────
 
 export async function enrollPlayers({ challengeId, clubId, playerIds }) {
   const [[challenge]] = await database.connection.execute(
@@ -182,8 +171,6 @@ export async function getEnrolledPlayers({ challengeId, clubId }) {
   return rows;
 }
 
-// ─── Leaderboard ──────────────────────────────────────────────────────────────
-
 export async function getLeaderboard({ challengeId }) {
   const [totals] = await database.connection.execute(
     `SELECT
@@ -192,7 +179,7 @@ export async function getLeaderboard({ challengeId }) {
        COALESCE(SUM(ss.total_score), 0) AS total_score,
        COUNT(ss.id)                     AS weeks_completed
      FROM fundraisely_puzzle_challenge_players cp
-    JOIN fundraisely_supporters s ON s.id = cp.player_id
+     JOIN fundraisely_supporters s ON s.id = cp.player_id
      LEFT JOIN fundraisely_puzzle_submissions ss
        ON  ss.player_id   = cp.player_id
        AND ss.instance_id IN (
@@ -211,8 +198,8 @@ export async function getLeaderboard({ challengeId }) {
        pi.puzzle_type,
        ss.is_correct,
        ss.total_score,
-       ss.answer          AS player_answer,
-       pi.solution_data   AS correct_answer
+       ss.answer        AS player_answer,
+       pi.solution_data AS correct_answer
      FROM fundraisely_puzzle_submissions ss
      JOIN fundraisely_puzzle_instances pi ON pi.id = ss.instance_id
      WHERE pi.challenge_id = ?
@@ -220,31 +207,28 @@ export async function getLeaderboard({ challengeId }) {
     [challengeId]
   );
 
-  // Group week detail by player
- const weeksByPlayer = {};
+  const weeksByPlayer = {};
   for (const row of weekRows) {
     if (!weeksByPlayer[row.player_id]) weeksByPlayer[row.player_id] = [];
     weeksByPlayer[row.player_id].push({
-      weekNumber:    row.week_number,
-      puzzleType:    row.puzzle_type,
-      isCorrect:     Boolean(row.is_correct),
-      totalScore:    row.total_score,
-      playerAnswer:  safeParseJson(row.player_answer),
+      weekNumber: row.week_number,
+      puzzleType: row.puzzle_type,
+      isCorrect: Boolean(row.is_correct),
+      totalScore: row.total_score,
+      playerAnswer: safeParseJson(row.player_answer),
       correctAnswer: safeParseJson(row.correct_answer),
     });
   }
 
   return totals.map((player, index) => ({
-    rank:           index + 1,
-    playerId:       player.player_id,
-    playerName:     player.player_name,
-    totalScore:     player.total_score,
+    rank: index + 1,
+    playerId: player.player_id,
+    playerName: player.player_name,
+    totalScore: player.total_score,
     weeksCompleted: player.weeks_completed,
-    weeks:          weeksByPlayer[player.player_id] ?? [],
+    weeks: weeksByPlayer[player.player_id] ?? [],
   }));
 }
-
-// ─── Current week ─────────────────────────────────────────────────────────────
 
 export async function getCurrentWeek({ challengeId }) {
   const [[challenge]] = await database.connection.execute(
@@ -253,23 +237,26 @@ export async function getCurrentWeek({ challengeId }) {
   );
   if (!challenge) return null;
 
-  const weekMs     = getWeekMs();
-  const now        = Date.now();
-  const startMs    = new Date(challenge.starts_at).getTime();
-  const elapsed    = now - startMs;
-  const weekNumber = Math.max(1, Math.min(
-    challenge.total_weeks,
-    Math.floor(elapsed / weekMs) + 1
-  ));
+  const weekMs = getWeekMs();
+  const now = Date.now();
+
+  const startMs =
+    challenge.starts_at instanceof Date
+      ? challenge.starts_at.getTime()
+      : new Date(`${challenge.starts_at}Z`).getTime();
+
+  const elapsed = now - startMs;
+  const weekNumber = Math.max(
+    1,
+    Math.min(challenge.total_weeks, Math.floor(elapsed / weekMs) + 1)
+  );
 
   return {
     weekNumber,
-    startsAt:   challenge.starts_at,
+    startsAt: challenge.starts_at,
     totalWeeks: challenge.total_weeks,
   };
 }
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function safeParseJson(value) {
   if (!value) return null;

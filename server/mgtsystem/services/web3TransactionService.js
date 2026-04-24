@@ -160,7 +160,7 @@ export async function insertWeb3Transaction({
        ?, ?, ?, ?,
        ?, ?, ?, ?,
        ?,
-       NOW()
+       UTC_TIMESTAMP()
      )`,
     [
       game_type,

@@ -25,46 +25,50 @@ router.get('/:challengeId/:weekNumber', authenticateAny, async (req, res) => {
   try {
     const { challengeId, weekNumber } = req.params;
     const playerId = req.user?.id;
-    const weekNum  = parseInt(weekNumber, 10);
+    const weekNum = parseInt(weekNumber, 10);
 
-    // ── 1. Get club_id from the challenge record ──────────────────────────
     const [[challenge]] = await database.connection.execute(
       'SELECT club_id FROM fundraisely_puzzle_challenges WHERE id = ? LIMIT 1',
       [challengeId]
     );
 
     if (!challenge) {
-      // Dev/test fallback — no real challenge row
       const fallbackClubId = req.club_id;
       if (!fallbackClubId) {
         return res.status(404).json({ error: 'Challenge not found' });
       }
 
       const { puzzleType, difficulty } = req.query;
-      if (!puzzleType) return res.status(400).json({ error: 'puzzleType query param is required' });
+      if (!puzzleType) {
+        return res.status(400).json({ error: 'puzzleType query param is required' });
+      }
 
-      const instance   = await generatePuzzleForWeek({
+      const instance = await generatePuzzleForWeek({
         challengeId,
         weekNumber: weekNum,
         puzzleType,
         difficulty: difficulty ?? 'medium',
-        clubId:     fallbackClubId,
+        clubId: fallbackClubId,
       });
+
       const clientData = getClientPuzzleData(instance);
-      const progress   = playerId ? await loadProgress(instance.id, playerId) : null;
+      const progress = playerId ? await loadProgress(instance.id, playerId) : null;
 
       return res.json({
-        puzzle:             clientData,
-        progress:           progress?.progressData ?? null,
+        puzzle: clientData,
+        progress: progress?.progressData ?? null,
         previousSubmission: null,
       });
     }
 
     const clubId = challenge.club_id;
 
-    // ── 2. Get puzzle config from the schedule ────────────────────────────
     const [[schedule]] = await database.connection.execute(
-      `SELECT puzzle_type, difficulty, unlocks_at
+      `SELECT
+         puzzle_type,
+         difficulty,
+         unlocks_at,
+         unlocks_at <= UTC_TIMESTAMP() AS is_unlocked
        FROM fundraisely_puzzle_schedule
        WHERE challenge_id = ? AND week_number = ?
        LIMIT 1`,
@@ -75,27 +79,23 @@ router.get('/:challengeId/:weekNumber', authenticateAny, async (req, res) => {
       return res.status(404).json({ error: 'Week not scheduled' });
     }
 
-    // ── 3. Check week is unlocked ─────────────────────────────────────────
-    if (schedule.unlocks_at && new Date(schedule.unlocks_at) > new Date()) {
+    if (schedule.unlocks_at && !schedule.is_unlocked) {
       return res.status(403).json({
-        error:     'Week not yet unlocked',
+        error: 'Week not yet unlocked',
         unlocksAt: schedule.unlocks_at,
       });
     }
 
-    // ── 4. Generate (or fetch cached) puzzle instance ─────────────────────
-    const instance   = await generatePuzzleForWeek({
+    const instance = await generatePuzzleForWeek({
       challengeId,
-      weekNumber:  weekNum,
-      puzzleType:  schedule.puzzle_type,
-      difficulty:  schedule.difficulty,
+      weekNumber: weekNum,
+      puzzleType: schedule.puzzle_type,
+      difficulty: schedule.difficulty,
       clubId,
     });
+
     const clientData = getClientPuzzleData(instance);
 
-    // ── 5. Check for a prior submission ───────────────────────────────────
-    // If the player already submitted, return their score so the frontend
-    // can lock the shell immediately without waiting for a submit attempt.
     let previousSubmission = null;
     if (playerId) {
       const [submissionRows] = await database.connection.execute(
@@ -109,24 +109,23 @@ router.get('/:challengeId/:weekNumber', authenticateAny, async (req, res) => {
       if (submissionRows.length > 0) {
         const s = submissionRows[0];
         previousSubmission = {
-          completed:    true,
-          correct:      s.is_correct === 1,
-          baseScore:    s.base_score,
-          bonusScore:   s.bonus_score,
+          completed: true,
+          correct: s.is_correct === 1,
+          baseScore: s.base_score,
+          bonusScore: s.bonus_score,
           penaltyScore: s.penalty_score,
-          totalScore:   s.total_score,
+          totalScore: s.total_score,
         };
       }
     }
 
-    // ── 6. Load saved progress (only relevant if not yet submitted) ───────
     const progress = (!previousSubmission && playerId)
       ? await loadProgress(instance.id, playerId)
       : null;
 
     return res.json({
-      puzzle:             clientData,
-      progress:           progress?.progressData ?? null,
+      puzzle: clientData,
+      progress: progress?.progressData ?? null,
       previousSubmission,
     });
 
@@ -142,13 +141,13 @@ router.get('/:challengeId/:weekNumber', authenticateAny, async (req, res) => {
  */
 router.post('/:instanceId/save', authenticateAny, async (req, res) => {
   try {
-    const { instanceId }  = req.params;
+    const { instanceId } = req.params;
     const { progressData } = req.body;
     const playerId = req.user?.id;
-    const clubId   = req.club_id;
+    const clubId = req.club_id;
 
-    if (!playerId)     return res.status(401).json({ error: 'Unauthorised' });
-    if (!clubId)       return res.status(403).json({ error: 'Club not identified' });
+    if (!playerId) return res.status(401).json({ error: 'Unauthorised' });
+    if (!clubId) return res.status(403).json({ error: 'Club not identified' });
     if (!progressData) return res.status(400).json({ error: 'progressData is required' });
 
     await saveProgress({ instanceId, playerId, clubId, progressData });
@@ -168,12 +167,12 @@ router.post('/:instanceId/submit', authenticateAny, async (req, res) => {
     const { instanceId } = req.params;
     const { puzzleType, answer, timeTakenSeconds } = req.body;
     const playerId = req.user?.id;
-    const clubId   = req.club_id;
+    const clubId = req.club_id;
 
-    if (!playerId)   return res.status(401).json({ error: 'Unauthorised' });
-    if (!clubId)     return res.status(403).json({ error: 'Club not identified' });
+    if (!playerId) return res.status(401).json({ error: 'Unauthorised' });
+    if (!clubId) return res.status(403).json({ error: 'Club not identified' });
     if (!puzzleType) return res.status(400).json({ error: 'puzzleType is required' });
-    if (!answer)     return res.status(400).json({ error: 'answer is required' });
+    if (!answer) return res.status(400).json({ error: 'answer is required' });
 
     const result = await validateAndScore({
       instanceId,

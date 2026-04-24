@@ -26,6 +26,110 @@ function isWildcard(v) {
   return v === '*' || isWildcardArray(v);
 }
 
+function toPositiveNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function getApplicableExtraKeys(setupConfig) {
+  const roundDefinitions = Array.isArray(setupConfig?.roundDefinitions)
+    ? setupConfig.roundDefinitions
+    : [];
+
+  const selectedRoundTypes = new Set(
+    roundDefinitions
+      .map((r) => r?.roundType ?? r?.roundTypeId ?? r?.type)
+      .filter(Boolean)
+  );
+
+  const defs =
+    setupConfig?.fundraisingExtraDefinitions ||
+    null;
+
+  // We don’t rely on frontend-provided defs. Keep a backend-safe fallback list.
+  const knownExtras = {
+    buyHint: { applicableTo: ['general_trivia', 'wipeout'] },
+    restorePoints: { applicableTo: ['wipeout'] },
+    robPoints: { applicableTo: 'global' },
+    freezeOutTeam: { applicableTo: ['general_trivia', 'wipeout'] },
+  };
+
+  const source = defs && typeof defs === 'object' ? defs : knownExtras;
+
+  return Object.entries(source)
+    .filter(([_, rule]) => {
+      if (!rule) return false;
+      if (rule.applicableTo === 'global') return true;
+      if (!Array.isArray(rule.applicableTo)) return false;
+      return rule.applicableTo.some((rt) => selectedRoundTypes.has(rt));
+    })
+    .map(([key]) => key);
+}
+
+function normalizeWeb2FundraisingConfig(setupConfig, ents) {
+  const next = { ...(setupConfig || {}) };
+
+  const fundraisingMode =
+    next.fundraisingMode === 'donation' ? 'donation' : 'fixed_fee';
+
+  next.fundraisingMode = fundraisingMode;
+  next.paymentMethod = 'cash_or_revolut';
+  next.fundraisingOptions = { ...(next.fundraisingOptions || {}) };
+  next.fundraisingPrices = { ...(next.fundraisingPrices || {}) };
+
+  const allowedExtras = ents?.extras_allowed ?? [];
+  const applicableKeys = getApplicableExtraKeys(next);
+
+  let allowedApplicableKeys = applicableKeys;
+
+  if (!isWildcard(allowedExtras)) {
+    const allowedSet = new Set(Array.isArray(allowedExtras) ? allowedExtras : []);
+    allowedApplicableKeys = applicableKeys.filter((key) => allowedSet.has(key));
+  }
+
+  if (fundraisingMode === 'donation') {
+    const autoEnabled = {};
+    for (const key of allowedApplicableKeys) {
+      autoEnabled[key] = true;
+    }
+
+    next.entryFee = null;
+    next.fundraisingOptions = autoEnabled;
+    next.fundraisingPrices = {};
+    return next;
+  }
+
+  // fixed_fee mode
+  const positiveFee = toPositiveNumber(next.entryFee);
+  if (!positiveFee) {
+    const err = new Error('ENTRY_FEE_REQUIRED');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  next.entryFee = String(next.entryFee);
+
+  // keep only enabled + allowed extras
+  const cleanedOptions = {};
+  for (const [key, enabled] of Object.entries(next.fundraisingOptions || {})) {
+    if (!enabled) continue;
+    if (!allowedApplicableKeys.includes(key)) continue;
+    cleanedOptions[key] = true;
+  }
+
+  const cleanedPrices = {};
+  for (const key of Object.keys(cleanedOptions)) {
+    const price = toPositiveNumber(next.fundraisingPrices?.[key]);
+    if (price) cleanedPrices[key] = price;
+  }
+
+  next.fundraisingOptions = cleanedOptions;
+  next.fundraisingPrices = cleanedPrices;
+
+  return next;
+}
+
 
 // Insert the launched room config into DB (Web2 only)
 async function insertWeb2RoomRecord({
@@ -1022,19 +1126,17 @@ router.use((req, res, next) => {
 
 // Standard Web2 room creation (credits, caps, etc.)
 router.post('/create-room', async (req, res) => {
-  const { config: setupConfig, roomId, hostId } = req.body;
+  let { config: setupConfig, roomId, hostId } = req.body;
 
   console.log('--------------------------------------');
   console.log('[API] 🟢 Received create-room request');
   console.log(`[API] 🆔 Using provided roomId=${roomId} hostId=${hostId}`);
 
-  // Basic validation
   if (!roomId || !hostId) {
     console.error('[API] ❌ Missing roomId or hostId in request');
     return res.status(400).json({ error: 'roomId and hostId are required' });
   }
 
-  // WEB2 PATH: entitlements + credits flow
   try {
     console.log('[API] 🌐 Using WEB2 path (entitlements & credits enforced)');
 
@@ -1043,13 +1145,11 @@ router.post('/create-room', async (req, res) => {
 
     const ents = await resolveEntitlements({ userId: clubId });
 
-    // ── Identify the selected template (support both shapes) ────────────────
     const templateId =
       setupConfig?.templateId ||
       setupConfig?.template?.id ||
       null;
 
-    // ── Dev-only guard for "demo-quiz" ─────────────────────────────────────
     if (templateId && !canUseTemplate(ents, templateId)) {
       return res.status(403).json({
         error: 'TEMPLATE_NOT_ALLOWED',
@@ -1057,6 +1157,7 @@ router.post('/create-room', async (req, res) => {
         templateId,
       });
     }
+
     const requestedPlayers =
       setupConfig?.maxPlayers ??
       setupConfig?.playerLimit ??
@@ -1087,76 +1188,84 @@ router.post('/create-room', async (req, res) => {
       roundTypesAllowed: ents.round_types_allowed ?? [],
       extrasAllowed: ents.extras_allowed ?? [],
     };
-    setupConfig.roomCaps = roomCaps;
-    setupConfig.clubId = clubId;
-   // ✅ ADD THIS LINE
-    setupConfig.hostId = hostId;
 
-    // Sanitize extras against plan
-  const allowedExtras = ents.extras_allowed ?? [];
-const enabledExtras = Object.entries(setupConfig?.fundraisingOptions || {})
-  .filter(([, enabled]) => !!enabled)
-  .map(([k]) => k);
+    // base room metadata
+    setupConfig = {
+      ...(setupConfig || {}),
+      roomCaps,
+      clubId,
+      hostId,
+      paymentMethod: 'cash_or_revolut',
+    };
 
-let disallowedExtras = [];
+    // NEW: normalize donation vs fixed-fee flow
+    try {
+      setupConfig = normalizeWeb2FundraisingConfig(setupConfig, ents);
+    } catch (normErr) {
+      if (normErr?.message === 'ENTRY_FEE_REQUIRED') {
+        return res.status(400).json({
+          error: 'ENTRY_FEE_REQUIRED',
+          message: 'A valid positive entry fee is required for fixed-fee rooms.',
+        });
+      }
+      throw normErr;
+    }
 
-if (!isWildcard(allowedExtras)) {
-  const allowedSet = new Set(Array.isArray(allowedExtras) ? allowedExtras : []);
-  disallowedExtras = enabledExtras.filter((x) => !allowedSet.has(x));
-}
+    // Existing plan sanitization still applies, but will now run against normalized config
+    const allowedExtras = ents.extras_allowed ?? [];
+    const enabledExtras = Object.entries(setupConfig?.fundraisingOptions || {})
+      .filter(([, enabled]) => !!enabled)
+      .map(([k]) => k);
 
-if (disallowedExtras.length) {
-  console.warn(`[API] 🧹 Removing disallowed extras: ${disallowedExtras.join(', ')}`);
-  for (const key of disallowedExtras) {
-    if (setupConfig.fundraisingOptions) setupConfig.fundraisingOptions[key] = false;
-    if (setupConfig.fundraisingPrices) delete setupConfig.fundraisingPrices[key];
-  }
-}
+    let disallowedExtras = [];
 
+    if (!isWildcard(allowedExtras)) {
+      const allowedSet = new Set(Array.isArray(allowedExtras) ? allowedExtras : []);
+      disallowedExtras = enabledExtras.filter((x) => !allowedSet.has(x));
+    }
+
+    if (disallowedExtras.length) {
+      console.warn(`[API] 🧹 Removing disallowed extras: ${disallowedExtras.join(', ')}`);
+      for (const key of disallowedExtras) {
+        if (setupConfig.fundraisingOptions) setupConfig.fundraisingOptions[key] = false;
+        if (setupConfig.fundraisingPrices) delete setupConfig.fundraisingPrices[key];
+      }
+    }
 
     const created = createQuizRoom(roomId, hostId, setupConfig);
     if (!created) {
       console.error('[API] ❌ Failed to create quiz room (WEB2)');
       return res.status(400).json({
-        error:
-          'Failed to create room (invalid config, questions missing, or room already exists)',
+        error: 'Failed to create room (invalid config, questions missing, or room already exists)',
       });
     }
 
     await applyPersonalisedRoundIfAny({ roomId, clubId });
 
-   const okCredit = await consumeCredit(clubId);
-if (!okCredit) {
-  // Clean up in-memory room if we failed to charge a credit
-  removeQuizRoom(roomId);
-  return res.status(402).json({ error: 'no_credits' });
-}
+    const okCredit = await consumeCredit(clubId);
+    if (!okCredit) {
+      removeQuizRoom(roomId);
+      return res.status(402).json({ error: 'no_credits' });
+    }
 
-// ✅ NEW: Persist launched Web2 room config to DB
-try {
-  await insertWeb2RoomRecord({
-    clubId,
-    roomId,
-    hostId,
-    setupConfig,
-    roomCaps,
-  });
-  console.log(`[API] 💾 Saved WEB2 room config to DB: roomId=${roomId}`);
-} catch (dbErr) {
-  console.error('[API] ❌ Failed saving WEB2 room to DB:', dbErr);
+    try {
+      await insertWeb2RoomRecord({
+        clubId,
+        roomId,
+        hostId,
+        setupConfig,
+        roomCaps,
+      });
+      console.log(`[API] 💾 Saved WEB2 room config to DB: roomId=${roomId}`);
+    } catch (dbErr) {
+      console.error('[API] ❌ Failed saving WEB2 room to DB:', dbErr);
+      removeQuizRoom(roomId);
+      return res.status(500).json({ error: 'db_save_failed' });
+    }
 
-  // Clean up in-memory room if DB write fails (prevents half-created state)
-  removeQuizRoom(roomId);
-
-  // NOTE: credit has already been consumed. If you want “refund credit on DB failure”,
-  // we can add a "refundCredit" helper later. For now, this prevents bad room state.
-  return res.status(500).json({ error: 'db_save_failed' });
-}
-
-console.log(`[API] ✅ Successfully created WEB2 room ${roomId}`);
-console.log('--------------------------------------');
-return res.status(200).json({ roomId, hostId, roomCaps });
-
+    console.log(`[API] ✅ Successfully created WEB2 room ${roomId}`);
+    console.log('--------------------------------------');
+    return res.status(200).json({ roomId, hostId, roomCaps });
   } catch (err) {
     console.error('[API] ❌ Exception creating WEB2 room:', err);
     return res.status(500).json({ error: 'internal_error' });
@@ -1256,9 +1365,9 @@ router.get('/web2/rooms', authenticateToken, async (req, res) => {
     }
 
     if (time === 'upcoming') {
-      where.push('(scheduled_at IS NULL OR scheduled_at >= (NOW() - INTERVAL 12 HOUR))');
+      where.push('(scheduled_at IS NULL OR scheduled_at >= (UTC_TIMESTAMP() - INTERVAL 12 HOUR))');
     } else if (time === 'past') {
-      where.push('(scheduled_at IS NOT NULL AND scheduled_at < NOW())');
+      where.push('(scheduled_at IS NOT NULL AND scheduled_at < UTC_TIMESTAMP())');
     }
 
     const orderBy =

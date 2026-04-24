@@ -11,6 +11,26 @@ const PAYMENT_LEDGER_TABLE = `${TABLE_PREFIX}quiz_payment_ledger`;
  * @returns {Object} Starting totals { entryFees, extras, total }
  */
 export async function calculateStartingTotalsFromLedger(roomId) {
+  const roomSql = `
+    SELECT config_json
+    FROM ${TABLE_PREFIX}web2_quiz_rooms
+    WHERE room_id = ?
+    LIMIT 1
+  `;
+
+  const [roomRows] = await connection.execute(roomSql, [roomId]);
+  const roomRow = roomRows[0] || null;
+
+  let fundraisingMode = 'fixed_fee';
+  if (roomRow?.config_json) {
+    const config =
+      typeof roomRow.config_json === 'string'
+        ? JSON.parse(roomRow.config_json)
+        : roomRow.config_json;
+
+    fundraisingMode = config?.fundraisingMode === 'donation' ? 'donation' : 'fixed_fee';
+  }
+
   const sql = `
     SELECT 
       ledger_type,
@@ -36,7 +56,9 @@ export async function calculateStartingTotalsFromLedger(roomId) {
   }
 
   return {
+    fundraisingMode,
     entryFees,
+    donations: fundraisingMode === 'donation' ? entryFees : 0,
     extras,
     total: entryFees + extras,
   };
@@ -49,6 +71,25 @@ export async function calculateStartingTotalsFromLedger(roomId) {
  */
 export async function getQuizFinancialReport(roomId) {
   try {
+    const roomSql = `
+  SELECT config_json
+  FROM ${TABLE_PREFIX}web2_quiz_rooms
+  WHERE room_id = ?
+  LIMIT 1
+`;
+
+const [roomRows] = await connection.execute(roomSql, [roomId]);
+const roomRow = roomRows[0] || null;
+
+let fundraisingMode = 'fixed_fee';
+if (roomRow?.config_json) {
+  const config =
+    typeof roomRow.config_json === 'string'
+      ? JSON.parse(roomRow.config_json)
+      : roomRow.config_json;
+
+  fundraisingMode = config?.fundraisingMode === 'donation' ? 'donation' : 'fixed_fee';
+}
     /**
      * --------------------------------------------------------------------------
      * 1) Reconciliation summary
@@ -263,13 +304,14 @@ const instantPaymentBreakdown = instantPaymentRows.map(row => ({
     return {
       reconciliation: reconciliation
         ? {
-            startingEntryFees: Number(reconciliation.starting_entry_fees || 0),
-            startingExtras: Number(reconciliation.starting_extras || 0),
-            startingTotal: Number(reconciliation.starting_total || 0),
-            adjustmentsNet: Number(reconciliation.adjustments_net || 0),
-            finalTotal: Number(reconciliation.final_total || 0),
-            approvedBy: reconciliation.approved_by,
-            approvedAt: reconciliation.approved_at ? reconciliation.approved_at.toISOString() : null,
+            fundraisingMode,
+      startingEntryFees: Number(reconciliation.starting_entry_fees || 0),
+      startingExtras: Number(reconciliation.starting_extras || 0),
+      startingTotal: Number(reconciliation.starting_total || 0),
+      adjustmentsNet: Number(reconciliation.adjustments_net || 0),
+      finalTotal: Number(reconciliation.final_total || 0),
+      approvedBy: reconciliation.approved_by,
+      approvedAt: reconciliation.approved_at ? reconciliation.approved_at.toISOString() : null,
           }
         : null,
 
@@ -450,7 +492,7 @@ export async function upsertReconciliation(reconciliationData) {
       approved_by = VALUES(approved_by),
       approved_at = VALUES(approved_at),
       notes = VALUES(notes),
-      updated_at = CURRENT_TIMESTAMP
+      updated_at = UTC_TIMESTAMP()
   `;
 
   const approvedAtDate = approvedAt ? new Date(approvedAt) : null;
@@ -487,7 +529,7 @@ export async function updateArchiveMetadata(roomId, archiveData) {
     SET 
       archive_generated_at = ?,
       archive_sha256 = ?,
-      updated_at = CURRENT_TIMESTAMP
+      updated_at = UTC_TIMESTAMP()
     WHERE room_id = ?
   `;
 

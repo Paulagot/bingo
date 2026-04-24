@@ -51,12 +51,12 @@ export async function markPlayerPaidLate({
       payment_source = 'admin_assigned',
       payment_method = COALESCE(?, payment_method),
       club_payment_method_id = COALESCE(?, club_payment_method_id),
-      confirmed_at = NOW(),
+      confirmed_at = UTC_TIMESTAMP(),
       confirmed_by = ?,
       confirmed_by_name = ?,
       confirmed_by_role = ?,
       admin_notes = ?,
-      updated_at = NOW()
+      updated_at = UTC_TIMESTAMP()
     WHERE room_id = ?
       AND player_id = ?
       AND status IN ('expected', 'claimed')

@@ -15,7 +15,7 @@ export async function updateRoomStatus(roomId, newStatus) {
   try {
     const sql = `
       UPDATE ${WEB2_ROOMS_TABLE}
-      SET status = ?, updated_at = NOW()
+      SET status = ?, updated_at = UTC_TIMESTAMP()
       WHERE room_id = ?
     `;
     
@@ -53,8 +53,8 @@ export async function markRoomAsCompleted(roomId) {
       UPDATE ${WEB2_ROOMS_TABLE}
       SET 
         status = 'completed',
-        ended_at = NOW(),
-        updated_at = NOW()
+        ended_at = UTC_TIMESTAMP(),
+        updated_at = UTC_TIMESTAMP()
       WHERE room_id = ? AND status != 'completed'
     `;
     

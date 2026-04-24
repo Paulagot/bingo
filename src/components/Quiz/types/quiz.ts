@@ -11,6 +11,8 @@ export interface FundraisingExtrasMeta {
   [key: string]: FundraisingExtraRule;
 }
 
+export type Web2FundraisingMode = 'fixed_fee' | 'donation';
+
 
 export interface Prize {
   place: number;
@@ -128,8 +130,10 @@ export interface QuizConfig {
   roundCount: number;
   timePerQuestion: number;
   useMedia: boolean;
-  entryFee: string;
+  entryFee?: string;
+  
   paymentMethod: 'cash_or_revolut' | 'web3';
+  fundraisingMode?: Web2FundraisingMode;
   fundraisingOptions: FundraisingOptions;
   fundraisingPrices: FundraisingPrices;
   roundDefinitions: RoundDefinition[];

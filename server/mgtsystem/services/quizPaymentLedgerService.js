@@ -102,6 +102,17 @@ export async function createExpectedPayment({
     extraMetadata ? JSON.stringify(extraMetadata) : null,
     ticketId,
   ]);
+
+  console.trace('[Ledger INSERT createExpectedPayment]', {
+  roomId,
+  playerId,
+  ledgerType,
+  amount,
+  paymentMethod,
+  paymentSource,
+  status,
+  extraMetadata,
+});
   
   return result.insertId;
 }
@@ -125,10 +136,10 @@ export async function claimPayment({
       payment_reference = ?,
       payment_method = ?,
       club_payment_method_id = ?,
-      claimed_at = NOW(),
+      claimed_at = UTC_TIMESTAMP(),
       claimed_by = ?,
       payment_source = 'player_claimed',
-      updated_at = NOW()
+      updated_at = UTC_TIMESTAMP()
     WHERE room_id = ? 
       AND player_id = ? 
       AND status = 'expected'
@@ -180,12 +191,12 @@ export async function confirmPayment({
       status = 'confirmed',
       payment_method = COALESCE(?, payment_method),
       club_payment_method_id = COALESCE(?, club_payment_method_id),
-      confirmed_at = NOW(),
+      confirmed_at = UTC_TIMESTAMP(),
       confirmed_by = ?,
       confirmed_by_name = ?,
       confirmed_by_role = ?,
       admin_notes = ?,
-      updated_at = NOW()
+      updated_at = UTC_TIMESTAMP()
     WHERE room_id = ?
       AND player_id = ?
       AND status IN ('claimed', 'expected')
@@ -252,11 +263,11 @@ export async function webhookConfirmPayment({
     UPDATE ${LEDGER_TABLE}
     SET 
       status = 'confirmed',
-      confirmed_at = NOW(),
+      confirmed_at = UTC_TIMESTAMP(),
       confirmed_by = 'webhook_auto',
       payment_source = 'webhook_auto',
       external_transaction_id = ?,
-      updated_at = NOW()
+      updated_at = UTC_TIMESTAMP()
     WHERE payment_reference = ? 
       AND status = 'claimed'
       AND payment_method = ?

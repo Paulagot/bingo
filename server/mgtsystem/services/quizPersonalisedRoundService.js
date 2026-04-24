@@ -160,7 +160,7 @@ export async function upsertPersonalisedRound({ roomId, clubId, payload }) {
       roundId = existing.id;
       await conn.execute(
         `UPDATE ${ROUNDS_TABLE}
-         SET title = ?, position = ?, is_enabled = ?, updated_at = NOW()
+         SET title = ?, position = ?, is_enabled = ?, updated_at = UTC_TIMESTAMP()
          WHERE id = ?`,
         [cleaned.title, cleaned.position, cleaned.isEnabled, roundId]
       );

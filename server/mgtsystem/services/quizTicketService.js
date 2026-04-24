@@ -15,6 +15,16 @@ const WEB2_ROOMS_TABLE = `${TABLE_PREFIX}web2_quiz_rooms`;
 
 const DEBUG = true;
 
+function parseMysqlUtcDateTime(value) {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+
+  // MySQL DATETIME like "2026-04-22 19:30:00" has no timezone marker.
+  // Treat stored values as UTC.
+  const parsed = new Date(`${value}Z`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 /**
  * Get room configuration from database
  * Returns null if room not found or is Web3
@@ -268,18 +278,18 @@ export async function confirmTicketPayment({
   if (ticket.payment_status === 'payment_confirmed') throw new Error('Ticket payment already confirmed');
 
   const sql = `
-    UPDATE ${TICKETS_TABLE}
-    SET
-      payment_status = 'payment_confirmed',
-      redemption_status = 'ready',
-      confirmed_at = NOW(),
-      confirmed_by = ?,
-      confirmed_by_name = ?,
-      confirmed_by_role = ?,
-      admin_notes = ?,
-      updated_at = NOW()
-    WHERE ticket_id = ?
-  `;
+  UPDATE ${TICKETS_TABLE}
+  SET
+    payment_status = 'payment_confirmed',
+    redemption_status = 'ready',
+    confirmed_at = UTC_TIMESTAMP(),
+    confirmed_by = ?,
+    confirmed_by_name = ?,
+    confirmed_by_role = ?,
+    admin_notes = ?,
+    updated_at = UTC_TIMESTAMP()
+  WHERE ticket_id = ?
+`;
 
   await connection.execute(sql, [
     confirmedBy,
@@ -413,15 +423,15 @@ export async function redeemTicket({
   // They already reserved their spot when purchased
   
   // 3. Mark as redeemed
-  const sql = `
-    UPDATE ${TICKETS_TABLE}
-    SET
-      redemption_status = 'redeemed',
-      redeemed_at = NOW(),
-      redeemed_by_player_id = ?,
-      updated_at = NOW()
-    WHERE ticket_id = ?
-  `;
+const sql = `
+  UPDATE ${TICKETS_TABLE}
+  SET
+    redemption_status = 'redeemed',
+    redeemed_at = UTC_TIMESTAMP(),
+    redeemed_by_player_id = ?,
+    updated_at = UTC_TIMESTAMP()
+  WHERE ticket_id = ?
+`;
   
   await connection.execute(sql, [playerId, ticket.ticket_id]);
   
@@ -480,7 +490,7 @@ export async function getRoomSchedule(roomId) {
 export const JOIN_WINDOW_MINUTES = 10;
 
 export function computeJoinWindow(roomRow) {
-  const scheduledAt = roomRow?.scheduled_at ? new Date(roomRow.scheduled_at) : null;
+  const scheduledAt = parseMysqlUtcDateTime(roomRow?.scheduled_at);
   const joinOpensAt = scheduledAt
     ? new Date(scheduledAt.getTime() - JOIN_WINDOW_MINUTES * 60 * 1000)
     : null;
@@ -488,13 +498,11 @@ export function computeJoinWindow(roomRow) {
   const now = new Date();
   const roomStatus = roomRow?.status || null;
 
-  // ✅ Allow join if time window is open OR room is live
   const canJoinByTime = !!joinOpensAt && now.getTime() >= joinOpensAt.getTime();
   const canJoinByStatus = roomStatus === 'live';
-  
-  // ✅ Block only if room is completed/cancelled
+
   const isRoomBlocked = roomStatus === 'completed' || roomStatus === 'cancelled';
-  
+
   const canJoinNow = !isRoomBlocked && (canJoinByTime || canJoinByStatus);
 
   return {
@@ -659,19 +667,19 @@ export async function createTicketStripeCheckout({
   );
 
   // 7) store session id on ticket + ledger rows (reference)
-  await connection.execute(
-    `UPDATE ${TICKETS_TABLE} 
-     SET payment_reference = ?, updated_at = NOW()
-     WHERE ticket_id = ?`,
-    [session.id, ticketId]
-  );
+await connection.execute(
+  `UPDATE ${TICKETS_TABLE} 
+   SET payment_reference = ?, updated_at = UTC_TIMESTAMP()
+   WHERE ticket_id = ?`,
+  [session.id, ticketId]
+);
 
-  await connection.execute(
-    `UPDATE ${TABLE_PREFIX}quiz_payment_ledger
-     SET payment_reference = ?, updated_at = NOW()
-     WHERE ticket_id = ?`,
-    [session.id, ticketId]
-  );
+await connection.execute(
+  `UPDATE ${TABLE_PREFIX}quiz_payment_ledger
+   SET payment_reference = ?, updated_at = UTC_TIMESTAMP()
+   WHERE ticket_id = ?`,
+  [session.id, ticketId]
+);
 
   return {
     url: session.url,

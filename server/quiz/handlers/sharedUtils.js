@@ -51,40 +51,53 @@ socket.on('verify_quiz_room', ({ roomId }) => {
     }
 
     // pull everything the client will need
-    const {
-      entryFee    = '0',
-      fundraisingOptions = {},
-      fundraisingPrices  = {},
-      paymentMethod,
-      demoMode    = false,
-      // Add Web3-specific fields
-      web3Chain,
-      web3Currency,
-      roomContractAddress,
-      evmNetwork,
-      solanaCluster,   
-      hostName,
-      gameType,
-      roundDefinitions,
-      currencySymbol,
-      clubId,
-      hostId
-    } = room.config;
+   const {
+  entryFee = '0',
+  fundraisingMode = 'fixed_fee',   // ✅ NEW
+  fundraisingOptions = {},
+  fundraisingPrices = {},
+  paymentMethod,
+  demoMode = false,
 
-    const response = {
-      exists: true,
-      clubId: clubId || hostId || 'unknown',
-      paymentMethod: paymentMethod || 'unknown',
-      entryFee: Number(entryFee),
-      fundraisingOptions,
-      fundraisingPrices,
-      demoMode: !!demoMode,
-      caps: room.roomCaps,
-      hostName,
-      gameType,
-      roundDefinitions,
-      currencySymbol: currencySymbol || '€'
-    };
+  // Web2 scheduling / room info
+  eventDateTime = null,            // ✅ NEW
+  timeZone = null,                 // ✅ NEW
+
+  // Web3-specific fields
+  web3Chain,
+  web3Currency,
+  roomContractAddress,
+  evmNetwork,
+  solanaCluster,
+
+  hostName,
+  gameType,
+  roundDefinitions,
+  currencySymbol,
+  clubId,
+  hostId
+} = room.config;
+
+const response = {
+  exists: true,
+  clubId: clubId || hostId || 'unknown',
+  paymentMethod: paymentMethod || 'unknown',
+  entryFee: Number(entryFee),
+
+  fundraisingMode,        // ✅ NEW
+  fundraisingOptions,
+  fundraisingPrices,
+
+  demoMode: !!demoMode,
+  caps: room.roomCaps,
+  hostName,
+  gameType,
+  roundDefinitions,
+  currencySymbol: currencySymbol || '€',
+
+  eventDateTime,          // ✅ NEW
+  timeZone,               // ✅ NEW
+};
 
     // Add Web3-specific fields if it's a Web3 room
     if (paymentMethod === 'web3') {

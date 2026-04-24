@@ -39,6 +39,18 @@ function normalizeExtraPayments(extraPayments) {
     })
   );
 }
+function currencyFromSymbol(symbol) {
+  if (symbol === '€') return 'EUR';
+  if (symbol === '£') return 'GBP';
+  if (symbol === '$') return 'USD';
+  return 'EUR';
+}
+
+function getIncludedDonationExtras(room) {
+  return Object.entries(room?.config?.fundraisingOptions || {})
+    .filter(([_, enabled]) => !!enabled)
+    .map(([extraId]) => extraId);
+}
 
 
 function getEngine(room) {
@@ -62,7 +74,22 @@ function getEngine(room) {
 }
 
 export function setupPlayerHandlers(socket, namespace) {
-socket.on('join_quiz_room', async ({ roomId, user, role, ticketId }) => {
+socket.on('join_quiz_room', async (payload) => {
+  if (!payload) {
+    socket.emit('quiz_error', { message: 'Invalid join_quiz_room payload.' });
+    return;
+  }
+
+  const {
+    roomId,
+    user,
+    role,
+    ticketId = null,
+    paymentAlreadyRecorded = false,
+  } = payload;
+
+  const isStripePostJoin = paymentAlreadyRecorded === true;
+
   if (!roomId || !user || !role) {
     console.error(`[join_quiz_room] ❌ Missing data:`, { roomId, user, role });
     socket.emit('quiz_error', { message: 'Invalid join_quiz_room payload.' });
@@ -71,9 +98,10 @@ socket.on('join_quiz_room', async ({ roomId, user, role, ticketId }) => {
 
   if (debug) {
     console.log(`[Join Player Handler] 🚪 ${role.toUpperCase()} "${user.name || user.id}" joining room ${roomId}`, {
-      ticketId: ticketId || null,
+      ticketId,
       paid: user.paid,
       paymentMethod: user.paymentMethod,
+      isStripePostJoin,
     });
   }
 
@@ -190,12 +218,35 @@ let joinedUser = null;
   const existingSession = getPlayerSession(roomId, user.id);
 
   // Build the user object we'll store/propagate
-  const sanitizedUser = {
-    ...user,
-    paymentMethod: normalizedPaymentMethod,
-    extraPayments: normalizedExtraPayments,
-    socketId: socket.id,
-  };
+const isDonationRoom = room.config?.fundraisingMode === 'donation';
+const includedDonationExtras = isDonationRoom ? getIncludedDonationExtras(room) : [];
+
+let normalizedDonationAmount = Number(user?.donationAmount ?? 0);
+if (!Number.isFinite(normalizedDonationAmount) || normalizedDonationAmount < 0) {
+  normalizedDonationAmount = 0;
+}
+
+const isZeroDonationAutoConfirmed = isDonationRoom && normalizedDonationAmount === 0;
+
+const sanitizedUser = {
+  ...user,
+  paymentMethod: normalizedPaymentMethod,
+  extraPayments: normalizedExtraPayments,
+  socketId: socket.id,
+
+  donationAmount: isDonationRoom ? normalizedDonationAmount : undefined,
+  extras: isDonationRoom
+    ? includedDonationExtras
+    : (Array.isArray(user.extras) ? user.extras : []),
+
+  // ✅ auto-confirm zero donation joins
+  paid: isZeroDonationAutoConfirmed ? true : !!user.paid,
+  paymentClaimed: isZeroDonationAutoConfirmed ? true : !!user.paymentClaimed,
+  paymentConfirmedBy: isZeroDonationAutoConfirmed ? 'system_zero_donation' : user.paymentConfirmedBy,
+  paymentConfirmedByName: isZeroDonationAutoConfirmed ? 'System' : user.paymentConfirmedByName,
+  paymentConfirmedRole: isZeroDonationAutoConfirmed ? 'admin' : user.paymentConfirmedRole,
+  paymentConfirmedAt: isZeroDonationAutoConfirmed ? new Date().toISOString() : user.paymentConfirmedAt,
+};
 
     // ✅ Ticket join: force paid + claimed/confirmed flags
   if (ticketId) {
@@ -299,123 +350,171 @@ let joinedUser = null;
 const isWeb2 = !isWeb3;
 const joinedViaTicket = !!ticketId || sanitizedUser.paymentConfirmedBy === 'ticket_system';
 
-if (isWeb2 && room.config?.entryFee && parseFloat(room.config.entryFee) > 0 && !joinedViaTicket) {
+if (isWeb2 && !joinedViaTicket && !isStripePostJoin) {
   try {
     const clubId = room.config?.clubId || room.config?.hostId || 'unknown';
-    const entryFee = parseFloat(room.config.entryFee);
-    const currency = room.config?.currencySymbol || 'EUR';
-    
-   const isHostSocket = room.hostSocketId === socket.id;
-const adminFromSocket = Array.isArray(room.admins)
-  ? room.admins.find(a => a?.socketId && a.socketId === socket.id)
-  : null;
+    const currency = currencyFromSymbol(room.config?.currencySymbol || '€');
 
-const isAdminInitiated = isHostSocket || !!adminFromSocket;
+    const isHostSocket = room.hostSocketId === socket.id;
+    const adminFromSocket = Array.isArray(room.admins)
+      ? room.admins.find(a => a?.socketId && a.socketId === socket.id)
+      : null;
 
-// ✅ NEW: Determine ledger values based on who initiated the join
-let ledgerSource, ledgerStatus, claimedAt, confirmedAt, confirmedBy, confirmedByName, confirmedByRole;
+    const isAdminInitiated = isHostSocket || !!adminFromSocket;
 
-if (isAdminInitiated && sanitizedUser.paid) {
-  // Admin/host adding a player and marking them as paid
-  ledgerSource = 'admin_assigned';
-  ledgerStatus = 'confirmed';
-  claimedAt = null;              // ✅ CRITICAL: don't set claimedAt
-  confirmedAt = new Date();      // ✅ Set confirmedAt instead
-  
-  if (isHostSocket) {
-    confirmedBy = room.hostId || room.createdBy || 'host';
-    confirmedByName = room.hostName || room.config?.hostName || 'Host';
-    confirmedByRole = 'host';
-  } else {
-    confirmedBy = adminFromSocket.id;
-    confirmedByName = adminFromSocket.name || 'Admin';
-    confirmedByRole = 'admin';
-  }
-} else {
-  // Player self-joining or admin adding without marking as paid
-  ledgerSource = sanitizedUser.paymentClaimed ? 'player_claimed' : 'player_selected';
-  ledgerStatus = sanitizedUser.paymentClaimed ? 'claimed' : 'expected';
-  claimedAt = sanitizedUser.paymentClaimed ? new Date() : null;  // ✅ Only for player claims
-  confirmedAt = null;            // ✅ Not confirmed yet
-  confirmedBy = null;
-  confirmedByName = null;
-  confirmedByRole = null;
-}
+    let ledgerSource, ledgerStatus, claimedAt, confirmedAt, confirmedBy, confirmedByName, confirmedByRole;
 
-// Create entry fee ledger entry
-await createExpectedPayment({
+    if (isAdminInitiated && sanitizedUser.paid) {
+      ledgerSource = 'admin_assigned';
+      ledgerStatus = 'confirmed';
+      claimedAt = null;
+      confirmedAt = new Date();
+
+      if (isHostSocket) {
+        confirmedBy = room.hostId || room.createdBy || 'host';
+        confirmedByName = room.hostName || room.config?.hostName || 'Host';
+        confirmedByRole = 'host';
+      } else {
+        confirmedBy = adminFromSocket.id;
+        confirmedByName = adminFromSocket.name || 'Admin';
+        confirmedByRole = 'admin';
+      }
+    } else {
+      ledgerSource = sanitizedUser.paymentClaimed ? 'player_claimed' : 'player_selected';
+      ledgerStatus = sanitizedUser.paymentClaimed ? 'claimed' : 'expected';
+      claimedAt = sanitizedUser.paymentClaimed ? new Date() : null;
+      confirmedAt = null;
+      confirmedBy = null;
+      confirmedByName = null;
+      confirmedByRole = null;
+    }
+
+    const isDonationRoom = room.config?.fundraisingMode === 'donation';
+
+    if (isDonationRoom) {
+      const donationAmount = Number(sanitizedUser.donationAmount ?? 0);
+      const isZeroDonationAutoConfirmed =
+  isDonationRoom &&
+  normalizedDonationAmount === 0 &&
+  !ticketId &&
+  !isStripePostJoin &&
+  normalizedPaymentMethod !== 'stripe';
+
+      // ✅ Donation rooms: one ledger row only, amount may be 0
+     await createExpectedPayment({
   roomId,
   clubId,
   playerId: user.id,
   playerName: sanitizedUser.name,
   ledgerType: 'entry_fee',
-  amount: entryFee,
-  currency: currency === '€' ? 'EUR' : currency === '£' ? 'GBP' : 'EUR',
+  amount: donationAmount,
+  currency,
   paymentMethod: sanitizedUser.paymentMethod,
-  paymentSource: ledgerSource,
-  status: ledgerStatus,          // ✅ Pass explicit status
+  paymentSource: isZeroDonationAutoConfirmed ? 'system_zero_donation' : ledgerSource,
+  status: isZeroDonationAutoConfirmed ? 'confirmed' : ledgerStatus,
   clubPaymentMethodId: sanitizedUser.clubPaymentMethodId || null,
   paymentReference: sanitizedUser.paymentReference || null,
-  claimedAt: claimedAt,          // ✅ null for admin-assigned
-  confirmedAt: confirmedAt,      // ✅ NOW() for admin-assigned
-  confirmedBy: confirmedBy,
-  confirmedByName: confirmedByName,
-  confirmedByRole: confirmedByRole,
+  claimedAt: isZeroDonationAutoConfirmed ? null : claimedAt,
+  confirmedAt: isZeroDonationAutoConfirmed ? new Date() : confirmedAt,
+  confirmedBy: isZeroDonationAutoConfirmed ? 'system_zero_donation' : confirmedBy,
+  confirmedByName: isZeroDonationAutoConfirmed ? 'System' : confirmedByName,
+  confirmedByRole: isZeroDonationAutoConfirmed ? 'admin' : confirmedByRole,
   ticketId: null,
+  extraMetadata: {
+    fundraisingMode: 'donation',
+    donationAmount,
+    autoConfirmed: isZeroDonationAutoConfirmed,
+  },
 });
 
-// Create ledger entries for each extra
-if (sanitizedUser.extras && Array.isArray(sanitizedUser.extras)) {
-  for (const extraId of sanitizedUser.extras) {
-    const extraPrice = room.config.fundraisingPrices?.[extraId];
-    if (extraPrice && extraPrice > 0) {
-      await createExpectedPayment({
-        roomId,
-        clubId,
-        playerId: user.id,
-        playerName: sanitizedUser.name,
-        ledgerType: 'extra_purchase',
-        amount: extraPrice,
-        currency: currency === '€' ? 'EUR' : currency === '£' ? 'GBP' : 'EUR',
-        paymentMethod: sanitizedUser.paymentMethod,
-        paymentSource: ledgerSource,
-        status: ledgerStatus,      // ✅ Pass explicit status
-        clubPaymentMethodId: sanitizedUser.clubPaymentMethodId || null,
-        paymentReference: sanitizedUser.paymentReference || null,
-        claimedAt: claimedAt,      // ✅ null for admin-assigned
-        confirmedAt: confirmedAt,  // ✅ NOW() for admin-assigned
-        confirmedBy: confirmedBy,
-        confirmedByName: confirmedByName,
-        confirmedByRole: confirmedByRole,
-        extraId,
-        extraMetadata: { extraId, price: extraPrice },
-        ticketId: null,
-      });
-    }
-  }
-}
-    
-    if (debug) {
-      console.log(`[Ledger] ✅ Created payment ledger entries for ${user.id}`, {
-        entryFee,
-        extrasCount: sanitizedUser.extras?.length || 0,
-        paymentMethod: sanitizedUser.paymentMethod,
-        paymentSource: ledgerSource,
-        status: ledgerStatus,
-        isAdminInitiated,
-        paid: sanitizedUser.paid,
-        confirmedBy: confirmedByName || 'N/A',
-        confirmedAt: confirmedAt || 'N/A',
-      });
+      if (debug) {
+        console.log(`[Ledger] ✅ Created donation ledger entry for ${user.id}`, {
+          donationAmount,
+          paymentMethod: sanitizedUser.paymentMethod,
+          paymentSource: ledgerSource,
+          status: ledgerStatus,
+          isAdminInitiated,
+          paid: sanitizedUser.paid,
+        });
+      }
+    } else {
+      const entryFee = parseFloat(room.config?.entryFee || 0);
+
+      if (entryFee > 0) {
+        await createExpectedPayment({
+          roomId,
+          clubId,
+          playerId: user.id,
+          playerName: sanitizedUser.name,
+          ledgerType: 'entry_fee',
+          amount: entryFee,
+          currency,
+          paymentMethod: sanitizedUser.paymentMethod,
+          paymentSource: ledgerSource,
+          status: ledgerStatus,
+          clubPaymentMethodId: sanitizedUser.clubPaymentMethodId || null,
+          paymentReference: sanitizedUser.paymentReference || null,
+          claimedAt,
+          confirmedAt,
+          confirmedBy,
+          confirmedByName,
+          confirmedByRole,
+          ticketId: null,
+        });
+      }
+
+      if (sanitizedUser.extras && Array.isArray(sanitizedUser.extras)) {
+        for (const extraId of sanitizedUser.extras) {
+          const extraPrice = room.config.fundraisingPrices?.[extraId];
+          if (extraPrice && extraPrice > 0) {
+            await createExpectedPayment({
+              roomId,
+              clubId,
+              playerId: user.id,
+              playerName: sanitizedUser.name,
+              ledgerType: 'extra_purchase',
+              amount: extraPrice,
+              currency,
+              paymentMethod: sanitizedUser.paymentMethod,
+              paymentSource: ledgerSource,
+              status: ledgerStatus,
+              clubPaymentMethodId: sanitizedUser.clubPaymentMethodId || null,
+              paymentReference: sanitizedUser.paymentReference || null,
+              claimedAt,
+              confirmedAt,
+              confirmedBy,
+              confirmedByName,
+              confirmedByRole,
+              extraId,
+              extraMetadata: { extraId, price: extraPrice },
+              ticketId: null,
+            });
+          }
+        }
+      }
+
+      if (debug) {
+        console.log(`[Ledger] ✅ Created fixed-fee ledger entries for ${user.id}`, {
+          entryFee,
+          extrasCount: sanitizedUser.extras?.length || 0,
+          paymentMethod: sanitizedUser.paymentMethod,
+          paymentSource: ledgerSource,
+          status: ledgerStatus,
+          isAdminInitiated,
+          paid: sanitizedUser.paid,
+        });
+      }
     }
   } catch (ledgerErr) {
     console.error(`[Ledger] ❌ Failed to create ledger entries for ${user.id}:`, ledgerErr);
   }
 } else if (joinedViaTicket) {
-    if (debug) {
-      console.log(`[Ledger] ⏭️ Skipping ledger creation for ticket user ${user.id} - entries already exist from ticket purchase`);
-    }
+  if (debug) {
+    console.log(
+      `[Ledger] ⏭️ Skipping ledger creation for ticket user ${user.id} - entries already exist from ticket purchase`
+    );
   }
+}
 
   // OPTIONAL: store Web3 wallet details for payouts (players only)
   if (user.web3Address && user.web3Chain) {
