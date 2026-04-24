@@ -6,7 +6,7 @@ export async function saveProgress({ instanceId, playerId, clubId, progressData 
      VALUES (?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE
        progress_data = VALUES(progress_data),
-       updated_at    = NOW()`,
+       updated_at    = UTC_TIMESTAMP()`,
     [instanceId, playerId, clubId, JSON.stringify(progressData)]
   );
 }

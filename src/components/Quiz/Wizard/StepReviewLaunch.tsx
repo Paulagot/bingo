@@ -40,7 +40,6 @@ const Character = ({
 
   return (
     <div className="mb-3 flex items-center gap-2 sm:mb-6 sm:gap-4">
-      {/* Image placeholder (consistent with other steps) */}
       <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-border bg-muted sm:h-16 sm:w-16">
         <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-gray-100 to-gray-300">
           <span className="text-fg/60 text-xs font-medium sm:text-sm">IMG</span>
@@ -64,7 +63,7 @@ const HeaderTile = () => (
 );
 
 const StepReviewLaunch: FC<WizardStepProps> = ({ onBack, onNext, onResetToFirst, isEditMode }) => {
-  const { setupConfig, roomId, hostId, setRoomIds, flow, resetSetupConfig  } = useQuizSetupStore();
+  const { setupConfig, roomId, hostId, setRoomIds, flow, resetSetupConfig } = useQuizSetupStore();
   const { setFullConfig } = useQuizConfig();
   const navigate = useNavigate();
   const { socket, connected } = useQuizSocket();
@@ -73,10 +72,10 @@ const StepReviewLaunch: FC<WizardStepProps> = ({ onBack, onNext, onResetToFirst,
   useEffect(() => {
     if (!connected || !socket) return;
 
-const handleCreated = () => {
-  resetSetupConfig({ keepIds: false });
-  navigate('/quiz/eventdashboard');
-};
+    const handleCreated = () => {
+      resetSetupConfig({ keepIds: false });
+      navigate('/quiz/eventdashboard');
+    };
 
     const handleError = ({ message }: { message: string }) => {
       console.error('[Socket Error]', message);
@@ -90,7 +89,7 @@ const handleCreated = () => {
       socket.off('quiz_room_created', handleCreated);
       socket.off('quiz_error', handleError);
     };
-  }, [connected, navigate, socket]);
+  }, [connected, navigate, resetSetupConfig, socket]);
 
   const handleLaunch = async () => {
     if (isLaunching) return;
@@ -101,37 +100,27 @@ const handleCreated = () => {
       const newHostId = hostId || generateHostId();
       setRoomIds(newRoomId, newHostId);
 
-    
-
-
       console.log('[LAUNCH setupConfig fundraisingOptions]', setupConfig.fundraisingOptions);
-console.log('[LAUNCH setupConfig fundraisingPrices]', setupConfig.fundraisingPrices);
+      console.log('[LAUNCH setupConfig fundraisingPrices]', setupConfig.fundraisingPrices);
 
-
-
-
-  const data = await roomApi.createRoom({
-  config: setupConfig,
-  roomId: newRoomId,
-  hostId: newHostId,
-});
-
-
+      const data = await roomApi.createRoom({
+        config: setupConfig,
+        roomId: newRoomId,
+        hostId: newHostId,
+      });
 
       localStorage.setItem('current-room-id', data.roomId);
       localStorage.setItem('current-host-id', data.hostId);
 
-     setFullConfig({
-  ...setupConfig,
-  roomId: data.roomId,
-  hostId: data.hostId,
-  roomCaps: data.roomCaps as any,
-});
+      setFullConfig({
+        ...setupConfig,
+        roomId: data.roomId,
+        hostId: data.hostId,
+        roomCaps: data.roomCaps as any,
+      });
 
-resetSetupConfig({ keepIds: false });
-
-navigate('/quiz/eventdashboard');
-
+      resetSetupConfig({ keepIds: false });
+      navigate('/quiz/eventdashboard');
     } catch (err: any) {
       console.error('[Launch Error]', err);
 
@@ -154,6 +143,13 @@ navigate('/quiz/eventdashboard');
   const hasRounds =
     setupConfig.roundDefinitions && setupConfig.roundDefinitions.length > 0;
   const configComplete = hasHostName && hasRounds;
+
+  const fundraisingMode = setupConfig.fundraisingMode ?? 'fixed_fee';
+  const isDonationMode = fundraisingMode === 'donation';
+
+  const enabledExtras = Object.entries(setupConfig.fundraisingOptions || {}).filter(
+    ([, enabled]) => !!enabled
+  );
 
   const getCurrentMessage = () => {
     if (!configComplete) {
@@ -200,7 +196,6 @@ navigate('/quiz/eventdashboard');
 
       <Character {...getCurrentMessage()} />
 
-      {/* IDs banner (optional) */}
       {(roomId || hostId) && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 sm:p-4">
           <div className="mb-1 flex items-center gap-2">
@@ -224,271 +219,267 @@ navigate('/quiz/eventdashboard');
         </div>
       )}
 
-      {/* Warning banner */}
       <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 sm:p-4">
         <div className="mb-1 flex items-center gap-2">
           <AlertTriangle className="h-4 w-4 text-yellow-700" />
           <span className="text-xs font-medium text-yellow-900 sm:text-sm">Final Configuration Check</span>
         </div>
         <div className="text-xs text-yellow-800 sm:text-sm">
-          Review everything carefully. 
+          Review everything carefully.
         </div>
       </div>
 
-      {/* Overview grid */}
-      <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
-        {/* Host & Event */}
-        <div className="bg-muted rounded-lg border-2 border-border p-3 shadow-sm sm:p-6">
-          <div className="mb-3 flex items-center gap-3 sm:mb-4">
-            <HeaderTile />
-            <div className="min-w-0 flex-1">
-              <h3 className="text-fg text-sm font-semibold sm:text-base">Host & Event</h3>
-              <p className="text-fg/70 text-xs sm:text-sm">Basic event information</p>
-            </div>
-            {hasHostName && <CheckCircle className="h-5 w-5 text-green-600" />}
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex items-start gap-3">
-              <User className="text-fg/60 h-4 w-4" />
-              <div>
-                <p className="text-fg/80 text-xs font-medium sm:text-sm">Host</p>
-                <p className="text-fg text-sm sm:text-base">{setupConfig.hostName || 'Not provided'}</p>
-              </div>
-            </div>
-
-            {setupConfig.eventDateTime && eventDateTime ? (
-              <div className="flex items-start gap-3">
-                <Calendar className="text-fg/60 mt-0.5 h-4 w-4" />
-                <div>
-                  <p className="text-fg/80 text-xs font-medium sm:text-sm">Scheduled</p>
-                  <p className="text-fg text-sm sm:text-base">{eventDateTime.date}</p>
-                  <div className="mt-1 flex items-center gap-2">
-                    <Clock className="h-3 w-3 text-fg/50" />
-                    <span className="text-fg/70 text-xs sm:text-sm">{eventDateTime.time}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-3 w-3 text-fg/50" />
-                    <span className="text-fg/60 text-xs">{setupConfig.timeZone || 'Unknown timezone'}</span>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-start gap-3">
-                <Calendar className="text-fg/60 h-4 w-4" />
-                <div>
-                  <p className="text-fg/80 text-xs font-medium sm:text-sm">Event Date</p>
-                  <p className="text-fg text-sm sm:text-base">Not scheduled</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Payment */}
-        <div className="bg-muted rounded-lg border-2 border-border p-3 shadow-sm sm:p-6">
-          <div className="mb-3 flex items-center gap-3 sm:mb-4">
-            <HeaderTile />
-            <div className="min-w-0 flex-1">
-              <h3 className="text-fg text-sm font-semibold sm:text-base">Payment Setup</h3>
-              <p className="text-fg/70 text-xs sm:text-sm">Entry fee and collection method</p>
-            </div>
-            <CheckCircle className="h-5 w-5 text-green-600" />
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex items-start gap-3">
-              <DollarSign className="text-fg/60 h-4 w-4" />
-              <div>
-                <p className="text-fg/80 text-xs font-medium sm:text-sm">Entry Fee</p>
-                <p className="text-fg text-sm font-semibold sm:text-base">
-                  {setupConfig.entryFee ? `${currency}${setupConfig.entryFee}` : 'Free'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <Wallet className="text-fg/60 h-4 w-4" />
-              <div>
-                <p className="text-fg/80 text-xs font-medium sm:text-sm">Payment Method</p>
-                <p className="text-fg text-sm sm:text-base">
-                  {setupConfig.paymentMethod === 'web3' ? 'Web3 Wallet' : 'Cash / Card'}
-                </p>
-              </div>
-            </div>
-
-            {setupConfig.paymentMethod === 'web3' && (
-              <div className="rounded-lg border border-purple-200 bg-purple-50 p-3">
-                <div className="space-y-2 text-xs sm:text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-purple-700">Chain</span>
-                    <span className="font-medium text-purple-900">{setupConfig.web3Chain || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-purple-700">Currency</span>
-                    <span className="font-medium text-purple-900">{setupConfig.web3Currency || 'USDGLO'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-purple-700">Charity</span>
-                    <span className="font-medium text-purple-900">{setupConfig.web3Charity || 'Not selected'}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Quiz Structure */}
-      <div className="bg-muted rounded-lg border-2 border-border p-3 shadow-sm sm:p-6">
-        <div className="mb-3 flex items-center gap-3 sm:mb-4">
-          <HeaderTile />
-          <div className="min-w-0 flex-1">
-            <h3 className="text-fg text-sm font-semibold sm:text-base">Quiz Structure</h3>
-            <p className="text-fg/70 text-xs sm:text-sm">
-              {(setupConfig.roundDefinitions || []).length} rounds configured
-            </p>
-          </div>
-          {hasRounds && <CheckCircle className="h-5 w-5 text-green-600" />}
-        </div>
-
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {(setupConfig.roundDefinitions || []).map((round: RoundDefinition, idx: number) => (
-            <div key={idx} className="rounded-lg border border-border bg-card p-3">
-              <div className="mb-1.5 flex items-center gap-2">
-                <Target className="h-4 w-4 text-indigo-600" />
-                <span className="text-fg text-sm font-medium">Round {idx + 1}</span>
-              </div>
-              <div className="space-y-0.5 text-xs sm:text-sm">
-                <p className="text-fg font-medium">
-                  {roundTypeMap[round.roundType]?.name || round.roundType}
-                </p>
-                <p className="text-fg/70">{round.config.questionsPerRound} questions</p>
-                {round.category && (
-                  <span className="inline-block rounded bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
-                    {round.category}
-                  </span>
-                )}{' '}
-                {round.difficulty && (
-                  <span
-                    className={`inline-block rounded px-2 py-0.5 text-xs ${
-                      round.difficulty === 'easy'
-                        ? 'bg-green-100 text-green-700'
-                        : round.difficulty === 'medium'
-                        ? 'bg-yellow-100 text-yellow-700'
-                        : 'bg-red-100 text-red-700'
-                    }`}
-                  >
-                    {round.difficulty.charAt(0).toUpperCase() + round.difficulty.slice(1)}
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Prizes & Fundraising */}
-      <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
-        {/* Prizes */}
-        {((setupConfig.prizes && setupConfig.prizes.length > 0) || setupConfig.prizeSplits) && (
-          <div className="bg-muted rounded-lg border-2 border-border p-3 shadow-sm sm:p-6">
-            <div className="mb-3 flex items-center gap-3 sm:mb-4">
+      <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
+        {/* Left column */}
+        <div className="space-y-3 sm:space-y-4">
+          {/* Host */}
+          <div className="rounded-lg border border-border bg-card p-3 sm:p-4">
+            <div className="mb-3 flex items-start gap-3">
               <HeaderTile />
               <div className="min-w-0 flex-1">
-                <h3 className="text-fg text-sm font-semibold sm:text-base">Prizes</h3>
-                <p className="text-fg/70 text-xs sm:text-sm">Winner rewards</p>
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-indigo-600" />
+                  <h3 className="text-sm font-semibold sm:text-base">Host</h3>
+                </div>
+                <p className="text-fg/60 mt-0.5 text-xs sm:text-sm">Who participants will see</p>
               </div>
-              <CheckCircle className="h-5 w-5 text-green-600" />
             </div>
-
-            <div className="space-y-3">
-              {setupConfig.prizes && setupConfig.prizes.length > 0 && (
-                <div>
-                  <h4 className="text-fg/80 mb-2 text-xs font-medium sm:text-sm">Defined Prizes</h4>
-                  <div className="space-y-2">
-                    {setupConfig.prizes.map((prize, idx) => (
-                      <div key={idx} className="flex items-center gap-3 rounded border border-border bg-card p-2">
-                        <Trophy className="h-4 w-4 text-yellow-600" />
-                        <div className="min-w-0">
-                          <p className="text-fg text-sm font-medium">
-                            {prize.place === 1
-                              ? '1st'
-                              : prize.place === 2
-                              ? '2nd'
-                              : prize.place === 3
-                              ? '3rd'
-                              : `${prize.place}th`}{' '}
-                            Place
-                          </p>
-                          <p className="text-fg/70 text-xs">
-                            {prize.description || 'No description'}
-                            {prize.value ? ` • ${currency}${prize.value}` : ''}
-                            {prize.sponsor ? ` • ${prize.sponsor}` : ''}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {setupConfig.prizeSplits && (
-                <div>
-                  <h4 className="text-fg/80 mb-2 text-xs font-medium sm:text-sm">Prize Pool Splits</h4>
-                  <div className="grid grid-cols-3 gap-2">
-                    {Object.entries(setupConfig.prizeSplits).map(([place, pct]) => (
-                      <div key={place} className="rounded border border-yellow-200 bg-yellow-50 p-2 text-center">
-                        <div className="font-bold text-yellow-700">{pct}%</div>
-                        <div className="text-xs text-yellow-700">
-                          {place === '1' ? '1st' : place === '2' ? '2nd' : place === '3' ? '3rd' : `${place}th`}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+            <div className="rounded border border-border bg-muted/40 p-3">
+              <div className="text-sm font-medium text-fg">{setupConfig.hostName || 'Not set'}</div>
             </div>
           </div>
-        )}
 
-        {/* Fundraising Extras */}
-        <div className="bg-muted rounded-lg border-2 border-border p-3 shadow-sm sm:p-6">
-          <div className="mb-3 flex items-center gap-3 sm:mb-4">
-            <HeaderTile />
-            <div className="min-w-0 flex-1">
-              <h3 className="text-fg text-sm font-semibold sm:text-base">Fundraising Extras</h3>
-              <p className="text-fg/70 text-xs sm:text-sm">Additional fundraising options</p>
+          {/* Schedule */}
+          <div className="rounded-lg border border-border bg-card p-3 sm:p-4">
+            <div className="mb-3 flex items-start gap-3">
+              <HeaderTile />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-indigo-600" />
+                  <h3 className="text-sm font-semibold sm:text-base">Schedule</h3>
+                </div>
+                <p className="text-fg/60 mt-0.5 text-xs sm:text-sm">When your quiz will happen</p>
+              </div>
             </div>
-            <CheckCircle className="h-5 w-5 text-green-600" />
-          </div>
 
-          <div className="space-y-2">
-            {setupConfig.fundraisingOptions &&
-            Object.entries(setupConfig.fundraisingOptions).some(([, enabled]) => enabled) ? (
-              Object.entries(setupConfig.fundraisingOptions).map(([key, enabled]) =>
-                enabled ? (
-                  <div
-                    key={key}
-                    className="flex items-center justify-between rounded border border-green-200 bg-green-50 p-2"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Heart className="h-4 w-4 text-green-600" />
-                      <span className="text-sm font-medium text-green-800">
-                       {fundraisingExtraDefinitions[key as keyof typeof fundraisingExtraDefinitions]?.label || key}
-                      </span>
-                    </div>
-                    <span className="text-sm font-semibold text-green-900">
-                      {currency}
-                      {setupConfig.fundraisingPrices?.[key] ?? '0.00'}
+            {eventDateTime ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 rounded border border-indigo-200 bg-indigo-50 p-2">
+                  <Calendar className="h-4 w-4 text-indigo-600" />
+                  <span className="text-sm font-medium text-indigo-900">{eventDateTime.date}</span>
+                </div>
+                <div className="flex items-center gap-2 rounded border border-indigo-200 bg-indigo-50 p-2">
+                  <Clock className="h-4 w-4 text-indigo-600" />
+                  <span className="text-sm font-medium text-indigo-900">{eventDateTime.time}</span>
+                </div>
+                {(setupConfig.timeZone || flow === 'web2') && (
+                  <div className="flex items-center gap-2 rounded border border-indigo-200 bg-indigo-50 p-2">
+                    <MapPin className="h-4 w-4 text-indigo-600" />
+                    <span className="text-sm font-medium text-indigo-900">
+                      {setupConfig.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone}
                     </span>
                   </div>
-                ) : null
-              )
+                )}
+              </div>
             ) : (
-              <div className="text-fg/60 py-4 text-center">
-                <Heart className="mx-auto mb-2 h-8 w-8 text-fg/30" />
-                <p className="text-sm">No additional fundraising options selected</p>
+              <div className="text-fg/60 py-4 text-center text-sm">No schedule set</div>
+            )}
+          </div>
+
+          {/* Payment */}
+          <div className="rounded-lg border border-border bg-card p-3 sm:p-4">
+            <div className="mb-3 flex items-start gap-3">
+              <HeaderTile />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <Wallet className="h-4 w-4 text-indigo-600" />
+                  <h3 className="text-sm font-semibold sm:text-base">Payment Setup</h3>
+                </div>
+                <p className="text-fg/60 mt-0.5 text-xs sm:text-sm">How players will contribute</p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between rounded border border-border bg-muted/40 p-2">
+                <span className="text-sm text-fg/70">Fundraising Model</span>
+                <span className="text-sm font-medium text-fg">
+                  {isDonationMode ? 'Donation-based' : 'Fixed entry fee'}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between rounded border border-border bg-muted/40 p-2">
+                <span className="text-sm text-fg/70">Currency</span>
+                <span className="text-sm font-medium text-fg">{currency}</span>
+              </div>
+
+              {!isDonationMode ? (
+                <div className="flex items-center justify-between rounded border border-border bg-muted/40 p-2">
+                  <span className="text-sm text-fg/70">Entry Fee</span>
+                  <span className="text-sm font-semibold text-fg">
+                    {currency}
+                    {setupConfig.entryFee || '0.00'}
+                  </span>
+                </div>
+              ) : (
+                <div className="rounded border border-blue-200 bg-blue-50 p-3">
+                  <div className="mb-1 flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-900">Player Contribution</span>
+                  </div>
+                  <p className="text-xs text-blue-800 sm:text-sm">
+                    Players can donate any amount they want, including 0.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Right column */}
+        <div className="space-y-3 sm:space-y-4">
+          {/* Rounds */}
+          <div className="rounded-lg border border-border bg-card p-3 sm:p-4">
+            <div className="mb-3 flex items-start gap-3">
+              <HeaderTile />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <Target className="h-4 w-4 text-indigo-600" />
+                  <h3 className="text-sm font-semibold sm:text-base">Rounds</h3>
+                </div>
+                <p className="text-fg/60 mt-0.5 text-xs sm:text-sm">Your quiz structure</p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {(setupConfig.roundDefinitions || []).map((round: RoundDefinition, index: number) => (
+                <div
+                  key={`${round.roundNumber}-${round.roundType}-${index}`}
+                  className="rounded border border-border bg-muted/40 p-3"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-fg">Round {round.roundNumber}</span>
+                    <span className="rounded bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                      {roundTypeMap[round.roundType]?.name || round.roundType}
+                    </span>
+                  </div>
+                  {round.category && (
+                    <div className="mt-2 text-xs text-fg/70">Category: {round.category}</div>
+                  )}
+                  {round.difficulty && (
+                    <div className="mt-1 text-xs text-fg/70">Difficulty: {round.difficulty}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Prizes */}
+          <div className="rounded-lg border border-border bg-card p-3 sm:p-4">
+            <div className="mb-3 flex items-start gap-3">
+              <HeaderTile />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <Trophy className="h-4 w-4 text-indigo-600" />
+                  <h3 className="text-sm font-semibold sm:text-base">Prizes</h3>
+                </div>
+                <p className="text-fg/60 mt-0.5 text-xs sm:text-sm">What players can win</p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {setupConfig.prizes && setupConfig.prizes.length > 0 ? (
+                setupConfig.prizes.map((prize, idx) => (
+                  <div key={`${prize.place}-${idx}`} className="rounded border border-border bg-muted/40 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium text-fg">{prize.place} place</span>
+                      <span className="text-xs text-fg/70">{prize.sponsor || 'No sponsor'}</span>
+                    </div>
+                    <div className="mt-1 text-sm text-fg/80">{prize.description}</div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-fg/60 py-4 text-center text-sm">No prizes added</div>
+              )}
+            </div>
+          </div>
+
+          {/* Extras */}
+          <div className="rounded-lg border border-border bg-card p-3 sm:p-4">
+            <div className="mb-3 flex items-start gap-3">
+              <HeaderTile />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <Heart className="h-4 w-4 text-indigo-600" />
+                  <h3 className="text-sm font-semibold sm:text-base">Fundraising Extras</h3>
+                </div>
+                <p className="text-fg/60 mt-0.5 text-xs sm:text-sm">
+                  {isDonationMode
+                    ? 'Automatically included for all players'
+                    : 'Extra fundraising options enabled for this quiz'}
+                </p>
+              </div>
+            </div>
+
+            {isDonationMode ? (
+              <div className="rounded border border-blue-200 bg-blue-50 p-3">
+                <div className="mb-2 flex items-center gap-2">
+                  <Heart className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-900">All extras included</span>
+                </div>
+                <p className="mb-3 text-xs text-blue-800 sm:text-sm">
+                  Because this is a donation-based quiz, all extras are automatically included for
+                  hosts and players.
+                </p>
+
+                <div className="space-y-2">
+                  {enabledExtras.length > 0 ? (
+                    enabledExtras.map(([key]) => (
+                      <div
+                        key={key}
+                        className="flex items-center justify-between rounded border border-blue-200 bg-white/70 p-2"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Heart className="h-4 w-4 text-blue-600" />
+                          <span className="text-sm font-medium text-blue-900">
+                            {fundraisingExtraDefinitions[key as keyof typeof fundraisingExtraDefinitions]?.label || key}
+                          </span>
+                        </div>
+                        <span className="text-xs font-medium text-blue-700">Included</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-fg/60 py-2 text-center text-sm">
+                      Extras will be included automatically.
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {enabledExtras.length > 0 ? (
+                  enabledExtras.map(([key]) => (
+                    <div
+                      key={key}
+                      className="flex items-center justify-between rounded border border-green-200 bg-green-50 p-2"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Heart className="h-4 w-4 text-green-600" />
+                        <span className="text-sm font-medium text-green-800">
+                          {fundraisingExtraDefinitions[key as keyof typeof fundraisingExtraDefinitions]?.label || key}
+                        </span>
+                      </div>
+                      <span className="text-sm font-semibold text-green-900">
+                        {currency}
+                        {setupConfig.fundraisingPrices?.[key] ?? '0.00'}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-fg/60 py-4 text-center">
+                    <Heart className="mx-auto mb-2 h-8 w-8 text-fg/30" />
+                    <p className="text-sm">No additional fundraising options selected</p>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -510,21 +501,21 @@ navigate('/quiz/eventdashboard');
           <span>Back</span>
         </button>
 
-           <ClearSetupButton
-                     variant="ghost"
-                     flow={flow ?? 'web2'}         // ensures reset keeps current flow (web2/web3)
-                     onCleared={onResetToFirst}    // jumps to first step after clearing
-                   />
+        <ClearSetupButton
+          variant="ghost"
+          flow={flow ?? 'web2'}
+          onCleared={onResetToFirst}
+        />
 
-       <button
-      type="button"
-     onClick={isEditMode ? onNext : handleLaunch} // ← fork here
-      className="btn-primary disabled:opacity-60"
-      disabled={isLaunching}
-    >
-      <Rocket className="h-4 w-4" />
-      <span>{isEditMode ? 'Save Changes' : (isLaunching ? 'Launching…' : 'Ready to Schedule')}</span>
-    </button>
+        <button
+          type="button"
+          onClick={isEditMode ? onNext : handleLaunch}
+          className="btn-primary disabled:opacity-60"
+          disabled={isLaunching}
+        >
+          <Rocket className="h-4 w-4" />
+          <span>{isEditMode ? 'Save Changes' : isLaunching ? 'Launching…' : 'Ready to Schedule'}</span>
+        </button>
       </div>
     </div>
   );

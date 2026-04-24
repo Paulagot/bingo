@@ -52,7 +52,7 @@ export async function upsertStripeMethodForClub({ clubId, accountId, connectStat
     SET
       is_enabled = TRUE,
       method_config = ?,
-      updated_at = NOW()
+      updated_at = UTC_TIMESTAMP()
     WHERE id = ? AND club_id = ?
   `;
 

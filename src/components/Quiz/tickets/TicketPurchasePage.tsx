@@ -482,7 +482,7 @@ export const TicketPurchasePage: React.FC = () => {
           mode="page"
           icon="💶"
           title="Choose payment method"
-          subtitle="Pay now via instant payment"
+          subtitle="Pay now to secure your spot"
           footer={
             <ActionButtons
               onBack={() => setStep(availableExtras.length > 0 ? 'extras' : 'player-details')}

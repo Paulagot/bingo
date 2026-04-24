@@ -234,7 +234,7 @@ export async function consumeCredit(clubId) {
     const [result] = await connection.execute(`
       UPDATE fundraisely_club_plan 
       SET game_credits_remaining = game_credits_remaining - 1,
-          updated_at = CURRENT_TIMESTAMP
+          updated_at = UTC_TIMESTAMP()
       WHERE club_id = ? AND game_credits_remaining > 0
     `, [clubId]);
 
@@ -251,7 +251,7 @@ export async function grantCredits(clubId, amount) {
     const [result] = await connection.execute(`
       UPDATE fundraisely_club_plan 
       SET game_credits_remaining = game_credits_remaining + ?,
-          updated_at = CURRENT_TIMESTAMP
+          updated_at = UTC_TIMESTAMP()
       WHERE club_id = ?
     `, [amount, clubId]);
 

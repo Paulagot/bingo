@@ -6,12 +6,20 @@ import { connection as db } from '../../config/database.js'
  * Token amounts come from amount + fee_token columns per transaction row.
  */
 
+function parseMysqlUtcDateTime(value) {
+  if (!value) return null
+  if (value instanceof Date) return value
+
+  const parsed = new Date(`${value}Z`)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
 // ─── Hosted impact ────────────────────────────────────────────────────────────
 
 async function getHostedOverview(walletAddress) {
   const [rows] = await db.query(
     `SELECT
-      COUNT(*)                        AS rooms_launched,
+      COUNT(*)                              AS rooms_launched,
       COALESCE(SUM(total_raised_eur), 0)    AS total_raised_eur,
       COALESCE(SUM(charity_amount_eur), 0)  AS charity_amount_eur,
       COALESCE(SUM(host_fee_amount_eur), 0) AS host_fee_amount_eur,
@@ -27,7 +35,6 @@ async function getHostedOverview(walletAddress) {
 
   const overview = rows[0]
 
-  // Charity names list for secondary display
   const [charityRows] = await db.query(
     `SELECT DISTINCT charity_name, charity_wallet,
        SUM(charity_amount_eur) AS total_eur
@@ -38,7 +45,6 @@ async function getHostedOverview(walletAddress) {
     [walletAddress]
   )
 
-  // Unique supporter wallets across all hosted rooms
   const [hostedRoomIds] = await db.query(
     `SELECT room_id FROM fundraisely_impact_campaign_events WHERE host_wallet = ?`,
     [walletAddress]
@@ -83,8 +89,6 @@ async function getHostedOverview(walletAddress) {
     charity_names: charityRows,
     unique_supporter_wallets: Number(uniqueSupporterWallets),
     total_prize_payouts_sent_eur: Number(totalPrizePayoutsSentEur),
-    // Derived — host earnings split varies by game type, host_fee_amount_eur is already
-    // the pre-calculated host share so we just avg it across rooms
     avg_host_fee_per_room:
       Number(overview.rooms_launched) > 0
         ? Number(overview.host_fee_amount_eur) / Number(overview.rooms_launched)
@@ -97,10 +101,10 @@ async function getHostedOverview(walletAddress) {
 async function getPlayerOverview(walletAddress) {
   const [rows] = await db.query(
     `SELECT
-      COUNT(DISTINCT room_id)                     AS rooms_joined,
-      COALESCE(SUM(entry_fee_amount_eur), 0)      AS total_entry_fees_eur,
-      COALESCE(SUM(donation_amount_eur), 0)       AS total_donation_eur,
-      COALESCE(SUM(extras_amount_eur), 0)         AS total_extras_eur
+      COUNT(DISTINCT room_id)                AS rooms_joined,
+      COALESCE(SUM(entry_fee_amount_eur), 0) AS total_entry_fees_eur,
+      COALESCE(SUM(donation_amount_eur), 0)  AS total_donation_eur,
+      COALESCE(SUM(extras_amount_eur), 0)    AS total_extras_eur
     FROM fundraisely_web3_transactions
     WHERE wallet_address = ?
       AND transaction_type = 'join_payment'`,
@@ -135,7 +139,6 @@ async function getPlayerOverview(walletAddress) {
 // ─── Charts data ──────────────────────────────────────────────────────────────
 
 async function getChartsData(walletAddress) {
-  // Charity raised over time (hosted rooms, by week)
   const [raisedOverTime] = await db.query(
     `SELECT
        DATE_FORMAT(created_at, '%Y-%u') AS period,
@@ -150,7 +153,6 @@ async function getChartsData(walletAddress) {
     [walletAddress]
   )
 
-  // Revenue mix for hosted rooms
   const [revenueMixRows] = await db.query(
     `SELECT
        SUM(charity_amount_eur)  AS charity_eur,
@@ -167,7 +169,6 @@ async function getChartsData(walletAddress) {
     { name: 'Extras', value: Number(rm.extras_eur) },
   ]
 
-  // Contribution mix for this wallet as a player
   const [contribRows] = await db.query(
     `SELECT
        SUM(entry_fee_amount_eur) AS entry_fee_eur,
@@ -184,7 +185,6 @@ async function getChartsData(walletAddress) {
     { name: 'Extras', value: Number(c.extras_eur) },
   ]
 
-  // Chain usage (both roles)
   const [hostedChainRows] = await db.query(
     `SELECT chain, COUNT(*) AS hosted_rooms, SUM(total_raised_eur) AS raised_eur
      FROM fundraisely_impact_campaign_events
@@ -199,18 +199,29 @@ async function getChartsData(walletAddress) {
      GROUP BY chain`,
     [walletAddress]
   )
-  // Merge chain data
+
   const chainMap = {}
   for (const r of hostedChainRows) {
-    chainMap[r.chain] = { chain: r.chain, hosted_rooms: Number(r.hosted_rooms), rooms_joined: 0, raised_eur: Number(r.raised_eur) }
+    chainMap[r.chain] = {
+      chain: r.chain,
+      hosted_rooms: Number(r.hosted_rooms),
+      rooms_joined: 0,
+      raised_eur: Number(r.raised_eur),
+    }
   }
   for (const r of playerChainRows) {
-    if (!chainMap[r.chain]) chainMap[r.chain] = { chain: r.chain, hosted_rooms: 0, rooms_joined: 0, raised_eur: 0 }
+    if (!chainMap[r.chain]) {
+      chainMap[r.chain] = {
+        chain: r.chain,
+        hosted_rooms: 0,
+        rooms_joined: 0,
+        raised_eur: 0,
+      }
+    }
     chainMap[r.chain].rooms_joined = Number(r.rooms_joined)
   }
   const chainUsage = Object.values(chainMap)
 
-  // Prize payouts sent over time (for hosted rooms)
   const [hostedRoomIds] = await db.query(
     `SELECT room_id FROM fundraisely_impact_campaign_events WHERE host_wallet = ?`,
     [walletAddress]
@@ -236,7 +247,6 @@ async function getChartsData(walletAddress) {
     payoutsOverTime = payoutRows
   }
 
-  // Charities breakdown
   const [charitiesBreakdown] = await db.query(
     `SELECT charity_name,
        SUM(charity_amount_eur) AS total_eur,
@@ -261,14 +271,12 @@ async function getChartsData(walletAddress) {
 // ─── Recent activity feed ─────────────────────────────────────────────────────
 
 async function getRecentActivity(walletAddress) {
-  // Get hosted room IDs first
   const [hostedRoomIds] = await db.query(
     `SELECT room_id FROM fundraisely_impact_campaign_events WHERE host_wallet = ?`,
     [walletAddress]
   )
   const roomIds = hostedRoomIds.map(r => r.room_id)
 
-  // Hosted room events
   const [hostedEvents] = await db.query(
     `SELECT
        'hosted_room' AS activity_type,
@@ -284,7 +292,6 @@ async function getRecentActivity(walletAddress) {
     [walletAddress]
   )
 
-  // Player transaction events
   let playerEvents = []
   if (roomIds.length > 0) {
     const placeholders = roomIds.map(() => '?').join(',')
@@ -322,9 +329,12 @@ async function getRecentActivity(walletAddress) {
     playerEvents = txRows
   }
 
-  // Merge, sort, take 20
   const combined = [...hostedEvents, ...playerEvents]
-    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .sort((a, b) => {
+      const aTime = parseMysqlUtcDateTime(a.created_at)?.getTime() ?? 0
+      const bTime = parseMysqlUtcDateTime(b.created_at)?.getTime() ?? 0
+      return bTime - aTime
+    })
     .slice(0, 20)
     .map(item => ({
       ...item,
@@ -339,10 +349,14 @@ function buildActivityLabel(item) {
     return `Hosted a room · raised €${Number(item.charity_amount_eur).toFixed(2)} for ${item.charity_name}`
   }
   switch (item.transaction_type) {
-    case 'join_payment': return `Joined a room · donated €${Number(item.amount_eur).toFixed(2)}`
-    case 'prize_payout': return `Prize payout received · €${Number(item.amount_eur).toFixed(2)}`
-    case 'extras':       return `Bought extras · €${Number(item.amount_eur).toFixed(2)}`
-    default:             return `Transaction · €${Number(item.amount_eur ?? 0).toFixed(2)}`
+    case 'join_payment':
+      return `Joined a room · donated €${Number(item.amount_eur).toFixed(2)}`
+    case 'prize_payout':
+      return `Prize payout received · €${Number(item.amount_eur).toFixed(2)}`
+    case 'extras':
+      return `Bought extras · €${Number(item.amount_eur).toFixed(2)}`
+    default:
+      return `Transaction · €${Number(item.amount_eur ?? 0).toFixed(2)}`
   }
 }
 
@@ -381,7 +395,8 @@ async function getTransactions(walletAddress, page = 1, limit = 20) {
   )
   const roomIds = hostedRoomIds.map(r => r.room_id)
 
-  let rows, total
+  let rows
+  let total
 
   if (roomIds.length > 0) {
     const placeholders = roomIds.map(() => '?').join(',')
@@ -441,7 +456,6 @@ export async function getDashboardData(walletAddress) {
     getTransactions(walletAddress),
   ])
 
-  // Headline: hosted charity + player donations
   const totalCharityImpactEur =
     hostedOverview.charity_amount_eur + playerOverview.total_donation_eur
 

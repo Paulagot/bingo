@@ -1,5 +1,5 @@
 // src/components/Quiz/Wizard/StepFundraisingOptions.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
 import { fundraisingExtraDefinitions, roundTypeDefinitions } from '../constants/quizMetadata';
 import type { FundraisingExtraDefinition } from '../constants/quizMetadata';
@@ -13,6 +13,7 @@ import {
   Trash2,
   Eye,
   CheckCircle,
+  Gift,
 } from 'lucide-react';
 import ClearSetupButton from './ClearSetupButton';
 import type { WizardStepProps } from './WizardStepProps';
@@ -22,13 +23,20 @@ interface SimpleCardProps {
   details: FundraisingExtraDefinition;
   onAdd: (key: string) => void;
   getSuggestedPriceRange: (price: string) => string;
-  getApplicabilityInfo: (rule: FundraisingExtraDefinition) => { text: string; icon: React.ReactNode; color: string };
+  getApplicabilityInfo: (rule: FundraisingExtraDefinition) => {
+    text: string;
+    icon: React.ReactNode;
+    color: string;
+  };
 }
 
 const Character = ({ message }: { message: string }) => {
-  const bubbleTone = message.includes('enabled')
-    ? 'bg-green-50 border-green-200'
-    : 'bg-indigo-50 border-indigo-200';
+  const bubbleTone =
+    message.includes('included automatically') || message.includes('donation')
+      ? 'bg-blue-50 border-blue-200'
+      : message.includes('enabled')
+      ? 'bg-green-50 border-green-200'
+      : 'bg-indigo-50 border-indigo-200';
 
   return (
     <div className="mb-3 flex items-center gap-2 sm:mb-6 sm:gap-4">
@@ -56,7 +64,6 @@ const SimpleCard: React.FC<SimpleCardProps> = ({
 
   return (
     <div className="relative cursor-pointer rounded-lg border-2 border-border bg-muted p-3 transition-all hover:border-indigo-300 hover:shadow-md sm:rounded-xl sm:p-4">
-      {/* expand / actions */}
       <button
         onClick={(e) => {
           e.stopPropagation();
@@ -68,7 +75,6 @@ const SimpleCard: React.FC<SimpleCardProps> = ({
         <Eye className="h-4 w-4" />
       </button>
 
-      {/* header */}
       <div className="mb-3 flex items-start gap-3">
         <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 text-lg sm:h-12 sm:w-12 sm:text-xl">
           {details.icon}
@@ -95,21 +101,17 @@ const SimpleCard: React.FC<SimpleCardProps> = ({
         </div>
       </div>
 
-      {/* description */}
       <p className="text-fg/80 mb-3 text-xs sm:text-sm">{details.description}</p>
 
-      {/* suggested price */}
       <div className="mb-3 text-xs text-fg/70 sm:text-sm">
         Suggested: <span className="font-medium">{getSuggestedPriceRange(details.suggestedPrice)}</span>
       </div>
 
-      {/* primary action */}
       <button onClick={() => onAdd(extraKey)} className="btn-primary w-full">
         <Plus className="h-4 w-4" />
         <span>Add Extra</span>
       </button>
 
-      {/* expandable details */}
       {showDetails && (
         <div className="mt-3 rounded-lg border border-border bg-card p-3 sm:p-4">
           <div className="space-y-3 text-xs sm:text-sm">
@@ -144,32 +146,37 @@ const SimpleCard: React.FC<SimpleCardProps> = ({
   );
 };
 
-export const StepFundraisingOptions: React.FC<WizardStepProps> = ({ onNext, onBack, onResetToFirst }) => {
+export const StepFundraisingOptions: React.FC<WizardStepProps> = ({
+  onNext,
+  onBack,
+  onResetToFirst,
+}) => {
   const {
-    flow, // 🧭 flow-aware
+    flow,
     setupConfig,
-    toggleExtra, // store helpers
+    toggleExtra,
     setExtraPrice,
+    updateSetupConfig,
   } = useQuizSetupStore();
 
   const isWeb3 = flow === 'web3';
+  const isDonationMode = setupConfig.fundraisingMode === 'donation';
 
   const selectedRounds = setupConfig.roundDefinitions || [];
   const currency = setupConfig.currencySymbol || '€';
   const fundraisingOptions = setupConfig.fundraisingOptions || {};
   const fundraisingPrices = setupConfig.fundraisingPrices || {};
 
-  // Local string buffer for price inputs so decimals/partial typing works
   const [priceInputs, setPriceInputs] = useState<Record<string, string>>({});
 
   // ──────────────────────────────────────────────────────────────
   // Entitlements (Web2 only). Web3: skip entitlements completely.
   // ──────────────────────────────────────────────────────────────
   const [entitlements, setEntitlements] = useState<any>(null);
-  const [entitlementsLoaded, setEntitlementsLoaded] = useState(!isWeb3); // if web3, treat as "loaded"
+  const [entitlementsLoaded, setEntitlementsLoaded] = useState(!isWeb3);
 
   useEffect(() => {
-    if (isWeb3) return; // skip for Web3
+    if (isWeb3) return;
     let cancelled = false;
 
     import('@/shared/api')
@@ -194,52 +201,94 @@ export const StepFundraisingOptions: React.FC<WizardStepProps> = ({ onNext, onBa
       ? (entitlements.extras_allowed as string[])
       : null;
 
-const isExtraAllowed = (key: string) => {
-  if (isWeb3) return true;
-  if (!allowedExtrasArr) return true;
-  if (allowedExtrasArr.includes('*')) return true; // ✅ wildcard support
-  return allowedExtrasArr.includes(key);
-};
-
+  const isExtraAllowed = (key: string) => {
+    if (isWeb3) return true;
+    if (!allowedExtrasArr) return true;
+    if (allowedExtrasArr.includes('*')) return true;
+    return allowedExtrasArr.includes(key);
+  };
 
   // ──────────────────────────────────────────────────────────────
   // Applicable extras: must match selected rounds.
   // Web3: show all applicable (ignore entitlements).
   // Web2: filter by entitlements if provided.
   // ──────────────────────────────────────────────────────────────
-const applicableExtrasBase = Object.entries(fundraisingExtraDefinitions).filter(([_, rule]) => {
-  if (rule.applicableTo === 'global') return true;
-  // otherwise require a round match…
-  return selectedRounds.some((round: any) => {
-    const roundType = round.roundType ?? round.roundTypeId ?? round.type;
-    return Array.isArray(rule.applicableTo) && roundType && rule.applicableTo.includes(roundType);
-  });
-});
-
-// console.log('[StepFundraisingOptions] roundDefinitions:', setupConfig.roundDefinitions);
-// console.log('[StepFundraisingOptions] extras keys:', Object.keys(fundraisingExtraDefinitions));
-// console.log('[StepFundraisingOptions] sample extra:', fundraisingExtraDefinitions.buyHint);
+  const applicableExtrasBase = useMemo(
+    () =>
+      Object.entries(fundraisingExtraDefinitions).filter(([_, rule]) => {
+        if (rule.applicableTo === 'global') return true;
+        return selectedRounds.some((round: any) => {
+          const roundType = round.roundType ?? round.roundTypeId ?? round.type;
+          return Array.isArray(rule.applicableTo) && roundType && rule.applicableTo.includes(roundType);
+        });
+      }),
+    [selectedRounds]
+  );
 
   const applicableExtras = isWeb3
     ? applicableExtrasBase
     : applicableExtrasBase.filter(([key]) => isExtraAllowed(key));
 
-  // Which extras are currently selected (and allowed if Web2)
-  const selectedExtras = Object.keys(fundraisingOptions)
-    .filter((key) => fundraisingOptions[key as keyof typeof fundraisingOptions])
-    .filter((key) => isExtraAllowed(key));
+  const applicableExtraKeys = applicableExtras.map(([key]) => key);
 
-  // Keep local inputs in sync when selectedExtras change (add/prune)
+  // Donation mode: auto-include all applicable extras and clear pricing
   useEffect(() => {
+    if (!isDonationMode) return;
+
+    const nextOptions = { ...(setupConfig.fundraisingOptions || {}) };
+    let changed = false;
+
+    for (const key of applicableExtraKeys) {
+      if (!nextOptions[key]) {
+        nextOptions[key] = true;
+        changed = true;
+      }
+    }
+
+    const hasPrices = Object.keys(setupConfig.fundraisingPrices || {}).length > 0;
+
+    if (changed || hasPrices) {
+      updateSetupConfig({
+        fundraisingOptions: nextOptions,
+        fundraisingPrices: {},
+      } as any);
+    }
+
+    // Clear any store-backed numeric prices as well
+    Object.keys(setupConfig.fundraisingPrices || {}).forEach((key) => {
+      setExtraPrice(key, undefined);
+    });
+
+    setPriceInputs({});
+  }, [
+    applicableExtraKeys.join('|'),
+    isDonationMode,
+    setExtraPrice,
+    setupConfig.fundraisingOptions,
+    setupConfig.fundraisingPrices,
+    updateSetupConfig,
+  ]);
+
+  // Which extras are currently selected
+  const selectedExtras = isDonationMode
+    ? applicableExtraKeys
+    : Object.keys(fundraisingOptions)
+        .filter((key) => fundraisingOptions[key as keyof typeof fundraisingOptions])
+        .filter((key) => isExtraAllowed(key));
+
+  useEffect(() => {
+    if (isDonationMode) {
+      setPriceInputs({});
+      return;
+    }
+
     setPriceInputs((prev) => {
       const next = { ...prev };
 
-      // prune anything no longer selected
       for (const k of Object.keys(next)) {
         if (!selectedExtras.includes(k)) delete next[k];
       }
 
-      // seed selected extras from stored numeric prices if local is empty/undefined
       for (const k of selectedExtras) {
         if (next[k] === undefined || next[k] === '') {
           const v = fundraisingPrices[k];
@@ -249,23 +298,23 @@ const applicableExtrasBase = Object.entries(fundraisingExtraDefinitions).filter(
 
       return next;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedExtras.join('|')]);
+  }, [isDonationMode, selectedExtras.join('|'), fundraisingPrices]);
 
   // ──────────────────────────────────────────────────────────────
   // Store-backed actions
   // ──────────────────────────────────────────────────────────────
   const handleAddExtra = (key: string) => {
+    if (isDonationMode) return;
     if (!isExtraAllowed(key)) return;
     const currentlyEnabled = !!fundraisingOptions[key as keyof typeof fundraisingOptions];
     if (!currentlyEnabled) toggleExtra(key);
   };
 
   const handleRemoveExtra = (key: string) => {
+    if (isDonationMode) return;
     const currentlyEnabled = !!fundraisingOptions[key as keyof typeof fundraisingOptions];
     if (currentlyEnabled) toggleExtra(key);
 
-    // clear both local UI buffer + store
     setPriceInputs((prev) => {
       const next = { ...prev };
       delete next[key];
@@ -275,9 +324,10 @@ const applicableExtrasBase = Object.entries(fundraisingExtraDefinitions).filter(
   };
 
   const handlePriceChange = (key: string, raw: string) => {
-    const value = raw.replace(',', '.'); // allow comma decimals
+    if (isDonationMode) return;
 
-    // Allow partial inputs while typing
+    const value = raw.replace(',', '.');
+
     if (
       value === '' ||
       value === '.' ||
@@ -285,15 +335,12 @@ const applicableExtrasBase = Object.entries(fundraisingExtraDefinitions).filter(
       value === '0.' ||
       /^[0-9]*\.?[0-9]*$/.test(value)
     ) {
-      // always update local string so the user can type decimals smoothly
       setPriceInputs((prev) => ({ ...prev, [key]: value }));
 
-      // only commit to store when it parses to a valid number
       const parsed = parseFloat(value);
       if (!Number.isNaN(parsed) && parsed > 0) {
         setExtraPrice(key, parsed);
       } else {
-        // keep store clean until it's a valid >0 price
         setExtraPrice(key, undefined);
       }
     }
@@ -304,12 +351,20 @@ const applicableExtrasBase = Object.entries(fundraisingExtraDefinitions).filter(
   // ──────────────────────────────────────────────────────────────
   const getApplicabilityInfo = (rule: FundraisingExtraDefinition) => {
     if (rule.applicableTo === 'global') {
-      return { text: 'All Rounds', icon: <Globe className="h-3 w-3" />, color: 'text-purple-700 bg-purple-100' };
+      return {
+        text: 'All Rounds',
+        icon: <Globe className="h-3 w-3" />,
+        color: 'text-purple-700 bg-purple-100',
+      };
     }
     const roundTypeNames = (rule.applicableTo as string[])
       .map((type) => roundTypeDefinitions[type as keyof typeof roundTypeDefinitions]?.name || type)
       .join(', ');
-    return { text: roundTypeNames, icon: <Target className="h-3 w-3" />, color: 'text-blue-700 bg-blue-100' };
+    return {
+      text: roundTypeNames,
+      icon: <Target className="h-3 w-3" />,
+      color: 'text-blue-700 bg-blue-100',
+    };
   };
 
   const getSuggestedPriceRange = (suggestedPrice: string) => {
@@ -320,7 +375,8 @@ const applicableExtrasBase = Object.entries(fundraisingExtraDefinitions).filter(
       Low: { min: 1, max: 2 },
       default: { min: 2, max: 5 },
     };
-    const base = (ranges as Record<string, { min: number; max: number }>)[suggestedPrice] || ranges.default;
+    const base =
+      (ranges as Record<string, { min: number; max: number }>)[suggestedPrice] || ranges.default;
     const adjusted = { ...base };
     switch (currency) {
       case '£':
@@ -341,163 +397,255 @@ const applicableExtrasBase = Object.entries(fundraisingExtraDefinitions).filter(
     return `${adjusted.min}-${adjusted.max} ${currency}`;
   };
 
-  const totalExtraValue = selectedExtras.reduce((sum, key) => {
-    const price = fundraisingPrices[key];
-    return sum + (typeof price === 'number' ? price : 0);
-  }, 0);
+  const totalExtraValue = isDonationMode
+    ? 0
+    : selectedExtras.reduce((sum, key) => {
+        const price = fundraisingPrices[key];
+        return sum + (typeof price === 'number' ? price : 0);
+      }, 0);
 
-  const allPricesSet = selectedExtras.every((key) => typeof fundraisingPrices[key] === 'number' && fundraisingPrices[key] > 0);
+  const allPricesSet = isDonationMode
+    ? true
+    : selectedExtras.every(
+        (key) => typeof fundraisingPrices[key] === 'number' && fundraisingPrices[key] > 0
+      );
 
-  const message =
-    selectedExtras.length > 0
-      ? `Great! You've enabled ${selectedExtras.length} fundraising extra${selectedExtras.length > 1 ? 's' : ''}. Set a price for each to continue.`
-      : 'Fundraising extras are optional add-ons that boost engagement and donations. Tap the eye icon to see strategy details!';
+  const message = isDonationMode
+    ? 'All fundraising extras are included automatically in donation mode, so there is nothing to price here.'
+    : selectedExtras.length > 0
+    ? `Great! You've enabled ${selectedExtras.length} fundraising extra${
+        selectedExtras.length > 1 ? 's' : ''
+      }. Set a price for each to continue.`
+    : 'Fundraising extras are optional add-ons that boost engagement and donations. Tap the eye icon to see strategy details!';
 
   return (
     <div className="w-full space-y-3 px-2 pb-4 sm:space-y-6 sm:px-4">
-      {/* Header */}
       <div className="px-1">
         <h2 className="heading-2">
           {isWeb3 ? 'Step 3 of 4' : 'Step 3 of 4'}: Fundraising Extras (Optional)
         </h2>
         <div className="text-fg/70 mt-0.5 text-xs sm:text-sm">
-          Optional add-ons to boost engagement{isWeb3 ? ' (compatible with crypto entry fees)' : ''}
+          {isDonationMode
+            ? 'Donation mode includes all applicable extras automatically'
+            : `Optional add-ons to boost engagement${isWeb3 ? ' (compatible with crypto entry fees)' : ''}`}
         </div>
       </div>
 
       <Character message={message} />
 
-      {/* Revenue indicator */}
       <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3 sm:p-4">
         <div className="mb-1 flex items-center gap-2">
           <TrendingUp className="h-3 w-3 text-indigo-600 sm:h-4 sm:w-4" />
-          <span className="text-sm font-medium text-indigo-900 sm:text-base">Potential Revenue</span>
+          <span className="text-sm font-medium text-indigo-900 sm:text-base">
+            {isDonationMode ? 'Donation Mode' : 'Potential Revenue'}
+          </span>
         </div>
         <div className="text-xs text-indigo-800 sm:text-sm">
-          Enabled: <strong>{selectedExtras.length}</strong> • Revenue/Device:{' '}
-          <strong>
-            {totalExtraValue.toFixed(2)}
-            {currency}
-          </strong>
+          {isDonationMode ? (
+            <>
+              Included extras: <strong>{selectedExtras.length}</strong> • Extra pricing:{' '}
+              <strong>Not required</strong>
+            </>
+          ) : (
+            <>
+              Enabled: <strong>{selectedExtras.length}</strong> • Revenue/Device:{' '}
+              <strong>
+                {totalExtraValue.toFixed(2)}
+                {currency}
+              </strong>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Selected extras */}
-      {selectedExtras.length > 0 && (
+      {isDonationMode ? (
         <div className="space-y-3 sm:space-y-4">
-          <h3 className="text-fg text-sm font-medium sm:text-base">Your Extras ({selectedExtras.length})</h3>
-          <div className="space-y-2 sm:space-y-3">
-            {selectedExtras.map((key) => {
-              const details = fundraisingExtraDefinitions[key as keyof typeof fundraisingExtraDefinitions];
-              const applicability = getApplicabilityInfo(details);
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 sm:p-4">
+            <div className="mb-2 flex items-center gap-2">
+              <Gift className="h-4 w-4 text-blue-600" />
+              <span className="text-sm font-medium text-blue-900 sm:text-base">
+                Included Automatically
+              </span>
+            </div>
+            <p className="text-xs text-blue-800 sm:text-sm">
+              Because this quiz uses donation mode, all applicable extras are automatically included
+              for hosts and players. No separate extra pricing is needed.
+            </p>
+          </div>
 
-              const price =
-                priceInputs[key] ??
-                (typeof fundraisingPrices[key] === 'number' ? String(fundraisingPrices[key]) : '');
+          <div className="space-y-3 sm:space-y-4">
+            <h3 className="text-fg text-sm font-medium sm:text-base">
+              Included Extras ({selectedExtras.length})
+            </h3>
 
-              const priceSet = typeof fundraisingPrices[key] === 'number' && fundraisingPrices[key] > 0;
+            <div className="space-y-2 sm:space-y-3">
+              {applicableExtras.map(([key, details]) => {
+                const applicability = getApplicabilityInfo(details);
 
-              return (
-                <div
-                  key={key}
-                  className={`rounded-lg border-2 p-3 transition-all sm:rounded-xl sm:p-4 ${
-                    priceSet ? 'border-green-300 bg-green-50' : 'border-border bg-muted'
-                  }`}
-                >
-                  <div className="mb-3 flex items-start justify-between">
-                    <div className="flex min-w-0 flex-1 items-start gap-3">
-                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 text-lg sm:h-12 sm:w-12 sm:text-xl">
-                        {details.icon}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-fg text-sm font-semibold sm:text-base">{details.label}</h4>
-                          {priceSet && <CheckCircle className="h-4 w-4 text-green-600" />}
+                return (
+                  <div
+                    key={key}
+                    className="rounded-lg border-2 border-blue-200 bg-blue-50 p-3 transition-all sm:rounded-xl sm:p-4"
+                  >
+                    <div className="mb-3 flex items-start justify-between">
+                      <div className="flex min-w-0 flex-1 items-start gap-3">
+                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 text-lg sm:h-12 sm:w-12 sm:text-xl">
+                          {details.icon}
                         </div>
-                        <p className="text-fg/70 text-xs sm:text-sm">{details.description}</p>
-                        <div className="mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs">
-                          <span className={`rounded-full px-1.5 py-0.5 text-xs font-medium ${applicability.color}`}>
-                            {applicability.icon}
-                            <span className="ml-1">{applicability.text}</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-fg text-sm font-semibold sm:text-base">{details.label}</h4>
+                            <CheckCircle className="h-4 w-4 text-blue-600" />
+                          </div>
+                          <p className="text-fg/70 text-xs sm:text-sm">{details.description}</p>
+                          <div className="mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs">
+                            <span
+                              className={`rounded-full px-1.5 py-0.5 text-xs font-medium ${applicability.color}`}
+                            >
+                              {applicability.icon}
+                              <span className="ml-1">{applicability.text}</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700">
+                        Included
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          {selectedExtras.length > 0 && (
+            <div className="space-y-3 sm:space-y-4">
+              <h3 className="text-fg text-sm font-medium sm:text-base">
+                Your Extras ({selectedExtras.length})
+              </h3>
+              <div className="space-y-2 sm:space-y-3">
+                {selectedExtras.map((key) => {
+                  const details =
+                    fundraisingExtraDefinitions[key as keyof typeof fundraisingExtraDefinitions];
+                  const applicability = getApplicabilityInfo(details);
+
+                  const price =
+                    priceInputs[key] ??
+                    (typeof fundraisingPrices[key] === 'number'
+                      ? String(fundraisingPrices[key])
+                      : '');
+
+                  const priceSet =
+                    typeof fundraisingPrices[key] === 'number' && fundraisingPrices[key] > 0;
+
+                  return (
+                    <div
+                      key={key}
+                      className={`rounded-lg border-2 p-3 transition-all sm:rounded-xl sm:p-4 ${
+                        priceSet ? 'border-green-300 bg-green-50' : 'border-border bg-muted'
+                      }`}
+                    >
+                      <div className="mb-3 flex items-start justify-between">
+                        <div className="flex min-w-0 flex-1 items-start gap-3">
+                          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 text-lg sm:h-12 sm:w-12 sm:text-xl">
+                            {details.icon}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-fg text-sm font-semibold sm:text-base">{details.label}</h4>
+                              {priceSet && <CheckCircle className="h-4 w-4 text-green-600" />}
+                            </div>
+                            <p className="text-fg/70 text-xs sm:text-sm">{details.description}</p>
+                            <div className="mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs">
+                              <span
+                                className={`rounded-full px-1.5 py-0.5 text-xs font-medium ${applicability.color}`}
+                              >
+                                {applicability.icon}
+                                <span className="ml-1">{applicability.text}</span>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleRemoveExtra(key)}
+                          className="flex-shrink-0 rounded p-1 transition-colors hover:bg-red-100"
+                          title="Remove extra"
+                        >
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </button>
+                      </div>
+
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-2">
+                          <label className="text-fg/80 text-xs font-medium sm:text-sm">
+                            Price ({currency})
+                          </label>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            pattern="[0-9]*[.,]?[0-9]*"
+                            value={price}
+                            onChange={(e) => handlePriceChange(key, e.target.value)}
+                            className={`w-24 rounded-lg border-2 px-2 py-1 text-xs outline-none transition
+                              focus:ring-2 focus:ring-indigo-200 sm:w-28 sm:text-sm ${
+                                priceSet
+                                  ? 'border-green-300 bg-green-50 focus:border-green-500'
+                                  : 'border-border focus:border-indigo-500'
+                              }`}
+                            placeholder="0.00"
+                          />
+                          <span className="text-fg/60 hidden text-xs sm:inline">
+                            Suggested: {getSuggestedPriceRange(details.suggestedPrice)}
                           </span>
                         </div>
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleRemoveExtra(key)}
-                      className="flex-shrink-0 rounded p-1 transition-colors hover:bg-red-100"
-                      title="Remove extra"
-                    >
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </button>
-                  </div>
+                  );
+                })}
+              </div>
 
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-2">
-                      <label className="text-fg/80 text-xs font-medium sm:text-sm">Price ({currency})</label>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        pattern="[0-9]*[.,]?[0-9]*"
-                        value={price}
-                        onChange={(e) => handlePriceChange(key, e.target.value)}
-                        className={`w-24 rounded-lg border-2 px-2 py-1 text-xs outline-none transition
-                          focus:ring-2 focus:ring-indigo-200 sm:w-28 sm:text-sm ${
-                            priceSet
-                              ? 'border-green-300 bg-green-50 focus:border-green-500'
-                              : 'border-border focus:border-indigo-500'
-                          }`}
-                        placeholder="0.00"
-                      />
-                      <span className="text-fg/60 hidden text-xs sm:inline">
-                        Suggested: {getSuggestedPriceRange(details.suggestedPrice)}
-                      </span>
-                    </div>
-                  </div>
+              {!allPricesSet && (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-2 text-xs text-red-700 sm:text-sm">
+                  ⚠️ Please set prices for all selected extras before continuing.
                 </div>
-              );
-            })}
-          </div>
-
-          {!allPricesSet && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-2 text-xs text-red-700 sm:text-sm">
-              ⚠️ Please set prices for all selected extras before continuing.
+              )}
             </div>
           )}
-        </div>
-      )}
 
-      {/* Available extras */}
-      {selectedExtras.length < applicableExtras.length && (
-        <div className="space-y-3 sm:space-y-4">
-          <h3 className="text-fg text-sm font-medium sm:text-base">Available Extras</h3>
-          {!isWeb3 && !entitlementsLoaded && (
-            <div className="text-fg/70 rounded-lg border border-blue-200 bg-blue-50 p-2 text-xs sm:p-3 sm:text-sm">
-              Loading available extras…
+          {selectedExtras.length < applicableExtras.length && (
+            <div className="space-y-3 sm:space-y-4">
+              <h3 className="text-fg text-sm font-medium sm:text-base">Available Extras</h3>
+              {!isWeb3 && !entitlementsLoaded && (
+                <div className="text-fg/70 rounded-lg border border-blue-200 bg-blue-50 p-2 text-xs sm:p-3 sm:text-sm">
+                  Loading available extras…
+                </div>
+              )}
+              <div className="text-fg/70 rounded-lg border border-blue-200 bg-blue-50 p-2 text-xs sm:p-3 sm:text-sm">
+                💡 <strong>Tip:</strong> Tap the eye icon to see strategy details.
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                {applicableExtras
+                  .filter(([key]) => !selectedExtras.includes(key))
+                  .map(([key, details]) => (
+                    <SimpleCard
+                      key={key}
+                      extraKey={key}
+                      details={details}
+                      onAdd={handleAddExtra}
+                      getSuggestedPriceRange={getSuggestedPriceRange}
+                      getApplicabilityInfo={getApplicabilityInfo}
+                    />
+                  ))}
+              </div>
             </div>
           )}
-          <div className="text-fg/70 rounded-lg border border-blue-200 bg-blue-50 p-2 text-xs sm:p-3 sm:text-sm">
-            💡 <strong>Tip:</strong> Tap the eye icon to see strategy details.
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-            {applicableExtras
-              .filter(([key]) => !selectedExtras.includes(key))
-              .map(([key, details]) => (
-                <SimpleCard
-                  key={key}
-                  extraKey={key}
-                  details={details}
-                  onAdd={handleAddExtra}
-                  getSuggestedPriceRange={getSuggestedPriceRange}
-                  getApplicabilityInfo={getApplicabilityInfo}
-                />
-              ))}
-          </div>
-        </div>
+        </>
       )}
 
-      {/* Navigation */}
       <div className="border-border flex justify-between border-t pt-4">
         {onBack && (
           <button onClick={onBack} className="btn-muted">
@@ -514,7 +662,7 @@ const applicableExtrasBase = Object.entries(fundraisingExtraDefinitions).filter(
 
         <button
           onClick={onNext}
-          disabled={selectedExtras.length > 0 && !allPricesSet}
+          disabled={!isDonationMode && selectedExtras.length > 0 && !allPricesSet}
           className="btn-primary disabled:opacity-60"
         >
           <span>Next</span>

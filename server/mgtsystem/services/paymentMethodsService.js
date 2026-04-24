@@ -225,7 +225,7 @@ export async function updatePaymentMethod({
       display_order = ?,
       edited_by = ?,
       is_official_club_account = ?,
-      updated_at = NOW()
+      updated_at = UTC_TIMESTAMP()
     WHERE id = ? AND club_id = ?
   `;
   
@@ -267,7 +267,7 @@ export async function updateDisplayOrders(clubId, orders) {
   const promises = orders.map(({ id, displayOrder }) => {
     const sql = `
       UPDATE ${METHODS_TABLE}
-      SET display_order = ?, updated_at = NOW()
+      SET display_order = ?, updated_at = UTC_TIMESTAMP()
       WHERE id = ? AND club_id = ?
     `;
     return connection.execute(sql, [displayOrder, id, clubId]);

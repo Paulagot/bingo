@@ -1,5 +1,5 @@
 // src/hooks/useFundraisingData.ts
-// FIXED: Only count extras from players who actually paid
+// UPDATED: supports donation-mode rooms and only counts paid contributions
 
 import { useMemo } from 'react';
 import { usePlayerStore } from './usePlayerStore';
@@ -9,16 +9,17 @@ interface FundraisingData {
   totalRaised: number;
   totalEntry: number;
   totalExtras: number;
-  charityAmount: number;  // For web3 only
-  prizeAmount: number;    // For web3 only  
-  hostAmount: number;     // For web3 only
+  charityAmount: number;
+  prizeAmount: number;
+  hostAmount: number;
   totalPlayers: number;
   playerContribution: {
     extrasUsed: number;
     extrasSpent: number;
     personalImpact: number;
-    entryFee: number;           // Player's entry fee
-    extrasContribution: number; // Renamed from extrasSpent for clarity
+    entryFee: number;
+    extrasContribution: number;
+    donationAmount: number; // ✅ NEW
   };
 }
 
@@ -29,39 +30,56 @@ export const useFundraisingData = (playerId: string): FundraisingData | null => 
   return useMemo(() => {
     if (!players || !config) return null;
 
+    const isDonationRoom = config.fundraisingMode === 'donation';
     const entryFee = parseFloat(config.entryFee || '0');
+
     const activePlayers = players.filter((p) => !p.disqualified);
     const paidPlayers = activePlayers.filter((p) => p.paid);
-    
-    // Calculate totals using same logic as PaymentReconciliationPanel
-    const totalEntryReceived = paidPlayers.length * entryFee;
-    
+
+    let totalEntryReceived = 0;
     let totalExtrasReceived = 0;
+    let totalDonationReceived = 0;
+
     let playerExtrasUsed = 0;
     let playerExtrasSpent = 0;
+    let playerDonationAmount = 0;
 
-    // ✅ FIX: Only count extras from PAID players
-    for (const player of activePlayers) {
-      // ✅ Critical check: only count extras if player has paid
-      if (player.paid && player.extraPayments) {
-        for (const [, val] of Object.entries(player.extraPayments)) {
-          const amount = val.amount || 0;
-          totalExtrasReceived += amount;
-          
-          // Track this player's contribution (only if they paid)
-          if (player.id === playerId) {
-            playerExtrasUsed += 1;
-            playerExtrasSpent += amount;
+    // ✅ Donation rooms: count donationAmount from paid players
+    if (isDonationRoom) {
+      for (const player of paidPlayers) {
+        const donationAmount = Number((player as any).donationAmount || 0);
+        totalDonationReceived += donationAmount;
+
+        if (player.id === playerId) {
+          playerDonationAmount = donationAmount;
+        }
+      }
+
+      totalEntryReceived = totalDonationReceived;
+      totalExtrasReceived = 0;
+    } else {
+      // ✅ Fixed-fee rooms: old behavior
+      totalEntryReceived = paidPlayers.length * entryFee;
+
+      for (const player of activePlayers) {
+        if (player.paid && player.extraPayments) {
+          for (const [, val] of Object.entries(player.extraPayments)) {
+            const amount = Number((val as any)?.amount || 0);
+            totalExtrasReceived += amount;
+
+            if (player.id === playerId) {
+              playerExtrasUsed += 1;
+              playerExtrasSpent += amount;
+            }
           }
         }
       }
     }
 
     const totalRaised = totalEntryReceived + totalExtrasReceived;
-    
-    // For Web3, calculate splits based on config percentages
+
     let charityAmount = 0;
-    let prizeAmount = 0; 
+    let prizeAmount = 0;
     let hostAmount = 0;
 
     if (config.paymentMethod === 'web3' && config.web3PrizeSplit) {
@@ -69,20 +87,23 @@ export const useFundraisingData = (playerId: string): FundraisingData | null => 
       prizeAmount = (totalRaised * config.web3PrizeSplit.prizes) / 100;
       hostAmount = (totalRaised * config.web3PrizeSplit.host) / 100;
     } else {
-      // For Web2, prizes are fixed assets, not percentage-based
-      // Charity gets most, host gets small fee
-      charityAmount = totalRaised * 1; // Default 100% to charity
-      hostAmount = totalRaised * 0;    // Default 0% to host
-      prizeAmount = 0; // Prizes are uploaded assets, not from pool
+      charityAmount = totalRaised * 1;
+      hostAmount = totalRaised * 0;
+      prizeAmount = 0;
     }
 
-    // ✅ Calculate player's total contribution (only if they paid)
-    const currentPlayer = players.find(p => p.id === playerId);
-    const playerPaidEntry = currentPlayer?.paid ? entryFee : 0;
-    
-    // ✅ IMPORTANT: If player didn't pay, extras should be 0 (already handled above)
-    // playerExtrasSpent will only be counted if player.paid === true
-    const playerTotalContribution = playerPaidEntry + playerExtrasSpent;
+    const currentPlayer = players.find((p) => p.id === playerId);
+
+    let playerPaidEntry = 0;
+    let playerTotalContribution = 0;
+
+    if (isDonationRoom) {
+      playerPaidEntry = 0;
+      playerTotalContribution = currentPlayer?.paid ? playerDonationAmount : 0;
+    } else {
+      playerPaidEntry = currentPlayer?.paid ? entryFee : 0;
+      playerTotalContribution = playerPaidEntry + playerExtrasSpent;
+    }
 
     return {
       totalRaised,
@@ -93,25 +114,22 @@ export const useFundraisingData = (playerId: string): FundraisingData | null => 
       hostAmount,
       totalPlayers: activePlayers.length,
       playerContribution: {
-        extrasUsed: playerExtrasUsed,          // Will be 0 if player didn't pay
-        extrasSpent: playerExtrasSpent,        // Will be 0 if player didn't pay
-        personalImpact: playerTotalContribution,  // Entry fee + extras (both 0 if unpaid)
-        entryFee: playerPaidEntry,             // 0 if player didn't pay
-        extrasContribution: playerExtrasSpent, // Will be 0 if player didn't pay
+        extrasUsed: isDonationRoom ? 0 : playerExtrasUsed,
+        extrasSpent: isDonationRoom ? 0 : playerExtrasSpent,
+        personalImpact: playerTotalContribution,
+        entryFee: isDonationRoom ? 0 : playerPaidEntry,
+        extrasContribution: isDonationRoom ? 0 : playerExtrasSpent,
+        donationAmount: isDonationRoom ? playerDonationAmount : 0,
       },
     };
   }, [players, config, playerId]);
 };
 
-// Also create a utility to get prizes correctly for both web2 and web3
 export const useQuizPrizes = () => {
   const { config } = useQuizConfig();
-  
+
   return useMemo(() => {
     if (!config?.prizes) return [];
-    
-    // For both web2 and web3, show the configured prizes
-    // The difference is funding source, not prize display
     return config.prizes;
   }, [config?.prizes]);
 };

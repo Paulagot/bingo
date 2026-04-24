@@ -197,13 +197,13 @@ export async function createTicketAndStripeSession({
 
   // 7) Save session.id so webhook can also match by reference if needed
   await connection.execute(
-    `UPDATE ${TICKETS_TABLE} SET payment_reference = ?, updated_at = NOW() WHERE ticket_id = ?`,
+    `UPDATE ${TICKETS_TABLE} SET payment_reference = ?, updated_at = UTC_TIMESTAMP() WHERE ticket_id = ?`,
     [session.id, ticketId]
   );
 
   await connection.execute(
     `UPDATE ${TABLE_PREFIX}quiz_payment_ledger
-     SET payment_reference = ?, updated_at = NOW()
+     SET payment_reference = ?, updated_at = UTC_TIMESTAMP()
      WHERE ticket_id = ?`,
     [session.id, ticketId]
   );

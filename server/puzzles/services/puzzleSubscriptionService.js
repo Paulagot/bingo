@@ -38,7 +38,7 @@ export async function joinFree({ challengeId, supporterId, clubId }) {
   await database.connection.execute(
     `INSERT IGNORE INTO fundraisely_puzzle_challenge_players
        (challenge_id, player_id, club_id, enrolled_at, status)
-     VALUES (?, ?, ?, NOW(), 'active')`,
+     VALUES (?, ?, ?, UTC_TIMESTAMP(), 'active')`,
     [challengeId, supporterId, clubId]
   );
 

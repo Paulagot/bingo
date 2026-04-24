@@ -10,6 +10,10 @@
 import { v4 as uuidv4 } from 'uuid';
 import { connection as db } from '../../config/database.js';
 
+function getTodayUtcDateString() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 // ─── Allowed fields for create / update ──────────────────────────────────────
 
 const WRITABLE_FIELDS = [
@@ -98,10 +102,16 @@ function validateEventFields(fields) {
   }
 
   // event_date must not be in the past
-  const eventDate = new Date(fields.event_date);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (eventDate < today) {
+ const eventDate = String(fields.event_date || '').slice(0, 10);
+const today = getTodayUtcDateString();
+
+if (!/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) {
+  const err = new Error('event_date must be a valid date in YYYY-MM-DD format');
+  err.statusCode = 400;
+  throw err;
+}
+
+if (eventDate < today) {
     const err = new Error('event_date must be today or in the future');
     err.statusCode = 400;
     throw err;
@@ -207,10 +217,10 @@ export async function publishEvent({ id, wallet_address }) {
     throw err;
   }
 
-  const eventDate = new Date(rows[0].event_date);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (eventDate < today) {
+const eventDate = String(rows[0].event_date || '').slice(0, 10);
+const today = getTodayUtcDateString();
+
+if (eventDate < today) {
     const err = new Error('Cannot publish an event with a past date');
     err.statusCode = 400;
     throw err;
@@ -218,7 +228,7 @@ export async function publishEvent({ id, wallet_address }) {
 
   await db.execute(
     `UPDATE fundraisely_web3_public_events
-     SET status = 'published', published_at = NOW()
+     SET status = 'published', published_at = UTC_TIMESTAMP()
      WHERE id = ? AND wallet_address = ?`,
     [id, wallet_address]
   );

@@ -12,21 +12,20 @@ function isAllowedStatus(s) {
   return ['scheduled', 'live', 'completed', 'cancelled'].includes(String(s));
 }
 
-function toMysqlDateTime(value) {
+function toMysqlUtcDateTime(value) {
   if (value === null || value === undefined || value === '') return null;
 
-  // Accept ISO strings or anything Date can parse
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return null;
 
-  // Convert to MySQL DATETIME "YYYY-MM-DD HH:mm:ss"
   const pad = (n) => String(n).padStart(2, '0');
-  const yyyy = d.getFullYear();
-  const mm = pad(d.getMonth() + 1);
-  const dd = pad(d.getDate());
-  const hh = pad(d.getHours());
-  const mi = pad(d.getMinutes());
-  const ss = pad(d.getSeconds());
+  const yyyy = d.getUTCFullYear();
+  const mm = pad(d.getUTCMonth() + 1);
+  const dd = pad(d.getUTCDate());
+  const hh = pad(d.getUTCHours());
+  const mi = pad(d.getUTCMinutes());
+  const ss = pad(d.getUTCSeconds());
+
   return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
 }
 
@@ -79,9 +78,9 @@ router.get('/web2/rooms', authenticateToken, async (req, res) => {
     }
 
     if (time === 'upcoming') {
-      where.push('(scheduled_at IS NULL OR scheduled_at >= (NOW() - INTERVAL 12 HOUR))');
+      where.push('(scheduled_at IS NULL OR scheduled_at >= (UTC_TIMESTAMP() - INTERVAL 12 HOUR))');
     } else if (time === 'past') {
-      where.push('(scheduled_at IS NOT NULL AND scheduled_at < NOW())');
+      where.push('(scheduled_at IS NOT NULL AND scheduled_at < UTC_TIMESTAMP())');
     } else if (time !== 'all') {
       return res.status(400).json({ error: 'invalid_time_filter' });
     }
@@ -191,7 +190,7 @@ router.patch('/web2/rooms/:roomId', authenticateToken, async (req, res) => {
       });
     }
 
-    const scheduledAt = toMysqlDateTime(req.body?.scheduled_at);
+   const scheduledAt = toMysqlUtcDateTime(req.body?.scheduled_at);
     const timeZone = req.body?.time_zone === undefined ? undefined : String(req.body.time_zone || '').trim();
 
     const configJson = safeJsonParam(req.body?.config_json);
@@ -234,7 +233,7 @@ router.patch('/web2/rooms/:roomId', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'no_fields_to_update' });
     }
 
-    sets.push(`updated_at = NOW()`);
+    sets.push(`updated_at = UTC_TIMESTAMP()`);
 
     const updateSql = `
       UPDATE ${WEB2_ROOMS_TABLE}
@@ -295,7 +294,7 @@ router.post('/web2/rooms/:roomId/cancel', authenticateToken, async (req, res) =>
 
     const sql = `
       UPDATE ${WEB2_ROOMS_TABLE}
-      SET status = 'cancelled', updated_at = NOW()
+      SET status = 'cancelled', updated_at = UTC_TIMESTAMP()
       WHERE club_id = ? AND room_id = ? AND status = 'scheduled'
       LIMIT 1
     `;
