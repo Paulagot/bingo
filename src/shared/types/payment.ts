@@ -7,43 +7,44 @@
 //
 // Notes:
 // - "instant_payment" is currently manual verification (admins confirm).
-// - We add common config for link/QR/reference hints across providers.
-// - We future-proof for API-verified methods via `VerificationMode` (optional).
-// - providerName remains flexible (InstantPaymentProvider | string), matching your varchar DB.
+// - "crypto" is currently manual verification for donation-only quiz flows.
+// - For now crypto supports Solana public wallet addresses only.
+// - providerName remains flexible, matching your varchar DB.
 //
 
 /**
- * Core payment methods (excludes web3 - that's a separate flow)
+ * Core payment methods.
  */
 export type PaymentMethod =
-  | 'cash'              // Physical cash
-  | 'instant_payment'   // Manual-verification instant methods (links/QR/bank transfer/etc.)
+  | 'cash'
+  | 'instant_payment'
+  | 'crypto'
   | 'pay_admin'
-  | 'card'              // Card tap/reader
-  | 'stripe'            // Stripe payments
-  | 'other';            // Catch-all
+  | 'card'
+  | 'stripe'
+  | 'other';
 
 /**
- * Payment method categories (for club configuration)
+ * Payment method categories used for club configuration.
  */
 export type PaymentMethodCategory = Exclude<PaymentMethod, 'cash' | 'pay_admin'>;
 
 /**
- * Verification mode for a payment method
- * - manual: admin confirms (default for instant payment links/QR/bank transfer)
- * - api_verified: verified automatically via provider API/webhooks (future)
+ * Verification mode for a payment method.
+ *
+ * manual:
+ * Admin/host confirms payment manually.
+ *
+ * api_verified:
+ * Verified automatically via provider API/webhook in future.
+ *
+ * onchain_verified:
+ * Future crypto flow where you verify a chain transaction automatically.
  */
-export type VerificationMode = 'manual' | 'api_verified';
+export type VerificationMode = 'manual' | 'api_verified' | 'onchain_verified';
 
 /**
- * Specific providers within instant_payment category
- *
- * UK-friendly additions:
- * - monzo, starling, wise, cashapp
- * - open_banking_pay_by_bank (future)
- *
- * NOTE: your DB stores provider_name as varchar(64),
- * so you can still store custom strings.
+ * Specific providers within instant_payment category.
  */
 export type InstantPaymentProvider =
   | 'revolut'
@@ -58,7 +59,26 @@ export type InstantPaymentProvider =
   | 'other';
 
 /**
- * Club payment method configuration
+ * Specific providers within crypto category.
+ */
+export type CryptoPaymentProvider = 'solana_wallet';
+
+/**
+ * Any provider value your configured club payment methods may use.
+ *
+ * Keep string fallback because provider_name is varchar in DB and this keeps
+ * future additions from breaking old records.
+ */
+export type PaymentProvider =
+  | InstantPaymentProvider
+  | CryptoPaymentProvider
+  | 'stripe'
+  | 'card'
+  | 'other'
+  | string;
+
+/**
+ * Club payment method configuration.
  */
 export interface ClubPaymentMethod {
   id: string;
@@ -67,17 +87,21 @@ export interface ClubPaymentMethod {
   methodCategory: PaymentMethodCategory;
 
   /**
-   * Provider within instant_payment category.
-   * Keep as union + string so you can add providers without breaking.
+   * Provider within the selected category.
+   *
+   * Examples:
+   * - instant_payment + revolut
+   * - instant_payment + bank_transfer
+   * - crypto + solana_wallet
    */
-  providerName?: InstantPaymentProvider | string;
+  providerName?: PaymentProvider | null;
 
-  methodLabel: string; // e.g., "Revolut - Main Account"
+  methodLabel: string;
   displayOrder: number;
   isEnabled: boolean;
 
   /**
-   * Markdown instructions shown to players during join/payment
+   * Markdown/plain instructions shown to players during join/payment.
    */
   playerInstructions?: string;
 
@@ -85,58 +109,66 @@ export interface ClubPaymentMethod {
 }
 
 /**
- * Method-specific configuration union
+ * Method-specific configuration union.
  */
 export type PaymentMethodConfig =
   | InstantPaymentConfig
   | BankTransferConfig
   | ZippyPayConfig
   | StripeConfig
+  | SolanaWalletConfig
   | GenericConfig;
 
 /**
- * Shared fields for most manual "instant payment" options (links/QR)
- * This is the key upgrade for manual verification + QR support.
+ * Shared fields for most manual instant payment options.
  */
 export interface InstantPaymentCommonConfig {
   /**
-   * Optional payment link/handle link (paypal.me / monzo.me / revolut.me / custom)
+   * Optional payment link/handle link.
+   *
+   * Examples:
+   * - paypal.me
+   * - monzo.me
+   * - revolut.me
    */
   link?: string;
 
   /**
-   * Optional hosted QR code image URL
+   * Optional hosted QR code image URL.
    */
   qrCodeUrl?: string;
 
   /**
-   * Hint shown to payer e.g. "Use your Name + Team"
+   * Hint shown to payer.
+   *
+   * Example:
+   * "Use your name + team name as reference."
    */
   referenceHint?: string;
 
   /**
-   * Hint for admin reconciliation e.g. "Look for £5.00 from John Smith ref TIGERS"
+   * Hint for admin reconciliation.
+   *
+   * Example:
+   * "Look for €5.00 from John Smith."
    */
   verificationHint?: string;
 
   /**
-   * Future-proof: how this method is verified.
-   * For now your UI can default to 'manual'.
+   * For now most non-Stripe/non-card methods are manual.
    */
   verificationMode?: VerificationMode;
 }
 
 /**
- * Generic config for most instant providers (Revolut/PayPal/Monzo/etc.)
- * If you only need link/QR/hints, this is enough.
+ * Generic config for most instant providers.
  */
 export interface InstantPaymentConfig extends InstantPaymentCommonConfig {
-  // You can optionally add fields later without changing DB schema.
+  // Add provider-specific fields later without changing DB schema.
 }
 
 /**
- * Bank transfer config (UK + IE/EU)
- * Still benefits from link/QR + hints (some banks generate QR/payment links).
+ * Bank transfer config for UK + IE/EU.
  */
 export interface BankTransferConfig extends InstantPaymentCommonConfig {
   accountName?: string;
@@ -152,41 +184,59 @@ export interface BankTransferConfig extends InstantPaymentCommonConfig {
 }
 
 /**
- * ZippyPay config
- * (Keeping your existing field + common config)
+ * ZippyPay config.
  */
 export interface ZippyPayConfig extends InstantPaymentCommonConfig {
   merchantId?: string;
 }
 
 /**
- * Stripe config (for verified card/web checkout)
+ * Stripe config.
  */
 export interface StripeConfig {
-  publishableKey: string;
-  webhookSecret?: string; // Backend only
+  publishableKey?: string;
+  webhookSecret?: string;
+  connect?: {
+    accountId?: string;
+    detailsSubmitted?: boolean;
+    chargesEnabled?: boolean;
+    payoutsEnabled?: boolean;
+  };
 }
 
 /**
- * Catch-all config type
+ * Solana wallet config.
+ *
+ * For now this is a public wallet address only.
+ * Never store seed phrases/private keys here.
+ */
+export interface SolanaWalletConfig {
+  chain: 'solana';
+  walletAddress: string;
+  verificationMode?: 'manual' | 'onchain_verified';
+}
+
+/**
+ * Catch-all config type.
  */
 export interface GenericConfig {
   [key: string]: any;
 }
 
 /**
- * Payment status flow
+ * Payment status flow.
  */
 export type PaymentStatus =
-  | 'expected'         // Player selected method but hasn't paid
-  | 'claimed'          // Player claims they've paid
-  | 'confirmed'        // Admin/webhook confirmed payment
-  | 'reconciled'       // Included in financial reconciliation
-  | 'refunded'         // Payment refunded
-  | 'disputed';        // Payment disputed
+  | 'expected'
+  | 'claimed'
+  | 'confirmed'
+  | 'reconciled'
+  | 'refunded'
+  | 'disputed'
+  | 'awaiting_crypto_transfer';
 
 /**
- * Payment ledger entry
+ * Payment ledger entry.
  */
 export interface PaymentLedgerEntry {
   id: string;
@@ -194,21 +244,27 @@ export interface PaymentLedgerEntry {
   clubId: string;
   playerId: string;
 
-  ledgerType: 'entry_fee' | 'extra_purchase';
+  ledgerType: 'entry_fee' | 'extra_purchase' | 'donation';
   amount: number;
   currency: string;
 
   status: PaymentStatus;
 
   paymentMethod: PaymentMethod;
-  paymentSource: 'player_selected' | 'player_claimed' | 'admin_assigned' | 'webhook_auto';
+  paymentSource:
+    | 'player_selected'
+    | 'player_claimed'
+    | 'admin_assigned'
+    | 'webhook_auto'
+    | 'onchain_auto';
 
   paymentReference?: string;
 
   /**
-   * For API-verified methods later (Stripe/OpenBanking/etc.)
+   * For API/on-chain verified methods later.
    */
   externalTransactionId?: string;
+  transactionSignature?: string;
 
   clubPaymentMethodId?: string;
   extraId?: string;

@@ -9,7 +9,7 @@ export const roundTypes: RoundTypeDefinition[] = [
     defaultConfig: {
       questionsPerRound: 6,
       timePerQuestion: 30,
-      pointsPerDifficulty: { easy: 4, medium: 5, hard: 6 },
+      pointsPerDifficulty: { easy: 10, medium: 12, hard: 14 },
     },
   },
   {
@@ -22,7 +22,7 @@ export const roundTypes: RoundTypeDefinition[] = [
       timePerQuestion: 0,        // explicit: no per-question timer
       totalTimeSeconds: 75,
       skipAllowed: true,         // ✅ matches your type
-      pointsPerDifficulty: { easy: 1, medium: 2, hard: 3 },
+      pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
       pointsLostPerUnanswered: 0, // set >0 if you want skip penalty
       pointsLostPerWrong: 0,      // set >0 if you want wrong-answer penalty
       
@@ -35,7 +35,7 @@ export const roundTypes: RoundTypeDefinition[] = [
     defaultConfig: {
       questionsPerRound: 8,
       timePerQuestion: 22,
-      pointsPerDifficulty: { easy: 6, medium: 7, hard: 8 },
+      pointsPerDifficulty: { easy: 12, medium: 13, hard: 14 },
       pointsLostPerWrong: 2,
       pointsLostPerUnanswered: 3,
     },
@@ -45,9 +45,9 @@ export const roundTypes: RoundTypeDefinition[] = [
     name: 'Order the Image',
     description: 'Drag and drop images into the correct order. Visual puzzle gameplay.',
     defaultConfig: {
-      questionsPerRound: 4,
+      questionsPerRound: 5,
       timePerQuestion: 30,
-      pointsPerDifficulty: { easy: 2, medium: 4, hard: 6 },
+      pointsPerDifficulty: { easy: 10, medium: 12, hard: 14 },
     },
   },
     {
@@ -55,7 +55,7 @@ export const roundTypes: RoundTypeDefinition[] = [
     name: 'Hidden Object',
     description: 'Find hidden objects in a scene. Visual puzzle gameplay.',
     defaultConfig: {
-      questionsPerRound: 2,
+      questionsPerRound: 5,
       timePerQuestion: 45,
       pointsPerDifficulty: { easy: 1, medium: 2, hard: 3 },
     },

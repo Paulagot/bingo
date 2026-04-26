@@ -91,6 +91,7 @@ export async function createTicketWithPayment({
   purchaserPhone = null,
   playerName = null,
   selectedExtras = [],
+  donationAmount = null,
   paymentMethod,
   paymentReference,
   clubPaymentMethodId = null,
@@ -128,15 +129,34 @@ export async function createTicketWithPayment({
   const { clubId, config } = roomData;
   
   // 2. Calculate pricing
-  const entryFee = parseFloat(config.entryFee || 0);
-  const currency = config.currencySymbol === '€' ? 'EUR' 
-                 : config.currencySymbol === '£' ? 'GBP' 
-                 : config.currencySymbol === '$' ? 'USD'
-                 : 'EUR';
-  
-  let extrasTotal = 0;
-  const extrasWithPrices = [];
-  
+const isDonationRoom = config?.fundraisingMode === 'donation';
+
+let entryFee = 0;
+let extrasTotal = 0;
+let totalAmount = 0;
+const extrasWithPrices = [];
+
+const currency = config.currencySymbol === '€' ? 'EUR' 
+               : config.currencySymbol === '£' ? 'GBP' 
+               : config.currencySymbol === '$' ? 'USD'
+               : 'EUR';
+
+if (isDonationRoom) {
+  const parsedDonation = Number(donationAmount);
+
+  if (!Number.isFinite(parsedDonation) || parsedDonation <= 0) {
+    throw new Error('invalid_donation_amount_for_ticket');
+  }
+
+  entryFee = parsedDonation;
+  extrasTotal = 0;
+  totalAmount = parsedDonation;
+
+  // Donation tickets include enabled extras automatically.
+  // Do not create priced extra rows.
+} else {
+  entryFee = parseFloat(config.entryFee || 0);
+
   for (const extraId of selectedExtras) {
     const price = config.fundraisingPrices?.[extraId] || 0;
     if (price > 0) {
@@ -144,8 +164,9 @@ export async function createTicketWithPayment({
       extrasWithPrices.push({ extraId, price });
     }
   }
-  
-  const totalAmount = entryFee + extrasTotal;
+
+  totalAmount = entryFee + extrasTotal;
+}
   
   // 3. Generate unique IDs
   const ticketId = nanoid(12);
@@ -186,23 +207,31 @@ export async function createTicketWithPayment({
   // 5. Create ledger entries (entry fee)
   const playerId = `ticket_${ticketId}`;
   
-  const ledgerId = await createExpectedPayment({
-    roomId,
-    clubId,
-    playerId,
-    playerName: playerName || purchaserName,
-    ledgerType: 'entry_fee',
-    amount: entryFee,
-    currency,
-    paymentMethod,
-    paymentSource: 'player_claimed',
-    clubPaymentMethodId,
-    paymentReference,
-    claimedAt: new Date(),
-    ticketId: ticketId,
-  });
+const ledgerId = await createExpectedPayment({
+  roomId,
+  clubId,
+  playerId,
+  playerName: playerName || purchaserName,
+  ledgerType: 'entry_fee',
+  amount: entryFee,
+  currency,
+  paymentMethod,
+  paymentSource: 'player_claimed',
+  clubPaymentMethodId,
+  paymentReference,
+  claimedAt: new Date(),
+  ticketId,
+  extraMetadata: isDonationRoom
+    ? {
+        fundraisingMode: 'donation',
+        donationAmount: entryFee,
+      }
+    : null,
+});
   
-  // 6. Create ledger entries (extras)
+// 6. Create ledger entries (extras)
+// Fixed-fee tickets only. Donation tickets include extras automatically.
+if (!isDonationRoom) {
   for (const extra of extrasWithPrices) {
     await createExpectedPayment({
       roomId,
@@ -219,9 +248,10 @@ export async function createTicketWithPayment({
       claimedAt: new Date(),
       extraId: extra.extraId,
       extraMetadata: extra,
-      ticketId: ticketId,
+      ticketId,
     });
   }
+}
   
   // 7. Update ticket with ledger ID
   await connection.execute(
@@ -242,24 +272,291 @@ export async function createTicketWithPayment({
     });
   }
   
+return {
+  ticketId,
+  joinToken,
+  roomId,
+  clubId,
+  purchaserName,
+  purchaserEmail,
+  playerName: playerName || purchaserName,
+  entryFee,
+  extrasTotal,
+  totalAmount,
+  currency,
+  extras: extrasWithPrices,
+  fundraisingMode: isDonationRoom ? 'donation' : 'fixed_fee',
+  donationAmount: isDonationRoom ? entryFee : null,
+  paymentStatus: 'payment_claimed',
+  redemptionStatus: 'blocked',
+  paymentMethod,
+  paymentReference,
+  clubPaymentMethodId,
+};
+}
+
+/**
+ * Create a donation ticket after a crypto payment has already been verified on-chain.
+ *
+ * Used by the crypto ticket donation route.
+ *
+ * Difference from createTicketWithPayment:
+ * - payment is already verified
+ * - ticket is immediately payment_confirmed + ready
+ * - ledger row is confirmed + onchain_auto
+ * - no host manual confirmation required
+ */
+export async function createCryptoDonationTicketWithConfirmedPayment({
+  roomId,
+  purchaserName,
+  purchaserEmail,
+  purchaserPhone = null,
+  playerName = null,
+
+  amountEur = 0,
+  currency = 'EUR',
+
+  clubPaymentMethodId,
+  paymentReference,
+  externalTransactionId,
+  web3TransactionId = null,
+
+  tokenCode = null,
+  cryptoAmount = null,
+  cryptoRawAmount = null,
+  network = 'mainnet',
+  senderWallet = null,
+  recipientWallet = null,
+
+  includedDonationExtras = [],
+}) {
+  // 0. Capacity check first
+  const capacityCheck = await canPurchaseTickets(roomId, 1);
+
+  if (!capacityCheck.allowed) {
+    if (DEBUG) {
+      console.log('[TicketService] 🚫 Crypto ticket purchase blocked:', {
+        roomId,
+        reason: capacityCheck.reason,
+        capacity: capacityCheck.capacity,
+      });
+    }
+
+    throw new Error(capacityCheck.reason);
+  }
+
+  // 1. Get room config
+  const roomData = await getRoomConfig(roomId);
+
+  if (!roomData) {
+    throw new Error('Room not found or not available for ticket purchase');
+  }
+
+  const { clubId, config } = roomData;
+
+  const isDonationRoom = config?.fundraisingMode === 'donation';
+
+  if (!isDonationRoom) {
+    throw new Error('crypto_tickets_only_supported_for_donation_rooms');
+  }
+
+  if (currency !== 'EUR') {
+    throw new Error('crypto_ticket_donations_currently_support_eur_only');
+  }
+
+  const safeAmountEur = Number(amountEur);
+
+  if (!Number.isFinite(safeAmountEur) || safeAmountEur < 0) {
+    throw new Error('invalid_crypto_ticket_donation_amount');
+  }
+
+  if (!clubPaymentMethodId) {
+    throw new Error('clubPaymentMethodId is required');
+  }
+
+  if (!paymentReference || !externalTransactionId) {
+    throw new Error('paymentReference and externalTransactionId are required');
+  }
+
+  // Donation tickets include enabled extras automatically.
+  // Store them on the ticket so redemption gives the player those extras.
+  const extrasForTicket = Array.isArray(includedDonationExtras)
+    ? includedDonationExtras.map((extraId) => ({
+        extraId,
+        price: 0,
+        included: true,
+        source: 'donation_room',
+      }))
+    : [];
+
+  const ticketId = nanoid(12);
+  const joinToken = nanoid(16);
+  const tempPlayerId = `ticket_${ticketId}`;
+  const finalPlayerName = playerName || purchaserName;
+  const now = new Date();
+
+  // 2. Insert ticket as already confirmed and ready
+  const ticketSql = `
+    INSERT INTO ${TICKETS_TABLE}
+      (
+        ticket_id,
+        room_id,
+        club_id,
+        purchaser_name,
+        purchaser_email,
+        purchaser_phone,
+        player_name,
+        entry_fee,
+        extras,
+        extras_total,
+        total_amount,
+        currency,
+        payment_status,
+        payment_method,
+        payment_reference,
+        club_payment_method_id,
+        redemption_status,
+        join_token,
+        confirmed_at,
+        confirmed_by,
+        confirmed_by_name,
+        confirmed_by_role,
+        created_at,
+        updated_at
+      )
+    VALUES
+      (
+        ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?,
+        'payment_confirmed',
+        'crypto',
+        ?, ?,
+        'ready',
+        ?,
+        UTC_TIMESTAMP(),
+        'system',
+        'System',
+        'system',
+        UTC_TIMESTAMP(),
+        UTC_TIMESTAMP()
+      )
+  `;
+
+  await connection.execute(ticketSql, [
+    ticketId,
+    roomId,
+    clubId,
+    purchaserName,
+    purchaserEmail,
+    purchaserPhone,
+    finalPlayerName,
+    safeAmountEur,
+    JSON.stringify(extrasForTicket),
+    0,
+    safeAmountEur,
+    currency,
+    paymentReference,
+    clubPaymentMethodId,
+    joinToken,
+  ]);
+
+  // 3. Create one confirmed ledger row for the donation amount
+  const ledgerId = await createExpectedPayment({
+    roomId,
+    clubId,
+    playerId: tempPlayerId,
+    playerName: finalPlayerName,
+    ledgerType: 'entry_fee',
+    amount: safeAmountEur,
+    currency,
+
+    paymentMethod: 'crypto',
+    paymentSource: 'onchain_auto',
+    status: 'confirmed',
+
+    clubPaymentMethodId,
+    paymentReference,
+    externalTransactionId,
+
+    claimedAt: now,
+    confirmedAt: now,
+    confirmedBy: 'system',
+    confirmedByName: 'System',
+    confirmedByRole: 'system',
+
+    ticketId,
+
+    extraMetadata: {
+      fundraisingMode: 'donation',
+      donationAmount: safeAmountEur,
+      autoConfirmed: true,
+
+      source: 'crypto_ticket',
+      chain: 'solana',
+      network,
+      token: tokenCode,
+      cryptoAmount: cryptoAmount != null ? String(cryptoAmount) : null,
+      cryptoRawAmount: cryptoRawAmount != null ? String(cryptoRawAmount) : null,
+
+      web3TransactionId,
+      senderWallet,
+      recipientWallet,
+      includedDonationExtras,
+    },
+  });
+
+  // 4. Attach main ledger row to ticket
+  await connection.execute(
+    `
+    UPDATE ${TICKETS_TABLE}
+    SET ledger_id = ?, updated_at = UTC_TIMESTAMP()
+    WHERE ticket_id = ?
+    `,
+    [ledgerId, ticketId]
+  );
+
+  if (DEBUG) {
+    console.log('[TicketService] ✅ Crypto donation ticket created as confirmed/ready:', {
+      ticketId,
+      roomId,
+      purchaserName,
+      finalPlayerName,
+      amountEur: safeAmountEur,
+      currency,
+      paymentReference,
+      web3TransactionId,
+      clubPaymentMethodId,
+    });
+  }
+
   return {
     ticketId,
     joinToken,
     roomId,
     clubId,
+
     purchaserName,
     purchaserEmail,
-    playerName: playerName || purchaserName,
-    entryFee,
-    extrasTotal,
-    totalAmount,
+    purchaserPhone,
+    playerName: finalPlayerName,
+
+    entryFee: safeAmountEur,
+    extrasTotal: 0,
+    totalAmount: safeAmountEur,
     currency,
-    extras: extrasWithPrices,
-    paymentStatus: 'payment_claimed',
-    redemptionStatus: 'blocked',
-    paymentMethod,
+    extras: extrasForTicket,
+
+    fundraisingMode: 'donation',
+    donationAmount: safeAmountEur,
+
+    paymentStatus: 'payment_confirmed',
+    redemptionStatus: 'ready',
+    paymentMethod: 'crypto',
     paymentReference,
+    externalTransactionId,
     clubPaymentMethodId,
+    web3TransactionId,
+    ledgerId,
   };
 }
 

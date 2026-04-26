@@ -1,30 +1,44 @@
 // src/components/Quiz/joinroom/JoinRoomFlow.tsx
+
 import React, { useState, useEffect, lazy, Suspense, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { nanoid } from 'nanoid';
 import { AlertTriangle, HeartHandshake } from 'lucide-react';
+
 import { RoomVerificationStep } from './RoomVerificationStep';
 import { DemoPaymentStep } from './DemoPaymentStep';
+
 import type { SupportedChain } from '../../../chains/types';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { useQuizConfig } from '../hooks/useQuizConfig';
 
 import { Web3Provider } from '../../../components/Web3Provider';
 import { normalizePaymentMethod } from '../../../shared/utils/paymentMethods';
+import CryptoDonationStep from './crypto/CryptoDonationStep';
 
-// Shared components
 import { StepLayout } from '../shared/StepWrapper';
-import { PlayerDetailsForm, PlayerDetailsFormData, usePlayerDetailsValidation } from '../shared/PlayerDetailsForm';
+import {
+  PlayerDetailsForm,
+  PlayerDetailsFormData,
+  usePlayerDetailsValidation,
+} from '../shared/PlayerDetailsForm';
 import { ExtrasSelector, useExtrasSelection } from '../shared/ExtrasSelector';
-import { PaymentMethodSelector, type ClubPaymentMethod } from '../shared/PaymentMethodSelector';
-import { PaymentInstructionsContent, PaymentInstructionsFooter } from '../shared/PaymentInstructions';
+import {
+  PaymentMethodSelector,
+  type ClubPaymentMethod,
+} from '../shared/PaymentMethodSelector';
+import {
+  PaymentInstructionsContent,
+  PaymentInstructionsFooter,
+} from '../shared/PaymentInstructions';
 import { ActionButtons, PayAdminButton } from '../shared/ActionButtons';
 
 const Web3PaymentStep = lazy(() =>
-  import('./Web3PaymentStep').then(m => ({ default: m.Web3PaymentStep }))
+  import('./Web3PaymentStep').then((m) => ({ default: m.Web3PaymentStep }))
 );
 
 const DEBUG = true;
+
 const joinDebug = (...args: any[]) => {
   if (DEBUG) console.log('[JoinRoomFlow]', ...args);
 };
@@ -38,13 +52,19 @@ const LoadingSpinner = () => (
   </div>
 );
 
-const FullScreenLoader = ({ message = 'Loading room...' }: { message?: string }) => (
+const FullScreenLoader = ({
+  message = 'Loading room...',
+}: {
+  message?: string;
+}) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30 p-2 sm:p-4">
     <div className="bg-white max-w-md w-full rounded-xl shadow-xl p-8">
       <div className="text-center">
         <div className="mx-auto mb-4 h-16 w-16 animate-spin rounded-full border-4 border-indigo-300 border-t-indigo-600" />
         <p className="text-indigo-700 text-lg font-medium">{message}</p>
-        <p className="text-gray-500 text-sm mt-2">This should only take a moment...</p>
+        <p className="text-gray-500 text-sm mt-2">
+          This should only take a moment...
+        </p>
       </div>
     </div>
   </div>
@@ -55,7 +75,7 @@ interface RoomConfig {
   paymentMethod: 'web3' | 'cash' | 'revolut' | string;
   demoMode: boolean;
   entryFee: number;
-  fundraisingMode?: 'fixed_fee' | 'donation'; // ✅ NEW
+  fundraisingMode?: 'fixed_fee' | 'donation';
   fundraisingOptions: Record<string, boolean>;
   fundraisingPrices: Record<string, number>;
   currencySymbol: string;
@@ -82,13 +102,20 @@ interface TicketData {
   totalAmount: number;
   currency: string;
   paymentStatus?: 'payment_claimed' | 'payment_confirmed' | 'refunded' | string;
-  redemptionStatus?: 'unredeemed' | 'blocked' | 'ready' | 'redeemed' | 'expired' | string;
+  redemptionStatus?:
+    | 'unredeemed'
+    | 'blocked'
+    | 'ready'
+    | 'redeemed'
+    | 'expired'
+    | string;
 }
 
 type JoinStep =
   | 'verification'
   | 'player-details'
-  | 'donation-amount' // ✅ NEW
+  | 'donation-amount'
+  | 'crypto-donation'
   | 'extras'
   | 'payment-choice'
   | 'payment-method'
@@ -97,14 +124,57 @@ type JoinStep =
   | 'ticket-redeem';
 
 type PaymentFlow = 'demo' | 'web3' | 'web2' | null;
+type DonationPaymentChoice = 'club_method' | 'pay_admin' | null;
 
 const normalizeChain = (value?: string | null): SupportedChain | null => {
   if (!value) return null;
+
   const v = value.toLowerCase();
+
   if (['stellar', 'xlm'].includes(v)) return 'stellar';
-  if (['evm', 'ethereum', 'eth', 'polygon', 'matic', 'arbitrum', 'optimism', 'base'].includes(v)) return 'evm';
+  if (
+    [
+      'evm',
+      'ethereum',
+      'eth',
+      'polygon',
+      'matic',
+      'arbitrum',
+      'optimism',
+      'base',
+    ].includes(v)
+  ) {
+    return 'evm';
+  }
   if (['solana', 'sol'].includes(v)) return 'solana';
+
   return null;
+};
+
+const isStripeMethod = (method: ClubPaymentMethod | null | undefined) => {
+  if (!method) return false;
+
+  return (
+    method.methodCategory === 'stripe' ||
+    String(method.providerName || '').toLowerCase() === 'stripe'
+  );
+};
+
+const isCryptoMethod = (method: ClubPaymentMethod | null | undefined) => {
+  if (!method) return false;
+  return method.methodCategory === 'crypto';
+};
+
+const isInstantMethod = (method: ClubPaymentMethod | null | undefined) => {
+  if (!method) return false;
+  return method.methodCategory === 'instant_payment';
+};
+
+const getMethodRank = (method: ClubPaymentMethod) => {
+  if (isStripeMethod(method)) return 0;
+  if (isInstantMethod(method)) return 1;
+  if (isCryptoMethod(method)) return 2;
+  return 3;
 };
 
 interface JoinRoomFlowProps {
@@ -121,7 +191,10 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
   const { setFullConfig } = useQuizConfig();
   const navigate = useNavigate();
 
-  const [step, setStep] = useState<JoinStep>(prefilledRoomId ? 'player-details' : 'verification');
+  const [step, setStep] = useState<JoinStep>(
+    prefilledRoomId ? 'player-details' : 'verification'
+  );
+
   const [paymentFlow, setPaymentFlow] = useState<PaymentFlow>(null);
   const [roomId, setRoomId] = useState(prefilledRoomId || '');
   const [roomConfig, setRoomConfig] = useState<RoomConfig | null>(null);
@@ -140,18 +213,25 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
     reservedByTickets: number;
     currentPlayers: number;
   } | null>(null);
+
   const [checkingCapacity, setCheckingCapacity] = useState(false);
 
   const [paymentMethods, setPaymentMethods] = useState<ClubPaymentMethod[]>([]);
-  const [selectedMethod, setSelectedMethod] = useState<ClubPaymentMethod | null>(null);
-  const [hasAvailableMethods, setHasAvailableMethods] = useState<boolean | null>(null);
+  const [selectedMethod, setSelectedMethod] = useState<ClubPaymentMethod | null>(
+    null
+  );
+  const [donationPaymentChoice, setDonationPaymentChoice] =
+    useState<DonationPaymentChoice>(null);
+
+  const [hasAvailableMethods, setHasAvailableMethods] = useState<boolean | null>(
+    null
+  );
   const [loadingMethods, setLoadingMethods] = useState(false);
   const [paymentReference] = useState(() => `QUIZ-${nanoid(6).toUpperCase()}`);
   const [joiningRoom, setJoiningRoom] = useState(false);
   const [hasCopiedReference, setHasCopiedReference] = useState(false);
   const [_error, setError] = useState<string | null>(null);
 
-  // ✅ NEW: donation state
   const [donationAmountInput, setDonationAmountInput] = useState('');
   const [showZeroDonationConfirm, setShowZeroDonationConfirm] = useState(false);
 
@@ -159,7 +239,13 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
     playerName: '',
   });
 
-  const { selectedExtras, toggleExtra, calculateExtrasTotal, setSelectedExtras } = useExtrasSelection();
+  const {
+    selectedExtras,
+    toggleExtra,
+    calculateExtrasTotal,
+    setSelectedExtras,
+  } = useExtrasSelection();
+
   const isPlayerDetailsValid = usePlayerDetailsValidation(playerDetails, 'join');
 
   const isDonationMode = useMemo(() => {
@@ -168,20 +254,20 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
 
   const availableExtras = useMemo(() => {
     if (!roomConfig) return [];
+
     return Object.entries(roomConfig.fundraisingOptions || {})
       .filter(([_, enabled]) => enabled)
       .map(([extraId]) => extraId);
   }, [roomConfig]);
 
-  // ✅ NEW: all included extras for donation mode
   const includedDonationExtras = useMemo(() => {
     if (!roomConfig || !isDonationMode) return [];
+
     return Object.entries(roomConfig.fundraisingOptions || {})
       .filter(([_, enabled]) => !!enabled)
       .map(([extraId]) => extraId);
   }, [roomConfig, isDonationMode]);
 
-  // ✅ NEW: keep extras auto-included for donation rooms
   useEffect(() => {
     if (isDonationMode) {
       setSelectedExtras(includedDonationExtras);
@@ -204,6 +290,32 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
     return Number(roomConfig.entryFee || 0) + extrasTotal;
   }, [roomConfig, isDonationMode, donationAmount, extrasTotal]);
 
+  const selectablePaymentMethods = useMemo(() => {
+    const filtered = paymentMethods.filter((method) => {
+      // Crypto is currently donation-only.
+      if (!isDonationMode && isCryptoMethod(method)) return false;
+      return true;
+    });
+
+    return [...filtered].sort((a, b) => {
+      const rankDiff = getMethodRank(a) - getMethodRank(b);
+      if (rankDiff !== 0) return rankDiff;
+
+      return String(a.methodLabel || '').localeCompare(
+        String(b.methodLabel || '')
+      );
+    });
+  }, [paymentMethods, isDonationMode]);
+
+  const hasStripeMethod = useMemo(() => {
+    return selectablePaymentMethods.some((method) => isStripeMethod(method));
+  }, [selectablePaymentMethods]);
+
+  const hasInstantMethods = useMemo(() => {
+    return selectablePaymentMethods.some((method) => isInstantMethod(method));
+  }, [selectablePaymentMethods]);
+
+
   joinDebug('render', {
     step,
     paymentFlow,
@@ -213,19 +325,27 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
     detectedChain,
     hasTicket: !!ticketData,
     ticketToken: !!ticketToken,
-    selectedMethod: !!selectedMethod,
+    selectedMethod: selectedMethod?.methodLabel,
+    selectedMethodCategory: selectedMethod?.methodCategory,
+    donationPaymentChoice,
     capacity,
     isDonationMode,
     donationAmount,
+    totalAmount,
+    paymentMethods: paymentMethods.length,
+    selectablePaymentMethods: selectablePaymentMethods.length,
   });
 
-  const checkWalkInCapacity = async (currentRoomId: string): Promise<boolean> => {
+  const checkWalkInCapacity = async (
+    currentRoomId: string
+  ): Promise<boolean> => {
     try {
       setCheckingCapacity(true);
       joinDebug('🔍 Checking walk-in capacity for room:', currentRoomId);
 
       const response = await fetch(`/api/quiz/tickets/room/${currentRoomId}/info`);
       const data = await response.json();
+
       joinDebug('🔍 RAW capacity response:', JSON.stringify(data));
 
       const cap = data.capacity;
@@ -246,6 +366,7 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
           alert(`Sorry, this quiz is full. All ${cap.maxCapacity} spots are taken.`);
           return false;
         }
+
         return true;
       }
 
@@ -262,6 +383,7 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('joinToken') || urlParams.get('ticket');
+
     if (token) {
       joinDebug('🎟️ Ticket token found in URL:', token);
       setTicketToken(token);
@@ -273,123 +395,161 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
       joinDebug('🎟️ Validating ticket token', { ticketToken });
       setValidatingTicket(true);
 
-      socket.emit('validate_ticket_token', { joinToken: ticketToken }, (response: any) => {
-        joinDebug('🎟️ Ticket validation response:', response);
-        setValidatingTicket(false);
+      socket.emit(
+        'validate_ticket_token',
+        { joinToken: ticketToken },
+        (response: any) => {
+          joinDebug('🎟️ Ticket validation response:', response);
+          setValidatingTicket(false);
 
-        if (response.ok) {
-          setTicketData(response.ticket);
-          setPlayerDetails({ playerName: response.ticket.playerName });
-          setRoomId(response.ticket.roomId);
-          setSelectedExtras(response.ticket.extras);
-          setStep('ticket-redeem');
+          if (response.ok) {
+            setTicketData(response.ticket);
+            setPlayerDetails({ playerName: response.ticket.playerName });
+            setRoomId(response.ticket.roomId);
+            setSelectedExtras(response.ticket.extras);
+            setStep('ticket-redeem');
 
-          if (prefilledRoomId !== response.ticket.roomId) {
-            setIsAutoVerifying(true);
-            socket.emit('verify_quiz_room', { roomId: response.ticket.roomId });
+            if (prefilledRoomId !== response.ticket.roomId) {
+              setIsAutoVerifying(true);
+              socket.emit('verify_quiz_room', { roomId: response.ticket.roomId });
+            }
+          } else {
+            alert(`Invalid ticket: ${response.error}`);
+            setTicketToken(null);
           }
-        } else {
-          alert(`Invalid ticket: ${response.error}`);
-          setTicketToken(null);
         }
-      });
+      );
     }
-  }, [ticketToken, socket?.connected, ticketData, validatingTicket, prefilledRoomId, setSelectedExtras]);
+  }, [
+    ticketToken,
+    socket?.connected,
+    ticketData,
+    validatingTicket,
+    prefilledRoomId,
+    setSelectedExtras,
+    socket,
+  ]);
 
- useEffect(() => {
-  if (!(prefilledRoomId && socket?.connected && !roomConfig)) {
-    return undefined;
-  }
+  useEffect(() => {
+    if (!(prefilledRoomId && socket?.connected && !roomConfig)) {
+      return undefined;
+    }
 
-  joinDebug('🚀 Auto-verifying room from URL', { prefilledRoomId });
+    joinDebug('🚀 Auto-verifying room from URL', { prefilledRoomId });
 
-  setIsAutoVerifying(true);
-  setVerificationError(null);
+    setIsAutoVerifying(true);
+    setVerificationError(null);
 
-  const timeout = setTimeout(() => {
-    setVerificationError('Room verification timed out. Please try again.');
-    setIsAutoVerifying(false);
-    setStep('verification');
-  }, 10000);
-
-  socket.emit('verify_quiz_room', { roomId: prefilledRoomId });
-
-  const handleVerification = async (data: any) => {
-    clearTimeout(timeout);
-    setIsAutoVerifying(false);
-
-    if (!data.exists) {
-      setVerificationError(`Room ${prefilledRoomId} not found`);
+    const timeout = setTimeout(() => {
+      setVerificationError('Room verification timed out. Please try again.');
+      setIsAutoVerifying(false);
       setStep('verification');
-      return;
-    }
+    }, 10000);
 
-    if (data.web3Chain === 'evm' && data.evmNetwork) {
-      sessionStorage.setItem('active-evm-network', data.evmNetwork);
-      if (data.roomContractAddress) {
-        sessionStorage.setItem('active-room-contract', data.roomContractAddress);
+    socket.emit('verify_quiz_room', { roomId: prefilledRoomId });
+
+    const handleVerification = async (data: any) => {
+      clearTimeout(timeout);
+      setIsAutoVerifying(false);
+
+      if (!data.exists) {
+        setVerificationError(`Room ${prefilledRoomId} not found`);
+        setStep('verification');
+        return;
       }
-    }
 
-    const normalizedConfig: RoomConfig = {
-      ...data,
-      currencySymbol: data.currencySymbol || '€',
-      roomId: prefilledRoomId,
-      clubId: data.clubId || data.club_id,
+      if (data.web3Chain === 'evm' && data.evmNetwork) {
+        sessionStorage.setItem('active-evm-network', data.evmNetwork);
+
+        if (data.roomContractAddress) {
+          sessionStorage.setItem('active-room-contract', data.roomContractAddress);
+        }
+      }
+
+      const normalizedConfig: RoomConfig = {
+        ...data,
+        currencySymbol: data.currencySymbol || '€',
+        roomId: prefilledRoomId,
+        clubId: data.clubId || data.club_id,
+      };
+
+      setRoomConfig(normalizedConfig);
+
+      setFullConfig({
+        ...normalizedConfig,
+        entryFee: String(normalizedConfig.entryFee),
+        paymentMethod:
+          normalizedConfig.paymentMethod === 'web3'
+            ? 'web3'
+            : 'cash_or_revolut',
+      } as any);
+
+      const normalized = normalizeChain(data.web3Chain);
+      if (normalized) setDetectedChain(normalized);
+
+      let flow: PaymentFlow;
+
+      if (data.demoMode) flow = 'demo';
+      else if (data.paymentMethod === 'web3') flow = 'web3';
+      else flow = 'web2';
+
+      setPaymentFlow(flow);
+
+      if (ticketToken) {
+        setStep('ticket-redeem');
+      } else {
+        const capacityOk = await checkWalkInCapacity(prefilledRoomId);
+
+        if (capacityOk) {
+          setStep('player-details');
+        } else {
+          setStep('verification');
+        }
+      }
     };
 
-    setRoomConfig(normalizedConfig);
-    setFullConfig({
-      ...normalizedConfig,
-      entryFee: String(normalizedConfig.entryFee),
-      paymentMethod: normalizedConfig.paymentMethod === 'web3' ? 'web3' : 'cash_or_revolut',
-    } as any);
+    socket.once('quiz_room_verification_result', handleVerification);
 
-    const normalized = normalizeChain(data.web3Chain);
-    if (normalized) setDetectedChain(normalized);
-
-    let flow: PaymentFlow;
-    if (data.demoMode) flow = 'demo';
-    else if (data.paymentMethod === 'web3') flow = 'web3';
-    else flow = 'web2';
-
-    setPaymentFlow(flow);
-
-    if (ticketToken) {
-      setStep('ticket-redeem');
-    } else {
-      const capacityOk = await checkWalkInCapacity(prefilledRoomId);
-      if (capacityOk) {
-        setStep('player-details');
-      } else {
-        setStep('verification');
-      }
-    }
-  };
-
-  socket.once('quiz_room_verification_result', handleVerification);
-
-  return () => {
-    clearTimeout(timeout);
-    socket.off('quiz_room_verification_result', handleVerification);
-  };
-}, [prefilledRoomId, socket?.connected, roomConfig, socket, setFullConfig, ticketToken]);
+    return () => {
+      clearTimeout(timeout);
+      socket.off('quiz_room_verification_result', handleVerification);
+    };
+  }, [
+    prefilledRoomId,
+    socket?.connected,
+    roomConfig,
+    socket,
+    setFullConfig,
+    ticketToken,
+  ]);
 
   useEffect(() => {
     if (roomConfig && paymentFlow === 'web2') {
       checkAvailablePaymentMethods();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomConfig, paymentFlow]);
 
   const checkAvailablePaymentMethods = async () => {
     if (!roomId) return;
 
     try {
-      const response = await fetch(`/api/quiz-rooms/${roomId}/available-payment-methods`);
+      const response = await fetch(
+        `/api/quiz-rooms/${roomId}/available-payment-methods`
+      );
       const data = await response.json();
 
       if (data.ok) {
-        setHasAvailableMethods(data.paymentMethods.length > 0);
+        const methods = Array.isArray(data.paymentMethods)
+          ? data.paymentMethods
+          : [];
+
+        const usableMethods = methods.filter((method: ClubPaymentMethod) => {
+          if (!isDonationMode && isCryptoMethod(method)) return false;
+          return true;
+        });
+
+        setHasAvailableMethods(usableMethods.length > 0);
       } else {
         setHasAvailableMethods(false);
       }
@@ -399,34 +559,64 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
     }
   };
 
-  const fetchPaymentMethods = async () => {
-    if (!roomId) return;
+  const fetchPaymentMethods = async (): Promise<ClubPaymentMethod[]> => {
+    if (!roomId) return [];
 
     setLoadingMethods(true);
+
     try {
-      const response = await fetch(`/api/quiz-rooms/${roomId}/available-payment-methods`);
+      const response = await fetch(
+        `/api/quiz-rooms/${roomId}/available-payment-methods`
+      );
       const data = await response.json();
 
-      if (!data.ok) throw new Error(data.error || 'Failed to fetch payment methods');
+      if (!data.ok) {
+        throw new Error(data.error || 'Failed to fetch payment methods');
+      }
 
-      setPaymentMethods(data.paymentMethods);
+      const methods = Array.isArray(data.paymentMethods)
+        ? data.paymentMethods
+        : [];
 
-      if (data.paymentMethods.length === 0) {
+      const usableMethods = methods.filter((method: ClubPaymentMethod) => {
+        // Crypto is currently donation-only.
+        if (!isDonationMode && isCryptoMethod(method)) return false;
+        return true;
+      });
+
+      setPaymentMethods(usableMethods);
+      setHasAvailableMethods(usableMethods.length > 0);
+
+      if (usableMethods.length === 0 && !isDonationMode) {
         alert('No payment methods available. Please choose "Pay Host Directly".');
         setStep('payment-choice');
       }
+
+      return usableMethods;
     } catch (err) {
       console.error('Error fetching payment methods:', err);
       alert(err instanceof Error ? err.message : 'Failed to load payment methods');
-      setStep('payment-choice');
+
+      if (!isDonationMode) {
+        setStep('payment-choice');
+      }
+
+      setPaymentMethods([]);
+      setHasAvailableMethods(false);
+      return [];
     } finally {
       setLoadingMethods(false);
     }
   };
 
-  const handleRoomVerified = async (config: any, verifiedRoomId: string, playerName: string) => {
+  const handleRoomVerified = async (
+    config: any,
+    verifiedRoomId: string,
+    playerName: string
+  ) => {
     if (config.web3Chain === 'evm' && config.evmNetwork) {
       sessionStorage.setItem('active-evm-network', config.evmNetwork);
+
       if (config.roomContractAddress) {
         sessionStorage.setItem('active-room-contract', config.roomContractAddress);
       }
@@ -453,6 +643,7 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
     setDetectedChain(normalized);
 
     let flow: PaymentFlow;
+
     if (config.demoMode) flow = 'demo';
     else if (config.paymentMethod === 'web3') flow = 'web3';
     else flow = 'web2';
@@ -463,30 +654,43 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
       setStep('ticket-redeem');
     } else {
       const capacityOk = await checkWalkInCapacity(verifiedRoomId);
+
       if (capacityOk) {
         setStep('player-details');
       }
     }
   };
 
-  // ✅ NEW: donation continue step
-  const handleContinueFromPlayerDetails = () => {
+  const handleContinueFromPlayerDetails = async () => {
     if (isDonationMode) {
+      setSelectedMethod(null);
+      setDonationPaymentChoice(null);
+
+      if (paymentFlow === 'web2') {
+        await fetchPaymentMethods();
+        setStep('payment-method');
+        return;
+      }
+
       setStep('donation-amount');
       return;
     }
+
     setStep('extras');
   };
 
-  // ✅ NEW: zero or positive donation handling
   const handleContinueFromDonation = () => {
     const raw = (donationAmountInput || '').replace(',', '.').trim();
+
     if (raw === '') {
-      alert('Please enter a donation amount. You can enter 0 if you do not wish to donate.');
+      alert(
+        'Please enter a donation amount. You can enter 0 if you do not wish to donate.'
+      );
       return;
     }
 
     const parsed = parseFloat(raw);
+
     if (!Number.isFinite(parsed) || parsed < 0) {
       alert('Please enter a valid donation amount.');
       return;
@@ -494,6 +698,27 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
 
     if (parsed === 0) {
       setShowZeroDonationConfirm(true);
+      return;
+    }
+
+    if (isDonationMode && paymentFlow === 'web2') {
+      if (donationPaymentChoice === 'pay_admin') {
+        setStep('pay-admin-confirm');
+        return;
+      }
+
+      if (!selectedMethod) {
+        alert('Please choose a payment method first.');
+        setStep('payment-method');
+        return;
+      }
+
+      if (isStripeMethod(selectedMethod)) {
+        startStripeCheckout(selectedMethod);
+        return;
+      }
+
+      setStep('payment-instructions');
       return;
     }
 
@@ -512,9 +737,13 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
     if (!capacityOk) return;
 
     setJoiningRoom(true);
+
     const playerId = nanoid();
 
-    const extrasForJoin = isDonationMode ? includedDonationExtras : selectedExtras;
+    const extrasForJoin = isDonationMode
+      ? includedDonationExtras
+      : selectedExtras;
+
     const extraPayments = isDonationMode
       ? {}
       : Object.fromEntries(
@@ -537,7 +766,7 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
         credits: 0,
         extras: extrasForJoin,
         extraPayments,
-        donationAmount: isDonationMode ? donationAmount : undefined, // ✅ NEW
+        donationAmount: isDonationMode ? donationAmount : undefined,
       },
       role: 'player' as const,
     });
@@ -562,10 +791,20 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
 
       setJoiningRoom(true);
 
-      sessionStorage.setItem(`stripe-walkin-name:${roomId}`, playerDetails.playerName);
-      sessionStorage.setItem(`stripe-walkin-extras:${roomId}`, JSON.stringify(isDonationMode ? includedDonationExtras : selectedExtras));
+      sessionStorage.setItem(
+        `stripe-walkin-name:${roomId}`,
+        playerDetails.playerName
+      );
+      sessionStorage.setItem(
+        `stripe-walkin-extras:${roomId}`,
+        JSON.stringify(isDonationMode ? includedDonationExtras : selectedExtras)
+      );
+
       if (isDonationMode) {
-        sessionStorage.setItem(`stripe-walkin-donation:${roomId}`, String(donationAmount));
+        sessionStorage.setItem(
+          `stripe-walkin-donation:${roomId}`,
+          String(donationAmount)
+        );
       }
 
       const response = await fetch('/api/stripe/walkin-checkout', {
@@ -574,8 +813,10 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
         body: JSON.stringify({
           roomId,
           playerName: playerDetails.playerName,
-          selectedExtras: isDonationMode ? includedDonationExtras : selectedExtras,
-          donationAmount: isDonationMode ? donationAmount : undefined, // ✅ NEW
+          selectedExtras: isDonationMode
+            ? includedDonationExtras
+            : selectedExtras,
+          donationAmount: isDonationMode ? donationAmount : undefined,
           appOrigin: window.location.origin,
         }),
       });
@@ -593,23 +834,31 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
     }
   };
 
-  const handleInstantPayment = async () => {
+  const handleManualClubPayment = async () => {
     if (!socket || !roomConfig || !selectedMethod) return;
 
     const capacityOk = await checkWalkInCapacity(roomId);
     if (!capacityOk) return;
 
     setJoiningRoom(true);
+
     const playerId = nanoid();
 
-    const extrasForJoin = isDonationMode ? includedDonationExtras : selectedExtras;
+    const extrasForJoin = isDonationMode
+      ? includedDonationExtras
+      : selectedExtras;
+
+    const paymentMethodForPlayer = isCryptoMethod(selectedMethod)
+      ? 'crypto'
+      : 'instant_payment';
+
     const extraPayments = isDonationMode
       ? {}
       : Object.fromEntries(
           selectedExtras.map((extraId) => [
             extraId,
             {
-              method: 'instant_payment',
+              method: paymentMethodForPlayer,
               amount: roomConfig.fundraisingPrices[extraId] || 0,
             },
           ])
@@ -622,13 +871,13 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
         name: playerDetails.playerName.trim(),
         paid: false,
         paymentClaimed: true,
-        paymentMethod: 'instant_payment',
+        paymentMethod: paymentMethodForPlayer,
         paymentReference,
         clubPaymentMethodId: selectedMethod.id,
         credits: 0,
         extras: extrasForJoin,
         extraPayments,
-        donationAmount: isDonationMode ? donationAmount : undefined, // ✅ NEW
+        donationAmount: isDonationMode ? donationAmount : undefined,
       },
       role: 'player' as const,
     });
@@ -636,7 +885,7 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
     socket.emit('claim_payment', {
       roomId,
       playerId,
-      paymentMethod: 'instant_payment',
+      paymentMethod: paymentMethodForPlayer,
       paymentReference,
       clubPaymentMethodId: selectedMethod.id,
     });
@@ -649,39 +898,49 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
     if (!socket || !ticketToken) return;
 
     setJoiningRoom(true);
+
     const playerId = nanoid();
 
-    socket.emit('redeem_ticket_and_join', { joinToken: ticketToken, playerId }, (response: any) => {
-      if (response.ok) {
-        if (ticketData?.ticketId) {
-          localStorage.setItem(`quizTicketId:${response.roomId}:${playerId}`, ticketData.ticketId);
+    socket.emit(
+      'redeem_ticket_and_join',
+      { joinToken: ticketToken, playerId },
+      (response: any) => {
+        if (response.ok) {
+          if (ticketData?.ticketId) {
+            localStorage.setItem(
+              `quizTicketId:${response.roomId}:${playerId}`,
+              ticketData.ticketId
+            );
+          }
+
+          socket.emit('join_quiz_room', {
+            roomId: response.roomId,
+            user: { ...response.playerData, id: playerId },
+            role: 'player' as const,
+            ticketId: ticketData?.ticketId,
+          });
+
+          localStorage.setItem(`quizPlayerId:${response.roomId}`, playerId);
+
+          navigate(`/quiz/game/${response.roomId}/${playerId}`, {
+            state: {
+              playerName: response.playerData?.name || ticketData?.playerName,
+              paid: response.playerData?.paid ?? true,
+              paymentMethod:
+                response.playerData?.paymentMethod || 'instant_payment',
+            },
+          });
+        } else {
+          alert(response.error || 'Failed to redeem ticket');
+          setJoiningRoom(false);
         }
-
-        socket.emit('join_quiz_room', {
-          roomId: response.roomId,
-          user: { ...response.playerData, id: playerId },
-          role: 'player' as const,
-          ticketId: ticketData?.ticketId,
-        });
-
-        localStorage.setItem(`quizPlayerId:${response.roomId}`, playerId);
-
-        navigate(`/quiz/game/${response.roomId}/${playerId}`, {
-          state: {
-            playerName: response.playerData?.name || ticketData?.playerName,
-            paid: response.playerData?.paid ?? true,
-            paymentMethod: response.playerData?.paymentMethod || 'instant_payment',
-          },
-        });
-      } else {
-        alert(response.error || 'Failed to redeem ticket');
-        setJoiningRoom(false);
       }
-    });
+    );
   };
 
   if (isAutoVerifying || validatingTicket || checkingCapacity) {
     let message = 'Loading...';
+
     if (validatingTicket) message = 'Validating your ticket...';
     else if (checkingCapacity) message = 'Checking room availability...';
     else if (isAutoVerifying) message = `Verifying room ${prefilledRoomId}...`;
@@ -695,7 +954,9 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
         <div className="bg-white max-w-md w-full rounded-xl shadow-xl p-8">
           <div className="text-center">
             <div className="text-6xl mb-4">⚠️</div>
-            <h2 className="text-red-700 font-bold text-xl mb-2">Connection Error</h2>
+            <h2 className="text-red-700 font-bold text-xl mb-2">
+              Connection Error
+            </h2>
             <p className="text-red-600 mb-4">{verificationError}</p>
             <button
               onClick={() => setStep('verification')}
@@ -709,10 +970,22 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
     );
   }
 
+  const donationBackTarget = () => {
+    if (isDonationMode && paymentFlow === 'web2') {
+      setStep('payment-method');
+      return;
+    }
+
+    setStep('player-details');
+  };
+
   return (
     <>
       {step === 'verification' && (
-        <RoomVerificationStep onVerified={handleRoomVerified} onClose={onClose} />
+        <RoomVerificationStep
+          onVerified={handleRoomVerified}
+          onClose={onClose}
+        />
       )}
 
       {step === 'ticket-redeem' && roomConfig && ticketData && ticketToken && (
@@ -745,12 +1018,21 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
               <div className="flex items-start gap-3">
                 <div className="text-2xl">✅</div>
                 <div>
-                  <div className="font-semibold text-blue-900">You're all set</div>
-                  <div className="text-sm text-blue-800">
-                    Ticket holder: <span className="font-medium">{ticketData.playerName}</span>
+                  <div className="font-semibold text-blue-900">
+                    You're all set
                   </div>
                   <div className="text-sm text-blue-800">
-                    Total paid: <span className="font-medium">{roomConfig.currencySymbol}{ticketData.totalAmount.toFixed(8)}</span>
+                    Ticket holder:{' '}
+                    <span className="font-medium">
+                      {ticketData.playerName}
+                    </span>
+                  </div>
+                  <div className="text-sm text-blue-800">
+                    Total paid:{' '}
+                    <span className="font-medium">
+                      {roomConfig.currencySymbol}
+                      {ticketData.totalAmount.toFixed(8)}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -758,7 +1040,9 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
 
             {ticketData.extras?.length > 0 && (
               <div className="rounded-lg border border-gray-200 bg-white p-4">
-                <div className="font-semibold text-gray-900 mb-2">Included extras</div>
+                <div className="font-semibold text-gray-900 mb-2">
+                  Included extras
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {ticketData.extras.map((e) => (
                     <span
@@ -773,7 +1057,8 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
             )}
 
             <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
-              Tap <strong>Redeem Ticket & Join Quiz</strong> to enter the room now.
+              Tap <strong>Redeem Ticket & Join Quiz</strong> to enter the room
+              now.
             </div>
           </div>
         </StepLayout>
@@ -807,33 +1092,53 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
             <StepLayout
               mode="modal"
               icon="🎯"
-              title={`Joining ${roomConfig.hostName ? `${roomConfig.hostName}'s` : 'the'} Game`}
+              title={`Joining ${
+                roomConfig.hostName
+                  ? `${roomConfig.hostName}'s`
+                  : 'the'
+              } Game`}
               subtitle={`Room ${roomId}`}
               footer={
                 <ActionButtons
                   onBack={() => setStep('verification')}
                   onContinue={handleContinueFromPlayerDetails}
-                  continueLabel={isDonationMode ? 'Continue to Donation' : 'Continue to Extras'}
+                  continueLabel={
+                    isDonationMode
+                      ? 'Continue to Payment Method'
+                      : 'Continue to Extras'
+                  }
                   continueDisabled={!isPlayerDetailsValid}
                 />
               }
             >
-              {capacity && capacity.availableForWalkIns > 0 && capacity.availableForWalkIns <= 5 && (
-                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
-                    <div>
-                      <div className="font-semibold text-amber-900">Limited availability</div>
-                      <div className="text-sm text-amber-800">
-                        Only <strong>{capacity.availableForWalkIns}</strong> walk-in spot{capacity.availableForWalkIns === 1 ? '' : 's'} remaining.
-                        {capacity.reservedByTickets > 0 && (
-                          <> ({capacity.reservedByTickets} spots reserved by ticket holders)</>
-                        )}
+              {capacity &&
+                capacity.availableForWalkIns > 0 &&
+                capacity.availableForWalkIns <= 5 && (
+                  <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
+                      <div>
+                        <div className="font-semibold text-amber-900">
+                          Limited availability
+                        </div>
+                        <div className="text-sm text-amber-800">
+                          Only{' '}
+                          <strong>{capacity.availableForWalkIns}</strong>{' '}
+                          walk-in spot
+                          {capacity.availableForWalkIns === 1 ? '' : 's'}{' '}
+                          remaining.
+                          {capacity.reservedByTickets > 0 && (
+                            <>
+                              {' '}
+                              ({capacity.reservedByTickets} spots reserved by
+                              ticket holders)
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
               <PlayerDetailsForm
                 formData={playerDetails}
@@ -849,18 +1154,29 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
         </>
       )}
 
-      {/* ✅ NEW: Donation amount step */}
       {step === 'donation-amount' && roomConfig && isDonationMode && (
         <StepLayout
           mode="modal"
           icon="💖"
           title="Choose Your Donation"
-          subtitle={`Join ${roomConfig.hostName ? `${roomConfig.hostName}'s` : 'the'} quiz`}
+          subtitle={
+            selectedMethod
+              ? `Paying with ${selectedMethod.methodLabel}`
+              : donationPaymentChoice === 'pay_admin'
+                ? 'Paying the host directly'
+                : `Join ${
+                    roomConfig.hostName
+                      ? `${roomConfig.hostName}'s`
+                      : 'the'
+                  } quiz`
+          }
           footer={
             <ActionButtons
-              onBack={() => setStep('player-details')}
+              onBack={donationBackTarget}
               onContinue={handleContinueFromDonation}
-              continueLabel={donationAmount > 0 ? 'Continue to Payment' : 'Continue'}
+              continueLabel={
+                donationAmount > 0 ? 'Continue to Payment' : 'Continue'
+              }
             />
           }
         >
@@ -869,22 +1185,36 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
               <div className="flex items-start gap-3">
                 <HeartHandshake className="h-5 w-5 text-blue-600 mt-0.5" />
                 <div>
-                  <div className="font-semibold text-blue-900">Donation-based quiz</div>
+                  <div className="font-semibold text-blue-900">
+                    Donation-based quiz
+                  </div>
                   <div className="text-sm text-blue-800">
-                    Enter any amount you'd like to donate. You can enter 0 if you do not wish to donate.
+                    Enter any amount you'd like to donate. You can enter 0 if
+                    you do not wish to donate.
                   </div>
                 </div>
               </div>
             </div>
 
+            {selectedMethod && (
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <div className="text-sm text-gray-600">Selected payment method</div>
+                <div className="font-semibold text-gray-900">
+                  {selectedMethod.methodLabel}
+                </div>
+              </div>
+            )}
+
             <div className="rounded-lg border border-gray-200 bg-white p-4">
               <label className="mb-2 block text-sm font-medium text-gray-900">
                 Donation Amount
               </label>
+
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">
                   {roomConfig.currencySymbol}
                 </span>
+
                 <input
                   type="number"
                   min="0"
@@ -896,6 +1226,7 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
                   className="w-full rounded-lg border-2 border-gray-200 py-3 pl-8 pr-4 text-base outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
                 />
               </div>
+
               <p className="mt-2 text-xs text-gray-500">
                 All extras are already included automatically for this quiz.
               </p>
@@ -907,15 +1238,19 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
                   <div className="font-medium text-gray-900">Total to Pay</div>
                   <div className="text-sm text-gray-600">Donation amount</div>
                 </div>
+
                 <div className="text-2xl font-bold text-green-900">
-                  {roomConfig.currencySymbol}{donationAmount.toFixed(2)}
+                  {roomConfig.currencySymbol}
+                  {donationAmount.toFixed(2)}
                 </div>
               </div>
             </div>
 
             {includedDonationExtras.length > 0 && (
               <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-4">
-                <div className="font-medium text-indigo-900 mb-2">Included Extras</div>
+                <div className="font-medium text-indigo-900 mb-2">
+                  Included Extras
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {includedDonationExtras.map((extraId) => (
                     <span
@@ -946,16 +1281,20 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
             />
           }
         >
-          {capacity && capacity.availableForWalkIns > 0 && capacity.availableForWalkIns <= 5 && (
-            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-amber-600" />
-                <span className="text-amber-900">
-                  Only <strong>{capacity.availableForWalkIns}</strong> walk-in spot{capacity.availableForWalkIns === 1 ? '' : 's'} remaining
-                </span>
+          {capacity &&
+            capacity.availableForWalkIns > 0 &&
+            capacity.availableForWalkIns <= 5 && (
+              <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <span className="text-amber-900">
+                    Only <strong>{capacity.availableForWalkIns}</strong>{' '}
+                    walk-in spot
+                    {capacity.availableForWalkIns === 1 ? '' : 's'} remaining
+                  </span>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
           <ExtrasSelector
             availableExtras={availableExtras}
@@ -990,7 +1329,9 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
                 playerName={playerDetails.playerName}
                 roomConfig={roomConfig}
                 selectedExtras={selectedExtras}
-                onBack={() => setStep(isDonationMode ? 'donation-amount' : 'extras')}
+                onBack={() =>
+                  setStep(isDonationMode ? 'donation-amount' : 'extras')
+                }
                 onClose={onClose}
               />
             </Suspense>
@@ -1009,8 +1350,14 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
           mode="modal"
           icon="💶"
           title="Choose Payment Method"
-          subtitle={`Join ${roomConfig.hostName ? `${roomConfig.hostName}'s` : 'the'} quiz`}
-          footer={<ActionButtons onBack={() => setStep(isDonationMode ? 'donation-amount' : 'extras')} />}
+          subtitle={`Join ${
+            roomConfig.hostName ? `${roomConfig.hostName}'s` : 'the'
+          } quiz`}
+          footer={
+            <ActionButtons
+              onBack={() => setStep(isDonationMode ? 'donation-amount' : 'extras')}
+            />
+          }
         >
           <div className="space-y-5">
             <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
@@ -1020,11 +1367,17 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
                   <div className="text-sm text-gray-600">
                     {isDonationMode
                       ? `Donation: ${roomConfig.currencySymbol}${donationAmount.toFixed(2)}`
-                      : `Entry: ${roomConfig.currencySymbol}${roomConfig.entryFee}${extrasTotal > 0 ? ` + Extras: ${roomConfig.currencySymbol}${extrasTotal}` : ''}`}
+                      : `Entry: ${roomConfig.currencySymbol}${roomConfig.entryFee}${
+                          extrasTotal > 0
+                            ? ` + Extras: ${roomConfig.currencySymbol}${extrasTotal}`
+                            : ''
+                        }`}
                   </div>
                 </div>
+
                 <div className="text-2xl font-bold text-blue-900">
-                  {roomConfig.currencySymbol}{totalAmount.toFixed(2)}
+                  {roomConfig.currencySymbol}
+                  {totalAmount.toFixed(2)}
                 </div>
               </div>
             </div>
@@ -1048,14 +1401,22 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
               >
                 <div className="flex items-center space-x-4">
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
-                    <span className="text-2xl">⚡</span>
+                    <span className="text-2xl">💳</span>
                   </div>
+
                   <div className="flex-1">
-                    <div className="font-semibold text-gray-900">Pay Now (Instant Payment)</div>
+                    <div className="font-semibold text-gray-900">
+                      Pay by Card or Club Payment Method
+                    </div>
                     <div className="text-sm text-gray-600">
-                      Pay via Revolut, bank transfer, or QR code
+                      {hasStripeMethod && hasInstantMethods
+                        ? 'Choose Stripe, Revolut, bank transfer, PayPal or another linked method'
+                        : hasStripeMethod
+                          ? 'Pay securely by card using Stripe'
+                          : 'Choose Revolut, bank transfer, PayPal or another linked method'}
                     </div>
                   </div>
+
                   <div className="text-blue-600">→</div>
                 </div>
               </button>
@@ -1073,12 +1434,22 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
           footer={
             <div className="flex flex-col space-y-3 sm:flex-row sm:space-x-3 sm:space-y-0">
               <button
-                onClick={() => setStep('payment-choice')}
+                onClick={() =>
+                  setStep(
+                    isDonationMode && paymentFlow === 'web2'
+                      ? 'donation-amount'
+                      : 'payment-choice'
+                  )
+                }
                 className="flex items-center justify-center space-x-2 rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 sm:px-6 sm:py-3 sm:text-base"
               >
                 <span>Back</span>
               </button>
-              <PayAdminButton onClick={handleJoinAsUnpaid} loading={joiningRoom} />
+
+              <PayAdminButton
+                onClick={handleJoinAsUnpaid}
+                loading={joiningRoom}
+              />
             </div>
           }
         >
@@ -1087,9 +1458,12 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
               <div className="flex items-center space-x-3">
                 <span className="text-2xl">💳</span>
                 <div>
-                  <h3 className="text-blue-800 font-semibold">Pay the Host Directly</h3>
+                  <h3 className="text-blue-800 font-semibold">
+                    Pay the Host Directly
+                  </h3>
                   <p className="text-sm text-blue-700">
-                    You'll join as "unpaid". Pay the host in person, and they'll mark you as paid.
+                    You'll join as "unpaid". Pay the host in person, and they'll
+                    mark you as paid.
                   </p>
                 </div>
               </div>
@@ -1098,9 +1472,14 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
             <div className="rounded-lg bg-gray-50 p-4">
               <h3 className="mb-2 font-medium">How this works:</h3>
               <ul className="space-y-1 text-sm text-gray-700">
-                <li>• You join with your chosen name {isDonationMode ? 'and included extras' : 'and extras'}</li>
-                <li>• Host sees you as <strong>Unpaid</strong></li>
-                <li>• Pay the host directly (cash, card, Revolut)</li>
+                <li>
+                  • You join with your chosen name{' '}
+                  {isDonationMode ? 'and included extras' : 'and extras'}
+                </li>
+                <li>
+                  • Host sees you as <strong>Unpaid</strong>
+                </li>
+                <li>• Pay the host directly</li>
                 <li>• Host confirms your payment</li>
               </ul>
             </div>
@@ -1113,60 +1492,220 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
           mode="modal"
           icon="💳"
           title="Select Payment Method"
-          subtitle="Choose how you'd like to pay"
-          footer={<ActionButtons onBack={() => setStep('payment-choice')} />}
+          subtitle={
+            isDonationMode
+              ? 'Choose how you would like to donate'
+              : "Choose how you'd like to pay"
+          }
+          footer={
+            <ActionButtons
+              onBack={() => {
+                if (isDonationMode) {
+                  setStep('player-details');
+                  return;
+                }
+
+                setStep('payment-choice');
+              }}
+            />
+          }
         >
-          <PaymentMethodSelector
-            paymentMethods={paymentMethods}
-            onSelect={(method) => {
-              console.log('[JoinFlow] Method selected:', method.methodCategory, method);
-              if (method.methodCategory === 'stripe') {
-                startStripeCheckout(method);
-              } else {
-                setSelectedMethod(method);
-                setStep('payment-instructions');
-              }
-            }}
-            loading={loadingMethods}
-          />
+          <div className="space-y-4">
+            {isDonationMode && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+                Choose your payment method first. Your donation amount comes
+                next.
+              </div>
+            )}
+
+            {hasStripeMethod && (
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">
+                Stripe/card payments are listed separately from instant payment
+                methods. Instant payment methods use the club’s saved method
+                labels.
+              </div>
+            )}
+
+            {loadingMethods ? (
+              <LoadingSpinner />
+            ) : (
+              <PaymentMethodSelector
+                paymentMethods={selectablePaymentMethods}
+                onSelect={(method) => {
+                  console.log(
+                    '[JoinFlow] Method selected:',
+                    method.methodCategory,
+                    method.providerName,
+                    method.methodLabel,
+                    method
+                  );
+if (isDonationMode && paymentFlow === 'web2') {
+  setSelectedMethod(method);
+  setDonationPaymentChoice('club_method');
+
+  if (isCryptoMethod(method)) {
+    setStep('crypto-donation');
+    return;
+  }
+
+  setStep('donation-amount');
+  return;
+}
+
+                  if (isCryptoMethod(method)) {
+                    alert('Crypto payments are currently only available for donation rooms.');
+                    return;
+                  }
+
+                  if (isStripeMethod(method)) {
+                    startStripeCheckout(method);
+                    return;
+                  }
+
+                  setSelectedMethod(method);
+                  setStep('payment-instructions');
+                }}
+                onSelectPayAdmin={() => {
+                  if (isDonationMode && paymentFlow === 'web2') {
+                    setSelectedMethod(null);
+                    setDonationPaymentChoice('pay_admin');
+                    setStep('donation-amount');
+                    return;
+                  }
+
+                  setStep('pay-admin-confirm');
+                }}
+                showPayAdminOption={isDonationMode}
+                loading={loadingMethods}
+              />
+            )}
+
+            {!loadingMethods && selectablePaymentMethods.length === 0 && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                No linked online payment methods are available for this room.
+                {isDonationMode
+                  ? ' You can continue by choosing Pay Host Directly.'
+                  : ' Please choose Pay Host Directly from the previous screen.'}
+              </div>
+            )}
+          </div>
         </StepLayout>
       )}
+
+      {step === 'crypto-donation' && selectedMethod && roomConfig && (
+  <Web3Provider force>
+    <CryptoDonationStep
+      roomId={roomId}
+      playerName={playerDetails.playerName}
+      selectedMethod={selectedMethod}
+      includedDonationExtras={includedDonationExtras}
+      solanaCluster={
+        roomConfig.solanaCluster === 'devnet' ? 'devnet' : 'mainnet'
+      }
+      onBack={() => setStep('payment-method')}
+    />
+  </Web3Provider>
+)}
 
       {step === 'payment-instructions' && selectedMethod && roomConfig && (
         <StepLayout
           mode="modal"
-          icon="💳"
-          title="Instant Payment"
+          icon={isCryptoMethod(selectedMethod) ? '🪙' : '💳'}
+          title={
+            isCryptoMethod(selectedMethod)
+              ? 'Crypto Donation'
+              : 'Payment Instructions'
+          }
           subtitle={selectedMethod.methodLabel}
           footer={
             <PaymentInstructionsFooter
-              hasEverCopied={hasCopiedReference}
+              hasEverCopied={
+                isCryptoMethod(selectedMethod) ? true : hasCopiedReference
+              }
               confirming={joiningRoom}
-              onConfirmPaid={handleInstantPayment}
-              onBack={() => setStep('payment-method')}
+              onConfirmPaid={handleManualClubPayment}
+              onBack={() =>
+                setStep(
+                  isDonationMode && paymentFlow === 'web2'
+                    ? 'donation-amount'
+                    : 'payment-method'
+                )
+              }
             />
           }
         >
-          <PaymentInstructionsContent
-            method={selectedMethod}
-            paymentReference={paymentReference}
-            totalAmount={totalAmount}
-            currencySymbol={roomConfig.currencySymbol}
-            revolutLink={
-              selectedMethod.providerName?.toLowerCase() === 'revolut' &&
-              selectedMethod.methodConfig &&
-              'link' in selectedMethod.methodConfig
-                ? selectedMethod.methodConfig.link
-                : undefined
-            }
-            error={null}
-            hasEverCopied={hasCopiedReference}
-            onCopied={() => setHasCopiedReference(true)}
-          />
+          {isCryptoMethod(selectedMethod) ? (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-purple-200 bg-purple-50 p-4">
+                <div className="font-semibold text-purple-950">
+                  Send your crypto donation
+                </div>
+                <p className="mt-1 text-sm text-purple-900">
+                  This is the first manual crypto flow. The host will verify the
+                  payment manually for now.
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-gray-200 bg-white p-4">
+                <div className="text-sm text-gray-600">Donation amount</div>
+                <div className="text-2xl font-bold text-gray-900">
+                  {roomConfig.currencySymbol}
+                  {totalAmount.toFixed(2)}
+                </div>
+              </div>
+
+              {(selectedMethod.methodConfig as any)?.walletAddress && (
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <div className="mb-2 text-sm font-semibold text-gray-900">
+                    Solana wallet address
+                  </div>
+                  <div className="break-all rounded-lg bg-white p-3 font-mono text-xs text-gray-800 border border-gray-200">
+                    {(selectedMethod.methodConfig as any).walletAddress}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(
+                        String(
+                          (selectedMethod.methodConfig as any).walletAddress
+                        )
+                      );
+                      setHasCopiedReference(true);
+                    }}
+                    className="mt-3 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700"
+                  >
+                    Copy Wallet Address
+                  </button>
+                </div>
+              )}
+
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                After sending the donation, tap confirm. You will join as
+                payment claimed, and the host can verify it.
+              </div>
+            </div>
+          ) : (
+            <PaymentInstructionsContent
+              method={selectedMethod}
+              paymentReference={paymentReference}
+              totalAmount={totalAmount}
+              currencySymbol={roomConfig.currencySymbol}
+              revolutLink={
+                selectedMethod.providerName?.toLowerCase() === 'revolut' &&
+                selectedMethod.methodConfig &&
+                'link' in selectedMethod.methodConfig
+                  ? selectedMethod.methodConfig.link
+                  : undefined
+              }
+              error={null}
+              hasEverCopied={hasCopiedReference}
+              onCopied={() => setHasCopiedReference(true)}
+            />
+          )}
         </StepLayout>
       )}
 
-      {/* ✅ NEW: Zero donation confirmation modal */}
       {showZeroDonationConfirm && roomConfig && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
@@ -1175,13 +1714,19 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
                 <AlertTriangle className="h-5 w-5 text-yellow-700" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Confirm Donation Amount</h3>
-                <p className="text-sm text-gray-600">Please confirm before joining</p>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Confirm Donation Amount
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Please confirm before joining
+                </p>
               </div>
             </div>
 
             <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-900">
-              You entered <strong>{roomConfig.currencySymbol}0.00</strong> as your donation. Are you sure this is correct?
+              You entered{' '}
+              <strong>{roomConfig.currencySymbol}0.00</strong> as your
+              donation. Are you sure this is correct?
             </div>
 
             <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:justify-end">
@@ -1192,6 +1737,7 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
               >
                 No, go back
               </button>
+
               <button
                 type="button"
                 onClick={handleJoinDonationZero}

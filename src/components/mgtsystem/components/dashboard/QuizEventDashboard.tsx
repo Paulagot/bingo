@@ -131,7 +131,7 @@ export default function QuizEventDashboard() {
   }, [clubId]); // runs once auth is ready
 
   // ── View / layout ──
- const [viewMode, setViewMode] = useState<ViewMode>('cards');
+ const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {

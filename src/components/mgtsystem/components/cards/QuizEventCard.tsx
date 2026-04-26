@@ -67,6 +67,7 @@ export function QuizEventCard({
   linkedEventId,
   viewMode = 'table',
   featureAccess,
+  onPaymentMethodSuccess,
 }: {
   room: Web2RoomListItem;
   stats?: RoomStats;
@@ -84,6 +85,7 @@ export function QuizEventCard({
     quizPayments?: boolean;
     ticketing?: boolean;
   };
+  onPaymentMethodSuccess?: (roomId: string) => Promise<void> | void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [ticketModalOpen, setTicketModalOpen] = useState(false);
@@ -106,6 +108,7 @@ export function QuizEventCard({
   const ticketsSold = stats?.ticketsSold ?? 0;
   const uniquePlayers = stats?.uniquePlayers ?? 0;
   const totalIncome = stats?.totalIncome ?? 0;
+  const pendingTicketVerifications = stats?.pendingTicketVerifications ?? 0;
 
   const copyTicketLink = async () => {
     const ticketUrl = `${window.location.origin}/tickets/buy/${room.room_id}`;
@@ -354,16 +357,26 @@ const tableView = (
           </button>
         )}
 
-        {showTicketActionsWithPayment && (
-          <button
-            type="button"
-            onClick={() => setTicketModalOpen(true)}
-            className="p-1.5 rounded border border-purple-200 bg-purple-50 hover:bg-purple-100 transition-colors"
-            title="Manage tickets"
-          >
-            <Ticket className="h-3.5 w-3.5 text-purple-700" />
-          </button>
-        )}
+   {showTicketActionsWithPayment && (
+  <button
+    type="button"
+    onClick={() => setTicketModalOpen(true)}
+    className="relative p-1.5 rounded border border-purple-200 bg-purple-50 hover:bg-purple-100 transition-colors"
+    title={
+      pendingTicketVerifications > 0
+        ? `${pendingTicketVerifications} ticket payment${pendingTicketVerifications === 1 ? '' : 's'} need verification`
+        : 'Manage tickets'
+    }
+  >
+    <Ticket className="h-3.5 w-3.5 text-purple-700" />
+
+    {pendingTicketVerifications > 0 && (
+      <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] leading-[18px] text-center font-bold">
+        {pendingTicketVerifications}
+      </span>
+    )}
+  </button>
+)}
 
         {!isCancelled && onLinkToEvent && onUnlinkFromEvent && (
           <button
@@ -685,16 +698,22 @@ const tableView = (
             </button>
           )}
 
-          {showTicketActionsWithPayment && (
-            <button
-              type="button"
-              onClick={() => setTicketModalOpen(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-purple-200 bg-purple-50 px-3 py-2 text-sm font-medium text-purple-700 hover:bg-purple-100 transition-colors"
-            >
-              <Ticket className="h-4 w-4" />
-              Ticket Mgt
-            </button>
-          )}
+      {showTicketActionsWithPayment && (
+  <button
+    type="button"
+    onClick={() => setTicketModalOpen(true)}
+    className="relative inline-flex items-center justify-center gap-2 rounded-lg border border-purple-200 bg-purple-50 px-3 py-2 text-sm font-medium text-purple-700 hover:bg-purple-100 transition-colors"
+  >
+    <Ticket className="h-4 w-4" />
+    Ticket Mgt
+
+    {pendingTicketVerifications > 0 && (
+      <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] leading-[18px] text-center font-bold">
+        {pendingTicketVerifications}
+      </span>
+    )}
+  </button>
+)}
 
           {!isCancelled && onLinkToEvent && onUnlinkFromEvent && (
             <button
@@ -860,7 +879,10 @@ const tableView = (
         <TicketManagerModal
           roomId={room.room_id}
           roomName={`${formatDateTime(room.scheduled_at, room.time_zone)} - ${hostName}'s Quiz`}
-          onClose={() => setTicketModalOpen(false)}
+         onClose={async () => {
+  setTicketModalOpen(false);
+  await onPaymentMethodSuccess?.(room.room_id);
+}}
           confirmer={{
             id: confirmedBy,
             name: confirmedByName,
@@ -883,9 +905,10 @@ const tableView = (
         roomId={room.room_id}
         roomTitle={`${formatDateTime(room.scheduled_at, room.time_zone)} - ${hostName}'s Quiz`}
         onClose={() => setPaymentModalOpen(false)}
-        onSuccess={() => {
-          console.log('Payment methods updated successfully');
-        }}
+      onSuccess={async () => {
+  console.log('Payment methods updated successfully');
+  await onPaymentMethodSuccess?.(room.room_id);
+}}
       />
 
       {latePaymentsOpen && (
