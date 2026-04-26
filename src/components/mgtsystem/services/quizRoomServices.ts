@@ -40,6 +40,7 @@ export interface RoomStats {
   ticketsSold: number;
   uniquePlayers: number;
   totalIncome: number;
+  pendingTicketVerifications?: number;
 }
 
 class QuizRoomsService extends BaseService {

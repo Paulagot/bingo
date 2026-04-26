@@ -4,7 +4,7 @@ import { nanoid } from 'nanoid';
 import { connection, TABLE_PREFIX } from '../config/database.js';
 import { canPurchaseTickets } from '../mgtsystem/services/quizCapacityService.js';
 import { createExpectedPayment } from '../mgtsystem/services/quizPaymentLedgerService.js';
-import { getRoomConfig } from '../mgtsystem/services/quizTicketService.js'; // you already have
+import { getRoomConfig } from '../mgtsystem/services/quizTicketService.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' });
 
@@ -28,11 +28,16 @@ export async function getReadyStripeForClub(clubId) {
       AND method_category = 'stripe'
     LIMIT 1
   `;
+
   const [rows] = await connection.execute(sql, [clubId]);
   const row = rows?.[0];
   if (!row) return null;
 
-  const cfg = typeof row.method_config === 'string' ? JSON.parse(row.method_config) : row.method_config;
+  const cfg =
+    typeof row.method_config === 'string'
+      ? JSON.parse(row.method_config)
+      : row.method_config;
+
   const c = cfg?.connect;
 
   const ready = !!(c?.detailsSubmitted && c?.chargesEnabled && c?.payoutsEnabled);
@@ -53,6 +58,7 @@ export async function createTicketAndStripeSession({
   purchaserPhone = null,
   playerName = null,
   selectedExtras = [],
+  donationAmount = null,
   appOrigin,
 }) {
   // 0) Capacity first
@@ -70,24 +76,54 @@ export async function createTicketAndStripeSession({
   if (!stripeConn) throw new Error('stripe_not_ready_or_disabled');
 
   // 3) Pricing
-  const entryFee = parseFloat(config.entryFee || 0);
+  const isDonationRoom = config?.fundraisingMode === 'donation';
   const currency = currencyFromSymbol(config.currencySymbol || '€');
 
+  let entryFee = 0;
   let extrasTotal = 0;
-  const extrasWithPrices = [];
+  let extrasWithPrices = [];
+  let totalAmount = 0;
 
-  for (const extraId of selectedExtras) {
-    const price = Number(config.fundraisingPrices?.[extraId] || 0);
-    if (price > 0) {
-      extrasTotal += price;
-      extrasWithPrices.push({ extraId, price });
+  if (isDonationRoom) {
+    const parsedDonation = Number(donationAmount);
+
+    if (!Number.isFinite(parsedDonation) || parsedDonation <= 0) {
+      throw new Error('invalid_donation_amount_for_stripe_ticket');
     }
+
+    entryFee = parsedDonation;
+    extrasTotal = 0;
+    extrasWithPrices = [];
+    totalAmount = parsedDonation;
+
+    if (DEBUG) {
+      console.log('[StripeTicket] 💖 Donation ticket checkout:', {
+        roomId,
+        purchaserName,
+        playerName: playerName || purchaserName,
+        donationAmount: parsedDonation,
+        currency,
+      });
+    }
+  } else {
+    entryFee = parseFloat(config.entryFee || 0);
+
+    for (const extraId of selectedExtras) {
+      const price = Number(config.fundraisingPrices?.[extraId] || 0);
+      if (price > 0) {
+        extrasTotal += price;
+        extrasWithPrices.push({ extraId, price });
+      }
+    }
+
+    totalAmount = entryFee + extrasTotal;
   }
 
-  const totalAmount = entryFee + extrasTotal;
-
-  // Stripe uses smallest unit
   const totalAmountCents = Math.round(totalAmount * 100);
+
+  if (!Number.isFinite(totalAmountCents) || totalAmountCents <= 0) {
+    throw new Error('invalid_checkout_amount');
+  }
 
   // 4) Create ticket (reserved but blocked until webhook confirms)
   const ticketId = nanoid(12);
@@ -121,11 +157,8 @@ export async function createTicketAndStripeSession({
     ]
   );
 
-  // 5) Create ledger rows as EXPECTED (webhook will confirm)
+  // 5) Create ledger rows as EXPECTED. Webhook confirms them.
   const tempPlayerId = `ticket_${ticketId}`;
-
-  // IMPORTANT: fix your createExpectedPayment dedupe bug separately:
-  // return existing[0].id (not ledger_id)
 
   const entryLedgerId = await createExpectedPayment({
     roomId,
@@ -140,25 +173,35 @@ export async function createTicketAndStripeSession({
     clubPaymentMethodId: stripeConn.clubPaymentMethodId,
     ticketId,
     status: 'expected',
+    extraMetadata: isDonationRoom
+      ? {
+          fundraisingMode: 'donation',
+          donationAmount: entryFee,
+        }
+      : null,
   });
 
-  for (const extra of extrasWithPrices) {
-    await createExpectedPayment({
-      roomId,
-      clubId,
-      playerId: tempPlayerId,
-      playerName: playerName || purchaserName,
-      ledgerType: 'extra_purchase',
-      amount: extra.price,
-      currency,
-      paymentMethod: 'stripe',
-      paymentSource: 'player_selected',
-      clubPaymentMethodId: stripeConn.clubPaymentMethodId,
-      ticketId,
-      status: 'expected',
-      extraId: extra.extraId,
-      extraMetadata: extra,
-    });
+  // Fixed-fee tickets only: create extra ledger rows.
+  // Donation tickets include extras automatically and should NOT create extra_purchase rows.
+  if (!isDonationRoom) {
+    for (const extra of extrasWithPrices) {
+      await createExpectedPayment({
+        roomId,
+        clubId,
+        playerId: tempPlayerId,
+        playerName: playerName || purchaserName,
+        ledgerType: 'extra_purchase',
+        amount: extra.price,
+        currency,
+        paymentMethod: 'stripe',
+        paymentSource: 'player_selected',
+        clubPaymentMethodId: stripeConn.clubPaymentMethodId,
+        ticketId,
+        status: 'expected',
+        extraId: extra.extraId,
+        extraMetadata: extra,
+      });
+    }
   }
 
   await connection.execute(
@@ -166,7 +209,7 @@ export async function createTicketAndStripeSession({
     [entryLedgerId, ticketId]
   );
 
-  // 6) Create Stripe Checkout Session ON CLUB CONNECTED ACCOUNT
+  // 6) Create Stripe Checkout Session on club connected account
   const origin = appOrigin || process.env.APP_URL || 'http://localhost:5173';
 
   const session = await stripe.checkout.sessions.create(
@@ -178,7 +221,11 @@ export async function createTicketAndStripeSession({
           price_data: {
             currency: currency.toLowerCase(),
             unit_amount: totalAmountCents,
-            product_data: { name: `Quiz Ticket` },
+            product_data: {
+              name: isDonationRoom
+                ? `Quiz Donation Ticket`
+                : `Quiz Ticket`,
+            },
           },
         },
       ],
@@ -190,14 +237,24 @@ export async function createTicketAndStripeSession({
         ticketId,
         roomId,
         clubId,
+        fundraisingMode: isDonationRoom ? 'donation' : 'fixed_fee',
+        donationAmount: isDonationRoom ? String(entryFee) : '',
+        entryFee: String(entryFee),
+        extrasTotal: String(extrasTotal),
+        totalAmount: String(totalAmount),
+        selectedExtras: JSON.stringify(isDonationRoom ? [] : selectedExtras),
+        extrasWithPrices: JSON.stringify(extrasWithPrices),
+        currency,
       },
     },
     { stripeAccount: stripeConn.accountId }
   );
 
-  // 7) Save session.id so webhook can also match by reference if needed
+  // 7) Save session.id so webhook can match/reference it
   await connection.execute(
-    `UPDATE ${TICKETS_TABLE} SET payment_reference = ?, updated_at = UTC_TIMESTAMP() WHERE ticket_id = ?`,
+    `UPDATE ${TICKETS_TABLE}
+     SET payment_reference = ?, updated_at = UTC_TIMESTAMP()
+     WHERE ticket_id = ?`,
     [session.id, ticketId]
   );
 
@@ -208,7 +265,21 @@ export async function createTicketAndStripeSession({
     [session.id, ticketId]
   );
 
-  if (DEBUG) console.log('[StripeTicket] ✅ Created session:', { ticketId, sessionId: session.id });
+  if (DEBUG) {
+    console.log('[StripeTicket] ✅ Created session:', {
+      ticketId,
+      sessionId: session.id,
+      roomId,
+      totalAmount,
+      currency,
+      fundraisingMode: isDonationRoom ? 'donation' : 'fixed_fee',
+      donationAmount: isDonationRoom ? entryFee : null,
+      extrasCount: extrasWithPrices.length,
+    });
+  }
 
-  return { url: session.url, ticketId };
+  return {
+    url: session.url,
+    ticketId,
+  };
 }

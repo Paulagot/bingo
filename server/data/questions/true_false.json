@@ -1320,1326 +1320,1325 @@
     "category": "Math"
   },
   {
-    "id": 1120,
-    "text": "Which one is a fruit?",
-    "options": [
-      "🍎",
-      "🚗"
-    ],
-    "correctAnswer": "🍎",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1121,
-    "text": "Which one is an animal?",
-    "options": [
-      "🐶",
-      "🍰"
-    ],
-    "correctAnswer": "🐶",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1122,
-    "text": "Which one is for sleeping?",
-    "options": [
-      "😴",
-      "⚽"
-    ],
-    "correctAnswer": "😴",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1123,
-    "text": "Which one is a vegetable?",
-    "options": [
-      "🥕",
-      "🐱"
-    ],
-    "correctAnswer": "🥕",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1124,
-    "text": "Which one is a hot drink?",
-    "options": [
-      "☕",
-      "🏀"
-    ],
-    "correctAnswer": "☕",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1125,
-    "text": "Which one is used for writing?",
-    "options": [
-      "✏️",
-      "🍌"
-    ],
-    "correctAnswer": "✏️",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1126,
-    "text": "Which one is a sport?",
-    "options": [
-      "⚽",
-      "🍩"
-    ],
-    "correctAnswer": "⚽",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1127,
-    "text": "Which one is food?",
-    "options": [
-      "🍕",
-      "🚲"
-    ],
-    "correctAnswer": "🍕",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1128,
-    "text": "Which one is for music?",
-    "options": [
-      "🎵",
-      "🐘"
-    ],
-    "correctAnswer": "🎵",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1129,
-    "text": "Which one is a flower?",
-    "options": [
-      "🌹",
-      "📱"
-    ],
-    "correctAnswer": "🌹",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1130,
-    "text": "Which one shows love?",
-    "options": [
-      "❤️",
-      "🍟"
-    ],
-    "correctAnswer": "❤️",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1131,
-    "text": "Which one is for cold weather?",
-    "options": [
-      "❄️",
-      "🔥"
-    ],
-    "correctAnswer": "❄️",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1132,
-    "text": "Which one is a bird?",
-    "options": [
-      "🐦",
-      "🍔"
-    ],
-    "correctAnswer": "🐦",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1133,
-    "text": "Which one is a fruit?",
-    "options": [
-      "🍊",
-      "🚀"
-    ],
-    "correctAnswer": "🍊",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1134,
-    "text": "Which one is for reading?",
-    "options": [
-      "📚",
-      "🍪"
-    ],
-    "correctAnswer": "📚",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1135,
-    "text": "Which one is a vehicle?",
-    "options": [
-      "🚗",
-      "🍓"
-    ],
-    "correctAnswer": "🚗",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1136,
-    "text": "Which one is an insect?",
-    "options": [
-      "🐝",
-      "🍩"
-    ],
-    "correctAnswer": "🐝",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1137,
-    "text": "Which one is the sun?",
-    "options": [
-      "☀️",
-      "🍋"
-    ],
-    "correctAnswer": "☀️",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1138,
-    "text": "Which one is for phones?",
-    "options": [
-      "📱",
-      "🥕"
-    ],
-    "correctAnswer": "📱",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1139,
-    "text": "Which one is a tree?",
-    "options": [
-      "🌳",
-      "🍿"
-    ],
-    "correctAnswer": "🌳",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1140,
-    "text": "Which one is a dessert?",
-    "options": [
-      "🍰",
-      "🚦"
-    ],
-    "correctAnswer": "🍰",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1141,
-    "text": "Which one is a fish?",
-    "options": [
-      "🐟",
-      "🍇"
-    ],
-    "correctAnswer": "🐟",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1142,
-    "text": "Which one is used for time?",
-    "options": [
-      "⏰",
-      "🍍"
-    ],
-    "correctAnswer": "⏰",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1143,
-    "text": "Which one is the moon?",
-    "options": [
-      "🌙",
-      "🍒"
-    ],
-    "correctAnswer": "🌙",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1144,
-    "text": "Which one is for money?",
-    "options": [
-      "💰",
-      "🍦"
-    ],
-    "correctAnswer": "💰",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1145,
-    "text": "Which one is for rain?",
-    "options": [
-      "🌧️",
-      "🍎"
-    ],
-    "correctAnswer": "🌧️",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1146,
-    "text": "Which one is a fruit?",
-    "options": [
-      "🍌",
-      "🚲"
-    ],
-    "correctAnswer": "🍌",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1147,
-    "text": "Which one is for music?",
-    "options": [
-      "🎸",
-      "🥗"
-    ],
-    "correctAnswer": "🎸",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1148,
-    "text": "Which one is for travel?",
-    "options": [
-      "✈️",
-      "🍕"
-    ],
-    "correctAnswer": "✈️",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1149,
-    "text": "Which one is ice cream?",
-    "options": [
-      "🍦",
-      "🎩"
-    ],
-    "correctAnswer": "🍦",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1150,
-    "text": "Which one is for school?",
-    "options": [
-      "🎒",
-      "🍩"
-    ],
-    "correctAnswer": "🎒",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1151,
-    "text": "Which one is a fruit?",
-    "options": [
-      "🍇",
-      "🚀"
-    ],
-    "correctAnswer": "🍇",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1152,
-    "text": "Which one is for fire?",
-    "options": [
-      "🔥",
-      "🍵"
-    ],
-    "correctAnswer": "🔥",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1153,
-    "text": "Which one is a cat?",
-    "options": [
-      "🐱",
-      "🍒"
-    ],
-    "correctAnswer": "🐱",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1154,
-    "text": "Which one is a dog?",
-    "options": [
-      "🐶",
-      "🍉"
-    ],
-    "correctAnswer": "🐶",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1155,
-    "text": "Which one is a car?",
-    "options": [
-      "🚗",
-      "🍍"
-    ],
-    "correctAnswer": "🚗",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1156,
-    "text": "Which one is a book?",
-    "options": [
-      "📖",
-      "🍩"
-    ],
-    "correctAnswer": "📖",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1157,
-    "text": "Which one is a ball?",
-    "options": [
-      "🏀",
-      "🍎"
-    ],
-    "correctAnswer": "🏀",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1158,
-    "text": "Which one is for sleeping?",
-    "options": [
-      "🛏️",
-      "🍇"
-    ],
-    "correctAnswer": "🛏️",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1159,
-    "text": "Which one is for mail?",
-    "options": [
-      "✉️",
-      "🍪"
-    ],
-    "correctAnswer": "✉️",
-    "difficulty": "easy",
-    "category": "Emojis"
-  },
-  {
-    "id": 1160,
-    "text": "For breakfast, I like to eat ___ with butter.",
-    "options": [
-      "🥖",
-      "🐟"
-    ],
-    "correctAnswer": "🥖",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1161,
-    "text": "On a farm, the farmer feeds the ___ in the morning.",
-    "options": [
-      "🐄",
-      "🚗"
-    ],
-    "correctAnswer": "🐄",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1162,
-    "text": "To get to school, I ride the ___ every day.",
-    "options": [
-      "🚌",
-      "🚀"
-    ],
-    "correctAnswer": "🚌",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1163,
-    "text": "On a rainy day, I carry my ___ to stay dry.",
-    "options": [
-      "☂️",
-      "🧊"
-    ],
-    "correctAnswer": "☂️",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1164,
-    "text": "The cat chased the little ___ around the house.",
-    "options": [
-      "🐭",
-      "🐬"
-    ],
-    "correctAnswer": "🐭",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1165,
-    "text": "At night, I sleep in my warm ___",
-    "options": [
-      "🛏️",
-      "🚴"
-    ],
-    "correctAnswer": "🛏️",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1166,
-    "text": "We decorated the Christmas tree with lights and ___",
-    "options": [
-      "🎁",
-      "⚽"
-    ],
-    "correctAnswer": "🎁",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1167,
-    "text": "The teacher writes on the board with a ___",
-    "options": [
-      "✏️",
-      "🍪"
-    ],
-    "correctAnswer": "✏️",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1168,
-    "text": "In the garden, a buzzing ___ landed on a flower.",
-    "options": [
-      "🐝",
-      "🐟"
-    ],
-    "correctAnswer": "🐝",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1169,
-    "text": "We drink fresh ___ with cookies.",
-    "options": [
-      "🥛",
-      "🌽"
-    ],
-    "correctAnswer": "🥛",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1170,
-    "text": "The soccer player kicked the ___ into the goal.",
-    "options": [
-      "⚽",
-      "🥕"
-    ],
-    "correctAnswer": "⚽",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1171,
-    "text": "At the zoo, we saw a giant ___ eating bamboo.",
-    "options": [
-      "🐼",
-      "🐸"
-    ],
-    "correctAnswer": "🐼",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1172,
-    "text": "On my birthday, I blew out candles on my ___",
-    "options": [
-      "🎂",
-      "🎃"
-    ],
-    "correctAnswer": "🎂",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1173,
-    "text": "When it’s hot, I cool down with an ice ___",
-    "options": [
-      "🍦",
-      "📖"
-    ],
-    "correctAnswer": "🍦",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1174,
-    "text": "The baby drank milk from a ___",
-    "options": [
-      "🍼",
-      "🎩"
-    ],
-    "correctAnswer": "🍼",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1175,
-    "text": "We use a ___ to see in the dark.",
-    "options": [
-      "🔦",
-      "🔒"
-    ],
-    "correctAnswer": "🔦",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1176,
-    "text": "The baker made a loaf of fresh ___",
-    "options": [
-      "🍞",
-      "🍓"
-    ],
-    "correctAnswer": "🍞",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1177,
-    "text": "For lunch, I ate a slice of ___",
-    "options": [
-      "🍕",
-      "🎸"
-    ],
-    "correctAnswer": "🍕",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1178,
-    "text": "When it’s cold, I wear gloves and a ___",
-    "options": [
-      "🧣",
-      "🍇"
-    ],
-    "correctAnswer": "🧣",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1179,
-    "text": "In spring, the garden is full of blooming ___",
-    "options": [
-      "🌷",
-      "🥨"
-    ],
-    "correctAnswer": "🌷",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1180,
-    "text": "On the highway, the red ___ drove very fast.",
-    "options": [
-      "🚗",
-      "🚌"
-    ],
-    "correctAnswer": "🚗",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1181,
-    "text": "We played cards and rolled the ___",
-    "options": [
-      "🎲",
-      "🍋"
-    ],
-    "correctAnswer": "🎲",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1182,
-    "text": "In winter, children build a ___",
-    "options": [
-      "⛄",
-      "🎩"
-    ],
-    "correctAnswer": "⛄",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1183,
-    "text": "The fisherman caught a shiny ___",
-    "options": [
-      "🐟",
-      "🐦"
-    ],
-    "correctAnswer": "🐟",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1184,
-    "text": "The clown carried a bunch of colorful ___",
-    "options": [
-      "🎈",
-      "🐙"
-    ],
-    "correctAnswer": "🎈",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1185,
-    "text": "At the party, everyone danced to loud ___",
-    "options": [
-      "🎵",
-      "🥗"
-    ],
-    "correctAnswer": "🎵",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1186,
-    "text": "The farmer harvested ears of ___ from the field.",
-    "options": [
-      "🌽",
-      "🐐"
-    ],
-    "correctAnswer": "🌽",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1187,
-    "text": "We roasted marshmallows over a ___",
-    "options": [
-      "🔥",
-      "💧"
-    ],
-    "correctAnswer": "🔥",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1188,
-    "text": "To see the time, I look at my ___",
-    "options": [
-      "⌚",
-      "🧊"
-    ],
-    "correctAnswer": "⌚",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1189,
-    "text": "At the circus, we saw a huge ___ balancing on a ball.",
-    "options": [
-      "🐘",
-      "🐭"
-    ],
-    "correctAnswer": "🐘",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1190,
-    "text": "The little girl hugged her favorite ___ toy.",
-    "options": [
-      "🧸",
-      "🧄"
-    ],
-    "correctAnswer": "🧸",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1191,
-    "text": "At night, sailors navigate by the shining ___",
-    "options": [
-      "⭐",
-      "🍪"
-    ],
-    "correctAnswer": "⭐",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1192,
-    "text": "In summer, I cool down by swimming in the ___",
-    "options": [
-      "🌊",
-      "🏜️"
-    ],
-    "correctAnswer": "🌊",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1193,
-    "text": "The chef chopped an onion and a red ___",
-    "options": [
-      "🌶️",
-      "🦀"
-    ],
-    "correctAnswer": "🌶️",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1194,
-    "text": "At Easter, children look for hidden ___",
-    "options": [
-      "🥚",
-      "🍩"
-    ],
-    "correctAnswer": "🥚",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1195,
-    "text": "The gardener watered the green ___",
-    "options": [
-      "🌱",
-      "📦"
-    ],
-    "correctAnswer": "🌱",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1196,
-    "text": "On the map, we marked our location with a red ___",
-    "options": [
-      "📍",
-      "🔑"
-    ],
-    "correctAnswer": "📍",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1197,
-    "text": "For dessert, I ate a slice of sweet ___",
-    "options": [
-      "🍉",
-      "🚜"
-    ],
-    "correctAnswer": "🍉",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1198,
-    "text": "The knight held a shining ___",
-    "options": [
-      "🗡️",
-      "🧩"
-    ],
-    "correctAnswer": "🗡️",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1199,
-    "text": "The pilot flew the ___ through the clouds.",
-    "options": [
-      "✈️",
-      "🚂"
-    ],
-    "correctAnswer": "✈️",
-    "difficulty": "medium",
-    "category": "Emojis"
-  },
-  {
-    "id": 1200,
-    "text": "He laughed so hard that tears of ___ ran down his face.",
-    "options": [
-      "😂",
-      "😭"
-    ],
-    "correctAnswer": "😂",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1201,
-    "text": "After running a marathon, she was completely out of ___",
-    "options": [
-      "💨",
-      "🔥"
-    ],
-    "correctAnswer": "💨",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1202,
-    "text": "In the fairy tale, the witch flew away on her ___",
-    "options": [
-      "🧹",
-      "🪄"
-    ],
-    "correctAnswer": "🧹",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1203,
-    "text": "He invested all his money hoping it would go to the ___",
-    "options": [
-      "🌕",
-      "🌞"
-    ],
-    "correctAnswer": "🌕",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1204,
-    "text": "The politician gave a long speech at the ___",
-    "options": [
-      "🎤",
-      "📖"
-    ],
-    "correctAnswer": "🎤",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1205,
-    "text": "She was so cold her teeth started to ___",
-    "options": [
-      "🥶",
-      "🥵"
-    ],
-    "correctAnswer": "🥶",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1206,
-    "text": "In a game of chess, the most powerful piece is the ___",
-    "options": [
-      "👑",
-      "🏰"
-    ],
-    "correctAnswer": "👑",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1207,
-    "text": "They cheered loudly and waved the national ___",
-    "options": [
-      "🏳️",
-      "🇮🇪"
-    ],
-    "correctAnswer": "🏳️",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1208,
-    "text": "At midnight on New Year’s Eve, people set off ___",
-    "options": [
-      "🎆",
-      "🕛"
-    ],
-    "correctAnswer": "🎆",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1209,
-    "text": "She finally put the puzzle ___ together.",
-    "options": [
-      "🧩",
-      "📦"
-    ],
-    "correctAnswer": "🧩",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1210,
-    "text": "To show that the plan was dangerous, he raised a red ___",
-    "options": [
-      "🚩",
-      "🎈"
-    ],
-    "correctAnswer": "🚩",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1211,
-    "text": "The judge’s decision hit him like a ___",
-    "options": [
-      "⚖️",
-      "🔨"
-    ],
-    "correctAnswer": "🔨",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1212,
-    "text": "The detective followed the trail of ___ to solve the case.",
-    "options": [
-      "🩸",
-      "🧩"
-    ],
-    "correctAnswer": "🧩",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1213,
-    "text": "When nervous, he felt butterflies in his ___",
-    "options": [
-      "🦋",
-      "🫀"
-    ],
-    "correctAnswer": "🦋",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1214,
-    "text": "She signed the contract with a fountain ___",
-    "options": [
-      "✒️",
-      "🖌️"
-    ],
-    "correctAnswer": "✒️",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1215,
-    "text": "The pirate’s treasure was hidden in a wooden ___",
-    "options": [
-      "🪙",
-      "🪵"
-    ],
-    "correctAnswer": "🪙",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1216,
-    "text": "To apologize, he brought a bouquet of ___",
-    "options": [
-      "🌹",
-      "🌻"
-    ],
-    "correctAnswer": "🌹",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1217,
-    "text": "The baby slept peacefully in the ___",
-    "options": [
-      "🛏️",
-      "🍼"
-    ],
-    "correctAnswer": "🛏️",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1218,
-    "text": "After the storm, the streets were covered with ___",
-    "options": [
-      "💧",
-      "🍂"
-    ],
-    "correctAnswer": "🍂",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1219,
-    "text": "He guarded the castle with a sharp ___",
-    "options": [
-      "🗡️",
-      "🏹"
-    ],
-    "correctAnswer": "🗡️",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1220,
-    "text": "The scientist recorded his results in a ___",
-    "options": [
-      "📓",
-      "📊"
-    ],
-    "correctAnswer": "📓",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1221,
-    "text": "The angry customer left a one-star ___",
-    "options": [
-      "⭐",
-      "💬"
-    ],
-    "correctAnswer": "⭐",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1222,
-    "text": "In the fairytale, the princess lost her glass ___",
-    "options": [
-      "👠",
-      "👑"
-    ],
-    "correctAnswer": "👠",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1223,
-    "text": "The climber reached the peak of the ___",
-    "options": [
-      "⛰️",
-      "🏝️"
-    ],
-    "correctAnswer": "⛰️",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1224,
-    "text": "She ended the message with a smiling ___",
-    "options": [
-      "😊",
-      "😡"
-    ],
-    "correctAnswer": "😊",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1225,
-    "text": "The knight defended himself with a ___",
-    "options": [
-      "🛡️",
-      "🧤"
-    ],
-    "correctAnswer": "🛡️",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1226,
-    "text": "When she was bored, she started twirling her ___",
-    "options": [
-      "💇",
-      "👂"
-    ],
-    "correctAnswer": "💇",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1227,
-    "text": "On the treasure map, X marked the ___",
-    "options": [
-      "📍",
-      "❌"
-    ],
-    "correctAnswer": "❌",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1228,
-    "text": "The samurai carried a sharp ___",
-    "options": [
-      "⚔️",
-      "🗡️"
-    ],
-    "correctAnswer": "⚔️",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1229,
-    "text": "After the win, the team lifted the golden ___",
-    "options": [
-      "🏆",
-      "🥇"
-    ],
-    "correctAnswer": "🏆",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1230,
-    "text": "He kept all his money hidden in a ___",
-    "options": [
-      "💼",
-      "💰"
-    ],
-    "correctAnswer": "💰",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1231,
-    "text": "The detective lit his pipe and put on his ___",
-    "options": [
-      "🕵️",
-      "🎩"
-    ],
-    "correctAnswer": "🕵️",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1232,
-    "text": "The magician pulled a rabbit out of a ___",
-    "options": [
-      "🎩",
-      "🧙"
-    ],
-    "correctAnswer": "🎩",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1233,
-    "text": "The stormy clouds lit up with flashes of ___",
-    "options": [
-      "⚡",
-      "🔥"
-    ],
-    "correctAnswer": "⚡",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1234,
-    "text": "He looked through the telescope at the red planet ___",
-    "options": [
-      "🔭",
-      "🪐"
-    ],
-    "correctAnswer": "🪐",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1235,
-    "text": "She made a wish and blew out the ___",
-    "options": [
-      "🕯️",
-      "🔥"
-    ],
-    "correctAnswer": "🕯️",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1236,
-    "text": "The warrior rode into battle on a fierce ___",
-    "options": [
-      "🐎",
-      "🐂"
-    ],
-    "correctAnswer": "🐎",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1237,
-    "text": "The poet ended the letter with a red ___",
-    "options": [
-      "❤️",
-      "💔"
-    ],
-    "correctAnswer": "❤️",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1238,
-    "text": "The scientist looked at the cells through a ___",
-    "options": [
-      "🔬",
-      "🔭"
-    ],
-    "correctAnswer": "🔬",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  {
-    "id": 1239,
-    "text": "He got down on one knee and offered her a ___",
-    "options": [
-      "💍",
-      "🎁"
-    ],
-    "correctAnswer": "💍",
-    "difficulty": "hard",
-    "category": "Emojis"
-  },
-  
+"id": 1120,
+"text": "Tap the apple.",
+"options": [
+"🍎",
+"🚗"
+],
+"correctAnswer": "🍎",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1121,
+"text": "Tap the dog.",
+"options": [
+"🐶",
+"🍰"
+],
+"correctAnswer": "🐶",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1122,
+"text": "Tap the sleepy face.",
+"options": [
+"😴",
+"⚽"
+],
+"correctAnswer": "😴",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1123,
+"text": "Tap the carrot.",
+"options": [
+"🥕",
+"🐱"
+],
+"correctAnswer": "🥕",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1124,
+"text": "Tap the hot drink.",
+"options": [
+"☕",
+"🏀"
+],
+"correctAnswer": "☕",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1125,
+"text": "Tap the pencil.",
+"options": [
+"✏️",
+"🍌"
+],
+"correctAnswer": "✏️",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1126,
+"text": "Tap the football.",
+"options": [
+"⚽",
+"🍩"
+],
+"correctAnswer": "⚽",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1127,
+"text": "Tap the pizza.",
+"options": [
+"🍕",
+"🚲"
+],
+"correctAnswer": "🍕",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1128,
+"text": "Tap the music note.",
+"options": [
+"🎵",
+"🐘"
+],
+"correctAnswer": "🎵",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1129,
+"text": "Tap the rose.",
+"options": [
+"🌹",
+"📱"
+],
+"correctAnswer": "🌹",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1130,
+"text": "Tap the heart.",
+"options": [
+"❤️",
+"🍟"
+],
+"correctAnswer": "❤️",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1131,
+"text": "Tap the snowflake.",
+"options": [
+"❄️",
+"🔥"
+],
+"correctAnswer": "❄️",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1132,
+"text": "Tap the bird.",
+"options": [
+"🐦",
+"🍔"
+],
+"correctAnswer": "🐦",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1133,
+"text": "Tap the orange.",
+"options": [
+"🍊",
+"🚀"
+],
+"correctAnswer": "🍊",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1134,
+"text": "Tap the books.",
+"options": [
+"📚",
+"🍪"
+],
+"correctAnswer": "📚",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1135,
+"text": "Tap the car.",
+"options": [
+"🚗",
+"🍓"
+],
+"correctAnswer": "🚗",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1136,
+"text": "Tap the bee.",
+"options": [
+"🐝",
+"🍩"
+],
+"correctAnswer": "🐝",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1137,
+"text": "Tap the sun.",
+"options": [
+"☀️",
+"🍋"
+],
+"correctAnswer": "☀️",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1138,
+"text": "Tap the mobile phone.",
+"options": [
+"📱",
+"🥕"
+],
+"correctAnswer": "📱",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1139,
+"text": "Tap the tree.",
+"options": [
+"🌳",
+"🍿"
+],
+"correctAnswer": "🌳",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1140,
+"text": "Tap the cake.",
+"options": [
+"🍰",
+"🚦"
+],
+"correctAnswer": "🍰",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1141,
+"text": "Tap the fish.",
+"options": [
+"🐟",
+"🍇"
+],
+"correctAnswer": "🐟",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1142,
+"text": "Tap the alarm clock.",
+"options": [
+"⏰",
+"🍍"
+],
+"correctAnswer": "⏰",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1143,
+"text": "Tap the moon.",
+"options": [
+"🌙",
+"🍒"
+],
+"correctAnswer": "🌙",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1144,
+"text": "Tap the money bag.",
+"options": [
+"💰",
+"🍦"
+],
+"correctAnswer": "💰",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1145,
+"text": "Tap the rain cloud.",
+"options": [
+"🌧️",
+"🍎"
+],
+"correctAnswer": "🌧️",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1146,
+"text": "Tap the banana.",
+"options": [
+"🍌",
+"🚲"
+],
+"correctAnswer": "🍌",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1147,
+"text": "Tap the guitar.",
+"options": [
+"🎸",
+"🥗"
+],
+"correctAnswer": "🎸",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1148,
+"text": "Tap the airplane.",
+"options": [
+"✈️",
+"🍕"
+],
+"correctAnswer": "✈️",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1149,
+"text": "Tap the ice cream.",
+"options": [
+"🍦",
+"🎩"
+],
+"correctAnswer": "🍦",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1150,
+"text": "Tap the school bag.",
+"options": [
+"🎒",
+"🍩"
+],
+"correctAnswer": "🎒",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1151,
+"text": "Tap the grapes.",
+"options": [
+"🍇",
+"🚀"
+],
+"correctAnswer": "🍇",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1152,
+"text": "Tap the fire.",
+"options": [
+"🔥",
+"🍵"
+],
+"correctAnswer": "🔥",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1153,
+"text": "Tap the cat.",
+"options": [
+"🐱",
+"🍒"
+],
+"correctAnswer": "🐱",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1154,
+"text": "Tap the dog.",
+"options": [
+"🐶",
+"🍉"
+],
+"correctAnswer": "🐶",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1155,
+"text": "Tap the car.",
+"options": [
+"🚗",
+"🍍"
+],
+"correctAnswer": "🚗",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1156,
+"text": "Tap the open book.",
+"options": [
+"📖",
+"🍩"
+],
+"correctAnswer": "📖",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1157,
+"text": "Tap the basketball.",
+"options": [
+"🏀",
+"🍎"
+],
+"correctAnswer": "🏀",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1158,
+"text": "Tap the bed.",
+"options": [
+"🛏️",
+"🍇"
+],
+"correctAnswer": "🛏️",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1159,
+"text": "Tap the envelope.",
+"options": [
+"✉️",
+"🍪"
+],
+"correctAnswer": "✉️",
+"difficulty": "easy",
+"category": "Emojis"
+},
+{
+"id": 1160,
+"text": "For breakfast, I spread butter on a warm ___.",
+"options": [
+"🥖",
+"🐟"
+],
+"correctAnswer": "🥖",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1161,
+"text": "The farmer milked the ___ before breakfast.",
+"options": [
+"🐄",
+"🚗"
+],
+"correctAnswer": "🐄",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1162,
+"text": "The children rode the ___ to school.",
+"options": [
+"🚌",
+"🚀"
+],
+"correctAnswer": "🚌",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1163,
+"text": "Rain started, so I opened my ___.",
+"options": [
+"☂️",
+"🧊"
+],
+"correctAnswer": "☂️",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1164,
+"text": "The cat chased a tiny ___ across the kitchen.",
+"options": [
+"🐭",
+"🐬"
+],
+"correctAnswer": "🐭",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1165,
+"text": "At night, I got under the blanket in my ___.",
+"options": [
+"🛏️",
+"🚴"
+],
+"correctAnswer": "🛏️",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1166,
+"text": "On Christmas morning, there was a ___ under the tree.",
+"options": [
+"🎁",
+"⚽"
+],
+"correctAnswer": "🎁",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1167,
+"text": "The student used a ___ to write the answer.",
+"options": [
+"✏️",
+"🍪"
+],
+"correctAnswer": "✏️",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1168,
+"text": "A buzzing ___ landed on the flower.",
+"options": [
+"🐝",
+"🐟"
+],
+"correctAnswer": "🐝",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1169,
+"text": "The child drank a glass of ___ with dinner.",
+"options": [
+"🥛",
+"🌽"
+],
+"correctAnswer": "🥛",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1170,
+"text": "The player kicked the ___ into the goal.",
+"options": [
+"⚽",
+"🥕"
+],
+"correctAnswer": "⚽",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1171,
+"text": "At the zoo, the ___ was eating bamboo.",
+"options": [
+"🐼",
+"🐸"
+],
+"correctAnswer": "🐼",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1172,
+"text": "I blew out the candles on my birthday ___.",
+"options": [
+"🎂",
+"🎃"
+],
+"correctAnswer": "🎂",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1173,
+"text": "On a hot day, I bought a cold ___.",
+"options": [
+"🍦",
+"📖"
+],
+"correctAnswer": "🍦",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1174,
+"text": "The baby drank milk from a ___.",
+"options": [
+"🍼",
+"🎩"
+],
+"correctAnswer": "🍼",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1175,
+"text": "During the power cut, we used a ___ to see.",
+"options": [
+"🔦",
+"🔒"
+],
+"correctAnswer": "🔦",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1176,
+"text": "The baker sliced a fresh loaf of ___.",
+"options": [
+"🍞",
+"🍓"
+],
+"correctAnswer": "🍞",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1177,
+"text": "For lunch, I ate a slice of ___.",
+"options": [
+"🍕",
+"🎸"
+],
+"correctAnswer": "🍕",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1178,
+"text": "When it was cold, I wrapped a ___ around my neck.",
+"options": [
+"🧣",
+"🍇"
+],
+"correctAnswer": "🧣",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1179,
+"text": "In spring, a pink ___ bloomed in the garden.",
+"options": [
+"🌷",
+"🥨"
+],
+"correctAnswer": "🌷",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1180,
+"text": "Dad drove the red ___ down the road.",
+"options": [
+"🚗",
+"🧁"
+],
+"correctAnswer": "🚗",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1181,
+"text": "We rolled the ___ to start the board game.",
+"options": [
+"🎲",
+"🍋"
+],
+"correctAnswer": "🎲",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1182,
+"text": "After heavy snow, the children built a ___.",
+"options": [
+"⛄",
+"🎩"
+],
+"correctAnswer": "⛄",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1183,
+"text": "The fisherman caught a ___ in the lake.",
+"options": [
+"🐟",
+"🐦"
+],
+"correctAnswer": "🐟",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1184,
+"text": "The clown carried a bunch of colorful ___.",
+"options": [
+"🎈",
+"🐙"
+],
+"correctAnswer": "🎈",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1185,
+"text": "Everyone danced when the ___ started playing.",
+"options": [
+"🎵",
+"🥗"
+],
+"correctAnswer": "🎵",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1186,
+"text": "The farmer picked yellow ___ from the field.",
+"options": [
+"🌽",
+"🐐"
+],
+"correctAnswer": "🌽",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1187,
+"text": "We roasted marshmallows over the ___.",
+"options": [
+"🔥",
+"💧"
+],
+"correctAnswer": "🔥",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1188,
+"text": "I checked the time on my ___.",
+"options": [
+"⌚",
+"🧊"
+],
+"correctAnswer": "⌚",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1189,
+"text": "At the circus, a huge ___ balanced on a ball.",
+"options": [
+"🐘",
+"🐭"
+],
+"correctAnswer": "🐘",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1190,
+"text": "The child hugged a soft ___ at bedtime.",
+"options": [
+"🧸",
+"🧄"
+],
+"correctAnswer": "🧸",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1191,
+"text": "A bright ___ shone in the night sky.",
+"options": [
+"⭐",
+"🍪"
+],
+"correctAnswer": "⭐",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1192,
+"text": "In summer, I swam in the ___.",
+"options": [
+"🌊",
+"🏜️"
+],
+"correctAnswer": "🌊",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1193,
+"text": "The chef added a spicy red ___ to the sauce.",
+"options": [
+"🌶️",
+"🦀"
+],
+"correctAnswer": "🌶️",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1194,
+"text": "At Easter, children searched for hidden ___.",
+"options": [
+"🥚",
+"🍩"
+],
+"correctAnswer": "🥚",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1195,
+"text": "The gardener watered the tiny green ___.",
+"options": [
+"🌱",
+"📦"
+],
+"correctAnswer": "🌱",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1196,
+"text": "We marked the meeting place on the map with a ___.",
+"options": [
+"📍",
+"🔑"
+],
+"correctAnswer": "📍",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1197,
+"text": "At the picnic, I ate a juicy slice of ___.",
+"options": [
+"🍉",
+"🚜"
+],
+"correctAnswer": "🍉",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1198,
+"text": "The knight held a sharp ___ in battle.",
+"options": [
+"🗡️",
+"🧩"
+],
+"correctAnswer": "🗡️",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1199,
+"text": "The pilot flew the ___ through the clouds.",
+"options": [
+"✈️",
+"🚂"
+],
+"correctAnswer": "✈️",
+"difficulty": "medium",
+"category": "Emojis"
+},
+{
+"id": 1200,
+"text": "Choose the emoji for the phrase “laughing so hard you cry.”",
+"options": [
+"😂",
+"😭"
+],
+"correctAnswer": "😂",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1201,
+"text": "Choose the emoji that completes the phrase “out of breath.”",
+"options": [
+"💨",
+"🔥"
+],
+"correctAnswer": "💨",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1202,
+"text": "In stories, a witch is usually shown flying on a ___.",
+"options": [
+"🧹",
+"🪄"
+],
+"correctAnswer": "🧹",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1203,
+"text": "In crypto slang, “going to the moon” is represented by ___.",
+"options": [
+"🌕",
+"🌞"
+],
+"correctAnswer": "🌕",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1204,
+"text": "Choose the emoji that represents speaking to an audience.",
+"options": [
+"🎤",
+"📖"
+],
+"correctAnswer": "🎤",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1205,
+"text": "Choose the emoji that means freezing cold.",
+"options": [
+"🥶",
+"🥵"
+],
+"correctAnswer": "🥶",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1206,
+"text": "In chess notation, the queen is symbolised by a crown-like royal piece. Choose the best emoji.",
+"options": [
+"👑",
+"🏰"
+],
+"correctAnswer": "👑",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1207,
+"text": "Choose the emoji that means surrender.",
+"options": [
+"🏳️",
+"🇮🇪"
+],
+"correctAnswer": "🏳️",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1208,
+"text": "At midnight on New Year’s Eve, people often set off ___.",
+"options": [
+"🎆",
+"🕛"
+],
+"correctAnswer": "🎆",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1209,
+"text": "Choose the emoji for “the final piece of the puzzle.”",
+"options": [
+"🧩",
+"📦"
+],
+"correctAnswer": "🧩",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1210,
+"text": "Choose the emoji that means a warning sign or problem.",
+"options": [
+"🚩",
+"🎈"
+],
+"correctAnswer": "🚩",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1211,
+"text": "Choose the emoji linked with a judge’s gavel.",
+"options": [
+"⚖️",
+"🔨"
+],
+"correctAnswer": "🔨",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1212,
+"text": "Choose the emoji for a clue that helps solve a mystery.",
+"options": [
+"🩸",
+"🧩"
+],
+"correctAnswer": "🧩",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1213,
+"text": "Choose the emoji for the phrase “butterflies in my stomach.”",
+"options": [
+"🦋",
+"🫀"
+],
+"correctAnswer": "🦋",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1214,
+"text": "Choose the emoji for a fountain pen.",
+"options": [
+"✒️",
+"🖌️"
+],
+"correctAnswer": "✒️",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1215,
+"text": "Choose the emoji that best represents pirate treasure.",
+"options": [
+"🪙",
+"🪵"
+],
+"correctAnswer": "🪙",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1216,
+"text": "Choose the emoji most commonly used for romance.",
+"options": [
+"🌹",
+"🌻"
+],
+"correctAnswer": "🌹",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1217,
+"text": "Choose the emoji that represents a place to sleep.",
+"options": [
+"🛏️",
+"🍼"
+],
+"correctAnswer": "🛏️",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1218,
+"text": "After autumn winds, the path was covered with ___.",
+"options": [
+"💧",
+"🍂"
+],
+"correctAnswer": "🍂",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1219,
+"text": "Choose the emoji for a short sharp blade.",
+"options": [
+"🗡️",
+"🏹"
+],
+"correctAnswer": "🗡️",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1220,
+"text": "A scientist writes observations in a lab ___.",
+"options": [
+"📓",
+"📊"
+],
+"correctAnswer": "📓",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1221,
+"text": "Choose the emoji for a one-star rating.",
+"options": [
+"⭐",
+"💬"
+],
+"correctAnswer": "⭐",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1222,
+"text": "In Cinderella, the princess loses a glass ___.",
+"options": [
+"👠",
+"👑"
+],
+"correctAnswer": "👠",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1223,
+"text": "Choose the emoji for reaching a mountain peak.",
+"options": [
+"⛰️",
+"🏝️"
+],
+"correctAnswer": "⛰️",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1224,
+"text": "Choose the emoji that shows a friendly smile.",
+"options": [
+"😊",
+"😡"
+],
+"correctAnswer": "😊",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1225,
+"text": "Choose the emoji that means protection or defence.",
+"options": [
+"🛡️",
+"🧤"
+],
+"correctAnswer": "🛡️",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1226,
+"text": "Choose the emoji that represents getting a haircut.",
+"options": [
+"💇",
+"👂"
+],
+"correctAnswer": "💇",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1227,
+"text": "On a treasure map, “X marks the spot” is represented by ___.",
+"options": [
+"📍",
+"❌"
+],
+"correctAnswer": "❌",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1228,
+"text": "Choose the emoji that represents crossed swords.",
+"options": [
+"⚔️",
+"🗡️"
+],
+"correctAnswer": "⚔️",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1229,
+"text": "After winning the final, the team lifted the trophy. Choose the emoji.",
+"options": [
+"🏆",
+"🥇"
+],
+"correctAnswer": "🏆",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1230,
+"text": "Choose the emoji for a bag of money.",
+"options": [
+"💼",
+"💰"
+],
+"correctAnswer": "💰",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1231,
+"text": "Choose the emoji for a detective.",
+"options": [
+"🕵️",
+"🎩"
+],
+"correctAnswer": "🕵️",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1232,
+"text": "A magician pulls a rabbit out of a ___.",
+"options": [
+"🎩",
+"🧙"
+],
+"correctAnswer": "🎩",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1233,
+"text": "Choose the emoji for lightning.",
+"options": [
+"⚡",
+"🔥"
+],
+"correctAnswer": "⚡",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1234,
+"text": "Choose the emoji for a planet with rings.",
+"options": [
+"🔭",
+"🪐"
+],
+"correctAnswer": "🪐",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1235,
+"text": "She made a wish and blew out the candle. Choose the emoji.",
+"options": [
+"🕯️",
+"🔥"
+],
+"correctAnswer": "🕯️",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1236,
+"text": "A warrior rode into battle on a ___.",
+"options": [
+"🐎",
+"🐂"
+],
+"correctAnswer": "🐎",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1237,
+"text": "Choose the emoji that represents love, not heartbreak.",
+"options": [
+"❤️",
+"💔"
+],
+"correctAnswer": "❤️",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1238,
+"text": "A scientist uses this to look at tiny cells.",
+"options": [
+"🔬",
+"🔭"
+],
+"correctAnswer": "🔬",
+"difficulty": "hard",
+"category": "Emojis"
+},
+{
+"id": 1239,
+"text": "Getting down on one knee usually means offering a ___.",
+"options": [
+"💍",
+"🎁"
+],
+"correctAnswer": "💍",
+"difficulty": "hard",
+"category": "Emojis"
+},
   {
     "id": 1239,
     "text": "Who sang 'Bad Guy'?",

@@ -4,11 +4,11 @@ import type {
   ClubPaymentMethod,
   PaymentMethodCategory,
   PaymentMethodConfig,
-  InstantPaymentProvider,
+  PaymentProvider,
 } from './payment';
 
 /**
- * DB/meta fields returned by management endpoints
+ * DB/meta fields returned by management endpoints.
  * Matches server/mgtsystem/services/paymentMethodsService.js mapping.
  */
 export interface ClubPaymentMethodWithMeta extends ClubPaymentMethod {
@@ -20,12 +20,20 @@ export interface ClubPaymentMethodWithMeta extends ClubPaymentMethod {
 }
 
 /**
- * Form payload used by PaymentMethodForm.tsx
- * (Matches your route body in POST/PUT)
+ * Form payload used by PaymentMethodForm.tsx.
+ *
+ * This uses camelCase because your React form and management service currently
+ * send camelCase to the backend route:
+ *
+ * methodCategory
+ * providerName
+ * methodLabel
+ * playerInstructions
+ * methodConfig
  */
 export interface PaymentMethodFormData {
   methodCategory: PaymentMethodCategory;
-  providerName: InstantPaymentProvider | string | null;
+  providerName: PaymentProvider | null;
   methodLabel: string;
   playerInstructions: string;
   methodConfig: PaymentMethodConfig | Record<string, any>;
@@ -35,36 +43,46 @@ export interface PaymentMethodFormData {
 }
 
 /**
- * Request type for creating a payment method
+ * Request type for creating a payment method.
+ *
+ * Keep this camelCase to match PaymentMethodsService.ts and the Express route.
  */
 export interface CreatePaymentMethodRequest {
-  method_category: PaymentMethodCategory;
-  provider_name?: InstantPaymentProvider | string;
-  method_label: string;
-  player_instructions?: string;
-  method_config?: PaymentMethodConfig | Record<string, any>;
-  is_enabled?: boolean;
-  display_order?: number;
-  is_official_club_account?: boolean;
+  methodCategory: PaymentMethodCategory;
+  providerName?: PaymentProvider | null;
+  methodLabel: string;
+  playerInstructions?: string;
+  methodConfig?: PaymentMethodConfig | Record<string, any>;
+  isEnabled?: boolean;
+  displayOrder?: number;
+  isOfficialClubAccount?: boolean;
 }
 
 /**
- * Request type for updating a payment method
+ * Request type for updating a payment method.
+ *
+ * Keep this camelCase to match PaymentMethodsService.ts and the Express route.
  */
 export interface UpdatePaymentMethodRequest {
-  method_category?: PaymentMethodCategory;
-  provider_name?: InstantPaymentProvider | string;
-  method_label?: string;
-  player_instructions?: string;
-  method_config?: PaymentMethodConfig | Record<string, any>;
-  is_enabled?: boolean;
-  display_order?: number;
-  is_official_club_account?: boolean;
+  methodCategory?: PaymentMethodCategory;
+  providerName?: PaymentProvider | null;
+  methodLabel?: string;
+  playerInstructions?: string;
+  methodConfig?: PaymentMethodConfig | Record<string, any>;
+  isEnabled?: boolean;
+  displayOrder?: number;
+  isOfficialClubAccount?: boolean;
 }
 
 /**
- * Request type for reordering payment methods
+ * Request type for reordering payment methods.
+ *
+ * Your frontend service sends:
+ * { orders: Array<{ id, displayOrder }> }
  */
 export interface ReorderPaymentMethodsRequest {
-  orders: Array<{ id: string; display_order: number }>;
+  orders: Array<{
+    id: string | number;
+    displayOrder: number;
+  }>;
 }

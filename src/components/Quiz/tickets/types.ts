@@ -9,6 +9,7 @@ export interface RoomInfo {
   fundraisingPrices: Record<string, number>;
   eventDateTime?: string;
   timeZone?: string;
+  fundraisingMode?: 'fixed_fee' | 'donation';
 }
 
 export interface ClubPaymentMethod {
@@ -54,6 +55,8 @@ export interface Ticket {
   redemptionStatus: 'unredeemed' | 'blocked' | 'ready' | 'redeemed' | 'expired';
   paymentMethod: string;
   paymentReference: string;
+  fundraisingMode?: 'fixed_fee' | 'donation';
+donationAmount?: number | null;
 }
 
 export type PurchaseStep = 

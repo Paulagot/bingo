@@ -524,17 +524,24 @@ export function useHostControlsController({
     if (!socket) return;
     const handleHiddenObjectStart = (payload: any) => {
       if (debug) console.log('[Host] Received hidden_object_start:', payload);
-      setHiddenObjectPuzzle({
-        puzzleId: payload.puzzleId,
-        imageUrl: payload.imageUrl,
-        difficulty: payload.difficulty,
-        category: payload.category,
-        totalSeconds: payload.totalSeconds,
-        itemTarget: payload.itemTarget,
-        items: payload.items || [],
-        puzzleNumber: payload.puzzleNumber,
-        totalPuzzles: payload.totalPuzzles
-      });
+   setHiddenObjectPuzzle({
+  puzzleId: String(payload.puzzleId),
+  imageUrl: payload.imageUrl,
+  difficulty: payload.difficulty,
+  category: payload.category,
+  totalSeconds: Number(payload.totalSeconds ?? 0),
+  itemTarget: Number(payload.itemTarget ?? payload.items?.length ?? 0),
+  puzzleNumber: payload.puzzleNumber,
+  totalPuzzles: payload.totalPuzzles,
+  items: Array.isArray(payload.items)
+    ? payload.items.map((it: any) => ({
+        id: String(it.id),
+        label: String(it.label),
+        difficulty: it.difficulty || 'easy',
+        bbox: it.bbox,
+      }))
+    : [],
+});
       setHiddenObjectFoundIds([]);
       setHiddenObjectRemainingSeconds(payload.totalSeconds);
     };

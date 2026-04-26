@@ -46,6 +46,7 @@ import eliminationRoutes from './elimination/routes/eliminationRoutes.js';
 import eliminationDevRoutes from './elimination/routes/eliminationDevRoutes.js';
 import web3TransactionRoutes from './mgtsystem/routes/web3TransactionRoutes.js';
 import web3PublicEventsRoutes from './web3/routes/web3PublicEventsRoutes.js'
+import quizCryptoDonationRoutes from './quiz/api/quizCryptoDonationRouter.js';
 
 
 
@@ -62,6 +63,7 @@ const __dirname = path.dirname(__filename);
 import { v4 as uuidv4 } from 'uuid';
 import { logger, loggers, logRequest, logResponse } from './config/logging.js';
 import web2RoomsApi from './quiz/api/web2-rooms.js';
+import quizTicketCryptoDonationRoutes from './quiz/api/quizTicketCryptoDonationRouter.js';
 import eventIntegrationsApi from './mgtsystem/routes/eventIntegrations.js';
 import paymentMethodsApi from './mgtsystem/routes/paymentMethods.js';
 import reconciliationRoutes from './mgtsystem/routes/quizReconciliation.js';
@@ -80,6 +82,7 @@ import supporterAuthRouter      from './supporters/routes/supporterAuthRoutes.js
 import puzzleSubscriptionRouter from './puzzles/routes/puzzleSubscriptionRoutes.js';
 import web3AuthRoutes from './web3/routes/web3AuthRoutes.js';
 import web3FundraiserRoutes from './web3/routes/web3FundraiserRoutes.js'
+
 
 
 
@@ -368,6 +371,7 @@ app.use('/quiz/api', web2RoomsApi);
 app.use('/', eventIntegrationsApi);
 app.use('/api/payment-methods', paymentMethodsApi);
 app.use('/api/quiz-reconciliation', reconciliationRoutes);
+app.use('/api/quiz/tickets/crypto-donation', quizTicketCryptoDonationRoutes);
 app.use('/api/quiz/tickets', ticketsRouter);
 app.use('/api/quiz/web2', quizStatsRoutes);
 app.use('/api', quizPaymentMethodsRoutes);
@@ -387,6 +391,8 @@ app.use('/api/web3/fundraisers', web3FundraiserRoutes)
 app.use('/api/web3/public-events', web3PublicEventsRoutes)
 app.use('/api/contact', contactRoute);
 app.use('/api/auth/reset', passwordResetRoute);
+app.use('/api/quiz/crypto-donation', quizCryptoDonationRoutes);
+
 
 console.log('✅ Routes setup complete');
 

@@ -1,33 +1,179 @@
 // src/components/mgtsystem/modals/ManagePaymentMethodsModal.tsx
+
 import { useState, useEffect, useMemo } from 'react';
-import { X, Plus, Edit, Trash2, CreditCard, AlertCircle, Building2, User } from 'lucide-react';
+import {
+  X,
+  Plus,
+  Edit,
+  Trash2,
+  CreditCard,
+  AlertCircle,
+  Building2,
+  User,
+  Wallet,
+} from 'lucide-react';
+
 import PaymentMethodForm from './PaymentMethodForm';
 import PaymentMethodsService from '../services/PaymentMethodsService';
 import StripeConnectService from '../services/StripeConnectService';
-import type { ClubPaymentMethodWithMeta, PaymentMethodFormData } from '../../../shared/types/paymentMethods';
+
+import type {
+  ClubPaymentMethodWithMeta,
+  PaymentMethodFormData,
+} from '../../../shared/types/paymentMethods';
 
 interface ManagePaymentMethodsModalProps {
   clubId: string;
   onClose: () => void;
 }
 
-type View = 'list' | 'add' | 'edit';
+type View = 'list' | 'add_instant' | 'add_solana' | 'edit';
 
-// Helper: convert id safely for API that expects number
-const toMethodIdNumber = (id: string) => {
+const toMethodIdNumber = (id: string | number) => {
   const n = Number(id);
   return Number.isFinite(n) ? n : NaN;
 };
 
-export default function ManagePaymentMethodsModal({ clubId, onClose }: ManagePaymentMethodsModalProps) {
+function formatProviderName(providerName?: string | null) {
+  if (!providerName) return '';
+  return providerName.replace(/_/g, ' ');
+}
+
+function PaymentMethodCard({
+  method,
+  loading,
+  deleteConfirm,
+  onEdit,
+  onAskDelete,
+  onDelete,
+  onCancelDelete,
+}: {
+  method: ClubPaymentMethodWithMeta;
+  loading: boolean;
+  deleteConfirm: string | null;
+  onEdit: (method: ClubPaymentMethodWithMeta) => void;
+  onAskDelete: (id: string) => void;
+  onDelete: (id: string) => void;
+  onCancelDelete: () => void;
+}) {
+  const methodId = String(method.id);
+
+  return (
+    <div
+      className={`p-4 rounded-lg border transition-all ${
+        method.isEnabled
+          ? 'border-gray-200 bg-white'
+          : 'border-gray-200 bg-gray-50 opacity-60'
+      }`}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-2">
+            <h3 className="font-semibold text-gray-900 truncate">
+              {method.methodLabel}
+            </h3>
+
+            {!method.isEnabled && (
+              <span className="px-2 py-0.5 bg-gray-200 text-gray-600 text-xs font-semibold rounded">
+                Disabled
+              </span>
+            )}
+
+            {method.isOfficialClubAccount ? (
+              <span title="Official club account">
+                <Building2 className="h-4 w-4 text-indigo-600" />
+              </span>
+            ) : (
+              <span title="Member personal account">
+                <User className="h-4 w-4 text-orange-600" />
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+            <span className="px-2 py-1 bg-gray-100 rounded font-medium">
+              {method.methodCategory.replace('_', ' ')}
+            </span>
+
+            {method.providerName && (
+              <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded font-medium">
+                {formatProviderName(method.providerName)}
+              </span>
+            )}
+          </div>
+
+          {method.methodCategory === 'crypto' &&
+            method.providerName === 'solana_wallet' &&
+            (method.methodConfig as any)?.walletAddress && (
+              <p className="text-xs text-gray-500 mt-2 font-mono break-all">
+                {(method.methodConfig as any).walletAddress}
+              </p>
+            )}
+
+          {method.addedBy && (
+            <p className="text-xs text-gray-500 mt-2">
+              Added by: {method.addedBy}
+              {method.editedBy && ` • Last edited by: ${method.editedBy}`}
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={() => onEdit(method)}
+            disabled={loading}
+            className="p-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition-colors disabled:opacity-50"
+            title="Edit"
+          >
+            <Edit className="h-4 w-4 text-gray-700" />
+          </button>
+
+          {deleteConfirm === methodId ? (
+            <>
+              <button
+                onClick={() => onDelete(methodId)}
+                disabled={loading}
+                className="px-3 py-2 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                Confirm
+              </button>
+
+              <button
+                onClick={onCancelDelete}
+                disabled={loading}
+                className="px-3 py-2 bg-gray-200 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => onAskDelete(methodId)}
+              disabled={loading}
+              className="p-2 rounded-lg border border-red-200 hover:bg-red-50 transition-colors disabled:opacity-50"
+              title="Delete"
+            >
+              <Trash2 className="h-4 w-4 text-red-600" />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function ManagePaymentMethodsModal({
+  clubId,
+  onClose,
+}: ManagePaymentMethodsModalProps) {
   const [view, setView] = useState<View>('list');
   const [methods, setMethods] = useState<ClubPaymentMethodWithMeta[]>([]);
-  const [selectedMethod, setSelectedMethod] = useState<ClubPaymentMethodWithMeta | null>(null);
+  const [selectedMethod, setSelectedMethod] =
+    useState<ClubPaymentMethodWithMeta | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [loadingList, setLoadingList] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // ✅ Fix TS: id is string in your shared types, so keep deleteConfirm as string
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const [stripeBusy, setStripeBusy] = useState(false);
@@ -38,7 +184,6 @@ export default function ManagePaymentMethodsModal({ clubId, onClose }: ManagePay
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clubId]);
 
-  // If we returned from Stripe, verify status + refresh methods, then clean URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const stripeParam = params.get('stripe');
@@ -54,19 +199,32 @@ export default function ManagePaymentMethodsModal({ clubId, onClose }: ManagePay
 
           if (!status?.ok) {
             setStripeStatusMsg(null);
-            setError(status?.message || status?.error || 'Failed to verify Stripe status');
+            setError(
+              status?.message ||
+                status?.error ||
+                'Failed to verify Stripe status'
+            );
             return;
           }
 
           await loadMethods();
 
-          const ready = !!(status.detailsSubmitted && status.chargesEnabled && status.payoutsEnabled);
-          setStripeStatusMsg(ready ? 'Stripe connected ✅' : 'Stripe setup needs attention');
+          const ready = !!(
+            status.detailsSubmitted &&
+            status.chargesEnabled &&
+            status.payoutsEnabled
+          );
 
-          // Clean URL query so refresh doesn't re-trigger
+          setStripeStatusMsg(
+            ready ? 'Stripe connected ✅' : 'Stripe setup needs attention'
+          );
+
           params.delete('stripe');
           const newQs = params.toString();
-          const newUrl = `${window.location.pathname}${newQs ? `?${newQs}` : ''}${window.location.hash || ''}`;
+          const newUrl = `${window.location.pathname}${
+            newQs ? `?${newQs}` : ''
+          }${window.location.hash || ''}`;
+
           window.history.replaceState({}, '', newUrl);
         } catch (e: any) {
           console.error('Stripe return handling failed:', e);
@@ -97,6 +255,16 @@ export default function ManagePaymentMethodsModal({ clubId, onClose }: ManagePay
   const stripeMethod = useMemo(() => {
     return methods.find((m) => m.methodCategory === 'stripe') || null;
   }, [methods]);
+
+  const instantMethods = useMemo(
+    () => methods.filter((m) => m.methodCategory === 'instant_payment'),
+    [methods]
+  );
+
+  const cryptoMethods = useMemo(
+    () => methods.filter((m) => m.methodCategory === 'crypto'),
+    [methods]
+  );
 
   const stripeEnabled = !!stripeMethod?.isEnabled;
 
@@ -140,6 +308,7 @@ export default function ManagePaymentMethodsModal({ clubId, onClose }: ManagePay
       setError(null);
 
       const s = await StripeConnectService.getStatus();
+
       if (!s?.ok) {
         setError(s?.message || s?.error || 'Failed to refresh Stripe status');
       }
@@ -156,8 +325,9 @@ export default function ManagePaymentMethodsModal({ clubId, onClose }: ManagePay
     if (!stripeMethod) return;
 
     const methodIdNum = toMethodIdNumber(stripeMethod.id);
+
     if (!Number.isFinite(methodIdNum)) {
-      setError('Stripe method id is not numeric (cannot update).');
+      setError('Stripe method id is not numeric, cannot update.');
       return;
     }
 
@@ -185,13 +355,21 @@ export default function ManagePaymentMethodsModal({ clubId, onClose }: ManagePay
     }
   };
 
-  const handleAdd = () => {
+  const handleAddInstant = () => {
     setSelectedMethod(null);
-    setView('add');
+    setError(null);
+    setView('add_instant');
+  };
+
+  const handleAddSolana = () => {
+    setSelectedMethod(null);
+    setError(null);
+    setView('add_solana');
   };
 
   const handleEdit = (method: ClubPaymentMethodWithMeta) => {
     setSelectedMethod(method);
+    setError(null);
     setView('edit');
   };
 
@@ -202,8 +380,9 @@ export default function ManagePaymentMethodsModal({ clubId, onClose }: ManagePay
 
       if (view === 'edit' && selectedMethod) {
         const methodIdNum = toMethodIdNumber(selectedMethod.id);
+
         if (!Number.isFinite(methodIdNum)) {
-          setError('Payment method id is not numeric (cannot update).');
+          setError('Payment method id is not numeric, cannot update.');
           return;
         }
 
@@ -228,8 +407,9 @@ export default function ManagePaymentMethodsModal({ clubId, onClose }: ManagePay
 
   const handleDelete = async (methodIdStr: string) => {
     const methodIdNum = toMethodIdNumber(methodIdStr);
+
     if (!Number.isFinite(methodIdNum)) {
-      setError('Payment method id is not numeric (cannot delete).');
+      setError('Payment method id is not numeric, cannot delete.');
       return;
     }
 
@@ -254,11 +434,14 @@ export default function ManagePaymentMethodsModal({ clubId, onClose }: ManagePay
     setError(null);
   };
 
-  // Only show instant payment methods in the list (not stripe)
-  const instantMethods = useMemo(
-    () => methods.filter((m) => m.methodCategory === 'instant_payment'),
-    [methods]
-  );
+  const title =
+    view === 'list'
+      ? 'Payment Methods'
+      : view === 'add_instant'
+        ? 'Add Instant Payment Method'
+        : view === 'add_solana'
+          ? 'Add Solana Wallet'
+          : 'Edit Payment Method';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -269,16 +452,21 @@ export default function ManagePaymentMethodsModal({ clubId, onClose }: ManagePay
             <div className="p-2 rounded-lg bg-indigo-100">
               <CreditCard className="h-5 w-5 text-indigo-600" />
             </div>
+
             <div>
-              <h2 className="text-xl font-bold text-gray-900">
-                {view === 'list' ? 'Payment Methods' : view === 'add' ? 'Add Payment Method' : 'Edit Payment Method'}
-              </h2>
+              <h2 className="text-xl font-bold text-gray-900">{title}</h2>
               <p className="text-sm text-gray-600">
-                {view === 'list' ? 'Manage how players can pay' : 'Configure payment details'}
+                {view === 'list'
+                  ? 'Manage how players can pay'
+                  : 'Configure payment details'}
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          >
             <X className="h-5 w-5 text-gray-500" />
           </button>
         </div>
@@ -287,11 +475,16 @@ export default function ManagePaymentMethodsModal({ clubId, onClose }: ManagePay
         {error && (
           <div className="mx-6 mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+
             <div className="flex-1">
               <p className="text-sm font-semibold text-red-900">Error</p>
               <p className="text-sm text-red-700 mt-1">{error}</p>
             </div>
-            <button onClick={() => setError(null)} className="text-red-600 hover:text-red-700">
+
+            <button
+              onClick={() => setError(null)}
+              className="text-red-600 hover:text-red-700"
+            >
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -300,211 +493,228 @@ export default function ManagePaymentMethodsModal({ clubId, onClose }: ManagePay
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
           {view === 'list' ? (
-            <div className="space-y-4">
+            <div className="space-y-6">
               {/* Stripe Connect Card */}
-              <div className="p-4 rounded-lg border border-indigo-200 bg-indigo-50">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-gray-900">Card payments via Stripe</h3>
+              <section className="space-y-3">
+                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                  Card payments
+                </h3>
 
-                      {!stripeMethod ? (
-                        <span className="px-2 py-0.5 bg-gray-200 text-gray-700 text-xs font-semibold rounded">
-                          Not connected
-                        </span>
-                      ) : !stripeEnabled ? (
-                        <span className="px-2 py-0.5 bg-gray-200 text-gray-700 text-xs font-semibold rounded">
-                          Disabled
-                        </span>
-                      ) : stripeReady ? (
-                        <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs font-semibold rounded">
-                          Connected
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded">
-                          Setup incomplete
-                        </span>
+                <div className="p-4 rounded-lg border border-indigo-200 bg-indigo-50">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-gray-900">
+                          Card payments via Stripe
+                        </h3>
+
+                        {!stripeMethod ? (
+                          <span className="px-2 py-0.5 bg-gray-200 text-gray-700 text-xs font-semibold rounded">
+                            Not connected
+                          </span>
+                        ) : !stripeEnabled ? (
+                          <span className="px-2 py-0.5 bg-gray-200 text-gray-700 text-xs font-semibold rounded">
+                            Disabled
+                          </span>
+                        ) : stripeReady ? (
+                          <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs font-semibold rounded">
+                            Connected
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded">
+                            Setup incomplete
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-sm text-gray-700 mt-1">
+                        Let players pay by card. Funds go directly to your club’s Stripe account.
+                      </p>
+
+                      {stripeStatusMsg && (
+                        <p className="text-xs text-gray-700 mt-2">
+                          {stripeStatusMsg}
+                        </p>
+                      )}
+
+                      {stripeConnect?.accountId && (
+                        <p className="text-xs text-gray-600 mt-2">
+                          Account:{' '}
+                          <span className="font-mono">
+                            {stripeConnect.accountId}
+                          </span>
+                        </p>
+                      )}
+
+                      {stripeMethod && stripeReady && stripeEnabled && (
+                        <p className="text-xs text-green-700 mt-2 font-medium">
+                          ✅ Ready to take card payments
+                        </p>
                       )}
                     </div>
 
-                    <p className="text-sm text-gray-700 mt-1">
-                      Let players pay by card. Funds go directly to your club’s Stripe account.
-                    </p>
+                    <div className="flex flex-col gap-2 flex-shrink-0">
+                      {!stripeReady ? (
+                        <button
+                          onClick={handleStripeConnect}
+                          disabled={stripeBusy}
+                          className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                        >
+                          {stripeMethod ? 'Continue Stripe setup' : 'Connect Stripe'}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={refreshStripeStatus}
+                          disabled={stripeBusy}
+                          className="px-4 py-2 bg-white border border-indigo-300 text-indigo-700 text-sm font-semibold rounded-lg hover:bg-indigo-100 disabled:opacity-50"
+                          title="Re-check Stripe connection"
+                        >
+                          Refresh status
+                        </button>
+                      )}
 
-                    {stripeStatusMsg && (
-                      <p className="text-xs text-gray-700 mt-2">{stripeStatusMsg}</p>
-                    )}
-
-                    {stripeConnect?.accountId && (
-                      <p className="text-xs text-gray-600 mt-2">
-                        Account: <span className="font-mono">{stripeConnect.accountId}</span>
-                      </p>
-                    )}
-
-                    {stripeMethod && stripeReady && stripeEnabled && (
-                      <p className="text-xs text-green-700 mt-2 font-medium">✅ Ready to take card payments</p>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col gap-2 flex-shrink-0">
-                    {/* Connect / Continue setup */}
-                    {!stripeReady ? (
-                      <button
-                        onClick={handleStripeConnect}
-                        disabled={stripeBusy}
-                        className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                      >
-                        {stripeMethod ? 'Continue Stripe setup' : 'Connect Stripe'}
-                      </button>
-                    ) : (
-                      <button
-                        onClick={refreshStripeStatus}
-                        disabled={stripeBusy}
-                        className="px-4 py-2 bg-white border border-indigo-300 text-indigo-700 text-sm font-semibold rounded-lg hover:bg-indigo-100 disabled:opacity-50"
-                        title="Re-check Stripe connection"
-                      >
-                        Refresh status
-                      </button>
-                    )}
-
-                    {/* Enable/Disable (only if stripe method exists) */}
-                    {stripeMethod && (
-                      <button
-                        onClick={() => setStripeEnabled(!stripeEnabled)}
-                        disabled={stripeBusy}
-                        className="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-100 disabled:opacity-50"
-                      >
-                        {stripeEnabled ? 'Disable card payments' : 'Enable card payments'}
-                      </button>
-                    )}
+                      {stripeMethod && (
+                        <button
+                          onClick={() => setStripeEnabled(!stripeEnabled)}
+                          disabled={stripeBusy}
+                          className="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-100 disabled:opacity-50"
+                        >
+                          {stripeEnabled
+                            ? 'Disable card payments'
+                            : 'Enable card payments'}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              </section>
 
-              {/* Add Button */}
-              <button
-                onClick={handleAdd}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-indigo-300 rounded-lg text-indigo-600 font-semibold hover:bg-indigo-50 hover:border-indigo-400 transition-colors"
-              >
-                <Plus className="h-5 w-5" />
-                Add Instant Payment Method
-              </button>
+              {/* Instant Payments */}
+              <section className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                      Instant payments
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      Revolut, bank transfer, PayPal and other manual payment methods.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={handleAddInstant}
+                    className="flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-indigo-300 rounded-lg text-indigo-600 text-sm font-semibold hover:bg-indigo-50 hover:border-indigo-400 transition-colors"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Instant Payment
+                  </button>
+                </div>
+
+                {!loadingList && instantMethods.length === 0 && (
+                  <div className="text-center py-8 rounded-lg border border-dashed border-gray-300">
+                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 mb-3">
+                      <CreditCard className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                      No instant payment methods yet
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      Add Revolut, bank transfer, PayPal, etc.
+                    </p>
+                  </div>
+                )}
+
+                {!loadingList &&
+                  instantMethods.map((method) => (
+                    <PaymentMethodCard
+                      key={method.id}
+                      method={method}
+                      loading={loading}
+                      deleteConfirm={deleteConfirm}
+                      onEdit={handleEdit}
+                      onAskDelete={setDeleteConfirm}
+                      onDelete={handleDelete}
+                      onCancelDelete={() => setDeleteConfirm(null)}
+                    />
+                  ))}
+              </section>
+
+              {/* Crypto Wallets */}
+              <section className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                      Crypto wallets
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      For now, this supports a public Solana wallet for donation-only quiz payments.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={handleAddSolana}
+                    className="flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-purple-300 rounded-lg text-purple-700 text-sm font-semibold hover:bg-purple-50 hover:border-purple-400 transition-colors"
+                  >
+                    <Wallet className="h-4 w-4" />
+                    Add Solana Wallet
+                  </button>
+                </div>
+
+                {!loadingList && cryptoMethods.length === 0 && (
+                  <div className="text-center py-8 rounded-lg border border-dashed border-gray-300">
+                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 mb-3">
+                      <Wallet className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                      No crypto wallets yet
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      Add a Solana wallet to receive crypto donations.
+                    </p>
+                  </div>
+                )}
+
+                {!loadingList &&
+                  cryptoMethods.map((method) => (
+                    <PaymentMethodCard
+                      key={method.id}
+                      method={method}
+                      loading={loading}
+                      deleteConfirm={deleteConfirm}
+                      onEdit={handleEdit}
+                      onAskDelete={setDeleteConfirm}
+                      onDelete={handleDelete}
+                      onCancelDelete={() => setDeleteConfirm(null)}
+                    />
+                  ))}
+              </section>
 
               {/* Loading State */}
               {loadingList && (
                 <div className="text-center py-12">
                   <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-                  <p className="mt-2 text-sm text-gray-600">Loading payment methods...</p>
+                  <p className="mt-2 text-sm text-gray-600">
+                    Loading payment methods...
+                  </p>
                 </div>
               )}
-
-              {/* Empty State */}
-              {!loadingList && instantMethods.length === 0 && (
-                <div className="text-center py-12">
-                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
-                    <CreditCard className="h-8 w-8 text-gray-400" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No instant payment methods yet</h3>
-                  <p className="text-sm text-gray-600">Add Revolut, bank transfer, PayPal, etc.</p>
-                </div>
-              )}
-
-              {/* Methods List (instant_payment only) */}
-              {!loadingList &&
-                instantMethods.map((method) => (
-                  <div
-                    key={method.id}
-                    className={`p-4 rounded-lg border transition-all ${
-                      method.isEnabled ? 'border-gray-200 bg-white' : 'border-gray-200 bg-gray-50 opacity-60'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="font-semibold text-gray-900 truncate">{method.methodLabel}</h3>
-                          {!method.isEnabled && (
-                            <span className="px-2 py-0.5 bg-gray-200 text-gray-600 text-xs font-semibold rounded">
-                              Disabled
-                            </span>
-                          )}
-                          {method.isOfficialClubAccount ? (
-                            <span title="Official club account">
-                              <Building2 className="h-4 w-4 text-indigo-600" />
-                            </span>
-                          ) : (
-                            <span title="Member personal account">
-                              <User className="h-4 w-4 text-orange-600" />
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
-                          <span className="px-2 py-1 bg-gray-100 rounded font-medium">
-                            {method.methodCategory.replace('_', ' ')}
-                          </span>
-                          {method.providerName && (
-                            <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded font-medium">
-                              {method.providerName}
-                            </span>
-                          )}
-                        </div>
-
-                        {method.addedBy && (
-                          <p className="text-xs text-gray-500 mt-2">
-                            Added by: {method.addedBy}
-                            {method.editedBy && ` • Last edited by: ${method.editedBy}`}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <button
-                          onClick={() => handleEdit(method)}
-                          disabled={loading}
-                          className="p-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition-colors disabled:opacity-50"
-                          title="Edit"
-                        >
-                          <Edit className="h-4 w-4 text-gray-700" />
-                        </button>
-
-                        {deleteConfirm === method.id ? (
-                          <>
-                            <button
-                              onClick={() => handleDelete(method.id)}
-                              disabled={loading}
-                              className="px-3 py-2 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
-                            >
-                              Confirm
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirm(null)}
-                              disabled={loading}
-                              className="px-3 py-2 bg-gray-200 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50"
-                            >
-                              Cancel
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            onClick={() => setDeleteConfirm(method.id)}
-                            disabled={loading}
-                            className="p-2 rounded-lg border border-red-200 hover:bg-red-50 transition-colors disabled:opacity-50"
-                            title="Delete"
-                          >
-                            <Trash2 className="h-4 w-4 text-red-600" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
             </div>
           ) : (
-            <PaymentMethodForm method={selectedMethod} onSave={handleSave} onCancel={handleCancel} loading={loading} />
+            <PaymentMethodForm
+              method={selectedMethod}
+              defaultMethodCategory={
+                view === 'add_solana' ? 'crypto' : 'instant_payment'
+              }
+              defaultProviderName={
+                view === 'add_solana' ? 'solana_wallet' : null
+              }
+              onSave={handleSave}
+              onCancel={handleCancel}
+              loading={loading}
+            />
           )}
         </div>
 
-        {/* Footer - Only show on list view */}
         {view === 'list' && (
           <div className="p-6 border-t border-gray-200">
             <button

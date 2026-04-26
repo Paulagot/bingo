@@ -667,7 +667,7 @@
     "images": [
       { "id": "a", "label": "Telegraph", "imageUrl": "/quiz/order_image/telegraph.jpg", "order": 1 },
       { "id": "b", "label": "Landline telephone", "imageUrl": "/quiz/order_image/landline.jpg", "order": 2 },
-      { "id": "c", "label": "Mobile phone", "imageUrl": "/quiz/order_image/mobile.png", "order": 3 },
+      { "id": "c", "label": "Mobile phone", "imageUrl": "/quiz/order_image/mobile.jpg", "order": 3 },
       { "id": "d", "label": "Smartphone", "imageUrl": "/quiz/order_image/smartphone.jpg", "order": 4 }
     ]
   },

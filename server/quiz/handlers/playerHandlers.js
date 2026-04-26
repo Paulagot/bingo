@@ -20,6 +20,7 @@ import { normalizePaymentMethod }  from '../../utils/paymentMethods.js';
 import { 
   createExpectedPayment,
   confirmPayment, 
+  updateDonationLedgerAmount,
 
 } from '../../mgtsystem/services/quizPaymentLedgerService.js'
 
@@ -234,6 +235,11 @@ const sanitizedUser = {
   extraPayments: normalizedExtraPayments,
   socketId: socket.id,
 
+  paymentLedgerRecorded: user.paymentLedgerRecorded === true,
+  paymentStatus: user.paymentStatus || null,
+  web3TxHash: user.web3TxHash || null,
+  web3TransactionId: user.web3TransactionId || null,
+
   donationAmount: isDonationRoom ? normalizedDonationAmount : undefined,
   extras: isDonationRoom
     ? includedDonationExtras
@@ -392,52 +398,75 @@ if (isWeb2 && !joinedViaTicket && !isStripePostJoin) {
     const isDonationRoom = room.config?.fundraisingMode === 'donation';
 
     if (isDonationRoom) {
-      const donationAmount = Number(sanitizedUser.donationAmount ?? 0);
-      const isZeroDonationAutoConfirmed =
-  isDonationRoom &&
-  normalizedDonationAmount === 0 &&
-  !ticketId &&
-  !isStripePostJoin &&
-  normalizedPaymentMethod !== 'stripe';
+  const donationAmount = Number(sanitizedUser.donationAmount ?? 0);
 
-      // ✅ Donation rooms: one ledger row only, amount may be 0
-     await createExpectedPayment({
-  roomId,
-  clubId,
-  playerId: user.id,
-  playerName: sanitizedUser.name,
-  ledgerType: 'entry_fee',
-  amount: donationAmount,
-  currency,
-  paymentMethod: sanitizedUser.paymentMethod,
-  paymentSource: isZeroDonationAutoConfirmed ? 'system_zero_donation' : ledgerSource,
-  status: isZeroDonationAutoConfirmed ? 'confirmed' : ledgerStatus,
-  clubPaymentMethodId: sanitizedUser.clubPaymentMethodId || null,
-  paymentReference: sanitizedUser.paymentReference || null,
-  claimedAt: isZeroDonationAutoConfirmed ? null : claimedAt,
-  confirmedAt: isZeroDonationAutoConfirmed ? new Date() : confirmedAt,
-  confirmedBy: isZeroDonationAutoConfirmed ? 'system_zero_donation' : confirmedBy,
-  confirmedByName: isZeroDonationAutoConfirmed ? 'System' : confirmedByName,
-  confirmedByRole: isZeroDonationAutoConfirmed ? 'admin' : confirmedByRole,
-  ticketId: null,
-  extraMetadata: {
-    fundraisingMode: 'donation',
-    donationAmount,
-    autoConfirmed: isZeroDonationAutoConfirmed,
-  },
-});
+  const isZeroDonationAutoConfirmed =
+    isDonationRoom &&
+    normalizedDonationAmount === 0 &&
+    !ticketId &&
+    !isStripePostJoin &&
+    normalizedPaymentMethod !== 'stripe';
 
-      if (debug) {
-        console.log(`[Ledger] ✅ Created donation ledger entry for ${user.id}`, {
-          donationAmount,
-          paymentMethod: sanitizedUser.paymentMethod,
-          paymentSource: ledgerSource,
-          status: ledgerStatus,
-          isAdminInitiated,
-          paid: sanitizedUser.paid,
-        });
-      }
-    } else {
+  const paymentLedgerAlreadyRecorded =
+    sanitizedUser.paymentLedgerRecorded === true ||
+    (
+      sanitizedUser.paymentMethod === 'crypto' &&
+      !!sanitizedUser.web3TxHash
+    );
+
+  if (paymentLedgerAlreadyRecorded) {
+    if (debug) {
+      console.log('[Ledger] ⏭️ Skipping donation ledger creation because payment was already recorded', {
+        roomId,
+        playerId: user.id,
+        playerName: sanitizedUser.name,
+        paymentMethod: sanitizedUser.paymentMethod,
+        paymentReference: sanitizedUser.paymentReference || null,
+        web3TxHash: sanitizedUser.web3TxHash || null,
+        web3TransactionId: sanitizedUser.web3TransactionId || null,
+        donationAmount,
+      });
+    }
+  } else {
+    // ✅ Donation rooms: one ledger row only, amount may be 0
+    await createExpectedPayment({
+      roomId,
+      clubId,
+      playerId: user.id,
+      playerName: sanitizedUser.name,
+      ledgerType: 'entry_fee',
+      amount: donationAmount,
+      currency,
+      paymentMethod: sanitizedUser.paymentMethod,
+      paymentSource: isZeroDonationAutoConfirmed ? 'system_zero_donation' : ledgerSource,
+      status: isZeroDonationAutoConfirmed ? 'confirmed' : ledgerStatus,
+      clubPaymentMethodId: sanitizedUser.clubPaymentMethodId || null,
+      paymentReference: sanitizedUser.paymentReference || null,
+      claimedAt: isZeroDonationAutoConfirmed ? null : claimedAt,
+      confirmedAt: isZeroDonationAutoConfirmed ? new Date() : confirmedAt,
+      confirmedBy: isZeroDonationAutoConfirmed ? 'system_zero_donation' : confirmedBy,
+      confirmedByName: isZeroDonationAutoConfirmed ? 'System' : confirmedByName,
+      confirmedByRole: isZeroDonationAutoConfirmed ? 'admin' : confirmedByRole,
+      ticketId: null,
+      extraMetadata: {
+        fundraisingMode: 'donation',
+        donationAmount,
+        autoConfirmed: isZeroDonationAutoConfirmed,
+      },
+    });
+
+    if (debug) {
+      console.log(`[Ledger] ✅ Created donation ledger entry for ${user.id}`, {
+        donationAmount,
+        paymentMethod: sanitizedUser.paymentMethod,
+        paymentSource: isZeroDonationAutoConfirmed ? 'system_zero_donation' : ledgerSource,
+        status: isZeroDonationAutoConfirmed ? 'confirmed' : ledgerStatus,
+        isAdminInitiated,
+        paid: sanitizedUser.paid,
+      });
+    }
+  }
+} else {
       const entryFee = parseFloat(room.config?.entryFee || 0);
 
       if (entryFee > 0) {
@@ -705,6 +734,30 @@ socket.on('update_player', async (payload, ack) => {  // ✅ Already async - goo
     } else if (debug) {
       console.log('[update_player] ⏭️ Payment status unchanged - skipping ledger update');
     }
+
+    const isDonationRoom = room.config?.fundraisingMode === 'donation';
+
+if (isDonationRoom && Object.prototype.hasOwnProperty.call(updates, 'donationAmount')) {
+  const donationAmount = Number(updates.donationAmount || 0);
+
+  if (!Number.isFinite(donationAmount) || donationAmount < 0) {
+    return sendAck({ ok: false, error: 'Invalid donation amount' });
+  }
+
+  const ledgerResult = await updateDonationLedgerAmount({
+    roomId,
+    playerId,
+    amount: donationAmount,
+    paymentMethod: nextPaymentMethod,
+    clubPaymentMethodId: updates.clubPaymentMethodId ?? existing.clubPaymentMethodId ?? null,
+  });
+
+  if (!ledgerResult.ok) {
+    return sendAck({ ok: false, error: 'Failed to update donation ledger' });
+  }
+
+  merged.donationAmount = donationAmount;
+}
 
     // ✅ Now update the player in memory
     addOrUpdatePlayer(roomId, merged);

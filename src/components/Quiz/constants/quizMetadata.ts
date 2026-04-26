@@ -33,9 +33,9 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
   questionsPerRound: 6,
   timePerQuestion: 30,
   pointsPerDifficulty: {
-    easy: 4,
-    medium: 5,
-    hard: 6
+    easy: 10,
+    medium: 12,
+    hard: 14
   }
 },
     extras: ['Hint', 'Freeze-out-Team'],// ✅ Optional extras
@@ -56,7 +56,7 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     defaultConfig: {
       totalTimeSeconds: 75,
       skipAllowed: true,
-      pointsPerDifficulty: { easy: 1, medium: 2, hard: 3 },
+      pointsPerDifficulty: { easy: 2, medium: 3, hard: 4 },
       pointsLostPerWrong: 0,
       pointsLostPerUnanswered: 0,
       
@@ -77,9 +77,9 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
      questionsPerRound: 8,
       timePerQuestion: 22,
       pointsPerDifficulty: {
-  easy: 6,
-  medium: 7,
-  hard: 8},},
+  easy: 12,
+  medium: 13,
+  hard: 14},},
     extras: ['Hint', 'Freeze-out-Team', 'Restore Points', 'robPoints'],
     videoId: 'YOUR_YOUTUBE_VIDEO_ID'
   },
@@ -95,7 +95,7 @@ hidden_object: {
   difficulty: 'Easy–Medium',
   bestFor: 'Mixed groups, family events, kids rounds',
  defaultConfig: {
-    questionsPerRound: 2,              // ✅ Multiple puzzles
+    questionsPerRound: 5,              // ✅ Multiple puzzles
     timePerQuestion: 0,                // Not used
     totalTimeSeconds: 0,               // Not used
     hiddenObject: {
@@ -127,12 +127,12 @@ hidden_object: {
     difficulty: 'Easy–Hard',
     bestFor: 'Mixed groups, visual learners, competitive rounds',
     defaultConfig: {
-      questionsPerRound: 4,
+      questionsPerRound: 5,
       timePerQuestion: 30,
       pointsPerDifficulty: {
-        easy: 2,
-        medium: 4,
-        hard: 6
+        easy: 10,
+        medium: 12,
+        hard: 14
       }
     },
     extras: [ 'robPoints']

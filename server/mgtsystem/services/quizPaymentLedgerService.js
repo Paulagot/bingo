@@ -27,19 +27,18 @@ export async function createExpectedPayment({
   paymentSource = 'player_selected',
   clubPaymentMethodId = null,
   paymentReference = null,
+  externalTransactionId = null,
   claimedAt = null,
   extraId = null,
   extraMetadata = null,
   ticketId = null,
   
-  // ✅ NEW: Support admin-assigned confirmed payments
-  status = null,              // explicit status override
+  status = null,
   confirmedAt = null,
   confirmedBy = null,
   confirmedByName = null,
   confirmedByRole = null,
 }) {
-  // ✅ Check if ticket ledger entry already exists
   if (ticketId) {
     const checkSql = `
       SELECT id 
@@ -63,21 +62,19 @@ export async function createExpectedPayment({
         ledgerType,
         extraId
       });
-     return existing[0].id;
+      return existing[0].id;
     }
   }
   
-  // ✅ NEW: Determine status intelligently
-  // Priority: explicit status > confirmed > claimed > expected
   const finalStatus = status || (confirmedAt ? 'confirmed' : (claimedAt ? 'claimed' : 'expected'));
   
   const sql = `
     INSERT INTO ${LEDGER_TABLE}
       (room_id, club_id, player_id, player_name, ledger_type, amount, currency, 
        status, payment_method, payment_source, club_payment_method_id, 
-       payment_reference, claimed_at, confirmed_at, confirmed_by, 
+       payment_reference, external_transaction_id, claimed_at, confirmed_at, confirmed_by, 
        confirmed_by_name, confirmed_by_role, extra_id, extra_metadata, ticket_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
   
   const [result] = await connection.execute(sql, [
@@ -88,31 +85,21 @@ export async function createExpectedPayment({
     ledgerType, 
     amount, 
     currency,
-    finalStatus,                    // ✅ Use calculated status
+    finalStatus,
     paymentMethod, 
     paymentSource, 
     clubPaymentMethodId,
     paymentReference,
+    externalTransactionId,
     claimedAt,
-    confirmedAt,                    // ✅ NEW
-    confirmedBy,                    // ✅ NEW
-    confirmedByName,                // ✅ NEW
-    confirmedByRole,                // ✅ NEW
+    confirmedAt,
+    confirmedBy,
+    confirmedByName,
+    confirmedByRole,
     extraId, 
     extraMetadata ? JSON.stringify(extraMetadata) : null,
     ticketId,
   ]);
-
-  console.trace('[Ledger INSERT createExpectedPayment]', {
-  roomId,
-  playerId,
-  ledgerType,
-  amount,
-  paymentMethod,
-  paymentSource,
-  status,
-  extraMetadata,
-});
   
   return result.insertId;
 }
@@ -279,4 +266,41 @@ export async function webhookConfirmPayment({
   ]);
   
   return result.affectedRows > 0;
+}
+export async function updateDonationLedgerAmount({
+  roomId,
+  playerId,
+  amount,
+  paymentMethod = null,
+  clubPaymentMethodId = null,
+}) {
+  const safeAmount = Number(amount || 0);
+
+  const sql = `
+    UPDATE ${LEDGER_TABLE}
+    SET
+      amount = ?,
+      payment_method = COALESCE(?, payment_method),
+      club_payment_method_id = COALESCE(?, club_payment_method_id),
+      extra_metadata = ?,
+      updated_at = UTC_TIMESTAMP()
+    WHERE room_id = ?
+      AND player_id = ?
+      AND ledger_type = 'entry_fee'
+      AND (ticket_id IS NULL OR ticket_id = '')
+  `;
+
+  const [result] = await connection.execute(sql, [
+    safeAmount,
+    paymentMethod,
+    clubPaymentMethodId,
+    JSON.stringify({
+      fundraisingMode: 'donation',
+      donationAmount: safeAmount,
+    }),
+    roomId,
+    playerId,
+  ]);
+
+  return { ok: result.affectedRows > 0, updated: result.affectedRows };
 }
