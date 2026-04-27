@@ -692,83 +692,160 @@ export async function getRoomTickets(roomId) {
  * Redeem ticket (use to join room)
  * ✅ NEW: Tickets always have priority - they already reserved capacity
  */
+/**
+ * Redeem ticket (use to join room)
+ * ✅ Tickets always have priority - they already reserved capacity
+ * ✅ Donation tickets now return donationAmount even when extras = []
+ */
 export async function redeemTicket({
   joinToken,
   playerId,
 }) {
   // 1. Get ticket
   const ticket = await getTicketByToken(joinToken);
-  
+
   if (!ticket) {
     throw new Error('Invalid ticket token');
   }
-  
+
   // 2. Validate redemption status
   if (ticket.redemption_status === 'redeemed') {
     throw new Error('Ticket already redeemed');
   }
-  
+
   if (ticket.redemption_status === 'blocked') {
     throw new Error('Ticket payment not yet confirmed by host');
   }
-  
+
   if (ticket.redemption_status !== 'ready') {
     throw new Error('Ticket not ready for redemption');
   }
-  
-  // ✅ NOTE: We don't check capacity here because tickets ALWAYS have priority
-  // They already reserved their spot when purchased
-  
+
+  if (ticket.payment_status !== 'payment_confirmed') {
+    throw new Error('Ticket payment is not confirmed');
+  }
+
+  /**
+   * Load room config so we can correctly identify donation rooms.
+   * Do NOT infer donation mode from ticket.extras because Stripe/Revolut
+   * donation tickets may have extras = [].
+   */
+  const roomData = await getRoomConfig(ticket.room_id);
+  const isDonationRoom = roomData?.config?.fundraisingMode === 'donation';
+
   // 3. Mark as redeemed
-const sql = `
-  UPDATE ${TICKETS_TABLE}
-  SET
-    redemption_status = 'redeemed',
-    redeemed_at = UTC_TIMESTAMP(),
-    redeemed_by_player_id = ?,
-    updated_at = UTC_TIMESTAMP()
-  WHERE ticket_id = ?
-`;
-  
+  const sql = `
+    UPDATE ${TICKETS_TABLE}
+    SET
+      redemption_status = 'redeemed',
+      redeemed_at = UTC_TIMESTAMP(),
+      redeemed_by_player_id = ?,
+      updated_at = UTC_TIMESTAMP()
+    WHERE ticket_id = ?
+  `;
+
   await connection.execute(sql, [playerId, ticket.ticket_id]);
-  
+
   // 4. Update ledger entries to link to real player ID
   const tempPlayerId = `ticket_${ticket.ticket_id}`;
-  
+
   await connection.execute(
-    `UPDATE ${TABLE_PREFIX}quiz_payment_ledger 
-     SET player_id = ?, player_name = ? 
+    `UPDATE ${TABLE_PREFIX}quiz_payment_ledger
+     SET player_id = ?, player_name = ?, updated_at = UTC_TIMESTAMP()
      WHERE room_id = ? AND player_id = ?`,
     [playerId, ticket.player_name, ticket.room_id, tempPlayerId]
   );
-  
+
+  // 5. Return ticket data for player join
+  const extras = typeof ticket.extras === 'string'
+    ? JSON.parse(ticket.extras || '[]')
+    : ticket.extras || [];
+
+  const entryFee = Number(ticket.entry_fee || 0);
+  const extrasTotal = Number(ticket.extras_total || 0);
+  const totalAmount = Number(ticket.total_amount || entryFee + extrasTotal || 0);
+
+  const donationAmount = isDonationRoom ? entryFee : null;
+
+  const extraIds = Array.isArray(extras)
+    ? extras
+        .map((extra) => {
+          if (typeof extra === 'string') return extra;
+          return extra?.extraId;
+        })
+        .filter(Boolean)
+    : [];
+
+  const extraPayments = Object.fromEntries(
+    Array.isArray(extras)
+      ? extras
+          .filter((extra) => {
+            if (typeof extra === 'string') return !!extra;
+            return !!extra?.extraId;
+          })
+          .map((extra) => {
+            const extraId = typeof extra === 'string' ? extra : extra.extraId;
+            const amount = typeof extra === 'string' ? 0 : Number(extra.price || 0);
+
+            return [
+              extraId,
+              {
+                method: ticket.payment_method,
+                amount,
+              },
+            ];
+          })
+      : []
+  );
+
   if (DEBUG) {
     console.log('[TicketService] ✅ Ticket redeemed:', {
       ticketId: ticket.ticket_id,
       playerId,
       playerName: ticket.player_name,
+      roomId: ticket.room_id,
+      isDonationRoom,
+      paymentMethod: ticket.payment_method,
+      entryFee,
+      extrasTotal,
+      totalAmount,
+      donationAmount,
+      currency: ticket.currency,
+      paymentReference: ticket.payment_reference,
+      clubPaymentMethodId: ticket.club_payment_method_id,
+      externalTransactionId: ticket.external_transaction_id,
+      extras: extraIds,
+      extraPayments,
     });
   }
-  
-  // 5. Return ticket data for player join
-  const extras = typeof ticket.extras === 'string' 
-    ? JSON.parse(ticket.extras) 
-    : ticket.extras || [];
-  
+
   return {
     ticketId: ticket.ticket_id,
     roomId: ticket.room_id,
     playerName: ticket.player_name,
-    entryFee: parseFloat(ticket.entry_fee),
-    extras: extras.map(e => e.extraId),
-    extraPayments: Object.fromEntries(
-      extras.map(e => [e.extraId, {
-        method: ticket.payment_method,
-        amount: e.price,
-      }])
-    ),
+
+    entryFee,
+    extrasTotal,
+    totalAmount,
+    currency: ticket.currency || 'EUR',
+
+    donationAmount,
+
+    extras: extraIds,
+    extraPayments,
+
     paymentMethod: ticket.payment_method,
-    paid: true, // Always true for confirmed tickets
+    paymentReference: ticket.payment_reference || null,
+    clubPaymentMethodId: ticket.club_payment_method_id || null,
+    externalTransactionId: ticket.external_transaction_id || null,
+
+    paymentClaimed: true,
+    paymentConfirmedBy: ticket.confirmed_by || 'ticket_system',
+    paymentConfirmedByName: ticket.confirmed_by_name || 'System',
+    paymentConfirmedRole: ticket.confirmed_by_role || 'system',
+    paymentConfirmedAt: ticket.confirmed_at || null,
+
+    paid: true,
   };
 }
 
