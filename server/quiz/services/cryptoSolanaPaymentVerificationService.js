@@ -8,15 +8,69 @@ import { insertJoinPayment } from '../../mgtsystem/services/web3TransactionServi
 
 const DEBUG = true;
 
-const SOLANA_RPC = {
-  mainnet:
+/**
+ * Backend Solana RPC resolution.
+ *
+ * Preferred envs:
+ * - SOLANA_MAINNET_RPC_URL / SOLANA_DEVNET_RPC_URL for fully custom RPC URLs
+ * - SOLANA_RPC_URL as a generic mainnet fallback
+ * - SOLANA_ALCHEMY_KEY / ALCHEMY_KEY / VITE_ALCHEMY_KEY to build Alchemy URLs
+ *
+ * NOTE:
+ * VITE_ALCHEMY_KEY is normally a frontend env name, but if it exists in Railway
+ * for the backend service too, Node can still read it through process.env.
+ */
+function buildAlchemySolanaRpc(network) {
+  const key =
+    process.env.SOLANA_ALCHEMY_KEY ||
+    process.env.ALCHEMY_KEY ||
+    process.env.VITE_ALCHEMY_KEY ||
+    null;
+
+  if (!key) return null;
+
+  if (network === 'devnet') {
+    return `https://solana-devnet.g.alchemy.com/v2/${key}`;
+  }
+
+  return `https://solana-mainnet.g.alchemy.com/v2/${key}`;
+}
+
+function maskRpcUrl(url) {
+  return String(url || '').replace(/\/v2\/[^/?#]+/, '/v2/***');
+}
+
+export function getSolanaRpcUrl(network) {
+  const resolved = normalizeNetwork(network);
+
+  if (resolved === 'devnet') {
+    return (
+      process.env.SOLANA_DEVNET_RPC_URL ||
+      buildAlchemySolanaRpc('devnet') ||
+      'https://api.devnet.solana.com'
+    );
+  }
+
+  return (
     process.env.SOLANA_MAINNET_RPC_URL ||
     process.env.SOLANA_RPC_URL ||
-    'https://api.mainnet-beta.solana.com',
-  devnet:
-    process.env.SOLANA_DEVNET_RPC_URL ||
-    'https://api.devnet.solana.com',
-};
+    buildAlchemySolanaRpc('mainnet') ||
+    'https://api.mainnet-beta.solana.com'
+  );
+}
+
+if (DEBUG) {
+  console.log('[CryptoSolanaVerify] RPC env check:', {
+    hasSolanaMainnetRpc: !!process.env.SOLANA_MAINNET_RPC_URL,
+    hasSolanaDevnetRpc: !!process.env.SOLANA_DEVNET_RPC_URL,
+    hasGenericSolanaRpc: !!process.env.SOLANA_RPC_URL,
+    hasSolanaAlchemyKey: !!process.env.SOLANA_ALCHEMY_KEY,
+    hasAlchemyKey: !!process.env.ALCHEMY_KEY,
+    hasViteAlchemyKey: !!process.env.VITE_ALCHEMY_KEY,
+    resolvedMainnetRpc: maskRpcUrl(getSolanaRpcUrl('mainnet')),
+    resolvedDevnetRpc: maskRpcUrl(getSolanaRpcUrl('devnet')),
+  });
+}
 
 export function normalizeNetwork(value) {
   return value === 'devnet' ? 'devnet' : 'mainnet';
@@ -164,6 +218,71 @@ async function tryParseSystemTransferInstruction({ accountKeys, instruction }) {
   }
 }
 
+async function getTransactionWithRetry({
+  conn,
+  txHash,
+  commitment = 'confirmed',
+  maxAttempts = 8,
+  delayMs = 1500,
+}) {
+  let lastNull = false;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const tx = await conn.getTransaction(txHash, {
+        commitment,
+        maxSupportedTransactionVersion: 0,
+      });
+
+      if (tx) {
+        if (DEBUG) {
+          console.log('[CryptoSolanaVerify] ✅ Transaction found:', {
+            txHash: `${txHash.slice(0, 12)}...`,
+            attempt,
+            commitment,
+          });
+        }
+
+        return tx;
+      }
+
+      lastNull = true;
+
+      if (DEBUG) {
+        console.log('[CryptoSolanaVerify] ⏳ Transaction not found yet, retrying:', {
+          txHash: `${txHash.slice(0, 12)}...`,
+          attempt,
+          maxAttempts,
+          commitment,
+        });
+      }
+    } catch (err) {
+      if (DEBUG) {
+        console.warn('[CryptoSolanaVerify] getTransaction attempt failed:', {
+          txHash: `${txHash.slice(0, 12)}...`,
+          attempt,
+          maxAttempts,
+          message: err?.message,
+        });
+      }
+    }
+
+    if (attempt < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  if (DEBUG && lastNull) {
+    console.warn('[CryptoSolanaVerify] ❌ Transaction still not found after retries:', {
+      txHash: `${txHash.slice(0, 12)}...`,
+      maxAttempts,
+      commitment,
+    });
+  }
+
+  return null;
+}
+
 export async function verifyNativeSolTransfer({
   txHash,
   network,
@@ -171,12 +290,28 @@ export async function verifyNativeSolTransfer({
   recipientWallet,
   rawAmount,
 }) {
-  const rpcUrl = SOLANA_RPC[network] || SOLANA_RPC.mainnet;
+  const resolvedNetwork = normalizeNetwork(network);
+  const rpcUrl = getSolanaRpcUrl(resolvedNetwork);
+
+  if (DEBUG) {
+    console.log('[CryptoSolanaVerify] Verifying native SOL transfer:', {
+      txHash: `${String(txHash).slice(0, 12)}...`,
+      network: resolvedNetwork,
+      rpcUrl: maskRpcUrl(rpcUrl),
+      senderWallet,
+      recipientWallet,
+      rawAmount,
+    });
+  }
+
   const conn = new Connection(rpcUrl, 'confirmed');
 
-  const tx = await conn.getTransaction(txHash, {
+  const tx = await getTransactionWithRetry({
+    conn,
+    txHash,
     commitment: 'confirmed',
-    maxSupportedTransactionVersion: 0,
+    maxAttempts: 8,
+    delayMs: 1500,
   });
 
   if (!tx) {
@@ -208,6 +343,15 @@ export async function verifyNativeSolTransfer({
 
     if (!parsed) continue;
 
+    if (DEBUG) {
+      console.log('[CryptoSolanaVerify] Parsed SOL transfer ix:', {
+        from: parsed.from,
+        to: parsed.to,
+        lamports: parsed.lamports,
+        requiredLamports: requiredLamports.toString(),
+      });
+    }
+
     if (
       parsed.from === sender &&
       parsed.to === recipient &&
@@ -231,12 +375,29 @@ export async function verifySplTokenTransfer({
   tokenMint,
   rawAmount,
 }) {
-  const rpcUrl = SOLANA_RPC[network] || SOLANA_RPC.mainnet;
+  const resolvedNetwork = normalizeNetwork(network);
+  const rpcUrl = getSolanaRpcUrl(resolvedNetwork);
+
+  if (DEBUG) {
+    console.log('[CryptoSolanaVerify] Verifying SPL token transfer:', {
+      txHash: `${String(txHash).slice(0, 12)}...`,
+      network: resolvedNetwork,
+      rpcUrl: maskRpcUrl(rpcUrl),
+      senderWallet,
+      recipientWallet,
+      tokenMint,
+      rawAmount,
+    });
+  }
+
   const conn = new Connection(rpcUrl, 'confirmed');
 
-  const tx = await conn.getTransaction(txHash, {
+  const tx = await getTransactionWithRetry({
+    conn,
+    txHash,
     commitment: 'confirmed',
-    maxSupportedTransactionVersion: 0,
+    maxAttempts: 8,
+    delayMs: 1500,
   });
 
   if (!tx) {
@@ -279,6 +440,17 @@ export async function verifySplTokenTransfer({
   const preAmount = BigInt(preRecipient?.uiTokenAmount?.amount || '0');
   const postAmount = BigInt(postRecipient?.uiTokenAmount?.amount || '0');
   const delta = postAmount - preAmount;
+
+  if (DEBUG) {
+    console.log('[CryptoSolanaVerify] SPL recipient balance delta:', {
+      senderAta: senderAta.toBase58(),
+      recipientAta: recipientAta.toBase58(),
+      preAmount: preAmount.toString(),
+      postAmount: postAmount.toString(),
+      delta: delta.toString(),
+      requiredRaw: requiredRaw.toString(),
+    });
+  }
 
   if (delta >= requiredRaw) {
     return { ok: true, tx };
@@ -359,6 +531,24 @@ export async function verifyAndRecordSolanaCryptoDonation({
   }
 
   const resolvedNetwork = normalizeNetwork(network);
+
+  if (DEBUG) {
+    console.log('[CryptoSolanaVerify] Starting verification:', {
+      roomId,
+      playerId,
+      playerName,
+      clubPaymentMethodId,
+      network: resolvedNetwork,
+      txHash: `${String(txHash).slice(0, 12)}...`,
+      senderWallet,
+      recipientWallet,
+      tokenCode,
+      tokenMint,
+      rawAmount,
+      displayAmount,
+      rpcUrl: maskRpcUrl(getSolanaRpcUrl(resolvedNetwork)),
+    });
+  }
 
   const room = await getRoomForCryptoPayment(roomId);
 
@@ -457,6 +647,17 @@ export async function verifyAndRecordSolanaCryptoDonation({
       displayAmount,
       rawAmount,
       web3TransactionId: web3Result.id,
+      donationEur,
+    });
+  }
+
+  if (DEBUG) {
+    console.log('[CryptoSolanaVerify] ✅ Verification and web3 record complete:', {
+      roomId,
+      playerId,
+      txHash: `${String(txHash).slice(0, 12)}...`,
+      web3TransactionId: web3Result.id,
+      duplicate: !!web3Result.duplicate,
       donationEur,
     });
   }
