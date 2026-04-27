@@ -118,16 +118,26 @@ socket.on('join_quiz_room', async (payload) => {
   const isWeb3 = room.config?.paymentMethod === 'web3' || room.config?.isWeb3Room === true;
   
   // ✅ Handle ticket joins - set payment flags
-  if (ticketId) {
-    user.paid = true;
+if (ticketId) {
+  user.paid = true;
+  user.paymentClaimed = true;
+  user.paymentConfirmedBy = user.paymentConfirmedBy || 'ticket_system';
+
+  if (!user.paymentMethod || user.paymentMethod === 'unknown') {
     user.paymentMethod = 'instant_payment';
-    user.paymentClaimed = true;
-    user.paymentConfirmedBy = 'ticket_system';
-    
-    if (debug) {
-      console.log('[Join] 🎟️ Player joining via ticket:', ticketId);
-    }
   }
+
+  if (debug) {
+    console.log('[Join] 🎟️ Player joining via ticket:', {
+      ticketId,
+      paymentMethod: user.paymentMethod,
+      donationAmount: user.donationAmount,
+      totalAmount: user.totalAmount,
+      clubPaymentMethodId: user.clubPaymentMethodId,
+      paymentReference: user.paymentReference,
+    });
+  }
+}
 
   // ✅ Capacity check for Web2 rooms
   if (!isWeb3) {
