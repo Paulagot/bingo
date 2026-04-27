@@ -21,7 +21,7 @@ async function alreadyProcessed(eventId) {
 
 async function markProcessed(eventId, eventType) {
   await connection.execute(
-    `INSERT INTO ${STRIPE_EVENTS_TABLE} (event_id, event_type, processed_at) VALUES (?, ?, NOW())`,
+    `INSERT INTO ${STRIPE_EVENTS_TABLE} (event_id, event_type, processed_at) VALUES (?, ?, UTC_TIMESTAMP())`,
     [eventId, eventType]
   );
 }
@@ -32,12 +32,12 @@ async function confirmTicketAndLedger({ ticketId, sessionId, paymentIntentId }) 
      SET
        payment_status = 'payment_confirmed',
        redemption_status = 'ready',
-       confirmed_at = NOW(),
+       confirmed_at = UTC_TIMESTAMP(),
        confirmed_by = 'webhook_auto',
        confirmed_by_name = 'Stripe',
        confirmed_by_role = 'admin',
        external_transaction_id = COALESCE(external_transaction_id, ?),
-       updated_at = NOW()
+       updated_at = UTC_TIMESTAMP()
      WHERE ticket_id = ?`,
     [paymentIntentId || sessionId, ticketId]
   );
@@ -46,11 +46,11 @@ async function confirmTicketAndLedger({ ticketId, sessionId, paymentIntentId }) 
     `UPDATE ${LEDGER_TABLE}
      SET
        status = 'confirmed',
-       confirmed_at = NOW(),
+       confirmed_at = UTC_TIMESTAMP(),
        confirmed_by = 'webhook_auto',
        payment_source = 'webhook_auto',
        external_transaction_id = COALESCE(external_transaction_id, ?),
-       updated_at = NOW()
+       updated_at = UTC_TIMESTAMP()
      WHERE ticket_id = ?
        AND payment_method = 'stripe'
        AND status IN ('expected','claimed')`,
@@ -59,12 +59,63 @@ async function confirmTicketAndLedger({ ticketId, sessionId, paymentIntentId }) 
 }
 
 async function confirmWalkinLedger({
-  roomId, clubId, playerId, playerName,
-  entryFee, extrasWithPrices, currency,
-  clubPaymentMethodId, sessionId, paymentIntentId,
+  roomId,
+  clubId,
+  playerId,
+  playerName,
+  entryFee,
+  extrasWithPrices,
+  donationAmount,
+  fundraisingMode,
+  currency,
+  clubPaymentMethodId,
+  sessionId,
+  paymentIntentId,
 }) {
   const reference = paymentIntentId || sessionId;
+  const isDonationRoom = fundraisingMode === 'donation';
 
+  console.log('[StripeWebhook] 🧾 confirmWalkinLedger input:', {
+  roomId,
+  playerId,
+  playerName,
+  entryFee,
+  donationAmount,
+  fundraisingMode,
+  isDonationRoom: fundraisingMode === 'donation',
+});
+
+  if (isDonationRoom) {
+    const amount = parseFloat(donationAmount || 0);
+
+    await createExpectedPayment({
+      roomId,
+      clubId,
+      playerId,
+      playerName,
+      ledgerType: 'entry_fee',
+      amount,
+      currency,
+      paymentMethod: 'stripe',
+      paymentSource: 'webhook_auto',
+      clubPaymentMethodId: clubPaymentMethodId ? parseInt(clubPaymentMethodId) : null,
+      paymentReference: reference,
+      status: 'confirmed',
+      confirmedAt: new Date(),
+      confirmedBy: 'webhook_auto',
+      confirmedByName: 'Stripe',
+      confirmedByRole: 'admin',
+      ticketId: null,
+      extraMetadata: {
+        fundraisingMode: 'donation',
+        donationAmount: amount,
+      },
+    });
+
+    return;
+  }
+
+  // existing fixed-fee behavior
   await createExpectedPayment({
     roomId,
     clubId,
@@ -198,23 +249,58 @@ export async function stripeWebhookHandler(req, res) {
         }
 
       // ── Walk-in payment ──────────────────────────────────────
-      } else if (type === 'walkin_payment') {
-        const {
-          roomId, clubId, playerId, playerName,
-          entryFee, currency, clubPaymentMethodId,
-        } = session.metadata;
+    } else if (type === 'walkin_payment') {
+  const {
+    roomId,
+    clubId,
+    playerId,
+    playerName,
+    entryFee,
+    currency,
+    clubPaymentMethodId,
+    donationAmount,
+    fundraisingMode,
+  } = session.metadata || {};
 
-        const extrasWithPrices = JSON.parse(session.metadata.extrasWithPrices || '[]');
+  const extrasWithPrices = JSON.parse(session.metadata?.extrasWithPrices || '[]');
+  console.log('[StripeWebhook] 🧾 Walk-in metadata received:', {
+  roomId,
+  clubId,
+  playerId,
+  playerName,
+  entryFee,
+  donationAmount,
+  fundraisingMode,
+  currency,
+  clubPaymentMethodId,
+  extrasWithPrices,
+  sessionMetadata: session.metadata,
+});
 
-        await confirmWalkinLedger({
-          roomId, clubId, playerId, playerName,
-          entryFee, extrasWithPrices, currency,
-          clubPaymentMethodId,
-          sessionId,
-          paymentIntentId,
-        });
+  await confirmWalkinLedger({
+    roomId,
+    clubId,
+    playerId,
+    playerName,
+    entryFee,
+    extrasWithPrices,
+    donationAmount,
+    fundraisingMode,
+    currency,
+    clubPaymentMethodId,
+    sessionId,
+    paymentIntentId,
+  });
 
-        if (DEBUG) console.log('[StripeWebhook] ✅ Walk-in ledger confirmed:', { roomId, playerId, playerName });
+  if (DEBUG) {
+    console.log('[StripeWebhook] ✅ Walk-in ledger confirmed:', {
+      roomId,
+      playerId,
+      playerName,
+      fundraisingMode,
+      donationAmount,
+    });
+  }
 
       } else {
         console.warn('[StripeWebhook] ⚠️ Unknown metadata type:', type, { sessionId });

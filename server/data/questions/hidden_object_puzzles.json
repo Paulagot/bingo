@@ -201,6 +201,509 @@
       }
     ]
   }
+  ,
+{
+  "id": 3003,
+  "category": "tech",
+  "imageUrl": "/quiz/hidden-object/tech-room.png",
+  "items": [
+    {
+      "id": "a",
+      "label": "Toy Robot",
+      "difficulty": "easy",
+      "bbox": { "x": 0.00, "y": 0.41, "w": 0.11, "h": 0.16 }
+    },
+    {
+      "id": "b",
+      "label": "Drone",
+      "difficulty": "easy",
+      "bbox": { "x": 0.64, "y": 0.06, "w": 0.21, "h": 0.08 }
+    },
+    {
+      "id": "c",
+      "label": "Game Controller",
+      "difficulty": "easy",
+      "bbox": { "x": 0.70, "y": 0.50, "w": 0.15, "h": 0.07 }
+    },
+    {
+      "id": "d",
+      "label": "Backpack",
+      "difficulty": "easy",
+      "bbox": { "x": 0.27, "y": 0.56, "w": 0.14, "h": 0.19 }
+    },
+    {
+      "id": "e",
+      "label": "Calculator",
+      "difficulty": "easy",
+      "bbox": { "x": 0.49, "y": 0.75, "w": 0.11, "h": 0.12 }
+    },
+    {
+      "id": "f",
+      "label": "Smartwatch",
+      "difficulty": "easy",
+      "bbox": { "x": 0.81, "y": 0.86, "w": 0.16, "h": 0.09 }
+    },
+    {
+      "id": "g",
+      "label": "Camera",
+      "difficulty": "medium",
+      "bbox": { "x": 0.22, "y": 0.07, "w": 0.08, "h": 0.06 }
+    },
+    {
+      "id": "h",
+      "label": "Lava Lamp",
+      "difficulty": "medium",
+      "bbox": { "x": 0.66, "y": 0.26, "w": 0.08, "h": 0.11 }
+    },
+    {
+      "id": "i",
+      "label": "USB Flash Drive",
+      "difficulty": "hard",
+      "bbox": { "x": 0.06, "y": 0.56, "w": 0.07, "h": 0.04 }
+    },
+    {
+      "id": "j",
+      "label": "Microchip",
+      "difficulty": "hard",
+      "bbox": { "x": 0.68, "y": 0.84, "w": 0.05, "h": 0.04 }
+    }
+  ]
+},
+ {
+  "id": 3004,
+  "category": "web3",
+  "imageUrl": "/quiz/hidden-object/crypto-desk.png",
+  "items": [
+    {
+      "id": "a",
+      "label": "QR Code Card",
+      "difficulty": "easy",
+      "bbox": { "x": 0.18, "y": 0.62, "w": 0.09, "h": 0.12 }
+    },
+    {
+      "id": "b",
+      "label": "Stack of Bitcoin Coins",
+      "difficulty": "easy",
+      "bbox": { "x": 0.34, "y": 0.61, "w": 0.11, "h": 0.12 }
+    },
+    {
+      "id": "c",
+      "label": "Rocket Figurine",
+      "difficulty": "easy",
+      "bbox": { "x": 0.57, "y": 0.44, "w": 0.08, "h": 0.11 }
+    },
+    {
+      "id": "d",
+      "label": "Globe",
+      "difficulty": "easy",
+      "bbox": { "x": 0.81, "y": 0.46, "w": 0.17, "h": 0.18 }
+    },
+    {
+      "id": "e",
+      "label": "Padlock",
+      "difficulty": "easy",
+      "bbox": { "x": 0.80, "y": 0.74, "w": 0.10, "h": 0.12 }
+    },
+    {
+      "id": "f",
+      "label": "Smartphone",
+      "difficulty": "easy",
+      "bbox": { "x": 0.18, "y": 0.71, "w": 0.19, "h": 0.12 }
+    },
+    {
+      "id": "g",
+      "label": "Purple Cat Figurine",
+      "difficulty": "medium",
+      "bbox": { "x": 0.01, "y": 0.51, "w": 0.12, "h": 0.13 }
+    },
+    {
+      "id": "h",
+      "label": "Coffee Mug",
+      "difficulty": "medium",
+      "bbox": { "x": 0.22, "y": 0.50, "w": 0.12, "h": 0.11 }
+    },
+    {
+      "id": "i",
+      "label": "Hardware Wallet",
+      "difficulty": "hard",
+      "bbox": { "x": 0.00, "y": 0.75, "w": 0.11, "h": 0.05 }
+    },
+    {
+      "id": "j",
+      "label": "Gold Key",
+      "difficulty": "hard",
+      "bbox": { "x": 0.89, "y": 0.82, "w": 0.08, "h": 0.05 }
+    }
+  ]
+},
+[
+  {
+    "id": 3005,
+    "category": "beach",
+    "imageUrl": "/quiz/hidden-object/summer-beach.png",
+    "items": [
+      {
+        "id": "a",
+        "label": "Beach Ball",
+        "difficulty": "easy",
+        "bbox": { "x": 0.125, "y": 0.565, "w": 0.245, "h": 0.165 }
+      },
+      {
+        "id": "b",
+        "label": "Sand Bucket",
+        "difficulty": "easy",
+        "bbox": { "x": 0.520, "y": 0.455, "w": 0.145, "h": 0.130 }
+      },
+      {
+        "id": "c",
+        "label": "Striped Beach Towel",
+        "difficulty": "easy",
+        "bbox": { "x": 0.360, "y": 0.620, "w": 0.420, "h": 0.255 }
+      },
+      {
+        "id": "d",
+        "label": "Sunglasses",
+        "difficulty": "easy",
+        "bbox": { "x": 0.500, "y": 0.735, "w": 0.170, "h": 0.065 }
+      },
+      {
+        "id": "e",
+        "label": "Ice Cream Cone",
+        "difficulty": "easy",
+        "bbox": { "x": 0.665, "y": 0.735, "w": 0.135, "h": 0.135 }
+      },
+      {
+        "id": "f",
+        "label": "Flip-Flops",
+        "difficulty": "easy",
+        "bbox": { "x": 0.015, "y": 0.765, "w": 0.255, "h": 0.160 }
+      },
+      {
+        "id": "g",
+        "label": "Starfish",
+        "difficulty": "medium",
+        "bbox": { "x": 0.335, "y": 0.850, "w": 0.165, "h": 0.095 }
+      },
+      {
+        "id": "h",
+        "label": "Seashell",
+        "difficulty": "medium",
+        "bbox": { "x": 0.285, "y": 0.765, "w": 0.085, "h": 0.060 }
+      },
+      {
+        "id": "i",
+        "label": "Kite",
+        "difficulty": "medium",
+        "bbox": { "x": 0.565, "y": 0.045, "w": 0.145, "h": 0.125 }
+      },
+      {
+        "id": "j",
+        "label": "Sunscreen Bottle",
+        "difficulty": "medium",
+        "bbox": { "x": 0.720, "y": 0.565, "w": 0.075, "h": 0.135 }
+      },
+      {
+        "id": "k",
+        "label": "Wristwatch",
+        "difficulty": "hard",
+        "bbox": { "x": 0.840, "y": 0.815, "w": 0.120, "h": 0.075 }
+      },
+      {
+        "id": "l",
+        "label": "Key",
+        "difficulty": "hard",
+        "bbox": { "x": 0.725, "y": 0.870, "w": 0.105, "h": 0.075 }
+      },
+      {
+        "id": "m",
+        "label": "Message in a Bottle",
+        "difficulty": "hard",
+        "bbox": { "x": 0.530, "y": 0.895, "w": 0.190, "h": 0.080 }
+      },
+      {
+        "id": "n",
+        "label": "Tiny Crab",
+        "difficulty": "hard",
+        "bbox": { "x": 0.455, "y": 0.930, "w": 0.060, "h": 0.040 }
+      }
+    ]
+  },
+  {
+    "id": 3006,
+    "category": "winter",
+    "imageUrl": "/quiz/hidden-object/winter-street.png",
+    "items": [
+      {
+        "id": "a",
+        "label": "Snowman",
+        "difficulty": "easy",
+        "bbox": { "x": 0.555, "y": 0.470, "w": 0.200, "h": 0.330 }
+      },
+      {
+        "id": "b",
+        "label": "Red Sled",
+        "difficulty": "easy",
+        "bbox": { "x": 0.745, "y": 0.705, "w": 0.240, "h": 0.135 }
+      },
+      {
+        "id": "c",
+        "label": "Wrapped Gift",
+        "difficulty": "easy",
+        "bbox": { "x": 0.515, "y": 0.770, "w": 0.140, "h": 0.125 }
+      },
+      {
+        "id": "d",
+        "label": "Mailbox",
+        "difficulty": "easy",
+        "bbox": { "x": 0.785, "y": 0.395, "w": 0.160, "h": 0.255 }
+      },
+      {
+        "id": "e",
+        "label": "Red Scarf",
+        "difficulty": "easy",
+        "bbox": { "x": 0.100, "y": 0.510, "w": 0.190, "h": 0.280 }
+      },
+      {
+        "id": "f",
+        "label": "Hot Drink Cup",
+        "difficulty": "easy",
+        "bbox": { "x": 0.025, "y": 0.790, "w": 0.105, "h": 0.115 }
+      },
+      {
+        "id": "g",
+        "label": "Ice Skate",
+        "difficulty": "medium",
+        "bbox": { "x": 0.285, "y": 0.565, "w": 0.155, "h": 0.130 }
+      },
+      {
+        "id": "h",
+        "label": "Birdhouse",
+        "difficulty": "medium",
+        "bbox": { "x": 0.665, "y": 0.185, "w": 0.115, "h": 0.125 }
+      },
+      {
+        "id": "i",
+        "label": "Blue Mitten",
+        "difficulty": "medium",
+        "bbox": { "x": 0.420, "y": 0.655, "w": 0.095, "h": 0.075 }
+      },
+      {
+        "id": "j",
+        "label": "Lantern",
+        "difficulty": "medium",
+        "bbox": { "x": 0.420, "y": 0.765, "w": 0.100, "h": 0.130 }
+      },
+      {
+        "id": "k",
+        "label": "Pocket Watch",
+        "difficulty": "hard",
+        "bbox": { "x": 0.325, "y": 0.850, "w": 0.105, "h": 0.095 }
+      },
+      {
+        "id": "l",
+        "label": "Key",
+        "difficulty": "hard",
+        "bbox": { "x": 0.050, "y": 0.920, "w": 0.190, "h": 0.055 }
+      },
+      {
+        "id": "m",
+        "label": "Snow Globe",
+        "difficulty": "hard",
+        "bbox": { "x": 0.130, "y": 0.790, "w": 0.145, "h": 0.145 }
+      },
+      {
+        "id": "n",
+        "label": "Small Bell",
+        "difficulty": "hard",
+        "bbox": { "x": 0.465, "y": 0.905, "w": 0.065, "h": 0.075 }
+      }
+    ]
+  }
+],
+[
+  {
+    "id": 3007,
+    "category": "sweet_shop",
+    "imageUrl": "/quiz/hidden-object/sweet-shop.png",
+    "items": [
+      {
+        "id": "a",
+        "label": "Giant Swirly Lollipop",
+        "difficulty": "easy",
+        "bbox": { "x": 0.000, "y": 0.485, "w": 0.270, "h": 0.260 }
+      },
+      {
+        "id": "b",
+        "label": "Cupcake with Pink Frosting",
+        "difficulty": "easy",
+        "bbox": { "x": 0.170, "y": 0.635, "w": 0.205, "h": 0.230 }
+      },
+      {
+        "id": "c",
+        "label": "Jar of Jelly Beans",
+        "difficulty": "easy",
+        "bbox": { "x": 0.560, "y": 0.565, "w": 0.210, "h": 0.275 }
+      },
+      {
+        "id": "d",
+        "label": "Ice Cream Cone",
+        "difficulty": "easy",
+        "bbox": { "x": 0.805, "y": 0.470, "w": 0.185, "h": 0.335 }
+      },
+      {
+        "id": "e",
+        "label": "Donut with Sprinkles",
+        "difficulty": "easy",
+        "bbox": { "x": 0.500, "y": 0.750, "w": 0.210, "h": 0.115 }
+      },
+      {
+        "id": "f",
+        "label": "Bow-Tied Gift Box",
+        "difficulty": "easy",
+        "bbox": { "x": 0.380, "y": 0.625, "w": 0.170, "h": 0.230 }
+      },
+      {
+        "id": "g",
+        "label": "Striped Candy Cane",
+        "difficulty": "medium",
+        "bbox": { "x": 0.525, "y": 0.535, "w": 0.070, "h": 0.195 }
+      },
+      {
+        "id": "h",
+        "label": "Chocolate Bar",
+        "difficulty": "medium",
+        "bbox": { "x": 0.490, "y": 0.890, "w": 0.160, "h": 0.075 }
+      },
+      {
+        "id": "i",
+        "label": "Gummy Bear",
+        "difficulty": "medium",
+        "bbox": { "x": 0.170, "y": 0.850, "w": 0.105, "h": 0.125 }
+      },
+      {
+        "id": "j",
+        "label": "Toy Train",
+        "difficulty": "medium",
+        "bbox": { "x": 0.515, "y": 0.185, "w": 0.275, "h": 0.095 }
+      },
+      {
+        "id": "k",
+        "label": "Star Cookie",
+        "difficulty": "hard",
+        "bbox": { "x": 0.275, "y": 0.890, "w": 0.145, "h": 0.090 }
+      },
+      {
+        "id": "l",
+        "label": "Spoon",
+        "difficulty": "hard",
+        "bbox": { "x": 0.395, "y": 0.835, "w": 0.105, "h": 0.145 }
+      },
+      {
+        "id": "m",
+        "label": "Wrapped Peppermint Candy",
+        "difficulty": "hard",
+        "bbox": { "x": 0.720, "y": 0.855, "w": 0.135, "h": 0.080 }
+      },
+      {
+        "id": "n",
+        "label": "Golden Key",
+        "difficulty": "hard",
+        "bbox": { "x": 0.820, "y": 0.900, "w": 0.175, "h": 0.060 }
+      }
+    ]
+  },
+  {
+    "id": 3008,
+    "category": "office",
+    "imageUrl": "/quiz/hidden-object/busy-office.png",
+    "items": [
+      {
+        "id": "a",
+        "label": "Coffee Mug",
+        "difficulty": "easy",
+        "bbox": { "x": 0.025, "y": 0.640, "w": 0.135, "h": 0.175 }
+      },
+      {
+        "id": "b",
+        "label": "Laptop",
+        "difficulty": "easy",
+        "bbox": { "x": 0.045, "y": 0.485, "w": 0.390, "h": 0.275 }
+      },
+      {
+        "id": "c",
+        "label": "Desk Plant",
+        "difficulty": "easy",
+        "bbox": { "x": 0.375, "y": 0.480, "w": 0.210, "h": 0.210 }
+      },
+      {
+        "id": "d",
+        "label": "Headphones",
+        "difficulty": "easy",
+        "bbox": { "x": 0.690, "y": 0.660, "w": 0.235, "h": 0.135 }
+      },
+      {
+        "id": "e",
+        "label": "Calculator",
+        "difficulty": "easy",
+        "bbox": { "x": 0.405, "y": 0.765, "w": 0.165, "h": 0.150 }
+      },
+      {
+        "id": "f",
+        "label": "Smartphone",
+        "difficulty": "easy",
+        "bbox": { "x": 0.790, "y": 0.760, "w": 0.165, "h": 0.130 }
+      },
+      {
+        "id": "g",
+        "label": "Stapler",
+        "difficulty": "medium",
+        "bbox": { "x": 0.145, "y": 0.780, "w": 0.165, "h": 0.100 }
+      },
+      {
+        "id": "h",
+        "label": "Scissors",
+        "difficulty": "medium",
+        "bbox": { "x": 0.270, "y": 0.865, "w": 0.185, "h": 0.115 }
+      },
+      {
+        "id": "i",
+        "label": "Paper Airplane",
+        "difficulty": "medium",
+        "bbox": { "x": 0.270, "y": 0.350, "w": 0.145, "h": 0.055 }
+      },
+      {
+        "id": "j",
+        "label": "USB Flash Drive",
+        "difficulty": "medium",
+        "bbox": { "x": 0.735, "y": 0.905, "w": 0.115, "h": 0.045 }
+      },
+      {
+        "id": "k",
+        "label": "Paperclip",
+        "difficulty": "hard",
+        "bbox": { "x": 0.650, "y": 0.870, "w": 0.065, "h": 0.055 }
+      },
+      {
+        "id": "l",
+        "label": "Red Push Pin",
+        "difficulty": "hard",
+        "bbox": { "x": 0.555, "y": 0.905, "w": 0.045, "h": 0.040 }
+      },
+      {
+        "id": "m",
+        "label": "Small Key",
+        "difficulty": "hard",
+        "bbox": { "x": 0.480, "y": 0.920, "w": 0.080, "h": 0.045 }
+      },
+      {
+        "id": "n",
+        "label": "Pair of Glasses",
+        "difficulty": "hard",
+        "bbox": { "x": 0.815, "y": 0.390, "w": 0.100, "h": 0.055 }
+      }
+    ]
+  }
+]
 ]
 
 

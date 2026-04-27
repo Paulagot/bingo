@@ -98,23 +98,23 @@ const quizTemplates: QuizTemplate[] = [
   rounds: [
         {
       type: 'order_image',  // ✅ NEW round type
-      category: 'Art',  // or 'Historical Events', 'Size Comparison', 'Age Order'
+      category: 'Technology',  // or 'Historical Events', 'Size Comparison', 'Age Order'
       difficulty: 'easy',  // easy, medium, or hard
       customConfig: {
-        questionsPerRound: 2,  // Number of ordering questions
+        questionsPerRound: 5,  // Number of ordering questions
         timePerQuestion: 30,   // 30 seconds per question
         pointsPerDifficulty: { easy: 2, medium: 4, hard: 6 },
-      },},
+      }},
       
     // {
     //   type: 'hidden_object',
-    //   category: 'kids',
+    //   category: 'all',
     //   difficulty: 'hard',
     //   customConfig: {
     //     // keep consistent with your RoundConfig shape
-    //     questionsPerRound: 2,
+    //     questionsPerRound: 5,
     //     timePerQuestion: 0,
-    //     totalTimeSeconds: 15, // ✅ round duration
+    //     totalTimeSeconds: 10, // ✅ round duration
     //     // optional if you added nested config:
     //     // hiddenObject: { secondsToPoints: 1 }
     //   }

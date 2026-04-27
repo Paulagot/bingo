@@ -1,6 +1,6 @@
 // server/quiz/quizSocketHandler.js
 
-console.log("🔥 Running quizSocketHandler at:", import.meta.url);
+// console.log("🔥 Running quizSocketHandler at:", import.meta.url);
 
 import { setupHostHandlers } from './handlers/hostHandlers.js';
 import { setupPlayerHandlers } from './handlers/playerHandlers.js';
@@ -14,13 +14,13 @@ import { setupReconciliationApprovalHandlers } from './handlers/reconciliationAp
 
 
 export function setupQuizSocketHandlers(quizNamespace) {
-  console.log('📡 [quiz] Quiz socket handlers setting up');
+  // console.log('📡 [quiz] Quiz socket handlers setting up');
 
   quizNamespace.on('connection', (socket) => {
-    console.log(`🧠 [quiz] Client connected: ${socket.id}`);
+    // console.log(`🧠 [quiz] Client connected: ${socket.id}`);
 
     const socketRooms = socket.rooms ? [...socket.rooms] : [];
-    console.log(`[Debug] Socket ${socket.id} is in rooms:`, socketRooms);
+    // console.log(`[Debug] Socket ${socket.id} is in rooms:`, socketRooms);
 
     setupHostHandlers(socket, quizNamespace);
     setupPlayerHandlers(socket, quizNamespace);
@@ -33,7 +33,7 @@ export function setupQuizSocketHandlers(quizNamespace) {
 
 
   socket.on('disconnect', () => {
-  console.log(`❌ [quiz] Client disconnected: ${socket.id}`);
+  // console.log(`❌ [quiz] Client disconnected: ${socket.id}`);
   
   const rooms = Array.from(socket.rooms);
   
@@ -56,7 +56,7 @@ export function setupQuizSocketHandlers(quizNamespace) {
       const CLEANUP_DELAY = 90 * 60 * 1000; // 1.5 hours
       
       room.cleanupTimer = setTimeout(() => {
-        console.log(`🗑️ [quiz] Cleaning up abandoned room ${roomId} after 1.5 hours of host inactivity`);
+        // console.log(`🗑️ [quiz] Cleaning up abandoned room ${roomId} after 1.5 hours of host inactivity`);
         
         // Notify any remaining players
         io.of('/quiz').to(roomId).emit('quiz_cancelled', {
@@ -68,7 +68,7 @@ export function setupQuizSocketHandlers(quizNamespace) {
         removeQuizRoom(roomId);
       }, CLEANUP_DELAY);
       
-      console.log(`⏰ [quiz] Cleanup timer set for room ${roomId} (90 minutes)`);
+      // console.log(`⏰ [quiz] Cleanup timer set for room ${roomId} (90 minutes)`);
     }
   });
 });

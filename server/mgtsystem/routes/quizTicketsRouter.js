@@ -60,6 +60,8 @@ router.get('/room/:roomId/info', async (req, res) => {
       clubId,
       status,
       hostName: config.hostName,
+       fundraisingMode: config.fundraisingMode || 'fixed_fee',
+  entryFee: parseFloat(config.entryFee || 0),
       entryFee: parseFloat(config.entryFee || 0),
       currencySymbol: config.currencySymbol || '€',
       fundraisingOptions: config.fundraisingOptions || {},
@@ -88,17 +90,18 @@ router.get('/room/:roomId/info', async (req, res) => {
  */
 router.post('/create-with-payment', async (req, res) => {
   try {
-    const {
-      roomId,
-      purchaserName,
-      purchaserEmail,
-      purchaserPhone,
-      playerName,
-      selectedExtras,
-      paymentMethod,
-      paymentReference,
-      clubPaymentMethodId,
-    } = req.body;
+   const {
+  roomId,
+  purchaserName,
+  purchaserEmail,
+  purchaserPhone,
+  playerName,
+  selectedExtras,
+  donationAmount,
+  paymentMethod,
+  paymentReference,
+  clubPaymentMethodId,
+} = req.body;
     
     if (!roomId || !purchaserName || !purchaserEmail || !paymentMethod || !paymentReference) {
       return res.status(400).json({ 
@@ -110,17 +113,18 @@ router.post('/create-with-payment', async (req, res) => {
       return res.status(400).json({ error: 'Invalid email address' });
     }
     
-    const ticket = await createTicketWithPayment({
-      roomId,
-      purchaserName: purchaserName.trim(),
-      purchaserEmail: purchaserEmail.trim(),
-      purchaserPhone: purchaserPhone?.trim() || null,
-      playerName: playerName?.trim() || null,
-      selectedExtras: Array.isArray(selectedExtras) ? selectedExtras : [],
-      paymentMethod,
-      paymentReference,
-      clubPaymentMethodId: clubPaymentMethodId || null,
-    });
+const ticket = await createTicketWithPayment({
+  roomId,
+  purchaserName: purchaserName.trim(),
+  purchaserEmail: purchaserEmail.trim(),
+  purchaserPhone: purchaserPhone?.trim() || null,
+  playerName: playerName?.trim() || null,
+  selectedExtras: Array.isArray(selectedExtras) ? selectedExtras : [],
+  donationAmount,
+  paymentMethod,
+  paymentReference,
+  clubPaymentMethodId: clubPaymentMethodId || null,
+});
     
     if (DEBUG) {
       console.log('[Tickets API] ✅ Ticket created with payment:', ticket.ticketId);
@@ -171,15 +175,16 @@ router.post('/create-with-payment', async (req, res) => {
 
 router.post('/stripe/checkout', async (req, res) => {
   try {
-    const {
-      roomId,
-      purchaserName,
-      purchaserEmail,
-      purchaserPhone,
-      playerName,
-      selectedExtras,
-      appOrigin,
-    } = req.body;
+  const {
+  roomId,
+  purchaserName,
+  purchaserEmail,
+  purchaserPhone,
+  playerName,
+  selectedExtras,
+  donationAmount,
+  appOrigin,
+} = req.body;
 
     if (!roomId || !purchaserName || !purchaserEmail) {
       return res.status(400).json({ error: 'missing_required_fields' });
@@ -189,15 +194,16 @@ router.post('/stripe/checkout', async (req, res) => {
       return res.status(400).json({ error: 'Invalid email address' });
     }
 
-    const result = await createTicketAndStripeSession({
-      roomId,
-      purchaserName: purchaserName.trim(),
-      purchaserEmail: purchaserEmail.trim(),
-      purchaserPhone: purchaserPhone?.trim() || null,
-      playerName: playerName?.trim() || null,
-      selectedExtras: Array.isArray(selectedExtras) ? selectedExtras : [],
-      appOrigin,
-    });
+const result = await createTicketAndStripeSession({
+  roomId,
+  purchaserName: purchaserName.trim(),
+  purchaserEmail: purchaserEmail.trim(),
+  purchaserPhone: purchaserPhone?.trim() || null,
+  playerName: playerName?.trim() || null,
+  selectedExtras: Array.isArray(selectedExtras) ? selectedExtras : [],
+  donationAmount,
+  appOrigin,
+});
 
     return res.status(200).json({ ok: true, url: result.url, ticketId: result.ticketId });
   } catch (err) {

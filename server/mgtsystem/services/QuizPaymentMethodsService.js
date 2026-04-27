@@ -88,7 +88,7 @@ class QuizPaymentMethodsService {
     await database.connection.execute(
       `UPDATE fundraisely_web2_quiz_rooms 
        SET linked_payment_methods_json = ?,
-           updated_at = NOW()
+           updated_at = UTC_TIMESTAMP()
        WHERE room_id = ? AND club_id = ?`,
       [JSON.stringify(linkedData), roomId, clubId]
     );

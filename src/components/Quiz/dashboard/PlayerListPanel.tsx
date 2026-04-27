@@ -39,6 +39,7 @@ const PlayerListPanel: React.FC = () => {
 
   const currency = config?.currencySymbol || '€';
   const entryFee = Number(config?.entryFee) || 0;
+  const isDonationRoom = config?.fundraisingMode === 'donation';
 
   // Asset room gating for room-level QR
   const isAssetRoom = isWeb3 && config?.prizeMode === 'assets';
@@ -145,14 +146,29 @@ const PlayerListPanel: React.FC = () => {
   ).length;
 
   // Total owed helper
-  const getPlayerTotals = (player: any) => {
-    const extrasTotal = (player.extras || []).reduce(
-      (sum: number, key: string) => sum + (config?.fundraisingPrices?.[key] || 0),
-      0
-    );
-    const total = entryFee + extrasTotal;
-    return { extrasTotal, total };
+const getPlayerTotals = (player: any) => {
+  if (isDonationRoom) {
+    const donationAmount = Number(player?.donationAmount ?? 0) || 0;
+    return {
+      extrasTotal: 0,
+      total: donationAmount,
+      donationAmount,
+    };
+  }
+
+  const extrasTotal = (player.extras || []).reduce(
+    (sum: number, key: string) => sum + (config?.fundraisingPrices?.[key] || 0),
+    0
+  );
+
+  const total = entryFee + extrasTotal;
+
+  return {
+    extrasTotal,
+    total,
+    donationAmount: 0,
   };
+};
 
   // ✅ NEW: Confirm payment handler (Step 2B will fully implement socket handler)
  const handleConfirmPayment = (playerId: string) => {
@@ -327,7 +343,7 @@ const PlayerListPanel: React.FC = () => {
                   const isShowingQR = selectedPlayerId === player.id;
                   const isCopied = copiedId === player.id;
 
-                  const { extrasTotal, total } = getPlayerTotals(player);
+                  const { extrasTotal, total, donationAmount } = getPlayerTotals(player);
 
                   // ✅ NEW: Determine payment status for badges
                   const isPaid = !!player.paid;
@@ -388,26 +404,39 @@ const PlayerListPanel: React.FC = () => {
                             )}
 
                             {/* Amount owed */}
-                            <div className="mb-2 text-xs text-gray-700">
-                              <span className="font-semibold">
-                                Total: {currency}
-                                {total.toFixed(2)}
-                              </span>
-                              {' · '}
-                              <span>
-                                Entry {currency}
-                                {entryFee.toFixed(2)}
-                              </span>
-                              {extrasTotal > 0 && (
-                                <>
-                                  {' + Extras '}
-                                  <span>
-                                    {currency}
-                                    {extrasTotal.toFixed(2)}
-                                  </span>
-                                </>
-                              )}
-                            </div>
+                          <div className="mb-2 text-xs text-gray-700">
+  <span className="font-semibold">
+    Total: {currency}
+    {total.toFixed(2)}
+  </span>
+
+  {isDonationRoom ? (
+    <>
+      {' · '}
+      <span>
+        Donation {currency}
+        {donationAmount.toFixed(2)}
+      </span>
+    </>
+  ) : (
+    <>
+      {' · '}
+      <span>
+        Entry {currency}
+        {entryFee.toFixed(2)}
+      </span>
+      {extrasTotal > 0 && (
+        <>
+          {' + Extras '}
+          <span>
+            {currency}
+            {extrasTotal.toFixed(2)}
+          </span>
+        </>
+      )}
+    </>
+  )}
+</div>
 
                             {/* Extras */}
                             {allExtras.length > 0 && (

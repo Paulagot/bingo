@@ -16,6 +16,7 @@ import {
 import ReconciliationService from '../services/QuizReconciliationService';
 
 interface ReconciliationData {
+  fundraisingMode?: 'fixed_fee' | 'donation';
   startingEntryFees: number;
   startingExtras: number;
   startingTotal: number;
@@ -229,6 +230,7 @@ export function QuizFinancialReportModal({
   }
 
   const { reconciliation, tickets, onNightPayments, latePayments, instantPaymentBreakdown } = report;
+  const isDonationRoom = reconciliation?.fundraisingMode === 'donation';
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -256,7 +258,7 @@ export function QuizFinancialReportModal({
 
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
                 <div className="bg-white rounded p-2 border border-gray-200">
-                  <p className="text-xs text-gray-600">Entry Fees</p>
+                  <p className="text-xs text-gray-600">{isDonationRoom ? 'Donations' : 'Entry Fees'}</p>
                   <p className="text-base font-bold text-gray-900">
                     {formatCurrency(reconciliation.startingEntryFees)}
                   </p>
@@ -486,7 +488,10 @@ export function QuizFinancialReportModal({
                       </div>
                       <p className="text-base font-bold text-blue-600 ml-2">{formatCurrency(payment.total)}</p>
                     </div>
-                    <p className="text-xs text-gray-600">{payment.count} transactions</p>
+                   <p className="text-xs text-gray-600">
+  {payment.players} players • {formatCurrency(payment.nonLateTotal)} on-time
+  {payment.lateTotal > 0 ? ` • ${formatCurrency(payment.lateTotal)} late` : ''}
+</p>
                   </div>
                 ))}
               </div>

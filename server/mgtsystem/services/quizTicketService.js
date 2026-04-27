@@ -15,6 +15,16 @@ const WEB2_ROOMS_TABLE = `${TABLE_PREFIX}web2_quiz_rooms`;
 
 const DEBUG = true;
 
+function parseMysqlUtcDateTime(value) {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+
+  // MySQL DATETIME like "2026-04-22 19:30:00" has no timezone marker.
+  // Treat stored values as UTC.
+  const parsed = new Date(`${value}Z`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 /**
  * Get room configuration from database
  * Returns null if room not found or is Web3
@@ -81,6 +91,7 @@ export async function createTicketWithPayment({
   purchaserPhone = null,
   playerName = null,
   selectedExtras = [],
+  donationAmount = null,
   paymentMethod,
   paymentReference,
   clubPaymentMethodId = null,
@@ -118,15 +129,34 @@ export async function createTicketWithPayment({
   const { clubId, config } = roomData;
   
   // 2. Calculate pricing
-  const entryFee = parseFloat(config.entryFee || 0);
-  const currency = config.currencySymbol === '€' ? 'EUR' 
-                 : config.currencySymbol === '£' ? 'GBP' 
-                 : config.currencySymbol === '$' ? 'USD'
-                 : 'EUR';
-  
-  let extrasTotal = 0;
-  const extrasWithPrices = [];
-  
+const isDonationRoom = config?.fundraisingMode === 'donation';
+
+let entryFee = 0;
+let extrasTotal = 0;
+let totalAmount = 0;
+const extrasWithPrices = [];
+
+const currency = config.currencySymbol === '€' ? 'EUR' 
+               : config.currencySymbol === '£' ? 'GBP' 
+               : config.currencySymbol === '$' ? 'USD'
+               : 'EUR';
+
+if (isDonationRoom) {
+  const parsedDonation = Number(donationAmount);
+
+  if (!Number.isFinite(parsedDonation) || parsedDonation <= 0) {
+    throw new Error('invalid_donation_amount_for_ticket');
+  }
+
+  entryFee = parsedDonation;
+  extrasTotal = 0;
+  totalAmount = parsedDonation;
+
+  // Donation tickets include enabled extras automatically.
+  // Do not create priced extra rows.
+} else {
+  entryFee = parseFloat(config.entryFee || 0);
+
   for (const extraId of selectedExtras) {
     const price = config.fundraisingPrices?.[extraId] || 0;
     if (price > 0) {
@@ -134,8 +164,9 @@ export async function createTicketWithPayment({
       extrasWithPrices.push({ extraId, price });
     }
   }
-  
-  const totalAmount = entryFee + extrasTotal;
+
+  totalAmount = entryFee + extrasTotal;
+}
   
   // 3. Generate unique IDs
   const ticketId = nanoid(12);
@@ -176,23 +207,31 @@ export async function createTicketWithPayment({
   // 5. Create ledger entries (entry fee)
   const playerId = `ticket_${ticketId}`;
   
-  const ledgerId = await createExpectedPayment({
-    roomId,
-    clubId,
-    playerId,
-    playerName: playerName || purchaserName,
-    ledgerType: 'entry_fee',
-    amount: entryFee,
-    currency,
-    paymentMethod,
-    paymentSource: 'player_claimed',
-    clubPaymentMethodId,
-    paymentReference,
-    claimedAt: new Date(),
-    ticketId: ticketId,
-  });
+const ledgerId = await createExpectedPayment({
+  roomId,
+  clubId,
+  playerId,
+  playerName: playerName || purchaserName,
+  ledgerType: 'entry_fee',
+  amount: entryFee,
+  currency,
+  paymentMethod,
+  paymentSource: 'player_claimed',
+  clubPaymentMethodId,
+  paymentReference,
+  claimedAt: new Date(),
+  ticketId,
+  extraMetadata: isDonationRoom
+    ? {
+        fundraisingMode: 'donation',
+        donationAmount: entryFee,
+      }
+    : null,
+});
   
-  // 6. Create ledger entries (extras)
+// 6. Create ledger entries (extras)
+// Fixed-fee tickets only. Donation tickets include extras automatically.
+if (!isDonationRoom) {
   for (const extra of extrasWithPrices) {
     await createExpectedPayment({
       roomId,
@@ -209,9 +248,10 @@ export async function createTicketWithPayment({
       claimedAt: new Date(),
       extraId: extra.extraId,
       extraMetadata: extra,
-      ticketId: ticketId,
+      ticketId,
     });
   }
+}
   
   // 7. Update ticket with ledger ID
   await connection.execute(
@@ -232,24 +272,291 @@ export async function createTicketWithPayment({
     });
   }
   
+return {
+  ticketId,
+  joinToken,
+  roomId,
+  clubId,
+  purchaserName,
+  purchaserEmail,
+  playerName: playerName || purchaserName,
+  entryFee,
+  extrasTotal,
+  totalAmount,
+  currency,
+  extras: extrasWithPrices,
+  fundraisingMode: isDonationRoom ? 'donation' : 'fixed_fee',
+  donationAmount: isDonationRoom ? entryFee : null,
+  paymentStatus: 'payment_claimed',
+  redemptionStatus: 'blocked',
+  paymentMethod,
+  paymentReference,
+  clubPaymentMethodId,
+};
+}
+
+/**
+ * Create a donation ticket after a crypto payment has already been verified on-chain.
+ *
+ * Used by the crypto ticket donation route.
+ *
+ * Difference from createTicketWithPayment:
+ * - payment is already verified
+ * - ticket is immediately payment_confirmed + ready
+ * - ledger row is confirmed + onchain_auto
+ * - no host manual confirmation required
+ */
+export async function createCryptoDonationTicketWithConfirmedPayment({
+  roomId,
+  purchaserName,
+  purchaserEmail,
+  purchaserPhone = null,
+  playerName = null,
+
+  amountEur = 0,
+  currency = 'EUR',
+
+  clubPaymentMethodId,
+  paymentReference,
+  externalTransactionId,
+  web3TransactionId = null,
+
+  tokenCode = null,
+  cryptoAmount = null,
+  cryptoRawAmount = null,
+  network = 'mainnet',
+  senderWallet = null,
+  recipientWallet = null,
+
+  includedDonationExtras = [],
+}) {
+  // 0. Capacity check first
+  const capacityCheck = await canPurchaseTickets(roomId, 1);
+
+  if (!capacityCheck.allowed) {
+    if (DEBUG) {
+      console.log('[TicketService] 🚫 Crypto ticket purchase blocked:', {
+        roomId,
+        reason: capacityCheck.reason,
+        capacity: capacityCheck.capacity,
+      });
+    }
+
+    throw new Error(capacityCheck.reason);
+  }
+
+  // 1. Get room config
+  const roomData = await getRoomConfig(roomId);
+
+  if (!roomData) {
+    throw new Error('Room not found or not available for ticket purchase');
+  }
+
+  const { clubId, config } = roomData;
+
+  const isDonationRoom = config?.fundraisingMode === 'donation';
+
+  if (!isDonationRoom) {
+    throw new Error('crypto_tickets_only_supported_for_donation_rooms');
+  }
+
+  if (currency !== 'EUR') {
+    throw new Error('crypto_ticket_donations_currently_support_eur_only');
+  }
+
+  const safeAmountEur = Number(amountEur);
+
+  if (!Number.isFinite(safeAmountEur) || safeAmountEur < 0) {
+    throw new Error('invalid_crypto_ticket_donation_amount');
+  }
+
+  if (!clubPaymentMethodId) {
+    throw new Error('clubPaymentMethodId is required');
+  }
+
+  if (!paymentReference || !externalTransactionId) {
+    throw new Error('paymentReference and externalTransactionId are required');
+  }
+
+  // Donation tickets include enabled extras automatically.
+  // Store them on the ticket so redemption gives the player those extras.
+  const extrasForTicket = Array.isArray(includedDonationExtras)
+    ? includedDonationExtras.map((extraId) => ({
+        extraId,
+        price: 0,
+        included: true,
+        source: 'donation_room',
+      }))
+    : [];
+
+  const ticketId = nanoid(12);
+  const joinToken = nanoid(16);
+  const tempPlayerId = `ticket_${ticketId}`;
+  const finalPlayerName = playerName || purchaserName;
+  const now = new Date();
+
+  // 2. Insert ticket as already confirmed and ready
+  const ticketSql = `
+    INSERT INTO ${TICKETS_TABLE}
+      (
+        ticket_id,
+        room_id,
+        club_id,
+        purchaser_name,
+        purchaser_email,
+        purchaser_phone,
+        player_name,
+        entry_fee,
+        extras,
+        extras_total,
+        total_amount,
+        currency,
+        payment_status,
+        payment_method,
+        payment_reference,
+        club_payment_method_id,
+        redemption_status,
+        join_token,
+        confirmed_at,
+        confirmed_by,
+        confirmed_by_name,
+        confirmed_by_role,
+        created_at,
+        updated_at
+      )
+    VALUES
+      (
+        ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?,
+        'payment_confirmed',
+        'crypto',
+        ?, ?,
+        'ready',
+        ?,
+        UTC_TIMESTAMP(),
+        'system',
+        'System',
+        'system',
+        UTC_TIMESTAMP(),
+        UTC_TIMESTAMP()
+      )
+  `;
+
+  await connection.execute(ticketSql, [
+    ticketId,
+    roomId,
+    clubId,
+    purchaserName,
+    purchaserEmail,
+    purchaserPhone,
+    finalPlayerName,
+    safeAmountEur,
+    JSON.stringify(extrasForTicket),
+    0,
+    safeAmountEur,
+    currency,
+    paymentReference,
+    clubPaymentMethodId,
+    joinToken,
+  ]);
+
+  // 3. Create one confirmed ledger row for the donation amount
+  const ledgerId = await createExpectedPayment({
+    roomId,
+    clubId,
+    playerId: tempPlayerId,
+    playerName: finalPlayerName,
+    ledgerType: 'entry_fee',
+    amount: safeAmountEur,
+    currency,
+
+    paymentMethod: 'crypto',
+    paymentSource: 'onchain_auto',
+    status: 'confirmed',
+
+    clubPaymentMethodId,
+    paymentReference,
+    externalTransactionId,
+
+    claimedAt: now,
+    confirmedAt: now,
+    confirmedBy: 'system',
+    confirmedByName: 'System',
+    confirmedByRole: 'system',
+
+    ticketId,
+
+    extraMetadata: {
+      fundraisingMode: 'donation',
+      donationAmount: safeAmountEur,
+      autoConfirmed: true,
+
+      source: 'crypto_ticket',
+      chain: 'solana',
+      network,
+      token: tokenCode,
+      cryptoAmount: cryptoAmount != null ? String(cryptoAmount) : null,
+      cryptoRawAmount: cryptoRawAmount != null ? String(cryptoRawAmount) : null,
+
+      web3TransactionId,
+      senderWallet,
+      recipientWallet,
+      includedDonationExtras,
+    },
+  });
+
+  // 4. Attach main ledger row to ticket
+  await connection.execute(
+    `
+    UPDATE ${TICKETS_TABLE}
+    SET ledger_id = ?, updated_at = UTC_TIMESTAMP()
+    WHERE ticket_id = ?
+    `,
+    [ledgerId, ticketId]
+  );
+
+  if (DEBUG) {
+    console.log('[TicketService] ✅ Crypto donation ticket created as confirmed/ready:', {
+      ticketId,
+      roomId,
+      purchaserName,
+      finalPlayerName,
+      amountEur: safeAmountEur,
+      currency,
+      paymentReference,
+      web3TransactionId,
+      clubPaymentMethodId,
+    });
+  }
+
   return {
     ticketId,
     joinToken,
     roomId,
     clubId,
+
     purchaserName,
     purchaserEmail,
-    playerName: playerName || purchaserName,
-    entryFee,
-    extrasTotal,
-    totalAmount,
+    purchaserPhone,
+    playerName: finalPlayerName,
+
+    entryFee: safeAmountEur,
+    extrasTotal: 0,
+    totalAmount: safeAmountEur,
     currency,
-    extras: extrasWithPrices,
-    paymentStatus: 'payment_claimed',
-    redemptionStatus: 'blocked',
-    paymentMethod,
+    extras: extrasForTicket,
+
+    fundraisingMode: 'donation',
+    donationAmount: safeAmountEur,
+
+    paymentStatus: 'payment_confirmed',
+    redemptionStatus: 'ready',
+    paymentMethod: 'crypto',
     paymentReference,
+    externalTransactionId,
     clubPaymentMethodId,
+    web3TransactionId,
+    ledgerId,
   };
 }
 
@@ -268,18 +575,18 @@ export async function confirmTicketPayment({
   if (ticket.payment_status === 'payment_confirmed') throw new Error('Ticket payment already confirmed');
 
   const sql = `
-    UPDATE ${TICKETS_TABLE}
-    SET
-      payment_status = 'payment_confirmed',
-      redemption_status = 'ready',
-      confirmed_at = NOW(),
-      confirmed_by = ?,
-      confirmed_by_name = ?,
-      confirmed_by_role = ?,
-      admin_notes = ?,
-      updated_at = NOW()
-    WHERE ticket_id = ?
-  `;
+  UPDATE ${TICKETS_TABLE}
+  SET
+    payment_status = 'payment_confirmed',
+    redemption_status = 'ready',
+    confirmed_at = UTC_TIMESTAMP(),
+    confirmed_by = ?,
+    confirmed_by_name = ?,
+    confirmed_by_role = ?,
+    admin_notes = ?,
+    updated_at = UTC_TIMESTAMP()
+  WHERE ticket_id = ?
+`;
 
   await connection.execute(sql, [
     confirmedBy,
@@ -385,83 +692,160 @@ export async function getRoomTickets(roomId) {
  * Redeem ticket (use to join room)
  * ✅ NEW: Tickets always have priority - they already reserved capacity
  */
+/**
+ * Redeem ticket (use to join room)
+ * ✅ Tickets always have priority - they already reserved capacity
+ * ✅ Donation tickets now return donationAmount even when extras = []
+ */
 export async function redeemTicket({
   joinToken,
   playerId,
 }) {
   // 1. Get ticket
   const ticket = await getTicketByToken(joinToken);
-  
+
   if (!ticket) {
     throw new Error('Invalid ticket token');
   }
-  
+
   // 2. Validate redemption status
   if (ticket.redemption_status === 'redeemed') {
     throw new Error('Ticket already redeemed');
   }
-  
+
   if (ticket.redemption_status === 'blocked') {
     throw new Error('Ticket payment not yet confirmed by host');
   }
-  
+
   if (ticket.redemption_status !== 'ready') {
     throw new Error('Ticket not ready for redemption');
   }
-  
-  // ✅ NOTE: We don't check capacity here because tickets ALWAYS have priority
-  // They already reserved their spot when purchased
-  
+
+  if (ticket.payment_status !== 'payment_confirmed') {
+    throw new Error('Ticket payment is not confirmed');
+  }
+
+  /**
+   * Load room config so we can correctly identify donation rooms.
+   * Do NOT infer donation mode from ticket.extras because Stripe/Revolut
+   * donation tickets may have extras = [].
+   */
+  const roomData = await getRoomConfig(ticket.room_id);
+  const isDonationRoom = roomData?.config?.fundraisingMode === 'donation';
+
   // 3. Mark as redeemed
   const sql = `
     UPDATE ${TICKETS_TABLE}
     SET
       redemption_status = 'redeemed',
-      redeemed_at = NOW(),
+      redeemed_at = UTC_TIMESTAMP(),
       redeemed_by_player_id = ?,
-      updated_at = NOW()
+      updated_at = UTC_TIMESTAMP()
     WHERE ticket_id = ?
   `;
-  
+
   await connection.execute(sql, [playerId, ticket.ticket_id]);
-  
+
   // 4. Update ledger entries to link to real player ID
   const tempPlayerId = `ticket_${ticket.ticket_id}`;
-  
+
   await connection.execute(
-    `UPDATE ${TABLE_PREFIX}quiz_payment_ledger 
-     SET player_id = ?, player_name = ? 
+    `UPDATE ${TABLE_PREFIX}quiz_payment_ledger
+     SET player_id = ?, player_name = ?, updated_at = UTC_TIMESTAMP()
      WHERE room_id = ? AND player_id = ?`,
     [playerId, ticket.player_name, ticket.room_id, tempPlayerId]
   );
-  
+
+  // 5. Return ticket data for player join
+  const extras = typeof ticket.extras === 'string'
+    ? JSON.parse(ticket.extras || '[]')
+    : ticket.extras || [];
+
+  const entryFee = Number(ticket.entry_fee || 0);
+  const extrasTotal = Number(ticket.extras_total || 0);
+  const totalAmount = Number(ticket.total_amount || entryFee + extrasTotal || 0);
+
+  const donationAmount = isDonationRoom ? entryFee : null;
+
+  const extraIds = Array.isArray(extras)
+    ? extras
+        .map((extra) => {
+          if (typeof extra === 'string') return extra;
+          return extra?.extraId;
+        })
+        .filter(Boolean)
+    : [];
+
+  const extraPayments = Object.fromEntries(
+    Array.isArray(extras)
+      ? extras
+          .filter((extra) => {
+            if (typeof extra === 'string') return !!extra;
+            return !!extra?.extraId;
+          })
+          .map((extra) => {
+            const extraId = typeof extra === 'string' ? extra : extra.extraId;
+            const amount = typeof extra === 'string' ? 0 : Number(extra.price || 0);
+
+            return [
+              extraId,
+              {
+                method: ticket.payment_method,
+                amount,
+              },
+            ];
+          })
+      : []
+  );
+
   if (DEBUG) {
     console.log('[TicketService] ✅ Ticket redeemed:', {
       ticketId: ticket.ticket_id,
       playerId,
       playerName: ticket.player_name,
+      roomId: ticket.room_id,
+      isDonationRoom,
+      paymentMethod: ticket.payment_method,
+      entryFee,
+      extrasTotal,
+      totalAmount,
+      donationAmount,
+      currency: ticket.currency,
+      paymentReference: ticket.payment_reference,
+      clubPaymentMethodId: ticket.club_payment_method_id,
+      externalTransactionId: ticket.external_transaction_id,
+      extras: extraIds,
+      extraPayments,
     });
   }
-  
-  // 5. Return ticket data for player join
-  const extras = typeof ticket.extras === 'string' 
-    ? JSON.parse(ticket.extras) 
-    : ticket.extras || [];
-  
+
   return {
     ticketId: ticket.ticket_id,
     roomId: ticket.room_id,
     playerName: ticket.player_name,
-    entryFee: parseFloat(ticket.entry_fee),
-    extras: extras.map(e => e.extraId),
-    extraPayments: Object.fromEntries(
-      extras.map(e => [e.extraId, {
-        method: ticket.payment_method,
-        amount: e.price,
-      }])
-    ),
+
+    entryFee,
+    extrasTotal,
+    totalAmount,
+    currency: ticket.currency || 'EUR',
+
+    donationAmount,
+
+    extras: extraIds,
+    extraPayments,
+
     paymentMethod: ticket.payment_method,
-    paid: true, // Always true for confirmed tickets
+    paymentReference: ticket.payment_reference || null,
+    clubPaymentMethodId: ticket.club_payment_method_id || null,
+    externalTransactionId: ticket.external_transaction_id || null,
+
+    paymentClaimed: true,
+    paymentConfirmedBy: ticket.confirmed_by || 'ticket_system',
+    paymentConfirmedByName: ticket.confirmed_by_name || 'System',
+    paymentConfirmedRole: ticket.confirmed_by_role || 'system',
+    paymentConfirmedAt: ticket.confirmed_at || null,
+
+    paid: true,
   };
 }
 
@@ -480,7 +864,7 @@ export async function getRoomSchedule(roomId) {
 export const JOIN_WINDOW_MINUTES = 10;
 
 export function computeJoinWindow(roomRow) {
-  const scheduledAt = roomRow?.scheduled_at ? new Date(roomRow.scheduled_at) : null;
+  const scheduledAt = parseMysqlUtcDateTime(roomRow?.scheduled_at);
   const joinOpensAt = scheduledAt
     ? new Date(scheduledAt.getTime() - JOIN_WINDOW_MINUTES * 60 * 1000)
     : null;
@@ -488,13 +872,11 @@ export function computeJoinWindow(roomRow) {
   const now = new Date();
   const roomStatus = roomRow?.status || null;
 
-  // ✅ Allow join if time window is open OR room is live
   const canJoinByTime = !!joinOpensAt && now.getTime() >= joinOpensAt.getTime();
   const canJoinByStatus = roomStatus === 'live';
-  
-  // ✅ Block only if room is completed/cancelled
+
   const isRoomBlocked = roomStatus === 'completed' || roomStatus === 'cancelled';
-  
+
   const canJoinNow = !isRoomBlocked && (canJoinByTime || canJoinByStatus);
 
   return {
@@ -659,19 +1041,19 @@ export async function createTicketStripeCheckout({
   );
 
   // 7) store session id on ticket + ledger rows (reference)
-  await connection.execute(
-    `UPDATE ${TICKETS_TABLE} 
-     SET payment_reference = ?, updated_at = NOW()
-     WHERE ticket_id = ?`,
-    [session.id, ticketId]
-  );
+await connection.execute(
+  `UPDATE ${TICKETS_TABLE} 
+   SET payment_reference = ?, updated_at = UTC_TIMESTAMP()
+   WHERE ticket_id = ?`,
+  [session.id, ticketId]
+);
 
-  await connection.execute(
-    `UPDATE ${TABLE_PREFIX}quiz_payment_ledger
-     SET payment_reference = ?, updated_at = NOW()
-     WHERE ticket_id = ?`,
-    [session.id, ticketId]
-  );
+await connection.execute(
+  `UPDATE ${TABLE_PREFIX}quiz_payment_ledger
+   SET payment_reference = ?, updated_at = UTC_TIMESTAMP()
+   WHERE ticket_id = ?`,
+  [session.id, ticketId]
+);
 
   return {
     url: session.url,

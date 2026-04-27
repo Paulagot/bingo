@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import QuizWizard from '../components/Quiz/Wizard/QuizWizard';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useQuizSetupStore } from '../../src/components/Quiz/hooks/useQuizSetupStore';
 
 import { useAuth } from '@features/auth';
 
@@ -64,6 +65,10 @@ const FundraisingQuizPage = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const location = useLocation();
+  const setFlow = useQuizSetupStore((s) => s.setFlow);
+  useEffect(() => {
+  setFlow('web2');
+}, [setFlow]);
 
   const renderCountRef = useRef(0);
   renderCountRef.current += 1;

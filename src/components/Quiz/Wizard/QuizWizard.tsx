@@ -1,5 +1,5 @@
 // src/components/Quiz/Wizard/QuizWizard.tsx
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useQuizSetupStore } from '../hooks/useQuizSetupStore';
 
 import StepFundraisingOptions from './StepFundraisingOptions';
@@ -16,9 +16,9 @@ type WizardStep = 'setup' | 'templates' | 'rounds' | 'fundraising' | 'stepPrizes
 
 interface QuizWizardProps {
   onComplete?: () => void;
-  hideEntitlements?: boolean; // ✅ NEW
-  titleOverride?: string;     // ✅ optional, nice for edit
-  isEditMode?: boolean; 
+  hideEntitlements?: boolean;
+  titleOverride?: string;
+  isEditMode?: boolean;
 }
 
 const steps = ['setup', 'templates', 'rounds', 'fundraising', 'stepPrizes', 'review'] as const;
@@ -30,7 +30,7 @@ function clampIndex(n: number, min: number, max: number) {
 
 function getStepSafe(i: number): StepKey {
   const idx = clampIndex(i, 0, steps.length - 1);
-return steps[idx] ?? 'setup'; // ✅ always defined
+  return steps[idx] ?? 'setup';
 }
 
 export default function QuizWizard({
@@ -39,10 +39,15 @@ export default function QuizWizard({
   titleOverride,
   isEditMode,
 }: QuizWizardProps) {
-  const { setupConfig, currentStep, setStep } = useQuizSetupStore();
+  const { setupConfig, currentStep, setStep, setFlow } = useQuizSetupStore();
   const { ents } = useEntitlements();
 
-  // If currentStep is ever not found, treat it as first step
+  useEffect(() => {
+    setFlow('web2');
+  }, [setFlow]);
+
+  const isDonationMode = setupConfig.fundraisingMode === 'donation';
+
   const index = useMemo(() => {
     const i = steps.indexOf(currentStep as StepKey);
     return i >= 0 ? i : 0;
@@ -56,11 +61,19 @@ export default function QuizWizard({
   };
 
   const goNext = () => {
+    let offset = 1;
+
     // Skip rounds if template says so
     if (currentStep === 'templates' && setupConfig.skipRoundConfiguration) {
-      setStep(getStepSafe(index + 2) as unknown as WizardStep);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
+      offset += 1;
+    }
+
+    // Skip fundraising step entirely for donation mode
+    if (
+      (currentStep === 'rounds' && isDonationMode) ||
+      (currentStep === 'templates' && setupConfig.skipRoundConfiguration && isDonationMode)
+    ) {
+      offset += 1;
     }
 
     if (atLast) {
@@ -68,16 +81,30 @@ export default function QuizWizard({
       return;
     }
 
-    setStep(getStepSafe(index + 1) as unknown as WizardStep);
+    setStep(getStepSafe(index + offset) as unknown as WizardStep);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const goBack = () => {
-    if (currentStep === 'fundraising' && setupConfig.skipRoundConfiguration) {
-      setStep(getStepSafe(index - 2) as unknown as WizardStep);
-    } else {
-      setStep(getStepSafe(index - 1) as unknown as WizardStep);
+    let offset = 1;
+
+    // From prizes, skip fundraising if donation mode
+    if (currentStep === 'stepPrizes' && isDonationMode) {
+      offset += 1;
     }
+
+    // From fundraising, skip rounds if template says so
+    if (currentStep === 'fundraising' && setupConfig.skipRoundConfiguration) {
+      offset += 1;
+    }
+
+    // From prizes, if both fundraising is skipped (donation) and rounds were skipped (template),
+    // go all the way back to templates
+    if (currentStep === 'stepPrizes' && isDonationMode && setupConfig.skipRoundConfiguration) {
+      offset += 1;
+    }
+
+    setStep(getStepSafe(index - offset) as unknown as WizardStep);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -85,35 +112,47 @@ export default function QuizWizard({
     switch (currentStep) {
       case 'setup':
         return <StepQuizSetup onNext={goNext} onResetToFirst={resetToFirst} />;
+
       case 'templates':
         return <StepQuizTemplates onNext={goNext} onBack={goBack} onResetToFirst={resetToFirst} />;
+
       case 'rounds':
         return <StepCombinedRounds onNext={goNext} onBack={goBack} onResetToFirst={resetToFirst} />;
+
       case 'fundraising':
         return <StepFundraisingOptions onNext={goNext} onBack={goBack} onResetToFirst={resetToFirst} />;
+
       case 'stepPrizes':
         return <StepPrizes onNext={goNext} onBack={goBack} onResetToFirst={resetToFirst} />;
+
       case 'review':
-        return <StepReviewLaunch onNext={goNext} onBack={goBack} onResetToFirst={resetToFirst} isEditMode={isEditMode} />;
+        return (
+          <StepReviewLaunch
+            onNext={goNext}
+            onBack={goBack}
+            onResetToFirst={resetToFirst}
+            isEditMode={isEditMode}
+          />
+        );
+
       default:
-        // Fallback (shouldn’t happen, but keeps TS happy and UI resilient)
-        return <StepQuizSetup onNext={goNext} onResetToFirst={resetToFirst}  />;
+        return <StepQuizSetup onNext={goNext} onResetToFirst={resetToFirst} />;
     }
   };
 
-return (
-  <div className={isEditMode ? '' : 'mx-auto max-w-3xl px-4 py-10'}>
-    {/* title only when not edit mode, since modal has its own header */}
-    {!isEditMode && (
-      <div className="mb-6 text-center">
-        <h1 className="heading-1">{titleOverride ?? 'Create Your Fundraising Quiz'}</h1>
-        {!hideEntitlements && <EntitlementsBar ents={ents} className="inline-block" />}
+  return (
+    <div className={isEditMode ? '' : 'mx-auto max-w-3xl px-4 py-10'}>
+      {!isEditMode && (
+        <div className="mb-6 text-center">
+          <h1 className="heading-1">{titleOverride ?? 'Create Your Fundraising Quiz'}</h1>
+          {!hideEntitlements && <EntitlementsBar ents={ents} className="inline-block" />}
+        </div>
+      )}
+
+      <div className={isEditMode ? '' : 'bg-muted rounded-xl p-6 shadow-lg'}>
+        {renderStep()}
       </div>
-    )}
-    <div className={isEditMode ? '' : 'bg-muted rounded-xl p-6 shadow-lg'}>
-      {renderStep()}
     </div>
-  </div>
-);
+  );
 }
 

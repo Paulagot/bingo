@@ -1,13 +1,11 @@
 // src/components/Quiz/dashboard/PaymentReconciliationPanel.tsx
 import React, { useEffect, useState } from 'react';
 
-
 import { usePlayerStore } from '../hooks/usePlayerStore';
 import { useQuizConfig } from '../hooks/useQuizConfig';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { cleanupQuizRoom } from '../utils/cleanupQuizRoom';
 import { useRoomIdentity } from '../hooks/useRoomIdentity';
-
 
 import {
   Lock,
@@ -24,8 +22,6 @@ import {
 import ReconciliationApproval from '../payments/ReconciliationApproval';
 import ReconciliationDownloads from '../payments/ReconciliationDownloads';
 import ReconciliationLedger from '../payments/ReconciliationLedger';
-
-// Removed unused Stat component
 
 function InfoBox({ children }: { children: React.ReactNode }) {
   return (
@@ -81,7 +77,7 @@ function normalizeMethodForReport(raw: any): string {
   ) {
     return 'instant payment';
   }
-  if (v === 'card' || v === 'card tap' || v === 'card_tap') {
+  if (v === 'card' || v === 'card tap' || v === 'card_tap' || v === 'stripe') {
     return 'card';
   }
   if (v === 'web3' || v === 'crypto') {
@@ -94,19 +90,16 @@ const PaymentReconciliationPanel: React.FC = () => {
   const { players } = usePlayerStore();
   const { config, currentPhase } = useQuizConfig();
   const { socket } = useQuizSocket();
-
-
   const { roomId } = useRoomIdentity();
+
   const isComplete = currentPhase === 'complete';
-
-
-
 
   const currency = config?.currencySymbol || '€';
   const entryFee = parseFloat(config?.entryFee || '0');
+  const isDonationRoom = config?.fundraisingMode === 'donation';
 
   // Lock status
-  const isLocked = !isComplete 
+  const isLocked = !isComplete;
   const approvedAt = (config?.reconciliation as any)?.approvedAt;
   const isApproved = !!approvedAt;
 
@@ -120,22 +113,41 @@ const PaymentReconciliationPanel: React.FC = () => {
     const primaryMethod = normalizeMethodForReport(p.paymentMethod);
 
     if (!paymentData[primaryMethod]) {
-      paymentData[primaryMethod] = { entry: 0, extrasAmount: 0, extrasCount: 0, total: 0 };
+      paymentData[primaryMethod] = {
+        entry: 0,
+        extrasAmount: 0,
+        extrasCount: 0,
+        donation: 0,
+        total: 0,
+      };
     }
 
-    if (p.paid) paymentData[primaryMethod].entry += entryFee;
+    if (isDonationRoom) {
+      if (p.paid) {
+        const donationAmount = Number((p as any).donationAmount || 0);
+        paymentData[primaryMethod].donation += donationAmount;
+      }
+    } else {
+      if (p.paid) paymentData[primaryMethod].entry += entryFee;
 
-    if (p.paid && p.extraPayments) {
-      for (const [, val] of Object.entries(p.extraPayments)) {
-        const m = normalizeMethodForReport((val as any)?.method);
-        const amt = Number((val as any)?.amount || 0);
+      if (p.paid && p.extraPayments) {
+        for (const [, val] of Object.entries(p.extraPayments)) {
+          const m = normalizeMethodForReport((val as any)?.method);
+          const amt = Number((val as any)?.amount || 0);
 
-        if (!paymentData[m]) {
-          paymentData[m] = { entry: 0, extrasAmount: 0, extrasCount: 0, total: 0 };
+          if (!paymentData[m]) {
+            paymentData[m] = {
+              entry: 0,
+              extrasAmount: 0,
+              extrasCount: 0,
+              donation: 0,
+              total: 0,
+            };
+          }
+
+          paymentData[m].extrasAmount += amt;
+          paymentData[m].extrasCount += 1;
         }
-
-        paymentData[m].extrasAmount += amt;
-        paymentData[m].extrasCount += 1;
       }
     }
   }
@@ -143,15 +155,26 @@ const PaymentReconciliationPanel: React.FC = () => {
   for (const k in paymentData) {
     const d = paymentData[k];
     if (!d) continue;
-    d.total = d.entry + d.extrasAmount;
+    d.total = isDonationRoom ? d.donation : d.entry + d.extrasAmount;
   }
 
   const totalPlayers = activePlayers.length;
-  const totalEntryReceived = paidPlayers.length * entryFee;
 
-  const startingReceived =
-    totalEntryReceived +
-    Object.values(paymentData).reduce((s, d) => s + (d?.extrasAmount || 0), 0);
+  const totalDonationReceived = isDonationRoom
+    ? paidPlayers.reduce((sum, p) => sum + Number((p as any).donationAmount || 0), 0)
+    : 0;
+
+  const totalEntryReceived = isDonationRoom
+    ? 0
+    : paidPlayers.length * entryFee;
+
+  const totalExtrasReceived = isDonationRoom
+    ? 0
+    : Object.values(paymentData).reduce((s, d) => s + (d?.extrasAmount || 0), 0);
+
+  const startingReceived = isDonationRoom
+    ? totalDonationReceived
+    : totalEntryReceived + totalExtrasReceived;
 
   // Ledger adjustments
   const rec = (config?.reconciliation as any) || {};
@@ -176,38 +199,34 @@ const PaymentReconciliationPanel: React.FC = () => {
   const endedAt: string | null = (config as any)?.endedAt ?? null;
   const [timeUntilCleanup, setTimeUntilCleanup] = useState<number | null>(null);
 
-  // Auto cleanup timer
+  useEffect(() => {
+    if (isLocked || !socket || !endedAt || !roomId) return;
 
-useEffect(() => {
-  if (isLocked || !socket || !endedAt || !roomId) return;
+    const quizEnd = new Date(endedAt).getTime();
+    const cleanupTime = quizEnd + 30 * 60 * 1000;
 
-  const quizEnd = new Date(endedAt).getTime();
- const cleanupTime = quizEnd + 30 * 60 * 1000;
+    const tick = async () => {
+      const now = Date.now();
+      const remaining = cleanupTime - now;
+      if (remaining <= 0) {
+        console.log('🧹 [Reconciliation] Auto-cleanup triggered');
 
-  const tick = async () => {
-    const now = Date.now();
-    const remaining = cleanupTime - now;
-    if (remaining <= 0) {
-      console.log('🧹 [Reconciliation] Auto-cleanup triggered');
-      
-      // Clean up client-side
-      await cleanupQuizRoom({
-        roomId,
-        isWeb3Game: false,
-        disconnectWallets: false,
-      });
-      
-      // Notify server
-      socket.emit('end_quiz_cleanup', { roomId: config.roomId });
-    } else {
-      setTimeUntilCleanup(Math.floor(remaining / 1000 / 60));
-    }
-  };
+        await cleanupQuizRoom({
+          roomId,
+          isWeb3Game: false,
+          disconnectWallets: false,
+        });
 
-  tick();
-  const int = setInterval(tick, 60000);
-  return () => clearInterval(int);
-}, [isLocked, socket, endedAt, config?.roomId, roomId]);
+        socket.emit('end_quiz_cleanup', { roomId: config.roomId });
+      } else {
+        setTimeUntilCleanup(Math.floor(remaining / 1000 / 60));
+      }
+    };
+
+    tick();
+    const int = setInterval(tick, 60000);
+    return () => clearInterval(int);
+  }, [isLocked, socket, endedAt, config?.roomId, roomId]);
 
   const fmt = (n: number) => `${currency}${n.toFixed(2)}`;
 
@@ -219,7 +238,6 @@ useEffect(() => {
 
   return (
     <div className="bg-gray-50 rounded-xl p-6 md:p-8 shadow-md space-y-8">
-
       <div>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Payment Reconciliation</h1>
         <p className="text-gray-600">Review financials, make adjustments, and finalize your records.</p>
@@ -253,8 +271,6 @@ useEffect(() => {
         </div>
       )}
 
-
-
       {/* STEP 1 ---------------------------------------------------------------- */}
       <div className="bg-white rounded-xl border-2 border-gray-200 p-6">
         <StepHeader stepNum={1} title="Review Financial Summary" status={step1Status} isLocked={isLocked} />
@@ -277,29 +293,34 @@ useEffect(() => {
           <div className="rounded-lg bg-green-50 border border-green-200 p-4">
             <div className="flex items-center gap-2 mb-1">
               <DollarSign className="h-4 w-4 text-green-600" />
-              <div className="text-xs font-medium text-green-700">Entry Fees</div>
+              <div className="text-xs font-medium text-green-700">
+                {isDonationRoom ? 'Donations' : 'Entry Fees'}
+              </div>
             </div>
-            <div className="text-2xl font-bold text-green-900">{fmt(totalEntryReceived)}</div>
+            <div className="text-2xl font-bold text-green-900">
+              {fmt(isDonationRoom ? totalDonationReceived : totalEntryReceived)}
+            </div>
             <div className="text-xs text-green-600 mt-1">
-              {paidPlayers.length} × {fmt(entryFee)}
+              {isDonationRoom
+                ? `${paidPlayers.length} paid donation${paidPlayers.length === 1 ? '' : 's'}`
+                : `${paidPlayers.length} × ${fmt(entryFee)}`}
             </div>
           </div>
 
           <div className="rounded-lg bg-purple-50 border border-purple-200 p-4">
             <div className="flex items-center gap-2 mb-1">
               <TrendingUp className="h-4 w-4 text-purple-600" />
-              <div className="text-xs font-medium text-purple-700">Extras</div>
+              <div className="text-xs font-medium text-purple-700">
+                {isDonationRoom ? 'Extras' : 'Extras'}
+              </div>
             </div>
             <div className="text-2xl font-bold text-purple-900">
-              {fmt(
-                Object.values(paymentData).reduce((s, d) => s + (d?.extrasAmount || 0), 0)
-              )}
+              {isDonationRoom ? fmt(0) : fmt(totalExtrasReceived)}
             </div>
             <div className="text-xs text-purple-600 mt-1">
-              {
-                Object.values(paymentData).reduce((s, d) => s + (d?.extrasCount || 0), 0)
-              }{' '}
-              transactions
+              {isDonationRoom
+                ? 'Included automatically'
+                : `${Object.values(paymentData).reduce((s, d) => s + (d?.extrasCount || 0), 0)} transactions`}
             </div>
           </div>
 
@@ -326,7 +347,7 @@ useEffect(() => {
                     Method
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                    Entry Fees
+                    {isDonationRoom ? 'Donations' : 'Entry Fees'}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                     Extras
@@ -345,10 +366,18 @@ useEffect(() => {
                   return (
                     <tr key={method} className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm font-medium text-gray-900 capitalize">{method}</td>
-                      <td className="px-4 py-3 text-sm text-gray-700">{fmt(d.entry)}</td>
                       <td className="px-4 py-3 text-sm text-gray-700">
-                        {fmt(d.extrasAmount)}{' '}
-                        <span className="text-xs text-gray-500">({d.extrasCount})</span>
+                        {fmt(isDonationRoom ? d.donation || 0 : d.entry)}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        {isDonationRoom ? (
+                          <span className="text-gray-500">Included</span>
+                        ) : (
+                          <>
+                            {fmt(d.extrasAmount)}{' '}
+                            <span className="text-xs text-gray-500">({d.extrasCount})</span>
+                          </>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-sm font-semibold text-gray-900">{fmt(d.total)}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">
@@ -414,7 +443,6 @@ useEffect(() => {
             <ReconciliationLedger />
           </div>
 
-          {/* Final reconciled total only */}
           <div className="mt-6 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 p-4 text-white">
             <div className="flex items-center justify-between">
               <div>
@@ -454,7 +482,7 @@ useEffect(() => {
             Sign off on reconciliation to prevent changes and prepare your records for download.
           </InfoBox>
 
-            <div className="mt-4">
+          <div className="mt-4">
             <ReconciliationApproval />
           </div>
         </div>

@@ -1,21 +1,31 @@
 // src/components/Quiz/tickets/TicketPurchasePage.refactored.tsx
-// FIXED: Capacity check happens BEFORE showing payment instructions (before user pays)
+// UPDATED: Payment method is chosen before donation amount for donation rooms.
+// UPDATED: Crypto ticket donations use a dedicated crypto token + amount step.
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { nanoid } from 'nanoid';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { Loader2, AlertTriangle, HeartHandshake } from 'lucide-react';
 
-// Shared components
 import { StepLayout } from '../shared/StepWrapper';
-import { PlayerDetailsForm, PlayerDetailsFormData, usePlayerDetailsValidation } from '../shared/PlayerDetailsForm';
+import {
+  PlayerDetailsForm,
+  PlayerDetailsFormData,
+  usePlayerDetailsValidation,
+} from '../shared/PlayerDetailsForm';
 import { ExtrasSelector, useExtrasSelection } from '../shared/ExtrasSelector';
-import { PaymentMethodSelector, type ClubPaymentMethod } from '../shared/PaymentMethodSelector';
-import { PaymentInstructionsContent, PaymentInstructionsFooter } from '../shared/PaymentInstructions';
+import {
+  PaymentMethodSelector,
+  type ClubPaymentMethod,
+} from '../shared/PaymentMethodSelector';
+import {
+  PaymentInstructionsContent,
+  PaymentInstructionsFooter,
+} from '../shared/PaymentInstructions';
 import { ActionButtons } from '../shared/ActionButtons';
 
-// Local component
 import { TicketConfirmation } from './TicketConfirmation';
+import CryptoTicketDonationStep from './crypto/CryptoTicketDonationStep';
 
 import type { RoomInfo, Ticket } from './types';
 
@@ -26,10 +36,12 @@ type TicketStep =
   | 'player-details'
   | 'extras'
   | 'payment-method'
+  | 'donation-amount'
   | 'checking-capacity'
-  |'redirecting-to-stripe' // ✅ NEW: Show while checking capacity
+  | 'redirecting-to-stripe'
   | 'payment-instructions'
   | 'creating-ticket'
+  | 'crypto-donation'
   | 'complete';
 
 interface CapacityInfo {
@@ -48,6 +60,7 @@ export const TicketPurchasePage: React.FC = () => {
   const [step, setStep] = useState<TicketStep>('loading');
   const [roomInfo, setRoomInfo] = useState<RoomInfo | null>(null);
   const [capacity, setCapacity] = useState<CapacityInfo | null>(null);
+
   const [paymentMethods, setPaymentMethods] = useState<ClubPaymentMethod[]>([]);
   const [selectedMethod, setSelectedMethod] = useState<ClubPaymentMethod | null>(null);
 
@@ -58,6 +71,8 @@ export const TicketPurchasePage: React.FC = () => {
     playerName: '',
   });
 
+  const [donationAmount, setDonationAmount] = useState('');
+
   const { selectedExtras, toggleExtra, calculateExtrasTotal } = useExtrasSelection();
   const isPlayerDetailsValid = usePlayerDetailsValidation(playerDetails, 'ticket');
 
@@ -67,26 +82,48 @@ export const TicketPurchasePage: React.FC = () => {
   const [creatingTicket, setCreatingTicket] = useState(false);
   const [hasCopiedReference, setHasCopiedReference] = useState(false);
 
-  // Computed values
+  const isDonationRoom = roomInfo?.fundraisingMode === 'donation';
+
+  const donationValue = useMemo(() => {
+    const parsed = Number(String(donationAmount || '').replace(',', '.'));
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  }, [donationAmount]);
+
+  const isDonationAmountValid =
+    !isDonationRoom || (Number.isFinite(donationValue) && donationValue > 0);
+
+ 
+  const isSelectedStripe = selectedMethod?.methodCategory === 'stripe';
+
   const availableExtras = useMemo(() => {
-    if (!roomInfo) return [];
-    return Object.entries(roomInfo.fundraisingOptions)
-      .filter(([_, enabled]) => enabled)
+    if (!roomInfo || isDonationRoom) return [];
+
+    return Object.entries(roomInfo.fundraisingOptions || {})
+      .filter(([, enabled]) => enabled)
       .map(([extraId]) => extraId);
-  }, [roomInfo]);
+  }, [roomInfo, isDonationRoom]);
+
+  const includedDonationExtras = useMemo(() => {
+    if (!roomInfo || !isDonationRoom) return [];
+
+    return Object.entries(roomInfo.fundraisingOptions || {})
+      .filter(([, enabled]) => !!enabled)
+      .map(([extraId]) => extraId);
+  }, [roomInfo, isDonationRoom]);
 
   const extrasTotal = useMemo(() => {
-    if (!roomInfo) return 0;
+    if (!roomInfo || isDonationRoom) return 0;
     return calculateExtrasTotal(roomInfo.fundraisingPrices);
-  }, [selectedExtras, roomInfo, calculateExtrasTotal]);
+  }, [selectedExtras, roomInfo, calculateExtrasTotal, isDonationRoom]);
 
   const totalAmount = useMemo(() => {
     if (!roomInfo) return 0;
-    return roomInfo.entryFee + extrasTotal;
-  }, [roomInfo, extrasTotal]);
+    return isDonationRoom ? donationValue : roomInfo.entryFee + extrasTotal;
+  }, [roomInfo, extrasTotal, isDonationRoom, donationValue]);
 
   useEffect(() => {
     loadRoomInfo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
 
   const loadRoomInfo = async () => {
@@ -97,14 +134,15 @@ export const TicketPurchasePage: React.FC = () => {
       const response = await fetch(`/api/quiz/tickets/room/${roomId}/info`);
       const data = await response.json();
 
-      if (!response.ok) throw new Error(data.error || 'Failed to load room info');
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to load room info');
+      }
 
       setRoomInfo(data);
-      
+
       if (data.capacity) {
         setCapacity(data.capacity);
-        
-        // ✅ Check capacity on initial load
+
         if (!data.capacity.ticketSalesOpen) {
           console.log('[TicketPurchase] 🚫 Ticket sales closed:', data.capacity.ticketSalesCloseReason);
           setStep('sold-out');
@@ -123,7 +161,7 @@ export const TicketPurchasePage: React.FC = () => {
   const loadPaymentMethods = async () => {
     try {
       setError(null);
-      
+
       const response = await fetch(`/api/quiz-rooms/${roomId}/available-payment-methods`);
       const data = await response.json();
 
@@ -131,7 +169,7 @@ export const TicketPurchasePage: React.FC = () => {
         setError(data.error || 'Failed to load payment methods');
         return;
       }
-      
+
       if (!data.paymentMethods?.length) {
         setError('No payment methods available for this quiz. Please contact the host.');
         return;
@@ -145,87 +183,135 @@ export const TicketPurchasePage: React.FC = () => {
     }
   };
 
-  const startStripeCheckout = async (_method: ClubPaymentMethod) => {
-  try {
-    setStep('checking-capacity'); // reuses your existing spinner
-    setError(null);
-
-    const response = await fetch('/api/quiz/tickets/stripe/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        roomId,
-        purchaserName: playerDetails.purchaserName,
-        purchaserEmail: playerDetails.purchaserEmail,
-        purchaserPhone: playerDetails.purchaserPhone,
-        playerName: playerDetails.playerName,
-        selectedExtras,
-        appOrigin: window.location.origin,
-      }),
-    });
-
+  const refreshCapacityOrThrow = async () => {
+    const response = await fetch(`/api/quiz/tickets/room/${roomId}/info`);
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.message || 'Failed to start checkout');
+      throw new Error('Failed to verify capacity');
     }
 
-    // Leave your app and go to Stripe's hosted payment page
-    window.location.href = data.url;
+    if (data.capacity) {
+      setCapacity(data.capacity);
 
-  } catch (err) {
-    setError(err instanceof Error ? err.message : 'Stripe checkout failed');
-    setStep('payment-method');
-  }
-};
+      if (!data.capacity.ticketSalesOpen) {
+        const message = data.capacity.ticketSalesCloseReason || 'Ticket sales have closed';
+        setError(message);
+        setStep('sold-out');
+        throw new Error(message);
+      }
 
-  // ✅ NEW: Check capacity BEFORE showing payment instructions
+      if (data.capacity.availableForTickets < 1) {
+        setError('SOLD OUT - No tickets remaining');
+        setStep('sold-out');
+        throw new Error('SOLD OUT - No tickets remaining');
+      }
+    }
+
+    return data;
+  };
+
+  const handlePaymentMethodSelected = async (method: ClubPaymentMethod) => {
+    try {
+      setError(null);
+      setSelectedMethod(method);
+
+      if (isDonationRoom) {
+        if (method.methodCategory === 'crypto') {
+          setStep('checking-capacity');
+          await refreshCapacityOrThrow();
+          setStep('crypto-donation');
+          return;
+        }
+
+        setStep('donation-amount');
+        return;
+      }
+
+      if (method.methodCategory === 'stripe') {
+        await startStripeCheckout(method);
+        return;
+      }
+
+      await checkCapacityBeforePayment(method);
+    } catch (err) {
+      console.error('[TicketPurchase] ❌ Payment method selection failed:', err);
+
+      if (step !== 'sold-out') {
+        setError(err instanceof Error ? err.message : 'Failed to select payment method');
+        setStep('payment-method');
+      }
+    }
+  };
+
+  const startStripeCheckout = async (method: ClubPaymentMethod) => {
+    try {
+      if (isDonationRoom && !isDonationAmountValid) {
+        setError('Please enter a donation amount greater than 0.');
+        setStep('donation-amount');
+        return;
+      }
+
+      setSelectedMethod(method);
+      setStep('checking-capacity');
+      setError(null);
+
+      await refreshCapacityOrThrow();
+
+      const response = await fetch('/api/quiz/tickets/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomId,
+          purchaserName: playerDetails.purchaserName,
+          purchaserEmail: playerDetails.purchaserEmail,
+          purchaserPhone: playerDetails.purchaserPhone,
+          playerName: playerDetails.playerName,
+          selectedExtras: isDonationRoom ? [] : selectedExtras,
+          donationAmount: isDonationRoom ? donationValue : undefined,
+          appOrigin: window.location.origin,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || data.error || 'Failed to start checkout');
+      }
+
+      setStep('redirecting-to-stripe');
+      window.location.href = data.url;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Stripe checkout failed');
+      setStep(isDonationRoom ? 'donation-amount' : 'payment-method');
+    }
+  };
+
   const checkCapacityBeforePayment = async (method: ClubPaymentMethod) => {
     try {
+      if (isDonationRoom && !isDonationAmountValid) {
+        setError('Please enter a donation amount greater than 0.');
+        setStep('donation-amount');
+        return;
+      }
+
       setSelectedMethod(method);
       setStep('checking-capacity');
       setError(null);
 
       console.log('[TicketPurchase] 🔒 Checking capacity before showing payment instructions...');
 
-      const response = await fetch(`/api/quiz/tickets/room/${roomId}/info`);
-      const data = await response.json();
+      await refreshCapacityOrThrow();
 
-      if (!response.ok) {
-        throw new Error('Failed to verify capacity');
-      }
-
-      // Update capacity state
-      if (data.capacity) {
-        setCapacity(data.capacity);
-
-        // ✅ CRITICAL: Block if sales closed
-        if (!data.capacity.ticketSalesOpen) {
-          setError(data.capacity.ticketSalesCloseReason || 'Ticket sales have closed');
-          setStep('sold-out');
-          return;
-        }
-
-        // ✅ CRITICAL: Block if no tickets available
-        if (data.capacity.availableForTickets < 1) {
-          setError('SOLD OUT - No tickets remaining');
-          setStep('sold-out');
-          return;
-        }
-
-        console.log('[TicketPurchase] ✅ Capacity check passed:', {
-          available: data.capacity.availableForTickets,
-          max: data.capacity.maxCapacity,
-        });
-      }
-
-      // ✅ Only show payment instructions if capacity OK
+      console.log('[TicketPurchase] ✅ Capacity check passed');
       setStep('payment-instructions');
-
     } catch (err) {
       console.error('[TicketPurchase] ❌ Capacity check failed:', err);
-      setError(err instanceof Error ? err.message : 'Failed to verify capacity');
-      setStep('payment-method');
+
+      if (step !== 'sold-out') {
+        setError(err instanceof Error ? err.message : 'Failed to verify capacity');
+        setStep('payment-method');
+      }
     }
   };
 
@@ -234,7 +320,13 @@ export const TicketPurchasePage: React.FC = () => {
       setCreatingTicket(true);
       setError(null);
 
-      if (!selectedMethod?.id) throw new Error('No payment method selected');
+      if (!selectedMethod?.id) {
+        throw new Error('No payment method selected');
+      }
+
+      if (isDonationRoom && !isDonationAmountValid) {
+        throw new Error('Please enter a donation amount greater than 0.');
+      }
 
       console.log('[TicketPurchase] 🎫 Creating ticket...');
 
@@ -247,7 +339,8 @@ export const TicketPurchasePage: React.FC = () => {
           purchaserEmail: playerDetails.purchaserEmail,
           purchaserPhone: playerDetails.purchaserPhone,
           playerName: playerDetails.playerName,
-          selectedExtras,
+          selectedExtras: isDonationRoom ? [] : selectedExtras,
+          donationAmount: isDonationRoom ? donationValue : undefined,
           paymentMethod: 'instant_payment',
           paymentReference,
           clubPaymentMethodId: selectedMethod.id,
@@ -255,11 +348,12 @@ export const TicketPurchasePage: React.FC = () => {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         if (response.status === 409 || data.error === 'capacity_exceeded') {
           throw new Error(data.message || 'SOLD OUT - Room is at maximum capacity');
         }
+
         throw new Error(data.message || data.error || 'Failed to create ticket');
       }
 
@@ -268,7 +362,7 @@ export const TicketPurchasePage: React.FC = () => {
     } catch (err) {
       console.error('Failed to create ticket:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to create ticket';
-      
+
       if (errorMessage.includes('SOLD OUT') || errorMessage.includes('capacity')) {
         setError(errorMessage);
         setStep('sold-out');
@@ -280,7 +374,31 @@ export const TicketPurchasePage: React.FC = () => {
     }
   };
 
-  // Loading state
+  const handleDonationAmountContinue = async () => {
+    if (!selectedMethod) {
+      setError('Please choose a payment method first.');
+      setStep('payment-method');
+      return;
+    }
+
+    if (!isDonationAmountValid) {
+      setError('Please enter a donation amount greater than 0.');
+      return;
+    }
+
+    if (selectedMethod.methodCategory === 'stripe') {
+      await startStripeCheckout(selectedMethod);
+      return;
+    }
+
+    await checkCapacityBeforePayment(selectedMethod);
+  };
+
+  const paymentMethodBackStep = () => {
+    if (!isDonationRoom && availableExtras.length > 0) return 'extras';
+    return 'player-details';
+  };
+
   if (step === 'loading') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -292,30 +410,44 @@ export const TicketPurchasePage: React.FC = () => {
     );
   }
 
-  // ✅ NEW: Checking capacity state
   if (step === 'checking-capacity') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mx-auto mb-3" />
           <span className="text-gray-700">Checking availability...</span>
-          <p className="text-sm text-gray-500 mt-2">Making sure there are still tickets available</p>
+          <p className="text-sm text-gray-500 mt-2">
+            Making sure there are still tickets available
+          </p>
         </div>
       </div>
     );
   }
 
-  // Sold out state
+  if (step === 'redirecting-to-stripe') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mx-auto mb-3" />
+          <span className="text-gray-700">Redirecting to Stripe...</span>
+          <p className="text-sm text-gray-500 mt-2">You’ll be taken to secure checkout.</p>
+        </div>
+      </div>
+    );
+  }
+
   if (step === 'sold-out') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
         <div className="bg-white rounded-xl shadow-xl p-8 max-w-md text-center">
           <div className="text-6xl mb-4">🎫</div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Tickets Sold Out</h2>
+
           <div className="mb-4 space-y-2">
             <p className="text-red-600 font-medium">
               {error || capacity?.ticketSalesCloseReason || 'No tickets available'}
             </p>
+
             {capacity && (
               <div className="bg-gray-50 rounded-lg p-4 text-left">
                 <div className="text-sm space-y-1">
@@ -337,9 +469,11 @@ export const TicketPurchasePage: React.FC = () => {
               </div>
             )}
           </div>
+
           <p className="text-gray-600 mb-6 text-sm">
             This quiz has reached maximum capacity. Please contact the host if you believe this is an error.
           </p>
+
           <button
             onClick={() => navigate('/')}
             className="rounded-lg bg-indigo-600 px-6 py-3 text-white hover:bg-indigo-700 w-full"
@@ -351,7 +485,6 @@ export const TicketPurchasePage: React.FC = () => {
     );
   }
 
-  // Error state
   if (step === 'error') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
@@ -370,7 +503,6 @@ export const TicketPurchasePage: React.FC = () => {
     );
   }
 
-  // Creating ticket state
   if (step === 'creating-ticket') {
     return (
       <StepLayout
@@ -388,27 +520,35 @@ export const TicketPurchasePage: React.FC = () => {
     );
   }
 
-  // Main flow
   return (
     <>
       {step === 'player-details' && roomInfo && (
         <StepLayout
           mode="page"
           icon="🎟️"
-          title="Ticket details"
-          subtitle={`Buying a ticket for ${roomInfo.hostName}'s quiz`}
+          title={isDonationRoom ? 'Your details' : 'Ticket details'}
+          subtitle={
+            isDonationRoom
+              ? `Joining ${roomInfo.hostName}'s donation quiz`
+              : `Buying a ticket for ${roomInfo.hostName}'s quiz`
+          }
           footer={
             <ActionButtons
               onBack={() => navigate('/')}
               backLabel="Cancel"
               onContinue={() => {
-                if (availableExtras.length > 0) {
+                if (!isDonationRoom && availableExtras.length > 0) {
                   setStep('extras');
-                } else {
-                  loadPaymentMethods();
+                  return;
                 }
+
+                loadPaymentMethods();
               }}
-              continueLabel={availableExtras.length > 0 ? 'Continue to Extras' : 'Continue to Payment'}
+              continueLabel={
+                !isDonationRoom && availableExtras.length > 0
+                  ? 'Continue to Extras'
+                  : 'Continue to Payment Method'
+              }
               continueDisabled={!isPlayerDetailsValid}
             />
           }
@@ -420,7 +560,8 @@ export const TicketPurchasePage: React.FC = () => {
                 <div>
                   <div className="font-semibold text-amber-900">Limited availability</div>
                   <div className="text-sm text-amber-800">
-                    Only <strong>{capacity.availableForTickets}</strong> ticket{capacity.availableForTickets === 1 ? '' : 's'} remaining out of {capacity.maxCapacity} total spots.
+                    Only <strong>{capacity.availableForTickets}</strong> ticket
+                    {capacity.availableForTickets === 1 ? '' : 's'} remaining out of {capacity.maxCapacity} total spots.
                   </div>
                 </div>
               </div>
@@ -431,15 +572,35 @@ export const TicketPurchasePage: React.FC = () => {
             formData={playerDetails}
             onChange={setPlayerDetails}
             mode="ticket"
-            totalAmount={totalAmount}
+            totalAmount={isDonationRoom ? 0 : totalAmount}
             currencySymbol={roomInfo.currencySymbol}
             extrasTotal={extrasTotal}
             entryFee={roomInfo.entryFee}
+            isDonationRoom={false}
           />
+
+          {isDonationRoom && includedDonationExtras.length > 0 && (
+            <div className="mt-4 rounded-lg border border-indigo-200 bg-indigo-50 p-4">
+              <div className="font-medium text-indigo-900 mb-2">Included quiz extras</div>
+              <div className="flex flex-wrap gap-2">
+                {includedDonationExtras.map((extraId) => (
+                  <span
+                    key={extraId}
+                    className="rounded-full border border-indigo-200 bg-white px-3 py-1 text-xs font-medium text-indigo-800"
+                  >
+                    {extraId}
+                  </span>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-indigo-800">
+                Donation quizzes include these automatically.
+              </p>
+            </div>
+          )}
         </StepLayout>
       )}
 
-      {step === 'extras' && roomInfo && (
+      {step === 'extras' && roomInfo && !isDonationRoom && (
         <StepLayout
           mode="page"
           icon="🚀"
@@ -449,7 +610,7 @@ export const TicketPurchasePage: React.FC = () => {
             <ActionButtons
               onBack={() => setStep('player-details')}
               onContinue={loadPaymentMethods}
-              continueLabel="Continue to Payment"
+              continueLabel="Continue to Payment Method"
             />
           }
         >
@@ -482,24 +643,126 @@ export const TicketPurchasePage: React.FC = () => {
           mode="page"
           icon="💶"
           title="Choose payment method"
-          subtitle="Pay now via instant payment"
+          subtitle={
+            isDonationRoom
+              ? 'Choose how you would like to donate'
+              : 'Pay now to secure your spot'
+          }
           footer={
             <ActionButtons
-              onBack={() => setStep(availableExtras.length > 0 ? 'extras' : 'player-details')}
+              onBack={() => setStep(paymentMethodBackStep())}
             />
           }
         >
-       <PaymentMethodSelector
-  paymentMethods={paymentMethods}
-  onSelect={(method) => {
-    if (method.methodCategory === 'stripe') {
-      startStripeCheckout(method);
-    } else {
-      checkCapacityBeforePayment(method);
-    }
-  }}
-/>
+          {error && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <PaymentMethodSelector
+            paymentMethods={paymentMethods}
+            onSelect={handlePaymentMethodSelected}
+          />
         </StepLayout>
+      )}
+
+      {step === 'donation-amount' && roomInfo && selectedMethod && (
+        <StepLayout
+          mode="page"
+          icon={isSelectedStripe ? '💳' : '💶'}
+          title="Choose your donation"
+          subtitle={selectedMethod.methodLabel}
+          footer={
+            <ActionButtons
+              onBack={() => setStep('payment-method')}
+              onContinue={handleDonationAmountContinue}
+              continueLabel={
+                isSelectedStripe
+                  ? 'Continue to Stripe'
+                  : 'Continue to Payment Instructions'
+              }
+              continueDisabled={!isDonationAmountValid}
+            />
+          }
+        >
+          {error && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <div className="space-y-5">
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+              <div className="flex items-start gap-3">
+                <HeartHandshake className="h-5 w-5 text-blue-600 mt-0.5" />
+                <div>
+                  <div className="font-semibold text-blue-900">Donation-based ticket</div>
+                  <div className="text-sm text-blue-800">
+                    Enter the amount you would like to donate in {roomInfo.currencySymbol}.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-gray-200 bg-white p-4">
+              <label className="mb-2 block text-sm font-medium text-gray-900">
+                Donation amount
+              </label>
+
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">
+                  {roomInfo.currencySymbol}
+                </span>
+
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={donationAmount}
+                  onChange={(e) => setDonationAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full rounded-lg border-2 border-gray-200 py-3 pl-8 pr-4 text-base outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                />
+              </div>
+
+              <p className="mt-2 text-xs text-gray-500">
+                This amount will be used for {selectedMethod.methodLabel}.
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium text-gray-900">Total to Pay</div>
+                  <div className="text-sm text-gray-600">Donation amount</div>
+                </div>
+                <div className="text-2xl font-bold text-green-900">
+                  {roomInfo.currencySymbol}{donationValue.toFixed(2)}
+                </div>
+              </div>
+            </div>
+          </div>
+        </StepLayout>
+      )}
+
+      {step === 'crypto-donation' && selectedMethod && roomInfo && roomId && (
+        <CryptoTicketDonationStep
+          roomId={roomId}
+       purchaserName={playerDetails.purchaserName || ''}
+purchaserEmail={playerDetails.purchaserEmail || ''}
+          purchaserPhone={playerDetails.purchaserPhone || null}
+          playerName={playerDetails.playerName || playerDetails.purchaserName}
+          selectedMethod={selectedMethod}
+          includedDonationExtras={includedDonationExtras}
+          solanaCluster="mainnet"
+          onBack={() => setStep('payment-method')}
+          onComplete={(createdTicket) => {
+            setTicket(createdTicket);
+            setStep('complete');
+          }}
+        />
       )}
 
       {step === 'payment-instructions' && selectedMethod && roomInfo && (
@@ -513,11 +776,10 @@ export const TicketPurchasePage: React.FC = () => {
               hasEverCopied={hasCopiedReference}
               confirming={creatingTicket}
               onConfirmPaid={createTicket}
-              onBack={() => setStep('payment-method')}
+              onBack={() => setStep(isDonationRoom ? 'donation-amount' : 'payment-method')}
             />
           }
         >
-          {/* ✅ Show capacity warning on payment page */}
           {capacity && capacity.availableForTickets > 0 && capacity.availableForTickets <= 3 && (
             <div className="mb-4 rounded-lg border-2 border-red-300 bg-red-50 p-4">
               <div className="flex items-start gap-3">
@@ -525,7 +787,8 @@ export const TicketPurchasePage: React.FC = () => {
                 <div>
                   <div className="font-bold text-red-900">⚠️ Almost sold out!</div>
                   <div className="text-sm text-red-800 mt-1">
-                    Only <strong>{capacity.availableForTickets}</strong> ticket{capacity.availableForTickets === 1 ? '' : 's'} remaining. 
+                    Only <strong>{capacity.availableForTickets}</strong> ticket
+                    {capacity.availableForTickets === 1 ? '' : 's'} remaining.
                     Complete payment quickly to secure your spot.
                   </div>
                 </div>
@@ -545,7 +808,6 @@ export const TicketPurchasePage: React.FC = () => {
                 ? selectedMethod.methodConfig.link
                 : undefined
             }
-        
             error={error}
             hasEverCopied={hasCopiedReference}
             onCopied={() => setHasCopiedReference(true)}
@@ -567,6 +829,8 @@ export const TicketPurchasePage: React.FC = () => {
     </>
   );
 };
+
+export default TicketPurchasePage;
 
 
 

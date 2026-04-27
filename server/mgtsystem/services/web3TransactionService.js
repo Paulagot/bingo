@@ -128,10 +128,37 @@ export async function insertWeb3Transaction({
   // Unique per (tx_hash + chain + network + wallet_address) —
   // allows multiple rows for the same tx when multiple wallets are paid
   // (e.g. quiz prize distribution paying multiple winners in one tx)
-  const [existing] = await connection.execute(
-    `SELECT id FROM ${table} WHERE tx_hash = ? AND chain = ? AND network = ? AND wallet_address = ? LIMIT 1`,
+   const [existing] = await connection.execute(
+    `SELECT 
+       id,
+       token_price_eur,
+       amount_eur,
+       entry_fee_amount_eur,
+       extras_amount_eur,
+       donation_amount_eur
+     FROM ${table}
+     WHERE tx_hash = ? 
+       AND chain = ? 
+       AND network = ? 
+       AND wallet_address = ? 
+     LIMIT 1`,
     [tx_hash, chain, network, wallet_address]
   );
+
+  if (Array.isArray(existing) && existing.length > 0) {
+    console.log(`[web3Tx] ℹ️  Duplicate tx skipped: ${tx_hash} (${chain}/${network})`);
+
+    return {
+      success: true,
+      id: existing[0].id,
+      duplicate: true,
+      tokenPriceEur: existing[0].token_price_eur,
+      amountEur: existing[0].amount_eur,
+      entryFeeEur: existing[0].entry_fee_amount_eur,
+      extrasEur: existing[0].extras_amount_eur,
+      donationEur: existing[0].donation_amount_eur,
+    };
+  }
 
   if (Array.isArray(existing) && existing.length > 0) {
     console.log(`[web3Tx] ℹ️  Duplicate tx skipped: ${tx_hash} (${chain}/${network})`);
@@ -160,7 +187,7 @@ export async function insertWeb3Transaction({
        ?, ?, ?, ?,
        ?, ?, ?, ?,
        ?,
-       NOW()
+       UTC_TIMESTAMP()
      )`,
     [
       game_type,
@@ -194,7 +221,16 @@ export async function insertWeb3Transaction({
     `tx: ${tx_hash.slice(0, 12)}…, amount: ${amountHuman} ${fee_token} (€${amountEur ?? '?'})`
   );
 
-  return { success: true, id: insertedId, duplicate: false };
+ return {
+  success: true,
+  id: insertedId,
+  duplicate: false,
+  tokenPriceEur,
+  amountEur,
+  entryFeeEur,
+  extrasEur,
+  donationEur,
+};
 }
 
 /**

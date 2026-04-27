@@ -17,6 +17,9 @@ interface PlayerDetailsFormProps {
   currencySymbol: string;
   extrasTotal?: number;
   entryFee?: number;
+  isDonationRoom?: boolean;
+  donationAmount?: string;
+  onDonationChange?: (val: string) => void;
 }
 
 const InputWithIcon: React.FC<{
@@ -80,6 +83,9 @@ export const PlayerDetailsForm: React.FC<PlayerDetailsFormProps> = ({
   currencySymbol,
   extrasTotal = 0,
   entryFee = 0,
+  isDonationRoom = false,
+donationAmount = '',
+onDonationChange,
 }) => {
   const [touched, setTouched] = useState(false);
 
@@ -110,23 +116,45 @@ export const PlayerDetailsForm: React.FC<PlayerDetailsFormProps> = ({
 
   return (
     <div className="space-y-5">
-      {/* Amount Summary */}
-      <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="font-medium text-gray-900">
-              {mode === 'ticket' ? 'Ticket total' : 'Total to Pay'}
-            </div>
-            <div className="text-sm text-gray-600">
-              Entry: {currencySymbol}{entryFee}
-              {extrasTotal > 0 && ` + Extras: ${currencySymbol}${extrasTotal}`}
-            </div>
-          </div>
-          <div className="text-2xl font-bold text-blue-900">
-            {currencySymbol}{totalAmount}
+{/* Amount Summary */}
+<div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+  <div className="flex items-center justify-between gap-4">
+    <div className="flex-1">
+      <div className="font-medium text-gray-900">
+        {isDonationRoom ? 'Donation total' : mode === 'ticket' ? 'Ticket total' : 'Total to Pay'}
+      </div>
+
+      {isDonationRoom ? (
+        <div className="mt-2">
+          <label className="mb-1 block text-sm text-gray-600">
+            Donation amount
+          </label>
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-gray-700">{currencySymbol}</span>
+            <input
+              type="number"
+              min="1"
+              step="0.01"
+              value={donationAmount || ''}
+              onChange={(e) => onDonationChange?.(e.target.value)}
+              placeholder="10.00"
+              className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2"
+            />
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="text-sm text-gray-600">
+          Entry: {currencySymbol}{entryFee}
+          {extrasTotal > 0 && ` + Extras: ${currencySymbol}${extrasTotal}`}
+        </div>
+      )}
+    </div>
+
+    <div className="text-2xl font-bold text-blue-900">
+      {currencySymbol}{totalAmount}
+    </div>
+  </div>
+</div>
 
       {/* Form Fields */}
       <div className="space-y-4">

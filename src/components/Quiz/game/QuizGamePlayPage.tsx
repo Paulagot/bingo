@@ -1079,19 +1079,29 @@ const handleQuizError = ({ message, code }: { message: string; code?: string }) 
     };
 
 const handleHiddenStart = (payload: any) => {
-  if (debug) console.log('[Client] hidden_object_start', payload);
+   if (debug) {
+    console.log('[Client] hidden_object_start', payload);
+    console.log('[Client] hidden_object_start items:', payload?.items);
+  }
   
   // ✅ CRITICAL: Reset foundIds when new puzzle starts
   setHiddenPuzzle({
-    puzzleId: payload.puzzleId,
+   puzzleId: String(payload.puzzleId),
     imageUrl: payload.imageUrl,
     difficulty: payload.difficulty,
     category: payload.category,
-    totalSeconds: payload.totalSeconds,
-    itemTarget: payload.itemTarget,
-    items: payload.items || [],
-    puzzleNumber: payload.puzzleNumber,      // ✅ ADD THIS
-    totalPuzzles: payload.totalPuzzles,      // ✅ ADD THIS
+    totalSeconds: Number(payload.totalSeconds ?? 0),
+    itemTarget: Number(payload.itemTarget ?? payload.items?.length ?? 0),
+    puzzleNumber: payload.puzzleNumber,
+    totalPuzzles: payload.totalPuzzles,
+    items: Array.isArray(payload.items)
+      ? payload.items.map((it: any) => ({
+          id: String(it.id),
+          label: String(it.label),
+          difficulty: it.difficulty || 'easy',
+          bbox: it.bbox,
+        }))
+      : [],
   });
 
   setHiddenFoundIds([]);              // ✅ CRITICAL: Always reset for new puzzle

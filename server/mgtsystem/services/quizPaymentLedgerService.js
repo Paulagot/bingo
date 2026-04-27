@@ -27,19 +27,18 @@ export async function createExpectedPayment({
   paymentSource = 'player_selected',
   clubPaymentMethodId = null,
   paymentReference = null,
+  externalTransactionId = null,
   claimedAt = null,
   extraId = null,
   extraMetadata = null,
   ticketId = null,
   
-  // ✅ NEW: Support admin-assigned confirmed payments
-  status = null,              // explicit status override
+  status = null,
   confirmedAt = null,
   confirmedBy = null,
   confirmedByName = null,
   confirmedByRole = null,
 }) {
-  // ✅ Check if ticket ledger entry already exists
   if (ticketId) {
     const checkSql = `
       SELECT id 
@@ -63,21 +62,19 @@ export async function createExpectedPayment({
         ledgerType,
         extraId
       });
-     return existing[0].id;
+      return existing[0].id;
     }
   }
   
-  // ✅ NEW: Determine status intelligently
-  // Priority: explicit status > confirmed > claimed > expected
   const finalStatus = status || (confirmedAt ? 'confirmed' : (claimedAt ? 'claimed' : 'expected'));
   
   const sql = `
     INSERT INTO ${LEDGER_TABLE}
       (room_id, club_id, player_id, player_name, ledger_type, amount, currency, 
        status, payment_method, payment_source, club_payment_method_id, 
-       payment_reference, claimed_at, confirmed_at, confirmed_by, 
+       payment_reference, external_transaction_id, claimed_at, confirmed_at, confirmed_by, 
        confirmed_by_name, confirmed_by_role, extra_id, extra_metadata, ticket_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
   
   const [result] = await connection.execute(sql, [
@@ -88,16 +85,17 @@ export async function createExpectedPayment({
     ledgerType, 
     amount, 
     currency,
-    finalStatus,                    // ✅ Use calculated status
+    finalStatus,
     paymentMethod, 
     paymentSource, 
     clubPaymentMethodId,
     paymentReference,
+    externalTransactionId,
     claimedAt,
-    confirmedAt,                    // ✅ NEW
-    confirmedBy,                    // ✅ NEW
-    confirmedByName,                // ✅ NEW
-    confirmedByRole,                // ✅ NEW
+    confirmedAt,
+    confirmedBy,
+    confirmedByName,
+    confirmedByRole,
     extraId, 
     extraMetadata ? JSON.stringify(extraMetadata) : null,
     ticketId,
@@ -125,10 +123,10 @@ export async function claimPayment({
       payment_reference = ?,
       payment_method = ?,
       club_payment_method_id = ?,
-      claimed_at = NOW(),
+      claimed_at = UTC_TIMESTAMP(),
       claimed_by = ?,
       payment_source = 'player_claimed',
-      updated_at = NOW()
+      updated_at = UTC_TIMESTAMP()
     WHERE room_id = ? 
       AND player_id = ? 
       AND status = 'expected'
@@ -180,12 +178,12 @@ export async function confirmPayment({
       status = 'confirmed',
       payment_method = COALESCE(?, payment_method),
       club_payment_method_id = COALESCE(?, club_payment_method_id),
-      confirmed_at = NOW(),
+      confirmed_at = UTC_TIMESTAMP(),
       confirmed_by = ?,
       confirmed_by_name = ?,
       confirmed_by_role = ?,
       admin_notes = ?,
-      updated_at = NOW()
+      updated_at = UTC_TIMESTAMP()
     WHERE room_id = ?
       AND player_id = ?
       AND status IN ('claimed', 'expected')
@@ -252,11 +250,11 @@ export async function webhookConfirmPayment({
     UPDATE ${LEDGER_TABLE}
     SET 
       status = 'confirmed',
-      confirmed_at = NOW(),
+      confirmed_at = UTC_TIMESTAMP(),
       confirmed_by = 'webhook_auto',
       payment_source = 'webhook_auto',
       external_transaction_id = ?,
-      updated_at = NOW()
+      updated_at = UTC_TIMESTAMP()
     WHERE payment_reference = ? 
       AND status = 'claimed'
       AND payment_method = ?
@@ -268,4 +266,41 @@ export async function webhookConfirmPayment({
   ]);
   
   return result.affectedRows > 0;
+}
+export async function updateDonationLedgerAmount({
+  roomId,
+  playerId,
+  amount,
+  paymentMethod = null,
+  clubPaymentMethodId = null,
+}) {
+  const safeAmount = Number(amount || 0);
+
+  const sql = `
+    UPDATE ${LEDGER_TABLE}
+    SET
+      amount = ?,
+      payment_method = COALESCE(?, payment_method),
+      club_payment_method_id = COALESCE(?, club_payment_method_id),
+      extra_metadata = ?,
+      updated_at = UTC_TIMESTAMP()
+    WHERE room_id = ?
+      AND player_id = ?
+      AND ledger_type = 'entry_fee'
+      AND (ticket_id IS NULL OR ticket_id = '')
+  `;
+
+  const [result] = await connection.execute(sql, [
+    safeAmount,
+    paymentMethod,
+    clubPaymentMethodId,
+    JSON.stringify({
+      fundraisingMode: 'donation',
+      donationAmount: safeAmount,
+    }),
+    roomId,
+    playerId,
+  ]);
+
+  return { ok: result.affectedRows > 0, updated: result.affectedRows };
 }
