@@ -1,9 +1,11 @@
 // src/components/Quiz/shared/StepWrapper.tsx
 import React from 'react';
 
+type StepMode = 'modal' | 'page' | 'embedded';
+
 interface StepWrapperProps {
   children: React.ReactNode;
-  mode: 'modal' | 'page';
+  mode: StepMode;
   onClose?: () => void;
 }
 
@@ -17,7 +19,6 @@ interface StepFooterProps {
   children: React.ReactNode;
 }
 
-// Main wrapper component
 export const StepWrapper: React.FC<StepWrapperProps> = ({ children, mode }) => {
   if (mode === 'modal') {
     return (
@@ -29,11 +30,20 @@ export const StepWrapper: React.FC<StepWrapperProps> = ({ children, mode }) => {
     );
   }
 
-  // Page mode - similar constraint but not fixed/overlay
+if (mode === 'embedded') {
   return (
-    <div className="min-h-screen bg-gray-50 py-4 px-4 sm:py-8">
+    <div className="w-full overflow-hidden rounded-3xl border border-white/30 bg-white text-gray-900 shadow-2xl">
+      <div className="h-[82vh] min-h-[680px] w-full overflow-hidden">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+  return (
+    <div className="min-h-screen bg-gray-50 px-4 py-4 sm:py-8">
       <div className="mx-auto max-w-4xl">
-        <div className="bg-white h-[95vh] sm:h-[90vh] w-full overflow-hidden rounded-xl shadow-xl border border-gray-100">
+        <div className="h-[95vh] w-full overflow-hidden rounded-xl border border-gray-100 bg-white shadow-xl sm:h-[90vh]">
           {children}
         </div>
       </div>
@@ -41,7 +51,6 @@ export const StepWrapper: React.FC<StepWrapperProps> = ({ children, mode }) => {
   );
 };
 
-// Header component
 export const StepHeader: React.FC<StepHeaderProps> = ({ icon, title, subtitle }) => {
   return (
     <div className="border-b border-gray-200 p-4 sm:p-6">
@@ -49,10 +58,16 @@ export const StepHeader: React.FC<StepHeaderProps> = ({ icon, title, subtitle })
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-lg text-white sm:h-12 sm:w-12 sm:text-xl">
           {icon}
         </div>
+
         <div className="min-w-0 flex-1">
-          <h2 className="text-xl font-bold sm:text-2xl truncate">{title}</h2>
+          <h2 className="truncate text-xl font-bold text-gray-950 sm:text-2xl">
+            {title}
+          </h2>
+
           {subtitle && (
-            <p className="text-gray-600 text-sm sm:text-base truncate">{subtitle}</p>
+            <p className="truncate text-sm text-gray-600 sm:text-base">
+              {subtitle}
+            </p>
           )}
         </div>
       </div>
@@ -60,30 +75,27 @@ export const StepHeader: React.FC<StepHeaderProps> = ({ icon, title, subtitle })
   );
 };
 
-// Content area - scrollable
-export const StepContent: React.FC<{ children: React.ReactNode; noPadding?: boolean }> = ({ 
-  children,
-  noPadding = false 
-}) => {
+export const StepContent: React.FC<{
+  children: React.ReactNode;
+  noPadding?: boolean;
+}> = ({ children, noPadding = false }) => {
   return (
-    <div className={`flex-1 overflow-y-auto ${noPadding ? '' : 'p-4 sm:p-6 pb-36'}`}>
+    <div className={`flex-1 overflow-y-auto ${noPadding ? '' : 'p-4 pb-36 sm:p-6'}`}>
       {children}
     </div>
   );
 };
 
-// Footer - sticky at bottom
 export const StepFooter: React.FC<StepFooterProps> = ({ children }) => {
   return (
-    <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 shadow-lg">
+    <div className="sticky bottom-0 border-t border-gray-200 bg-white p-4 shadow-lg">
       {children}
     </div>
   );
 };
 
-// Complete step layout helper
 export const StepLayout: React.FC<{
-  mode: 'modal' | 'page';
+  mode: StepMode;
   icon: string;
   title: string;
   subtitle?: string;
@@ -91,10 +103,19 @@ export const StepLayout: React.FC<{
   footer: React.ReactNode;
   onClose?: () => void;
   contentNoPadding?: boolean;
-}> = ({ mode, icon, title, subtitle, children, footer, onClose, contentNoPadding }) => {
+}> = ({
+  mode,
+  icon,
+  title,
+  subtitle,
+  children,
+  footer,
+  onClose,
+  contentNoPadding,
+}) => {
   return (
     <StepWrapper mode={mode} onClose={onClose}>
-      <div className="flex flex-col h-full">
+      <div className="flex h-full flex-col">
         <StepHeader icon={icon} title={title} subtitle={subtitle} />
         <StepContent noPadding={contentNoPadding}>{children}</StepContent>
         <StepFooter>{footer}</StepFooter>

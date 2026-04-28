@@ -110,6 +110,8 @@ const FundraisersDashboardPage = lazy(() =>
 const Web3HostPage = lazy(() => import('./pages/web3/host'));
 const Web3CausesPage = lazy(() => import('./pages/web3/causes'));
 
+const BonkBfpPubQuizPage = lazy(() => import('./pages/events/BonkBfpPubQuizPage'));
+
 const LoadingSpinner = ({
   message = 'Loading...',
   subMessage,
@@ -142,7 +144,7 @@ export default function App() {
   const { pathname } = location;
 
   const hideOnPaths = ['/BingoBlitz'];
-  const hideOnPrefixes = ['/quiz/game', '/quiz/play', '/quiz/host-dashboard', '/quiz/host-controls', '/mini-app', '/tickets', '/elimination',  '/web3'];
+  const hideOnPrefixes = ['/events/bonk-bfp-pub-quiz','/quiz/game', '/quiz/play', '/quiz/host-dashboard', '/quiz/host-controls', '/mini-app', '/tickets', '/elimination',  '/web3'];
   const showHeader =
     !hideOnPaths.includes(pathname) &&
     !hideOnPrefixes.some((p) => pathname === p || pathname.startsWith(p + '/'));
@@ -194,6 +196,15 @@ useEffect(() => {
                 </Suspense>
               }
             />
+
+            <Route
+  path="/events/bonk-bfp-pub-quiz"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading event page" />}>
+      <BonkBfpPubQuizPage />
+    </Suspense>
+  }
+/>
 
             {/* ✅ NEW: Ticket routes (public, no auth required) */}
             <Route

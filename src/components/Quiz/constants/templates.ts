@@ -1060,12 +1060,12 @@ const quizTemplates: QuizTemplate[] = [
     icon: '🪙',
     difficulty: 'Medium',
     rounds: [
-      { type: 'general_trivia', category: 'Web3',              difficulty: 'easy' },
-      { type: 'speed_round',    category: 'Emojis',            difficulty: 'hard' },
+      { type: 'general_trivia', category: 'History',              difficulty: 'easy' },
+      { type: 'speed_round',    category: 'Flags of the World', difficulty: 'medium' },
       { type: 'wipeout',        category: 'Web3',              difficulty: 'medium' },
       { type: 'hidden_object',  category: 'all',               difficulty: 'medium' },
       { type: 'order_image',    category: 'Technology',        difficulty: 'medium' },
-      { type: 'general_trivia', category: 'General Knowledge', difficulty: 'medium' },
+      { type: 'wipeout', category: 'General Knowledge', difficulty: 'medium' },
     ],
     tags: ['Audience: Adults', 'Topic: Web3', 'Duration: ≈60m']
   },
