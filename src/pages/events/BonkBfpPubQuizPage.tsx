@@ -21,13 +21,14 @@ import { Link } from 'react-router-dom';
 
 import TicketPurchaseFlow from '../../components/Quiz/tickets/TicketPurchaseFlow';
 
-const ROOM_ID = '';
+const ROOM_ID = 'gL2kJX3asO';
 // Add your generated room ID later, for example:
 // const ROOM_ID = 'lZWG6I-Zjd';
 
 const BANNER_SRC = '/bonk-bfp-pub-quiz-banner.png';
 const FUNDRAISELY_LOGO = '/Fundraiselynobackground.png';
 const SUPERTEAM_LOGO = '/partner/superteam_ireland_logo.jpeg';
+const BUDDIES_FOR_PAWS_LOGO = '/partner/BFP-master-orange.png';
 
 const LUMA_URL = 'https://luma.com/l7g1y7uc?tk=hXYbgf';
 const BUDDIES_FOR_PAWS_URL = 'https://www.buddiesforpaws.org/';
@@ -60,8 +61,8 @@ export default function BonkBfpPubQuizPage() {
                   </span>{' '}
                   on <span className="font-bold text-[#23254a]">1st May at 7:00pm</span>{' '}
                   for a BuildStation charity pub quiz where your donation becomes your
-                  ticket to play. Every euro raised will be{' '}
-                  <span className="font-bold text-[#f05b39]">matched 100% by BONK</span>,
+                  ticket to play. All donations will be{' '}
+                  <span className="font-bold text-[#f05b39]">matched by BONK for greater impact</span>,
                   with funds going to Buddies for Paws for distribution between animal
                   welfare and wildlife conservation causes.
                 </p>
@@ -145,12 +146,12 @@ export default function BonkBfpPubQuizPage() {
                     size="large"
                   />
 
-                  <SponsorTextCard
-                    name="Buddies for Paws"
-                    label="Cause partner"
-                    href={BUDDIES_FOR_PAWS_URL}
-                    size="large"
-                  />
+               <SponsorLogoCard
+  imgSrc={BUDDIES_FOR_PAWS_LOGO}
+  name="Buddies for Paws"
+  href={BUDDIES_FOR_PAWS_URL}
+  size="large"
+/>
                 </div>
 
                 <div className="mt-4 rounded-2xl border border-[#d9def5] bg-[#f5f7ff] p-4">
