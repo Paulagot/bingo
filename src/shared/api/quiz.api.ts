@@ -7,7 +7,7 @@ import type { Entitlements } from '../types';
 /**
  * WEB2 room listing/status types
  */
-export type Web2QuizRoomStatus = 'scheduled' | 'live' | 'completed' | 'cancelled';
+export type Web2QuizRoomStatus = 'scheduled' | 'open' | 'live' | 'completed' | 'cancelled';
 
 // ✅ Define these types here instead of in the component
 export interface Prize {
@@ -69,6 +69,7 @@ export type Web2RoomListItem = {
   created_at: string;
   updated_at: string;
   ended_at?: string | null;
+  participants_count?: number;
 };
 
 export type GetWeb2RoomsListResponse = {

@@ -314,16 +314,6 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
     return "Hi there! Let's set up your quiz together. Fill in the details below to get started.";
   };
 
-  const hourOptions = useMemo(
-    () => Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')),
-    []
-  );
-
-  const minuteOptions = useMemo(
-    () => Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0')),
-    []
-  );
-
   return (
     <div className="w-full space-y-3 px-2 pb-4 sm:space-y-6 sm:px-4">
       <div className="px-1">
@@ -512,17 +502,18 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
 
         <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3 sm:mt-4">
           <p className="text-xs text-blue-800 sm:text-sm">
-            <strong>Payment Collection:</strong> You'll collect payments manually from participants
-            using cash, tap card, or instant payment when they arrive.
-            <br />
-            <strong>Ticket Sales:</strong> Link a payment method to sell tickets in advance and
-            guarantee your attendance numbers. We currently support Instant Payment with manual
-            verification, with more options coming soon!
+            <strong>On the night payments:</strong> Collect entry fees in person — cash, card, or
+            Instant Payment all work seamlessly when players arrive.
+          </p>
+          <p className="mt-2 text-xs text-blue-800 sm:text-sm">
+            <strong>Ticket sales:</strong> Sell tickets in advance to lock in attendance. We support
+            card, Apple Pay &amp; Google Pay via Stripe (auto-verified), Instant Payment (manual
+            verification), and crypto on Solana (auto-verified).
           </p>
         </div>
       </div>
 
-      {/* Scheduling (Web2 only) — 24-hour grid + 5-min grid */}
+      {/* Scheduling (Web2 only) */}
       {flow === 'web2' && (
         <div
           className={`bg-muted rounded-lg border-2 p-4 shadow-sm transition-all sm:rounded-xl sm:p-6 ${
@@ -540,73 +531,62 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
                 </h3>
                 {completedSections.schedule && <Check className="h-4 w-4 text-green-600 sm:h-5 sm:w-5" />}
               </div>
-              <p className="text-fg/70 text-xs sm:text-sm">Choose a date and time for your quiz.</p>
+              <p className="text-fg/70 text-xs sm:text-sm">When is your quiz happening?</p>
             </div>
           </div>
 
-          <div className="space-y-3">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
-              <div className="space-y-1 sm:col-span-4">
-                <label className="text-fg/80 text-xs font-medium sm:text-sm">Date</label>
-                <input
-                  type="date"
-                  value={scheduleDate}
-                  onChange={(e) => {
-                    const next = e.target.value;
-                    setScheduleDate(next);
-                    applySchedule(next, scheduleHour, scheduleMinute);
-                    setError('');
-                  }}
-                  className="border-border w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3"
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <GridPicker
-                  label="Hour"
-                  value={scheduleHour}
-                  options={hourOptions}
-                  columns={6}
-                  onChange={(next) => {
-                    setScheduleHour(next);
-                    applySchedule(scheduleDate, next, scheduleMinute);
-                    setError('');
-                  }}
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <GridPicker
-                  label="Minute"
-                  value={scheduleMinute}
-                  options={minuteOptions}
-                  columns={4}
-                  onChange={(next) => {
-                    setScheduleMinute(next);
-                    applySchedule(scheduleDate, scheduleHour, next);
-                    setError('');
-                  }}
-                />
-              </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-fg/80 text-xs font-medium sm:text-sm">Date</label>
+              <input
+                type="date"
+                value={scheduleDate}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setScheduleDate(next);
+                  applySchedule(next, scheduleHour, scheduleMinute);
+                  setError('');
+                }}
+                className="border-border w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3"
+              />
             </div>
 
-            <div className="text-fg/60 flex flex-wrap items-center justify-between gap-2 text-xs">
-              <span>Time zone: {(setupConfig as any).timeZone || tz}</span>
+            <div className="space-y-1">
+              <label className="text-fg/80 text-xs font-medium sm:text-sm">Time</label>
+              <input
+                type="time"
+                value={scheduleHour && scheduleMinute ? `${scheduleHour}:${scheduleMinute}` : ''}
+                onChange={(e) => {
+                  const [h = '', m = ''] = (e.target.value || '').split(':');
+                  setScheduleHour(h);
+                  setScheduleMinute(m);
+                  applySchedule(scheduleDate, h, m);
+                  setError('');
+                }}
+                className="border-border w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3"
+              />
+            </div>
+          </div>
+
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <span className="text-fg/50 text-xs">
+              {(setupConfig as any).timeZone || tz}
+            </span>
+            <div className="flex items-center gap-2">
               {completedSections.schedule ? (
-                <span className="rounded-md bg-green-50 px-2 py-1 text-green-700">Saved</span>
+                <span className="rounded-md bg-green-50 px-2 py-1 text-xs text-green-700">Saved</span>
               ) : (
-                <span className="rounded-md bg-yellow-50 px-2 py-1 text-yellow-800">Required</span>
+                <span className="rounded-md bg-yellow-50 px-2 py-1 text-xs text-yellow-800">Required</span>
               )}
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                className="rounded-lg border bg-white px-3 py-2 text-xs font-medium hover:bg-gray-50"
-                onClick={clearSchedule}
-              >
-                Clear
-              </button>
+              {(scheduleDate || scheduleHour) && (
+                <button
+                  type="button"
+                  onClick={clearSchedule}
+                  className="text-fg/50 hover:text-fg/80 text-xs underline transition"
+                >
+                  Clear
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -1,4 +1,9 @@
-// server/quiz/services/stripeTicketCheckoutService.js
+// server/stripe/stripeTicketCheckoutService.js
+// CHANGES from original:
+//   1. Stripe checkout session now expires after 30 minutes (expires_after: { minutes: 30 })
+//   2. expires_at column set on ticket row at creation time (UTC + 30 min)
+//   3. No other logic changed
+
 import Stripe from 'stripe';
 import { nanoid } from 'nanoid';
 import { connection, TABLE_PREFIX } from '../config/database.js';
@@ -10,6 +15,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-
 
 const TICKETS_TABLE = `${TABLE_PREFIX}quiz_tickets`;
 const PAYMENT_METHODS_TABLE = `${TABLE_PREFIX}club_payment_methods`;
+
+// Session expires after 30 minutes — Stripe minimum is 30, maximum is 24 hours
+const CHECKOUT_EXPIRY_MINUTES = 30;
 
 const DEBUG = true;
 
@@ -125,9 +133,17 @@ export async function createTicketAndStripeSession({
     throw new Error('invalid_checkout_amount');
   }
 
-  // 4) Create ticket (reserved but blocked until webhook confirms)
+  // 4) Create ticket — reserved but blocked until webhook confirms
+  //    expires_at is set so the cleanup job / webhook can hard-delete it
+  //    if the user abandons or payment fails.
   const ticketId = nanoid(12);
   const joinToken = nanoid(16);
+
+  // Calculate expiry timestamp as a MySQL-compatible UTC string
+  const expiresAt = new Date(Date.now() + CHECKOUT_EXPIRY_MINUTES * 60 * 1000)
+    .toISOString()
+    .slice(0, 19)
+    .replace('T', ' '); // '2025-01-15 14:32:00'
 
   await connection.execute(
     `
@@ -135,9 +151,9 @@ export async function createTicketAndStripeSession({
       (ticket_id, room_id, club_id, purchaser_name, purchaser_email, purchaser_phone,
        player_name, entry_fee, extras, extras_total, total_amount, currency,
        payment_status, payment_method, payment_reference, club_payment_method_id,
-       redemption_status, join_token)
+       redemption_status, join_token, expires_at)
     VALUES
-      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'payment_claimed', 'stripe', NULL, ?, 'blocked', ?)
+      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'payment_claimed', 'stripe', NULL, ?, 'blocked', ?, ?)
     `,
     [
       ticketId,
@@ -154,6 +170,7 @@ export async function createTicketAndStripeSession({
       currency,
       stripeConn.clubPaymentMethodId,
       joinToken,
+      expiresAt,  // ✅ NEW
     ]
   );
 
@@ -174,15 +191,10 @@ export async function createTicketAndStripeSession({
     ticketId,
     status: 'expected',
     extraMetadata: isDonationRoom
-      ? {
-          fundraisingMode: 'donation',
-          donationAmount: entryFee,
-        }
+      ? { fundraisingMode: 'donation', donationAmount: entryFee }
       : null,
   });
 
-  // Fixed-fee tickets only: create extra ledger rows.
-  // Donation tickets include extras automatically and should NOT create extra_purchase rows.
   if (!isDonationRoom) {
     for (const extra of extrasWithPrices) {
       await createExpectedPayment({
@@ -209,12 +221,15 @@ export async function createTicketAndStripeSession({
     [entryLedgerId, ticketId]
   );
 
-  // 6) Create Stripe Checkout Session on club connected account
+  // 6) Create Stripe Checkout Session
+  //    expires_after.minutes tells Stripe to expire the session after 30 min,
+  //    which triggers the checkout.session.expired webhook we handle in stripeWebhooks.js
   const origin = appOrigin || process.env.APP_URL || 'http://localhost:5173';
 
   const session = await stripe.checkout.sessions.create(
     {
       mode: 'payment',
+      expires_after: { minutes: CHECKOUT_EXPIRY_MINUTES }, // ✅ NEW
       line_items: [
         {
           quantity: 1,
@@ -222,16 +237,13 @@ export async function createTicketAndStripeSession({
             currency: currency.toLowerCase(),
             unit_amount: totalAmountCents,
             product_data: {
-              name: isDonationRoom
-                ? `Quiz Donation Ticket`
-                : `Quiz Ticket`,
+              name: isDonationRoom ? `Quiz Donation Ticket` : `Quiz Ticket`,
             },
           },
         },
       ],
       success_url: `${origin}/tickets/${ticketId}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/tickets/${ticketId}/cancel?session_id={CHECKOUT_SESSION_ID}`,
-
+      cancel_url:  `${origin}/tickets/${ticketId}/cancel?session_id={CHECKOUT_SESSION_ID}`,
       metadata: {
         type: 'ticket_purchase',
         ticketId,
@@ -250,7 +262,7 @@ export async function createTicketAndStripeSession({
     { stripeAccount: stripeConn.accountId }
   );
 
-  // 7) Save session.id so webhook can match/reference it
+  // 7) Save session.id so webhook can match it
   await connection.execute(
     `UPDATE ${TICKETS_TABLE}
      SET payment_reference = ?, updated_at = UTC_TIMESTAMP()
@@ -272,14 +284,10 @@ export async function createTicketAndStripeSession({
       roomId,
       totalAmount,
       currency,
+      expiresAt,
       fundraisingMode: isDonationRoom ? 'donation' : 'fixed_fee',
-      donationAmount: isDonationRoom ? entryFee : null,
-      extrasCount: extrasWithPrices.length,
     });
   }
 
-  return {
-    url: session.url,
-    ticketId,
-  };
+  return { url: session.url, ticketId };
 }

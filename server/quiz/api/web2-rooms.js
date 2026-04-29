@@ -9,7 +9,7 @@ console.log('[web2-rooms API] ✅ web2-rooms router file loaded');
 
 
 function isAllowedStatus(s) {
-  return ['scheduled', 'live', 'completed', 'cancelled'].includes(String(s));
+  return ['scheduled', 'open', 'live', 'completed', 'cancelled'].includes(String(s));
 }
 
 function toMysqlUtcDateTime(value) {
@@ -295,7 +295,7 @@ router.post('/web2/rooms/:roomId/cancel', authenticateToken, async (req, res) =>
     const sql = `
       UPDATE ${WEB2_ROOMS_TABLE}
       SET status = 'cancelled', updated_at = UTC_TIMESTAMP()
-      WHERE club_id = ? AND room_id = ? AND status = 'scheduled'
+     WHERE club_id = ? AND room_id = ? AND status IN ('scheduled', 'open')
       LIMIT 1
     `;
 

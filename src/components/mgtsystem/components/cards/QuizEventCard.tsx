@@ -16,6 +16,7 @@ import { QuizPaymentMethodsModal } from '../../modals/QuizPaymentMethodsModal';
 import MarkLatePaymentModal from '../../modals/QuizMarkLatePaymentModal';
 import { useAuthStore } from '../../../../features/auth';
 import quizLatePaymentsService from '../../services/QuizLatePaymentsService';
+import { LaunchQuizModal } from '../../modals/LaunchQuizModal';
 
 // ✅ NEW: personalised round modal
 import { PersonalisedRoundModal } from '../../modals/QuizPersonalisedRoundModal';
@@ -109,6 +110,7 @@ export function QuizEventCard({
   const uniquePlayers = stats?.uniquePlayers ?? 0;
   const totalIncome = stats?.totalIncome ?? 0;
   const pendingTicketVerifications = stats?.pendingTicketVerifications ?? 0;
+  const [launchModalOpen, setLaunchModalOpen] = useState(false);
 
   const copyTicketLink = async () => {
     const ticketUrl = `${window.location.origin}/tickets/buy/${room.room_id}`;
@@ -151,10 +153,11 @@ export function QuizEventCard({
 
   const showReportButton = isCompleted;
 
-  const canOpen =
-    !isCompleted &&
-    !isCancelled &&
-    (isLive || (isScheduled && mins !== null && mins <= 60));
+const canOpen =
+  !isCompleted &&
+  !isCancelled &&
+  (isLive || room.status === 'open' || (isScheduled && mins !== null && mins <= 60));
+
 
   const canEdit = isScheduled && onEdit;
   const canCancel = isScheduled && onCancel;
@@ -185,6 +188,7 @@ export function QuizEventCard({
       case 'scheduled': return 'bg-blue-100 text-blue-700 border-blue-200';
       case 'completed': return 'bg-gray-100 text-gray-700 border-gray-200';
       case 'cancelled': return 'bg-red-100 text-red-700 border-red-200';
+      case 'open': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
       default: return 'bg-gray-100 text-gray-700 border-gray-200';
     }
   };
@@ -252,6 +256,7 @@ const tableView = (
       <div className="w-24 flex-shrink-0">
         <span className={`px-2 py-1 rounded-full border text-xs font-semibold inline-block text-center w-full ${getStatusBadgeColor(room.status)}`}>
           {room.status === 'scheduled' ? 'Scheduled' :
+          room.status === 'open' ? 'Open' :
             room.status === 'live' ? 'Live' :
               room.status === 'completed' ? 'Done' : 'Cancelled'}
         </span>
@@ -430,7 +435,7 @@ const tableView = (
         {!isCompleted && !isCancelled && (
           <button
             type="button"
-            onClick={() => onOpenRoom(room.room_id, room.host_id)}
+             onClick={() => setLaunchModalOpen(true)} 
             disabled={!canOpen}
             className={`inline-flex items-center gap-1 rounded px-3 py-1.5 text-xs font-semibold transition whitespace-nowrap ${canOpen ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}
           >
@@ -628,7 +633,7 @@ const tableView = (
         {!isCompleted && !isCancelled && (
           <button
             type="button"
-            onClick={() => onOpenRoom(room.room_id, room.host_id)}
+              onClick={() => setLaunchModalOpen(true)} 
             disabled={!canOpen}
             className={`w-full inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition
               ${canOpen ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}
@@ -933,6 +938,18 @@ const tableView = (
           console.log('Personalised round saved');
         }}
       />
+
+      {launchModalOpen && (
+  <LaunchQuizModal
+    roomId={room.room_id}
+    hostId={room.host_id}
+    onLaunchFromHere={() => {
+      setLaunchModalOpen(false);
+      onOpenRoom(room.room_id, room.host_id); // ← this is the existing openRoom call
+    }}
+    onClose={() => setLaunchModalOpen(false)}
+  />
+)}
     </>
   );
 }

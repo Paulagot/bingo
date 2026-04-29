@@ -35,7 +35,7 @@ import type {
 } from '../../../../shared/api/quiz.api';
 import { useQuizConfig } from '@/components/Quiz/hooks/useQuizConfig';
 
-type StatusFilter = 'scheduled' | 'live' | 'completed' | 'cancelled' | 'all';
+type StatusFilter = 'scheduled'| 'open' | 'live' | 'completed' | 'cancelled' | 'all';
 type ViewMode = 'table' | 'cards';
 
 const debug = false;
@@ -207,7 +207,8 @@ const showQuizPayments = featureAccess.quizPayments;
   const [_ticketStatsLoading, setTicketStatsLoading] = useState(true);
 
   const sortedRooms = useMemo(() => {
-    const statusPriority: Record<string, number> = { live: 1, scheduled: 2, completed: 3, cancelled: 4 };
+    const statusPriority: Record<string, number> = { live: 1, open: 2, scheduled: 3, completed: 4, cancelled: 5 };
+  
     return [...rooms].sort((a, b) => {
       const aPriority = statusPriority[a.status] || 999;
       const bPriority = statusPriority[b.status] || 999;
@@ -218,12 +219,13 @@ const showQuizPayments = featureAccess.quizPayments;
     });
   }, [rooms]);
 
-  const stats = useMemo(() => ({
-    total: rooms.length,
-    upcoming: rooms.filter(r => r.status === 'scheduled').length,
-    live: rooms.filter(r => r.status === 'live').length,
-    completed: rooms.filter(r => r.status === 'completed').length,
-  }), [rooms]);
+ const stats = useMemo(() => ({
+  total: rooms.length,
+  upcoming: rooms.filter(r => r.status === 'scheduled').length,
+  open: rooms.filter(r => r.status === 'open').length,       // ← ADD
+  live: rooms.filter(r => r.status === 'live').length,
+  completed: rooms.filter(r => r.status === 'completed').length,
+}), [rooms]);
 
   // ── Data loaders ──
   const loadEntitlements = async () => {
@@ -298,7 +300,7 @@ const showQuizPayments = featureAccess.quizPayments;
     try {
       setRoomsLoading(true);
       setRoomsError(null);
-      const res = await quizApi.getWeb2RoomsList({ status: s, time: 'all' });
+    const res = await quizApi.getWeb2RoomsList({ status: s as any, time: 'all' });
       setRooms(res.rooms || []);
       const roomIds = (res.rooms || []).map(r => r.room_id);
       await Promise.all([
@@ -348,6 +350,22 @@ const showQuizPayments = featureAccess.quizPayments;
   useEffect(() => {
     loadRooms(status);
   }, [status]);
+
+  useEffect(() => {
+  // Only poll when there are rooms that need watching
+  const activeRoomIds = rooms
+    .filter(r => r.status === 'scheduled' || r.status === 'live')
+    .map(r => r.room_id);
+ 
+  if (activeRoomIds.length === 0) return;
+ 
+  const interval = setInterval(async () => {
+    // Silently refresh stats (pending verifications badge, ticket counts)
+    await loadRoomStats(activeRoomIds);
+  }, 30_000); // every 30 seconds
+ 
+  return () => clearInterval(interval);
+}, [rooms]); // re-evaluates when the rooms list changes (status filter change, etc.)
 
   // ── Handlers ──
   const goToWizard = () => navigate('/quiz/create-fundraising-quiz?openWizard=1');
@@ -596,7 +614,7 @@ const sharedCardProps = (room: Room) => ({
         <div className="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm p-2">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex gap-2 flex-wrap flex-1">
-              {(['all', 'scheduled', 'live', 'completed', 'cancelled'] as StatusFilter[]).map((s) => (
+              {(['all', 'scheduled', 'open', 'live', 'completed', 'cancelled'] as StatusFilter[]).map((s) => (
                 <button
                   key={s}
                   onClick={() => setStatus(s)}
