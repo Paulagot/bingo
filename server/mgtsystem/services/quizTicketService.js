@@ -863,27 +863,30 @@ export async function getRoomSchedule(roomId) {
 // configurable join window
 export const JOIN_WINDOW_MINUTES = 10;
 
+// REPLACE the existing computeJoinWindow function:
+
 export function computeJoinWindow(roomRow) {
   const scheduledAt = parseMysqlUtcDateTime(roomRow?.scheduled_at);
+  const roomStatus = roomRow?.status || null;
+
+  const isRoomBlocked = roomStatus === 'completed' || roomStatus === 'cancelled';
+
+  // ✅ Gate is now status-driven only:
+  // 'open' = lobby is open, tickets redeemable
+  // 'live' = game running, still joinable
+  const canJoinNow = !isRoomBlocked && (roomStatus === 'open' || roomStatus === 'live');
+
+  // joinOpensAt is kept so the frontend can still show a countdown
+  // to the scheduled time, but it NO LONGER controls the join gate.
   const joinOpensAt = scheduledAt
     ? new Date(scheduledAt.getTime() - JOIN_WINDOW_MINUTES * 60 * 1000)
     : null;
 
-  const now = new Date();
-  const roomStatus = roomRow?.status || null;
-
-  const canJoinByTime = !!joinOpensAt && now.getTime() >= joinOpensAt.getTime();
-  const canJoinByStatus = roomStatus === 'live';
-
-  const isRoomBlocked = roomStatus === 'completed' || roomStatus === 'cancelled';
-
-  const canJoinNow = !isRoomBlocked && (canJoinByTime || canJoinByStatus);
-
   return {
     roomStatus,
     scheduledAt,
-    joinOpensAt,
-    canJoinNow,
+    joinOpensAt,   // informational only - used for countdown UI
+    canJoinNow,    // the real gate - driven by status
   };
 }
 

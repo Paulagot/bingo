@@ -1,11 +1,22 @@
+// server/stripe/stripeWalkinCheckout.js
+// CHANGES from original:
+//   1. Stripe checkout session now expires after 30 minutes (expires_after: { minutes: 30 })
+//   Walk-in payments don't pre-create DB rows so no expires_at needed here —
+//   the webhook creates ledger rows only on success. Abandoned sessions simply never
+//   write anything to the DB, so cleanup is automatic.
+
 import Stripe from 'stripe';
 import { nanoid } from 'nanoid';
 import { connection, TABLE_PREFIX } from '../config/database.js';
 import { canJoinAsWalkIn } from '../mgtsystem/services/quizCapacityService.js';
 import { getRoomConfig } from '../mgtsystem/services/quizTicketService.js';
-import { getReadyStripeForClub } from './stripeTicketCheckoutService.js'; // reuse existing helper
+import { getReadyStripeForClub } from './stripeTicketCheckoutService.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' });
+
+// Must match stripeTicketCheckoutService.js
+const CHECKOUT_EXPIRY_MINUTES = 30;
+
 const DEBUG = true;
 
 function currencyFromSymbol(symbol) {
@@ -19,7 +30,7 @@ export async function createWalkinStripeSession({
   roomId,
   playerName,
   selectedExtras = [],
-  donationAmount, // ✅ NEW
+  donationAmount,
   appOrigin,
 }) {
   // 1) Capacity check
@@ -52,8 +63,6 @@ export async function createWalkinStripeSession({
     }
 
     totalAmount = parsedDonation;
-
-    // Donation rooms: no priced extras
     entryFee = 0;
     extrasTotal = 0;
     extrasWithPrices = [];
@@ -67,7 +76,6 @@ export async function createWalkinStripeSession({
       });
     }
   } else {
-    // Existing fixed-fee behavior
     entryFee = parseFloat(config.entryFee || 0);
 
     for (const extraId of selectedExtras) {
@@ -87,15 +95,19 @@ export async function createWalkinStripeSession({
     throw new Error('invalid_checkout_amount');
   }
 
-  // 5) Generate a stable playerId now so webhook can use it
+  // 4) Generate a stable playerId now so webhook can use it
   const playerId = nanoid();
 
   const origin = appOrigin || process.env.APP_URL || 'http://localhost:5173';
 
-  // 6) Create Stripe session on connected account
+  // 5) Create Stripe session
+  //    Walk-in payments write nothing to the DB until the webhook fires on success,
+  //    so abandoned sessions are automatically harmless — no cleanup needed.
+  //    We still set expires_after for a consistent UX (30-min timer shown to user).
   const session = await stripe.checkout.sessions.create(
     {
       mode: 'payment',
+      expires_after: { minutes: CHECKOUT_EXPIRY_MINUTES }, // ✅ NEW
       line_items: [
         {
           quantity: 1,
@@ -111,7 +123,7 @@ export async function createWalkinStripeSession({
         },
       ],
       success_url: `${origin}/quiz/${roomId}/join-success?playerId=${playerId}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/quiz/join/${roomId}?cancelled=true`,
+      cancel_url:  `${origin}/quiz/join/${roomId}?cancelled=true`,
       metadata: {
         type: 'walkin_payment',
         roomId,
@@ -123,15 +135,13 @@ export async function createWalkinStripeSession({
         entryFee: String(entryFee),
         extrasTotal: String(extrasTotal),
         totalAmount: String(totalAmount),
-        donationAmount: isDonationRoom ? String(totalAmount) : '', // ✅ NEW
-        fundraisingMode: isDonationRoom ? 'donation' : 'fixed_fee', // ✅ NEW
+        donationAmount: isDonationRoom ? String(totalAmount) : '',
+        fundraisingMode: isDonationRoom ? 'donation' : 'fixed_fee',
         currency,
         clubPaymentMethodId: String(stripeConn.clubPaymentMethodId),
       },
     },
-    {
-      stripeAccount: stripeConn.accountId,
-    }
+    { stripeAccount: stripeConn.accountId }
   );
 
   if (DEBUG) {
@@ -145,8 +155,5 @@ export async function createWalkinStripeSession({
     });
   }
 
-  return {
-    url: session.url,
-    playerId,
-  };
+  return { url: session.url, playerId };
 }

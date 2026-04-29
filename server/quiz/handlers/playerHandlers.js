@@ -25,6 +25,7 @@ import {
 } from '../../mgtsystem/services/quizPaymentLedgerService.js'
 
 import { canJoinAsWalkIn } from '../../mgtsystem/services/quizCapacityService.js';
+import { markRoomAsLive, markRoomAsCompleted, markRoomAsCancelled } from './roomStatusManager.js';
 
 const debug = true;
 
@@ -186,7 +187,19 @@ let joinedUser = null;
     if (role === 'host') {
       updateHostSocketId(roomId, socket.id);
       if (debug) console.log(`[Join] 👑 Host "${room.config.hostName}" (${user.id}) joined with socket ${socket.id}`);
-
+  // ✅ THIS is the right place — inside the role branch, before emitRoomState
+  const isWeb2 = room.config?.paymentMethod !== 'web3' && !room.config?.isWeb3Room;
+  if (isWeb2) {
+    try {
+      const wasUpdated = await markRoomAsOpen(roomId);
+      if (wasUpdated) {
+        room.status = 'open';
+        if (debug) console.log(`[Join] 🟡 Room ${roomId} marked as open`);
+      }
+    } catch (e) {
+      console.error('[Join] ❌ Failed to mark room as open:', e);
+    }
+  }
     } else if (role === 'admin') {
       const existingAdmin = room.admins.find(a => a.id === user.id);
       if (existingAdmin) {
@@ -589,6 +602,7 @@ if (isWeb2 && !joinedViaTicket && !isStripePostJoin) {
   namespace.to(roomId).emit('user_joined', { user: broadcastUser, role: 'player' });
 } else if (role === 'host') {
   namespace.to(roomId).emit('host_joined', { user: { id: user.id, name: room.config?.hostName || user.name }, role: 'host' });
+
 } else if (role === 'admin') {
   namespace.to(roomId).emit('admin_joined', { user: { id: user.id, name: user.name }, role: 'admin' });
 }

@@ -47,6 +47,7 @@ import eliminationDevRoutes from './elimination/routes/eliminationDevRoutes.js';
 import web3TransactionRoutes from './mgtsystem/routes/web3TransactionRoutes.js';
 import web3PublicEventsRoutes from './web3/routes/web3PublicEventsRoutes.js'
 import quizCryptoDonationRoutes from './quiz/api/quizCryptoDonationRouter.js';
+import { startStripeCleanupJob } from './stripe/stripeCleanupJob.js';
 
 
 
@@ -753,6 +754,7 @@ try {
     await initializeDatabase();
     isDatabaseReady = true;
     console.log('🗄️ Database connected and ready');
+     startStripeCleanupJob();
   } catch (dbError) {
     console.error('❌ Database initialization failed:', dbError?.message || dbError);
     process.exit(1);
