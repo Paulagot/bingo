@@ -689,10 +689,10 @@
     "difficulty": "easy",
     "prompt": "Order these computer storage options from smallest to largest typical capacity",
     "images": [
-      { "id": "a", "label": "Floppy disk", "imageUrl": "/quiz/order_image/floppy_disk.jpg", "order": 1 },
-      { "id": "b", "label": "CD", "imageUrl": "/quiz/order_image/cd.jpg", "order": 2 },
-      { "id": "c", "label": "USB flash drive", "imageUrl": "/quiz/order_image/usb_drive.jpg", "order": 3 },
-      { "id": "d", "label": "External hard drive", "imageUrl": "/quiz/order_image/external_hdd.jpg", "order": 4 }
+      { "id": "a", "label": "Floppy disk", "imageUrl": "/quiz/order_image/floppy.jpg", "order": 1 },
+      { "id": "b", "label": "CD", "imageUrl": "/quiz/order_image/cd.jpeg", "order": 2 },
+      { "id": "c", "label": "USB flash drive", "imageUrl": "/quiz/order_image/usb.jpg", "order": 3 },
+      { "id": "d", "label": "External hard drive", "imageUrl": "/quiz/order_image/externaldrive.jpg", "order": 4 }
     ]
   },
   {
@@ -713,12 +713,72 @@
     "difficulty": "medium",
     "prompt": "Order these operating systems from oldest to newest (first released)",
     "images": [
-      { "id": "a", "label": "MS-DOS", "imageUrl": "/quiz/order_image/msdos.jpg", "order": 1 },
-      { "id": "b", "label": "Windows", "imageUrl": "/quiz/order_image/windows.jpg", "order": 2 },
-      { "id": "c", "label": "Linux", "imageUrl": "/quiz/order_image/linux.jpg", "order": 3 },
-      { "id": "d", "label": "Android", "imageUrl": "/quiz/order_image/android.jpg", "order": 4 }
+      { "id": "a", "label": "MS-DOS", "imageUrl": "/quiz/order_image/msdos.png", "order": 1 },
+      { "id": "b", "label": "Windows", "imageUrl": "/quiz/order_image/windows.png", "order": 2 },
+      { "id": "c", "label": "Linux", "imageUrl": "/quiz/order_image/linux.png", "order": 3 },
+      { "id": "d", "label": "Android", "imageUrl": "/quiz/order_image/android.png", "order": 4 }
     ]
   },
+  {
+  "id": "order_tech_06",
+  "category": "Technology",
+  "difficulty": "easy",
+  "prompt": "Order these music listening technologies from oldest to newest",
+  "images": [
+    { "id": "a", "label": "Vinyl record", "imageUrl": "/quiz/order_image/vinyl_record.jpg", "order": 1 },
+    { "id": "b", "label": "Cassette tape", "imageUrl": "/quiz/order_image/cassette_tape.jpg", "order": 2 },
+    { "id": "c", "label": "CD player", "imageUrl": "/quiz/order_image/cd_player.jpg", "order": 3 },
+    { "id": "d", "label": "Music streaming app", "imageUrl": "/quiz/order_image/music_streaming_app.jpg", "order": 4 }
+  ]
+},
+{
+  "id": "order_tech_07",
+  "category": "Technology",
+  "difficulty": "easy",
+  "prompt": "Order these camera technologies from oldest to newest",
+  "images": [
+    { "id": "a", "label": "Film camera", "imageUrl": "/quiz/order_image/film_camera.jpg", "order": 1 },
+    { "id": "b", "label": "Polaroid camera", "imageUrl": "/quiz/order_image/polaroid_camera.jpg", "order": 2 },
+    { "id": "c", "label": "Digital camera", "imageUrl": "/quiz/order_image/digital_camera.jpg", "order": 3 },
+    { "id": "d", "label": "Smartphone camera", "imageUrl": "/quiz/order_image/smartphone_camera.jpg", "order": 4 }
+  ]
+},
+{
+  "id": "order_tech_08",
+  "category": "Technology",
+  "difficulty": "medium",
+  "prompt": "Order these Microsoft products from oldest to newest (by first release)",
+  "images": [
+    { "id": "a", "label": "Microsoft Word", "imageUrl": "/quiz/order_image/microsoft_word.png", "order": 1 },
+    { "id": "b", "label": "Windows", "imageUrl": "/quiz/order_image/windows.png", "order": 2 },
+    { "id": "c", "label": "Xbox", "imageUrl": "/quiz/order_image/xbox.jpg", "order": 3 },
+    { "id": "d", "label": "Microsoft Teams", "imageUrl": "/quiz/order_image/microsoft_teams.png", "order": 4 }
+  ]
+},
+{
+  "id": "order_tech_09",
+  "category": "Technology",
+  "difficulty": "medium",
+  "prompt": "Order these web technologies from oldest to newest (by first release)",
+  "images": [
+    { "id": "a", "label": "HTML", "imageUrl": "/quiz/order_image/html.png", "order": 1 },
+    { "id": "b", "label": "JavaScript", "imageUrl": "/quiz/order_image/javascript.png", "order": 2 },
+    { "id": "c", "label": "CSS", "imageUrl": "/quiz/order_image/css.png", "order": 3 },
+    { "id": "d", "label": "React", "imageUrl": "/quiz/order_image/react.png", "order": 4 }
+  ]
+},
+{
+  "id": "order_tech_10",
+  "category": "Technology",
+  "difficulty": "hard",
+  "prompt": "Order these Apple devices from oldest to newest (by first release)",
+  "images": [
+    { "id": "a", "label": "iPod", "imageUrl": "/quiz/order_image/ipod.jpg", "order": 1 },
+    { "id": "b", "label": "iPhone", "imageUrl": "/quiz/order_image/iphone.jpg", "order": 2 },
+    { "id": "c", "label": "iPad", "imageUrl": "/quiz/order_image/ipad.jpg", "order": 3 },
+    { "id": "d", "label": "Apple Watch", "imageUrl": "/quiz/order_image/apple_watch.jpg", "order": 4 }
+  ]
+},
   {
     "id": "order_tv_01",
     "category": "TV",

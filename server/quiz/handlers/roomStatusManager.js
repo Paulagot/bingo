@@ -32,8 +32,23 @@ export async function updateRoomStatus(roomId, newStatus) {
   }
 }
 
+
+// In roomStatusManager.js — add alongside your existing markRoomAsLive:
+
+export async function markRoomAsOpen(roomId) {
+  const sql = `
+    UPDATE ${WEB2_ROOMS_TABLE}
+    SET status = 'open', updated_at = UTC_TIMESTAMP()
+    WHERE room_id = ? AND status = 'scheduled'
+    LIMIT 1
+  `;
+  const [result] = await connection.execute(sql, [roomId]);
+  if (debug) console.log(`[RoomStatus] 🟡 Room ${roomId} → open (affected: ${result.affectedRows})`);
+  return result.affectedRows > 0;
+}
+
 /**
- * Mark room as live (scheduled → live)
+ * Mark room as live (open → live)
  * @param {string} roomId 
  * @returns {Promise<boolean>}
  */

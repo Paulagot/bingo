@@ -1,7 +1,13 @@
+// server/stripe/stripeWebhooks.js
+// CHANGES from original:
+//   1. Handles checkout.session.expired event — hard-deletes ticket + ledger rows
+//      for ticket_purchase sessions. Walk-in sessions never wrote to DB so nothing to clean up.
+
 import Stripe from 'stripe';
 import { connection, TABLE_PREFIX } from '../config/database.js';
 import { sendTicketConfirmationEmail, getTicketWithRoomConfig } from '../utils/ticketEmail.js';
 import { createExpectedPayment } from '../mgtsystem/services/quizPaymentLedgerService.js';
+import { deleteExpiredTicket } from './stripeExpiredTicketService.js'; // ✅ NEW
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' });
 
@@ -76,23 +82,15 @@ async function confirmWalkinLedger({
   const isDonationRoom = fundraisingMode === 'donation';
 
   console.log('[StripeWebhook] 🧾 confirmWalkinLedger input:', {
-  roomId,
-  playerId,
-  playerName,
-  entryFee,
-  donationAmount,
-  fundraisingMode,
-  isDonationRoom: fundraisingMode === 'donation',
-});
+    roomId, playerId, playerName, entryFee, donationAmount,
+    fundraisingMode, isDonationRoom: fundraisingMode === 'donation',
+  });
 
   if (isDonationRoom) {
     const amount = parseFloat(donationAmount || 0);
 
     await createExpectedPayment({
-      roomId,
-      clubId,
-      playerId,
-      playerName,
+      roomId, clubId, playerId, playerName,
       ledgerType: 'entry_fee',
       amount,
       currency,
@@ -106,21 +104,14 @@ async function confirmWalkinLedger({
       confirmedByName: 'Stripe',
       confirmedByRole: 'admin',
       ticketId: null,
-      extraMetadata: {
-        fundraisingMode: 'donation',
-        donationAmount: amount,
-      },
+      extraMetadata: { fundraisingMode: 'donation', donationAmount: amount },
     });
 
     return;
   }
 
-  // existing fixed-fee behavior
   await createExpectedPayment({
-    roomId,
-    clubId,
-    playerId,
-    playerName,
+    roomId, clubId, playerId, playerName,
     ledgerType: 'entry_fee',
     amount: parseFloat(entryFee),
     currency,
@@ -138,10 +129,7 @@ async function confirmWalkinLedger({
 
   for (const extra of extrasWithPrices) {
     await createExpectedPayment({
-      roomId,
-      clubId,
-      playerId,
-      playerName,
+      roomId, clubId, playerId, playerName,
       ledgerType: 'extra_purchase',
       amount: parseFloat(extra.price),
       currency,
@@ -162,7 +150,7 @@ async function confirmWalkinLedger({
 }
 
 export async function stripeWebhookHandler(req, res) {
-   console.log('[StripeWebhook] 🔔 Webhook received!');
+  console.log('[StripeWebhook] 🔔 Webhook received!');
   console.log('[StripeWebhook] Method:', req.method);
   console.log('[StripeWebhook] Headers:', {
     'stripe-signature': req.headers['stripe-signature'] ? 'present' : 'MISSING',
@@ -170,6 +158,7 @@ export async function stripeWebhookHandler(req, res) {
   });
   console.log('[StripeWebhook] Body type:', typeof req.body);
   console.log('[StripeWebhook] Body is Buffer:', Buffer.isBuffer(req.body));
+
   const sig = req.headers['stripe-signature'];
   const connectAccountId = req.headers['stripe-account'];
 
@@ -186,20 +175,25 @@ export async function stripeWebhookHandler(req, res) {
   }
 
   try {
-    if (DEBUG) console.log('[StripeWebhook] Event:', event.type, '| Connect account:', connectAccountId || 'platform');
+    if (DEBUG) {
+      console.log('[StripeWebhook] Event:', event.type, '| Connect account:', connectAccountId || 'platform');
+    }
 
     if (await alreadyProcessed(event.id)) {
       if (DEBUG) console.log('[StripeWebhook] 🔁 Duplicate event ignored:', event.id);
       return res.json({ received: true, duplicate: true });
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // checkout.session.completed
+    // ─────────────────────────────────────────────────────────────────────────
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
       const type = session?.metadata?.type;
       const sessionId = session?.id;
       const paymentIntentId = session?.payment_intent || null;
 
-      // ── Ticket purchase ──────────────────────────────────────
+      // ── Ticket purchase ──────────────────────────────────────────────────
       if (type === 'ticket_purchase') {
         const ticketId = session?.metadata?.ticketId;
 
@@ -248,62 +242,77 @@ export async function stripeWebhookHandler(req, res) {
           }
         }
 
-      // ── Walk-in payment ──────────────────────────────────────
-    } else if (type === 'walkin_payment') {
-  const {
-    roomId,
-    clubId,
-    playerId,
-    playerName,
-    entryFee,
-    currency,
-    clubPaymentMethodId,
-    donationAmount,
-    fundraisingMode,
-  } = session.metadata || {};
+      // ── Walk-in payment ──────────────────────────────────────────────────
+      } else if (type === 'walkin_payment') {
+        const {
+          roomId, clubId, playerId, playerName, entryFee, currency,
+          clubPaymentMethodId, donationAmount, fundraisingMode,
+        } = session.metadata || {};
 
-  const extrasWithPrices = JSON.parse(session.metadata?.extrasWithPrices || '[]');
-  console.log('[StripeWebhook] 🧾 Walk-in metadata received:', {
-  roomId,
-  clubId,
-  playerId,
-  playerName,
-  entryFee,
-  donationAmount,
-  fundraisingMode,
-  currency,
-  clubPaymentMethodId,
-  extrasWithPrices,
-  sessionMetadata: session.metadata,
-});
+        const extrasWithPrices = JSON.parse(session.metadata?.extrasWithPrices || '[]');
 
-  await confirmWalkinLedger({
-    roomId,
-    clubId,
-    playerId,
-    playerName,
-    entryFee,
-    extrasWithPrices,
-    donationAmount,
-    fundraisingMode,
-    currency,
-    clubPaymentMethodId,
-    sessionId,
-    paymentIntentId,
-  });
+        console.log('[StripeWebhook] 🧾 Walk-in metadata received:', {
+          roomId, clubId, playerId, playerName, entryFee, donationAmount,
+          fundraisingMode, currency, clubPaymentMethodId, extrasWithPrices,
+          sessionMetadata: session.metadata,
+        });
 
-  if (DEBUG) {
-    console.log('[StripeWebhook] ✅ Walk-in ledger confirmed:', {
-      roomId,
-      playerId,
-      playerName,
-      fundraisingMode,
-      donationAmount,
-    });
-  }
+        await confirmWalkinLedger({
+          roomId, clubId, playerId, playerName, entryFee, extrasWithPrices,
+          donationAmount, fundraisingMode, currency, clubPaymentMethodId,
+          sessionId, paymentIntentId,
+        });
+
+        if (DEBUG) {
+          console.log('[StripeWebhook] ✅ Walk-in ledger confirmed:', {
+            roomId, playerId, playerName, fundraisingMode, donationAmount,
+          });
+        }
 
       } else {
         console.warn('[StripeWebhook] ⚠️ Unknown metadata type:', type, { sessionId });
+      }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // checkout.session.expired  ✅ NEW
+    // Fired by Stripe when the 30-minute session window closes without payment.
+    // Only ticket_purchase sessions pre-create DB rows — walk-ins do not.
+    // ─────────────────────────────────────────────────────────────────────────
+    } else if (event.type === 'checkout.session.expired') {
+      const session = event.data.object;
+      const type = session?.metadata?.type;
+      const sessionId = session?.id;
+
+      if (type === 'ticket_purchase') {
+        const ticketId = session?.metadata?.ticketId;
+
+        if (!ticketId) {
+          console.warn('[StripeWebhook] ⚠️ expired ticket_purchase missing ticketId', { sessionId });
+        } else {
+          const result = await deleteExpiredTicket(ticketId, 'webhook_expired');
+
+          if (DEBUG) {
+            console.log('[StripeWebhook] 🗑️ Expired ticket_purchase cleaned up:', {
+              ticketId,
+              sessionId,
+              deleted: result.deleted,
+              reason: result.reason,
+            });
+          }
+        }
+
+      } else if (type === 'walkin_payment') {
+        // Walk-in payments never write to the DB until the webhook confirms them,
+        // so an expired walk-in session leaves no orphan rows. Nothing to clean up.
+        if (DEBUG) {
+          console.log('[StripeWebhook] ℹ️ Expired walkin_payment — no DB rows to clean up:', {
+            sessionId,
+            playerId: session?.metadata?.playerId,
+          });
+        }
+
+      } else {
+        console.warn('[StripeWebhook] ⚠️ checkout.session.expired — unknown type:', type, { sessionId });
       }
     }
 

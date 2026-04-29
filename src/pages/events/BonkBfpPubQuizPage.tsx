@@ -20,21 +20,108 @@ import {
 import { Link } from 'react-router-dom';
 
 import TicketPurchaseFlow from '../../components/Quiz/tickets/TicketPurchaseFlow';
+import QRCodeShare from '../../components/Quiz/dashboard/QRCodeShare';
 
 const ROOM_ID = 'gL2kJX3asO';
-// Add your generated room ID later, for example:
-// const ROOM_ID = 'lZWG6I-Zjd';
 
 const BANNER_SRC = '/bonk-bfp-pub-quiz-banner.png';
 const FUNDRAISELY_LOGO = '/Fundraiselynobackground.png';
-const SUPERTEAM_LOGO = '/partner/superteam_ireland_logo.jpeg';
+const SUPERTEAM_LOGO = '/partners/superteam_ireland_logo.jpg';
 const BUDDIES_FOR_PAWS_LOGO = '/partner/BFP-master-orange.png';
 
 const LUMA_URL = 'https://luma.com/l7g1y7uc?tk=hXYbgf';
 const BUDDIES_FOR_PAWS_URL = 'https://www.buddiesforpaws.org/';
 const SUPERTEAM_URL = 'https://x.com/superteamIE';
 
+type PublicRoomInfo = {
+  roomId: string;
+  status: 'scheduled' | 'open' | 'live' | 'completed' | 'cancelled' | string;
+  capacity?: {
+    ticketSalesOpen: boolean;
+    ticketSalesCloseReason?: string | null;
+    message?: string;
+  };
+};
+
+function usePublicRoomInfo(roomId: string) {
+  const [roomInfo, setRoomInfo] = React.useState<PublicRoomInfo | null>(null);
+  const [loading, setLoading] = React.useState(Boolean(roomId));
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!roomId) {
+      setRoomInfo(null);
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const response = await fetch(`/api/quiz/tickets/room/${roomId}/info`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data?.error || 'Failed to load room status');
+        }
+
+        if (!cancelled) {
+          setRoomInfo(data);
+          setError(null);
+          setLoading(false);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load room status');
+          setLoading(false);
+        }
+      }
+    };
+
+    load();
+
+    const interval = window.setInterval(load, 15000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [roomId]);
+
+  return { roomInfo, loading, error };
+}
+
 export default function BonkBfpPubQuizPage() {
+  const {
+    roomInfo,
+    loading: roomStatusLoading,
+    error: roomStatusError,
+  } = usePublicRoomInfo(ROOM_ID);
+
+  const ticketSalesOpen = roomInfo?.capacity?.ticketSalesOpen ?? true;
+  const roomStatus = roomInfo?.status ?? 'scheduled';
+
+  const joinQuizUrl = ROOM_ID
+    ? `${window.location.origin}/quiz/join/${ROOM_ID}`
+    : '';
+
+  const shouldShowJoinQuiz =
+    Boolean(ROOM_ID) && (roomStatus === 'open' || roomStatus === 'live');
+
+  const shouldShowTicketFlow =
+    Boolean(ROOM_ID) && ticketSalesOpen && !shouldShowJoinQuiz;
+
+  const shouldShowHoldTight =
+    Boolean(ROOM_ID) &&
+    !ticketSalesOpen &&
+    !shouldShowJoinQuiz &&
+    (roomStatus === 'scheduled' || roomStatus === 'draft');
+
+  const shouldShowEnded =
+    Boolean(ROOM_ID) &&
+    (roomStatus === 'completed' || roomStatus === 'cancelled');
+
   return (
     <div className="min-h-screen bg-[#f8f6f2] text-[#1f2240]">
       {/* HERO */}
@@ -61,8 +148,8 @@ export default function BonkBfpPubQuizPage() {
                   </span>{' '}
                   on <span className="font-bold text-[#23254a]">1st May at 7:00pm</span>{' '}
                   for a BuildStation charity pub quiz where your donation becomes your
-                  ticket to play. All donations will be{' '}
-                  <span className="font-bold text-[#f05b39]">matched by BONK for greater impact</span>,
+                  ticket to play. Every euro raised will be{' '}
+                  <span className="font-bold text-[#f05b39]">matched 100% by BONK</span>,
                   with funds going to Buddies for Paws for distribution between animal
                   welfare and wildlife conservation causes.
                 </p>
@@ -146,12 +233,12 @@ export default function BonkBfpPubQuizPage() {
                     size="large"
                   />
 
-               <SponsorLogoCard
-  imgSrc={BUDDIES_FOR_PAWS_LOGO}
-  name="Buddies for Paws"
-  href={BUDDIES_FOR_PAWS_URL}
-  size="large"
-/>
+                  <SponsorLogoCard
+                    imgSrc={BUDDIES_FOR_PAWS_LOGO}
+                    name="Buddies for Paws"
+                    href={BUDDIES_FOR_PAWS_URL}
+                    size="large"
+                  />
                 </div>
 
                 <div className="mt-4 rounded-2xl border border-[#d9def5] bg-[#f5f7ff] p-4">
@@ -356,25 +443,63 @@ export default function BonkBfpPubQuizPage() {
               </p>
 
               <h3 className="mt-2 text-2xl font-black text-[#23254a]">
-                Donate and get your ticket
+                {shouldShowJoinQuiz
+                  ? 'Join the quiz now'
+                  : shouldShowHoldTight
+                    ? 'Almost quiz time'
+                    : 'Donate and get your ticket'}
               </h3>
 
               <p className="mt-2 text-sm leading-7 text-[#555a7a]">
-                Your donation is your ticket. Join the quiz, play along, and help turn
-                every answer into impact.
+                {shouldShowJoinQuiz
+                  ? 'The quiz room is open. Scan the QR code or tap the link below to join.'
+                  : shouldShowHoldTight
+                    ? 'Advance ticket donations are closed while we prepare the room. Hold tight, we will accept your donation soon.'
+                    : 'Your donation is your ticket. Join the quiz, play along, and help turn every answer into impact.'}
               </p>
 
               <div className="mt-4 flex flex-wrap gap-2">
-                <SmallPill>Crypto</SmallPill>
-                <SmallPill>Card</SmallPill>
-                <SmallPill>Revolut</SmallPill>
+                {shouldShowJoinQuiz ? (
+                  <>
+                    <SmallPill>Scan QR</SmallPill>
+                    <SmallPill>Join link</SmallPill>
+                    <SmallPill>Pay on the night</SmallPill>
+                  </>
+                ) : shouldShowHoldTight ? (
+                  <>
+                    <SmallPill>Room opening soon</SmallPill>
+                    <SmallPill>Donation accepted shortly</SmallPill>
+                  </>
+                ) : (
+                  <>
+                    <SmallPill>Crypto</SmallPill>
+                    <SmallPill>Card</SmallPill>
+                    <SmallPill>Revolut</SmallPill>
+                  </>
+                )}
               </div>
             </div>
 
-            {ROOM_ID ? (
-              <TicketPurchaseFlow roomId={ROOM_ID} mode="embedded" />
-            ) : (
+            {!ROOM_ID ? (
               <TicketComingSoonCard />
+            ) : roomStatusLoading ? (
+              <TicketPanelLoadingCard />
+            ) : roomStatusError ? (
+              <TicketPanelErrorCard error={roomStatusError} />
+            ) : shouldShowEnded ? (
+              <QuizEndedCard status={roomStatus} />
+            ) : shouldShowJoinQuiz ? (
+              <JoinQuizCard roomId={ROOM_ID} joinQuizUrl={joinQuizUrl} />
+            ) : shouldShowTicketFlow ? (
+              <TicketPurchaseFlow roomId={ROOM_ID} mode="embedded" />
+            ) : shouldShowHoldTight ? (
+              <HoldTightDonationCard
+                reason={roomInfo?.capacity?.ticketSalesCloseReason || roomInfo?.capacity?.message}
+              />
+            ) : (
+              <HoldTightDonationCard
+                reason={roomInfo?.capacity?.ticketSalesCloseReason || roomInfo?.capacity?.message}
+              />
             )}
 
             <div className="mt-4 rounded-[1.75rem] border border-[#ece7dc] bg-white p-5">
@@ -587,67 +712,6 @@ function SponsorLogoCard({
   );
 }
 
-function SponsorTextCard({
-  name,
-  label = 'Supported by',
-  href,
-  size = 'normal',
-}: {
-  name: string;
-  label?: string;
-  href?: string;
-  size?: 'normal' | 'large';
-}) {
-  const isLarge = size === 'large';
-
-  const content = (
-    <div
-      className={`flex items-center justify-center rounded-2xl border border-[#ece7dc] bg-[#fafafc] p-4 text-center transition ${
-        href ? 'hover:-translate-y-0.5 hover:border-[#d9def5] hover:bg-white hover:shadow-sm' : ''
-      } ${isLarge ? 'min-h-[112px]' : 'min-h-[82px]'}`}
-    >
-      <div>
-        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#7b7f9f]">
-          {label}
-        </div>
-
-        <div
-          className={`mt-1 font-black text-[#23254a] ${
-            isLarge ? 'text-xl' : 'text-base'
-          }`}
-        >
-          {name}
-        </div>
-
-        {href && (
-          <div className="mt-2 inline-flex items-center justify-center gap-1 text-xs font-bold text-[#f05b39]">
-            Visit site
-            <ExternalLink className="h-3 w-3" />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  if (!href) return content;
-
-  const isInternal = href.startsWith('/');
-
-  if (isInternal) {
-    return (
-      <Link to={href} aria-label={`Open ${name}`}>
-        {content}
-      </Link>
-    );
-  }
-
-  return (
-    <a href={href} target="_blank" rel="noopener noreferrer" aria-label={`Open ${name}`}>
-      {content}
-    </a>
-  );
-}
-
 function TicketComingSoonCard() {
   return (
     <div className="rounded-[1.75rem] border border-[#ece7dc] bg-white p-6 shadow-sm">
@@ -662,6 +726,168 @@ function TicketComingSoonCard() {
       <p className="mt-3 text-sm leading-7 text-[#555a7a]">
         Once the event room is linked, this panel will become the live ticket and
         donation flow.
+      </p>
+    </div>
+  );
+}
+
+function TicketPanelLoadingCard() {
+  return (
+    <div className="rounded-[1.75rem] border border-[#ece7dc] bg-white p-6 shadow-sm">
+      <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#7b7f9f]">
+        Checking room status
+      </p>
+
+      <h3 className="mt-2 text-2xl font-black text-[#23254a]">
+        Loading ticket panel
+      </h3>
+
+      <p className="mt-3 text-sm leading-7 text-[#555a7a]">
+        We are checking whether ticket donations are still open or if the quiz room is ready to join.
+      </p>
+    </div>
+  );
+}
+
+function TicketPanelErrorCard({ error }: { error: string }) {
+  return (
+    <div className="rounded-[1.75rem] border border-red-200 bg-white p-6 shadow-sm">
+      <p className="text-xs font-bold uppercase tracking-[0.18em] text-red-500">
+        Room status unavailable
+      </p>
+
+      <h3 className="mt-2 text-2xl font-black text-[#23254a]">
+        We could not check the quiz status
+      </h3>
+
+      <p className="mt-3 text-sm leading-7 text-[#555a7a]">{error}</p>
+
+      <p className="mt-3 text-sm leading-7 text-[#555a7a]">
+        Please refresh the page or speak to the host on the night.
+      </p>
+    </div>
+  );
+}
+
+function HoldTightDonationCard({ reason }: { reason?: string | null }) {
+  return (
+    <div className="rounded-[1.75rem] border border-[#ece7dc] bg-white p-6 shadow-sm">
+      <div className="rounded-2xl bg-[#23254a] p-5 text-white">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#cfd5ff]">
+          Almost quiz time
+        </p>
+
+        <h3 className="mt-2 text-3xl font-black leading-tight">
+          Hold tight
+        </h3>
+
+        <p className="mt-3 text-sm leading-7 text-white/80">
+          Advance ticket donations are closed while we prepare the room. We will accept your donation soon when the quiz room opens.
+        </p>
+      </div>
+
+      <div className="mt-5 rounded-2xl border border-[#f3dbc8] bg-[#fff7ef] p-4">
+        <p className="text-sm leading-7 text-[#555a7a]">
+          Once the host opens the quiz room, this panel will automatically change to show the QR code and join link.
+        </p>
+
+        {reason && (
+          <p className="mt-3 text-xs leading-6 text-[#7b7f9f]">
+            Status: {reason}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function JoinQuizCard({
+  roomId,
+  joinQuizUrl,
+}: {
+  roomId: string;
+  joinQuizUrl: string;
+}) {
+  const [copied, setCopied] = React.useState(false);
+
+  const copyJoinLink = async () => {
+    try {
+      await navigator.clipboard.writeText(joinQuizUrl);
+      setCopied(true);
+
+      window.setTimeout(() => {
+        setCopied(false);
+      }, 2000);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return (
+    <div className="rounded-[1.75rem] border border-[#ece7dc] bg-white p-6 shadow-sm">
+      <div className="rounded-2xl bg-[#23254a] p-5 text-white">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#cfd5ff]">
+          Quiz room is open
+        </p>
+
+        <h3 className="mt-2 text-3xl font-black leading-tight">
+          Join the quiz now
+        </h3>
+
+        <p className="mt-3 text-sm leading-7 text-white/80">
+          Scan the QR code or tap the button below to join. If you have not donated yet,
+          payment can be handled on the night.
+        </p>
+      </div>
+
+      <div className="mt-5 overflow-hidden rounded-2xl">
+        <QRCodeShare
+          roomId={roomId}
+          hostName="Buddies for Paws"
+          gameType="Charity Pub Quiz"
+        />
+      </div>
+
+      <div className="mt-5 space-y-3">
+        <a
+          href={joinQuizUrl}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#f05b39] px-5 py-4 text-base font-black text-white transition hover:bg-[#d94d2f]"
+        >
+          Open join link
+          <ArrowRight className="h-5 w-5" />
+        </a>
+
+        <button
+          type="button"
+          onClick={copyJoinLink}
+          className="inline-flex w-full items-center justify-center rounded-2xl border border-[#ece7dc] bg-white px-5 py-3 text-sm font-bold text-[#23254a] transition hover:bg-[#f8f6f2]"
+        >
+          {copied ? 'Copied' : 'Copy join link'}
+        </button>
+
+        <p className="break-all text-center text-xs leading-6 text-[#7b7f9f]">
+          {joinQuizUrl}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function QuizEndedCard({ status }: { status: string }) {
+  const label = status === 'cancelled' ? 'cancelled' : 'ended';
+
+  return (
+    <div className="rounded-[1.75rem] border border-[#ece7dc] bg-white p-6 shadow-sm">
+      <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#7b7f9f]">
+        Quiz unavailable
+      </p>
+
+      <h3 className="mt-2 text-2xl font-black text-[#23254a]">
+        This quiz has {label}
+      </h3>
+
+      <p className="mt-3 text-sm leading-7 text-[#555a7a]">
+        The join link is no longer available for this room.
       </p>
     </div>
   );

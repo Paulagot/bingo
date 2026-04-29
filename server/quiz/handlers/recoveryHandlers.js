@@ -14,6 +14,7 @@ import {
 import { emitFullRoomState } from './sharedUtils.js';
 // ✅ ADD THIS at top of playerHandlers.js (after other imports)
 import { normalizePaymentMethod }  from '../../utils/paymentMethods.js';
+import { markRoomAsOpen } from './roomStatusManager.js';
 
 // --- Payment method normalization (keep in sync with playerHandlers.js) ---
 
@@ -353,6 +354,19 @@ if (!existingPlayer) {
           
           room.hostSocketId = socket.id;
           if (debug) console.log('[Recovery] 👑 Set host socket ID:', socket.id);
+           // ✅ Mark room as open when host joins — allows tickets to be redeemed
+  const isWeb2 = room.config?.paymentMethod !== 'web3' && !room.config?.isWeb3Room;
+  if (isWeb2) {
+    try {
+      const wasUpdated = await markRoomAsOpen(roomId);
+      if (wasUpdated) {
+        room.status = 'open';
+      console.log(`[Recovery] 🟡 Room ${roomId} marked as open`);
+      }
+    } catch (e) {
+      console.error('[Recovery] ❌ Failed to mark room as open:', e);
+    }
+  }
         } else if (role === 'admin') {
           // Admin handling if needed
           updateAdminSocketId(roomId, user.id, socket.id);

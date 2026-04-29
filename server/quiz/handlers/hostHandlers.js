@@ -12,6 +12,7 @@ import {
 
 import { 
   markRoomAsLive, 
+  markRoomAsOpen,
   markRoomAsCompleted, 
   markRoomAsCancelled 
 } from './roomStatusManager.js';
