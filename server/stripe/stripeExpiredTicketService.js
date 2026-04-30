@@ -10,7 +10,7 @@ import { connection, TABLE_PREFIX } from '../config/database.js';
 const TICKETS_TABLE       = `${TABLE_PREFIX}quiz_tickets`;
 const LEDGER_TABLE        = `${TABLE_PREFIX}quiz_payment_ledger`;
 
-const DEBUG = true;
+const DEBUG = false;
 
 /**
  * Hard-delete a single ticket and all its ledger rows.

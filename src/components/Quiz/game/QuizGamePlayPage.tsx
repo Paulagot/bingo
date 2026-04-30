@@ -22,10 +22,11 @@ import FreezeOverlay from './FreezeOverlay';
 import TiebreakerRound from './TiebreakerRound';
 import { useRouteChangeNotifier } from '../hooks/useRouteChangeNotifier';
 import { useQuizTimer } from '../hooks/useQuizTimer';
+import { useWakeLock } from '../hooks/useWakeLock';
 
 type RoomPhaseWithTB = RoomPhase | 'tiebreaker';
 
-const debug = true;
+const debug = false;
 
 // ✅ helper to narrow server string into RoundTypeId
 const asRoundTypeId = (s?: string): RoundTypeId | undefined =>
@@ -202,6 +203,8 @@ const [playerOrder, setPlayerOrder] = useState<string[] | null>(null);
 
 
   const currentRoundType = serverRoomState.roundTypeId;
+  const quizIsActive = roomPhase === 'asking' || roomPhase === 'reviewing' || roomPhase === 'launched' || roomPhase === 'leaderboard';
+useWakeLock(quizIsActive);
   const isFrozenNow = isFrozen && frozenForIndexRef.current === currentQuestionIndexRef.current;
 
   
@@ -495,10 +498,17 @@ if (snap.orderImageQuestion) {
 
 
       // reviewing
-     if (snap.review) {
-  // Check if it's an order_image review
-  if (snap.review.images && Array.isArray(snap.review.images)) {
-    // Order Image review
+// reviewing
+if (snap.review) {
+  // ✅ NEW: review is fully done — host just needs to click "Show Results"
+  if (snap.review.reviewComplete) {
+    setRoomPhase('reviewing');
+    setTimerActive(false);
+    setPhaseMessage('All questions reviewed. Ready to show results.');
+    // intentionally skip setting question/orderImageQuestion
+  }
+  // Order Image review
+  else if (snap.review.images && Array.isArray(snap.review.images)) {
     setQuestion({
       id: snap.review.id,
       text: snap.review.prompt || snap.review.text || '',
@@ -507,7 +517,6 @@ if (snap.orderImageQuestion) {
       difficulty: snap.review.difficulty,
       category: snap.review.category,
     });
-    
     setOrderImageQuestion({
       id: snap.review.id,
       prompt: snap.review.prompt,
@@ -515,13 +524,15 @@ if (snap.orderImageQuestion) {
       difficulty: snap.review.difficulty,
       category: snap.review.category,
       questionNumber: snap.review.questionNumber,
-      totalQuestions: snap.review.totalQuestions
+      totalQuestions: snap.review.totalQuestions,
     });
-    
     setPlayerOrder(snap.review.playerOrder || null);
-     setAnswerSubmitted(true);
-  } else {
-    // Standard trivia review
+    setAnswerSubmitted(true);
+    setTimerActive(false);
+    setPhaseMessage('Reviewing previous question…');
+  }
+  // Standard trivia / wipeout / speed_round review
+  else {
     setQuestion({
       id: snap.review.id,
       text: snap.review.text,
@@ -532,11 +543,17 @@ if (snap.orderImageQuestion) {
     });
     setSelectedAnswer(snap.review.submittedAnswer || '');
     setCorrectAnswer(snap.review.correctAnswer);
+    setTimerActive(false);
+    setPhaseMessage('Reviewing previous question…');
   }
-  
   setClue(null);
+}
+
+// ✅ NEW: hidden_object review complete flag (top-level, not inside snap.review)
+if (snap.reviewComplete && snap.roomState?.phase === 'reviewing') {
+  setRoomPhase('reviewing');
   setTimerActive(false);
-  setPhaseMessage('Reviewing previous question…');
+  setPhaseMessage('All puzzles reviewed. Ready to show results.');
 }
 
       // --- TIEBREAKER recovery ---

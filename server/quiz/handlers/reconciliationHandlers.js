@@ -1,5 +1,5 @@
 // server/quiz/handlers/reconciliationHandlers.js
-const debug = true;
+const debug = false;
 
 import { getQuizRoom } from '../quizRoomManager.js';
 

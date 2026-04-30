@@ -17,7 +17,7 @@ import { SimplifiedScoringService } from './services/SimplifiedScoringService.js
 import { isQuestionWindowOpen } from '../handlers/scoringUtils.js';
 
 let timerService = null;
-const debug = true;
+const debug = false;
 
 /* ---------------------------- Init round ---------------------------- */
 export function initRound(roomId, namespace) {

@@ -9,7 +9,7 @@ import {
 import { getQuizRoom } from '../quizRoomManager.js';
 import { normalizePaymentMethod } from '../../utils/paymentMethods.js';
 
-const debug = true;
+const debug = false;
 
 /**
  * Setup payment-specific socket handlers

@@ -7,7 +7,7 @@ import { nanoid } from 'nanoid';
 
 const PLEDGES_TABLE = `${TABLE_PREFIX}quiz_club_league_pledges`;
 
-const DEBUG = true;
+const DEBUG = false;
 
 const VALID_ROLES = [
   'Manager',

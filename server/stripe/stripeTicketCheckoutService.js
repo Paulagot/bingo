@@ -19,7 +19,7 @@ const PAYMENT_METHODS_TABLE = `${TABLE_PREFIX}club_payment_methods`;
 // Session expires after 30 minutes — Stripe minimum is 30, maximum is 24 hours
 const CHECKOUT_EXPIRY_MINUTES = 30;
 
-const DEBUG = true;
+const DEBUG = false;
 
 function currencyFromSymbol(symbol) {
   if (symbol === '€') return 'EUR';
