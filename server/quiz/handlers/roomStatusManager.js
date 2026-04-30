@@ -3,7 +3,7 @@
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 
 const WEB2_ROOMS_TABLE = `${TABLE_PREFIX}web2_quiz_rooms`;
-const debug = true;
+const debug = false;
 
 /**
  * Update room status in database

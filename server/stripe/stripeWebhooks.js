@@ -15,7 +15,7 @@ const TICKETS_TABLE = `${TABLE_PREFIX}quiz_tickets`;
 const LEDGER_TABLE = `${TABLE_PREFIX}quiz_payment_ledger`;
 const STRIPE_EVENTS_TABLE = `${TABLE_PREFIX}stripe_events`;
 
-const DEBUG = true;
+const DEBUG = false;
 
 async function alreadyProcessed(eventId) {
   const [rows] = await connection.execute(

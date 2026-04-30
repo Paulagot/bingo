@@ -1,10 +1,11 @@
 // HostControlsPage.tsx
 import * as React from 'react';
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense,  } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuizConfig } from '../hooks/useQuizConfig';
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import HostControlsCore from '../host-controls/components/HostControlsCore';
+import { useWakeLock } from '../hooks/useWakeLock';
 
 const Web3Provider = lazy(() =>
   import('../../../components/Web3Provider').then((m) => ({ default: m.Web3Provider }))
@@ -24,22 +25,11 @@ const LoadingSpinner = () => (
 
 const HostControlsPage: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();
-  const { config, hydrated } = useQuizConfig();
-  const { socket, connected } = useQuizSocket();
+  const {  hydrated } = useQuizConfig();
+  const {  connected } = useQuizSocket();
 
-  // ✅ Debug logging (optional)
-  useEffect(() => {
-    console.log('[HostControlsPage] Status:', {
-      roomId,
-      hasConfig: !!config,
-      configRoomId: config?.roomId,
-      hydrated,
-      socketConnected: connected,
-      socketId: socket?.id,
-      web3Chain: config?.web3Chain,
-    });
-  }, [roomId, config?.roomId, config?.web3Chain, hydrated, connected, socket?.id]); // ✅ avoid depending on whole config object
 
+  useWakeLock(!!roomId && hydrated && connected);
   if (!roomId) return <LoadingSpinner />;
 
   // ✅ ALWAYS wrap. Web3Provider must be a NO-OP when web3Chain is not set.

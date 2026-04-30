@@ -13,7 +13,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-
 const TICKETS_TABLE = `${TABLE_PREFIX}quiz_tickets`;
 const WEB2_ROOMS_TABLE = `${TABLE_PREFIX}web2_quiz_rooms`;
 
-const DEBUG = true;
+const DEBUG = false;
 
 function parseMysqlUtcDateTime(value) {
   if (!value) return null;

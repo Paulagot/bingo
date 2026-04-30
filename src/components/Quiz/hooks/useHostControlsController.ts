@@ -11,7 +11,7 @@ import { cleanupQuizRoom } from '../utils/cleanupQuizRoom';
 
 import type { RoundTypeId, User } from '../types/quiz';
 
-const debug = true;
+const debug = false;
 
 export type RoomStatePayload = {
   currentRound: number;

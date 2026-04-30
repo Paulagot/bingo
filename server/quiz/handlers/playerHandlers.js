@@ -27,7 +27,7 @@ import {
 import { canJoinAsWalkIn } from '../../mgtsystem/services/quizCapacityService.js';
 import { markRoomAsLive, markRoomAsCompleted, markRoomAsCancelled } from './roomStatusManager.js';
 
-const debug = true;
+const debug = false;
 
 // --- Payment method normalization ---
 

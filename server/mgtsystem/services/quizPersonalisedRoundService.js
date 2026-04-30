@@ -4,7 +4,7 @@ import { getRoomConfig } from './quizTicketService.js'; // ✅ reuse: already lo
 const ROUNDS_TABLE = `${TABLE_PREFIX}quiz_personalised_rounds`;
 const QUESTIONS_TABLE = `${TABLE_PREFIX}quiz_personalised_questions`;
 
-const DEBUG = true;
+const DEBUG = false;
 
 function normalizePosition(pos) {
   return pos === 'first' ? 'first' : 'last';

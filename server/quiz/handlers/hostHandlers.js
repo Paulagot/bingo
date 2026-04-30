@@ -30,7 +30,7 @@ import { insertPrizePayout } from '../../mgtsystem/services/web3TransactionServi
 
 
 import { logPrizeDistributionInitiated, logPrizeDistributionSuccess, logPrizeDistributionFailure, logWeb3RoomConfig, logWinnerAddressMapping } from './blockchainLoggingHelper.js';
-const debug = true;
+const debug = false;
 console.log('[BOOT] hostHandlers loaded from:', import.meta.url);
 console.log('[BOOT] saveImpactCampaignEvent typeof:', typeof saveImpactCampaignEvent);
 

@@ -8,7 +8,7 @@ import {
 } from '../services/quizPersonalisedRoundService.js';
 
 const router = express.Router();
-const DEBUG = true;
+const DEBUG = false;
 
 // All routes are host/admin authenticated (same pattern as other mgtsystem features)
 router.use(authenticateToken);

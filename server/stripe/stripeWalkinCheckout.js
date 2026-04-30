@@ -17,7 +17,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-
 // Must match stripeTicketCheckoutService.js
 const CHECKOUT_EXPIRY_MINUTES = 30;
 
-const DEBUG = true;
+const DEBUG = false;
 
 function currencyFromSymbol(symbol) {
   if (symbol === '€') return 'EUR';

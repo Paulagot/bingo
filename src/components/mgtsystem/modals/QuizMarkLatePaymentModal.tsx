@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import  { useEffect, useMemo, useState } from 'react';
 import { Dialog } from '@headlessui/react';
 import QuizLatePaymentsService, { type UnpaidPlayerRow } from '../services/QuizLatePaymentsService';
 
@@ -15,7 +15,7 @@ interface Props {
   confirmedByRole?: 'host' | 'admin';
 }
 
-const debug = true;
+const debug = false;
 
 export default function MarkLatePaymentModal({
   isOpen,

@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { InstantPaymentStep } from './InstantPaymentStep';
 import type { ClubPaymentMethod } from '../../../shared/types/payment';
 
-const DEBUG = true;
+const DEBUG = false;
 const log = (...args: any[]) => {
   if (DEBUG) console.log('[Web2PaymentStep]', ...args);
 };

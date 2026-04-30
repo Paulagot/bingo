@@ -4,7 +4,7 @@ import { HiddenObjectService } from './services/HiddenObjectService.js';
 import { TimerService } from './services/TimerService.js';
 
 const ROUND_TYPE = 'hidden_object';
-const debug = true;
+const debug = false;
 
 let timerService = null;
 
