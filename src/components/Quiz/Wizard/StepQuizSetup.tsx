@@ -502,7 +502,7 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
 
         <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3 sm:mt-4">
           <p className="text-xs text-blue-800 sm:text-sm">
-            <strong>On the night payments:</strong> Collect entry fees in person — cash, card, or
+            <strong>On the night payments:</strong> Collect entry fees in person - cash, card, or
             Instant Payment all work seamlessly when players arrive.
           </p>
           <p className="mt-2 text-xs text-blue-800 sm:text-sm">
