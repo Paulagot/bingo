@@ -30,7 +30,7 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     difficulty: 'Easy',
     bestFor: 'Mixed groups, warm-up rounds, classic quiz feel, family events',
     defaultConfig: {
-  questionsPerRound: 6,
+  questionsPerRound: 8,
   timePerQuestion: 30,
   pointsPerDifficulty: {
     easy: 10,
@@ -74,7 +74,7 @@ export const roundTypeDefinitions: Record<RoundTypeId, RoundTypeDefinition> = {
     difficulty: 'Easy',
     bestFor: 'Mixed groups, competitive play, family events',
     defaultConfig:   {
-     questionsPerRound: 8,
+     questionsPerRound: 10,
       timePerQuestion: 22,
       pointsPerDifficulty: {
   easy: 12,
@@ -95,7 +95,7 @@ hidden_object: {
   difficulty: 'Easy–Medium',
   bestFor: 'Mixed groups, family events, kids rounds',
  defaultConfig: {
-    questionsPerRound: 5,              // ✅ Multiple puzzles
+    questionsPerRound: 4,              // ✅ Multiple puzzles
     timePerQuestion: 0,                // Not used
     totalTimeSeconds: 0,               // Not used
     hiddenObject: {
@@ -127,7 +127,7 @@ hidden_object: {
     difficulty: 'Easy–Hard',
     bestFor: 'Mixed groups, visual learners, competitive rounds',
     defaultConfig: {
-      questionsPerRound: 5,
+      questionsPerRound: 7,
       timePerQuestion: 30,
       pointsPerDifficulty: {
         easy: 10,

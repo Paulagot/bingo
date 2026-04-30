@@ -7,7 +7,7 @@ export const roundTypes: RoundTypeDefinition[] = [
     name: 'General Trivia',
     description: 'Standard multiple choice format with hints and reviews.',
     defaultConfig: {
-      questionsPerRound: 6,
+      questionsPerRound: 8,
       timePerQuestion: 30,
       pointsPerDifficulty: { easy: 10, medium: 12, hard: 14 },
     },
@@ -33,7 +33,7 @@ export const roundTypes: RoundTypeDefinition[] = [
     name: 'Wipeout',
     description: 'Lose points for wrong answers. Strategic gameplay.',
     defaultConfig: {
-      questionsPerRound: 8,
+      questionsPerRound: 10,
       timePerQuestion: 22,
       pointsPerDifficulty: { easy: 12, medium: 13, hard: 14 },
       pointsLostPerWrong: 2,
@@ -45,7 +45,7 @@ export const roundTypes: RoundTypeDefinition[] = [
     name: 'Order the Image',
     description: 'Drag and drop images into the correct order. Visual puzzle gameplay.',
     defaultConfig: {
-      questionsPerRound: 5,
+      questionsPerRound: 7,
       timePerQuestion: 30,
       pointsPerDifficulty: { easy: 10, medium: 12, hard: 14 },
     },
@@ -55,7 +55,7 @@ export const roundTypes: RoundTypeDefinition[] = [
     name: 'Hidden Object',
     description: 'Find hidden objects in a scene. Visual puzzle gameplay.',
     defaultConfig: {
-      questionsPerRound: 5,
+      questionsPerRound: 4,
       timePerQuestion: 45,
       pointsPerDifficulty: { easy: 1, medium: 2, hard: 3 },
     },

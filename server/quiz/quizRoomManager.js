@@ -34,11 +34,19 @@ export function loadClosestNumberBank() {
     const raw = fs.readFileSync(filePath, 'utf-8');
     const arr = JSON.parse(raw);
 
-    return (Array.isArray(arr) ? arr : []).map((q, i) => ({
+    const questions = (Array.isArray(arr) ? arr : []).map((q, i) => ({
       id: q.id ?? String(i + 1),
       text: q.text ?? q.question ?? '',
       answerNumber: Number(q.answerNumber ?? q.answer ?? q.value),
     })).filter(q => q.text && Number.isFinite(q.answerNumber));
+
+    // ✅ Shuffle so every game starts from a random position in the bank
+    for (let i = questions.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [questions[i], questions[j]] = [questions[j], questions[i]];
+    }
+
+    return questions;
   } catch (e) {
     console.error('[TB] failed to load closest.json:', e?.message);
     return [];
