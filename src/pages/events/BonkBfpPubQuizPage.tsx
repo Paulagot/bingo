@@ -26,7 +26,7 @@ const ROOM_ID = 'gL2kJX3asO';
 
 const BANNER_SRC = '/bonk-bfp-pub-quiz-banner.png';
 const FUNDRAISELY_LOGO = '/Fundraiselynobackground.png';
-const SUPERTEAM_LOGO = '/partner/superteam_ireland_logo.jpg';
+const SUPERTEAM_LOGO = '/partner/superteam_ireland_logo.jpeg';
 const BUDDIES_FOR_PAWS_LOGO = '/partner/BFP-master-orange.png';
 
 const LUMA_URL = 'https://luma.com/l7g1y7uc?tk=hXYbgf';
