@@ -5,7 +5,7 @@ import { connection, TABLE_PREFIX } from '../../config/database.js';
 const TICKETS_TABLE = `${TABLE_PREFIX}quiz_tickets`;
 const WEB2_ROOMS_TABLE = `${TABLE_PREFIX}web2_quiz_rooms`;
 
-const DEBUG = true;
+const DEBUG = false;
 
 /**
  * Get comprehensive capacity status for a room

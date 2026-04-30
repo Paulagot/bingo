@@ -26,7 +26,7 @@ import {
 } from '../config/networks';
 import type { QuizConfig } from '@/components/Quiz/types/quiz';
 
-const debug = true;
+const debug = false;
 
 export interface UseSolanaSharedParams {
   /**

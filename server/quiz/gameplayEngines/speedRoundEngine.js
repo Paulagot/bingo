@@ -14,7 +14,7 @@ import { ReviewService } from './services/ReviewService.js';
 import { SimplifiedScoringService } from './services/SimplifiedScoringService.js';
 
 const ROUND_TYPE = 'speed_round';
-const debug = true;
+const debug = false;
 
 export function initRound(roomId, namespace) {
   const room = getQuizRoom(roomId);

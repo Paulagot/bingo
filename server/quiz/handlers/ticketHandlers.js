@@ -7,7 +7,7 @@ import {
   computeJoinWindow,
 } from '../../mgtsystem/services/quizTicketService.js';
 
-const DEBUG = true;
+const DEBUG = false;
 
 function parseJsonMaybe(value, fallback = []) {
   if (!value) return fallback;

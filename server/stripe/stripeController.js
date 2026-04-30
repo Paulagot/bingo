@@ -3,7 +3,7 @@ import { stripe } from './stripeClient.js';
 import { getBaseUrl } from './stripeUtils.js';
 import { getStripeMethodForClub, upsertStripeMethodForClub } from './stripeService.js';
 
-const DEBUG = true;
+const DEBUG = false;
 
 export const startStripeConnect = async (req, res) => {
   try {

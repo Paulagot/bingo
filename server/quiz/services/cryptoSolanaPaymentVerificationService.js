@@ -6,7 +6,7 @@ import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { connection as db, TABLE_PREFIX } from '../../config/database.js';
 import { insertJoinPayment } from '../../mgtsystem/services/web3TransactionService.js';
 
-const DEBUG = true;
+const DEBUG = false;
 
 /**
  * Backend Solana RPC resolution.

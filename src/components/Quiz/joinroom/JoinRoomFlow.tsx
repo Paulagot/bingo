@@ -37,7 +37,7 @@ const Web3PaymentStep = lazy(() =>
   import('./Web3PaymentStep').then((m) => ({ default: m.Web3PaymentStep }))
 );
 
-const DEBUG = true;
+const DEBUG = false;
 
 const joinDebug = (...args: any[]) => {
   if (DEBUG) console.log('[JoinRoomFlow]', ...args);

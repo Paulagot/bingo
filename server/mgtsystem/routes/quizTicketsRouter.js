@@ -24,7 +24,7 @@ import { createTicketAndStripeSession } from '../../stripe/stripeTicketCheckoutS
 
 const router = express.Router();
 
-const DEBUG = true;
+const DEBUG = false;
 
 /* -------------------------------------------------------------------------- */
 /*                      PUBLIC ROUTES (No auth required)                      */
