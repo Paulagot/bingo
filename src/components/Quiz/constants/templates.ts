@@ -1061,11 +1061,11 @@ const quizTemplates: QuizTemplate[] = [
     difficulty: 'Medium',
     rounds: [
       { type: 'general_trivia', category: 'History',              difficulty: 'easy' },
-      { type: 'speed_round',    category: 'Flags of the World', difficulty: 'medium' },
+      { type: 'speed_round',    category: 'Math', difficulty: 'medium' },
       { type: 'wipeout',        category: 'Web3',              difficulty: 'medium' },
       { type: 'hidden_object',  category: 'all',               difficulty: 'medium' },
       { type: 'order_image',    category: 'Technology',        difficulty: 'medium' },
-      { type: 'wipeout', category: 'General Knowledge', difficulty: 'medium' },
+      { type: 'wipeout', category: 'General Knowledge', difficulty: 'hard' },
     ],
     tags: ['Audience: Adults', 'Topic: Web3', 'Duration: ≈60m']
   },
