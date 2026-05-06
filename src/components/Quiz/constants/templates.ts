@@ -102,7 +102,7 @@ const quizTemplates: QuizTemplate[] = [
       difficulty: 'easy',  // easy, medium, or hard
       customConfig: {
         questionsPerRound: 5,  // Number of ordering questions
-        timePerQuestion: 30,   // 30 seconds per question
+        timePerQuestion: 10,   // 30 seconds per question
         pointsPerDifficulty: { easy: 2, medium: 4, hard: 6 },
       }},
       
@@ -121,8 +121,8 @@ const quizTemplates: QuizTemplate[] = [
     // },
     //  {
     //   type: 'hidden_object',
-    //   category: 'kids',
-    //   difficulty: 'hard',
+    //   category: 'all',
+    //   difficulty: 'medium',
     //   customConfig: {
     //     // keep consistent with your RoundConfig shape
     //     questionsPerRound: 1,

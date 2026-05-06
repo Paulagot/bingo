@@ -13,7 +13,8 @@ type Phase =
   | 'leaderboard'
   | 'complete'
   | 'distributing_prizes'
-  | 'tiebreaker';
+  | 'tiebreaker'
+  | 'reconciling';
 
 type LeaderboardEntry = {
   id: string;
@@ -37,6 +38,7 @@ interface HostPostgamePanelProps {
   onEndGame?: () => void;
   currentRound?: number;
   totalRounds?: number;
+   isOperator?: boolean; 
 }
 
 const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
@@ -52,6 +54,7 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
   onEndGame,
   currentRound,
   totalRounds,
+   isOperator = false, 
 }) => {
   // ✅ HOOK #1
   const [prizeDistributionComplete, setPrizeDistributionComplete] = React.useState(false);
@@ -313,13 +316,23 @@ const HostPostgamePanel: React.FC<HostPostgamePanelProps> = ({
       {/* Return to Dashboard — non-web3 */}
       {!isWeb3Flow && isComplete && (
         <div className="mt-8 text-center">
+          {isOperator ? (
           <button
             onClick={onReturnToDashboard}
             className="mx-auto flex items-center space-x-2 rounded-xl bg-indigo-600 px-6 py-3 font-medium text-white transition hover:bg-indigo-700"
           >
-            <span>🏠</span>
-            <span>Return to Dashboard</span>
+            <span>👋</span>
+            <span>Thanks for Hosting</span>
           </button>
+          ) : (
+      <button
+           onClick={onReturnToDashboard}
+           className="mx-auto flex items-center space-x-2 rounded-xl bg-indigo-600 px-6 py-3 font-medium text-white transition hover:bg-indigo-700"
+         >
+           <span>🏠</span>
+           <span>Return to Dashboard</span>
+         </button>
+       )}
         </div>
       )}
 

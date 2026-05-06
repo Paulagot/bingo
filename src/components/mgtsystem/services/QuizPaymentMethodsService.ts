@@ -5,7 +5,7 @@ import BaseService from './BaseService';
 export type PaymentMethod = {
   id: number;
   club_id: string;
-  method_category: 'instant_payment' | 'card' | 'stripe' | 'other';
+  method_category: 'instant_payment' | 'card' | 'stripe' | 'crypto' | 'other';
   provider_name: string;
   method_label: string;
   display_order: number;

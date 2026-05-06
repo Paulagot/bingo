@@ -14,12 +14,14 @@ import TicketsPanel from './TicketPanel';
 import BlockchainBadge from './BlockchainBadge';
 import PrizesTab from './PrizesTab';
 import PoolTab from './PoolTab';
+import { useHostControlsController } from '../hooks/useHostControlsController';
+import OrganiserSpectatorView from '../host-controls/components/OrganiserSpectatorView';
 
 import { useQuizSocket } from '../sockets/QuizSocketProvider';
 import { useAdminStore } from '../hooks/useAdminStore';
 import { quizApi } from '../../../shared/api';
 
-
+import { QRCodeSVG } from 'qrcode.react';
 
 import {
   Users,
@@ -32,6 +34,7 @@ import {
   Gift,
   Ticket,
   Coins,
+  Loader, Check , Copy, Eye,
 } from 'lucide-react';
 import { getPrizeWorkflowStatus } from '../payments/prizeWorkflow';
 
@@ -61,15 +64,303 @@ const LoadingSpinner = () => (
 
 const roomTypeCache = new Map<string, { isWeb3: boolean; checked: boolean }>();
 
+interface LaunchSectionProps {
+  roomId: string | null;
+  isQuizComplete: boolean;
+  completedTime: string | null;
+  players: any[];
+  connected: boolean;
+  isWeb3: boolean;
+  config: any;
+  assetUploadCheck: boolean;
+  assetUploadIssues: any[];
+  canLaunch: boolean;
+  onLaunch: () => void;
+}
+
+const LaunchSection: React.FC<LaunchSectionProps> = ({
+  roomId,
+  isQuizComplete,
+  completedTime,
+  players,
+  connected,
+  isWeb3,
+  config,
+  assetUploadCheck,
+  assetUploadIssues,
+  canLaunch,
+  onLaunch,
+}) => {
+  const [operatorUrl, setOperatorUrl] = React.useState<string | null>(null);
+  const [operatorTokenError, setOperatorTokenError] = React.useState(false);
+  const [operatorCopied, setOperatorCopied] = React.useState(false);
+ 
+  React.useEffect(() => {
+    if (!roomId) return;
+    let cancelled = false;
+ 
+    async function fetchOperatorToken() {
+      try {
+        const token = localStorage.getItem('auth_token') ?? '';
+        const base = import.meta.env.PROD ? '' : 'http://localhost:3001';
+        const res = await fetch(
+          `${base}/quiz/api/web2/rooms/${roomId}/operator-token`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token && { Authorization: `Bearer ${token}` }),
+            },
+          }
+        );
+        if (!res.ok) throw new Error(`status ${res.status}`);
+        const data = await res.json();
+        if (!cancelled) setOperatorUrl(data.operatorUrl);
+      } catch (err) {
+        console.error('[LaunchSection] Failed to fetch operator token:', err);
+        if (!cancelled) setOperatorTokenError(true);
+      }
+    }
+ 
+    fetchOperatorToken();
+    return () => { cancelled = true; };
+  }, [roomId]);
+ 
+  const copyOperatorLink = async () => {
+    if (!operatorUrl) return;
+    try {
+      await navigator.clipboard.writeText(operatorUrl);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = operatorUrl;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    setOperatorCopied(true);
+    setTimeout(() => setOperatorCopied(false), 2500);
+  };
+ 
+  // ── Completed state ────────────────────────────────────────────────────────
+  if (isQuizComplete) {
+    return (
+      <div className="rounded-xl border-2 border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 p-8 text-center">
+        <div className="text-5xl mb-4">🎉</div>
+        <h2 className="text-2xl font-bold text-green-800 mb-2">Quiz Complete!</h2>
+        <p className="text-green-600 text-sm">
+          Finished{completedTime && ` on ${completedTime}`}.
+          Head to the <strong>Prizes</strong> and <strong>Payments</strong> tabs to finalise.
+        </p>
+      </div>
+    );
+  }
+ 
+  return (
+    <div className="space-y-4">
+ 
+      {/* ── How it works banner ───────────────────────────────────────────── */}
+      <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 flex items-start gap-3">
+        <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+        <p className="text-sm text-blue-800">
+          <strong>How it works:</strong> Share the operator link with the person holding the mic first —
+          they open it on their device and wait in the lobby. Once they're ready, you click{' '}
+          <strong>Launch Quiz</strong> here and the game starts for everyone.
+        </p>
+      </div>
+ 
+      {/* ── Two-column: Step 1 + Step 2 ───────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+ 
+        {/* ── Step 1: Share operator link ───────────────────────────────── */}
+        <div className="rounded-xl border-2 border-purple-200 bg-white overflow-hidden">
+          {/* Header */}
+          <div className="bg-purple-600 px-5 py-3 flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-xs font-bold text-white">1</span>
+            <h3 className="font-bold text-white text-sm">Share with the game operator</h3>
+          </div>
+ 
+          <div className="p-5">
+            <p className="text-xs text-gray-500 mb-4">
+              The person holding the mic — they get game controls only, no admin or payment access, and <strong>no login required</strong>.
+            </p>
+ 
+            {!operatorUrl && !operatorTokenError && (
+              <div className="flex items-center justify-center gap-2 text-sm text-gray-400 py-8">
+                <Loader className="h-4 w-4 animate-spin" />
+                Generating operator link...
+              </div>
+            )}
+ 
+            {operatorTokenError && (
+              <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-600">
+                Failed to generate operator link. Refresh the page to try again.
+              </div>
+            )}
+ 
+            {operatorUrl && (
+              <div className="space-y-4">
+                {/* QR + link side by side */}
+                <div className="flex gap-4 items-center">
+                  <div className="shrink-0 rounded-lg border-2 border-purple-100 bg-purple-50 p-2.5">
+                    <QRCodeSVG
+                      value={operatorUrl}
+                      size={100}
+                      bgColor="#faf5ff"
+                      fgColor="#4c1d95"
+                      level="M"
+                    />
+                    <p className="text-center text-xs text-purple-400 mt-1.5">Scan to open</p>
+                  </div>
+ 
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Operator link</p>
+                    <code className="block w-full rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-2 font-mono text-xs text-gray-500 truncate">
+                      {operatorUrl}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={copyOperatorLink}
+                      className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-purple-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-purple-700 transition-colors"
+                    >
+                      {operatorCopied
+                        ? <><Check className="h-4 w-4" /> Copied to clipboard!</>
+                        : <><Copy className="h-4 w-4" /> Copy link to share</>
+                      }
+                    </button>
+                  </div>
+                </div>
+ 
+                {/* Bullets */}
+                <div className="rounded-lg bg-gray-50 border border-gray-100 px-3 py-2.5 grid grid-cols-1 gap-1">
+                  <span className="text-xs text-gray-500">✓ Valid for 8 hours</span>
+                  <span className="text-xs text-gray-500">✓ Game controls only — no payments or admin</span>
+                  <span className="text-xs text-gray-500">✓ No login required on the operator device</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+ 
+        {/* ── Step 2: Launch ────────────────────────────────────────────── */}
+        <div className="rounded-xl border-2 border-green-200 bg-white overflow-hidden">
+          {/* Header */}
+          <div className="bg-green-600 px-5 py-3 flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-xs font-bold text-white">2</span>
+            <h3 className="font-bold text-white text-sm">Launch the quiz</h3>
+          </div>
+ 
+          <div className="p-5 space-y-4">
+            <p className="text-xs text-gray-500">
+              Once the operator has their link open and players are in the lobby,
+              press launch. Everyone gets redirected to the game simultaneously.
+            </p>
+ 
+            {/* Readiness dots */}
+            <div className="rounded-lg bg-gray-50 border border-gray-100 px-3 py-3 space-y-2">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Checklist</p>
+ 
+              <div className="flex items-center gap-2">
+                <div className={`h-2 w-2 rounded-full shrink-0 ${(players?.length || 0) > 0 ? 'bg-green-500' : 'bg-yellow-400'}`} />
+                <span className="text-sm text-gray-700">
+                  {(players?.length || 0) > 0
+                    ? `${players.length} player${players.length === 1 ? '' : 's'} in lobby`
+                    : 'No players in lobby yet'}
+                </span>
+              </div>
+ 
+              <div className="flex items-center gap-2">
+                <div className={`h-2 w-2 rounded-full shrink-0 ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
+                <span className="text-sm text-gray-700">
+                  {connected ? 'Socket connected' : 'Socket disconnected — refresh the page'}
+                </span>
+              </div>
+ 
+              <div className="flex items-center gap-2">
+                <div className={`h-2 w-2 rounded-full shrink-0 ${operatorUrl ? 'bg-green-500' : 'bg-gray-300'}`} />
+                <span className="text-sm text-gray-700">
+                  {operatorUrl ? 'Operator link generated' : 'Operator link generating...'}
+                </span>
+              </div>
+ 
+              {isWeb3 && config?.prizeMode === 'assets' && (
+                <div className="flex items-center gap-2">
+                  <div className={`h-2 w-2 rounded-full shrink-0 ${assetUploadCheck ? 'bg-green-500' : 'bg-yellow-400'}`} />
+                  <span className="text-sm text-gray-700">
+                    Assets {config?.prizes?.filter((p: any) => p.uploadStatus === 'completed').length || 0}/
+                    {config?.prizes?.filter((p: any) => p.tokenAddress).length || 0} uploaded
+                  </span>
+                </div>
+              )}
+            </div>
+ 
+            {/* Launch button */}
+            <button
+            onClick={onLaunch}
+              disabled={!canLaunch}
+              className={`w-full inline-flex items-center justify-center gap-3 rounded-xl px-6 py-4 text-lg font-bold shadow-sm transition-all duration-150
+                ${canLaunch
+                  ? 'bg-green-600 text-white hover:bg-green-700 hover:shadow-md hover:scale-[1.01] active:scale-100 active:shadow-sm'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                }`}
+            >
+              <Rocket className={`h-5 w-5 ${canLaunch ? '' : 'opacity-50'}`} />
+              {canLaunch ? 'Launch Quiz Now' : 'Launching unavailable'}
+            </button>
+ 
+            {!canLaunch && assetUploadIssues.length > 0 && (
+              <div className="flex items-start gap-2 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2">
+                <Info className="h-4 w-4 text-yellow-600 mt-0.5 shrink-0" />
+                <span className="text-xs text-yellow-800">
+                  {assetUploadIssues.length} asset{assetUploadIssues.length === 1 ? '' : 's'} must be uploaded before launching
+                </span>
+              </div>
+            )}
+ 
+            <p className="text-center text-xs text-gray-400">
+              Room: <span className="font-mono">{roomId}</span>
+            </p>
+          </div>
+        </div>
+      </div>
+ 
+      {/* ── Stats strip ───────────────────────────────────────────────────── */}
+      <div className={`grid gap-3 ${isWeb3 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+        <div className="bg-muted border-border rounded-lg border p-3 text-center">
+          <Users className="mx-auto mb-1 h-5 w-5 text-blue-500" />
+          <div className="text-fg text-xl font-bold">{players?.length || 0}</div>
+          <div className="text-fg/60 text-xs">Players</div>
+        </div>
+        {/* {!isWeb3 && (
+          <div className="bg-muted border-border rounded-lg border p-3 text-center">
+            <Shield className="mx-auto mb-1 h-5 w-5 text-purple-500" />
+            <div className="text-fg text-xl font-bold">{admins?.length || 0}</div>
+            <div className="text-fg/60 text-xs">Admins</div>
+          </div>
+        )} */}
+        <div className="bg-muted border-border rounded-lg border p-3 text-center">
+          <div className={`mx-auto mb-1 flex h-5 w-5 items-center justify-center rounded-full ${connected ? 'bg-green-100' : 'bg-red-100'}`}>
+            <div className={`h-2 w-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
+          </div>
+          <div className="text-fg text-xl font-bold">{connected ? 'Live' : 'Off'}</div>
+          <div className="text-fg/60 text-xs">Connection</div>
+        </div>
+      </div>
+ 
+    </div>
+  );
+};
+
 // Core dashboard component (without providers)
 const HostDashboardCore: React.FC = () => {
   const { config, setFullConfig, currentPhase, completedAt, hydrated } = useQuizConfig();
    const { roomId, hostId } = useRoomIdentity();
-
+const [isSpectating, setIsSpectating] = useState(false);
    const isPostGamePhase = (phase: string | null | undefined): boolean => {
   return phase === 'complete' || 
-         phase === 'distributing_prizes'
-         ;
+         phase === 'distributing_prizes' ||
+         phase === 'reconciling';
+         
 };
 
    // Add this helper function at the top of HostDashboardCore
@@ -82,6 +373,8 @@ const applyRecoverySnapshot = (snap: any, setFullConfig: any, roomId: string, ho
     });
     if (DEBUG) console.log('[HostDashboard] 📥 Loaded players from snapshot:', snap.players.length);
   }
+
+  
   
   // Load config (includes reconciliation data for post-game)
 if (snap?.config) {
@@ -119,6 +412,8 @@ if (snap?.config) {
 // ✅ NEW: Check room type from API FIRST (before config loads)
 const [roomTypeChecked, setRoomTypeChecked] = useState(false);
 const [isWeb3Room, setIsWeb3Room] = useState(false);
+
+
 
 // ✅ Check room type from API before doing anything else
 useEffect(() => {
@@ -577,7 +872,9 @@ useEffect(() => {
 // ✅ Changed: use 'config' instead of 'config?.hostName' to prevent re-render on every config change // ✅ Added roomTypeChecked
 
   // Quiz completion logic
-  const isQuizComplete = currentPhase === 'complete';
+const isQuizComplete = 
+  currentPhase === 'complete' || 
+  currentPhase === 'reconciling';
   const lockParam = useMemo(
     () => new URLSearchParams(location.search).get('lock') === 'postgame',
     [location.search],
@@ -803,7 +1100,7 @@ useEffect(() => {
 
     if (socket && roomId) {
       socket.emit('launch_quiz', { roomId });
-      navigate(`/quiz/host-controls/${roomId}`);
+     setIsSpectating(true);
       if (DEBUG) console.log('✅ Launch quiz request sent and host redirected');
     } else {
       console.error('❌ Cannot launch quiz: missing socket or roomId');
@@ -847,7 +1144,13 @@ useEffect(() => {
     return prizes.filter((p: any) => p?.tokenAddress && p.uploadStatus !== 'completed');
   }, [isWeb3, config?.prizeMode, config?.prizes]);
 
-  const canLaunch = assetUploadCheck && !isQuizComplete;
+ const gameIsLive = currentPhase === 'launched' || 
+                   currentPhase === 'asking' || 
+                   currentPhase === 'reviewing' || 
+                   currentPhase === 'leaderboard' ||
+                   currentPhase === 'tiebreaker';
+
+const canLaunch = assetUploadCheck && !isQuizComplete && !gameIsLive;
 
   // === Prize workflow gating (Payments locked until prizes resolved) ===
 const { prizeWorkflowComplete } = useMemo(() => {
@@ -1012,203 +1315,15 @@ const paymentsLocked = false;
     config?.currencySymbol,
   ]);
 
+  const organiserController = useHostControlsController({ roomId: roomId ?? '' });
+
   // ---- UI helpers
-  const LaunchSection: React.FC = () => (
-    <div className="space-y-6">
-      {/* Main Launch Card */}
-      <div className="rounded-xl border-2 border-green-200 bg-gradient-to-r from-green-50 to-blue-50 p-8">
-        <div className="text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-600">
-            <Rocket className="h-8 w-8 text-white" />
-          </div>
-          <h2 className="mb-4 text-3xl font-bold text-green-800">
-            {isQuizComplete ? 'Quiz Complete!' : 'Ready to Launch?'}
-          </h2>
-          <p className="text-fg/70 mx-auto mb-6 max-w-2xl text-lg">
-            {isQuizComplete
-              ? 'This quiz has already been completed. Thank you for hosting!'
-              : "Launch the quiz to redirect all waiting players to the game and open your host controls. Make sure you've reviewed your setup and have players ready to participate."}
-          </p>
-          <button
-            onClick={isQuizComplete ? undefined : handleLaunchQuiz}
-            disabled={!canLaunch}
-            className={`mx-auto flex transform items-center space-x-3 rounded-xl px-12 py-4 text-xl font-bold shadow-lg transition-all duration-200 ${
-              isQuizComplete
-                ? 'cursor-not-allowed bg-gray-400 text-gray-200'
-                : canLaunch
-                ? 'bg-green-600 text-white hover:bg-green-700 hover:scale-105 hover:shadow-xl'
-                : 'cursor-not-allowed bg-gray-400 text-gray-200'
-            }`}
-          >
-            {isQuizComplete ? (
-              <>
-                <span>🎉</span>
-                <div className="text-left">
-                  <div>Quiz Complete</div>
-                  {completedTime && <div className="text-xs opacity-90">Finished: {completedTime}</div>}
-                </div>
-              </>
-            ) : (
-              <>
-                <Rocket className="h-6 w-6" />
-                <span>Launch Quiz Now</span>
-              </>
-            )}
-          </button>
+  
 
-          {!canLaunch && !isQuizComplete && assetUploadIssues.length > 0 && (
-            <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3">
-              <div className="flex items-center space-x-2">
-                <Info className="h-4 w-4 text-yellow-600" />
-                <span className="text-sm font-medium text-yellow-800">
-                  Upload Required: {assetUploadIssues.length} asset
-                  {assetUploadIssues.length === 1 ? '' : 's'} must be uploaded before launching
-                </span>
-              </div>
-            </div>
-          )}
-
-          {isQuizComplete && (
-            <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-3">
-              <div className="flex items-center justify-center space-x-2">
-                <span className="text-2xl">🎉</span>
-                <span className="text-sm font-medium text-green-800">
-                  Quiz completed successfully{completedTime && ` on ${completedTime}`}
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Pre-Launch Checklist */}
-      <div className="bg-muted border-border rounded-xl border-2 p-6">
-        <h3 className="heading-2">
-          <Info className="h-5 w-5 text-blue-600" />
-          <span>{isQuizComplete ? 'Quiz Status' : 'Pre-Launch Checklist'}</span>
-        </h3>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="space-y-3">
-            <div className="flex items-center space-x-3">
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100">
-                <span className="text-sm text-green-600">✓</span>
-              </div>
-              <span className="text-fg/80">Quiz configuration complete</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div
-                className={`flex h-6 w-6 items-center justify-center rounded-full ${
-                  (players?.length || 0) > 0 ? 'bg-green-100' : 'bg-yellow-100'
-                }`}
-              >
-                <span
-                  className={`text-sm ${
-                    (players?.length || 0) > 0 ? 'text-green-600' : 'text-yellow-600'
-                  }`}
-                >
-                  {(players?.length || 0) > 0 ? '✓' : '!'}
-                </span>
-              </div>
-              <span className="text-fg/80">Players registered ({players?.length || 0})</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100">
-                <span className="text-sm text-green-600">✓</span>
-              </div>
-              <span className="text-fg/80">Payment method configured</span>
-            </div>
-          </div>
-          <div className="space-y-3">
-            <div className="flex items-center space-x-3">
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100">
-                <span className="text-sm text-green-600">{isQuizComplete ? '🎉' : '✓'}</span>
-              </div>
-              <span className="text-fg/80">{isQuizComplete ? 'Quiz completed' : 'Host controls ready'}</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div
-                className={`flex h-6 w-6 items-center justify-center rounded-full ${
-                  connected ? 'bg-green-100' : 'bg-red-100'
-                }`}
-              >
-                <span className={`text-sm ${connected ? 'text-green-600' : 'text-red-600'}`}>
-                  {connected ? '✓' : '✗'}
-                </span>
-              </div>
-              <span className="text-fg/80">Socket connection active</span>
-            </div>
-            {isWeb3 && config?.prizeMode === 'assets' && (
-              <div className="flex items-center space-x-3">
-                <div
-                  className={`flex h-6 w-6 items-center justify-center rounded-full ${
-                    assetUploadCheck ? 'bg-green-100' : 'bg-yellow-100'
-                  }`}
-                >
-                  <span className={`text-sm ${assetUploadCheck ? 'text-green-600' : 'text-yellow-600'}`}>
-                    {assetUploadCheck ? '✓' : '!'}
-                  </span>
-                </div>
-                <span className="text-fg/80">
-                  Digital assets uploaded{' '}
-                  {config?.prizes?.filter((p: any) => p.uploadStatus === 'completed').length || 0}/
-                  {config?.prizes?.filter((p: any) => p.tokenAddress).length || 0}
-                </span>
-              </div>
-            )}
-            <div className="flex items-center space-x-3">
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100">
-                <span className="text-sm text-blue-600">i</span>
-              </div>
-              <span className="text-fg/80">Room ID: {roomId}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="bg-muted border-border rounded-lg border p-4 text-center">
-          <Users className="mx-auto mb-2 h-8 w-8 text-blue-600" />
-          <div className="text-fg text-2xl font-bold">{players?.length || 0}</div>
-          <div className="text-fg/70 text-sm">Players Ready</div>
-        </div>
-        {!isWeb3 && (
-          <div className="bg-muted border-border rounded-lg border p-4 text-center">
-            <Shield className="mx-auto mb-2 h-8 w-8 text-purple-600" />
-            <div className="text-fg text-2xl font-bold">{admins?.length || 0}</div>
-            <div className="text-fg/70 text-sm">Admins</div>
-          </div>
-        )}
-        <div className="bg-muted border-border rounded-lg border p-4 text-center">
-          {isWeb3 && config?.prizeMode === 'assets' ? (
-            <>
-              <Upload className="mx-auto mb-2 h-8 w-8 text-purple-600" />
-              <div className="text-fg text-2xl font-bold">
-                {config?.prizes?.filter((p: any) => p.uploadStatus === 'completed').length || 0}/
-                {config?.prizes?.filter((p: any) => p.tokenAddress).length || 0}
-              </div>
-              <div className="text-fg/70 text-sm">Assets Uploaded</div>
-            </>
-          ) : (
-            <>
-              <div
-                className={`mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full ${
-                  connected ? 'bg-green-100' : 'bg-red-100'
-                }`}
-              >
-                <div className={`h-3 w-3 rounded-full ${connected ? 'bg-green-600' : 'bg-red-600'}`}></div>
-              </div>
-              <div className="text-fg text-2xl font-bold">{connected ? 'Online' : 'Offline'}</div>
-              <div className="text-fg/70 text-sm">Connection</div>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
 
   if (!isWeb3 && dbHydrating && !(config?.roomId && hydrated)) {
   return (
+    
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
       <div className="container mx-auto max-w-6xl px-4 py-12">
         <div className="rounded-xl border bg-white p-6 text-center">
@@ -1238,7 +1353,15 @@ if (!isWeb3 && dbHydrateError) {
     </div>
   );
 }
-
+if (isSpectating && roomId) {
+  return (
+    <OrganiserSpectatorView
+      roomId={roomId}
+      controller={organiserController}
+      onBackToDashboard={() => setIsSpectating(false)}
+    />
+  );
+}
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
@@ -1263,6 +1386,18 @@ if (!isWeb3 && dbHydrateError) {
               txHash={(config as any).deploymentTxHash}
             />
           )}
+
+           
+{!isQuizComplete && (
+  <button
+    type="button"
+    onClick={() => setIsSpectating(true)}
+    className="mt-3 inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-700 shadow-sm hover:bg-indigo-50 transition-colors"
+  >
+    <Eye className="h-4 w-4" />
+    Switch to Live View
+  </button>
+)}
 
           {isQuizComplete && (
             <div className="mt-2 rounded-lg border border-green-200 bg-green-50 px-4 py-2">
@@ -1327,7 +1462,21 @@ if (!isWeb3 && dbHydrateError) {
 
           {/* Tab Content */}
           <div className="p-6">
-            {computedActiveTab === 'launch' && <LaunchSection />}
+          {computedActiveTab === 'launch' && (
+  <LaunchSection
+    roomId={roomId}
+    isQuizComplete={isQuizComplete}
+    completedTime={completedTime}
+    players={players}
+    connected={connected}
+    isWeb3={isWeb3}
+    config={config}
+    assetUploadCheck={assetUploadCheck}
+    assetUploadIssues={assetUploadIssues}
+    canLaunch={canLaunch}
+    onLaunch={handleLaunchQuiz}
+  />
+)}
 
             {computedActiveTab === 'overview' && <SetupSummaryPanel />}
 

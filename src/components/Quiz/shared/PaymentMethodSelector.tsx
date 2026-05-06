@@ -181,7 +181,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
             <div className="flex-1">
               <div className="font-semibold text-gray-900">Pay Host Directly</div>
               <div className="text-sm text-gray-600">
-                Join now, pay later in person or directly with the host
+                 Join now and pay the host in person
               </div>
             </div>
 

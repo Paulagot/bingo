@@ -8,13 +8,18 @@ export async function getUnpaidPlayersForRoom(roomId) {
     SELECT
       player_id AS playerId,
       MAX(player_name) AS playerName,
-      SUM(CASE WHEN ledger_type='entry_fee' THEN amount ELSE 0 END) AS entryFeeOutstanding,
-      SUM(CASE WHEN ledger_type='extra_purchase' THEN amount ELSE 0 END) AS extrasOutstanding,
+      GROUP_CONCAT(DISTINCT status ORDER BY status SEPARATOR ',') AS statuses,
+      MAX(payment_method) AS paymentMethod,
+      MAX(club_payment_method_id) AS clubPaymentMethodId,
+      MAX(payment_reference) AS paymentReference,
+      MAX(admin_notes) AS existingNotes,
+      SUM(CASE WHEN ledger_type = 'entry_fee' THEN amount ELSE 0 END) AS entryFeeOutstanding,
+      SUM(CASE WHEN ledger_type = 'extra_purchase' THEN amount ELSE 0 END) AS extrasOutstanding,
       SUM(amount) AS totalOutstanding,
       MAX(updated_at) AS lastUpdatedAt
     FROM ${LEDGER_TABLE}
     WHERE room_id = ?
-      AND status IN ('expected','claimed')
+      AND status IN ('expected', 'claimed', 'disputed')
     GROUP BY player_id
     ORDER BY playerName ASC
   `;
@@ -59,7 +64,7 @@ export async function markPlayerPaidLate({
       updated_at = UTC_TIMESTAMP()
     WHERE room_id = ?
       AND player_id = ?
-      AND status IN ('expected', 'claimed')
+     AND status IN ('expected', 'claimed', 'disputed')
   `;
 
   const params = [
@@ -68,6 +73,47 @@ export async function markPlayerPaidLate({
     confirmedBy,
     confirmedByName ?? null,
     confirmedByRole ?? null,
+    adminNotes,
+    roomId,
+    playerId,
+  ];
+
+  const [result] = await connection.execute(sql, params);
+
+  return { ok: result.affectedRows > 0, updated: result.affectedRows };
+}
+
+export async function writeOffPlayerPayment({
+  roomId,
+  playerId,
+  writtenOffBy,
+  writtenOffByName,
+  writtenOffByRole,
+  adminNotes = null,
+}) {
+  if (!roomId || !playerId || !writtenOffBy) {
+    return { ok: false, updated: 0, error: 'Missing required fields' };
+  }
+
+  const sql = `
+    UPDATE ${LEDGER_TABLE}
+    SET
+      status = 'written_off',
+      payment_source = 'admin_assigned',
+      confirmed_by = ?,
+      confirmed_by_name = ?,
+      confirmed_by_role = ?,
+      admin_notes = ?,
+      updated_at = UTC_TIMESTAMP()
+    WHERE room_id = ?
+      AND player_id = ?
+      AND status IN ('expected', 'claimed', 'disputed')
+  `;
+
+  const params = [
+    writtenOffBy,
+    writtenOffByName ?? null,
+    writtenOffByRole ?? null,
     adminNotes,
     roomId,
     playerId,

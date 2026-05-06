@@ -25,7 +25,8 @@ export type RoomStatePayload = {
     | 'leaderboard'
     | 'complete'
     | 'distributing_prizes'
-    | 'tiebreaker';
+    | 'tiebreaker'
+     | 'reconciling';
   questionsThisRound?: number;
   totalPlayers?: number;
   currentReviewIndex?: number;      // ✅ ADDED
@@ -132,15 +133,18 @@ function findPrizeBoundaryTies(
 
 export function useHostControlsController({ 
   roomId, 
+operatorToken,
 
 }: { 
   roomId: string;
-  hostId?: string;  // ✅ Add this
+  hostId?: string;
+  operatorToken?: string; 
+   // ✅ Add this
 }) {
   const navigate = useNavigate();
   const { socket, connected } = useQuizSocket();
   const { config } = useQuizConfig();
-
+const isOperator = !!operatorToken;
 
   const [_timerActive, setTimerActive] = useState(false);
   const [playersInRoom, setPlayersInRoom] = useState<User[]>([]);
@@ -655,12 +659,17 @@ export function useHostControlsController({
     socket?.emit('continue_to_overall_leaderboard', { roomId });
   }, [socket, roomId]);
 
-const handleReturnToDashboard = useCallback(() => {
-  // Get hostId from config or localStorage
-  const effectiveHostId = config?.hostId || localStorage.getItem('current-host-id');
-  
-  navigate(`/quiz/host-dashboard/${roomId}?tab=prizes&lock=postgame&hostId=${effectiveHostId}`);
-}, [navigate, roomId, config?.hostId]);
+ const handleReturnToDashboard = useCallback(() => {
+     if (isOperator) {
+       // Operator tells server game is done, then goes home
+       socket?.emit('operator_complete', { roomId });
+       navigate('/');
+     } else {
+       // Organiser goes to their dashboard for reconciliation
+       const effectiveHostId = config?.hostId || localStorage.getItem('current-host-id');
+       navigate(`/quiz/host-dashboard/${roomId}?tab=prizes&lock=postgame&hostId=${effectiveHostId}`);
+     }
+   }, [socket, navigate, roomId, isOperator, config?.hostId]);
 
   // --- CTA label logic for overall leaderboard ---
   const prizeCount = computePrizeCount(config);
@@ -684,6 +693,7 @@ const handleReturnToDashboard = useCallback(() => {
     socket,
     connected,
     roomId,
+   operatorToken,
     setters: {
       setRoomState,
       setPlayersInRoom,
@@ -758,6 +768,7 @@ const handleEndGame = useCallback(async () => {
 
   return {
     debug,
+    isOperator,
 
     // socket/meta
     socket,

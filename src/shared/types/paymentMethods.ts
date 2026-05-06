@@ -30,6 +30,7 @@ export interface ClubPaymentMethodWithMeta extends ClubPaymentMethod {
  * methodLabel
  * playerInstructions
  * methodConfig
+ * isOfficialClubAccount
  */
 export interface PaymentMethodFormData {
   methodCategory: PaymentMethodCategory;

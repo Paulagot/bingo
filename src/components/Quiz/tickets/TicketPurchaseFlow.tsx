@@ -1,9 +1,7 @@
-// src/components/Quiz/tickets/TicketPurchasePage.refactored.tsx
-// UPDATED: Payment method is chosen before donation amount for donation rooms.
-// UPDATED: Crypto ticket donations use a dedicated crypto token + amount step.
+// src/components/Quiz/tickets/TicketPurchaseFlow.tsx
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { nanoid } from 'nanoid';
 import { Loader2, AlertTriangle, HeartHandshake } from 'lucide-react';
 
@@ -36,10 +34,10 @@ type TicketStep =
   | 'player-details'
   | 'extras'
   | 'payment-method'
-  | 'donation-amount'
+  | 'donation-amount'        // only used for Stripe donation (needs amount before redirect)
   | 'checking-capacity'
   | 'redirecting-to-stripe'
-  | 'payment-instructions'
+  | 'payment-instructions'   // instant payment — donation amount is inline here
   | 'creating-ticket'
   | 'crypto-donation'
   | 'complete';
@@ -59,6 +57,54 @@ interface TicketPurchaseFlowProps {
   onCancel?: () => void;
 }
 
+const TICKET_ALLOWED_MANUAL_PROVIDERS = new Set([
+  'revolut',
+  'monzo',
+  'bank_transfer',
+  'zippypay',
+]);
+
+function normalisePaymentValue(value: unknown): string {
+  return String(value || '').trim().toLowerCase();
+}
+
+function isTicketAllowedPaymentMethod(
+  method: ClubPaymentMethod,
+  isDonationRoom: boolean
+): boolean {
+  const category = normalisePaymentValue(method.methodCategory);
+  const provider = normalisePaymentValue(method.providerName);
+
+  if (method.isEnabled === false) return false;
+
+  // Card payments are fine for tickets.
+  if (category === 'stripe' || category === 'card') {
+    return true;
+  }
+
+  // Crypto ticket flow currently goes through CryptoTicketDonationStep,
+  // so only allow crypto for donation tickets.
+  if (category === 'crypto') {
+    return isDonationRoom;
+  }
+
+  // Manual methods are allowed for tickets except cash.
+  if (category === 'instant_payment') {
+    if (provider === 'cash') return false;
+    return TICKET_ALLOWED_MANUAL_PROVIDERS.has(provider);
+  }
+
+  return false;
+}
+
+function getNoTicketPaymentMethodsMessage(isDonationRoom: boolean): string {
+  if (isDonationRoom) {
+    return 'No online donation payment methods are available for this quiz. Please contact the host.';
+  }
+
+  return 'No online ticket payment methods are available for this quiz. Please contact the host.';
+}
+
 export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
   roomId,
   mode = 'page',
@@ -76,10 +122,10 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
   const [playerDetails, setPlayerDetails] = useState<PlayerDetailsFormData>({
     purchaserName: '',
     purchaserEmail: '',
-    purchaserPhone: '',
     playerName: '',
   });
 
+  // Donation amount — used for Stripe step AND inline on payment-instructions
   const [donationAmount, setDonationAmount] = useState('');
 
   const { selectedExtras, toggleExtra, calculateExtrasTotal } = useExtrasSelection();
@@ -89,9 +135,14 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [creatingTicket, setCreatingTicket] = useState(false);
+
+  // Payment instructions state — reset whenever method changes
   const [hasCopiedReference, setHasCopiedReference] = useState(false);
+  const [hasOpenedProviderLink, setHasOpenedProviderLink] = useState(false);
 
   const isDonationRoom = roomInfo?.fundraisingMode === 'donation';
+  const isSelectedStripe = selectedMethod?.methodCategory === 'stripe';
+  const isSelectedInstant = selectedMethod?.methodCategory === 'instant_payment';
 
   const donationValue = useMemo(() => {
     const parsed = Number(String(donationAmount || '').replace(',', '.'));
@@ -101,12 +152,8 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
   const isDonationAmountValid =
     !isDonationRoom || (Number.isFinite(donationValue) && donationValue > 0);
 
- 
-  const isSelectedStripe = selectedMethod?.methodCategory === 'stripe';
-
   const availableExtras = useMemo(() => {
     if (!roomInfo || isDonationRoom) return [];
-
     return Object.entries(roomInfo.fundraisingOptions || {})
       .filter(([, enabled]) => enabled)
       .map(([extraId]) => extraId);
@@ -114,7 +161,6 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
 
   const includedDonationExtras = useMemo(() => {
     if (!roomInfo || !isDonationRoom) return [];
-
     return Object.entries(roomInfo.fundraisingOptions || {})
       .filter(([, enabled]) => !!enabled)
       .map(([extraId]) => extraId);
@@ -130,6 +176,13 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
     return isDonationRoom ? donationValue : roomInfo.entryFee + extrasTotal;
   }, [roomInfo, extrasTotal, isDonationRoom, donationValue]);
 
+  // ─── Helper: reset payment instructions state when selecting a new method ───
+  const selectMethod = (method: ClubPaymentMethod) => {
+    setSelectedMethod(method);
+    setHasCopiedReference(false);
+    setHasOpenedProviderLink(false);
+  };
+
   useEffect(() => {
     loadRoomInfo();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -143,17 +196,13 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
       const response = await fetch(`/api/quiz/tickets/room/${roomId}/info`);
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to load room info');
-      }
+      if (!response.ok) throw new Error(data.error || 'Failed to load room info');
 
       setRoomInfo(data);
 
       if (data.capacity) {
         setCapacity(data.capacity);
-
         if (!data.capacity.ticketSalesOpen) {
-          console.log('[TicketPurchase] 🚫 Ticket sales closed:', data.capacity.ticketSalesCloseReason);
           setStep('sold-out');
           return;
         }
@@ -161,44 +210,65 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
 
       setStep('player-details');
     } catch (err) {
-      console.error('Failed to load room info:', err);
       setError(err instanceof Error ? err.message : 'Failed to load room information');
       setStep('error');
     }
   };
 
   const loadPaymentMethods = async () => {
-    try {
-      setError(null);
+  try {
+    setError(null);
 
-      const response = await fetch(`/api/quiz-rooms/${roomId}/available-payment-methods`);
-      const data = await response.json();
+    const response = await fetch(
+      `/api/quiz-rooms/${roomId}/available-payment-methods`
+    );
+    const data = await response.json();
 
-      if (!data.ok) {
-        setError(data.error || 'Failed to load payment methods');
-        return;
-      }
-
-      if (!data.paymentMethods?.length) {
-        setError('No payment methods available for this quiz. Please contact the host.');
-        return;
-      }
-
-      setPaymentMethods(data.paymentMethods);
-      setStep('payment-method');
-    } catch (err) {
-      console.error('[TicketPurchase] ❌ Exception caught:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load payment methods');
+    if (!data.ok) {
+      setError(data.error || 'Failed to load payment methods');
+      return;
     }
-  };
+
+    const methods: ClubPaymentMethod[] = Array.isArray(data.paymentMethods)
+      ? data.paymentMethods
+      : [];
+
+    const ticketSafeMethods = methods.filter((method) =>
+      isTicketAllowedPaymentMethod(method, !!isDonationRoom)
+    );
+
+    if (!ticketSafeMethods.length) {
+      setPaymentMethods([]);
+      setSelectedMethod(null);
+      setError(getNoTicketPaymentMethodsMessage(!!isDonationRoom));
+      setStep('payment-method');
+      return;
+    }
+
+    setPaymentMethods(ticketSafeMethods);
+
+    // Auto-skip if exactly one allowed ticket method.
+    const first = ticketSafeMethods[0];
+
+    if (ticketSafeMethods.length === 1 && first) {
+      await handlePaymentMethodSelected(first, ticketSafeMethods);
+      return;
+    }
+
+    setStep('payment-method');
+  } catch (err) {
+    setError(
+      err instanceof Error ? err.message : 'Failed to load payment methods'
+    );
+    setStep('payment-method');
+  }
+};
 
   const refreshCapacityOrThrow = async () => {
     const response = await fetch(`/api/quiz/tickets/room/${roomId}/info`);
     const data = await response.json();
 
-    if (!response.ok) {
-      throw new Error('Failed to verify capacity');
-    }
+    if (!response.ok) throw new Error('Failed to verify capacity');
 
     if (data.capacity) {
       setCapacity(data.capacity);
@@ -220,10 +290,14 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
     return data;
   };
 
-  const handlePaymentMethodSelected = async (method: ClubPaymentMethod) => {
+  // Accepts optional methods array so auto-skip can call this before state settles
+  const handlePaymentMethodSelected = async (
+    method: ClubPaymentMethod,
+    _methods?: ClubPaymentMethod[]
+  ) => {
     try {
       setError(null);
-      setSelectedMethod(method);
+      selectMethod(method);
 
       if (isDonationRoom) {
         if (method.methodCategory === 'crypto') {
@@ -233,10 +307,21 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
           return;
         }
 
-        setStep('donation-amount');
+        if (method.methodCategory === 'stripe') {
+          // Stripe needs amount upfront — go to donation-amount step
+          setStep('donation-amount');
+          return;
+        }
+
+        // Instant payment donation — go straight to payment-instructions
+        // (donation amount is entered inline there)
+        setStep('checking-capacity');
+        await refreshCapacityOrThrow();
+        setStep('payment-instructions');
         return;
       }
 
+      // Fixed-fee flows
       if (method.methodCategory === 'stripe') {
         await startStripeCheckout(method);
         return;
@@ -244,8 +329,6 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
 
       await checkCapacityBeforePayment(method);
     } catch (err) {
-      console.error('[TicketPurchase] ❌ Payment method selection failed:', err);
-
       if (step !== 'sold-out') {
         setError(err instanceof Error ? err.message : 'Failed to select payment method');
         setStep('payment-method');
@@ -261,7 +344,7 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
         return;
       }
 
-      setSelectedMethod(method);
+      selectMethod(method);
       setStep('checking-capacity');
       setError(null);
 
@@ -274,7 +357,6 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
           roomId,
           purchaserName: playerDetails.purchaserName,
           purchaserEmail: playerDetails.purchaserEmail,
-          purchaserPhone: playerDetails.purchaserPhone,
           playerName: playerDetails.playerName,
           selectedExtras: isDonationRoom ? [] : selectedExtras,
           donationAmount: isDonationRoom ? donationValue : undefined,
@@ -284,9 +366,7 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
 
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.message || data.error || 'Failed to start checkout');
-      }
+      if (!response.ok) throw new Error(data.message || data.error || 'Failed to start checkout');
 
       setStep('redirecting-to-stripe');
       window.location.href = data.url;
@@ -298,25 +378,14 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
 
   const checkCapacityBeforePayment = async (method: ClubPaymentMethod) => {
     try {
-      if (isDonationRoom && !isDonationAmountValid) {
-        setError('Please enter a donation amount greater than 0.');
-        setStep('donation-amount');
-        return;
-      }
-
-      setSelectedMethod(method);
+      selectMethod(method);
       setStep('checking-capacity');
       setError(null);
 
-      console.log('[TicketPurchase] 🔒 Checking capacity before showing payment instructions...');
-
       await refreshCapacityOrThrow();
 
-      console.log('[TicketPurchase] ✅ Capacity check passed');
       setStep('payment-instructions');
     } catch (err) {
-      console.error('[TicketPurchase] ❌ Capacity check failed:', err);
-
       if (step !== 'sold-out') {
         setError(err instanceof Error ? err.message : 'Failed to verify capacity');
         setStep('payment-method');
@@ -329,15 +398,11 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
       setCreatingTicket(true);
       setError(null);
 
-      if (!selectedMethod?.id) {
-        throw new Error('No payment method selected');
-      }
+      if (!selectedMethod?.id) throw new Error('No payment method selected');
 
       if (isDonationRoom && !isDonationAmountValid) {
         throw new Error('Please enter a donation amount greater than 0.');
       }
-
-      console.log('[TicketPurchase] 🎫 Creating ticket...');
 
       const response = await fetch('/api/quiz/tickets/create-with-payment', {
         method: 'POST',
@@ -346,7 +411,6 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
           roomId,
           purchaserName: playerDetails.purchaserName,
           purchaserEmail: playerDetails.purchaserEmail,
-          purchaserPhone: playerDetails.purchaserPhone,
           playerName: playerDetails.playerName,
           selectedExtras: isDonationRoom ? [] : selectedExtras,
           donationAmount: isDonationRoom ? donationValue : undefined,
@@ -362,16 +426,13 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
         if (response.status === 409 || data.error === 'capacity_exceeded') {
           throw new Error(data.message || 'SOLD OUT - Room is at maximum capacity');
         }
-
         throw new Error(data.message || data.error || 'Failed to create ticket');
       }
 
       setTicket(data.ticket);
       setStep('complete');
     } catch (err) {
-      console.error('Failed to create ticket:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to create ticket';
-
       if (errorMessage.includes('SOLD OUT') || errorMessage.includes('capacity')) {
         setError(errorMessage);
         setStep('sold-out');
@@ -383,6 +444,7 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
     }
   };
 
+  // Only used for Stripe donation (amount needed before redirect)
   const handleDonationAmountContinue = async () => {
     if (!selectedMethod) {
       setError('Please choose a payment method first.');
@@ -400,13 +462,28 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
       return;
     }
 
+    // Shouldn't reach here for instant payment (handled inline), but fallback
     await checkCapacityBeforePayment(selectedMethod);
   };
 
-  const paymentMethodBackStep = () => {
+  const paymentMethodBackStep = (): TicketStep => {
     if (!isDonationRoom && availableExtras.length > 0) return 'extras';
     return 'player-details';
   };
+
+  // ─── Computed for payment instructions ──────────────────────────────────────
+  const revolutLink =
+    selectedMethod?.providerName?.toLowerCase() === 'revolut' &&
+    selectedMethod.methodConfig &&
+    'link' in selectedMethod.methodConfig
+      ? selectedMethod.methodConfig.link
+      : undefined;
+
+  const hasProviderStep =
+    selectedMethod?.providerName?.toLowerCase() === 'revolut' ||
+    selectedMethod?.providerName?.toLowerCase() === 'bank_transfer';
+
+  // ─── Loading / error screens ─────────────────────────────────────────────────
 
   if (step === 'loading') {
     return (
@@ -425,9 +502,7 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mx-auto mb-3" />
           <span className="text-gray-700">Checking availability...</span>
-          <p className="text-sm text-gray-500 mt-2">
-            Making sure there are still tickets available
-          </p>
+          <p className="text-sm text-gray-500 mt-2">Making sure there are still tickets available</p>
         </div>
       </div>
     );
@@ -439,7 +514,7 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mx-auto mb-3" />
           <span className="text-gray-700">Redirecting to Stripe...</span>
-          <p className="text-sm text-gray-500 mt-2">You’ll be taken to secure checkout.</p>
+          <p className="text-sm text-gray-500 mt-2">You'll be taken to secure checkout.</p>
         </div>
       </div>
     );
@@ -451,12 +526,10 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
         <div className="bg-white rounded-xl shadow-xl p-8 max-w-md text-center">
           <div className="text-6xl mb-4">🎫</div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Tickets Sold Out</h2>
-
           <div className="mb-4 space-y-2">
             <p className="text-red-600 font-medium">
               {error || capacity?.ticketSalesCloseReason || 'No tickets available'}
             </p>
-
             {capacity && (
               <div className="bg-gray-50 rounded-lg p-4 text-left">
                 <div className="text-sm space-y-1">
@@ -470,19 +543,15 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Available:</span>
-                    <span className="font-semibold text-red-600">
-                      {capacity.availableForTickets}
-                    </span>
+                    <span className="font-semibold text-red-600">{capacity.availableForTickets}</span>
                   </div>
                 </div>
               </div>
             )}
           </div>
-
           <p className="text-gray-600 mb-6 text-sm">
             This quiz has reached maximum capacity. Please contact the host if you believe this is an error.
           </p>
-
           <button
             onClick={() => navigate('/')}
             className="rounded-lg bg-indigo-600 px-6 py-3 text-white hover:bg-indigo-700 w-full"
@@ -529,8 +598,11 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
     );
   }
 
+  // ─── Main step renders ───────────────────────────────────────────────────────
+
   return (
     <>
+      {/* ── Player details ── */}
       {step === 'player-details' && roomInfo && (
         <StepLayout
           mode={mode}
@@ -541,29 +613,27 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
               ? `Joining ${roomInfo.hostName}'s donation quiz`
               : `Buying a ticket for ${roomInfo.hostName}'s quiz`
           }
+          wide
           footer={
             <ActionButtons
               onBack={() => {
-  if (onCancel) {
-    onCancel();
-    return;
-  }
-
-  navigate('/');
-}}
+                if (onCancel) { onCancel(); return; }
+                navigate('/');
+              }}
               backLabel="Cancel"
               onContinue={() => {
                 if (!isDonationRoom && availableExtras.length > 0) {
                   setStep('extras');
                   return;
                 }
-
                 loadPaymentMethods();
               }}
               continueLabel={
                 !isDonationRoom && availableExtras.length > 0
                   ? 'Continue to Extras'
-                  : 'Continue to Payment Method'
+                  : isDonationRoom
+                  ? 'Choose Payment Method'
+                  : 'Continue to Payment'
               }
               continueDisabled={!isPlayerDetailsValid}
             />
@@ -577,7 +647,8 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
                   <div className="font-semibold text-amber-900">Limited availability</div>
                   <div className="text-sm text-amber-800">
                     Only <strong>{capacity.availableForTickets}</strong> ticket
-                    {capacity.availableForTickets === 1 ? '' : 's'} remaining out of {capacity.maxCapacity} total spots.
+                    {capacity.availableForTickets === 1 ? '' : 's'} remaining out of{' '}
+                    {capacity.maxCapacity} total spots.
                   </div>
                 </div>
               </div>
@@ -588,11 +659,12 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
             formData={playerDetails}
             onChange={setPlayerDetails}
             mode="ticket"
-            totalAmount={isDonationRoom ? 0 : totalAmount}
+            totalAmount={totalAmount}
             currencySymbol={roomInfo.currencySymbol}
             extrasTotal={extrasTotal}
             entryFee={roomInfo.entryFee}
-            isDonationRoom={false}
+            isDonationRoom={isDonationRoom}
+            wideLayout
           />
 
           {isDonationRoom && includedDonationExtras.length > 0 && (
@@ -616,6 +688,7 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
         </StepLayout>
       )}
 
+      {/* ── Extras ── */}
       {step === 'extras' && roomInfo && !isDonationRoom && (
         <StepLayout
           mode={mode}
@@ -626,7 +699,7 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
             <ActionButtons
               onBack={() => setStep('player-details')}
               onContinue={loadPaymentMethods}
-              continueLabel="Continue to Payment Method"
+              continueLabel="Continue to Payment"
             />
           }
         >
@@ -640,7 +713,6 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
               </div>
             </div>
           )}
-
           <ExtrasSelector
             availableExtras={availableExtras}
             selectedExtras={selectedExtras}
@@ -654,6 +726,7 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
         </StepLayout>
       )}
 
+      {/* ── Payment method ── (only shown when >1 method) */}
       {step === 'payment-method' && (
         <StepLayout
           mode={mode}
@@ -675,7 +748,11 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
               {error}
             </div>
           )}
-
+          {isDonationRoom && (
+            <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+              Choose your payment method first — you'll enter your donation amount on the next screen.
+            </div>
+          )}
           <PaymentMethodSelector
             paymentMethods={paymentMethods}
             onSelect={handlePaymentMethodSelected}
@@ -683,21 +760,18 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
         </StepLayout>
       )}
 
+      {/* ── Donation amount — Stripe only ── */}
       {step === 'donation-amount' && roomInfo && selectedMethod && (
         <StepLayout
           mode={mode}
-          icon={isSelectedStripe ? '💳' : '💶'}
+          icon="💳"
           title="Choose your donation"
           subtitle={selectedMethod.methodLabel}
           footer={
             <ActionButtons
               onBack={() => setStep('payment-method')}
               onContinue={handleDonationAmountContinue}
-              continueLabel={
-                isSelectedStripe
-                  ? 'Continue to Stripe'
-                  : 'Continue to Payment Instructions'
-              }
+              continueLabel={isSelectedStripe ? 'Continue to Stripe' : 'Continue to Payment'}
               continueDisabled={!isDonationAmountValid}
             />
           }
@@ -707,7 +781,6 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
               {error}
             </div>
           )}
-
           <div className="space-y-5">
             <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
               <div className="flex items-start gap-3">
@@ -725,12 +798,10 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
               <label className="mb-2 block text-sm font-medium text-gray-900">
                 Donation amount
               </label>
-
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">
                   {roomInfo.currencySymbol}
                 </span>
-
                 <input
                   type="number"
                   min="0"
@@ -742,10 +813,6 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
                   className="w-full rounded-lg border-2 border-gray-200 py-3 pl-8 pr-4 text-base outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
                 />
               </div>
-
-              <p className="mt-2 text-xs text-gray-500">
-                This amount will be used for {selectedMethod.methodLabel}.
-              </p>
             </div>
 
             <div className="rounded-lg border border-green-200 bg-green-50 p-4">
@@ -763,12 +830,12 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
         </StepLayout>
       )}
 
+      {/* ── Crypto donation ── */}
       {step === 'crypto-donation' && selectedMethod && roomInfo && roomId && (
         <CryptoTicketDonationStep
           roomId={roomId}
-       purchaserName={playerDetails.purchaserName || ''}
-purchaserEmail={playerDetails.purchaserEmail || ''}
-          purchaserPhone={playerDetails.purchaserPhone || null}
+          purchaserName={playerDetails.purchaserName || ''}
+          purchaserEmail={playerDetails.purchaserEmail || ''}
           playerName={playerDetails.playerName || playerDetails.purchaserName}
           selectedMethod={selectedMethod}
           includedDonationExtras={includedDonationExtras}
@@ -781,18 +848,26 @@ purchaserEmail={playerDetails.purchaserEmail || ''}
         />
       )}
 
+      {/* ── Payment instructions — instant payment ── */}
       {step === 'payment-instructions' && selectedMethod && roomInfo && (
         <StepLayout
           mode={mode}
           icon="💳"
-          title="Instant payment"
+          title="Complete your payment"
           subtitle={selectedMethod.methodLabel}
           footer={
             <PaymentInstructionsFooter
               hasEverCopied={hasCopiedReference}
+              hasOpenedProviderLink={hasOpenedProviderLink}
+              hasProviderStep={hasProviderStep}
               confirming={creatingTicket}
               onConfirmPaid={createTicket}
-              onBack={() => setStep(isDonationRoom ? 'donation-amount' : 'payment-method')}
+              onBack={() => {
+                // For instant donation we skip donation-amount, go back to method selector
+                setStep(isDonationRoom ? 'payment-method' : 'payment-method');
+              }}
+              isDonationRoom={isDonationRoom}
+              isDonationAmountValid={isDonationAmountValid}
             />
           }
         >
@@ -817,20 +892,22 @@ purchaserEmail={playerDetails.purchaserEmail || ''}
             paymentReference={paymentReference}
             totalAmount={totalAmount}
             currencySymbol={roomInfo.currencySymbol}
-            revolutLink={
-              selectedMethod.providerName?.toLowerCase() === 'revolut' &&
-              selectedMethod.methodConfig &&
-              'link' in selectedMethod.methodConfig
-                ? selectedMethod.methodConfig.link
-                : undefined
-            }
+            revolutLink={revolutLink}
             error={error}
             hasEverCopied={hasCopiedReference}
+            hasOpenedProviderLink={hasOpenedProviderLink}
             onCopied={() => setHasCopiedReference(true)}
+            onOpenedLink={() => setHasOpenedProviderLink(true)}
+            // Inline donation input for instant payment donation rooms
+            isDonationRoom={isDonationRoom && isSelectedInstant}
+            donationAmountInput={donationAmount}
+            onDonationAmountChange={setDonationAmount}
+            isDonationAmountValid={isDonationAmountValid}
           />
         </StepLayout>
       )}
 
+      {/* ── Complete ── */}
       {step === 'complete' && ticket && roomInfo && (
         <StepLayout
           mode={mode}

@@ -1,7 +1,7 @@
 // server/quiz/handlers/reconciliationApprovalHandler.js
 
 import { getQuizRoom } from '../quizRoomManager.js';
-import { saveCompleteReconciliation, calculateStartingTotalsFromLedger } from '../../mgtsystem/services/quizReconciliationService.js';
+import { saveCompleteReconciliation, calculateStartingTotalsFromLedger, getBlockingClaimedPaymentsForRoom } from '../../mgtsystem/services/quizReconciliationService.js';
 
 /**
  * Setup socket handlers for reconciliation approval
@@ -65,6 +65,33 @@ export function setupReconciliationApprovalHandlers(socket, quizNamespace) {
       }
 
       console.log(`✅ [Socket] Authorized: ${isHost ? 'Host' : 'Admin'} ${approvedBy} (${approvedById})`);
+
+            // ✅ Block approval only if instant/manual payments are still claimed but unresolved.
+      // Claimed means: player says they paid, but staff has not confirmed or disputed it.
+      const blockingClaimedPayments = await getBlockingClaimedPaymentsForRoom(roomId);
+
+      if (blockingClaimedPayments.length > 0) {
+        const error =
+          `${blockingClaimedPayments.length} claimed payment` +
+          `${blockingClaimedPayments.length === 1 ? '' : 's'} still need confirmation or dispute before reconciliation can be approved.`;
+
+        console.warn('⚠️ [Socket] Reconciliation approval blocked:', {
+          roomId,
+          count: blockingClaimedPayments.length,
+          payments: blockingClaimedPayments,
+        });
+
+        if (callback) {
+          callback({
+            ok: false,
+            error,
+            code: 'CLAIMED_PAYMENTS_UNRESOLVED',
+            blockingPayments: blockingClaimedPayments,
+          });
+        }
+
+        return;
+      }
 
       // Calculate starting totals from ledger
       const startingTotals = await calculateStartingTotalsFromLedger(roomId);

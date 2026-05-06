@@ -2,799 +2,418 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import NotificationsTicker from './NotificationsTicker';
-import EditWeb2QuizWizardModal from '../../../Quiz/Wizard/EditWeb2QuizWizardModal';
 import { eventIntegrationsService } from '../../services/EventIntegrationsService';
-import LinkQuizToEventModal from '../../modals/LinkQuizToEventModal';
-import UnlinkConfirmModal from '../../modals/Unlinkconfirmmodal';
-import { QuizEventCard } from '../cards/QuizEventCard';
-import ManagePaymentMethodsModal from '../../modals/ManagePaymentMethodsModal';
 import QuizRoomsService, { type RoomStats } from '../../services/quizRoomServices';
 import { quizPaymentMethodsService } from '../../services/QuizPaymentMethodsService';
+import quizLatePaymentsService from '../../services/QuizLatePaymentsService';
+import ManagePaymentMethodsModal from '../../modals/ManagePaymentMethodsModal';
 
 import {
-  CreditCard,
-  Calendar,
-  Play,
-  PlusCircle,
-  RefreshCw,
-  Users,
-  Trophy,
-  CalendarDays,
-  CheckCircle,
-  LayoutGrid,
-  LayoutList,
+  CreditCard, Calendar, Play, PlusCircle, RefreshCw,
+  Users, Trophy, CalendarDays, CheckCircle, LayoutGrid, LayoutList,
 } from 'lucide-react';
 
 import { quizApi } from '../../../../shared/api';
 import { useAuthStore } from '../../../../features/auth';
-import CancelQuizModal from '../../modals/CancelQuizModal';
-
-import type {
-  Web2RoomListItem as Room,
-  ParsedConfig,
-} from '../../../../shared/api/quiz.api';
 import { useQuizConfig } from '@/components/Quiz/hooks/useQuizConfig';
 
-type StatusFilter = 'scheduled'| 'open' | 'live' | 'completed' | 'cancelled' | 'all';
+import type { Web2RoomListItem as Room, ParsedConfig } from '../../../../shared/api/quiz.api';
+
+import DigitalEventDrawer from '../digitalEvents/DigitalEventDrawer';
+import { QuizEventCard } from '../cards/QuizEventCard';
+
+type StatusFilter = 'scheduled' | 'open' | 'live' | 'completed' | 'cancelled' | 'all';
 type ViewMode = 'table' | 'cards';
 
-const debug = false;
-
-function parseConfigJson(configStr: string | ParsedConfig | null | undefined, roomId?: string): ParsedConfig {
-  const logPrefix = `[parseConfigJson${roomId ? ` ${roomId.slice(0, 8)}` : ''}]`;
-
-  if (configStr === undefined || !configStr) {
-    if (debug) console.warn(`${logPrefix} ⚠️ No config_json provided`);
-    return {};
-  }
-
-  if (typeof configStr === 'object' && configStr !== null) {
-    return configStr as ParsedConfig;
-  }
-
-  if (typeof configStr === 'string') {
-    try {
-      return JSON.parse(configStr) as ParsedConfig;
-    } catch (error) {
-      console.error(`${logPrefix} ❌ Failed to parse JSON:`, error);
-      return {};
-    }
-  }
-
-  return {};
+function parseConfigJson(v: any): ParsedConfig {
+  if (!v) return {};
+  if (typeof v === 'object') return v as ParsedConfig;
+  try { return JSON.parse(v); } catch { return {}; }
 }
-
-function getQuizFeatureAccess(ents: any) {
-  const features = ents?.quiz_features || ents?.quizFeatures || {};
-
-  return {
-    eventLinking: features?.eventLinking === true,
-    quizPayments: features?.quizPayments === true,
-    ticketing: features?.ticketing === true,
-  };
-}
-
-
 
 function extractCreditsRemaining(ents: any): number {
   if (!ents) return 0;
-
-  const candidates = [
-    ents.game_credits_remaining,
-    ents.creditsRemaining,
-    ents.quizCreditsRemaining,
-    ents.credits,
-    ents.remainingCredits,
-    ents.remaining_credits,
-    ents.quiz_credits_remaining,
-    ents.web2_quiz_credits_remaining,
-    ents.web2CreditsRemaining,
-    ents.web2_credits_remaining,
-    ents?.entitlements?.creditsRemaining,
-    ents?.entitlements?.quizCreditsRemaining,
-    ents?.entitlements?.credits,
-  ];
-
-  const first = candidates.find((v) => v !== undefined && v !== null);
+  const candidates = [ents.game_credits_remaining, ents.creditsRemaining, ents.quizCreditsRemaining, ents.credits, ents.remainingCredits, ents?.entitlements?.creditsRemaining];
+  const first = candidates.find(v => v !== undefined && v !== null);
   const n = typeof first === 'string' ? Number(first) : typeof first === 'number' ? first : 0;
   return Number.isFinite(n) ? n : 0;
 }
 
 function extractMaxPlayers(ents: any): number {
-  if (!ents) return 0;
-  const maxPlayers = ents.max_players_per_game || ents.maxPlayersPerGame || ents.maxPlayers || 0;
-  return Number(maxPlayers);
+  return Number(ents?.max_players_per_game || ents?.maxPlayersPerGame || ents?.maxPlayers || 0);
+}
+
+function getFeatureAccess(ents: any) {
+  const f = ents?.quiz_features || ents?.quizFeatures || {};
+  return { eventLinking: f?.eventLinking === true, quizPayments: f?.quizPayments === true, ticketing: f?.ticketing === true };
 }
 
 export default function QuizEventDashboard() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  // ── Auth (must be declared before any useEffect that references it) ──
-  const clubId = useAuthStore((s: any) => s.club?.club_id || s.user?.club_id);
-  const clubName = useAuthStore(
-    (s: any) => s.user?.club_name || s.user?.clubName || s.user?.club?.name || 'Your Club'
-  );
+  const clubId          = useAuthStore((s: any) => s.club?.club_id || s.user?.club_id);
+  const clubName        = useAuthStore((s: any) => s.user?.club_name || s.user?.clubName || 'Your Club');
+  const user            = useAuthStore((s: any) => s.user);
+  const confirmedBy     = user?.id || user?.user_id || user?.club_user_id || '';
+  const confirmedByName = user?.name || user?.full_name || user?.first_name || 'Admin';
 
-  // ── Payment modal state ──
-  const [showPaymentModal, setShowPaymentModal] = useState(false);   // auto-opened by Stripe return
-  const [paymentMethodsOpen, setPaymentMethodsOpen] = useState(false); // opened by button
-  const [paymentMethodMap, setPaymentMethodMap] = useState<Record<string, boolean>>({});
+  // ── Drawer ──
+  const [drawerOpen,          setDrawerOpen]          = useState(false);
+  const [drawerRoom,          setDrawerRoom]          = useState<Room | null>(null);
+  const [managePaymentsOpen,  setManagePaymentsOpen]  = useState(false);
+  const [unlinkLoading,       setUnlinkLoading]       = useState(false);
+  const [outstandingCounts,   setOutstandingCounts]   = useState<Record<string, number>>({});
 
-  // Auto-open payment modal when returning from Stripe — wait for clubId first
-  useEffect(() => {
-    if (!clubId) return;
-    const stripeParam = searchParams.get('stripe');
-    if (stripeParam === 'return' || stripeParam === 'refresh') {
-      setShowPaymentModal(true);
-    }
-  }, [clubId]); // runs once auth is ready
+  const openDrawer  = (room: Room) => { setDrawerRoom(room); setDrawerOpen(true); };
+  const closeDrawer = () => { setDrawerOpen(false); setTimeout(() => setDrawerRoom(null), 200); };
 
-  // ── View / layout ──
- const [viewMode, setViewMode] = useState<ViewMode>('table');
+  // ── View ──
+  const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 639px)');
-    const apply = () => {
-      const mobile = mq.matches;
-      setIsMobile(mobile);
-      if (mobile) setViewMode('cards');
-    };
-    apply();
-    mq.addEventListener?.('change', apply);
+    const apply = () => { const m = mq.matches; setIsMobile(m); if (m) setViewMode('cards'); };
+    apply(); mq.addEventListener?.('change', apply);
     return () => mq.removeEventListener?.('change', apply);
   }, []);
 
-  // ── Edit modal ──
-  const [editOpen, setEditOpen] = useState(false);
-  const [editRoomId, setEditRoomId] = useState<string | null>(null);
-
-  const openEditModal = (room: Room) => {
-    setEditRoomId(room.room_id);
-    setEditOpen(true);
-  };
-
-  // ── Link / unlink modal ──
-  const [linkOpen, setLinkOpen] = useState(false);
-  const [linkRoom, setLinkRoom] = useState<Room | null>(null);
-
-  const openLinkModal = (room: Room) => {
-    setLinkRoom(room);
-    setLinkOpen(true);
-  };
-
-  const closeLinkModal = () => {
-    setLinkOpen(false);
-    setLinkRoom(null);
-  };
-
-  const [unlinkModalOpen, setUnlinkModalOpen] = useState(false);
-  const [unlinkRoom, setUnlinkRoom] = useState<Room | null>(null);
-  const [unlinkLoading, setUnlinkLoading] = useState(false);
-
   // ── Entitlements ──
-  const [ents, setEnts] = useState<any>(null);
+  const [ents,      setEnts]      = useState<any>(null);
   const [entsLoading, setEntsLoading] = useState(true);
-  const [entsError, setEntsError] = useState<string | null>(null);
- const featureAccess = useMemo(() => getQuizFeatureAccess(ents), [ents]);
-const showEventLinking = featureAccess.eventLinking;
-const showQuizPayments = featureAccess.quizPayments;
-
-
-  // ── Rooms ──
-  const [status, setStatus] = useState<StatusFilter>('all');
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [roomsLoading, setRoomsLoading] = useState(true);
-  const [roomsError, setRoomsError] = useState<string | null>(null);
-  const [linkedEvents, setLinkedEvents] = useState<Record<string, { eventId: string; eventTitle: string }>>({});
-  const [roomStats, setRoomStats] = useState<Record<string, RoomStats>>({});
-  const [_statsLoading, setStatsLoading] = useState(false);
-
-  // ── Derived ──
+  const [entsError,   setEntsError]   = useState<string | null>(null);
+  const featureAccess    = useMemo(() => getFeatureAccess(ents), [ents]);
   const creditsRemaining = useMemo(() => extractCreditsRemaining(ents), [ents]);
   const maxPlayersFromPlan = useMemo(() => extractMaxPlayers(ents), [ents]);
-  const canLaunchWizard = !entsLoading && !entsError && creditsRemaining > 0;
+  const canLaunchWizard  = !entsLoading && !entsError && creditsRemaining > 0;
 
-  // ── Cancel modal ──
-  const [cancelOpen, setCancelOpen] = useState(false);
-  const [cancelRoom, setCancelRoom] = useState<Room | null>(null);
-  const [cancelConfig, setCancelConfig] = useState<ParsedConfig | null>(null);
-  const [cancelLoading, setCancelLoading] = useState(false);
-  const [cancelError, setCancelError] = useState<string | null>(null);
-
-  const [_ticketStats, setTicketStats] = useState<{ totalTickets: number; totalIncome: number } | null>(null);
-  const [_ticketStatsLoading, setTicketStatsLoading] = useState(true);
+  // ── Rooms ──
+  const [status,     setStatus]     = useState<StatusFilter>('all');
+  const [rooms,      setRooms]      = useState<Room[]>([]);
+  const [roomsLoading, setRoomsLoading] = useState(true);
+  const [roomsError,   setRoomsError]   = useState<string | null>(null);
+  const [linkedEvents, setLinkedEvents] = useState<Record<string, { eventId: string; eventTitle: string }>>({});
+  const [roomStats,    setRoomStats]    = useState<Record<string, RoomStats>>({});
+  const [_statsLoading, setStatsLoading] = useState(false);
+  const [paymentMethodMap, setPaymentMethodMap] = useState<Record<string, boolean>>({});
 
   const sortedRooms = useMemo(() => {
-    const statusPriority: Record<string, number> = { live: 1, open: 2, scheduled: 3, completed: 4, cancelled: 5 };
-  
+    const p: Record<string,number> = { live:1, open:2, scheduled:3, completed:4, cancelled:5 };
     return [...rooms].sort((a, b) => {
-      const aPriority = statusPriority[a.status] || 999;
-      const bPriority = statusPriority[b.status] || 999;
-      if (aPriority !== bPriority) return aPriority - bPriority;
-      const aTime = a.scheduled_at ? new Date(a.scheduled_at).getTime() : 0;
-      const bTime = b.scheduled_at ? new Date(b.scheduled_at).getTime() : 0;
-      return aTime - bTime;
+      const diff = (p[a.status]||999) - (p[b.status]||999);
+      if (diff !== 0) return diff;
+      return (a.scheduled_at ? new Date(a.scheduled_at).getTime() : 0) - (b.scheduled_at ? new Date(b.scheduled_at).getTime() : 0);
     });
   }, [rooms]);
 
- const stats = useMemo(() => ({
-  total: rooms.length,
-  upcoming: rooms.filter(r => r.status === 'scheduled').length,
-  open: rooms.filter(r => r.status === 'open').length,       // ← ADD
-  live: rooms.filter(r => r.status === 'live').length,
-  completed: rooms.filter(r => r.status === 'completed').length,
-}), [rooms]);
+  const dashStats = useMemo(() => ({
+    total:     rooms.length,
+    upcoming:  rooms.filter(r => r.status === 'scheduled').length,
+    completed: rooms.filter(r => r.status === 'completed').length,
+  }), [rooms]);
 
-  // ── Data loaders ──
+  // ── Loaders ──
   const loadEntitlements = async () => {
-    try {
-      setEntsLoading(true);
-      setEntsError(null);
-      const data = await quizApi.getEntitlements();
-      setEnts(data);
-    } catch (e: any) {
-      console.error('[QuizEventDashboard] Entitlements load failed:', e);
-      setEnts(null);
-      setEntsError(e?.message || 'Failed to load entitlements');
-    } finally {
-      setEntsLoading(false);
-    }
+    try { setEntsLoading(true); setEntsError(null); setEnts(await quizApi.getEntitlements()); }
+    catch (e: any) { setEnts(null); setEntsError(e?.message || 'Failed'); }
+    finally { setEntsLoading(false); }
   };
 
   const loadLinkedEvents = async (roomIds: string[]) => {
-    if (roomIds.length === 0) { setLinkedEvents({}); return; }
+    if (!roomIds.length) { setLinkedEvents({}); return; }
     try {
-      const response = await eventIntegrationsService.lookupLinks({
-        integration_type: 'quiz_web2',
-        external_refs: roomIds,
-      });
-      const linkMap: Record<string, { eventId: string; eventTitle: string }> = {};
-      for (const link of response.links || []) {
-        if (link.external_ref && link.event_id && link.event_title) {
-          linkMap[link.external_ref] = { eventId: link.event_id, eventTitle: link.event_title };
-        }
-      }
-      setLinkedEvents(linkMap);
-    } catch (e: any) {
-      console.error('[QuizEventDashboard] ❌ Failed to load linked events:', e);
-      setLinkedEvents({});
-    }
+      const res = await eventIntegrationsService.lookupLinks({ integration_type: 'quiz_web2', external_refs: roomIds });
+      const map: Record<string, { eventId: string; eventTitle: string }> = {};
+      for (const l of res.links || []) { if (l.external_ref && l.event_id && l.event_title) map[l.external_ref] = { eventId: l.event_id, eventTitle: l.event_title }; }
+      setLinkedEvents(map);
+    } catch { setLinkedEvents({}); }
   };
 
   const loadRoomStats = async (roomIds: string[]) => {
-    if (roomIds.length === 0) { setRoomStats({}); return; }
-    try {
-      setStatsLoading(true);
-      const s = await QuizRoomsService.batchGetRoomStats(roomIds);
-      setRoomStats(s);
-    } catch (error) {
-      console.error('[QuizEventDashboard] ❌ Failed to load room stats:', error);
-      setRoomStats({});
-    } finally {
-      setStatsLoading(false);
-    }
+  if (!roomIds.length) return;
+    try { setStatsLoading(true);
+      const fresh = await QuizRoomsService.batchGetRoomStats(roomIds);
+setRoomStats(prev => ({ ...prev, ...fresh })); }
+    catch { setRoomStats({}); } finally { setStatsLoading(false); }
   };
 
-  // Load once per room list — NOT per card
   const loadPaymentMethodFlags = async (roomIds: string[]) => {
-    if (roomIds.length === 0) { setPaymentMethodMap({}); return; }
+    if (!roomIds.length) { setPaymentMethodMap({}); return; }
     try {
-      const results = await Promise.all(
-        roomIds.map(id =>
-          quizPaymentMethodsService.getQuizPaymentMethods(id)
-            .then(res => ({ id, hasLinked: res.linked_method_ids.length > 0 }))
-            .catch(() => ({ id, hasLinked: false }))
-        )
-      );
-      const map: Record<string, boolean> = {};
-      results.forEach(r => { map[r.id] = r.hasLinked; });
+      const results = await Promise.all(roomIds.map(id => quizPaymentMethodsService.getQuizPaymentMethods(id).then(res => ({ id, hasLinked: res.linked_method_ids.length > 0 })).catch(() => ({ id, hasLinked: false }))));
+      const map: Record<string,boolean> = {}; results.forEach(r => { map[r.id] = r.hasLinked; });
       setPaymentMethodMap(map);
-    } catch (e) {
-      console.error('[QuizEventDashboard] Failed to load payment method flags:', e);
-    }
+    } catch { /* ignore */ }
   };
 
-  const loadRooms = async (s: StatusFilter) => {
+  const loadOutstandingCounts = async (completedIds: string[]) => {
+    if (!completedIds.length) return;
     try {
-      setRoomsLoading(true);
-      setRoomsError(null);
+      const results = await Promise.all(completedIds.map(id => quizLatePaymentsService.getUnpaidPlayers(id).then(res => ({ id, count: res.players?.length || 0 })).catch(() => ({ id, count: 0 }))));
+      const map: Record<string,number> = {}; results.forEach(r => { map[r.id] = r.count; });
+      setOutstandingCounts(map);
+    } catch { /* ignore */ }
+  };
+
+ const loadRooms = async (s: StatusFilter, silent = false) => {
+  try {
+    if (!silent) { setRoomsLoading(true); setRoomsError(null); }
+
     const res = await quizApi.getWeb2RoomsList({ status: s as any, time: 'all' });
-      setRooms(res.rooms || []);
-      const roomIds = (res.rooms || []).map(r => r.room_id);
-      await Promise.all([
-        loadLinkedEvents(roomIds),
-        loadRoomStats(roomIds),
-        loadPaymentMethodFlags(roomIds),
-      ]);
-    } catch (e: any) {
-      console.error('[QuizEventDashboard] ❌ Failed:', e);
-      setRooms([]);
-      setRoomsError(e?.message || 'Failed to load events');
-    } finally {
-      setRoomsLoading(false);
-    }
+    setRooms(res.rooms || []);
+    const roomIds      = (res.rooms || []).map((r: Room) => r.room_id);
+    const completedIds = (res.rooms || [])
+      .filter((r: Room) => r.status === 'completed')
+      .map((r: Room) => r.room_id);
+    await Promise.all([
+      loadLinkedEvents(roomIds),
+      loadRoomStats(roomIds),
+      loadPaymentMethodFlags(roomIds),
+      loadOutstandingCounts(completedIds),
+    ]);
+  } catch (e: any) {
+    if (!silent) { setRooms([]); setRoomsError(e?.message || 'Failed to load events'); }
+  } finally {
+    if (!silent) setRoomsLoading(false);
+  }
+};
+
+  useEffect(() => { loadEntitlements(); }, []);
+ useEffect(() => { loadRooms(status); }, [status]);
+
+  useEffect(() => {
+    if (!clubId) return;
+    const p = searchParams.get('stripe');
+    if (p === 'return' || p === 'refresh') setManagePaymentsOpen(true);
+  }, [clubId]);
+useEffect(() => {
+  if (!rooms.length) return;
+
+  // Fast: refresh stats for live rooms every 30s
+  const fastPoll = setInterval(() => {
+    const liveIds = rooms
+      .filter(r => r.status === 'live')
+      .map(r => r.room_id);
+    if (liveIds.length) loadRoomStats(liveIds);
+  }, 30_000);
+
+  // Slow: silent full refresh every 5 minutes
+  const slowPoll = setInterval(() => {
+    loadRooms(status, true);
+  }, 5 * 60_000);
+
+  return () => {
+    clearInterval(fastPoll);
+    clearInterval(slowPoll);
   };
-
-  const loadTicketStats = async () => {
-    if (!clubId) { setTicketStatsLoading(false); return; }
-    try {
-      setTicketStatsLoading(true);
-      const res = await quizApi.getWeb2RoomsList({ status: 'all', time: 'all' });
-      let totalTickets = 0;
-      let totalIncome = 0;
-      for (const room of res.rooms || []) {
-        const config = parseConfigJson(room.config_json, room.room_id);
-        if (room.status === 'completed' || room.status === 'live') {
-          const entryFee = parseFloat(config.entryFee || '0');
-          const participants = room.participants_count || 0;
-          totalTickets += participants;
-          totalIncome += entryFee * participants;
-        }
-      }
-      setTicketStats({ totalTickets, totalIncome });
-    } catch (e: any) {
-      console.error('[QuizEventDashboard] ❌ Failed to load ticket stats:', e);
-      setTicketStats(null);
-    } finally {
-      setTicketStatsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadEntitlements();
-    loadTicketStats();
-  }, []);
-
-  useEffect(() => {
-    loadRooms(status);
-  }, [status]);
-
-  useEffect(() => {
-  // Only poll when there are rooms that need watching
-  const activeRoomIds = rooms
-    .filter(r => r.status === 'scheduled' || r.status === 'live')
-    .map(r => r.room_id);
- 
-  if (activeRoomIds.length === 0) return;
- 
-  const interval = setInterval(async () => {
-    // Silently refresh stats (pending verifications badge, ticket counts)
-    await loadRoomStats(activeRoomIds);
-  }, 30_000); // every 30 seconds
- 
-  return () => clearInterval(interval);
-}, [rooms]); // re-evaluates when the rooms list changes (status filter change, etc.)
+}, [rooms, status]);
 
   // ── Handlers ──
   const goToWizard = () => navigate('/quiz/create-fundraising-quiz?openWizard=1');
 
-const openRoom = (roomId: string, hostId: string) => {
-  localStorage.removeItem('quiz-setup-v2');
-  localStorage.removeItem('quiz-admins');
-  localStorage.removeItem('fundraisely-quiz-setup-draft');
-  localStorage.removeItem('current-room-id');
-  localStorage.removeItem('current-host-id');
-  localStorage.removeItem('current-contract-address');
-  useQuizConfig.getState().resetConfig();
-  const url = `/quiz/host-dashboard/${roomId}?hostId=${encodeURIComponent(hostId)}`;
-  window.open(url, '_blank');
-};
-
-  const handleEdit = (room: Room) => {
-    if (room.status !== 'scheduled') return;
-    openEditModal(room);
-  };
-
-  const handleEditSaved = async () => { await loadRooms(status); };
-
-  const handleCancel = (room: Room) => {
-    setCancelError(null);
-    setCancelRoom(room);
-    setCancelConfig(parseConfigJson(room.config_json));
-    setCancelOpen(true);
-  };
-
-  const confirmCancel = async () => {
-    if (!cancelRoom) return;
-    try {
-      setCancelLoading(true);
-      setCancelError(null);
-      await quizApi.cancelWeb2Room(cancelRoom.room_id);
-      setRooms((prev) =>
-        prev.map((r) =>
-          r.room_id === cancelRoom.room_id
-            ? { ...r, status: 'cancelled', updated_at: new Date().toISOString() }
-            : r
-        )
-      );
-      setCancelOpen(false);
-      setCancelRoom(null);
-      setCancelConfig(null);
-    } catch (e: any) {
-      console.error('[QuizEventDashboard] ❌ Cancel failed:', e);
-      setCancelError(e?.message || 'Failed to cancel quiz');
-    } finally {
-      setCancelLoading(false);
-    }
-  };
-
-  const handleUnlinkRequest = (room: Room) => {
-    setUnlinkRoom(room);
-    setUnlinkModalOpen(true);
+  const openRoom = (roomId: string, hostId: string) => {
+    ['quiz-setup-v2','quiz-admins','fundraisely-quiz-setup-draft','current-room-id','current-host-id','current-contract-address'].forEach(k => localStorage.removeItem(k));
+    useQuizConfig.getState().resetConfig();
+    window.open(`/quiz/host-dashboard/${roomId}?hostId=${encodeURIComponent(hostId)}`, '_blank');
   };
 
   const confirmUnlink = async () => {
-    if (!unlinkRoom) return;
-    const linked = linkedEvents[unlinkRoom.room_id];
+    if (!drawerRoom) return;
+    const linked = linkedEvents[drawerRoom.room_id];
     if (!linked) return;
     try {
       setUnlinkLoading(true);
-      const integrationsResponse = await eventIntegrationsService.list(linked.eventId);
-      const integration = integrationsResponse.integrations?.find(
-        (int) => int.external_ref === unlinkRoom.room_id
-      );
+      const intRes = await eventIntegrationsService.list(linked.eventId);
+      const integration = intRes.integrations?.find((i: any) => i.external_ref === drawerRoom.room_id);
       if (!integration) throw new Error('Integration not found');
       await eventIntegrationsService.unlink(linked.eventId, integration.id);
-      setLinkedEvents(prev => {
-        const updated = { ...prev };
-        delete updated[unlinkRoom.room_id];
-        return updated;
-      });
-      setUnlinkModalOpen(false);
-      setUnlinkRoom(null);
-    } catch (e: any) {
-      console.error('[QuizEventDashboard] ❌ Unlink failed:', e);
-      alert(`Failed to unlink: ${e?.message || 'Unknown error'}`);
-    } finally {
-      setUnlinkLoading(false);
-    }
+      setLinkedEvents(prev => { const u = { ...prev }; delete u[drawerRoom.room_id]; return u; });
+    } catch (e: any) { alert(`Failed to unlink: ${e?.message || 'Unknown error'}`); }
+    finally { setUnlinkLoading(false); }
   };
 
-  // Refresh payment flags for a single room after its modal closes with changes
   const handlePaymentMethodSuccess = async (roomId: string) => {
     try {
       const res = await quizPaymentMethodsService.getQuizPaymentMethods(roomId);
       setPaymentMethodMap(prev => ({ ...prev, [roomId]: res.linked_method_ids.length > 0 }));
-    } catch {
-      // silently ignore
-    }
+    } catch { /* ignore */ }
   };
 
-  // ── Shared card props helper ──
-const sharedCardProps = (room: Room) => ({
-  room,
-  stats: roomStats[room.room_id],
-  hasLinkedPaymentMethods: paymentMethodMap[room.room_id] ?? false,
-  onOpenRoom: openRoom,
-  onEdit: handleEdit,
-  onCancel: handleCancel,
-  onLinkToEvent: showEventLinking ? openLinkModal : undefined,
-  onUnlinkFromEvent: showEventLinking ? handleUnlinkRequest : undefined,
-  linkedEventTitle: linkedEvents[room.room_id]?.eventTitle,
-  linkedEventId: linkedEvents[room.room_id]?.eventId,
-  onPaymentMethodSuccess: handlePaymentMethodSuccess,
-  featureAccess,
-});
+  // Derived drawer props
+  const drawerConfig      = drawerRoom ? parseConfigJson(drawerRoom.config_json) : null;
+  const drawerStats       = drawerRoom ? roomStats[drawerRoom.room_id] : undefined;
+  const drawerHasPayments = drawerRoom ? (paymentMethodMap[drawerRoom.room_id] ?? false) : false;
+  const drawerOutstanding = drawerRoom ? (outstandingCounts[drawerRoom.room_id] ?? 0) : 0;
+  const drawerLinked      = drawerRoom ? linkedEvents[drawerRoom.room_id] : undefined;
 
-  // ── Render ──
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
       <div className="container mx-auto max-w-7xl px-4 py-6 sm:py-8">
-        <div className="mb-6 sm:mb-8">
-          <NotificationsTicker />
-        </div>
+        <div className="mb-6 sm:mb-8"><NotificationsTicker /></div>
 
         {/* Header */}
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Quiz Events</h1>
-            <p className="mt-1 text-sm text-gray-600">
-              <span className="font-semibold text-gray-900">{clubName}</span>
-            </p>
+            <h1 className="text-2xl font-bold text-gray-900">Digital Games</h1>
+            <p className="mt-1 text-sm text-gray-600"><span className="font-semibold text-gray-900">{clubName}</span></p>
           </div>
-
           <div className="flex gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={() => navigate('/quiz/create-fundraising-quiz')}
-              className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition whitespace-nowrap bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
-              title="View demo"
-            >
-              <Play className="h-4 w-4" />
-              <span className="hidden sm:inline">Demo</span>
-              <span className="sm:hidden">Demo</span>
+            <button type="button" onClick={() => navigate('/quiz/create-fundraising-quiz')}
+              className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition whitespace-nowrap">
+              <Play className="h-4 w-4" /> Demo
             </button>
-
-          {showQuizPayments && (
-  <button
-    type="button"
-    onClick={() => setPaymentMethodsOpen(true)}
-    className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition whitespace-nowrap bg-green-100 text-green-700 hover:bg-green-200"
-    title="Manage payment methods"
-  >
-    <CreditCard className="h-4 w-4" />
-    <span className="hidden sm:inline">Payment Methods</span>
-    <span className="sm:hidden">Payments</span>
-  </button>
-)}
-
-            <button
-              type="button"
-              onClick={goToWizard}
-              disabled={!canLaunchWizard}
-              className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition whitespace-nowrap
-                ${canLaunchWizard ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}
-            >
-              <PlusCircle className="h-4 w-4" />
-              Create Quiz
+            {featureAccess.quizPayments && (
+              <button type="button" onClick={() => setManagePaymentsOpen(true)}
+                className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold bg-green-100 text-green-700 hover:bg-green-200 transition whitespace-nowrap">
+                <CreditCard className="h-4 w-4" />
+                <span className="hidden sm:inline">Payment Methods</span>
+                <span className="sm:hidden">Payments</span>
+              </button>
+            )}
+            <button type="button" onClick={goToWizard} disabled={!canLaunchWizard}
+              className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition whitespace-nowrap ${canLaunchWizard ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}>
+              <PlusCircle className="h-4 w-4" /> Create Quiz
             </button>
           </div>
         </div>
 
-        {/* Stats Grid */}
+        {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-6">
-          <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="flex-shrink-0 p-2 rounded-lg bg-indigo-100">
-                <CalendarDays className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-600" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-gray-600">Total</p>
-                <p className="text-lg sm:text-xl font-bold text-indigo-600">{stats.total}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="flex-shrink-0 p-2 rounded-lg bg-blue-100">
-                <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-gray-600">Upcoming</p>
-                <p className="text-lg sm:text-xl font-bold text-blue-600">{stats.upcoming}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="flex-shrink-0 p-2 rounded-lg bg-gray-100">
-                <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-gray-600">Done</p>
-                <p className="text-lg sm:text-xl font-bold text-gray-600">{stats.completed}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="flex-shrink-0 p-2 rounded-lg bg-green-100">
-                <Trophy className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-gray-600">Credits</p>
-                <div className="flex items-center gap-2">
-                  <p className="text-lg sm:text-xl font-bold text-green-600">
-                    {entsLoading ? '...' : entsError ? 'N/A' : creditsRemaining}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={loadEntitlements}
-                    className="p-1 hover:bg-gray-100 rounded transition-colors"
-                    title="Refresh"
-                  >
-                    <RefreshCw className="h-3 w-3 text-gray-500" />
-                  </button>
+          {[
+            { label: 'Total',    value: dashStats.total,    Icon: CalendarDays, color: 'indigo' },
+            { label: 'Upcoming', value: dashStats.upcoming, Icon: Calendar,     color: 'blue' },
+            { label: 'Done',     value: dashStats.completed,Icon: CheckCircle,  color: 'gray' },
+            { label: 'Credits',  value: entsLoading ? '…' : entsError ? 'N/A' : creditsRemaining, Icon: Trophy, color: 'green', refresh: loadEntitlements },
+            { label: 'Plan Limit', value: entsLoading ? '…' : entsError ? 'N/A' : maxPlayersFromPlan, Icon: Users, color: 'purple' },
+          ].map(({ label, value, Icon, color, refresh }) => (
+            <div key={label} className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className={`flex-shrink-0 p-2 rounded-lg bg-${color}-100`}>
+                  <Icon className={`h-4 w-4 sm:h-5 sm:w-5 text-${color}-600`} />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-600">{label}</p>
+                  <div className="flex items-center gap-2">
+                    <p className={`text-lg sm:text-xl font-bold text-${color}-600`}>{value}</p>
+                    {refresh && <button type="button" onClick={refresh} className="p-1 rounded hover:bg-gray-100" title="Refresh"><RefreshCw className="h-3 w-3 text-gray-500" /></button>}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-
-          <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="flex-shrink-0 p-2 rounded-lg bg-purple-100">
-                <Users className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-gray-600">Plan Limit</p>
-                <p className="text-lg sm:text-xl font-bold text-purple-600">
-                  {entsLoading ? '...' : entsError ? 'N/A' : `${maxPlayersFromPlan}`}
-                </p>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
 
-        {/* Filter Tabs + View Toggle */}
+        {/* Filters + view toggle */}
         <div className="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm p-2">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex gap-2 flex-wrap flex-1">
-              {(['all', 'scheduled', 'open', 'live', 'completed', 'cancelled'] as StatusFilter[]).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setStatus(s)}
-                  className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors ${
-                    status === s ? 'bg-indigo-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {s.charAt(0).toUpperCase() + s.slice(1)}
+              {(['all','scheduled','open','live','completed','cancelled'] as StatusFilter[]).map(s => (
+                <button key={s} onClick={() => setStatus(s)}
+                  className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition capitalize ${status === s ? 'bg-indigo-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
+                  {s}
                 </button>
               ))}
             </div>
-
             {!isMobile && (
               <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-                <button
-                  onClick={() => setViewMode('table')}
-                  className={`p-2 rounded-md transition-colors ${
-                    viewMode === 'table' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                  title="Table view"
-                >
-                  <LayoutList className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => setViewMode('cards')}
-                  className={`p-2 rounded-md transition-colors ${
-                    viewMode === 'cards' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                  title="Card view"
-                >
-                  <LayoutGrid className="h-4 w-4" />
-                </button>
+                <button onClick={() => setViewMode('table')} title="Table view" className={`p-2 rounded-md transition-colors ${viewMode === 'table' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}><LayoutList className="h-4 w-4" /></button>
+                <button onClick={() => setViewMode('cards')} title="Card view"  className={`p-2 rounded-md transition-colors ${viewMode === 'cards' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}><LayoutGrid className="h-4 w-4" /></button>
               </div>
             )}
           </div>
         </div>
 
-        {/* Events Content */}
+        {/* Rooms */}
         <div className="space-y-4">
           {roomsLoading ? (
-            <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-              <p className="mt-2 text-sm text-gray-600">Loading events…</p>
+            <div className="flex items-center justify-center py-16 bg-white rounded-xl border border-gray-200">
+              <div className="h-7 w-7 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
+              <span className="ml-3 text-sm text-gray-600">Loading events…</span>
             </div>
           ) : roomsError ? (
-            <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-              <div className="text-sm font-semibold text-red-600">Failed to load events</div>
-              <div className="mt-2 text-xs text-gray-600">Error: {roomsError}</div>
-              <button
-                type="button"
-                onClick={() => loadRooms(status)}
-                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
-              >
-                <RefreshCw className="h-4 w-4" />
-                Retry
+            <div className="py-12 text-center bg-white rounded-xl border border-gray-200">
+              <p className="text-sm font-semibold text-red-600">Failed to load events</p>
+              <p className="mt-1 text-xs text-gray-500">{roomsError}</p>
+              <button type="button" onClick={() => loadRooms(status)} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+                <RefreshCw className="h-4 w-4" /> Retry
               </button>
             </div>
           ) : sortedRooms.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-indigo-50 mb-4">
-                <Calendar className="h-8 w-8 text-indigo-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                {status === 'all' ? 'No quiz events yet' : `No ${status} events`}
-              </h3>
-              {(status === 'all' || status === 'scheduled') && (
-                <>
-                  <p className="text-sm text-gray-600 mb-6 max-w-md mx-auto px-4">
-                    Create your first fundraising quiz event in minutes!
-                  </p>
-                  <button
-                    type="button"
-                    onClick={goToWizard}
-                    disabled={!canLaunchWizard}
-                    className={`inline-flex items-center gap-2 rounded-lg px-6 py-3 text-sm font-semibold shadow-sm transition
-                      ${canLaunchWizard ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}
-                  >
-                    <PlusCircle className="h-5 w-5" />
-                    Create Quiz Event
-                  </button>
-                </>
+            <div className="py-16 text-center bg-white rounded-xl border border-gray-200">
+              <Calendar className="mx-auto mb-4 h-10 w-10 text-indigo-300" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">{status === 'all' ? 'No quiz events yet' : `No ${status} events`}</h3>
+              {(status === 'all' || status === 'scheduled') && canLaunchWizard && (
+                <button type="button" onClick={goToWizard} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-700">
+                  <PlusCircle className="h-5 w-5" /> Create Quiz Event
+                </button>
               )}
             </div>
+          ) : viewMode === 'table' ? (
+            <div className="overflow-x-auto">
+              <div className="bg-white rounded-t-xl border border-gray-200 border-b-0 min-w-[600px]">
+                <div className="flex items-center gap-4 px-4 py-3 bg-gray-50 rounded-t-xl text-xs font-semibold uppercase text-gray-500">
+                  <div className="w-24 flex-shrink-0">Status</div>
+                  <div className="w-36 flex-shrink-0">Date</div>
+                  <div className="w-16 flex-shrink-0">Fee</div>
+                  <div className="w-24 flex-shrink-0">Income</div>
+                  <div className="w-16 flex-shrink-0 text-center">Players</div>
+                  <div className="w-20 flex-shrink-0 text-right">Prizes</div>
+                  <div className="flex-1 text-right">Actions</div>
+                </div>
+              </div>
+              <div className="bg-white rounded-b-xl border border-gray-200 border-t-0 overflow-hidden min-w-[600px]">
+                {sortedRooms.map(room => (
+                  <QuizEventCard key={room.room_id} viewMode="table"
+                    room={room} stats={roomStats[room.room_id]}
+                    hasLinkedPaymentMethods={paymentMethodMap[room.room_id] ?? false}
+                    outstandingCount={outstandingCounts[room.room_id] ?? 0}
+                    onOpenDrawer={openDrawer} />
+                ))}
+              </div>
+            </div>
           ) : (
-            <>
-              {viewMode === 'table' ? (
-                <div className="overflow-x-auto">
-                  <div className="bg-white rounded-t-xl border border-gray-200 border-b-0 min-w-[900px] ">
- <div className="bg-white rounded-t-xl border border-gray-200 border-b-0 min-w-[900px]">
-  <div className="flex items-center gap-4 p-4 bg-gray-50">
-    <div className="w-24 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase">Status</div>
-    <div className="w-32 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase">Date</div>
-    <div className="w-16 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase">Fee</div>
-    <div className="w-24 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase">Income</div>
-    <div className="w-16 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase text-center">Tickets</div>
-    <div className="w-16 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase text-center">Players</div>
-    <div className="w-16 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase text-center">Max</div>
-    <div className="w-20 flex-shrink-0 text-xs font-semibold text-gray-700 uppercase text-right">Prizes</div>
-    <div className="flex-1 text-xs font-semibold text-gray-700 uppercase text-right">Actions</div>
-  </div>
-</div>
-                  </div>
-
-                  <div className="bg-white rounded-b-xl border border-gray-200 border-t-0 overflow-hidden min-w-[1050px]">
-                    {sortedRooms.map((room) => (
-                      <QuizEventCard
-                        key={room.room_id}
-                        viewMode="table"
-                        {...sharedCardProps(room)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {sortedRooms.map((room) => (
-                    <QuizEventCard
-                      key={room.room_id}
-                      viewMode="cards"
-                      {...sharedCardProps(room)}
-                    />
-                  ))}
-                </div>
-              )}
-            </>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {sortedRooms.map(room => (
+                <QuizEventCard key={room.room_id} viewMode="cards"
+                  room={room} stats={roomStats[room.room_id]}
+                  hasLinkedPaymentMethods={paymentMethodMap[room.room_id] ?? false}
+                  outstandingCount={outstandingCounts[room.room_id] ?? 0}
+                  onOpenDrawer={openDrawer} />
+              ))}
+            </div>
           )}
         </div>
       </div>
 
-      {/* ── Modals ── */}
-      {editOpen && editRoomId && (
-        <EditWeb2QuizWizardModal
-          roomId={editRoomId}
-          onClose={() => { setEditOpen(false); setEditRoomId(null); }}
-          onSaved={handleEditSaved}
+      {/* Tabbed drawer */}
+      {drawerRoom && (
+        <DigitalEventDrawer
+          open={drawerOpen}
+          room={drawerRoom}
+          config={drawerConfig}
+          stats={drawerStats}
+          hasLinkedPaymentMethods={drawerHasPayments}
+          outstandingCount={drawerOutstanding}
+          linkedEventTitle={drawerLinked?.eventTitle}
+          linkedEventId={drawerLinked?.eventId}
+          showEventLinking={featureAccess.eventLinking}
+          featureAccess={featureAccess}
+          confirmedBy={confirmedBy}
+          confirmedByName={confirmedByName}
+          unlinkLoading={unlinkLoading}
+          onClose={closeDrawer}
+          onSaved={async () => { await loadRooms(status); }}
+          onLinked={async () => { await loadRooms(status); }}
+          confirmUnlink={confirmUnlink}
+          onLaunchFromHere={() => openRoom(drawerRoom.room_id, drawerRoom.host_id)}
+          onPaymentMethodSuccess={() => handlePaymentMethodSuccess(drawerRoom.room_id)}
         />
       )}
 
-      <LinkQuizToEventModal
-        open={linkOpen}
-        room={linkRoom}
-        onClose={closeLinkModal}
-        onLinked={async () => { await loadRooms(status); }}
-      />
-
-      <UnlinkConfirmModal
-        open={unlinkModalOpen}
-        eventTitle={unlinkRoom ? linkedEvents[unlinkRoom.room_id]?.eventTitle || 'Unknown Event' : ''}
-        onConfirm={confirmUnlink}
-        onCancel={() => {
-          if (!unlinkLoading) { setUnlinkModalOpen(false); setUnlinkRoom(null); }
-        }}
-        loading={unlinkLoading}
-      />
-
-      <CancelQuizModal
-        open={cancelOpen}
-        room={cancelRoom}
-        config={cancelConfig}
-        loading={cancelLoading}
-        error={cancelError}
-        onClose={() => {
-          if (cancelLoading) return;
-          setCancelOpen(false);
-          setCancelRoom(null);
-          setCancelConfig(null);
-          setCancelError(null);
-        }}
-        onConfirm={confirmCancel}
-      />
-
-      {/* Single payment modal — handles both Stripe return auto-open and button open */}
-      {(showPaymentModal || paymentMethodsOpen) && clubId && (
-        <ManagePaymentMethodsModal
-          clubId={clubId}
-          onClose={() => {
-            setShowPaymentModal(false);
-            setPaymentMethodsOpen(false);
-          }}
-        />
+      {/* Club-level payment methods management */}
+      {managePaymentsOpen && clubId && (
+        <ManagePaymentMethodsModal clubId={clubId} onClose={() => setManagePaymentsOpen(false)} />
       )}
     </div>
   );
