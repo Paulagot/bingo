@@ -21,6 +21,7 @@ import {
   createExpectedPayment,
   confirmPayment, 
   updateDonationLedgerAmount,
+   disputePayment,
 
 } from '../../mgtsystem/services/quizPaymentLedgerService.js'
 
@@ -919,6 +920,82 @@ socket.on('confirm_player_payment', async (payload, ack) => {
     return sendAck({ ok: false, error: 'Internal error' });
   }
 });
+socket.on('dispute_player_payment', async (payload, ack) => {
+  const sendAck = typeof ack === 'function' ? ack : () => {};
+
+  try {
+    const { roomId, playerId, disputeReason } = payload || {};
+
+    if (!roomId || !playerId) {
+      return sendAck({ ok: false, error: 'Invalid payload' });
+    }
+
+    const room = getQuizRoom(roomId);
+    if (!room) {
+      return sendAck({ ok: false, error: 'Room not found' });
+    }
+
+    const player = room.players.find((p) => p.id === playerId);
+    if (!player) {
+      return sendAck({ ok: false, error: 'Player not found' });
+    }
+
+    const adminId = room.hostId;
+    const adminName = room.config?.hostName || 'Admin';
+    const adminRole = 'host';
+
+    const ledgerResult = await disputePayment({
+      roomId,
+      playerId,
+      disputedBy: adminId,
+      disputedByName: adminName,
+      disputedByRole: adminRole,
+      disputeReason: disputeReason || 'Marked as disputed by staff',
+    });
+
+    if (!ledgerResult.ok) {
+      return sendAck({ ok: false, error: 'Failed to mark payment as disputed' });
+    }
+
+    const updatedPlayer = {
+      ...player,
+      paid: false,
+      paymentClaimed: false,
+      paymentDisputed: true,
+      paymentDisputedAt: new Date().toISOString(),
+      paymentDisputeReason: disputeReason || null,
+    };
+
+    addOrUpdatePlayer(roomId, updatedPlayer);
+
+    const playersLite = room.players.map((p) => ({
+      id: p.id,
+      name: p.name,
+      paid: !!p.paid,
+      paymentMethod: p.paymentMethod,
+      paymentClaimed: !!p.paymentClaimed,
+      paymentDisputed: !!p.paymentDisputed,
+      paymentDisputedAt: p.paymentDisputedAt || null,
+      paymentDisputeReason: p.paymentDisputeReason || null,
+      paymentReference: p.paymentReference || null,
+      clubPaymentMethodId: p.clubPaymentMethodId || null,
+      paymentConfirmedBy: p.paymentConfirmedBy,
+      extras: p.extras || [],
+      extraPayments: p.extraPayments || {},
+      disqualified: !!p.disqualified,
+    }));
+
+    namespace.to(roomId).emit('player_list_updated', { players: playersLite });
+    emitRoomState(namespace, roomId);
+    emitFullRoomState(socket, namespace, roomId);
+
+    return sendAck({ ok: true, player: updatedPlayer });
+  } catch (err) {
+    console.error('[dispute_player_payment] 💥 Error:', err);
+    return sendAck({ ok: false, error: 'Internal error' });
+  }
+});
+
   // --- Tie-breaker: player submits numeric answer ---
   socket.on('tiebreak:answer', async ({ roomId, answer }) => {
     const room = getQuizRoom(roomId);
@@ -1231,6 +1308,23 @@ socket.on('request_current_state', ({ roomId, playerId }) => {
       // return;
     }
 
+    if (roundType === 'order_image') {
+  const emittableQuestion = room.emittedOptionsByQuestionId?.[question.id];
+  if (emittableQuestion) {
+    socket.emit('order_image_question', {
+      id: emittableQuestion.id,
+      prompt: emittableQuestion.prompt,
+      images: emittableQuestion.images, // already shuffled, no order field
+      difficulty: emittableQuestion.difficulty,
+      category: emittableQuestion.category,
+      timeLimit,
+      questionStartTime,
+      questionNumber: room.currentQuestionIndex + 1,
+      totalQuestions: room.questions.length,
+    });
+  }
+}
+
     // 3) Standard question-based recovery (general_trivia/wipeout)
     if (roundType !== 'speed_round' && roundType !== 'hidden_object') {
       if (room.currentQuestionIndex >= 0 && room.questions?.[room.currentQuestionIndex]) {
@@ -1280,6 +1374,8 @@ socket.on('request_current_state', ({ roomId, playerId }) => {
     }
   }
 
+  
+
   // ─────────────────────────────────────────────
   // REVIEWING PHASE
   // ─────────────────────────────────────────────
@@ -1291,6 +1387,7 @@ socket.on('request_current_state', ({ roomId, playerId }) => {
     else if (roundType === 'wipeout') enginePromise = import('../gameplayEngines/wipeoutEngine.js');
     else if (roundType === 'speed_round') enginePromise = import('../gameplayEngines/speedRoundEngine.js');
     else if (roundType === 'hidden_object') enginePromise = import('../gameplayEngines/hiddenObjectEngine.js');
+    else if (roundType === 'order_image') enginePromise = import('../gameplayEngines/orderImageEngine.js');
 
     if (enginePromise) {
       enginePromise.then(engine => {
@@ -1335,6 +1432,56 @@ socket.on('request_current_state', ({ roomId, playerId }) => {
           });
         }
       }).catch(err => console.error(`[Recovery] ❌ Failed to load engine for review recovery:`, err));
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // TIEBREAKER PHASE
+  // ─────────────────────────────────────────────
+  if (room.currentPhase === 'tiebreaker') {
+    const tb = room.tiebreaker;
+    if (tb?.isActive || tb?.stage === 'result') {
+      if (debug) console.log(`[Recovery] 🏆 Recovering tiebreaker phase for ${playerId} in room ${roomId}, stage: ${tb.stage}`);
+
+      // Always re-send start so the client knows who is competing
+      socket.emit('tiebreak:start', {
+        participants: tb.participants || [],
+        mode: tb.mode,
+      });
+
+      if (tb.stage === 'question' && room.currentTiebreakQuestion) {
+        const q = room.currentTiebreakQuestion;
+        socket.emit('tiebreak:question', {
+          id: q.id,
+          text: q.text,
+          type: 'numeric',
+          timeLimit: 20,
+          questionStartTime: q.questionStartTime,
+        });
+
+      } else if (tb.stage === 'review' && tb.lastReview) {
+        const lr = tb.lastReview;
+        if (lr.winnerIds && lr.winnerIds.length === 1) {
+          socket.emit('tiebreak:review', {
+            correctAnswer: lr.correctAnswer,
+            playerAnswers: lr.playerAnswers || {},
+            winnerIds: lr.winnerIds,
+            questionText: lr.questionText,
+            isFinalAnswer: true,
+          });
+        } else {
+          socket.emit('tiebreak:review', {
+            correctAnswer: lr.correctAnswer,
+            playerAnswers: lr.playerAnswers || {},
+            stillTiedIds: lr.stillTiedIds,
+            questionText: lr.questionText,
+            isFinalAnswer: false,
+          });
+        }
+
+      } else if (tb.stage === 'result' && Array.isArray(tb.winnerIds) && tb.winnerIds.length) {
+        socket.emit('tiebreak:result', { winnerIds: tb.winnerIds });
+      }
     }
   }
 

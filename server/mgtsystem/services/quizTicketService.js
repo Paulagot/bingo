@@ -1,19 +1,40 @@
 // server/quiz/services/quizTicketService.js
 // UPDATED: Added capacity checks before ticket purchase
+// UPDATED: Validates ticket-safe payment methods server-side
 
 import { connection, TABLE_PREFIX } from '../../config/database.js';
 import { nanoid } from 'nanoid';
 import { createExpectedPayment } from './quizPaymentLedgerService.js';
-import { canPurchaseTickets, getRoomCapacityStatus } from './quizCapacityService.js';
+import { canPurchaseTickets } from './quizCapacityService.js';
 
 import Stripe from 'stripe';
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' });
-
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: '2024-06-20',
+});
 
 const TICKETS_TABLE = `${TABLE_PREFIX}quiz_tickets`;
 const WEB2_ROOMS_TABLE = `${TABLE_PREFIX}web2_quiz_rooms`;
+const CLUB_PAYMENT_METHODS_TABLE = `${TABLE_PREFIX}club_payment_methods`;
 
 const DEBUG = false;
+
+const TICKET_MANUAL_PROVIDER_ALLOWLIST = new Set([
+  'revolut',
+  'monzo',
+  'bank_transfer',
+  'zippypay',
+]);
+
+function parseJsonMaybe(value, fallback = {}) {
+  if (!value) return fallback;
+  if (typeof value === 'object') return value;
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
 
 function parseMysqlUtcDateTime(value) {
   if (!value) return null;
@@ -25,9 +46,34 @@ function parseMysqlUtcDateTime(value) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function normaliseProviderName(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function normaliseCategory(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function getLinkedPaymentMethodIds(linkedPaymentMethodsJson) {
+  const parsed = parseJsonMaybe(linkedPaymentMethodsJson, {});
+  const ids = Array.isArray(parsed.payment_method_ids)
+    ? parsed.payment_method_ids
+    : [];
+
+  return new Set(
+    ids
+      .map((id) => Number(id))
+      .filter((id) => Number.isFinite(id))
+  );
+}
+
+function isTruthyDbBoolean(value) {
+  return value === true || value === 1 || value === '1';
+}
+
 /**
- * Get room configuration from database
- * Returns null if room not found or is Web3
+ * Get room configuration from database.
+ * Returns null if room not found or is Web3.
  */
 export async function getRoomConfig(roomId) {
   const sql = `
@@ -38,7 +84,8 @@ export async function getRoomConfig(roomId) {
       scheduled_at,
       time_zone,
       config_json,
-      room_caps_json
+      room_caps_json,
+      linked_payment_methods_json
     FROM ${WEB2_ROOMS_TABLE}
     WHERE room_id = ?
     LIMIT 1
@@ -52,20 +99,22 @@ export async function getRoomConfig(roomId) {
     return null;
   }
 
-  const config =
-    typeof row.config_json === 'string'
-      ? JSON.parse(row.config_json)
-      : (row.config_json || {});
-
-  // ✅ Parse room caps (THIS is what you were missing)
-  const roomCaps =
-    typeof row.room_caps_json === 'string'
-      ? JSON.parse(row.room_caps_json)
-      : (row.room_caps_json || {});
+  const config = parseJsonMaybe(row.config_json, {});
+  const roomCaps = parseJsonMaybe(row.room_caps_json, {});
+  const linkedPaymentMethods = parseJsonMaybe(
+    row.linked_payment_methods_json,
+    {}
+  );
 
   // ✅ Block Web3 rooms
   if (config.paymentMethod === 'web3' || config.isWeb3Room === true) {
-    if (DEBUG) console.log('[TicketService] ❌ Web3 room - tickets not supported:', roomId);
+    if (DEBUG) {
+      console.log(
+        '[TicketService] ❌ Web3 room - tickets not supported:',
+        roomId
+      );
+    }
+
     return null;
   }
 
@@ -77,12 +126,140 @@ export async function getRoomConfig(roomId) {
     timeZone: row.time_zone ?? null,
     config,
     roomCaps,
+    linkedPaymentMethods,
+  };
+}
+
+async function getClubPaymentMethodForRoom({
+  roomId,
+  clubId,
+  linkedPaymentMethods,
+  clubPaymentMethodId,
+}) {
+  const numericMethodId = Number(clubPaymentMethodId);
+
+  if (!Number.isFinite(numericMethodId)) {
+    throw new Error('valid_club_payment_method_required_for_ticket');
+  }
+
+  const linkedIds = getLinkedPaymentMethodIds(linkedPaymentMethods);
+
+  if (!linkedIds.has(numericMethodId)) {
+    if (DEBUG) {
+      console.log('[TicketService] ❌ Payment method not linked to quiz:', {
+        roomId,
+        clubId,
+        clubPaymentMethodId,
+        linkedIds: Array.from(linkedIds),
+      });
+    }
+
+    throw new Error('payment_method_not_linked_to_this_quiz');
+  }
+
+  const [rows] = await connection.execute(
+    `
+    SELECT
+      id,
+      club_id,
+      method_category,
+      provider_name,
+      method_label,
+      is_enabled,
+      is_official_club_account,
+      method_config
+    FROM ${CLUB_PAYMENT_METHODS_TABLE}
+    WHERE id = ?
+      AND club_id = ?
+    LIMIT 1
+    `,
+    [numericMethodId, clubId]
+  );
+
+  const method = rows?.[0];
+
+  if (!method) {
+    throw new Error('payment_method_not_found_for_club');
+  }
+
+  if (!isTruthyDbBoolean(method.is_enabled)) {
+    throw new Error('payment_method_disabled');
+  }
+
+  return {
+    id: String(method.id),
+    clubId: method.club_id,
+    methodCategory: normaliseCategory(method.method_category),
+    providerName: normaliseProviderName(method.provider_name),
+    methodLabel: method.method_label,
+    isOfficialClubAccount: isTruthyDbBoolean(method.is_official_club_account),
+    methodConfig: parseJsonMaybe(method.method_config, {}),
+  };
+}
+
+async function validateManualTicketPaymentMethod({
+  roomId,
+  clubId,
+  linkedPaymentMethods,
+  clubPaymentMethodId,
+}) {
+  const method = await getClubPaymentMethodForRoom({
+    roomId,
+    clubId,
+    linkedPaymentMethods,
+    clubPaymentMethodId,
+  });
+
+  if (method.methodCategory !== 'instant_payment') {
+    throw new Error('ticket_manual_payment_method_must_be_manual');
+  }
+
+  if (method.providerName === 'cash') {
+    throw new Error('cash_not_allowed_for_ticket_purchase');
+  }
+
+  if (!TICKET_MANUAL_PROVIDER_ALLOWLIST.has(method.providerName)) {
+    throw new Error('payment_method_not_allowed_for_ticket_purchase');
+  }
+
+  return {
+    ...method,
+    paymentMethod: 'instant_payment',
+  };
+}
+
+export async function validateCryptoTicketPaymentMethod({
+  roomId,
+  clubId,
+  linkedPaymentMethods,
+  clubPaymentMethodId,
+}) {
+  const method = await getClubPaymentMethodForRoom({
+    roomId,
+    clubId,
+    linkedPaymentMethods,
+    clubPaymentMethodId,
+  });
+
+  if (method.methodCategory !== 'crypto') {
+    throw new Error('ticket_crypto_payment_method_must_be_crypto');
+  }
+
+  if (method.providerName !== 'solana_wallet') {
+    throw new Error('unsupported_crypto_ticket_payment_method');
+  }
+
+  return {
+    ...method,
+    paymentMethod: 'crypto',
   };
 }
 
 /**
- * Create ticket with payment claim in ONE STEP
- * ✅ NEW: Checks capacity BEFORE creating ticket
+ * Create ticket with payment claim in ONE STEP.
+ * Manual public ticket purchases only.
+ *
+ * Stripe checkout and crypto verified tickets have their own flows.
  */
 export async function createTicketWithPayment({
   roomId,
@@ -98,7 +275,7 @@ export async function createTicketWithPayment({
 }) {
   // ✅ STEP 0: CHECK CAPACITY FIRST
   const capacityCheck = await canPurchaseTickets(roomId, 1);
-  
+
   if (!capacityCheck.allowed) {
     if (DEBUG) {
       console.log('[TicketService] 🚫 Ticket purchase blocked:', {
@@ -107,10 +284,10 @@ export async function createTicketWithPayment({
         capacity: capacityCheck.capacity,
       });
     }
-    
+
     throw new Error(capacityCheck.reason);
   }
-  
+
   if (DEBUG) {
     console.log('[TicketService] ✅ Capacity check passed:', {
       roomId,
@@ -118,71 +295,103 @@ export async function createTicketWithPayment({
       maxCapacity: capacityCheck.capacity.maxCapacity,
     });
   }
-  
+
   // 1. Get room config
   const roomData = await getRoomConfig(roomId);
-  
+
   if (!roomData) {
     throw new Error('Room not found or not available for ticket purchase');
   }
-  
-  const { clubId, config } = roomData;
-  
+
+  const { clubId, config, linkedPaymentMethods } = roomData;
+
+  const validatedPaymentMethod = await validateManualTicketPaymentMethod({
+    roomId,
+    clubId,
+    linkedPaymentMethods,
+    clubPaymentMethodId,
+  });
+
+  // Do not trust client-supplied paymentMethod.
+  paymentMethod = validatedPaymentMethod.paymentMethod;
+  clubPaymentMethodId = validatedPaymentMethod.id;
+
   // 2. Calculate pricing
-const isDonationRoom = config?.fundraisingMode === 'donation';
+  const isDonationRoom = config?.fundraisingMode === 'donation';
 
-let entryFee = 0;
-let extrasTotal = 0;
-let totalAmount = 0;
-const extrasWithPrices = [];
+  let entryFee = 0;
+  let extrasTotal = 0;
+  let totalAmount = 0;
+  const extrasWithPrices = [];
 
-const currency = config.currencySymbol === '€' ? 'EUR' 
-               : config.currencySymbol === '£' ? 'GBP' 
-               : config.currencySymbol === '$' ? 'USD'
-               : 'EUR';
+  const currency =
+    config.currencySymbol === '€'
+      ? 'EUR'
+      : config.currencySymbol === '£'
+        ? 'GBP'
+        : config.currencySymbol === '$'
+          ? 'USD'
+          : 'EUR';
 
-if (isDonationRoom) {
-  const parsedDonation = Number(donationAmount);
+  if (isDonationRoom) {
+    const parsedDonation = Number(donationAmount);
 
-  if (!Number.isFinite(parsedDonation) || parsedDonation <= 0) {
-    throw new Error('invalid_donation_amount_for_ticket');
-  }
-
-  entryFee = parsedDonation;
-  extrasTotal = 0;
-  totalAmount = parsedDonation;
-
-  // Donation tickets include enabled extras automatically.
-  // Do not create priced extra rows.
-} else {
-  entryFee = parseFloat(config.entryFee || 0);
-
-  for (const extraId of selectedExtras) {
-    const price = config.fundraisingPrices?.[extraId] || 0;
-    if (price > 0) {
-      extrasTotal += price;
-      extrasWithPrices.push({ extraId, price });
+    if (!Number.isFinite(parsedDonation) || parsedDonation <= 0) {
+      throw new Error('invalid_donation_amount_for_ticket');
     }
+
+    entryFee = parsedDonation;
+    extrasTotal = 0;
+    totalAmount = parsedDonation;
+
+    // Donation tickets include enabled extras automatically.
+    // Do not create priced extra rows.
+  } else {
+    entryFee = parseFloat(config.entryFee || 0);
+
+    for (const extraId of selectedExtras) {
+      const price = config.fundraisingPrices?.[extraId] || 0;
+
+      if (price > 0) {
+        extrasTotal += price;
+        extrasWithPrices.push({ extraId, price });
+      }
+    }
+
+    totalAmount = entryFee + extrasTotal;
   }
 
-  totalAmount = entryFee + extrasTotal;
-}
-  
   // 3. Generate unique IDs
   const ticketId = nanoid(12);
   const joinToken = nanoid(16);
-  
+
   // 4. Insert ticket WITH payment claimed (skips pending_payment)
   const sql = `
     INSERT INTO ${TICKETS_TABLE}
-      (ticket_id, room_id, club_id, purchaser_name, purchaser_email, purchaser_phone,
-       player_name, entry_fee, extras, extras_total, total_amount, currency,
-       payment_status, payment_method, payment_reference, club_payment_method_id,
-       redemption_status, join_token)
+      (
+        ticket_id,
+        room_id,
+        club_id,
+        purchaser_name,
+        purchaser_email,
+        purchaser_phone,
+        player_name,
+        entry_fee,
+        extras,
+        extras_total,
+        total_amount,
+        currency,
+        payment_status,
+        payment_method,
+        payment_reference,
+        club_payment_method_id,
+        redemption_status,
+        join_token
+      )
     VALUES
       (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'payment_claimed', ?, ?, ?, 'blocked', ?)
   `;
-  
+
   const params = [
     ticketId,
     roomId,
@@ -190,7 +399,7 @@ if (isDonationRoom) {
     purchaserName,
     purchaserEmail,
     purchaserPhone,
-    playerName || purchaserName, // Default player name to purchaser name
+    playerName || purchaserName,
     entryFee,
     JSON.stringify(extrasWithPrices),
     extrasTotal,
@@ -201,64 +410,76 @@ if (isDonationRoom) {
     clubPaymentMethodId,
     joinToken,
   ];
-  
-  const [result] = await connection.execute(sql, params);
-  
+
+  await connection.execute(sql, params);
+
   // 5. Create ledger entries (entry fee)
   const playerId = `ticket_${ticketId}`;
-  
-const ledgerId = await createExpectedPayment({
-  roomId,
-  clubId,
-  playerId,
-  playerName: playerName || purchaserName,
-  ledgerType: 'entry_fee',
-  amount: entryFee,
-  currency,
-  paymentMethod,
-  paymentSource: 'player_claimed',
-  clubPaymentMethodId,
-  paymentReference,
-  claimedAt: new Date(),
-  ticketId,
-  extraMetadata: isDonationRoom
-    ? {
-        fundraisingMode: 'donation',
-        donationAmount: entryFee,
-      }
-    : null,
-});
-  
-// 6. Create ledger entries (extras)
-// Fixed-fee tickets only. Donation tickets include extras automatically.
-if (!isDonationRoom) {
-  for (const extra of extrasWithPrices) {
-    await createExpectedPayment({
-      roomId,
-      clubId,
-      playerId,
-      playerName: playerName || purchaserName,
-      ledgerType: 'extra_purchase',
-      amount: extra.price,
-      currency,
-      paymentMethod,
-      paymentSource: 'player_claimed',
-      clubPaymentMethodId,
-      paymentReference,
-      claimedAt: new Date(),
-      extraId: extra.extraId,
-      extraMetadata: extra,
-      ticketId,
-    });
+
+  const ledgerId = await createExpectedPayment({
+    roomId,
+    clubId,
+    playerId,
+    playerName: playerName || purchaserName,
+    ledgerType: 'entry_fee',
+    amount: entryFee,
+    currency,
+    paymentMethod,
+    paymentSource: 'player_claimed',
+    clubPaymentMethodId,
+    paymentReference,
+    claimedAt: new Date(),
+    ticketId,
+    extraMetadata: isDonationRoom
+      ? {
+          fundraisingMode: 'donation',
+          donationAmount: entryFee,
+          paymentMethodLabel: validatedPaymentMethod.methodLabel,
+          paymentProvider: validatedPaymentMethod.providerName,
+          isOfficialClubAccount: validatedPaymentMethod.isOfficialClubAccount,
+        }
+      : {
+          paymentMethodLabel: validatedPaymentMethod.methodLabel,
+          paymentProvider: validatedPaymentMethod.providerName,
+          isOfficialClubAccount: validatedPaymentMethod.isOfficialClubAccount,
+        },
+  });
+
+  // 6. Create ledger entries (extras)
+  // Fixed-fee tickets only. Donation tickets include extras automatically.
+  if (!isDonationRoom) {
+    for (const extra of extrasWithPrices) {
+      await createExpectedPayment({
+        roomId,
+        clubId,
+        playerId,
+        playerName: playerName || purchaserName,
+        ledgerType: 'extra_purchase',
+        amount: extra.price,
+        currency,
+        paymentMethod,
+        paymentSource: 'player_claimed',
+        clubPaymentMethodId,
+        paymentReference,
+        claimedAt: new Date(),
+        extraId: extra.extraId,
+        extraMetadata: {
+          ...extra,
+          paymentMethodLabel: validatedPaymentMethod.methodLabel,
+          paymentProvider: validatedPaymentMethod.providerName,
+          isOfficialClubAccount: validatedPaymentMethod.isOfficialClubAccount,
+        },
+        ticketId,
+      });
+    }
   }
-}
-  
+
   // 7. Update ticket with ledger ID
   await connection.execute(
     `UPDATE ${TICKETS_TABLE} SET ledger_id = ? WHERE ticket_id = ?`,
     [ledgerId, ticketId]
   );
-  
+
   if (DEBUG) {
     console.log('[TicketService] ✅ Ticket created with payment claimed:', {
       ticketId,
@@ -269,30 +490,33 @@ if (!isDonationRoom) {
       totalAmount,
       currency,
       paymentReference,
+      clubPaymentMethodId,
+      paymentMethodLabel: validatedPaymentMethod.methodLabel,
+      paymentProvider: validatedPaymentMethod.providerName,
     });
   }
-  
-return {
-  ticketId,
-  joinToken,
-  roomId,
-  clubId,
-  purchaserName,
-  purchaserEmail,
-  playerName: playerName || purchaserName,
-  entryFee,
-  extrasTotal,
-  totalAmount,
-  currency,
-  extras: extrasWithPrices,
-  fundraisingMode: isDonationRoom ? 'donation' : 'fixed_fee',
-  donationAmount: isDonationRoom ? entryFee : null,
-  paymentStatus: 'payment_claimed',
-  redemptionStatus: 'blocked',
-  paymentMethod,
-  paymentReference,
-  clubPaymentMethodId,
-};
+
+  return {
+    ticketId,
+    joinToken,
+    roomId,
+    clubId,
+    purchaserName,
+    purchaserEmail,
+    playerName: playerName || purchaserName,
+    entryFee,
+    extrasTotal,
+    totalAmount,
+    currency,
+    extras: extrasWithPrices,
+    fundraisingMode: isDonationRoom ? 'donation' : 'fixed_fee',
+    donationAmount: isDonationRoom ? entryFee : null,
+    paymentStatus: 'payment_claimed',
+    redemptionStatus: 'blocked',
+    paymentMethod,
+    paymentReference,
+    clubPaymentMethodId,
+  };
 }
 
 /**
@@ -352,7 +576,16 @@ export async function createCryptoDonationTicketWithConfirmedPayment({
     throw new Error('Room not found or not available for ticket purchase');
   }
 
-  const { clubId, config } = roomData;
+  const { clubId, config, linkedPaymentMethods } = roomData;
+
+  const validatedPaymentMethod = await validateCryptoTicketPaymentMethod({
+    roomId,
+    clubId,
+    linkedPaymentMethods,
+    clubPaymentMethodId,
+  });
+
+  clubPaymentMethodId = validatedPaymentMethod.id;
 
   const isDonationRoom = config?.fundraisingMode === 'donation';
 
@@ -502,6 +735,10 @@ export async function createCryptoDonationTicketWithConfirmedPayment({
       senderWallet,
       recipientWallet,
       includedDonationExtras,
+
+      paymentMethodLabel: validatedPaymentMethod.methodLabel,
+      paymentProvider: validatedPaymentMethod.providerName,
+      isOfficialClubAccount: validatedPaymentMethod.isOfficialClubAccount,
     },
   });
 
@@ -516,17 +753,21 @@ export async function createCryptoDonationTicketWithConfirmedPayment({
   );
 
   if (DEBUG) {
-    console.log('[TicketService] ✅ Crypto donation ticket created as confirmed/ready:', {
-      ticketId,
-      roomId,
-      purchaserName,
-      finalPlayerName,
-      amountEur: safeAmountEur,
-      currency,
-      paymentReference,
-      web3TransactionId,
-      clubPaymentMethodId,
-    });
+    console.log(
+      '[TicketService] ✅ Crypto donation ticket created as confirmed/ready:',
+      {
+        ticketId,
+        roomId,
+        purchaserName,
+        finalPlayerName,
+        amountEur: safeAmountEur,
+        currency,
+        paymentReference,
+        web3TransactionId,
+        clubPaymentMethodId,
+        paymentMethodLabel: validatedPaymentMethod.methodLabel,
+      }
+    );
   }
 
   return {
@@ -571,29 +812,33 @@ export async function confirmTicketPayment({
   adminNotes = null,
 }) {
   const ticket = await getTicket(ticketId);
+
   if (!ticket) throw new Error('Ticket not found');
-  if (ticket.payment_status === 'payment_confirmed') throw new Error('Ticket payment already confirmed');
+
+  if (ticket.payment_status === 'payment_confirmed') {
+    throw new Error('Ticket payment already confirmed');
+  }
 
   const sql = `
-  UPDATE ${TICKETS_TABLE}
-  SET
-    payment_status = 'payment_confirmed',
-    redemption_status = 'ready',
-    confirmed_at = UTC_TIMESTAMP(),
-    confirmed_by = ?,
-    confirmed_by_name = ?,
-    confirmed_by_role = ?,
-    admin_notes = ?,
-    updated_at = UTC_TIMESTAMP()
-  WHERE ticket_id = ?
-`;
+    UPDATE ${TICKETS_TABLE}
+    SET
+      payment_status = 'payment_confirmed',
+      redemption_status = 'ready',
+      confirmed_at = UTC_TIMESTAMP(),
+      confirmed_by = ?,
+      confirmed_by_name = ?,
+      confirmed_by_role = ?,
+      admin_notes = ?,
+      updated_at = UTC_TIMESTAMP()
+    WHERE ticket_id = ?
+  `;
 
   await connection.execute(sql, [
     confirmedBy,
     confirmedByName || null,
     confirmedByRole || null,
     adminNotes,
-    ticketId
+    ticketId,
   ]);
 
   const playerId = `ticket_${ticketId}`;
@@ -618,17 +863,14 @@ export async function confirmTicketPayment({
 
   // ✅ Send confirmation email (non-fatal if it fails)
   try {
-    const { sendTicketConfirmationEmail, getTicketWithRoomConfig } = await import('../../utils/ticketEmail.js');
+    const { sendTicketConfirmationEmail, getTicketWithRoomConfig } =
+      await import('../../utils/ticketEmail.js');
+
     const ticketRow = await getTicketWithRoomConfig(ticketId);
 
     if (ticketRow) {
-      const config = typeof ticketRow.config_json === 'string'
-        ? JSON.parse(ticketRow.config_json)
-        : ticketRow.config_json;
-
-      const extras = typeof ticketRow.extras === 'string'
-        ? JSON.parse(ticketRow.extras)
-        : ticketRow.extras || [];
+      const config = parseJsonMaybe(ticketRow.config_json, {});
+      const extras = parseJsonMaybe(ticketRow.extras, []);
 
       await sendTicketConfirmationEmail({
         ticketId,
@@ -647,10 +889,16 @@ export async function confirmTicketPayment({
         timeZone: config?.timeZone,
       });
 
-      console.log('[TicketService] ✅ Confirmation email sent to:', ticketRow.purchaser_email);
+      console.log(
+        '[TicketService] ✅ Confirmation email sent to:',
+        ticketRow.purchaser_email
+      );
     }
   } catch (emailErr) {
-    console.error('[TicketService] ⚠️ Email send failed (non-fatal):', emailErr.message);
+    console.error(
+      '[TicketService] ⚠️ Email send failed (non-fatal):',
+      emailErr.message
+    );
   }
 
   return { ok: true, ticketId };
@@ -683,24 +931,17 @@ export async function getRoomTickets(roomId) {
     WHERE room_id = ?
     ORDER BY created_at DESC
   `;
-  
+
   const [rows] = await connection.execute(sql, [roomId]);
   return rows;
 }
 
 /**
  * Redeem ticket (use to join room)
- * ✅ NEW: Tickets always have priority - they already reserved capacity
- */
-/**
- * Redeem ticket (use to join room)
  * ✅ Tickets always have priority - they already reserved capacity
  * ✅ Donation tickets now return donationAmount even when extras = []
  */
-export async function redeemTicket({
-  joinToken,
-  playerId,
-}) {
+export async function redeemTicket({ joinToken, playerId }) {
   // 1. Get ticket
   const ticket = await getTicketByToken(joinToken);
 
@@ -750,16 +991,16 @@ export async function redeemTicket({
   const tempPlayerId = `ticket_${ticket.ticket_id}`;
 
   await connection.execute(
-    `UPDATE ${TABLE_PREFIX}quiz_payment_ledger
-     SET player_id = ?, player_name = ?, updated_at = UTC_TIMESTAMP()
-     WHERE room_id = ? AND player_id = ?`,
+    `
+    UPDATE ${TABLE_PREFIX}quiz_payment_ledger
+    SET player_id = ?, player_name = ?, updated_at = UTC_TIMESTAMP()
+    WHERE room_id = ? AND player_id = ?
+    `,
     [playerId, ticket.player_name, ticket.room_id, tempPlayerId]
   );
 
   // 5. Return ticket data for player join
-  const extras = typeof ticket.extras === 'string'
-    ? JSON.parse(ticket.extras || '[]')
-    : ticket.extras || [];
+  const extras = parseJsonMaybe(ticket.extras, []);
 
   const entryFee = Number(ticket.entry_fee || 0);
   const extrasTotal = Number(ticket.extras_total || 0);
@@ -785,13 +1026,15 @@ export async function redeemTicket({
           })
           .map((extra) => {
             const extraId = typeof extra === 'string' ? extra : extra.extraId;
-            const amount = typeof extra === 'string' ? 0 : Number(extra.price || 0);
+            const amount =
+              typeof extra === 'string' ? 0 : Number(extra.price || 0);
 
             return [
               extraId,
               {
                 method: ticket.payment_method,
                 amount,
+                clubPaymentMethodId: ticket.club_payment_method_id || null,
               },
             ];
           })
@@ -856,6 +1099,7 @@ export async function getRoomSchedule(roomId) {
     WHERE room_id = ?
     LIMIT 1
   `;
+
   const [rows] = await connection.execute(sql, [roomId]);
   return rows?.[0] || null;
 }
@@ -863,18 +1107,18 @@ export async function getRoomSchedule(roomId) {
 // configurable join window
 export const JOIN_WINDOW_MINUTES = 10;
 
-// REPLACE the existing computeJoinWindow function:
-
 export function computeJoinWindow(roomRow) {
   const scheduledAt = parseMysqlUtcDateTime(roomRow?.scheduled_at);
   const roomStatus = roomRow?.status || null;
 
-  const isRoomBlocked = roomStatus === 'completed' || roomStatus === 'cancelled';
+  const isRoomBlocked =
+    roomStatus === 'completed' || roomStatus === 'cancelled';
 
   // ✅ Gate is now status-driven only:
   // 'open' = lobby is open, tickets redeemable
   // 'live' = game running, still joinable
-  const canJoinNow = !isRoomBlocked && (roomStatus === 'open' || roomStatus === 'live');
+  const canJoinNow =
+    !isRoomBlocked && (roomStatus === 'open' || roomStatus === 'live');
 
   // joinOpensAt is kept so the frontend can still show a countdown
   // to the scheduled time, but it NO LONGER controls the join gate.
@@ -885,12 +1129,15 @@ export function computeJoinWindow(roomRow) {
   return {
     roomStatus,
     scheduledAt,
-    joinOpensAt,   // informational only - used for countdown UI
-    canJoinNow,    // the real gate - driven by status
+    joinOpensAt,
+    canJoinNow,
   };
 }
 
-// NEW
+// Existing Stripe helper kept for compatibility.
+// NOTE: Your router currently uses ../../stripe/stripeTicketCheckoutService.js,
+// not this function. If you still use this function elsewhere, it should also
+// be updated to validate that Stripe is linked to the quiz.
 export async function createTicketStripeCheckout({
   roomId,
   purchaserName,
@@ -900,29 +1147,37 @@ export async function createTicketStripeCheckout({
   selectedExtras = [],
   appOrigin,
 }) {
-  // 0) capacity check
   const capacityCheck = await canPurchaseTickets(roomId, 1);
-  if (!capacityCheck.allowed) throw new Error(capacityCheck.reason);
 
-  // 1) room config
+  if (!capacityCheck.allowed) {
+    throw new Error(capacityCheck.reason);
+  }
+
   const roomData = await getRoomConfig(roomId);
-  if (!roomData) throw new Error('Room not found or not available for ticket purchase');
+
+  if (!roomData) {
+    throw new Error('Room not found or not available for ticket purchase');
+  }
 
   const { clubId, config } = roomData;
 
-  // 2) compute prices
   const entryFee = parseFloat(config.entryFee || 0);
+
   const currency =
-    config.currencySymbol === '€' ? 'EUR'
-    : config.currencySymbol === '£' ? 'GBP'
-    : config.currencySymbol === '$' ? 'USD'
-    : 'EUR';
+    config.currencySymbol === '€'
+      ? 'EUR'
+      : config.currencySymbol === '£'
+        ? 'GBP'
+        : config.currencySymbol === '$'
+          ? 'USD'
+          : 'EUR';
 
   let extrasTotal = 0;
   const extrasWithPrices = [];
 
   for (const extraId of selectedExtras) {
     const price = config.fundraisingPrices?.[extraId] || 0;
+
     if (price > 0) {
       extrasTotal += price;
       extrasWithPrices.push({ extraId, price });
@@ -930,25 +1185,40 @@ export async function createTicketStripeCheckout({
   }
 
   const totalAmount = entryFee + extrasTotal;
-
-  // ✅ Stripe wants amount in the smallest unit (cents)
   const totalAmountCents = Math.round(totalAmount * 100);
 
-  // 3) get connected stripe account (ready + enabled)
   const stripeConn = await getEnabledReadyStripeForClub(clubId);
-  if (!stripeConn?.accountId) throw new Error('stripe_not_ready_or_disabled');
 
-  // 4) create ticket (reserved, but blocked until webhook confirms)
+  if (!stripeConn?.accountId) {
+    throw new Error('stripe_not_ready_or_disabled');
+  }
+
   const ticketId = nanoid(12);
   const joinToken = nanoid(16);
 
   await connection.execute(
     `
     INSERT INTO ${TICKETS_TABLE}
-      (ticket_id, room_id, club_id, purchaser_name, purchaser_email, purchaser_phone,
-       player_name, entry_fee, extras, extras_total, total_amount, currency,
-       payment_status, payment_method, payment_reference, club_payment_method_id,
-       redemption_status, join_token)
+      (
+        ticket_id,
+        room_id,
+        club_id,
+        purchaser_name,
+        purchaser_email,
+        purchaser_phone,
+        player_name,
+        entry_fee,
+        extras,
+        extras_total,
+        total_amount,
+        currency,
+        payment_status,
+        payment_method,
+        payment_reference,
+        club_payment_method_id,
+        redemption_status,
+        join_token
+      )
     VALUES
       (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'payment_claimed', 'stripe', NULL, ?, 'blocked', ?)
     `,
@@ -970,7 +1240,6 @@ export async function createTicketStripeCheckout({
     ]
   );
 
-  // 5) create ledger rows as EXPECTED (not claimed yet)
   const tempPlayerId = `ticket_${ticketId}`;
 
   const entryLedgerId = await createExpectedPayment({
@@ -1007,13 +1276,11 @@ export async function createTicketStripeCheckout({
     });
   }
 
-  // set ticket.ledger_id to entry fee ledger row (like you do today)
   await connection.execute(
     `UPDATE ${TICKETS_TABLE} SET ledger_id = ? WHERE ticket_id = ?`,
     [entryLedgerId, ticketId]
   );
 
-  // 6) Create Stripe checkout session ON CONNECTED ACCOUNT
   const origin = appOrigin || process.env.APP_URL || 'http://localhost:5173';
 
   const session = await stripe.checkout.sessions.create(
@@ -1043,20 +1310,23 @@ export async function createTicketStripeCheckout({
     { stripeAccount: stripeConn.accountId }
   );
 
-  // 7) store session id on ticket + ledger rows (reference)
-await connection.execute(
-  `UPDATE ${TICKETS_TABLE} 
-   SET payment_reference = ?, updated_at = UTC_TIMESTAMP()
-   WHERE ticket_id = ?`,
-  [session.id, ticketId]
-);
+  await connection.execute(
+    `
+    UPDATE ${TICKETS_TABLE}
+    SET payment_reference = ?, updated_at = UTC_TIMESTAMP()
+    WHERE ticket_id = ?
+    `,
+    [session.id, ticketId]
+  );
 
-await connection.execute(
-  `UPDATE ${TABLE_PREFIX}quiz_payment_ledger
-   SET payment_reference = ?, updated_at = UTC_TIMESTAMP()
-   WHERE ticket_id = ?`,
-  [session.id, ticketId]
-);
+  await connection.execute(
+    `
+    UPDATE ${TABLE_PREFIX}quiz_payment_ledger
+    SET payment_reference = ?, updated_at = UTC_TIMESTAMP()
+    WHERE ticket_id = ?
+    `,
+    [session.id, ticketId]
+  );
 
   return {
     url: session.url,

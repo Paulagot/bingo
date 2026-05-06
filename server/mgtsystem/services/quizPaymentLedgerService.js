@@ -186,7 +186,7 @@ export async function confirmPayment({
       updated_at = UTC_TIMESTAMP()
     WHERE room_id = ?
       AND player_id = ?
-      AND status IN ('claimed', 'expected')
+      AND status IN ('expected', 'claimed', 'disputed')
   `;
 
   const params = [
@@ -202,6 +202,47 @@ export async function confirmPayment({
 
   const [result] = await connection.execute(sql, params);
   return { ok: result.affectedRows > 0, updated: result.affectedRows };
+}
+
+export async function disputePayment({
+  roomId,
+  playerId,
+  disputedBy,
+  disputedByName,
+  disputedByRole,
+  disputeReason = null,
+}) {
+  if (!roomId || !playerId || !disputedBy) {
+    return { ok: false, updated: 0, error: 'Missing required fields' };
+  }
+
+  const sql = `
+    UPDATE ${LEDGER_TABLE}
+    SET
+      status = 'disputed',
+      admin_notes = ?,
+      confirmed_by = ?,
+      confirmed_by_name = ?,
+      confirmed_by_role = ?,
+      updated_at = UTC_TIMESTAMP()
+    WHERE room_id = ?
+      AND player_id = ?
+      AND status = 'claimed'
+  `;
+
+  const [result] = await connection.execute(sql, [
+    disputeReason,
+    disputedBy,
+    disputedByName,
+    disputedByRole,
+    roomId,
+    playerId,
+  ]);
+
+  return {
+    ok: result.affectedRows > 0,
+    updated: result.affectedRows,
+  };
 }
 
 

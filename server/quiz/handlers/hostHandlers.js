@@ -27,13 +27,16 @@ import { saveImpactCampaignEvent } from './saveImpactCampaignEvent.js';
 import { syncImpactEventToFundraiselyClubMgmt } from '../handlers/syncImpactEventToFundraiselyClubMgmt.js';
 import { rollupFundraiselyCampaignFinancials } from '../handlers/rollupFundraiselyCampaignFinancials.js';
 import { insertPrizePayout } from '../../mgtsystem/services/web3TransactionService.js';
+ import { markRoomAsReconciling, markRoomAsClosed } from './roomStatusManager.js';
+import { updateOperatorSocketId } from '../quizRoomManager.js';
+ import jwt from 'jsonwebtoken';
 
 
 import { logPrizeDistributionInitiated, logPrizeDistributionSuccess, logPrizeDistributionFailure, logWeb3RoomConfig, logWinnerAddressMapping } from './blockchainLoggingHelper.js';
 const debug = false;
 console.log('[BOOT] hostHandlers loaded from:', import.meta.url);
 console.log('[BOOT] saveImpactCampaignEvent typeof:', typeof saveImpactCampaignEvent);
-
+ const JWT_SECRET = process.env.JWT_SECRET || 'fallback-dev-secret';
 
 export function setupHostHandlers(socket, namespace) {
 
@@ -46,6 +49,10 @@ export function setupHostHandlers(socket, namespace) {
     namespace.to(roomId).emit('admin_list_updated', { admins: room.admins });
     emitRoomState(namespace, roomId);
   }
+
+  function isAuthorisedController(room, socketId) {
+  return room.hostSocketId === socketId || room.operatorSocketId === socketId;
+}
 
   // 🆕 --- Debt settlement helpers ------------------------------------------
 
@@ -714,6 +721,26 @@ socket.on('tiebreak:proceed_to_completion', ({ roomId }) => {
   socket.emit('next_round_or_end', { roomId });
 });
 
+socket.on('operator_complete', async ({ roomId }) => {
+  const room = getQuizRoom(roomId);
+  if (!room) return;
+ 
+  // Only the registered operator can call this
+  if (room.operatorSocketId !== socket.id) {
+    socket.emit('quiz_error', { message: 'Not authorised' });
+    return;
+  }
+ 
+  // Transition room phase to reconciling
+  room.currentPhase = 'reconciling';
+  emitRoomState(namespace, roomId);
+ 
+  // Write reconciliation_status to DB — status stays 'completed'
+  await markRoomAsReconciling(roomId);
+ 
+  console.log(`[Host] 🔄 Room ${roomId} moved to reconciling by operator`);
+});
+
 
   // ✅ end_quiz_and_distribute_prizes - UPDATED VERSION
  socket.on('end_quiz_and_distribute_prizes', async ({ roomId }) => {
@@ -1262,7 +1289,7 @@ if (txHash && Array.isArray(room.finalWinners) && room.finalWinners.length > 0) 
       return;
     }
 
-    if (room.hostSocketId !== socket.id) {
+    if (!isAuthorisedController(room, socket.id)) {
       socket.emit('quiz_error', { message: 'Only the host can show round results' });
       return;
     }
@@ -1404,7 +1431,7 @@ socket.on('continue_to_overall_leaderboard', ({ roomId }) => {
     return;
   }
 
-  if (room.hostSocketId !== socket.id) {
+  if (!isAuthorisedController(room, socket.id)) {
     socket.emit('quiz_error', { message: 'Only the host can continue to overall leaderboard' });
     return;
   }
@@ -1497,7 +1524,7 @@ socket.on('end_quiz_cleanup', async ({ roomId }) => {
     return;
   }
 
-  if (room.hostSocketId !== socket.id) {
+  if (!isAuthorisedController(room, socket.id)) {
     socket.emit('quiz_error', { message: 'Only the host can end the quiz' });
     return;
   }
@@ -1509,6 +1536,7 @@ socket.on('end_quiz_cleanup', async ({ roomId }) => {
   const isWeb3Room = room.config?.paymentMethod === 'web3' || room.config?.isWeb3Room;
 
    await markRoomAsCompleted(roomId); 
+   await markRoomAsClosed(roomId);
 
   /* ------------------------------------------------------------------
      ⭐ SAVE IMPACT CAMPAIGN EVENT TO DATABASE (Web3 rooms only)
@@ -1713,7 +1741,7 @@ try {
     return;
   }
 
-  if (room.hostSocketId !== socket.id) {
+  if (!isAuthorisedController(room, socket.id)) {
     socket.emit('quiz_error', { message: 'Only the host can launch the quiz' });
     return;
   }

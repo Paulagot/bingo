@@ -1,11 +1,10 @@
 // src/components/Quiz/shared/PlayerDetailsForm.tsx
 import React, { useMemo, useState } from 'react';
-import { User, Mail, Phone, GamepadIcon } from 'lucide-react';
+import { User, Mail, GamepadIcon } from 'lucide-react';
 
 export interface PlayerDetailsFormData {
   purchaserName?: string;
   purchaserEmail?: string;
-  purchaserPhone?: string;
   playerName: string;
 }
 
@@ -17,9 +16,10 @@ interface PlayerDetailsFormProps {
   currencySymbol: string;
   extrasTotal?: number;
   entryFee?: number;
+  /** When true: hides the amount summary — donation amount isn't known at this step */
   isDonationRoom?: boolean;
-  donationAmount?: string;
-  onDonationChange?: (val: string) => void;
+  /** When true: shows a two-column layout on desktop to avoid scrolling */
+  wideLayout?: boolean;
 }
 
 const InputWithIcon: React.FC<{
@@ -32,27 +32,15 @@ const InputWithIcon: React.FC<{
   onChange: (v: string) => void;
   helper?: string;
   error?: string;
-}> = ({
-  label,
-  required,
-  icon,
-  value,
-  placeholder,
-  type = 'text',
-  onChange,
-  helper,
-  error,
-}) => (
+}> = ({ label, required, icon, value, placeholder, type = 'text', onChange, helper, error }) => (
   <div>
     <label className="mb-2 block text-sm font-medium text-gray-700">
       {label} {required && <span className="text-red-500">*</span>}
     </label>
-
     <div className="relative">
       <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
         <div className="h-4 w-4 sm:h-5 sm:w-5">{icon}</div>
       </div>
-
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -69,7 +57,6 @@ const InputWithIcon: React.FC<{
         ].join(' ')}
       />
     </div>
-
     {helper && !error && <p className="mt-1 text-xs text-gray-500">{helper}</p>}
     {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
   </div>
@@ -84,8 +71,7 @@ export const PlayerDetailsForm: React.FC<PlayerDetailsFormProps> = ({
   extrasTotal = 0,
   entryFee = 0,
   isDonationRoom = false,
-donationAmount = '',
-onDonationChange,
+  wideLayout = false,
 }) => {
   const [touched, setTouched] = useState(false);
 
@@ -94,72 +80,76 @@ onDonationChange,
   };
 
   const emailOk = useMemo(() => {
-    if (mode === 'join') return true; // Email not required for join flow
+    if (mode === 'join') return true;
     const email = formData.purchaserEmail?.trim() || '';
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   }, [formData.purchaserEmail, mode]);
 
-  const isValid = useMemo(() => {
-    const playerNameValid = (formData.playerName?.trim() || '') !== '';
-    
-    if (mode === 'join') {
-      return playerNameValid;
-    }
-    
-    // Ticket mode requires purchaser info
-    return (
-      (formData.purchaserName?.trim() || '') !== '' &&
-      emailOk &&
-      playerNameValid
-    );
-  }, [formData.purchaserName, formData.playerName, emailOk, mode]);
+  const fields = (
+    <div className="space-y-4">
+      {mode === 'ticket' && (
+        <>
+          <InputWithIcon
+            label="Full name"
+            required
+            icon={<User className="h-full w-full" />}
+            value={formData.purchaserName ?? ''}
+            placeholder="John Doe"
+            onChange={(v) => updateField('purchaserName', v)}
+          />
+          <InputWithIcon
+            label="Email"
+            required
+            icon={<Mail className="h-full w-full" />}
+            value={formData.purchaserEmail ?? ''}
+            placeholder="john@example.com"
+            type="email"
+            onChange={(v) => {
+              updateField('purchaserEmail', v);
+              setTouched(true);
+            }}
+            error={touched && !emailOk ? 'Please enter a valid email.' : undefined}
+          />
+        </>
+      )}
+      <InputWithIcon
+        label="Player name"
+        required
+        icon={<GamepadIcon className="h-full w-full" />}
+        value={formData.playerName ?? ''}
+        placeholder="The Quiz Master"
+        onChange={(v) => updateField('playerName', v)}
+        helper={mode === 'ticket' ? 'This shows on the leaderboard' : undefined}
+      />
+    </div>
+  );
 
-  return (
-    <div className="space-y-5">
-{/* Amount Summary */}
-<div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-  <div className="flex items-center justify-between gap-4">
-    <div className="flex-1">
-      <div className="font-medium text-gray-900">
-        {isDonationRoom ? 'Donation total' : mode === 'ticket' ? 'Ticket total' : 'Total to Pay'}
-      </div>
-
-      {isDonationRoom ? (
-        <div className="mt-2">
-          <label className="mb-1 block text-sm text-gray-600">
-            Donation amount
-          </label>
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-gray-700">{currencySymbol}</span>
-            <input
-              type="number"
-              min="1"
-              step="0.01"
-              value={donationAmount || ''}
-              onChange={(e) => onDonationChange?.(e.target.value)}
-              placeholder="10.00"
-              className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2"
-            />
+  const summary = !isDonationRoom ? (
+    <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex-1">
+          <div className="font-medium text-gray-900">
+            {mode === 'ticket' ? 'Ticket total' : 'Total to Pay'}
+          </div>
+          <div className="text-sm text-gray-600">
+            Entry: {currencySymbol}{entryFee}
+            {extrasTotal > 0 && ` + Extras: ${currencySymbol}${extrasTotal}`}
           </div>
         </div>
-      ) : (
-        <div className="text-sm text-gray-600">
-          Entry: {currencySymbol}{entryFee}
-          {extrasTotal > 0 && ` + Extras: ${currencySymbol}${extrasTotal}`}
+        <div className="text-2xl font-bold text-blue-900">
+          {currencySymbol}{totalAmount}
         </div>
-      )}
+      </div>
     </div>
+  ) : null;
 
-    <div className="text-2xl font-bold text-blue-900">
-      {currencySymbol}{totalAmount}
-    </div>
-  </div>
-</div>
-
-      {/* Form Fields */}
+  if (wideLayout && mode === 'ticket') {
+    // Desktop two-column: summary + fields side by side — no scroll needed
+    return (
       <div className="space-y-4">
-        {mode === 'ticket' && (
-          <>
+        <div className="sm:grid sm:grid-cols-2 sm:gap-6">
+          <div className="space-y-4">
+            {summary}
             <InputWithIcon
               label="Full name"
               required
@@ -168,7 +158,6 @@ onDonationChange,
               placeholder="John Doe"
               onChange={(v) => updateField('purchaserName', v)}
             />
-
             <InputWithIcon
               label="Email"
               required
@@ -182,29 +171,27 @@ onDonationChange,
               }}
               error={touched && !emailOk ? 'Please enter a valid email.' : undefined}
             />
-
+          </div>
+          <div className="mt-4 sm:mt-0 space-y-4">
             <InputWithIcon
-              label="Phone"
-              icon={<Phone className="h-full w-full" />}
-              value={formData.purchaserPhone ?? ''}
-              placeholder="+353..."
-              type="tel"
-              onChange={(v) => updateField('purchaserPhone', v)}
-              helper="Optional (helps the host if there's an issue)"
+              label="Player name"
+              required
+              icon={<GamepadIcon className="h-full w-full" />}
+              value={formData.playerName ?? ''}
+              placeholder="The Quiz Master"
+              onChange={(v) => updateField('playerName', v)}
+              helper="This shows on the leaderboard"
             />
-          </>
-        )}
-
-        <InputWithIcon
-          label="Player name"
-          required
-          icon={<GamepadIcon className="h-full w-full" />}
-          value={formData.playerName ?? ''}
-          placeholder="The Quiz Master"
-          onChange={(v) => updateField('playerName', v)}
-          helper={mode === 'ticket' ? 'This shows on the leaderboard' : undefined}
-        />
+          </div>
+        </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {summary}
+      {fields}
     </div>
   );
 };
@@ -215,13 +202,12 @@ export const usePlayerDetailsValidation = (
 ): boolean => {
   return useMemo(() => {
     const playerNameValid = (formData.playerName?.trim() || '') !== '';
-    
-    if (mode === 'join') {
-      return playerNameValid;
-    }
-    
-    // Ticket mode validation
-    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.purchaserEmail?.trim() || '');
+
+    if (mode === 'join') return playerNameValid;
+
+    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+      formData.purchaserEmail?.trim() || ''
+    );
     return (
       (formData.purchaserName?.trim() || '') !== '' &&
       emailValid &&

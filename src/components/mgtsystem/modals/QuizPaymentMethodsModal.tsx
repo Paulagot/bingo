@@ -1,10 +1,17 @@
 // src/components/Quiz/modals/QuizPaymentMethodsModal.tsx
 
-import React, { useState, useEffect } from 'react';
-import { X, Loader2, CheckCircle2, CreditCard } from 'lucide-react';
-import { 
-  quizPaymentMethodsService, 
-  PaymentMethod 
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  X,
+  Loader2,
+  CheckCircle2,
+  CreditCard,
+  AlertCircle,
+  Wallet,
+} from 'lucide-react';
+import {
+  quizPaymentMethodsService,
+  PaymentMethod,
 } from '../services/QuizPaymentMethodsService';
 
 interface QuizPaymentMethodsModalProps {
@@ -20,12 +27,12 @@ export const QuizPaymentMethodsModal: React.FC<QuizPaymentMethodsModalProps> = (
   onClose,
   roomId,
   roomTitle,
-  onSuccess
+  onSuccess,
 }) => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [availableMethods, setAvailableMethods] = useState<PaymentMethod[]>([]);
   const [selectedMethodIds, setSelectedMethodIds] = useState<number[]>([]);
   const [originalMethodIds, setOriginalMethodIds] = useState<number[]>([]);
@@ -34,18 +41,32 @@ export const QuizPaymentMethodsModal: React.FC<QuizPaymentMethodsModalProps> = (
     if (isOpen && roomId) {
       loadPaymentMethods();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, roomId]);
 
   const loadPaymentMethods = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await quizPaymentMethodsService.getQuizPaymentMethods(roomId);
-      
-      setAvailableMethods(response.available_methods);
-      setSelectedMethodIds(response.linked_method_ids);
-      setOriginalMethodIds(response.linked_method_ids);
+
+      // Only show enabled methods in the modal.
+      const enabledMethods = response.available_methods.filter(
+        (method) => method.is_enabled
+      );
+
+      // If a method was previously linked but is now disabled,
+      // remove it from the visible/selected state so the host is not confused.
+      const enabledMethodIds = new Set(enabledMethods.map((method) => method.id));
+
+      const linkedEnabledIds = response.linked_method_ids.filter((methodId) =>
+        enabledMethodIds.has(methodId)
+      );
+
+      setAvailableMethods(enabledMethods);
+      setSelectedMethodIds(linkedEnabledIds);
+      setOriginalMethodIds(linkedEnabledIds);
     } catch (err: any) {
       console.error('Failed to load payment methods:', err);
       setError(err.message || 'Failed to load payment methods');
@@ -55,29 +76,26 @@ export const QuizPaymentMethodsModal: React.FC<QuizPaymentMethodsModalProps> = (
   };
 
   const handleToggleMethod = (methodId: number) => {
-    setSelectedMethodIds(prev => {
+    setSelectedMethodIds((prev) => {
       if (prev.includes(methodId)) {
-        return prev.filter(id => id !== methodId);
-      } else {
-        return [...prev, methodId];
+        return prev.filter((id) => id !== methodId);
       }
+
+      return [...prev, methodId];
     });
   };
 
   const handleSave = async () => {
     setSaving(true);
     setError(null);
-    
+
     try {
       await quizPaymentMethodsService.updateLinkedPaymentMethods(
         roomId,
         selectedMethodIds
       );
-      
-      if (onSuccess) {
-        onSuccess();
-      }
-      
+
+      onSuccess?.();
       onClose();
     } catch (err: any) {
       console.error('Failed to update payment methods:', err);
@@ -87,35 +105,87 @@ export const QuizPaymentMethodsModal: React.FC<QuizPaymentMethodsModalProps> = (
     }
   };
 
-  const hasChanges = () => {
-    return JSON.stringify([...selectedMethodIds].sort()) !== 
-           JSON.stringify([...originalMethodIds].sort());
-  };
+  const hasChanges = useMemo(() => {
+    const selected = [...selectedMethodIds].sort((a, b) => a - b);
+    const original = [...originalMethodIds].sort((a, b) => a - b);
 
-  const groupedMethods = availableMethods.reduce((acc, method) => {
-    const category = method.method_category;
-    if (!acc[category]) {
-      acc[category] = [];
+    return JSON.stringify(selected) !== JSON.stringify(original);
+  }, [selectedMethodIds, originalMethodIds]);
+
+  const selectedCount = selectedMethodIds.length;
+
+  const getMethodSubtitle = (method: PaymentMethod) => {
+    const parts: string[] = [];
+
+    if (method.provider_name) {
+      parts.push(method.provider_name);
     }
-    acc[category].push(method);
-    return acc;
-  }, {} as Record<string, PaymentMethod[]>);
+
+    if (method.method_category === 'stripe') {
+      parts.push('Card / Apple Pay / Google Pay');
+    }
+
+    if (method.method_category === 'crypto') {
+      parts.push('Crypto payment');
+    }
+
+    if (
+      method.method_category === 'instant_payment'
+     
+    ) {
+      parts.push('Instant payment');
+    }
+
+    return parts.join(' · ');
+  };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
+      onClick={onClose}
+    >
+      <div
+        className="
+          flex max-h-[100dvh] w-full flex-col overflow-hidden bg-white shadow-2xl
+          sm:max-h-[92vh] sm:max-w-3xl sm:rounded-2xl
+          lg:max-w-4xl
+        "
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-start justify-between">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900">Link Payment Methods</h2>
-              {roomTitle && <p className="text-sm text-gray-500 mt-1">Quiz: {roomTitle}</p>}
+        <div className="border-b border-gray-200 px-4 py-4 sm:px-6 sm:py-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100">
+                <CreditCard className="h-5 w-5 text-emerald-700" />
+              </div>
+
+              <div className="min-w-0">
+                <h2 className="text-lg font-semibold text-gray-900 sm:text-xl">
+                  Choose payment options
+                </h2>
+
+                {roomTitle ? (
+                  <p className="mt-1 text-sm text-gray-500">
+                    Players will only see the methods you select for{' '}
+                    <span className="font-medium text-gray-700">{roomTitle}</span>.
+                  </p>
+                ) : (
+                  <p className="mt-1 text-sm text-gray-500">
+                    Players will only see the payment methods you select for this quiz.
+                  </p>
+                )}
+              </div>
             </div>
+
             <button
+              type="button"
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              disabled={saving}
+              className="rounded-full p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label="Close payment methods modal"
             >
               <X className="h-5 w-5" />
             </button>
@@ -123,133 +193,161 @@ export const QuizPaymentMethodsModal: React.FC<QuizPaymentMethodsModalProps> = (
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
           {loading && (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-              <span className="ml-3 text-gray-600">Loading payment methods...</span>
+            <div className="flex items-center justify-center py-14">
+              <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+              <span className="ml-3 text-sm text-gray-600">
+                Loading payment options...
+              </span>
             </div>
           )}
 
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-              <p className="text-sm text-red-800">{error}</p>
+            <div className="mb-4 flex gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
+              <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600" />
+              <div>
+                <p className="text-sm font-medium text-red-900">
+                  Could not load payment options
+                </p>
+                <p className="mt-1 text-sm text-red-800">{error}</p>
+              </div>
             </div>
           )}
 
           {!loading && availableMethods.length === 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800">
-                No payment methods available. Please add payment methods in your club settings first.
-              </p>
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
+              <div className="flex gap-3">
+                <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-700" />
+                <div>
+                  <p className="text-sm font-semibold text-amber-900">
+                    No active payment methods available
+                  </p>
+                  <p className="mt-1 text-sm text-amber-800">
+                    Add or enable a payment method in your club settings before linking
+                    payment options to this quiz.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
           {!loading && availableMethods.length > 0 && (
-            <div className="space-y-6">
-              <p className="text-sm text-gray-600">
-                Select which payment methods players can use for this quiz room.
-              </p>
+            <div className="space-y-4">
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+                <p className="text-sm text-emerald-900">
+                  Select the payment options you want to show on the player checkout
+                  page. Disabled methods are hidden automatically.
+                </p>
+              </div>
 
-              {Object.entries(groupedMethods).map(([category, methods]) => (
-                <div key={category} className="space-y-3">
-                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 pb-2">
-                    {category.replace('_', ' ')}
-                  </h4>
-                  
-                  <div className="space-y-2">
-                    {methods.map((method) => (
-                      <label
-                        key={method.id}
-                        className={`flex items-start p-3 rounded-lg border-2 transition-all cursor-pointer ${
-                          selectedMethodIds.includes(method.id)
-                            ? 'border-emerald-500 bg-emerald-50'
-                            : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
-                        } ${!method.is_enabled ? 'opacity-60 cursor-not-allowed' : ''}`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedMethodIds.includes(method.id)}
-                          onChange={() => handleToggleMethod(method.id)}
-                          disabled={!method.is_enabled}
-                          className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:cursor-not-allowed"
-                        />
-                        
-                        <div className="ml-3 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-medium text-gray-900">
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                {availableMethods.map((method) => {
+                  const isSelected = selectedMethodIds.includes(method.id);
+                  const subtitle = getMethodSubtitle(method);
+
+                  return (
+                    <button
+                      type="button"
+                      key={method.id}
+                      onClick={() => handleToggleMethod(method.id)}
+                      className={`w-full rounded-xl border-2 p-4 text-left transition-all ${
+                        isSelected
+                          ? 'border-emerald-500 bg-emerald-50 shadow-sm'
+                          : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={`mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${
+                            isSelected
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-gray-100 text-gray-500'
+                          }`}
+                        >
+                          {isSelected ? (
+                            <CheckCircle2 className="h-5 w-5" />
+                          ) : method.method_category === 'crypto' ? (
+                            <Wallet className="h-5 w-5" />
+                          ) : (
+                            <CreditCard className="h-5 w-5" />
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-3">
+                            <p className="break-words font-semibold text-gray-900">
                               {method.method_label}
-                            </span>
-                            
-                            {method.provider_name && (
-                              <span className="text-sm text-gray-500">
-                                ({method.provider_name})
+                            </p>
+
+                            {isSelected && (
+                              <span className="flex-shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-800">
+                                Selected
                               </span>
                             )}
-                            
-                            {!method.is_enabled && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                Disabled
-                              </span>
-                            )}
-                            
-                            {/* {method.is_official_club_account && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                Official
-                              </span>
-                            )} */}
                           </div>
-                          
-                          {/* {method.player_instructions && (
-                            <p className="text-sm text-gray-600 mt-1 italic">
+
+                          {subtitle && (
+                            <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
+                          )}
+
+                          {method.player_instructions && (
+                            <p className="mt-2 text-sm text-gray-600">
                               {method.player_instructions}
                             </p>
-                          )} */}
+                          )}
                         </div>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              ))}
-
-              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <div className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5 text-gray-600" />
-                  <span className="font-semibold text-gray-900">
-                    Selected: {selectedMethodIds.length} payment method{selectedMethodIds.length !== 1 ? 's' : ''}
-                  </span>
-                </div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            disabled={saving}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving || !hasChanges() || loading}
-            className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {saving ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <CheckCircle2 className="h-4 w-4" />
-                Save Changes
-              </>
-            )}
-          </button>
+        <div className="border-t border-gray-200 bg-gray-50 px-4 py-4 sm:px-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-gray-600">
+              {selectedCount === 0
+                ? 'No payment methods selected'
+                : `${selectedCount} payment method${
+                    selectedCount === 1 ? '' : 's'
+                  } selected`}
+            </p>
+
+            <div className="grid grid-cols-2 gap-3 sm:flex sm:justify-end">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={saving}
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving || !hasChanges || loading}
+                className="flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" />
+                    Save
+                    <span className="hidden sm:inline"> payment options</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

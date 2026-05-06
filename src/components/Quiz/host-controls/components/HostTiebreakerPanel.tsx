@@ -294,7 +294,7 @@ const HostTiebreakerPanel: React.FC<HostTiebreakerPanelProps> = ({
         {/* Host Notice */}
         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
           <p className="text-center text-sm font-medium text-amber-800">
-            Host actions are locked during tie-breaker resolution
+            Host actions are locked during tie-breaker resolution.  You will be directed back to the final leaderboard once the tie is resolved.  Thank you for your patience!
           </p>
         </div>
       </div>

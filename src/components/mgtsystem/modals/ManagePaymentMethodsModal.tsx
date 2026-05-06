@@ -11,6 +11,10 @@ import {
   Building2,
   User,
   Wallet,
+  Banknote,
+  CheckCircle2,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 import PaymentMethodForm from './PaymentMethodForm';
@@ -22,21 +26,68 @@ import type {
   PaymentMethodFormData,
 } from '../../../shared/types/paymentMethods';
 
+import type { PaymentMethodCategory } from '../../../shared/types/payment';
+
 interface ManagePaymentMethodsModalProps {
   clubId: string;
   onClose: () => void;
 }
 
-type View = 'list' | 'add_instant' | 'add_solana' | 'edit';
+type View = 'list' | 'add_manual' | 'add_solana' | 'edit';
 
 const toMethodIdNumber = (id: string | number) => {
-  const n = Number(id);
-  return Number.isFinite(n) ? n : NaN;
+  const numericId = Number(id);
+  return Number.isFinite(numericId) ? numericId : NaN;
 };
 
 function formatProviderName(providerName?: string | null) {
   if (!providerName) return '';
   return providerName.replace(/_/g, ' ');
+}
+
+function formatCategoryName(category?: PaymentMethodCategory | null) {
+  if (!category) return '';
+
+  if (category === 'instant_payment') return 'manual payment';
+  if (category === 'crypto') return 'crypto';
+  if (category === 'stripe') return 'stripe';
+  if (category === 'card') return 'card';
+
+  return category.replace(/_/g, ' ');
+}
+
+function getVerificationLabel(method: ClubPaymentMethodWithMeta) {
+  const config = (method.methodConfig || {}) as Record<string, any>;
+
+  if (method.methodCategory === 'stripe' || method.methodCategory === 'card') {
+    return 'Auto verified';
+  }
+
+  if (method.methodCategory === 'crypto') {
+    return config.verificationMode === 'manual'
+      ? 'Manual crypto check'
+      : 'Crypto verified';
+  }
+
+  if (method.methodCategory === 'instant_payment') {
+    return 'Manual confirmation';
+  }
+
+  return 'Verification depends on setup';
+}
+
+function getAccountLabel(method: ClubPaymentMethodWithMeta) {
+  return method.isOfficialClubAccount
+    ? 'Official club account'
+    : 'Member personal account';
+}
+
+function filterVisibleMethods(
+  methods: ClubPaymentMethodWithMeta[],
+  showDisabled: boolean
+) {
+  if (showDisabled) return methods;
+  return methods.filter((method) => method.isEnabled);
 }
 
 function PaymentMethodCard({
@@ -57,13 +108,14 @@ function PaymentMethodCard({
   onCancelDelete: () => void;
 }) {
   const methodId = String(method.id);
+  const config = (method.methodConfig || {}) as Record<string, any>;
 
   return (
     <div
       className={`p-4 rounded-lg border transition-all ${
         method.isEnabled
           ? 'border-gray-200 bg-white'
-          : 'border-gray-200 bg-gray-50 opacity-60'
+          : 'border-gray-200 bg-gray-50 opacity-70'
       }`}
     >
       <div className="flex items-start justify-between gap-4">
@@ -91,24 +143,50 @@ function PaymentMethodCard({
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
-            <span className="px-2 py-1 bg-gray-100 rounded font-medium">
-              {method.methodCategory.replace('_', ' ')}
+            <span className="px-2 py-1 bg-gray-100 rounded font-medium capitalize">
+              {formatCategoryName(method.methodCategory)}
             </span>
 
             {method.providerName && (
-              <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded font-medium">
+              <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded font-medium capitalize">
                 {formatProviderName(method.providerName)}
               </span>
             )}
+
+            <span className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded font-medium">
+              {getVerificationLabel(method)}
+            </span>
+
+            <span
+              className={`px-2 py-1 rounded font-medium ${
+                method.isOfficialClubAccount
+                  ? 'bg-blue-50 text-blue-700'
+                  : 'bg-orange-50 text-orange-700'
+              }`}
+            >
+              {getAccountLabel(method)}
+            </span>
           </div>
+
+          {method.playerInstructions && (
+            <p className="text-xs text-gray-500 mt-2 line-clamp-2">
+              {method.playerInstructions}
+            </p>
+          )}
 
           {method.methodCategory === 'crypto' &&
             method.providerName === 'solana_wallet' &&
-            (method.methodConfig as any)?.walletAddress && (
+            config.walletAddress && (
               <p className="text-xs text-gray-500 mt-2 font-mono break-all">
-                {(method.methodConfig as any).walletAddress}
+                {config.walletAddress}
               </p>
             )}
+
+          {method.providerName === 'cash' && (
+            <p className="text-xs text-amber-700 mt-2">
+              Cash payments must be confirmed manually by the host/admin.
+            </p>
+          )}
 
           {method.addedBy && (
             <p className="text-xs text-gray-500 mt-2">
@@ -120,6 +198,7 @@ function PaymentMethodCard({
 
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
+            type="button"
             onClick={() => onEdit(method)}
             disabled={loading}
             className="p-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition-colors disabled:opacity-50"
@@ -131,6 +210,7 @@ function PaymentMethodCard({
           {deleteConfirm === methodId ? (
             <>
               <button
+                type="button"
                 onClick={() => onDelete(methodId)}
                 disabled={loading}
                 className="px-3 py-2 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
@@ -139,6 +219,7 @@ function PaymentMethodCard({
               </button>
 
               <button
+                type="button"
                 onClick={onCancelDelete}
                 disabled={loading}
                 className="px-3 py-2 bg-gray-200 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50"
@@ -148,6 +229,7 @@ function PaymentMethodCard({
             </>
           ) : (
             <button
+              type="button"
               onClick={() => onAskDelete(methodId)}
               disabled={loading}
               className="p-2 rounded-lg border border-red-200 hover:bg-red-50 transition-colors disabled:opacity-50"
@@ -175,67 +257,10 @@ export default function ManagePaymentMethodsModal({
   const [loadingList, setLoadingList] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [showDisabledMethods, setShowDisabledMethods] = useState(false);
 
   const [stripeBusy, setStripeBusy] = useState(false);
   const [stripeStatusMsg, setStripeStatusMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    loadMethods();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clubId]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const stripeParam = params.get('stripe');
-    if (!stripeParam) return;
-
-    if (stripeParam === 'return' || stripeParam === 'refresh') {
-      (async () => {
-        try {
-          setStripeBusy(true);
-          setStripeStatusMsg('Checking Stripe connection…');
-
-          const status = await StripeConnectService.getStatus();
-
-          if (!status?.ok) {
-            setStripeStatusMsg(null);
-            setError(
-              status?.message ||
-                status?.error ||
-                'Failed to verify Stripe status'
-            );
-            return;
-          }
-
-          await loadMethods();
-
-          const ready = !!(
-            status.detailsSubmitted &&
-            status.chargesEnabled &&
-            status.payoutsEnabled
-          );
-
-          setStripeStatusMsg(
-            ready ? 'Stripe connected ✅' : 'Stripe setup needs attention'
-          );
-
-          params.delete('stripe');
-          const newQs = params.toString();
-          const newUrl = `${window.location.pathname}${
-            newQs ? `?${newQs}` : ''
-          }${window.location.hash || ''}`;
-
-          window.history.replaceState({}, '', newUrl);
-        } catch (e: any) {
-          console.error('Stripe return handling failed:', e);
-          setError(e?.message || 'Stripe return handling failed');
-        } finally {
-          setStripeBusy(false);
-          setTimeout(() => setStripeStatusMsg(null), 4000);
-        }
-      })();
-    }
-  }, []);
 
   const loadMethods = async () => {
     try {
@@ -252,25 +277,126 @@ export default function ManagePaymentMethodsModal({
     }
   };
 
+  useEffect(() => {
+    loadMethods();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clubId]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const stripeParam = params.get('stripe');
+
+    if (!stripeParam) return;
+    if (stripeParam !== 'return' && stripeParam !== 'refresh') return;
+
+    const handleStripeReturn = async () => {
+      try {
+        setStripeBusy(true);
+        setStripeStatusMsg('Checking Stripe connection…');
+
+        const status = await StripeConnectService.getStatus();
+
+        if (!status?.ok) {
+          setStripeStatusMsg(null);
+          setError(
+            status?.message ||
+              status?.error ||
+              'Failed to verify Stripe status'
+          );
+          return;
+        }
+
+        await loadMethods();
+
+        const ready = !!(
+          status.detailsSubmitted &&
+          status.chargesEnabled &&
+          status.payoutsEnabled
+        );
+
+        setStripeStatusMsg(
+          ready ? 'Stripe connected ✅' : 'Stripe setup needs attention'
+        );
+
+        params.delete('stripe');
+
+        const newQueryString = params.toString();
+        const newUrl = `${window.location.pathname}${
+          newQueryString ? `?${newQueryString}` : ''
+        }${window.location.hash || ''}`;
+
+        window.history.replaceState({}, '', newUrl);
+      } catch (err: any) {
+        console.error('Stripe return handling failed:', err);
+        setError(err?.message || 'Stripe return handling failed');
+      } finally {
+        setStripeBusy(false);
+        window.setTimeout(() => setStripeStatusMsg(null), 4000);
+      }
+    };
+
+    void handleStripeReturn();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const stripeMethod = useMemo(() => {
-    return methods.find((m) => m.methodCategory === 'stripe') || null;
+    return (
+      methods.find(
+        (method) =>
+          method.methodCategory === 'stripe' || method.methodCategory === 'card'
+      ) || null
+    );
   }, [methods]);
 
-  const instantMethods = useMemo(
-    () => methods.filter((m) => m.methodCategory === 'instant_payment'),
+  const allManualMethods = useMemo(
+    () => methods.filter((method) => method.methodCategory === 'instant_payment'),
     [methods]
+  );
+
+  const allCryptoMethods = useMemo(
+    () => methods.filter((method) => method.methodCategory === 'crypto'),
+    [methods]
+  );
+
+  const allOtherMethods = useMemo(
+    () =>
+      methods.filter(
+        (method) =>
+          method.methodCategory !== 'instant_payment' &&
+          method.methodCategory !== 'crypto' &&
+          method.methodCategory !== 'stripe' &&
+          method.methodCategory !== 'card'
+      ),
+    [methods]
+  );
+
+  const manualMethods = useMemo(
+    () => filterVisibleMethods(allManualMethods, showDisabledMethods),
+    [allManualMethods, showDisabledMethods]
   );
 
   const cryptoMethods = useMemo(
-    () => methods.filter((m) => m.methodCategory === 'crypto'),
-    [methods]
+    () => filterVisibleMethods(allCryptoMethods, showDisabledMethods),
+    [allCryptoMethods, showDisabledMethods]
   );
 
+  const otherMethods = useMemo(
+    () => filterVisibleMethods(allOtherMethods, showDisabledMethods),
+    [allOtherMethods, showDisabledMethods]
+  );
+
+  const hiddenDisabledCount = useMemo(() => {
+    if (showDisabledMethods) return 0;
+
+    return methods.filter((method) => !method.isEnabled).length;
+  }, [methods, showDisabledMethods]);
+
   const stripeEnabled = !!stripeMethod?.isEnabled;
+  const showStripeCard = showDisabledMethods || !stripeMethod || stripeEnabled;
 
   const stripeConnect = useMemo(() => {
-    const cfg: any = stripeMethod?.methodConfig || {};
-    return cfg?.connect || null;
+    const config: any = stripeMethod?.methodConfig || {};
+    return config?.connect || null;
   }, [stripeMethod]);
 
   const stripeReady = !!(
@@ -286,14 +412,16 @@ export default function ManagePaymentMethodsModal({
       setStripeStatusMsg(null);
 
       const appOrigin = window.location.origin;
-      const resp = await StripeConnectService.startConnect(appOrigin);
+      const response = await StripeConnectService.startConnect(appOrigin);
 
-      if (!resp?.ok || !resp.url) {
-        setError(resp?.message || resp?.error || 'Failed to start Stripe Connect');
+      if (!response?.ok || !response.url) {
+        setError(
+          response?.message || response?.error || 'Failed to start Stripe Connect'
+        );
         return;
       }
 
-      window.location.href = resp.url;
+      window.location.href = response.url;
     } catch (err: any) {
       console.error('Stripe Connect start failed:', err);
       setError(err?.message || 'Stripe Connect start failed');
@@ -307,15 +435,17 @@ export default function ManagePaymentMethodsModal({
       setStripeBusy(true);
       setError(null);
 
-      const s = await StripeConnectService.getStatus();
+      const status = await StripeConnectService.getStatus();
 
-      if (!s?.ok) {
-        setError(s?.message || s?.error || 'Failed to refresh Stripe status');
+      if (!status?.ok) {
+        setError(
+          status?.message || status?.error || 'Failed to refresh Stripe status'
+        );
       }
 
       await loadMethods();
-    } catch (e: any) {
-      setError(e?.message || 'Failed to refresh Stripe status');
+    } catch (err: any) {
+      setError(err?.message || 'Failed to refresh Stripe status');
     } finally {
       setStripeBusy(false);
     }
@@ -347,18 +477,18 @@ export default function ManagePaymentMethodsModal({
       } as any);
 
       await loadMethods();
-    } catch (e: any) {
-      console.error('Failed to toggle Stripe enabled:', e);
-      setError(e?.message || 'Failed to update Stripe enabled state');
+    } catch (err: any) {
+      console.error('Failed to toggle Stripe enabled:', err);
+      setError(err?.message || 'Failed to update Stripe enabled state');
     } finally {
       setStripeBusy(false);
     }
   };
 
-  const handleAddInstant = () => {
+  const handleAddManual = () => {
     setSelectedMethod(null);
     setError(null);
-    setView('add_instant');
+    setView('add_manual');
   };
 
   const handleAddSolana = () => {
@@ -437,8 +567,8 @@ export default function ManagePaymentMethodsModal({
   const title =
     view === 'list'
       ? 'Payment Methods'
-      : view === 'add_instant'
-        ? 'Add Instant Payment Method'
+      : view === 'add_manual'
+        ? 'Add Manual Payment Method'
         : view === 'add_solana'
           ? 'Add Solana Wallet'
           : 'Edit Payment Method';
@@ -457,13 +587,14 @@ export default function ManagePaymentMethodsModal({
               <h2 className="text-xl font-bold text-gray-900">{title}</h2>
               <p className="text-sm text-gray-600">
                 {view === 'list'
-                  ? 'Manage how players can pay'
-                  : 'Configure payment details'}
+                  ? 'Set up the payment methods this club can use for events.'
+                  : 'Configure the details players and admins will use.'}
               </p>
             </div>
           </div>
 
           <button
+            type="button"
             onClick={onClose}
             className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
           >
@@ -482,6 +613,7 @@ export default function ManagePaymentMethodsModal({
             </div>
 
             <button
+              type="button"
               onClick={() => setError(null)}
               className="text-red-600 hover:text-red-700"
             >
@@ -494,138 +626,211 @@ export default function ManagePaymentMethodsModal({
         <div className="flex-1 overflow-y-auto p-6">
           {view === 'list' ? (
             <div className="space-y-6">
+              {/* Intro */}
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                <p className="text-sm font-semibold text-blue-950">
+                  Payment methods are set up at club level.
+                </p>
+                <p className="text-xs text-blue-900 mt-1">
+                  Hosts should later select from these methods for each quiz.
+                  This avoids hidden “pay host” or “pay admin” options and keeps
+                  end-of-event reports accurate.
+                </p>
+              </div>
+
+              {/* Disabled Toggle */}
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">
+                    Disabled payment methods
+                  </p>
+                  <p className="text-xs text-gray-600 mt-0.5">
+                    Disabled methods are hidden by default.
+                    {hiddenDisabledCount > 0 &&
+                      ` ${hiddenDisabledCount} disabled method${
+                        hiddenDisabledCount === 1 ? '' : 's'
+                      } hidden.`}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowDisabledMethods((previousValue) => !previousValue)
+                  }
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-semibold transition-colors ${
+                    showDisabledMethods
+                      ? 'border-indigo-300 bg-indigo-50 text-indigo-700'
+                      : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  {showDisabledMethods ? (
+                    <>
+                      <EyeOff className="h-4 w-4" />
+                      Hide disabled
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="h-4 w-4" />
+                      Show disabled
+                    </>
+                  )}
+                </button>
+              </div>
+
               {/* Stripe Connect Card */}
-              <section className="space-y-3">
-                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
-                  Card payments
-                </h3>
+              {showStripeCard && (
+                <section className="space-y-3">
+                  <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                    Card payments
+                  </h3>
 
-                <div className="p-4 rounded-lg border border-indigo-200 bg-indigo-50">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-gray-900">
-                          Card payments via Stripe
-                        </h3>
+                  <div
+                    className={`p-4 rounded-lg border ${
+                      stripeMethod && !stripeEnabled
+                        ? 'border-gray-200 bg-gray-50 opacity-70'
+                        : 'border-indigo-200 bg-indigo-50'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-gray-900">
+                            Card payments via Stripe
+                          </h3>
 
-                        {!stripeMethod ? (
-                          <span className="px-2 py-0.5 bg-gray-200 text-gray-700 text-xs font-semibold rounded">
-                            Not connected
-                          </span>
-                        ) : !stripeEnabled ? (
-                          <span className="px-2 py-0.5 bg-gray-200 text-gray-700 text-xs font-semibold rounded">
-                            Disabled
-                          </span>
-                        ) : stripeReady ? (
-                          <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs font-semibold rounded">
-                            Connected
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded">
-                            Setup incomplete
-                          </span>
+                          {!stripeMethod ? (
+                            <span className="px-2 py-0.5 bg-gray-200 text-gray-700 text-xs font-semibold rounded">
+                              Not connected
+                            </span>
+                          ) : !stripeEnabled ? (
+                            <span className="px-2 py-0.5 bg-gray-200 text-gray-700 text-xs font-semibold rounded">
+                              Disabled
+                            </span>
+                          ) : stripeReady ? (
+                            <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs font-semibold rounded">
+                              Connected
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded">
+                              Setup incomplete
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-sm text-gray-700 mt-1">
+                          Let players pay by card. These payments are verified
+                          through Stripe and funds go directly to the club’s
+                          connected Stripe account.
+                        </p>
+
+                        {stripeStatusMsg && (
+                          <p className="text-xs text-gray-700 mt-2">
+                            {stripeStatusMsg}
+                          </p>
+                        )}
+
+                        {stripeConnect?.accountId && (
+                          <p className="text-xs text-gray-600 mt-2">
+                            Account:{' '}
+                            <span className="font-mono">
+                              {stripeConnect.accountId}
+                            </span>
+                          </p>
+                        )}
+
+                        {stripeMethod && stripeReady && stripeEnabled && (
+                          <p className="text-xs text-green-700 mt-2 font-medium flex items-center gap-1">
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            Ready to take card payments
+                          </p>
                         )}
                       </div>
 
-                      <p className="text-sm text-gray-700 mt-1">
-                        Let players pay by card. Funds go directly to your club’s Stripe account.
-                      </p>
+                      <div className="flex flex-col gap-2 flex-shrink-0">
+                        {!stripeReady ? (
+                          <button
+                            type="button"
+                            onClick={handleStripeConnect}
+                            disabled={stripeBusy}
+                            className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                          >
+                            {stripeMethod
+                              ? 'Continue Stripe setup'
+                              : 'Connect Stripe'}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={refreshStripeStatus}
+                            disabled={stripeBusy}
+                            className="px-4 py-2 bg-white border border-indigo-300 text-indigo-700 text-sm font-semibold rounded-lg hover:bg-indigo-100 disabled:opacity-50"
+                            title="Re-check Stripe connection"
+                          >
+                            Refresh status
+                          </button>
+                        )}
 
-                      {stripeStatusMsg && (
-                        <p className="text-xs text-gray-700 mt-2">
-                          {stripeStatusMsg}
-                        </p>
-                      )}
-
-                      {stripeConnect?.accountId && (
-                        <p className="text-xs text-gray-600 mt-2">
-                          Account:{' '}
-                          <span className="font-mono">
-                            {stripeConnect.accountId}
-                          </span>
-                        </p>
-                      )}
-
-                      {stripeMethod && stripeReady && stripeEnabled && (
-                        <p className="text-xs text-green-700 mt-2 font-medium">
-                          ✅ Ready to take card payments
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="flex flex-col gap-2 flex-shrink-0">
-                      {!stripeReady ? (
-                        <button
-                          onClick={handleStripeConnect}
-                          disabled={stripeBusy}
-                          className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                        >
-                          {stripeMethod ? 'Continue Stripe setup' : 'Connect Stripe'}
-                        </button>
-                      ) : (
-                        <button
-                          onClick={refreshStripeStatus}
-                          disabled={stripeBusy}
-                          className="px-4 py-2 bg-white border border-indigo-300 text-indigo-700 text-sm font-semibold rounded-lg hover:bg-indigo-100 disabled:opacity-50"
-                          title="Re-check Stripe connection"
-                        >
-                          Refresh status
-                        </button>
-                      )}
-
-                      {stripeMethod && (
-                        <button
-                          onClick={() => setStripeEnabled(!stripeEnabled)}
-                          disabled={stripeBusy}
-                          className="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-100 disabled:opacity-50"
-                        >
-                          {stripeEnabled
-                            ? 'Disable card payments'
-                            : 'Enable card payments'}
-                        </button>
-                      )}
+                        {stripeMethod && (
+                          <button
+                            type="button"
+                            onClick={() => setStripeEnabled(!stripeEnabled)}
+                            disabled={stripeBusy}
+                            className="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-100 disabled:opacity-50"
+                          >
+                            {stripeEnabled
+                              ? 'Disable card payments'
+                              : 'Enable card payments'}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </section>
+                </section>
+              )}
 
-              {/* Instant Payments */}
+              {/* Manual Payments */}
               <section className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
-                      Instant payments
+                      Manual payments
                     </h3>
                     <p className="text-xs text-gray-500">
-                      Revolut, bank transfer, PayPal and other manual payment methods.
+                      Cash, Revolut, Monzo, bank transfer and ZippyPay methods
+                      that require host/admin confirmation.
                     </p>
                   </div>
 
                   <button
-                    onClick={handleAddInstant}
+                    type="button"
+                    onClick={handleAddManual}
                     className="flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-indigo-300 rounded-lg text-indigo-600 text-sm font-semibold hover:bg-indigo-50 hover:border-indigo-400 transition-colors"
                   >
                     <Plus className="h-4 w-4" />
-                    Add Instant Payment
+                    Add Manual Method
                   </button>
                 </div>
 
-                {!loadingList && instantMethods.length === 0 && (
+                {!loadingList && manualMethods.length === 0 && (
                   <div className="text-center py-8 rounded-lg border border-dashed border-gray-300">
                     <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 mb-3">
-                      <CreditCard className="h-6 w-6 text-gray-400" />
+                      <Banknote className="h-6 w-6 text-gray-400" />
                     </div>
                     <h3 className="text-sm font-semibold text-gray-900 mb-1">
-                      No instant payment methods yet
+                      No manual payment methods shown
                     </h3>
                     <p className="text-sm text-gray-600">
-                      Add Revolut, bank transfer, PayPal, etc.
+                      Add cash, Revolut, Monzo, bank transfer or ZippyPay.
+                      {!showDisabledMethods && hiddenDisabledCount > 0
+                        ? ' Disabled methods are currently hidden.'
+                        : ''}
                     </p>
                   </div>
                 )}
 
                 {!loadingList &&
-                  instantMethods.map((method) => (
+                  manualMethods.map((method) => (
                     <PaymentMethodCard
                       key={method.id}
                       method={method}
@@ -644,14 +849,16 @@ export default function ManagePaymentMethodsModal({
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
-                      Crypto wallets
+                      Crypto payments
                     </h3>
                     <p className="text-xs text-gray-500">
-                      For now, this supports a public Solana wallet for donation-only quiz payments.
+                      Verified crypto payment methods. Current setup supports
+                      Solana wallet payments.
                     </p>
                   </div>
 
                   <button
+                    type="button"
                     onClick={handleAddSolana}
                     className="flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-purple-300 rounded-lg text-purple-700 text-sm font-semibold hover:bg-purple-50 hover:border-purple-400 transition-colors"
                   >
@@ -666,10 +873,13 @@ export default function ManagePaymentMethodsModal({
                       <Wallet className="h-6 w-6 text-gray-400" />
                     </div>
                     <h3 className="text-sm font-semibold text-gray-900 mb-1">
-                      No crypto wallets yet
+                      No crypto payment methods shown
                     </h3>
                     <p className="text-sm text-gray-600">
-                      Add a Solana wallet to receive crypto donations.
+                      Add a Solana wallet to support crypto payments.
+                      {!showDisabledMethods && hiddenDisabledCount > 0
+                        ? ' Disabled methods are currently hidden.'
+                        : ''}
                     </p>
                   </div>
                 )}
@@ -689,10 +899,37 @@ export default function ManagePaymentMethodsModal({
                   ))}
               </section>
 
+              {/* Other Methods */}
+              {!loadingList && otherMethods.length > 0 && (
+                <section className="space-y-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                      Other payment methods
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      Existing methods that do not fit the standard groups.
+                    </p>
+                  </div>
+
+                  {otherMethods.map((method) => (
+                    <PaymentMethodCard
+                      key={method.id}
+                      method={method}
+                      loading={loading}
+                      deleteConfirm={deleteConfirm}
+                      onEdit={handleEdit}
+                      onAskDelete={setDeleteConfirm}
+                      onDelete={handleDelete}
+                      onCancelDelete={() => setDeleteConfirm(null)}
+                    />
+                  ))}
+                </section>
+              )}
+
               {/* Loading State */}
               {loadingList && (
                 <div className="text-center py-12">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
                   <p className="mt-2 text-sm text-gray-600">
                     Loading payment methods...
                   </p>
@@ -718,6 +955,7 @@ export default function ManagePaymentMethodsModal({
         {view === 'list' && (
           <div className="p-6 border-t border-gray-200">
             <button
+              type="button"
               onClick={onClose}
               className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-semibold hover:bg-gray-200 transition-colors"
             >

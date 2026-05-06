@@ -1,12 +1,11 @@
 // src/components/mgtsystem/modals/PaymentMethodForm.tsx
 
 import { useMemo, useState } from 'react';
-import { Building2, User, QrCode, Info, Wallet } from 'lucide-react';
+import type { FormEvent } from 'react';
+import { Building2, User, Info, Wallet, Banknote } from 'lucide-react';
 
 import type {
   PaymentMethodCategory,
-  InstantPaymentProvider,
-  CryptoPaymentProvider,
   PaymentProvider,
 } from '../../../shared/types/payment';
 
@@ -24,73 +23,85 @@ interface PaymentMethodFormProps {
   loading: boolean;
 }
 
-type ProviderValue = InstantPaymentProvider | CryptoPaymentProvider;
+type Config = Record<string, any>;
 
-const CATEGORIES: { value: PaymentMethodCategory; label: string }[] = [
-  { value: 'instant_payment', label: 'Instant Payment' },
-  { value: 'crypto', label: 'Crypto' },
-];
-
-const PROVIDERS: {
-  value: ProviderValue;
+type ProviderOption = {
+  value: PaymentProvider;
   label: string;
   category: PaymentMethodCategory;
-}[] = [
-  { value: 'revolut', label: 'Revolut', category: 'instant_payment' },
-  {
-    value: 'bank_transfer',
-    label: 'Bank Transfer (Faster Payments / IBAN)',
-    category: 'instant_payment',
-  },
-  { value: 'paypal', label: 'PayPal', category: 'instant_payment' },
-  { value: 'monzo', label: 'Monzo', category: 'instant_payment' },
-  { value: 'starling', label: 'Starling', category: 'instant_payment' },
-  { value: 'wise', label: 'Wise', category: 'instant_payment' },
-  { value: 'cashapp', label: 'Cash App', category: 'instant_payment' },
-  { value: 'zippypay', label: 'ZippyPay', category: 'instant_payment' },
-  { value: 'other', label: 'Other', category: 'instant_payment' },
-
-  { value: 'solana_wallet', label: 'Solana Wallet', category: 'crypto' },
-];
-
-type Config = Record<string, any>;
+  helper?: string;
+};
 
 type LinkPreset = {
   linkLabel: string;
   linkPlaceholder: string;
 };
 
+const CATEGORIES: {
+  value: PaymentMethodCategory;
+  label: string;
+  helper: string;
+}[] = [
+  {
+    value: 'instant_payment',
+    label: 'Manual Payment',
+    helper:
+      'Cash, Revolut, Monzo, bank transfer and other payments confirmed by a host/admin.',
+  },
+  {
+    value: 'crypto',
+    label: 'Crypto Payment',
+    helper: 'Verified crypto payment methods, currently Solana wallet payments.',
+  },
+];
+
+const PROVIDERS: ProviderOption[] = [
+  {
+    value: 'cash',
+    label: 'Cash collected on the night',
+    category: 'instant_payment',
+    helper: 'Use this for door payments or cash collected by a host/admin.',
+  },
+  {
+    value: 'revolut',
+    label: 'Revolut',
+    category: 'instant_payment',
+    helper: 'Can be an official club Revolut or a member/coach Revolut.',
+  },
+  {
+    value: 'monzo',
+    label: 'Monzo',
+    category: 'instant_payment',
+  },
+  {
+    value: 'bank_transfer',
+    label: 'Bank Transfer (IBAN / account number)',
+    category: 'instant_payment',
+  },
+  {
+    value: 'zippypay',
+    label: 'ZippyPay',
+    category: 'instant_payment',
+  },
+  {
+    value: 'solana_wallet',
+    label: 'Solana Wallet',
+    category: 'crypto',
+    helper: 'Use a public Solana wallet address only.',
+  },
+];
+
 const PROVIDER_PRESETS: Record<string, LinkPreset> = {
   revolut: {
     linkLabel: 'Revolut payment link',
     linkPlaceholder: 'https://revolut.me/yourhandle',
   },
-  paypal: {
-    linkLabel: 'PayPal link',
-    linkPlaceholder: 'https://paypal.me/yourhandle',
-  },
   monzo: {
     linkLabel: 'Monzo link',
     linkPlaceholder: 'https://monzo.me/yourhandle',
   },
-  starling: {
-    linkLabel: 'Starling payment link',
-    linkPlaceholder: 'https://...',
-  },
-  wise: {
-    linkLabel: 'Wise payment link',
-    linkPlaceholder: 'https://...',
-  },
-  cashapp: {
-    linkLabel: 'Cash App link',
-    linkPlaceholder: 'https://cash.app/$yourcashtag',
-  },
   zippypay: {
     linkLabel: 'ZippyPay link',
-    linkPlaceholder: 'https://...',
-  },
-  other: {
-    linkLabel: 'Payment link',
     linkPlaceholder: 'https://...',
   },
 };
@@ -100,11 +111,12 @@ const DEFAULT_LINK_PRESET: LinkPreset = {
   linkPlaceholder: 'https://...',
 };
 
-const getLinkPreset = (key: string): LinkPreset =>
-  PROVIDER_PRESETS[key] ?? DEFAULT_LINK_PRESET;
+function getLinkPreset(key: string): LinkPreset {
+  return PROVIDER_PRESETS[key] ?? DEFAULT_LINK_PRESET;
+}
 
-function isTruthyString(v: any): v is string {
-  return typeof v === 'string' && v.trim().length > 0;
+function isTruthyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
 }
 
 /**
@@ -112,11 +124,77 @@ function isTruthyString(v: any): v is string {
  * Checks base58-style length/characters.
  * It does not prove the wallet exists on-chain.
  */
-function isValidSolanaAddress(value: any): boolean {
+function isValidSolanaAddress(value: unknown): boolean {
   return (
     typeof value === 'string' &&
     /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value.trim())
   );
+}
+
+function getProviderOption(providerName?: PaymentProvider | null) {
+  if (!providerName) return null;
+  return PROVIDERS.find((p) => String(p.value) === String(providerName)) || null;
+}
+
+function getDefaultLabel(providerName?: PaymentProvider | null): string {
+  switch (providerName) {
+    case 'cash':
+      return 'Cash at the door';
+    case 'revolut':
+      return 'Revolut';
+    case 'monzo':
+      return 'Monzo';
+    case 'bank_transfer':
+      return 'Club bank transfer';
+    case 'zippypay':
+      return 'ZippyPay';
+    case 'solana_wallet':
+      return 'Solana Wallet';
+    default:
+      return '';
+  }
+}
+
+function getDefaultInstructions(providerName?: PaymentProvider | null): string {
+  switch (providerName) {
+    case 'cash':
+      return 'Pay cash to the host or club admin on the night.';
+    case 'revolut':
+      return 'Send payment using the Revolut details shown. The host/admin will confirm once received.';
+    case 'monzo':
+      return 'Send payment using the Monzo details shown. The host/admin will confirm once received.';
+    case 'bank_transfer':
+      return 'Send payment by bank transfer. The host/admin will confirm once received.';
+    case 'zippypay':
+      return 'Send payment using the ZippyPay details shown. The host/admin will confirm once received.';
+    case 'solana_wallet':
+      return 'Send payment to the Solana wallet shown. Crypto payments are verified by the app.';
+    default:
+      return '';
+  }
+}
+
+function getDefaultConfig(providerName?: PaymentProvider | null): Config {
+  switch (providerName) {
+    case 'cash':
+      return {
+        verificationMode: 'manual',
+      };
+    case 'solana_wallet':
+      return {
+        chain: 'solana',
+        verificationMode: 'onchain_verified',
+      };
+    case 'revolut':
+    case 'monzo':
+    case 'bank_transfer':
+    case 'zippypay':
+      return {
+        verificationMode: 'manual',
+      };
+    default:
+      return {};
+  }
 }
 
 function sanitizeConfigForProvider(
@@ -128,42 +206,58 @@ function sanitizeConfigForProvider(
     return {
       chain: 'solana',
       walletAddress: String(config?.walletAddress || '').trim(),
+      verificationMode: 'onchain_verified',
     };
   }
 
-  // Prevent stale fields from other providers being saved for Revolut.
-  if (providerKey === 'revolut') {
-    const next: Config = {};
+  if (methodCategory === 'instant_payment' && providerKey === 'cash') {
+    const next: Config = {
+      verificationMode: 'manual',
+    };
 
-    if (isTruthyString(config?.link)) {
-      next.link = String(config.link).trim();
+    if (isTruthyString(config?.collectionInstructions)) {
+      next.collectionInstructions = String(config.collectionInstructions).trim();
     }
 
     return next;
   }
 
+  if (methodCategory === 'instant_payment' && providerKey === 'bank_transfer') {
+    const next: Config = {
+      verificationMode: 'manual',
+    };
+
+    [
+      'accountName',
+      'bankName',
+      'iban',
+      'bic',
+      'sortCode',
+      'accountNumber',
+    ].forEach((key) => {
+      if (isTruthyString(config?.[key])) {
+        next[key] = String(config[key]).trim();
+      }
+    });
+
+    return next;
+  }
+
+  if (methodCategory === 'instant_payment') {
+    const next: Config = {
+      verificationMode: 'manual',
+    };
+
+    ['link', 'merchantId'].forEach((key) => {
+      if (isTruthyString(config?.[key])) {
+        next[key] = String(config[key]).trim();
+      }
+    });
+
+    return next;
+  }
+
   return { ...(config || {}) };
-}
-
-function getDefaultLabel(providerName?: PaymentProvider | null): string {
-  if (providerName === 'solana_wallet') return 'Solana Donations Wallet';
-  return '';
-}
-
-function getDefaultInstructions(providerName?: PaymentProvider | null): string {
-  if (providerName === 'solana_wallet') {
-    return 'Send your donation to the Solana wallet shown. The host may verify payment manually.';
-  }
-
-  return '';
-}
-
-function getDefaultConfig(providerName?: PaymentProvider | null): Config {
-  if (providerName === 'solana_wallet') {
-    return { chain: 'solana' };
-  }
-
-  return {};
 }
 
 export default function PaymentMethodForm({
@@ -186,7 +280,7 @@ export default function PaymentMethodForm({
     playerInstructions:
       method?.playerInstructions || getDefaultInstructions(initialProvider),
     methodConfig:
-      (method?.methodConfig as any) || getDefaultConfig(initialProvider),
+      (method?.methodConfig as Config) || getDefaultConfig(initialProvider),
     isEnabled: method?.isEnabled ?? true,
     displayOrder: method?.displayOrder || 0,
     isOfficialClubAccount: method?.isOfficialClubAccount ?? true,
@@ -199,26 +293,32 @@ export default function PaymentMethodForm({
     [formData.methodCategory]
   );
 
+  const selectedProvider = useMemo(
+    () => getProviderOption(formData.providerName),
+    [formData.providerName]
+  );
+
   const providerKey = String(formData.providerName || '');
   const config = (formData.methodConfig || {}) as Config;
 
+  const isCash = providerKey === 'cash';
   const isBankTransfer = providerKey === 'bank_transfer';
   const isZippyPay = providerKey === 'zippypay';
   const isRevolut = providerKey === 'revolut';
   const isSolanaWallet = providerKey === 'solana_wallet';
+  const isManualCategory = formData.methodCategory === 'instant_payment';
   const isCryptoCategory = formData.methodCategory === 'crypto';
 
-  const shouldShowInstantFields =
-    formData.methodCategory === 'instant_payment' && !!formData.providerName;
-
-  const supportsLinkQr = shouldShowInstantFields && !isBankTransfer;
+  const shouldShowManualFields = isManualCategory && !!formData.providerName;
+  const supportsPaymentLink =
+    shouldShowManualFields && !isBankTransfer && !isCash;
   const linkPreset = getLinkPreset(providerKey);
 
-  const updateConfig = (key: string, value: any) => {
+  const updateConfig = (key: string, value: string) => {
     setFormData((prev) => ({
       ...prev,
       methodConfig: {
-        ...(prev.methodConfig as any),
+        ...(prev.methodConfig as Config),
         [key]: value,
       },
     }));
@@ -231,13 +331,16 @@ export default function PaymentMethodForm({
       return {
         ...prev,
         providerName: provider,
-        methodLabel:
-          prev.methodLabel || getDefaultLabel(provider),
+        methodLabel: prev.methodLabel || getDefaultLabel(provider),
         playerInstructions:
           prev.playerInstructions || getDefaultInstructions(provider),
         methodConfig: getDefaultConfig(provider),
+        isOfficialClubAccount:
+          provider === 'cash' ? false : prev.isOfficialClubAccount,
       };
     });
+
+    setErrors({});
   };
 
   const handleCategoryChange = (nextCategory: PaymentMethodCategory) => {
@@ -260,30 +363,30 @@ export default function PaymentMethodForm({
 
     if (formData.methodCategory === 'instant_payment') {
       if (!formData.providerName) {
-        newErrors.providerName = 'Please select a provider';
+        newErrors.providerName = 'Please select a manual payment provider';
+      } else if (isCash) {
+        // Cash can be instructions-only. No config required.
       } else if (isBankTransfer) {
         if (
           !isTruthyString(config?.iban) &&
           !isTruthyString(config?.accountNumber)
         ) {
-          newErrors.config = 'IBAN or Account Number is required';
+          newErrors.config = 'IBAN or account number is required';
         }
 
         if (
           isTruthyString(config?.accountNumber) &&
           !isTruthyString(config?.sortCode)
         ) {
-          newErrors.config = 'Sort Code is recommended when using an Account Number';
-        }
-      } else if (isRevolut) {
-        if (!isTruthyString(config?.link)) {
-          newErrors.config = 'A Revolut payment link is required';
+          newErrors.config =
+            'Sort code is recommended when using an account number';
         }
       } else if (
         !isTruthyString(config?.link) &&
-        !isTruthyString(config?.qrCodeUrl)
+        !isTruthyString(formData.playerInstructions)
       ) {
-        newErrors.config = 'At least a payment link or QR code URL is required';
+        newErrors.config =
+          'Add a payment link or clear player instructions';
       }
     }
 
@@ -303,8 +406,8 @@ export default function PaymentMethodForm({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
 
     if (!validate()) return;
 
@@ -320,12 +423,27 @@ export default function PaymentMethodForm({
         methodConfig: sanitized,
       });
     } catch (error) {
-      console.error('Form submission error:', error);
+      console.error('PaymentMethodForm submission error:', error);
     }
   };
 
+  const renderCategoryHelp = () => {
+    const category = CATEGORIES.find((c) => c.value === formData.methodCategory);
+    if (!category) return null;
+
+    return <p className="text-xs text-gray-500 mt-1">{category.helper}</p>;
+  };
+
+  const renderProviderHelp = () => {
+    if (!selectedProvider?.helper) return null;
+
+    return (
+      <p className="text-xs text-gray-500 mt-1">{selectedProvider.helper}</p>
+    );
+  };
+
   const renderRevolutHelp = () => {
-    if (!shouldShowInstantFields || !isRevolut) return null;
+    if (!shouldShowManualFields || !isRevolut) return null;
 
     return (
       <div className="mt-3 rounded-lg border border-indigo-200 bg-indigo-50 p-3 flex items-start gap-2">
@@ -333,24 +451,40 @@ export default function PaymentMethodForm({
 
         <div className="text-sm text-indigo-900">
           <div className="font-semibold mb-1">
-            How to get your Revolut payment link
+            Revolut can be official or personal
           </div>
 
-          <ol className="list-decimal pl-5 space-y-1">
-            <li>Open Revolut</li>
-            <li>
-              Go to <span className="font-medium">Payments</span> →{' '}
-              <span className="font-medium">Request</span>
-            </li>
-            <li>
-              Select <span className="font-medium">Payment link</span> /{' '}
-              <span className="font-medium">Share link</span>
-            </li>
-            <li>Copy the link and paste it here</li>
-          </ol>
+          <p className="text-xs text-indigo-800">
+            If this is the club’s official Revolut account, choose Official Club
+            Account below. If this belongs to a coach, host or admin, choose
+            Member Personal Account.
+          </p>
 
           <p className="text-xs text-indigo-800 mt-2">
-            Don’t set a fixed amount — players may add extras, so the amount can vary.
+            Don’t set a fixed amount on the link if players may add extras or
+            donations.
+          </p>
+        </div>
+      </div>
+    );
+  };
+
+  const renderCashHelp = () => {
+    if (!shouldShowManualFields || !isCash) return null;
+
+    return (
+      <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 flex items-start gap-2">
+        <Banknote className="h-4 w-4 text-amber-700 mt-0.5 flex-shrink-0" />
+
+        <div className="text-sm text-amber-950">
+          <div className="font-semibold mb-1">
+            Cash is a manual payment method
+          </div>
+
+          <p className="text-xs text-amber-900">
+            Players can be marked as paid only after the host/admin confirms
+            the cash was received. This replaces the old hardcoded “pay admin”
+            behaviour.
           </p>
         </div>
       </div>
@@ -365,10 +499,10 @@ export default function PaymentMethodForm({
         <Wallet className="h-4 w-4 text-purple-700 mt-0.5 flex-shrink-0" />
 
         <div className="text-sm text-purple-950">
-          <div className="font-semibold mb-1">Solana wallet payments</div>
+          <div className="font-semibold mb-1">Verified crypto payments</div>
 
           <p className="text-xs text-purple-900">
-            Players will be shown this public wallet address during the donation
+            Players will be shown this public wallet address during the crypto
             payment flow. Only enter a public wallet address here — never a seed
             phrase or private key.
           </p>
@@ -377,60 +511,54 @@ export default function PaymentMethodForm({
     );
   };
 
-  const renderLinkQrFields = () => {
-    if (!shouldShowInstantFields) return null;
-    if (isBankTransfer) return null;
-    if (!supportsLinkQr) return null;
+  const renderCashFields = () => {
+    if (!shouldShowManualFields || !isCash) return null;
 
     return (
-      <>
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            {linkPreset.linkLabel}
-          </label>
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          Cash collection instructions optional
+        </label>
 
-          <input
-            type="url"
-            value={config?.link || ''}
-            onChange={(e) => updateConfig('link', e.target.value)}
-            placeholder={linkPreset.linkPlaceholder}
-            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
-              errors.config ? 'border-red-300' : 'border-gray-300'
-            }`}
-          />
+        <input
+          type="text"
+          value={config?.collectionInstructions || ''}
+          onChange={(e) => updateConfig('collectionInstructions', e.target.value)}
+          placeholder="Example: Pay the host at the door before the quiz starts"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        />
+      </div>
+    );
+  };
 
-          {isRevolut && (
-            <p className="text-xs text-gray-500 mt-1">
-              Paste your Revolut payment link, for example revolut.me. We don’t
-              use QR for Revolut to keep it simple.
-            </p>
-          )}
-        </div>
+  const renderPaymentLinkField = () => {
+    if (!supportsPaymentLink) return null;
 
-        {!isRevolut && (
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-              <QrCode className="h-4 w-4" />
-              QR Code URL Optional
-            </label>
+    return (
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          {linkPreset.linkLabel}
+        </label>
 
-            <input
-              type="url"
-              value={config?.qrCodeUrl || ''}
-              onChange={(e) => updateConfig('qrCodeUrl', e.target.value)}
-              placeholder="https://example.com/qr-code.png"
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
-                errors.config ? 'border-red-300' : 'border-gray-300'
-              }`}
-            />
-          </div>
-        )}
-      </>
+        <input
+          type="url"
+          value={config?.link || ''}
+          onChange={(e) => updateConfig('link', e.target.value)}
+          placeholder={linkPreset.linkPlaceholder}
+          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
+            errors.config ? 'border-red-300' : 'border-gray-300'
+          }`}
+        />
+
+        <p className="text-xs text-gray-500 mt-1">
+          Optional if you provide clear player instructions instead.
+        </p>
+      </div>
     );
   };
 
   const renderBankTransferFields = () => {
-    if (!shouldShowInstantFields || !isBankTransfer) return null;
+    if (!shouldShowManualFields || !isBankTransfer) return null;
 
     return (
       <>
@@ -532,7 +660,7 @@ export default function PaymentMethodForm({
   };
 
   const renderZippyPayFields = () => {
-    if (!shouldShowInstantFields || !isZippyPay) return null;
+    if (!shouldShowManualFields || !isZippyPay) return null;
 
     return (
       <div>
@@ -585,8 +713,8 @@ export default function PaymentMethodForm({
           />
 
           <p className="text-xs text-gray-500 mt-1">
-            This is the public wallet address where donation payments will be
-            sent. Do not enter a private key or seed phrase.
+            This is the public wallet address used by the crypto payment flow.
+            Do not enter a private key or seed phrase.
           </p>
         </div>
       </div>
@@ -599,7 +727,8 @@ export default function PaymentMethodForm({
     if (formData.methodCategory === 'instant_payment') {
       return (
         <div className="space-y-4">
-          {renderLinkQrFields()}
+          {renderCashFields()}
+          {renderPaymentLinkField()}
           {renderBankTransferFields()}
           {renderZippyPayFields()}
         </div>
@@ -613,12 +742,23 @@ export default function PaymentMethodForm({
     return null;
   };
 
+  const labelPlaceholder =
+    formData.methodCategory === 'crypto'
+      ? 'e.g., Solana Wallet'
+      : providerKey === 'cash'
+        ? 'e.g., Cash at the door'
+        : providerKey === 'revolut'
+          ? 'e.g., Official Club Revolut or Coach Paula Revolut'
+          : providerKey === 'monzo'
+            ? 'e.g., Club Monzo or Coach Monzo'
+            : 'e.g., Club bank transfer';
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Category */}
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Category *
+          Payment Type *
         </label>
 
         <select
@@ -629,11 +769,13 @@ export default function PaymentMethodForm({
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
         >
           {CATEGORIES.map((cat) => (
-            <option key={String(cat.value)} value={cat.value}>
+            <option key={cat.value} value={cat.value}>
               {cat.label}
             </option>
           ))}
         </select>
+
+        {renderCategoryHelp()}
       </div>
 
       {/* Provider */}
@@ -643,7 +785,7 @@ export default function PaymentMethodForm({
         </label>
 
         <select
-          value={(formData.providerName as any) || ''}
+          value={String(formData.providerName || '')}
           onChange={(e) => resetConfigForProvider(e.target.value || null)}
           className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
             errors.providerName ? 'border-red-300' : 'border-gray-300'
@@ -652,7 +794,7 @@ export default function PaymentMethodForm({
           <option value="">Select a provider...</option>
 
           {availableProviders.map((prov) => (
-            <option key={prov.value} value={prov.value}>
+            <option key={String(prov.value)} value={String(prov.value)}>
               {prov.label}
             </option>
           ))}
@@ -662,6 +804,8 @@ export default function PaymentMethodForm({
           <p className="text-xs text-red-600 mt-1">{errors.providerName}</p>
         )}
 
+        {renderProviderHelp()}
+        {renderCashHelp()}
         {renderRevolutHelp()}
         {renderCryptoHelp()}
       </div>
@@ -681,15 +825,16 @@ export default function PaymentMethodForm({
               methodLabel: e.target.value,
             }))
           }
-          placeholder={
-            formData.methodCategory === 'crypto'
-              ? 'e.g., Solana Donations Wallet'
-              : 'e.g., Revolut - Main Account'
-          }
+          placeholder={labelPlaceholder}
           className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
             errors.methodLabel ? 'border-red-300' : 'border-gray-300'
           }`}
         />
+
+        <p className="text-xs text-gray-500 mt-1">
+          This is what hosts/admins will see when choosing allowed payment
+          methods for a quiz.
+        </p>
 
         {errors.methodLabel && (
           <p className="text-xs text-red-600 mt-1">{errors.methodLabel}</p>
@@ -699,9 +844,7 @@ export default function PaymentMethodForm({
       {/* Config Fields */}
       {renderConfigFields()}
 
-      {errors.config && (
-        <p className="text-xs text-red-600">{errors.config}</p>
-      )}
+      {errors.config && <p className="text-xs text-red-600">{errors.config}</p>}
 
       {/* Player Instructions */}
       <div>
@@ -720,50 +863,60 @@ export default function PaymentMethodForm({
           rows={4}
           placeholder={
             formData.methodCategory === 'crypto'
-              ? 'Example: Send your donation to the Solana wallet shown. The host may verify payment manually.'
-              : 'Enter instructions that players will see during payment...'
+              ? 'Example: Send payment to the Solana wallet shown. The app verifies crypto payments.'
+              : 'Example: Send the payment using the details above. The host/admin will confirm once received.'
           }
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
         />
       </div>
 
       {/* Account Type */}
-      <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-        <button
-          type="button"
-          onClick={() =>
-            setFormData((prev) => ({
-              ...prev,
-              isOfficialClubAccount: true,
-            }))
-          }
-          className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
-            formData.isOfficialClubAccount
-              ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-              : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
-          }`}
-        >
-          <Building2 className="h-5 w-5" />
-          <span className="font-semibold">Official Club Account</span>
-        </button>
+      <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <div className="mb-3">
+          <p className="font-semibold text-gray-900">Where does the money go?</p>
+          <p className="text-xs text-gray-600 mt-1">
+            This matters for reporting. Official accounts belong to the club.
+            Personal accounts belong to a host, coach, admin or member.
+          </p>
+        </div>
 
-        <button
-          type="button"
-          onClick={() =>
-            setFormData((prev) => ({
-              ...prev,
-              isOfficialClubAccount: false,
-            }))
-          }
-          className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
-            !formData.isOfficialClubAccount
-              ? 'border-orange-600 bg-orange-50 text-orange-700'
-              : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
-          }`}
-        >
-          <User className="h-5 w-5" />
-          <span className="font-semibold">Member Personal Account</span>
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() =>
+              setFormData((prev) => ({
+                ...prev,
+                isOfficialClubAccount: true,
+              }))
+            }
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
+              formData.isOfficialClubAccount
+                ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
+            }`}
+          >
+            <Building2 className="h-5 w-5" />
+            <span className="font-semibold">Official Club Account</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              setFormData((prev) => ({
+                ...prev,
+                isOfficialClubAccount: false,
+              }))
+            }
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
+              !formData.isOfficialClubAccount
+                ? 'border-orange-600 bg-orange-50 text-orange-700'
+                : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
+            }`}
+          >
+            <User className="h-5 w-5" />
+            <span className="font-semibold">Member Personal Account</span>
+          </button>
+        </div>
       </div>
 
       {/* Enabled Toggle */}
@@ -774,7 +927,7 @@ export default function PaymentMethodForm({
           </p>
 
           <p className="text-xs text-gray-600 mt-1">
-            Players will see this option when joining
+            Enabled methods can be selected for events and shown to players.
           </p>
         </div>
 
@@ -789,6 +942,11 @@ export default function PaymentMethodForm({
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
             formData.isEnabled ? 'bg-indigo-600' : 'bg-gray-300'
           }`}
+          aria-label={
+            formData.isEnabled
+              ? 'Disable this payment method'
+              : 'Enable this payment method'
+          }
         >
           <span
             className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${

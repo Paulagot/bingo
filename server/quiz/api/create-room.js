@@ -1570,7 +1570,56 @@ router.post('/web2/rooms/:roomId/hydrate', authenticateToken, async (req, res) =
     return res.status(500).json({ error: 'internal_error', details: err?.message });
   }
 });
+// ── Add this route to create-room.js ─────────────────────────────────────
+// Place it after the hydrate endpoint, before `export default router`.
+// All imports (authenticateToken, jwt, JWT_SECRET, connection, TABLE_PREFIX,
+// WEB2_ROOMS_TABLE) are already present at the top of create-room.js.
 
+/**
+ * POST /web2/rooms/:roomId/operator-token
+ *
+ * Generates a short-lived signed JWT that allows a non-logged-in operator
+ * to join the game controls for this room via /quiz/operate/:roomId?token=xyz.
+ *
+ * Only the logged-in club organiser (authenticateToken) can call this.
+ * The token contains { roomId, role: 'operator' } and expires in 8 hours.
+ */
+router.post('/web2/rooms/:roomId/operator-token', authenticateToken, async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const clubId = req.club_id;
+
+    if (!roomId) return res.status(400).json({ error: 'roomId_required' });
+    if (!clubId) return res.status(401).json({ error: 'unauthorized' });
+
+    // Verify this room belongs to the requesting club
+    const [rows] = await connection.execute(
+      `SELECT room_id FROM ${WEB2_ROOMS_TABLE} WHERE room_id = ? AND club_id = ? LIMIT 1`,
+      [roomId, clubId]
+    );
+
+    if (!rows?.[0]) {
+      return res.status(404).json({ error: 'room_not_found' });
+    }
+
+    const token = jwt.sign(
+      { roomId, role: 'operator' },
+      JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+
+    const clientOrigin = process.env.CLIENT_ORIGIN || '';
+    const operatorUrl = `${clientOrigin}/quiz/operate/${roomId}?token=${token}`;
+
+    console.log(`[API] 🎤 Operator token generated for room ${roomId} by club ${clubId}`);
+
+    return res.status(200).json({ token, operatorUrl });
+
+  } catch (err) {
+    console.error('[API] ❌ Failed to generate operator token:', err);
+    return res.status(500).json({ error: 'internal_error' });
+  }
+});
 
 
 export default router;
