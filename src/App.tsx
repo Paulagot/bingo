@@ -130,7 +130,7 @@ const LoadingSpinner = ({
 
 // ✅ FIXED: Only gameplay routes need sockets (exclude /quiz/join and /tickets/*)
 const isGameRoute = (pathname: string) =>
-  /^\/quiz\/(game|play|host-dashboard|host-controls|admin-join|join)\b/.test(pathname);
+  /^\/quiz\/(game|play|host-dashboard|host-controls|admin-join|join|operate)\b/.test(pathname);
 
 
 // ✅ FIXED: Only specific game routes need Web3Provider wrapper

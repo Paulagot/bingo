@@ -58,11 +58,11 @@ router.get('/quiz-rooms/:roomId/payment-methods', authenticateToken, async (req,
     const { roomId } = req.params;
     const clubId = req.club_id;
 
-    console.log(`[quiz-payment-methods] GET request for roomId: ${roomId}, clubId: ${clubId}`);
+    // console.log(`[quiz-payment-methods] GET request for roomId: ${roomId}, clubId: ${clubId}`);
 
     const data = await svc.getQuizPaymentMethods({ roomId, clubId });
     
-    console.log(`[quiz-payment-methods] Returning data:`, data);
+    // console.log(`[quiz-payment-methods] Returning data:`, data);
     res.json(data);
   } catch (err) {
     if (err?.message === 'Quiz room not found') {
@@ -72,7 +72,7 @@ router.get('/quiz-rooms/:roomId/payment-methods', authenticateToken, async (req,
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    console.error('[quiz-payment-methods] get error:', err);
+    // console.error('[quiz-payment-methods] get error:', err);
     res.status(500).json({ error: 'Failed to fetch quiz payment methods' });
   }
 });
@@ -90,7 +90,7 @@ router.post('/quiz-rooms/:roomId/payment-methods', authenticateToken, async (req
     const { payment_method_ids } = req.body || {};
 
     console.log(`[quiz-payment-methods] POST request for roomId: ${roomId}, clubId: ${clubId}`);
-    console.log(`[quiz-payment-methods] Payment method IDs:`, payment_method_ids);
+    // console.log(`[quiz-payment-methods] Payment method IDs:`, payment_method_ids);
 
     if (!Array.isArray(payment_method_ids)) {
       return res.status(400).json({ 
@@ -105,7 +105,7 @@ router.post('/quiz-rooms/:roomId/payment-methods', authenticateToken, async (req
       userId 
     });
 
-    console.log(`[quiz-payment-methods] Update successful:`, result);
+    // console.log(`[quiz-payment-methods] Update successful:`, result);
     res.json({ 
       message: 'Payment methods updated successfully',
       linked_payment_methods: result 
@@ -121,7 +121,7 @@ router.post('/quiz-rooms/:roomId/payment-methods', authenticateToken, async (req
       return res.status(400).json({ error: err.message });
     }
 
-    console.error('[quiz-payment-methods] update error:', err);
+    // console.error('[quiz-payment-methods] update error:', err);
     res.status(500).json({ error: 'Failed to update payment methods' });
   }
 });

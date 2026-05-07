@@ -15,7 +15,7 @@ export interface RoomInfo {
 export interface ClubPaymentMethod {
   id: number;
   methodLabel: string;
-  methodCategory: 'instant_payment' | 'card' | 'stripe' | 'other';
+  methodCategory: 'instant_payment' | 'card' | 'stripe' | 'crypto' | 'other';
   providerName: string | null;
   playerInstructions: string | null;
   methodConfig: {

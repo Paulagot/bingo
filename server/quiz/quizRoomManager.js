@@ -327,6 +327,8 @@ const finalConfig = {
   quizRooms.set(roomId, {
     roomCaps: config.roomCaps ?? { maxPlayers: 20, maxRounds: finalConfig.roundCount, roundTypesAllowed: [], extrasAllowed: [] },
     hostId,
+    operatorSocketId: null, 
+    operatorToken: null, 
     config: finalConfig,
     currentQuestionIndex: -1,
     currentRound: 1,
@@ -500,6 +502,15 @@ export function updateHostSocketId(roomId, socketId) {
   if (!room) return false;
   room.hostSocketId = socketId;
   if (debug) console.log(`[quizRoomManager] 🎤 Host socket updated for ${roomId}: ${socketId}`);
+  return true;
+}
+
+export function updateOperatorSocketId(roomId, socketId, token) {
+  const room = quizRooms.get(roomId);
+  if (!room) return false;
+  room.operatorSocketId = socketId;
+  room.operatorToken = token;          // store so recovery handler can re-verify on reconnect
+  if (debug) console.log(`[quizRoomManager] 🎤 Operator socket set for ${roomId}: ${socketId}`);
   return true;
 }
 

@@ -1,5 +1,5 @@
 // server/quiz/api/quizTicketsRouter.js
-// UPDATED: Shows capacity info and blocks purchases when full
+// UPDATED: Shows capacity info, blocks purchases when full, and validates ticket-safe payment methods
 
 import express from 'express';
 import authenticateToken from '../../middleware/auth.js';
@@ -7,7 +7,6 @@ import {
   createTicketWithPayment,
   confirmTicketPayment,
   getTicket,
-  getTicketByToken,
   getRoomTickets,
   getRoomConfig,
   getRoomSchedule,
@@ -26,6 +25,22 @@ const router = express.Router();
 
 const DEBUG = false;
 
+const INVALID_TICKET_PAYMENT_METHOD_ERRORS = new Set([
+  'valid_club_payment_method_required_for_ticket',
+  'payment_method_not_linked_to_this_quiz',
+  'payment_method_not_found_for_club',
+  'payment_method_disabled',
+  'ticket_manual_payment_method_must_be_manual',
+  'cash_not_allowed_for_ticket_purchase',
+  'payment_method_not_allowed_for_ticket_purchase',
+  'ticket_crypto_payment_method_must_be_crypto',
+  'unsupported_crypto_ticket_payment_method',
+]);
+
+function isInvalidTicketPaymentMethodError(message = '') {
+  return INVALID_TICKET_PAYMENT_METHOD_ERRORS.has(message);
+}
+
 /* -------------------------------------------------------------------------- */
 /*                      PUBLIC ROUTES (No auth required)                      */
 /* -------------------------------------------------------------------------- */
@@ -37,31 +52,30 @@ const DEBUG = false;
 router.get('/room/:roomId/info', async (req, res) => {
   try {
     const { roomId } = req.params;
-    
+
     if (!roomId) {
       return res.status(400).json({ error: 'roomId required' });
     }
-    
+
     const roomData = await getRoomConfig(roomId);
-    
+
     if (!roomData) {
-      return res.status(404).json({ 
-        error: 'Room not found or not available for ticket purchase' 
+      return res.status(404).json({
+        error: 'Room not found or not available for ticket purchase',
       });
     }
-    
+
     const { config, clubId, status } = roomData;
-    
+
     const capacity = await getRoomCapacityStatus(roomId, 0);
     const capacityMessage = getCapacityMessage(capacity);
-    
+
     return res.status(200).json({
       roomId,
       clubId,
       status,
       hostName: config.hostName,
-       fundraisingMode: config.fundraisingMode || 'fixed_fee',
-  entryFee: parseFloat(config.entryFee || 0),
+      fundraisingMode: config.fundraisingMode || 'fixed_fee',
       entryFee: parseFloat(config.entryFee || 0),
       currencySymbol: config.currencySymbol || '€',
       fundraisingOptions: config.fundraisingOptions || {},
@@ -77,7 +91,6 @@ router.get('/room/:roomId/info', async (req, res) => {
         message: capacityMessage,
       },
     });
-    
   } catch (err) {
     console.error('[Tickets API] ❌ Error fetching room info:', err);
     return res.status(500).json({ error: 'internal_error' });
@@ -90,46 +103,54 @@ router.get('/room/:roomId/info', async (req, res) => {
  */
 router.post('/create-with-payment', async (req, res) => {
   try {
-   const {
-  roomId,
-  purchaserName,
-  purchaserEmail,
-  purchaserPhone,
-  playerName,
-  selectedExtras,
-  donationAmount,
-  paymentMethod,
-  paymentReference,
-  clubPaymentMethodId,
-} = req.body;
-    
-    if (!roomId || !purchaserName || !purchaserEmail || !paymentMethod || !paymentReference) {
-      return res.status(400).json({ 
-        error: 'roomId, purchaserName, purchaserEmail, paymentMethod, and paymentReference are required' 
+    const {
+      roomId,
+      purchaserName,
+      purchaserEmail,
+      purchaserPhone,
+      playerName,
+      selectedExtras,
+      donationAmount,
+      paymentMethod,
+      paymentReference,
+      clubPaymentMethodId,
+    } = req.body;
+
+    if (
+      !roomId ||
+      !purchaserName ||
+      !purchaserEmail ||
+      !paymentMethod ||
+      !paymentReference ||
+      !clubPaymentMethodId
+    ) {
+      return res.status(400).json({
+        error:
+          'roomId, purchaserName, purchaserEmail, paymentMethod, paymentReference, and clubPaymentMethodId are required',
       });
     }
-    
+
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(purchaserEmail)) {
       return res.status(400).json({ error: 'Invalid email address' });
     }
-    
-const ticket = await createTicketWithPayment({
-  roomId,
-  purchaserName: purchaserName.trim(),
-  purchaserEmail: purchaserEmail.trim(),
-  purchaserPhone: purchaserPhone?.trim() || null,
-  playerName: playerName?.trim() || null,
-  selectedExtras: Array.isArray(selectedExtras) ? selectedExtras : [],
-  donationAmount,
-  paymentMethod,
-  paymentReference,
-  clubPaymentMethodId: clubPaymentMethodId || null,
-});
-    
+
+    const ticket = await createTicketWithPayment({
+      roomId,
+      purchaserName: purchaserName.trim(),
+      purchaserEmail: purchaserEmail.trim(),
+      purchaserPhone: purchaserPhone?.trim() || null,
+      playerName: playerName?.trim() || null,
+      selectedExtras: Array.isArray(selectedExtras) ? selectedExtras : [],
+      donationAmount,
+      paymentMethod,
+      paymentReference,
+      clubPaymentMethodId: clubPaymentMethodId || null,
+    });
+
     if (DEBUG) {
       console.log('[Tickets API] ✅ Ticket created with payment:', ticket.ticketId);
     }
-    
+
     return res.status(200).json({
       ok: true,
       ticket: {
@@ -150,41 +171,49 @@ const ticket = await createTicketWithPayment({
         paymentReference: ticket.paymentReference,
       },
     });
-    
   } catch (err) {
     console.error('[Tickets API] ❌ Error creating ticket:', err);
-    
-    const errorMessage = err.message;
-    
-    if (errorMessage.includes('SOLD OUT') || 
-        errorMessage.includes('spot') || 
-        errorMessage.includes('capacity') ||
-        errorMessage.includes('Ticket sales closed')) {
+
+    const errorMessage = err?.message || 'Failed to create ticket';
+
+    if (isInvalidTicketPaymentMethodError(errorMessage)) {
+      return res.status(400).json({
+        error: 'invalid_payment_method_for_ticket',
+        message: errorMessage,
+      });
+    }
+
+    if (
+      errorMessage.includes('SOLD OUT') ||
+      errorMessage.includes('spot') ||
+      errorMessage.includes('capacity') ||
+      errorMessage.includes('Ticket sales closed')
+    ) {
       return res.status(409).json({
         error: 'capacity_exceeded',
         message: errorMessage,
       });
     }
-    
-    return res.status(500).json({ 
+
+    return res.status(500).json({
       error: 'Failed to create ticket',
-      message: errorMessage 
+      message: errorMessage,
     });
   }
 });
 
 router.post('/stripe/checkout', async (req, res) => {
   try {
-  const {
-  roomId,
-  purchaserName,
-  purchaserEmail,
-  purchaserPhone,
-  playerName,
-  selectedExtras,
-  donationAmount,
-  appOrigin,
-} = req.body;
+    const {
+      roomId,
+      purchaserName,
+      purchaserEmail,
+      purchaserPhone,
+      playerName,
+      selectedExtras,
+      donationAmount,
+      appOrigin,
+    } = req.body;
 
     if (!roomId || !purchaserName || !purchaserEmail) {
       return res.status(400).json({ error: 'missing_required_fields' });
@@ -194,31 +223,47 @@ router.post('/stripe/checkout', async (req, res) => {
       return res.status(400).json({ error: 'Invalid email address' });
     }
 
-const result = await createTicketAndStripeSession({
-  roomId,
-  purchaserName: purchaserName.trim(),
-  purchaserEmail: purchaserEmail.trim(),
-  purchaserPhone: purchaserPhone?.trim() || null,
-  playerName: playerName?.trim() || null,
-  selectedExtras: Array.isArray(selectedExtras) ? selectedExtras : [],
-  donationAmount,
-  appOrigin,
-});
+    const result = await createTicketAndStripeSession({
+      roomId,
+      purchaserName: purchaserName.trim(),
+      purchaserEmail: purchaserEmail.trim(),
+      purchaserPhone: purchaserPhone?.trim() || null,
+      playerName: playerName?.trim() || null,
+      selectedExtras: Array.isArray(selectedExtras) ? selectedExtras : [],
+      donationAmount,
+      appOrigin,
+    });
 
-    return res.status(200).json({ ok: true, url: result.url, ticketId: result.ticketId });
+    return res.status(200).json({
+      ok: true,
+      url: result.url,
+      ticketId: result.ticketId,
+    });
   } catch (err) {
     const msg = err?.message || 'stripe_checkout_failed';
 
-    // capacity blocking -> 409 like your existing route
+    if (isInvalidTicketPaymentMethodError(msg)) {
+      return res.status(400).json({
+        error: 'invalid_payment_method_for_ticket',
+        message: msg,
+      });
+    }
+
     if (
       msg.includes('SOLD OUT') ||
       msg.includes('capacity') ||
       msg.includes('Ticket sales closed')
     ) {
-      return res.status(409).json({ error: 'capacity_exceeded', message: msg });
+      return res.status(409).json({
+        error: 'capacity_exceeded',
+        message: msg,
+      });
     }
 
-    return res.status(500).json({ error: 'stripe_checkout_failed', message: msg });
+    return res.status(500).json({
+      error: 'stripe_checkout_failed',
+      message: msg,
+    });
   }
 });
 
@@ -240,9 +285,10 @@ router.get('/:ticketId/status', async (req, res) => {
       return res.status(404).json({ error: 'Ticket not found' });
     }
 
-    const extras = typeof ticket.extras === 'string'
-      ? JSON.parse(ticket.extras)
-      : ticket.extras || [];
+    const extras =
+      typeof ticket.extras === 'string'
+        ? JSON.parse(ticket.extras)
+        : ticket.extras || [];
 
     const roomRow = await getRoomSchedule(ticket.room_id);
     const windowInfo = roomRow ? computeJoinWindow(roomRow) : null;
@@ -271,8 +317,12 @@ router.get('/:ticketId/status', async (req, res) => {
       redeemedAt: ticket.redeemed_at,
       joinToken: ticket.join_token,
       roomStatus: windowInfo?.roomStatus || null,
-      scheduledAt: windowInfo?.scheduledAt ? windowInfo.scheduledAt.toISOString() : null,
-      joinOpensAt: windowInfo?.joinOpensAt ? windowInfo.joinOpensAt.toISOString() : null,
+      scheduledAt: windowInfo?.scheduledAt
+        ? windowInfo.scheduledAt.toISOString()
+        : null,
+      joinOpensAt: windowInfo?.joinOpensAt
+        ? windowInfo.joinOpensAt.toISOString()
+        : null,
       canJoinNow,
       joinWindowMinutes: JOIN_WINDOW_MINUTES,
     });
@@ -281,8 +331,6 @@ router.get('/:ticketId/status', async (req, res) => {
     return res.status(500).json({ error: 'internal_error' });
   }
 });
-
-
 
 /* -------------------------------------------------------------------------- */
 /*                    AUTHENTICATED ROUTES (Host/Admin only)                  */
@@ -298,29 +346,28 @@ router.get('/room/:roomId', async (req, res) => {
   try {
     const { roomId } = req.params;
     const clubId = req.club_id;
-    
+
     if (!roomId) {
       return res.status(400).json({ error: 'roomId required' });
     }
-    
+
     const roomData = await getRoomConfig(roomId);
-    
+
     if (!roomData) {
       return res.status(404).json({ error: 'Room not found' });
     }
-    
+
     if (roomData.clubId !== clubId) {
       return res.status(403).json({ error: 'Forbidden' });
     }
-    
+
     const tickets = await getRoomTickets(roomId);
     const capacity = await getRoomCapacityStatus(roomId, 0);
-    
-    const formatted = tickets.map(t => {
-      const extras = typeof t.extras === 'string' 
-        ? JSON.parse(t.extras) 
-        : t.extras || [];
-      
+
+    const formatted = tickets.map((t) => {
+      const extras =
+        typeof t.extras === 'string' ? JSON.parse(t.extras) : t.extras || [];
+
       return {
         ticketId: t.ticket_id,
         purchaserName: t.purchaser_name,
@@ -344,7 +391,7 @@ router.get('/room/:roomId', async (req, res) => {
         redeemedByPlayerId: t.redeemed_by_player_id,
       };
     });
-    
+
     return res.status(200).json({
       ok: true,
       tickets: formatted,
@@ -359,7 +406,6 @@ router.get('/room/:roomId', async (req, res) => {
         message: getCapacityMessage(capacity),
       },
     });
-    
   } catch (err) {
     console.error('[Tickets API] ❌ Error fetching room tickets:', err);
     return res.status(500).json({ error: 'internal_error' });
@@ -383,8 +429,6 @@ router.patch('/:ticketId/confirm', async (req, res) => {
       return res.status(400).json({ error: 'ticketId required' });
     }
 
-    // ✅ Prefer values sent by the frontend (host dashboard / admin dashboard)
-    //    Fall back to the JWT user if the body fields are missing.
     const {
       confirmedBy: bodyConfirmedBy,
       confirmedByName: bodyConfirmedByName,
@@ -392,13 +436,14 @@ router.patch('/:ticketId/confirm', async (req, res) => {
       adminNotes,
     } = req.body;
 
-    const confirmedBy   = bodyConfirmedBy   || req.user?.id   || null;
+    const confirmedBy = bodyConfirmedBy || req.user?.id || null;
     const confirmedByName = bodyConfirmedByName || req.user?.name || 'Admin';
     const confirmedByRole = bodyConfirmedByRole || 'admin';
 
     if (!confirmedBy) {
       return res.status(400).json({
-        error: 'confirmedBy is required — pass it in the request body or ensure the JWT user is valid',
+        error:
+          'confirmedBy is required — pass it in the request body or ensure the JWT user is valid',
       });
     }
 
@@ -411,7 +456,6 @@ router.patch('/:ticketId/confirm', async (req, res) => {
       });
     }
 
-    // Verify ticket belongs to this club
     const ticket = await getTicket(ticketId);
 
     if (!ticket) {
@@ -431,17 +475,20 @@ router.patch('/:ticketId/confirm', async (req, res) => {
     });
 
     if (DEBUG) {
-      console.log('[Tickets API] ✅ Payment confirmed by:', confirmedByName, `(${confirmedByRole})`);
+      console.log(
+        '[Tickets API] ✅ Payment confirmed by:',
+        confirmedByName,
+        `(${confirmedByRole})`
+      );
     }
 
     return res.status(200).json({
       ok: true,
       message: 'Payment confirmed. Ticket is now ready for redemption.',
     });
-
   } catch (err) {
     console.error('[Tickets API] ❌ Error confirming payment:', err);
-    return res.status(500).json({ 
+    return res.status(500).json({
       error: 'Failed to confirm payment',
       message: err.message,
     });

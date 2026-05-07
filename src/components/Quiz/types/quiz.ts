@@ -444,7 +444,7 @@ export interface PlayerPaymentInfo {
   paymentReference?: string;
   paymentConfirmedBy?: string;
   paymentConfirmedAt?: string;
-  paymentMethod?: 'cash' | 'instant_payment' | 'card' | 'stripe' | 'other';
+  paymentMethod?: 'cash' | 'instant_payment' | 'card' | 'stripe' | 'crypto' | 'other';
 }
 
 /**
@@ -454,7 +454,7 @@ export interface PlayerWithPayment extends User {
   paid: boolean;
   paymentClaimed?: boolean;
   paymentReference?: string;
-  paymentMethod?: 'cash' | 'instant_payment' | 'card' | 'stripe' | 'other';
+  paymentMethod?: 'cash' | 'instant_payment' | 'card' | 'stripe' | 'crypto' | 'other';
   extras?: string[];
   extraPayments?: Record<string, { method: string; amount: number }>;
   disqualified?: boolean;

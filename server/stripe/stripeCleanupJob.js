@@ -13,7 +13,7 @@
 import { sweepExpiredTickets } from './stripeExpiredTicketService.js';
 
 // How often to run the sweep (default: every 10 minutes)
-const INTERVAL_MS = 10 * 60 * 1000;
+const INTERVAL_MS = 20 * 60 * 1000;
 
 let jobTimer = null;
 

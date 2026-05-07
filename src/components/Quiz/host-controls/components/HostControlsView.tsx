@@ -310,7 +310,7 @@ const HostControlsView: React.FC<{ roomId: string; controller: HostControlsContr
           onEndGame={handleEndGame}
           currentRound={roomState.currentRound}
           totalRounds={roomState.totalRounds}
-          
+           isOperator={controller.isOperator}
         />
         <HostPlayerLinksPanel roomId={roomId} players={playersInRoom} />
       </div>

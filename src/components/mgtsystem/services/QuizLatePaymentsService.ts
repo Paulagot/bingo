@@ -3,10 +3,15 @@ import BaseService from './BaseService';
 export type UnpaidPlayerRow = {
   playerId: string;
   playerName: string;
-  entryFeeOutstanding: number | string;
-  extrasOutstanding: number | string;
-  totalOutstanding: number | string;
-  lastUpdatedAt: string;
+  statuses?: string;
+  paymentMethod?: string | null;
+  clubPaymentMethodId?: number | string | null;
+  paymentReference?: string | null;
+  existingNotes?: string | null;
+  entryFeeOutstanding: number;
+  extrasOutstanding: number;
+  totalOutstanding: number;
+  lastUpdatedAt?: string;
 };
 
 export type MarkLatePaidPayload = {
@@ -15,6 +20,9 @@ export type MarkLatePaidPayload = {
   paymentMethod?: string | null;         // canonical: cash / instant_payment / pay_admin / card / stripe / other
   clubPaymentMethodId?: number | null;
   adminNotes?: string | null;
+
+   entryFeeAmount?: number;
+  extrasAmount?: number;
 
   // identity (until you wire auth → server derives this)
   confirmedBy: string;
@@ -34,6 +42,20 @@ class QuizLatePaymentsService extends BaseService {
       body: JSON.stringify(payload),
     });
   }
+ async writeOffPayment(payload: {
+  roomId: string;
+  playerId: string;
+  adminNotes?: string | null;
+  confirmedBy: string;
+  confirmedByName?: string | null;
+  confirmedByRole?: 'host' | 'admin' | null;
+}) {
+  return this.request('/mgtsystem/quiz-late-payments/write-off', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
+}
+
 
 export default new QuizLatePaymentsService();

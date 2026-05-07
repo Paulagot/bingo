@@ -5,6 +5,7 @@ import {
   getReconciliationsByClubId,
   getCompleteReconciliation,
   saveCompleteReconciliation,
+  getBlockingClaimedPaymentsForRoom,
   updateArchiveMetadata,
   deleteReconciliation,
   getAdjustmentsByRoomId,
@@ -292,6 +293,19 @@ router.post('/room/:roomId/approve', authenticateToken, async (req, res) => {
     const startingTotals = await calculateStartingTotalsFromLedger(roomId);
 
     console.log(`💰 Calculated starting totals from ledger:`, startingTotals);
+
+    const blockingClaimedPayments = await getBlockingClaimedPaymentsForRoom(roomId);
+
+if (blockingClaimedPayments.length > 0) {
+  return res.status(409).json({
+    ok: false,
+    code: 'CLAIMED_PAYMENTS_UNRESOLVED',
+    error:
+      `${blockingClaimedPayments.length} claimed instant payment` +
+      `${blockingClaimedPayments.length === 1 ? '' : 's'} must be confirmed or marked as disputed before reconciliation can be approved.`,
+    blockingPayments: blockingClaimedPayments,
+  });
+}
 
     const result = await saveCompleteReconciliation({
       roomId: payload.roomId,

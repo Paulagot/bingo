@@ -8,9 +8,17 @@ import { useQuizConfig } from '../hooks/useQuizConfig';
 import { CheckCircle2, Clock, AlertCircle, Loader } from 'lucide-react';
 import { calculateReconciliationTotals } from './reconciliationUtils';
 
-type Props = { compact?: boolean };
+type Props = {
+  compact?: boolean;
+  hasBlockingPendingPayments?: boolean;
+  blockingPaymentCount?: number;
+};
 
-export default function ReconciliationApproval({ compact = false }: Props) {
+export default function ReconciliationApproval({
+  compact = false,
+  hasBlockingPendingPayments = false,
+  blockingPaymentCount = 0,
+}: Props) {
   const { roomId } = useParams();
   const { socket } = useQuizSocket();
   const { config } = useQuizConfig();
@@ -220,7 +228,11 @@ export default function ReconciliationApproval({ compact = false }: Props) {
   };
 
   const isApproved = !!approvedAt;
-  const canApprove = !isApproved && approvedBy.trim().length > 0 && !isSaving;
+const canApprove =
+  !isApproved &&
+  approvedBy.trim().length > 0 &&
+  !isSaving &&
+  !hasBlockingPendingPayments;
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
@@ -311,6 +323,26 @@ export default function ReconciliationApproval({ compact = false }: Props) {
             </div>
           </div>
         )}
+
+        {hasBlockingPendingPayments && !isApproved && (
+  <div className="mb-3 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+    <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+    <div>
+      <div className="font-semibold">Approval blocked</div>
+      <div className="text-xs mt-0.5">
+        {blockingPaymentCount} claimed instant payment
+        {blockingPaymentCount === 1 ? '' : 's'} must be confirmed or disputed before final approval.
+      </div>
+    </div>
+  </div>
+)}
+
+{!canApprove && hasBlockingPendingPayments && !isSaving && (
+  <div className="mt-2 flex items-start gap-1.5 text-xs text-amber-700 bg-amber-50 rounded-lg p-2">
+    <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+    <span>Resolve claimed instant payments before approval</span>
+  </div>
+)}
 
         <div className="grid grid-cols-1 gap-4">
           <div>

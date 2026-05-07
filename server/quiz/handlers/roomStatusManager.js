@@ -126,3 +126,44 @@ export async function getRoomStatus(roomId) {
     return null;
   }
 }
+
+/**
+ * Mark room reconciliation_status as 'reconciling'.
+ * Called when the operator leaves the game controls (phase = complete).
+ * The room status stays 'completed' — this is a separate track.
+ */
+export async function markRoomAsReconciling(roomId) {
+  try {
+    const sql = `
+      UPDATE ${WEB2_ROOMS_TABLE}
+      SET reconciliation_status = 'reconciling', updated_at = UTC_TIMESTAMP()
+      WHERE room_id = ? AND reconciliation_status = 'pending'
+    `;
+    const [result] = await connection.execute(sql, [roomId]);
+    if (debug) console.log(`[RoomStatus] 🔄 Room ${roomId} → reconciling (affected: ${result.affectedRows})`);
+    return result.affectedRows > 0;
+  } catch (err) {
+    console.error(`[RoomStatus] ❌ Failed to mark room ${roomId} as reconciling:`, err);
+    return false;
+  }
+}
+
+/**
+ * Mark room reconciliation_status as 'closed'.
+ * Called at the end of end_quiz_cleanup — this is the final state.
+ */
+export async function markRoomAsClosed(roomId) {
+  try {
+    const sql = `
+      UPDATE ${WEB2_ROOMS_TABLE}
+      SET reconciliation_status = 'closed', updated_at = UTC_TIMESTAMP()
+      WHERE room_id = ?
+    `;
+    const [result] = await connection.execute(sql, [roomId]);
+    if (debug) console.log(`[RoomStatus] ✅ Room ${roomId} → closed (affected: ${result.affectedRows})`);
+    return result.affectedRows > 0;
+  } catch (err) {
+    console.error(`[RoomStatus] ❌ Failed to mark room ${roomId} as closed:`, err);
+    return false;
+  }
+}

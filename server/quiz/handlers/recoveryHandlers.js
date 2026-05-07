@@ -14,6 +14,9 @@ import {
 import { emitFullRoomState } from './sharedUtils.js';
 import { normalizePaymentMethod } from '../../utils/paymentMethods.js';
 import { markRoomAsOpen } from './roomStatusManager.js';
+import { updateOperatorSocketId } from '../quizRoomManager.js';
+import jwt from 'jsonwebtoken';
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-dev-secret';
 
 // ---------------------------------------------------------------------------
 // Local helpers
@@ -140,17 +143,6 @@ function buildHiddenObjectSnap(room, userId, phase) {
 
 // ---------------------------------------------------------------------------
 // buildReviewSnap
-//
-// Builds snap.review for standard trivia / wipeout / speed_round / order_image
-// during the 'reviewing' phase.
-//
-// KEY CONTRACT:
-//   - We always use room.lastEmittedReviewIndex (the question currently on
-//     screen) NOT room.currentReviewIndex (which has already been advanced
-//     to point at the NEXT question).
-//   - We include a `reviewComplete` boolean so the host UI knows whether all
-//     questions have already been reviewed and can skip straight to showing
-//     the "Show Results" button rather than re-emitting a question.
 // ---------------------------------------------------------------------------
 async function buildReviewSnap(room, userId, roundType, roundIndex) {
   const qList =
@@ -161,17 +153,8 @@ async function buildReviewSnap(room, userId, roundType, roundIndex) {
   if (!qList || !Array.isArray(qList) || qList.length === 0) return null;
 
   const totalQuestions = qList.length;
-
-  // Has the host already clicked through every question?
   const reviewComplete = (room.currentReviewIndex ?? 0) >= totalQuestions;
-
-  // The index of the question that is currently on screen.
-  // lastEmittedReviewIndex is set immediately AFTER a question is emitted,
-  // so it equals the index of the question everyone can see right now.
   const lastIdx = room.lastEmittedReviewIndex ?? -1;
-
-  // Guard: if no question has been emitted yet (shouldn't normally happen but
-  // can occur if the host reconnects between phases) use index 0.
   const activeIdx = lastIdx >= 0 && lastIdx < totalQuestions ? lastIdx : 0;
 
   const question = qList[activeIdx];
@@ -182,7 +165,6 @@ async function buildReviewSnap(room, userId, roundType, roundIndex) {
   const playerAnswer = pdata?.answers?.[key];
 
   if (roundType === 'order_image') {
-    // order_image stores shuffled images on the room via emittedOptionsByQuestionId
     const emittedQuestion = room.emittedOptionsByQuestionId?.[question.id];
 
     return {
@@ -199,7 +181,6 @@ async function buildReviewSnap(room, userId, roundType, roundIndex) {
     };
   }
 
-  // Standard trivia / wipeout / speed_round
   return {
     reviewComplete,
     activeReviewIndex: activeIdx,
@@ -213,6 +194,70 @@ async function buildReviewSnap(room, userId, roundType, roundIndex) {
     category: question.category,
     questionNumber: activeIdx + 1,
   };
+}
+
+// ---------------------------------------------------------------------------
+// FIX: emitTiebreakerRecovery
+//
+// After building snap.tb we must also fire the real socket events so that
+// the client-side listeners (tiebreak:start / tiebreak:question /
+// tiebreak:review / tiebreak:result) actually run.  The snap ack alone is
+// not enough because useHostRecovery reads the snap but individual player
+// screens that joined late will never have received the original broadcasts.
+// ---------------------------------------------------------------------------
+function emitTiebreakerRecovery(socket, room, userId) {
+  const tb = room.tiebreaker;
+  if (!tb?.isActive && tb?.stage !== 'result') return;
+
+  // Always re-send the start event so the client knows who is competing.
+  socket.emit('tiebreak:start', {
+    participants: tb.participants || [],
+    mode: tb.mode,
+  });
+
+  if (debug) {
+    console.log('[Recovery] 🏆 Sending tiebreaker recovery for stage:', tb.stage, 'to', userId);
+  }
+
+  const stage = tb.stage;
+
+  if (stage === 'question' && room.currentTiebreakQuestion) {
+    const q = room.currentTiebreakQuestion;
+    socket.emit('tiebreak:question', {
+      id: q.id,
+      text: q.text,
+      type: 'numeric',
+      timeLimit: 20,
+      questionStartTime: q.questionStartTime,
+    });
+    return;
+  }
+
+  if (stage === 'review' && tb.lastReview) {
+    const lr = tb.lastReview;
+    if (lr.winnerIds && lr.winnerIds.length === 1) {
+      socket.emit('tiebreak:review', {
+        correctAnswer: lr.correctAnswer,
+        playerAnswers: lr.playerAnswers || {},
+        winnerIds: lr.winnerIds,
+        questionText: lr.questionText,
+        isFinalAnswer: true,
+      });
+    } else {
+      socket.emit('tiebreak:review', {
+        correctAnswer: lr.correctAnswer,
+        playerAnswers: lr.playerAnswers || {},
+        stillTiedIds: lr.stillTiedIds,
+        questionText: lr.questionText,
+        isFinalAnswer: false,
+      });
+    }
+    return;
+  }
+
+  if (stage === 'result' && Array.isArray(tb.winnerIds) && tb.winnerIds.length) {
+    socket.emit('tiebreak:result', { winnerIds: tb.winnerIds });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -416,6 +461,33 @@ export function setupRecoveryHandlers(socket, namespace) {
           } catch {}
         }
 
+        if (role === 'operator') {
+  // Operators must supply a valid signed token
+  const token = payload?.token;
+  if (!token) {
+    return sendAck({ ok: false, error: 'operator_token_required' });
+  }
+ 
+  let decoded;
+  try {
+    decoded = jwt.verify(token, JWT_SECRET);
+  } catch (err) {
+    return sendAck({ ok: false, error: 'invalid_operator_token' });
+  }
+ 
+  // Token must be for this exact room and role
+  if (decoded.roomId !== roomId || decoded.role !== 'operator') {
+    return sendAck({ ok: false, error: 'token_room_mismatch' });
+  }
+ 
+  // Register the operator socket on the room
+  updateOperatorSocketId(roomId, socket.id, token);
+ 
+  // Join the host socket room so operator gets all the same broadcasts
+  socket.join(roomId);
+  socket.join(`${roomId}:host`);
+} else
+
         if (role === 'host') {
           // Cancel any pending cleanup timer
           if (room.cleanupTimer) {
@@ -610,20 +682,15 @@ export function setupRecoveryHandlers(socket, namespace) {
       } else if (room.currentPhase === 'reviewing') {
 
         if (roundType === 'hidden_object') {
-          // hidden_object has its own review structure
           const hoSnap = buildHiddenObjectSnap(room, user.id, 'reviewing');
           if (hoSnap) snap.hiddenObject = hoSnap;
 
-          // Tell client whether all puzzles have been reviewed
           const totalPuzzles =
             Array.isArray(room.reviewQuestions) ? room.reviewQuestions.length : 0;
           snap.reviewComplete =
             (room.currentReviewIndex ?? 0) >= totalPuzzles;
 
         } else {
-          // All other round types share the unified review snap builder.
-          // buildReviewSnap uses lastEmittedReviewIndex (the question on-screen)
-          // and sets reviewComplete if all questions have been stepped through.
           try {
             const reviewSnap = await buildReviewSnap(room, user.id, roundType, roundIndex);
             if (reviewSnap) {
@@ -695,6 +762,12 @@ export function setupRecoveryHandlers(socket, namespace) {
         } else {
           snap.tb = base;
         }
+
+        // ── FIX: Fire real socket events so the client UI updates ────────────
+        // The snap ack alone is not enough — the client's socket listeners for
+        // tiebreak:start / tiebreak:question / tiebreak:review / tiebreak:result
+        // must fire so all hooks and player screens update correctly.
+        emitTiebreakerRecovery(socket, room, user.id);
 
       // ── LEADERBOARD / COMPLETE / DISTRIBUTING_PRIZES ───────────────────────
       } else if (
@@ -848,11 +921,11 @@ export function setupRecoveryHandlers(socket, namespace) {
         namespace
           .to(roomId)
           .emit('user_joined', { user: broadcastUser, role: 'player' });
-      } else if (role === 'host') {
-        namespace.to(roomId).emit('host_joined', {
-          user: { id: user.id, name: room.config?.hostName || user.name },
-          role: 'host',
-        });
+      } else if (role === 'host' || role === 'operator') {
+     namespace.to(roomId).emit('host_joined', {
+       user: { id: user.id, name: room.config?.hostName || user.name },
+       role,
+     });
       } else if (role === 'admin') {
         namespace
           .to(roomId)

@@ -44,19 +44,31 @@ const OrderImageAsking: React.FC<OrderImageAskingProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // Notify parent of order changes
+  // FIX: Store onOrderChange in a ref so the effect below never needs it
+  // as a dependency. Without this, an inline arrow function passed by the
+  // parent (e.g. onOrderChange={() => setCurrentOrder(...)}) gets a new
+  // reference on every parent render, causing the effect to fire → triggers
+  // a parent state update → triggers another render → new reference → repeat.
+  // That feedback loop was the root cause of the order jumping for other players.
+  const onOrderChangeRef = useRef(onOrderChange);
   useEffect(() => {
-    if (items.length > 0 && !answerSubmitted && onOrderChange) {
-      onOrderChange(items.map(item => item.id));
-    }
-  }, [items, answerSubmitted, onOrderChange]);
+    onOrderChangeRef.current = onOrderChange;
+  });
 
-  // Reset items when question changes
+  // Notify parent of order changes — only re-runs when items/answerSubmitted
+  // actually change, not when the parent re-renders.
+  useEffect(() => {
+    if (items.length > 0 && !answerSubmitted) {
+      onOrderChangeRef.current?.(items.map(item => item.id));
+    }
+  }, [items, answerSubmitted]);
+
+  // Reset items when question changes (keyed on id, not object reference)
   useEffect(() => {
     if (question?.images && Array.isArray(question.images) && question.images.length > 0) {
       setItems(question.images);
     }
-  }, [question?.id, question?.images]);
+  }, [question?.id]);
 
   // Desktop drag handlers
   const handleDragStart = (index: number) => {
@@ -132,17 +144,17 @@ const OrderImageAsking: React.FC<OrderImageAskingProps> = ({
     setTouchStartY(null);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = useCallback(() => {
     if (isFrozen || answerSubmitted) return;
     onSubmit(items.map(item => item.id));
-  };
+  }, [isFrozen, answerSubmitted, items, onSubmit]);
 
   // Auto-submit on timeout
   useEffect(() => {
     if (timeLeft === 0 && !answerSubmitted && !isFrozen) {
       handleSubmit();
     }
-  }, [timeLeft, answerSubmitted, isFrozen]);
+  }, [timeLeft, answerSubmitted, isFrozen, handleSubmit]);
 
   const timerColor =
     timeLeft !== null && timeLeft <= 5

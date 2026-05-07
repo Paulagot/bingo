@@ -5,15 +5,26 @@
 //
 // src/shared/types/payment.ts
 //
-// Notes:
-// - "instant_payment" is currently manual verification (admins confirm).
-// - "crypto" is currently manual verification for donation-only quiz flows.
-// - For now crypto supports Solana public wallet addresses only.
-// - providerName remains flexible, matching your varchar DB.
+// DB alignment:
+// fundraisely_club_payment_methods.method_category is:
+// enum('instant_payment','crypto','card','stripe','other')
 //
+// Naming note:
+// - "instant_payment" is the existing DB/internal value.
+// - In the UI, display "instant_payment" as "Manual payments".
+// - Manual payments include cash, Revolut, bank transfer, PayPal, etc.
+// - Crypto payments are verified in the current crypto flow.
+// - Stripe/card payments are verified by Stripe/webhook flow.
+// ============================================================
 
 /**
- * Core payment methods.
+ * Broad/legacy payment method values used by older quiz/player/ledger flows.
+ *
+ * New club-configured flows should prefer:
+ * - clubPaymentMethodId
+ * - methodCategory
+ * - providerName
+ * - snapshots on the ledger/report where possible
  */
 export type PaymentMethod =
   | 'cash'
@@ -25,28 +36,38 @@ export type PaymentMethod =
   | 'other';
 
 /**
- * Payment method categories used for club configuration.
+ * Payment method categories used by club configuration.
+ *
+ * Must match the DB enum:
+ * fundraisely_club_payment_methods.method_category
  */
-export type PaymentMethodCategory = Exclude<PaymentMethod, 'cash' | 'pay_admin'>;
+export type PaymentMethodCategory =
+  | 'instant_payment'
+  | 'crypto'
+  | 'card'
+  | 'stripe'
+  | 'other';
 
 /**
  * Verification mode for a payment method.
  *
- * manual:
- * Admin/host confirms payment manually.
- *
- * api_verified:
- * Verified automatically via provider API/webhook in future.
- *
- * onchain_verified:
- * Future crypto flow where you verify a chain transaction automatically.
+ * This is not currently a top-level DB column.
+ * Store this inside method_config where needed, or infer it from category/provider.
  */
-export type VerificationMode = 'manual' | 'api_verified' | 'onchain_verified';
+export type VerificationMode =
+  | 'manual'
+  | 'api_verified'
+  | 'onchain_verified';
 
 /**
- * Specific providers within instant_payment category.
+ * Providers within the manual payment category.
+ *
+ * Internal category: instant_payment
+ * UI label: Manual payment
  */
 export type InstantPaymentProvider =
+  | 'cash'
+    | 'card_tap'
   | 'revolut'
   | 'bank_transfer'
   | 'paypal'
@@ -59,9 +80,14 @@ export type InstantPaymentProvider =
   | 'other';
 
 /**
- * Specific providers within crypto category.
+ * Providers within the crypto category.
  */
 export type CryptoPaymentProvider = 'solana_wallet';
+
+/**
+ * Providers within card/stripe categories.
+ */
+export type CardPaymentProvider = 'stripe' | 'card';
 
 /**
  * Any provider value your configured club payment methods may use.
@@ -72,13 +98,13 @@ export type CryptoPaymentProvider = 'solana_wallet';
 export type PaymentProvider =
   | InstantPaymentProvider
   | CryptoPaymentProvider
-  | 'stripe'
-  | 'card'
-  | 'other'
+  | CardPaymentProvider
   | string;
 
 /**
  * Club payment method configuration.
+ *
+ * This maps to fundraisely_club_payment_methods, using camelCase in frontend.
  */
 export interface ClubPaymentMethod {
   id: string;
@@ -90,15 +116,34 @@ export interface ClubPaymentMethod {
    * Provider within the selected category.
    *
    * Examples:
+   * - instant_payment + cash
    * - instant_payment + revolut
    * - instant_payment + bank_transfer
    * - crypto + solana_wallet
+   * - stripe + stripe
    */
   providerName?: PaymentProvider | null;
 
+  /**
+   * Club-controlled display name.
+   *
+   * Examples:
+   * - "Cash at the door"
+   * - "Official Club Revolut"
+   * - "Coach Paula Revolut"
+   * - "Club bank transfer"
+   * - "Solana donations wallet"
+   */
   methodLabel: string;
+
   displayOrder: number;
   isEnabled: boolean;
+
+  /**
+   * True where funds go to an official club/charity account.
+   * False where funds go to a host/admin/coach/member account.
+   */
+  isOfficialClubAccount?: boolean;
 
   /**
    * Markdown/plain instructions shown to players during join/payment.
@@ -112,6 +157,7 @@ export interface ClubPaymentMethod {
  * Method-specific configuration union.
  */
 export type PaymentMethodConfig =
+  | CashPaymentConfig
   | InstantPaymentConfig
   | BankTransferConfig
   | ZippyPayConfig
@@ -120,9 +166,9 @@ export type PaymentMethodConfig =
   | GenericConfig;
 
 /**
- * Shared fields for most manual instant payment options.
+ * Shared fields for most manual payment options.
  */
-export interface InstantPaymentCommonConfig {
+export interface ManualPaymentCommonConfig {
   /**
    * Optional payment link/handle link.
    *
@@ -155,22 +201,41 @@ export interface InstantPaymentCommonConfig {
   verificationHint?: string;
 
   /**
-   * For now most non-Stripe/non-card methods are manual.
+   * Stored in JSON, not currently a top-level DB column.
    */
   verificationMode?: VerificationMode;
 }
 
 /**
- * Generic config for most instant providers.
+ * Backwards-compatible alias.
+ *
+ * Existing code may still refer to InstantPaymentCommonConfig.
  */
-export interface InstantPaymentConfig extends InstantPaymentCommonConfig {
+export interface InstantPaymentCommonConfig extends ManualPaymentCommonConfig {}
+
+/**
+ * Cash config.
+ *
+ * Cash has no link, wallet, IBAN, or API config requirement.
+ */
+export interface CashPaymentConfig {
+  collectionInstructions?: string;
+  referenceHint?: string;
+  verificationHint?: string;
+  verificationMode?: 'manual';
+}
+
+/**
+ * Generic config for most manual payment providers.
+ */
+export interface InstantPaymentConfig extends ManualPaymentCommonConfig {
   // Add provider-specific fields later without changing DB schema.
 }
 
 /**
  * Bank transfer config for UK + IE/EU.
  */
-export interface BankTransferConfig extends InstantPaymentCommonConfig {
+export interface BankTransferConfig extends ManualPaymentCommonConfig {
   accountName?: string;
   bankName?: string;
 
@@ -186,7 +251,7 @@ export interface BankTransferConfig extends InstantPaymentCommonConfig {
 /**
  * ZippyPay config.
  */
-export interface ZippyPayConfig extends InstantPaymentCommonConfig {
+export interface ZippyPayConfig extends ManualPaymentCommonConfig {
   merchantId?: string;
 }
 
@@ -196,6 +261,7 @@ export interface ZippyPayConfig extends InstantPaymentCommonConfig {
 export interface StripeConfig {
   publishableKey?: string;
   webhookSecret?: string;
+  verificationMode?: 'api_verified';
   connect?: {
     accountId?: string;
     detailsSubmitted?: boolean;
@@ -213,7 +279,7 @@ export interface StripeConfig {
 export interface SolanaWalletConfig {
   chain: 'solana';
   walletAddress: string;
-  verificationMode?: 'manual' | 'onchain_verified';
+  verificationMode?: 'onchain_verified';
 }
 
 /**
@@ -250,7 +316,13 @@ export interface PaymentLedgerEntry {
 
   status: PaymentStatus;
 
+  /**
+   * Legacy broad method.
+   *
+   * For new records, also store clubPaymentMethodId where possible.
+   */
   paymentMethod: PaymentMethod;
+
   paymentSource:
     | 'player_selected'
     | 'player_claimed'
@@ -261,13 +333,23 @@ export interface PaymentLedgerEntry {
   paymentReference?: string;
 
   /**
-   * For API/on-chain verified methods later.
+   * For API/on-chain verified methods.
    */
   externalTransactionId?: string;
   transactionSignature?: string;
 
   clubPaymentMethodId?: string;
   extraId?: string;
+
+  /**
+   * Optional report-safe snapshots.
+   *
+   * These protect reports if a club later renames/disables/deletes a method.
+   */
+  paymentMethodCategorySnapshot?: PaymentMethodCategory;
+  paymentProviderSnapshot?: PaymentProvider | null;
+  paymentMethodLabelSnapshot?: string;
+  isOfficialClubAccountSnapshot?: boolean;
 
   claimedAt?: string;
   confirmedAt?: string;

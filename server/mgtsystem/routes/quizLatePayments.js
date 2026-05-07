@@ -1,5 +1,5 @@
 import express from 'express';
-import { getUnpaidPlayersForRoom, markPlayerPaidLate } from '../services/quizLatePaymentService.js';
+import { getUnpaidPlayersForRoom, markPlayerPaidLate, writeOffPlayerPayment, } from '../services/quizLatePaymentService.js';
 
 const router = express.Router();
 
@@ -14,6 +14,50 @@ router.get('/unpaid', async (req, res) => {
   } catch (err) {
     console.error('[quizLatePayments] unpaid error', err);
     return res.status(500).json({ ok: false, message: 'Failed to load unpaid players' });
+  }
+});
+
+router.post('/write-off', async (req, res) => {
+  try {
+    const {
+      roomId,
+      playerId,
+      adminNotes,
+      confirmedBy,
+      confirmedByName,
+      confirmedByRole,
+    } = req.body || {};
+
+    if (!roomId || !playerId || !confirmedBy) {
+      return res.status(400).json({
+        ok: false,
+        message: 'roomId, playerId, confirmedBy are required',
+      });
+    }
+
+    const result = await writeOffPlayerPayment({
+      roomId,
+      playerId,
+      writtenOffBy: confirmedBy,
+      writtenOffByName: confirmedByName,
+      writtenOffByRole: confirmedByRole,
+      adminNotes,
+    });
+
+    if (!result.ok) {
+      return res.status(400).json({
+        ok: false,
+        message: result.error || 'No rows updated',
+      });
+    }
+
+    return res.json({ ok: true, updated: result.updated });
+  } catch (err) {
+    console.error('[quizLatePayments] write-off error', err);
+    return res.status(500).json({
+      ok: false,
+      message: 'Failed to write off payment',
+    });
   }
 });
 

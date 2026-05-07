@@ -111,7 +111,7 @@ export const PaymentInstructions: React.FC<PaymentInstructionsProps> = ({
                 </div>
               </div>
               <p className={`mt-1 text-sm ${hasEverCopied ? 'text-green-800' : 'text-amber-800'}`}>
-                You must include this reference so the host can match your payment.
+                Add this reference in your payment note/description so we can match your payment to your ticket.
               </p>
             </div>
 

@@ -141,6 +141,38 @@ if (roomRow?.config_json) {
     };
 
     /**
+ * --------------------------------------------------------------------------
+ * 2b) Ticket payment method breakdown
+ * Rules:
+ *  - confirmed ticket payments only
+ *  - grouped by ticket payment method
+ * --------------------------------------------------------------------------
+ */
+const ticketMethodBreakdownSql = `
+  SELECT
+    COALESCE(payment_method, 'unknown') AS payment_method,
+    COUNT(*) AS tickets,
+    SUM(entry_fee) AS entry_fees,
+    SUM(extras_total) AS extras,
+    SUM(total_amount) AS total
+  FROM ${TABLE_PREFIX}quiz_tickets
+  WHERE room_id = ?
+    AND payment_status = 'payment_confirmed'
+  GROUP BY COALESCE(payment_method, 'unknown')
+  ORDER BY total DESC
+`;
+
+const [ticketMethodRows] = await connection.execute(ticketMethodBreakdownSql, [roomId]);
+
+const ticketPaymentMethods = ticketMethodRows.map(row => ({
+  method: row.payment_method,
+  tickets: Number(row.tickets || 0),
+  entryFees: Number(row.entry_fees || 0),
+  extras: Number(row.extras || 0),
+  total: Number(row.total || 0),
+}));
+
+    /**
      * --------------------------------------------------------------------------
      * 3) On-the-night payments (NON-LATE)
      * Rules:
@@ -278,6 +310,7 @@ const instantPaymentBreakdownSql = `
   ORDER BY total_amount DESC
 `;
 
+
 const [instantPaymentRows] = await connection.execute(instantPaymentBreakdownSql, [roomId]);
 
 const instantPaymentBreakdown = instantPaymentRows.map(row => ({
@@ -298,6 +331,89 @@ const instantPaymentBreakdown = instantPaymentRows.map(row => ({
 
     /**
      * --------------------------------------------------------------------------
+     * 6) Outstanding payments
+     * Rules:
+     *  - expected = pay host / pay later, not received
+     *  - claimed = player says paid, not verified
+     *  - disputed = claimed but staff could not verify
+     *  - no ticket_id
+     * --------------------------------------------------------------------------
+     */
+    const outstandingSql = `
+      SELECT
+        status,
+        COUNT(DISTINCT player_id) AS unique_players,
+        COUNT(*) AS records,
+        SUM(amount) AS total
+      FROM ${PAYMENT_LEDGER_TABLE}
+      WHERE room_id = ?
+        AND status IN ('expected', 'claimed', 'disputed')
+        AND (ticket_id IS NULL OR ticket_id = '')
+      GROUP BY status
+      ORDER BY status ASC
+    `;
+
+    const [outstandingRows] = await connection.execute(outstandingSql, [roomId]);
+
+    const outstandingPayments = {
+      byStatus: outstandingRows.map(row => ({
+        status: row.status,
+        uniquePlayers: Number(row.unique_players || 0),
+        records: Number(row.records || 0),
+        total: Number(row.total || 0),
+      })),
+      uniquePlayers: outstandingRows.reduce((sum, row) => sum + Number(row.unique_players || 0), 0),
+      records: outstandingRows.reduce((sum, row) => sum + Number(row.records || 0), 0),
+      total: outstandingRows.reduce((sum, row) => sum + Number(row.total || 0), 0),
+    };
+
+    /**
+     * --------------------------------------------------------------------------
+     * 7) Written off payments
+     * Rules:
+     *  - written_off = club closed as not collected
+     *  - excluded from received totals
+     *  - no ticket_id
+     * --------------------------------------------------------------------------
+     */
+    const writeOffSql = `
+      SELECT
+        player_id,
+        MAX(player_name) AS player_name,
+        COUNT(*) AS records,
+        SUM(amount) AS total,
+        MAX(admin_notes) AS admin_notes,
+        MAX(updated_at) AS updated_at
+      FROM ${PAYMENT_LEDGER_TABLE}
+      WHERE room_id = ?
+        AND status = 'written_off'
+        AND (ticket_id IS NULL OR ticket_id = '')
+      GROUP BY player_id
+      ORDER BY player_name ASC
+    `;
+
+    const [writeOffRows] = await connection.execute(writeOffSql, [roomId]);
+
+    const writeOffs = {
+      rows: writeOffRows.map(row => ({
+        playerId: row.player_id,
+        playerName: row.player_name,
+        records: Number(row.records || 0),
+        total: Number(row.total || 0),
+        adminNotes: row.admin_notes || null,
+        updatedAt: row.updated_at
+          ? (typeof row.updated_at.toISOString === 'function'
+              ? row.updated_at.toISOString()
+              : String(row.updated_at))
+          : null,
+      })),
+      uniquePlayers: writeOffRows.length,
+      records: writeOffRows.reduce((sum, row) => sum + Number(row.records || 0), 0),
+      total: writeOffRows.reduce((sum, row) => sum + Number(row.total || 0), 0),
+    };
+
+    /**
+     * --------------------------------------------------------------------------
      * Return report
      * --------------------------------------------------------------------------
      */
@@ -315,14 +431,15 @@ const instantPaymentBreakdown = instantPaymentRows.map(row => ({
           }
         : null,
 
-      tickets: {
-        totalSold: Number(ticketStats.total_tickets || 0),
-        redeemed: Number(ticketStats.redeemed_tickets || 0),
-        unredeemed: Number(ticketStats.unredeemed_tickets || 0),
-        totalRevenue: Number(ticketStats.total_ticket_revenue || 0),
-        entryFees: Number(ticketStats.ticket_entry_fees || 0),
-        extras: Number(ticketStats.ticket_extras || 0),
-      },
+   tickets: {
+  totalSold: Number(ticketStats.total_tickets || 0),
+  redeemed: Number(ticketStats.redeemed_tickets || 0),
+  unredeemed: Number(ticketStats.unredeemed_tickets || 0),
+  totalRevenue: Number(ticketStats.total_ticket_revenue || 0),
+  entryFees: Number(ticketStats.ticket_entry_fees || 0),
+  extras: Number(ticketStats.ticket_extras || 0),
+  byMethod: ticketPaymentMethods,
+},
 
       onNightPayments: {
         byMethod: onNightPaymentsByMethod,
@@ -340,6 +457,8 @@ const instantPaymentBreakdown = instantPaymentRows.map(row => ({
       },
 
       instantPaymentBreakdown,
+      outstandingPayments,
+      writeOffs,
     };
   } catch (error) {
     console.error('❌ Error generating financial report:', error);
@@ -798,6 +917,36 @@ export async function getReconciliationExportData(roomId) {
  * PAYMENT LEDGER OPERATIONS
  * ============================================================================
  */
+
+export async function getBlockingClaimedPaymentsForRoom(roomId) {
+  const sql = `
+    SELECT
+      player_id,
+      MAX(player_name) AS player_name,
+      payment_method,
+      payment_reference,
+      club_payment_method_id,
+      COUNT(*) AS rows_count,
+      SUM(amount) AS total_amount
+    FROM ${PAYMENT_LEDGER_TABLE}
+    WHERE room_id = ?
+      AND status = 'claimed'
+    GROUP BY player_id, payment_method, payment_reference, club_payment_method_id
+    ORDER BY player_name ASC
+  `;
+
+  const [rows] = await connection.execute(sql, [roomId]);
+
+  return rows.map((row) => ({
+    playerId: row.player_id,
+    playerName: row.player_name,
+    paymentMethod: row.payment_method,
+    paymentReference: row.payment_reference,
+    clubPaymentMethodId: row.club_payment_method_id,
+    rowsCount: Number(row.rows_count || 0),
+    totalAmount: Number(row.total_amount || 0),
+  }));
+}
 
 export async function getPaymentLedgerByRoomId(roomId) {
   const sql = `

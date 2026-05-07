@@ -16,7 +16,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
-  Info
+  Info,
 } from 'lucide-react';
 
 import ReconciliationApproval from '../payments/ReconciliationApproval';
@@ -36,7 +36,7 @@ function StepHeader({
   stepNum,
   title,
   status,
-  isLocked
+  isLocked,
 }: {
   stepNum: number;
   title: string;
@@ -50,8 +50,8 @@ function StepHeader({
           status === 'complete'
             ? 'bg-green-100 text-green-700'
             : status === 'in-progress'
-            ? 'bg-blue-100 text-blue-700'
-            : 'bg-gray-100 text-gray-400'
+              ? 'bg-blue-100 text-blue-700'
+              : 'bg-gray-100 text-gray-400'
         }`}
       >
         {status === 'complete' ? <CheckCircle2 className="h-5 w-5" /> : stepNum}
@@ -69,6 +69,7 @@ function normalizeMethodForReport(raw: any): string {
   const v = String(raw).trim().toLowerCase();
 
   if (v === 'cash') return 'cash';
+
   if (
     v === 'instant payment' ||
     v === 'instant_payment' ||
@@ -77,13 +78,31 @@ function normalizeMethodForReport(raw: any): string {
   ) {
     return 'instant payment';
   }
+
   if (v === 'card' || v === 'card tap' || v === 'card_tap' || v === 'stripe') {
     return 'card';
   }
+
   if (v === 'web3' || v === 'crypto') {
     return 'web3';
   }
+
+  if (v === 'pay_admin' || v === 'pay host' || v === 'pay_host') {
+    return 'pay host';
+  }
+
   return 'unknown';
+}
+
+function getMethodLabel(raw: any): string {
+  const method = normalizeMethodForReport(raw);
+
+  if (method === 'instant payment') return 'Instant payment';
+  if (method === 'pay host') return 'Pay host';
+  if (method === 'cash') return 'Cash';
+  if (method === 'card') return 'Card';
+  if (method === 'web3') return 'Web3';
+  return 'Unknown';
 }
 
 const PaymentReconciliationPanel: React.FC = () => {
@@ -92,25 +111,96 @@ const PaymentReconciliationPanel: React.FC = () => {
   const { socket } = useQuizSocket();
   const { roomId } = useRoomIdentity();
 
-  const isComplete = currentPhase === 'complete';
+ 
+  const isComplete = currentPhase === 'complete' || currentPhase === 'reconciling';
 
   const currency = config?.currencySymbol || '€';
   const entryFee = parseFloat(config?.entryFee || '0');
   const isDonationRoom = config?.fundraisingMode === 'donation';
 
-  // Lock status
   const isLocked = !isComplete;
   const approvedAt = (config?.reconciliation as any)?.approvedAt;
   const isApproved = !!approvedAt;
 
-  // Financial data
-  const paymentData: Record<string, any> = {};
-  const activePlayers = players.filter((p) => !p.disqualified);
-  const paidPlayers = activePlayers.filter((p) => p.paid);
-  const unpaidPlayers = activePlayers.filter((p) => !p.paid);
+  const activePlayers = players.filter((p: any) => !p.disqualified);
+  const paidPlayers = activePlayers.filter((p: any) => p.paid);
 
-  for (const p of activePlayers) {
-    const primaryMethod = normalizeMethodForReport(p.paymentMethod);
+  const pendingInstantPlayers = activePlayers.filter(
+    (p: any) => !p.paid && !!p.paymentClaimed && !p.paymentDisputed
+  );
+
+  const disputedPlayers = activePlayers.filter(
+    (p: any) => !p.paid && !!p.paymentDisputed
+  );
+
+  const expectedUnpaidPlayers = activePlayers.filter(
+    (p: any) => !p.paid && !p.paymentClaimed && !p.paymentDisputed
+  );
+
+  const unpaidPlayers = activePlayers.filter((p: any) => !p.paid);
+  const hasBlockingPendingPayments = pendingInstantPlayers.length > 0;
+
+  const getPlayerTotal = (player: any) => {
+    if (isDonationRoom) {
+      return Number(player?.donationAmount || 0);
+    }
+
+    const extrasTotal = (player.extras || []).reduce(
+      (sum: number, key: string) => sum + Number(config?.fundraisingPrices?.[key] || 0),
+      0
+    );
+
+    return entryFee + extrasTotal;
+  };
+
+  const handleConfirmPayment = (playerId: string) => {
+    if (!socket || !roomId) return;
+
+    socket.emit(
+      'confirm_player_payment',
+      {
+        roomId,
+        playerId,
+        adminNotes: 'Confirmed during reconciliation',
+      },
+      (response: any) => {
+        if (!response?.ok) {
+          console.error('[Reconciliation] Confirm payment failed:', response);
+          alert(response?.error || 'Failed to confirm payment');
+        }
+      }
+    );
+  };
+
+  const handleDisputePayment = (playerId: string) => {
+    if (!socket || !roomId) return;
+
+    const reason = window.prompt(
+      'Why is this payment disputed? Example: Player says Revolut was sent, but it is not visible.'
+    );
+
+    if (reason === null) return;
+
+    socket.emit(
+      'dispute_player_payment',
+      {
+        roomId,
+        playerId,
+        disputeReason: reason.trim() || 'Marked as disputed during reconciliation',
+      },
+      (response: any) => {
+        if (!response?.ok) {
+          console.error('[Reconciliation] Dispute payment failed:', response);
+          alert(response?.error || 'Failed to mark payment as disputed');
+        }
+      }
+    );
+  };
+
+  const paymentData: Record<string, any> = {};
+
+  for (const p of paidPlayers) {
+    const primaryMethod = normalizeMethodForReport((p as any).paymentMethod);
 
     if (!paymentData[primaryMethod]) {
       paymentData[primaryMethod] = {
@@ -123,16 +213,14 @@ const PaymentReconciliationPanel: React.FC = () => {
     }
 
     if (isDonationRoom) {
-      if (p.paid) {
-        const donationAmount = Number((p as any).donationAmount || 0);
-        paymentData[primaryMethod].donation += donationAmount;
-      }
+      const donationAmount = Number((p as any).donationAmount || 0);
+      paymentData[primaryMethod].donation += donationAmount;
     } else {
-      if (p.paid) paymentData[primaryMethod].entry += entryFee;
+      paymentData[primaryMethod].entry += entryFee;
 
-      if (p.paid && p.extraPayments) {
-        for (const [, val] of Object.entries(p.extraPayments)) {
-          const m = normalizeMethodForReport((val as any)?.method);
+      if ((p as any).extraPayments) {
+        for (const [, val] of Object.entries((p as any).extraPayments)) {
+          const m = normalizeMethodForReport((val as any)?.method || (p as any).paymentMethod);
           const amt = Number((val as any)?.amount || 0);
 
           if (!paymentData[m]) {
@@ -161,12 +249,10 @@ const PaymentReconciliationPanel: React.FC = () => {
   const totalPlayers = activePlayers.length;
 
   const totalDonationReceived = isDonationRoom
-    ? paidPlayers.reduce((sum, p) => sum + Number((p as any).donationAmount || 0), 0)
+    ? paidPlayers.reduce((sum, p: any) => sum + Number(p.donationAmount || 0), 0)
     : 0;
 
-  const totalEntryReceived = isDonationRoom
-    ? 0
-    : paidPlayers.length * entryFee;
+  const totalEntryReceived = isDonationRoom ? 0 : paidPlayers.length * entryFee;
 
   const totalExtrasReceived = isDonationRoom
     ? 0
@@ -176,7 +262,6 @@ const PaymentReconciliationPanel: React.FC = () => {
     ? totalDonationReceived
     : totalEntryReceived + totalExtrasReceived;
 
-  // Ledger adjustments
   const rec = (config?.reconciliation as any) || {};
   const ledger = (rec.ledger as any[]) || [];
 
@@ -208,6 +293,7 @@ const PaymentReconciliationPanel: React.FC = () => {
     const tick = async () => {
       const now = Date.now();
       const remaining = cleanupTime - now;
+
       if (remaining <= 0) {
         console.log('🧹 [Reconciliation] Auto-cleanup triggered');
 
@@ -217,7 +303,7 @@ const PaymentReconciliationPanel: React.FC = () => {
           disconnectWallets: false,
         });
 
-        socket.emit('end_quiz_cleanup', { roomId: config.roomId });
+        socket.emit('end_quiz_cleanup', { roomId: config?.roomId || roomId });
       } else {
         setTimeUntilCleanup(Math.floor(remaining / 1000 / 60));
       }
@@ -228,9 +314,8 @@ const PaymentReconciliationPanel: React.FC = () => {
     return () => clearInterval(int);
   }, [isLocked, socket, endedAt, config?.roomId, roomId]);
 
-  const fmt = (n: number) => `${currency}${n.toFixed(2)}`;
+  const fmt = (n: number) => `${currency}${Number(n || 0).toFixed(2)}`;
 
-  // Step states
   const step1Status = isLocked ? 'pending' : 'complete';
   const step2Status = isLocked ? 'pending' : 'in-progress';
   const step3Status = isLocked ? 'pending' : isApproved ? 'complete' : 'in-progress';
@@ -240,10 +325,11 @@ const PaymentReconciliationPanel: React.FC = () => {
     <div className="bg-gray-50 rounded-xl p-6 md:p-8 shadow-md space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Payment Reconciliation</h1>
-        <p className="text-gray-600">Review financials, make adjustments, and finalize your records.</p>
+        <p className="text-gray-600">
+          Review financials, resolve claimed payments, make adjustments, and finalize your records.
+        </p>
       </div>
 
-      {/* Cleanup Warning */}
       {!isLocked && timeUntilCleanup !== null && timeUntilCleanup <= 60 && !isApproved && (
         <div className="rounded-lg border-2 border-orange-300 bg-orange-50 p-4">
           <div className="flex items-start gap-3">
@@ -258,7 +344,6 @@ const PaymentReconciliationPanel: React.FC = () => {
         </div>
       )}
 
-      {/* Quiz not complete */}
       {!isComplete && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-4">
           <div className="flex items-start gap-3">
@@ -271,13 +356,14 @@ const PaymentReconciliationPanel: React.FC = () => {
         </div>
       )}
 
-      {/* STEP 1 ---------------------------------------------------------------- */}
+      {/* STEP 1 */}
       <div className="bg-white rounded-xl border-2 border-gray-200 p-6">
         <StepHeader stepNum={1} title="Review Financial Summary" status={step1Status} isLocked={isLocked} />
 
-        <InfoBox>Review all money collected during your quiz before adding adjustments.</InfoBox>
+        <InfoBox>
+          Review all confirmed money collected during your quiz. Claimed, disputed, and expected payments are not included in received totals.
+        </InfoBox>
 
-        {/* Stats */}
         <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
             <div className="flex items-center gap-2 mb-1">
@@ -310,9 +396,7 @@ const PaymentReconciliationPanel: React.FC = () => {
           <div className="rounded-lg bg-purple-50 border border-purple-200 p-4">
             <div className="flex items-center gap-2 mb-1">
               <TrendingUp className="h-4 w-4 text-purple-600" />
-              <div className="text-xs font-medium text-purple-700">
-                {isDonationRoom ? 'Extras' : 'Extras'}
-              </div>
+              <div className="text-xs font-medium text-purple-700">Extras</div>
             </div>
             <div className="text-2xl font-bold text-purple-900">
               {isDonationRoom ? fmt(0) : fmt(totalExtrasReceived)}
@@ -334,7 +418,6 @@ const PaymentReconciliationPanel: React.FC = () => {
           </div>
         </div>
 
-        {/* Payment method breakdown */}
         <div className="mt-6">
           <h3 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wider">
             Breakdown by Payment Method
@@ -343,29 +426,32 @@ const PaymentReconciliationPanel: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                    Method
-                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Method</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                     {isDonationRoom ? 'Donations' : 'Entry Fees'}
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                    Extras
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                    Total
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                    %
-                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Extras</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Total</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">%</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
+                {Object.entries(paymentData).length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-6 text-center text-sm text-gray-500">
+                      No confirmed payments yet.
+                    </td>
+                  </tr>
+                )}
+
                 {Object.entries(paymentData).map(([method, d]) => {
                   if (!d) return null;
+
                   return (
                     <tr key={method} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900 capitalize">{method}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900 capitalize">
+                        {getMethodLabel(method)}
+                      </td>
                       <td className="px-4 py-3 text-sm text-gray-700">
                         {fmt(isDonationRoom ? d.donation || 0 : d.entry)}
                       </td>
@@ -381,9 +467,7 @@ const PaymentReconciliationPanel: React.FC = () => {
                       </td>
                       <td className="px-4 py-3 text-sm font-semibold text-gray-900">{fmt(d.total)}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">
-                        {startingReceived > 0
-                          ? `${((d.total / startingReceived) * 100).toFixed(1)}%`
-                          : '—'}
+                        {startingReceived > 0 ? `${((d.total / startingReceived) * 100).toFixed(1)}%` : '—'}
                       </td>
                     </tr>
                   );
@@ -393,30 +477,25 @@ const PaymentReconciliationPanel: React.FC = () => {
           </div>
         </div>
 
-        {/* Unpaid players */}
         {unpaidPlayers.length > 0 && (
-          <div className="mt-4 rounded-lg bg-red-50 border border-red-200 p-4">
+          <div className="mt-4 rounded-lg bg-gray-50 border border-gray-200 p-4">
             <div className="flex items-start gap-2">
-              <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5" />
+              <Info className="h-4 w-4 text-gray-600 mt-0.5" />
               <div className="flex-1">
-                <div className="text-sm font-semibold text-red-800 mb-2">
-                  {unpaidPlayers.length} Unpaid Player
+                <div className="text-sm font-semibold text-gray-800 mb-2">
+                  {unpaidPlayers.length} unpaid / unresolved player
                   {unpaidPlayers.length !== 1 ? 's' : ''}
                 </div>
-                <div className="flex flex-wrap gap-1">
-                  {unpaidPlayers.map((p) => (
-                    <span key={p.id} className="text-xs text-red-700 bg-red-100 rounded px-2 py-0.5">
-                      {p.name || p.id}
-                    </span>
-                  ))}
-                </div>
+                <p className="text-xs text-gray-600">
+                  Only confirmed payments are included in received totals. Claimed payments must be confirmed or disputed before approval.
+                </p>
               </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* STEP 2 ------------------------------------------------------------ */}
+      {/* STEP 2 */}
       <div
         className={`bg-white rounded-xl border-2 p-6 relative ${
           isLocked ? 'border-gray-200' : 'border-blue-200'
@@ -432,12 +511,120 @@ const PaymentReconciliationPanel: React.FC = () => {
         )}
 
         <div className={isLocked ? 'opacity-40' : ''}>
-          <StepHeader stepNum={2} title="Make Adjustments (Optional)" status={step2Status} isLocked={isLocked} />
+          <StepHeader stepNum={2} title="Resolve Payments & Make Adjustments" status={step2Status} isLocked={isLocked} />
 
           <InfoBox>
-            Record any money that came in or went out after initial collection (refunds, fees, late payments,
-            cash errors, prize payouts).
+            Confirm instant payments that arrived, mark unverifiable instant payments as disputed, and record any manual adjustments.
           </InfoBox>
+
+          {pendingInstantPlayers.length > 0 && (
+            <div className="mt-4 rounded-xl border-2 border-amber-300 bg-amber-50 p-5">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-700 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <h3 className="text-base font-bold text-amber-950">
+                    Resolve claimed instant payments before approval
+                  </h3>
+                  <p className="mt-1 text-sm text-amber-900">
+                    These players said they paid, but the payment has not been confirmed. Confirm them if the money arrived, or mark as disputed if it needs follow-up.
+                  </p>
+
+                  <div className="mt-4 space-y-2">
+                    {pendingInstantPlayers.map((p: any) => {
+                      const total = getPlayerTotal(p);
+
+                      return (
+                        <div
+                          key={p.id}
+                          className="rounded-lg border border-amber-200 bg-white p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
+                        >
+                          <div>
+                            <div className="font-semibold text-gray-900">{p.name || p.id}</div>
+                            <div className="text-xs text-gray-600 mt-0.5">
+                              {fmt(total)}
+                              {p.paymentMethod ? ` · ${getMethodLabel(p.paymentMethod)}` : ''}
+                              {p.paymentReference ? ` · Ref: ${p.paymentReference}` : ''}
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleConfirmPayment(p.id)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-green-300 bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-800 hover:bg-green-100"
+                            >
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              Confirm
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDisputePayment(p.id)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-800 hover:bg-red-100"
+                            >
+                              <AlertTriangle className="h-3.5 w-3.5" />
+                              Mark disputed
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {disputedPlayers.length > 0 && (
+            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-red-700 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="text-sm font-bold text-red-950">Disputed payments</h3>
+                  <p className="mt-1 text-sm text-red-900">
+                    These payments were claimed by players but not verified. They are excluded from received totals and do not block approval.
+                  </p>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {disputedPlayers.map((p: any) => (
+                      <span
+                        key={p.id}
+                        className="rounded-full border border-red-200 bg-white px-3 py-1 text-xs font-medium text-red-800"
+                      >
+                        {p.name || p.id}
+                        {p.paymentReference ? ` · Ref: ${p.paymentReference}` : ''}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {expectedUnpaidPlayers.length > 0 && (
+            <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4">
+              <div className="flex items-start gap-3">
+                <Clock className="h-5 w-5 text-gray-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900">Outstanding expected payments</h3>
+                  <p className="mt-1 text-sm text-gray-600">
+                    These players selected pay host or pay later. They are excluded from received totals, do not block approval, and can be marked as late paid later.
+                  </p>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {expectedUnpaidPlayers.map((p: any) => (
+                      <span
+                        key={p.id}
+                        className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700"
+                      >
+                        {p.name || p.id} · {fmt(getPlayerTotal(p))}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="mt-4">
             <ReconciliationLedger />
@@ -460,10 +647,10 @@ const PaymentReconciliationPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* STEP 3 ------------------------------------------------------------ */}
+      {/* STEP 3 */}
       <div
         className={`bg-white rounded-xl border-2 p-6 relative ${
-          isLocked ? 'border-gray-200' : 'border-indigo-200'
+          isLocked ? 'border-gray-200' : hasBlockingPendingPayments ? 'border-amber-300' : 'border-indigo-200'
         }`}
       >
         {isLocked && (
@@ -483,12 +670,15 @@ const PaymentReconciliationPanel: React.FC = () => {
           </InfoBox>
 
           <div className="mt-4">
-            <ReconciliationApproval />
+            <ReconciliationApproval
+              hasBlockingPendingPayments={hasBlockingPendingPayments}
+              blockingPaymentCount={pendingInstantPlayers.length}
+            />
           </div>
         </div>
       </div>
 
-      {/* STEP 4 ------------------------------------------------------------ */}
+      {/* STEP 4 */}
       <div
         className={`bg-white rounded-xl border-2 p-6 relative ${
           isLocked ? 'border-gray-200' : 'border-emerald-200'
