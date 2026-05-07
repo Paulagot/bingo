@@ -67,6 +67,7 @@ export type VerificationMode =
  */
 export type InstantPaymentProvider =
   | 'cash'
+    | 'card_tap'
   | 'revolut'
   | 'bank_transfer'
   | 'paypal'

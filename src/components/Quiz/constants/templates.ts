@@ -89,22 +89,22 @@ const quizTemplates: QuizTemplate[] = [
     tags: ['Audience: Mixed','Topic: General','Duration: ≈7m'],
   },
 
-  {
-  id: 'test',
-  name: 'TEST – Hidden Object',
-  description: 'Temporary template to validate hidden object round end-to-end (delete later).',
-  icon: '🧪',
-  difficulty: 'Medium',
-  rounds: [
-        {
-      type: 'order_image',  // ✅ NEW round type
-      category: 'Technology',  // or 'Historical Events', 'Size Comparison', 'Age Order'
-      difficulty: 'easy',  // easy, medium, or hard
-      customConfig: {
-        questionsPerRound: 5,  // Number of ordering questions
-        timePerQuestion: 10,   // 30 seconds per question
-        pointsPerDifficulty: { easy: 2, medium: 4, hard: 6 },
-      }},
+  // {
+  // id: 'test',
+  // name: 'TEST – Hidden Object',
+  // description: 'Temporary template to validate hidden object round end-to-end (delete later).',
+  // icon: '🧪',
+  // difficulty: 'Medium',
+  // rounds: [
+  //       {
+  //     type: 'order_image',  // ✅ NEW round type
+  //     category: 'Technology',  // or 'Historical Events', 'Size Comparison', 'Age Order'
+  //     difficulty: 'easy',  // easy, medium, or hard
+  //     customConfig: {
+  //       questionsPerRound: 5,  // Number of ordering questions
+  //       timePerQuestion: 10,   // 30 seconds per question
+  //       pointsPerDifficulty: { easy: 2, medium: 4, hard: 6 },
+  //     }},
       
     // {
     //   type: 'hidden_object',
@@ -133,9 +133,9 @@ const quizTemplates: QuizTemplate[] = [
     //   }
     // },
 
-  ],
-  tags: ['Audience: Test', 'Topic: Hidden Object', 'Duration: ≈3m']
-},
+//   ],
+//   tags: ['Audience: Test', 'Topic: Hidden Object', 'Duration: ≈3m']
+// },
 
  {
     id: 'Sample',
@@ -146,7 +146,7 @@ const quizTemplates: QuizTemplate[] = [
     rounds: [
       { type: 'order_image', category: 'Art', difficulty: 'easy' },
       { type: 'wipeout', category: 'Children', difficulty: 'easy' },
-      { type: 'hidden_object',    category: 'Kids',     difficulty: 'hard' },
+      { type: 'hidden_object',    category: 'all',     difficulty: 'hard' },
       { type: 'speed_round',    category: 'Math',   difficulty: 'easy' }     
       
     ],
