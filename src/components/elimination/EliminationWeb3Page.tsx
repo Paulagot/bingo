@@ -1,17 +1,27 @@
-import React, { useEffect, useState } from 'react';
+// src/components/web3/EliminationWeb3Page.tsx
+
+import React, { useEffect, useMemo, useState } from 'react';
 import { Web3Provider } from '../Web3Provider';
 
-import { CHARITIES, getCharityById } from '../../chains/evm/config/gbcharities';
+import { CHARITIES, getCharityById, type Charity } from '../../chains/evm/config/gbcharities';
 import { SOLANA_TOKEN_LIST, SOLANA_TOKENS } from '../../chains/solana/config/solanaTokenConfig';
 import { useEliminationWeb3Launch } from './hooks/useEliminationWeb3Launch';
 import type { EliminationWeb3Config } from './hooks/useEliminationWeb3Launch';
 import { getEventById } from '../../services/web3PublicEventsService';
 
-// ── Config ─────mainnet───────────────────────────────────────────────────────────────
-// For now Solana devnet only — add more chains as you enable them
+// ── Config ────────────────────────────────────────────────────────────────────
+
 const CLUSTER = 'mainnet' as const;
 const CHAIN = 'solana' as const;
 const WSOL_MINT = 'So11111111111111111111111111111111111111112';
+
+// ── Stable dropdown key ───────────────────────────────────────────────────────
+// TGB charities:    "1189134587"
+// Direct charities: "direct:ISPCC"
+
+function charityKey(c: Charity): string {
+  return c.direct ? `direct:${c.name}` : String(c.id);
+}
 
 interface EliminationWeb3PageProps {
   eventId?: string | null;
@@ -21,15 +31,54 @@ interface EliminationWeb3InnerProps {
   eventId?: string | null;
 }
 
-// ── Inner component (inside Web3Provider) ─────────────────────────────────────
 const EliminationWeb3Inner: React.FC<EliminationWeb3InnerProps> = ({ eventId }) => {
   const [hostName, setHostName] = useState('');
   const [tokenSymbol, setTokenSymbol] = useState('SOL');
   const [entryFeeDisplay, setEntryFeeDisplay] = useState('');
-  const [charityId, setCharityId] = useState<string>('');
   const [prefillLoading, setPrefillLoading] = useState(false);
   const [prefillError, setPrefillError] = useState<string | null>(null);
+  const [eventPrefilled, setEventPrefilled] = useState(false);
 
+  // ── Charity state ───────────────────────────────────────────────────────────
+  const [selectedCharityKey, setSelectedCharityKey] = useState<string>('');
+  const [directCharities, setDirectCharities] = useState<Charity[]>([]);
+
+  // ── Fetch direct-wallet charities from DB ───────────────────────────────────
+  useEffect(() => {
+    fetch('/api/charities/list?chain=solana')
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.charities)) {
+          setDirectCharities(data.charities as Charity[]);
+        }
+      })
+      .catch(err =>
+        console.warn('[EliminationWeb3Page] Failed to load direct charities:', err.message)
+      );
+  }, []);
+
+  // ── Merged list for dropdown ────────────────────────────────────────────────
+  const allCharities = useMemo<Charity[]>(
+    () => [...CHARITIES, ...directCharities],
+    [directCharities]
+  );
+
+  // ── Derive charityOrgId + charityName from selected key ─────────────────────
+  const { charityOrgId, charityName } = useMemo(() => {
+    if (!selectedCharityKey) return { charityOrgId: null, charityName: null };
+
+    if (selectedCharityKey.startsWith('direct:')) {
+      const name = selectedCharityKey.slice('direct:'.length);
+      return { charityOrgId: null, charityName: name };
+    }
+
+    const id = Number(selectedCharityKey);
+    const c = getCharityById(id);
+
+    return { charityOrgId: id, charityName: c?.name ?? null };
+  }, [selectedCharityKey]);
+
+  // ── Prefill from marketplace event if eventId is provided ───────────────────
   useEffect(() => {
     if (!eventId) return;
 
@@ -38,6 +87,7 @@ const EliminationWeb3Inner: React.FC<EliminationWeb3InnerProps> = ({ eventId }) 
     async function hydrateFromEvent() {
       setPrefillLoading(true);
       setPrefillError(null);
+      setEventPrefilled(false);
 
       try {
         const res = await getEventById(eventId as string);
@@ -46,8 +96,7 @@ const EliminationWeb3Inner: React.FC<EliminationWeb3InnerProps> = ({ eventId }) 
         if (!event || cancelled) return;
 
         const safeTokenSymbol =
-          event.fee_token &&
-          SOLANA_TOKENS[event.fee_token as keyof typeof SOLANA_TOKENS]
+          event.fee_token && SOLANA_TOKENS[event.fee_token as keyof typeof SOLANA_TOKENS]
             ? event.fee_token
             : 'SOL';
 
@@ -58,15 +107,25 @@ const EliminationWeb3Inner: React.FC<EliminationWeb3InnerProps> = ({ eventId }) 
             ? String(event.entry_fee)
             : ''
         );
-        setCharityId(event.charity_id ? String(event.charity_id) : '');
+
+        if (event.charity_id === 0 && event.charity_name) {
+          // Direct-wallet charity — stored with id=0, use direct prefix.
+          setSelectedCharityKey(`direct:${event.charity_name}`);
+        } else if (event.charity_id) {
+          // TGB charity — numeric id as string.
+          setSelectedCharityKey(String(event.charity_id));
+        } else {
+          setSelectedCharityKey('');
+        }
+
+        setEventPrefilled(true);
       } catch (err: any) {
         if (!cancelled) {
           setPrefillError(err?.message ?? 'Failed to load event details');
+          setEventPrefilled(false);
         }
       } finally {
-        if (!cancelled) {
-          setPrefillLoading(false);
-        }
+        if (!cancelled) setPrefillLoading(false);
       }
     }
 
@@ -78,9 +137,7 @@ const EliminationWeb3Inner: React.FC<EliminationWeb3InnerProps> = ({ eventId }) 
   }, [eventId]);
 
   const selectedToken = SOLANA_TOKENS[tokenSymbol as keyof typeof SOLANA_TOKENS];
-  const charity = charityId ? getCharityById(Number(charityId)) : null;
 
-  // Convert display amount to base units
   const entryFeeBase =
     selectedToken && entryFeeDisplay
       ? Math.round(parseFloat(entryFeeDisplay) * Math.pow(10, selectedToken.decimals))
@@ -90,12 +147,12 @@ const EliminationWeb3Inner: React.FC<EliminationWeb3InnerProps> = ({ eventId }) 
     hostName,
     web3Chain: CHAIN,
     solanaCluster: CLUSTER,
-    feeMint: selectedToken?.isNative ? WSOL_MINT : (selectedToken?.mint ?? ''),
+    feeMint: selectedToken?.isNative ? WSOL_MINT : selectedToken?.mint ?? '',
     entryFee: entryFeeBase,
     entryFeeDisplay,
     tokenSymbol,
-    charityOrgId: charityId ? Number(charityId) : null,
-    charityName: charity?.name ?? null,
+    charityOrgId,
+    charityName,
   };
 
   const {
@@ -115,7 +172,17 @@ const EliminationWeb3Inner: React.FC<EliminationWeb3InnerProps> = ({ eventId }) 
     hostName.trim().length >= 2 &&
     !!entryFeeDisplay &&
     parseFloat(entryFeeDisplay) > 0 &&
-    !!charityId;
+    !!selectedCharityKey;
+
+  const lockPrefilledFields = Boolean(eventId && eventPrefilled && !prefillError);
+
+  // Selected charity object — used for the summary line and badge.
+  const selectedCharity = useMemo(
+    () => allCharities.find(c => charityKey(c) === selectedCharityKey) ?? null,
+    [selectedCharityKey, allCharities]
+  );
+
+  const lockedFieldStyle = lockPrefilledFields ? lockedInputStyle : {};
 
   return (
     <div
@@ -126,6 +193,18 @@ const EliminationWeb3Inner: React.FC<EliminationWeb3InnerProps> = ({ eventId }) 
         .elim-select option {
           background: #1a1a2e;
           color: #ffffff;
+        }
+
+        .elim-select optgroup {
+          background: #0f0f1e;
+          color: rgba(0,229,255,0.6);
+          font-size: 11px;
+          letter-spacing: 0.1em;
+        }
+
+        .elim-select:disabled,
+        .elim-locked-input:disabled {
+          -webkit-text-fill-color: rgba(255,255,255,0.72);
         }
       `}</style>
 
@@ -142,6 +221,7 @@ const EliminationWeb3Inner: React.FC<EliminationWeb3InnerProps> = ({ eventId }) 
         >
           FundRaisely · Web3
         </div>
+
         <h1
           style={{
             fontSize: '48px',
@@ -153,6 +233,7 @@ const EliminationWeb3Inner: React.FC<EliminationWeb3InnerProps> = ({ eventId }) 
         >
           ELIMINATION
         </h1>
+
         <div
           style={{
             fontSize: '13px',
@@ -166,37 +247,26 @@ const EliminationWeb3Inner: React.FC<EliminationWeb3InnerProps> = ({ eventId }) 
 
       <div className="w-full max-w-sm space-y-4">
         {eventId && prefillLoading && (
-          <p
-            style={{
-              fontSize: '12px',
-              color: 'rgba(0,229,255,0.7)',
-              fontFamily: 'monospace',
-            }}
-          >
+          <p style={{ fontSize: '12px', color: 'rgba(0,229,255,0.7)', fontFamily: 'monospace' }}>
             Loading event details...
           </p>
         )}
 
-        {eventId && !prefillLoading && !prefillError && (
+        {eventId && !prefillLoading && !prefillError && eventPrefilled && (
           <p
             style={{
               fontSize: '12px',
-              color: 'rgba(255,255,255,0.4)',
+              color: 'rgba(255,255,255,0.45)',
               fontFamily: 'monospace',
+              lineHeight: 1.5,
             }}
           >
-            Event details loaded from your dashboard listing.
+            Event details loaded from your dashboard listing. These fields are locked for this launch.
           </p>
         )}
 
         {prefillError && (
-          <p
-            style={{
-              color: '#ff3b5c',
-              fontSize: '12px',
-              fontFamily: 'monospace',
-            }}
-          >
+          <p style={{ color: '#ff3b5c', fontSize: '12px', fontFamily: 'monospace' }}>
             {prefillError}
           </p>
         )}
@@ -205,11 +275,16 @@ const EliminationWeb3Inner: React.FC<EliminationWeb3InnerProps> = ({ eventId }) 
         <div>
           <label style={labelStyle}>Your name</label>
           <input
+            className={lockPrefilledFields ? 'elim-locked-input' : undefined}
             value={hostName}
             onChange={e => setHostName(e.target.value)}
             placeholder="Host display name"
             maxLength={30}
-            style={inputStyle}
+            disabled={lockPrefilledFields}
+            style={{
+              ...inputStyle,
+              ...lockedFieldStyle,
+            }}
           />
         </div>
 
@@ -220,7 +295,11 @@ const EliminationWeb3Inner: React.FC<EliminationWeb3InnerProps> = ({ eventId }) 
             className="elim-select"
             value={tokenSymbol}
             onChange={e => setTokenSymbol(e.target.value)}
-            style={inputStyle}
+            disabled={lockPrefilledFields}
+            style={{
+              ...inputStyle,
+              ...lockedFieldStyle,
+            }}
           >
             {SOLANA_TOKEN_LIST.map(code => (
               <option key={code} value={code}>
@@ -234,43 +313,75 @@ const EliminationWeb3Inner: React.FC<EliminationWeb3InnerProps> = ({ eventId }) 
         <div>
           <label style={labelStyle}>Entry fee ({tokenSymbol})</label>
           <input
+            className={lockPrefilledFields ? 'elim-locked-input' : undefined}
             type="number"
             min="0"
             step="0.01"
             value={entryFeeDisplay}
             onChange={e => setEntryFeeDisplay(e.target.value)}
             placeholder="e.g. 1.00"
-            style={inputStyle}
+            disabled={lockPrefilledFields}
+            style={{
+              ...inputStyle,
+              ...lockedFieldStyle,
+            }}
           />
+
           {selectedToken?.minEntryFee && (
-            <p
-              style={{
-                fontSize: '11px',
-                color: 'rgba(255,255,255,0.3)',
-                marginTop: '4px',
-              }}
-            >
+            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '4px' }}>
               Min: {selectedToken.minEntryFee} {tokenSymbol}
             </p>
           )}
         </div>
 
-        {/* Charity */}
+        {/* Charity — merged TGB + direct */}
         <div>
           <label style={labelStyle}>Charity</label>
           <select
             className="elim-select"
-            value={charityId}
-            onChange={e => setCharityId(e.target.value)}
-            style={inputStyle}
+            value={selectedCharityKey}
+            onChange={e => setSelectedCharityKey(e.target.value)}
+            disabled={lockPrefilledFields}
+            style={{
+              ...inputStyle,
+              ...lockedFieldStyle,
+            }}
           >
             <option value="">Select a charity...</option>
-            {CHARITIES.map(c => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
+
+            <optgroup label="Via The Giving Block">
+              {CHARITIES.map(c => (
+                <option key={charityKey(c)} value={charityKey(c)}>
+                  {c.name}
+                </option>
+              ))}
+            </optgroup>
+
+            {directCharities.length > 0 && (
+              <optgroup label="Direct Donation">
+                {directCharities.map(c => (
+                  <option key={charityKey(c)} value={charityKey(c)}>
+                    {c.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
+
+          {selectedCharity && (
+            <p
+              style={{
+                fontSize: '11px',
+                color: 'rgba(0,229,255,0.5)',
+                marginTop: '4px',
+                fontFamily: 'monospace',
+              }}
+            >
+              {selectedCharity.direct
+                ? '✓ Direct donation wallet'
+                : `TGB Org ID: ${charityOrgId}`}
+            </p>
+          )}
         </div>
 
         {/* Wallet connection */}
@@ -281,15 +392,10 @@ const EliminationWeb3Inner: React.FC<EliminationWeb3InnerProps> = ({ eventId }) 
             </button>
           ) : (
             <div style={{ marginBottom: '12px' }}>
-              <div
-                style={{
-                  fontSize: '12px',
-                  color: 'rgba(0,229,255,0.7)',
-                  marginBottom: '4px',
-                }}
-              >
+              <div style={{ fontSize: '12px', color: 'rgba(0,229,255,0.7)', marginBottom: '4px' }}>
                 ✓ Connected · {networkInfo.expectedNetwork}
               </div>
+
               <div
                 style={{
                   fontSize: '11px',
@@ -299,6 +405,7 @@ const EliminationWeb3Inner: React.FC<EliminationWeb3InnerProps> = ({ eventId }) 
               >
                 {walletAddress?.slice(0, 6)}...{walletAddress?.slice(-4)}
               </div>
+
               <button
                 onClick={handleDisconnect}
                 style={{
@@ -316,7 +423,6 @@ const EliminationWeb3Inner: React.FC<EliminationWeb3InnerProps> = ({ eventId }) 
           )}
         </div>
 
-        {/* Launch hook error */}
         {error && (
           <p style={{ color: '#ff3b5c', fontSize: '12px', fontFamily: 'monospace' }}>
             {error}
@@ -345,15 +451,9 @@ const EliminationWeb3Inner: React.FC<EliminationWeb3InnerProps> = ({ eventId }) 
         {/* Summary */}
         {isReady && (
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px' }}>
-            <p
-              style={{
-                fontSize: '11px',
-                color: 'rgba(255,255,255,0.25)',
-                lineHeight: 1.6,
-              }}
-            >
+            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', lineHeight: 1.6 }}>
               Players pay {entryFeeDisplay || '—'} {tokenSymbol} on-chain to join. Prize pool
-              distributed to winner, host, platform, and {charity?.name ?? 'charity'} automatically.
+              distributed to winner, host, platform, and {selectedCharity?.name ?? 'charity'} automatically.
             </p>
           </div>
         )}
@@ -362,7 +462,8 @@ const EliminationWeb3Inner: React.FC<EliminationWeb3InnerProps> = ({ eventId }) 
   );
 };
 
-// ── Outer wrapper — mounts Web3Provider ───────────────────────────────────────
+// ── Outer wrapper ─────────────────────────────────────────────────────────────
+
 export const EliminationWeb3Page: React.FC<EliminationWeb3PageProps> = ({ eventId }) => (
   <Web3Provider force={true}>
     <EliminationWeb3Inner eventId={eventId} />
@@ -370,6 +471,7 @@ export const EliminationWeb3Page: React.FC<EliminationWeb3PageProps> = ({ eventI
 );
 
 // ── Styles ────────────────────────────────────────────────────────────────────
+
 const labelStyle: React.CSSProperties = {
   display: 'block',
   fontSize: '11px',
@@ -390,7 +492,14 @@ const inputStyle: React.CSSProperties = {
   outline: 'none',
   fontFamily: "'Barlow Condensed', sans-serif",
   colorScheme: 'dark',
-} as React.CSSProperties;
+};
+
+const lockedInputStyle: React.CSSProperties = {
+  opacity: 0.78,
+  cursor: 'not-allowed',
+  background: 'rgba(255,255,255,0.035)',
+  border: '1px solid rgba(0,229,255,0.18)',
+};
 
 const btnPrimaryStyle: React.CSSProperties = {
   width: '100%',

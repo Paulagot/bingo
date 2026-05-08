@@ -13,6 +13,7 @@ import {
   Target,
   Rocket,
   ShieldCheck,
+  HeartHandshake,
 } from 'lucide-react';
 
 /* -------------------------------------------------------------------------- */
@@ -153,6 +154,164 @@ const PartnerGrid: React.FC<{
 );
 
 /* -------------------------------------------------------------------------- */
+/* Impact partner spotlight                                                   */
+/* -------------------------------------------------------------------------- */
+const ImpactPartnerSpotlight: React.FC = () => (
+  <section className="relative z-10 py-12">
+    <div className="container mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+      <div className="mb-8 text-center">
+        <SectionLabel>
+          <HeartHandshake className="h-4 w-4" /> Impact partner
+        </SectionLabel>
+
+        <h2 className="mt-4 font-mono text-3xl font-bold text-white">
+          Matching impact when BONK powers the game
+        </h2>
+
+        <p className="mx-auto mt-3 max-w-3xl text-white/50">
+          Buddies for Paws supports FundRaisely through charity verification and
+          BONK-powered matching for supported Web3 fundraising events. When BONK
+          is used as the fee token for eligible quiz or elimination games, the
+          charity portion can be matched, helping increase the impact delivered
+          to the cause.
+        </p>
+      </div>
+
+      <W3Card className="overflow-hidden border-[#a3f542]/20 p-0">
+        <div className="grid lg:grid-cols-[1.15fr_0.85fr]">
+          {/* LEFT SIDE */}
+          <div className="p-8 sm:p-10">
+            <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
+              <div className="flex shrink-0 justify-center lg:justify-start">
+                <a
+                  href="https://www.buddiesforpaws.org/"
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Buddies for Paws website"
+                  className="group flex h-[150px] w-[150px] items-center justify-center rounded-2xl border border-[#1e2d42] bg-white/5 p-5 transition hover:border-[#a3f542]/40 hover:bg-white/10 sm:h-[170px] sm:w-[170px]"
+                >
+                  <img
+                    src={withBase('partner/BFP-master-orange.png')}
+                    alt="Buddies for Paws logo"
+                    loading="lazy"
+                    width={180}
+                    height={180}
+                    className="max-h-[120px] w-auto max-w-full object-contain sm:max-h-[135px]"
+                    onError={e => {
+                      (e.currentTarget as HTMLImageElement).style.opacity = '0.3';
+                    }}
+                  />
+                </a>
+              </div>
+
+              <div className="flex-1 text-center lg:text-left">
+                <p className="font-mono text-xs uppercase tracking-widest text-[#a3f542]/70">
+                  Buddies for Paws
+                </p>
+
+                <h3 className="mt-2 max-w-xl font-mono text-2xl font-bold leading-tight text-white sm:text-3xl">
+                  Charity verification
+                  <br className="hidden sm:block" /> and BONK-powered matching
+                </h3>
+
+           <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/60 sm:text-base">
+  Buddies for Paws is the charitable arm of the BONK ecosystem, supporting animal
+  welfare charities and global partners through community-powered giving.
+</p>
+
+<p className="mt-3 max-w-xl text-sm leading-relaxed text-white/50">
+  Together, we’re connecting FundRaisely’s Web3 game events with BONK-powered
+  matching, so eligible quiz and elimination events can deliver greater impact
+  for verified causes.
+</p>
+
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap lg:justify-start">
+                  <a
+                    href="https://www.buddiesforpaws.org/"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#a3f542]/40 bg-[#a3f542]/10 px-5 py-3 font-mono text-sm font-semibold text-[#a3f542] transition hover:border-[#a3f542]/80 hover:bg-[#a3f542]/20"
+                  >
+                    Visit Buddies for Paws
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+
+                  <a
+                    href="https://www.buddiesforpaws.org/charities/global-partners"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#1e2d42] px-5 py-3 font-mono text-sm font-semibold text-white/70 transition hover:border-white/30 hover:text-white"
+                  >
+                    View supported charities
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT SIDE */}
+          <div className="border-t border-[#1e2d42] bg-[#0b111b] p-8 sm:p-10 lg:border-l lg:border-t-0">
+            <div className="mb-6 flex items-center gap-4">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-orange-400/30 bg-orange-400/10 p-2.5">
+                <img
+                  src={withBase('partner/bonk.png')}
+                  alt="BONK logo"
+                  loading="lazy"
+                  width={64}
+                  height={64}
+                  className="max-h-12 w-auto object-contain"
+                  onError={e => {
+                    (e.currentTarget as HTMLImageElement).style.opacity = '0.3';
+                  }}
+                />
+              </div>
+
+              <div>
+                <p className="font-mono text-xs uppercase tracking-widest text-orange-300/70">
+                  Fee token matching
+                </p>
+                <p className="font-mono text-lg font-bold text-white">BONK</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-[#1e2d42] bg-white/[0.03] p-4">
+                <p className="font-mono text-sm font-bold text-white">
+                  1. Host runs a game
+                </p>
+                <p className="mt-1 text-sm leading-relaxed text-white/50">
+                  A quiz or elimination event is launched through FundRaisely.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-[#1e2d42] bg-white/[0.03] p-4">
+                <p className="font-mono text-sm font-bold text-white">
+                  2. Players use BONK
+                </p>
+                <p className="mt-1 text-sm leading-relaxed text-white/50">
+                  The event fee token is set to BONK for eligible Web3 fundraising events.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-[#a3f542]/20 bg-[#a3f542]/10 p-4">
+                <p className="font-mono text-sm font-bold text-white">
+                  3. Charity impact is matched
+                </p>
+                <p className="mt-1 text-sm leading-relaxed text-white/60">
+                  The charity portion of the event can be matched through the BFP
+                  matching pool, increasing the total impact delivered to the cause.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </W3Card>
+    </div>
+  </section>
+);
+
+/* -------------------------------------------------------------------------- */
 /* FAQ card                                                                   */
 /* -------------------------------------------------------------------------- */
 const FAQCard: React.FC<{ q: string; a: string }> = ({ q, a }) => (
@@ -166,6 +325,15 @@ const FAQCard: React.FC<{ q: string; a: string }> = ({ q, a }) => (
 /* Page                                                                       */
 /* -------------------------------------------------------------------------- */
 const Web3Partners: React.FC = () => {
+  const impactPartners: Partner[] = [
+    {
+      name: 'Buddies for Paws',
+      href: 'https://www.buddiesforpaws.org/',
+      imgSrc: 'partner/bfp-logo-placeholder.png',
+      tagline: 'Charity verification and BONK matching pool support',
+    },
+  ];
+
   const infra: Partner[] = [
     {
       name: 'The Giving Block',
@@ -232,11 +400,15 @@ const Web3Partners: React.FC = () => {
   const faqItems = [
     {
       q: 'What kind of partners does FundRaisely work with?',
-      a: 'FundRaisely works with infrastructure, ecosystem, media, and community partners that help make Web3 fundraising experiences possible, trusted, and more visible.',
+      a: 'FundRaisely works with infrastructure, ecosystem, impact, media, and community partners that help make Web3 fundraising experiences possible, trusted, and more visible.',
+    },
+    {
+      q: 'What is the Buddies for Paws partnership?',
+      a: 'Buddies for Paws supports FundRaisely through charity verification and a matching pool connected to BONK-powered quiz and elimination game events. When BONK is used as the fee token, the charity portion of eligible events can be matched, helping increase the impact delivered to the cause.',
     },
     {
       q: 'Are charity recipients listed on this partners page?',
-      a: 'No. Charity and non-profit recipients now have their own dedicated causes page so the partners page can stay focused on ecosystem, infrastructure, and growth partners.',
+      a: 'No. Charity and non-profit recipients now have their own dedicated causes page so the partners page can stay focused on ecosystem, infrastructure, impact, and growth partners.',
     },
     {
       q: 'Why are infrastructure partners important for Web3 fundraising?',
@@ -244,11 +416,11 @@ const Web3Partners: React.FC = () => {
     },
     {
       q: 'Can my organisation become a FundRaisely partner?',
-      a: 'Yes. If your organisation can support FundRaisely through infrastructure, ecosystem reach, media, events, or strategic collaboration, you can get in touch to discuss partnership opportunities.',
+      a: 'Yes. If your organisation can support FundRaisely through infrastructure, ecosystem reach, media, events, impact matching, or strategic collaboration, you can get in touch to discuss partnership opportunities.',
     },
     {
       q: 'Does FundRaisely work with both blockchain and community partners?',
-      a: 'Yes. The platform depends on both technical infrastructure and community distribution. Smart contract platforms, ecosystem supporters, and media networks all play different roles.',
+      a: 'Yes. The platform depends on both technical infrastructure and community distribution. Smart contract platforms, ecosystem supporters, impact partners, and media networks all play different roles.',
     },
     {
       q: 'Where can I learn how the platform works?',
@@ -271,9 +443,18 @@ const Web3Partners: React.FC = () => {
     '@type': 'CollectionPage',
     name: 'Web3 Fundraising Partners and Ecosystem Supporters | FundRaisely',
     description:
-      'Meet the infrastructure, ecosystem, media, and community partners supporting FundRaisely. Explore the Web3 fundraising network behind our quiz, elimination, and event experiences.',
+      'Meet the infrastructure, impact, ecosystem, media, and community partners supporting FundRaisely. Explore the Web3 fundraising network behind our quiz, elimination, and event experiences.',
     url: abs('/web3/partners'),
     hasPart: [
+      {
+        '@type': 'ItemList',
+        name: 'Impact Partners',
+        itemListElement: impactPartners.map((p, i) => ({
+          '@type': 'ListItem',
+          position: i + 1,
+          item: { '@type': 'Organization', name: p.name, url: p.href },
+        })),
+      },
       {
         '@type': 'ItemList',
         name: 'Infrastructure Partners',
@@ -328,8 +509,8 @@ const Web3Partners: React.FC = () => {
 
       <SEO
         title="Web3 Fundraising Partners and Ecosystem Supporters | FundRaisely"
-        description="Meet the infrastructure, ecosystem, media, and community partners supporting FundRaisely. Explore the Web3 fundraising network behind our quiz, elimination, and event experiences."
-        keywords="web3 fundraising partners, crypto fundraising partners, blockchain fundraising ecosystem, fundraising infrastructure partners, solana fundraising, base ecosystem, the giving block, web3 community partners"
+        description="Meet the infrastructure, impact, ecosystem, media, and community partners supporting FundRaisely. Explore the Web3 fundraising network behind our quiz, elimination, and event experiences."
+        keywords="web3 fundraising partners, crypto fundraising partners, blockchain fundraising ecosystem, fundraising infrastructure partners, impact partner, bonk matching, buddies for paws, solana fundraising, base ecosystem, the giving block, web3 community partners"
         structuredData={[breadcrumbsJsonLd, collectionPageJsonLd, faqJsonLd]}
         domainStrategy="geographic"
       />
@@ -350,10 +531,10 @@ const Web3Partners: React.FC = () => {
             </h1>
 
             <p className="mt-6 max-w-3xl text-xl leading-relaxed text-white/70">
-              FundRaisely is supported by infrastructure providers, ecosystem collaborators,
-              media platforms, and community backers helping us build a stronger Web3
-              fundraising marketplace. These partners help with trust, reach, visibility,
-              and product momentum.
+              FundRaisely is supported by impact partners, infrastructure providers, 
+              ecosystem collaborators, media platforms, and community backers helping us
+              build a stronger Web3 fundraising marketplace. These partners help with
+              trust, reach, visibility, verification, matching impact, and product momentum.
             </p>
 
             <div className="mt-8 flex flex-wrap justify-center gap-3">
@@ -379,6 +560,7 @@ const Web3Partners: React.FC = () => {
 
             <div className="mt-12 flex w-full flex-wrap justify-center gap-8 border-t border-[#1e2d42] pt-8 sm:justify-between">
               {[
+                { value: '1', label: 'impact partner' },
                 { value: '3', label: 'infrastructure partners' },
                 { value: '5+', label: 'media & community partners' },
                 { value: '2', label: 'supported chains/ecosystems' },
@@ -395,6 +577,8 @@ const Web3Partners: React.FC = () => {
           </div>
         </div>
       </section>
+
+      <ImpactPartnerSpotlight />
 
       <PartnerGrid
         label={
@@ -442,9 +626,9 @@ const Web3Partners: React.FC = () => {
               Why this ecosystem matters
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-white/50">
-              FundRaisely is not just an app. It is a growing network of technical and
-              community support that helps fundraising experiences become more trusted,
-              more visible, and easier to launch.
+              FundRaisely is not just an app. It is a growing network of technical,
+              community, and impact support that helps fundraising experiences become more
+              trusted, more visible, and easier to launch.
             </p>
           </div>
 
@@ -464,14 +648,14 @@ const Web3Partners: React.FC = () => {
 
             <W3Card className="border-[#a3f542]/20">
               <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#a3f542]/20 bg-[#a3f542]/10">
-                <Users className="h-5 w-5 text-[#a3f542]" />
+                <HeartHandshake className="h-5 w-5 text-[#a3f542]" />
               </div>
               <h3 className="mb-2 font-mono text-sm font-bold text-white">
-                More reach for hosts and events
+                Bigger impact for verified causes
               </h3>
               <p className="text-base leading-relaxed text-white/60">
-                Community and media support helps more people discover the marketplace,
-                the events on it, and the opportunity to host impact-driven experiences.
+                Impact partners help increase trust and unlock matching opportunities, so
+                eligible events can deliver more value to the causes they support.
               </p>
             </W3Card>
 
@@ -521,8 +705,9 @@ const Web3Partners: React.FC = () => {
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-white/50">
               FundRaisely is building fundraising experiences that people want to join,
-              with trusted causes, stronger host incentives, and a better participation
-              model. If your organisation can help us grow the ecosystem, let’s talk.
+              with trusted causes, stronger host incentives, matching impact opportunities,
+              and a better participation model. If your organisation can help us grow the
+              ecosystem, let’s talk.
             </p>
 
             <div className="mt-8 flex flex-wrap justify-center gap-4">

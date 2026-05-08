@@ -90,7 +90,7 @@ function isTicketAllowedPaymentMethod(
 
   // Manual methods are allowed for tickets except cash.
   if (category === 'instant_payment') {
-    if (provider === 'cash') return false;
+    if (provider === 'cash' || provider === 'card_tap') return false;
     return TICKET_ALLOWED_MANUAL_PROVIDERS.has(provider);
   }
 

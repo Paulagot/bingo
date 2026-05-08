@@ -34,6 +34,7 @@ interface Props {
 type LegacyPaymentMethod =
   | 'pay_admin'
   | 'cash'
+  | 'card_tap'
   | 'instant_payment'
   | 'card'
   | 'stripe'
@@ -71,10 +72,11 @@ function getCanonicalPaymentMethod(method?: PaymentMethod_ | null): LegacyPaymen
   if (category === 'card') return 'card';
   if (category === 'crypto') return 'crypto';
 
-  if (category === 'instant_payment') {
-    if (provider === 'cash') return 'cash';
-    return 'instant_payment';
-  }
+if (category === 'instant_payment') {
+  if (provider === 'cash') return 'cash';
+  if (provider === 'card_tap') return 'card_tap';
+  return 'instant_payment';
+}
 
   return 'other';
 }
@@ -96,12 +98,13 @@ function getSubtitle(method: PaymentMethod_) {
 
   if (method.method_category === 'instant_payment') {
     const provider = String(method.provider_name || '').toLowerCase();
-
-    if (provider === 'cash') {
-      parts.push('Pay at door / manual confirmation');
-    } else {
-      parts.push('Manual payment');
-    }
+if (provider === 'cash') {
+  parts.push('Cash on the night / manual confirmation');
+} else if (provider === 'card_tap') {
+  parts.push('CardTap on the night / manual confirmation');
+} else {
+  parts.push('Manual payment');
+}
   }
 
   return parts.join(' · ');

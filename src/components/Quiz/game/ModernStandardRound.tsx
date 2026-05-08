@@ -1,13 +1,10 @@
-// ModernStandardRound.tsx - Updated with stronger flash and more transparent countdown
-import React, { useState, useMemo } from 'react';
+// ModernStandardRound.tsx - Updated with stronger flash, transparent countdown, and mobile-friendly power-up tooltips
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { RoundComponentProps } from '../types/quiz';
 import { usePlayerStore } from '../hooks/usePlayerStore';
 import UseExtraModal from './UseExtraModal';
 import { useQuizTimer } from '../hooks/useQuizTimer';
 import { shallow } from 'zustand/shallow';
-
-
-
 
 interface ModernStandardRoundProps extends RoundComponentProps {
   questionNumber?: number | undefined;
@@ -20,7 +17,6 @@ interface ModernStandardRoundProps extends RoundComponentProps {
   getFlashClasses?: (() => string) | undefined;
   currentRound?: number | undefined;
 }
-
 
 const ModernStandardRound: React.FC<ModernStandardRoundProps> = ({
   question,
@@ -45,121 +41,222 @@ const ModernStandardRound: React.FC<ModernStandardRoundProps> = ({
   isFlashing = false,
   currentEffect,
   getFlashClasses = () => '',
-  currentRound
+  currentRound,
 }) => {
- const thisPlayer = usePlayerStore(
-  s => s.players.find(p => p.id === playerId),
-  shallow
-);
+  const thisPlayer = usePlayerStore(
+    (s) => s.players.find((p) => p.id === playerId),
+    shallow,
+  );
 
-
-const timerQuestion = useMemo(() => {
-  if (!question) return null;
-  const { id, timeLimit, questionStartTime } = question;
-  if (typeof timeLimit !== 'number' || typeof questionStartTime !== 'number') return null;
-  return { id, timeLimit, questionStartTime };
-}, [question?.id, question?.timeLimit, question?.questionStartTime]);
-
-const { timeLeft } = useQuizTimer({
-  question: timerQuestion,
-  timerActive: timerActive && !answerSubmitted,
-  
-});
-
-  
   const [freezeModalOpen, setFreezeModalOpen] = useState(false);
- 
+  const [activeTooltipId, setActiveTooltipId] = useState<string | null>(null);
+  const tooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
- 
+  const timerQuestion = useMemo(() => {
+    if (!question) return null;
+
+    const { id, timeLimit, questionStartTime } = question;
+
+    if (typeof timeLimit !== 'number' || typeof questionStartTime !== 'number') {
+      return null;
+    }
+
+    return { id, timeLimit, questionStartTime };
+  }, [question?.id, question?.timeLimit, question?.questionStartTime]);
+
+  const { timeLeft } = useQuizTimer({
+    question: timerQuestion,
+    timerActive: timerActive && !answerSubmitted,
+  });
+
+  useEffect(() => {
+    return () => {
+      if (tooltipTimerRef.current) {
+        clearTimeout(tooltipTimerRef.current);
+      }
+    };
+  }, []);
+
+  const isTouchDevice = () => {
+    if (typeof window === 'undefined') return false;
+
+    return (
+      window.matchMedia('(hover: none)').matches ||
+      window.matchMedia('(pointer: coarse)').matches
+    );
+  };
+
+  const showTooltip = (extraId: string) => {
+    setActiveTooltipId(extraId);
+
+    if (tooltipTimerRef.current) {
+      clearTimeout(tooltipTimerRef.current);
+    }
+
+    tooltipTimerRef.current = setTimeout(() => {
+      setActiveTooltipId((current) => (current === extraId ? null : current));
+    }, 3000);
+  };
+
+  const hideTooltip = (extraId: string) => {
+    setActiveTooltipId((current) => (current === extraId ? null : current));
+  };
+
+  const clearTooltip = () => {
+    setActiveTooltipId(null);
+
+    if (tooltipTimerRef.current) {
+      clearTimeout(tooltipTimerRef.current);
+      tooltipTimerRef.current = null;
+    }
+  };
 
   // Timer ring calculation for circular progress
-const getTimerProgress = () => {
-  if (!question?.timeLimit) return 157;
-  if (timeLeft === null) return 157; // No progress when timer is off
-  const percentage = (timeLeft / question.timeLimit);
-  return 157 - (percentage * 157);
-};
+  const getTimerProgress = () => {
+    if (!question?.timeLimit) return 157;
+    if (timeLeft === null) return 157;
 
-const getTimerClass = () => {
-  if (timeLeft === null) return 'timer-progress';
-  if (timeLeft <= 1) return 'timer-progress danger';
-  if (timeLeft <= 10) return 'timer-progress warning';
-  return 'timer-progress';
-};
+    const percentage = timeLeft / question.timeLimit;
+    return 157 - percentage * 157;
+  };
+
+  const getTimerClass = () => {
+    if (timeLeft === null) return 'timer-progress';
+    if (timeLeft <= 1) return 'timer-progress danger';
+    if (timeLeft <= 10) return 'timer-progress warning';
+
+    return 'timer-progress';
+  };
 
   const getDifficultyBadgeClass = () => {
     switch (difficulty?.toLowerCase()) {
-      case 'easy': return 'difficulty-badge easy';
-      case 'hard': return 'difficulty-badge hard';
-      default: return 'difficulty-badge medium';
+      case 'easy':
+        return 'difficulty-badge easy';
+      case 'hard':
+        return 'difficulty-badge hard';
+      default:
+        return 'difficulty-badge medium';
     }
   };
 
   const getOptionLetter = (index: number) => {
-    return String.fromCharCode(65 + index); // A, B, C, D
+    return String.fromCharCode(65 + index);
   };
 
   const handleOptionSelect = (option: string) => {
     if (!answerSubmitted && !isFrozen) {
       setSelectedAnswer(option);
-      // console.log('[ModernStandardRound] Selected answer:', option);
     }
   };
 
-  const handleExtraClick = (extraId: string) => {
+  const useExtra = (extraId: string) => {
     if (usedExtras[extraId] || usedExtrasThisRound[extraId]) return;
-    
+
+    clearTooltip();
+
     if (extraId === 'freezeOutTeam') {
-      if (playersInRoom.filter(p => p.id !== playerId).length === 0) {
+      if (playersInRoom.filter((p) => p.id !== playerId).length === 0) {
         alert('No other players to target');
         return;
       }
+
       setFreezeModalOpen(true);
-    } else {
-      onUseExtra(extraId);
+      return;
     }
+
+    onUseExtra(extraId);
+  };
+
+  const handleExtraClick = (extraId: string) => {
+    if (isExtraDisabled(extraId)) return;
+
+    /**
+     * Mobile/touch behaviour:
+     * First tap shows tooltip only.
+     * Second tap on the same power-up actually uses it.
+     */
+    if (isTouchDevice() && activeTooltipId !== extraId) {
+      showTooltip(extraId);
+      return;
+    }
+
+    useExtra(extraId);
   };
 
   const handleFreezeConfirm = (targetPlayerId: string) => {
     onUseExtra('freezeOutTeam', targetPlayerId);
     setFreezeModalOpen(false);
+    clearTooltip();
   };
 
   const getExtraIcon = (extraId: string) => {
     switch (extraId) {
-      case 'buyHint': return '💡';
-      case 'freezeOutTeam': return '❄️';
-      case 'restorePoints': return '🎯';
-      case 'robPoints': return '💰';
-      default: return '✨';
+      case 'buyHint':
+        return '💡';
+      case 'freezeOutTeam':
+        return '❄️';
+      case 'restorePoints':
+        return '🎯';
+      case 'robPoints':
+        return '💰';
+      default:
+        return '✨';
     }
   };
 
   const getExtraClass = (extraId: string) => {
     const baseClass = 'power-up';
+
     switch (extraId) {
-      case 'buyHint': return `${baseClass} hint`;
-      case 'freezeOutTeam': return `${baseClass} freeze`;
-      case 'restorePoints': return `${baseClass} restore`;
-      case 'robPoints': return `${baseClass} rob`;
-      default: return baseClass;
+      case 'buyHint':
+        return `${baseClass} hint`;
+      case 'freezeOutTeam':
+        return `${baseClass} freeze`;
+      case 'restorePoints':
+        return `${baseClass} restore`;
+      case 'robPoints':
+        return `${baseClass} rob`;
+      default:
+        return baseClass;
     }
   };
 
   const getExtraTooltip = (extraId: string) => {
     switch (extraId) {
-      case 'buyHint': return 'Use Hint';
-      case 'freezeOutTeam': return 'Freeze Opponent';
-      case 'restorePoints': return 'Restore Points';
-      case 'robPoints': return 'Rob Points';
-      default: return 'Power Up';
+      case 'buyHint':
+        return 'Use Hint';
+      case 'freezeOutTeam':
+        return 'Freeze Opponent';
+      case 'restorePoints':
+        return 'Restore Points';
+      case 'robPoints':
+        return 'Rob Points';
+      default:
+        return 'Power Up';
+    }
+  };
+
+  const getExtraTapHint = (extraId: string) => {
+    switch (extraId) {
+      case 'freezeOutTeam':
+      case 'robPoints':
+        return 'Tap again to target player';
+      default:
+        return 'Tap again to use';
     }
   };
 
   const isExtraDisabled = (extraId: string) => {
-    return usedExtras[extraId] || usedExtrasThisRound[extraId] || 
-           (extraId === 'buyHint' && answerSubmitted);
+    return (
+      usedExtras[extraId] ||
+      usedExtrasThisRound[extraId] ||
+      (extraId === 'buyHint' && answerSubmitted)
+    );
   };
+
+  if (!question) {
+  return null;
+}
 
   return (
     <>
@@ -175,11 +272,11 @@ const getTimerClass = () => {
         }
 
         /* 📱 RESPONSIVE BREAKPOINTS */
-     @media (max-width: 768px) {
-  .game-container {
-    padding: 0 12px;
-  }
-}
+        @media (max-width: 768px) {
+          .game-container {
+            padding: 0 12px;
+          }
+        }
 
         .game-header {
           display: flex;
@@ -632,8 +729,10 @@ const getTimerClass = () => {
           border: 2px solid transparent;
           font-size: 20px;
           position: relative;
-          /* 🚀 EYE-CATCHING PULSE ANIMATION */
           animation: powerUpPulse 2s infinite;
+          -webkit-tap-highlight-color: transparent;
+          touch-action: manipulation;
+          outline: none;
         }
 
         @media (max-width: 640px) {
@@ -691,8 +790,20 @@ const getTimerClass = () => {
           color: white;
         }
 
-        .power-up:hover:not(:disabled) {
-          transform: scale(1.15);
+        /* Desktop hover effect */
+        @media (hover: hover) and (pointer: fine) {
+          .power-up:hover:not(:disabled) {
+            transform: scale(1.15);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            animation: powerUpGlow 1s infinite;
+          }
+        }
+
+        /* Keyboard + mobile active/open effect */
+        .power-up:focus-visible:not(:disabled),
+        .power-up.tooltip-open:not(:disabled),
+        .power-up:active:not(:disabled) {
+          transform: scale(1.12);
           box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
           animation: powerUpGlow 1s infinite;
         }
@@ -718,10 +829,16 @@ const getTimerClass = () => {
           font-size: 12px;
           white-space: nowrap;
           opacity: 0;
+          visibility: hidden;
           pointer-events: none;
-          transition: opacity 0.2s;
+          transition:
+            opacity 0.2s ease,
+            visibility 0.2s ease,
+            transform 0.2s ease;
           z-index: 1000;
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          text-align: center;
+          max-width: 220px;
         }
 
         /* Tooltip arrow */
@@ -735,14 +852,46 @@ const getTimerClass = () => {
           border-top-color: #1e293b;
         }
 
-        .power-up:hover .power-up-tooltip {
+        /* Desktop hover tooltip */
+        @media (hover: hover) and (pointer: fine) {
+          .power-up:hover .power-up-tooltip {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(-2px);
+          }
+        }
+
+        /* Mobile / keyboard tooltip support */
+        .power-up:focus .power-up-tooltip,
+        .power-up:focus-visible .power-up-tooltip,
+        .power-up.tooltip-open .power-up-tooltip {
           opacity: 1;
+          visibility: visible;
+          transform: translateX(-50%) translateY(-2px);
+        }
+
+        .power-up-tooltip-main {
+          font-weight: 600;
+        }
+
+        .power-up-tooltip-hint {
+          margin-top: 4px;
+          color: #cbd5e1;
+          font-size: 11px;
+          line-height: 1.25;
         }
 
         @media (max-width: 640px) {
           .power-up-tooltip {
             font-size: 10px;
             padding: 6px 8px;
+            max-width: 170px;
+            white-space: normal;
+            line-height: 1.25;
+          }
+
+          .power-up-tooltip-hint {
+            font-size: 10px;
           }
         }
 
@@ -757,8 +906,8 @@ const getTimerClass = () => {
           z-index: 1000;
           pointer-events: none;
           animation: gentleBounce 0.6s ease-in-out;
-          opacity: 0.6; /* Made more transparent */
-          text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); /* Added subtle shadow */
+          opacity: 0.6;
+          text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
         }
 
         @media (max-width: 640px) {
@@ -784,13 +933,15 @@ const getTimerClass = () => {
 
         /* More transparent countdown colors */
         .countdown-3 { 
-          color: rgba(16, 185, 129, 0.7); /* Made more transparent */
+          color: rgba(16, 185, 129, 0.7);
         }
+
         .countdown-2 { 
-          color: rgba(245, 158, 11, 0.7); /* Made more transparent */
+          color: rgba(245, 158, 11, 0.7);
         }
+
         .countdown-1 { 
-          color: rgba(239, 68, 68, 0.7); /* Made more transparent */
+          color: rgba(239, 68, 68, 0.7);
         }
 
         /* 🎨 ENHANCED FLASH EFFECTS - Much stronger */
@@ -901,7 +1052,7 @@ const getTimerClass = () => {
       <div className={`game-container ${getFlashClasses()}`}>
         {/* Enhanced Full-Screen Flash Effect */}
         {currentEffect && isFlashing && (
-          <div className={`fullscreen-flash ${getFlashClasses()}`}></div>
+          <div className={`fullscreen-flash ${getFlashClasses()}`} />
         )}
 
         {/* More Transparent Countdown Effect Overlay */}
@@ -915,20 +1066,22 @@ const getTimerClass = () => {
         <div className="game-header">
           <div className="round-info">
             <div className="round-badge">Round {currentRound || 1}</div>
-            <div className="question-counter">Question {questionNumber}/{totalQuestions}</div>
+            <div className="question-counter">
+              Question {questionNumber}/{totalQuestions}
+            </div>
           </div>
-          
+
           <div className="timer-section">
             <div className="circular-timer">
               <svg className="timer-ring" viewBox="0 0 50 50">
-                <circle cx="25" cy="25" r="25" className="timer-bg"></circle>
-                <circle 
-                  cx="25" 
-                  cy="25" 
-                  r="25" 
+                <circle cx="25" cy="25" r="25" className="timer-bg" />
+                <circle
+                  cx="25"
+                  cy="25"
+                  r="25"
                   className={getTimerClass()}
                   style={{ strokeDashoffset: getTimerProgress() }}
-                ></circle>
+                />
               </svg>
               <div className="timer-text">{timeLeft ?? '0'}</div>
             </div>
@@ -937,9 +1090,7 @@ const getTimerClass = () => {
 
         {/* Frozen Indicator */}
         {isFrozen && frozenNotice && (
-          <div className="frozen-indicator">
-            {frozenNotice}
-          </div>
+          <div className="frozen-indicator">{frozenNotice}</div>
         )}
 
         {/* Question Card */}
@@ -949,9 +1100,7 @@ const getTimerClass = () => {
             <div className="category-tag">{category || 'General'}</div>
           </div>
 
-          <div className="question-text">
-            {question.text}
-          </div>
+          <div className="question-text">{question.text}</div>
 
           {/* Clue Section */}
           {clue && (
@@ -972,6 +1121,7 @@ const getTimerClass = () => {
             {question.options?.map((option: string, index: number) => (
               <button
                 key={index}
+                type="button"
                 className={`option-button ${selectedAnswer === option ? 'selected' : ''}`}
                 onClick={() => handleOptionSelect(option)}
                 disabled={answerSubmitted || isFrozen}
@@ -986,17 +1136,47 @@ const getTimerClass = () => {
           {roundExtras.length > 0 && (
             <div className="actions-section">
               <div className="power-ups">
-                {roundExtras.map((extraId) => (
-                  <button
-                    key={extraId}
-                    className={getExtraClass(extraId)}
-                    onClick={() => handleExtraClick(extraId)}
-                    disabled={isExtraDisabled(extraId)}
-                  >
-                    {getExtraIcon(extraId)}
-                    <div className="power-up-tooltip">{getExtraTooltip(extraId)}</div>
-                  </button>
-                ))}
+                {roundExtras.map((extraId) => {
+                  const disabled = isExtraDisabled(extraId);
+                  const isTooltipOpen = activeTooltipId === extraId;
+                  const tooltip = getExtraTooltip(extraId);
+
+                  return (
+                    <button
+                      key={extraId}
+                      type="button"
+                      className={`${getExtraClass(extraId)} ${
+                        isTooltipOpen ? 'tooltip-open' : ''
+                      }`}
+                      onClick={() => handleExtraClick(extraId)}
+                      onFocus={() => {
+                        if (!isTouchDevice()) {
+                          showTooltip(extraId);
+                        }
+                      }}
+                      onBlur={() => hideTooltip(extraId)}
+                      disabled={disabled}
+                      title={tooltip}
+                      aria-label={
+                        isTouchDevice() && !isTooltipOpen
+                          ? `${tooltip}. Tap once to preview, tap again to use.`
+                          : tooltip
+                      }
+                    >
+                      {getExtraIcon(extraId)}
+
+                      <div className="power-up-tooltip" role="tooltip">
+                        <div className="power-up-tooltip-main">{tooltip}</div>
+
+                        {!disabled && (
+                          <div className="power-up-tooltip-hint">
+                            {getExtraTapHint(extraId)}
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1005,8 +1185,11 @@ const getTimerClass = () => {
         {/* Freeze Modal */}
         <UseExtraModal
           visible={freezeModalOpen}
-          players={playersInRoom.filter(p => p.id !== playerId)}
-          onCancel={() => setFreezeModalOpen(false)}
+          players={playersInRoom.filter((p) => p.id !== playerId)}
+          onCancel={() => {
+            setFreezeModalOpen(false);
+            clearTooltip();
+          }}
           onConfirm={handleFreezeConfirm}
           extraType="freezeOutTeam"
         />

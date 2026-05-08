@@ -157,6 +157,7 @@ export interface QuizConfig {
   web3CharityId?: string | null;
   web3CharityOrgId?: string; 
   web3CharityName?: string | null;
+  web3CharityIsDirect?: boolean;
   web3PrizeSplit?: {
     charity: number;
     host: number;

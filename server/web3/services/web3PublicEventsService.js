@@ -61,12 +61,12 @@ function validateEventFields(fields) {
   ];
 
   for (const field of required) {
-    if (fields[field] === undefined || fields[field] === null || fields[field] === '') {
-      const err = new Error(`${field} is required`);
-      err.statusCode = 400;
-      throw err;
-    }
-  }
+     if (fields[field] === undefined || fields[field] === null || fields[field] === '') {
+       const err = new Error(`${field} is required`);
+       err.statusCode = 400;
+       throw err;
+     }
+   }
 
   if (!VALID_EVENT_TYPES.includes(fields.event_type)) {
     const err = new Error(`event_type must be one of: ${VALID_EVENT_TYPES.join(', ')}`);

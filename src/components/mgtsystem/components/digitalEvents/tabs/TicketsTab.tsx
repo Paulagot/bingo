@@ -101,7 +101,7 @@ function isTicketSafePaymentMethod(method: RoomPaymentMethod): boolean {
   }
 
   if (category === 'instant_payment') {
-    if (provider === 'cash') return false;
+    if (provider === 'cash' || provider === 'card_tap') return false;
     return TICKET_ALLOWED_MANUAL_PROVIDERS.has(provider);
   }
 
@@ -229,7 +229,7 @@ export default function TicketsTab({
     }
 
     if (!checkingPaymentMethods && !hasTicketSafePaymentMethod) {
-      return 'Ticket sales need at least one online payment method. Cash at the door can be used for admin-added players, but it cannot be used for public ticket purchases.';
+     return 'Ticket sales need at least one online payment method. Cash and CardTap on-the-night payments can be used for admin-added players, but they cannot be used for public ticket purchases.';
     }
 
     return null;

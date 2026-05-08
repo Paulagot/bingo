@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { SEO } from '../../components/SEO';
 import { Web3Header } from '../../components/GeneralSite2/Web3Header';
 import { useWeb3FundraiserAuth } from '../../hooks/useWeb3FundraiserAuth';
+import { useQuizSetupStore } from '../../components/Quiz/hooks/useQuizSetupStore';
 
 import {
   Rocket,
@@ -232,15 +233,67 @@ const Web3QuizPage: React.FC = () => {
   const navigate = useNavigate();
 
   /* ── Wizard state — only used when arriving via ?action=host from event card ── */
-  const [selectedChain, setSelectedChain] = useState<SupportedChain | null>(null);
-  const [showWizard, setShowWizard] = useState(false);
-  const [fullscreen, setFullscreen] = useState<VideoKey | null>(null);
+const [selectedChain, setSelectedChain] = useState<SupportedChain | null>(null);
+const [showWizard, setShowWizard] = useState(false);
+const [fullscreen, setFullscreen] = useState<VideoKey | null>(null);
+const [prefillReady, setPrefillReady] = useState(false);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setShowWizard(new URLSearchParams(window.location.search).get('action') === 'host');
-    }
-  }, []);
+const { updateSetupConfig } = useQuizSetupStore();
+
+useEffect(() => {
+  if (typeof window === 'undefined') return;
+
+  const params  = new URLSearchParams(window.location.search);
+  const action  = params.get('action');
+  const eventId = params.get('eventId');
+
+  if (action !== 'host') return;
+
+  setShowWizard(true);
+
+  if (!eventId) {
+    setPrefillReady(true);
+    return;
+  }
+
+  // Fetch the event and prefill setupConfig before the wizard renders
+  import('../../services/web3PublicEventsService')
+    .then(m => m.getEventById(eventId))
+.then(response => {
+  const event = response?.event;
+  if (!event) return;
+
+  const prefill: Record<string, any> = {
+    hostName:       event.host_name  ?? '',
+    entryFee:       String(event.entry_fee ?? ''),
+    web3Currency:   event.fee_token  ?? 'SOL',
+    currencySymbol: event.fee_token  ?? 'SOL',
+    web3Chain:      event.chain      ?? 'solana',
+    solanaCluster:  'mainnet',
+  };
+
+  // Charity prefill — handle both direct (id=0) and TGB charities
+  if (event.charity_id === 0 && event.charity_name) {
+    prefill.web3CharityOrgId    = null;
+    prefill.web3CharityName     = event.charity_name;
+    prefill.web3CharityId       = null;
+    prefill.web3CharityIsDirect = true;
+  } else if (event.charity_id) {
+    prefill.web3CharityOrgId    = event.charity_id;
+    prefill.web3CharityName     = event.charity_name ?? null;
+    prefill.web3CharityId       = String(event.charity_id);
+    prefill.web3CharityIsDirect = false;
+  }
+
+  updateSetupConfig(prefill);
+})
+    .catch(err => {
+      console.warn('[Web3QuizPage] Failed to prefill from event:', err.message);
+    })
+    .finally(() => {
+      setPrefillReady(true);
+    });
+}, []);
 
   const onWizardComplete = useCallback(() => {
     setShowWizard(false);
@@ -405,7 +458,7 @@ const Web3QuizPage: React.FC = () => {
   );
 
   /* ── If arrived via ?action=host from the event card, show wizard directly ── */
-  if (showWizard) {
+  if (showWizard && prefillReady) {
     return (
       <>
         <Web3QuizWizard

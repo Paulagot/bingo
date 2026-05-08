@@ -52,66 +52,91 @@ if (Debug) {
 // ───────────────────────────────────────────────────────────────────────────────
 // Duration model + breaks
 // ───────────────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────────────────────
+// Duration model + breaks
+// ───────────────────────────────────────────────────────────────────────────────
+//
+// New timing model:
+// - If a round has totalTimeSeconds, use that as the base round time.
+// - Otherwise use questionsPerRound * timePerQuestion.
+// - Hidden Object uses questionsPerRound * hiddenObject.timeLimitSeconds.
+// - Multiply active play time by 1.75 to allow for reading, review, transitions,
+//   leaderboard movement, host pauses, and real-world delays.
+// - Add:
+//   - 1 x 15 min break if there are 6+ rounds
+//   - 2 x 15 min breaks if there are 10+ rounds
+//
+
 type RoundLite = { type: RoundTypeId; customConfig?: Partial<RoundConfig> };
 
-function computeRoundMinutes(round: RoundLite): number {
-  const defaults = roundTypeDefaults[round.type];
-  const cfg: RoundConfig = { ...defaults, ...(round.customConfig ?? {}) };
-
-  if (round.type === 'speed_round' && cfg.totalTimeSeconds) {
-    const seconds = cfg.totalTimeSeconds * 4;
-    return Math.round((seconds / 60) * 10) / 10;
-  }
-
-  if (round.type === 'hidden_object') {
-    const puzzles = cfg.questionsPerRound || 0;
-    const timePerPuzzle = cfg.hiddenObject?.timeLimitSeconds || 45;
-    const seconds = puzzles * timePerPuzzle * 1.5;
-    return Math.round((seconds / 60) * 10) / 10;
-  }
-
-  const q = cfg.questionsPerRound || 0;
-  const t = cfg.timePerQuestion || 0;
-  const seconds = q * t * 3;
-  return Math.round((seconds / 60) * 10) / 10;
-}
-
+const REAL_WORLD_TIME_MULTIPLIER = 1.75;
 const BREAK_MINUTES = 15;
 
-function getBreakPositionsByStrategy(
-  rounds: QuizTemplate['rounds'],
-  difficulty: QuizTemplate['difficulty'],
-  tags: string[]
-) {
-  const len = rounds.length;
-  const isFamilyOrYouth = tags.some((t) =>
-    ['Audience: Family Friendly', 'Audience: Kids', 'Audience: Teens', 'Audience: Mixed'].includes(t)
-  );
-
-  if (isFamilyOrYouth && len >= 5 && len <= 6) return [Math.round(len / 2)];
-
-  if (difficulty === 'Hard' || len >= 7) {
-    const b: number[] = [];
-    for (let i = 2; i < len; i += 2) b.push(i);
-    return b;
-  }
-
-  const b: number[] = [];
-  for (let i = 3; i < len; i += 3) b.push(i);
-  return b;
+function roundToOneDecimal(value: number): number {
+  return Math.round(value * 10) / 10;
 }
 
-function calculateDuration(
-  rounds: QuizTemplate['rounds'],
-  difficulty: QuizTemplate['difficulty'],
-  tags: string[]
-): number {
+function getRoundBaseSeconds(round: RoundLite): number {
+  const defaults = roundTypeDefaults[round.type] ?? ({} as RoundConfig);
+  const cfg: RoundConfig = { ...defaults, ...(round.customConfig ?? {}) };
+
+  const questionsPerRound = Number(cfg.questionsPerRound ?? 0);
+
+  // Speed round / timed round:
+  // If totalTimeSeconds is set, treat that as the total active round time.
+  if (typeof cfg.totalTimeSeconds === 'number' && cfg.totalTimeSeconds > 0) {
+    return cfg.totalTimeSeconds;
+  }
+
+  // Hidden object:
+  // Usually uses hiddenObject.timeLimitSeconds per puzzle.
+  if (round.type === 'hidden_object') {
+    const timePerPuzzle =
+      typeof cfg.hiddenObject?.timeLimitSeconds === 'number' && cfg.hiddenObject.timeLimitSeconds > 0
+        ? cfg.hiddenObject.timeLimitSeconds
+        : typeof cfg.timePerQuestion === 'number' && cfg.timePerQuestion > 0
+          ? cfg.timePerQuestion
+          : 45;
+
+    return questionsPerRound * timePerPuzzle;
+  }
+
+  // Normal question-based rounds:
+  // general_trivia, wipeout, order_image, etc.
+  const timePerQuestion = Number(cfg.timePerQuestion ?? 0);
+  return questionsPerRound * timePerQuestion;
+}
+
+function computeRoundMinutes(round: RoundLite): number {
+  const baseSeconds = getRoundBaseSeconds(round);
+  const realWorldSeconds = baseSeconds * REAL_WORLD_TIME_MULTIPLIER;
+
+  return roundToOneDecimal(realWorldSeconds / 60);
+}
+
+function getBreakPositionsByStrategy(rounds: QuizTemplate['rounds']) {
+  const len = rounds.length;
+
+  // 10+ rounds: two breaks.
+  // First after round 3, second later in the quiz so it feels balanced.
+  if (len >= 10) return [3, 7];
+
+  // 6–9 rounds: one break after round 3.
+  if (len >= 6) return [3];
+
+  // 1–5 rounds: no break.
+  return [];
+}
+
+function calculateDuration(rounds: QuizTemplate['rounds']): number {
   const quizMinutes = rounds.reduce(
     (total, r) => total + computeRoundMinutes({ type: r.type, customConfig: r.customConfig }),
     0
   );
-  const breakPositions = getBreakPositionsByStrategy(rounds, difficulty, tags);
+
+  const breakPositions = getBreakPositionsByStrategy(rounds);
   const breakMinutes = breakPositions.length * BREAK_MINUTES;
+
   return Math.round(quizMinutes + breakMinutes);
 }
 
@@ -269,7 +294,7 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
   const computedDurations = useMemo(() => {
     const map = new Map<string, number>();
     for (const t of baseTemplates) {
-      map.set(t.id, calculateDuration(t.rounds, t.difficulty, t.tags));
+     map.set(t.id, calculateDuration(t.rounds));
     }
     return map;
   }, [baseTemplates]);
@@ -492,11 +517,7 @@ const StepQuizTemplates: React.FC<WizardStepProps> = ({ onNext, onBack, onResetT
         {filteredTemplates.map((template) => {
           // Use the pre-computed value — no recalculation per render
           const totalMinutes = computedDurations.get(template.id) ?? 0;
-          const breakPositions = getBreakPositionsByStrategy(
-            template.rounds,
-            template.difficulty,
-            template.tags
-          );
+       const breakPositions = getBreakPositionsByStrategy(template.rounds);
 
           return (
             <div
