@@ -34,6 +34,7 @@ export type EvmDistributeArgs = {
   }>;
   charityOrgId?: string;
   charityAddress?: string;
+  charityName?: string;
 };
 
 export type EvmDistributeResult =
@@ -452,17 +453,18 @@ export function useEvmDistributePrizes() {
 
             const charityAmtDecimal = bigintToDecimalString(charityAmt, decimals);
 
-            const resp = await fetch('/api/tgb/create-deposit-address', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                organizationId: tgbOrgId,
-                currency: currencySym,
-                network: tgbNetwork,
-                amount: charityAmtDecimal,
-                metadata: { roomId: args.roomId },
-              }),
-            });
+         const resp = await fetch('/api/charities/resolve-wallet', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    organizationId: tgbOrgId,
+    charityName:    args.charityName ?? null,
+    currency:       currencySym,
+    network:        tgbNetwork,
+    amount:         charityAmtDecimal,
+    metadata:       { roomId: args.roomId },
+  }),
+});
 
             const dep = await resp.json();
             if (!resp.ok || !dep?.ok || !dep?.depositAddress) {

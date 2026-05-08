@@ -35,6 +35,7 @@ const INVALID_TICKET_PAYMENT_METHOD_ERRORS = new Set([
   'payment_method_not_allowed_for_ticket_purchase',
   'ticket_crypto_payment_method_must_be_crypto',
   'unsupported_crypto_ticket_payment_method',
+  'pay_at_door_not_allowed_for_ticket_purchase',
 ]);
 
 function isInvalidTicketPaymentMethodError(message = '') {

@@ -214,8 +214,8 @@ async function validateManualTicketPaymentMethod({
     throw new Error('ticket_manual_payment_method_must_be_manual');
   }
 
-  if (method.providerName === 'cash') {
-    throw new Error('cash_not_allowed_for_ticket_purchase');
+ if (method.providerName === 'cash' || method.providerName === 'card_tap') {
+   throw new Error('pay_at_door_not_allowed_for_ticket_purchase');
   }
 
   if (!TICKET_MANUAL_PROVIDER_ALLOWLIST.has(method.providerName)) {

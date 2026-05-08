@@ -48,6 +48,9 @@ import web3TransactionRoutes from './mgtsystem/routes/web3TransactionRoutes.js';
 import web3PublicEventsRoutes from './web3/routes/web3PublicEventsRoutes.js'
 import quizCryptoDonationRoutes from './quiz/api/quizCryptoDonationRouter.js';
 import { startStripeCleanupJob } from './stripe/stripeCleanupJob.js';
+import charityListApi from './routes/charity-list.js';
+import charityResolverApi from './routes/resolve-charity-wallet.js';
+import charityWalletsAdminApi from './routes/charity-wallets-admin.js';
 
 
 
@@ -381,7 +384,10 @@ app.use('/api/mgtsystem/quiz-late-payments', quizLatePayments);
 app.use('/api/quiz/personalised-round', quizPersonalisedRoundRouter);
 app.use('/api/pledges', pledgeRouter); 
 app.use('/api/elimination', eliminationRoutes); 
- app.use('/api/elimination/dev', eliminationDevRoutes);
+app.use('/api/charities', charityListApi);
+app.use('/api/charities', charityResolverApi);
+app.use('/api/admin/charity-wallets', charityWalletsAdminApi);
+app.use('/api/elimination/dev', eliminationDevRoutes);
 app.use('/api/puzzles', puzzleRouter);
 app.use('/api/puzzle-challenges', challengeRouter);
 app.use('/api/supporter-auth',       supporterAuthRouter);

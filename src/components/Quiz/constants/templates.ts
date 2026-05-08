@@ -232,14 +232,14 @@ const quizTemplates: QuizTemplate[] = [
   // ~~~ KIDS: "Kids Capitals & Flags"
   // Q-time: 9+4+9+5+6 = 33 min → no break → total ≈ 45 min
   {
-    id: 'kids-capitals-flags-45',
-    name: 'Kids Capitals & Flags',
-    description: 'Gentle geography for young explorers — flags speed, geography ordering, and children\'s trivia.',
+    id: 'kids-capitals-45',
+    name: 'Kids Capitals ',
+    description: 'Gentle geography for young explorers — geography ordering, and children\'s trivia.',
     icon: '🗺️',
     difficulty: 'Easy',
     rounds: [
       { type: 'general_trivia', category: 'Children',          difficulty: 'easy' },
-      { type: 'speed_round',    category: 'Flags of the World', difficulty: 'easy' },
+      { type: 'speed_round',    category: 'Emojis',    difficulty: 'easy' },
       { type: 'wipeout',        category: 'Children',          difficulty: 'easy' },
       { type: 'hidden_object',  category: 'all',               difficulty: 'easy' },
       { type: 'order_image',    category: 'Geography',         difficulty: 'easy' },
@@ -511,15 +511,15 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'teens-history-geography-60',
     name: 'Teens History & Geography',
-    description: 'Flags speed, world history and geography ordering, hard wipeout — for teens with curious minds.',
+    description: 'Emojis speed, world history and geography ordering, hard wipeout — for teens with curious minds.',
     icon: '📜',
     difficulty: 'Hard',
     rounds: [
       { type: 'general_trivia', category: 'Children',          difficulty: 'hard' },
-      { type: 'speed_round',    category: 'Flags of the World', difficulty: 'hard' },
+      { type: 'speed_round',    category: 'Emojis', difficulty: 'hard' },
       { type: 'wipeout',        category: 'Children',          difficulty: 'hard' },
       { type: 'hidden_object',  category: 'all',               difficulty: 'hard' },
-      { type: 'order_image',    category: 'World History',     difficulty: 'hard' },
+      { type: 'order_image',    category: 'World History',     difficulty: 'easy' },
       { type: 'general_trivia', category: 'Children',          difficulty: 'medium' },
     ],
     tags: ['Audience: Teens', 'Topic: History', 'Duration: ≈60m']
@@ -610,12 +610,12 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'family-geography-60',
     name: 'Family Geography Night',
-    description: 'World capitals, flags speed, geography ordering, find-it-fast, and wipeout — the whole world in one night.',
+    description: 'World capitals, Emojis speed, geography ordering, find-it-fast, and wipeout — the whole world in one night.',
     icon: '🌍',
     difficulty: 'Medium',
     rounds: [
       { type: 'general_trivia', category: 'World Capitals',    difficulty: 'medium' },
-      { type: 'speed_round',    category: 'Flags of the World', difficulty: 'easy' },
+      { type: 'speed_round',    category: 'Emojis', difficulty: 'easy' },
       { type: 'wipeout',        category: 'History',           difficulty: 'medium' },
       { type: 'hidden_object',  category: 'all',               difficulty: 'easy' },
       { type: 'order_image',    category: 'Geography',         difficulty: 'medium' },
@@ -706,12 +706,12 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'family-capitals-quest-60',
     name: 'Family Capitals Quest',
-    description: 'Friendly geography — flags sprint, find-it-fast, geography ordering, wipeout, and capitals trivia.',
+    description: 'Friendly geography — Emojis sprint, find-it-fast, geography ordering, wipeout, and capitals trivia.',
     icon: '🗺️',
     difficulty: 'Medium',
     rounds: [
       { type: 'general_trivia', category: 'World Capitals',    difficulty: 'medium' },
-      { type: 'speed_round',    category: 'Flags of the World', difficulty: 'easy' },
+      { type: 'speed_round',    category: 'Emojis', difficulty: 'easy' },
       { type: 'wipeout',        category: 'General Knowledge', difficulty: 'medium' },
       { type: 'hidden_object',  category: 'all',               difficulty: 'easy' },
       { type: 'order_image',    category: 'Geography',         difficulty: 'easy' },
@@ -884,12 +884,12 @@ const quizTemplates: QuizTemplate[] = [
   {
     id: 'adults-capitals-master-60',
     name: 'Capitals Master',
-    description: 'Geography-heavy — flags speed, world capitals wipeout, geography ordering, find-it-fast.',
+    description: 'Geography-heavy — Emojis speed, world capitals wipeout, geography ordering, find-it-fast.',
     icon: '🗺️',
     difficulty: 'Hard',
     rounds: [
-      { type: 'general_trivia', category: 'World Capitals',    difficulty: 'hard' },
-      { type: 'speed_round',    category: 'Flags of the World', difficulty: 'hard' },
+      { type: 'general_trivia', category: 'World Capitals',    difficulty: 'medium' },
+      { type: 'speed_round',    category: 'Emojis', difficulty: 'hard' },
       { type: 'wipeout',        category: 'World Capitals',    difficulty: 'hard' },
       { type: 'hidden_object',  category: 'all',               difficulty: 'hard' },
       { type: 'order_image',    category: 'Geography',         difficulty: 'hard' },

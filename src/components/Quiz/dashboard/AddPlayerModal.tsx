@@ -27,6 +27,7 @@ interface AddPlayerModalProps {
 
 type CanonicalPaymentMethod =
   | 'cash'
+    | 'card_tap'
   | 'instant_payment'
   | 'card'
   | 'stripe'
@@ -72,12 +73,16 @@ function getCanonicalPaymentMethod(
 ): CanonicalPaymentMethod {
   if (!method) return 'other';
 
-  if (method.method_category === 'stripe') return 'stripe';
-  if (method.method_category === 'card') return 'card';
-  if (method.method_category === 'crypto') return 'crypto';
+  const category = String(method.method_category || '').toLowerCase();
+  const provider = String(method.provider_name || '').toLowerCase();
 
-  if (method.method_category === 'instant_payment') {
-    if (method.provider_name === 'cash') return 'cash';
+  if (category === 'stripe') return 'stripe';
+  if (category === 'card') return 'card';
+  if (category === 'crypto') return 'crypto';
+
+  if (category === 'instant_payment') {
+    if (provider === 'cash') return 'cash';
+    if (provider === 'card_tap') return 'card_tap';
     return 'instant_payment';
   }
 
@@ -126,7 +131,10 @@ function getLegacyPaymentLabel(value: unknown): string {
 
   const lower = String(value).toLowerCase().trim();
 
-  if (lower === 'cash') return 'cash';
+ if (lower === 'cash') return 'cash';
+if (lower === 'card_tap' || lower === 'card tap' || lower === 'cardtap') {
+  return 'card_tap';
+}
   if (lower === 'instant_payment' || lower === 'instant payment') {
     return 'instant_payment';
   }

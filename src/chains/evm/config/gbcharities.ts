@@ -1,21 +1,23 @@
 // src/chains/evm/config/gbcharities.ts
 
 /** A charity the host can pick in the UI.
- *  id === The Giving Block orgId (stable key)
+ *  id === The Giving Block orgId (stable key) for TGB charities.
+ *  For direct-wallet charities fetched from the DB, id is 0 and
+ *  direct === true. Never pass id to TGB when direct === true.
  */
 export type Charity = {
-  id: number;          // TGB orgId (stable key)
-  name: string;          // display name
-  logoUrl?: string;      // optional, improves UI if you have it
-  blurb?: string;        // optional small description for UI
+  id: number;          // TGB orgId — only meaningful when direct !== true
+  name: string;        // display name
+  logoUrl?: string;
+  blurb?: string;
+  direct?: boolean;    // true = wallet stored in DB, no TGB org id
 };
 
 // NOTE: Fill this list once from TGB and commit to your repo.
-// You can keep ~20 entries for your allowlist.
 export const CHARITIES: Charity[] = [
-  { id: 1189134587, name: 'Identity Theft Resource Center', logoUrl: '' },  // no quotes
-  { id: 1189132503, name: "Clean International", logoUrl: '' }, // no quotes
-
+  { id: 1189134587, name: 'Identity Theft Resource Center', logoUrl: '' },
+  { id: 1189132503, name: 'Clean International', logoUrl: '' },
+  // add more TGB charities here...
 ];
 
 // convenience lookups
@@ -28,7 +30,6 @@ export const getOrgIdByName = (name?: string | null) => {
   return CHARITIES.find(c => c.name.trim().toLowerCase() === norm)?.id;
 };
 
-// simple typeahead helper (case-insensitive substring match)
 export const searchCharities = (query: string, limit = 10) => {
   const q = query.trim().toLowerCase();
   if (!q) return CHARITIES.slice(0, limit);

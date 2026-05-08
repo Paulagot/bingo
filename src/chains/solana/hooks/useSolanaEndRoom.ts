@@ -67,6 +67,7 @@ export interface EndRoomParams extends DistributePrizesParams {
    * If you don't have this list, the transaction will fail with RefundAccountMismatch (6019).
    */
   allPlayers?: (PublicKey | string)[];
+  charityName?: string; // for TGB resolution only, optional on contract side
 }
 
 export function useSolanaEndRoom() {
@@ -226,11 +227,13 @@ export function useSolanaEndRoom() {
           charityWallet = typeof fb === 'string' ? new PublicKey(fb) : fb;
         } else {
           try {
-            const res = await fetch('/api/tgb/create-deposit-address', {
+            const res = await fetch('/api/charities/resolve-wallet', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 organizationId: Number(charityOrgId),
+                charityName:    params.charityName ?? null,
+                network:        'solana',
                 tokenCode: currency,
                 amount: charityDecimal,
                 metadata: { roomId },

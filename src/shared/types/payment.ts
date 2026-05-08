@@ -28,6 +28,7 @@
  */
 export type PaymentMethod =
   | 'cash'
+  | 'card_tap'
   | 'instant_payment'
   | 'crypto'
   | 'pay_admin'
@@ -67,7 +68,7 @@ export type VerificationMode =
  */
 export type InstantPaymentProvider =
   | 'cash'
-    | 'card_tap'
+  | 'card_tap'
   | 'revolut'
   | 'bank_transfer'
   | 'paypal'
