@@ -51,6 +51,9 @@ import { startStripeCleanupJob } from './stripe/stripeCleanupJob.js';
 import charityListApi from './routes/charity-list.js';
 import charityResolverApi from './routes/resolve-charity-wallet.js';
 import charityWalletsAdminApi from './routes/charity-wallets-admin.js';
+import quizCryptoQuoteRouter      from './quiz/api/quizCryptoQuoteRouter.js';
+ import quizCryptoFixedFeeRouter   from './quiz/api/quizCryptoFixedFeeRouter.js';
+ import quizTicketCryptoFixedFeeRouter from './quiz/api/quizTicketCryptoFixedFeeRouter.js';
 
 
 
@@ -376,29 +379,32 @@ app.use('/', eventIntegrationsApi);
 app.use('/api/payment-methods', paymentMethodsApi);
 app.use('/api/quiz-reconciliation', reconciliationRoutes);
 app.use('/api/quiz/tickets/crypto-donation', quizTicketCryptoDonationRoutes);
+app.use('/api/quiz/tickets/crypto-fixed-fee', quizTicketCryptoFixedFeeRouter);
 app.use('/api/quiz/tickets', ticketsRouter);
 app.use('/api/quiz/web2', quizStatsRoutes);
 app.use('/api', quizPaymentMethodsRoutes);
 app.use('/quiz/api', createRoomApi);
 app.use('/api/mgtsystem/quiz-late-payments', quizLatePayments);
 app.use('/api/quiz/personalised-round', quizPersonalisedRoundRouter);
-app.use('/api/pledges', pledgeRouter); 
-app.use('/api/elimination', eliminationRoutes); 
+app.use('/api/pledges', pledgeRouter);
+app.use('/api/elimination', eliminationRoutes);
 app.use('/api/charities', charityListApi);
 app.use('/api/charities', charityResolverApi);
 app.use('/api/admin/charity-wallets', charityWalletsAdminApi);
 app.use('/api/elimination/dev', eliminationDevRoutes);
 app.use('/api/puzzles', puzzleRouter);
 app.use('/api/puzzle-challenges', challengeRouter);
-app.use('/api/supporter-auth',       supporterAuthRouter);
+app.use('/api/supporter-auth', supporterAuthRouter);
 app.use('/api/puzzle-subscriptions', puzzleSubscriptionRouter);
 app.use('/api/web3-transactions', web3TransactionRoutes);
 app.use('/api/web3/auth', web3AuthRoutes);
-app.use('/api/web3/fundraisers', web3FundraiserRoutes)
-app.use('/api/web3/public-events', web3PublicEventsRoutes)
+app.use('/api/web3/fundraisers', web3FundraiserRoutes);
+app.use('/api/web3/public-events', web3PublicEventsRoutes);
 app.use('/api/contact', contactRoute);
 app.use('/api/auth/reset', passwordResetRoute);
 app.use('/api/quiz/crypto-donation', quizCryptoDonationRoutes);
+app.use('/api/quiz/crypto-quote', quizCryptoQuoteRouter);
+app.use('/api/quiz/crypto-fixed-fee', quizCryptoFixedFeeRouter);
 
 
 console.log('✅ Routes setup complete');

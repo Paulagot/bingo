@@ -2,6 +2,7 @@
 const debug = false;
 
 import { getQuizRoom } from '../quizRoomManager.js';
+import { connection, TABLE_PREFIX } from '../../config/database.js';
 
 /** Ensure room.config.reconciliation exists and has minimal shape */
 function ensureRecon(room) {
@@ -46,6 +47,23 @@ function applyPatch(recon, patch) {
   return next;
 }
 
+async function persistReconciliationToDb(roomId, recon) {
+  try {
+    await connection.execute(
+      `UPDATE ${TABLE_PREFIX}web2_quiz_rooms
+       SET config_json = JSON_SET(
+         COALESCE(config_json, '{}'),
+         '$.reconciliation', CAST(? AS JSON)
+       )
+       WHERE room_id = ?`,
+      [JSON.stringify(recon), roomId]
+    );
+    if (debug) console.log('[recon] ✅ Persisted reconciliation to DB for room', roomId);
+  } catch (e) {
+    console.error('[recon] ❌ Failed to persist reconciliation to DB:', e);
+  }
+}
+
 export function setupReconciliationHandlers(socket, namespace) {
   // Ask for current reconciliation state
   socket.on('request_reconciliation', ({ roomId }) => {
@@ -63,7 +81,7 @@ export function setupReconciliationHandlers(socket, namespace) {
   });
 
   // Update reconciliation with a patch (approval, notes, ledger, etc.)
-  socket.on('update_reconciliation', ({ roomId, patch }) => {
+socket.on('update_reconciliation', async ({ roomId, patch }) => {
     try {
       const room = getQuizRoom(roomId);
       if (!room) return socket.emit('quiz_error', { message: `Room not found: ${roomId}` });
@@ -71,6 +89,7 @@ export function setupReconciliationHandlers(socket, namespace) {
 
       const next = applyPatch(current, patch);
       room.config.reconciliation = next;
+      await persistReconciliationToDb(roomId, next);
 
       if (debug) console.log('[recon] update', roomId, Object.keys(patch || {}));
 
@@ -88,7 +107,7 @@ export function setupReconciliationHandlers(socket, namespace) {
     // NEW: declare a prize award (status starts as 'declared')
 // NEW: declare a prize award (status starts as 'declared')
 
-socket.on('record_prize_award', ({ roomId, award }) => {
+socket.on('record_prize_award', async ({ roomId, award }) => {
   try {
     const room = getQuizRoom(roomId);
     if (!room) return socket.emit('quiz_error', { message: `Room not found: ${roomId}` });
@@ -146,6 +165,7 @@ socket.on('record_prize_award', ({ roomId, award }) => {
     });
 
     emitReconUpdated(namespace, roomId, recon);
+    await persistReconciliationToDb(roomId, recon);
     namespace.to(roomId).emit('room_config', { ...room.config });
   } catch (e) {
     console.error('[recon] record_prize_award error', e);
@@ -155,7 +175,7 @@ socket.on('record_prize_award', ({ roomId, award }) => {
 
 
   // NEW: update a prize award (status transitions, delivery info, etc.)
-socket.on('update_prize_award', ({ roomId, prizeAwardId, patch }) => {
+socket.on('update_prize_award', async ({ roomId, prizeAwardId, patch }) => {
   try {
     const room = getQuizRoom(roomId);
     if (!room) return socket.emit('quiz_error', { message: `Room not found: ${roomId}` });
@@ -184,6 +204,7 @@ socket.on('update_prize_award', ({ roomId, prizeAwardId, patch }) => {
     recon.prizeAwards = list;
 
     emitReconUpdated(namespace, roomId, recon);
+    await persistReconciliationToDb(roomId, recon);
     namespace.to(roomId).emit('room_config', { ...room.config });
   } catch (e) {
     console.error('[recon] update_prize_award error', e);

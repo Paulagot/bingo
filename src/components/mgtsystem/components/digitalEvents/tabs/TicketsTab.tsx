@@ -2,16 +2,20 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Copy,
-  CheckCircle,
-  Check,
-  Clock,
-  RefreshCw,
-  QrCode,
-  Lock,
-  Ticket,
-  X,
   AlertTriangle,
+  Check,
+  CheckCircle,
+  Clock,
+  Copy,
+  CreditCard,
+  ExternalLink,
+  Lock,
+  QrCode,
+  RefreshCw,
+  Ticket,
+  TicketCheck,
+  Users,
+  X,
 } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 
@@ -42,6 +46,7 @@ interface Props {
   canUseTicketing: boolean;
   confirmedBy: string;
   confirmedByName?: string;
+  config?: any;
 }
 
 type Filter = 'all' | 'pending' | 'confirmed' | 'redeemed';
@@ -108,6 +113,56 @@ function isTicketSafePaymentMethod(method: RoomPaymentMethod): boolean {
   return false;
 }
 
+function parseMaybeJson(value: unknown): any {
+  if (!value) return null;
+  if (typeof value === 'object') return value;
+
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
+function resolveRoomConfig(room: Room, providedConfig?: any): any {
+  const roomAny = room as any;
+
+  return (
+    parseMaybeJson(providedConfig) ||
+    parseMaybeJson(roomAny.config) ||
+    parseMaybeJson(roomAny.room_config) ||
+    parseMaybeJson(roomAny.quiz_config) ||
+    parseMaybeJson(roomAny.setup_config) ||
+    {}
+  );
+}
+
+function formatDateTime(value: string | null | undefined): string {
+  if (!value) return '—';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+
+  return date.toLocaleString('en-IE', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function humanisePaymentMethod(value: string | null | undefined): string {
+  if (!value) return 'Payment method';
+
+  return value
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 function TicketLinkQRModal({
   ticketUrl,
   onClose,
@@ -134,14 +189,14 @@ function TicketLinkQRModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-sm rounded-xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-gray-200 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-start justify-between border-b border-slate-200 bg-slate-50 p-5">
           <div>
-            <h3 className="text-base font-bold text-gray-900">
+            <h3 className="text-base font-bold text-slate-950">
               Ticket purchase QR code
             </h3>
-            <p className="text-xs text-gray-500">
+            <p className="mt-1 text-xs text-slate-500">
               Scan to open the ticket purchase page.
             </p>
           </div>
@@ -149,30 +204,31 @@ function TicketLinkQRModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-2 hover:bg-gray-100"
+            className="rounded-xl p-2 text-slate-500 transition hover:bg-white hover:text-slate-900"
+            aria-label="Close QR code modal"
           >
-            <X className="h-5 w-5 text-gray-500" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="space-y-4 p-5 text-center">
-          <div className="inline-block rounded-xl border border-gray-200 bg-white p-4">
+          <div className="inline-block rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <QRCodeCanvas value={ticketUrl} size={220} includeMargin />
           </div>
 
-          <code className="block truncate rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700">
+          <code className="block truncate rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
             {ticketUrl}
           </code>
 
           <button
             type="button"
             onClick={copyLink}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
           >
             {copied ? (
               <>
                 <CheckCircle className="h-4 w-4" />
-                Copied!
+                Copied
               </>
             ) : (
               <>
@@ -187,12 +243,39 @@ function TicketLinkQRModal({
   );
 }
 
+function StatusPill({ ticket }: { ticket: TicketData }) {
+  if (ticket.paymentStatus === 'payment_claimed') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">
+        <Clock className="h-3.5 w-3.5" />
+        Pending
+      </span>
+    );
+  }
+
+  if (ticket.paymentStatus === 'payment_confirmed') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+        <Check className="h-3.5 w-3.5" />
+        Confirmed
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700">
+      Refunded
+    </span>
+  );
+}
+
 export default function TicketsTab({
   room,
   hasLinkedPaymentMethods,
   canUseTicketing,
   confirmedBy,
   confirmedByName,
+  config,
 }: Props) {
   const [tickets, setTickets] = useState<TicketData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -210,6 +293,19 @@ export default function TicketsTab({
   const [showTicketLinkQr, setShowTicketLinkQr] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  const roomConfig = useMemo(() => resolveRoomConfig(room, config), [room, config]);
+  const currencySymbol =
+    roomConfig.currencySymbol ||
+    roomConfig.currency_symbol ||
+    tickets[0]?.currency ||
+    roomConfig.currency ||
+    '€';
+
+  const formatMoney = (value: number | string | null | undefined) => {
+    const numeric = Number(value || 0);
+    return `${currencySymbol}${numeric.toFixed(2)}`;
+  };
+
   const ticketUrl = `${window.location.origin}/tickets/buy/${room.room_id}`;
 
   const isRoomLive = room.status === 'live';
@@ -225,11 +321,11 @@ export default function TicketsTab({
     }
 
     if (!hasLinkedPaymentMethods) {
-      return 'Link a payment method in the Payments tab first — once set up, ticket sales will be active here.';
+      return 'Link a payment method first. Once a supported method is available, ticket sales will be active here.';
     }
 
     if (!checkingPaymentMethods && !hasTicketSafePaymentMethod) {
-     return 'Ticket sales need at least one online payment method. Cash and CardTap on-the-night payments can be used for admin-added players, but they cannot be used for public ticket purchases.';
+      return 'Ticket sales need at least one online payment method. Cash and CardTap on-the-night payments can be used for admin-added players, but not for public ticket purchases.';
     }
 
     return null;
@@ -433,17 +529,24 @@ export default function TicketsTab({
       ).length,
       revenue: tickets
         .filter((ticket) => ticket.paymentStatus !== 'refunded')
-        .reduce((sum, ticket) => sum + ticket.totalAmount, 0),
+        .reduce((sum, ticket) => sum + Number(ticket.totalAmount || 0), 0),
     }),
     [tickets]
   );
 
+  const filterOptions: Array<{ key: Filter; label: string; count: number }> = [
+    { key: 'all', label: 'All', count: stats.total },
+    { key: 'pending', label: 'Pending', count: stats.pending },
+    { key: 'confirmed', label: 'Confirmed', count: stats.confirmed },
+    { key: 'redeemed', label: 'Redeemed', count: stats.redeemed },
+  ];
+
   if (checkingPaymentMethods) {
     return (
       <div className="p-5">
-        <div className="flex items-center justify-center rounded-xl border border-gray-200 bg-gray-50 p-8">
+        <div className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
           <div className="h-6 w-6 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
-          <span className="ml-3 text-sm text-gray-600">
+          <span className="ml-3 text-sm font-medium text-slate-600">
             Checking ticket payment methods…
           </span>
         </div>
@@ -454,21 +557,21 @@ export default function TicketsTab({
   if (shouldHideEntireTab) {
     return (
       <div className="p-5">
-        <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gray-200">
-            <Lock className="h-6 w-6 text-gray-400" />
+        <div className="overflow-hidden rounded-2xl border border-dashed border-slate-300 bg-white shadow-sm">
+          <div className="border-b border-slate-100 bg-slate-50 p-5 text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-200">
+              <Lock className="h-6 w-6 text-slate-500" />
+            </div>
+            <p className="text-sm font-bold text-slate-900">
+              Ticket sales not available yet
+            </p>
+            <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
+              {paymentLockReason}
+            </p>
           </div>
 
-          <p className="text-sm font-semibold text-gray-700">
-            Ticket sales not available yet
-          </p>
-
-          <p className="mx-auto mt-2 max-w-sm text-xs text-gray-500">
-            {paymentLockReason}
-          </p>
-
           {paymentMethodsError && (
-            <div className="mx-auto mt-4 flex max-w-sm items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-left text-xs text-amber-800">
+            <div className="m-5 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-left text-sm text-amber-800">
               <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
               <span>{paymentMethodsError}</span>
             </div>
@@ -481,275 +584,352 @@ export default function TicketsTab({
   return (
     <>
       <div className="space-y-5 p-5">
-        {/* Sell link */}
-        {shouldShowTicketPurchaseLink ? (
-          <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-            <div className="mb-2 flex items-center gap-2">
-              <Ticket className="h-4 w-4 text-blue-600" />
-              <span className="text-sm font-semibold text-blue-900">
-                Ticket purchase link
-              </span>
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 bg-gradient-to-br from-indigo-50 via-white to-sky-50 p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-white/80 px-3 py-1 text-xs font-semibold text-indigo-700 shadow-sm">
+                  <Ticket className="h-3.5 w-3.5" />
+                  Ticketing
+                </div>
+
+                <h2 className="mt-3 text-lg font-bold text-slate-950">
+                  Ticket sales and check-in
+                </h2>
+
+                <p className="mt-1 max-w-2xl text-sm text-slate-600">
+                  Share the purchase link, confirm manual payments, and scan or
+                  open each player’s ticket QR code from one place.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={loadTickets}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Refresh
+              </button>
             </div>
+          </div>
 
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <code className="min-w-0 flex-1 truncate rounded-lg border border-blue-200 bg-white px-3 py-2 font-mono text-xs text-gray-700">
-                {ticketUrl}
-              </code>
+          <div className="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              {
+                label: 'Tickets sold',
+                value: stats.total,
+                helper: `${stats.pending} pending confirmation`,
+                icon: Ticket,
+              },
+              {
+                label: 'Confirmed',
+                value: stats.confirmed,
+                helper: 'Payments verified',
+                icon: CheckCircle,
+              },
+              {
+                label: 'Redeemed',
+                value: stats.redeemed,
+                helper: 'Checked in / used',
+                icon: TicketCheck,
+              },
+              {
+                label: 'Ticket revenue',
+                value: formatMoney(stats.revenue),
+                helper: 'Excludes refunded tickets',
+                icon: CreditCard,
+              },
+            ].map(({ label, value, helper, icon: Icon }) => (
+              <div
+                key={label}
+                className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      {label}
+                    </p>
+                    <p className="mt-1 text-xl font-bold text-slate-950">
+                      {value}
+                    </p>
+                  </div>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-indigo-600 shadow-sm">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                </div>
+                <p className="mt-2 text-xs text-slate-500">{helper}</p>
+              </div>
+            ))}
+          </div>
+        </section>
 
-              <div className="flex gap-2">
+        {shouldShowTicketPurchaseLink ? (
+          <section className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-5 shadow-sm">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0">
+                <div className="mb-2 flex items-center gap-2">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm">
+                    <ExternalLink className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-indigo-950">
+                      Public ticket purchase link
+                    </h3>
+                    <p className="text-xs text-indigo-700">
+                      Share this with players before the quiz starts.
+                    </p>
+                  </div>
+                </div>
+
+                <code className="block min-w-0 truncate rounded-xl border border-indigo-100 bg-white px-3 py-2 font-mono text-xs text-slate-700 shadow-sm">
+                  {ticketUrl}
+                </code>
+              </div>
+
+              <div className="flex flex-col gap-2 sm:flex-row lg:flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowTicketLinkQr(true)}
-                  className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-white px-4 py-2.5 text-sm font-semibold text-indigo-700 shadow-sm transition hover:bg-indigo-100"
                 >
                   <QrCode className="h-4 w-4" />
-                  QR Code
+                  Show QR
                 </button>
 
                 <button
                   type="button"
                   onClick={copyLink}
-                  className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
                 >
                   {copied ? (
                     <CheckCircle className="h-4 w-4" />
                   ) : (
                     <Copy className="h-4 w-4" />
                   )}
-                  {copied ? 'Copied!' : 'Copy'}
+                  {copied ? 'Copied' : 'Copy link'}
                 </button>
               </div>
             </div>
-
-            <p className="mt-2 text-xs text-blue-700">
-              Share this link or QR code so players can purchase tickets online.
-            </p>
-          </div>
+          </section>
         ) : (
-          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-start gap-3">
-              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gray-200">
-                <Lock className="h-5 w-5 text-gray-500" />
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
+                <Lock className="h-5 w-5" />
               </div>
 
               <div>
-                <p className="text-sm font-semibold text-gray-800">
+                <p className="text-sm font-bold text-slate-900">
                   Ticket purchase link unavailable
                 </p>
 
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-sm text-slate-500">
                   {linkUnavailableReason ||
                     'Ticket sales are not currently available for this quiz.'}
                 </p>
               </div>
             </div>
-          </div>
+          </section>
         )}
 
-        {/* Stats */}
-        {!loading && (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-            {[
-              {
-                label: 'Total',
-                value: stats.total,
-                cls: 'bg-gray-50 border-gray-200 text-gray-900',
-              },
-              {
-                label: 'Pending',
-                value: stats.pending,
-                cls: 'bg-yellow-50 border-yellow-200 text-yellow-900',
-              },
-              {
-                label: 'Confirmed',
-                value: stats.confirmed,
-                cls: 'bg-green-50 border-green-200 text-green-900',
-              },
-              {
-                label: 'Redeemed',
-                value: stats.redeemed,
-                cls: 'bg-blue-50 border-blue-200 text-blue-900',
-              },
-              {
-                label: 'Revenue',
-                value: `${tickets[0]?.currency || '€'}${stats.revenue.toFixed(
-                  2
-                )}`,
-                cls: 'bg-indigo-50 border-indigo-200 text-indigo-900',
-              },
-            ].map(({ label, value, cls }) => (
-              <div key={label} className={`rounded-lg border p-3 ${cls}`}>
-                <div className="mb-1 text-xs opacity-70">{label}</div>
-                <div className="text-base font-bold">{value}</div>
-              </div>
-            ))}
-          </div>
-        )}
+        <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-slate-950">
+                Ticket list
+              </h3>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Filter tickets by payment or redemption status.
+              </p>
+            </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex gap-2">
-            {(['all', 'pending', 'confirmed', 'redeemed'] as const).map(
-              (filterKey) => (
+            <div className="flex flex-wrap gap-2">
+              {filterOptions.map(({ key, label, count }) => (
                 <button
-                  key={filterKey}
+                  key={key}
                   type="button"
-                  onClick={() => setFilter(filterKey)}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
-                    filter === filterKey
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  onClick={() => setFilter(key)}
+                  className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                    filter === key
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
                   }`}
                 >
-                  {filterKey}
+                  {label}
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                      filter === key
+                        ? 'bg-white/20 text-white'
+                        : 'bg-white text-slate-500'
+                    }`}
+                  >
+                    {count}
+                  </span>
                 </button>
-              )
-            )}
+              ))}
+            </div>
           </div>
 
-          <button
-            type="button"
-            onClick={loadTickets}
-            className="flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs hover:bg-gray-50"
-          >
-            <RefreshCw className="h-3 w-3" />
-            Refresh
-          </button>
-        </div>
+          {error && (
+            <div className="m-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+              {error}
+            </div>
+          )}
 
-        {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+          {paymentMethodsError && (
+            <div className="m-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+              <span>{paymentMethodsError}</span>
+            </div>
+          )}
 
-        {paymentMethodsError && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-            {paymentMethodsError}
-          </div>
-        )}
-
-        {/* Table */}
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="h-6 w-6 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
-            <span className="ml-3 text-sm text-gray-600">Loading tickets…</span>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="py-10 text-center text-sm text-gray-500">
-            No tickets found.
-          </div>
-        ) : (
-          <div className="overflow-x-auto rounded-xl border border-gray-200">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  {['Purchaser', 'Player', 'Amount', 'Ref', 'Status', ''].map(
-                    (heading) => (
+          {loading ? (
+            <div className="flex items-center justify-center py-14">
+              <div className="h-6 w-6 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
+              <span className="ml-3 text-sm font-medium text-slate-600">
+                Loading tickets…
+              </span>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="px-5 py-12 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+                <Ticket className="h-6 w-6" />
+              </div>
+              <p className="mt-3 text-sm font-semibold text-slate-700">
+                No tickets found
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Try another filter, or share the purchase link once ticket sales
+                are open.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-slate-100 text-sm">
+                <thead className="bg-slate-50">
+                  <tr>
+                    {[
+                      'Purchaser',
+                      'Player',
+                      'Amount',
+                      'Payment ref',
+                      'Status',
+                      '',
+                    ].map((heading) => (
                       <th
                         key={heading}
-                        className="px-3 py-2.5 text-left text-xs font-semibold uppercase text-gray-500"
+                        className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-500"
                       >
                         {heading}
                       </th>
-                    )
-                  )}
-                </tr>
-              </thead>
+                    ))}
+                  </tr>
+                </thead>
 
-              <tbody className="divide-y divide-gray-100 bg-white">
-                {filtered.map((ticket) => (
-                  <tr key={ticket.ticketId} className="hover:bg-gray-50">
-                    <td className="whitespace-nowrap px-3 py-3">
-                      <div className="font-medium text-gray-900">
-                        {ticket.purchaserName}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {ticket.purchaserEmail}
-                      </div>
-                    </td>
-
-                    <td className="whitespace-nowrap px-3 py-3 text-gray-900">
-                      {ticket.playerName}
-                    </td>
-
-                    <td className="whitespace-nowrap px-3 py-3">
-                      <div className="font-semibold text-gray-900">
-                        {ticket.currency}
-                        {ticket.totalAmount.toFixed(2)}
-                      </div>
-
-                      {ticket.extrasTotal > 0 && (
-                        <div className="text-xs text-gray-500">
-                          {ticket.currency}
-                          {ticket.entryFee.toFixed(2)} + {ticket.currency}
-                          {ticket.extrasTotal.toFixed(2)}
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {filtered.map((ticket) => (
+                    <tr key={ticket.ticketId} className="hover:bg-slate-50/70">
+                      <td className="whitespace-nowrap px-4 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
+                            <Users className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-slate-950">
+                              {ticket.purchaserName || 'Purchaser'}
+                            </div>
+                            <div className="text-xs text-slate-500">
+                              {ticket.purchaserEmail || 'No email'}
+                            </div>
+                          </div>
                         </div>
-                      )}
-                    </td>
+                      </td>
 
-                    <td className="whitespace-nowrap px-3 py-3">
-                      <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">
-                        {ticket.paymentReference}
-                      </code>
-                    </td>
-
-                    <td className="whitespace-nowrap px-3 py-3">
-                      {ticket.paymentStatus === 'payment_claimed' && (
-                        <span className="inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800">
-                          <Clock className="mr-1 h-3 w-3" />
-                          Pending
-                        </span>
-                      )}
-
-                      {ticket.paymentStatus === 'payment_confirmed' && (
-                        <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-                          <Check className="mr-1 h-3 w-3" />
-                          Confirmed
-                        </span>
-                      )}
-
-                      {ticket.redemptionStatus === 'redeemed' && (
-                        <div className="mt-0.5 text-xs text-blue-600">
-                          ✓ Redeemed
+                      <td className="whitespace-nowrap px-4 py-4">
+                        <div className="font-semibold text-slate-900">
+                          {ticket.playerName || 'Player'}
                         </div>
-                      )}
-                    </td>
+                        <div className="text-xs text-slate-500">
+                          Created {formatDateTime(ticket.createdAt)}
+                        </div>
+                      </td>
 
-                    <td className="whitespace-nowrap px-3 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {ticket.paymentStatus === 'payment_claimed' && (
+                      <td className="whitespace-nowrap px-4 py-4">
+                        <div className="font-bold text-slate-950">
+                          {formatMoney(ticket.totalAmount)}
+                        </div>
+
+                        {ticket.extrasTotal > 0 && (
+                          <div className="text-xs text-slate-500">
+                            {formatMoney(ticket.entryFee)} entry +{' '}
+                            {formatMoney(ticket.extrasTotal)} extras
+                          </div>
+                        )}
+                      </td>
+
+                      <td className="whitespace-nowrap px-4 py-4">
+                        <code className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700">
+                          {ticket.paymentReference || '—'}
+                        </code>
+                        <div className="mt-1 text-xs text-slate-500">
+                          {humanisePaymentMethod(ticket.paymentMethod)}
+                        </div>
+                      </td>
+
+                      <td className="whitespace-nowrap px-4 py-4">
+                        <div className="flex flex-col items-start gap-1.5">
+                          <StatusPill ticket={ticket} />
+
+                          {ticket.redemptionStatus === 'redeemed' ? (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-800">
+                              <TicketCheck className="h-3.5 w-3.5" />
+                              Redeemed
+                            </span>
+                          ) : (
+                            <span className="text-xs text-slate-500">
+                              Not redeemed
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="whitespace-nowrap px-4 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {ticket.paymentStatus === 'payment_claimed' && (
+                            <button
+                              type="button"
+                              onClick={() => confirmPayment(ticket.ticketId)}
+                              disabled={confirming === ticket.ticketId}
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {confirming === ticket.ticketId ? (
+                                <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                              ) : (
+                                <Check className="h-3.5 w-3.5" />
+                              )}
+                              Confirm
+                            </button>
+                          )}
+
                           <button
                             type="button"
-                            onClick={() => confirmPayment(ticket.ticketId)}
-                            disabled={confirming === ticket.ticketId}
-                            className="inline-flex items-center rounded bg-green-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                            onClick={() => setQrTicket(ticket)}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700 transition hover:bg-indigo-100"
+                            title="Open ticket QR code"
                           >
-                            {confirming === ticket.ticketId ? (
-                              <div className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                            ) : (
-                              <Check className="mr-1 h-3 w-3" />
-                            )}
-                            Confirm
+                            <QrCode className="h-3.5 w-3.5" />
+                            QR
                           </button>
-                        )}
-
-                        <button
-                          type="button"
-                          onClick={() => setQrTicket(ticket)}
-                          className="rounded-lg border border-indigo-200 bg-indigo-50 p-1.5 transition-colors hover:bg-indigo-100"
-                          title="QR code"
-                        >
-                          <QrCode className="h-3.5 w-3.5 text-indigo-600" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       </div>
 
       {showTicketLinkQr && shouldShowTicketPurchaseLink && (

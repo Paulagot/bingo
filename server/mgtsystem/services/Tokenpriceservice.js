@@ -1,121 +1,129 @@
-/**
- * tokenPriceService.js
- *
- * Fetches the EUR price for any supported Solana token.
- *
- * Strategy:
- *   1. Return cached value if fresh (< CACHE_TTL_MS)
- *   2. Try CoinGecko /simple/price  (uses coingeckoId from your token config)
- *   3. Fall back to Jupiter Price API v2  (uses mint address)
- *   4. If both fail, return null — callers must handle gracefully
- *
- * Usage:
- *   import { getTokenPriceEur } from './tokenPriceService.js';
- *   const eurPrice = await getTokenPriceEur('SOL');   // e.g. 142.30
- *   const eurPrice = await getTokenPriceEur('BONK');  // e.g. 0.0000182
- */
+// server/mgtsystem/services/tokenPriceService.js
+//
+// Fetches the price for any supported Solana/EVM token in any supported fiat currency.
+//
+// Strategy:
+//   1. Return cached value if fresh (< CACHE_TTL_MS)
+//   2. Try CoinGecko /simple/price  (uses coingeckoId from token config)
+//   3. Fall back to Jupiter Price API v2  (Solana tokens only, returns USD, we convert)
+//   4. If both fail, return null — callers must handle gracefully
+//
+// Usage:
+//   import { getTokenPrice, toFiat } from './tokenPriceService.js';
+//   const price = await getTokenPrice('SOL', 'EUR');   // e.g. 142.30
+//   const price = await getTokenPrice('SOL', 'GBP');   // e.g. 122.10
+//   const value = await toFiat(0.5, 'SOL', 'EUR');     // e.g. 71.15
 
 import { SOLANA_TOKENS, EVM_TOKENS } from './solanaTokenConfig.js';
+import { getCurrencyConfig, SUPPORTED_CURRENCIES } from '../../utils/currencyUtils.js';
 
 // ---------------------------------------------------------------------------
-// Cache — simple in-process Map, keyed by SolanaTokenCode
-// One quiz-end event = one price fetch per unique token
+// Cache — keyed by `${tokenCode}:${currencyCode}` e.g. 'SOL:EUR'
 // ---------------------------------------------------------------------------
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-/** @type {Map<string, { priceEur: number; fetchedAt: number }>} */
+/** @type {Map<string, { price: number; fetchedAt: number }>} */
 const priceCache = new Map();
 
-function getCached(code) {
-  const entry = priceCache.get(code);
-  if (!entry) return null;
-  if (Date.now() - entry.fetchedAt > CACHE_TTL_MS) {
-    priceCache.delete(code);
-    return null;
-  }
-  return entry.priceEur;
+function cacheKey(tokenCode, currencyCode) {
+  return `${tokenCode}:${currencyCode}`;
 }
 
-function setCache(code, priceEur) {
-  priceCache.set(code, { priceEur, fetchedAt: Date.now() });
+function getCached(tokenCode, currencyCode) {
+  const entry = priceCache.get(cacheKey(tokenCode, currencyCode));
+  if (!entry) return null;
+  if (Date.now() - entry.fetchedAt > CACHE_TTL_MS) {
+    priceCache.delete(cacheKey(tokenCode, currencyCode));
+    return null;
+  }
+  return entry.price;
+}
+
+function setCache(tokenCode, currencyCode, price) {
+  priceCache.set(cacheKey(tokenCode, currencyCode), { price, fetchedAt: Date.now() });
 }
 
 // ---------------------------------------------------------------------------
-// Source 1 — CoinGecko free /simple/price endpoint
-// Docs: https://docs.coingecko.com/reference/simple-price
-// Rate limit: ~10–30 req/min on free tier — fine for end-of-quiz
+// Source 1 — CoinGecko /simple/price
+// Supports all our fiat currencies natively via vs_currencies param.
+// Rate limit: ~10–30 req/min on free tier — fine for end-of-quiz usage.
 // ---------------------------------------------------------------------------
 
 /**
- * @param {string} coingeckoId  e.g. 'solana', 'bonk', 'dogwifcoin'
- * @returns {Promise<number|null>}
+ * @param {string} coingeckoId   e.g. 'solana', 'usd-coin'
+ * @param {string} vsCurrency    CoinGecko vs_currency code e.g. 'eur', 'gbp', 'ngn'
+ * @returns {Promise<number>}
  */
-async function fetchFromCoinGecko(coingeckoId) {
+async function fetchFromCoinGecko(coingeckoId, vsCurrency) {
   const url =
     `https://api.coingecko.com/api/v3/simple/price` +
-    `?ids=${encodeURIComponent(coingeckoId)}&vs_currencies=eur`;
+    `?ids=${encodeURIComponent(coingeckoId)}&vs_currencies=${encodeURIComponent(vsCurrency)}`;
 
   const res = await fetch(url, {
     headers: { Accept: 'application/json' },
-    signal: AbortSignal.timeout(8_000), // 8 s timeout
+    signal: AbortSignal.timeout(8_000),
   });
 
-  if (!res.ok) {
-    throw new Error(`CoinGecko HTTP ${res.status}`);
-  }
+  if (!res.ok) throw new Error(`CoinGecko HTTP ${res.status}`);
 
   const json = await res.json();
-  const price = json?.[coingeckoId]?.eur;
+  const price = json?.[coingeckoId]?.[vsCurrency];
 
   if (typeof price !== 'number') {
-    throw new Error(`CoinGecko: no EUR price in response for ${coingeckoId}`);
+    throw new Error(`CoinGecko: no ${vsCurrency} price for ${coingeckoId}`);
   }
 
   return price;
 }
 
 // ---------------------------------------------------------------------------
-// Source 2 — Jupiter Price API v2 (Solana-native, returns USD)
-// We then convert USD → EUR using a second CoinGecko call for EUR/USD rate.
-// Docs: https://dev.jup.ag/docs/apis/price-api
+// Source 2 — Jupiter Price API v2 (Solana-native, USD only)
+// We convert USD → target currency using a CoinGecko cross-rate.
 // ---------------------------------------------------------------------------
 
-/** Cached USD→EUR rate (separate short-lived cache) */
-let usdToEurRate = null;
-let usdToEurFetchedAt = 0;
+/** Short-lived cache for USD → fiat cross-rates */
+const usdCrossRateCache = new Map();
 
-async function getUsdToEurRate() {
-  if (usdToEurRate && Date.now() - usdToEurFetchedAt < CACHE_TTL_MS) {
-    return usdToEurRate;
-  }
+/**
+ * Get the exchange rate from USD to a target currency.
+ * Uses USDC as the USD proxy since Jupiter/CoinGecko both support it.
+ *
+ * @param {string} targetCurrencyCode  e.g. 'EUR', 'GBP', 'NGN'
+ * @returns {Promise<number>}  e.g. 0.92 for USD→EUR
+ */
+async function getUsdCrossRate(targetCurrencyCode) {
+  if (targetCurrencyCode === 'USD') return 1;
+
+  const cached = usdCrossRateCache.get(targetCurrencyCode);
+  if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) return cached.rate;
+
+  const vsCurrency = getCurrencyConfig(targetCurrencyCode).coingeckoVsCurrency;
 
   const res = await fetch(
-    'https://api.coingecko.com/api/v3/simple/price?ids=usd-coin&vs_currencies=eur',
+    `https://api.coingecko.com/api/v3/simple/price?ids=usd-coin&vs_currencies=${vsCurrency}`,
     {
       headers: { Accept: 'application/json' },
       signal: AbortSignal.timeout(8_000),
     }
   );
 
-  if (!res.ok) throw new Error(`CoinGecko USD/EUR rate HTTP ${res.status}`);
+  if (!res.ok) throw new Error(`CoinGecko USD cross-rate HTTP ${res.status}`);
 
   const json = await res.json();
-  // USDC ≈ $1 so USDC/EUR ≈ USD/EUR rate
-  const rate = json?.['usd-coin']?.eur;
-  if (typeof rate !== 'number') throw new Error('Could not get USD→EUR rate');
+  const rate = json?.['usd-coin']?.[vsCurrency];
+  if (typeof rate !== 'number') throw new Error(`Could not get USD→${targetCurrencyCode} rate`);
 
-  usdToEurRate = rate;
-  usdToEurFetchedAt = Date.now();
+  usdCrossRateCache.set(targetCurrencyCode, { rate, fetchedAt: Date.now() });
   return rate;
 }
 
 /**
- * @param {string} mintAddress  SPL mint address (null → use SOL mint alias)
- * @returns {Promise<number|null>}  Price in EUR
+ * @param {string|null} mintAddress  SPL mint address; null → use SOL mint alias
+ * @param {string} targetCurrencyCode
+ * @returns {Promise<number>}  Price in target currency
  */
-async function fetchFromJupiter(mintAddress) {
-  // Jupiter uses the SOL mint alias for native SOL
+async function fetchFromJupiter(mintAddress, targetCurrencyCode) {
   const SOL_MINT = 'So11111111111111111111111111111111111111112';
   const mint = mintAddress ?? SOL_MINT;
 
@@ -132,14 +140,13 @@ async function fetchFromJupiter(mintAddress) {
   const priceUsd = json?.data?.[mint]?.price;
 
   if (typeof priceUsd !== 'number' && typeof priceUsd !== 'string') {
-    throw new Error(`Jupiter: no price in response for mint ${mint}`);
+    throw new Error(`Jupiter: no price for mint ${mint}`);
   }
 
   const usdPrice = Number(priceUsd);
   if (!Number.isFinite(usdPrice)) throw new Error('Jupiter: non-finite price');
 
-  // Convert USD → EUR
-  const rate = await getUsdToEurRate();
+  const rate = await getUsdCrossRate(targetCurrencyCode);
   return usdPrice * rate;
 }
 
@@ -148,80 +155,85 @@ async function fetchFromJupiter(mintAddress) {
 // ---------------------------------------------------------------------------
 
 /**
- * Get the current EUR price for a token.
- * Returns null if both sources fail — callers should log and store null.
+ * Get the current price for a token in any supported fiat currency.
+ * Returns null if both sources fail — callers should store NULL, not 0.
  *
- * @param {import('./solanaTokenConfig.js').SolanaTokenCode} code
+ * @param {string} tokenCode          e.g. 'SOL', 'USDC', 'BONK'
+ * @param {string} [currencyCode]     ISO 4217 code — defaults to 'EUR'
  * @returns {Promise<number|null>}
  */
-export async function getTokenPriceEur(code) {
+export async function getTokenPrice(tokenCode, currencyCode = 'EUR') {
+  const currency = SUPPORTED_CURRENCIES[currencyCode] ?? SUPPORTED_CURRENCIES.EUR;
+  const vsCurrency = currency.coingeckoVsCurrency;
+
   // 1) Cache hit
-  const cached = getCached(code);
+  const cached = getCached(tokenCode, currency.code);
   if (cached !== null) {
-    console.log(`[TokenPrice] 💾 Cache hit for ${code}: €${cached}`);
+    console.log(`[TokenPrice] 💾 Cache hit ${tokenCode}/${currency.code}: ${currency.symbol}${cached}`);
     return cached;
   }
 
-  const config = SOLANA_TOKENS[code] ?? EVM_TOKENS[code];
+  const config = SOLANA_TOKENS[tokenCode] ?? EVM_TOKENS[tokenCode];
   if (!config) {
-    console.warn(`[TokenPrice] ⚠️ Unknown token code: ${code}`);
+    console.warn(`[TokenPrice] ⚠️ Unknown token code: ${tokenCode}`);
     return null;
   }
 
   // 2) Try CoinGecko first
   if (config.coingeckoId) {
     try {
-      const price = await fetchFromCoinGecko(config.coingeckoId);
-      console.log(`[TokenPrice] ✅ CoinGecko ${code}: €${price}`);
-      setCache(code, price);
+      const price = await fetchFromCoinGecko(config.coingeckoId, vsCurrency);
+      console.log(`[TokenPrice] ✅ CoinGecko ${tokenCode}/${currency.code}: ${currency.symbol}${price}`);
+      setCache(tokenCode, currency.code, price);
       return price;
     } catch (err) {
-      console.warn(`[TokenPrice] ⚠️ CoinGecko failed for ${code}: ${err.message}`);
+      console.warn(`[TokenPrice] ⚠️ CoinGecko failed for ${tokenCode}/${currency.code}: ${err.message}`);
     }
   }
 
-  // 3) Fall back to Jupiter
+  // 3) Fall back to Jupiter (Solana tokens only)
   try {
-    const price = await fetchFromJupiter(config.mint);
-    console.log(`[TokenPrice] ✅ Jupiter fallback ${code}: €${price}`);
-    setCache(code, price);
+    const price = await fetchFromJupiter(config.mint ?? null, currency.code);
+    console.log(`[TokenPrice] ✅ Jupiter fallback ${tokenCode}/${currency.code}: ${currency.symbol}${price}`);
+    setCache(tokenCode, currency.code, price);
     return price;
   } catch (err) {
-    console.warn(`[TokenPrice] ❌ Jupiter also failed for ${code}: ${err.message}`);
+    console.warn(`[TokenPrice] ❌ Jupiter also failed for ${tokenCode}/${currency.code}: ${err.message}`);
   }
 
   return null;
 }
 
 /**
- * Convert a token display amount to EUR.
- * Returns null if price unavailable — store as NULL in DB, don't store 0.
+ * Convert a token display amount to a fiat value.
+ * Returns null if price unavailable — store as NULL in DB, not 0.
  *
  * @param {number} displayAmount   Human-readable token amount (not raw on-chain units)
- * @param {import('./solanaTokenConfig.js').SolanaTokenCode} code
+ * @param {string} tokenCode       e.g. 'SOL'
+ * @param {string} [currencyCode]  ISO 4217 code — defaults to 'EUR'
  * @returns {Promise<number|null>}
  */
-export async function toEur(displayAmount, code) {
+export async function toFiat(displayAmount, tokenCode, currencyCode = 'EUR') {
   if (!displayAmount || displayAmount <= 0) return 0;
 
-  const priceEur = await getTokenPriceEur(code);
-  if (priceEur === null) return null;
+  const price = await getTokenPrice(tokenCode, currencyCode);
+  if (price === null) return null;
 
-  const eur = displayAmount * priceEur;
-  // Round to 4 dp — enough precision for micro-transactions (BONK, MEW etc.)
-  return Math.round(eur * 10_000) / 10_000;
+  const value = displayAmount * price;
+  // Round to 4 dp — enough precision for micro-transactions (BONK etc.)
+  return Math.round(value * 10_000) / 10_000;
 }
 
 /**
- * Fetch EUR prices for multiple tokens in one go.
- * Useful if a room ever supports mixed tokens in future.
+ * Batch fetch prices for multiple tokens in one go.
  *
- * @param {import('./solanaTokenConfig.js').SolanaTokenCode[]} codes
+ * @param {string[]} tokenCodes
+ * @param {string} [currencyCode]
  * @returns {Promise<Record<string, number|null>>}
  */
-export async function getTokenPricesEur(codes) {
-  const unique = [...new Set(codes)];
-  const results = await Promise.allSettled(unique.map(c => getTokenPriceEur(c)));
+export async function getTokenPrices(tokenCodes, currencyCode = 'EUR') {
+  const unique = [...new Set(tokenCodes)];
+  const results = await Promise.allSettled(unique.map((c) => getTokenPrice(c, currencyCode)));
 
   return Object.fromEntries(
     unique.map((code, i) => [
@@ -229,4 +241,24 @@ export async function getTokenPricesEur(codes) {
       results[i].status === 'fulfilled' ? results[i].value : null,
     ])
   );
+}
+
+// ---------------------------------------------------------------------------
+// Legacy export — kept so existing callers don't break immediately.
+// Callers should migrate to getTokenPrice(code, 'EUR') when convenient.
+// ---------------------------------------------------------------------------
+
+/** @deprecated Use getTokenPrice(code, 'EUR') instead */
+export async function getTokenPriceEur(code) {
+  return getTokenPrice(code, 'EUR');
+}
+
+/** @deprecated Use toFiat(amount, code, 'EUR') instead */
+export async function toEur(displayAmount, code) {
+  return toFiat(displayAmount, code, 'EUR');
+}
+
+/** @deprecated Use getTokenPrices(codes, 'EUR') instead */
+export async function getTokenPricesEur(codes) {
+  return getTokenPrices(codes, 'EUR');
 }

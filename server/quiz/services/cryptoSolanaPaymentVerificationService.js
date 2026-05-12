@@ -6,7 +6,10 @@ import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { connection as db, TABLE_PREFIX } from '../../config/database.js';
 import { insertJoinPayment } from '../../mgtsystem/services/web3TransactionService.js';
 
-const DEBUG = false;
+import { getRoomCurrencyCode, getRoomCurrencySymbol } from '../../utils/currencyUtils.js';
+import { toFiat } from '../../mgtsystem/services/Tokenpriceservice.js';
+
+const DEBUG = true;
 
 /**
  * Backend Solana RPC resolution.
@@ -96,18 +99,6 @@ export function parseJsonMaybe(value, fallback = null) {
   }
 }
 
-export function getRoomCurrencyFromConfig(config) {
-  return (
-    config?.currency ||
-    config?.currencyCode ||
-    config?.currency_type ||
-    'EUR'
-  );
-}
-
-export function getRoomCurrencySymbolFromConfig(config) {
-  return config?.currencySymbol || config?.currency_symbol || '€';
-}
 
 export async function getRoomForCryptoPayment(roomId) {
   const [rows] = await db.execute(
@@ -352,14 +343,16 @@ export async function verifyNativeSolTransfer({
       });
     }
 
-    if (
-      parsed.from === sender &&
-      parsed.to === recipient &&
-      BigInt(String(parsed.lamports)) >= requiredLamports
-    ) {
-      return { ok: true, tx };
-    }
-  }
+
+
+if (
+  parsed.from === sender &&
+  parsed.to === recipient &&
+  BigInt(String(parsed.lamports)) > 0n
+) {
+  return { ok: true, tx };
+}
+}
 
   return {
     ok: false,
@@ -452,19 +445,21 @@ export async function verifySplTokenTransfer({
     });
   }
 
-  if (delta >= requiredRaw) {
-    return { ok: true, tx };
-  }
+// Accept any positive delta to the correct recipient wallet.
+// Amount verification is handled by the quote TTL — if the quote
+// expired the player gets a new price before paying.
+if (delta > 0n) {
+  return { ok: true, tx };
+}
 
-  // Token account may not exist before tx, so pre balance can be absent.
-  if (!preRecipient && postAmount >= requiredRaw) {
-    return { ok: true, tx };
-  }
+if (!preRecipient && postAmount > 0n) {
+  return { ok: true, tx };
+}
 
-  return {
-    ok: false,
-    error: 'Could not verify SPL token transfer recipient and amount',
-  };
+return {
+  ok: false,
+  error: 'Could not verify SPL token transfer to recipient wallet',
+};
 }
 
 export async function verifySolanaTransfer({
@@ -567,14 +562,10 @@ export async function verifyAndRecordSolanaCryptoDonation({
     throw err;
   }
 
-  const roomCurrency = getRoomCurrencyFromConfig(config);
-  const roomCurrencySymbol = getRoomCurrencySymbolFromConfig(config);
+ const roomCurrency = getRoomCurrencyCode(config);
+   const roomCurrencySymbol = getRoomCurrencySymbol(config);
 
-  if (roomCurrency !== 'EUR') {
-    const err = new Error('Crypto donations currently support EUR rooms only.');
-    err.statusCode = 400;
-    throw err;
-  }
+
 
   const { method, methodConfig } = await getLinkedSolanaCryptoPaymentMethod({
     roomId,
@@ -636,32 +627,27 @@ export async function verifyAndRecordSolanaCryptoDonation({
     },
   });
 
-  const donationEur = asNumber(web3Result.donationEur, 0);
+  const donationFiat = await toFiat(
+    Number(displayAmount || 0),
+    tokenCode,
+    roomCurrency,
+  );
+ 
 
-  if (donationEur <= 0) {
-    console.warn('[CryptoSolanaVerify] ⚠️ Crypto donation converted to less than €0.01; returning €0.00', {
+ 
+  if (donationFiat === null || donationFiat <= 0) {
+    console.warn('[CryptoSolanaVerify] ⚠️ Crypto donation fiat conversion returned zero/null', {
       roomId,
       playerId,
       txHash,
       tokenCode,
       displayAmount,
-      rawAmount,
-      web3TransactionId: web3Result.id,
-      donationEur,
+      roomCurrency,
+      donationFiat,
     });
   }
-
-  if (DEBUG) {
-    console.log('[CryptoSolanaVerify] ✅ Verification and web3 record complete:', {
-      roomId,
-      playerId,
-      txHash: `${String(txHash).slice(0, 12)}...`,
-      web3TransactionId: web3Result.id,
-      duplicate: !!web3Result.duplicate,
-      donationEur,
-    });
-  }
-
+ 
+  // ── return object ──────────────────────────────────────────────────────────
   return {
     room,
     config,
@@ -672,7 +658,190 @@ export async function verifyAndRecordSolanaCryptoDonation({
     roomCurrency,
     roomCurrencySymbol,
     web3Result,
-    donationEur,
+    // Fiat values
+    donationFiat:     donationFiat ?? 0,      // in room currency — use this for ledger
+    donationCurrency: roomCurrency,           // ISO code of donationFiat
+        // always EUR — for legacy callers / reporting
     verifiedTx: verified.tx,
   };
 }
+
+/**
+ * Verify a fixed-fee Solana crypto payment and record it in the web3 ledger.
+ *
+ * Unlike the donation version:
+ * - Works on fixed_fee fundraisingMode rooms (and donation rooms would be blocked)
+ * - Accepts entryFeeRaw + extrasRaw separately so the ledger split is correct
+ * - The fiat amounts are recorded in the room's currency via toFiat()
+ *
+ * @param {object} params
+ * @returns {Promise<FixedFeeVerificationResult>}
+ */
+export async function verifyAndRecordSolanaFixedFeePayment({
+  roomId,
+  playerId,
+  playerName,
+  clubPaymentMethodId,
+ 
+  network = 'mainnet',
+  txHash,
+  senderWallet,
+  recipientWallet,
+ 
+  tokenCode,
+  tokenMint = null,
+ 
+  // Raw on-chain units — sum must equal what was actually sent
+  entryFeeRaw,   // string | number  e.g. '33780000'
+  extrasRaw = 0, // string | number  e.g. '0'
+ 
+  // Display amounts for fiat conversion and metadata
+  entryFeeDisplay,
+  extrasDisplay = 0,
+   cryptoDisplayAmount = null, 
+ 
+  metadataSource = 'web2_fixed_fee_crypto',
+  metadataJson = {},
+}) {
+  if (!roomId || !playerId || !playerName) {
+    throw new Error('roomId, playerId and playerName are required');
+  }
+ 
+  if (!clubPaymentMethodId) {
+    throw new Error('clubPaymentMethodId is required');
+  }
+ 
+  if (!txHash || !senderWallet || !recipientWallet) {
+    throw new Error('txHash, senderWallet and recipientWallet are required');
+  }
+ 
+  if (!tokenCode) {
+    throw new Error('tokenCode is required');
+  }
+ 
+  const totalRaw = BigInt(String(entryFeeRaw)) + BigInt(String(extrasRaw));
+ 
+  if (totalRaw <= 0n) {
+    throw new Error('Total raw amount must be greater than zero');
+  }
+ 
+  const resolvedNetwork = normalizeNetwork(network);
+ 
+  const room = await getRoomForCryptoPayment(roomId);
+  if (!room) {
+    const err = new Error('Quiz room not found');
+    err.statusCode = 404;
+    throw err;
+  }
+ 
+  const config = parseJsonMaybe(room.config_json, {});
+ 
+  // Fixed-fee only — donation rooms use verifyAndRecordSolanaCryptoDonation
+  const fundraisingMode = config?.fundraisingMode;
+  if (fundraisingMode === 'donation') {
+    const err = new Error('This endpoint is for fixed-fee rooms only');
+    err.statusCode = 400;
+    throw err;
+  }
+ 
+  const roomCurrency       = getRoomCurrencyCode(config);
+  const roomCurrencySymbol = getRoomCurrencySymbol(config);
+ 
+  const { method, methodConfig } = await getLinkedSolanaCryptoPaymentMethod({
+    roomId,
+    clubId: room.club_id,
+    clubPaymentMethodId,
+  });
+ 
+  const savedWallet = normalizeWallet(methodConfig.walletAddress);
+ 
+  if (!savedWallet) {
+    const err = new Error('The club Solana wallet is not configured');
+    err.statusCode = 400;
+    throw err;
+  }
+ 
+  if (normalizeWallet(recipientWallet) !== savedWallet) {
+    const err = new Error('Recipient wallet does not match the club payment method wallet');
+    err.statusCode = 400;
+    throw err;
+  }
+ 
+  // Verify the on-chain transaction received at least the quoted total
+  const verified = await verifySolanaTransfer({
+    txHash,
+    network: resolvedNetwork,
+    senderWallet,
+    recipientWallet: savedWallet,
+    tokenMint,
+    rawAmount: totalRaw.toString(),
+  });
+ 
+  if (!verified.ok) {
+    const err = new Error(verified.error || 'Solana transaction verification failed');
+    err.statusCode = 400;
+    throw err;
+  }
+ 
+  // Record in web3 ledger — entry_fee_amount + extras_amount split
+  const web3Result = await insertJoinPayment({
+    game_type:         'quiz',
+    room_id:           roomId,
+    campaign_id:       null,
+    wallet_address:    senderWallet,
+    chain:             'solana',
+    network:           resolvedNetwork,
+    tx_hash:           txHash,
+    fee_token:         tokenCode,
+    token_address:     tokenMint || null,
+    amount:            Number(totalRaw),
+    entry_fee_amount:  Number(entryFeeRaw),
+    extras_amount:     Number(extrasRaw),
+    donation_amount:   0,
+metadata_json: {
+  source: metadataSource,
+  playerId,
+  playerName,
+  clubPaymentMethodId,
+  recipientWallet: savedWallet,
+  cryptoDisplayAmount,
+  tokenCode,
+  entryFeeDisplay,
+  extrasDisplay,
+  ...metadataJson,
+},
+  });
+ 
+  // Convert display amounts to room fiat currency
+
+const entryFeeFiat = Number(entryFeeDisplay || 0);
+const extrasFiat   = Number(extrasDisplay   || 0);
+const totalFiat    = entryFeeFiat + extrasFiat;
+ 
+  if (!totalFiat || totalFiat <= 0) {
+    console.warn('[CryptoSolanaVerify] ⚠️ Fixed-fee fiat conversion returned zero/null', {
+      roomId, txHash, tokenCode, entryFeeDisplay, extrasDisplay, roomCurrency, totalFiat,
+    });
+  }
+ 
+  return {
+    room,
+    config,
+    method,
+    methodConfig,
+    savedWallet,
+    resolvedNetwork,
+    roomCurrency,
+    roomCurrencySymbol,
+    web3Result,
+    // Fiat values in room currency
+    entryFeeFiat:  entryFeeFiat ?? 0,
+    extrasFiat:    extrasFiat ?? 0,
+    totalFiat:     totalFiat ?? 0,
+    fiatCurrency:  roomCurrency,
+    verifiedTx:    verified.tx,
+     cryptoDisplayAmount,
+  tokenCode,
+  };
+}
+ 

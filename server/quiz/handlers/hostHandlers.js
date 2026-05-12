@@ -30,7 +30,7 @@ import { insertPrizePayout } from '../../mgtsystem/services/web3TransactionServi
  import { markRoomAsReconciling, markRoomAsClosed } from './roomStatusManager.js';
 import { updateOperatorSocketId } from '../quizRoomManager.js';
  import jwt from 'jsonwebtoken';
-
+import { connection, TABLE_PREFIX } from '../../config/database.js';
 
 import { logPrizeDistributionInitiated, logPrizeDistributionSuccess, logPrizeDistributionFailure, logWeb3RoomConfig, logWinnerAddressMapping } from './blockchainLoggingHelper.js';
 const debug = false;
@@ -597,7 +597,7 @@ function generateEnhancedPlayerStats(room, playerId) {
 
   // ✅ next_round_or_end (unchanged)
  // ✅ next_round_or_end (patched to include tiebreaker)
-socket.on('next_round_or_end', ({ roomId }) => {
+socket.on('next_round_or_end', async ({ roomId }) => {
   if (debug) console.log(`[Host] next_round_or_end for ${roomId}`);
 
   const room = getQuizRoom(roomId);
@@ -677,7 +677,23 @@ namespace.to(`${roomId}:host`).emit('host_final_leaderboard', finalLeaderboard);
 
     // ✅ NEW: Freeze the leaderboard BEFORE setting phase to complete
     room.currentPhase = 'complete';
-    const frozenLeaderboard = freezeFinalLeaderboard(roomId);
+const frozenLeaderboard = await freezeFinalLeaderboard(roomId);
+
+    // After: const frozenLeaderboard = freezeFinalLeaderboard(roomId);
+// ADD THIS:
+if (frozenLeaderboard) {
+
+  await connection.execute(
+    `UPDATE ${TABLE_PREFIX}web2_quiz_rooms
+     SET config_json = JSON_SET(
+       COALESCE(config_json, '{}'),
+       '$.reconciliation.finalLeaderboard', CAST(? AS JSON)
+     )
+     WHERE room_id = ?`,
+    [JSON.stringify(frozenLeaderboard), roomId]
+  );
+  console.log(`[Host] 💾 Frozen leaderboard persisted to DB for room ${roomId}`);
+}
     
     // ✅ NEW: Send frozen leaderboard in room_config
     if (frozenLeaderboard) {
@@ -888,11 +904,14 @@ socket.on('operator_complete', async ({ roomId }) => {
 
   room.finalWinners = winners;
   room.finalLeaderboard = finalLeaderboard;
+  console.log('[DEBUG] finalLeaderboard before freeze:', 
+  finalLeaderboard.map(p => `${p.name}: ${p.score}`)
+);
   room.prizeDistributionStatus = 'initiated';
   room.currentPhase = 'distributing_prizes';
 
   // ✅ NEW: Also freeze leaderboard here for Web3 completion path
-  const frozenLeaderboard = freezeFinalLeaderboard(roomId);
+const frozenLeaderboard = await freezeFinalLeaderboard(roomId);
   if (frozenLeaderboard && debug) {
     console.log('[Prize Distribution] 🏆 Leaderboard frozen for Web3 prize distribution');
   }

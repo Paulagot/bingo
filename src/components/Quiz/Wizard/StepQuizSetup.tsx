@@ -234,12 +234,13 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
     });
   }, [hostName, entryFee, currencySymbol, fundraisingMode, flow, scheduleComplete]);
 
-  const currencyOptions = [
-    { symbol: '€', label: 'Euro (EUR)' },
-    { symbol: '$', label: 'Dollar (USD)' },
-    { symbol: '£', label: 'British Pound (GBP)' },
-    { symbol: '₦', label: 'Nigerian Naira (NGN)' },
-  ];
+const currencyOptions = [
+  { symbol: '€',   code: 'EUR', label: 'Euro (EUR)' },
+  { symbol: '£',   code: 'GBP', label: 'British Pound (GBP)' },
+  { symbol: '$',   code: 'USD', label: 'US Dollar (USD)' },
+  { symbol: 'CA$', code: 'CAD', label: 'Canadian Dollar (CAD)' },
+  { symbol: '₦',   code: 'NGN', label: 'Nigerian Naira (NGN)' },
+];
 
   const handleSelectMode = (mode: FundraisingMode) => {
     setError('');
@@ -442,12 +443,16 @@ const StepQuizSetup: React.FC<WizardStepProps> = ({ onNext, onResetToFirst }) =>
               <Sparkles className="h-4 w-4" />
               <span>Currency</span>
             </label>
-            <select
-              value={currencySymbol}
-              onChange={(e) => {
-                setCurrencySymbol(e.target.value);
-                setError('');
-              }}
+      <select
+  value={currencySymbol}
+  onChange={(e) => {
+    const opt = currencyOptions.find(o => o.symbol === e.target.value);
+    if (opt) {
+      setCurrencySymbol(opt.symbol);
+      updateSetupConfig({ currency: opt.code } as any);
+    }
+    setError('');
+  }}
               className="border-border w-full rounded-lg border-2 px-3 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 sm:px-4 sm:py-3 sm:text-base"
             >
               {currencyOptions.map((opt) => (

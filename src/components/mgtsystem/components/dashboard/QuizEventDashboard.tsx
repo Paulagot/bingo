@@ -60,13 +60,11 @@ export default function QuizEventDashboard() {
 
   // ── Drawer ──
   const [drawerOpen,          setDrawerOpen]          = useState(false);
-  const [drawerRoom,          setDrawerRoom]          = useState<Room | null>(null);
   const [managePaymentsOpen,  setManagePaymentsOpen]  = useState(false);
   const [unlinkLoading,       setUnlinkLoading]       = useState(false);
   const [outstandingCounts,   setOutstandingCounts]   = useState<Record<string, number>>({});
 
-  const openDrawer  = (room: Room) => { setDrawerRoom(room); setDrawerOpen(true); };
-  const closeDrawer = () => { setDrawerOpen(false); setTimeout(() => setDrawerRoom(null), 200); };
+
 
   // ── View ──
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
@@ -97,6 +95,11 @@ export default function QuizEventDashboard() {
   const [roomStats,    setRoomStats]    = useState<Record<string, RoomStats>>({});
   const [_statsLoading, setStatsLoading] = useState(false);
   const [paymentMethodMap, setPaymentMethodMap] = useState<Record<string, boolean>>({});
+
+  const [drawerRoomId, setDrawerRoomId] = useState<string | null>(null);
+const openDrawer  = (room: Room) => { setDrawerRoomId(room.room_id); setDrawerOpen(true); };
+const closeDrawer = () => { setDrawerOpen(false); setTimeout(() => setDrawerRoomId(null), 200); };
+const drawerRoom  = drawerRoomId ? (rooms.find(r => r.room_id === drawerRoomId) ?? null) : null;
 
   const sortedRooms = useMemo(() => {
     const p: Record<string,number> = { live:1, open:2, scheduled:3, completed:4, cancelled:5 };
@@ -273,7 +276,7 @@ useEffect(() => {
             )}
             <button type="button" onClick={goToWizard} disabled={!canLaunchWizard}
               className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition whitespace-nowrap ${canLaunchWizard ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}>
-              <PlusCircle className="h-4 w-4" /> Create Quiz
+              <PlusCircle className="h-4 w-4" /> Schedule Quiz
             </button>
           </div>
         </div>
@@ -351,18 +354,19 @@ useEffect(() => {
             </div>
           ) : viewMode === 'table' ? (
             <div className="overflow-x-auto">
-              <div className="bg-white rounded-t-xl border border-gray-200 border-b-0 min-w-[600px]">
+              <div className="bg-white rounded-t-xl border border-gray-200 border-b-0 min-w-[740px]">
                 <div className="flex items-center gap-4 px-4 py-3 bg-gray-50 rounded-t-xl text-xs font-semibold uppercase text-gray-500">
                   <div className="w-24 flex-shrink-0">Status</div>
                   <div className="w-36 flex-shrink-0">Date</div>
+                  <div className="w-28 flex-shrink-0">Room ID</div>
                   <div className="w-16 flex-shrink-0">Fee</div>
                   <div className="w-24 flex-shrink-0">Income</div>
-                  <div className="w-16 flex-shrink-0 text-center">Players</div>
+                  <div className="w-24 flex-shrink-0 text-center">Tickets Sold</div>
                   <div className="w-20 flex-shrink-0 text-right">Prizes</div>
                   <div className="flex-1 text-right">Actions</div>
                 </div>
               </div>
-              <div className="bg-white rounded-b-xl border border-gray-200 border-t-0 overflow-hidden min-w-[600px]">
+              <div className="bg-white rounded-b-xl border border-gray-200 border-t-0 overflow-hidden min-w-[740px]">
                 {sortedRooms.map(room => (
                   <QuizEventCard key={room.room_id} viewMode="table"
                     room={room} stats={roomStats[room.room_id]}
@@ -403,8 +407,9 @@ useEffect(() => {
           confirmedByName={confirmedByName}
           unlinkLoading={unlinkLoading}
           onClose={closeDrawer}
-          onSaved={async () => { await loadRooms(status); }}
-          onLinked={async () => { await loadRooms(status); }}
+         onSaved={async () => { await loadRooms(status, true); }}
+onLinked={async () => { await loadRooms(status, true); }}
+onRefreshRoom={async () => { await loadRooms(status, true); }}
           confirmUnlink={confirmUnlink}
           onLaunchFromHere={() => openRoom(drawerRoom.room_id, drawerRoom.host_id)}
           onPaymentMethodSuccess={() => handlePaymentMethodSuccess(drawerRoom.room_id)}

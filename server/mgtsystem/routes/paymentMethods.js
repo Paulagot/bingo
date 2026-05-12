@@ -11,8 +11,25 @@ import {
 } from '../services/paymentMethodsService.js';
 import { authenticateToken } from '../../middleware/auth.js';
 import { resolveEntitlements, hasQuizFeature } from '../../policy/entitlements.js';
+import QuizPaymentMethodsService from '../services/QuizPaymentMethodsService.js';
 
 const router = express.Router();
+const quizPaymentMethodsService = new QuizPaymentMethodsService();
+
+// Public route for admins/non-logged-in users
+router.get('/room/:roomId/public', async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    if (!roomId) return res.status(400).json({ ok: false, error: 'roomId required' });
+    const result = await quizPaymentMethodsService.getAvailablePaymentMethodsForRoom({ roomId });
+    res.json(result);
+  } catch (err) {
+    console.error('[PaymentMethods] Public room fetch error:', err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+
 
 async function requireQuizPaymentsFeature(clubId) {
   const entitlements = await resolveEntitlements({ userId: clubId });
