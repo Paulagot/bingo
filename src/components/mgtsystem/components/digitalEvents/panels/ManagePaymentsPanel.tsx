@@ -13,7 +13,7 @@ import type {
   PaymentMethodFormData,
 } from '../../../../../shared/types/paymentMethods';
 
-type View = 'list' | 'add_instant' | 'add_solana' | 'edit';
+type View = 'list' | 'add_manual' | 'add_solana' | 'edit';
 
 function formatProvider(name?: string | null) {
   return name ? name.replace(/_/g, ' ') : '';
@@ -140,7 +140,7 @@ export default function ManagePaymentsPanel({ clubId, onClose }: ManagePaymentsP
   const stripeReady = !!(stripeConnect?.detailsSubmitted && stripeConnect?.chargesEnabled && stripeConnect?.payoutsEnabled);
 
   const handleEdit = (m: ClubPaymentMethodWithMeta) => { setSelectedMethod(m); setView('edit'); };
-  const handleAddInstant = () => { setSelectedMethod(null); setView('add_instant'); };
+  const handleAddInstant = () => { setSelectedMethod(null); setView('add_manual'); };
   const handleAddSolana = () => { setSelectedMethod(null); setView('add_solana'); };
   const handleCancel = () => { setSelectedMethod(null); setView('list'); };
 

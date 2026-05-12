@@ -45,6 +45,43 @@ function formatProviderName(providerName?: string | null) {
   return providerName.replace(/_/g, ' ');
 }
 
+type PayAtDoorProvider = 'cash' | 'card_tap';
+
+function isPayAtDoorMethod(method: ClubPaymentMethodWithMeta) {
+  return (
+    method.methodCategory === 'instant_payment' &&
+    (method.providerName === 'cash' || method.providerName === 'card_tap')
+  );
+}
+
+function getPayAtDoorDefaults(providerName: PayAtDoorProvider) {
+  if (providerName === 'card_tap') {
+    return {
+      methodLabel: 'CardTap on the night',
+      playerInstructions:
+        'Pay by card tap to the host or club admin on the night.',
+      methodConfig: {
+        verificationMode: 'manual',
+        collectionInstructions:
+          'CardTap payment collected by host/admin on the night.',
+      },
+      displayOrder: 1,
+    };
+  }
+
+  return {
+    methodLabel: 'Cash on the night',
+    playerInstructions:
+      'Pay cash to the host or club admin on the night.',
+    methodConfig: {
+      verificationMode: 'manual',
+      collectionInstructions:
+        'Cash payment collected by host/admin on the night.',
+    },
+    displayOrder: 0,
+  };
+}
+
 function formatCategoryName(category?: PaymentMethodCategory | null) {
   if (!category) return '';
 
@@ -348,10 +385,35 @@ export default function ManagePaymentMethodsModal({
     );
   }, [methods]);
 
-  const allManualMethods = useMemo(
-    () => methods.filter((method) => method.methodCategory === 'instant_payment'),
-    [methods]
+  const cashMethod = useMemo(() => {
+  return (
+    methods.find(
+      (method) =>
+        method.methodCategory === 'instant_payment' &&
+        method.providerName === 'cash'
+    ) || null
   );
+}, [methods]);
+
+const cardTapMethod = useMemo(() => {
+  return (
+    methods.find(
+      (method) =>
+        method.methodCategory === 'instant_payment' &&
+        method.providerName === 'card_tap'
+    ) || null
+  );
+}, [methods]);
+
+const allManualMethods = useMemo(
+  () =>
+    methods.filter(
+      (method) =>
+        method.methodCategory === 'instant_payment' &&
+        !isPayAtDoorMethod(method)
+    ),
+  [methods]
+);
 
   const allCryptoMethods = useMemo(
     () => methods.filter((method) => method.methodCategory === 'crypto'),
@@ -484,6 +546,62 @@ export default function ManagePaymentMethodsModal({
       setStripeBusy(false);
     }
   };
+
+  const handleTogglePayAtDoorMethod = async (
+  providerName: PayAtDoorProvider,
+  enabled: boolean
+) => {
+  const existingMethod = providerName === 'cash' ? cashMethod : cardTapMethod;
+
+  // If disabling and it does not exist yet, there is nothing to do.
+  if (!enabled && !existingMethod) return;
+
+  const defaults = getPayAtDoorDefaults(providerName);
+
+  try {
+    setLoading(true);
+    setError(null);
+
+    if (existingMethod) {
+      const methodIdNum = toMethodIdNumber(existingMethod.id);
+
+      if (!Number.isFinite(methodIdNum)) {
+        setError('Payment method id is not numeric, cannot update.');
+        return;
+      }
+
+      await PaymentMethodsService.update(clubId, methodIdNum, {
+        methodCategory: 'instant_payment',
+        providerName,
+        methodLabel: existingMethod.methodLabel || defaults.methodLabel,
+        playerInstructions:
+          existingMethod.playerInstructions || defaults.playerInstructions,
+        methodConfig: existingMethod.methodConfig || defaults.methodConfig,
+        isEnabled: enabled,
+        displayOrder: existingMethod.displayOrder ?? defaults.displayOrder,
+        isOfficialClubAccount: false,
+      } as any);
+    } else {
+      await PaymentMethodsService.create(clubId, {
+        methodCategory: 'instant_payment',
+        providerName,
+        methodLabel: defaults.methodLabel,
+        playerInstructions: defaults.playerInstructions,
+        methodConfig: defaults.methodConfig,
+        isEnabled: true,
+        displayOrder: defaults.displayOrder,
+        isOfficialClubAccount: false,
+      } as any);
+    }
+
+    await loadMethods();
+  } catch (err: any) {
+    console.error('Failed to update on-the-night payment method:', err);
+    setError(err?.message || 'Failed to update on-the-night payment method');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleAddManual = () => {
     setSelectedMethod(null);
@@ -626,17 +744,7 @@ export default function ManagePaymentMethodsModal({
         <div className="flex-1 overflow-y-auto p-6">
           {view === 'list' ? (
             <div className="space-y-6">
-              {/* Intro */}
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-                <p className="text-sm font-semibold text-blue-950">
-                  Payment methods are set up at club level.
-                </p>
-                <p className="text-xs text-blue-900 mt-1">
-                  Hosts should later select from these methods for each quiz.
-                  This avoids hidden “pay host” or “pay admin” options and keeps
-                  end-of-event reports accurate.
-                </p>
-              </div>
+        
 
               {/* Disabled Toggle */}
               <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
@@ -788,6 +896,75 @@ export default function ManagePaymentMethodsModal({
                   </div>
                 </section>
               )}
+
+              {/* On-the-night payments */}
+<section className="space-y-3">
+  <div>
+    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+      On-the-night payments
+    </h3>
+    <p className="text-xs text-gray-500">
+      These enable the “Pay at the Door” option for players joining on the night.
+      They are not shown as public ticket-sale methods.
+    </p>
+  </div>
+
+  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+    <label
+      className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition ${
+        cashMethod?.isEnabled
+          ? 'border-emerald-300 bg-emerald-50'
+          : 'border-gray-200 bg-white hover:border-gray-300'
+      }`}
+    >
+      <input
+        type="checkbox"
+        checked={!!cashMethod?.isEnabled}
+        disabled={loading}
+        onChange={(event) =>
+          handleTogglePayAtDoorMethod('cash', event.target.checked)
+        }
+        className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+      />
+
+      <div>
+        <p className="text-sm font-semibold text-gray-900">
+          Enable cash on the night payments
+        </p>
+        <p className="mt-1 text-xs text-gray-500">
+          Lets players join as unpaid and pay the host/admin in cash.
+        </p>
+      </div>
+    </label>
+
+    <label
+      className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition ${
+        cardTapMethod?.isEnabled
+          ? 'border-emerald-300 bg-emerald-50'
+          : 'border-gray-200 bg-white hover:border-gray-300'
+      }`}
+    >
+      <input
+        type="checkbox"
+        checked={!!cardTapMethod?.isEnabled}
+        disabled={loading}
+        onChange={(event) =>
+          handleTogglePayAtDoorMethod('card_tap', event.target.checked)
+        }
+        className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+      />
+
+      <div>
+        <p className="text-sm font-semibold text-gray-900">
+          Enable CardTap on the night payments
+        </p>
+        <p className="mt-1 text-xs text-gray-500">
+          Lets players join as unpaid and pay by card tap with the host/admin.
+        </p>
+      </div>
+    </label>
+  </div>
+</section>
 
               {/* Manual Payments */}
               <section className="space-y-3">

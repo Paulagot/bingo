@@ -190,6 +190,7 @@ export function useContractActions(chainConfig: ChainConfig) {
         roomAddress,
         charityOrgId,
         charityAddress,
+        charityName,
         allPlayers,
       }: DistributeArgs): Promise<DistributeResult> => {
         console.log('[useContractActions][distributePrizes] Solana', { roomId, winnersCount: winners.length });
@@ -233,6 +234,7 @@ export function useContractActions(chainConfig: ChainConfig) {
             winners:      winnerPublicKeys,
             charityOrgId: charityOrgId ?? undefined,
             charityWallet: charityWalletPubkey,
+             charityName:   charityName ?? null, 
             allPlayers:   allPlayerPubkeys,
           } as any);
 

@@ -4,7 +4,6 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 
 import { createExpectedPayment } from '../../mgtsystem/services/quizPaymentLedgerService.js';
-
 import {
   verifyAndRecordSolanaCryptoDonation,
   asNumber,
@@ -24,10 +23,7 @@ const limiter = rateLimit({
 });
 
 router.get('/test', (_req, res) => {
-  res.json({
-    ok: true,
-    route: 'quiz crypto donation route is registered',
-  });
+  res.json({ ok: true, route: 'quiz crypto donation route is registered' });
 });
 
 router.post('/confirm', limiter, async (req, res) => {
@@ -37,12 +33,10 @@ router.post('/confirm', limiter, async (req, res) => {
       playerId,
       playerName,
       clubPaymentMethodId,
-
       network = 'mainnet',
       txHash,
       senderWallet,
       recipientWallet,
-
       tokenCode,
       tokenMint = null,
       rawAmount,
@@ -50,82 +44,74 @@ router.post('/confirm', limiter, async (req, res) => {
       includedDonationExtras = [],
     } = req.body || {};
 
+    // Verify on-chain and convert to the room's fiat currency.
+    // verified.donationFiat     = converted amount e.g. 72.40
+    // verified.donationCurrency = room's ISO code  e.g. 'USD'
     const verified = await verifyAndRecordSolanaCryptoDonation({
       roomId,
       playerId,
       playerName,
       clubPaymentMethodId,
-
       network,
       txHash,
       senderWallet,
       recipientWallet,
-
       tokenCode,
       tokenMint,
       rawAmount,
       displayAmount,
-
       metadataSource: 'web2_walkin_crypto_donation',
-      metadataJson: {
-        includedDonationExtras,
-      },
+      metadataJson: { includedDonationExtras },
     });
 
-    const donationEur = asNumber(verified.web3Result?.donationEur, 0);
+    const donationFiat     = asNumber(verified.donationFiat, 0);
+    const donationCurrency = verified.donationCurrency ?? 'EUR';
+
     const now = new Date();
 
-    if (donationEur <= 0) {
+    if (donationFiat <= 0) {
       console.warn(
-        '[CryptoDonation] ⚠️ Crypto donation converted to less than €0.01; recording ledger as €0.00',
-        {
-          roomId,
-          playerId,
-          txHash,
-          tokenCode,
-          displayAmount,
-          rawAmount,
-          web3TransactionId: verified.web3Result?.id,
-          donationEur,
-        }
+        '[CryptoDonation] ⚠️ Fiat conversion returned zero/null — recording ledger as 0.00',
+        { roomId, playerId, txHash, tokenCode, displayAmount, donationCurrency, donationFiat }
       );
     }
 
     const ledgerId = await createExpectedPayment({
       roomId,
-      clubId: verified.room.club_id,
+      clubId:   verified.room.club_id,
       playerId,
       playerName,
       ledgerType: 'entry_fee',
-      amount: donationEur,
-      currency: 'EUR',
 
-      paymentMethod: 'crypto',
-      paymentSource: 'onchain_auto',
+      amount:   donationFiat,      // in room's currency
+      currency: donationCurrency,  // e.g. 'USD', 'GBP', 'EUR'
+
+      paymentMethod:  'crypto',
+      paymentSource:  'onchain_auto',
       clubPaymentMethodId,
-      paymentReference: txHash,
+      paymentReference:      txHash,
       externalTransactionId: txHash,
 
-      claimedAt: now,
-      confirmedAt: now,
-      confirmedBy: 'system',
+      claimedAt:       now,
+      confirmedAt:     now,
+      confirmedBy:     'system',
       confirmedByName: 'System',
       confirmedByRole: 'system',
-      status: 'confirmed',
+      status:          'confirmed',
 
       ticketId: null,
 
       extraMetadata: {
-        autoConfirmed: true,
-        fundraisingMode: 'donation',
-        donationAmount: donationEur,
-
-        source: 'crypto',
-        chain: 'solana',
-        network: verified.resolvedNetwork,
-        token: tokenCode,
-        cryptoAmount: String(displayAmount || ''),
-        cryptoRawAmount: String(rawAmount || ''),
+        autoConfirmed:    true,
+        fundraisingMode:  'donation',
+        donationAmount:   donationFiat,
+        donationCurrency,
+        source:           'crypto',
+        chain:            'solana',
+        network:          verified.resolvedNetwork,
+        token:            tokenCode,
+        cryptoAmount:     String(displayAmount || ''),
+        cryptoRawAmount:  String(rawAmount || ''),
         web3TransactionId: verified.web3Result?.id ?? null,
         includedDonationExtras,
       },
@@ -135,25 +121,20 @@ router.post('/confirm', limiter, async (req, res) => {
       ok: true,
       ledgerId,
       web3TransactionId: verified.web3Result?.id,
-      duplicate: !!verified.web3Result?.duplicate,
-
-      ledgerAmount: donationEur,
-      ledgerCurrency: 'EUR',
-      roomCurrency: verified.roomCurrency,
+      duplicate:         !!verified.web3Result?.duplicate,
+      ledgerAmount:      donationFiat,
+      ledgerCurrency:    donationCurrency,
+      roomCurrency:      verified.roomCurrency,
       roomCurrencySymbol: verified.roomCurrencySymbol,
-
       txHash,
-
       paymentMethod: {
-        id: verified.method.id,
+        id:    verified.method.id,
         label: verified.method.method_label,
       },
     });
   } catch (err) {
     console.error('[CryptoDonation] POST /confirm error:', err);
-
     const status = err?.statusCode || 500;
-
     return res.status(status).json({
       ok: false,
       error: err?.message || 'Failed to confirm crypto donation',

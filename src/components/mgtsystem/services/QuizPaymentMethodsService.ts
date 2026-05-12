@@ -29,6 +29,8 @@ export type QuizPaymentMethodsResponse = {
   total_available: number;
 };
 
+
+
 class QuizPaymentMethodsService extends BaseService {
   /**
    * Get all available payment methods for the club
@@ -46,12 +48,40 @@ class QuizPaymentMethodsService extends BaseService {
    * Also returns all available payment methods for the modal
    * GET /api/quiz-rooms/:roomId/payment-methods
    */
-  getQuizPaymentMethods(roomId: string) {
-    return this.request<QuizPaymentMethodsResponse>(
-      `/quiz-rooms/${roomId}/payment-methods`,
-      { method: 'GET' }
-    );
+async getPublicPaymentMethods(roomId: string): Promise<QuizPaymentMethodsResponse> {
+  const url = `${this.baseURL}/payment-methods/room/${roomId}/public`;
+  const res = await fetch(url);
+  const data = await res.json();
+
+  if (!data.ok) throw new Error(data.error || 'Failed to load payment methods');
+
+  return {
+    available_methods: data.paymentMethods.map((m: any) => ({
+      id: m.id,
+      club_id: m.clubId,
+      method_category: m.methodCategory,
+      provider_name: m.providerName,
+      method_label: m.methodLabel,
+      display_order: m.displayOrder,
+      is_enabled: m.isEnabled,
+      player_instructions: m.playerInstructions,
+      method_config: m.methodConfig,
+      is_official_club_account: m.isOfficialClubAccount,
+    })),
+    linked_method_ids: data.paymentMethods.map((m: any) => Number(m.id)),
+    total_available: data.paymentMethods.length,
+  };
+}
+
+getQuizPaymentMethods(roomId: string) {
+  if (!this.isAuthenticated()) {
+    return this.getPublicPaymentMethods(roomId);
   }
+  return this.request<QuizPaymentMethodsResponse>(
+    `/quiz-rooms/${roomId}/payment-methods`,
+    { method: 'GET' }
+  );
+}
 
   /**
    * Update linked payment methods for a quiz room
@@ -86,6 +116,8 @@ class QuizPaymentMethodsService extends BaseService {
   formatPaymentMethodDisplay(method: PaymentMethod): string {
     return `${method.method_category.toUpperCase()} - ${method.method_label}`;
   }
+
+  
 }
 
 export const quizPaymentMethodsService = new QuizPaymentMethodsService();

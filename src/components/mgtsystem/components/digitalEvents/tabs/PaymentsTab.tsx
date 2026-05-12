@@ -9,6 +9,9 @@ import {
   Wallet,
   AlertTriangle,
   Lock,
+  Search,
+  ReceiptText,
+  Ban,
 } from 'lucide-react';
 
 import type { Web2RoomListItem as Room } from '../../../../../shared/api/quiz.api';
@@ -26,6 +29,7 @@ type PaymentMethod_ = PaymentMethod;
 
 interface Props {
   room: Room;
+  config?: any;
   onPaymentMethodSuccess: () => void;
   confirmedBy: string;
   confirmedByName?: string;
@@ -34,15 +38,14 @@ interface Props {
 type LegacyPaymentMethod =
   | 'pay_admin'
   | 'cash'
+  | 'card_tap'
   | 'instant_payment'
   | 'card'
   | 'stripe'
   | 'crypto'
   | 'other';
 
-
-
-
+type ResolutionMode = 'paid_late' | 'write_off' | null;
 
 function moneyToInput(value: unknown) {
   const amount = Number(value || 0);
@@ -73,6 +76,7 @@ function getCanonicalPaymentMethod(method?: PaymentMethod_ | null): LegacyPaymen
 
   if (category === 'instant_payment') {
     if (provider === 'cash') return 'cash';
+    if (provider === 'card_tap') return 'card_tap';
     return 'instant_payment';
   }
 
@@ -96,9 +100,10 @@ function getSubtitle(method: PaymentMethod_) {
 
   if (method.method_category === 'instant_payment') {
     const provider = String(method.provider_name || '').toLowerCase();
-
     if (provider === 'cash') {
-      parts.push('Pay at door / manual confirmation');
+      parts.push('Cash on the night / manual confirmation');
+    } else if (provider === 'card_tap') {
+      parts.push('CardTap on the night / manual confirmation');
     } else {
       parts.push('Manual payment');
     }
@@ -115,13 +120,24 @@ function getMethodIcon(method: PaymentMethod_) {
   return <CreditCard className="h-5 w-5" />;
 }
 
+function statusPillClass(status: string) {
+  const trimmed = status.trim();
+  if (trimmed === 'disputed') return 'border-red-200 bg-red-50 text-red-700';
+  if (trimmed === 'claimed') return 'border-amber-200 bg-amber-50 text-amber-700';
+  if (trimmed === 'expected') return 'border-slate-200 bg-slate-50 text-slate-700';
+  return 'border-gray-200 bg-gray-50 text-gray-700';
+}
+
 export default function PaymentsTab({
   room,
+  config,
   onPaymentMethodSuccess,
   confirmedBy,
   confirmedByName,
 }: Props) {
   const isCompleted = room.status === 'completed';
+  const currency = config?.currencySymbol || config?.currency || '€';
+  const fmt = (value: unknown) => `${currency}${Number(value || 0).toFixed(2)}`;
 
   // ── Payment methods ──────────────────────────────────────────────────────
   const [pmLoading, setPmLoading] = useState(false);
@@ -224,6 +240,7 @@ export default function PaymentsTab({
   const [lateLoading, setLateLoading] = useState(false);
   const [lateSearch, setLateSearch] = useState('');
   const [selectedId, setSelectedId] = useState('');
+  const [resolutionMode, setResolutionMode] = useState<ResolutionMode>(null);
 
   const [payMethod, setPayMethod] =
     useState<LegacyPaymentMethod>('pay_admin');
@@ -272,7 +289,8 @@ export default function PaymentsTab({
     return players.filter((player) => {
       return (
         !search ||
-        (player.playerName || '').toLowerCase().includes(search)
+        (player.playerName || '').toLowerCase().includes(search) ||
+        String(player.playerId || '').toLowerCase().includes(search)
       );
     });
   }, [players, lateSearch]);
@@ -282,37 +300,48 @@ export default function PaymentsTab({
     [players, selectedId]
   );
 
- function selectPlayer(player: UnpaidPlayerRow) {
-  setSelectedId(player.playerId);
-  setEntryAmount(moneyToInput(player.entryFeeOutstanding));
-  setExtrasAmount(moneyToInput(player.extrasOutstanding));
-  setPayRef('');
-  setAdminNotes(String((player as any).existingNotes || '').trim());
+  function primePlayer(player: UnpaidPlayerRow) {
+    setSelectedId(player.playerId);
+    setEntryAmount(moneyToInput(player.entryFeeOutstanding));
+    setExtrasAmount(moneyToInput(player.extrasOutstanding));
+    setPayRef('');
+    setAdminNotes(String((player as any).existingNotes || '').trim());
 
-  const existingClubMethodId = Number((player as any).clubPaymentMethodId);
+    const existingClubMethodId = Number((player as any).clubPaymentMethodId);
 
-  const matchedMethod = linkedAvailableMethods.find(
-    (method) => method.id === existingClubMethodId
-  );
+    const matchedMethod = linkedAvailableMethods.find(
+      (method) => method.id === existingClubMethodId
+    );
 
-  if (matchedMethod) {
-    setClubMethodId(matchedMethod.id);
-    setPayMethod(getCanonicalPaymentMethod(matchedMethod));
-  } else {
-    const firstLinkedMethod = linkedAvailableMethods[0];
-
-    if (firstLinkedMethod) {
-      setClubMethodId(firstLinkedMethod.id);
-      setPayMethod(getCanonicalPaymentMethod(firstLinkedMethod));
+    if (matchedMethod) {
+      setClubMethodId(matchedMethod.id);
+      setPayMethod(getCanonicalPaymentMethod(matchedMethod));
     } else {
-      setClubMethodId(null);
-      setPayMethod('pay_admin');
+      const firstLinkedMethod = linkedAvailableMethods[0];
+
+      if (firstLinkedMethod) {
+        setClubMethodId(firstLinkedMethod.id);
+        setPayMethod(getCanonicalPaymentMethod(firstLinkedMethod));
+      } else {
+        setClubMethodId(null);
+        setPayMethod('pay_admin');
+      }
     }
+
+    setLateError(null);
+    setWriteOffConfirm(false);
   }
 
-  setLateError(null);
-  setWriteOffConfirm(false);
-}
+  function chooseLatePayment(player: UnpaidPlayerRow) {
+    primePlayer(player);
+    setResolutionMode('paid_late');
+  }
+
+  function chooseWriteOff(player: UnpaidPlayerRow) {
+    primePlayer(player);
+    setResolutionMode('write_off');
+    setWriteOffConfirm(true);
+  }
 
   const receivedTotal =
     parseMoneyInput(entryAmount) + parseMoneyInput(extrasAmount);
@@ -323,34 +352,36 @@ export default function PaymentsTab({
     : 0;
 
   const diff = receivedTotal - originalTotal;
- const canSave =
-  !!selectedPlayer &&
-  !lateSaving &&
-  clubMethodId !== null &&
-  linkedAvailableMethods.length > 0;
+  const canMarkLatePaid =
+    !!selectedPlayer &&
+    !lateSaving &&
+    clubMethodId !== null &&
+    linkedAvailableMethods.length > 0;
 
- const handleLatePaymentMethodChange = (value: string) => {
-  if (!value.startsWith('club:')) {
-    setClubMethodId(null);
-    setPayMethod('pay_admin');
-    return;
-  }
+  const canWriteOff = !!selectedPlayer && !lateSaving;
 
-  const id = Number(value.replace('club:', ''));
-  const method = linkedAvailableMethods.find((item) => item.id === id);
+  const handleLatePaymentMethodChange = (value: string) => {
+    if (!value.startsWith('club:')) {
+      setClubMethodId(null);
+      setPayMethod('pay_admin');
+      return;
+    }
 
-  if (!method) {
-    setClubMethodId(null);
-    setPayMethod('pay_admin');
-    return;
-  }
+    const id = Number(value.replace('club:', ''));
+    const method = linkedAvailableMethods.find((item) => item.id === id);
 
-  setClubMethodId(method.id);
-  setPayMethod(getCanonicalPaymentMethod(method));
-};
+    if (!method) {
+      setClubMethodId(null);
+      setPayMethod('pay_admin');
+      return;
+    }
 
- const latePaymentMethodValue =
-  clubMethodId !== null ? `club:${clubMethodId}` : '';
+    setClubMethodId(method.id);
+    setPayMethod(getCanonicalPaymentMethod(method));
+  };
+
+  const latePaymentMethodValue =
+    clubMethodId !== null ? `club:${clubMethodId}` : '';
 
   async function handleMarkPaid() {
     if (!selectedPlayer || !confirmedBy) {
@@ -383,6 +414,7 @@ export default function PaymentsTab({
 
       setPlayers(response.players || []);
       setSelectedId('');
+      setResolutionMode(null);
       setWriteOffConfirm(false);
     } catch (error: any) {
       setLateError(error.message || 'Failed to mark paid');
@@ -418,6 +450,7 @@ export default function PaymentsTab({
 
       setPlayers(response.players || []);
       setSelectedId('');
+      setResolutionMode(null);
       setWriteOffConfirm(false);
     } catch (error: any) {
       setLateError(error.message || 'Failed to write off');
@@ -433,119 +466,227 @@ export default function PaymentsTab({
     }
 
     return (
-      <section>
-        <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Outstanding Payments
-        </h3>
-
-        <p className="mb-4 text-xs text-gray-500">
-          Mark late payments or write off amounts not collected.
-        </p>
+      <section className="space-y-4">
+        <div className="rounded-2xl border border-orange-100 bg-gradient-to-r from-orange-50 via-white to-amber-50 p-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-orange-100 text-orange-700">
+              <ReceiptText className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-base font-black text-gray-950">
+                Resolve outstanding payments
+              </h3>
+              <p className="mt-1 text-sm text-gray-600">
+                Each unpaid player can be marked as paid late or written off. Late payments show the amount fields so you can handle partial or different amounts.
+              </p>
+            </div>
+          </div>
+        </div>
 
         {lateError && !selectedPlayer && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             {lateError}
           </div>
         )}
 
         {lateLoading ? (
-          <div className="flex items-center justify-center gap-2 py-8 text-sm text-gray-500">
+          <div className="flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white py-10 text-sm text-gray-500">
             <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
             Loading outstanding payments…
           </div>
         ) : players.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-green-200 bg-green-50 p-8 text-center">
+          <div className="rounded-2xl border border-dashed border-green-200 bg-green-50 p-8 text-center">
             <CheckCircle2 className="mx-auto mb-3 h-10 w-10 text-green-500" />
             <p className="text-sm font-semibold text-green-900">
               No outstanding payments
             </p>
             <p className="mx-auto mt-2 max-w-sm text-xs text-green-700">
-              All player payments for this completed quiz are resolved. There
-              is nothing left to collect or write off.
+              All player payments for this completed quiz are resolved.
             </p>
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Player search */}
-            <input
-              value={lateSearch}
-              onChange={(event) => setLateSearch(event.target.value)}
-              placeholder="Search by name or email…"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-orange-100 bg-orange-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-orange-700">Players to resolve</p>
+                <p className="mt-1 text-xl font-black text-orange-950">{players.length}</p>
+              </div>
+              <div className="rounded-xl border border-orange-100 bg-white p-3 sm:col-span-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Outstanding total</p>
+                <p className="mt-1 text-xl font-black text-gray-950">
+                  {fmt(players.reduce((sum, player) => sum + Number(player.totalOutstanding || 0), 0))}
+                </p>
+              </div>
+            </div>
 
-            {/* Player list */}
-            <div className="max-h-48 space-y-2 overflow-y-auto">
-              {filteredPlayers.map((player) => (
-                <button
-                  key={player.playerId}
-                  type="button"
-                  onClick={() => selectPlayer(player)}
-                  className={`flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-left transition-colors ${
-                    selectedId === player.playerId
-                      ? 'border-indigo-400 bg-indigo-50'
-                      : 'border-gray-200 bg-white hover:border-gray-300'
-                  }`}
-                >
-                  <div>
-                    <div className="text-sm font-medium text-gray-900">
-                      {player.playerName || player.playerId}
-                    </div>
-                  </div>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                value={lateSearch}
+                onChange={(event) => setLateSearch(event.target.value)}
+                placeholder="Search outstanding players…"
+                className="w-full rounded-xl border border-gray-300 bg-white py-2.5 pl-9 pr-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              />
+            </div>
 
-                  <div className="text-right">
-                    <div className="text-sm font-semibold text-gray-900">
-                      €{Number(player.totalOutstanding || 0).toFixed(2)}
-                    </div>
+            <div className="space-y-2">
+              {filteredPlayers.map((player) => {
+                const active = selectedId === player.playerId;
+                return (
+                  <div
+                    key={player.playerId}
+                    className={`rounded-2xl border bg-white p-4 transition-all ${
+                      active
+                        ? 'border-indigo-300 shadow-sm ring-2 ring-indigo-100'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-bold text-gray-950">
+                          {player.playerName || player.playerId}
+                        </p>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {String((player as any).statuses || '')
+                            .split(',')
+                            .filter(Boolean)
+                            .map((status) => (
+                              <span
+                                key={status}
+                                className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${statusPillClass(status)}`}
+                              >
+                                {status.trim().replace(/_/g, ' ')}
+                              </span>
+                            ))}
+                        </div>
+                      </div>
 
-                    <div className="mt-0.5 flex justify-end gap-1">
-                      {String((player as any).statuses || '')
-                        .split(',')
-                        .filter(Boolean)
-                        .map((status) => (
-                          <span
-                            key={status}
-                            className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
-                              status.trim() === 'disputed'
-                                ? 'border-red-200 bg-red-50 text-red-700'
-                                : status.trim() === 'claimed'
-                                  ? 'border-amber-200 bg-amber-50 text-amber-700'
-                                  : 'border-gray-200 bg-gray-50 text-gray-700'
-                            }`}
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <div className="sm:text-right">
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                            Outstanding
+                          </p>
+                          <p className="text-lg font-black text-gray-950">
+                            {fmt(player.totalOutstanding)}
+                          </p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 sm:justify-end">
+                          <button
+                            type="button"
+                            onClick={() => chooseWriteOff(player)}
+                            disabled={lateSaving}
+                            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-100 disabled:opacity-50"
                           >
-                            {status.trim()}
-                          </span>
-                        ))}
+                            <Ban className="h-3.5 w-3.5" />
+                            Write off
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => chooseLatePayment(player)}
+                            disabled={lateSaving}
+                            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            Accept late payment
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </button>
-              ))}
+                );
+              })}
 
               {filteredPlayers.length === 0 && (
-                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center text-sm text-gray-500">
+                <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center text-sm text-gray-500">
                   No matching outstanding payments.
                 </div>
               )}
             </div>
 
-            {/* Resolution form */}
-            {selectedPlayer && (
-              <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-4">
-                <h4 className="text-sm font-semibold text-gray-900">
-                  Resolving:{' '}
-                  <span className="text-indigo-700">
-                    {selectedPlayer.playerName}
-                  </span>
-                </h4>
+            {selectedPlayer && resolutionMode === 'write_off' && writeOffConfirm && (
+              <div className="space-y-4 rounded-2xl border border-red-200 bg-red-50 p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600" />
+                  <div>
+                    <p className="text-sm font-black text-red-950">
+                      Write off {selectedPlayer.playerName || 'this player'}’s outstanding payment?
+                    </p>
+                    <p className="mt-1 text-xs text-red-800">
+                      This closes the unresolved ledger item as not collected. It will be excluded from collected totals and shown as written off in the reports.
+                    </p>
+                  </div>
+                </div>
 
                 {lateError && (
-                  <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  <div className="rounded-xl border border-red-200 bg-white p-3 text-sm text-red-700">
                     {lateError}
                   </div>
                 )}
 
-                {/* Amounts */}
-                <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-red-900">
+                    Optional note
+                  </label>
+                  <textarea
+                    value={adminNotes}
+                    onChange={(event) => setAdminNotes(event.target.value)}
+                    disabled={lateSaving}
+                    rows={2}
+                    className="w-full rounded-xl border border-red-200 bg-white px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                    placeholder="e.g. Player did not pay after follow-up"
+                  />
+                </div>
+
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResolutionMode(null);
+                      setWriteOffConfirm(false);
+                      setSelectedId('');
+                    }}
+                    disabled={lateSaving}
+                    className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleWriteOff}
+                    disabled={!canWriteOff}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {savingAction === 'write_off' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Confirm write-off
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {selectedPlayer && resolutionMode === 'paid_late' && (
+              <div className="space-y-4 rounded-2xl border border-indigo-200 bg-white p-4 shadow-sm">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-sm font-black text-gray-950">
+                      Accept late payment
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      {selectedPlayer.playerName || selectedPlayer.playerId}
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700">
+                    Expected {fmt(originalTotal)}
+                  </span>
+                </div>
+
+                {lateError && (
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                    {lateError}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {[
                     {
                       label: 'Entry received',
@@ -560,17 +701,14 @@ export default function PaymentsTab({
                       expected: selectedPlayer.extrasOutstanding,
                     },
                   ].map(({ label, value, onChange, expected }) => (
-                    <div
-                      key={label}
-                      className="rounded-xl bg-gray-50 px-3 py-2.5"
-                    >
+                    <div key={label} className="rounded-xl bg-gray-50 px-3 py-2.5">
                       <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
                         {label}
                       </label>
 
                       <div className="mt-1 flex items-center gap-1">
                         <span className="text-sm font-bold text-gray-500">
-                          €
+                          {currency}
                         </span>
 
                         <input
@@ -588,13 +726,12 @@ export default function PaymentsTab({
                       </div>
 
                       <p className="mt-0.5 text-[10px] text-gray-500">
-                        Expected €{Number(expected || 0).toFixed(2)}
+                        Expected {fmt(expected)}
                       </p>
                     </div>
                   ))}
                 </div>
 
-                {/* Total */}
                 <div
                   className={`rounded-xl border p-3 ${
                     diff < 0
@@ -609,9 +746,8 @@ export default function PaymentsTab({
                       <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                         Received total
                       </p>
-
                       <p className="mt-1 text-xl font-black text-gray-900">
-                        €{receivedTotal.toFixed(2)}
+                        {fmt(receivedTotal)}
                       </p>
                     </div>
 
@@ -619,7 +755,6 @@ export default function PaymentsTab({
                       <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                         Difference
                       </p>
-
                       <p
                         className={`mt-1 text-sm font-bold ${
                           diff < 0
@@ -629,50 +764,47 @@ export default function PaymentsTab({
                               : 'text-gray-700'
                         }`}
                       >
-                        {diff === 0
-                          ? 'No change'
-                          : `${diff > 0 ? '+' : ''}€${diff.toFixed(2)}`}
+                        {diff === 0 ? 'No change' : `${diff > 0 ? '+' : '−'}${fmt(Math.abs(diff))}`}
                       </p>
                     </div>
                   </div>
                 </div>
 
-                {/* Resolution details */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <label className="mb-1 block text-xs font-semibold text-gray-700">
                       Payment method
                     </label>
 
-<select
-  value={latePaymentMethodValue}
-  onChange={(event) =>
-    handleLatePaymentMethodChange(event.target.value)
-  }
-  disabled={lateSaving || linkedAvailableMethods.length === 0}
-  className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-gray-100 disabled:text-gray-500"
->
-  {linkedAvailableMethods.length === 0 ? (
-    <option value="">
-      No quiz payment methods available
-    </option>
-  ) : (
-    linkedAvailableMethods.map((method) => (
-      <option key={method.id} value={`club:${method.id}`}>
-        {method.method_label}
-        {method.provider_name
-          ? ` (${formatProviderName(method.provider_name)})`
-          : ''}
-      </option>
-    ))
-  )}
-</select>
+                    <select
+                      value={latePaymentMethodValue}
+                      onChange={(event) =>
+                        handleLatePaymentMethodChange(event.target.value)
+                      }
+                      disabled={lateSaving || linkedAvailableMethods.length === 0}
+                      className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:bg-gray-100 disabled:text-gray-500"
+                    >
+                      {linkedAvailableMethods.length === 0 ? (
+                        <option value="">
+                          No quiz payment methods available
+                        </option>
+                      ) : (
+                        linkedAvailableMethods.map((method) => (
+                          <option key={method.id} value={`club:${method.id}`}>
+                            {method.method_label}
+                            {method.provider_name
+                              ? ` (${formatProviderName(method.provider_name)})`
+                              : ''}
+                          </option>
+                        ))
+                      )}
+                    </select>
 
-{linkedAvailableMethods.length === 0 && (
-  <p className="mt-1 text-xs text-red-600">
-    No payment methods are linked to this quiz. Link a payment method before resolving outstanding payments.
-  </p>
-)}
+                    {linkedAvailableMethods.length === 0 && (
+                      <p className="mt-1 text-xs text-red-600">
+                        No payment methods are linked to this quiz. Link a payment method before resolving outstanding payments.
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -705,75 +837,34 @@ export default function PaymentsTab({
                   />
                 </div>
 
-                {/* Write-off confirm */}
-                {writeOffConfirm && (
-                  <div className="space-y-2 rounded-xl border border-red-200 bg-red-50 p-3">
-                    <div className="flex items-start gap-2">
-                      <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-600" />
-
-                      <p className="text-xs font-semibold text-red-900">
-                        Write off this payment as not collected?
-                      </p>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setWriteOffConfirm(false)}
-                        disabled={lateSaving}
-                        className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                      >
-                        Cancel
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={handleWriteOff}
-                        disabled={lateSaving}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
-                      >
-                        {savingAction === 'write_off' ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : null}
-                        Confirm write-off
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Action buttons */}
-                {!writeOffConfirm && (
-                  <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                    <button
-                      type="button"
-                      onClick={() => setWriteOffConfirm(true)}
-                      disabled={!canSave}
-                      className={`rounded-xl px-4 py-2.5 text-sm font-bold text-white ${
-                        canSave
-                          ? 'bg-red-600 hover:bg-red-700'
-                          : 'cursor-not-allowed bg-gray-300'
-                      }`}
-                    >
-                      Write Off
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleMarkPaid}
-                      disabled={!canSave}
-                      className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-white ${
-                        canSave
-                          ? 'bg-indigo-600 hover:bg-indigo-700'
-                          : 'cursor-not-allowed bg-gray-300'
-                      }`}
-                    >
-                      {savingAction === 'paid_late' ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : null}
-                      Mark Paid Late
-                    </button>
-                  </div>
-                )}
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResolutionMode(null);
+                      setSelectedId('');
+                    }}
+                    disabled={lateSaving}
+                    className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleMarkPaid}
+                    disabled={!canMarkLatePaid}
+                    className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-white ${
+                      canMarkLatePaid
+                        ? 'bg-indigo-600 hover:bg-indigo-700'
+                        : 'cursor-not-allowed bg-gray-300'
+                    }`}
+                  >
+                    {savingAction === 'paid_late' ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : null}
+                    Confirm late payment
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -783,76 +874,75 @@ export default function PaymentsTab({
   };
 
   return (
-    <div className="space-y-8 p-5">
-      {/* Completed room banner */}
+    <div className="space-y-6 p-5">
       {isCompleted && (
-        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+        <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
           <div className="flex items-start gap-3">
-            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gray-200">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gray-200">
               <Lock className="h-5 w-5 text-gray-500" />
             </div>
 
             <div>
-              <p className="text-sm font-semibold text-gray-800">
+              <p className="text-sm font-bold text-gray-900">
                 Payment options are locked
               </p>
 
               <p className="mt-1 text-xs text-gray-500">
-                This quiz is completed, so players can no longer join or choose
-                payment options. Use the outstanding payments section below to
-                resolve anything unpaid.
+                This quiz is completed, so checkout options can no longer be changed. Use this tab only to close unresolved payments.
               </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Payment methods are only editable before completion */}
       {!isCompleted && (
-        <section>
-          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Payment Options for this Quiz
-          </h3>
-
-          <p className="mb-4 text-xs text-gray-500">
-            Select which payment methods players can use at checkout.
-            Unselected methods won't appear.
-          </p>
+        <section className="space-y-4">
+          <div className="rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 via-white to-green-50 p-5">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                <CreditCard className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-gray-950">
+                  Payment options for this quiz
+                </h3>
+                <p className="mt-1 text-sm text-gray-600">
+                  Select the payment methods players can choose at checkout. Unselected methods will not appear on the ticket page.
+                </p>
+              </div>
+            </div>
+          </div>
 
           {pmLoading && (
-            <div className="flex items-center justify-center gap-2 py-8 text-sm text-gray-500">
+            <div className="flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white py-10 text-sm text-gray-500">
               <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
-              Loading…
+              Loading payment methods…
             </div>
           )}
 
           {pmError && (
-            <div className="mb-4 flex gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
+            <div className="flex gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
               <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600" />
-
               <p className="text-sm text-red-800">{pmError}</p>
             </div>
           )}
 
           {!pmLoading && available.length === 0 && (
-            <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <div className="flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
               <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-700" />
-
               <div>
                 <p className="text-sm font-semibold text-amber-900">
                   No active payment methods
                 </p>
-
                 <p className="mt-1 text-xs text-amber-800">
-                  Add payment methods via the Payment Methods button on the
-                  dashboard first.
+                  Add payment methods via the Payment Methods button on the dashboard first.
                 </p>
               </div>
             </div>
           )}
 
           {!pmLoading && available.length > 0 && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div className="grid grid-cols-1 gap-3">
                 {available.map((method) => {
                   const isSelected = selectedIds.includes(method.id);
@@ -862,15 +952,15 @@ export default function PaymentsTab({
                       key={method.id}
                       type="button"
                       onClick={() => handleToggle(method.id)}
-                      className={`w-full rounded-xl border-2 p-4 text-left transition-all ${
+                      className={`w-full rounded-2xl border p-4 text-left transition-all ${
                         isSelected
-                          ? 'border-emerald-500 bg-emerald-50'
+                          ? 'border-emerald-300 bg-emerald-50 shadow-sm ring-2 ring-emerald-100'
                           : 'border-gray-200 bg-white hover:border-gray-300'
                       }`}
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full ${
+                          className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${
                             isSelected
                               ? 'bg-emerald-600 text-white'
                               : 'bg-gray-100 text-gray-500'
@@ -885,12 +975,12 @@ export default function PaymentsTab({
 
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
-                            <p className="text-sm font-semibold text-gray-900">
+                            <p className="text-sm font-bold text-gray-950">
                               {method.method_label}
                             </p>
 
                             {isSelected && (
-                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
+                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800">
                                 Selected
                               </span>
                             )}
@@ -914,8 +1004,8 @@ export default function PaymentsTab({
                 })}
               </div>
 
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-500">
+              <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white p-4">
+                <p className="text-xs font-medium text-gray-500">
                   {selectedIds.length === 0
                     ? 'No methods selected'
                     : `${selectedIds.length} method${
@@ -927,7 +1017,7 @@ export default function PaymentsTab({
                   type="button"
                   onClick={handleSavePayments}
                   disabled={pmSaving || !hasPaymentChanges || pmLoading}
-                  className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
                 >
                   {pmSaving ? (
                     <>
@@ -937,7 +1027,7 @@ export default function PaymentsTab({
                   ) : (
                     <>
                       <CheckCircle2 className="h-4 w-4" />
-                      Save
+                      Save payment options
                     </>
                   )}
                 </button>
@@ -951,18 +1041,12 @@ export default function PaymentsTab({
 
       {!isCompleted && (
         <section>
-          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Outstanding Payments
-          </h3>
-
-          <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center">
-            <p className="text-sm font-medium text-gray-700">
+          <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center">
+            <p className="text-sm font-bold text-gray-800">
               Outstanding payments appear after the quiz is completed.
             </p>
-
             <p className="mx-auto mt-2 max-w-sm text-xs text-gray-500">
-              Once the event is complete, this section will show unpaid players
-              so you can mark late payments or write off uncollected amounts.
+              Once the event is complete, unpaid players will appear here with row-level actions for late payment or write-off.
             </p>
           </div>
         </section>

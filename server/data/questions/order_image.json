@@ -785,7 +785,7 @@
     "difficulty": "easy",
     "prompt": "Order these TV shows from oldest to newest (by first episode aired)",
     "images": [
-      { "id": "a", "label": "Doctor Who", "imageUrl": "/quiz/order_image/doctor_who.jpg", "order": 1 },
+      { "id": "a", "label": "Doctor Who", "imageUrl": "/quiz/order_image/dr_who.jpg", "order": 1 },
       { "id": "b", "label": "The Simpsons", "imageUrl": "/quiz/order_image/simpsons.jpg", "order": 2 },
       { "id": "c", "label": "Friends", "imageUrl": "/quiz/order_image/friends.jpg", "order": 3 },
       { "id": "d", "label": "Game of Thrones", "imageUrl": "/quiz/order_image/game_of_thrones.jpg", "order": 4 }

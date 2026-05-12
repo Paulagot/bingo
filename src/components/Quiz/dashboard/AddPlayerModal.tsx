@@ -27,6 +27,7 @@ interface AddPlayerModalProps {
 
 type CanonicalPaymentMethod =
   | 'cash'
+  | 'card_tap'
   | 'instant_payment'
   | 'card'
   | 'stripe'
@@ -61,9 +62,7 @@ function formatProviderName(providerName?: string | null): string {
 
 function formatMethodLabel(method: QuizLinkedPaymentMethod): string {
   const provider = formatProviderName(method.provider_name);
-
   if (!provider) return method.method_label;
-
   return `${method.method_label} (${provider})`;
 }
 
@@ -72,12 +71,16 @@ function getCanonicalPaymentMethod(
 ): CanonicalPaymentMethod {
   if (!method) return 'other';
 
-  if (method.method_category === 'stripe') return 'stripe';
-  if (method.method_category === 'card') return 'card';
-  if (method.method_category === 'crypto') return 'crypto';
+  const category = String(method.method_category || '').toLowerCase();
+  const provider = String(method.provider_name || '').toLowerCase();
 
-  if (method.method_category === 'instant_payment') {
-    if (method.provider_name === 'cash') return 'cash';
+  if (category === 'stripe') return 'stripe';
+  if (category === 'card') return 'card';
+  if (category === 'crypto') return 'crypto';
+
+  if (category === 'instant_payment') {
+    if (provider === 'cash') return 'cash';
+    if (provider === 'card_tap') return 'card_tap';
     return 'instant_payment';
   }
 
@@ -92,9 +95,7 @@ function getVerificationMode(
   const config = (method.method_config || {}) as Record<string, any>;
 
   if (method.method_category === 'crypto') {
-    return config.verificationMode === 'manual'
-      ? 'manual'
-      : 'onchain_verified';
+    return config.verificationMode === 'manual' ? 'manual' : 'onchain_verified';
   }
 
   if (method.method_category === 'stripe' || method.method_category === 'card') {
@@ -127,9 +128,8 @@ function getLegacyPaymentLabel(value: unknown): string {
   const lower = String(value).toLowerCase().trim();
 
   if (lower === 'cash') return 'cash';
-  if (lower === 'instant_payment' || lower === 'instant payment') {
-    return 'instant_payment';
-  }
+  if (lower === 'card_tap' || lower === 'card tap' || lower === 'cardtap') return 'card_tap';
+  if (lower === 'instant_payment' || lower === 'instant payment') return 'instant_payment';
   if (lower === 'pay_admin' || lower === 'pay admin') return 'instant_payment';
   if (lower === 'card') return 'card';
   if (lower === 'stripe') return 'stripe';
@@ -168,7 +168,6 @@ function resolveMethodIdFromPlayer(
     const matchedByLabel = linkedMethods.find(
       (method) => method.method_label.toLowerCase().trim() === labelSnapshot
     );
-
     if (matchedByLabel) return String(matchedByLabel.id);
   }
 
@@ -185,10 +184,8 @@ function resolveMethodIdFromPlayer(
   if (providerSnapshot) {
     const matchedByProvider = linkedMethods.find(
       (method) =>
-        String(method.provider_name || '').toLowerCase().trim() ===
-        providerSnapshot
+        String(method.provider_name || '').toLowerCase().trim() === providerSnapshot
     );
-
     if (matchedByProvider) return String(matchedByProvider.id);
   }
 
@@ -233,7 +230,6 @@ function getDefaultLinkedMethodId(
       const stillAvailable = linkedMethods.find(
         (method) => String(method.id) === String(stored)
       );
-
       if (stillAvailable) return String(stillAvailable.id);
     }
   } catch {
@@ -241,7 +237,6 @@ function getDefaultLinkedMethodId(
   }
 
   const firstMethod = linkedMethods[0];
-
   if (!firstMethod) return '';
 
   return String(firstMethod.id);
@@ -286,10 +281,13 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
     [config?.fundraisingOptions]
   );
 
+  // Always resolve the player being edited directly from the store by ID.
+  // Do NOT fall back to the playerToEdit prop for the name-uniqueness check —
+  // that prop is not passed from PlayerListPanel and would be undefined,
+  // which was the root cause of the "admin gets stuck" bug.
   const livePlayerToEdit = useMemo(() => {
     if (effectiveMode !== 'edit') return null;
     if (!playerIdToEdit) return null;
-
     return players.find((player: any) => player.id === playerIdToEdit) || null;
   }, [effectiveMode, playerIdToEdit, players]);
 
@@ -301,18 +299,20 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
   const [paid, setPaid] = useState(false);
   const [donationAmount, setDonationAmount] = useState('');
   const [added, setAdded] = useState(false);
+
+  // Separate error (hard block) from warning (soft, allow proceed on second submit).
   const [nameError, setNameError] = useState('');
+  const [nameWarning, setNameWarning] = useState('');
+  // Tracks whether the user has already acknowledged the duplicate-name warning
+  // and is submitting a second time to proceed anyway.
+  const [nameWarningAcknowledged, setNameWarningAcknowledged] = useState(false);
 
   const [paymentMethodsLoading, setPaymentMethodsLoading] = useState(false);
-  const [paymentMethodsError, setPaymentMethodsError] = useState<string | null>(
-    null
-  );
+  const [paymentMethodsError, setPaymentMethodsError] = useState<string | null>(null);
   const [availablePaymentMethods, setAvailablePaymentMethods] = useState<
     QuizLinkedPaymentMethod[]
   >([]);
-  const [linkedPaymentMethodIds, setLinkedPaymentMethodIds] = useState<number[]>(
-    []
-  );
+  const [linkedPaymentMethodIds, setLinkedPaymentMethodIds] = useState<number[]>([]);
 
   const linkedPaymentMethods = useMemo(() => {
     const linkedIdSet = new Set(linkedPaymentMethodIds.map((id) => Number(id)));
@@ -323,7 +323,6 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
       .sort((a, b) => {
         const orderA = Number(a.display_order || 0);
         const orderB = Number(b.display_order || 0);
-
         if (orderA !== orderB) return orderA - orderB;
         return String(a.method_label).localeCompare(String(b.method_label));
       });
@@ -331,7 +330,6 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
 
   const selectedPaymentMethod = useMemo(() => {
     if (!selectedPaymentMethodId) return null;
-
     return (
       linkedPaymentMethods.find(
         (method) => String(method.id) === String(selectedPaymentMethodId)
@@ -359,6 +357,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
   const noLinkedPaymentMethods =
     !paymentMethodsLoading && linkedPaymentMethods.length === 0;
 
+  // ─── Load payment methods whenever modal opens ───────────────────────────
   useEffect(() => {
     if (!isOpen || !roomId) return;
 
@@ -403,6 +402,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
     };
   }, [isOpen, roomId]);
 
+  // ─── Hydrate form fields when modal opens or mode/player changes ─────────
   useEffect(() => {
     if (!isOpen) return;
 
@@ -435,6 +435,8 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
     setSelectedPaymentMethodId('');
     setAdded(false);
     setNameError('');
+    setNameWarning('');
+    setNameWarningAcknowledged(false);
   }, [
     isOpen,
     effectiveMode,
@@ -444,6 +446,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
     resolvedPlayerToEdit,
   ]);
 
+  // ─── Resolve selected payment method once linked methods are loaded ───────
   useEffect(() => {
     if (!isOpen) return;
     if (linkedPaymentMethods.length === 0) return;
@@ -460,19 +463,14 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
           resolvedPlayerToEdit,
           linkedPaymentMethods
         );
-
         if (editMethodId) return editMethodId;
       }
 
       return getDefaultLinkedMethodId(roomId, linkedPaymentMethods);
     });
-  }, [
-    isOpen,
-    roomId,
-    effectiveMode,
-    resolvedPlayerToEdit,
-    linkedPaymentMethods,
-  ]);
+  }, [isOpen, roomId, effectiveMode, resolvedPlayerToEdit, linkedPaymentMethods]);
+
+  // ─── Handlers ────────────────────────────────────────────────────────────
 
   const handleToggleExtra = (key: string) => {
     if (isDonationRoom) return;
@@ -524,50 +522,46 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
     if (!trimmedName || invalidDonation) return;
 
     if (!selectedPaymentSnapshot) {
-      setPaymentMethodsError(
-        'Select a payment method before adding this player.'
-      );
+      setPaymentMethodsError('Select a payment method before adding this player.');
       return;
     }
 
-    const nameAlreadyUsed = players.some((player: any) => {
-      if (
-        effectiveMode === 'edit' &&
-        resolvedPlayerToEdit &&
-        player.id === resolvedPlayerToEdit.id
-      ) {
+    // ─── Duplicate name check ──────────────────────────────────────────────
+    // Use playerIdToEdit directly from props (not resolvedPlayerToEdit) so
+    // this is always reliable regardless of store-hydration timing.
+    const isDuplicateName = players.some((player: any) => {
+      if (effectiveMode === 'edit' && playerIdToEdit && player.id === playerIdToEdit) {
+        // Always skip the player currently being edited — their own name is allowed.
         return false;
       }
-
-      return (
-        String(player.name || '').toLowerCase() === trimmedName.toLowerCase()
-      );
+      return String(player.name || '').toLowerCase() === trimmedName.toLowerCase();
     });
 
-    if (nameAlreadyUsed) {
-      setNameError('This name is already used. Please choose a different one.');
+    if (isDuplicateName && !nameWarningAcknowledged) {
+      // First attempt: show a soft warning but do not block.
+      // The admin can submit again to proceed anyway (the backend doesn't
+      // enforce unique names, so duplicates are cosmetically confusing but safe).
+      setNameWarning(
+        `Another player named "${trimmedName}" already exists. Submit again to add them anyway.`
+      );
+      setNameWarningAcknowledged(true);
       return;
     }
+
+    // Clear any lingering warnings before proceeding.
+    setNameWarning('');
 
     if (!socket) {
       console.error('[AddPlayerModal] socket is not connected; cannot submit');
       return;
     }
 
-    const finalExtras = isDonationRoom
-      ? includedDonationExtras
-      : selectedExtras;
-
-    const extraPayments = buildExtraPayments(
-      finalExtras,
-      selectedPaymentSnapshot
-    );
+    const finalExtras = isDonationRoom ? includedDonationExtras : selectedExtras;
+    const extraPayments = buildExtraPayments(finalExtras, selectedPaymentSnapshot);
 
     const paymentPayload = {
       paid,
       paymentMethod: selectedPaymentSnapshot.paymentMethod as any,
-
-      // New club-method fields for reporting/reconciliation.
       clubPaymentMethodId: selectedPaymentSnapshot.clubPaymentMethodId,
       paymentMethodId: selectedPaymentSnapshot.paymentMethodId,
       paymentMethodLabel: selectedPaymentSnapshot.paymentMethodLabel,
@@ -575,8 +569,6 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
       paymentMethodCategory: selectedPaymentSnapshot.paymentMethodCategory,
       isOfficialClubAccount: selectedPaymentSnapshot.isOfficialClubAccount,
       paymentVerificationMode: selectedPaymentSnapshot.paymentVerificationMode,
-
-      // Snapshot object for future-safe reporting.
       paymentMethodSnapshot: selectedPaymentSnapshot,
     };
 
@@ -608,6 +600,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
         onClose();
       }, 1200);
     } else {
+      // ── Edit mode ──────────────────────────────────────────────────────
       const editingId = playerIdToEdit || resolvedPlayerToEdit?.id;
 
       if (!editingId) {
@@ -625,22 +618,12 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
 
       socket.emit(
         'update_player',
-        {
-          roomId,
-          playerId: editingId,
-          updates,
-        },
+        { roomId, playerId: editingId, updates },
         (response?: any) => {
           if (!response?.ok) {
-            console.error(
-              '[AddPlayerModal] update_player failed',
-              response?.error
-            );
+            console.error('[AddPlayerModal] update_player failed', response?.error);
           } else if (debug) {
-            console.log(
-              '[AddPlayerModal] update_player success',
-              response.player
-            );
+            console.log('[AddPlayerModal] update_player success', response.player);
           }
         }
       );
@@ -654,6 +637,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
     }
   };
 
+  // ─── Disabled state ───────────────────────────────────────────────────────
   const buttonDisabledAdd =
     !name.trim() ||
     invalidDonation ||
@@ -670,6 +654,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
   const disableButton =
     effectiveMode === 'add' ? buttonDisabledAdd : buttonDisabledEdit;
 
+  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <Dialog
       open={isOpen}
@@ -685,19 +670,34 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
           </Dialog.Title>
 
           <div className="space-y-3">
+            {/* Name input */}
             <input
               type="text"
               value={name}
               onChange={(event) => {
                 setName(event.target.value);
                 setNameError('');
+                setNameWarning('');
+                setNameWarningAcknowledged(false);
               }}
               placeholder="Player name"
               className="w-full rounded-lg border border-gray-300 px-3 py-2"
             />
 
-            {nameError && <p className="text-sm text-red-600">{nameError}</p>}
+            {/* Hard error (e.g. empty name) */}
+            {nameError && (
+              <p className="text-sm text-red-600">{nameError}</p>
+            )}
 
+            {/* Soft warning — duplicate name, but admin can proceed */}
+            {nameWarning && !nameError && (
+              <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3">
+                <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+                <p className="text-sm text-amber-800">{nameWarning}</p>
+              </div>
+            )}
+
+            {/* Donation or entry fee */}
             {isDonationRoom ? (
               <div>
                 <label className="text-fg/80 mb-1 block text-sm font-medium">
@@ -727,6 +727,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
               </p>
             )}
 
+            {/* Donation extras (read-only) */}
             {isDonationRoom && includedDonationExtras.length > 0 && (
               <div className="rounded-lg bg-gray-50 p-3 text-sm text-gray-600">
                 Fundraising extras are included automatically with donations:
@@ -738,6 +739,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
               </div>
             )}
 
+            {/* Selectable extras */}
             {!isDonationRoom && enabledExtras.length > 0 && (
               <div className="space-y-2">
                 {enabledExtras.map(([key]) => {
@@ -772,6 +774,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
               </div>
             )}
 
+            {/* Total */}
             <p className="mt-2 text-right font-semibold">
               Total:{' '}
               <span className="text-indigo-700">
@@ -780,6 +783,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
               </span>
             </p>
 
+            {/* Payment method */}
             <div className="mt-3">
               <label className="text-fg/80 mb-1 block text-sm font-medium">
                 Payment Method
@@ -821,9 +825,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
               )}
 
               {paymentMethodsError && (
-                <p className="mt-1 text-sm text-red-600">
-                  {paymentMethodsError}
-                </p>
+                <p className="mt-1 text-sm text-red-600">{paymentMethodsError}</p>
               )}
 
               {selectedPaymentMethod && (
@@ -834,8 +836,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
                   </div>
 
                   <div className="mt-1">
-                    {selectedPaymentMethod.method_category ===
-                    'instant_payment'
+                    {selectedPaymentMethod.method_category === 'instant_payment'
                       ? 'Manual confirmation required'
                       : selectedPaymentMethod.method_category === 'crypto'
                         ? 'Crypto payment method'
@@ -849,6 +850,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
               )}
             </div>
 
+            {/* Mark as paid */}
             <div className="mt-2 flex items-center gap-3">
               <input
                 type="checkbox"
@@ -858,12 +860,12 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
                 className="h-4 w-4"
                 disabled={!selectedPaymentSnapshot}
               />
-
               <label htmlFor="paid" className="text-fg/80 text-sm">
                 Mark as paid
               </label>
             </div>
 
+            {/* Action buttons */}
             <div className="mt-4 flex gap-2">
               <button
                 type="button"
@@ -880,20 +882,24 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
                 className={`w-1/2 rounded-lg py-2 font-semibold text-white transition ${
                   disableButton
                     ? 'cursor-not-allowed bg-gray-400'
-                    : 'bg-indigo-600 hover:bg-indigo-700'
+                    : nameWarning
+                      ? 'bg-amber-500 hover:bg-amber-600'
+                      : 'bg-indigo-600 hover:bg-indigo-700'
                 }`}
               >
                 {effectiveMode === 'add'
                   ? added
                     ? '✅ Added!'
-                    : !isWeb3 && atCapacity
-                      ? `Limit ${
-                          Number.isFinite(maxPlayers) ? maxPlayers : ''
-                        } reached`
-                      : 'Add Player'
+                    : nameWarning
+                      ? 'Add Anyway'
+                      : !isWeb3 && atCapacity
+                        ? `Limit ${Number.isFinite(maxPlayers) ? maxPlayers : ''} reached`
+                        : 'Add Player'
                   : added
                     ? '✅ Saved!'
-                    : 'Save Changes'}
+                    : nameWarning
+                      ? 'Save Anyway'
+                      : 'Save Changes'}
               </button>
             </div>
           </div>
@@ -904,7 +910,3 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
 };
 
 export default AddPlayerModal;
-
-
-
-

@@ -162,44 +162,41 @@ router.post('/rooms/:roomId/finalize-prepare', async (req, res) => {
     let charityWallet = null;
     let tgbDepositAddress = null;
 
-    if (room.charityOrgId) {
-      try {
-        const charityDisplayAmount = req.body.charityDisplayAmount ?? '0';
-        const tokenCode = req.body.tokenCode ?? 'USDC';
-
-        const tgbResponse = await fetch(
-          `${process.env.SERVER_URL ?? 'http://localhost:3001'}/api/tgb/create-deposit-address`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              organizationId: Number(room.charityOrgId),
-              tokenCode,
-              amount: charityDisplayAmount,
-              metadata: { roomId, gameType: 'elimination' },
-            }),
-          }
-        );
-
-        const tgbData = await tgbResponse.json();
-
-        if (tgbData.ok && tgbData.depositAddress) {
-          charityWallet = tgbData.depositAddress;
-          room.charityWallet = charityWallet;
-          tgbDepositAddress = tgbData.depositAddress;
-          console.log(`[Elimination] TGB charity wallet: ${charityWallet}`);
-        } else {
-          console.warn('[Elimination] TGB returned no address, using reserve:', tgbData);
-          charityWallet = PLATFORM_CHARITY_RESERVE;
-          room.charityWallet = charityWallet;
+    const charityDisplayAmount = req.body.charityDisplayAmount ?? '0';
+    const tokenCode = req.body.tokenCode ?? 'USDC';
+ 
+    try {
+      const resolveResponse = await fetch(
+        `${process.env.SERVER_URL ?? 'http://localhost:3001'}/api/charities/resolve-wallet`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            organizationId: room.charityOrgId ? Number(room.charityOrgId) : undefined,
+            charityName:    room.charityName ?? null,   // ← NEW: enables DB lookup
+            tokenCode,
+            amount:         charityDisplayAmount,
+            network:        room.web3Chain ?? 'solana',
+            metadata:       { roomId, gameType: 'elimination' },
+          }),
         }
-      } catch (tgbErr) {
-        console.warn('[Elimination] TGB fetch failed, using reserve:', tgbErr.message);
-        charityWallet = PLATFORM_CHARITY_RESERVE;
+      );
+ 
+      const resolveData = await resolveResponse.json();
+ 
+      if (resolveData.ok && resolveData.depositAddress) {
+        charityWallet      = resolveData.depositAddress;
+        room.charityWallet = charityWallet;
+        tgbDepositAddress  = resolveData.source === 'tgb' ? resolveData.depositAddress : null;
+        console.log(`[Elimination] Charity wallet resolved via "${resolveData.source}": ${charityWallet}`);
+      } else {
+        console.warn('[Elimination] resolve-wallet returned no address, using reserve:', resolveData);
+        charityWallet      = PLATFORM_CHARITY_RESERVE;
         room.charityWallet = charityWallet;
       }
-    } else {
-      charityWallet = PLATFORM_CHARITY_RESERVE;
+    } catch (resolveErr) {
+      console.warn('[Elimination] resolve-wallet fetch failed, using reserve:', resolveErr.message);
+      charityWallet      = PLATFORM_CHARITY_RESERVE;
       room.charityWallet = charityWallet;
     }
 

@@ -24,6 +24,8 @@ import { ActionButtons } from '../shared/ActionButtons';
 
 import { TicketConfirmation } from './TicketConfirmation';
 import CryptoTicketDonationStep from './crypto/CryptoTicketDonationStep';
+import { Web3Provider } from '../../../components/Web3Provider';
+import CryptoFixedFeeStep from '../joinroom/crypto/CryptoFixedFeeStep';
 
 import type { RoomInfo, Ticket } from './types';
 
@@ -40,6 +42,7 @@ type TicketStep =
   | 'payment-instructions'   // instant payment — donation amount is inline here
   | 'creating-ticket'
   | 'crypto-donation'
+  | 'crypto-fixed-fee' 
   | 'complete';
 
 interface CapacityInfo {
@@ -85,12 +88,12 @@ function isTicketAllowedPaymentMethod(
   // Crypto ticket flow currently goes through CryptoTicketDonationStep,
   // so only allow crypto for donation tickets.
   if (category === 'crypto') {
-    return isDonationRoom;
+    return true;
   }
 
   // Manual methods are allowed for tickets except cash.
   if (category === 'instant_payment') {
-    if (provider === 'cash') return false;
+    if (provider === 'cash' || provider === 'card_tap') return false;
     return TICKET_ALLOWED_MANUAL_PROVIDERS.has(provider);
   }
 
@@ -291,50 +294,48 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
   };
 
   // Accepts optional methods array so auto-skip can call this before state settles
-  const handlePaymentMethodSelected = async (
-    method: ClubPaymentMethod,
-    _methods?: ClubPaymentMethod[]
-  ) => {
-    try {
-      setError(null);
-      selectMethod(method);
+const handlePaymentMethodSelected = async (
+  method: ClubPaymentMethod,
+  _methods?: ClubPaymentMethod[]
+) => {
+  try {
+    setError(null);
+    selectMethod(method);
 
-      if (isDonationRoom) {
-        if (method.methodCategory === 'crypto') {
-          setStep('checking-capacity');
-          await refreshCapacityOrThrow();
-          setStep('crypto-donation');
-          return;
-        }
-
-        if (method.methodCategory === 'stripe') {
-          // Stripe needs amount upfront — go to donation-amount step
-          setStep('donation-amount');
-          return;
-        }
-
-        // Instant payment donation — go straight to payment-instructions
-        // (donation amount is entered inline there)
-        setStep('checking-capacity');
-        await refreshCapacityOrThrow();
-        setStep('payment-instructions');
-        return;
-      }
-
-      // Fixed-fee flows
-      if (method.methodCategory === 'stripe') {
-        await startStripeCheckout(method);
-        return;
-      }
-
-      await checkCapacityBeforePayment(method);
-    } catch (err) {
-      if (step !== 'sold-out') {
-        setError(err instanceof Error ? err.message : 'Failed to select payment method');
-        setStep('payment-method');
-      }
+    // Crypto handled separately for both donation and fixed-fee rooms
+    if (method.methodCategory === 'crypto') {
+      setStep('checking-capacity');
+      await refreshCapacityOrThrow();
+      setStep(isDonationRoom ? 'crypto-donation' : 'crypto-fixed-fee');
+      return;
     }
-  };
+
+    if (isDonationRoom) {
+      if (method.methodCategory === 'stripe') {
+        setStep('donation-amount');
+        return;
+      }
+      // Instant payment donation
+      setStep('checking-capacity');
+      await refreshCapacityOrThrow();
+      setStep('payment-instructions');
+      return;
+    }
+
+    // Fixed-fee flows
+    if (method.methodCategory === 'stripe') {
+      await startStripeCheckout(method);
+      return;
+    }
+
+    await checkCapacityBeforePayment(method);
+  } catch (err) {
+    if (step !== 'sold-out') {
+      setError(err instanceof Error ? err.message : 'Failed to select payment method');
+      setStep('payment-method');
+    }
+  }
+};
 
   const startStripeCheckout = async (method: ClubPaymentMethod) => {
     try {
@@ -847,6 +848,54 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
           }}
         />
       )}
+      {step === 'crypto-fixed-fee' && selectedMethod && roomInfo && roomId && (
+  <Web3Provider force>
+    <CryptoFixedFeeStep
+      mode="ticket"
+      roomId={roomId}
+      purchaserName={playerDetails.purchaserName || ''}
+      purchaserEmail={playerDetails.purchaserEmail || ''}
+      playerName={playerDetails.playerName || playerDetails.purchaserName || ''}
+      selectedMethod={selectedMethod}
+      totalFiatAmount={totalAmount}
+      entryFeeAmount={roomInfo.entryFee}
+      extrasAmount={extrasTotal}
+      selectedExtras={selectedExtras}
+      fiatCurrency={(() => {
+        const map: Record<string, string> = { '€': 'EUR', '£': 'GBP', '$': 'USD', '₦': 'NGN', 'CA$': 'CAD' };
+        return map[roomInfo.currencySymbol] || 'EUR';
+      })()}
+      currencySymbol={roomInfo.currencySymbol}
+      solanaCluster="mainnet"
+      onBack={() => setStep('payment-method')}
+      onSuccess={(result) => {
+        if (result.ticketId && result.joinToken) {
+          setTicket({
+            ticketId: result.ticketId,
+            joinToken: result.joinToken,
+            roomId,
+            purchaserEmail: playerDetails.purchaserEmail || '',
+            purchaserName: playerDetails.purchaserName || '',
+            playerName: playerDetails.playerName || playerDetails.purchaserName || '',
+            entryFee: roomInfo.entryFee,
+            extrasTotal,
+            totalAmount,
+            currency: roomInfo.currencySymbol,
+           extras: selectedExtras.map((extraId) => ({
+  extraId,
+  price: roomInfo.fundraisingPrices?.[extraId] ?? 0,
+})),
+            paymentStatus: 'payment_confirmed',
+            redemptionStatus: 'ready',
+            paymentMethod: 'crypto',
+            paymentReference: result.txHash,
+          });
+          setStep('complete');
+        }
+      }}
+    />
+  </Web3Provider>
+)}
 
       {/* ── Payment instructions — instant payment ── */}
       {step === 'payment-instructions' && selectedMethod && roomInfo && (

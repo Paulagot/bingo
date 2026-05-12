@@ -10,6 +10,7 @@ import { connection, TABLE_PREFIX } from '../config/database.js';
 import { canPurchaseTickets } from '../mgtsystem/services/quizCapacityService.js';
 import { createExpectedPayment } from '../mgtsystem/services/quizPaymentLedgerService.js';
 import { getRoomConfig } from '../mgtsystem/services/quizTicketService.js';
+import { currencyFromSymbol } from '../utils/currencyUtils.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' });
 
@@ -21,12 +22,7 @@ const CHECKOUT_EXPIRY_MINUTES = 30;
 
 const DEBUG = false;
 
-function currencyFromSymbol(symbol) {
-  if (symbol === '€') return 'EUR';
-  if (symbol === '£') return 'GBP';
-  if (symbol === '$') return 'USD';
-  return 'EUR';
-}
+
 
 export async function getReadyStripeForClub(clubId) {
   const sql = `

@@ -45,8 +45,8 @@ const CATEGORIES: {
   {
     value: 'instant_payment',
     label: 'Manual Payment',
-    helper:
-      'Cash, Revolut, Monzo, bank transfer and other payments confirmed by a host/admin.',
+   helper:
+  'Revolut, Monzo, bank transfer payments confirmed by a host/admin.',
   },
   {
     value: 'crypto',
@@ -57,12 +57,6 @@ const CATEGORIES: {
 
 const PROVIDERS: ProviderOption[] = [
   {
-    value: 'cash',
-    label: 'Cash collected on the night',
-    category: 'instant_payment',
-    helper: 'Use this for door payments or cash collected by a host/admin.',
-  },
-  {
     value: 'revolut',
     label: 'Revolut',
     category: 'instant_payment',
@@ -72,6 +66,7 @@ const PROVIDERS: ProviderOption[] = [
     value: 'monzo',
     label: 'Monzo',
     category: 'instant_payment',
+    helper: 'Can be an official club Monzo or a member/coach Monzo.',
   },
   {
     value: 'bank_transfer',
@@ -82,12 +77,13 @@ const PROVIDERS: ProviderOption[] = [
     value: 'zippypay',
     label: 'ZippyPay',
     category: 'instant_payment',
+    helper: 'Can be an official club ZippyPay or a member/coach ZippyPay.',
   },
   {
     value: 'solana_wallet',
     label: 'Solana Wallet',
     category: 'crypto',
-    helper: 'Use a public Solana wallet address only.',
+    helper: 'Use a public Solana wallet address only. this can be an official club wallet or a member/coach wallet.',
   },
 ];
 
