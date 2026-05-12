@@ -10,6 +10,7 @@ import { handleGlobalExtra } from './handlers/globalExtrasHandler.js';
 import { resetGlobalExtrasForNewRound } from './handlers/globalExtrasHandler.js';
 import { FreezeService } from '../quiz/gameplayEngines/services/FreezeServices.js';
 import { getPersonalisedRoundByRoom } from '../mgtsystem/services/quizPersonalisedRoundService.js';
+import { connection, TABLE_PREFIX } from '../config/database.js';
 
 const quizRooms = new Map();
 const debug = false;
@@ -641,32 +642,35 @@ export function listQuizRooms() {
  * NEW: Freeze final leaderboard when quiz completes
  * This creates a snapshot that becomes the single source of truth for prize assignments
  */
-export function freezeFinalLeaderboard(roomId) {
+export async function freezeFinalLeaderboard(roomId) {
   const room = quizRooms.get(roomId);
   if (!room) {
     console.warn(`[quizRoomManager] ⚠️ Cannot freeze leaderboard: Room ${roomId} not found`);
     return null;
   }
 
-  // Build final leaderboard from current player scores
-  const finalLeaderboard = room.players
-    .map(player => {
-      const playerData = room.playerData[player.id];
-      return {
-        id: player.id,
-        name: player.name || player.id,
-        score: playerData?.score || 0, // Use playerData.score as single source
-        // Optional: include penalty tracking for display
-        cumulativeNegativePoints: playerData?.cumulativeNegativePoints || 0,
-        pointsRestored: playerData?.pointsRestored || 0,
-      };
-    })
-    .sort((a, b) => b.score - a.score); // Sort descending by score
-
-  console.log('[quizRoomManager] 🏆 Final leaderboard frozen:', {
-    roomId,
-    rankings: finalLeaderboard.map((p, i) => `${i + 1}. ${p.name}: ${p.score} pts`),
-  });
+  // ✅ Use already-calculated finalLeaderboard if it exists (has correct scores)
+  // rather than recalculating from playerData which may be stale
+  const finalLeaderboard = (room.finalLeaderboard && room.finalLeaderboard.length > 0)
+    ? room.finalLeaderboard.map(p => ({
+        id: p.id,
+        name: p.name || p.id,
+        score: p.score || 0,
+        cumulativeNegativePoints: p.cumulativeNegativePoints || 0,
+        pointsRestored: p.pointsRestored || 0,
+      }))
+    : room.players
+        .map(player => {
+          const playerData = room.playerData[player.id];
+          return {
+            id: player.id,
+            name: player.name || player.id,
+            score: playerData?.score || 0,
+            cumulativeNegativePoints: playerData?.cumulativeNegativePoints || 0,
+            pointsRestored: playerData?.pointsRestored || 0,
+          };
+        })
+        .sort((a, b) => b.score - a.score);
 
   // Store in reconciliation
   if (!room.config.reconciliation) {
@@ -674,11 +678,24 @@ export function freezeFinalLeaderboard(roomId) {
   }
   room.config.reconciliation.finalLeaderboard = finalLeaderboard;
 
-  // Mark quiz as completed
   room.completedAt = new Date().toISOString();
   room.config.completedAt = room.completedAt;
 
-  console.log('[quizRoomManager] ✅ Final leaderboard frozen and stored in reconciliation');
+  // Persist to DB
+  try {
+    await connection.execute(
+      `UPDATE ${TABLE_PREFIX}web2_quiz_rooms
+       SET config_json = JSON_SET(
+         COALESCE(config_json, '{}'),
+         '$.reconciliation.finalLeaderboard', CAST(? AS JSON)
+       )
+       WHERE room_id = ?`,
+      [JSON.stringify(finalLeaderboard), roomId]
+    );
+    console.log(`[quizRoomManager] ✅ Frozen leaderboard persisted to DB for room ${roomId}`);
+  } catch (e) {
+    console.error(`[quizRoomManager] ❌ Failed to persist frozen leaderboard:`, e);
+  }
 
   return finalLeaderboard;
 }

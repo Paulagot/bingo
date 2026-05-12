@@ -1608,8 +1608,9 @@ router.post('/web2/rooms/:roomId/operator-token', authenticateToken, async (req,
       { expiresIn: '8h' }
     );
 
-    const clientOrigin = process.env.CLIENT_ORIGIN || '';
-    const operatorUrl = `${clientOrigin}/quiz/operate/${roomId}?token=${token}`;
+  const protocol = req.headers['x-forwarded-proto'] || 'https';
+const origin = `${protocol}://${req.headers.host}`;
+const operatorUrl = `${origin}/quiz/operate/${roomId}?token=${token}`;
 
     console.log(`[API] 🎤 Operator token generated for room ${roomId} by club ${clubId}`);
 

@@ -244,16 +244,16 @@ export const TicketConfirmation: React.FC<TicketConfirmationProps> = ({ ticket }
               Open status page <ExternalLink className="h-4 w-4" />
             </a>
           </div>
-
-          {/* Join now button (if ready) */}
-          {showJoinNow && (
+{/* 
+          Join now button (if ready) */}
+          {/* {showJoinNow && (
             <a
               href={`/quiz/join/${ticket.roomId}?joinToken=${ticket.joinToken}`}
               className="flex items-center justify-center gap-2 w-full px-5 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700"
             >
               Join quiz now <span>→</span>
             </a>
-          )}
+          )} */}
         </div>
 
         <div className="h-2" />

@@ -15,6 +15,7 @@ import { useQuizConfig } from '../hooks/useQuizConfig';
 import { Web3Provider } from '../../../components/Web3Provider';
 import { normalizePaymentMethod } from '../../../shared/utils/paymentMethods';
 import CryptoDonationStep from './crypto/CryptoDonationStep';
+import CryptoFixedFeeStep from './crypto/CryptoFixedFeeStep';
 
 import { StepLayout } from '../shared/StepWrapper';
 import {
@@ -110,6 +111,7 @@ type JoinStep =
   | 'payment-instructions'
   | 'pay-admin-confirm'
   | 'crypto-donation'
+  | 'crypto-fixed-fee' 
   | 'ticket-redeem';
 
 type PaymentFlow = 'demo' | 'web3' | 'web2' | null;
@@ -337,8 +339,7 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
       // They only enable the “Pay at the Door” option.
       if (isPayAtDoorMethod(method)) return false;
 
-      // Crypto walk-in payments are currently donation-only.
-      if (!isDonationMode && isCryptoMethod(method)) return false;
+     
 
       return true;
     });
@@ -559,13 +560,11 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
           ? data.paymentMethods
           : [];
 
-        const usable = methods.filter((method: ClubPaymentMethod) => {
-          // Keep cash/card_tap in state so they can enable “Pay at the Door”.
-          // Do not remove them here.
-          if (!isDonationMode && isCryptoMethod(method)) return false;
-
-          return true;
-        });
+     const usable = methods.filter((method: ClubPaymentMethod) => {
+    // Cash/card_tap stay in state to enable Pay at Door option
+     // Crypto is now valid for all room types
+     return true;
+   });
 
         setPaymentMethods(usable);
       }
@@ -593,13 +592,11 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
         ? data.paymentMethods
         : [];
 
-      const usable = methods.filter((method: ClubPaymentMethod) => {
-        // Keep cash/card_tap in state so they can enable “Pay at the Door”.
-        // Do not show them as normal payment methods later.
-        if (!isDonationMode && isCryptoMethod(method)) return false;
-
-        return true;
-      });
+     const usable = methods.filter((method: ClubPaymentMethod) => {
+   // Cash/card_tap stay in state to enable Pay at Door option
+     // Crypto is now valid for all room types
+     return true;
+   });
 
       setPaymentMethods(usable);
       return usable;
@@ -766,10 +763,15 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
       return;
     }
 
-    if (isCryptoMethod(method)) {
-      alert('Crypto payments are currently only available for donation rooms.');
-      return;
-    }
+ if (isCryptoMethod(method)) {
+    // Goes to crypto-donation for donation rooms, crypto-fixed-fee for fixed-fee
+     if (isDonationMode) {
+       setStep('crypto-donation');
+     } else {
+       setStep('crypto-fixed-fee');
+     }
+     return;
+   }
 
     if (isStripeMethod(method)) {
       startStripeCheckout(method);
@@ -1522,6 +1524,33 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
           />
         </Web3Provider>
       )}
+
+      {step === 'crypto-fixed-fee' && selectedMethod && roomConfig && (
+  <Web3Provider force>
+    <CryptoFixedFeeStep
+      mode="walkin"
+      roomId={roomId}
+      playerName={playerDetails.playerName}
+      selectedMethod={selectedMethod}
+      totalFiatAmount={totalAmount}
+      entryFeeAmount={Number(roomConfig.entryFee || 0)}
+      extrasAmount={extrasTotal}
+      selectedExtras={selectedExtras}
+      fiatCurrency={/* derive from currencySymbol */ (() => {
+        const map: Record<string, string> = { '€': 'EUR', '£': 'GBP', '$': 'USD', '₦': 'NGN', 'CA$': 'CAD' };
+        return map[roomConfig.currencySymbol] || 'EUR';
+      })()}
+      currencySymbol={roomConfig.currencySymbol}
+      solanaCluster={roomConfig.solanaCluster === 'devnet' ? 'devnet' : 'mainnet'}
+      onBack={() => setStep('payment-method')}
+     onSuccess={(result) => {
+  if (result.playerId) {
+    window.setTimeout(() => navigate(`/quiz/game/${roomId}/${result.playerId}`), 600);
+  }
+      }}
+    />
+  </Web3Provider>
+)}
 
       {step === 'payment-instructions' && selectedMethod && roomConfig && (
         <StepLayout

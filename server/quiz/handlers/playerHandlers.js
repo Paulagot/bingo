@@ -15,6 +15,7 @@ import {
 
 } from '../quizRoomManager.js';
 import { emitFullRoomState } from '../handlers/sharedUtils.js';
+import { currencyFromSymbol } from '../../utils/currencyUtils.js';
 
 import { normalizePaymentMethod }  from '../../utils/paymentMethods.js';
 import { 
@@ -27,8 +28,9 @@ import {
 
 import { canJoinAsWalkIn } from '../../mgtsystem/services/quizCapacityService.js';
 import { markRoomAsLive, markRoomAsCompleted, markRoomAsCancelled } from './roomStatusManager.js';
+import { connection, TABLE_PREFIX } from '../../config/database.js';
 
-const debug = false;
+const debug = true;
 
 // --- Payment method normalization ---
 
@@ -42,12 +44,7 @@ function normalizeExtraPayments(extraPayments) {
     })
   );
 }
-function currencyFromSymbol(symbol) {
-  if (symbol === '€') return 'EUR';
-  if (symbol === '£') return 'GBP';
-  if (symbol === '$') return 'USD';
-  return 'EUR';
-}
+
 
 function getIncludedDonationExtras(room) {
   return Object.entries(room?.config?.fundraisingOptions || {})
@@ -380,7 +377,11 @@ const sanitizedUser = {
 const isWeb2 = !isWeb3;
 const joinedViaTicket = !!ticketId || sanitizedUser.paymentConfirmedBy === 'ticket_system';
 
-if (isWeb2 && !joinedViaTicket && !isStripePostJoin) {
+const paymentAlreadyConfirmedOnchain = 
+  sanitizedUser.paymentMethod === 'crypto' && 
+  !!sanitizedUser.web3TxHash;
+
+if (isWeb2 && !joinedViaTicket && !isStripePostJoin && !paymentAlreadyConfirmedOnchain) {
   try {
     const clubId = room.config?.clubId || room.config?.hostId || 'unknown';
     const currency = currencyFromSymbol(room.config?.currencySymbol || '€');
@@ -433,6 +434,7 @@ if (isWeb2 && !joinedViaTicket && !isStripePostJoin) {
 
   const paymentLedgerAlreadyRecorded =
     sanitizedUser.paymentLedgerRecorded === true ||
+     sanitizedUser.paymentStatus === 'confirmed' ||
     (
       sanitizedUser.paymentMethod === 'crypto' &&
       !!sanitizedUser.web3TxHash
@@ -606,6 +608,21 @@ if (isWeb2 && !joinedViaTicket && !isStripePostJoin) {
 
 } else if (role === 'admin') {
   namespace.to(roomId).emit('admin_joined', { user: { id: user.id, name: user.name }, role: 'admin' });
+  // Persist admin list to DB for impact report
+try {
+  const adminList = room.admins.map(a => ({ id: a.id, name: a.name }));
+  await connection.execute(
+    `UPDATE ${TABLE_PREFIX}web2_quiz_rooms
+     SET config_json = JSON_SET(
+       COALESCE(config_json, '{}'),
+       '$.admins', CAST(? AS JSON)
+     )
+     WHERE room_id = ?`,
+    [JSON.stringify(adminList), roomId]
+  );
+} catch (e) {
+  console.error('[add_admin] Failed to persist admins to DB:', e);
+}
 }
 
 
@@ -1034,7 +1051,7 @@ socket.on('player_route_change', ({ roomId, playerId, route, entering }) => {
 });
 
 
-  socket.on('add_admin', ({ roomId, admin }) => {
+socket.on('add_admin', async ({ roomId, admin }) => {
     if (debug) console.log(`[AddAdmin] 🛠️ Host adding admin "${admin.name}" to room ${roomId}`);
 
     if (!roomId || !admin || !admin.name || !admin.id) {
