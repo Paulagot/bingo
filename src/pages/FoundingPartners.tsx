@@ -27,10 +27,10 @@ function getMarket() {
   if (typeof window !== 'undefined') {
     const host = window.location.host.toLowerCase();
     if (host.includes('co.uk')) {
-      return { code: 'GBP', symbol: '£', monthly: 19 };
+      return { code: 'GBP', symbol: '£', monthly: 29 };
     }
   }
-  return { code: 'EUR', symbol: '€', monthly: 19 };
+  return { code: 'EUR', symbol: '€', monthly: 29 };
 }
 
 /** UI bits */
@@ -179,7 +179,7 @@ export default function FoundingPartnersPage() {
           acceptedAnswer: {
             '@type': 'Answer',
             text:
-              'Limited to the first 100 clubs and charities or until full platform launch, whichever comes first.',
+              'Limited to the first 20 clubs and charities or until full platform launch, whichever comes first.',
           },
         },
       ],
@@ -231,7 +231,7 @@ export default function FoundingPartnersPage() {
                   <ChevronRight className="ml-2 h-5 w-5" />
                 </a>
               </div>
-              <p className="mt-3 text-sm text-indigo-900/60">Limited to the first 100 clubs & charities • Cancel anytime</p>
+              <p className="mt-3 text-sm text-indigo-900/60">Limited to the first 20 clubs & charities • Cancel anytime</p>
             </div>
             <div className="relative">
               <div className="rounded-3xl border border-indigo-100 bg-white p-6 shadow-xl">
@@ -676,7 +676,7 @@ export default function FoundingPartnersPage() {
               Join Waiting List and Lock in Founding Partner Rates
               <ChevronRight className="ml-2 h-5 w-5" />
             </a>
-            <div className="mt-3 text-sm text-indigo-900/60">Limited to the first 100 clubs & charities</div>
+            <div className="mt-3 text-sm text-indigo-900/60">Limited to the first 20 clubs & charities</div>
           </div>
         </div>
       </section>
@@ -733,7 +733,7 @@ export default function FoundingPartnersPage() {
             <FaqItem q="Do we need to use crypto or Web3?" a="No. You can run FundRaisely quizzes with standard payments. Web3 features are optional and add transparent receipts and impact later." />
             <FaqItem q="What do we get right now?" a="Immediate access to the Quiz App with host dashboard, reporting, QR joins and more. You'll also receive your Founding Partner badge and invite to our private feedback group." />
             <FaqItem q="Can we cancel anytime?" a="Yes. You can cancel with one click. Your founding rate remains valid while the subscription is active." />
-            <FaqItem q="How long is this offer available?" a="Limited to the first 100 clubs and charities or until full platform launch, whichever comes first." />
+            <FaqItem q="How long is this offer available?" a="Limited to the first 20 clubs and charities or until full platform launch, whichever comes first." />
           </div>
         </div>
       </section>

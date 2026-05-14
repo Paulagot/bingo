@@ -182,10 +182,7 @@ const BfpImpactNetwork: React.FC<{
         </h2>
 
         <p className="mx-auto mt-3 max-w-3xl text-white/50">
-          Buddies for Paws is the charitable arm of the BONK ecosystem, supporting
-          animal welfare charities and global partners through community-powered giving.
-          Through this partnership, eligible FundRaisely quiz and elimination events using
-          BONK as the fee token can help increase the impact delivered to verified causes.
+          Buddies for Paws is an animal welfare fundraising initiative within the BONK ecosystem, supporting verified charity partners through community-powered giving. Eligible FundRaisely quiz and elimination events using BONK as the fee token can help increase the impact delivered to these causes.
         </p>
       </div>
 
@@ -223,9 +220,7 @@ const BfpImpactNetwork: React.FC<{
                 </p>
 
                 <p className="mt-1 max-w-2xl text-sm leading-relaxed text-white/50">
-                  These organisations are part of the wider Buddies for Paws impact
-                  network. They are shown separately from direct FundRaisely verified
-                  causes.
+                 These organisations are BFP's verified charity partners, supported through community-powered giving. They are shown separately from direct FundRaisely verified causes
                 </p>
               </div>
             </div>

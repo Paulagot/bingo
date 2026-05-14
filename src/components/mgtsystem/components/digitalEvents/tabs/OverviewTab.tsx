@@ -11,8 +11,6 @@ import {
   Link2,
   Clock,
   MapPin,
-  Wallet,
-  BadgeCheck,
   Sparkles,
   Target,
   CheckCircle,
@@ -49,87 +47,50 @@ function titleCase(value: string | null | undefined) {
     .replace(/\b\w/g, c => c.toUpperCase());
 }
 
-function formatPaymentMethod(value: string | null | undefined) {
-  const v = String(value || '').toLowerCase();
-  const labels: Record<string, string> = {
-    cash_or_revolut: 'Cash / Revolut',
-    instant_payment: 'Instant Payment',
-    cash: 'Cash',
-    stripe: 'Stripe',
-    card: 'Card',
-    web3: 'Web3',
-    crypto: 'Crypto',
-    demo: 'Demo',
-  };
-  return labels[v] || titleCase(value);
-}
-
 function formatStatus(value: string | null | undefined) {
   const v = String(value || '').toLowerCase();
   const labels: Record<string, string> = {
-    scheduled: 'Scheduled',
-    live: 'Live',
-    completed: 'Completed',
-    cancelled: 'Cancelled',
-    draft: 'Draft',
+    scheduled: 'Scheduled', live: 'Live', completed: 'Completed',
+    cancelled: 'Cancelled', draft: 'Draft',
   };
   return labels[v] || titleCase(value);
 }
 
 function formatDateTime(value: string | null | undefined) {
   if (!value) return { date: 'Not scheduled', time: '', compact: 'Not scheduled' };
-
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return { date: 'Not scheduled', time: '', compact: 'Not scheduled' };
-
-  const date = d.toLocaleDateString('en-GB', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
+  const date = d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   return { date, time, compact: `${date} at ${time}` };
 }
 
+// Resolve display symbol from either ISO code or legacy symbol field
+function resolveCurrencySymbol(config: any): string {
+  if (config?.currencySymbol) return config.currencySymbol;
+  const map: Record<string, string> = { EUR: '€', GBP: '£', USD: '$', CAD: 'CA$', NGN: '₦' };
+  return config?.currency ? (map[config.currency] ?? config.currency) : '€';
+}
+
 function StatCard({ icon, label, value, helper, tone = 'gray' }: {
-  icon: ReactNode;
-  label: string;
-  value: ReactNode;
-  helper?: string;
-  tone?: Tone;
+  icon: ReactNode; label: string; value: ReactNode; helper?: string; tone?: Tone;
 }) {
   const toneMap: Record<Tone, string> = {
-    gray: 'border-gray-200 bg-white',
-    indigo: 'border-indigo-200 bg-indigo-50',
-    green: 'border-green-200 bg-green-50',
-    amber: 'border-amber-200 bg-amber-50',
-    purple: 'border-purple-200 bg-purple-50',
-    blue: 'border-blue-200 bg-blue-50',
-    rose: 'border-rose-200 bg-rose-50',
-    orange: 'border-orange-200 bg-orange-50',
+    gray: 'border-gray-200 bg-white', indigo: 'border-indigo-200 bg-indigo-50',
+    green: 'border-green-200 bg-green-50', amber: 'border-amber-200 bg-amber-50',
+    purple: 'border-purple-200 bg-purple-50', blue: 'border-blue-200 bg-blue-50',
+    rose: 'border-rose-200 bg-rose-50', orange: 'border-orange-200 bg-orange-50',
   };
   const iconMap: Record<Tone, string> = {
-    gray: 'text-gray-500',
-    indigo: 'text-indigo-600',
-    green: 'text-green-600',
-    amber: 'text-amber-600',
-    purple: 'text-purple-600',
-    blue: 'text-blue-600',
-    rose: 'text-rose-600',
-    orange: 'text-orange-600',
+    gray: 'text-gray-500', indigo: 'text-indigo-600', green: 'text-green-600',
+    amber: 'text-amber-600', purple: 'text-purple-600', blue: 'text-blue-600',
+    rose: 'text-rose-600', orange: 'text-orange-600',
   };
   const labelMap: Record<Tone, string> = {
-    gray: 'text-gray-600',
-    indigo: 'text-indigo-700',
-    green: 'text-green-700',
-    amber: 'text-amber-700',
-    purple: 'text-purple-700',
-    blue: 'text-blue-700',
-    rose: 'text-rose-700',
-    orange: 'text-orange-700',
+    gray: 'text-gray-600', indigo: 'text-indigo-700', green: 'text-green-700',
+    amber: 'text-amber-700', purple: 'text-purple-700', blue: 'text-blue-700',
+    rose: 'text-rose-700', orange: 'text-orange-700',
   };
-
   return (
     <div className={cn('rounded-xl border p-4', toneMap[tone])}>
       <div className={cn('mb-2', iconMap[tone])}>{icon}</div>
@@ -153,10 +114,7 @@ function SectionHeader({ icon, title, subtitle }: { icon: ReactNode; title: stri
 }
 
 function DetailRow({ icon, label, children, muted = false }: {
-  icon: ReactNode;
-  label: string;
-  children: ReactNode;
-  muted?: boolean;
+  icon: ReactNode; label: string; children: ReactNode; muted?: boolean;
 }) {
   return (
     <div className="flex items-start gap-3 border-b border-gray-100 py-3 last:border-0">
@@ -197,39 +155,66 @@ function getStatusTone(status: string | null | undefined): Tone {
 }
 
 export default function OverviewTab({ room, config, stats, linkedEventTitle }: Props) {
-  const prizes = Array.isArray(config?.prizes) ? config.prizes : [];
-  const rounds = Array.isArray(config?.roundDefinitions) ? config.roundDefinitions : [];
-  const currency = String(config?.currencySymbol || config?.currency || '€');
-  const entryFee = Number(config?.entryFee ?? 0);
-  const maxPlayers = Number(config?.roomCaps?.maxPlayers ?? 0);
-  const prizeTotal = prizes.reduce((sum: number, prize: any) => sum + Number(prize?.value || 0), 0);
-  const totalQuestions = rounds.reduce((sum: number, round: any) => sum + Number(round?.config?.questionsPerRound || 0), 0);
-  const scheduled = formatDateTime(room.scheduled_at || config?.eventDateTime);
-  const statusTone = getStatusTone(room.status);
-  const isDonation = config?.fundraisingMode === 'donation';
+  // ── Game type ────────────────────────────────────────────────────────────────
+  const isElimination =
+    (room as any).game_type === 'elimination' ||
+    config?.gameType === 'elimination';
 
+  // ── Shared derived values ────────────────────────────────────────────────────
+  const currency   = resolveCurrencySymbol(config);
+  const entryFee   = Number(config?.entryFee ?? 0);
+  const scheduled  = formatDateTime(room.scheduled_at || config?.eventDateTime);
+  const statusTone = getStatusTone(room.status);
   const statIncome = typeof stats?.totalIncome === 'number' ? money(currency, stats.totalIncome) : '—';
+
+  // ── Quiz-specific ────────────────────────────────────────────────────────────
+  const prizes         = Array.isArray(config?.prizes) ? config.prizes : [];
+  const rounds         = Array.isArray(config?.roundDefinitions) ? config.roundDefinitions : [];
+  const maxPlayers     = isElimination
+    ? Number(config?.maxPlayers ?? 0)
+    : Number(config?.roomCaps?.maxPlayers ?? 0);
+  const prizeTotal     = prizes.reduce((sum: number, p: any) => sum + Number(p?.value || 0), 0);
+  const totalQuestions = rounds.reduce((sum: number, r: any) => sum + Number(r?.config?.questionsPerRound || 0), 0);
+  const isDonation     = config?.fundraisingMode === 'donation';
+
+  // ── Elimination-specific ─────────────────────────────────────────────────────
+  const elimPrizeDescription = config?.prizeDescription ?? null;
+  const elimPrizeValue       = Number(config?.prizeValue ?? 0);
 
   return (
     <div className="space-y-5 p-5">
-      <div className="overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+
+      {/* ── Hero banner ── */}
+      <div className={`overflow-hidden rounded-2xl border ${
+        isElimination
+          ? 'border-red-100 bg-gradient-to-br from-red-50 via-white to-orange-50'
+          : 'border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-purple-50'
+      }`}>
         <div className="p-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <Pill tone={statusTone}>{formatStatus(room.status)}</Pill>
-                {isDonation && <Pill tone="green">Donation event</Pill>}
+                {isElimination && (
+                  <Pill tone="rose">
+                    <Trophy className="mr-1 h-3 w-3" />
+                    Elimination
+                  </Pill>
+                )}
+                {!isElimination && isDonation && <Pill tone="green">Donation event</Pill>}
                 {linkedEventTitle && <Pill tone="purple">Linked to event</Pill>}
               </div>
-
               <h2 className="text-lg font-black text-gray-950">
-                {config?.selectedTemplate ? titleCase(config.selectedTemplate) : 'Quiz overview'}
+                {isElimination
+                  ? 'Elimination game overview'
+                  : config?.selectedTemplate ? titleCase(config.selectedTemplate) : 'Quiz overview'}
               </h2>
               <p className="mt-1 text-sm text-gray-600">
-                A quick snapshot of the event setup, player capacity, pricing, prizes and round structure.
+                {isElimination
+                  ? 'A quick snapshot of the elimination game setup, entry fee, player cap and prize.'
+                  : 'A quick snapshot of the event setup, player capacity, pricing, prizes and round structure.'}
               </p>
             </div>
-
             <div className="rounded-xl border border-white/80 bg-white/80 px-4 py-3 shadow-sm">
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Room ID</p>
               <p className="mt-1 font-mono text-xs font-semibold text-gray-800">{room.room_id}</p>
@@ -238,43 +223,76 @@ export default function OverviewTab({ room, config, stats, linkedEventTitle }: P
         </div>
       </div>
 
+      {/* ── Stat cards ── */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           icon={<Users className="h-5 w-5" />}
           label="Players"
-          value={stats?.uniquePlayers ?? 0}
-          helper={maxPlayers > 0 ? `Capacity ${maxPlayers}` : 'No cap set'}
+          value={isElimination ? (maxPlayers > 0 ? maxPlayers : '—') : (stats?.uniquePlayers ?? 0)}
+          helper={isElimination
+            ? (maxPlayers > 0 ? `Max ${maxPlayers} players` : 'No cap set')
+            : (maxPlayers > 0 ? `Capacity ${maxPlayers}` : 'No cap set')}
           tone="indigo"
         />
-        <StatCard
-          icon={<TicketIcon />}
-          label="Tickets"
-          value={stats?.ticketsSold ?? 0}
-          helper="Tickets sold"
-          tone="orange"
-        />
+
+        {isElimination ? (
+          <StatCard
+            icon={<Trophy className="h-5 w-5" />}
+            label="Prize"
+            value={elimPrizeValue > 0 ? money(currency, elimPrizeValue, 0) : '—'}
+            helper={elimPrizeDescription || 'No prize description'}
+            tone="amber"
+          />
+        ) : (
+          <StatCard
+            icon={<TicketIcon />}
+            label="Tickets"
+            value={stats?.ticketsSold ?? 0}
+            helper="Tickets sold"
+            tone="orange"
+          />
+        )}
+
         <StatCard
           icon={<CircleDollarSign className="h-5 w-5" />}
           label={isDonation ? 'Raised' : 'Income'}
           value={statIncome}
-          helper={entryFee > 0 ? `${money(currency, entryFee)} entry` : isDonation ? 'Donation based' : 'Free entry'}
+          helper={entryFee > 0
+            ? `${money(currency, entryFee)} entry`
+            : isDonation ? 'Donation based' : 'Free entry'}
           tone="green"
         />
-        <StatCard
-          icon={<Trophy className="h-5 w-5" />}
-          label="Prizes"
-          value={prizeTotal > 0 ? money(currency, prizeTotal, 0) : prizes.length}
-          helper={prizes.length ? `${prizes.length} prize${prizes.length === 1 ? '' : 's'} configured` : 'No prizes configured'}
-          tone="purple"
-        />
+
+        {isElimination ? (
+          <StatCard
+            icon={<DollarSign className="h-5 w-5" />}
+            label="Entry fee"
+            value={entryFee > 0 ? money(currency, entryFee) : 'Free'}
+            helper={config?.currency ?? 'EUR'}
+            tone="purple"
+          />
+        ) : (
+          <StatCard
+            icon={<Trophy className="h-5 w-5" />}
+            label="Prizes"
+            value={prizeTotal > 0 ? money(currency, prizeTotal, 0) : prizes.length}
+            helper={prizes.length
+              ? `${prizes.length} prize${prizes.length === 1 ? '' : 's'} configured`
+              : 'No prizes configured'}
+            tone="purple"
+          />
+        )}
       </div>
 
+      {/* ── Event details + pricing ── */}
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="rounded-2xl border border-gray-200 bg-white p-4">
           <SectionHeader
             icon={<Calendar className="h-4 w-4" />}
             title="Event details"
-            subtitle="The core setup details people need before the quiz starts."
+            subtitle={isElimination
+              ? 'Core setup details for the elimination game.'
+              : 'The core setup details people need before the quiz starts.'}
           />
           <div className="rounded-xl border border-gray-100 bg-gray-50 px-4">
             <DetailRow icon={<Clock className="h-4 w-4" />} label="Schedule">
@@ -284,7 +302,7 @@ export default function OverviewTab({ room, config, stats, linkedEventTitle }: P
               {config?.hostName || 'Unknown host'}
             </DetailRow>
             <DetailRow icon={<MapPin className="h-4 w-4" />} label="Time zone">
-              {config?.timeZone || 'Europe/Dublin'}
+              {config?.timeZone || room.time_zone || 'Europe/Dublin'}
             </DetailRow>
             {linkedEventTitle && (
               <DetailRow icon={<Link2 className="h-4 w-4" />} label="Linked event">
@@ -296,17 +314,19 @@ export default function OverviewTab({ room, config, stats, linkedEventTitle }: P
 
         <div className="rounded-2xl border border-gray-200 bg-white p-4">
           <SectionHeader
-            icon={<Wallet className="h-4 w-4" />}
+            icon={<DollarSign className="h-4 w-4" />}
             title="Pricing and payments"
             subtitle="Uses the event currency from the room config."
           />
           <div className="rounded-xl border border-gray-100 bg-gray-50 px-4">
-            <DetailRow icon={<DollarSign className="h-4 w-4" />} label={isDonation ? 'Donation model' : 'Entry fee'}>
-              {isDonation ? 'Donation amount chosen by supporter' : entryFee > 0 ? money(currency, entryFee) : 'Free'}
+            <DetailRow
+              icon={<DollarSign className="h-4 w-4" />}
+              label={isDonation ? 'Donation model' : 'Entry fee'}
+            >
+              {isDonation
+                ? 'Donation amount chosen by supporter'
+                : entryFee > 0 ? money(currency, entryFee) : 'Free'}
             </DetailRow>
-            {/* <DetailRow icon={<BadgeCheck className="h-4 w-4" />} label="Payment method">
-              {formatPaymentMethod(config?.paymentMethod)}
-            </DetailRow> */}
             <DetailRow icon={<Users className="h-4 w-4" />} label="Maximum players">
               {maxPlayers > 0 ? maxPlayers : 'No maximum set'}
             </DetailRow>
@@ -317,78 +337,106 @@ export default function OverviewTab({ room, config, stats, linkedEventTitle }: P
         </div>
       </div>
 
-      {prizes.length > 0 && (
+      {/* ── Prize section — quiz: prizes array / elimination: single prize ── */}
+      {isElimination ? (
+        elimPrizeDescription && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
+            <SectionHeader
+              icon={<Trophy className="h-4 w-4" />}
+              title="Prize"
+              subtitle="The prize for the last player standing."
+            />
+            <div className="rounded-xl border border-amber-100 bg-white px-4">
+              <DetailRow icon={<Trophy className="h-4 w-4" />} label="Prize description">
+                {elimPrizeDescription}
+              </DetailRow>
+              {elimPrizeValue > 0 && (
+                <DetailRow icon={<DollarSign className="h-4 w-4" />} label="Estimated value">
+                  {money(currency, elimPrizeValue)}
+                </DetailRow>
+              )}
+            </div>
+          </div>
+        )
+      ) : (
+        prizes.length > 0 && (
+          <div className="rounded-2xl border border-gray-200 bg-white p-4">
+            <SectionHeader
+              icon={<Trophy className="h-4 w-4" />}
+              title="Prize setup"
+              subtitle={`${prizes.length} prize${prizes.length === 1 ? '' : 's'} configured with a declared total of ${money(currency, prizeTotal)}.`}
+            />
+            <div className="grid gap-3 sm:grid-cols-2">
+              {prizes.map((prize: any, index: number) => (
+                <div key={`${prize?.place || index}-${prize?.description || 'prize'}`}
+                  className="rounded-xl border border-purple-100 bg-purple-50/60 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <Pill tone="purple">Place {prize?.place ?? index + 1}</Pill>
+                    {Number(prize?.value || 0) > 0 && (
+                      <span className="text-sm font-black text-gray-950">{money(currency, prize.value)}</span>
+                    )}
+                  </div>
+                  <p className="text-sm font-semibold text-gray-950">{prize?.description || 'Prize'}</p>
+                  {prize?.sponsor && <p className="mt-1 text-xs text-gray-600">Sponsored by {prize.sponsor}</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      )}
+
+      {/* ── Round structure — quiz only ── */}
+      {!isElimination && (
         <div className="rounded-2xl border border-gray-200 bg-white p-4">
           <SectionHeader
-            icon={<Trophy className="h-4 w-4" />}
-            title="Prize setup"
-            subtitle={`${prizes.length} prize${prizes.length === 1 ? '' : 's'} configured with a declared total of ${money(currency, prizeTotal)}.`}
+            icon={<Layers className="h-4 w-4" />}
+            title="Round structure"
+            subtitle={rounds.length
+              ? `${rounds.length} round${rounds.length === 1 ? '' : 's'} and ${totalQuestions} total question${totalQuestions === 1 ? '' : 's'} configured.`
+              : 'No rounds have been configured yet.'}
           />
-          <div className="grid gap-3 sm:grid-cols-2">
-            {prizes.map((prize: any, index: number) => (
-              <div key={`${prize?.place || index}-${prize?.description || 'prize'}`} className="rounded-xl border border-purple-100 bg-purple-50/60 p-3">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <Pill tone="purple">Place {prize?.place ?? index + 1}</Pill>
-                  {Number(prize?.value || 0) > 0 && (
-                    <span className="text-sm font-black text-gray-950">{money(currency, prize.value)}</span>
-                  )}
-                </div>
-                <p className="text-sm font-semibold text-gray-950">{prize?.description || 'Prize'}</p>
-                {prize?.sponsor && <p className="mt-1 text-xs text-gray-600">Sponsored by {prize.sponsor}</p>}
-              </div>
-            ))}
-          </div>
+          {rounds.length > 0 ? (
+            <div className="space-y-2">
+              {rounds.map((round: any, index: number) => {
+                const qCount = Number(round?.config?.questionsPerRound || 0);
+                const timePerQuestion = Number(round?.config?.timePerQuestion || 0);
+                const totalTime = Number(round?.config?.totalTimeSeconds || round?.config?.hiddenObject?.timeLimitSeconds || 0);
+                const roundNumber = round?.roundNumber ?? index + 1;
+                return (
+                  <div key={`${roundNumber}-${round?.roundType || index}`}
+                    className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Pill tone="indigo">Round {roundNumber}</Pill>
+                          <span className="text-sm font-bold text-gray-950">{titleCase(round?.roundType)}</span>
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                          {round?.category && <span>{round.category}</span>}
+                          {round?.difficulty && <span>• {titleCase(round.difficulty)}</span>}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        {qCount > 0 && <Pill>{qCount}Q</Pill>}
+                        {timePerQuestion > 0 && <Pill>{timePerQuestion}s each</Pill>}
+                        {totalTime > 0 && <Pill>{totalTime}s total</Pill>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-5 text-center">
+              <Target className="mx-auto h-6 w-6 text-gray-400" />
+              <p className="mt-2 text-sm font-semibold text-gray-800">No quiz rounds found</p>
+              <p className="mt-1 text-xs text-gray-500">Use the setup tab to add or edit the quiz template.</p>
+            </div>
+          )}
         </div>
       )}
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-4">
-        <SectionHeader
-          icon={<Layers className="h-4 w-4" />}
-          title="Round structure"
-          subtitle={rounds.length ? `${rounds.length} round${rounds.length === 1 ? '' : 's'} and ${totalQuestions} total question${totalQuestions === 1 ? '' : 's'} configured.` : 'No rounds have been configured yet.'}
-        />
-
-        {rounds.length > 0 ? (
-          <div className="space-y-2">
-            {rounds.map((round: any, index: number) => {
-              const qCount = Number(round?.config?.questionsPerRound || 0);
-              const timePerQuestion = Number(round?.config?.timePerQuestion || 0);
-              const totalTime = Number(round?.config?.totalTimeSeconds || round?.config?.hiddenObject?.timeLimitSeconds || 0);
-              const roundNumber = round?.roundNumber ?? index + 1;
-
-              return (
-                <div key={`${roundNumber}-${round?.roundType || index}`} className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Pill tone="indigo">Round {roundNumber}</Pill>
-                        <span className="text-sm font-bold text-gray-950">{titleCase(round?.roundType)}</span>
-                      </div>
-                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-600">
-                        {round?.category && <span>{round.category}</span>}
-                        {round?.difficulty && <span>• {titleCase(round.difficulty)}</span>}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2 text-xs">
-                      {qCount > 0 && <Pill>{qCount}Q</Pill>}
-                      {timePerQuestion > 0 && <Pill>{timePerQuestion}s each</Pill>}
-                      {totalTime > 0 && <Pill>{totalTime}s total</Pill>}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-5 text-center">
-            <Target className="mx-auto h-6 w-6 text-gray-400" />
-            <p className="mt-2 text-sm font-semibold text-gray-800">No quiz rounds found</p>
-            <p className="mt-1 text-xs text-gray-500">Use the setup tab to add or edit the quiz template.</p>
-          </div>
-        )}
-      </div>
-
+      {/* ── Internal reference ── */}
       <div className="rounded-2xl border border-gray-200 bg-white p-4">
         <SectionHeader
           icon={<CheckCircle className="h-4 w-4" />}
@@ -399,25 +447,27 @@ export default function OverviewTab({ room, config, stats, linkedEventTitle }: P
           <DetailRow icon={<Hash className="h-4 w-4" />} label="Room ID">
             <span className="break-all font-mono text-xs text-gray-700">{room.room_id}</span>
           </DetailRow>
-          <DetailRow icon={<Sparkles className="h-4 w-4" />} label="Template">
-            {config?.selectedTemplate || 'Custom quiz'}
+          <DetailRow icon={<Sparkles className="h-4 w-4" />} label={isElimination ? 'Game type' : 'Template'}>
+            {isElimination ? 'Elimination' : (config?.selectedTemplate || 'Custom quiz')}
           </DetailRow>
-          <DetailRow icon={<Layers className="h-4 w-4" />} label="Prize mode">
-            {titleCase(config?.prizeMode)}
-          </DetailRow>
+          {!isElimination && (
+            <DetailRow icon={<Layers className="h-4 w-4" />} label="Prize mode">
+              {titleCase(config?.prizeMode)}
+            </DetailRow>
+          )}
         </div>
       </div>
+
     </div>
   );
 }
 
 function TicketIcon() {
   return (
-    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
-      <path d="M13 5v2" />
-      <path d="M13 17v2" />
-      <path d="M13 11v2" />
+      <path d="M13 5v2" /><path d="M13 17v2" /><path d="M13 11v2" />
     </svg>
   );
 }

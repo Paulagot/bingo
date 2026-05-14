@@ -411,18 +411,19 @@ export default function DigitalEventDrawer({
               />
             )}
 
-            {activeTab === "setup" && (
-              <SetupTab
-                room={room}
-                linkedEventTitle={linkedEventTitle}
-                linkedEventId={linkedEventId}
-                showEventLinking={showEventLinking}
-                onEditQuiz={() => setShowWizard(true)}
-                onLinked={onLinked}
-                confirmUnlink={confirmUnlink}
-                unlinkLoading={unlinkLoading}
-              />
-            )}
+         {activeTab === "setup" && (
+  <SetupTab
+    room={room}
+    linkedEventTitle={linkedEventTitle}
+    linkedEventId={linkedEventId}
+    showEventLinking={showEventLinking}
+    onEditQuiz={() => setShowWizard(true)}
+    onLinked={onLinked}
+    onSaved={onSaved}
+    confirmUnlink={confirmUnlink}
+    unlinkLoading={unlinkLoading}
+  />
+)}
 
             {activeTab === "payments" && (
               <PaymentsTab

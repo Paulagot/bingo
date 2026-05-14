@@ -78,6 +78,66 @@ closed: false,
 };
 
 /**
+ * Hydrate a scheduled room from a DB config_json record into memory.
+ *
+ * Used by the management system hydrate endpoint when a host launches
+ * a scheduled Web2 elimination from the dashboard. The roomId comes
+ * from the DB record — we do NOT generate a new one.
+ *
+ * @param {string} roomId         - the existing DB room_id
+ * @param {string} hostId         - from the DB row
+ * @param {string} hostName       - from config_json.hostName
+ * @param {object} config         - parsed config_json from the DB row
+ * @returns {Object} room         - the in-memory room object
+ */
+export const createRoomFromConfig = (roomId, hostId, hostName, config = {}) => {
+  // If already in memory (e.g. host refreshed), return existing room.
+  const existing = getRoom(roomId);
+  if (existing) return existing;
+
+  const room = {
+    roomId,
+    hostId,
+    hostName: hostName ?? config.hostName ?? 'Host',
+    hostSocketId: null,           // assigned when host connects via socket
+    status: ROOM_STATUS.WAITING,
+    players: {},
+    activeRoundIndex: -1,
+    totalRounds: GAME_RULES.TOTAL_ROUNDS,
+    roundSequence: [],
+    rounds: {},
+    eliminatedPlayerIds: [],
+    winnerPlayerId: null,
+    createdAt: config.createdAt ?? isoNow(),
+    startedAt: null,
+    endedAt: null,
+    settled: false,
+    closed: false,
+
+    // ── Web2 scheduling fields ────────────────────────────────────────────
+    paymentMode: 'web2',
+    entryFee:    config.entryFee    ?? null,   // number e.g. 5.00
+    currency:    config.currency    ?? 'EUR',  // ISO 4217 e.g. 'EUR'
+    maxPlayers:  config.maxPlayers  ?? GAME_RULES.MAX_PLAYERS,
+
+    // ── Web3 fields — null for Web2 rooms, kept for shape consistency ─────
+    web3Chain:         null,
+    solanaCluster:     null,
+    feeMint:           null,
+    roomPda:           null,
+    hostWallet:        null,
+    charityOrgId:      null,
+    charityName:       null,
+    evmChain:          null,
+    evmContractAddress: null,
+    onChainRoomId:     null,
+  };
+
+  rooms.set(roomId, room);
+  return room;
+};
+
+/**
  * Get a room by ID. Returns null if not found.
  */
 export const getRoom = (roomId) => rooms.get(roomId) ?? null;
@@ -103,7 +163,7 @@ export const addPlayer = (roomId, { name, socketId, txSignature = null, walletAd
   if (!room) throw new Error('Room not found');
   if (room.status !== ROOM_STATUS.WAITING)
     throw new Error('Game already in progress');
-  if (Object.keys(room.players).length >= GAME_RULES.MAX_PLAYERS)
+  if (Object.keys(room.players).length >= (room.maxPlayers ?? GAME_RULES.MAX_PLAYERS))
     throw new Error('Room is full');
 
   const playerId = generatePlayerId();
@@ -318,6 +378,8 @@ export const getRoomSnapshot = (roomId) => {
     charityOrgId: room.charityOrgId,
     onChainRoomId: room.onChainRoomId, 
      charityName: room.charityName,
+     currency:   room.currency   ?? 'EUR',
+maxPlayers: room.maxPlayers ?? GAME_RULES.MAX_PLAYERS,
   };
 };
 

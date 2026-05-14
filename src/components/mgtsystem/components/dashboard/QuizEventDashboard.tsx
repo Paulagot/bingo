@@ -7,6 +7,7 @@ import QuizRoomsService, { type RoomStats } from '../../services/quizRoomService
 import { quizPaymentMethodsService } from '../../services/QuizPaymentMethodsService';
 import quizLatePaymentsService from '../../services/QuizLatePaymentsService';
 import ManagePaymentMethodsModal from '../../modals/ManagePaymentMethodsModal';
+import ScheduleEliminationModal from '../../modals/ScheduleEliminationModal';
 
 import {
   CreditCard, Calendar, Play, PlusCircle, RefreshCw,
@@ -63,6 +64,7 @@ export default function QuizEventDashboard() {
   const [managePaymentsOpen,  setManagePaymentsOpen]  = useState(false);
   const [unlinkLoading,       setUnlinkLoading]       = useState(false);
   const [outstandingCounts,   setOutstandingCounts]   = useState<Record<string, number>>({});
+  const [scheduleEliminationOpen, setScheduleEliminationOpen] = useState(false);
 
 
 
@@ -258,7 +260,7 @@ useEffect(() => {
         {/* Header */}
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Digital Games</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Events</h1>
             <p className="mt-1 text-sm text-gray-600"><span className="font-semibold text-gray-900">{clubName}</span></p>
           </div>
           <div className="flex gap-2 flex-wrap">
@@ -278,6 +280,14 @@ useEffect(() => {
               className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition whitespace-nowrap ${canLaunchWizard ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}>
               <PlusCircle className="h-4 w-4" /> Schedule Quiz
             </button>
+
+            {/* <button
+  type="button"
+  onClick={() => setScheduleEliminationOpen(true)}
+  className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition whitespace-nowrap bg-red-600 text-white hover:bg-red-700"
+>
+  <Trophy className="h-4 w-4" /> Schedule Elimination
+</button> */}
           </div>
         </div>
 
@@ -420,6 +430,16 @@ onRefreshRoom={async () => { await loadRooms(status, true); }}
       {managePaymentsOpen && clubId && (
         <ManagePaymentMethodsModal clubId={clubId} onClose={() => setManagePaymentsOpen(false)} />
       )}
+
+{scheduleEliminationOpen && (
+  <ScheduleEliminationModal
+    onClose={() => setScheduleEliminationOpen(false)}
+    onSaved={async () => {
+      setScheduleEliminationOpen(false);
+      await loadRooms(status, true);
+    }}
+  />
+)}
     </div>
   );
 }
