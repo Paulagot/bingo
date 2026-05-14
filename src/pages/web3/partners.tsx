@@ -215,14 +215,11 @@ const ImpactPartnerSpotlight: React.FC = () => (
                 </h3>
 
            <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/60 sm:text-base">
-  Buddies for Paws is the charitable arm of the BONK ecosystem, supporting animal
-  welfare charities and global partners through community-powered giving.
+ Buddies for Paws is an animal welfare fundraising initiative within the BONK ecosystem.
 </p>
 
 <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/50">
-  Together, we’re connecting FundRaisely’s Web3 game events with BONK-powered
-  matching, so eligible quiz and elimination events can deliver greater impact
-  for verified causes.
+ Together, we're connecting FundRaisely's Web3 game events with BONK-powered matching, so eligible quiz and elimination events can deliver greater impact for verified causes
 </p>
 
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap lg:justify-start">
