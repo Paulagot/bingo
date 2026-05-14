@@ -1450,6 +1450,7 @@ export async function getReconciliationAuditView(roomId) {
        AND (pl.ticket_id IS NULL OR pl.ticket_id = '')
      GROUP BY
        pl.player_id, pl.player_name, pl.payment_method,
+        pl.amount,
        pl.confirmed_by, pl.confirmed_by_name, pl.confirmed_by_role,
        pl.payment_reference, cpm.method_label
      ORDER BY pl.confirmed_by_name ASC, pl.player_name ASC`,
@@ -1508,6 +1509,7 @@ export async function getReconciliationAuditView(roomId) {
        AND (pl.ticket_id IS NULL OR pl.ticket_id = '')
      GROUP BY
        pl.player_id, pl.player_name, pl.payment_method,
+        pl.amount,
        pl.confirmed_by_name, pl.confirmed_by_role,
        pl.payment_reference, cpm.method_label
      ORDER BY pl.player_name ASC`,

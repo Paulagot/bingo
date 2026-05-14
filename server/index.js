@@ -41,9 +41,9 @@ import tgbWebhookHandler from './tgb/api/webhook.js';
 
 import contactRoute from './routes/contact.js';
 import passwordResetRoute from './routes/passwordReset.js';
-import eliminationRoutes from './elimination/routes/eliminationRoutes.js';
-// near the top with your other imports
+import eliminationRoutes from './elimination/routes/eliminationRoutes.js';// near the top with your other imports
 import eliminationDevRoutes from './elimination/routes/eliminationDevRoutes.js';
+import eliminationMgmtRoutes from './elimination/api/eliminationMgmtRoutes.js';
 import web3TransactionRoutes from './mgtsystem/routes/web3TransactionRoutes.js';
 import web3PublicEventsRoutes from './web3/routes/web3PublicEventsRoutes.js'
 import quizCryptoDonationRoutes from './quiz/api/quizCryptoDonationRouter.js';
@@ -387,7 +387,9 @@ app.use('/quiz/api', createRoomApi);
 app.use('/api/mgtsystem/quiz-late-payments', quizLatePayments);
 app.use('/api/quiz/personalised-round', quizPersonalisedRoundRouter);
 app.use('/api/pledges', pledgeRouter);
+app.use('/api/elimination/mgmt', eliminationMgmtRoutes);
 app.use('/api/elimination', eliminationRoutes);
+
 app.use('/api/charities', charityListApi);
 app.use('/api/charities', charityResolverApi);
 app.use('/api/admin/charity-wallets', charityWalletsAdminApi);
