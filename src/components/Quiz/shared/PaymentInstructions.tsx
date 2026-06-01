@@ -490,7 +490,7 @@ export const PaymentInstructionsFooter: React.FC<{
     : !hasEverCopied
     ? 'Copy your reference first'
     : !canConfirm
-    ? 'Open the payment link next'
+    ? 'Open the payment link next and make the payment. Don\'t forget to include the reference in your payment note!'
     : null;
 
   return (

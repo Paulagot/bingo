@@ -39,6 +39,7 @@ type Action =
   | { type: 'ROOM_ENDED' }
   | { type: 'SET_VIEW'; view: GameView }
   | { type: 'SET_ERROR'; error: string }
+   | { type: 'ENTER_RECONCILIATION' }
   | { type: 'CLEAR_ERROR' };
 
 const reducer = (state: EliminationGameState, action: Action): EliminationGameState => {
@@ -153,6 +154,8 @@ const reducer = (state: EliminationGameState, action: Action): EliminationGameSt
         view: state.localPlayer?.eliminated ? 'game_over' : 'winner',
         activeRound: null,
       };
+        case 'ENTER_RECONCILIATION':
+   return { ...state, view: 'reconciliation' };
 
     case 'ROOM_ENDED':
       return { ...state, view: 'lobby' };
@@ -219,6 +222,10 @@ export const useEliminationGame = (localPlayerId: string | null) => {
     dispatch({ type: 'ROOM_ENDED' });
   }, []);
 
+  const onEnterReconciliation = useCallback(() => {
+     dispatch({ type: 'ENTER_RECONCILIATION' });
+   }, []);
+
   const setError = useCallback((error: string) => {
     dispatch({ type: 'SET_ERROR', error });
   }, []);
@@ -242,5 +249,6 @@ export const useEliminationGame = (localPlayerId: string | null) => {
     onRoomEnded,
     setError,
     clearError,
+    onEnterReconciliation,
   };
 };

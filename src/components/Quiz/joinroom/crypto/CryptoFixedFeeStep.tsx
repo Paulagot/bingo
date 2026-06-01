@@ -45,9 +45,26 @@ interface BaseProps {
   selectedExtras:  string[];
   fiatCurrency:    string;
   currencySymbol:  string;
-  solanaCluster?:  'mainnet' | 'devnet';
-  onBack:          () => void;
-  onSuccess?:      (result: FixedFeeConfirmResult) => void;
+  solanaCluster?:        'mainnet' | 'devnet';
+  onBack:                () => void;
+  onSuccess?:            (result: FixedFeeConfirmResult) => void;
+  /**
+   * When true, skips the internal `join_quiz_room` socket emit.
+   * Use for non-quiz games (e.g. elimination) where the caller handles joining.
+   */
+  skipInternalJoin?:     boolean;
+  /**
+   * When true, skips the internal navigate to /quiz/game/...
+   * Use for non-quiz games where the caller handles navigation via onSuccess.
+   */
+  skipInternalNavigate?: boolean;
+  /**
+   * Override the backend confirm endpoint.
+   * Used by CampaignSupportPage so campaign orders go to the campaign-specific
+   * confirm route instead of /api/quiz/tickets/crypto-fixed-fee/confirm.
+   * When not provided, the default quiz ticket or walkin route is used.
+   */
+  confirmEndpoint?: string;
 }
 
 interface WalkinProps extends BaseProps {
@@ -101,6 +118,9 @@ export const CryptoFixedFeeStep: React.FC<CryptoFixedFeeStepProps> = (props) => 
     roomId, selectedMethod, totalFiatAmount, entryFeeAmount,
     extrasAmount, selectedExtras, fiatCurrency, currencySymbol,
     solanaCluster = 'mainnet', onBack, onSuccess,
+    skipInternalJoin = false,
+    skipInternalNavigate = false,
+    confirmEndpoint,
   } = props;
 
   const navigate   = useNavigate();
@@ -163,9 +183,11 @@ export const CryptoFixedFeeStep: React.FC<CryptoFixedFeeStepProps> = (props) => 
     const extrasRaw      = totalRaw - entryFeeRaw;
 
     const isTicket = props.mode === 'ticket';
-    const endpoint = isTicket
-      ? '/api/quiz/tickets/crypto-fixed-fee/confirm'
-      : '/api/quiz/crypto-fixed-fee/confirm';
+    const endpoint = confirmEndpoint ?? (
+      isTicket
+        ? '/api/quiz/tickets/crypto-fixed-fee/confirm'
+        : '/api/quiz/crypto-fixed-fee/confirm'
+    );
 
     const body: Record<string, unknown> = {
       roomId,
@@ -278,7 +300,7 @@ export const CryptoFixedFeeStep: React.FC<CryptoFixedFeeStepProps> = (props) => 
       setConfirmData({ ...confirmed, playerId });
       setStatus('joining');
 
-      if (props.mode === 'walkin') {
+      if (props.mode === 'walkin' && !skipInternalJoin) {
         const wp = props as WalkinProps;
 
         socket?.emit('join_quiz_room', {
@@ -313,7 +335,7 @@ export const CryptoFixedFeeStep: React.FC<CryptoFixedFeeStepProps> = (props) => 
       setStatus('success');
       onSuccess?.({ ...confirmed, playerId });
 
-      if (props.mode === 'walkin') {
+      if (props.mode === 'walkin' && !skipInternalNavigate) {
         window.setTimeout(() => {
           navigate(`/quiz/game/${roomId}/${playerId}`);
         }, 800);

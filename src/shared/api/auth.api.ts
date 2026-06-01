@@ -5,12 +5,14 @@ import { apiClient } from './client';
 import type { User, Club } from '../types';
 
 export interface RegisterClubRequest {
-  name: string;
-  email: string;
-  password: string;
-  gdprConsent: boolean;
+  clubName:              string;   // stored in fundraisely_clubs.name
+  personName:            string;   // stored in fundraisely_users.name
+  email:                 string;
+  password:              string;
+  reportingCurrency:     string;   // stored in fundraisely_clubs.reporting_currency
+  gdprConsent:           boolean;
   privacyPolicyAccepted: boolean;
-  marketingConsent?: boolean;
+  marketingConsent?:     boolean;
 }
 
 export interface LoginRequest {
@@ -20,10 +22,10 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  message: string;
-  token: string;
-  user: User;
-  club: Club;
+  message:  string;
+  token:    string;
+  user:     User;
+  club:     Club;
 }
 
 export interface GetCurrentUserResponse {
@@ -32,25 +34,16 @@ export interface GetCurrentUserResponse {
 }
 
 export const authApi = {
-  /**
-   * Register a new club
-   */
   async registerClub(data: RegisterClubRequest): Promise<LoginResponse> {
-    return apiClient.post<LoginResponse>('/clubs/register', data, true);
+    return apiClient.post<LoginResponse>('/clubs/register', data, false); // was true
   },
 
-  /**
-   * Login with club credentials
-   */
   async loginClub(credentials: LoginRequest): Promise<LoginResponse> {
-    return apiClient.post<LoginResponse>('/clubs/login', credentials, true);
+    return apiClient.post<LoginResponse>('/clubs/login', credentials, false); // was true
   },
 
-  /**
-   * Get current user information
-   */
   async getCurrentUser(): Promise<GetCurrentUserResponse> {
-    return apiClient.get<GetCurrentUserResponse>('/clubs/me', true);
+    return apiClient.get<GetCurrentUserResponse>('/clubs/me', false); // was true
   },
 };
 

@@ -132,9 +132,11 @@ export async function getLinkedSolanaCryptoPaymentMethod({
   }
 
   const linked = parseJsonMaybe(room.linked_payment_methods_json, {});
-  const linkedIds = Array.isArray(linked?.payment_method_ids)
-    ? linked.payment_method_ids.map((id) => String(id))
-    : [];
+  // Backward compat: ticket_method_ids is the source of truth for online payment (tickets context)
+  const sourceIds = linked?.ticket_method_ids ?? linked?.payment_method_ids ?? [];
+  const linkedIds = Array.isArray(sourceIds)
+    ? sourceIds.map((id) => String(id))
+    : []; // (handled above)
 
   if (!linkedIds.includes(String(clubPaymentMethodId))) {
     throw new Error('Payment method is not linked to this quiz room');

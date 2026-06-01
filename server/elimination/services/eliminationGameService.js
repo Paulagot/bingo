@@ -24,6 +24,7 @@ import {
   ELIMINATION_SCHEDULE,
   ROUND_7_TARGET_FINALISTS,
 } from '../utils/eliminationConstants.js';
+import { saveEliminationGameStats } from './eliminationStatsService.js';
 
 // ─── Wait for full web3 finalize workflow completion ──────────────────────────
 // We do NOT end the room when payout is merely "settled".
@@ -60,6 +61,38 @@ const waitForFinalizeWorkflowComplete = async (roomId) => {
   return false;
 };
 
+// ─── Wait for host reconciliation to be approved ──────────────────────────────
+// After PLAYERS_DISMISSED is emitted, the room stays alive for the host to
+// complete reconciliation. We poll for the reconciliationApproved flag.
+// If the host never approves, the periodic cleanup in eliminationRoomManager
+// will eventually remove the room (4-hour safety valve).
+// This function does NOT block the game loop — it runs after the game is over.
+const waitForReconciliationOrTimeout = async (roomId) => {
+  const MAX_WAIT_MS = 3 * 60 * 60 * 1000; // 3 hours
+  const POLL_INTERVAL_MS = 10_000;
+  let waited = 0;
+
+  while (waited < MAX_WAIT_MS) {
+    await delay(POLL_INTERVAL_MS);
+    waited += POLL_INTERVAL_MS;
+
+    const room = getRoom(roomId);
+    if (!room) return; // already cleaned up by periodic job or manual action
+
+    if (room.reconciliationApproved) {
+      console.log(`[Elimination] Reconciliation approved for room ${roomId} — cleaning up`);
+      deleteRoom(roomId);
+      return;
+    }
+  }
+
+  // Safety valve — clean up even if host never reconciled
+  console.warn(
+    `[Elimination] Room ${roomId} reconciliation not approved after 3 hours — forcing cleanup`
+  );
+  deleteRoom(roomId);
+};
+
 /**
  * Start the game for a room.
  *
@@ -81,14 +114,16 @@ export const startGame = async (roomId, emit) => {
   if (!room) throw new Error('Failed to start room');
 
   // Reset any stale finalize flags just in case
-room.settled = false;
-room.finalizeWorkflowComplete = false;
-room.finalizeTxSignature = null;
-room.settledAt = null;
-room.finalizeCompletedAt = null;
-room.closeAttempted = false;
-room.closeSucceeded = false;
-room.closeTxHash = null;
+  room.settled = false;
+  room.finalizeWorkflowComplete = false;
+  room.finalizeTxSignature = null;
+  room.settledAt = null;
+  room.finalizeCompletedAt = null;
+  room.closeAttempted = false;
+  room.closeSucceeded = false;
+  room.closeTxHash = null;
+  room.pendingReconciliation = false;
+  room.reconciliationApproved = false;
 
   const finalistRound = GAME_RULES.TOTAL_ROUNDS - 1;
 
@@ -235,7 +270,6 @@ room.closeTxHash = null;
 
       const winner = currentRoom.players[winnerId];
 
-      // Winner is known now, but for web3 rooms the room is NOT truly ended yet.
       emit(SERVER_EVENTS.WINNER_DECLARED, {
         winnerId,
         winnerName: winner?.name ?? 'Unknown',
@@ -247,20 +281,49 @@ room.closeTxHash = null;
       const isWeb3Room = roomAfterWin?.paymentMode === 'web3';
 
       if (isWeb3Room) {
-        // Wait for the host to finish the full finalize workflow before ending the room
+        // Wait for the host to finish the full finalize workflow before proceeding
         await delay(5000);
         await waitForFinalizeWorkflowComplete(roomId);
       } else {
-        // Web2 behaviour unchanged
-        await delay(62000);
+        // Give players time to see the winner screen (~5s is enough —
+        // they get 60s on the winner/game_over view before the auto-leave timer)
+        await delay(5000);
       }
 
+      // ── Save stats to DB (fire-and-forget, non-fatal) ────────────────────
+      const roomForStats = getRoom(roomId);
+      if (roomForStats) {
+        saveEliminationGameStats(roomForStats, winnerId).catch((err) =>
+          console.error('[Elimination] saveEliminationGameStats unhandled error:', err.message)
+        );
+      }
+
+      // ── Mark room as ended in memory ─────────────────────────────────────
       endRoom(roomId, winnerId);
 
-      emit(SERVER_EVENTS.ROOM_ENDED, { roomId, reason: 'game_complete' });
+      // ── Set reconciliation flags ──────────────────────────────────────────
+      const roomForRec = getRoom(roomId);
+      if (roomForRec) {
+        roomForRec.pendingReconciliation = true;
+        roomForRec.reconciliationApproved = false;
+      }
 
-      await delay(3000);
-      deleteRoom(roomId);
+      // ── Dismiss players and admins — host stays ───────────────────────────
+      // PLAYERS_DISMISSED tells clients to navigate away.
+      // The host's client checks isHost and transitions to reconciliation view instead.
+      emit(SERVER_EVENTS.PLAYERS_DISMISSED, {
+        roomId,
+        reason: 'game_complete',
+        // Tell the host they should reconcile. Clients ignore this — only for logging.
+        hostShouldReconcile: !!(roomForRec?.clubId),
+      });
+
+      // ── Wait for reconciliation (non-blocking — runs in background) ───────
+      // Room is NOT deleted here. It stays alive until the host approves
+      // reconciliation or the 3-hour safety timeout fires.
+      waitForReconciliationOrTimeout(roomId).catch((err) =>
+        console.error('[Elimination] waitForReconciliationOrTimeout error:', err.message)
+      );
 
       return;
     }

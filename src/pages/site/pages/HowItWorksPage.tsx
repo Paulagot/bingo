@@ -1,0 +1,2 @@
+import GenericMarketingPage from './GenericMarketingPage';
+export default function HowItWorksPage() { return <GenericMarketingPage path="/how-it-works" seoTitle="How FundRaisely Works" seoDescription="Learn how FundRaisely helps organisers create fundraisers, share links, track payments and review reports." eyebrow="How it works" h1="Create, share, track and report on fundraisers" intro="A practical overview of the FundRaisely workflow from setup to after-event review." imageKey="campaignPlanningScreenshot" />; }

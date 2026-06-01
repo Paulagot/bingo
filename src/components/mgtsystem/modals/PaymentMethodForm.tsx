@@ -427,14 +427,14 @@ export default function PaymentMethodForm({
     const category = CATEGORIES.find((c) => c.value === formData.methodCategory);
     if (!category) return null;
 
-    return <p className="text-xs text-gray-500 mt-1">{category.helper}</p>;
+    return <p className="text-xs text-gray-600 mt-1">{category.helper}</p>;
   };
 
   const renderProviderHelp = () => {
     if (!selectedProvider?.helper) return null;
 
     return (
-      <p className="text-xs text-gray-500 mt-1">{selectedProvider.helper}</p>
+      <p className="text-xs text-gray-600 mt-1">{selectedProvider.helper}</p>
     );
   };
 
@@ -442,21 +442,21 @@ export default function PaymentMethodForm({
     if (!shouldShowManualFields || !isRevolut) return null;
 
     return (
-      <div className="mt-3 rounded-lg border border-indigo-200 bg-indigo-50 p-3 flex items-start gap-2">
-        <Info className="h-4 w-4 text-indigo-600 mt-0.5 flex-shrink-0" />
+      <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3 flex items-start gap-2">
+        <Info className="h-4 w-4 text-[#157f85] mt-0.5 flex-shrink-0" />
 
-        <div className="text-sm text-indigo-900">
+        <div className="text-sm text-gray-900">
           <div className="font-semibold mb-1">
             Revolut can be official or personal
           </div>
 
-          <p className="text-xs text-indigo-800">
+          <p className="text-xs text-green-700">
             If this is the club’s official Revolut account, choose Official Club
             Account below. If this belongs to a coach, host or admin, choose
             Member Personal Account.
           </p>
 
-          <p className="text-xs text-indigo-800 mt-2">
+          <p className="text-xs text-green-700 mt-2">
             Don’t set a fixed amount on the link if players may add extras or
             donations.
           </p>
@@ -472,12 +472,12 @@ export default function PaymentMethodForm({
       <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 flex items-start gap-2">
         <Banknote className="h-4 w-4 text-amber-700 mt-0.5 flex-shrink-0" />
 
-        <div className="text-sm text-amber-950">
+        <div className="text-sm text-gray-900">
           <div className="font-semibold mb-1">
             Cash is a manual payment method
           </div>
 
-          <p className="text-xs text-amber-900">
+          <p className="text-xs text-amber-700">
             Players can be marked as paid only after the host/admin confirms
             the cash was received. This replaces the old hardcoded “pay admin”
             behaviour.
@@ -492,12 +492,12 @@ export default function PaymentMethodForm({
 
     return (
       <div className="mt-3 rounded-lg border border-purple-200 bg-purple-50 p-3 flex items-start gap-2">
-        <Wallet className="h-4 w-4 text-purple-700 mt-0.5 flex-shrink-0" />
+        <Wallet className="h-4 w-4 text-gray-600 mt-0.5 flex-shrink-0" />
 
-        <div className="text-sm text-purple-950">
+        <div className="text-sm text-gray-900">
           <div className="font-semibold mb-1">Verified crypto payments</div>
 
-          <p className="text-xs text-purple-900">
+          <p className="text-xs text-gray-600">
             Players will be shown this public wallet address during the crypto
             payment flow. Only enter a public wallet address here — never a seed
             phrase or private key.
@@ -512,7 +512,7 @@ export default function PaymentMethodForm({
 
     return (
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
+        <label className="block text-sm font-semibold text-gray-600 mb-2">
           Cash collection instructions optional
         </label>
 
@@ -521,7 +521,7 @@ export default function PaymentMethodForm({
           value={config?.collectionInstructions || ''}
           onChange={(e) => updateConfig('collectionInstructions', e.target.value)}
           placeholder="Example: Pay the host at the door before the quiz starts"
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
         />
       </div>
     );
@@ -532,7 +532,7 @@ export default function PaymentMethodForm({
 
     return (
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
+        <label className="block text-sm font-semibold text-gray-600 mb-2">
           {linkPreset.linkLabel}
         </label>
 
@@ -542,11 +542,11 @@ export default function PaymentMethodForm({
           onChange={(e) => updateConfig('link', e.target.value)}
           placeholder={linkPreset.linkPlaceholder}
           className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
-            errors.config ? 'border-red-300' : 'border-gray-300'
+            errors.config ? 'border-red-300' : 'border-gray-200'
           }`}
         />
 
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-gray-600 mt-1">
           Optional if you provide clear player instructions instead.
         </p>
       </div>
@@ -559,7 +559,7 @@ export default function PaymentMethodForm({
     return (
       <>
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+          <label className="block text-sm font-semibold text-gray-600 mb-2">
             Account Name
           </label>
 
@@ -568,12 +568,12 @@ export default function PaymentMethodForm({
             value={config?.accountName || ''}
             onChange={(e) => updateConfig('accountName', e.target.value)}
             placeholder="Example Sports Club"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+          <label className="block text-sm font-semibold text-gray-600 mb-2">
             Bank Name Optional
           </label>
 
@@ -582,13 +582,13 @@ export default function PaymentMethodForm({
             value={config?.bankName || ''}
             onChange={(e) => updateConfig('bankName', e.target.value)}
             placeholder="e.g., AIB / Bank of Ireland / Lloyds"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-600 mb-2">
               IBAN IE/EU
             </label>
 
@@ -598,13 +598,13 @@ export default function PaymentMethodForm({
               onChange={(e) => updateConfig('iban', e.target.value)}
               placeholder="IE29AIBK93115212345678"
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
-                errors.config ? 'border-red-300' : 'border-gray-300'
+                errors.config ? 'border-red-300' : 'border-gray-200'
               }`}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-600 mb-2">
               BIC/SWIFT IE/EU
             </label>
 
@@ -613,14 +613,14 @@ export default function PaymentMethodForm({
               value={config?.bic || ''}
               onChange={(e) => updateConfig('bic', e.target.value)}
               placeholder="AIBKIE2D"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-600 mb-2">
               Account Number UK
             </label>
 
@@ -630,13 +630,13 @@ export default function PaymentMethodForm({
               onChange={(e) => updateConfig('accountNumber', e.target.value)}
               placeholder="12345678"
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
-                errors.config ? 'border-red-300' : 'border-gray-300'
+                errors.config ? 'border-red-300' : 'border-gray-200'
               }`}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-600 mb-2">
               Sort Code UK
             </label>
 
@@ -646,7 +646,7 @@ export default function PaymentMethodForm({
               onChange={(e) => updateConfig('sortCode', e.target.value)}
               placeholder="93-11-52"
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
-                errors.config ? 'border-red-300' : 'border-gray-300'
+                errors.config ? 'border-red-300' : 'border-gray-200'
               }`}
             />
           </div>
@@ -660,7 +660,7 @@ export default function PaymentMethodForm({
 
     return (
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
+        <label className="block text-sm font-semibold text-gray-600 mb-2">
           Merchant ID Optional
         </label>
 
@@ -669,7 +669,7 @@ export default function PaymentMethodForm({
           value={config?.merchantId || ''}
           onChange={(e) => updateConfig('merchantId', e.target.value)}
           placeholder="Your merchant identifier"
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
         />
       </div>
     );
@@ -681,7 +681,7 @@ export default function PaymentMethodForm({
     return (
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+          <label className="block text-sm font-semibold text-gray-600 mb-2">
             Network
           </label>
 
@@ -689,12 +689,12 @@ export default function PaymentMethodForm({
             type="text"
             value="Solana"
             disabled
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-100 text-gray-600"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+          <label className="block text-sm font-semibold text-gray-600 mb-2">
             Solana Wallet Address *
           </label>
 
@@ -704,11 +704,11 @@ export default function PaymentMethodForm({
             onChange={(e) => updateConfig('walletAddress', e.target.value)}
             placeholder="Enter Solana public key"
             className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
-              errors.config ? 'border-red-300' : 'border-gray-300'
+              errors.config ? 'border-red-300' : 'border-gray-200'
             }`}
           />
 
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-gray-600 mt-1">
             This is the public wallet address used by the crypto payment flow.
             Do not enter a private key or seed phrase.
           </p>
@@ -753,7 +753,7 @@ export default function PaymentMethodForm({
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Category */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
+        <label className="block text-sm font-semibold text-gray-600 mb-2">
           Payment Type *
         </label>
 
@@ -762,7 +762,7 @@ export default function PaymentMethodForm({
           onChange={(e) =>
             handleCategoryChange(e.target.value as PaymentMethodCategory)
           }
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
         >
           {CATEGORIES.map((cat) => (
             <option key={cat.value} value={cat.value}>
@@ -776,7 +776,7 @@ export default function PaymentMethodForm({
 
       {/* Provider */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
+        <label className="block text-sm font-semibold text-gray-600 mb-2">
           Provider *
         </label>
 
@@ -784,7 +784,7 @@ export default function PaymentMethodForm({
           value={String(formData.providerName || '')}
           onChange={(e) => resetConfigForProvider(e.target.value || null)}
           className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
-            errors.providerName ? 'border-red-300' : 'border-gray-300'
+            errors.providerName ? 'border-red-300' : 'border-gray-200'
           }`}
         >
           <option value="">Select a provider...</option>
@@ -808,7 +808,7 @@ export default function PaymentMethodForm({
 
       {/* Label */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
+        <label className="block text-sm font-semibold text-gray-600 mb-2">
           Display Label *
         </label>
 
@@ -823,11 +823,11 @@ export default function PaymentMethodForm({
           }
           placeholder={labelPlaceholder}
           className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
-            errors.methodLabel ? 'border-red-300' : 'border-gray-300'
+            errors.methodLabel ? 'border-red-300' : 'border-gray-200'
           }`}
         />
 
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-gray-600 mt-1">
           This is what hosts/admins will see when choosing allowed payment
           methods for a quiz.
         </p>
@@ -844,7 +844,7 @@ export default function PaymentMethodForm({
 
       {/* Player Instructions */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
+        <label className="block text-sm font-semibold text-gray-600 mb-2">
           Instructions for Players
         </label>
 
@@ -862,7 +862,7 @@ export default function PaymentMethodForm({
               ? 'Example: Send payment to the Solana wallet shown. The app verifies crypto payments.'
               : 'Example: Send the payment using the details above. The host/admin will confirm once received.'
           }
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
         />
       </div>
 
@@ -887,8 +887,8 @@ export default function PaymentMethodForm({
             }
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
               formData.isOfficialClubAccount
-                ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
+                ? 'border-[#157f85] bg-green-50 text-[#157f85]'
+                : 'border-gray-200 bg-white text-gray-600 hover:border-gray-400'
             }`}
           >
             <Building2 className="h-5 w-5" />
@@ -905,8 +905,8 @@ export default function PaymentMethodForm({
             }
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
               !formData.isOfficialClubAccount
-                ? 'border-orange-600 bg-orange-50 text-orange-700'
-                : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
+                ? 'border-[#8a6d2f] bg-amber-50 text-amber-700'
+                : 'border-gray-200 bg-white text-gray-600 hover:border-gray-400'
             }`}
           >
             <User className="h-5 w-5" />
@@ -936,7 +936,7 @@ export default function PaymentMethodForm({
             }))
           }
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-            formData.isEnabled ? 'bg-indigo-600' : 'bg-gray-300'
+            formData.isEnabled ? 'bg-[#157f85]' : 'bg-[#c8d0cd]'
           }`}
           aria-label={
             formData.isEnabled
@@ -958,7 +958,7 @@ export default function PaymentMethodForm({
           type="button"
           onClick={onCancel}
           disabled={loading}
-          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50"
+          className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-gray-600 font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50"
         >
           Cancel
         </button>
@@ -966,7 +966,7 @@ export default function PaymentMethodForm({
         <button
           type="submit"
           disabled={loading}
-          className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50"
+          className="flex-1 px-4 py-2 bg-[#157f85] text-white rounded-lg font-semibold hover:bg-[#0e6268] transition-colors disabled:opacity-50"
         >
           {loading ? 'Saving...' : isEdit ? 'Save Changes' : 'Add Payment Method'}
         </button>

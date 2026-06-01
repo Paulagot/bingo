@@ -62,7 +62,7 @@ export function Header() {
     testimonials: '/testimonials',
 
     // App
-    createQuiz: '/quiz/create-fundraising-quiz',
+   
     eventDashboard: '/quiz/eventdashboard',
   };
 

@@ -120,7 +120,12 @@ const response = {
       let hasLinkedPaymentMethods = false;
       if (linkedMethodsRows?.[0]?.linked_payment_methods_json) {
         const linkedData = linkedMethodsRows[0].linked_payment_methods_json;
-        hasLinkedPaymentMethods = (linkedData.payment_method_ids || []).length > 0;
+        // Backward compat: check ticket_method_ids first, fall back to old payment_method_ids
+        hasLinkedPaymentMethods = (
+          linkedData.ticket_method_ids ??
+          linkedData.payment_method_ids ??
+          []
+        ).length > 0;
       }
       
       response.hasLinkedPaymentMethods = hasLinkedPaymentMethods;

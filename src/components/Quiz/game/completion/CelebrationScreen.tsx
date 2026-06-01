@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Heart } from 'lucide-react';
 import { QuizConfig, LeaderboardEntry } from '../../types/quiz';
+import { FeedbackModal } from '../../../feedback/FeedbackModal';
 
 interface CelebrationScreenProps {
   leaderboard: LeaderboardEntry[];
@@ -15,9 +16,7 @@ interface CelebrationScreenProps {
 }
 
 const CelebrationScreen: React.FC<CelebrationScreenProps> = ({
-
   config,
-
   playerPosition,
   playerScore,
   isHost,
@@ -25,6 +24,7 @@ const CelebrationScreen: React.FC<CelebrationScreenProps> = ({
   currency
 }) => {
   const [confettiActive, setConfettiActive] = useState(true);
+  const [feedbackDone, setFeedbackDone] = useState(false); // ✅ moved inside component
 
   useEffect(() => {
     const timer = setTimeout(() => setConfettiActive(false), 3000);
@@ -40,7 +40,6 @@ const CelebrationScreen: React.FC<CelebrationScreenProps> = ({
     return "th";
   };
 
-  // Confetti Effect
   const ConfettiEffect = () => (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
       {[...Array(50)].map((_, i) => (
@@ -64,7 +63,7 @@ const CelebrationScreen: React.FC<CelebrationScreenProps> = ({
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500">
       {confettiActive && <ConfettiEffect />}
-      
+
       <div className="z-10 px-4 text-center text-white">
         <div className="mb-6 animate-bounce text-8xl">
           {fundraisingData && fundraisingData.totalRaised > 0 ? '💝' : '🎉'}
@@ -92,6 +91,13 @@ const CelebrationScreen: React.FC<CelebrationScreenProps> = ({
             </div>
             <div className="text-sm">for {config?.web3Charity || 'charity'}</div>
           </div>
+        )}
+        {!isHost && !feedbackDone && (
+          <FeedbackModal
+            roomId={config?.roomId ?? ''}
+            gameType="quiz"
+            onClose={() => setFeedbackDone(true)}
+          />
         )}
       </div>
     </div>

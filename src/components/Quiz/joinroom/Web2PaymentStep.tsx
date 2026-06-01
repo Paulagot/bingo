@@ -102,7 +102,7 @@ export const Web2PaymentStep: React.FC<Web2PaymentStepProps> = ({
     log('🔍 checkAvailablePaymentMethods called for roomId:', roomId);
     
     try {
-      const url = `/api/quiz-rooms/${roomId}/available-payment-methods`;
+      const url = `/api/quiz-rooms/${roomId}/available-payment-methods?context=onnight`;
       log('📡 Fetching:', url);
       
       const response = await fetch(url);
@@ -138,7 +138,7 @@ export const Web2PaymentStep: React.FC<Web2PaymentStepProps> = ({
     try {
       log('Fetching payment methods for room:', roomId);
       
-      const response = await fetch(`/api/quiz-rooms/${roomId}/available-payment-methods`);
+      const response = await fetch(`/api/quiz-rooms/${roomId}/available-payment-methods?context=onnight`);
       const data = await response.json();
       
       if (!data.ok) {

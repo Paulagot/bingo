@@ -1,0 +1,2 @@
+import GenericMarketingPage from './GenericMarketingPage';
+export default function AboutPage() { return <GenericMarketingPage path="/about" seoTitle="About FundRaisely" seoDescription="Learn about FundRaisely and its mission to make community fundraising easier to organise and report on." eyebrow="About" h1="Built for community fundraising, not generic events" intro="Use this page for the FundRaisely story, mission, audience and why the platform is focused on practical organiser workflows." imageKey="communityCelebration" />; }

@@ -4,7 +4,7 @@
 // Extends BaseService — same auth header pattern as all other mgmt services.
 // All requests go to /api/elimination/mgmt (auth-gated).
 
-import BaseService from '../services/BaseService';
+import BaseService from './BaseService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,7 +40,8 @@ export interface EliminationConfig {
   paymentMode:      'web2' | 'web3';
   entryFee:         number | null;
   currency:         string;       // ISO 4217 e.g. 'EUR'
-  maxPlayers:       number;
+  // maxPlayers set server-side from GAME_RULES.MAX_PLAYERS
+  maxPlayers?:      number;
   hostId:           string;
   hostName:         string | null;
   prizeDescription: string;
@@ -56,7 +57,7 @@ export interface ScheduleEliminationPayload {
   timeZone?:        string | null;
   entryFee:         number;
   currency:         string;
-  maxPlayers:       number;
+  // maxPlayers set server-side — not sent from frontend
   prizeDescription: string;
   prizeValue?:      number | null;
 }
@@ -66,7 +67,7 @@ export interface UpdateEliminationPayload {
   timeZone?:        string | null;
   entryFee?:        number;
   currency?:        string;
-  maxPlayers?:      number;
+  // maxPlayers not editable after scheduling
   prizeDescription?: string;
   prizeValue?:      number | null;
 }

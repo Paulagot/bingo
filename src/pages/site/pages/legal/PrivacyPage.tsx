@@ -1,0 +1,2 @@
+import GenericMarketingPage from '../GenericMarketingPage';
+export default function PrivacyPage() { return <GenericMarketingPage path="/legal/privacy" seoTitle="Privacy Policy" seoDescription="FundRaisely privacy policy placeholder." eyebrow="Legal" h1="Privacy policy" intro="Holding page for the FundRaisely privacy policy. Replace this content with reviewed legal copy before launch." imageKey="committeeReports" />; }

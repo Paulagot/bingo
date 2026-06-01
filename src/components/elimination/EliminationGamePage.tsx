@@ -15,9 +15,11 @@ import { playRoundStart, playRoundIntro, playReveal, playEliminated, playWinner,
 import { useWakeLock } from './hooks/useWakeLock';
 import { EliminationEliminatedView } from './EliminationEliminatedView';
 import { EliminationWinnerView } from './EliminationWinnerView';
-import { emitStartGame, emitSubmitAnswer, emitJoinRoom, emitHostJoin, emitStartPress } from './services/eliminationSocket';
+import { EliminationReconciliationPanel } from './reconciliation/EliminationReconciliationPanel';
+import { emitStartGame, emitSubmitAnswer, emitJoinRoom, emitHostJoin, emitStartPress, getSocket } from './services/eliminationSocket';
 import { roundTypeLabel } from './utils/eliminationHelpers';
 import { getRoundColour, BASE_BG } from './utils/designTokens';
+import { EliminationHostDashboard } from './host/EliminationHostDashboard';
 import type {
   RoundSubmission,
   RoundIntroPayload,
@@ -29,43 +31,44 @@ import type {
   EliminationRoom,
 } from './types/elimination';
 
-// ─── Local session storage keys ───────────────────────────────────────────────
-const SESSION_ROOM_ID = 'elim_room_id';
-const SESSION_PLAYER_ID = 'elim_player_id';
-const SESSION_HOST_ID = 'elim_host_id';
-const SESSION_PLAYER_NAME = 'elim_player_name';
-const SESSION_IS_HOST = 'elim_is_host';
+// ─── Session storage keys ─────────────────────────────────────────────────────
+const SESSION_ROOM_ID         = 'elim_room_id';
+const SESSION_PLAYER_ID       = 'elim_player_id';
+const SESSION_HOST_ID         = 'elim_host_id';
+const SESSION_PLAYER_NAME     = 'elim_player_name';
+const SESSION_IS_HOST         = 'elim_is_host';
 const SESSION_ONCHAIN_ROOM_ID = 'elim_onchain_room_id';
+const SESSION_PAYMENT_MODE    = 'elim_payment_mode'; // 'web3' | 'web2' — persists across refresh
+const SESSION_RECONCILING     = 'elim_reconciling';  // 'true' while host is reconciling
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 const clearEliminationSession = () => {
-  sessionStorage.removeItem(SESSION_ROOM_ID);
-  sessionStorage.removeItem(SESSION_PLAYER_ID);
-  sessionStorage.removeItem(SESSION_HOST_ID);
-  sessionStorage.removeItem(SESSION_PLAYER_NAME);
-  sessionStorage.removeItem(SESSION_IS_HOST);
-  sessionStorage.removeItem(SESSION_ONCHAIN_ROOM_ID);
+  [
+    SESSION_ROOM_ID, SESSION_PLAYER_ID, SESSION_HOST_ID,
+    SESSION_PLAYER_NAME, SESSION_IS_HOST, SESSION_ONCHAIN_ROOM_ID,
+    SESSION_PAYMENT_MODE, SESSION_RECONCILING,
+  ].forEach(k => sessionStorage.removeItem(k));
 };
+
+// ─── Web3 detection ───────────────────────────────────────────────────────────
+// Web3 rooms use smart contracts. Web2 rooms that accept "crypto" as a payment
+// method are NOT web3 — they use no smart contracts.
+// We only redirect to /web3/elimination for true web3 rooms (paymentMode === 'web3').
+function isWeb3Room(room: any): boolean {
+  const mode = room?.paymentMode ?? sessionStorage.getItem(SESSION_PAYMENT_MODE) ?? '';
+  return mode === 'web3';
+}
 
 export const EliminationGamePage: React.FC = () => {
   const navigate = useNavigate();
 
   // ── Session identity ──────────────────────────────────────────────────────
-  const [roomId, setRoomId] = useState<string | null>(
-    () => sessionStorage.getItem(SESSION_ROOM_ID),
-  );
-  const [localPlayerId, setLocalPlayerId] = useState<string | null>(
-    () => sessionStorage.getItem(SESSION_PLAYER_ID),
-  );
-  const [localPlayerName, setLocalPlayerName] = useState<string>(
-    () => sessionStorage.getItem(SESSION_PLAYER_NAME) ?? '',
-  );
-  const [isHost, setIsHost] = useState<boolean>(
-    () => sessionStorage.getItem(SESSION_IS_HOST) === 'true',
-  );
-
-  const [waitingPlayers, setWaitingPlayers] = useState<any[]>([]);
-  const [introPayload, setIntroPayload] = useState<RoundIntroPayload | null>(null);
+  const [roomId, setRoomId]                   = useState<string | null>(() => sessionStorage.getItem(SESSION_ROOM_ID));
+  const [localPlayerId, setLocalPlayerId]     = useState<string | null>(() => sessionStorage.getItem(SESSION_PLAYER_ID));
+  const [localPlayerName, setLocalPlayerName] = useState<string>(() => sessionStorage.getItem(SESSION_PLAYER_NAME) ?? '');
+  const [isHost, setIsHost]                   = useState<boolean>(() => sessionStorage.getItem(SESSION_IS_HOST) === 'true');
+  const [hostId, setHostId]                   = useState<string | null>(() => sessionStorage.getItem(SESSION_HOST_ID));
+  const [waitingPlayers, setWaitingPlayers]   = useState<any[]>([]);
+  const [introPayload, setIntroPayload]       = useState<RoundIntroPayload | null>(null);
 
   // ── Game state ────────────────────────────────────────────────────────────
   const {
@@ -81,6 +84,7 @@ export const EliminationGamePage: React.FC = () => {
     onWinnerDeclared,
     advanceFromReveal,
     onRoomEnded,
+    onEnterReconciliation,
     setError,
   } = useEliminationGame(localPlayerId);
 
@@ -89,9 +93,10 @@ export const EliminationGamePage: React.FC = () => {
     state.view === 'round_active',
   );
 
-  const gameIsActive = !['lobby', 'waiting'].includes(state.view);
+  const gameIsActive = !['lobby', 'waiting', 'reconciliation'].includes(state.view);
   useWakeLock(gameIsActive);
 
+  // Sound effects on view change
   const prevViewRef = React.useRef<string>('');
   useEffect(() => {
     const view = state.view;
@@ -102,40 +107,55 @@ export const EliminationGamePage: React.FC = () => {
   }, [state.view]);
 
   useEffect(() => {
-    if (
-      state.view === 'round_active' &&
-      roundTimer.secondsRemaining <= 3 &&
-      roundTimer.secondsRemaining > 0
-    ) {
+    if (state.view === 'round_active' && roundTimer.secondsRemaining <= 3 && roundTimer.secondsRemaining > 0) {
       playCountdownTick();
     }
   }, [state.view, roundTimer.secondsRemaining]);
 
-  // ── Full cleanup + navigate ───────────────────────────────────────────────
-  const handleCleanupAndNavigate = useCallback((room?: any) => {
-    const wasWeb3 = room?.paymentMode === 'web3'
-      || (state.room as any)?.paymentMode === 'web3';
+  // Persist paymentMode to sessionStorage whenever the room updates
+  // so we can detect web3 correctly even after a page refresh
+  useEffect(() => {
+    const mode = (state.room as any)?.paymentMode;
+    if (mode) sessionStorage.setItem(SESSION_PAYMENT_MODE, mode);
+  }, [(state.room as any)?.paymentMode]);
 
+  // ── Navigation helpers ────────────────────────────────────────────────────
+
+  const getExitRoute = useCallback(() => {
+    // web3 rooms (smart contract) → web3 dashboard
+    // web2 rooms (including those that accept crypto as payment) → home
+    return isWeb3Room(state.room) ? '/web3/elimination' : '/';
+  }, [state.room]);
+
+  const handleCleanupAndNavigate = useCallback(() => {
+    const exitRoute = getExitRoute();
     clearEliminationSession();
     setRoomId(null);
     setLocalPlayerId(null);
     onRoomEnded();
+    navigate(exitRoute, { replace: true });
+  }, [getExitRoute, onRoomEnded, navigate]);
 
-    navigate(wasWeb3 ? '/web3/elimination' : '/elimination', { replace: true });
-  }, [onRoomEnded, navigate, state.room]);
+  // Host enters reconciliation — keeps session alive for refresh survival
+  const handleEnterReconciliation = useCallback(() => {
+    sessionStorage.setItem(SESSION_RECONCILING, 'true');
+    onEnterReconciliation();
+  }, [onEnterReconciliation]);
 
   // ── Socket events ─────────────────────────────────────────────────────────
   useEliminationSocket({
     onRoomState: useCallback((data: any) => {
       const room: EliminationRoom = data.roomSnapshot ?? data;
-      console.log('🎮 [onRoomState] received, players:', room.players?.length);
       setRoom(room);
       setWaitingPlayers(room.players ?? []);
+      // Persist payment mode on every room state update
+      const mode = (room as any).paymentMode;
+      if (mode) sessionStorage.setItem(SESSION_PAYMENT_MODE, mode);
 
       const currentIsHost = sessionStorage.getItem(SESSION_IS_HOST) === 'true';
       if (!currentIsHost) {
         const currentPlayerId = sessionStorage.getItem(SESSION_PLAYER_ID);
-        const currentName = sessionStorage.getItem(SESSION_PLAYER_NAME);
+        const currentName     = sessionStorage.getItem(SESSION_PLAYER_NAME);
         if ((!currentPlayerId || currentPlayerId === '') && currentName) {
           const match = room.players.find((p: any) => p.name === currentName);
           if (match) {
@@ -151,9 +171,7 @@ export const EliminationGamePage: React.FC = () => {
       updatePlayers(data.players);
     }, [updatePlayers]),
 
-    onGameStarted: useCallback(() => {
-      onGameStarted();
-    }, [onGameStarted]),
+    onGameStarted: useCallback(() => { onGameStarted(); }, [onGameStarted]),
 
     onRoundIntro: useCallback((data: RoundIntroPayload) => {
       setIntroPayload(data);
@@ -163,9 +181,7 @@ export const EliminationGamePage: React.FC = () => {
 
     onRoundStarted: useCallback((data: RoundStartedPayload) => {
       setIntroPayload(null);
-      setWaitingPlayers(prev =>
-        prev.map((p: any) => ({ ...p, hasSubmittedCurrentRound: false }))
-      );
+      setWaitingPlayers(prev => prev.map((p: any) => ({ ...p, hasSubmittedCurrentRound: false })));
       playRoundStart();
       onRoundStarted(data);
     }, [onRoundStarted]),
@@ -174,11 +190,7 @@ export const EliminationGamePage: React.FC = () => {
       onSubmissionSent();
       if (data?.playerId) {
         setWaitingPlayers(prev =>
-          prev.map((p: any) =>
-            p.playerId === data.playerId
-              ? { ...p, hasSubmittedCurrentRound: true }
-              : p
-          )
+          prev.map((p: any) => p.playerId === data.playerId ? { ...p, hasSubmittedCurrentRound: true } : p)
         );
       }
     }, [onSubmissionSent]),
@@ -195,11 +207,7 @@ export const EliminationGamePage: React.FC = () => {
     onPlayersEliminated: useCallback((data: EliminatedPayload) => {
       onRoundResults(state.lastResults ?? [], data.eliminatedPlayerIds, data.roundNumber);
       setWaitingPlayers(prev =>
-        prev.map(p =>
-          data.eliminatedPlayerIds.includes(p.playerId)
-            ? { ...p, eliminated: true }
-            : p
-        )
+        prev.map(p => data.eliminatedPlayerIds.includes(p.playerId) ? { ...p, eliminated: true } : p)
       );
     }, [onRoundResults, state.lastResults]),
 
@@ -209,6 +217,21 @@ export const EliminationGamePage: React.FC = () => {
       onWinnerDeclared(data);
     }, [onWinnerDeclared]),
 
+    // PLAYERS_DISMISSED: players/admins leave, host stays to reconcile
+    onPlayersDismissed: useCallback(() => {
+      if (isHost) {
+        handleEnterReconciliation();
+      } else {
+        handleCleanupAndNavigate();
+      }
+    }, [isHost, handleEnterReconciliation, handleCleanupAndNavigate]),
+
+    onReconciliationApproved: useCallback(() => {
+      // The panel handles its own approved state.
+      // onComplete on the panel calls handleCleanupAndNavigate.
+    }, []),
+
+    // ROOM_ENDED: edge cases (cancelled, manual end, etc.)
     onRoomEnded: useCallback(() => {
       handleCleanupAndNavigate();
     }, [handleCleanupAndNavigate]),
@@ -229,14 +252,14 @@ export const EliminationGamePage: React.FC = () => {
   });
 
   // ── Reconnect on mount ────────────────────────────────────────────────────
-  const initialRoomId = sessionStorage.getItem(SESSION_ROOM_ID);
-  const initialIsHost = sessionStorage.getItem(SESSION_IS_HOST) === 'true';
-  const initialHostId = sessionStorage.getItem(SESSION_HOST_ID);
+  const initialRoomId   = sessionStorage.getItem(SESSION_ROOM_ID);
+  const initialIsHost   = sessionStorage.getItem(SESSION_IS_HOST) === 'true';
+  const initialHostId   = sessionStorage.getItem(SESSION_HOST_ID);
   const initialPlayerId = sessionStorage.getItem(SESSION_PLAYER_ID);
-  const initialName = sessionStorage.getItem(SESSION_PLAYER_NAME) ?? '';
+  const initialName     = sessionStorage.getItem(SESSION_PLAYER_NAME) ?? '';
 
   useEffect(() => {
-    const hasHostSession = initialRoomId && initialIsHost && initialHostId;
+    const hasHostSession   = initialRoomId && initialIsHost && initialHostId;
     const hasPlayerSession = initialRoomId && !initialIsHost && initialPlayerId;
     if (!hasHostSession && !hasPlayerSession) return;
 
@@ -246,10 +269,16 @@ export const EliminationGamePage: React.FC = () => {
         if (!data.success) { clearEliminationSession(); return; }
         if (hasHostSession) {
           setIsHost(true);
+          setHostId(initialHostId);
           setLocalPlayerId(initialHostId!);
           setLocalPlayerName(initialName);
           setRoomId(initialRoomId!);
           emitHostJoin(initialRoomId!, initialHostId!);
+
+          // Restore reconciliation view if host was mid-reconciliation
+          if (sessionStorage.getItem(SESSION_RECONCILING) === 'true') {
+            onEnterReconciliation();
+          }
         } else if (hasPlayerSession) {
           emitJoinRoom(initialRoomId!, initialName, initialPlayerId!);
         }
@@ -258,12 +287,9 @@ export const EliminationGamePage: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
+  // ── Event handlers ────────────────────────────────────────────────────────
   const handleJoined = useCallback((
-    newRoomId: string,
-    newPlayerId: string,
-    name: string,
-    host: boolean,
+    newRoomId: string, newPlayerId: string, name: string, host: boolean,
   ) => {
     setRoomId(newRoomId);
     setLocalPlayerId(newPlayerId);
@@ -272,10 +298,10 @@ export const EliminationGamePage: React.FC = () => {
     sessionStorage.setItem(SESSION_ROOM_ID, newRoomId);
     sessionStorage.setItem(SESSION_PLAYER_NAME, name);
     sessionStorage.setItem(SESSION_IS_HOST, String(host));
-
     if (host) {
       sessionStorage.setItem(SESSION_HOST_ID, newPlayerId);
       sessionStorage.removeItem(SESSION_PLAYER_ID);
+      setHostId(newPlayerId);
       emitHostJoin(newRoomId, newPlayerId);
     } else {
       sessionStorage.setItem(SESSION_PLAYER_ID, newPlayerId);
@@ -295,35 +321,45 @@ export const EliminationGamePage: React.FC = () => {
     onSubmissionSent();
   }, [roomId, localPlayerId, onSubmissionSent]);
 
-  // Emits the server-side START press timestamp for Time Estimation scoring
   const handleStartPress = useCallback((roundId: string, playerId: string) => {
     if (!roomId) return;
     emitStartPress(roomId, playerId, roundId);
   }, [roomId]);
 
-  const handleReset = useCallback(() => {
-    handleCleanupAndNavigate();
-  }, [handleCleanupAndNavigate]);
+  const handleReset = useCallback(() => { handleCleanupAndNavigate(); }, [handleCleanupAndNavigate]);
 
-  // ── Render ────────────────────────────────────────────────────────────────
-  const room = state.room;
+  // ── Render helpers ────────────────────────────────────────────────────────
+  const room        = state.room;
   const localPlayer = state.localPlayer ?? room?.players.find(p => p.playerId === localPlayerId);
+  const gameEnded   = state.view === 'reconciliation';
 
-  if (!roomId) {
-    return <EliminationLobbyPage onJoined={handleJoined} />;
-  }
+  const withDashboard = (children: React.ReactNode) => (
+    <>
+      {children}
+      {isHost && roomId && hostId && (
+        <EliminationHostDashboard
+          roomId={roomId}
+          hostId={hostId}
+          socket={getSocket()}
+          entryFee={Number((state.room as any)?.entryFee ?? 0)}
+          currency={(state.room as any)?.currency ?? '€'}
+          initialPlayers={waitingPlayers}
+          gameEnded={gameEnded}
+        />
+      )}
+    </>
+  );
+
+  // ── Views ─────────────────────────────────────────────────────────────────
+
+  if (!roomId) return <EliminationLobbyPage onJoined={handleJoined} />;
 
   if (state.view === 'lobby' || state.view === 'waiting') {
-    return (
+    return withDashboard(
       <EliminationWaitingRoom
-        roomId={roomId}
-        players={waitingPlayers}
-        isHost={isHost}
-        localPlayerId={localPlayerId ?? ''}
-        onStart={handleStart}
-        onLeave={handleReset}
-        minPlayers={2}
-        roomData={state.room}
+        roomId={roomId} players={waitingPlayers} isHost={isHost}
+        localPlayerId={localPlayerId ?? ''} onStart={handleStart} onLeave={handleReset}
+        minPlayers={2} roomData={state.room}
         hostId={sessionStorage.getItem(SESSION_HOST_ID) ?? undefined}
         onCancelled={handleReset}
       />
@@ -331,7 +367,7 @@ export const EliminationGamePage: React.FC = () => {
   }
 
   if (state.view === 'round_intro' && introPayload) {
-    return (
+    return withDashboard(
       <EliminationRoundIntro
         payload={introPayload}
         introDurationMs={introPayload.introDurationMs ?? 10000}
@@ -342,10 +378,10 @@ export const EliminationGamePage: React.FC = () => {
 
   if (state.view === 'round_active' && state.activeRound) {
     const hasSubmitted = localPlayer?.hasSubmittedCurrentRound ?? false;
-    const rc = getRoundColour(state.activeRound.roundNumber);
-    const isUrgent = roundTimer.secondsRemaining <= 3;
+    const rc           = getRoundColour(state.activeRound.roundNumber);
+    const isUrgent     = roundTimer.secondsRemaining <= 3;
 
-    return (
+    return withDashboard(
       <div className="min-h-screen flex flex-col" style={{ ...styles.page, background: BASE_BG }}>
         <div style={{
           position: 'absolute', top: 0, left: 0, right: 0, height: '180px',
@@ -358,12 +394,7 @@ export const EliminationGamePage: React.FC = () => {
             <span style={{ ...styles.hudRound, color: `${rc.primary}99` }}>
               Round {state.activeRound.roundNumber} of 8
             </span>
-            <span style={{
-              ...styles.hudType,
-              fontFamily: "'Bebas Neue', 'Impact', sans-serif",
-              fontSize: '22px',
-              letterSpacing: '0.02em',
-            }}>
+            <span style={{ ...styles.hudType, fontFamily: "'Bebas Neue', 'Impact', sans-serif", fontSize: '22px', letterSpacing: '0.02em' }}>
               {roundTypeLabel(state.activeRound.roundType).toUpperCase()}
             </span>
           </div>
@@ -375,9 +406,7 @@ export const EliminationGamePage: React.FC = () => {
                 color: isUrgent ? '#ff3b5c' : rc.primary,
                 fontFamily: "'Inter', system-ui, sans-serif",
                 fontSize: '42px',
-                filter: isUrgent
-                  ? 'drop-shadow(0 0 12px #ff2d5566)'
-                  : `drop-shadow(0 0 8px ${rc.glow})`,
+                filter: isUrgent ? 'drop-shadow(0 0 12px #ff2d5566)' : `drop-shadow(0 0 8px ${rc.glow})`,
               }}>
                 {roundTimer.secondsRemaining}
               </div>
@@ -402,51 +431,20 @@ export const EliminationGamePage: React.FC = () => {
           color: hasSubmitted ? `${rc.primary}bb` : 'rgba(255,255,255,0.75)',
           fontFamily: "'Inter', system-ui, sans-serif",
         }}>
-          {hasSubmitted
-            ? '✓ Locked in — waiting for others'
-            : ROUND_INSTRUCTIONS[state.activeRound.roundType]}
+          {hasSubmitted ? '✓ Locked in — waiting for others' : ROUND_INSTRUCTIONS[state.activeRound.roundType]}
         </div>
 
-        <style>{`
-          @keyframes pulse {
-            from { opacity: 1; box-shadow: 0 0 0 0 rgba(255,255,255,0.3); }
-            to   { opacity: 0.85; box-shadow: 0 0 0 6px rgba(255,255,255,0); }
-          }
-        `}</style>
-
-        <div
-          className="flex-1 flex items-center justify-center"
-          style={{ padding: '8px', overflowY: 'auto', overflowX: 'hidden', minHeight: 0 }}
-        >
+        <div className="flex-1 flex items-center justify-center"
+          style={{ padding: '8px', overflowY: 'auto', overflowX: 'hidden', minHeight: 0 }}>
           {isHost ? (
-            <div style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center',
-              gap: '12px', padding: '24px', textAlign: 'center',
-            }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '24px', textAlign: 'center' }}>
               <div style={{ fontSize: '32px', marginBottom: '8px' }}>👁</div>
               <p style={{ color: 'rgba(255,255,255,0.5)', fontFamily: 'Inter', fontSize: '14px', margin: 0 }}>
-                You are the host — players are submitting answers on their devices. Keep an eye on the timer and encourage them to submit before time runs out!
+                You are the host — players are submitting answers on their devices.
               </p>
-              {/* <div style={{
-                marginTop: '8px', padding: '12px 20px', borderRadius: '8px',
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.08)',
-              }}>
-                <p style={{ color: 'rgba(255,255,255,0.3)', fontFamily: 'Inter', fontSize: '12px', margin: 0, letterSpacing: '0.06em' }}>
-                  {waitingPlayers.filter((p: any) => p.hasSubmittedCurrentRound).length}
-                  {' / '}
-                  {waitingPlayers.filter((p: any) => !p.eliminated).length} submitted
-                </p>
-              </div> */}
             </div>
           ) : (
-            <div style={{
-              width: '100%',
-              maxWidth: 'min(420px, 100vw - 16px)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-            }}>
+            <div style={{ width: '100%', maxWidth: 'min(420px, 100vw - 16px)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <EliminationRoundRenderer
                 activeRound={state.activeRound}
                 playerId={localPlayerId ?? ''}
@@ -458,16 +456,14 @@ export const EliminationGamePage: React.FC = () => {
           )}
         </div>
 
-        {state.error && (
-          <div style={styles.errorToast}>{state.error}</div>
-        )}
+        {state.error && <div style={styles.errorToast}>{state.error}</div>}
       </div>
     );
   }
 
   if (state.view === 'round_reveal' && state.lastResults) {
     if (isHost) {
-      return (
+      return withDashboard(
         <EliminationHostReveal
           activeRound={state.activeRound}
           results={state.lastResults}
@@ -477,7 +473,7 @@ export const EliminationGamePage: React.FC = () => {
         />
       );
     }
-    return (
+    return withDashboard(
       <EliminationRevealPanel
         activeRound={state.activeRound}
         localPlayerId={localPlayerId ?? ''}
@@ -489,7 +485,7 @@ export const EliminationGamePage: React.FC = () => {
   }
 
   if (state.view === 'round_results' && state.lastResults) {
-    return (
+    return withDashboard(
       <EliminationResultsPanel
         results={state.lastResults}
         players={waitingPlayers}
@@ -502,7 +498,7 @@ export const EliminationGamePage: React.FC = () => {
   }
 
   if (state.view === 'eliminated') {
-    return (
+    return withDashboard(
       <EliminationEliminatedView
         playerName={localPlayerName}
         eliminatedInRound={localPlayer?.eliminatedInRound ?? 0}
@@ -516,7 +512,7 @@ export const EliminationGamePage: React.FC = () => {
   }
 
   if (state.view === 'game_over') {
-    return (
+    return withDashboard(
       <EliminationEliminatedView
         playerName={localPlayerName}
         eliminatedInRound={localPlayer?.eliminatedInRound ?? 0}
@@ -531,7 +527,7 @@ export const EliminationGamePage: React.FC = () => {
   }
 
   if (state.view === 'winner' && state.winner) {
-    return (
+    return withDashboard(
       <EliminationWinnerView
         winnerId={state.winner.winnerId}
         winnerName={state.winner.winnerName}
@@ -547,106 +543,62 @@ export const EliminationGamePage: React.FC = () => {
     );
   }
 
-  return (
+  // ── Reconciliation (host only, after game ends) ───────────────────────────
+  if (state.view === 'reconciliation') {
+    return withDashboard(
+      <EliminationReconciliationPanel
+        roomId={roomId!}
+        hostId={hostId!}
+        isLoggedIn={!!localStorage.getItem('auth_token')}
+        socket={getSocket()}
+        room={state.room}
+        winner={state.winner}
+        onComplete={handleCleanupAndNavigate}
+      />
+    );
+  }
+
+  // Fallback — connecting spinner
+  return withDashboard(
     <div className="min-h-screen flex items-center justify-center" style={styles.page}>
       <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontFamily: "'Inter', system-ui, sans-serif" }}>
         <div style={{ fontSize: '32px', marginBottom: '12px' }}>⟳</div>
         <div>Connecting…</div>
-        {state.error && (
-          <div style={{ color: '#ff3b5c', marginTop: '8px', fontSize: '13px' }}>{state.error}</div>
-        )}
+        {state.error && <div style={{ color: '#ff3b5c', marginTop: '8px', fontSize: '13px' }}>{state.error}</div>}
       </div>
     </div>
   );
 };
 
-// ─── Round instructions ───────────────────────────────────────────────────────
 const ROUND_INSTRUCTIONS: Record<string, string> = {
-  true_centre:      'Tap the exact centre of the shape',
-  midpoint_split:   'Tap the exact midpoint between A and B',
-  stop_the_bar:     'Tap STOP when the marker hits the target',
-  draw_angle:       'Drag the line to match the target angle',
-  flash_grid:       'Tap the cells that lit up',
-  quick_count:      'Enter how many dots you saw',
-  flash_maths:      'Enter the total of all numbers shown',
-  line_length:      'Drag to match the reference line length',
-  balance_point:    'Tap where the beam would balance',
-  pattern_align:    'Move and rotate the shape to match the target',
-  sequence_gap:     'What number is missing from the sequence?',
-  colour_count:     'Count the target colour shapes',
-  time_estimation:  'Tap when the target time has passed',
-  character_count:  'Count the target characters',
+  true_centre:       'Tap the exact centre of the shape',
+  midpoint_split:    'Tap the exact midpoint between A and B',
+  stop_the_bar:      'Tap STOP when the marker hits the target',
+  draw_angle:        'Drag the line to match the target angle',
+  flash_grid:        'Tap the cells that lit up',
+  quick_count:       'Enter how many dots you saw',
+  flash_maths:       'Enter the total of all numbers shown',
+  line_length:       'Drag to match the reference line length',
+  balance_point:     'Tap where the beam would balance',
+  pattern_align:     'Move and rotate the shape to match the target',
+  sequence_gap:      'What number is missing from the sequence?',
+  colour_count:      'Count the target colour shapes',
+  time_estimation:   'Tap when the target time has passed',
+  character_count:   'Count the target characters',
+  reaction_tap:      'Tap as fast as you can when the target appears',
+  moving_target_tap: 'Tap the moving target',
+  path_trace:        'Trace the path as accurately as you can',
 };
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles: Record<string, React.CSSProperties> = {
-  page: {
-    background: BASE_BG,
-    fontFamily: "'Bebas Neue', 'Impact', sans-serif",
-    color: '#ffffff',
-    minHeight: '100vh',
-  },
-  hud: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '14px 20px 10px',
-  },
-  hudLeft: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '2px',
-  },
-  hudRound: {
-    fontFamily: "'Inter', system-ui, sans-serif",
-    fontSize: '11px',
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: '0.2em',
-    textTransform: 'uppercase',
-  },
-  hudType: {
-    fontSize: '17px',
-    fontWeight: 700,
-    color: '#ffffff',
-  },
-  hudTimer: {
-    fontFamily: "'Inter', system-ui, sans-serif",
-    fontSize: '32px',
-    fontWeight: 800,
-    letterSpacing: '-0.02em',
-    transition: 'color 0.3s',
-  },
-  timerTrack: {
-    height: '3px',
-    background: 'rgba(255,255,255,0.06)',
-    width: '100%',
-  },
-  timerBar: {
-    height: '100%',
-    transition: 'background 0.3s',
-    borderRadius: '0 2px 2px 0',
-  },
-  instructionBar: {
-    padding: '10px 20px',
-    fontSize: '15px',
-    color: 'rgba(255,255,255,0.7)',
-    fontFamily: "'Inter', system-ui, sans-serif",
-    letterSpacing: '0.03em',
-    borderBottom: '1px solid rgba(255,255,255,0.05)',
-  },
-  errorToast: {
-    position: 'fixed',
-    bottom: '24px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    background: 'rgba(255,59,92,0.15)',
-    border: '1px solid rgba(255,59,92,0.5)',
-    color: '#ff3b5c',
-    padding: '10px 20px',
-    borderRadius: '8px',
-    fontSize: '13px',
-    fontFamily: "'Inter', system-ui, sans-serif",
-    whiteSpace: 'nowrap',
-    zIndex: 100,
-  },
+  page:         { background: BASE_BG, fontFamily: "'Bebas Neue', 'Impact', sans-serif", color: '#ffffff', minHeight: '100vh' },
+  hud:          { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px 10px' },
+  hudLeft:      { display: 'flex', flexDirection: 'column', gap: '2px' },
+  hudRound:     { fontFamily: "'Inter', system-ui, sans-serif", fontSize: '11px', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.2em', textTransform: 'uppercase' },
+  hudType:      { fontSize: '17px', fontWeight: 700, color: '#ffffff' },
+  hudTimer:     { fontFamily: "'Inter', system-ui, sans-serif", fontSize: '32px', fontWeight: 800, letterSpacing: '-0.02em', transition: 'color 0.3s' },
+  timerTrack:   { height: '3px', background: 'rgba(255,255,255,0.06)', width: '100%' },
+  timerBar:     { height: '100%', transition: 'background 0.3s', borderRadius: '0 2px 2px 0' },
+  instructionBar: { padding: '10px 20px', fontSize: '15px', color: 'rgba(255,255,255,0.7)', fontFamily: "'Inter', system-ui, sans-serif", letterSpacing: '0.03em', borderBottom: '1px solid rgba(255,255,255,0.05)' },
+  errorToast:   { position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(255,59,92,0.15)', border: '1px solid rgba(255,59,92,0.5)', color: '#ff3b5c', padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontFamily: "'Inter', system-ui, sans-serif", whiteSpace: 'nowrap', zIndex: 100 },
 };

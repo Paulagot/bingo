@@ -2,9 +2,12 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { syncEliminationImpactToDb } from '../services/syncEliminationImpactToDb.js';
 import { insertPrizePayout, insertWeb3Transaction } from '../../mgtsystem/services/web3TransactionService.js';
+import QuizPaymentMethodsService from '../../mgtsystem/services/QuizPaymentMethodsService.js';
+import { getEliminationReconciliation } from '../services/eliminationStatsService.js';
 
 const eliminationCreateLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 10, message: { error: 'Too many rooms created. Try again later.' } });
 const eliminationRoomLimiter = rateLimit({ windowMs: 60 * 1000, max: 60, message: { error: 'Too many requests.' } });
+const paymentMethodsService = new QuizPaymentMethodsService();
 
 // Platform charity reserve wallet — used when TGB minimum not met
 const PLATFORM_CHARITY_RESERVE = '4dBPGPU6tmsWSsGhHgNMK9QBADWLs9AxKL1Jh7hZeS6o';
@@ -344,6 +347,29 @@ router.post('/rooms/:roomId/finalize-confirm', async (req, res) => {
   }
 });
 
+// ─── GET /api/elimination/rooms/:roomId/reconciliation ────────────────────────
+// Fetch reconciliation record + adjustments for a room.
+// No auth required — roomId is already a secret (UUID-style).
+// Used by the host reconciliation panel on mount.
+router.get('/rooms/:roomId/reconciliation', eliminationRoomLimiter, async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    if (!roomId) return res.status(400).json({ ok: false, error: 'roomId required' });
+ 
+    const data = await getEliminationReconciliation(roomId);
+ 
+    if (!data) {
+      // Room may have no reconciliation record yet (web3/ad-hoc rooms)
+      return res.status(404).json({ ok: false, error: 'No reconciliation record found' });
+    }
+ 
+    return res.json({ ok: true, ...data });
+  } catch (err) {
+    console.error('[eliminationRoutes] GET reconciliation error:', err);
+    return res.status(500).json({ ok: false, error: 'Failed to fetch reconciliation' });
+  }
+});
+
 // ─── POST /api/elimination/rooms/:roomId/finalize-complete ────────────────────
 // Called by the host client only after the full finalize workflow has finished,
 // including the close_room attempt (successful or not).
@@ -525,6 +551,29 @@ router.get('/rooms/:roomId/player/:playerId', (req, res) => {
   } catch (err) {
     console.error('[Elimination] GET /rooms/:roomId/player/:playerId error:', err);
     return res.status(500).json({ success: false, error: 'Failed to fetch reconnect snapshot' });
+  }
+});
+
+// ─── GET /api/elimination/rooms/:roomId/available-payment-methods ─────────────
+// Public — no auth needed. Players call this during the join flow to get the
+// payment methods linked to this elimination room.
+// Delegates to QuizPaymentMethodsService which queries fundraisely_web2_quiz_rooms
+// by room_id — game_type agnostic, works for elimination rows as-is.
+router.get('/rooms/:roomId/available-payment-methods', eliminationRoomLimiter, async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    if (!roomId) return res.status(400).json({ ok: false, error: 'roomId required' });
+ 
+    const data = await paymentMethodsService.getAvailablePaymentMethodsForRoom({ roomId, context: 'onnight' });  // elimination is always on-the-night
+    return res.json(data);
+  } catch (err) {
+    if (err?.message === 'Quiz room not found') {
+      // Room exists in memory (web3 or unscheduled) but has no DB row —
+      // return empty methods rather than 404 so the join flow degrades gracefully.
+      return res.json({ ok: true, paymentMethods: [] });
+    }
+    console.error('[Elimination] GET available-payment-methods error:', err);
+    return res.status(500).json({ ok: false, error: 'Failed to fetch payment methods' });
   }
 });
 

@@ -24,8 +24,10 @@ interface UseEliminationSocketOptions {
   onWinnerDeclared: (data: WinnerPayload) => void;
   onRoomEnded: () => void;
   onRoomCancelled: () => void;  // ← add this
+  onPlayersDismissed: (data: { roomId: string; reason: string; hostShouldReconcile: boolean }) => void;
+  onReconciliationApproved: (data: { ok: boolean; roomId: string; finalTotal?: number }) => void;
   onError: (data: { message: string }) => void;
-}
+   }
 
 export const useEliminationSocket = (options: UseEliminationSocketOptions) => {
   // Keep a ref to the latest options so socket listeners always call current callbacks
@@ -53,6 +55,8 @@ export const useEliminationSocket = (options: UseEliminationSocketOptions) => {
       onRoomEnded:           ()                        => optionsRef.current.onRoomEnded(),
       onError:               (d: { message: string })  => optionsRef.current.onError(d),
       onRoomCancelled:       ()                        => optionsRef.current.onRoomCancelled?.(),
+      onPlayersDismissed:    (d: any)                  => optionsRef.current.onPlayersDismissed?.(d),
+      onReconciliationApproved: (d: any)               => optionsRef.current.onReconciliationApproved?.(d),
     };
 
     socket.on('elimination_room_state',          handlers.onRoomState);
@@ -69,6 +73,8 @@ export const useEliminationSocket = (options: UseEliminationSocketOptions) => {
     socket.on('elimination_room_ended',          handlers.onRoomEnded);
     socket.on('elimination_error',               handlers.onError);
     socket.on('elimination_room_cancelled', handlers.onRoomCancelled);
+    socket.on('elimination_players_dismissed',      handlers.onPlayersDismissed);
+    socket.on('elimination_reconciliation_approved', handlers.onReconciliationApproved)
 
     return () => {
       socket.off('elimination_room_state',          handlers.onRoomState);
@@ -85,6 +91,8 @@ export const useEliminationSocket = (options: UseEliminationSocketOptions) => {
       socket.off('elimination_room_ended',          handlers.onRoomEnded);
       socket.off('elimination_error',               handlers.onError);
       socket.off('elimination_room_cancelled', handlers.onRoomCancelled);
+      socket.off('elimination_players_dismissed',      handlers.onPlayersDismissed);
+   socket.off('elimination_reconciliation_approved', handlers.onReconciliationApproved);
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 };

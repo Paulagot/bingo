@@ -1,0 +1,2 @@
+import GenericMarketingPage from '../GenericMarketingPage';
+export default function GuidesPage() { return <GenericMarketingPage path="/resources/guides" seoTitle="Fundraising Guides" seoDescription="Practical fundraising guides for planning, tickets, payments, reports and community events." eyebrow="Guides" h1="Practical fundraising guides" intro="Use this hub for step-by-step resources on planning fundraisers, running quiz nights, tracking payments and reporting back." imageKey="committeeReports" />; }

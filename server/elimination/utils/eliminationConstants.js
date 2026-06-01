@@ -115,6 +115,7 @@ export const CLIENT_EVENTS = {
   SUBMIT_ANSWER: 'submit_round_answer',
   SUBMIT_START_PRESS: 'submit_time_estimation_start',  // ← time estimation START press
   RECONNECT_PLAYER: 'reconnect_elimination_player',
+
 };
 
 // ─── Socket Events: Server → Client ──────────────────────────────────────────
@@ -132,6 +133,8 @@ export const SERVER_EVENTS = {
   WINNER_DECLARED: 'elimination_winner_declared',
   ROOM_ENDED: 'elimination_room_ended',
   ERROR: 'elimination_error',
+   PLAYERS_DISMISSED:           'elimination_players_dismissed',
+   RECONCILIATION_APPROVED:     'elimination_reconciliation_approved'
 };
 
 // ─── Round Pool ───────────────────────────────────────────────────────────────

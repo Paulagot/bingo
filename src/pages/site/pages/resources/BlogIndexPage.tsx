@@ -1,0 +1,2 @@
+import GenericMarketingPage from '../GenericMarketingPage';
+export default function BlogIndexPage() { return <GenericMarketingPage path="/blog" seoTitle="FundRaisely Blog" seoDescription="Fundraising articles, updates and practical ideas for clubs, schools and community groups." eyebrow="Blog" h1="Fundraising notes, ideas and product updates" intro="Use this page as the future blog index with topic cards, featured posts and internal links into resource hubs." imageKey="volunteersTickets" />; }

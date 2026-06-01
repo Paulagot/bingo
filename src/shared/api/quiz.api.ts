@@ -61,16 +61,19 @@ export interface ParsedConfig {
 export type Web2RoomListItem = {
   room_id: string;
   host_id: string;
+  game_type?: 'quiz' | 'elimination';       // ← add
   status: string;
   scheduled_at: string | null;
   time_zone: string | null;
-  config_json?: string | ParsedConfig | null; // ✅ Now properly typed
-  room_caps_json?: string | RoomCaps | null; // ✅ Now properly typed
+  config_json?: string | ParsedConfig | null;
+  room_caps_json?: string | RoomCaps | null;
+  prize_description?: string | null;         // ← add
+  prize_value?: number | null;               // ← add
   created_at: string;
   updated_at: string;
   ended_at?: string | null;
   participants_count?: number;
-};
+}
 
 export type GetWeb2RoomsListResponse = {
   rooms: Web2RoomListItem[];

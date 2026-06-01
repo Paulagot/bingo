@@ -692,31 +692,30 @@ const allManualMethods = useMemo(
           : 'Edit Payment Method';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-indigo-100">
-              <CreditCard className="h-5 w-5 text-indigo-600" />
-            </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(16,37,50,0.55)', backdropFilter: 'blur(2px)' }}>
+      <div className="flex flex-col w-full max-w-3xl max-h-[90vh] rounded-xl shadow-2xl overflow-hidden" style={{ background: '#ffffff' }}>
 
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 flex-shrink-0"
+          style={{ borderBottom: '3px solid #157f85', background: '#ffffff' }}>
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg flex-shrink-0"
+              style={{ background: 'rgba(21,127,133,0.12)', color: '#157f85' }}>
+              <CreditCard className="h-5 w-5" />
+            </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">{title}</h2>
-              <p className="text-sm text-gray-600">
+              <h2 className="text-lg font-bold" style={{ color: '#102532' }}>{title}</h2>
+              <p className="text-xs mt-0.5" style={{ color: '#52636f' }}>
                 {view === 'list'
                   ? 'Set up the payment methods this club can use for events.'
                   : 'Configure the details players and admins will use.'}
               </p>
             </div>
           </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            <X className="h-5 w-5 text-gray-500" />
+          <button type="button" onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-gray-100"
+            style={{ color: '#8a9bab' }}>
+            <X className="h-4 w-4" />
           </button>
         </div>
 
@@ -741,13 +740,13 @@ const allManualMethods = useMemo(
         )}
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6" style={{ background: '#f6f1e8' }}>
           {view === 'list' ? (
-            <div className="space-y-6">
+            <div className="space-y-4">
         
 
               {/* Disabled Toggle */}
-              <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+              <div className="flex items-center justify-between gap-3 rounded-xl px-4 py-3" style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
                 <div>
                   <p className="text-sm font-semibold text-gray-900">
                     Disabled payment methods
@@ -788,7 +787,7 @@ const allManualMethods = useMemo(
 
               {/* Stripe Connect Card */}
               {showStripeCard && (
-                <section className="space-y-3">
+                <section className="rounded-xl p-4 space-y-3" style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
                   <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
                     Card payments
                   </h3>
@@ -898,7 +897,7 @@ const allManualMethods = useMemo(
               )}
 
               {/* On-the-night payments */}
-<section className="space-y-3">
+<section className="rounded-xl p-4 space-y-3" style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
   <div>
     <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
       On-the-night payments
@@ -967,7 +966,7 @@ const allManualMethods = useMemo(
 </section>
 
               {/* Manual Payments */}
-              <section className="space-y-3">
+              <section className="rounded-xl p-4 space-y-3" style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
@@ -1022,7 +1021,7 @@ const allManualMethods = useMemo(
               </section>
 
               {/* Crypto Wallets */}
-              <section className="space-y-3">
+              <section className="rounded-xl p-4 space-y-3" style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
@@ -1078,7 +1077,7 @@ const allManualMethods = useMemo(
 
               {/* Other Methods */}
               {!loadingList && otherMethods.length > 0 && (
-                <section className="space-y-3">
+                <section className="rounded-xl p-4 space-y-3" style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
                   <div>
                     <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
                       Other payment methods
@@ -1106,7 +1105,7 @@ const allManualMethods = useMemo(
               {/* Loading State */}
               {loadingList && (
                 <div className="text-center py-12">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-t-transparent" style={{ borderColor: '#157f85', borderTopColor: 'transparent' }} />
                   <p className="mt-2 text-sm text-gray-600">
                     Loading payment methods...
                   </p>
@@ -1130,12 +1129,11 @@ const allManualMethods = useMemo(
         </div>
 
         {view === 'list' && (
-          <div className="p-6 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-semibold hover:bg-gray-200 transition-colors"
-            >
+          <div className="flex items-center justify-end px-6 py-4 flex-shrink-0"
+            style={{ borderTop: '1px solid #dce1df', background: '#fbf8f2' }}>
+            <button type="button" onClick={onClose}
+              className="rounded-lg border px-5 py-2 text-sm font-semibold transition hover:bg-gray-50"
+              style={{ borderColor: '#dce1df', color: '#52636f' }}>
               Close
             </button>
           </div>
