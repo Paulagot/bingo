@@ -29,6 +29,7 @@ class QuizPaymentMethodsService {
         updated_at
       FROM fundraisely_club_payment_methods
       WHERE club_id = ?
+        AND is_enabled = 1
       ORDER BY display_order ASC, method_label ASC`,
       [clubId]
     );
@@ -49,40 +50,48 @@ class QuizPaymentMethodsService {
       [roomId, clubId]
     );
 
-    let linkedMethodIds = [];
-    
+    let ticketIds = [];
+    let onnightIds = [];
+
     if (quizRows?.[0]?.linked_payment_methods_json) {
       const linkedData = quizRows[0].linked_payment_methods_json;
-      linkedMethodIds = linkedData.payment_method_ids || [];
+      ticketIds  = linkedData.ticket_method_ids  ?? linkedData.payment_method_ids ?? [];
+      onnightIds = linkedData.onnight_method_ids ?? linkedData.payment_method_ids ?? [];
     }
 
     return {
-      available_methods: availableMethods,
-      linked_method_ids: linkedMethodIds,
-      total_available: availableMethods.length
+      available_methods:  availableMethods,
+      ticket_method_ids:  ticketIds,
+      onnight_method_ids: onnightIds,
+      // Keep for backward compat with any code not yet updated:
+      linked_method_ids:  [...new Set([...ticketIds, ...onnightIds])],
+      total_available:    availableMethods.length
     };
   }
 
-  async updateLinkedPaymentMethods({ roomId, clubId, paymentMethodIds, userId }) {
+  async updateLinkedPaymentMethods({ roomId, clubId, ticketMethodIds = [], onnightMethodIds = [], userId }) {
     await this._assertQuizRoomOwned({ roomId, clubId });
 
-    if (paymentMethodIds.length > 0) {
-      const placeholders = paymentMethodIds.map(() => '?').join(',');
+    // Validate both lists — all IDs must belong to this club
+    const allIds = [...new Set([...ticketMethodIds, ...onnightMethodIds])];
+    if (allIds.length > 0) {
+      const placeholders = allIds.map(() => '?').join(',');
       const [validMethods] = await database.connection.execute(
         `SELECT id FROM fundraisely_club_payment_methods 
          WHERE club_id = ? AND id IN (${placeholders})`,
-        [clubId, ...paymentMethodIds]
+        [clubId, ...allIds]
       );
 
-      if (validMethods.length !== paymentMethodIds.length) {
+      if (validMethods.length !== allIds.length) {
         throw new Error('Invalid payment method IDs - some methods do not belong to this club');
       }
     }
 
     const linkedData = {
-      payment_method_ids: paymentMethodIds,
+      ticket_method_ids:  ticketMethodIds,
+      onnight_method_ids: onnightMethodIds,
       updated_at: new Date().toISOString(),
-      updated_by: userId || null
+      updated_by: userId || null,
     };
 
     await database.connection.execute(
@@ -101,7 +110,7 @@ class QuizPaymentMethodsService {
    * Returns only enabled methods that are linked to this room
    * Does NOT require authentication
    */
-  async getAvailablePaymentMethodsForRoom({ roomId }) {
+  async getAvailablePaymentMethodsForRoom({ roomId, context = 'onnight' }) {
     console.log('[QuizPaymentMethodsService] Getting available payment methods for roomId:', roomId);
     
     const [quizRows] = await database.connection.execute(
@@ -127,11 +136,14 @@ class QuizPaymentMethodsService {
     
     let linkedMethodIds = [];
     if (room.linked_payment_methods_json) {
-      const linkedData = room.linked_payment_methods_json;
-      linkedMethodIds = linkedData.payment_method_ids || [];
+      const linked = room.linked_payment_methods_json;
+      // Backward compat: old rooms only have payment_method_ids
+      linkedMethodIds = context === 'tickets'
+        ? (linked.ticket_method_ids  ?? linked.payment_method_ids ?? [])
+        : (linked.onnight_method_ids ?? linked.payment_method_ids ?? []);
     }
 
-    console.log('[QuizPaymentMethodsService] Linked method IDs:', linkedMethodIds);
+    console.log('[QuizPaymentMethodsService] Linked method IDs (context=' + context + '):', linkedMethodIds);
 
     if (linkedMethodIds.length === 0) {
       console.log('[QuizPaymentMethodsService] No linked payment methods');

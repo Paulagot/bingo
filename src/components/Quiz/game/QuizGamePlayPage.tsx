@@ -951,6 +951,7 @@ const timestamp = Date.now();
       setPhaseMessage(message);
       setQuestion(null);
       setTimerActive(false);
+       setRoomPhase('complete');
     };
 
     const handlePlayerListUpdated = ({ players }: { players: User[] }) => {

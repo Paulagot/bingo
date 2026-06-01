@@ -22,6 +22,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import type { Web2RoomListItem as Room } from "../../../../../shared/api/quiz.api";
+import { useCurrency } from '../../../hooks/useCurrency';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -116,15 +117,15 @@ function getAdjTypeLabel(type: string) {
 function getStatusBadge(status: string) {
   switch (status) {
     case "claimed":
-      return "bg-amber-100 text-amber-800 border-amber-200";
+      return "bg-[rgba(210,181,130,0.18)] text-[#8a6d2f] border-[rgba(210,181,130,0.5)]";
     case "disputed":
-      return "bg-red-100 text-red-800 border-red-200";
+      return "bg-[rgba(233,87,79,0.15)] text-red-800 border-[rgba(233,87,79,0.3)]";
     case "expected":
-      return "bg-gray-100 text-gray-700 border-gray-200";
+      return "bg-[#f1f0ee] text-[#52636f] border-[#dce1df]";
     case "written_off":
-      return "bg-slate-100 text-slate-600 border-slate-200";
+      return "bg-[#f1f0ee] text-[#52636f] border-[#dce1df]";
     default:
-      return "bg-gray-100 text-gray-600 border-gray-200";
+      return "bg-[#f1f0ee] text-[#52636f] border-[#dce1df]";
   }
 }
 
@@ -144,20 +145,20 @@ function MetricCard({
   helper?: string;
 }) {
   const toneMap = {
-    gray: "border-gray-200 bg-white text-gray-950",
-    indigo: "border-indigo-200 bg-indigo-50 text-indigo-950",
-    green: "border-green-200 bg-green-50 text-green-950",
-    amber: "border-amber-200 bg-amber-50 text-amber-950",
-    orange: "border-orange-200 bg-orange-50 text-orange-950",
-    red: "border-red-200 bg-red-50 text-red-950",
+    gray: "border-[#dce1df] bg-white text-[#102532]",
+    indigo: "border-[rgba(21,127,133,0.3)] bg-[rgba(21,127,133,0.08)] text-indigo-950",
+    green: "border-[rgba(21,127,133,0.3)] bg-[rgba(21,127,133,0.06)] text-green-950",
+    amber: "border-[rgba(210,181,130,0.5)] bg-[rgba(210,181,130,0.1)] text-amber-950",
+    orange: "border-[rgba(210,181,130,0.5)] bg-[rgba(210,181,130,0.1)] text-orange-950",
+    red: "border-[rgba(233,87,79,0.3)] bg-[rgba(233,87,79,0.08)] text-red-950",
   };
   const labelMap = {
-    gray: "text-gray-600",
-    indigo: "text-indigo-700",
-    green: "text-green-700",
-    amber: "text-amber-700",
-    orange: "text-orange-700",
-    red: "text-red-700",
+    gray: "text-[#52636f]",
+    indigo: "text-[#157f85]",
+    green: "text-[#157f85]",
+    amber: "text-[#8a6d2f]",
+    orange: "text-[#8a6d2f]",
+    red: "text-[#c8423b]",
   };
   return (
     <div className={`rounded-xl border p-3 ${toneMap[tone]}`}>
@@ -167,7 +168,7 @@ function MetricCard({
         {label}
       </p>
       <p className="mt-1 text-lg font-black">{value}</p>
-      {helper && <p className="mt-1 text-[11px] text-gray-600">{helper}</p>}
+      {helper && <p className="mt-1 text-[11px] text-[#52636f]">{helper}</p>}
     </div>
   );
 }
@@ -181,7 +182,7 @@ function SectionCard({
 }) {
   return (
     <div
-      className={`pc rounded-2xl border border-gray-200 bg-white p-4 shadow-sm ${className}`}
+      className={`pc rounded-2xl border border-[#dce1df] bg-white p-4 shadow-sm ${className}`}
     >
       {children}
     </div>
@@ -201,8 +202,8 @@ function SectionHead({
     <div className="mb-3 flex items-start gap-2">
       <div className="mt-0.5 flex-shrink-0">{icon}</div>
       <div>
-        <h3 className="text-sm font-bold text-gray-950">{title}</h3>
-        {subtitle && <p className="mt-0.5 text-xs text-gray-600">{subtitle}</p>}
+        <h3 className="text-sm font-bold text-[#102532]">{title}</h3>
+        {subtitle && <p className="mt-0.5 text-xs text-[#52636f]">{subtitle}</p>}
       </div>
     </div>
   );
@@ -210,7 +211,7 @@ function SectionHead({
 
 function EmptyState({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-center text-sm text-gray-600">
+    <div className="rounded-lg border border-dashed border-[#dce1df] bg-[#fbf8f2] p-4 text-center text-sm text-[#52636f]">
       {children}
     </div>
   );
@@ -232,18 +233,18 @@ function PlayerRow({
   badge?: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 px-4 py-2.5 hover:bg-gray-50 transition-colors">
+    <div className="flex items-center justify-between gap-4 px-4 py-2.5 hover:bg-[#fbf8f2] transition-colors">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-medium text-gray-900">{name}</span>
+          <span className="text-sm font-medium text-[#102532]">{name}</span>
           {badge}
         </div>
-        <span className="text-xs text-gray-400">
+        <span className="text-xs text-[#8a9bab]">
           {method}
           {reference ? ` · Ref: ${reference}` : ""}
         </span>
       </div>
-      <span className="text-sm font-semibold text-gray-900 shrink-0">
+      <span className="text-sm font-semibold text-[#102532] shrink-0">
         {currency}
         {Number(amount || 0).toFixed(2)}
       </span>
@@ -262,20 +263,20 @@ function CollapsibleGroup({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border-b border-gray-100 last:border-0">
+    <div className="border-b border-[#ece8e0] last:border-0">
       <button
-        className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors text-left"
+        className="w-full px-4 py-3 flex items-center justify-between hover:bg-[#fbf8f2] transition-colors text-left"
         onClick={() => setOpen((o) => !o)}
       >
         {header}
         {open ? (
-          <ChevronUp className="h-4 w-4 text-gray-400 shrink-0 ml-2" />
+          <ChevronUp className="h-4 w-4 text-[#8a9bab] shrink-0 ml-2" />
         ) : (
-          <ChevronDown className="h-4 w-4 text-gray-400 shrink-0 ml-2" />
+          <ChevronDown className="h-4 w-4 text-[#8a9bab] shrink-0 ml-2" />
         )}
       </button>
       {open && (
-        <div className="border-t border-gray-100 bg-gray-50 divide-y divide-gray-100">
+        <div className="border-t border-[#ece8e0] bg-[#fbf8f2] divide-y divide-gray-100">
           {children}
         </div>
       )}
@@ -305,8 +306,8 @@ export default function ApprovalTotalsTab({
   onRefresh,
 }: Props) {
   const [refreshing, setRefreshing] = useState(false);
-  const currency = config?.currencySymbol || config?.currency || "€";
-  const fmt = (n: number) => `${currency}${Number(n || 0).toFixed(2)}`;
+ 
+  const { sym, fmt } = useCurrency(config);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -340,8 +341,8 @@ export default function ApprovalTotalsTab({
   if (room.status !== "completed") {
     return (
       <div className="p-5">
-        <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center">
-          <p className="text-sm text-gray-400">
+        <div className="rounded-xl border border-dashed border-[#dce1df] bg-[#fbf8f2] p-8 text-center">
+          <p className="text-sm text-[#8a9bab]">
             Available once the quiz is completed and reconciliation approved.
           </p>
         </div>
@@ -352,8 +353,8 @@ export default function ApprovalTotalsTab({
   if (auditViewLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-indigo-600" />
-        <span className="ml-3 text-sm text-gray-600">
+        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#157f85]" />
+        <span className="ml-3 text-sm text-[#52636f]">
           Loading reconciliation…
         </span>
       </div>
@@ -363,13 +364,13 @@ export default function ApprovalTotalsTab({
   if (auditViewError || !auditView) {
     return (
       <div className="p-5 space-y-3">
-        <div className="flex gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
-          <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600" />
+        <div className="flex gap-3 rounded-xl border border-[rgba(233,87,79,0.3)] bg-[rgba(233,87,79,0.08)] p-4">
+          <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#c8423b]" />
           <div>
-            <p className="text-sm font-semibold text-red-900">
+            <p className="text-sm font-semibold text-[#8b1c1c]">
               Error loading reconciliation
             </p>
-            <p className="text-xs text-red-700 mt-1">
+            <p className="text-xs text-[#c8423b] mt-1">
               {auditViewError || "No data available"}
             </p>
           </div>
@@ -377,7 +378,7 @@ export default function ApprovalTotalsTab({
         <button
           onClick={handleRefresh}
           disabled={refreshing}
-          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-lg bg-[#157f85] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0e6268] disabled:opacity-50"
         >
           <RefreshCw
             className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
@@ -421,7 +422,7 @@ export default function ApprovalTotalsTab({
         <button
           onClick={handleRefresh}
           disabled={refreshing}
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-lg border border-[#dce1df] bg-white px-3 py-2 text-sm font-medium text-[#52636f] hover:bg-[#fbf8f2] disabled:opacity-50"
         >
           <RefreshCw
             className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
@@ -430,7 +431,7 @@ export default function ApprovalTotalsTab({
         </button>
         <button
           onClick={handlePrint}
-          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+          className="inline-flex items-center gap-2 rounded-lg bg-[#157f85] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0e6268]"
         >
           <Printer className="h-4 w-4" /> Print / Save PDF
         </button>
@@ -438,34 +439,38 @@ export default function ApprovalTotalsTab({
 
       <div id="approval-totals-report" className="space-y-4">
         {/* ── Header ───────────────────────────────────────────────────────── */}
-        <div className="pc rounded-2xl border border-gray-200 bg-gradient-to-r from-indigo-50 via-white to-purple-50 p-5">
+        <div className="pc rounded-2xl border border-[#dce1df] bg-gradient-to-r from-[rgba(21,127,133,0.06)] via-white to-purple-50 p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="text-xl font-black text-gray-950">
+              <h2 className="text-xl font-black text-[#102532]">
                 Reconciliation Audit
               </h2>
-              <p className="mt-1 text-sm text-gray-600">
-                Exactly what was confirmed during the quiz — grouped by who
-                collected it.
-              </p>
+          <p className="mt-1 text-sm text-[#52636f]">
+  Exactly what was confirmed during the{" "}
+  {(auditView?.reconciliation?.finalLeaderboard?.type === "elimination" ||
+    (room as any).game_type === "elimination")
+    ? "elimination"
+    : "quiz"}{" "}
+   - grouped by who collected it.
+</p>
               {reconciliation.approvedAt && (
-                <p className="mt-2 text-xs text-gray-500">
+                <p className="mt-2 text-xs text-[#52636f]">
                   Approved by{" "}
                   <strong>{reconciliation.approvedBy || "—"}</strong> on{" "}
                   {new Date(reconciliation.approvedAt).toLocaleString()}
                 </p>
               )}
               {reconciliation.notes && (
-                <p className="mt-1 text-xs italic text-gray-500">
+                <p className="mt-1 text-xs italic text-[#52636f]">
                   Note: {reconciliation.notes}
                 </p>
               )}
             </div>
-            <div className="rounded-xl bg-white p-3 text-sm shadow-sm ring-1 ring-gray-200 flex-shrink-0">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+            <div className="rounded-xl bg-white p-3 text-sm shadow-sm ring-1 ring-[#dce1df] flex-shrink-0">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#52636f]">
                 Approved total
               </p>
-              <p className="mt-1 text-2xl font-black text-indigo-700">
+              <p className="mt-1 text-2xl font-black text-[#157f85]">
                 {fmt(reconciliation.finalTotal)}
               </p>
             </div>
@@ -475,7 +480,7 @@ export default function ApprovalTotalsTab({
         {/* ── Summary tiles ─────────────────────────────────────────────────── */}
         <SectionCard>
           <SectionHead
-            icon={<DollarSign className="h-5 w-5 text-indigo-600" />}
+            icon={<DollarSign className="h-5 w-5 text-[#157f85]" />}
             title="Financial Summary"
           />
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -516,42 +521,42 @@ export default function ApprovalTotalsTab({
                 Total collected (approved{hasLate ? " + late" : ""}
                 {hasTickets ? " + tickets" : ""})
               </p>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-[#8a9bab]">
                 All confirmed money regardless of when collected.
               </p>
             </div>
-            <p className="text-2xl font-black">{fmt(totals.collected)}</p>
+            <p className="text-2xl font-black"> {fmt(reconciliation.finalTotal)} </p>
           </div>
         </SectionCard>
 
         {/* ── Ticket Sales ──────────────────────────────────────────────────── */}
         {hasTickets && (
-          <div className="pc rounded-2xl border border-purple-200 bg-purple-50 p-4">
-            <div className="rounded-xl border border-purple-100 bg-white overflow-hidden">
+          <div className="pc rounded-2xl border border-[rgba(184,198,176,0.5)] bg-[rgba(184,198,176,0.1)] p-4">
+            <div className="rounded-xl border border-[rgba(184,198,176,0.3)] bg-white overflow-hidden">
               <CollapsibleGroup
                 defaultOpen={false}
                 header={
                   <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-start gap-2">
-                      <Ticket className="mt-0.5 h-5 w-5 flex-shrink-0 text-purple-600" />
+                      <Ticket className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#52636f]" />
                       <div>
-                        <h3 className="text-sm font-bold text-gray-950">
+                        <h3 className="text-sm font-bold text-[#102532]">
                           Pre-sold Ticket Sales
                         </h3>
-                        <p className="mt-0.5 text-xs text-gray-600">
+                        <p className="mt-0.5 text-xs text-[#52636f]">
                           Confirmed before the quiz · click to view ticket rows
                         </p>
                       </div>
                     </div>
                     <div className="grid grid-cols-4 gap-2 text-right sm:min-w-[340px]">
                       <div>
-                        <p className="text-sm font-black text-gray-900">
+                        <p className="text-sm font-black text-[#102532]">
                           {tickets.length}
                         </p>
-                        <p className="text-[11px] text-gray-500">Sold</p>
+                        <p className="text-[11px] text-[#52636f]">Sold</p>
                       </div>
                       <div>
-                        <p className="text-sm font-black text-green-700">
+                        <p className="text-sm font-black text-[#157f85]">
                           {
                             tickets.filter(
                               (t: TicketRow) =>
@@ -559,10 +564,10 @@ export default function ApprovalTotalsTab({
                             ).length
                           }
                         </p>
-                        <p className="text-[11px] text-gray-500">Redeemed</p>
+                        <p className="text-[11px] text-[#52636f]">Redeemed</p>
                       </div>
                       <div>
-                        <p className="text-sm font-black text-amber-600">
+                        <p className="text-sm font-black text-[#8a6d2f]">
                           {
                             tickets.filter(
                               (t: TicketRow) =>
@@ -570,13 +575,13 @@ export default function ApprovalTotalsTab({
                             ).length
                           }
                         </p>
-                        <p className="text-[11px] text-gray-500">No-show</p>
+                        <p className="text-[11px] text-[#52636f]">No-show</p>
                       </div>
                       <div>
                         <p className="text-sm font-black text-purple-800">
                           {fmt(totals.tickets)}
                         </p>
-                        <p className="text-[11px] text-gray-500">Revenue</p>
+                        <p className="text-[11px] text-[#52636f]">Revenue</p>
                       </div>
                     </div>
                   </div>
@@ -586,20 +591,20 @@ export default function ApprovalTotalsTab({
                   {tickets.map((t: TicketRow) => (
                     <div
                       key={t.ticketId}
-                      className="px-4 py-3 flex items-center justify-between gap-4 hover:bg-gray-50"
+                      className="px-4 py-3 flex items-center justify-between gap-4 hover:bg-[#fbf8f2]"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-medium text-gray-900">
+                          <span className="text-sm font-medium text-[#102532]">
                             {t.playerName}
                           </span>
                           {t.playerName !== t.purchaserName && (
-                            <span className="text-xs text-gray-400">
+                            <span className="text-xs text-[#8a9bab]">
                               bought by {t.purchaserName}
                             </span>
                           )}
                         </div>
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-[#8a9bab]">
                           {getMethodLabel(t.paymentMethod)}
                           {t.confirmedByName &&
                             ` · confirmed by ${t.confirmedByName}`}
@@ -609,22 +614,22 @@ export default function ApprovalTotalsTab({
                         <span
                           className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                             t.redemptionStatus === "redeemed"
-                              ? "bg-green-100 text-green-700"
-                              : "bg-amber-100 text-amber-700"
+                              ? "bg-[rgba(21,127,133,0.12)] text-[#157f85]"
+                              : "bg-[rgba(210,181,130,0.18)] text-[#8a6d2f]"
                           }`}
                         >
                           {t.redemptionStatus === "redeemed"
                             ? "✓ Redeemed"
                             : "✗ No-show"}
                         </span>
-                        <span className="text-sm font-semibold text-gray-900">
+                        <span className="text-sm font-semibold text-[#102532]">
                           {fmt(t.amount)}
                         </span>
                       </div>
                     </div>
                   ))}
                 </div>
-                <div className="px-4 py-3 flex justify-between bg-purple-50 border-t border-purple-100">
+                <div className="px-4 py-3 flex justify-between bg-[rgba(184,198,176,0.1)] border-t border-[rgba(184,198,176,0.3)]">
                   <span className="text-sm font-semibold text-purple-800">
                     Total ticket revenue
                   </span>
@@ -638,9 +643,9 @@ export default function ApprovalTotalsTab({
         )}
 
         {/* ── On the Night ──────────────────────────────────────────────────── */}
-        <div className="pc rounded-2xl border border-green-200 bg-green-50 p-4">
+        <div className="pc rounded-2xl border border-[rgba(21,127,133,0.3)] bg-[rgba(21,127,133,0.06)] p-4">
           <SectionHead
-            icon={<UserCheck className="h-5 w-5 text-green-600" />}
+            icon={<UserCheck className="h-5 w-5 text-[#157f85]" />}
             title="On the Night — Confirmed Payments"
             subtitle="Grouped by who collected and confirmed each payment"
           />
@@ -652,20 +657,20 @@ export default function ApprovalTotalsTab({
                   defaultOpen={false}
                   header={
                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-xs font-bold text-green-700 shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-[rgba(21,127,133,0.12)] flex items-center justify-center text-xs font-bold text-[#157f85] shrink-0">
                         {group.confirmedByName.charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0">
-                        <div className="text-sm font-semibold text-gray-900">
+                        <div className="text-sm font-semibold text-[#102532]">
                           {group.confirmedByName}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-[#52636f]">
                           {getRoleLabel(group.confirmedByRole)} ·{" "}
                           {group.players.length} player
                           {group.players.length !== 1 ? "s" : ""}
                         </div>
                       </div>
-                      <div className="ml-auto mr-2 text-sm font-semibold text-green-700">
+                      <div className="ml-auto mr-2 text-sm font-semibold text-[#157f85]">
                         {fmt(group.totalAmount)}
                       </div>
                     </div>
@@ -678,21 +683,21 @@ export default function ApprovalTotalsTab({
                       method={p.methodLabel || getMethodLabel(p.paymentMethod)}
                       reference={p.paymentReference}
                       amount={p.amount}
-                      currency={currency}
+                      currency={sym}
                     />
                   ))}
                   <div className="px-4 py-2 flex justify-between bg-white">
-                    <span className="text-xs font-semibold text-gray-500 uppercase">
+                    <span className="text-xs font-semibold text-[#52636f] uppercase">
                       Subtotal
                     </span>
-                    <span className="text-sm font-bold text-green-700">
+                    <span className="text-sm font-bold text-[#157f85]">
                       {fmt(group.totalAmount)}
                     </span>
                   </div>
                 </CollapsibleGroup>
               ))}
-              <div className="px-4 py-3 flex justify-between bg-green-50 border-t border-green-100">
-                <span className="text-sm font-semibold text-green-800">
+              <div className="px-4 py-3 flex justify-between bg-[rgba(21,127,133,0.06)] border-t border-green-100">
+                <span className="text-sm font-semibold text-[#0e6268]">
                   Total confirmed on the night
                 </span>
                 <span className="text-sm font-bold text-green-900">
@@ -709,11 +714,11 @@ export default function ApprovalTotalsTab({
         {hasAdj && (
           <SectionCard>
             <SectionHead
-              icon={<Scale className="h-5 w-5 text-indigo-600" />}
+              icon={<Scale className="h-5 w-5 text-[#157f85]" />}
               title="Manual Adjustments"
               subtitle="Ledger entries added during reconciliation"
             />
-            <div className="rounded-xl border border-gray-200 overflow-hidden">
+            <div className="rounded-xl border border-[#dce1df] overflow-hidden">
               {adjustments.map((adj: Adjustment) => {
                 const isIncrease =
                   adj.adjustmentType === "received" ||
@@ -722,20 +727,20 @@ export default function ApprovalTotalsTab({
                 return (
                   <div
                     key={adj.id}
-                    className="px-4 py-3 flex items-center justify-between gap-4 border-b border-gray-50 last:border-0 hover:bg-gray-50"
+                    className="px-4 py-3 flex items-center justify-between gap-4 border-b border-[#f6f1e8] last:border-0 hover:bg-[#fbf8f2]"
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-medium text-gray-900">
+                        <span className="text-sm font-medium text-[#102532]">
                           {getAdjTypeLabel(adj.adjustmentType)}
                         </span>
                         {adj.reasonCode && (
-                          <span className="text-xs rounded-full bg-gray-100 text-gray-600 px-2 py-0.5">
+                          <span className="text-xs rounded-full bg-[#f1f0ee] text-[#52636f] px-2 py-0.5">
                             {adj.reasonCode}
                           </span>
                         )}
                       </div>
-                      <div className="text-xs text-gray-400 mt-0.5">
+                      <div className="text-xs text-[#8a9bab] mt-0.5">
                         {new Date(adj.ts).toLocaleString()}
                         {adj.paymentMethod &&
                           ` · ${getMethodLabel(adj.paymentMethod)}`}
@@ -744,7 +749,7 @@ export default function ApprovalTotalsTab({
                       </div>
                     </div>
                     <span
-                      className={`text-sm font-semibold shrink-0 ${isIncrease ? "text-green-700" : "text-red-700"}`}
+                      className={`text-sm font-semibold shrink-0 ${isIncrease ? "text-[#157f85]" : "text-[#c8423b]"}`}
                     >
                       {isIncrease ? "+" : "−"}
                       {fmt(adj.amount)}
@@ -752,12 +757,12 @@ export default function ApprovalTotalsTab({
                   </div>
                 );
               })}
-              <div className="px-4 py-3 flex justify-between bg-gray-50 border-t border-gray-200">
-                <span className="text-sm font-semibold text-gray-700">
+              <div className="px-4 py-3 flex justify-between bg-[#fbf8f2] border-t border-[#dce1df]">
+                <span className="text-sm font-semibold text-[#52636f]">
                   Net adjustments
                 </span>
                 <span
-                  className={`text-sm font-bold ${reconciliation.adjustmentsNet >= 0 ? "text-green-700" : "text-red-700"}`}
+                  className={`text-sm font-bold ${reconciliation.adjustmentsNet >= 0 ? "text-[#157f85]" : "text-[#c8423b]"}`}
                 >
                   {reconciliation.adjustmentsNet >= 0 ? "+" : ""}
                   {fmt(reconciliation.adjustmentsNet)}
@@ -769,13 +774,13 @@ export default function ApprovalTotalsTab({
 
         {/* ── Late Payments ─────────────────────────────────────────────────── */}
         {hasLate && (
-          <div className="pc rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <div className="pc rounded-2xl border border-[rgba(210,181,130,0.5)] bg-[rgba(210,181,130,0.1)] p-4">
             <SectionHead
-              icon={<Clock className="h-5 w-5 text-amber-600" />}
+              icon={<Clock className="h-5 w-5 text-[#8a6d2f]" />}
               title="Late Payments"
               subtitle="Confirmed after the reconciliation was approved"
             />
-            <div className="rounded-xl border border-amber-100 bg-white overflow-hidden">
+            <div className="rounded-xl border border-[rgba(210,181,130,0.3)] bg-white overflow-hidden">
               {latePlayers.map((p: LatePlayer) => (
                 <PlayerRow
                   key={p.playerId + p.paymentMethod}
@@ -783,16 +788,16 @@ export default function ApprovalTotalsTab({
                   method={p.methodLabel || getMethodLabel(p.paymentMethod)}
                   reference={p.paymentReference}
                   amount={p.amount}
-                  currency={currency}
+                  currency={sym}
                   badge={
-                    <span className="text-xs rounded-full bg-amber-100 text-amber-700 px-2 py-0.5">
+                    <span className="text-xs rounded-full bg-[rgba(210,181,130,0.18)] text-[#8a6d2f] px-2 py-0.5">
                       {p.confirmedByName || getRoleLabel(p.confirmedByRole)}
                     </span>
                   }
                 />
               ))}
-              <div className="px-4 py-3 flex justify-between bg-amber-50 border-t border-amber-100">
-                <span className="text-sm font-semibold text-amber-800">
+              <div className="px-4 py-3 flex justify-between bg-[rgba(210,181,130,0.1)] border-t border-[rgba(210,181,130,0.3)]">
+                <span className="text-sm font-semibold text-[#8a6d2f]">
                   Total late payments
                 </span>
                 <span className="text-sm font-bold text-amber-900">
@@ -807,9 +812,9 @@ export default function ApprovalTotalsTab({
         {(hasOutstanding || hasWrittenOff) && (
           <div className="grid gap-4 lg:grid-cols-2">
             {hasOutstanding && (
-              <div className="pc rounded-2xl border border-orange-200 bg-orange-50 p-4">
+              <div className="pc rounded-2xl border border-[rgba(210,181,130,0.5)] bg-[rgba(210,181,130,0.1)] p-4">
                 <SectionHead
-                  icon={<AlertTriangle className="h-5 w-5 text-orange-600" />}
+                  icon={<AlertTriangle className="h-5 w-5 text-[#8a6d2f]" />}
                   title="Outstanding"
                   subtitle="Not resolved — excluded from totals"
                 />
@@ -818,15 +823,15 @@ export default function ApprovalTotalsTab({
                     ([status, players]) => (
                       <div
                         key={status}
-                        className="rounded-xl border border-orange-100 bg-white overflow-hidden"
+                        className="rounded-xl border border-[rgba(210,181,130,0.3)] bg-white overflow-hidden"
                       >
-                        <div className="px-3 py-2 bg-orange-50 border-b border-orange-100 flex items-center gap-2">
+                        <div className="px-3 py-2 bg-[rgba(210,181,130,0.1)] border-b border-[rgba(210,181,130,0.3)] flex items-center gap-2">
                           <span
                             className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${getStatusBadge(status)}`}
                           >
                             {status.charAt(0).toUpperCase() + status.slice(1)}
                           </span>
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs text-[#52636f]">
                             {(players as OutstandingPlayer[]).length} player
                             {(players as OutstandingPlayer[]).length !== 1
                               ? "s"
@@ -842,7 +847,7 @@ export default function ApprovalTotalsTab({
                             }
                             reference={p.paymentReference}
                             amount={p.amount}
-                            currency={currency}
+                            currency={sym}
                           />
                         ))}
                       </div>
@@ -861,13 +866,13 @@ export default function ApprovalTotalsTab({
             )}
 
             {hasWrittenOff && (
-              <div className="pc rounded-2xl border border-red-200 bg-red-50 p-4">
+              <div className="pc rounded-2xl border border-[rgba(233,87,79,0.3)] bg-[rgba(233,87,79,0.08)] p-4">
                 <SectionHead
-                  icon={<AlertCircle className="h-5 w-5 text-red-600" />}
+                  icon={<AlertCircle className="h-5 w-5 text-[#c8423b]" />}
                   title="Written Off"
                   subtitle="Closed as not collected — excluded from totals"
                 />
-                <div className="rounded-xl border border-red-100 bg-white overflow-hidden">
+                <div className="rounded-xl border border-[rgba(233,87,79,0.2)] bg-white overflow-hidden">
                   {writtenOff.map((p: WrittenOffPlayer) => (
                     <div
                       key={p.playerId + p.paymentMethod}
@@ -875,29 +880,29 @@ export default function ApprovalTotalsTab({
                     >
                       <div className="flex items-center justify-between gap-4">
                         <div>
-                          <span className="text-sm font-medium text-gray-900">
+                          <span className="text-sm font-medium text-[#102532]">
                             {p.playerName}
                           </span>
-                          <div className="text-xs text-gray-400">
+                          <div className="text-xs text-[#8a9bab]">
                             {getMethodLabel(p.paymentMethod)}
                           </div>
                         </div>
-                        <span className="text-sm font-semibold text-red-700">
+                        <span className="text-sm font-semibold text-[#c8423b]">
                           {fmt(p.amount)}
                         </span>
                       </div>
                       {p.adminNotes && (
-                        <p className="mt-1 rounded-lg bg-red-50 p-2 text-xs text-gray-600">
+                        <p className="mt-1 rounded-lg bg-[rgba(233,87,79,0.08)] p-2 text-xs text-[#52636f]">
                           Note: {p.adminNotes}
                         </p>
                       )}
                     </div>
                   ))}
-                  <div className="px-4 py-3 flex justify-between bg-red-50 border-t border-red-100">
+                  <div className="px-4 py-3 flex justify-between bg-[rgba(233,87,79,0.08)] border-t border-[rgba(233,87,79,0.2)]">
                     <span className="text-sm font-semibold text-red-800">
                       Total written off
                     </span>
-                    <span className="text-sm font-bold text-red-900">
+                    <span className="text-sm font-bold text-[#8b1c1c]">
                       {fmt(totals.writtenOff)}
                     </span>
                   </div>

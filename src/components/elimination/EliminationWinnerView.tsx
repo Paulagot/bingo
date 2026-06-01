@@ -5,6 +5,7 @@ import { FONT_DISPLAY, FONT_BODY, GOLD, DANGER, BASE_BG } from './utils/designTo
 import { Web3Provider } from '../Web3Provider';
 import { EliminationFinalizeSection } from './EliminationFinalizeSection';
 import { getTokenByMint } from '../../chains/solana/config/solanaTokenConfig';
+import { FeedbackModal } from '../feedback/FeedbackModal';
 
 interface Web3RoomData {
   paymentMode: string;
@@ -69,19 +70,19 @@ const PrizeInfo: React.FC<PrizeInfoProps> = ({
       </div>
 
       {/* Winner spotlight */}
-{isWinner && (
-  <div style={p.spotlight}>
-    <div style={p.spotlightEyebrow}>Your winnings</div>
-    <div style={p.spotlightAmount}>
-      {fmt(totalPool * 0.30)} {tokenSymbol}
-    </div>
-    <div style={p.spotlightSub}>
-      30% of {fmt(totalPool)} {tokenSymbol} pool
-      {' · '}
-      {totalPlayers} players
-    </div>
-  </div>
-)}
+      {isWinner && (
+        <div style={p.spotlight}>
+          <div style={p.spotlightEyebrow}>Your winnings</div>
+          <div style={p.spotlightAmount}>
+            {fmt(totalPool * 0.30)} {tokenSymbol}
+          </div>
+          <div style={p.spotlightSub}>
+            30% of {fmt(totalPool)} {tokenSymbol} pool
+            {' · '}
+            {totalPlayers} players
+          </div>
+        </div>
+      )}
 
       {/* Breakdown */}
       <div style={p.breakdown}>
@@ -102,7 +103,7 @@ const PrizeInfo: React.FC<PrizeInfoProps> = ({
         ))}
       </div>
 
-      {/* Pending note — only shown to non-host, non-winner observers before finalize */}
+      {/* Pending note */}
       {!isWinner && !finalized && (
         <div style={p.pendingNote}>
           Waiting for host to distribute prizes on-chain
@@ -126,8 +127,9 @@ export const EliminationWinnerView: React.FC<Props> = ({
   roomId,
   roomData,
 }) => {
-  const [countdown, setCountdown] = useState(autoCloseSeconds);
-  const [finalized, setFinalized] = useState(false);
+  const [countdown, setCountdown]     = useState(autoCloseSeconds);
+  const [finalized, setFinalized]     = useState(false);
+  const [feedbackDone, setFeedbackDone] = useState(false);
 
   const isWinner     = localPlayerId === winnerId;
   const playerMap    = Object.fromEntries(players.map(p => [p.playerId, p]));
@@ -135,7 +137,7 @@ export const EliminationWinnerView: React.FC<Props> = ({
   const totalPlayers = players.length;
 
   // Auto-close countdown — pause if host needs to finalize
-const shouldAutoClose = onClose && !(isHost && isWeb3Room);
+  const shouldAutoClose = onClose && !(isHost && isWeb3Room);
 
   useEffect(() => {
     if (!shouldAutoClose) return;
@@ -154,7 +156,6 @@ const shouldAutoClose = onClose && !(isHost && isWeb3Room);
 
   const handleFinalized = () => {
     setFinalized(true);
-    // Resume the auto-close countdown for the host now that finalize is done
   };
 
   return (
@@ -188,18 +189,27 @@ const shouldAutoClose = onClose && !(isHost && isWeb3Room);
         />
       )}
 
-{/* ── Web3 finalize section — host only ── */}
-{isHost && isWeb3Room && roomData && roomId && hostId && (
-  <Web3Provider force={true}>
-    <EliminationFinalizeSection
-      roomId={roomId}
-      hostId={hostId}
-      winnerPlayerId={winnerId}
-      roomData={{ ...roomData, totalPlayers }}
-      onComplete={handleFinalized}  // ← just marks finalized, does NOT navigate
-    />
-  </Web3Provider>
-)}
+      {/* ── Web3 finalize section — host only ── */}
+      {isHost && isWeb3Room && roomData && roomId && hostId && (
+        <Web3Provider force={true}>
+          <EliminationFinalizeSection
+            roomId={roomId}
+            hostId={hostId}
+            winnerPlayerId={winnerId}
+            roomData={{ ...roomData, totalPlayers }}
+            onComplete={handleFinalized}
+          />
+        </Web3Provider>
+      )}
+
+      {/* ── Feedback modal — players only, not the host ── */}
+      {!isHost && roomId && !feedbackDone && (
+        <FeedbackModal
+          roomId={roomId}
+          gameType="elimination"
+          onClose={() => setFeedbackDone(true)}
+        />
+      )}
 
       {/* Final standings */}
       <div style={s.standings}>

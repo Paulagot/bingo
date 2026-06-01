@@ -1,0 +1,2 @@
+import GenericMarketingPage from '../GenericMarketingPage';
+export default function CookiesPage() { return <GenericMarketingPage path="/legal/cookies" seoTitle="Cookie Policy" seoDescription="FundRaisely cookie policy placeholder." eyebrow="Legal" h1="Cookie policy" intro="Holding page for the FundRaisely cookie policy. Replace with reviewed legal copy before launch." imageKey="committeeReports" />; }

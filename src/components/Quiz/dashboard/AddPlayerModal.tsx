@@ -374,7 +374,7 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
         if (cancelled) return;
 
         setAvailablePaymentMethods(response.available_methods || []);
-        setLinkedPaymentMethodIds(response.linked_method_ids || []);
+        setLinkedPaymentMethodIds(response.ticket_method_ids ?? response.linked_method_ids ?? []);
 
         if (debug) {
           console.log('[AddPlayerModal] linked payment methods response:', response);
@@ -662,9 +662,9 @@ const AddPlayerModal: React.FC<AddPlayerModalProps> = ({
       className="fixed inset-0 z-50 overflow-y-auto"
     >
       <div className="flex min-h-screen items-center justify-center">
-        <div className="fixed inset-0 bg-black opacity-30" aria-hidden="true" />
+        <div className="fixed inset-0 bg-black/50" aria-hidden="true" />
 
-        <div className="bg-muted relative z-50 w-full max-w-md rounded-xl p-6 shadow-xl">
+       <div className="bg-white relative z-50 w-full max-w-md rounded-xl p-6 shadow-xl">
           <Dialog.Title className="heading-2">
             {effectiveMode === 'add' ? 'Add Player' : 'Edit Player'}
           </Dialog.Title>

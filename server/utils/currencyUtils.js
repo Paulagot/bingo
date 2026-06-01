@@ -88,15 +88,14 @@ export function getCurrencyConfig(code) {
  */
 export function getRoomCurrencyCode(config) {
   if (!config) return 'EUR';
-
-  // Prefer an explicit code field if present
+  // NEW: prefer the club-level reporting currency if passed through
+  if (config.reporting_currency && SUPPORTED_CURRENCIES[config.reporting_currency])
+    return config.reporting_currency;
+  // existing fallbacks remain...
   const explicit = config.currency || config.currencyCode || config.currency_type;
   if (explicit && SUPPORTED_CURRENCIES[explicit]) return explicit;
-
-  // Fall back to deriving from the symbol
   const symbol = config.currencySymbol || config.currency_symbol;
   if (symbol) return currencyFromSymbol(symbol);
-
   return 'EUR';
 }
 

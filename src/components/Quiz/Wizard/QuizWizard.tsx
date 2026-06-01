@@ -17,6 +17,7 @@ type WizardStep = 'setup' | 'templates' | 'rounds' | 'fundraising' | 'stepPrizes
 interface QuizWizardProps {
   onComplete?: () => void;
   hideEntitlements?: boolean;
+  hideTitle?: boolean;        // ← NEW: pass true when rendered inside a modal that already has a header
   titleOverride?: string;
   isEditMode?: boolean;
 }
@@ -36,6 +37,7 @@ function getStepSafe(i: number): StepKey {
 export default function QuizWizard({
   onComplete,
   hideEntitlements,
+  hideTitle,
   titleOverride,
   isEditMode,
 }: QuizWizardProps) {
@@ -63,12 +65,10 @@ export default function QuizWizard({
   const goNext = () => {
     let offset = 1;
 
-    // Skip rounds if template says so
     if (currentStep === 'templates' && setupConfig.skipRoundConfiguration) {
       offset += 1;
     }
 
-    // Skip fundraising step entirely for donation mode
     if (
       (currentStep === 'rounds' && isDonationMode) ||
       (currentStep === 'templates' && setupConfig.skipRoundConfiguration && isDonationMode)
@@ -88,18 +88,14 @@ export default function QuizWizard({
   const goBack = () => {
     let offset = 1;
 
-    // From prizes, skip fundraising if donation mode
     if (currentStep === 'stepPrizes' && isDonationMode) {
       offset += 1;
     }
 
-    // From fundraising, skip rounds if template says so
     if (currentStep === 'fundraising' && setupConfig.skipRoundConfiguration) {
       offset += 1;
     }
 
-    // From prizes, if both fundraising is skipped (donation) and rounds were skipped (template),
-    // go all the way back to templates
     if (currentStep === 'stepPrizes' && isDonationMode && setupConfig.skipRoundConfiguration) {
       offset += 1;
     }
@@ -142,7 +138,7 @@ export default function QuizWizard({
 
   return (
     <div className={isEditMode ? '' : 'mx-auto max-w-3xl px-4 py-10'}>
-      {!isEditMode && (
+      {!isEditMode && !hideTitle && (
         <div className="mb-6 text-center">
           <h1 className="heading-1">{titleOverride ?? 'Create Your Fundraising Quiz'}</h1>
           {!hideEntitlements && <EntitlementsBar ents={ents} className="inline-block" />}

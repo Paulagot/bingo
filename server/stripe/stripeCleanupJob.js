@@ -19,9 +19,9 @@ let jobTimer = null;
 
 async function runSweep() {
   try {
-    console.log('[CleanupJob] ⏰ Running expired ticket sweep...');
+    // console.log('[CleanupJob] ⏰ Running expired ticket sweep...');
     const result = await sweepExpiredTickets();
-    console.log('[CleanupJob] ✅ Sweep complete:', result);
+    // console.log('[CleanupJob] ✅ Sweep complete:', result);
   } catch (err) {
     // Never crash the server — just log and wait for next interval
     console.error('[CleanupJob] ❌ Sweep failed (will retry next interval):', err.message);
@@ -38,7 +38,7 @@ export function startStripeCleanupJob() {
     return;
   }
 
-  console.log(`[CleanupJob] 🚀 Starting — interval: ${INTERVAL_MS / 1000}s`);
+  // console.log(`[CleanupJob] 🚀 Starting — interval: ${INTERVAL_MS / 1000}s`);
 
   // Run immediately on startup to clear anything that expired while the server was down
   runSweep();

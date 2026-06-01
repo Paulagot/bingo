@@ -4,15 +4,16 @@
 export interface User {
   id: string;
   club_id: string;
-  name: string;
+  name: string;        // person's name (e.g. "Jane Smith")
   email: string;
   role: string;
 }
 
 export interface Club {
   id: string;
-  name: string;
+  name: string;                // club name (e.g. "Greenfield Community Club")
   email: string;
+  reporting_currency: string;  // ISO 4217 code e.g. 'EUR', 'GBP'
 }
 
 export interface AuthUser {
@@ -35,7 +36,6 @@ export interface Entitlements {
     eventLinking?: boolean;
     [key: string]: any;
   };
-  // allow extra fields without TS moaning
   [key: string]: any;
 }
 

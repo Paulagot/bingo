@@ -18,15 +18,20 @@ export type PaymentMethod = {
 };
 
 export type LinkedPaymentMethodsData = {
-  payment_method_ids: number[];
+  ticket_method_ids:  number[];
+  onnight_method_ids: number[];
+  // Legacy field — present on old rooms that haven't been re-saved
+  payment_method_ids?: number[];
   updated_at?: string;
   updated_by?: string;
 };
 
 export type QuizPaymentMethodsResponse = {
-  available_methods: PaymentMethod[];
-  linked_method_ids: number[];
-  total_available: number;
+  available_methods:  PaymentMethod[];
+  ticket_method_ids:  number[];
+  onnight_method_ids: number[];
+  linked_method_ids:  number[];  // kept for backward compat
+  total_available:    number;
 };
 
 
@@ -68,7 +73,10 @@ async getPublicPaymentMethods(roomId: string): Promise<QuizPaymentMethodsRespons
       method_config: m.methodConfig,
       is_official_club_account: m.isOfficialClubAccount,
     })),
-    linked_method_ids: data.paymentMethods.map((m: any) => Number(m.id)),
+    // Public endpoint returns all methods as both contexts (no split available without auth)
+    ticket_method_ids:  data.paymentMethods.map((m: any) => Number(m.id)),
+    onnight_method_ids: data.paymentMethods.map((m: any) => Number(m.id)),
+    linked_method_ids:  data.paymentMethods.map((m: any) => Number(m.id)),
     total_available: data.paymentMethods.length,
   };
 }
@@ -89,7 +97,9 @@ getQuizPaymentMethods(roomId: string) {
    */
   updateLinkedPaymentMethods(
     roomId: string,
-    paymentMethodIds: number[]
+    ticketMethodIds: number[],
+    onnightMethodIds: number[],
+    userId?: string
   ) {
     return this.request<{ 
       message: string; 
@@ -98,7 +108,7 @@ getQuizPaymentMethods(roomId: string) {
       `/quiz-rooms/${roomId}/payment-methods`,
       { 
         method: 'POST', 
-        body: JSON.stringify({ payment_method_ids: paymentMethodIds }) 
+        body: JSON.stringify({ ticketMethodIds, onnightMethodIds, userId }) 
       }
     );
   }

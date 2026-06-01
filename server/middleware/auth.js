@@ -21,7 +21,9 @@ export const authenticateToken = async (req, res, next) => {
 
   try {
     const [rows] = await connection.execute(
-      `SELECT u.*, c.name as club_name
+      `SELECT u.*,
+              c.name               AS club_name,
+              c.reporting_currency AS club_reporting_currency
        FROM fundraisely_users u
        JOIN fundraisely_clubs c ON u.club_id = c.id
        WHERE u.id = ?`,
@@ -32,21 +34,22 @@ export const authenticateToken = async (req, res, next) => {
       return res.status(403).json({ error: 'Invalid token' });
     }
 
-    req.user = rows[0];
-    req.club_id = req.user.club_id;
+    req.user                 = rows[0];
+    req.club_id              = req.user.club_id;
+    req.reporting_currency   = req.user.club_reporting_currency; // ← available to all route handlers
     next();
   } catch (error) {
     console.error('[Auth] Database lookup failed:', {
       message: error.message,
-      code: error.code,
-      name: error.name,
+      code:    error.code,
+      name:    error.name,
     });
 
     return res.status(500).json({
       error: 'Authentication database check failed',
       ...(process.env.NODE_ENV !== 'production' && {
         details: error.message,
-        code: error.code,
+        code:    error.code,
       }),
     });
   }

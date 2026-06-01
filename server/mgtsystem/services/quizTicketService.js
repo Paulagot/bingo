@@ -55,16 +55,17 @@ function normaliseCategory(value) {
   return String(value || '').trim().toLowerCase();
 }
 
-function getLinkedPaymentMethodIds(linkedPaymentMethodsJson) {
+function getLinkedPaymentMethodIds(linkedPaymentMethodsJson, context = 'tickets') {
   const parsed = parseJsonMaybe(linkedPaymentMethodsJson, {});
-  const ids = Array.isArray(parsed.payment_method_ids)
-    ? parsed.payment_method_ids
-    : [];
-
+  let ids;
+  if (context === 'tickets') {
+    ids = parsed.ticket_method_ids ?? parsed.payment_method_ids ?? [];
+  } else {
+    ids = parsed.onnight_method_ids ?? parsed.payment_method_ids ?? [];
+  }
+  if (!Array.isArray(ids)) ids = [];
   return new Set(
-    ids
-      .map((id) => Number(id))
-      .filter((id) => Number.isFinite(id))
+    ids.map((id) => Number(id)).filter((id) => Number.isFinite(id))
   );
 }
 
@@ -86,7 +87,8 @@ export async function getRoomConfig(roomId) {
       time_zone,
       config_json,
       room_caps_json,
-      linked_payment_methods_json
+      linked_payment_methods_json,
+      game_type
     FROM ${WEB2_ROOMS_TABLE}
     WHERE room_id = ?
     LIMIT 1
@@ -118,7 +120,6 @@ export async function getRoomConfig(roomId) {
 
     return null;
   }
-
   return {
     roomId: row.room_id,
     clubId: row.club_id,
@@ -128,6 +129,7 @@ export async function getRoomConfig(roomId) {
     config,
     roomCaps,
     linkedPaymentMethods,
+    gameType: row.game_type || 'quiz',   // ← new
   };
 }
 
@@ -136,6 +138,7 @@ async function getClubPaymentMethodForRoom({
   clubId,
   linkedPaymentMethods,
   clubPaymentMethodId,
+  context = 'tickets',
 }) {
   const numericMethodId = Number(clubPaymentMethodId);
 
@@ -143,7 +146,7 @@ async function getClubPaymentMethodForRoom({
     throw new Error('valid_club_payment_method_required_for_ticket');
   }
 
-  const linkedIds = getLinkedPaymentMethodIds(linkedPaymentMethods);
+ const linkedIds = getLinkedPaymentMethodIds(linkedPaymentMethods, context); 
 
   if (!linkedIds.has(numericMethodId)) {
     if (DEBUG) {
@@ -209,6 +212,7 @@ async function validateManualTicketPaymentMethod({
     clubId,
     linkedPaymentMethods,
     clubPaymentMethodId,
+    context: 'tickets',
   });
 
   if (method.methodCategory !== 'instant_payment') {
@@ -700,6 +704,45 @@ export async function createCryptoDonationTicketWithConfirmedPayment({
     `UPDATE ${TICKETS_TABLE} SET ledger_id = ?, updated_at = UTC_TIMESTAMP() WHERE ticket_id = ?`,
     [ledgerId, ticketId]
   );
+
+  // 4. Attach ledger row to ticket
+  await connection.execute(
+    `UPDATE ${TICKETS_TABLE} SET ledger_id = ?, updated_at = UTC_TIMESTAMP() WHERE ticket_id = ?`,
+    [ledgerId, ticketId]
+  );
+
+  // 5. Send confirmation email (non-fatal)
+  try {
+    const { sendTicketConfirmationEmail, getTicketWithRoomConfig } =
+      await import('../../utils/ticketEmail.js');
+    const ticketRow = await getTicketWithRoomConfig(ticketId);
+    if (ticketRow) {
+      const config = parseJsonMaybe(ticketRow.config_json, {});
+      const extras = parseJsonMaybe(ticketRow.extras, []);
+      await sendTicketConfirmationEmail({
+        ticketId,
+        purchaserEmail: ticketRow.purchaser_email,
+        purchaserName: ticketRow.purchaser_name,
+        playerName: ticketRow.player_name,
+        entryFee: ticketRow.entry_fee,
+        extrasTotal: ticketRow.extras_total,
+        totalAmount: ticketRow.total_amount,
+        currency: ticketRow.currency,
+        currencySymbol: config?.currencySymbol || '€',
+        extras,
+        clubId: ticketRow.club_id,
+        hostName: config?.hostName,
+        eventDateTime: config?.eventDateTime,
+        timeZone: config?.timeZone,
+        gameType: ticketRow.game_type || 'quiz',
+        clubName: ticketRow.club_name || null,
+      });
+      console.log('[TicketService] ✅ Crypto donation email sent to:', ticketRow.purchaser_email);
+    }
+  } catch (emailErr) {
+    console.error('[TicketService] ⚠️ Crypto donation email failed (non-fatal):', emailErr.message);
+  }
+
  
   if (DEBUG) {
     console.log('[TicketService] ✅ Crypto donation ticket created as confirmed/ready:', {
@@ -808,22 +851,24 @@ export async function confirmTicketPayment({
       const config = parseJsonMaybe(ticketRow.config_json, {});
       const extras = parseJsonMaybe(ticketRow.extras, []);
 
-      await sendTicketConfirmationEmail({
-        ticketId,
-        purchaserEmail: ticketRow.purchaser_email,
-        purchaserName: ticketRow.purchaser_name,
-        playerName: ticketRow.player_name,
-        entryFee: ticketRow.entry_fee,
-        extrasTotal: ticketRow.extras_total,
-        totalAmount: ticketRow.total_amount,
-        currency: ticketRow.currency,
-        currencySymbol: config?.currencySymbol || '€',
-        extras,
-        clubId: ticketRow.club_id,
-        hostName: config?.hostName,
-        eventDateTime: config?.eventDateTime,
-        timeZone: config?.timeZone,
-      });
+     await sendTicketConfirmationEmail({
+    ticketId,
+    purchaserEmail: ticketRow.purchaser_email,
+    purchaserName: ticketRow.purchaser_name,
+    playerName: ticketRow.player_name,
+    entryFee: ticketRow.entry_fee,
+    extrasTotal: ticketRow.extras_total,
+    totalAmount: ticketRow.total_amount,
+    currency: ticketRow.currency,
+    currencySymbol: config?.currencySymbol || '€',
+    extras,
+    clubId: ticketRow.club_id,
+    hostName: config?.hostName,
+    eventDateTime: config?.eventDateTime,
+    timeZone: config?.timeZone,
+    gameType: ticketRow.game_type || 'quiz',     // ← new (from JOIN in getTicketWithRoomConfig)
+    clubName: ticketRow.club_name || null,        // ← new (from JOIN in getTicketWithRoomConfig)
+  });
 
       console.log(
         '[TicketService] ✅ Confirmation email sent to:',
@@ -1479,6 +1524,44 @@ export async function createCryptoFixedFeeTicketWithConfirmedPayment({
     `UPDATE ${TICKETS_TABLE} SET ledger_id = ?, updated_at = UTC_TIMESTAMP() WHERE ticket_id = ?`,
     [ledgerId, ticketId]
   );
+
+ // 5. Attach ledger to ticket
+  await connection.execute(
+    `UPDATE ${TICKETS_TABLE} SET ledger_id = ?, updated_at = UTC_TIMESTAMP() WHERE ticket_id = ?`,
+    [ledgerId, ticketId]
+  );
+
+  // 6. Send confirmation email (non-fatal)
+  try {
+    const { sendTicketConfirmationEmail, getTicketWithRoomConfig } =
+      await import('../../utils/ticketEmail.js');
+    const ticketRow = await getTicketWithRoomConfig(ticketId);
+    if (ticketRow) {
+      const config = parseJsonMaybe(ticketRow.config_json, {});
+      const extras = parseJsonMaybe(ticketRow.extras, []);
+      await sendTicketConfirmationEmail({
+        ticketId,
+        purchaserEmail: ticketRow.purchaser_email,
+        purchaserName: ticketRow.purchaser_name,
+        playerName: ticketRow.player_name,
+        entryFee: ticketRow.entry_fee,
+        extrasTotal: ticketRow.extras_total,
+        totalAmount: ticketRow.total_amount,
+        currency: ticketRow.currency,
+        currencySymbol: config?.currencySymbol || '€',
+        extras,
+        clubId: ticketRow.club_id,
+        hostName: config?.hostName,
+        eventDateTime: config?.eventDateTime,
+        timeZone: config?.timeZone,
+        gameType: ticketRow.game_type || 'quiz',
+        clubName: ticketRow.club_name || null,
+      });
+      console.log('[TicketService] ✅ Crypto fixed-fee email sent to:', ticketRow.purchaser_email);
+    }
+  } catch (emailErr) {
+    console.error('[TicketService] ⚠️ Crypto fixed-fee email failed (non-fatal):', emailErr.message);
+  }
 
   if (DEBUG) {
     console.log('[TicketService] ✅ Crypto fixed-fee ticket created:', {

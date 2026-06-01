@@ -1,0 +1,2 @@
+import GenericMarketingPage from './GenericMarketingPage';
+export default function ContactPage() { return <GenericMarketingPage path="/contact" seoTitle="Contact FundRaisely" seoDescription="Contact FundRaisely about quiz fundraisers, fundraising games and platform demos." eyebrow="Contact" h1="Talk to us about your fundraiser" intro="Use this page for contact details, demo routes, common enquiry types and support expectations." imageKey="volunteersTickets" />; }

@@ -91,18 +91,21 @@ router.get('/web2/rooms', authenticateToken, async (req, res) => {
         : 'ORDER BY scheduled_at ASC, created_at DESC';
 
     const sql = `
-      SELECT
-        room_id,
-        host_id,
-        status,
-        scheduled_at,
-        ended_at,
-        time_zone,
-        config_json,
-        room_caps_json,
-        created_at,
-        updated_at
-      FROM ${WEB2_ROOMS_TABLE}
+   SELECT
+  room_id,
+  host_id,
+  game_type,
+  status,
+  scheduled_at,
+  ended_at,
+  time_zone,
+  config_json,
+  room_caps_json,
+  prize_description,
+  prize_value,
+  created_at,
+  updated_at
+FROM ${WEB2_ROOMS_TABLE}
       WHERE ${where.join(' AND ')}
       ${orderBy}
       LIMIT 200
@@ -128,18 +131,21 @@ router.get('/web2/rooms/:roomId', authenticateToken, async (req, res) => {
     if (!roomId) return res.status(400).json({ error: 'missing_room_id' });
 
     const sql = `
-      SELECT
-        room_id,
-        host_id,
-        status,
-        scheduled_at,
-        ended_at,
-        time_zone,
-        config_json,
-        room_caps_json,
-        created_at,
-        updated_at
-      FROM ${WEB2_ROOMS_TABLE}
+   SELECT
+  room_id,
+  host_id,
+  game_type,
+  status,
+  scheduled_at,
+  ended_at,
+  time_zone,
+  config_json,
+  room_caps_json,
+  prize_description,
+  prize_value,
+  created_at,
+  updated_at
+FROM ${WEB2_ROOMS_TABLE}
       WHERE club_id = ? AND room_id = ?
       LIMIT 1
     `;
@@ -252,17 +258,21 @@ router.patch('/web2/rooms/:roomId', authenticateToken, async (req, res) => {
     // Return updated row
     const [rows] = await connection.execute(
       `
-      SELECT
-        room_id,
-        host_id,
-        status,
-        scheduled_at,
-        ended_at,
-        time_zone,
-        config_json,
-        room_caps_json,
-        created_at,
-        updated_at
+ SELECT
+  room_id,
+  host_id,
+  game_type,
+  status,
+  scheduled_at,
+  ended_at,
+  time_zone,
+  config_json,
+  room_caps_json,
+  prize_description,
+  prize_value,
+  created_at,
+  updated_at
+FROM ${WEB2_ROOMS_TABLE}
       FROM ${WEB2_ROOMS_TABLE}
       WHERE club_id = ? AND room_id = ?
       LIMIT 1

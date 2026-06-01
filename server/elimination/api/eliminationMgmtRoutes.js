@@ -1,4 +1,4 @@
-// server/elimination/routes/eliminationMgmtRoutes.js
+// server/elimination/api/eliminationMgmtRoutes.js
 //
 // Auth-gated management routes for the elimination game.
 // Mounted at /api/elimination/mgmt
@@ -21,6 +21,12 @@ import {
   cancelEliminationRoom,
   hydrateEliminationRoom,
 } from './eliminationMgmtService.js';
+import {
+  approveEliminationReconciliation,
+  getEliminationReconciliation,
+} from '../services/eliminationStatsService.js';
+import { markReconciliationApproved } from '../services/eliminationRoomManager.js';
+import { connection, TABLE_PREFIX } from '../../config/database.js';
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-dev-secret';
@@ -35,20 +41,19 @@ const sendError = (res, err) => {
   const status = err?.statusCode ?? 500;
   const message = err?.message ?? 'internal_error';
 
-  // Map known service error codes to clean API error keys
   const ERROR_MAP = {
-    'clubId required':                    [400, 'bad_request'],
-    'roomId required':                    [400, 'bad_request'],
-    'hostId required':                    [400, 'bad_request'],
-    'ENTRY_FEE_REQUIRED':                 [400, 'entry_fee_required'],
-    'MAX_PLAYERS_INVALID':                [400, 'max_players_invalid'],
-    'PRIZE_DESCRIPTION_REQUIRED':         [400, 'prize_description_required'],
-    'not_found':                          [404, 'not_found'],
-    'room_not_editable':                  [409, 'room_not_editable'],
-    'room_not_cancellable':               [409, 'room_not_cancellable'],
-    'no_fields_to_update':                [400, 'no_fields_to_update'],
-    'update_failed_or_room_changed':      [409, 'update_failed_or_room_changed'],
-    'invalid_status':                     [400, 'invalid_status'],
+    'clubId required':               [400, 'bad_request'],
+    'roomId required':               [400, 'bad_request'],
+    'hostId required':               [400, 'bad_request'],
+    'ENTRY_FEE_REQUIRED':            [400, 'entry_fee_required'],
+    'MAX_PLAYERS_INVALID':           [400, 'max_players_invalid'],
+    'PRIZE_DESCRIPTION_REQUIRED':    [400, 'prize_description_required'],
+    'not_found':                     [404, 'not_found'],
+    'room_not_editable':             [409, 'room_not_editable'],
+    'room_not_cancellable':          [409, 'room_not_cancellable'],
+    'no_fields_to_update':           [400, 'no_fields_to_update'],
+    'update_failed_or_room_changed': [409, 'update_failed_or_room_changed'],
+    'invalid_status':                [400, 'invalid_status'],
   };
 
   for (const [key, [mappedStatus, errorCode]] of Object.entries(ERROR_MAP)) {
@@ -65,39 +70,21 @@ const sendError = (res, err) => {
 };
 
 // ─── POST /api/elimination/mgmt/schedule ─────────────────────────────────────
-// Schedule a new elimination room. Saves to DB — does NOT create a socket room.
 router.post('/schedule', async (req, res) => {
   try {
     const clubId = req.club_id;
     if (!clubId) return res.status(401).json({ error: 'unauthorized' });
 
     const {
-      roomId,
-      hostId,
-      hostName,
-      scheduledAt,
-      timeZone,
-      entryFee,
-      currency,
-      maxPlayers,
-      prizeDescription,
-      prizeValue,
+      roomId, hostId, hostName, scheduledAt, timeZone,
+      entryFee, currency, maxPlayers, prizeDescription, prizeValue,
     } = req.body;
 
     console.log(`[eliminationMgmtRoutes] 📅 Schedule elimination — club: ${clubId} room: ${roomId}`);
 
     const result = await scheduleEliminationRoom({
-      clubId,
-      roomId,
-      hostId,
-      hostName,
-      scheduledAt,
-      timeZone,
-      entryFee,
-      currency,
-      maxPlayers,
-      prizeDescription,
-      prizeValue,
+      clubId, roomId, hostId, hostName, scheduledAt, timeZone,
+      entryFee, currency, maxPlayers, prizeDescription, prizeValue,
     });
 
     console.log(`[eliminationMgmtRoutes] ✅ Scheduled room ${result.roomId} status=${result.status}`);
@@ -108,8 +95,6 @@ router.post('/schedule', async (req, res) => {
 });
 
 // ─── GET /api/elimination/mgmt/rooms ─────────────────────────────────────────
-// List elimination rooms for the logged-in club.
-// Query params: status (all|scheduled|open|live|completed|cancelled), time (all|upcoming|past)
 router.get('/rooms', async (req, res) => {
   try {
     const clubId = req.club_id;
@@ -126,7 +111,6 @@ router.get('/rooms', async (req, res) => {
 });
 
 // ─── GET /api/elimination/mgmt/rooms/:roomId ──────────────────────────────────
-// Fetch a single elimination room (for edit modal or drawer detail).
 router.get('/rooms/:roomId', async (req, res) => {
   try {
     const clubId = req.club_id;
@@ -145,8 +129,6 @@ router.get('/rooms/:roomId', async (req, res) => {
 });
 
 // ─── PATCH /api/elimination/mgmt/rooms/:roomId ────────────────────────────────
-// Edit a scheduled elimination room.
-// Only allowed while status = 'scheduled'.
 router.patch('/rooms/:roomId', async (req, res) => {
   try {
     const clubId = req.club_id;
@@ -156,29 +138,15 @@ router.patch('/rooms/:roomId', async (req, res) => {
     if (!roomId) return res.status(400).json({ error: 'missing_room_id' });
 
     const {
-      scheduledAt,
-      timeZone,
-      entryFee,
-      currency,
-      maxPlayers,
-      prizeDescription,
-      prizeValue,
-      config_json,
+      scheduledAt, timeZone, entryFee, currency,
+      maxPlayers, prizeDescription, prizeValue, config_json,
     } = req.body;
 
     console.log(`[eliminationMgmtRoutes] ✏️  Update elimination room ${roomId} — club: ${clubId}`);
 
     const updated = await updateEliminationRoom({
-      clubId,
-      roomId,
-      scheduledAt,
-      timeZone,
-      entryFee,
-      currency,
-      maxPlayers,
-      prizeDescription,
-      prizeValue,
-      configJson: config_json,
+      clubId, roomId, scheduledAt, timeZone, entryFee, currency,
+      maxPlayers, prizeDescription, prizeValue, configJson: config_json,
     });
 
     return res.status(200).json({ room: updated });
@@ -188,7 +156,6 @@ router.patch('/rooms/:roomId', async (req, res) => {
 });
 
 // ─── POST /api/elimination/mgmt/rooms/:roomId/cancel ─────────────────────────
-// Cancel a scheduled or open elimination room.
 router.post('/rooms/:roomId/cancel', async (req, res) => {
   try {
     const clubId = req.club_id;
@@ -207,11 +174,6 @@ router.post('/rooms/:roomId/cancel', async (req, res) => {
 });
 
 // ─── POST /api/elimination/mgmt/rooms/:roomId/hydrate ────────────────────────
-// Load a scheduled elimination room from DB into the socket server's
-// in-memory store. Called when the host clicks "Launch" on the dashboard.
-//
-// After this returns successfully, the frontend opens the game tab at
-// /elimination/host/:roomId?hostId=... and the socket connection takes over.
 router.post('/rooms/:roomId/hydrate', async (req, res) => {
   try {
     const clubId = req.club_id;
@@ -222,16 +184,9 @@ router.post('/rooms/:roomId/hydrate', async (req, res) => {
 
     console.log(`[eliminationMgmtRoutes] 💧 Hydrate elimination room ${roomId} — club: ${clubId}`);
 
-    // Inject createRoomFromConfig to avoid circular import in the service layer
-    const result = await hydrateEliminationRoom({
-      clubId,
-      roomId,
-      createRoomFromConfig,
-    });
+    const result = await hydrateEliminationRoom({ clubId, roomId, createRoomFromConfig });
 
-    console.log(
-      `[eliminationMgmtRoutes] ✅ Room ${roomId} hydrated — alreadyExisted: ${result.alreadyExisted}`
-    );
+    console.log(`[eliminationMgmtRoutes] ✅ Room ${roomId} hydrated — alreadyExisted: ${result.alreadyExisted}`);
 
     return res.status(200).json(result);
   } catch (err) {
@@ -240,9 +195,66 @@ router.post('/rooms/:roomId/hydrate', async (req, res) => {
 });
 
 // ─── POST /api/elimination/mgmt/rooms/:roomId/operator-token ─────────────────
-// Generate a short-lived signed JWT for a non-logged-in operator to join
-// game controls. Same pattern as the quiz operator-token route.
 router.post('/rooms/:roomId/operator-token', async (req, res) => {
+  try {
+    const clubId = req.club_id;
+    if (!clubId) return res.status(401).json({ error: 'unauthorized' });
+
+    const roomId = String(req.params.roomId || '').trim();
+    if (!roomId) return res.status(400).json({ error: 'missing_room_id' });
+
+    const row = await getEliminationRoom({ clubId, roomId });
+    if (!row) return res.status(404).json({ error: 'not_found' });
+
+    const token = jwt.sign(
+      { roomId, role: 'operator', gameType: 'elimination' },
+      JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+
+    const protocol = req.headers['x-forwarded-proto'] || 'https';
+    const origin   = `${protocol}://${req.headers.host}`;
+    const operatorUrl = `${origin}/elimination/operate/${roomId}?token=${token}`;
+
+    console.log(`[eliminationMgmtRoutes] 🎤 Operator token generated — room: ${roomId} club: ${clubId}`);
+
+    return res.status(200).json({ token, operatorUrl });
+  } catch (err) {
+    return sendError(res, err);
+  }
+});
+
+// ─── GET /api/elimination/mgmt/rooms/:roomId/reconciliation ──────────────────
+// Logged-in hosts fetch reconciliation via this auth-gated route.
+router.get('/rooms/:roomId/reconciliation', async (req, res) => {
+  try {
+    const clubId = req.club_id;
+    if (!clubId) return res.status(401).json({ error: 'unauthorized' });
+
+    const roomId = String(req.params.roomId || '').trim();
+    if (!roomId) return res.status(400).json({ error: 'missing_room_id' });
+
+    const row = await getEliminationRoom({ clubId, roomId });
+    if (!row) return res.status(404).json({ error: 'not_found' });
+
+    // Use the canonical room_id from DB in case URL param casing differs
+    const canonicalRoomId = row.room_id ?? roomId;
+    const data = await getEliminationReconciliation(canonicalRoomId);
+
+    if (!data) {
+      return res.status(404).json({ ok: false, error: 'No reconciliation record found' });
+    }
+
+    return res.json({ ok: true, ...data });
+  } catch (err) {
+    return sendError(res, err);
+  }
+});
+
+// ─── POST /api/elimination/mgmt/rooms/:roomId/approve-reconciliation ─────────
+// Logged-in host approves reconciliation.
+// Non-logged-in hosts use the socket event 'elimination_approve_reconciliation'.
+router.post('/rooms/:roomId/approve-reconciliation', async (req, res) => {
   try {
     const clubId = req.club_id;
     if (!clubId) return res.status(401).json({ error: 'unauthorized' });
@@ -254,21 +266,73 @@ router.post('/rooms/:roomId/operator-token', async (req, res) => {
     const row = await getEliminationRoom({ clubId, roomId });
     if (!row) return res.status(404).json({ error: 'not_found' });
 
-    const token = jwt.sign(
-      { roomId, role: 'operator', gameType: 'elimination' },
-      JWT_SECRET,
-      { expiresIn: '8h' }
-    );
-
-    const protocol = req.headers['x-forwarded-proto'] || 'https';
-    const origin = `${protocol}://${req.headers.host}`;
-    const operatorUrl = `${origin}/elimination/operate/${roomId}?token=${token}`;
+    // ── Use the canonical room_id from the DB row ──────────────────────────
+    // The URL param and the DB value may differ in casing on case-sensitive
+    // MySQL installs. Always use what the DB actually stored.
+    const canonicalRoomId = row.room_id ?? roomId;
 
     console.log(
-      `[eliminationMgmtRoutes] 🎤 Operator token generated — room: ${roomId} club: ${clubId}`
+      `[eliminationMgmtRoutes] 🔍 approve — URL roomId: "${roomId}" | DB room_id: "${canonicalRoomId}"`
     );
 
-    return res.status(200).json({ token, operatorUrl });
+    // ── Diagnostic: confirm the reconciliation record exists ───────────────
+    // If it doesn't, check the quiz_reconciliation table directly so we can
+    // log what IS there and give a clearer error.
+    const RECONCILIATION_TABLE = `${TABLE_PREFIX}quiz_reconciliation`;
+    const [diagRows] = await connection.execute(
+      `SELECT room_id, approved_at FROM ${RECONCILIATION_TABLE}
+       WHERE UPPER(room_id) = UPPER(?)
+       LIMIT 1`,
+      [canonicalRoomId]
+    );
+
+    if (!Array.isArray(diagRows) || diagRows.length === 0) {
+      // Log recent records to help debug
+      const [recentRows] = await connection.execute(
+        `SELECT room_id, created_at FROM ${RECONCILIATION_TABLE}
+         ORDER BY created_at DESC LIMIT 5`
+      );
+      console.error(
+        `[eliminationMgmtRoutes] ❌ No reconciliation record for "${canonicalRoomId}".`,
+        `Recent records:`, recentRows.map(r => r.room_id)
+      );
+      return res.status(404).json({
+        ok: false,
+        error: 'No reconciliation record found — the game stats may not have saved yet. Try again in a moment.',
+      });
+    }
+
+    // Already approved? Return success idempotently.
+    if (diagRows[0].approved_at) {
+      console.log(`[eliminationMgmtRoutes] ℹ️  Already approved — room: ${canonicalRoomId}`);
+      markReconciliationApproved(canonicalRoomId);
+      return res.json({ ok: true, alreadyApproved: true });
+    }
+
+    // ── Use the exact room_id value from the DB row for the UPDATE ─────────
+    const dbRoomId = diagRows[0].room_id;
+
+    const { approvedBy, notes } = req.body;
+
+    const result = await approveEliminationReconciliation(
+      dbRoomId,
+      approvedBy ?? req.user?.name ?? 'Host',
+      notes ?? null
+    );
+
+    // Mark in-memory room as approved — try both the canonical and URL versions
+    markReconciliationApproved(dbRoomId);
+    if (dbRoomId !== roomId) markReconciliationApproved(roomId);
+
+    console.log(
+      `[eliminationMgmtRoutes] ✅ Reconciliation approved via HTTP — room: ${dbRoomId} club: ${clubId}`
+    );
+
+    return res.json({
+      ok:             true,
+      adjustmentsNet: result.adjustmentsNet,
+      finalTotal:     result.finalTotal,
+    });
   } catch (err) {
     return sendError(res, err);
   }

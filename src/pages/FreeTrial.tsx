@@ -131,7 +131,7 @@ const FreeTrial: React.FC = () => {
             
             <div className="flex flex-wrap justify-center gap-4 mb-6">
               <a
-                href="/signup?source=free-trial&returnTo=/quiz/create-fundraising-quiz"
+                href="/signup?source=free-trial&returnTo=/quiz/eventdashboard"
                 className="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 text-indigo-700 font-bold shadow-lg hover:bg-indigo-50 hover:scale-105 transition-all duration-300 text-lg"
               >
                 Start Free Trial Now
@@ -259,7 +259,7 @@ const FreeTrial: React.FC = () => {
 
           <div className="text-center mt-12">
             <a
-              href="/signup?source=free-trial&returnTo=/quiz/create-fundraising-quiz"
+              href="/signup?source=free-trial&returnTo=/quiz/eventdashboard"
               className="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 text-indigo-900 font-bold shadow-xl hover:bg-indigo-50 hover:scale-105 transition-all duration-300"
             >
               Start Your Free Trial
@@ -436,7 +436,7 @@ const FreeTrial: React.FC = () => {
             <h3 className="text-2xl font-bold mb-4">Ready to start your free trial?</h3>
             <p className="mb-6 text-white/90">Run a full, real fundraiser with transparent reconciliation, and a bit of sparkle and lots of FUN.</p>
             <a
-              href="/signup?source=free-trial&returnTo=/quiz/create-fundraising-quiz"
+              href="/signup?source=free-trial&returnTo=/quiz/eventdashboard"
               className="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-4 text-indigo-700 font-bold shadow-lg hover:bg-indigo-50 hover:scale-105 transition-all duration-300"
             >
               Create Free Account Now

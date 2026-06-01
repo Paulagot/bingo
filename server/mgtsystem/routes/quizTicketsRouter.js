@@ -14,6 +14,8 @@ import {
   JOIN_WINDOW_MINUTES,
 } from '../services/quizTicketService.js';
 
+import { connection, TABLE_PREFIX } from '../../config/database.js';
+
 import {
   getRoomCapacityStatus,
   getCapacityMessage,
@@ -83,6 +85,8 @@ router.get('/room/:roomId/info', async (req, res) => {
       fundraisingPrices: config.fundraisingPrices || {},
       eventDateTime: config.eventDateTime,
       timeZone: config.timeZone,
+      gameType: roomData.gameType,
+      clubName: roomData.clubName,
       capacity: {
         maxCapacity: capacity.maxCapacity,
         availableForTickets: capacity.availableForTickets,
@@ -275,31 +279,69 @@ router.post('/stripe/checkout', async (req, res) => {
 router.get('/:ticketId/status', async (req, res) => {
   try {
     const { ticketId } = req.params;
-
+ 
     if (!ticketId) {
       return res.status(400).json({ error: 'ticketId required' });
     }
-
+ 
     const ticket = await getTicket(ticketId);
-
+ 
     if (!ticket) {
       return res.status(404).json({ error: 'Ticket not found' });
     }
-
+ 
     const extras =
       typeof ticket.extras === 'string'
         ? JSON.parse(ticket.extras)
         : ticket.extras || [];
-
+ 
     const roomRow = await getRoomSchedule(ticket.room_id);
     const windowInfo = roomRow ? computeJoinWindow(roomRow) : null;
-
+ 
     const ticketReady =
       ticket.payment_status === 'payment_confirmed' &&
       ticket.redemption_status === 'ready';
-
+ 
     const canJoinNow = !!(ticketReady && windowInfo?.canJoinNow);
-
+ 
+    // ── Fetch game_type and club_name from the room + clubs tables ──────────
+    // getRoomSchedule only returns status/scheduled_at/time_zone, so we do a
+    // lightweight extra query here for the two fields the frontend needs.
+    let gameType = 'quiz';
+    let clubName = null;
+    let hostName = null;
+ 
+    try {
+      const ROOMS_TABLE = `${TABLE_PREFIX}web2_quiz_rooms`;
+      const CLUBS_TABLE = `${TABLE_PREFIX}clubs`;
+ 
+      const [metaRows] = await connection.execute(
+        `SELECT r.game_type, r.config_json, c.name AS club_name
+         FROM ${ROOMS_TABLE} r
+         LEFT JOIN ${CLUBS_TABLE} c ON c.id = r.club_id
+         WHERE r.room_id = ?
+         LIMIT 1`,
+        [ticket.room_id]
+      );
+ 
+      if (metaRows?.[0]) {
+        gameType = metaRows[0].game_type || 'quiz';
+        clubName = metaRows[0].club_name || null;
+ 
+        try {
+          const config =
+            typeof metaRows[0].config_json === 'string'
+              ? JSON.parse(metaRows[0].config_json)
+              : metaRows[0].config_json || {};
+          hostName = config.hostName || null;
+        } catch {
+          // ignore parse error
+        }
+      }
+    } catch {
+      // Non-fatal — fall back to defaults
+    }
+ 
     return res.status(200).json({
       ticketId: ticket.ticket_id,
       roomId: ticket.room_id,
@@ -326,6 +368,10 @@ router.get('/:ticketId/status', async (req, res) => {
         : null,
       canJoinNow,
       joinWindowMinutes: JOIN_WINDOW_MINUTES,
+      // ── New fields ──────────────────────────────────────────────────────────
+      gameType,     // 'quiz' | 'elimination'
+      clubName,     // e.g. 'Dublin GAA Quiz Club' — null if not found
+      hostName,     // from config_json.hostName
     });
   } catch (err) {
     console.error('[Tickets API] ❌ Error fetching ticket status:', err);
