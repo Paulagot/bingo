@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { EliminationAdminsTab } from '../EliminationAdminsTab';
+import { QRCodeCanvas } from 'qrcode.react';
+import { getBaseUrl } from '../../../utils/urlHelpers';
 import {
   Users,
   CheckCircle2,
@@ -15,6 +17,8 @@ import {
   Loader2,
   Shield,
   Scale,
+  QrCode,
+  Link as LinkIcon,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -96,12 +100,12 @@ function getPaymentLabel(player: EliminationPlayer, methods?: ClubPaymentMethod[
   }
   const raw   = player.paymentMethod || '';
   const lower = raw.toLowerCase();
-  if (lower === 'cash')                          return 'Cash';
+  if (lower === 'cash')                            return 'Cash';
   if (lower === 'card_tap' || lower === 'cardtap') return 'Card (tap)';
-  if (lower === 'instant_payment')               return 'Instant payment';
-  if (lower === 'pay_admin')                     return 'Pay host';
-  if (lower === 'stripe' || lower === 'card')    return 'Card (Stripe)';
-  if (lower === 'crypto' || lower === 'web3')    return 'Crypto / Web3';
+  if (lower === 'instant_payment')                 return 'Instant payment';
+  if (lower === 'pay_admin')                       return 'Pay host';
+  if (lower === 'stripe' || lower === 'card')      return 'Card (Stripe)';
+  if (lower === 'crypto' || lower === 'web3')      return 'Crypto / Web3';
   return raw || '—';
 }
 
@@ -119,6 +123,11 @@ function norm(s: string) {
     .toLowerCase()
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '');
+}
+
+/** Player-specific join URL — pre-fills their identity on the join page */
+function buildPlayerJoinUrl(roomId: string, playerId: string, playerName: string): string {
+  return `${getBaseUrl()}/elimination/join/${roomId}?playerId=${encodeURIComponent(playerId)}&name=${encodeURIComponent(playerName)}`;
 }
 
 // ─── Payment status badge ─────────────────────────────────────────────────────
@@ -145,6 +154,61 @@ const PaymentBadge: React.FC<{ status: PaymentStatus }> = ({ status }) => {
   );
 };
 
+// ─── Per-player join QR + link panel ─────────────────────────────────────────
+
+const PlayerJoinPanel: React.FC<{
+  roomId: string;
+  player: EliminationPlayer;
+  onClose: () => void;
+}> = ({ roomId, player, onClose }) => {
+  const [copied, setCopied] = useState(false);
+  const joinUrl = buildPlayerJoinUrl(roomId, player.id, player.name);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(joinUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="mt-2 rounded-xl border border-indigo-500/30 bg-black/30 p-3">
+      <div className="flex flex-col sm:flex-row gap-3 items-center">
+        {/* QR */}
+        <div className="rounded-lg bg-white p-2 shadow flex-shrink-0">
+          <QRCodeCanvas value={joinUrl} size={96} />
+        </div>
+        {/* Link */}
+        <div className="flex-1 w-full space-y-2">
+          <p className="text-xs text-gray-400">
+            Share with <span className="font-semibold text-white">{player.name}</span> to join directly.
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={joinUrl}
+              readOnly
+              className="flex-1 min-w-0 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs font-mono text-white/60"
+            />
+            <button
+              onClick={handleCopy}
+              className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors flex-shrink-0"
+            >
+              <LinkIcon className="h-3 w-3" />
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="self-start sm:self-center rounded-lg p-1 text-gray-500 hover:text-white transition-colors"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // ─── Add / Edit Player modal ──────────────────────────────────────────────────
 
 interface AddEditModalProps {
@@ -165,20 +229,13 @@ interface AddEditModalProps {
 }
 
 const AddEditModal: React.FC<AddEditModalProps> = ({
-  isOpen,
-  onClose,
-  onSave,
-  player,
-  entryFee,
-  currency,
-  clubMethods,
-  methodsLoading,
+  isOpen, onClose, onSave, player, entryFee, currency, clubMethods, methodsLoading,
 }) => {
   const isEditMode = !!player;
-  const [name, setName]                 = useState(player?.name ?? '');
-  const [paid, setPaid]                 = useState(player?.paid ?? false);
+  const [name, setName]                   = useState(player?.name ?? '');
+  const [paid, setPaid]                   = useState(player?.paid ?? false);
   const [paymentMethod, setPaymentMethod] = useState(player?.paymentMethod ?? '');
-  const [ref, setRef]                   = useState(player?.paymentReference ?? '');
+  const [ref, setRef]                     = useState(player?.paymentReference ?? '');
 
   useEffect(() => {
     if (isOpen) {
@@ -196,17 +253,15 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
     if (!trimmed) return;
     const selectedMethod = clubMethods.find(m => m.providerName === paymentMethod);
     onSave({
-      name: trimmed,
-      paid,
-      paymentMethod,
+      name: trimmed, paid, paymentMethod,
       paymentReference: ref.trim(),
       clubPaymentMethodId: selectedMethod?.id ?? null,
     });
     onClose();
   };
 
-  const selectedMethodObj  = clubMethods.find(m => m.providerName === paymentMethod);
-  const showReference = selectedMethodObj?.methodCategory === 'instant_payment';
+  const selectedMethodObj = clubMethods.find(m => m.providerName === paymentMethod);
+  const showReference     = selectedMethodObj?.methodCategory === 'instant_payment';
 
   return (
     <div
@@ -217,34 +272,26 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
         <h3 className="mb-4 text-lg font-bold text-white">
           {isEditMode ? 'Edit Player' : 'Add Player'}
         </h3>
-
         <div className="space-y-3">
           <input
-            type="text"
-            placeholder="Player name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            type="text" placeholder="Player name"
+            value={name} onChange={(e) => setName(e.target.value)}
             className="w-full rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-400 focus:border-indigo-400 focus:outline-none"
           />
-
           <p className="text-sm text-gray-300">
             Entry fee: <span className="font-semibold text-white">{currency}{entryFee.toFixed(2)}</span>
           </p>
-
           <div>
             <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-300">
               Payment Method
             </label>
-
             {methodsLoading ? (
               <div className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-500">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Loading methods…
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading methods…
               </div>
             ) : clubMethods.length > 0 ? (
               <select
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
+                value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}
                 className="w-full rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white focus:border-indigo-400 focus:outline-none"
               >
                 <option value="pay_admin">Pay Host Directly</option>
@@ -254,8 +301,7 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
               </select>
             ) : (
               <select
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
+                value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}
                 className="w-full rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white focus:border-indigo-400 focus:outline-none"
               >
                 <option value="pay_admin">Pay Host Directly</option>
@@ -264,27 +310,20 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
               </select>
             )}
           </div>
-
           {showReference && (
             <input
-              type="text"
-              placeholder="Payment reference (optional)"
-              value={ref}
-              onChange={(e) => setRef(e.target.value)}
+              type="text" placeholder="Payment reference (optional)"
+              value={ref} onChange={(e) => setRef(e.target.value)}
               className="w-full rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-400 focus:border-indigo-400 focus:outline-none"
             />
           )}
-
           <label className="flex cursor-pointer items-center gap-3">
             <input
-              type="checkbox"
-              checked={paid}
-              onChange={(e) => setPaid(e.target.checked)}
+              type="checkbox" checked={paid} onChange={(e) => setPaid(e.target.checked)}
               className="h-4 w-4 accent-indigo-500"
             />
             <span className="text-sm text-gray-200">Mark as paid</span>
           </label>
-
           <div className="mt-4 flex gap-2">
             <button type="button" onClick={onClose}
               className="flex-1 rounded-lg bg-gray-700 py-2 text-sm font-semibold text-white hover:bg-gray-600 transition-colors">
@@ -309,8 +348,6 @@ const StatsStrip: React.FC<{
   <div className="grid grid-cols-4 gap-2">
     {[
       { label: 'Players',    value: total,      colour: 'text-white' },
-      // Paid and Pending count ALL players including eliminated —
-      // elimination status is separate from payment status
       { label: 'Paid',       value: paid,       colour: 'text-green-400' },
       { label: 'Unpaid',     value: pending,    colour: 'text-yellow-400' },
       { label: 'Eliminated', value: eliminated, colour: 'text-red-400' },
@@ -327,6 +364,7 @@ const StatsStrip: React.FC<{
 
 interface PlayerRowProps {
   player: EliminationPlayer;
+  roomId: string;                   // ← added for join URL
   currency: string;
   entryFee: number;
   clubMethods: ClubPaymentMethod[];
@@ -337,9 +375,10 @@ interface PlayerRowProps {
 }
 
 const PlayerRow: React.FC<PlayerRowProps> = ({
-  player, currency, entryFee, clubMethods,
+  player, roomId, currency, entryFee, clubMethods,
   onConfirmPayment, onEdit, onEliminate, onRestore,
 }) => {
+  const [showJoin, setShowJoin] = useState(false);
   const status       = getPaymentStatus(player);
   const isEliminated = !!player.eliminated;
   const amount       = player.entryFee ?? entryFee;
@@ -362,7 +401,6 @@ const PlayerRow: React.FC<PlayerRowProps> = ({
             </span>
           )}
         </div>
-
         <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
           <span>{currency}{amount.toFixed(2)}</span>
           {player.paymentMethod && (
@@ -371,7 +409,6 @@ const PlayerRow: React.FC<PlayerRowProps> = ({
             </span>
           )}
         </div>
-
         {hasReference && (
           <div className="flex items-center gap-1.5 text-xs text-gray-300">
             <span className="text-gray-500">Ref:</span>
@@ -380,16 +417,24 @@ const PlayerRow: React.FC<PlayerRowProps> = ({
             </code>
           </div>
         )}
-
         {!isEliminated && !player.paid && payAtDoor && (
           <p className="text-xs text-gray-400 italic">Collect payment then edit to confirm</p>
         )}
       </div>
 
-      {/* Payment + game action buttons — payment buttons shown for ALL players */}
+      {/* Action buttons */}
       <div className="mt-2 flex flex-wrap gap-2">
 
-        {/* Payment actions — independent of elimination status */}
+        {/* ── Join link / QR toggle ── */}
+        <button
+          onClick={() => setShowJoin(v => !v)}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-500/40 bg-indigo-900/20 px-3 py-1.5 text-xs font-semibold text-indigo-300 hover:bg-indigo-900/40 transition-colors"
+        >
+          <QrCode className="h-3.5 w-3.5" />
+          {showJoin ? 'Hide' : 'Join link'}
+        </button>
+
+        {/* ── Payment actions ── */}
         {status === 'pending' && hasReference && (
           <button onClick={() => onConfirmPayment(player.id)}
             className="inline-flex items-center gap-1.5 rounded-lg border border-green-500/50 bg-green-900/30 px-3 py-1.5 text-xs font-semibold text-green-300 hover:bg-green-800/50 transition-colors">
@@ -421,7 +466,7 @@ const PlayerRow: React.FC<PlayerRowProps> = ({
           </button>
         )}
 
-        {/* Game actions — eliminate or restore */}
+        {/* ── Game actions ── */}
         {!isEliminated ? (
           <button onClick={() => onEliminate(player.id)}
             className="inline-flex items-center gap-1.5 rounded-lg border border-red-800 bg-red-950 px-3 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-900 transition-colors">
@@ -434,6 +479,15 @@ const PlayerRow: React.FC<PlayerRowProps> = ({
           </button>
         )}
       </div>
+
+      {/* Inline QR / join link panel */}
+      {showJoin && (
+        <PlayerJoinPanel
+          roomId={roomId}
+          player={player}
+          onClose={() => setShowJoin(false)}
+        />
+      )}
     </li>
   );
 };
@@ -449,21 +503,18 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
   currency = '€',
   gameEnded = false,
 }) => {
-  const [isOpen, setIsOpen]         = useState(false);
-  const [activeTab, setActiveTab]   = useState<ActiveTab>('players');
-  const [players, setPlayers]       = useState<EliminationPlayer[]>(() => initialPlayers.map(normalise));
+  const [isOpen, setIsOpen]       = useState(false);
+  const [activeTab, setActiveTab] = useState<ActiveTab>('players');
+  const [players, setPlayers]     = useState<EliminationPlayer[]>(() => initialPlayers.map(normalise));
   const [searchTerm, setSearchTerm] = useState('');
   const [addEditModal, setAddEditModal] = useState<{ open: boolean; player: EliminationPlayer | null }>({ open: false, player: null });
-  const [newName, setNewName]       = useState('');
-  const [clubMethods, setClubMethods]   = useState<ClubPaymentMethod[]>([]);
+  const [newName, setNewName]         = useState('');
+  const [clubMethods, setClubMethods] = useState<ClubPaymentMethod[]>([]);
   const [methodsLoading, setMethodsLoading] = useState(false);
 
   // ── Auto-open + switch to Reconcile tab when game ends ───────────────────
   useEffect(() => {
-    if (gameEnded) {
-      setIsOpen(true);
-      setActiveTab('reconcile');
-    }
+    if (gameEnded) { setIsOpen(true); setActiveTab('reconcile'); }
   }, [gameEnded]);
 
   // ── Fetch room payment methods ────────────────────────────────────────────
@@ -473,10 +524,9 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
     fetch(`/api/elimination/rooms/${roomId}/available-payment-methods`)
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => {
-        const methods = (data.paymentMethods ?? []).filter(
+        setClubMethods((data.paymentMethods ?? []).filter(
           (m: ClubPaymentMethod) => m.methodCategory !== 'stripe'
-        );
-        setClubMethods(methods);
+        ));
       })
       .catch(() => setClubMethods([]))
       .finally(() => setMethodsLoading(false));
@@ -495,16 +545,37 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
       setPlayers(updated.map(normalise));
     };
     const handlePaymentConfirmed = ({ playerId, paid }: { playerId: string; paid: boolean }) => {
-      setPlayers(prev =>
-        prev.map(p => p.id === playerId ? { ...p, paid, paymentClaimed: false } : p)
-      );
+      setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, paid, paymentClaimed: false } : p));
+    };
+
+    // Server confirms the player was actually added — replace optimistic temp entry
+    const handlePlayerAdded = ({ player: added }: { player: any }) => {
+      const confirmed = normalise(added);
+      setPlayers(prev => {
+        const idx = prev.findIndex(p => p.id.startsWith('host-') && p.name === confirmed.name);
+        if (idx === -1) return [...prev, confirmed];
+        const next = [...prev];
+        next[idx] = confirmed;
+        return next;
+      });
+    };
+
+    // Server rejected the add (e.g. room full) — remove the optimistic entry
+    const handlePlayerAddError = ({ message }: { message: string }) => {
+      console.error('[EliminationHostDashboard] host_add_player failed:', message);
+      setPlayers(prev => prev.filter(p => !p.id.startsWith('host-')));
     };
 
     socket.on('elimination_waiting_room_update', handleWaitingRoomUpdate);
-    socket.on('payment_confirmed', handlePaymentConfirmed);
+    socket.on('payment_confirmed',               handlePaymentConfirmed);
+    socket.on('host_add_player_confirmed',        handlePlayerAdded);
+    socket.on('host_add_player_error',            handlePlayerAddError);
+
     return () => {
       socket.off('elimination_waiting_room_update', handleWaitingRoomUpdate);
-      socket.off('payment_confirmed', handlePaymentConfirmed);
+      socket.off('payment_confirmed',               handlePaymentConfirmed);
+      socket.off('host_add_player_confirmed',        handlePlayerAdded);
+      socket.off('host_add_player_error',            handlePlayerAddError);
     };
   }, [socket, roomId]);
 
@@ -518,29 +589,17 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
   const activePlayers     = filteredPlayers.filter(p => !p.eliminated);
   const eliminatedPlayers = filteredPlayers.filter(p => p.eliminated);
 
-  // Payment counts include ALL players regardless of elimination status.
-  // A player being eliminated doesn't cancel their payment obligation.
-  const paidCount    = players.filter(p => p.paid).length;
-  const pendingCount = players.filter(
-    p => !p.paid && (p.paymentClaimed || isPayAtDoorMethod(p))
-  ).length;
+  const paidCount       = players.filter(p => p.paid).length;
+  const pendingCount    = players.filter(p => !p.paid && (p.paymentClaimed || isPayAtDoorMethod(p))).length;
   const eliminatedCount = players.filter(p => p.eliminated).length;
-
-  // Payments that need action — ALL players with unconfirmed payments,
-  // including eliminated ones (host still needs to collect/confirm their fee).
-  const actionRequired = players.filter(
-    p => !p.paid && (p.paymentClaimed || isPayAtDoorMethod(p))
-  );
+  const actionRequired  = players.filter(p => !p.paid && (p.paymentClaimed || isPayAtDoorMethod(p)));
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleConfirmPayment = useCallback((playerId: string) => {
     if (!socket || !roomId) return;
-    setPlayers(prev =>
-      prev.map(p => p.id === playerId ? { ...p, paid: true, paymentClaimed: false } : p)
-    );
+    setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, paid: true, paymentClaimed: false } : p));
     socket.emit('confirm_player_payment', {
-      roomId,
-      playerId,
+      roomId, playerId,
       confirmedBy: { id: hostId, role: 'host' },
       adminNotes: 'Confirmed by host in elimination dashboard',
     });
@@ -559,25 +618,21 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
   }, [socket, roomId]);
 
   const handleAddOrEditSave = useCallback((data: {
-    name: string;
-    paid: boolean;
-    paymentMethod: string;
-    paymentReference: string;
-    clubPaymentMethodId?: number | null;
+    name: string; paid: boolean; paymentMethod: string;
+    paymentReference: string; clubPaymentMethodId?: number | null;
   }) => {
     if (!socket || !roomId) return;
     const target = addEditModal.player;
 
     if (target) {
+      // ── Edit existing player ────────────────────────────────────────────
       const updated = { ...target, ...data };
       setPlayers(prev => prev.map(p => p.id === target.id ? updated : p));
       socket.emit('update_player', { roomId, player: updated });
-
       if (data.paid && !target.paid) {
         const selectedMethod = clubMethods.find(m => m.providerName === data.paymentMethod);
         socket.emit('confirm_player_payment', {
-          roomId,
-          playerId: target.id,
+          roomId, playerId: target.id,
           confirmedBy: { id: hostId, role: 'host' },
           adminNotes: `Payment collected — method: ${data.paymentMethod}`,
           paymentMethod: data.paymentMethod ?? null,
@@ -585,17 +640,26 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
         });
       }
     } else {
-      const newPlayer: EliminationPlayer = {
-        id: `host-${Date.now()}`,
-        name: data.name,
-        paid: data.paid,
-        paymentMethod: data.paymentMethod,
-        paymentReference: data.paymentReference,
-        entryFee,
-        eliminated: false,
-      };
-      setPlayers(prev => [...prev, newPlayer]);
-      socket.emit('host_add_player', { roomId, player: newPlayer });
+      // ── Add new player — optimistic, server confirms via host_add_player_confirmed ──
+      const tempId = `host-${Date.now()}`;
+      setPlayers(prev => [...prev, {
+        id: tempId, name: data.name, paid: data.paid,
+        paymentMethod: data.paymentMethod, paymentReference: data.paymentReference,
+        entryFee, eliminated: false,
+      }]);
+      socket.emit('host_add_player', {
+        roomId,
+        hostId,
+        player: {
+          name:                data.name,
+          paid:                data.paid,
+          paymentMethod:       data.paymentMethod,
+          paymentReference:    data.paymentReference,
+          clubPaymentMethodId: data.clubPaymentMethodId ?? null,
+          entryFee,
+          payAtDoor:           isPayAtDoorMethod({ paymentMethod: data.paymentMethod } as EliminationPlayer),
+        },
+      });
     }
   }, [socket, roomId, addEditModal.player, entryFee, hostId, clubMethods]);
 
@@ -624,9 +688,7 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
                       <p className="font-semibold text-white">{player.name}</p>
                       <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-400">
                         <PaymentBadge status={getPaymentStatus(player)} />
-                        {player.paymentMethod && (
-                          <span>{getPaymentLabel(player, clubMethods)}</span>
-                        )}
+                        {player.paymentMethod && <span>{getPaymentLabel(player, clubMethods)}</span>}
                         <span>{currency}{(player.entryFee ?? entryFee).toFixed(2)}</span>
                       </div>
                       {hasRef && (
@@ -638,12 +700,9 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
                         </div>
                       )}
                       {payAtDoor && (
-                        <p className="mt-1 text-xs text-gray-400 italic">
-                          Collect payment then edit to confirm
-                        </p>
+                        <p className="mt-1 text-xs text-gray-400 italic">Collect payment then edit to confirm</p>
                       )}
                     </div>
-
                     <div className="flex flex-col gap-1.5">
                       {hasRef && (
                         <button onClick={() => handleConfirmPayment(player.id)}
@@ -667,9 +726,7 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
     </div>
   );
 
-  // ── Reconcile tab content ─────────────────────────────────────────────────
-  // The actual reconciliation UI is a full-screen panel rendered by EliminationGamePage.
-  // This tab shows a contextual summary so the host understands what's happening.
+  // ── Reconcile tab ─────────────────────────────────────────────────────────
   const ReconcileTab = () => (
     <div className="space-y-4 py-2">
       <div className="rounded-xl border border-indigo-500/30 bg-indigo-900/20 p-4">
@@ -684,7 +741,6 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
           </div>
         </div>
       </div>
-
       {pendingCount > 0 && (
         <div className="rounded-xl border border-yellow-600/30 bg-yellow-900/20 p-4">
           <div className="flex items-start gap-3">
@@ -706,26 +762,20 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
           </div>
         </div>
       )}
-
       <div className="rounded-xl border border-gray-700 bg-gray-800 p-4">
         <p className="text-xs text-gray-400 uppercase font-semibold tracking-wider mb-2">Summary</p>
         <div className="space-y-1.5">
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-300">Total players</span>
-            <span className="text-white font-semibold">{players.length}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-300">Confirmed paid</span>
-            <span className="text-green-400 font-semibold">{paidCount}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-300">Pending</span>
-            <span className="text-yellow-400 font-semibold">{pendingCount}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-300">Eliminated</span>
-            <span className="text-red-400 font-semibold">{eliminatedCount}</span>
-          </div>
+          {[
+            { label: 'Total players',  value: players.length,  colour: 'text-white' },
+            { label: 'Confirmed paid', value: paidCount,       colour: 'text-green-400' },
+            { label: 'Pending',        value: pendingCount,    colour: 'text-yellow-400' },
+            { label: 'Eliminated',     value: eliminatedCount, colour: 'text-red-400' },
+          ].map(({ label, value, colour }) => (
+            <div key={label} className="flex justify-between text-sm">
+              <span className="text-gray-300">{label}</span>
+              <span className={`font-semibold ${colour}`}>{value}</span>
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -733,31 +783,10 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
 
   // ── Tab definitions ───────────────────────────────────────────────────────
   const tabs = [
-    {
-      id:    'players'   as const,
-      label: 'Players',
-      icon:  <Users className="h-4 w-4" />,
-      badge: null as number | '!' | null,
-    },
-    {
-      id:    'payments'  as const,
-      label: 'Payments',
-      icon:  <CreditCard className="h-4 w-4" />,
-      badge: pendingCount > 0 ? pendingCount : null as number | '!' | null,
-    },
-    {
-      id:    'admins'    as const,
-      label: 'Admins',
-      icon:  <Shield className="h-4 w-4" />,
-      badge: null as number | '!' | null,
-    },
-    // Reconcile tab only shown after the game ends
-    ...(gameEnded ? [{
-      id:    'reconcile' as const,
-      label: 'Reconcile',
-      icon:  <Scale className="h-4 w-4" />,
-      badge: '!' as number | '!' | null,
-    }] : []),
+    { id: 'players'   as const, label: 'Players',  icon: <Users className="h-4 w-4" />,     badge: null as number | '!' | null },
+    { id: 'payments'  as const, label: 'Payments', icon: <CreditCard className="h-4 w-4" />, badge: (pendingCount > 0 ? pendingCount : null) as number | '!' | null },
+    { id: 'admins'    as const, label: 'Admins',   icon: <Shield className="h-4 w-4" />,    badge: null as number | '!' | null },
+    ...(gameEnded ? [{ id: 'reconcile' as const, label: 'Reconcile', icon: <Scale className="h-4 w-4" />, badge: '!' as number | '!' | null }] : []),
   ];
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -783,7 +812,7 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
         )}
         {isOpen
           ? <ChevronDown className="h-4 w-4 text-gray-400" />
-          : <ChevronUp className="h-4 w-4 text-gray-400" />
+          : <ChevronUp   className="h-4 w-4 text-gray-400" />
         }
       </button>
 
@@ -803,30 +832,21 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
                   </span>
                 )}
               </div>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="rounded-lg p-1 text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"
-              >
+              <button onClick={() => setIsOpen(false)}
+                className="rounded-lg p-1 text-gray-400 hover:bg-gray-800 hover:text-white transition-colors">
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            {/* Stats strip */}
+            {/* Stats */}
             <div className="px-4 py-3 border-b border-gray-800">
-              <StatsStrip
-                total={players.length}
-                paid={paidCount}
-                pending={pendingCount}
-                eliminated={eliminatedCount}
-              />
+              <StatsStrip total={players.length} paid={paidCount} pending={pendingCount} eliminated={eliminatedCount} />
             </div>
 
             {/* Tab bar */}
             <div className="flex border-b border-gray-800 overflow-x-auto">
               {tabs.map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                   className={`flex flex-1 items-center justify-center gap-1.5 py-2.5 text-sm font-semibold transition-colors whitespace-nowrap px-2 ${
                     activeTab === tab.id
                       ? 'border-b-2 border-indigo-400 text-indigo-300 bg-gray-900'
@@ -837,9 +857,7 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
                   {tab.label}
                   {tab.badge !== null && (
                     <span className={`flex h-4 w-4 items-center justify-center rounded-full text-xs font-bold ${
-                      tab.id === 'reconcile'
-                        ? 'bg-indigo-500 text-white'
-                        : 'bg-yellow-500 text-black'
+                      tab.id === 'reconcile' ? 'bg-indigo-500 text-white' : 'bg-yellow-500 text-black'
                     }`}>
                       {tab.badge}
                     </span>
@@ -850,21 +868,14 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
 
             {/* Tab content */}
             <div className="flex-1 overflow-y-auto px-4 py-4">
-
               {activeTab === 'players' && (
                 <div className="space-y-4">
-                  {/* Add player input — hidden after game ends */}
                   {!gameEnded && (
                     <div className="flex gap-2">
                       <input
-                        type="text"
-                        placeholder="Player name…"
-                        value={newName}
-                        onChange={e => setNewName(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' && newName.trim())
-                            setAddEditModal({ open: true, player: null });
-                        }}
+                        type="text" placeholder="Player name…"
+                        value={newName} onChange={e => setNewName(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && newName.trim()) setAddEditModal({ open: true, player: null }); }}
                         className="flex-1 rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-400 focus:border-indigo-400 focus:outline-none"
                       />
                       <button
@@ -876,14 +887,11 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
                       </button>
                     </div>
                   )}
-
                   <div className="relative">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-500" />
                     <input
-                      type="text"
-                      placeholder="Search players…"
-                      value={searchTerm}
-                      onChange={e => setSearchTerm(e.target.value)}
+                      type="text" placeholder="Search players…"
+                      value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
                       className="w-full rounded-lg border border-gray-700 bg-gray-800 py-2 pl-8 pr-3 text-sm text-white placeholder-gray-500 focus:border-indigo-400 focus:outline-none"
                     />
                   </div>
@@ -903,15 +911,11 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
                       <ul className="space-y-2">
                         {activePlayers.map(player => (
                           <PlayerRow
-                            key={player.id}
-                            player={player}
-                            currency={currency}
-                            entryFee={entryFee}
-                            clubMethods={clubMethods}
+                            key={player.id} player={player} roomId={roomId}
+                            currency={currency} entryFee={entryFee} clubMethods={clubMethods}
                             onConfirmPayment={handleConfirmPayment}
                             onEdit={p => setAddEditModal({ open: true, player: p })}
-                            onEliminate={handleEliminate}
-                            onRestore={handleRestore}
+                            onEliminate={handleEliminate} onRestore={handleRestore}
                           />
                         ))}
                       </ul>
@@ -926,15 +930,11 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
                       <ul className="space-y-2">
                         {eliminatedPlayers.map(player => (
                           <PlayerRow
-                            key={player.id}
-                            player={player}
-                            currency={currency}
-                            entryFee={entryFee}
-                            clubMethods={clubMethods}
+                            key={player.id} player={player} roomId={roomId}
+                            currency={currency} entryFee={entryFee} clubMethods={clubMethods}
                             onConfirmPayment={handleConfirmPayment}
                             onEdit={p => setAddEditModal({ open: true, player: p })}
-                            onEliminate={handleEliminate}
-                            onRestore={handleRestore}
+                            onEliminate={handleEliminate} onRestore={handleRestore}
                           />
                         ))}
                       </ul>
@@ -943,12 +943,8 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
                 </div>
               )}
 
-              {activeTab === 'payments' && <PaymentsTab />}
-
-              {activeTab === 'admins' && (
-                <EliminationAdminsTab roomId={roomId} socket={socket} />
-              )}
-
+              {activeTab === 'payments'  && <PaymentsTab />}
+              {activeTab === 'admins'    && <EliminationAdminsTab roomId={roomId} socket={socket} />}
               {activeTab === 'reconcile' && gameEnded && <ReconcileTab />}
             </div>
           </div>
@@ -960,10 +956,8 @@ export const EliminationHostDashboard: React.FC<EliminationHostDashboardProps> =
         player={addEditModal.player}
         onClose={() => { setAddEditModal({ open: false, player: null }); setNewName(''); }}
         onSave={handleAddOrEditSave}
-        entryFee={entryFee}
-        currency={currency}
-        clubMethods={clubMethods}
-        methodsLoading={methodsLoading}
+        entryFee={entryFee} currency={currency}
+        clubMethods={clubMethods} methodsLoading={methodsLoading}
       />
     </>
   );

@@ -180,6 +180,29 @@ export const EliminationJoinFlow: React.FC<EliminationJoinFlowProps> = ({
     if (!trimmed) return setError('Enter your name');
     setError('');
 
+      // Check capacity before showing payment methods
+  try {
+    const inMemoryCount = ((roomData as any).players ?? []).length;
+    const maxPlayers = (roomData as any).maxPlayers ?? 999;
+
+    if (inMemoryCount >= maxPlayers) {
+      setError('Sorry, this game is full — no spots remaining.');
+      return;
+    }
+
+    const res = await fetch(`/api/quiz/tickets/room/${roomId}/info`);
+    if (res.ok) {
+      const data = await res.json();
+      const cap = data.capacity;
+      if (cap && cap.totalTickets + inMemoryCount >= cap.maxCapacity) {
+        setError('Sorry, this game is full — no spots remaining.');
+        return;
+      }
+    }
+  } catch {
+    // Non-fatal — socket will enforce
+  }
+
     const methods = await fetchPaymentMethods();
 
     // Only selectable methods (not cash/card_tap)

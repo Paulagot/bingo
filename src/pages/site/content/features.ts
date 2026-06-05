@@ -705,11 +705,11 @@ export const featurePages: Record<string, TemplateContent> = {
         answer:
           "The Event Manager is the organiser workspace for a fundraising event. It helps clubs review setup details, set the price and goal, link payment methods, track tickets, launch the event, run the event and report on the event.",
       },
-      {
-        question: "Which event formats does it support?",
-        answer:
-          "The Event Manager is launching with FundRaisely quiz and elimination events. More digital games are planned, with non-digital fundraiser formats such as sponsored walks expected later.",
-      },
+    {
+  question: "What activities can we add to an event?",
+  answer:
+    "In FundRaisely, the organiser sets up the event first, then adds the fundraising activity that sits inside it. That activity might be a ready-to-run game such as a quiz night, elimination game or puzzle challenge, a sponsored activity such as a walk or run, or a ticketed event such as a dinner, sports night, club event or community fundraiser.",
+},
       {
         question: "Can organisers edit event details?",
         answer:
@@ -891,7 +891,7 @@ export const featurePages: Record<string, TemplateContent> = {
       },
       {
         title: "Manage manual payments",
-        text: "For Revolut, cash, bank transfer and on-the-night payments, organisers can claim, confirm, accept late payment, dispute or write off the amount.",
+        text: "For Revolut, cash, bank transfer and on-the-night payments, organisers can confirm, accept late payment, dispute or write off the amount.",
       },
         {
         title: "End of event reconciliation and audit ready records",
@@ -1565,7 +1565,7 @@ ticketing: feature({
       {
         question: "What makes the audit report audit-ready?",
         answer:
-          "The audit report is based on the approved event reconciliation. It records the event totals, payment status and reporting details at the point of approval, then keeps that approved version separate from later changes.",
+          "The audit report is based on the approved event reconciliation. It records the event totals, payment status and reporting details at the point of approval, then keeps that approved version separate from later changes. These are all tracked in a ledger and tracks who approved the payments and report and when, so clubs, charities and non-profits can keep a clearer audit trail for each fundraiser.",
       },
       {
         question: "Can an approved audit report be edited?",
@@ -1897,7 +1897,7 @@ featurePages['impact-reports'] = feature({
   process: [
     {
       title: 'Capture event activity',
-      text: 'Record attendance, entries, tickets, players, volunteers, collectors or other participation data during the fundraiser.',
+      text: 'Record attendance, entries, tickets, players, volunteers, collectors or other anonymous participation data during the fundraiser.',
     },
     {
       title: 'Add prizes and sponsors',
@@ -1964,6 +1964,7 @@ featurePages['impact-reports'] = feature({
       title: 'People are more likely to support again when they can see the result',
       text: 'Clear impact records help organisers close the loop with supporters, sponsors, volunteers and committees.',
       bullets: [
+        'Prove the commuity was activites and they took part',
         'Show who took part and what was raised',
         'Recognise prizes, sponsors and volunteers',
         'Connect outcomes to the campaign goal',

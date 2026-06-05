@@ -38,7 +38,7 @@ const Web3PaymentStep = lazy(() =>
   import('./Web3PaymentStep').then((m) => ({ default: m.Web3PaymentStep }))
 );
 
-const DEBUG = false;
+const DEBUG = true; // Set to false to disable debug logs
 
 const joinDebug = (...args: any[]) => {
   if (DEBUG) console.log('[JoinRoomFlow]', ...args);
@@ -208,9 +208,11 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
   const { setFullConfig } = useQuizConfig();
   const navigate = useNavigate();
 
-  const [step, setStep] = useState<JoinStep>(
-    prefilledRoomId ? 'player-details' : 'verification'
-  );
+const [step, setStep] = useState<JoinStep>(() => {
+  const initial = prefilledRoomId ? 'player-details' : 'verification';
+  if (DEBUG)  console.log('[JoinRoomFlow] initial step:', initial, 'prefilledRoomId:', prefilledRoomId);
+  return initial;
+})
 
   const [paymentFlow, setPaymentFlow] = useState<PaymentFlow>(null);
   const [roomId, setRoomId] = useState(prefilledRoomId || '');
@@ -355,50 +357,48 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
     });
   }, [paymentMethods, isDonationMode]);
 
-  const selectMethod = (method: ClubPaymentMethod | null) => {
-    setSelectedMethod(method);
-    setHasCopiedReference(false);
-    setHasOpenedProviderLink(false);
-  };
+const selectMethod = (method: ClubPaymentMethod | null) => {
+  setSelectedMethod(method);
+  setHasCopiedReference(false);
+  setHasOpenedProviderLink(false);
+};
 
-  const checkWalkInCapacity = async (
-    currentRoomId: string
-  ): Promise<boolean> => {
-    try {
-      setCheckingCapacity(true);
+const checkWalkInCapacity = async (
+  currentRoomId: string
+): Promise<boolean> => {
+  try {
+    setCheckingCapacity(true);
 
-      const response = await fetch(`/api/quiz/tickets/room/${currentRoomId}/info`);
-      const data = await response.json();
-      const cap = data.capacity;
+    const response = await fetch(`/api/quiz/tickets/room/${currentRoomId}/info`);
+    
+    const data = await response.json();
+    if (DEBUG)  console.log('[JoinFlow] Capacity check response status:', response.status);
+    if (DEBUG)  console.log('[JoinFlow] Capacity check response data:', JSON.stringify(data));
+    const cap = data.capacity;
 
-      if (response.ok && cap) {
-        const availableSpots = cap.maxCapacity - (cap.totalTickets ?? 0);
+    if (response.ok && cap) {
+      setCapacity({
+        maxCapacity: cap.maxCapacity,
+        availableForWalkIns: cap.availableForWalkIns ?? cap.availableForTickets ?? cap.maxCapacity,
+        reservedByTickets: cap.totalTickets ?? 0,
+        currentPlayers: cap.currentPlayersInRoom ?? 0,
+      });
 
-        setCapacity({
-          maxCapacity: cap.maxCapacity,
-          availableForWalkIns: availableSpots,
-          reservedByTickets: cap.totalTickets ?? 0,
-          currentPlayers: 0,
-        });
-
-        if (availableSpots <= 0) {
-          alert(
-            `Sorry, this quiz is full. All ${cap.maxCapacity} spots are taken.`
-          );
-          return false;
-        }
-
-        return true;
+    if ((cap.availableForWalkIns ?? cap.availableForTickets ?? cap.maxCapacity) <= 0) {
+        return false;
       }
 
       return true;
-    } catch (err) {
-      console.error('[JoinFlow] Capacity check failed:', err);
-      return true;
-    } finally {
-      setCheckingCapacity(false);
     }
-  };
+
+    return true;
+  } catch (err) {
+    console.error('[JoinFlow] Capacity check failed:', err);
+    return true;
+  } finally {
+    setCheckingCapacity(false);
+  }
+};
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -464,8 +464,10 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
     }, 10000);
 
     socket.emit('verify_quiz_room', { roomId: prefilledRoomId });
+    if (DEBUG)  console.log('[DEBUG] emitted verify_quiz_room, socket.connected:', socket?.connected);
 
     const handleVerification = async (data: any) => {
+    if (DEBUG)  console.log('[DEBUG] verification result:', JSON.stringify(data));
       clearTimeout(timeout);
       setIsAutoVerifying(false);
 
@@ -517,10 +519,8 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
       if (ticketToken) {
         setStep('ticket-redeem');
       } else {
-        const capacityOk = await checkWalkInCapacity(prefilledRoomId);
-
-        if (capacityOk) setStep('player-details');
-        else setStep('verification');
+      await checkWalkInCapacity(prefilledRoomId);
+setStep('player-details');
       }
     };
 
@@ -560,7 +560,7 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
           ? data.paymentMethods
           : [];
 
-     const usable = methods.filter((method: ClubPaymentMethod) => {
+     const usable = methods.filter((_method: ClubPaymentMethod) => {
     // Cash/card_tap stay in state to enable Pay at Door option
      // Crypto is now valid for all room types
      return true;
@@ -592,7 +592,7 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
         ? data.paymentMethods
         : [];
 
-     const usable = methods.filter((method: ClubPaymentMethod) => {
+     const usable = methods.filter((_method: ClubPaymentMethod) => {
    // Cash/card_tap stay in state to enable Pay at Door option
      // Crypto is now valid for all room types
      return true;
@@ -653,12 +653,12 @@ export const JoinRoomFlow: React.FC<JoinRoomFlowProps> = ({
 
     setPaymentFlow(flow);
 
-    if (ticketToken) {
-      setStep('ticket-redeem');
-    } else {
-      const capacityOk = await checkWalkInCapacity(verifiedRoomId);
-      if (capacityOk) setStep('player-details');
-    }
+   if (ticketToken) {
+  setStep('ticket-redeem');
+} else {
+  await checkWalkInCapacity(verifiedRoomId);
+  setStep('player-details');
+}
   };
 
   const handleContinueFromPlayerDetails = async () => {

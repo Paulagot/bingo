@@ -249,7 +249,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
         !hideNoMethodsMessage && (
           <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
             <p className="text-sm text-yellow-800">
-              ℹ️ No linked club payment methods are available for this quiz. You can pay the host directly.
+              ℹ️ No linked club payment methods are available for this event. You can pay the host directly.
             </p>
           </div>
         )}

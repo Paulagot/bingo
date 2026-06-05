@@ -1,7 +1,7 @@
 // src/components/mgtsystem/modals/ScheduleEliminationModal.tsx
 
 import { useState, useMemo } from 'react';
-import { X, Trophy, DollarSign, AlertCircle, Save } from 'lucide-react';
+import { X, Trophy, DollarSign, AlertCircle, Save, Tag } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuthStore } from '../../../features/auth';
 import eliminationMgmtService, { type EliminationRoomListItem } from '../services/EliminationMgmtService';
@@ -13,12 +13,6 @@ interface Props {
   onSaved:       (roomId?: string) => void;
   event?:        Event;
   existingRoom?: EliminationRoomListItem;
-}
-
-function parseConfig(room: EliminationRoomListItem) {
-  if (!room.config_json) return null;
-  if (typeof room.config_json === 'object') return room.config_json as any;
-  try { return JSON.parse(room.config_json as string); } catch { return null; }
 }
 
 // ── Section wrapper ────────────────────────────────────────────────────────────
@@ -50,7 +44,14 @@ const inputCls = (err?: boolean) =>
 
 export default function ScheduleEliminationModal({ onClose, onSaved, event, existingRoom }: Props) {
   const isEditMode     = !!existingRoom;
-  const existingConfig = useMemo(() => (existingRoom ? parseConfig(existingRoom) : null), [existingRoom]);
+  // Use the service's normalised parseConfig so old flat-field rooms load correctly
+  const existingConfig = useMemo(
+    () => (existingRoom ? eliminationMgmtService.parseConfig(existingRoom) : null),
+    [existingRoom],
+  );
+
+  // Convenience: grab the existing winner prize (place 1) if present
+  const existingPrize = existingConfig?.prizes?.find(p => p.place === 1) ?? null;
 
   const user     = useAuthStore((s: any) => s.user);
   const club     = useAuthStore((s: any) => s.club);
@@ -68,14 +69,26 @@ export default function ScheduleEliminationModal({ onClose, onSaved, event, exis
     || event?.time_zone
     || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  const [entryFee,         setEntryFee]         = useState(existingConfig?.entryFee != null ? String(existingConfig.entryFee) : '');
-  const [prizeDescription, setPrizeDescription] = useState(existingConfig?.prizeDescription ?? existingRoom?.prize_description ?? '');
-  const [prizeValue,       setPrizeValue]       = useState(existingRoom?.prize_value != null ? String(existingRoom.prize_value) : '');
+  // ── Form state ─────────────────────────────────────────────────────────────
+  const [entryFee,         setEntryFee]         = useState(
+    existingConfig?.entryFee != null ? String(existingConfig.entryFee) : '',
+  );
+  const [prizeDescription, setPrizeDescription] = useState(
+    existingPrize?.description ?? '',
+  );
+  const [prizeValue,       setPrizeValue]       = useState(
+    existingPrize?.value != null ? String(existingPrize.value) : '',
+  );
+  // New: sponsor field — optional free text, saved inside the prizes array
+  const [prizeSponsor,     setPrizeSponsor]     = useState(
+    existingPrize?.sponsor ?? '',
+  );
 
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+  // ── Validation ─────────────────────────────────────────────────────────────
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
     const fee = Number(entryFee);
@@ -89,18 +102,28 @@ export default function ScheduleEliminationModal({ onClose, onSaved, event, exis
     return Object.keys(errs).length === 0;
   };
 
+  // ── Submit ─────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     setError(null);
     if (!validate()) return;
     setLoading(true);
     try {
+      // Build the prizes array — same shape as quiz config_json.prizes
+      const prizes = [{
+        place:       1,
+        value:       prizeValue ? Number(prizeValue) : null,
+        description: prizeDescription.trim(),
+        sponsor:     prizeSponsor.trim() || null,
+      }];
+
       const payload = {
-        scheduledAt, timeZone,
-        entryFee:         Number(entryFee),
-        currency,                           // ISO code from club e.g. 'EUR'
-        prizeDescription: prizeDescription.trim(),
-        prizeValue:       prizeValue ? Number(prizeValue) : null,
+        scheduledAt,
+        timeZone,
+        entryFee: Number(entryFee),
+        currency,
+        prizes,
       };
+
       if (isEditMode && existingRoom) {
         await eliminationMgmtService.updateRoom(existingRoom.room_id, payload);
         onSaved(existingRoom.room_id);
@@ -121,6 +144,7 @@ export default function ScheduleEliminationModal({ onClose, onSaved, event, exis
     }
   };
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4"
       style={{ background: 'rgba(16,37,50,0.55)', backdropFilter: 'blur(2px)' }}>
@@ -213,6 +237,8 @@ export default function ScheduleEliminationModal({ onClose, onSaved, event, exis
               subtitle="The prize for the last player standing"
             />
             <div className="space-y-4">
+
+              {/* Description */}
               <div>
                 <label className="block text-xs font-semibold mb-1.5" style={{ color: '#102532' }}>
                   Prize Description <span style={{ color: '#e9574f' }}>*</span>
@@ -227,6 +253,8 @@ export default function ScheduleEliminationModal({ onClose, onSaved, event, exis
                   <p className="mt-1 text-xs" style={{ color: '#e9574f' }}>{fieldErrors.prizeDescription}</p>
                 )}
               </div>
+
+              {/* Value */}
               <div>
                 <label className="block text-xs font-semibold mb-1.5" style={{ color: '#102532' }}>
                   Prize Value <span className="font-normal" style={{ color: '#8a9bab' }}>(optional)</span>
@@ -244,6 +272,26 @@ export default function ScheduleEliminationModal({ onClose, onSaved, event, exis
                   <p className="mt-1 text-xs" style={{ color: '#e9574f' }}>{fieldErrors.prizeValue}</p>
                 )}
               </div>
+
+              {/* Sponsor — new field */}
+              <div>
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: '#102532' }}>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Tag className="h-3 w-3" style={{ color: '#e9574f' }} />
+                    Sponsor <span className="font-normal" style={{ color: '#8a9bab' }}>(optional)</span>
+                  </span>
+                </label>
+                <input
+                  type="text" maxLength={200} placeholder="e.g. Buddies for Paws"
+                  value={prizeSponsor} onChange={e => setPrizeSponsor(e.target.value)}
+                  className={inputCls()}
+                  disabled={loading}
+                />
+                <p className="mt-1.5 text-xs" style={{ color: '#8a9bab' }}>
+                  Shown on the end game screen alongside the winner's name.
+                </p>
+              </div>
+
             </div>
           </Section>
 

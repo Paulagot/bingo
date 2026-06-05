@@ -21,7 +21,7 @@ function getSlotVariant(slot: ScreenshotSlot, index: number): ScreenshotVariant 
 
   // Sensible fallback:
   // first image gets the large treatment unless explicitly set otherwise
-  return index === 0 ? 'featured' : 'standard';
+  return index === 0 ? 'wide' : 'standard';
 }
 
 function getImageDisplayMode(slot: ScreenshotSlot): 'contain' | 'cover' {

@@ -97,7 +97,7 @@ export const EliminationAdminJoinPage: React.FC = () => {
           <p className="font-bold text-white mb-1">Could not join</p>
           <p className="text-sm text-white/50">{error ?? 'Room not found or link has expired.'}</p>
           <button
-            onClick={() => navigate('/elimination')}
+            onClick={() => navigate('/')}
             className="mt-4 rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20 transition-colors"
           >
             Go Home

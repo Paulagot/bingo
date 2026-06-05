@@ -267,7 +267,7 @@ export function MarketingPageTemplate({ content, templateType }: Props) {
           </section>
         )}
 
-      {content.videoSlot && (
+      {/* {content.videoSlot && (
         <VideoSection
           title={content.videoSlot.title}
           text={content.videoSlot.text}
@@ -276,7 +276,7 @@ export function MarketingPageTemplate({ content, templateType }: Props) {
           transcript={content.videoSlot.transcript}
           cta={{ label: 'Book a demo', to: '/demo' }}
         />
-      )}
+      )} */}
 
       <ScreenshotShowcase
         eyebrow={screenshotEyebrow}

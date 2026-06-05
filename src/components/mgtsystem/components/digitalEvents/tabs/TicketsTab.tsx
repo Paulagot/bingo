@@ -561,7 +561,7 @@ export default function TicketsTab({
                   <CreditCard className="h-5 w-5" />
                 </div>
               </div>
-              <p className="mt-2 text-xs text-[#52636f]">Excludes refunded tickets</p>
+              <p className="mt-2 text-xs text-[#52636f]">Total value of tickets sold</p>
             </div>
           </div>
         </section>

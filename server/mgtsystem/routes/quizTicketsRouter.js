@@ -70,8 +70,13 @@ router.get('/room/:roomId/info', async (req, res) => {
 
     const { config, clubId, status } = roomData;
 
-    const capacity = await getRoomCapacityStatus(roomId, 0);
-    const capacityMessage = getCapacityMessage(capacity);
+  const { getQuizRoom } = await import('../../quiz/quizRoomManager.js');
+const memRoom = getQuizRoom(roomId);
+const currentPlayersInRoom = memRoom
+  ? Object.keys(memRoom.players || {}).length
+  : 0;
+const capacity = await getRoomCapacityStatus(roomId, currentPlayersInRoom);
+const capacityMessage = getCapacityMessage(capacity);
 
     return res.status(200).json({
       roomId,

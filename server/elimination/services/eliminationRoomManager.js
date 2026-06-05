@@ -172,6 +172,7 @@ export const getAllRooms = () => [...rooms.values()];
  *
  * @returns {{ room: Object, player: Object }} or throws if room full / not waiting.
  */
+ 
 export const addPlayer = (roomId, {
   name,
   socketId,
@@ -182,9 +183,11 @@ export const addPlayer = (roomId, {
   paid              = false,
   paymentClaimed    = false,
   payAtDoor         = false,
-  paymentMethod     = null,   // 'instant_payment' | 'stripe' | 'crypto' | 'pay_admin' | null
-  paymentReference  = null,   // e.g. 'ELIM-ABC123'
-  clubPaymentMethodId = null, // FK to club_payment_methods.id
+  paymentMethod     = null,
+  paymentReference  = null,
+  clubPaymentMethodId = null,
+  // ── host-added players (no socket connection of their own) ──
+  addedByHost       = false,
 }) => {
   const room = getRoom(roomId);
   if (!room) throw new Error('Room not found');
@@ -192,13 +195,14 @@ export const addPlayer = (roomId, {
     throw new Error('Game already in progress');
   if (Object.keys(room.players).length >= (room.maxPlayers ?? GAME_RULES.MAX_PLAYERS))
     throw new Error('Room is full');
-
+ 
   const playerId = generatePlayerId();
   const player = {
     playerId,
     name,
     socketId,
-    connected: true,
+    connected:    !addedByHost,   // host-added players show as active but have no socket
+    addedByHost,                  // flag skips them in reconnection logic
     eliminated: false,
     eliminatedInRound: null,
     joinedAt: isoNow(),
@@ -217,7 +221,7 @@ export const addPlayer = (roomId, {
     paymentReference,
     clubPaymentMethodId,
   };
-
+ 
   room.players[playerId] = player;
   return { room, player };
 };
@@ -227,6 +231,7 @@ export const addPlayer = (roomId, {
  * Returns { room, player } or null.
  */
 export const findPlayerBySocket = (socketId) => {
+  if (!socketId) return null;   // host-added players have no socket — skip
   for (const room of rooms.values()) {
     for (const player of Object.values(room.players)) {
       if (player.socketId === socketId) return { room, player };

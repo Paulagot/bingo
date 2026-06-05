@@ -54,10 +54,14 @@ export async function getRoomCapacityStatus(roomId, currentPlayersInRoom = 0) {
       ? JSON.parse(roomRow.config_json)
       : roomRow.config_json || {};
 
-    // Get max capacity (try room_caps_json first, then config.roomCaps)
-    const maxCapacity = roomCaps.maxPlayers
-      || config.roomCaps?.maxPlayers
-      || 20;
+// Priority: room_caps_json column → config_json.roomCaps → config_json.maxPlayers → safe default
+// The safe default of 20 matches the FREE plan cap. If roomCaps wasn't stamped
+// correctly at room creation this will silently under-cap paid plans — check logs.
+const maxCapacity =
+  roomCaps.maxPlayers         ||
+  config.roomCaps?.maxPlayers ||
+  config.maxPlayers           ||   // elimination rooms store maxPlayers directly in config
+  20;
 
     if (DEBUG) {
       console.log('[Capacity] Room caps loaded:', {
@@ -173,7 +177,12 @@ export async function getRoomCapacityStatus(roomId, currentPlayersInRoom = 0) {
  */
 export async function canPurchaseTickets(roomId, quantity = 1) {
   try {
-    const capacity = await getRoomCapacityStatus(roomId, 0);
+    const { getQuizRoom } = await import('../../quiz/quizRoomManager.js');
+const memRoom = getQuizRoom(roomId);
+const currentPlayersInRoom = memRoom
+  ? Object.keys(memRoom.players || {}).length
+  : 0;
+const capacity = await getRoomCapacityStatus(roomId, currentPlayersInRoom);
 
     if (!capacity.ticketSalesOpen) {
       return {

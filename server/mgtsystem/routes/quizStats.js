@@ -4,6 +4,8 @@ import { getRoomStats, getBatchRoomStats } from '../services/quizStatsService.js
 
 const router = express.Router();
 
+const debug = false;
+
 /**
  * GET /api/quiz/web2/rooms/:roomId/stats
  * Get room statistics (tickets, players, income)
@@ -20,11 +22,11 @@ router.get('/rooms/:roomId/stats', async (req, res) => {
       });
     }
     
-    console.log(`📊 Fetching stats for room: ${roomId}`);
+    if (debug) console.log(`📊 Fetching stats for room: ${roomId}`);
     
     const stats = await getRoomStats(roomId);
     
-    console.log(`✅ Stats for room ${roomId}:`, stats);
+    if (debug) console.log(`✅ Stats for room ${roomId}:`, stats);
     
     res.json({
       ok: true,
@@ -57,11 +59,11 @@ router.post('/rooms/batch-stats', async (req, res) => {
       });
     }
     
-    console.log(`📊 Fetching batch stats for ${roomIds.length} rooms`);
+    if (debug) console.log(`📊 Fetching batch stats for ${roomIds.length} rooms`);
     
     const statsMap = await getBatchRoomStats(roomIds);
     
-    console.log(`✅ Retrieved batch stats for ${Object.keys(statsMap).length} rooms`);
+    if (debug) console.log(`✅ Retrieved batch stats for ${Object.keys(statsMap).length} rooms`);
     
     res.json({
       ok: true,

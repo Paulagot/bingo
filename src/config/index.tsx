@@ -36,6 +36,8 @@ const DATA_SUFFIX = Attribution.toDataSuffix({
   codes: ['bc_vpqki8ri'],
 });
 
+const DEBUG = false; // Set to false to disable debug logs
+
 // ---------------------------------------------
 // 🔐 Project ID
 // ---------------------------------------------
@@ -176,6 +178,8 @@ export const solanaWeb3JsAdapter = new SolanaAdapter({
 export const wagmiConfig = wagmiAdapter.wagmiConfig;
 
 // Debug logs
-console.log("🔧 [config] Loaded networks:", networks.map((n) => `${n.name} (${n.id})`));
-console.log("🔧 [config] Metadata URL:", metadata.url);
-console.log("🔧 [config] Redirect config:", metadata.redirect);
+if (DEBUG) {
+  console.log("🔧 [config] Loaded networks:", networks.map((n) => `${n.name} (${n.id})`));
+  console.log("🔧 [config] Metadata URL:", metadata.url);
+  console.log("🔧 [config] Redirect config:", metadata.redirect);
+}

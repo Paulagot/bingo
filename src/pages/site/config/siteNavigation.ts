@@ -11,7 +11,7 @@ export type NavGroup = {
 
 export const featureNavItems: NavItem[] = [
   { label: 'All features', to: '/features' },
-  { label: 'Campaign Manager', to: '/features/campaign-manager' },
+  // { label: 'Campaign Manager', to: '/features/campaign-manager' },
   { label: 'Event Manager', to: '/features/event-manager' },
   { label: 'Ticketing and registration', to: '/features/ticketing' },
   { label: 'Payment reconciliation', to: '/features/payments' },
@@ -25,7 +25,7 @@ export const eventFormatNavItems: NavItem[] = [
   { label: 'All event formats', to: '/event-formats' },
   { label: 'Quiz fundraisers', to: '/event-formats/quiz' },
   { label: 'Elimination games', to: '/event-formats/elimination' },
-  { label: 'Puzzle challenges', to: '/event-formats/puzzle-challenges' },
+  // { label: 'Puzzle challenges', to: '/event-formats/puzzle-challenges' },
   // { label: 'Escape room fundraisers', to: '/event-formats/escape-room' },
   // { label: 'Treasure hunts', to: '/event-formats/treasure-hunt' },
 ];
@@ -40,10 +40,10 @@ export const useCaseNavItems: NavItem[] = [
 
 export const resourceNavItems: NavItem[] = [
   { label: 'Resources', to: '/resources' },
-  { label: 'Blog', to: '/blog' },
-  { label: 'Fundraising ideas', to: '/resources/fundraising-ideas' },
-  { label: 'Guides', to: '/resources/guides' },
-  { label: 'How it works', to: '/how-it-works' },
+  // { label: 'Blog', to: '/blog' },
+  // { label: 'Fundraising ideas', to: '/resources/fundraising-ideas' },
+  // { label: 'Guides', to: '/resources/guides' },
+  // { label: 'How it works', to: '/how-it-works' },
   { label: 'About', to: '/about' },
   { label: 'Contact', to: '/contact' },
 ];

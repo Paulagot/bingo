@@ -5,7 +5,8 @@ import { JoinRoomFlow } from './JoinRoomFlow.tsx';
 const JoinRoomPage = () => {
   const navigate = useNavigate();
   const { roomId } = useParams<{ roomId: string }>();
-  
+  console.log('[JoinRoomPage] roomId from params:', roomId);
+
   const handleClose = () => {
     navigate('/');
   };
