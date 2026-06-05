@@ -27,6 +27,11 @@ import {
 } from '../services/eliminationStatsService.js';
 import { markReconciliationApproved } from '../services/eliminationRoomManager.js';
 import { connection, TABLE_PREFIX } from '../../config/database.js';
+import {
+  resolveEntitlements,
+  checkCaps,
+  consumeCredit,
+} from '../../policy/entitlements.js';
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-dev-secret';
@@ -38,8 +43,8 @@ router.use(authenticateToken);
 
 // ─── Helper: consistent error responses ──────────────────────────────────────
 const sendError = (res, err) => {
-  const status = err?.statusCode ?? 500;
-  const message = err?.message ?? 'internal_error';
+  const status  = err?.statusCode ?? 500;
+  const message = err?.message    ?? 'internal_error';
 
   const ERROR_MAP = {
     'clubId required':               [400, 'bad_request'],
@@ -70,6 +75,16 @@ const sendError = (res, err) => {
 };
 
 // ─── POST /api/elimination/mgmt/schedule ─────────────────────────────────────
+//
+// Entitlement checks happen here, before anything is written to the DB:
+//   1. Resolve entitlements for this club (scope='elimination')
+//   2. Check credits — 402 if zero
+//   3. Check player cap — 403 if requested players exceed plan limit
+//   4. Override maxPlayers with the plan cap (client value is ignored)
+//   5. Stamp roomCaps into config_json
+//   6. scheduleEliminationRoom() — writes to DB
+//   7. consumeCredit() — only called after successful DB insert
+//
 router.post('/schedule', async (req, res) => {
   try {
     const clubId = req.club_id;
@@ -77,18 +92,102 @@ router.post('/schedule', async (req, res) => {
 
     const {
       roomId, hostId, hostName, scheduledAt, timeZone,
-      entryFee, currency, maxPlayers, prizeDescription, prizeValue,
+      entryFee, currency, maxPlayers: requestedPlayers,
+      prizeDescription, prizeValue,
     } = req.body;
 
     console.log(`[eliminationMgmtRoutes] 📅 Schedule elimination — club: ${clubId} room: ${roomId}`);
 
-    const result = await scheduleEliminationRoom({
-      clubId, roomId, hostId, hostName, scheduledAt, timeZone,
-      entryFee, currency, maxPlayers, prizeDescription, prizeValue,
+    // ── 1. Resolve entitlements ──────────────────────────────────────────────
+    const ents = await resolveEntitlements({ userId: clubId, scope: 'elimination' });
+
+    console.log(`[eliminationMgmtRoutes] 🔑 Entitlements resolved — plan: ${ents.plan_code} maxPlayers: ${ents.max_players_per_game} credits: ${ents.game_credits_remaining}`);
+
+    // ── 2. Check credits ─────────────────────────────────────────────────────
+    if (ents.game_credits_remaining <= 0) {
+      console.log(`[eliminationMgmtRoutes] 🚫 No credits — club: ${clubId} plan: ${ents.plan_code}`);
+      return res.status(402).json({
+        error: 'no_credits',
+        // Message and upgradeUrl come from consumeCredit but we check early here
+        // so we don't partially process the request before finding out.
+        message: ents.plan_code === 'FREE'
+          ? `You've used your lifetime elimination credit. Upgrade your plan to run more games.`
+          : `You've used all your credits for this month. Upgrade to Pro for more.`,
+        upgradeUrl: '/settings/billing',
+      });
+    }
+
+    // ── 3. Check player cap ──────────────────────────────────────────────────
+    const capsCheck = checkCaps(ents, {
+      requestedPlayers: requestedPlayers ?? 1,
+      // Elimination has no rounds or round types — pass nothing for those
     });
 
-    console.log(`[eliminationMgmtRoutes] ✅ Scheduled room ${result.roomId} status=${result.status}`);
-    return res.status(201).json(result);
+    if (!capsCheck.ok) {
+      console.log(`[eliminationMgmtRoutes] 🚫 Cap exceeded — club: ${clubId} reason: ${capsCheck.reason}`);
+      return res.status(403).json({
+        error: 'plan_limit_exceeded',
+        reason: capsCheck.reason,
+        upgradeUrl: '/settings/billing',
+      });
+    }
+
+    // ── 4. Apply plan cap to maxPlayers ──────────────────────────────────────
+    // We use the plan's limit, not what the client sent.
+    // If the client requested fewer players than the plan allows, honour that.
+    // If they requested more, clamp to the plan limit.
+    const cappedMaxPlayers = requestedPlayers
+      ? Math.min(requestedPlayers, ents.max_players_per_game)
+      : ents.max_players_per_game;
+
+    // ── 5. Build roomCaps — stamped into config_json ─────────────────────────
+    // Persisted on the room so join-time enforcement uses the caps that were
+    // active at creation, not the current plan (plan changes don't affect
+    // in-flight rooms).
+    const roomCaps = {
+      maxPlayers:       cappedMaxPlayers,
+      concurrentRooms:  ents.concurrent_rooms,
+      planCode:         ents.plan_code,
+    };
+
+    // ── 6. Schedule the room ─────────────────────────────────────────────────
+    const result = await scheduleEliminationRoom({
+      clubId,
+      roomId,
+      hostId,
+      hostName,
+      scheduledAt,
+      timeZone,
+      entryFee,
+      currency,
+      maxPlayers: cappedMaxPlayers,   // entitlement-capped value
+      prizeDescription,
+      prizeValue,
+      roomCaps,                        // passed through to be stored in config_json
+    });
+
+    // ── 7. Consume credit — only after successful DB insert ──────────────────
+    const creditResult = await consumeCredit(clubId, 'elimination', ents.plan_code);
+
+    if (!creditResult.ok) {
+      // This shouldn't happen — we checked above — but handle the race condition.
+      // The room is already created at this point. Log it but don't fail the
+      // response; the room is valid. The credit discrepancy can be reconciled
+      // manually if it ever occurs.
+      console.error(
+        `[eliminationMgmtRoutes] ⚠️ Credit consume failed after room creation — club: ${clubId} room: ${result.roomId} reason: ${creditResult.reason}`,
+        '(room is valid — this is a race condition or DB issue)'
+      );
+    } else {
+      console.log(`[eliminationMgmtRoutes] ✅ Credit consumed — club: ${clubId} key: ${ents.credit_key}`);
+    }
+
+    console.log(`[eliminationMgmtRoutes] ✅ Scheduled room ${result.roomId} status=${result.status} maxPlayers=${cappedMaxPlayers}`);
+
+    return res.status(201).json({
+      ...result,
+      roomCaps,
+    });
   } catch (err) {
     return sendError(res, err);
   }
@@ -212,8 +311,8 @@ router.post('/rooms/:roomId/operator-token', async (req, res) => {
       { expiresIn: '8h' }
     );
 
-    const protocol = req.headers['x-forwarded-proto'] || 'https';
-    const origin   = `${protocol}://${req.headers.host}`;
+    const protocol    = req.headers['x-forwarded-proto'] || 'https';
+    const origin      = `${protocol}://${req.headers.host}`;
     const operatorUrl = `${origin}/elimination/operate/${roomId}?token=${token}`;
 
     console.log(`[eliminationMgmtRoutes] 🎤 Operator token generated — room: ${roomId} club: ${clubId}`);
@@ -225,7 +324,6 @@ router.post('/rooms/:roomId/operator-token', async (req, res) => {
 });
 
 // ─── GET /api/elimination/mgmt/rooms/:roomId/reconciliation ──────────────────
-// Logged-in hosts fetch reconciliation via this auth-gated route.
 router.get('/rooms/:roomId/reconciliation', async (req, res) => {
   try {
     const clubId = req.club_id;
@@ -237,7 +335,6 @@ router.get('/rooms/:roomId/reconciliation', async (req, res) => {
     const row = await getEliminationRoom({ clubId, roomId });
     if (!row) return res.status(404).json({ error: 'not_found' });
 
-    // Use the canonical room_id from DB in case URL param casing differs
     const canonicalRoomId = row.room_id ?? roomId;
     const data = await getEliminationReconciliation(canonicalRoomId);
 
@@ -252,8 +349,6 @@ router.get('/rooms/:roomId/reconciliation', async (req, res) => {
 });
 
 // ─── POST /api/elimination/mgmt/rooms/:roomId/approve-reconciliation ─────────
-// Logged-in host approves reconciliation.
-// Non-logged-in hosts use the socket event 'elimination_approve_reconciliation'.
 router.post('/rooms/:roomId/approve-reconciliation', async (req, res) => {
   try {
     const clubId = req.club_id;
@@ -262,22 +357,15 @@ router.post('/rooms/:roomId/approve-reconciliation', async (req, res) => {
     const roomId = String(req.params.roomId || '').trim();
     if (!roomId) return res.status(400).json({ error: 'missing_room_id' });
 
-    // Verify room belongs to this club
     const row = await getEliminationRoom({ clubId, roomId });
     if (!row) return res.status(404).json({ error: 'not_found' });
 
-    // ── Use the canonical room_id from the DB row ──────────────────────────
-    // The URL param and the DB value may differ in casing on case-sensitive
-    // MySQL installs. Always use what the DB actually stored.
     const canonicalRoomId = row.room_id ?? roomId;
 
     console.log(
       `[eliminationMgmtRoutes] 🔍 approve — URL roomId: "${roomId}" | DB room_id: "${canonicalRoomId}"`
     );
 
-    // ── Diagnostic: confirm the reconciliation record exists ───────────────
-    // If it doesn't, check the quiz_reconciliation table directly so we can
-    // log what IS there and give a clearer error.
     const RECONCILIATION_TABLE = `${TABLE_PREFIX}quiz_reconciliation`;
     const [diagRows] = await connection.execute(
       `SELECT room_id, approved_at FROM ${RECONCILIATION_TABLE}
@@ -287,7 +375,6 @@ router.post('/rooms/:roomId/approve-reconciliation', async (req, res) => {
     );
 
     if (!Array.isArray(diagRows) || diagRows.length === 0) {
-      // Log recent records to help debug
       const [recentRows] = await connection.execute(
         `SELECT room_id, created_at FROM ${RECONCILIATION_TABLE}
          ORDER BY created_at DESC LIMIT 5`
@@ -302,16 +389,13 @@ router.post('/rooms/:roomId/approve-reconciliation', async (req, res) => {
       });
     }
 
-    // Already approved? Return success idempotently.
     if (diagRows[0].approved_at) {
       console.log(`[eliminationMgmtRoutes] ℹ️  Already approved — room: ${canonicalRoomId}`);
       markReconciliationApproved(canonicalRoomId);
       return res.json({ ok: true, alreadyApproved: true });
     }
 
-    // ── Use the exact room_id value from the DB row for the UPDATE ─────────
     const dbRoomId = diagRows[0].room_id;
-
     const { approvedBy, notes } = req.body;
 
     const result = await approveEliminationReconciliation(
@@ -320,7 +404,6 @@ router.post('/rooms/:roomId/approve-reconciliation', async (req, res) => {
       notes ?? null
     );
 
-    // Mark in-memory room as approved — try both the canonical and URL versions
     markReconciliationApproved(dbRoomId);
     if (dbRoomId !== roomId) markReconciliationApproved(roomId);
 

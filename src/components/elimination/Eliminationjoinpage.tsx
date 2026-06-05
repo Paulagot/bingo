@@ -49,6 +49,7 @@ const EliminationJoinInner: React.FC = () => {
   const [isWeb3Room, setIsWeb3Room]         = useState(false);
   const [isWeb2FeeRoom, setIsWeb2FeeRoom]   = useState(false);
   const [web3PaymentDone, setWeb3PaymentDone] = useState(false);
+  const [roomFull, setRoomFull] = useState(false);
 
   // Ticket redemption state
   const [ticketLoading, setTicketLoading]   = useState(!!ticketToken);
@@ -113,13 +114,38 @@ useEffect(() => {
     if (!code || ticketToken) return;
     setRoomLoading(true);
     getRoom(code)
-      .then(({ room }) => {
-        setRoomData(room);
-        const isWeb3 = (room as any).paymentMode === 'web3';
-        const fee    = Number((room as any).entryFee ?? 0);
-        setIsWeb3Room(isWeb3);
-        setIsWeb2FeeRoom(!isWeb3 && fee > 0);
-      })
+   .then(async({ room }) => {
+  setRoomData(room);
+  const isWeb3 = (room as any).paymentMode === 'web3';
+  const fee    = Number((room as any).entryFee ?? 0);
+  setIsWeb3Room(isWeb3);
+  setIsWeb2FeeRoom(!isWeb3 && fee > 0);
+
+  // Check capacity — block join page before any payment flow starts
+if (!isWeb3) {
+  try {
+    const inMemoryCount = ((room as any).players ?? []).length;
+    const maxPlayers = (room as any).maxPlayers ?? 999;
+
+    // Check in-memory players (on-the-night joins not in tickets table)
+    if (inMemoryCount >= maxPlayers) {
+      setRoomFull(true);
+    } else {
+      // Also check pre-sold tickets
+      const res = await fetch(`/api/quiz/tickets/room/${(room as any).roomId}/info`);
+      if (res.ok) {
+        const data = await res.json();
+        const cap = data.capacity;
+        if (cap && cap.totalTickets + inMemoryCount >= cap.maxCapacity) {
+          setRoomFull(true);
+        }
+      }
+    }
+  } catch {
+    // Non-fatal — socket enforces the cap
+  }
+}
+})
       .catch(() => { /* Room not found — player may be on manual entry flow */ })
       .finally(() => setRoomLoading(false));
   }, [roomIdFromUrl, ticketToken]);
@@ -130,13 +156,37 @@ useEffect(() => {
     if (!roomCode || roomCode.length < 6) return;
     const timer = setTimeout(() => {
       getRoom(roomCode)
-        .then(({ room }) => {
-          setRoomData(room);
-          const isWeb3 = (room as any).paymentMode === 'web3';
-          const fee    = Number((room as any).entryFee ?? 0);
-          setIsWeb3Room(isWeb3);
-          setIsWeb2FeeRoom(!isWeb3 && fee > 0);
-        })
+    .then(async ({ room }) => {
+  setRoomData(room);
+  const isWeb3 = (room as any).paymentMode === 'web3';
+  const fee    = Number((room as any).entryFee ?? 0);
+  setIsWeb3Room(isWeb3);
+  setIsWeb2FeeRoom(!isWeb3 && fee > 0);
+
+if (!isWeb3) {
+  try {
+    const inMemoryCount = ((room as any).players ?? []).length;
+    const maxPlayers = (room as any).maxPlayers ?? 999;
+
+    // Check in-memory players (on-the-night joins not in tickets table)
+    if (inMemoryCount >= maxPlayers) {
+      setRoomFull(true);
+    } else {
+      // Also check pre-sold tickets
+      const res = await fetch(`/api/quiz/tickets/room/${(room as any).roomId}/info`);
+      if (res.ok) {
+        const data = await res.json();
+        const cap = data.capacity;
+        if (cap && cap.totalTickets + inMemoryCount >= cap.maxCapacity) {
+          setRoomFull(true);
+        }
+      }
+    }
+  } catch {
+    // Non-fatal — socket enforces the cap
+  }
+}
+})
         .catch(() => {
           setIsWeb3Room(false);
           setIsWeb2FeeRoom(false);
@@ -251,7 +301,7 @@ useEffect(() => {
           {ticketError}
         </p>
         <button
-          onClick={() => navigate('/elimination')}
+          onClick={() => navigate('/')}
           style={{ ...styles.joinBtn, marginTop: '24px', width: 'auto', padding: '12px 28px' }}
         >
           Go Back
@@ -261,6 +311,27 @@ useEffect(() => {
       </div>
     );
   }
+
+  // ── Room full — show before any payment flow ──────────────────────────────────
+if (roomFull) {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6" style={styles.page}>
+      <div style={styles.eyebrow}>FundRaisely</div>
+      <h1 style={styles.title}>SOLD OUT</h1>
+      <p style={{ ...styles.subtitle, marginTop: '12px', fontSize: '15px' }}>
+        This game is full — no spots remaining.
+      </p>
+      <button
+        onClick={() => navigate('/')}
+        style={{ ...styles.joinBtn, marginTop: '24px', width: 'auto', padding: '12px 28px' }}
+      >
+        Go Back
+      </button>
+      <div style={styles.ring1} />
+      <div style={styles.ring2} />
+    </div>
+  );
+}
 
   // ── Web2 fee room — delegate to EliminationJoinFlow ─────────────────────────
   if (isWeb2FeeRoom && roomData && !roomLoading) {
@@ -279,7 +350,7 @@ useEffect(() => {
       className="min-h-screen flex flex-col items-center justify-center p-6"
       style={styles.page}
     >
-      <button onClick={() => navigate('/elimination')} style={styles.back}>
+      <button onClick={() => navigate('/')} style={styles.back}>
         ← Back
       </button>
 

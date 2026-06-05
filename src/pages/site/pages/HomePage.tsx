@@ -16,33 +16,48 @@ import { getMarketConfig } from '../config/marketConfig';
 export default function HomePage() {
   const market = getMarketConfig();
 
-  const homeFaqs = [
-    {
-      question: 'What is FundRaisely?',
-      answer:
-        'FundRaisely is a fundraising platform for clubs, schools, charities, nonprofits and community groups. It helps organisations create campaigns, run events and fundraising games, track payments, reconcile what was collected and report clearly on what was raised.',
-    },
-    {
-      question: 'Is FundRaisely only for quiz nights?',
-      answer:
-        'No. Quiz fundraisers are the first mature ready-to-run event format, but FundRaisely is growing into a wider fundraising platform with campaign management, event management, ticketing, payment tracking, reporting, CRM and more fundraising formats.',
-    },
-    {
-      question: 'Does FundRaisely hold the money raised?',
-      answer:
-        'No. FundRaisely is designed so organisations use their own payment routes, such as their own Stripe account, bank transfer details, instant payment details or cash collection process. FundRaisely helps track and reconcile the activity, but the organisation keeps control of its funds.',
-    },
-    {
-      question: 'What payment types can organisers track?',
-      answer:
-        'FundRaisely is built for real-world fundraising. Organisers can track expected, claimed, confirmed, late, disputed and written-off payments across cash, Stripe, bank transfer, instant payments, crypto on Solana and future supported payment routes.',
-    },
-    {
-      question: 'Can events be run outside the built-in games?',
-      answer:
-        'Yes. FundRaisely should support ordinary fundraising events as well as ready-to-run fundraising formats. The games engine gives organisations fundraising ideas they can launch quickly and self host while the event and campaign tools keep the wider fundraising activity organised.',
-    },
-  ];
+const homeFaqs = [
+  {
+    question: "How does FundRaisely work?",
+    answer:
+      "FundRaisely helps clubs, charities, schools and community groups set up a fundraiser, add an activity, invite participants, track payments and keep a clear record of what happened. The organiser creates the event first, then chooses the activity that sits inside it, such as a game, sponsored challenge or ticketed event.",
+  },
+  {
+    question: "What kind of activities can we add to an event?",
+    answer:
+      "You can add ready-to-run fundraising activities such as quiz-style games, elimination games and puzzle challenges. FundRaisely is also being built to support sponsored activities like walks, runs, challenges and community campaigns, as well as ticketed events such as dinners, sports events, club nights and local fundraisers.",
+  },
+  {
+    question: "Can we use FundRaisely for in-person events?",
+    answer:
+      "Yes. FundRaisely is being built for real grassroots fundraising, including in-person, online and hybrid events. Supporters can join from their own device, while organisers and admins can manage participants, payments, tickets, activity progress and final records from the event dashboard.",
+  },
+  {
+    question: "How do payments work?",
+    answer:
+      "FundRaisely is designed around the way clubs actually collect money. Organisers can track cash, card, bank transfer, instant payments, Stripe, Revolut-style payments and other payment routes. The platform helps record what was expected, claimed, confirmed, late, disputed or written off, so the fundraiser is easier to reconcile afterwards.",
+  },
+  {
+    question: "Does FundRaisely hold the money raised?",
+    answer:
+      "No. FundRaisely is designed so organisations can use their own connected payment methods where possible. The goal is to help organisers manage the fundraiser, track payments and produce clear records, without taking control of the club or charity’s money.",
+  },
+  {
+    question: "Can admins or volunteers help run the event?",
+    answer:
+      "Yes. Organisers can add admins or helpers to support the event. Admins can help with setup, participant check-in, payment confirmation and event management tasks, which is useful when a fundraiser is being run by a committee or a team of volunteers.",
+  },
+  {
+    question: "What happens after the event?",
+    answer:
+      "After the event, organisers can review ticket sales, on-the-night payments, extras, outstanding amounts and any manual adjustments. FundRaisely helps keep the final totals, payment notes and event records together, so the committee has a clearer report of what was raised and what still needs attention.",
+  },
+  {
+    question: "Who is FundRaisely for?",
+    answer:
+      "FundRaisely is for clubs, charities, schools, community groups, sports organisations and small nonprofits that need practical ways to raise money. It is especially useful for groups that run repeat fundraisers, rely on volunteers, collect money in different ways and need clearer records afterwards.",
+  },
+];
 
   return (
     <>
@@ -93,13 +108,13 @@ export default function HomePage() {
           },
           {
             title: 'Run events people join',
-            text: 'Use ticketed events, quiz nights, elimination games, puzzle challenges, door-to-door packs and future fundraising formats to create participation, not just passive donations.',
+            text: 'Use ticketed events, quiz nights, elimination games, puzzle challenges, Sponsored events like walks, Ticketed events like galas, door-to-door packs and future fundraising formats to create participation, not just passive donations.',
             to: '/event-formats',
             label: 'View event formats',
           },
           {
             title: 'Prove what happened',
-            text: 'Track income and impact. Payment status, participation, prizes, sponsors and final totals so committees and organisers can see the real outcome clearly.',
+            text: 'Track income and impact. Payment status, participation, prizes, sponsors and final totals so committees, organisers and supporters can see the real outcome clearly.',
             to: '/features/reports',
             label: 'View reports',
           },
@@ -109,13 +124,13 @@ export default function HomePage() {
       <SplitSection
         eyebrow="Built for the mess"
         title="Built for how clubs actually collect money - not just how software companies wish they did"
-        text="Cash. Card tap. Revolut. Monzu. Bank transfer. Stripe. Someone paid the host. Someone paid at the door. Someone promised to pay later. Someone bought tickets in advance. Someone gave extra on the night. Someone donated but did not attend. Someone collected cash door-to-door. Grassroots fundraising is messy. FundRaisely is being built to help organisers own that mess."
+        text="Cash. Card tap. Revolut. Monzo. Bank transfer. Stripe. Someone paid the host. Someone paid at the door. Someone promised to pay later. Someone bought tickets in advance. Someone gave extra on the night. Someone donated but did not attend. Someone collected cash door-to-door. Grassroots fundraising is messy. FundRaisely is being built to help organisers own that mess."
         bullets={[
           'Track expected, claimed, confirmed, late, disputed and written-off payments',
           'Support cash, card, bank transfer, instant payments and future payment routes',
           'Keep payment notes, participant records and fundraiser totals together',
         ]}
-        image={images.volunteersTickets}
+        image={images.homePayment}
         cta={{ label: 'Explore payment tracking', to: '/features/payments' }}
       />
 
@@ -160,8 +175,8 @@ export default function HomePage() {
             to: '/features/event-manager',
           },
           {
-            title: 'Ready-to-run games',
-            text: 'Give organisations fundraising formats they can launch quickly and self host, from quiz nights to elimination games and puzzle challenges.',
+            title: 'Events, games and activities ready to run',
+            text: 'Give organisations fundraising formats they can launch quickly and self host, from quiz nights to elimination games and puzzle challenges. We call these events in a box.',
             to: '/event-formats',
           },
           {
@@ -197,7 +212,7 @@ export default function HomePage() {
         ]}
       />
 
-      <VideoSection
+      {/* <VideoSection
         eyebrow="Platform preview"
         title="Show the full fundraising journey, not just one product screen"
         text="Use this space for a short walkthrough showing how an organiser creates a campaign, launches a fundraising event, shares the supporter page, tracks payments and reviews the final report."
@@ -205,23 +220,23 @@ export default function HomePage() {
         videoLabel="FundRaisely platform walkthrough placeholder"
         transcript="Show the journey from campaign goal to ready-to-run event, supporter participation, real-world payment tracking, reconciliation and final reporting."
         cta={{ label: 'Book a demo', to: '/demo' }}
-      />
+      /> */}
 
       <ScreenshotShowcase
         eyebrow="Product proof"
         title="Designed to replace the spreadsheet chaos behind local fundraising"
-        text="Use real screenshots here to show the organiser dashboard, ticketing journey, payment reconciliation and final report. The copy should make the platform feel practical, trusted and committee-ready."
+        text="From setup to ticket sales, live payments, game play, ready to run events and activities, reconciliation and reporting, FundRaisely keeps the moving parts of a fundraiser together. Organisers can see what is planned, run the event, see who has joined, how people paid, what still needs checking and what was raised at the end.."
         slots={[
           {
             title: 'Campaign and event dashboard',
-            description: 'Show upcoming fundraisers, ended events, totals raised and quick access to event management and reports.',
-            imageKey: 'dashboardScreenshot',
+            description: 'Lauch Events and Activities and access event managment and reports directly from the dashboard.',
+            imageKey: 'eventSetupOverviewPhotoshot',
           },
           {
-            title: 'Supporter ticket journey',
-            description: 'Show how a supporter buys, registers or joins with a simple mobile-first flow.',
-            imageKey: 'ticketingScreenshot',
-            variant: 'mobile',
+            title: 'Event and Campaign pages with Supporter ticket journey',
+            description: 'Each event and campaign has a public page with clear supporter journeys for paid entry, attendance, participation, QR codes and event access.',
+            imageKey: 'ticketingPublicPageScreenshot',
+            variant: 'standard',
           },
           {
             title: 'Payment tracking',
@@ -230,7 +245,7 @@ export default function HomePage() {
           },
           {
             title: 'Committee-ready reports',
-            description: 'Show final totals, payment breakdowns, prizes, sponsors and campaign outcomes.',
+            description: 'Final totals, payment breakdowns, prizes, sponsors and campaign outcomes and impact statements can be used for committes and supporters.',
             imageKey: 'reportsScreenshot',
           },
         ]}
@@ -245,7 +260,7 @@ export default function HomePage() {
           'Elimination games and challenge formats for repeat participation',
           'Puzzle challenges, cryptic raffles, door-to-door packs and future fundraising formats',
         ]}
-        image={images.communityQuizNight}
+          image={images.homeFormats}
         cta={{ label: 'Explore event formats', to: '/event-formats' }}
         reverse
       />

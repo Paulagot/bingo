@@ -182,7 +182,7 @@ export default function LaunchTab({ room, onLaunchFromHere }: Props) {
       </div>
 
       {/* ── What happens next ── */}
-      {!tooEarly && (
+      {/* {!tooEarly && (
         <div className="rounded-xl border border-[#dce1df] bg-white p-4">
           <p className="text-xs font-semibold text-[#52636f] uppercase tracking-wide mb-2">
             What happens when you launch
@@ -204,20 +204,20 @@ export default function LaunchTab({ room, onLaunchFromHere }: Props) {
             )}
           </ol>
         </div>
-      )}
+      )} */}
 
     </div>
   );
 }
 
 // ── Small helper ──────────────────────────────────────────────────────────────
-function Step({ n, text }: { n: number; text: string }) {
-  return (
-    <li className="flex items-start gap-2 text-xs text-[#52636f]">
-      <span className="flex-shrink-0 flex h-4 w-4 items-center justify-center rounded-full bg-[#f0f4f3] text-[10px] font-bold text-[#52636f]">
-        {n}
-      </span>
-      {text}
-    </li>
-  );
-}
+// function Step({ n, text }: { n: number; text: string }) {
+//   return (
+//     <li className="flex items-start gap-2 text-xs text-[#52636f]">
+//       <span className="flex-shrink-0 flex h-4 w-4 items-center justify-center rounded-full bg-[#f0f4f3] text-[10px] font-bold text-[#52636f]">
+//         {n}
+//       </span>
+//       {text}
+//     </li>
+//   );
+// }

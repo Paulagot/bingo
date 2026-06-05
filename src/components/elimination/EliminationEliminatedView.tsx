@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { roundTypeLabel } from './utils/eliminationHelpers';
 import type { RoundType } from './types/elimination';
+import { FeedbackModal } from '../feedback/FeedbackModal';
 
 interface Props {
   playerName: string;
@@ -10,24 +11,36 @@ interface Props {
   currentRoundNumber?: number;
   currentRoundType?: RoundType;
   isRoundActive?: boolean;
-  // Set when game is over — triggers auto-cleanup
   gameOver?: boolean;
   winnerName?: string;
+  // ── new: prize sponsor shown when game ends ──
+  prizeSponsor?: string | null;
   onLeave?: () => void;
   autoLeaveSeconds?: number;
+  // ── feedback ──
+  roomId?: string;
+  clubId?: number;
 }
 
 export const EliminationEliminatedView: React.FC<Props> = ({
   playerName, eliminatedInRound, activePlayers, totalPlayers,
   currentRoundNumber, currentRoundType, isRoundActive,
-  gameOver = false, winnerName, onLeave, autoLeaveSeconds = 60,
+  gameOver = false, winnerName, prizeSponsor,
+  onLeave, autoLeaveSeconds = 120,
+  roomId, clubId,
 }) => {
-  const [countdown, setCountdown] = useState(autoLeaveSeconds);
+  const [countdown, setCountdown]         = useState(autoLeaveSeconds);
+  const [feedbackDone, setFeedbackDone]   = useState(false);
+  // Countdown pauses while feedback modal is open
+  const feedbackOpen = gameOver && !!roomId && !feedbackDone;
 
-  // Auto-leave countdown when game ends
   useEffect(() => {
     if (!gameOver || !onLeave) return;
     setCountdown(autoLeaveSeconds);
+  }, [gameOver, onLeave, autoLeaveSeconds]);
+
+  useEffect(() => {
+    if (!gameOver || !onLeave || feedbackOpen) return;
     const interval = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) { clearInterval(interval); onLeave(); return 0; }
@@ -35,7 +48,7 @@ export const EliminationEliminatedView: React.FC<Props> = ({
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [gameOver, onLeave, autoLeaveSeconds]);
+  }, [gameOver, onLeave, feedbackOpen]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center" style={s.page}>
@@ -48,11 +61,14 @@ export const EliminationEliminatedView: React.FC<Props> = ({
         Better luck next time, <span style={s.name}>{playerName}</span>.
       </div>
 
-      {/* Game over — show winner */}
+      {/* Game over — show winner + sponsor */}
       {gameOver && winnerName && (
         <div style={s.winnerBanner}>
           <div style={s.winnerLabel}>Winner</div>
           <div style={s.winnerName}>{winnerName}</div>
+          {prizeSponsor && (
+            <div style={s.sponsor}>Sponsored by {prizeSponsor}</div>
+          )}
         </div>
       )}
 
@@ -84,8 +100,18 @@ export const EliminationEliminatedView: React.FC<Props> = ({
         You have been eliminated — your game is over
       </div>
 
-      {/* Cleanup CTA when game ends */}
-      {gameOver && onLeave && (
+      {/* Feedback modal — shown when game ends, pauses the auto-leave countdown */}
+      {gameOver && roomId && !feedbackDone && (
+        <FeedbackModal
+          roomId={roomId}
+          clubId={clubId}
+          gameType="elimination"
+          onClose={() => setFeedbackDone(true)}
+        />
+      )}
+
+      {/* Auto-leave CTA — only shown after feedback is done (or no feedback) */}
+      {gameOver && onLeave && feedbackDone && (
         <div style={s.leaveSection}>
           <button onClick={onLeave} style={s.leaveBtn}>
             Return to lobby
@@ -137,6 +163,10 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: '28px', fontFamily: "'Bebas Neue', Impact, sans-serif",
     letterSpacing: '0.04em', color: '#ffd700',
   },
+  sponsor: {
+    fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '6px',
+    letterSpacing: '0.06em',
+  },
   spectatorBox: {
     padding: '20px 28px', borderRadius: '12px',
     border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)',
@@ -165,7 +195,8 @@ const s: Record<string, React.CSSProperties> = {
     marginBottom: '24px',
   },
   leaveSection: {
-    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', width: '100%', maxWidth: '300px',
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px',
+    width: '100%', maxWidth: '300px',
   },
   leaveBtn: {
     width: '100%', padding: '14px', background: 'rgba(255,255,255,0.06)',

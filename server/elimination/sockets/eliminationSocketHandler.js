@@ -572,6 +572,35 @@ export const registerEliminationSockets = (io) => {
           }
         }
 
+        // ── Ticket-aware capacity check ───────────────────────────────────────────
+// addPlayer enforces the in-memory cap but unredeemed tickets also reserve
+// capacity. getRoomCapacityStatus counts both and handles the double-count
+// case where a ticket holder has already joined (redeemed tickets are
+// subtracted from the walk-in count so they're never counted twice).
+if (room.paymentMode === 'web2' && room.clubId) {
+  try {
+    const { getRoomCapacityStatus } = await import('../../mgtsystem/services/quizCapacityService.js');
+    const currentCount = Object.keys(room.players).length;
+    const capacity = await getRoomCapacityStatus(roomId, currentCount);
+
+  if (capacity.isFull && !joinToken) {
+  return socket.emit(SERVER_EVENTS.ERROR, {
+    message: 'Sorry, this game is full — no spots remaining.',
+  });
+}
+
+    // Player has a ticket — they have reserved capacity, always let them through
+    if (!joinToken && capacity.availableForWalkIns < 1) {
+      return socket.emit(SERVER_EVENTS.ERROR, {
+        message: 'Sorry, this game is full — all remaining spots are reserved for ticket holders.',
+      });
+    }
+  } catch (capErr) {
+    console.error('[Elimination] Capacity check failed (non-fatal):', capErr.message);
+    // Fall through to addPlayer which still enforces the in-memory cap
+  }
+}
+
         // ── Add player ────────────────────────────────────────────────────────
         const { player } = addPlayer(roomId, {
           name:               uniqueName,
@@ -715,6 +744,90 @@ export const registerEliminationSockets = (io) => {
         io.to(roomId).emit(SERVER_EVENTS.WAITING_ROOM_UPDATE, { players: getAllPlayers(roomId) });
       } catch (err) {
         console.error('[Elimination] update_player error:', err);
+      }
+    });
+
+    // ── ELIMINATE PLAYER (host / admin action) ────────────────────────────────
+    socket.on('eliminate_player', ({ roomId, playerId }) => {
+      try {
+        const room = getRoom(roomId);
+        if (!room) return;
+ 
+        const isHost  = room.hostSocketId === socket.id;
+        const isAdmin = (room.admins ?? []).some(a => a.socketId === socket.id);
+        if (!isHost && !isAdmin) return;
+ 
+        const player = room.players[playerId];
+        if (player) player.eliminated = true;
+ 
+        io.to(roomId).emit(SERVER_EVENTS.WAITING_ROOM_UPDATE, { players: getAllPlayers(roomId) });
+        console.log(`[Elimination] Player eliminated: ${playerId} in room ${roomId}`);
+      } catch (err) {
+        console.error('[Elimination] eliminate_player error:', err);
+      }
+    });
+ 
+    // ── RESTORE PLAYER (host / admin action) ──────────────────────────────────
+    socket.on('restore_player', ({ roomId, playerId }) => {
+      try {
+        const room = getRoom(roomId);
+        if (!room) return;
+ 
+        const isHost  = room.hostSocketId === socket.id;
+        const isAdmin = (room.admins ?? []).some(a => a.socketId === socket.id);
+        if (!isHost && !isAdmin) return;
+ 
+        const player = room.players[playerId];
+        if (player) player.eliminated = false;
+ 
+        io.to(roomId).emit(SERVER_EVENTS.WAITING_ROOM_UPDATE, { players: getAllPlayers(roomId) });
+        console.log(`[Elimination] Player restored: ${playerId} in room ${roomId}`);
+      } catch (err) {
+        console.error('[Elimination] restore_player error:', err);
+      }
+    });
+ 
+    // ── HOST ADD PLAYER ───────────────────────────────────────────────────────
+    // Emitted by EliminationHostDashboard when the host manually adds a player.
+    // Goes through addPlayer() which enforces the maxPlayers cap.
+    socket.on('host_add_player', async ({ roomId, hostId: emittedHostId, player: playerData }) => {
+      try {
+        const room = getRoom(roomId);
+        if (!room) {
+          return socket.emit('host_add_player_error', { message: 'Room not found.' });
+        }
+        if (room.hostId !== emittedHostId) {
+          return socket.emit('host_add_player_error', { message: 'Not authorised.' });
+        }
+ 
+        // addPlayer enforces the maxPlayers cap — throws if full
+        const { player } = addPlayer(roomId, {
+          name:               sanitiseName(playerData.name),
+          socketId:           null,   // host-added players have no socket of their own
+          paid:               playerData.paid ?? false,
+          paymentMethod:      playerData.paymentMethod ?? 'pay_admin',
+          paymentReference:   playerData.paymentReference ?? null,
+          payAtDoor:          playerData.payAtDoor ?? true,
+          entryFee:           playerData.entryFee ?? room.entryFee ?? 0,
+          clubPaymentMethodId: playerData.clubPaymentMethodId ?? null,
+          addedByHost:        true,
+        });
+ 
+        // Write ledger entry for the new player (same as organic joins)
+        writeLedgerEntry(room, player).catch((err) =>
+          console.error('[Elimination] writeLedgerEntry (host_add_player) error:', err.message)
+        );
+ 
+        // Confirm back to the host with the real server-assigned player object
+        socket.emit('host_add_player_confirmed', { player });
+ 
+        // Broadcast updated player list to everyone in the room
+        io.to(roomId).emit(SERVER_EVENTS.WAITING_ROOM_UPDATE, { players: getAllPlayers(roomId) });
+ 
+        console.log(`[Elimination] Host added player "${player.name}" to room ${roomId}`);
+      } catch (err) {
+        console.error(`[Elimination] host_add_player error in room ${roomId}:`, err.message);
+        socket.emit('host_add_player_error', { message: err.message });
       }
     });
 

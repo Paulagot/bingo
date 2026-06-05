@@ -5,11 +5,16 @@ import { apiClient } from './client';
 import type { Entitlements } from '../types';
 
 /**
+ * Game scopes — matches the scope values used in plan_entitlements on the server.
+ * Add new game types here as they are added to the platform.
+ */
+export type GameScope = 'quiz' | 'elimination';
+
+/**
  * WEB2 room listing/status types
  */
 export type Web2QuizRoomStatus = 'scheduled' | 'open' | 'live' | 'completed' | 'cancelled';
 
-// ✅ Define these types here instead of in the component
 export interface Prize {
   place: number;
   value: number;
@@ -21,6 +26,8 @@ export interface RoomCaps {
   maxRounds: number;
   extrasAllowed: string[];
   roundTypesAllowed?: string[];
+  concurrentRooms?: number;
+  planCode?: string;
 }
 
 export interface RoundDefinition {
@@ -61,27 +68,24 @@ export interface ParsedConfig {
 export type Web2RoomListItem = {
   room_id: string;
   host_id: string;
-  game_type?: 'quiz' | 'elimination';       // ← add
+  game_type?: 'quiz' | 'elimination';
   status: string;
   scheduled_at: string | null;
   time_zone: string | null;
   config_json?: string | ParsedConfig | null;
   room_caps_json?: string | RoomCaps | null;
-  prize_description?: string | null;         // ← add
-  prize_value?: number | null;               // ← add
+  prize_description?: string | null;
+  prize_value?: number | null;
   created_at: string;
   updated_at: string;
   ended_at?: string | null;
   participants_count?: number;
-}
+};
 
 export type GetWeb2RoomsListResponse = {
   rooms: Web2RoomListItem[];
 };
 
-/**
- * WEB2 single room response (from DB)
- */
 export type GetWeb2QuizRoomResponse = {
   roomId: string;
   hostId: string;
@@ -90,21 +94,13 @@ export type GetWeb2QuizRoomResponse = {
   scheduledAt: string | null;
   timeZone: string | null;
   roomCaps: Record<string, unknown> | null;
-  config: ParsedConfig | null; // ✅ Better typed now
+  config: ParsedConfig | null;
   createdAt?: string;
   updatedAt?: string;
 };
 
-/**
- * WEB2 update payload (PATCH)
- * You said these should be updateable:
- * - scheduled_at
- * - config_json
- * - room_caps_json
- * - time_zone
- */
 export type UpdateWeb2RoomPatch = Partial<{
-  scheduled_at: string | null; // ISO string or null
+  scheduled_at: string | null;
   time_zone: string | null;
   config_json: ParsedConfig | string | null;
   room_caps_json: RoomCaps | string | null;
@@ -112,42 +108,46 @@ export type UpdateWeb2RoomPatch = Partial<{
 
 export const quizApi = {
   /**
-   * Get user entitlements
+   * Get entitlements for the logged-in club.
+   *
+   * @param scope - Which game type to fetch caps for (default: 'quiz').
+   *               Pass 'elimination' for elimination-specific caps and credits.
+   *               The server returns the same v1-compatible shape regardless of scope.
+   *
+   * @example
+   *   quizApi.getEntitlements()              // quiz scope (default)
+   *   quizApi.getEntitlements('elimination') // elimination scope
    */
-  async getEntitlements(): Promise<Entitlements> {
-    return apiClient.get<Entitlements>('/quiz/api/me/entitlements');
+async getEntitlements(scope: 'quiz' | 'elimination' = 'quiz'): Promise<Entitlements> {
+    return apiClient.get<Entitlements>(`/quiz/api/me/entitlements?scope=${scope}`);
   },
 
   /**
-   * WEB2: Load saved launched room config from DB (used to hydrate Host Dashboard on refresh)
+   * WEB2: Load saved launched room config from DB
    */
   async getWeb2Room(roomId: string): Promise<GetWeb2QuizRoomResponse> {
     if (!roomId) throw new Error('roomId_required');
-    return apiClient.get<GetWeb2QuizRoomResponse>(`/quiz/api/web2/rooms/${encodeURIComponent(roomId)}`);
+    return apiClient.get<GetWeb2QuizRoomResponse>(
+      `/quiz/api/web2/rooms/${encodeURIComponent(roomId)}`
+    );
   },
 
   /**
-   * WEB2: List rooms for the logged-in club (server filters using req.club_id)
-   * Query:
-   *  - status: scheduled|live|completed|cancelled|all (default scheduled)
-   *  - time: upcoming|past|all (default upcoming)
+   * WEB2: List rooms for the logged-in club
    */
-  async getWeb2RoomsList(params?: { status?: Web2QuizRoomStatus | 'all'; time?: 'upcoming' | 'past' | 'all' }) {
+  async getWeb2RoomsList(params?: {
+    status?: Web2QuizRoomStatus | 'all';
+    time?: 'upcoming' | 'past' | 'all';
+  }) {
     const sp = new URLSearchParams();
     if (params?.status) sp.set('status', params.status);
     if (params?.time) sp.set('time', params.time);
-
     const qs = sp.toString() ? `?${sp.toString()}` : '';
     return apiClient.get<GetWeb2RoomsListResponse>(`/quiz/api/web2/rooms${qs}`);
   },
 
   /**
    * WEB2: Update a scheduled room (PATCH)
-   * Updates:
-   * - scheduled_at
-   * - time_zone
-   * - config_json
-   * - room_caps_json
    */
   async updateWeb2Room(roomId: string, patch: UpdateWeb2RoomPatch) {
     if (!roomId) throw new Error('roomId_required');
@@ -159,11 +159,13 @@ export const quizApi = {
 
   /**
    * WEB2: Cancel a scheduled room
-   * (Server should set status='cancelled')
    */
   async cancelWeb2Room(roomId: string) {
     if (!roomId) throw new Error('roomId_required');
-    return apiClient.post<{ ok: true }>(`/quiz/api/web2/rooms/${encodeURIComponent(roomId)}/cancel`, {});
+    return apiClient.post<{ ok: true }>(
+      `/quiz/api/web2/rooms/${encodeURIComponent(roomId)}/cancel`,
+      {}
+    );
   },
 };
 

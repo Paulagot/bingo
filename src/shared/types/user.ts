@@ -23,19 +23,38 @@ export interface AuthUser {
 }
 
 export interface Entitlements {
-  game_credits_remaining?: number;
-  max_players_per_game?: number;
-  max_rounds?: number;
-  plan_id?: number;
-  plan_code?: string;
-  quiz_features?: {
-    eventLinking?: boolean;
-    [key: string]: any;
+  // Plan identity
+  plan_id: number | null;
+  plan_code: string;
+
+  // Scope this was resolved for ('quiz' | 'elimination' | ...)
+  scope?: string;
+  credit_key?: string;
+
+  // Caps
+  max_players_per_game: number;
+  max_rounds: number;
+  concurrent_rooms: number;
+
+  // Allowed types
+  round_types_allowed: string[];
+  extras_allowed: string[];
+
+  // Credits
+  game_credits_remaining: number;
+
+  // Game features — quiz_features is the legacy key, game_features is generic
+  quiz_features?: Record<string, boolean | undefined>;
+  game_features?: Record<string, boolean | undefined>;
+  quizFeatures?: Record<string, boolean | undefined>; // legacy alias
+
+  // Management entitlements
+  mgt?: {
+    features?: Record<string, boolean | undefined>;
+    limits?: Record<string, number | undefined>;
   };
-  quizFeatures?: {
-    eventLinking?: boolean;
-    [key: string]: any;
-  };
-  [key: string]: any;
+
+  // Allow additional fields
+  [key: string]: unknown;
 }
 

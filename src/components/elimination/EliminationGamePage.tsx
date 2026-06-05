@@ -58,6 +58,14 @@ function isWeb3Room(room: any): boolean {
   return mode === 'web3';
 }
 
+function getPrizeSponsor(room: any): string | null {
+  const prizes = room?.prizes ?? (room as any)?.config?.prizes;
+  if (Array.isArray(prizes) && prizes.length > 0) {
+    return prizes[0]?.sponsor ?? null;
+  }
+  return null;
+}
+
 export const EliminationGamePage: React.FC = () => {
   const navigate = useNavigate();
 
@@ -511,7 +519,7 @@ export const EliminationGamePage: React.FC = () => {
     );
   }
 
-  if (state.view === 'game_over') {
+    if (state.view === 'game_over') {
     return withDashboard(
       <EliminationEliminatedView
         playerName={localPlayerName}
@@ -520,13 +528,15 @@ export const EliminationGamePage: React.FC = () => {
         totalPlayers={waitingPlayers.length}
         gameOver={true}
         winnerName={state.winner?.winnerName}
+        prizeSponsor={getPrizeSponsor(state.room)}
         onLeave={handleReset}
-        autoLeaveSeconds={60}
+        autoLeaveSeconds={120}
+        roomId={roomId ?? undefined}
+        clubId={(state.room as any)?.clubId ?? undefined}
       />
     );
   }
-
-  if (state.view === 'winner' && state.winner) {
+ if (state.view === 'winner' && state.winner) {
     return withDashboard(
       <EliminationWinnerView
         winnerId={state.winner.winnerId}
@@ -539,6 +549,8 @@ export const EliminationGamePage: React.FC = () => {
         hostId={sessionStorage.getItem(SESSION_HOST_ID) ?? undefined}
         roomId={roomId ?? undefined}
         roomData={state.room as any}
+        prizeSponsor={getPrizeSponsor(state.room)}
+        clubId={(state.room as any)?.clubId ?? undefined}
       />
     );
   }

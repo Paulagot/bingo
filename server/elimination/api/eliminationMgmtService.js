@@ -27,6 +27,43 @@ function toPositiveNumber(value) {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+/**
+ * Normalise the prizes array from the payload.
+ * Accepts either:
+ *   - New shape: prizes array  [{ place, value, description, sponsor }]
+ *   - Old shape: flat fields   prizeDescription / prizeValue  (legacy / migration)
+ *
+ * Always returns { prizes, prizeDescription, prizeValue } so the INSERT/UPDATE
+ * can write both config_json.prizes AND the flat DB columns in one go.
+ */
+function normalisePrizes({ prizes, prizeDescription, prizeValue }) {
+  // New shape — prizes array sent from frontend
+  if (Array.isArray(prizes) && prizes.length > 0) {
+    const winner = prizes[0]; // elimination always has exactly one prize (place 1)
+    return {
+      prizes,
+      prizeDescription: winner.description?.trim() ?? null,
+      prizeValue:       toPositiveNumber(winner.value) ?? null,
+    };
+  }
+
+  // Legacy fallback — flat fields (e.g. old rooms being re-saved)
+  if (prizeDescription) {
+    return {
+      prizes: [{
+        place:       1,
+        value:       toPositiveNumber(prizeValue) ?? null,
+        description: prizeDescription.trim(),
+        sponsor:     null,
+      }],
+      prizeDescription: prizeDescription.trim(),
+      prizeValue:       toPositiveNumber(prizeValue) ?? null,
+    };
+  }
+
+  return { prizes: [], prizeDescription: null, prizeValue: null };
+}
+
 // ─── Schedule ─────────────────────────────────────────────────────────────────
 
 /**
@@ -43,54 +80,65 @@ export async function scheduleEliminationRoom({
   entryFee,
   currency,
   maxPlayers,
-  prizeDescription,
-  prizeValue,
+  // Accept both new prizes array and legacy flat fields
+  prizes,
+  prizeDescription: prizeDescriptionRaw,
+  prizeValue:       prizeValueRaw,
+  roomCaps,
 }) {
-  if (!clubId)          throw Object.assign(new Error('clubId required'),            { statusCode: 400 });
-  if (!roomId)          throw Object.assign(new Error('roomId required'),            { statusCode: 400 });
-  if (!hostId)          throw Object.assign(new Error('hostId required'),            { statusCode: 400 });
+  if (!clubId) throw Object.assign(new Error('clubId required'),         { statusCode: 400 });
+  if (!roomId) throw Object.assign(new Error('roomId required'),         { statusCode: 400 });
+  if (!hostId) throw Object.assign(new Error('hostId required'),         { statusCode: 400 });
 
   const fee = toPositiveNumber(entryFee);
-  if (fee === null) throw Object.assign(new Error('ENTRY_FEE_REQUIRED'),            { statusCode: 400 });
+  if (fee === null) throw Object.assign(new Error('ENTRY_FEE_REQUIRED'), { statusCode: 400 });
 
-  const max = toPositiveNumber(maxPlayers);
-  if (max === null || !Number.isInteger(max))
-    throw Object.assign(new Error('MAX_PLAYERS_INVALID'),                           { statusCode: 400 });
+  // maxPlayers is set by the route from entitlements — just sanity-check it.
+  const max = typeof maxPlayers === 'number' && maxPlayers > 0 ? maxPlayers : null;
+  if (max === null) throw Object.assign(new Error('MAX_PLAYERS_INVALID'), { statusCode: 400 });
 
-  if (!prizeDescription?.trim())
-    throw Object.assign(new Error('PRIZE_DESCRIPTION_REQUIRED'),                    { statusCode: 400 });
+  // Normalise prizes — handles both new array shape and legacy flat fields
+  const normalised = normalisePrizes({
+    prizes,
+    prizeDescription: prizeDescriptionRaw,
+    prizeValue:       prizeValueRaw,
+  });
+
+  if (!normalised.prizeDescription)
+    throw Object.assign(new Error('PRIZE_DESCRIPTION_REQUIRED'), { statusCode: 400 });
 
   const scheduledAtMysql = toMysqlUtcDateTime(scheduledAt);
-  const prizeVal         = toPositiveNumber(prizeValue) ?? null;
 
   const configJson = JSON.stringify({
     hostId,
-    hostName:         hostName ?? null,
-    entryFee:         fee,
-    currency:         currency ?? 'EUR',
-    maxPlayers:       max,
-    prizeDescription: prizeDescription.trim(),
-    prizeValue:       prizeVal,
-    paymentMode:      'web2',
-    gameType:         'elimination',
+    hostName:    hostName ?? null,
+    entryFee:    fee,
+    currency:    currency ?? 'EUR',
+    maxPlayers:  max,
+    paymentMode: 'web2',
+    gameType:    'elimination',
+    roomCaps:    roomCaps ?? { maxPlayers: max },
+    // prizes array — same shape as quiz config_json.prizes
+    prizes:      normalised.prizes,
   });
 
   await connection.execute(
     `INSERT INTO ${TABLE}
      (room_id, host_id, club_id, status, game_type, scheduled_at, time_zone,
-      config_json, entry_fee, currency, max_players, prize_description, prize_value,
+      config_json, room_caps_json, prize_description, prize_value,
       reconciliation_status, created_at, updated_at)
      VALUES (?, ?, ?, 'scheduled', 'elimination', ?, ?,
-             ?, ?, ?, ?, ?, ?,
+             ?, ?, ?, ?,
              'pending', UTC_TIMESTAMP(), UTC_TIMESTAMP())`,
     [
       roomId, hostId, clubId, scheduledAtMysql, timeZone ?? null,
-      configJson, fee, currency ?? 'EUR', max,
-      prizeDescription.trim(), prizeVal,
+      configJson,
+      JSON.stringify(roomCaps ?? { maxPlayers: max }),
+      normalised.prizeDescription, normalised.prizeValue,
     ]
   );
 
-  console.log(`[eliminationMgmtService] 📅 Scheduled elimination room ${roomId} — club: ${clubId}`);
+  console.log(`[eliminationMgmtService] 📅 Scheduled elimination room ${roomId} — club: ${clubId} maxPlayers: ${max} plan: ${roomCaps?.planCode ?? 'unknown'}`);
 
   return {
     roomId,
@@ -154,7 +202,7 @@ export async function getEliminationRoom({ clubId, roomId }) {
     `SELECT
        room_id, host_id, club_id, status, game_type,
        scheduled_at, time_zone, config_json,
-       entry_fee, currency, max_players,
+       room_caps_json,
        prize_description, prize_value,
        reconciliation_status,
        created_at, updated_at
@@ -179,7 +227,12 @@ export async function getEliminationRoom({ clubId, roomId }) {
 
 export async function updateEliminationRoom({
   clubId, roomId, scheduledAt, timeZone, entryFee, currency,
-  maxPlayers, prizeDescription, prizeValue, configJson,
+  maxPlayers,
+  // Accept both new prizes array and legacy flat fields
+  prizes,
+  prizeDescription: prizeDescriptionRaw,
+  prizeValue:       prizeValueRaw,
+  configJson,
 }) {
   if (!clubId) throw Object.assign(new Error('clubId required'), { statusCode: 400 });
   if (!roomId) throw Object.assign(new Error('roomId required'), { statusCode: 400 });
@@ -211,14 +264,37 @@ export async function updateEliminationRoom({
     sets.push('max_players = ?');
     params.push(max);
   }
-  if (prizeDescription !== undefined) {
+
+  // Handle prizes — either new array shape or legacy flat fields
+  const hasPrizesPayload = prizes !== undefined || prizeDescriptionRaw !== undefined || prizeValueRaw !== undefined;
+  if (hasPrizesPayload) {
+    const normalised = normalisePrizes({
+      prizes,
+      prizeDescription: prizeDescriptionRaw,
+      prizeValue:       prizeValueRaw,
+    });
+    // Update the flat DB columns for backward compat
     sets.push('prize_description = ?');
-    params.push(prizeDescription?.trim() ?? null);
-  }
-  if (prizeValue !== undefined) {
+    params.push(normalised.prizeDescription);
     sets.push('prize_value = ?');
-    params.push(toPositiveNumber(prizeValue) ?? null);
+    params.push(normalised.prizeValue);
+    // The prizes array is merged into config_json below via the configJson path
+    // — build an updated configJson if none was explicitly passed
+    if (configJson === undefined) {
+      // Fetch the current config so we can merge prizes into it
+      const current = await getEliminationRoom({ clubId, roomId });
+      if (current) {
+        const mergedConfig = {
+          ...(typeof current.config_json === 'object' ? current.config_json : {}),
+          prizes: normalised.prizes,
+        };
+        sets.push('config_json = ?');
+        params.push(JSON.stringify(mergedConfig));
+      }
+    }
   }
+
+  // Explicit configJson override (used by other callers)
   if (configJson !== undefined) {
     sets.push('config_json = ?');
     params.push(typeof configJson === 'string' ? configJson : JSON.stringify(configJson));
@@ -275,7 +351,7 @@ export async function cancelEliminationRoom({ clubId, roomId }) {
     const [rows] = await connection.execute(
       `SELECT status FROM ${TABLE}
        WHERE club_id = ? AND room_id = ? AND game_type = 'elimination' LIMIT 1`,
-      [clubId, roomId]
+      [clubId, rowId]
     );
     if (!rows?.length) throw Object.assign(new Error('not_found'), { statusCode: 404 });
     throw Object.assign(

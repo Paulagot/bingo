@@ -482,7 +482,7 @@ export default function QuizGamePage() {
           </article>
         </div>
       </section>
-
+{/* 
       <div id="quiz-demo">
         <VideoSection
           title={videoSlot.title}
@@ -492,7 +492,7 @@ export default function QuizGamePage() {
           transcript={videoSlot.transcript}
           cta={{ label: 'Book a demo', to: '/demo' }}
         />
-      </div>
+      </div> */}
 
       <FeatureGrid
         eyebrow="Flexible digital quiz workflows"

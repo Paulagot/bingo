@@ -16,7 +16,7 @@ type FeedbackState = 'answering' | 'submitting' | 'done' | 'error';
 interface UseFeedbackOptions {
   roomId: string;
   gameType?: string;
-  // No clubId — backend resolves it from room_id
+   clubId?:   number;
 }
 
 interface UseFeedbackReturn {

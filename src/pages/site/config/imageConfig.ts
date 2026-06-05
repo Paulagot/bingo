@@ -44,7 +44,10 @@ export type ImageKey =
   | "reportImpactExportScreenshot"
   | "campaignPlanningScreenshot"
   | "sponsorFinderScreenshot"
+    | "homePayment"
+  | "homeFormats"
   | "complianceScreenshot";
+  
 
 export type SiteImage = {
   src: string;
@@ -59,6 +62,16 @@ const placeholder = (text: string, w = 1400, h = 900) =>
   `https://placehold.co/${w}x${h}/f7f1e8/12313f?text=${encodeURIComponent(text)}`;
 
 export const images: Record<ImageKey, SiteImage> = {
+  homePayment: {
+    src: "images/homepayment.png",
+    alt: "FundRaisely payment tracking image showing how clubs collect money across cash, card, instant payments, tickets and on-the-night payments.",
+  },
+
+  homeFormats: {
+    src: "images/homeformats.png",
+    alt: "FundRaisely ready-to-run fundraising formats image showing repeatable event formats such as quiz nights, games and community challenges.",
+  },
+
   communityQuizNight: {
     src: photo("photo-1543269865-cbf427effbad"),
     alt: "A group of people enjoying a community quiz night around a table",
