@@ -8,11 +8,13 @@ import quizLatePaymentsService from '../../services/QuizLatePaymentsService';
 import ManagePaymentMethodsModal from '../../modals/ManagePaymentMethodsModal';
 import ScheduleEliminationModal from '../../modals/ScheduleEliminationModal';
 import ScheduleQuizModal from '../../modals/ScheduleQuizModal';
+import ScheduleTicketedEventModal from '../../modals/ScheduleTicketedEventModal';
+import ticketedEventMgmtService from '../../services/TicketedEventMgmtService';
 
 import {
   CreditCard, Calendar, PlusCircle, RefreshCw,
   Trophy, CalendarDays, CheckCircle,
-  LayoutGrid, LayoutList, Search, X, Play, Puzzle, Sparkles,
+  LayoutGrid, LayoutList, Search, X, Play, Puzzle, Sparkles, Ticket,
 } from 'lucide-react';
 
 import { quizApi } from '../../../../shared/api';
@@ -30,11 +32,11 @@ import type { Event, CreateEventForm as CreateEventFormData, UpdateEventForm } f
 
 type ViewMode = 'table' | 'cards';
 type StatusFilter = 'all' | 'upcoming' | 'live' | 'completed' | 'cancelled';
-type GameTypeFilter = 'all' | 'quiz' | 'elimination';
+type GameTypeFilter = 'all' | 'quiz' | 'elimination' | 'ticketed_event';
 
 interface LinkedActivity {
   room_id: string;
-  game_type: 'quiz' | 'elimination';
+  game_type: 'quiz' | 'elimination' | 'ticketed_event';
   status: 'scheduled' | 'open' | 'live' | 'completed' | 'cancelled';
 }
 
@@ -48,7 +50,11 @@ function extractCreditsRemaining(ents: any): number {
 
 function getFeatureAccess(ents: any) {
   const f = ents?.quiz_features || ents?.quizFeatures || {};
-  return { eventLinking: f?.eventLinking === true, quizPayments: f?.quizPayments === true, ticketing: f?.ticketing === true };
+  return {
+    eventLinking:  f?.eventLinking  === true,
+    quizPayments:  f?.quizPayments  === true,
+    ticketing:     f?.ticketing     === true,
+  };
 }
 
 function parseConfigJson(v: any) {
@@ -89,16 +95,18 @@ export default function QuizEventDashboard() {
   const [linkedEventsMap, setLinkedEventsMap]       = useState<Record<string, { eventId: string; eventTitle: string }>>({});
   const [paymentMethodMap, setPaymentMethodMap]     = useState<Record<string, boolean>>({});
 
-  const [managePaymentsOpen, setManagePaymentsOpen]           = useState(false);
-  const [scheduleQuizOpen, setScheduleQuizOpen]               = useState(false);
-  const [scheduleEliminationOpen, setScheduleEliminationOpen] = useState(false);
+  const [managePaymentsOpen, setManagePaymentsOpen]               = useState(false);
+  const [scheduleQuizOpen, setScheduleQuizOpen]                   = useState(false);
+  const [scheduleEliminationOpen, setScheduleEliminationOpen]     = useState(false);
+  const [scheduleTicketedEventOpen, setScheduleTicketedEventOpen] = useState(false);
 
-  const [ents, setEnts]             = useState<any>(null);
+  const [ents, setEnts]               = useState<any>(null);
   const [entsLoading, setEntsLoading] = useState(true);
-  const [entsError, setEntsError]   = useState<string | null>(null);
+  const [entsError, setEntsError]     = useState<string | null>(null);
   const featureAccess    = useMemo(() => getFeatureAccess(ents), [ents]);
   const creditsRemaining = useMemo(() => extractCreditsRemaining(ents), [ents]);
 
+  // ── Mobile detection ────────────────────────────────────────────────────────
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 639px)');
     const apply = () => { const m = mq.matches; setIsMobile(m); if (m) setViewMode('cards'); };
@@ -106,6 +114,7 @@ export default function QuizEventDashboard() {
     return () => mq.removeEventListener?.('change', apply);
   }, []);
 
+  // ── Status counts ───────────────────────────────────────────────────────────
   const statusCounts = useMemo(() => {
     const counts = { all: events.length, upcoming: 0, live: 0, completed: 0, cancelled: 0 };
     for (const e of events) {
@@ -119,8 +128,10 @@ export default function QuizEventDashboard() {
     return counts;
   }, [events, activityMap]);
 
+  // ── Filtered events ─────────────────────────────────────────────────────────
   const filteredEvents = useMemo(() => {
     let list = [...events];
+
     if (statusFilter !== 'all') {
       list = list.filter(e => {
         const roomStatus = activityMap[e.id]?.status;
@@ -131,14 +142,11 @@ export default function QuizEventDashboard() {
         return true;
       });
     }
+
     if (gameTypeFilter !== 'all') {
-      list = list.filter(e => {
-        const a = activityMap[e.id];
-        if (gameTypeFilter === 'quiz')        return a?.game_type === 'quiz';
-        if (gameTypeFilter === 'elimination') return a?.game_type === 'elimination';
-        return true;
-      });
+      list = list.filter(e => activityMap[e.id]?.game_type === gameTypeFilter);
     }
+
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter(e =>
@@ -164,6 +172,7 @@ export default function QuizEventDashboard() {
     return list;
   }, [events, statusFilter, gameTypeFilter, search, activityMap]);
 
+  // ── Game type counts ────────────────────────────────────────────────────────
   const gameTypeCounts = useMemo(() => {
     let base = [...events];
     if (statusFilter !== 'all') {
@@ -177,18 +186,29 @@ export default function QuizEventDashboard() {
       });
     }
     return {
-      all:         base.length,
-      quiz:        base.filter(e => activityMap[e.id]?.game_type === 'quiz').length,
-      elimination: base.filter(e => activityMap[e.id]?.game_type === 'elimination').length,
+      all:            base.length,
+      quiz:           base.filter(e => activityMap[e.id]?.game_type === 'quiz').length,
+      elimination:    base.filter(e => activityMap[e.id]?.game_type === 'elimination').length,
+      ticketed_event: base.filter(e => activityMap[e.id]?.game_type === 'ticketed_event').length,
     };
   }, [events, statusFilter, activityMap]);
 
-  const activeFilterCount = (statusFilter !== 'all' ? 1 : 0) + (gameTypeFilter !== 'all' ? 1 : 0) + (search.trim() ? 1 : 0);
+  const activeFilterCount =
+    (statusFilter !== 'all' ? 1 : 0) +
+    (gameTypeFilter !== 'all' ? 1 : 0) +
+    (search.trim() ? 1 : 0);
+
+  // ── Data loading ────────────────────────────────────────────────────────────
 
   const loadEntitlements = async () => {
-    try { setEntsLoading(true); setEntsError(null); setEnts(await quizApi.getEntitlements()); }
-    catch (e: any) { setEnts(null); setEntsError(e?.message || 'Failed'); }
-    finally { setEntsLoading(false); }
+    try {
+      setEntsLoading(true); setEntsError(null);
+      setEnts(await quizApi.getEntitlements());
+    } catch (e: any) {
+      setEnts(null); setEntsError(e?.message || 'Failed');
+    } finally {
+      setEntsLoading(false);
+    }
   };
 
   const loadEvents = async () => {
@@ -214,11 +234,16 @@ export default function QuizEventDashboard() {
           try {
             const res = await eventsService.getEventIntegrations(event.id);
             const integrations = res?.integrations || [];
+            // Include all three activity types
             const linked = integrations.find((i: any) =>
-              i.integration_type === 'quiz_web2' || i.integration_type === 'elimination'
+              i.integration_type === 'quiz_web2' ||
+              i.integration_type === 'elimination' ||
+              i.integration_type === 'ticketed_event'
             );
             return [event.id, linked] as const;
-          } catch { return [event.id, null] as const; }
+          } catch {
+            return [event.id, null] as const;
+          }
         })
       );
 
@@ -227,9 +252,17 @@ export default function QuizEventDashboard() {
 
       for (const [eventId, integration] of pairs) {
         if (!integration?.external_ref) continue;
+
+        const gameType: LinkedActivity['game_type'] =
+          integration.integration_type === 'elimination'
+            ? 'elimination'
+            : integration.integration_type === 'ticketed_event'
+              ? 'ticketed_event'
+              : 'quiz';
+
         newActivityMap[eventId] = {
           room_id:   integration.external_ref,
-          game_type: integration.integration_type === 'elimination' ? 'elimination' : 'quiz',
+          game_type: gameType,
           status:    integration.status || 'scheduled',
         };
         roomIds.push(integration.external_ref);
@@ -238,7 +271,7 @@ export default function QuizEventDashboard() {
       setActivityMap(newActivityMap);
 
       if (roomIds.length > 0) {
-        // ── Load real room rows + update statuses ──────────────────────────
+        // Load real room rows and update statuses
         try {
           const roomsRes = await quizApi.getWeb2RoomsList({ status: 'all' as any, time: 'all' });
           const rowMap: Record<string, Room> = {};
@@ -252,9 +285,8 @@ export default function QuizEventDashboard() {
               );
               if (eventId && updatedActivityMap[eventId]) {
                 updatedActivityMap[eventId] = {
-                  room_id:   updatedActivityMap[eventId]!.room_id,
-                  game_type: updatedActivityMap[eventId]!.game_type,
-                  status:    (room.status as LinkedActivity['status']) || 'scheduled',
+                  ...updatedActivityMap[eventId]!,
+                  status: (room.status as LinkedActivity['status']) || 'scheduled',
                 };
               }
             }
@@ -263,9 +295,14 @@ export default function QuizEventDashboard() {
           setRoomRowsMap(rowMap);
           setActivityMap(updatedActivityMap);
 
-          // ✅ Use updatedActivityMap (real room statuses) for outstanding count
+          // Outstanding payments — only for completed non-ticketed-event rooms
+          // (ticketed events use check-in, not the quiz payment flow)
           const completedIds = Object.values(updatedActivityMap)
-            .filter((a): a is LinkedActivity => !!a && a.status === 'completed')
+            .filter((a): a is LinkedActivity =>
+              !!a &&
+              a.status === 'completed' &&
+              a.game_type !== 'ticketed_event'
+            )
             .map(a => a.room_id);
 
           if (completedIds.length > 0) {
@@ -285,14 +322,17 @@ export default function QuizEventDashboard() {
           console.error('Failed to load room rows:', e);
         }
 
-        // ── Stats, payment methods, event links ────────────────────────────
+        // Stats and payment methods
         const stats = await QuizRoomsService.batchGetRoomStats(roomIds);
         setRoomStatsMap(stats);
 
         const pmResults = await Promise.all(
           roomIds.map(id =>
             quizPaymentMethodsService.getQuizPaymentMethods(id)
-              .then(res => ({ id, hasLinked: (res.ticket_method_ids ?? res.linked_method_ids ?? []).length > 0 }))
+              .then(res => ({
+                id,
+                hasLinked: (res.ticket_method_ids ?? res.linked_method_ids ?? []).length > 0,
+              }))
               .catch(() => ({ id, hasLinked: false }))
           )
         );
@@ -312,7 +352,9 @@ export default function QuizEventDashboard() {
         }
         setLinkedEventsMap(leMap);
       }
-    } catch (e) { console.error('Failed to load activities:', e); }
+    } catch (e) {
+      console.error('Failed to load activities:', e);
+    }
   };
 
   useEffect(() => { loadEntitlements(); }, []);
@@ -323,8 +365,11 @@ export default function QuizEventDashboard() {
     if (p === 'return' || p === 'refresh') setManagePaymentsOpen(true);
   }, [clubId]);
 
+  // Poll live rooms every 30s
   useEffect(() => {
-    const liveIds = Object.values(activityMap).filter(a => a.status === 'live').map(a => a.room_id);
+    const liveIds = Object.values(activityMap)
+      .filter(a => a.status === 'live')
+      .map(a => a.room_id);
     if (!liveIds.length) return;
     const interval = setInterval(async () => {
       const stats = await QuizRoomsService.batchGetRoomStats(liveIds).catch(() => ({}));
@@ -332,6 +377,8 @@ export default function QuizEventDashboard() {
     }, 30_000);
     return () => clearInterval(interval);
   }, [activityMap]);
+
+  // ── Actions ─────────────────────────────────────────────────────────────────
 
   const openRoom = (roomId: string, hostId: string) => {
     ['quiz-setup-v2','quiz-admins','fundraisely-quiz-setup-draft','current-room-id','current-host-id','current-contract-address']
@@ -356,17 +403,26 @@ export default function QuizEventDashboard() {
     setDrawerOpen(true);
   };
 
-  const handleActivitySaved = async (roomId?: string, gameType: 'quiz' | 'elimination' = 'quiz') => {
+  const handleActivitySaved = async (
+    roomId?: string,
+    gameType: 'quiz' | 'elimination' | 'ticketed_event' = 'quiz'
+  ) => {
     if (roomId && pendingActivityEventId) {
       try {
         await eventIntegrationsService.link(pendingActivityEventId, {
-          integration_type: gameType === 'elimination' ? 'elimination' : 'quiz_web2',
+          integration_type:
+            gameType === 'elimination'
+              ? 'elimination'
+              : gameType === 'ticketed_event'
+                ? 'ticketed_event'
+                : 'quiz_web2',
           external_ref: roomId,
         });
       } catch (e) {
         console.error('Failed to auto-link activity to event:', e);
       }
 
+      // Apply payment methods from the event to the new room
       try {
         const pendingEvent = events.find(e => e.id === pendingActivityEventId);
         const pm = pendingEvent?.payment_methods_json;
@@ -385,10 +441,11 @@ export default function QuizEventDashboard() {
     await loadEvents();
   };
 
-  const handleAddActivity = (event: Event, type: 'quiz' | 'elimination') => {
+  const handleAddActivity = (event: Event, type: 'quiz' | 'elimination' | 'ticketed_event') => {
     setPendingActivityEventId(event.id);
-    if (type === 'quiz') setScheduleQuizOpen(true);
-    else setScheduleEliminationOpen(true);
+    if (type === 'quiz')                setScheduleQuizOpen(true);
+    else if (type === 'elimination')    setScheduleEliminationOpen(true);
+    else if (type === 'ticketed_event') setScheduleTicketedEventOpen(true);
   };
 
   const handleCreateEvent = async (data: CreateEventFormData | UpdateEventForm) => {
@@ -397,12 +454,29 @@ export default function QuizEventDashboard() {
     await loadEvents();
   };
 
-  const handleUpdateEvent = async (data: CreateEventFormData | UpdateEventForm) => {
-    if (!eventToEdit) return;
-    await eventsService.updateEvent(eventToEdit.id, data as UpdateEventForm);
-    setEventToEdit(null);
-    await loadEvents();
-  };
+const handleUpdateEvent = async (data: CreateEventFormData | UpdateEventForm) => {
+  if (!eventToEdit) return;
+  await eventsService.updateEvent(eventToEdit.id, data as UpdateEventForm);
+
+  // For ticketed events, propagate date/timezone changes to the room row
+  // so the check-in dashboard and scheduled_at stay in sync
+  const activity = activityMap[eventToEdit.id];
+  if (activity?.game_type === 'ticketed_event' && activity.status === 'scheduled') {
+    try {
+      const updates: any = {};
+      if ((data as any).start_datetime) updates.scheduledAt = (data as any).start_datetime;
+      if ((data as any).time_zone)      updates.timeZone    = (data as any).time_zone;
+      if (Object.keys(updates).length > 0) {
+        await ticketedEventMgmtService.updateRoom(activity.room_id, updates);
+      }
+    } catch (e) {
+      console.error('Failed to sync date to ticketed event room:', e);
+    }
+  }
+
+  setEventToEdit(null);
+  await loadEvents();
+};
 
   const handlePublish   = async (event: Event) => { await eventsService.publishEvent(event.id);   await loadEvents(); };
   const handleUnpublish = async (event: Event) => { await eventsService.unpublishEvent(event.id); await loadEvents(); };
@@ -419,8 +493,11 @@ export default function QuizEventDashboard() {
       await eventIntegrationsService.unlink(linked.eventId, integration.id);
       setLinkedEventsMap(prev => { const u = { ...prev }; delete u[drawerRoom.room_id]; return u; });
       await loadEvents();
-    } catch (e: any) { alert(`Failed to unlink: ${e?.message || 'Unknown error'}`); }
-    finally { setUnlinkLoading(false); }
+    } catch (e: any) {
+      alert(`Failed to unlink: ${e?.message || 'Unknown error'}`);
+    } finally {
+      setUnlinkLoading(false);
+    }
   };
 
   const handlePaymentMethodSuccess = async (roomId: string) => {
@@ -439,11 +516,28 @@ export default function QuizEventDashboard() {
   const drawerOutstanding = drawerRoom ? (outstandingMap[drawerRoom.room_id] ?? 0) : 0;
   const drawerLinked      = drawerRoom ? linkedEventsMap[drawerRoom.room_id] : undefined;
 
+  // ── Game type filter buttons config ────────────────────────────────────────
+  const gameTypeButtons: {
+    key: GameTypeFilter;
+    label: string;
+    icon: React.ReactNode;
+    count: number;
+  }[] = [
+    { key: 'all',            label: 'All types',   icon: null,                              count: gameTypeCounts.all },
+    { key: 'quiz',           label: 'Quiz',        icon: <Play className="h-3 w-3" />,      count: gameTypeCounts.quiz },
+    { key: 'elimination',    label: 'Elimination', icon: <Trophy className="h-3 w-3" />,    count: gameTypeCounts.elimination },
+    { key: 'ticketed_event', label: 'Ticketed',    icon: <Ticket className="h-3 w-3" />,    count: gameTypeCounts.ticketed_event },
+  ];
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // RENDER
+  // ─────────────────────────────────────────────────────────────────────────────
+
   return (
     <div style={{ backgroundColor: '#f6f1e8' }}>
       <div className="container mx-auto max-w-7xl px-4 py-6 sm:py-8">
 
-        {/* Header */}
+        {/* ── Header ── */}
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold" style={{ color: '#102532' }}>Events</h1>
@@ -472,15 +566,22 @@ export default function QuizEventDashboard() {
           </div>
         </div>
 
-        {/* Stats */}
+        {/* ── Stats ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
           {[
             { label: 'Total Events', value: events.length,         Icon: CalendarDays, color: 'indigo' },
             { label: 'Upcoming',     value: statusCounts.upcoming, Icon: Calendar,     color: 'blue'   },
             { label: 'Live Now',     value: statusCounts.live,     Icon: CheckCircle,  color: 'green'  },
-            { label: 'Credits', value: entsLoading ? '…' : entsError ? 'N/A' : creditsRemaining, Icon: Trophy, color: 'amber', refresh: loadEntitlements },
+            {
+              label: 'Credits',
+              value: entsLoading ? '…' : entsError ? 'N/A' : creditsRemaining,
+              Icon: Trophy,
+              color: 'amber',
+              refresh: loadEntitlements,
+            },
           ].map(({ label, value, Icon, color, refresh }) => (
-            <div key={label} className="rounded-xl p-3 sm:p-4 shadow-sm" style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
+            <div key={label} className="rounded-xl p-3 sm:p-4 shadow-sm"
+              style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
               <div className="flex items-center gap-3">
                 <div className={`flex-shrink-0 p-2 rounded-lg bg-${color}-100`}>
                   <Icon className={`h-4 w-4 sm:h-5 sm:w-5 text-${color}-600`} />
@@ -501,17 +602,28 @@ export default function QuizEventDashboard() {
           ))}
         </div>
 
-        {/* Filters */}
-        <div className="mb-4 overflow-hidden rounded-xl shadow-sm" style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
-          <div className="flex items-center gap-1 px-2 pt-2 pb-0" style={{ borderBottom: '1px solid #f1f0ee' }}>
+        {/* ── Filters ── */}
+        <div className="mb-4 overflow-hidden rounded-xl shadow-sm"
+          style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
+
+          {/* Status tabs */}
+          <div className="flex items-center gap-1 px-2 pt-2 pb-0"
+            style={{ borderBottom: '1px solid #f1f0ee' }}>
             {(['all','upcoming','live','completed','cancelled'] as StatusFilter[]).map(s => {
               const count = statusCounts[s as keyof typeof statusCounts] ?? 0;
               const isActive = statusFilter === s;
-              const labels: Record<StatusFilter, string> = { all: 'All', upcoming: 'Upcoming', live: 'Live', completed: 'Completed', cancelled: 'Cancelled' };
+              const labels: Record<StatusFilter, string> = {
+                all: 'All', upcoming: 'Upcoming', live: 'Live',
+                completed: 'Completed', cancelled: 'Cancelled',
+              };
               return (
                 <button key={s} onClick={() => setStatusFilter(s)}
-                  className={`relative flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold transition-colors whitespace-nowrap rounded-t-lg ${isActive ? '' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'}`}
-                  style={isActive ? { color: '#157f85', borderBottom: '2px solid #157f85', marginBottom: '-1px' } : {}}>
+                  className={`relative flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold transition-colors whitespace-nowrap rounded-t-lg ${
+                    isActive ? '' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+                  }`}
+                  style={isActive
+                    ? { color: '#157f85', borderBottom: '2px solid #157f85', marginBottom: '-1px' }
+                    : {}}>
                   {s === 'live' && statusCounts.live > 0 && (
                     <span className="relative flex h-1.5 w-1.5">
                       <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
@@ -520,7 +632,11 @@ export default function QuizEventDashboard() {
                   )}
                   {labels[s]}
                   {count > 0 && (
-                    <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${isActive ? 'bg-[rgba(21,127,133,0.12)] text-[#157f85]' : 'bg-gray-100 text-gray-500'}`}>
+                    <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${
+                      isActive
+                        ? 'bg-[rgba(21,127,133,0.12)] text-[#157f85]'
+                        : 'bg-gray-100 text-gray-500'
+                    }`}>
                       {count}
                     </span>
                   )}
@@ -528,22 +644,26 @@ export default function QuizEventDashboard() {
               );
             })}
           </div>
+
+          {/* Game type + search row */}
           <div className="flex items-center gap-2 px-3 py-2 flex-wrap sm:flex-nowrap">
-            <div className="flex items-center gap-1 flex-shrink-0">
-              {([
-                { key: 'all',         label: 'All types',   icon: null,                           count: gameTypeCounts.all },
-                { key: 'quiz',        label: 'Quiz',        icon: <Play className="h-3 w-3" />,   count: gameTypeCounts.quiz },
-                { key: 'elimination', label: 'Elimination', icon: <Trophy className="h-3 w-3" />, count: gameTypeCounts.elimination },
-              ] as { key: GameTypeFilter; label: string; icon: React.ReactNode; count: number }[]).map(({ key, label, icon, count }) => {
+            <div className="flex items-center gap-1 flex-shrink-0 flex-wrap">
+
+              {/* Active game type filters */}
+              {gameTypeButtons.map(({ key, label, icon, count }) => {
                 const isActive = gameTypeFilter === key;
                 return (
                   <button key={key} onClick={() => setGameTypeFilter(key)}
                     className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors whitespace-nowrap"
-                    style={isActive ? { background: '#157f85', color: '#fff' } : { background: '#f6f1e8', color: '#52636f' }}>
+                    style={isActive
+                      ? { background: '#157f85', color: '#fff' }
+                      : { background: '#f6f1e8', color: '#52636f' }}>
                     {icon}
                     {label}
                     {count > 0 && (
-                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${isActive ? 'bg-white/20 text-white' : 'bg-white text-gray-500'}`}>
+                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${
+                        isActive ? 'bg-white/20 text-white' : 'bg-white text-gray-500'
+                      }`}>
                         {count}
                       </span>
                     )}
@@ -551,6 +671,7 @@ export default function QuizEventDashboard() {
                 );
               })}
 
+              {/* Coming soon placeholders */}
               {[
                 { label: 'Puzzle', icon: <Puzzle className="h-3 w-3" /> },
                 { label: 'Other',  icon: <Sparkles className="h-3 w-3" /> },
@@ -560,27 +681,37 @@ export default function QuizEventDashboard() {
                   style={{ background: '#f1f0ee', color: '#8a9bab' }}
                   title="Coming soon">
                   {icon}{label}
-                  <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none" style={{ background: 'rgba(210,181,130,0.2)', color: '#8a6d2f' }}>Soon</span>
+                  <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none"
+                    style={{ background: 'rgba(210,181,130,0.2)', color: '#8a6d2f' }}>
+                    Soon
+                  </span>
                 </div>
               ))}
             </div>
 
             <div className="hidden sm:block h-4 w-px bg-gray-200 flex-shrink-0" />
 
+            {/* Search */}
             <div className="relative flex-1 min-w-[140px]">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
-              <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search events…"
+              <input
+                type="text" value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search events…"
                 className="w-full rounded-lg border py-1.5 pl-8 pr-7 text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#157f85] focus:border-transparent transition"
-                style={{ borderColor: '#dce1df', background: '#fafafa' }} />
+                style={{ borderColor: '#dce1df', background: '#fafafa' }}
+              />
               {search && (
-                <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <button onClick={() => setSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                   <X className="h-3.5 w-3.5" />
                 </button>
               )}
             </div>
 
             {activeFilterCount > 0 && (
-              <button onClick={() => { setStatusFilter('all'); setGameTypeFilter('all'); setSearch(''); }}
+              <button
+                onClick={() => { setStatusFilter('all'); setGameTypeFilter('all'); setSearch(''); }}
                 className="hidden sm:flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold flex-shrink-0 transition-colors hover:bg-red-50 text-gray-500 hover:text-red-600"
                 style={{ border: '1px solid #dce1df' }}>
                 <X className="h-3 w-3" /> Clear
@@ -604,37 +735,54 @@ export default function QuizEventDashboard() {
           </div>
         </div>
 
-        {/* Events */}
+        {/* ── Events list ── */}
         {eventsLoading ? (
-          <div className="flex items-center justify-center py-16 rounded-xl" style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
-            <div className="h-7 w-7 animate-spin rounded-full border-4 border-t-transparent" style={{ borderColor: '#157f85', borderTopColor: 'transparent' }} />
+          <div className="flex items-center justify-center py-16 rounded-xl"
+            style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
+            <div className="h-7 w-7 animate-spin rounded-full border-4 border-t-transparent"
+              style={{ borderColor: '#157f85', borderTopColor: 'transparent' }} />
             <span className="ml-3 text-sm" style={{ color: '#52636f' }}>Loading events…</span>
           </div>
         ) : eventsError ? (
-          <div className="py-12 text-center rounded-xl" style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
+          <div className="py-12 text-center rounded-xl"
+            style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
             <p className="text-sm font-semibold" style={{ color: '#e9574f' }}>Failed to load events</p>
             <p className="mt-1 text-xs" style={{ color: '#52636f' }}>{eventsError}</p>
-            <button onClick={loadEvents} className="mt-4 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ background: '#157f85' }}>
+            <button onClick={loadEvents}
+              className="mt-4 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white"
+              style={{ background: '#157f85' }}>
               <RefreshCw className="h-4 w-4" /> Retry
             </button>
           </div>
         ) : filteredEvents.length === 0 ? (
-          <div className="py-16 text-center rounded-xl" style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
+          <div className="py-16 text-center rounded-xl"
+            style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
             <Calendar className="mx-auto mb-4 h-10 w-10" style={{ color: '#b8c6b0' }} />
             <h3 className="text-lg font-semibold mb-2" style={{ color: '#102532' }}>
-              {search ? `No events matching "${search}"` : events.length === 0 ? 'No events yet' : `No ${statusFilter} events`}
+              {search
+                ? `No events matching "${search}"`
+                : events.length === 0
+                  ? 'No events yet'
+                  : `No ${statusFilter} events`}
             </h3>
             <p className="text-sm mb-4" style={{ color: '#52636f' }}>
-              {events.length === 0 ? 'Create your first event, then add a quiz or elimination activity to it' : 'Try a different filter'}
+              {events.length === 0
+                ? 'Create your first event, then add an activity to it'
+                : 'Try a different filter'}
             </p>
             {events.length === 0 && (
-              <button onClick={() => { setEventToEdit(null); setShowCreateForm(true); }}
-                className="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white" style={{ background: '#157f85' }}>
+              <button
+                onClick={() => { setEventToEdit(null); setShowCreateForm(true); }}
+                className="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white"
+                style={{ background: '#157f85' }}>
                 <PlusCircle className="h-4 w-4" /> Create First Event
               </button>
             )}
             {(search || statusFilter !== 'all') && (
-              <button onClick={() => { setSearch(''); setStatusFilter('all'); }} className="ml-3 text-sm font-semibold" style={{ color: '#157f85' }}>
+              <button
+                onClick={() => { setSearch(''); setStatusFilter('all'); }}
+                className="ml-3 text-sm font-semibold"
+                style={{ color: '#157f85' }}>
                 Clear filters
               </button>
             )}
@@ -643,7 +791,8 @@ export default function QuizEventDashboard() {
           <div className="overflow-hidden rounded-xl shadow-sm" style={{ border: '1px solid #dce1df' }}>
             <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_120px] gap-4 px-4 py-3 text-xs font-semibold uppercase"
               style={{ background: '#fbf8f2', color: '#52636f', borderBottom: '1px solid #dce1df' }}>
-              <div>Event</div><div>Date</div><div>Activity</div><div>Tickets</div><div>Income</div>
+              <div>Event</div><div>Date</div><div>Activity</div>
+              <div>Tickets</div><div>Income</div>
               <div className="text-right">Actions</div>
             </div>
             <div className="divide-y" style={{ background: '#ffffff', '--divide-color': '#f1f0ee' } as any}>
@@ -693,6 +842,8 @@ export default function QuizEventDashboard() {
         )}
       </div>
 
+      {/* ── Modals ── */}
+
       {showCreateForm && (
         <CreateEventForm
           onSubmit={eventToEdit ? handleUpdateEvent : handleCreateEvent}
@@ -739,7 +890,10 @@ export default function QuizEventDashboard() {
       )}
 
       {managePaymentsOpen && clubId && (
-        <ManagePaymentMethodsModal clubId={clubId} onClose={() => setManagePaymentsOpen(false)} />
+        <ManagePaymentMethodsModal
+          clubId={clubId}
+          onClose={() => setManagePaymentsOpen(false)}
+        />
       )}
 
       {scheduleQuizOpen && (() => {
@@ -767,6 +921,21 @@ export default function QuizEventDashboard() {
             onSaved={async (roomId) => {
               setScheduleEliminationOpen(false);
               await handleActivitySaved(roomId, 'elimination');
+            }}
+          />
+        );
+      })()}
+
+      {scheduleTicketedEventOpen && (() => {
+        const pendingEvent = events.find(e => e.id === pendingActivityEventId);
+        if (!pendingEvent) return null;
+        return (
+          <ScheduleTicketedEventModal
+            event={pendingEvent}
+            onClose={() => { setScheduleTicketedEventOpen(false); setPendingActivityEventId(null); }}
+            onSaved={async (roomId) => {
+              setScheduleTicketedEventOpen(false);
+              await handleActivitySaved(roomId, 'ticketed_event');
             }}
           />
         );

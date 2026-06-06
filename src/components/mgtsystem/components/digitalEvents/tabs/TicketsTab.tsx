@@ -329,7 +329,7 @@ export default function TicketsTab({
     try {
       setCheckingPaymentMethods(true);
       setPaymentMethodsError(null);
-      const response = await fetch(`/api/quiz-rooms/${room.room_id}/available-payment-methods`);
+     const response = await fetch(`/api/quiz-rooms/${room.room_id}/available-payment-methods?context=tickets`);
       const data = await response.json();
       if (!response.ok || !data.ok) throw new Error(data.error || 'Failed to check payment methods');
       const paymentMethods: RoomPaymentMethod[] = Array.isArray(data.paymentMethods) ? data.paymentMethods : [];

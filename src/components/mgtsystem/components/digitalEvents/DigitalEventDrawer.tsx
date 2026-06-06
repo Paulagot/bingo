@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   X, Eye, Settings, CreditCard, Ticket,
-  Play, BarChart3, Scale, Heart,
+  Play, BarChart3, Scale, Heart, QrCode,
 } from "lucide-react";
 import type { Web2RoomListItem as Room } from "../../../../shared/api/quiz.api";
 import type { RoomStats } from "../../services/quizRoomServices";
@@ -55,7 +55,7 @@ interface Props {
   outstandingCount?: number;
   linkedEventTitle?: string | null;
   linkedEventId?: string | null;
-  linkedEvent?: Event;                // full event object — passed down to SetupTab
+  linkedEvent?: Event;
   showEventLinking?: boolean;
   featureAccess?: {
     eventLinking?: boolean;
@@ -72,7 +72,7 @@ interface Props {
   onLaunchFromHere: () => void;
   onPaymentMethodSuccess: () => void;
   onRefreshRoom?: () => Promise<void>;
-  onEditQuiz?: () => void;            // called when user clicks "Edit quiz" — handled by dashboard
+  onEditQuiz?: () => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -87,17 +87,12 @@ export default function DigitalEventDrawer({
   hasLinkedPaymentMethods,
   outstandingCount = 0,
   linkedEventTitle,
-  linkedEventId,
   linkedEvent,
-  showEventLinking,
   featureAccess,
   confirmedBy,
   confirmedByName,
-  unlinkLoading,
   onClose,
   onSaved,
-  onLinked,
-  confirmUnlink,
   onLaunchFromHere,
   onPaymentMethodSuccess,
   onRefreshRoom,
@@ -112,8 +107,9 @@ export default function DigitalEventDrawer({
   const [auditViewError, setAuditViewError]     = useState<string | null>(null);
   const lastFetchedRoomId = useRef<string | null>(null);
 
-  const isCompleted = room?.status === "completed";
-  const isCancelled = room?.status === "cancelled";
+  const isCompleted     = room?.status === "completed";
+  const isCancelled     = room?.status === "cancelled";
+  const isTicketedEvent = (room as any)?.game_type === 'ticketed_event';
   const canUseTicketing = featureAccess?.ticketing === true;
   const canUsePayments  = featureAccess?.quizPayments === true;
 
@@ -183,22 +179,40 @@ export default function DigitalEventDrawer({
       })
     : null;
 
+  // ── Ticket tab props ───────────────────────────────────────────────────────
   const ticketTabProps = {
     id: "tickets" as TabId,
     label: "Tickets",
     icon: <Ticket className="h-3.5 w-3.5" />,
-    disabled: !hasLinkedPaymentMethods || !canUseTicketing,
+    // Ticketed events always show the tickets tab — it's their primary function
+    disabled: isTicketedEvent
+      ? false
+      : (!hasLinkedPaymentMethods || !canUseTicketing),
     disabledReason: !canUseTicketing
       ? "Ticketing not on your plan"
       : "Add a payment method first (Payments tab)",
   };
 
+  // ── Launch tab label changes for ticketed events ───────────────────────────
+  const launchTab = {
+    id: "launch" as TabId,
+    label: isTicketedEvent ? "Check-in" : "Launch",
+    icon: isTicketedEvent
+      ? <QrCode className="h-3.5 w-3.5" />
+      : <Play className="h-3.5 w-3.5" />,
+    disabled: isCancelled,
+    disabledReason: "Not available for cancelled events",
+  };
+
+  // ── Tab sets ───────────────────────────────────────────────────────────────
   const tabs: Tab[] = isCompleted
     ? [
-        { id: "impact",    label: "Impact",          icon: <Heart className="h-3.5 w-3.5" /> },
-        { id: "report",    label: "Report",           icon: <BarChart3 className="h-3.5 w-3.5" /> },
-        { id: "approval",  label: "Approval Totals",  icon: <Scale className="h-3.5 w-3.5" /> },
-        ...(canUsePayments && outstandingCount > 0
+        { id: "impact",   label: "Impact",         icon: <Heart className="h-3.5 w-3.5" /> },
+        { id: "report",   label: "Report",          icon: <BarChart3 className="h-3.5 w-3.5" /> },
+        { id: "approval", label: "Approval Totals", icon: <Scale className="h-3.5 w-3.5" /> },
+        // Payments tab for outstanding — quiz/elimination only (ticketed events
+        // don't use the late payments flow)
+        ...(canUsePayments && outstandingCount > 0 && !isTicketedEvent
           ? [{ id: "payments" as TabId, label: "Payments", icon: <CreditCard className="h-3.5 w-3.5" />, badge: outstandingCount }]
           : []),
         { ...ticketTabProps, badge: pendingVerifications > 0 ? pendingVerifications : undefined },
@@ -206,12 +220,14 @@ export default function DigitalEventDrawer({
       ]
     : [
         { id: "overview" as TabId, label: "Overview", icon: <Eye className="h-3.5 w-3.5" /> },
-        { id: "setup" as TabId,    label: "Setup",    icon: <Settings className="h-3.5 w-3.5" />, disabled: isCancelled, disabledReason: "Not available for cancelled events" },
-        ...(canUsePayments
+        { id: "setup" as TabId, label: "Setup", icon: <Settings className="h-3.5 w-3.5" />, disabled: isCancelled, disabledReason: "Not available for cancelled events" },
+        // Payments tab — show for quiz/elimination; for ticketed events it's
+        // less relevant pre-event but still useful for confirming ticket payments
+        ...(canUsePayments || isTicketedEvent
           ? [{ id: "payments" as TabId, label: "Payments", icon: <CreditCard className="h-3.5 w-3.5" /> }]
           : []),
         { ...ticketTabProps, badge: pendingVerifications > 0 ? pendingVerifications : undefined },
-        { id: "launch" as TabId, label: "Launch", icon: <Play className="h-3.5 w-3.5" />, disabled: isCancelled, disabledReason: "Not available for cancelled events" },
+        launchTab,
       ];
 
   return (
@@ -236,6 +252,12 @@ export default function DigitalEventDrawer({
                 style={statusBadgeStyle(room.status)}>
                 {room.status.charAt(0).toUpperCase() + room.status.slice(1)}
               </span>
+              {isTicketedEvent && (
+                <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold"
+                  style={{ background: '#f0f9ff', color: '#0369a1', borderColor: '#bae6fd' }}>
+                  Ticketed Event
+                </span>
+              )}
               {scheduledDate && (
                 <span className="text-sm font-semibold text-[#102532]">{scheduledDate}</span>
               )}
@@ -298,17 +320,13 @@ export default function DigitalEventDrawer({
           )}
 
           {activeTab === "setup" && (
+            // SetupTab only accepts: room, linkedEvent, onEditQuiz, onSaved
+            // Linking/unlinking is handled at the dashboard level, not here
             <SetupTab
               room={room}
-              linkedEventTitle={linkedEventTitle}
-              linkedEventId={linkedEventId}
               linkedEvent={linkedEvent}
-              showEventLinking={showEventLinking}
               onEditQuiz={onEditQuiz ?? (() => {})}
-              onLinked={onLinked}
               onSaved={onSaved}
-              confirmUnlink={confirmUnlink}
-              unlinkLoading={unlinkLoading}
             />
           )}
 
@@ -325,7 +343,11 @@ export default function DigitalEventDrawer({
           )}
 
           {activeTab === "launch" && (
-            <LaunchTab room={room} onLaunchFromHere={onLaunchFromHere} />
+            <LaunchTab
+              room={room}
+              onLaunchFromHere={onLaunchFromHere}
+              onRoomUpdated={onRefreshRoom}
+            />
           )}
 
           {activeTab === "report" && (

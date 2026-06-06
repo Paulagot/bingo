@@ -55,50 +55,103 @@ function isInvalidTicketPaymentMethodError(message = '') {
 router.get('/room/:roomId/info', async (req, res) => {
   try {
     const { roomId } = req.params;
-
+ 
     if (!roomId) {
       return res.status(400).json({ error: 'roomId required' });
     }
-
+ 
     const roomData = await getRoomConfig(roomId);
-
+ 
     if (!roomData) {
       return res.status(404).json({
         error: 'Room not found or not available for ticket purchase',
       });
     }
-
+ 
     const { config, clubId, status } = roomData;
-
-  const { getQuizRoom } = await import('../../quiz/quizRoomManager.js');
-const memRoom = getQuizRoom(roomId);
-const currentPlayersInRoom = memRoom
-  ? Object.keys(memRoom.players || {}).length
-  : 0;
-const capacity = await getRoomCapacityStatus(roomId, currentPlayersInRoom);
-const capacityMessage = getCapacityMessage(capacity);
-
+ 
+    const { getQuizRoom } = await import('../../quiz/quizRoomManager.js');
+    const memRoom = getQuizRoom(roomId);
+    const currentPlayersInRoom = memRoom
+      ? Object.keys(memRoom.players || {}).length
+      : 0;
+    const capacity = await getRoomCapacityStatus(roomId, currentPlayersInRoom);
+    const capacityMessage = getCapacityMessage(capacity);
+ 
+    // ── For ticketed events, join fundraisely_events via event_integrations ──
+    // This gives us the event title, date, and location to display on the
+    // ticket purchase page instead of the generic room config fields.
+    let eventDetails = null;
+ 
+    if (roomData.gameType === 'ticketed_event') {
+      try {
+        const INTEGRATIONS_TABLE = `${TABLE_PREFIX}event_integrations`;
+        const EVENTS_TABLE       = `${TABLE_PREFIX}events`;
+ 
+        const [eventRows] = await connection.execute(
+          `SELECT
+             e.id            AS event_id,
+             e.title,
+             e.summary,
+             e.location_type,
+             e.location_label,
+             e.online_url,
+             e.start_datetime,
+             e.end_datetime,
+             e.time_zone,
+             e.event_date
+           FROM ${INTEGRATIONS_TABLE} i
+           JOIN ${EVENTS_TABLE} e ON e.id = i.event_id
+           WHERE i.external_ref    = ?
+             AND i.integration_type = 'ticketed_event'
+           LIMIT 1`,
+          [roomId]
+        );
+ 
+        if (eventRows?.[0]) {
+          const ev = eventRows[0];
+          eventDetails = {
+            eventId:       ev.event_id,
+            title:         ev.title,
+            summary:       ev.summary       || null,
+            locationLabel: ev.location_label || null,
+            locationType:  ev.location_type  || null,
+            onlineUrl:     ev.online_url     || null,
+            startDatetime: ev.start_datetime  || null,
+            endDatetime:   ev.end_datetime    || null,
+            timeZone:      ev.time_zone       || null,
+            eventDate:     ev.event_date      || null,
+          };
+        }
+      } catch (eventErr) {
+        // Non-fatal — ticket page still works without event details
+        console.error('[Tickets API] ⚠️ Failed to load event details for ticketed_event:', eventErr);
+      }
+    }
+ 
     return res.status(200).json({
       roomId,
       clubId,
       status,
-      hostName: config.hostName,
-      fundraisingMode: config.fundraisingMode || 'fixed_fee',
-      entryFee: parseFloat(config.entryFee || 0),
-      currencySymbol: config.currencySymbol || '€',
+      hostName:          config.hostName,
+      fundraisingMode:   config.fundraisingMode || 'fixed_fee',
+      entryFee:          parseFloat(config.entryFee || 0),
+      currencySymbol:    config.currencySymbol || '€',
       fundraisingOptions: config.fundraisingOptions || {},
-      fundraisingPrices: config.fundraisingPrices || {},
-      eventDateTime: config.eventDateTime,
-      timeZone: config.timeZone,
-      gameType: roomData.gameType,
-      clubName: roomData.clubName,
+      fundraisingPrices:  config.fundraisingPrices  || {},
+      eventDateTime:     config.eventDateTime,
+      timeZone:          config.timeZone,
+      gameType:          roomData.gameType,
+      clubName:          roomData.clubName,
+      // Event details — populated for ticketed_event rooms, null otherwise
+      eventDetails,
       capacity: {
-        maxCapacity: capacity.maxCapacity,
-        availableForTickets: capacity.availableForTickets,
-        totalTickets: capacity.totalTickets,
-        ticketSalesOpen: capacity.ticketSalesOpen,
+        maxCapacity:            capacity.maxCapacity,
+        availableForTickets:    capacity.availableForTickets,
+        totalTickets:           capacity.totalTickets,
+        ticketSalesOpen:        capacity.ticketSalesOpen,
         ticketSalesCloseReason: capacity.ticketSalesCloseReason,
-        message: capacityMessage,
+        message:                capacityMessage,
       },
     });
   } catch (err) {

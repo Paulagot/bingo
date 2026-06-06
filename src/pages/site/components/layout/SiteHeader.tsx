@@ -50,7 +50,7 @@ export function SiteHeader() {
             ))}
           </div>
           <a href={siteBrand.loginUrl} className="button button--small button--ghost-dark">Login</a>
-          <Link to="/demo" className="button button--small button--outline-dark">Demo</Link>
+          {/* <Link to="/demo" className="button button--small button--outline-dark">Demo</Link> */}
           <MobileNav />
         </div>
       </div>

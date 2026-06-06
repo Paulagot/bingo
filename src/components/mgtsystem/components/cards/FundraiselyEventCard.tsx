@@ -14,7 +14,7 @@ import { useCurrency } from '../../hooks/useCurrency';
 
 interface LinkedActivity {
   room_id: string;
-  game_type: 'quiz' | 'elimination';
+  game_type: 'quiz' | 'elimination' | 'ticketed_event';
   status: 'scheduled' | 'open' | 'live' | 'completed' | 'cancelled';
 }
 
@@ -25,7 +25,7 @@ export interface FundraiselyEventCardProps {
   activityStats?: RoomStats;
   outstandingCount?: number;
   onOpenDrawer: () => void;
-  onAddActivity: (type: 'quiz' | 'elimination') => void;
+  onAddActivity: (type: 'quiz' | 'elimination' | 'ticketed_event') => void;
   onEdit: () => void;
   onPublish?: () => void;
   onUnpublish?: () => void;
@@ -98,10 +98,13 @@ function activityTheme(status: LinkedActivity['status']): ActivityTheme {
 }
 
 // Game type gets its own distinct colour — different from status
-function gameTypeBadgeStyle(type: 'quiz' | 'elimination'): React.CSSProperties {
+function gameTypeBadgeStyle(type: 'quiz' | 'elimination' | 'ticketed_event'): React.CSSProperties {
   if (type === 'elimination') {
     return { background: '#fff1f0', color: '#c8423b', borderColor: '#fca5a5' };
   }
+       if (type === 'ticketed_event') {
+        return { background: '#f0f9ff', color: '#0369a1', borderColor: '#bae6fd' };
+      }
   return { background: '#f0fdf4', color: '#15803d', borderColor: '#86efac' };
 }
 
@@ -116,7 +119,7 @@ function drawerActionMeta(status: string) {
 interface AddActivityDropdownProps {
   open: boolean;
   onToggle: () => void;
-  onSelect: (type: 'quiz' | 'elimination') => void;
+  onSelect: (type: 'quiz' | 'elimination' | 'ticketed_event') => void;
 }
 
 function AddActivityDropdown({ open, onToggle, onSelect }: AddActivityDropdownProps) {
@@ -181,6 +184,18 @@ function AddActivityDropdown({ open, onToggle, onSelect }: AddActivityDropdownPr
 
           <div style={{ borderTop: '1px solid #dce1df' }} />
 
+            <button type="button" onClick={() => onSelect('ticketed_event')}
+     className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-[#f6f1e8]">
+      <div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg"
+        style={{ background: '#f0f9ff' }}>
+        <Ticket className="h-3.5 w-3.5" style={{ color: '#0369a1' }} />
+     </div>
+      <div>
+        <p className="text-sm font-semibold" style={{ color: '#102532' }}>Ticketed Event</p>
+        <p className="text-xs" style={{ color: '#52636f' }}>Dinner, raffle, charity event…</p>
+      </div>
+    </button>
+
           <button type="button" onClick={() => onSelect('elimination')}
             className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-[#f6f1e8]">
             <div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg"
@@ -236,7 +251,7 @@ export function FundraiselyEventCard({
   const drawerMeta = hasActivity ? drawerActionMeta(linkedActivity!.status) : null;
   const DrawerIcon = drawerMeta?.Icon;
 
-  const handleActivitySelect = (type: 'quiz' | 'elimination') => {
+  const handleActivitySelect = (type: 'quiz' | 'elimination' | 'ticketed_event') => {
     setDropdownOpen(false);
     onAddActivity(type);
   };
@@ -272,19 +287,25 @@ export function FundraiselyEventCard({
             )}
 
             {/* Game type badge — distinct green/red so it doesn't clash with status */}
-            {hasActivity && (
-              linkedActivity!.game_type === 'elimination' ? (
-                <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold"
-                  style={gameTypeBadgeStyle('elimination')}>
-                  <Trophy className="h-3 w-3" /> Elimination
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold"
-                  style={gameTypeBadgeStyle('quiz')}>
-                  <Play className="h-3 w-3" /> Quiz
-                </span>
-              )
-            )}
+          {/* Game type badge — distinct colours per type */}
+{hasActivity && (
+  linkedActivity!.game_type === 'elimination' ? (
+    <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold"
+      style={gameTypeBadgeStyle('elimination')}>
+      <Trophy className="h-3 w-3" /> Elimination
+    </span>
+  ) : linkedActivity!.game_type === 'ticketed_event' ? (
+    <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold"
+      style={gameTypeBadgeStyle('ticketed_event')}>
+      <Ticket className="h-3 w-3" /> Ticketed
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold"
+      style={gameTypeBadgeStyle('quiz')}>
+      <Play className="h-3 w-3" /> Quiz
+    </span>
+  )
+)}
 
             {/* No activity — show a subtle placeholder */}
             {!hasActivity && (

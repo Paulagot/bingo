@@ -1,16 +1,28 @@
 // src/components/mgtsystem/components/digitalEvents/tabs/LaunchTab.tsx
 //
-// Launch tab for both quiz and elimination rooms.
+// Launch tab for quiz, elimination, and ticketed event rooms.
+//
+// Quiz:
+//   onLaunchFromHere() handled by parent (unchanged).
+//
 // Elimination:
 //   1. Hydrate call → DB status: scheduled → open
 //   2. Host joins game tab → socket START_GAME → DB status: open → live
-// Quiz:
-//   onLaunchFromHere() handled by parent (unchanged).
+//
+// Ticketed event:
+//   1. "Open Check-in" → POST /open-checkin → DB status: scheduled → open
+//   2. Opens check-in dashboard in new tab
+//   3. "Close Event" → POST /complete → DB status: open → completed
+//      This triggers reconciliation (same as game end for quiz/elimination)
 
 import { useState } from 'react';
-import { Play, Lock, Clock, Loader, AlertCircle } from 'lucide-react';
+import {
+  Play, Lock, Clock, Loader, AlertCircle,
+  QrCode, CheckCircle, XCircle,
+} from 'lucide-react';
 import type { Web2RoomListItem as Room } from '../../../../../shared/api/quiz.api';
 import eliminationMgmtService from '../../../services/EliminationMgmtService';
+import ticketedEventMgmtService from '../../../services/TicketedEventMgmtService';
 
 function minutesUntil(scheduledAt: string | null): number | null {
   if (!scheduledAt) return null;
@@ -26,21 +38,24 @@ function formatCountdown(mins: number): string {
 interface Props {
   room: Room;
   onLaunchFromHere: () => void;
+  onRoomUpdated?: () => void; // called after status changes so drawer refreshes
 }
 
-export default function LaunchTab({ room, onLaunchFromHere }: Props) {
-  const isElimination = (room as any).game_type === 'elimination';
+export default function LaunchTab({ room, onLaunchFromHere, onRoomUpdated }: Props) {
+  const isElimination   = (room as any).game_type === 'elimination';
+  const isTicketedEvent = (room as any).game_type === 'ticketed_event';
 
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState<string | null>(null);
+  const [loading,        setLoading]        = useState(false);
+  const [closingEvent,   setClosingEvent]   = useState(false);
+  const [error,          setError]          = useState<string | null>(null);
+  const [closeConfirm,   setCloseConfirm]   = useState(false);
 
   const isAvailable = ['scheduled', 'open', 'live'].includes(room.status);
+  const isOpen      = room.status === 'open';
   const mins        = minutesUntil(room.scheduled_at);
   const tooEarly    = room.status === 'scheduled' && mins !== null && mins > 60;
 
-  // ── Elimination launch ──────────────────────────────────────────────────────
-  // 1. POST /hydrate  → room moves scheduled → open in DB
-  // 2. Open game tab  → host socket connects → START_GAME → open → live
+  // ── Elimination launch ────────────────────────────────────────────────────
   const handleEliminationLaunch = async () => {
     setLoading(true);
     setError(null);
@@ -59,7 +74,45 @@ export default function LaunchTab({ room, onLaunchFromHere }: Props) {
     }
   };
 
-  // ── Theme ───────────────────────────────────────────────────────────────────
+  // ── Ticketed event: open check-in ─────────────────────────────────────────
+  const handleOpenCheckin = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await ticketedEventMgmtService.openCheckIn(room.room_id);
+      // Open the check-in dashboard in a new tab
+      const params = new URLSearchParams({ hostId: room.host_id });
+      window.open(`/ticketed-event/checkin/${room.room_id}?${params.toString()}`, '_blank');
+      onRoomUpdated?.();
+    } catch (e: any) {
+      setError(e?.message || 'Failed to open check-in. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Ticketed event: open existing check-in dashboard ─────────────────────
+  const handleRejoinCheckin = () => {
+    const params = new URLSearchParams({ hostId: room.host_id });
+    window.open(`/ticketed-event/checkin/${room.room_id}?${params.toString()}`, '_blank');
+  };
+
+  // ── Ticketed event: close event + trigger reconciliation ──────────────────
+  const handleCloseEvent = async () => {
+    setClosingEvent(true);
+    setError(null);
+    try {
+      await ticketedEventMgmtService.completeEvent(room.room_id);
+      setCloseConfirm(false);
+      onRoomUpdated?.();
+    } catch (e: any) {
+      setError(e?.message || 'Failed to close event. Please try again.');
+    } finally {
+      setClosingEvent(false);
+    }
+  };
+
+  // ── Theme ─────────────────────────────────────────────────────────────────
   const theme = isElimination
     ? {
         wrap:     'border-[rgba(233,87,79,0.3)] bg-[rgba(233,87,79,0.06)]',
@@ -70,6 +123,17 @@ export default function LaunchTab({ room, onLaunchFromHere }: Props) {
         accent:   'text-[#c8423b]',
         lockBg:   'border-[rgba(233,87,79,0.2)] bg-[rgba(233,87,79,0.04)]',
         lockIcon: 'text-[#c8423b]',
+      }
+    : isTicketedEvent
+    ? {
+        wrap:     'border-[rgba(21,127,133,0.3)] bg-[rgba(21,127,133,0.06)]',
+        iconBg:   'bg-[rgba(21,127,133,0.15)]',
+        iconTxt:  'text-[#157f85]',
+        btn:      'bg-[#157f85] hover:bg-[#0e6268] focus-visible:ring-[#157f85]',
+        heading:  'text-[#102532]',
+        accent:   'text-[#157f85]',
+        lockBg:   'border-[rgba(21,127,133,0.2)] bg-[rgba(21,127,133,0.04)]',
+        lockIcon: 'text-[#157f85]',
       }
     : {
         wrap:     'border-[rgba(21,127,133,0.3)] bg-[rgba(21,127,133,0.06)]',
@@ -82,7 +146,7 @@ export default function LaunchTab({ room, onLaunchFromHere }: Props) {
         lockIcon: 'text-[#157f85]',
       };
 
-  // ── Not available ───────────────────────────────────────────────────────────
+  // ── Not available ─────────────────────────────────────────────────────────
   if (!isAvailable) {
     return (
       <div className="p-5">
@@ -95,10 +159,169 @@ export default function LaunchTab({ room, onLaunchFromHere }: Props) {
     );
   }
 
+  // ── Ticketed event layout ─────────────────────────────────────────────────
+  if (isTicketedEvent) {
+    return (
+      <div className="p-5 space-y-4">
+
+        {/* ── Primary action card ── */}
+        <div className={`rounded-xl border p-5 ${theme.wrap}`}>
+          <div className="flex items-start gap-3 mb-4">
+            <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${theme.iconBg}`}>
+              <QrCode className={`h-5 w-5 ${theme.iconTxt}`} />
+            </div>
+            <div>
+              <h3 className={`text-sm font-semibold ${theme.heading}`}>
+                {isOpen ? 'Check-in is open' : 'Open check-in'}
+              </h3>
+              <p className="mt-0.5 text-xs text-[#52636f]">
+                {isOpen
+                  ? 'Guests are checking in. Open the check-in dashboard to scan QR codes and manage attendees.'
+                  : 'Start check-in on the night. This opens a dashboard where you and your door staff can scan guest QR codes.'}
+              </p>
+            </div>
+          </div>
+
+          {/* Status pill */}
+          <div className="mb-3 flex items-center gap-2">
+            <span className="text-xs text-[#8a9bab] font-medium">Status:</span>
+            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+              isOpen
+                ? 'bg-green-100 text-green-700'
+                : room.status === 'scheduled'
+                  ? 'bg-yellow-100 text-yellow-700'
+                  : 'bg-gray-100 text-gray-500'
+            }`}>
+              {isOpen ? '🟢 Check-in open' : room.status}
+            </span>
+          </div>
+
+          {error && (
+            <div className="mb-3 flex items-start gap-2 rounded-lg border border-[rgba(233,87,79,0.3)] bg-white px-3 py-2.5">
+              <AlertCircle className="h-4 w-4 text-[#c8423b] flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-[#c8423b]">{error}</p>
+            </div>
+          )}
+
+          {tooEarly ? (
+            <div className={`rounded-lg border px-4 py-3 flex items-center gap-3 ${theme.lockBg}`}>
+              <Clock className={`h-4 w-4 flex-shrink-0 ${theme.lockIcon}`} />
+              <div>
+                <p className="text-sm font-medium text-[#52636f]">
+                  Opens 1 hour before the scheduled start
+                </p>
+                {mins !== null && (
+                  <p className="mt-0.5 text-xs text-[#8a9bab]">
+                    Available in {formatCountdown(mins)}
+                  </p>
+                )}
+              </div>
+              <Lock className="h-4 w-4 text-[#8a9bab] ml-auto flex-shrink-0" />
+            </div>
+          ) : isOpen ? (
+            // Already open — rejoin check-in dashboard
+            <button
+              type="button"
+              onClick={handleRejoinCheckin}
+              className={`w-full inline-flex items-center justify-center gap-2 rounded-lg px-4 py-3
+                text-sm font-bold text-white transition-colors
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+                ${theme.btn}`}
+            >
+              <QrCode className="h-4 w-4" />
+              Open Check-in Dashboard
+            </button>
+          ) : (
+            // Scheduled — open check-in
+            <button
+              type="button"
+              onClick={handleOpenCheckin}
+              disabled={loading}
+              className={`w-full inline-flex items-center justify-center gap-2 rounded-lg px-4 py-3
+                text-sm font-bold text-white transition-colors
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+                disabled:opacity-60 disabled:cursor-not-allowed ${theme.btn}`}
+            >
+              {loading ? (
+                <><Loader className="h-4 w-4 animate-spin" />Opening check-in…</>
+              ) : (
+                <><QrCode className="h-4 w-4" />Open Check-in</>
+              )}
+            </button>
+          )}
+        </div>
+
+        {/* ── Close event card — only shown when check-in is open ── */}
+        {isOpen && (
+          <div className="rounded-xl border border-[rgba(233,87,79,0.2)] bg-[rgba(233,87,79,0.04)] p-5">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[rgba(233,87,79,0.12)]">
+                <CheckCircle className="h-5 w-5 text-[#c8423b]" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-[#8b1c1c]">Close event</h3>
+                <p className="mt-0.5 text-xs text-[#52636f]">
+                  Mark the event as completed and start reconciliation. This closes check-in and moves to the report and approval screens.
+                </p>
+              </div>
+            </div>
+
+            {!closeConfirm ? (
+              <button
+                type="button"
+                onClick={() => setCloseConfirm(true)}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-[rgba(233,87,79,0.3)] bg-white px-4 py-3
+                  text-sm font-bold text-[#c8423b] transition-colors hover:bg-[rgba(233,87,79,0.08)]
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e9574f] focus-visible:ring-offset-2"
+              >
+                <XCircle className="h-4 w-4" />
+                Close Event &amp; Start Reconciliation
+              </button>
+            ) : (
+              <div className="rounded-lg border border-[rgba(233,87,79,0.3)] bg-white p-4 space-y-3">
+                <p className="text-sm font-semibold text-[#8b1c1c]">
+                  Are you sure? This will close check-in and begin reconciliation.
+                </p>
+                <p className="text-xs text-[#52636f]">
+                  Make sure all payments are confirmed before closing. You can still view and approve reconciliation afterwards.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCloseConfirm(false)}
+                    disabled={closingEvent}
+                    className="flex-1 rounded-lg border border-[#dce1df] bg-white px-4 py-2 text-sm font-semibold text-[#52636f]
+                      hover:bg-gray-50 disabled:opacity-40"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCloseEvent}
+                    disabled={closingEvent}
+                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-[#e9574f]
+                      px-4 py-2 text-sm font-bold text-white hover:bg-[#c8423b]
+                      disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {closingEvent ? (
+                      <><Loader className="h-3.5 w-3.5 animate-spin" />Closing…</>
+                    ) : (
+                      'Yes, close event'
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+      </div>
+    );
+  }
+
+  // ── Quiz / Elimination layout (unchanged) ─────────────────────────────────
   return (
     <div className="p-5 space-y-4">
-
-      {/* ── Primary action card ── */}
       <div className={`rounded-xl border p-5 ${theme.wrap}`}>
 
         {/* Header */}
@@ -118,7 +341,7 @@ export default function LaunchTab({ room, onLaunchFromHere }: Props) {
           </div>
         </div>
 
-        {/* Status pill — shows current DB status for transparency */}
+        {/* Status pill */}
         <div className="mb-3 flex items-center gap-2">
           <span className="text-xs text-[#8a9bab] font-medium">Status:</span>
           <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold
@@ -130,7 +353,6 @@ export default function LaunchTab({ room, onLaunchFromHere }: Props) {
           </span>
         </div>
 
-        {/* Error */}
         {error && (
           <div className="mb-3 flex items-start gap-2 rounded-lg border border-[rgba(233,87,79,0.3)] bg-white px-3 py-2.5">
             <AlertCircle className="h-4 w-4 text-[#c8423b] flex-shrink-0 mt-0.5" />
@@ -138,7 +360,6 @@ export default function LaunchTab({ room, onLaunchFromHere }: Props) {
           </div>
         )}
 
-        {/* Too early — countdown */}
         {tooEarly ? (
           <div className={`rounded-lg border px-4 py-3 flex items-center gap-3 ${theme.lockBg}`}>
             <Clock className={`h-4 w-4 flex-shrink-0 ${theme.lockIcon}`} />
@@ -180,44 +401,6 @@ export default function LaunchTab({ room, onLaunchFromHere }: Props) {
           </button>
         )}
       </div>
-
-      {/* ── What happens next ── */}
-      {/* {!tooEarly && (
-        <div className="rounded-xl border border-[#dce1df] bg-white p-4">
-          <p className="text-xs font-semibold text-[#52636f] uppercase tracking-wide mb-2">
-            What happens when you launch
-          </p>
-          <ol className="space-y-1.5">
-            {isElimination ? (
-              <>
-                <Step n={1} text="Room config loads from the database" />
-                <Step n={2} text="Room status moves to open — players can now join" />
-                <Step n={3} text="Elimination lobby opens in a new tab, with you as host" />
-                <Step n={4} text="When you click Start Game, status moves to live" />
-              </>
-            ) : (
-              <>
-                <Step n={1} text="Host dashboard opens in a new tab" />
-                <Step n={2} text="Players can join using the room code or link" />
-                <Step n={3} text="Start the quiz when everyone is ready" />
-              </>
-            )}
-          </ol>
-        </div>
-      )} */}
-
     </div>
   );
 }
-
-// ── Small helper ──────────────────────────────────────────────────────────────
-// function Step({ n, text }: { n: number; text: string }) {
-//   return (
-//     <li className="flex items-start gap-2 text-xs text-[#52636f]">
-//       <span className="flex-shrink-0 flex h-4 w-4 items-center justify-center rounded-full bg-[#f0f4f3] text-[10px] font-bold text-[#52636f]">
-//         {n}
-//       </span>
-//       {text}
-//     </li>
-//   );
-// }

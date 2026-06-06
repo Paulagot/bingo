@@ -49,7 +49,7 @@ import { sdk } from '@farcaster/miniapp-sdk';
 import { SiteLayout } from './pages/site/components/layout/SiteLayout';
 
 import SiteHomePage from './pages/site/pages/HomePage';
-import SiteDemoPage from './pages/site/pages/DemoPage';
+
 import SitePricingPage from './pages/site/pages/PricingPage';
 import SiteHowItWorksPage from './pages/site/pages/HowItWorksPage';
 import SiteAboutPage from './pages/site/pages/AboutPage';
@@ -60,6 +60,7 @@ import SiteGamesIndexPage from './pages/site/pages/games/GamesIndexPage';
 import SiteQuizGamePage from './pages/site/pages/games/QuizGamePage';
 import SiteEliminationGamePage from './pages/site/pages/games/EliminationGamePage';
 import SitePuzzleChallengesPage from './pages/site/pages/games/PuzzleChallengesPage';
+import SiteTicketedEventsPage from './pages/site/pages/games/TicketedEventsPage';
 import SiteEscapeRoomPage from './pages/site/pages/games/EscapeRoomPage';
 import SiteTreasureHuntPage from './pages/site/pages/games/TreasureHuntPage';
 
@@ -87,6 +88,8 @@ import SiteGuidesPage from './pages/site/pages/resources/GuidesPage';
 import SitePrivacyPage from './pages/site/pages/legal/PrivacyPage';
 import SiteTermsPage from './pages/site/pages/legal/TermsPage';
 import SiteCookiesPage from './pages/site/pages/legal/CookiesPage';
+import CheckinPage from './pages/site/pages/CheckinPage';
+import SafeStreetsIrelandPadelPage from './pages/events/SafeStreetsIrelandPadelPage';
 
 // Lazy quiz parts
 const QuizRoutes = lazy(() => import('./components/Quiz/QuizRoutes'));
@@ -154,6 +157,13 @@ const EliminationJoinPage = lazy(() =>
 const EliminationJoinSuccessPage = lazy(() =>
   import('./components/elimination/join/EliminationJoinSuccessPage').then((m) => ({
     default: m.EliminationJoinSuccessPage,
+  }))
+);
+
+// Add this lazy import at the top with the other lazy imports:
+const WalkinPage = lazy(() =>
+  import('./pages/site/pages/WalkinPage').then((m) => ({
+    default: m.default,
   }))
 );
 
@@ -233,7 +243,7 @@ export default function App() {
         */}
         <Route element={<SiteLayout />}>
           <Route path="/" element={<SiteHomePage />} />
-          <Route path="/demo" element={<SiteDemoPage />} />
+          
           <Route path="/pricing" element={<SitePricingPage />} />
           <Route path="/how-it-works" element={<SiteHowItWorksPage />} />
           <Route path="/about" element={<SiteAboutPage />} />
@@ -242,6 +252,7 @@ export default function App() {
           <Route path="/event-formats" element={<SiteGamesIndexPage />} />
           <Route path="/event-formats/quiz" element={<SiteQuizGamePage />} />
           <Route path="/event-formats/elimination" element={<SiteEliminationGamePage />} />
+          <Route path="/event-formats/ticketed-events" element={<SiteTicketedEventsPage />} />
           <Route path="/event-formats/puzzle-challenges" element={<SitePuzzleChallengesPage />} />
           <Route path="/event-formats/escape-room" element={<SiteEscapeRoomPage />} />
           <Route path="/event-formats/treasure-hunt" element={<SiteTreasureHuntPage />} />
@@ -466,6 +477,11 @@ export default function App() {
           }
         />
 
+        <Route
+  path="/events/safe-streets-ireland-padel"
+  element={<SafeStreetsIrelandPadelPage />}
+/>
+
         {/* Ticket routes */}
         <Route
           path="/tickets/buy/:roomId"
@@ -593,6 +609,23 @@ export default function App() {
             </Suspense>
           }
         />
+
+        <Route
+  path="/ticketed-event/checkin/:roomId"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading check-in..." />}>
+      <CheckinPage />
+    </Suspense>
+  }
+/>
+<Route
+  path="/tickets/walkin/:roomId"
+  element={
+    <Suspense fallback={<LoadingSpinner message="Loading Walk-in" />}>
+      <WalkinPage />
+    </Suspense>
+  }
+/>
 
         {/* Web3 Hub & Impact Campaign */}
         <Route
@@ -735,6 +768,7 @@ export default function App() {
             </Suspense>
           }
         />
+        
 
         {/* Final app 404 */}
         <Route

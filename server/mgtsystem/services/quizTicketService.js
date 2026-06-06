@@ -139,15 +139,20 @@ async function getClubPaymentMethodForRoom({
   linkedPaymentMethods,
   clubPaymentMethodId,
   context = 'tickets',
+  roomStatus = null,       // ← new: 'scheduled' | 'open' | 'live' | etc.
 }) {
   const numericMethodId = Number(clubPaymentMethodId);
-
+ 
   if (!Number.isFinite(numericMethodId)) {
     throw new Error('valid_club_payment_method_required_for_ticket');
   }
-
- const linkedIds = getLinkedPaymentMethodIds(linkedPaymentMethods, context); 
-
+ 
+  // When the room is open (check-in running), guests paying at the door
+  // should be able to use onnight_method_ids (includes cash, card tap).
+  // For advance ticket sales (scheduled), use ticket_method_ids only.
+  const resolvedContext = roomStatus === 'open' ? 'onnight' : context;
+  const linkedIds = getLinkedPaymentMethodIds(linkedPaymentMethods, resolvedContext);
+ 
   if (!linkedIds.has(numericMethodId)) {
     if (DEBUG) {
       console.log('[TicketService] ❌ Payment method not linked to quiz:', {
@@ -206,6 +211,7 @@ async function validateManualTicketPaymentMethod({
   clubId,
   linkedPaymentMethods,
   clubPaymentMethodId,
+  roomStatus = null,       // ← new
 }) {
   const method = await getClubPaymentMethodForRoom({
     roomId,
@@ -213,20 +219,30 @@ async function validateManualTicketPaymentMethod({
     linkedPaymentMethods,
     clubPaymentMethodId,
     context: 'tickets',
+    roomStatus,              // ← passed through — switches to onnight when open
   });
-
+ 
   if (method.methodCategory !== 'instant_payment') {
     throw new Error('ticket_manual_payment_method_must_be_manual');
   }
-
- if (method.providerName === 'cash' || method.providerName === 'card_tap') {
-   throw new Error('pay_at_door_not_allowed_for_ticket_purchase');
+ 
+  // Cash and card tap are only allowed when the room is open (guest is
+  // physically present). Block them for advance ticket purchases.
+  if (method.providerName === 'cash' || method.providerName === 'card_tap') {
+    if (roomStatus !== 'open') {
+      throw new Error('pay_at_door_not_allowed_for_ticket_purchase');
+    }
+    // Room is open — allow it through
+    return {
+      ...method,
+      paymentMethod: 'instant_payment',
+    };
   }
-
+ 
   if (!TICKET_MANUAL_PROVIDER_ALLOWLIST.has(method.providerName)) {
     throw new Error('payment_method_not_allowed_for_ticket_purchase');
   }
-
+ 
   return {
     ...method,
     paymentMethod: 'instant_payment',
@@ -308,13 +324,14 @@ export async function createTicketWithPayment({
     throw new Error('Room not found or not available for ticket purchase');
   }
 
-  const { clubId, config, linkedPaymentMethods } = roomData;
-
+  const { clubId, config, linkedPaymentMethods, status: roomStatus } = roomData;
+ 
   const validatedPaymentMethod = await validateManualTicketPaymentMethod({
     roomId,
     clubId,
     linkedPaymentMethods,
     clubPaymentMethodId,
+    roomStatus,              // ← 'scheduled' | 'open' | etc.
   });
 
   // Do not trust client-supplied paymentMethod.
@@ -699,11 +716,7 @@ export async function createCryptoDonationTicketWithConfirmedPayment({
     },
   });
  
-  // 4. Attach ledger row to ticket
-  await connection.execute(
-    `UPDATE ${TICKETS_TABLE} SET ledger_id = ?, updated_at = UTC_TIMESTAMP() WHERE ticket_id = ?`,
-    [ledgerId, ticketId]
-  );
+
 
   // 4. Attach ledger row to ticket
   await connection.execute(
@@ -720,6 +733,8 @@ export async function createCryptoDonationTicketWithConfirmedPayment({
       const config = parseJsonMaybe(ticketRow.config_json, {});
       const extras = parseJsonMaybe(ticketRow.extras, []);
       await sendTicketConfirmationEmail({
+        eventTitle:    config?.eventTitle    || null,
+  eventLocation: config?.eventLocation || null,
         ticketId,
         purchaserEmail: ticketRow.purchaser_email,
         purchaserName: ticketRow.purchaser_name,
@@ -852,6 +867,8 @@ export async function confirmTicketPayment({
       const extras = parseJsonMaybe(ticketRow.extras, []);
 
      await sendTicketConfirmationEmail({
+      eventTitle:    config?.eventTitle    || null,
+  eventLocation: config?.eventLocation || null,
     ticketId,
     purchaserEmail: ticketRow.purchaser_email,
     purchaserName: ticketRow.purchaser_name,
@@ -1519,11 +1536,6 @@ export async function createCryptoFixedFeeTicketWithConfirmedPayment({
     }
   }
 
-  // 5. Attach ledger to ticket
-  await connection.execute(
-    `UPDATE ${TICKETS_TABLE} SET ledger_id = ?, updated_at = UTC_TIMESTAMP() WHERE ticket_id = ?`,
-    [ledgerId, ticketId]
-  );
 
  // 5. Attach ledger to ticket
   await connection.execute(
@@ -1540,6 +1552,8 @@ export async function createCryptoFixedFeeTicketWithConfirmedPayment({
       const config = parseJsonMaybe(ticketRow.config_json, {});
       const extras = parseJsonMaybe(ticketRow.extras, []);
       await sendTicketConfirmationEmail({
+        eventTitle:    config?.eventTitle    || null,
+  eventLocation: config?.eventLocation || null,
         ticketId,
         purchaserEmail: ticketRow.purchaser_email,
         purchaserName: ticketRow.purchaser_name,

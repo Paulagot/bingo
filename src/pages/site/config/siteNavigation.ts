@@ -81,9 +81,9 @@ export const footerGroups: NavGroup[] = [
     label: 'Platform',
     items: [
       { label: 'Home', to: '/' },
-      { label: 'Demo', to: '/demo' },
+      // { label: 'Demo',to: '/contact' },
       { label: 'Pricing', to: '/pricing' },
-      { label: 'How it works', to: '/how-it-works' },
+      // { label: 'How it works', to: '/how-it-works' },
       { label: 'About', to: '/about' },
       { label: 'Contact', to: '/contact' },
     ],
@@ -100,15 +100,15 @@ export const footerGroups: NavGroup[] = [
     label: 'Use cases',
     items: useCaseNavItems,
   },
-  {
-    label: 'Resources',
-    items: [
-      { label: 'Resources', to: '/resources' },
-      { label: 'Blog', to: '/blog' },
-      { label: 'Fundraising ideas', to: '/resources/fundraising-ideas' },
-      { label: 'Guides', to: '/resources/guides' },
-    ],
-  },
+  // {
+  //   label: 'Resources',
+  //   items: [
+  //     { label: 'Resources', to: '/resources' },
+  //     { label: 'Blog', to: '/blog' },
+  //     { label: 'Fundraising ideas', to: '/resources/fundraising-ideas' },
+  //     { label: 'Guides', to: '/resources/guides' },
+  //   ],
+  // },
   {
     label: 'Web3 Fundraising',
     items: web3NavItems,

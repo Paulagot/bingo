@@ -1,5 +1,6 @@
 // src/components/Quiz/tickets/TicketPurchaseFlow.tsx
 // UPDATED: game-type aware copy, passes gameType + clubName through to ticket/confirmation
+// UPDATED: ticketed_event support — event info panel, hides player name, skips extras
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -24,6 +25,7 @@ import {
 import { ActionButtons } from '../shared/ActionButtons';
 
 import { TicketConfirmation } from './TicketConfirmation';
+import { TicketedEventInfoPanel } from './TicketedEventInfoPanel';
 import CryptoTicketDonationStep from './crypto/CryptoTicketDonationStep';
 import { Web3Provider } from '../../../components/Web3Provider';
 import CryptoFixedFeeStep from '../joinroom/crypto/CryptoFixedFeeStep';
@@ -75,7 +77,8 @@ function normalisePaymentValue(value: unknown): string {
 
 function isTicketAllowedPaymentMethod(
   method: ClubPaymentMethod,
-  _isDonationRoom: boolean  // reserved for future donation-room filtering rules
+  _isDonationRoom: boolean,
+  roomStatus?: string,
 ): boolean {
   const category = normalisePaymentValue(method.methodCategory);
   const provider = normalisePaymentValue(method.providerName);
@@ -86,7 +89,11 @@ function isTicketAllowedPaymentMethod(
   if (category === 'crypto') return true;
 
   if (category === 'instant_payment') {
-    if (provider === 'cash' || provider === 'card_tap') return false;
+    // Cash and card tap are only allowed when the room is open (guest is
+    // physically present for pay-at-the-door). Block them for advance sales.
+    if (provider === 'cash' || provider === 'card_tap') {
+      return roomStatus === 'open';
+    }
     return TICKET_ALLOWED_MANUAL_PROVIDERS.has(provider);
   }
 
@@ -128,26 +135,28 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
 
   const { selectedExtras, toggleExtra, calculateExtrasTotal } =
     useExtrasSelection();
-  const isPlayerDetailsValid = usePlayerDetailsValidation(
-    playerDetails,
-    'ticket'
-  );
-
-  const [paymentReference] = useState(
-    () => `QUIZ-${nanoid(6).toUpperCase()}`
-  );
-  const [ticket, setTicket] = useState<Ticket | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [creatingTicket, setCreatingTicket] = useState(false);
-
-  const [hasCopiedReference, setHasCopiedReference] = useState(false);
-  const [hasOpenedProviderLink, setHasOpenedProviderLink] = useState(false);
 
   const isDonationRoom = roomInfo?.fundraisingMode === 'donation';
+
+  // ── Ticketed event flag — no game, no player name, no extras ─────────────
+  const isTicketedEvent = roomInfo?.gameType === 'ticketed_event';
+
+  // ── Validation — ticketed events don't require a player name ─────────────
+  const isPlayerDetailsValid = usePlayerDetailsValidation(
+    playerDetails,
+    'ticket',
+    isTicketedEvent,
+  );
+
+  // ── Resolved player name — ticketed events use purchaser name ────────────
+  const resolvedPlayerName = isTicketedEvent
+    ? (playerDetails.purchaserName?.trim() || '')
+    : playerDetails.playerName;
+
   const isSelectedStripe = selectedMethod?.methodCategory === 'stripe';
   const isSelectedInstant = selectedMethod?.methodCategory === 'instant_payment';
 
-  // ── Game type meta — derived from roomInfo once loaded ───────────────────
+  // ── Game type meta ────────────────────────────────────────────────────────
   const meta = getGameTypeMeta(roomInfo?.gameType);
 
   const donationValue = useMemo(() => {
@@ -160,18 +169,20 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
     (Number.isFinite(donationValue) && donationValue > 0);
 
   const availableExtras = useMemo(() => {
-    if (!roomInfo || isDonationRoom) return [];
+    // Ticketed events have no game extras
+    if (!roomInfo || isDonationRoom || isTicketedEvent) return [];
     return Object.entries(roomInfo.fundraisingOptions || {})
       .filter(([, enabled]) => enabled)
       .map(([extraId]) => extraId);
-  }, [roomInfo, isDonationRoom]);
+  }, [roomInfo, isDonationRoom, isTicketedEvent]);
 
   const includedDonationExtras = useMemo(() => {
-    if (!roomInfo || !isDonationRoom) return [];
+    // Ticketed events have no game extras — never show them even in donation mode
+    if (!roomInfo || !isDonationRoom || isTicketedEvent) return [];
     return Object.entries(roomInfo.fundraisingOptions || {})
       .filter(([, enabled]) => !!enabled)
       .map(([extraId]) => extraId);
-  }, [roomInfo, isDonationRoom]);
+  }, [roomInfo, isDonationRoom, isTicketedEvent]);
 
   const extrasTotal = useMemo(() => {
     if (!roomInfo || isDonationRoom) return 0;
@@ -195,6 +206,16 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
     loadRoomInfo();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
+
+  const [paymentReference] = useState(
+    () => `QUIZ-${nanoid(6).toUpperCase()}`
+  );
+  const [ticket, setTicket] = useState<Ticket | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [creatingTicket, setCreatingTicket] = useState(false);
+
+  const [hasCopiedReference, setHasCopiedReference] = useState(false);
+  const [hasOpenedProviderLink, setHasOpenedProviderLink] = useState(false);
 
   const loadRoomInfo = async () => {
     try {
@@ -249,7 +270,7 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
         : [];
 
       const ticketSafeMethods = methods.filter((method) =>
-        isTicketAllowedPaymentMethod(method, !!isDonationRoom)
+        isTicketAllowedPaymentMethod(method, !!isDonationRoom, roomInfo?.status)
       );
 
       if (!ticketSafeMethods.length) {
@@ -375,7 +396,7 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
           roomId,
           purchaserName: playerDetails.purchaserName,
           purchaserEmail: playerDetails.purchaserEmail,
-          playerName: playerDetails.playerName,
+          playerName: resolvedPlayerName,
           selectedExtras: isDonationRoom ? [] : selectedExtras,
           donationAmount: isDonationRoom ? donationValue : undefined,
           appOrigin: window.location.origin,
@@ -439,7 +460,7 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
           roomId,
           purchaserName: playerDetails.purchaserName,
           purchaserEmail: playerDetails.purchaserEmail,
-          playerName: playerDetails.playerName,
+          playerName: resolvedPlayerName,
           selectedExtras: isDonationRoom ? [] : selectedExtras,
           donationAmount: isDonationRoom ? donationValue : undefined,
           paymentMethod: 'instant_payment',
@@ -663,6 +684,13 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
   const hostDisplayName =
     roomInfo?.clubName || roomInfo?.hostName || 'the host';
 
+  // For ticketed events use the event title if available, otherwise
+  // fall back to the club/host name with the game type buying label
+  const eventDisplayName =
+    isTicketedEvent && roomInfo?.eventDetails?.title
+      ? roomInfo.eventDetails.title
+      : `${hostDisplayName}'s ${meta.buyingLabel}`;
+
   // ─── Main step renders ────────────────────────────────────────────────────
 
   return (
@@ -680,7 +708,7 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
           subtitle={
             isDonationRoom
               ? `Joining ${hostDisplayName}'s donation ${meta.eventNoun}`
-              : `Buying a ticket for ${hostDisplayName}'s ${meta.buyingLabel}`
+              : `Buying a ticket for ${eventDisplayName}`
           }
           wide
           footer={
@@ -694,14 +722,15 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
               }}
               backLabel="Cancel"
               onContinue={() => {
-                if (!isDonationRoom && availableExtras.length > 0) {
+                // Ticketed events never have extras — go straight to payment
+                if (!isTicketedEvent && !isDonationRoom && availableExtras.length > 0) {
                   setStep('extras');
                   return;
                 }
                 loadPaymentMethods();
               }}
               continueLabel={
-                !isDonationRoom && availableExtras.length > 0
+                !isTicketedEvent && !isDonationRoom && availableExtras.length > 0
                   ? 'Continue to Extras'
                   : isDonationRoom
                   ? 'Choose Payment Method'
@@ -711,6 +740,11 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
             />
           }
         >
+          {/* Event info panel — shown for ticketed events */}
+          {isTicketedEvent && roomInfo.eventDetails && (
+            <TicketedEventInfoPanel eventDetails={roomInfo.eventDetails} />
+          )}
+
           {capacity &&
             capacity.availableForTickets > 0 &&
             capacity.availableForTickets <= 5 && (
@@ -741,6 +775,7 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
             extrasTotal={extrasTotal}
             entryFee={roomInfo.entryFee}
             isDonationRoom={isDonationRoom}
+            isTicketedEvent={isTicketedEvent}
             wideLayout
           />
 
@@ -767,8 +802,8 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
         </StepLayout>
       )}
 
-      {/* ── Extras (quiz only — elimination has no extras) ── */}
-      {step === 'extras' && roomInfo && !isDonationRoom && (
+      {/* ── Extras (quiz only — elimination and ticketed events have no extras) ── */}
+      {step === 'extras' && roomInfo && !isDonationRoom && !isTicketedEvent && (
         <StepLayout
           mode={mode}
           icon="🚀"
@@ -936,9 +971,7 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
             roomId={roomId}
             purchaserName={playerDetails.purchaserName || ''}
             purchaserEmail={playerDetails.purchaserEmail || ''}
-            playerName={
-              playerDetails.playerName || playerDetails.purchaserName
-            }
+            playerName={resolvedPlayerName}
             selectedMethod={selectedMethod}
             includedDonationExtras={includedDonationExtras}
             solanaCluster="mainnet"
@@ -965,11 +998,7 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
               roomId={roomId}
               purchaserName={playerDetails.purchaserName || ''}
               purchaserEmail={playerDetails.purchaserEmail || ''}
-              playerName={
-                playerDetails.playerName ||
-                playerDetails.purchaserName ||
-                ''
-              }
+              playerName={resolvedPlayerName}
               selectedMethod={selectedMethod}
               totalFiatAmount={totalAmount}
               entryFeeAmount={roomInfo.entryFee}
@@ -996,10 +1025,7 @@ export const TicketPurchaseFlow: React.FC<TicketPurchaseFlowProps> = ({
                     roomId,
                     purchaserEmail: playerDetails.purchaserEmail || '',
                     purchaserName: playerDetails.purchaserName || '',
-                    playerName:
-                      playerDetails.playerName ||
-                      playerDetails.purchaserName ||
-                      '',
+                    playerName: resolvedPlayerName,
                     entryFee: roomInfo.entryFee,
                     extrasTotal,
                     totalAmount,

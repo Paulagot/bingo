@@ -13,6 +13,8 @@ class BaseService {
     this.baseURL = API_BASE_URL;
   }
 
+
+
   /**
    * Get authentication headers
    */
@@ -39,16 +41,16 @@ class BaseService {
 
 };
 
-    console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
-    console.log('🔑 Headers:', config.headers);
-    if (options.body) {
-      console.log('📦 Body:', options.body);
-    }
+    // console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
+    // console.log('🔑 Headers:', config.headers);
+    // if (options.body) {
+    //   console.log('📦 Body:', options.body);
+    // }
 
     try {
       const response = await fetch(url, config);
       
-      console.log(`📡 Response Status: ${response.status} ${response.statusText}`);
+      // console.log(`📡 Response Status: ${response.status} ${response.statusText}`);
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -70,7 +72,7 @@ class BaseService {
       }
 
       const data = await response.json();
-      console.log('✅ API Response Data:', data);
+      // console.log('✅ API Response Data:', data);
       return data;
     } catch (error) {
       console.error(`💥 API Error (${endpoint}):`, error);

@@ -1852,7 +1852,7 @@ featurePages['campaign-manager'] = feature({
     cta: {
       title: 'Ready to organise fundraising around a clear campaign goal?',
       text: 'Book a demo to see how campaigns, events, payments and reports can fit together in FundRaisely.',
-      primaryCta: { label: 'Book a demo', to: '/demo' },
+      primaryCta: { label: 'Book a demo',to: '/contact' },
       secondaryCta: { label: 'Explore event formats', to: '/event-formats' },
     },
   },

@@ -242,8 +242,7 @@ main {
   width: 390px;
 }
 
-.desktop-nav__group:hover .desktop-nav__dropdown,
-.desktop-nav__group:focus-within .desktop-nav__dropdown {
+.desktop-nav__group:hover .desktop-nav__dropdown {
   display: grid;
   gap: 4px;
 }

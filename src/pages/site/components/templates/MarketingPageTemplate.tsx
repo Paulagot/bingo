@@ -191,7 +191,7 @@ export function MarketingPageTemplate({ content, templateType }: Props) {
   const ctaPrimary =
     content.sections?.cta?.primaryCta ?? {
       label: 'Book a demo',
-      to: '/demo',
+     to: '/contact',
     };
   const ctaSecondary =
     content.sections?.cta?.secondaryCta ?? {
@@ -212,7 +212,7 @@ export function MarketingPageTemplate({ content, templateType }: Props) {
   const statusPanelLinks =
     content.sections?.statusPanel?.links ?? [
       { label: 'See quiz fundraisers', to: '/event-formats/quiz' },
-      { label: 'Book a demo', to: '/demo' },
+      { label: 'Book a demo',to: '/contact' },
     ];
 
   return (
@@ -274,7 +274,7 @@ export function MarketingPageTemplate({ content, templateType }: Props) {
           imageKey={content.videoSlot.imageKey}
           videoLabel={content.videoSlot.videoLabel}
           transcript={content.videoSlot.transcript}
-          cta={{ label: 'Book a demo', to: '/demo' }}
+          cta={{ label: 'Book a demo',to: '/contact' }}
         />
       )} */}
 

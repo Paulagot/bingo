@@ -213,7 +213,7 @@ export default function PricingPage() {
         status="No platform percentage"
         title="Simple pricing for practical fundraising"
         description="Every plan includes ticketing, payment tracking, reports and impact summaries. Plans only differ by digital game credits, connected devices and management users."
-        primaryCta={{ label: 'Book a demo', to: '/demo' }}
+        primaryCta={{ label: 'Book a demo',to: '/contact' }}
         secondaryCta={{ label: 'Explore features', to: '/features' }}
         image={images.committeeReports}
         variant="standard"
@@ -380,7 +380,7 @@ export default function PricingPage() {
       <CTASection
         title="Want help choosing the right plan?"
         text="Book a demo and we can walk through your fundraising calendar, likely event size and the plan that fits best."
-        primaryCta={{ label: 'Book a demo', to: '/demo' }}
+        primaryCta={{ label: 'Book a demo',to: '/contact' }}
         secondaryCta={{ label: 'Explore features', to: '/features' }}
       />
     </>
