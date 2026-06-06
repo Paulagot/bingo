@@ -21,7 +21,7 @@ export const useCasePages: Record<string, TemplateContent> = {
 
     primaryCta: {
       label: 'Book a demo',
-      to: '/demo',
+     to: '/contact',
     },
 
     secondaryCta: {
@@ -188,7 +188,7 @@ export const useCasePages: Record<string, TemplateContent> = {
           'Book a demo to see how FundRaisely can help your club run event formats, sell tickets, track payments and report back with more confidence.',
         primaryCta: {
           label: 'Book a demo',
-          to: '/demo',
+         to: '/contact',
         },
         secondaryCta: {
           label: 'Explore event formats',
@@ -288,7 +288,7 @@ export const useCasePages: Record<string, TemplateContent> = {
 
   primaryCta: {
     label: 'Book a demo',
-    to: '/demo',
+   to: '/contact',
   },
 
   secondaryCta: {
@@ -455,7 +455,7 @@ export const useCasePages: Record<string, TemplateContent> = {
         'Book a demo to see how FundRaisely can help your school or PTA run event formats, sell tickets, track payments and report back with more confidence.',
       primaryCta: {
         label: 'Book a demo',
-        to: '/demo',
+       to: '/contact',
       },
       secondaryCta: {
         label: 'Explore event formats',
@@ -560,7 +560,7 @@ charities: {
 
   primaryCta: {
     label: 'Book a demo',
-    to: '/demo',
+   to: '/contact',
   },
 
   secondaryCta: {
@@ -727,7 +727,7 @@ charities: {
         'Book a demo to see how FundRaisely can help your team run event formats, sell tickets, track payments and prepare clearer fundraising records.',
       primaryCta: {
         label: 'Book a demo',
-        to: '/demo',
+       to: '/contact',
       },
       secondaryCta: {
         label: 'Explore event formats',
@@ -838,7 +838,7 @@ function useCase(
 
     primaryCta: {
       label: 'Book a demo',
-      to: '/demo',
+     to: '/contact',
     },
 
     secondaryCta: {

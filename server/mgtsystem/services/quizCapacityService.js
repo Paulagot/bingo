@@ -27,6 +27,7 @@ export async function getRoomCapacityStatus(roomId, currentPlayersInRoom = 0) {
         room_caps_json,
         config_json,
         status,
+        game_type,
         scheduled_at,
         CASE
           WHEN scheduled_at IS NULL THEN 1
@@ -54,19 +55,31 @@ export async function getRoomCapacityStatus(roomId, currentPlayersInRoom = 0) {
       ? JSON.parse(roomRow.config_json)
       : roomRow.config_json || {};
 
-// Priority: room_caps_json column → config_json.roomCaps → config_json.maxPlayers → safe default
-// The safe default of 20 matches the FREE plan cap. If roomCaps wasn't stamped
-// correctly at room creation this will silently under-cap paid plans — check logs.
-const maxCapacity =
+    const gameType = roomRow.game_type || 'quiz';
+    const isTicketedEvent = gameType === 'ticketed_event';
+
+   const venueCapacity =
+  roomCaps.venueCapacity         ||
+  config.roomCaps?.venueCapacity ||
+  null;
+
+const planMaxPlayers =
   roomCaps.maxPlayers         ||
   config.roomCaps?.maxPlayers ||
-  config.maxPlayers           ||   // elimination rooms store maxPlayers directly in config
+  config.maxPlayers           ||
   20;
+
+// Ticketed events: venue capacity is the hard ceiling (host-defined).
+// Quiz/elimination: plan-based maxPlayers applies.
+const maxCapacity = isTicketedEvent && venueCapacity
+  ? venueCapacity
+  : planMaxPlayers;
 
     if (DEBUG) {
       console.log('[Capacity] Room caps loaded:', {
         roomId,
         maxCapacity,
+        gameType,
         fromRoomCaps: !!roomCaps.maxPlayers,
         fromConfig: !!config.roomCaps?.maxPlayers,
       });
@@ -88,39 +101,63 @@ const maxCapacity =
     const [ticketRows] = await connection.execute(ticketSql, [roomId]);
     const ticketStats = ticketRows?.[0] || {};
 
-    const totalTickets = Number(ticketStats.total_tickets || 0);
-    const redeemedTickets = Number(ticketStats.redeemed_tickets || 0);
-    const claimedTickets = Number(ticketStats.claimed_tickets || 0);
+    const totalTickets     = Number(ticketStats.total_tickets    || 0);
+    const redeemedTickets  = Number(ticketStats.redeemed_tickets || 0);
+    const claimedTickets   = Number(ticketStats.claimed_tickets  || 0);
     const confirmedTickets = Number(ticketStats.confirmed_tickets || 0);
 
     // 3. Calculate capacity usage
-    const reservedByTickets = totalTickets;
-    const walkInPlayers = Math.max(0, currentPlayersInRoom - redeemedTickets);
-    const totalUsed = reservedByTickets + walkInPlayers;
+    const reservedByTickets  = totalTickets;
+    const walkInPlayers      = Math.max(0, currentPlayersInRoom - redeemedTickets);
+    const totalUsed          = reservedByTickets + walkInPlayers;
 
-    const availableTotal = Math.max(0, maxCapacity - totalUsed);
+    const availableTotal      = Math.max(0, maxCapacity - totalUsed);
     const availableForTickets = Math.max(0, maxCapacity - reservedByTickets);
     const availableForWalkIns = Math.max(0, maxCapacity - reservedByTickets - walkInPlayers);
 
-    const isFull = totalUsed >= maxCapacity;
+    const isFull      = totalUsed >= maxCapacity;
     const ticketsFull = reservedByTickets >= maxCapacity;
 
-    // 4. Check ticket sales window (close 2 hours before event)
+    // ── Event noun for copy — "event" for ticketed events, "quiz" otherwise ──
+    const eventNoun = isTicketedEvent ? 'event' : 'quiz';
+
+    // 4. Check ticket sales window
+    //
+    // For ticketed events:
+    //   - Sales stay open as long as the room is open (check-in running).
+    //     The 2-hour time lock does NOT apply — guests pay at the door via
+    //     the same /tickets/buy/:roomId link.
+    //   - Sales close only when status is completed or cancelled.
+    //
+    // For quiz / elimination:
+    //   - Original behaviour: close 2 hours before scheduled start.
+
     let ticketSalesOpen = true;
     let ticketSalesCloseReason = null;
 
     if (roomRow.status === 'completed' || roomRow.status === 'cancelled') {
       ticketSalesOpen = false;
-      ticketSalesCloseReason = `Quiz is ${roomRow.status}`;
-    } else if (roomRow.scheduled_at && !Number(roomRow.ticket_sales_time_open)) {
-      ticketSalesOpen = false;
-      ticketSalesCloseReason = 'Ticket sales closed (within 2 hours of quiz start)';
+      ticketSalesCloseReason = `${eventNoun.charAt(0).toUpperCase() + eventNoun.slice(1)} is ${roomRow.status}`;
+    } else if (isTicketedEvent) {
+      // Ticketed events: only close on completed/cancelled (handled above).
+      // No time-based lock — the room being 'open' means check-in is running
+      // and guests should be able to buy/pay at the door.
+      if (roomRow.status === 'scheduled' || roomRow.status === 'open') {
+        ticketSalesOpen = true;
+        ticketSalesCloseReason = null;
+      }
+    } else {
+      // Quiz / elimination: close 2 hours before scheduled start
+      if (roomRow.scheduled_at && !Number(roomRow.ticket_sales_time_open)) {
+        ticketSalesOpen = false;
+        ticketSalesCloseReason = `Ticket sales closed (within 2 hours of ${eventNoun} start)`;
+      }
     }
 
     // Capacity always overrides everything
     if (ticketsFull) {
       ticketSalesOpen = false;
-      ticketSalesCloseReason = 'SOLD OUT - Maximum capacity reached';
+      ticketSalesCloseReason = `SOLD OUT - Maximum capacity reached`;
     }
 
     const result = {
@@ -153,6 +190,7 @@ const maxCapacity =
       // Metadata
       roomStatus: roomRow.status,
       scheduledAt: roomRow.scheduled_at,
+      gameType,
     };
 
     if (DEBUG) {
@@ -178,11 +216,11 @@ const maxCapacity =
 export async function canPurchaseTickets(roomId, quantity = 1) {
   try {
     const { getQuizRoom } = await import('../../quiz/quizRoomManager.js');
-const memRoom = getQuizRoom(roomId);
-const currentPlayersInRoom = memRoom
-  ? Object.keys(memRoom.players || {}).length
-  : 0;
-const capacity = await getRoomCapacityStatus(roomId, currentPlayersInRoom);
+    const memRoom = getQuizRoom(roomId);
+    const currentPlayersInRoom = memRoom
+      ? Object.keys(memRoom.players || {}).length
+      : 0;
+    const capacity = await getRoomCapacityStatus(roomId, currentPlayersInRoom);
 
     if (!capacity.ticketSalesOpen) {
       return {
@@ -282,8 +320,11 @@ export async function canRedeemTicket(roomId, ticketId, currentPlayersInRoom) {
  * @returns {string} Human-readable message
  */
 export function getCapacityMessage(capacity) {
+  const eventNoun = capacity.gameType === 'ticketed_event' ? 'event' : 'quiz';
+  const eventNounCap = eventNoun.charAt(0).toUpperCase() + eventNoun.slice(1);
+
   if (capacity.isFull) {
-    return `SOLD OUT - This quiz is at maximum capacity (${capacity.maxCapacity} players)`;
+    return `SOLD OUT - This ${eventNoun} is at maximum capacity (${capacity.maxCapacity} players)`;
   }
 
   if (capacity.ticketsFull) {

@@ -79,7 +79,7 @@ const homeFaqs = [
         eyebrow="Fundraising platform"
         title="More than a donation page. A platform for fundraising people actually take part in."
         description={`FundRaisely helps ${market.commonOrganisationExamples} turn fundraising ideas into ready-to-run campaigns, events and games - with payment tracking, reconciliation and reporting built in.`}
-        primaryCta={{ label: 'Book a demo', to: '/demo' }}
+        primaryCta={{ label: 'Book a demo',to: '/contact' }}
         secondaryCta={{ label: 'Explore the platform', to: '/features' }}
         image={images.communityQuizNight}
         variant="home"
@@ -219,7 +219,7 @@ const homeFaqs = [
         imageKey="dashboardScreenshot"
         videoLabel="FundRaisely platform walkthrough placeholder"
         transcript="Show the journey from campaign goal to ready-to-run event, supporter participation, real-world payment tracking, reconciliation and final reporting."
-        cta={{ label: 'Book a demo', to: '/demo' }}
+        cta={{ label: 'Book a demo',to: '/contact' }}
       /> */}
 
       <ScreenshotShowcase
@@ -320,7 +320,7 @@ const homeFaqs = [
       <CTASection
         title="Turn your next fundraising idea into something people can actually join"
         text="Create the campaign, run the event, track real-world payments and report clearly on what was raised."
-        primaryCta={{ label: 'Book a demo', to: '/demo' }}
+        primaryCta={{ label: 'Book a demo',to: '/contact' }}
         secondaryCta={{ label: 'Explore event formats', to: '/event-formats' }}
       />
     </>

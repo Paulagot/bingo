@@ -290,6 +290,8 @@ export async function createTicketForEntry(entryId, itemType, context) {
       const extrasForEmail     = parseJson(ticketRow.extras, []);
 
       await sendTicketConfirmationEmail({
+        eventTitle:    config?.eventTitle    || null,
+  eventLocation: config?.eventLocation || null,
         ticketId,
         purchaserEmail:  ticketRow.purchaser_email,
         purchaserName:   ticketRow.purchaser_name,

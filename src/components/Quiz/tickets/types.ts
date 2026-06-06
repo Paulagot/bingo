@@ -1,5 +1,18 @@
 // src/components/Quiz/tickets/types.ts
-// UPDATED: gameType and clubName added to RoomInfo and Ticket
+// UPDATED: ticketed_event game type + EventDetails for ticket purchase page
+
+export interface EventDetails {
+  eventId:       string;
+  title:         string;
+  summary:       string | null;
+  locationLabel: string | null;
+  locationType:  'in_person' | 'online' | 'hybrid' | null;
+  onlineUrl:     string | null;
+  startDatetime: string | null;
+  endDatetime:   string | null;
+  timeZone:      string | null;
+  eventDate:     string | null;
+}
 
 export interface RoomInfo {
   roomId: string;
@@ -13,9 +26,11 @@ export interface RoomInfo {
   eventDateTime?: string;
   timeZone?: string;
   fundraisingMode?: 'fixed_fee' | 'donation';
-  // ── New ──────────────────────────────────────────────────────────────────
-  gameType?: 'quiz' | 'elimination';  // defaults to 'quiz' if absent
-  clubName?: string | null;           // from fundraisely_clubs.name
+  // ── Game type ─────────────────────────────────────────────────────────────
+  gameType?: 'quiz' | 'elimination' | 'ticketed_event';
+  clubName?: string | null;
+  // ── Event details — populated for ticketed_event rooms only ──────────────
+  eventDetails?: EventDetails | null;
 }
 
 export interface ClubPaymentMethod {
@@ -24,6 +39,7 @@ export interface ClubPaymentMethod {
   methodCategory: 'instant_payment' | 'card' | 'stripe' | 'crypto' | 'other';
   providerName: string | null;
   playerInstructions: string | null;
+  isEnabled?: boolean;
   methodConfig: {
     // Revolut
     link?: string;
@@ -63,13 +79,12 @@ export interface Ticket {
   paymentReference: string;
   fundraisingMode?: 'fixed_fee' | 'donation';
   donationAmount?: number | null;
-  // ── New ──────────────────────────────────────────────────────────────────
-  gameType?: 'quiz' | 'elimination';
+  // ── Game type ─────────────────────────────────────────────────────────────
+  gameType?: 'quiz' | 'elimination' | 'ticketed_event';
   clubName?: string | null;
 }
 
 // TicketStatus is the shape returned by GET /api/quiz/tickets/:ticketId/status
-// Used by TicketStatusChecker
 export interface TicketStatus {
   ticketId: string;
   roomId: string;
@@ -92,8 +107,8 @@ export interface TicketStatus {
   scheduledAt?: string | null;
   roomStatus?: 'scheduled' | 'open' | 'live' | 'completed' | 'cancelled' | null;
   joinWindowMinutes?: number;
-  // ── New ──────────────────────────────────────────────────────────────────
-  gameType?: 'quiz' | 'elimination';
+  // ── Game type ─────────────────────────────────────────────────────────────
+  gameType?: 'quiz' | 'elimination' | 'ticketed_event';
   clubName?: string | null;
   hostName?: string | null;
 }

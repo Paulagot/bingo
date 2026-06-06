@@ -3,7 +3,7 @@
 import database from '../../config/database.js';
 import QuizPaymentMethodsService from './QuizPaymentMethodsService.js';
 
-const VALID_TYPES = ['quiz_web2', 'elimination']; // add more later: quiz_web3, bingo_web2, etc.
+const VALID_TYPES = ['quiz_web2', 'elimination', 'ticketed_event']; // add more later: quiz_web3, bingo_web2, etc.
 
 class EventIntegrationsService {
 

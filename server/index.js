@@ -32,6 +32,8 @@ import { logger, loggers, logRequest, logResponse } from './config/logging.js';
 import { connection } from './config/database.js';
 
 import createRoomApi from './quiz/api/create-room.js';
+import ticketedEventMgmtRoutes from './ticketedEvent/api/ticketedEventMgmtRoutes.js';
+import ticketedEventCheckinRoutes from './ticketedEvent/api/ticketedEventCheckinRoutes.js';
 
 console.log('🔍 About to import community-registration...');
 import communityRegistrationApi from './quiz/api/community-registration.js';
@@ -469,6 +471,8 @@ app.use('/api/contact', contactRoute);
 app.use('/api/auth/reset', passwordResetRoute);
 app.use('/api/quiz/crypto-donation', quizCryptoDonationRoutes);
 app.use('/api/quiz/crypto-fixed-fee', quizCryptoFixedFeeRouter);
+app.use('/api/ticketed-event/mgmt', ticketedEventMgmtRoutes);
+app.use('/api/ticketed-event/checkin', ticketedEventCheckinRoutes); 
 
 console.log('✅ All routes setup complete');
 

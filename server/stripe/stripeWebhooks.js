@@ -299,6 +299,8 @@ export async function stripeWebhookHandler(req, res) {
                 : ticketRow.extras || [];
 
               await sendTicketConfirmationEmail({
+                eventTitle:    config?.eventTitle    || null,
+  eventLocation: config?.eventLocation || null,
                 ticketId,
                 purchaserEmail:  ticketRow.purchaser_email,
                 purchaserName:   ticketRow.purchaser_name,

@@ -437,7 +437,7 @@ export default function QuizGamePage() {
         eyebrow="Digital fundraising quiz event format"
         title={h1}
         description="FundRaisely gives clubs, charities, schools and community groups a ready-to-run digital quiz fundraiser with team or individual play, device-based joining, ticketing, payment tracking, admin helpers, host controls, screen-share gameplay, fundraising extras, sponsor shoutouts and after-event reports built into one event flow."
-        primaryCta={{ label: 'Book a demo', to: '/demo' }}
+        primaryCta={{ label: 'Book a demo',to: '/contact' }}
         secondaryCta={{ label: 'Watch quiz demo', to: '#quiz-demo' }}
         image={images.communityQuizNight}
         status="Self-hosted digital quiz event in a box"
@@ -490,7 +490,7 @@ export default function QuizGamePage() {
           imageKey={videoSlot.imageKey}
           videoLabel={videoSlot.videoLabel}
           transcript={videoSlot.transcript}
-          cta={{ label: 'Book a demo', to: '/demo' }}
+          cta={{ label: 'Book a demo',to: '/contact' }}
         />
       </div> */}
 
@@ -654,7 +654,7 @@ export default function QuizGamePage() {
       <CTASection
         title="Want to run a better digital fundraising quiz night?"
         text="Book a demo to see how FundRaisely helps clubs, charities, schools and community groups set up, host, fundraise, recognise sponsors and report on a digital quiz fundraiser for teams or individuals from one event workflow."
-        primaryCta={{ label: 'Book a demo', to: '/demo' }}
+        primaryCta={{ label: 'Book a demo',to: '/contact' }}
         secondaryCta={{
           label: 'Read the quiz hosting guide',
           to: '/resources/guides/how-to-host-a-fundraising-quiz',

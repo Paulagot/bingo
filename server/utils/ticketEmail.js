@@ -1,8 +1,9 @@
 // server/utils/ticketEmail.js
-// UPDATED: game_type aware — supports 'quiz' and 'elimination' (and future types)
-// UPDATED: club name shown prominently, correct join URLs per game type
+// UPDATED: game_type aware — supports 'quiz', 'elimination', and 'ticketed_event'
+// Ticketed events are routed to their own email module (ticketedEventEmail.js)
 
 import { sendEmailSafe } from './mailer.js';
+import { sendTicketedEventConfirmationEmail } from './ticketedEventEmail.js';
 import { connection, TABLE_PREFIX } from '../config/database.js';
 
 const CLUBS_TABLE = `${TABLE_PREFIX}clubs`;
@@ -69,48 +70,42 @@ function buildExtrasHtml(extras, currencySymbol) {
 
 // ─── Game-type helpers ────────────────────────────────────────────────────────
 
-/**
- * Returns display strings and join URL based on game_type.
- * Defaults to quiz behaviour for backwards compatibility.
- */
 function getGameTypeMeta(gameType, roomId, ticketId, appUrl) {
   const statusUrl = `${appUrl}/tickets/status/${ticketId}`;
 
   switch (gameType) {
     case 'elimination':
       return {
-        label: 'Elimination Game',
-        emoji: '🏆',
+        label:          'Elimination Game',
+        emoji:          '🏆',
         headerSubtitle: 'Your elimination ticket is confirmed',
-        subjectLabel: 'elimination game',
-        buttonText: 'View My Ticket & Join Game',
-        joinUrl: statusUrl, // player goes to status page; join button there uses /elimination/join/:roomId?ticket=
-        eventLabel: 'Game date',
+        subjectLabel:   'elimination game',
+        buttonText:     'View My Ticket & Join Game',
+        joinUrl:        statusUrl,
+        eventLabel:     'Game date',
         completedLabel: 'elimination game',
       };
 
     case 'quiz':
     default:
       return {
-        label: 'Quiz Night',
-        emoji: '🎟️',
+        label:          'Quiz Night',
+        emoji:          '🎟️',
         headerSubtitle: 'Your quiz ticket is confirmed',
-        subjectLabel: 'quiz',
-        buttonText: 'View My Ticket & Join Quiz',
-        joinUrl: statusUrl,
-        eventLabel: 'Quiz date',
+        subjectLabel:   'quiz',
+        buttonText:     'View My Ticket & Join Quiz',
+        joinUrl:        statusUrl,
+        eventLabel:     'Quiz date',
         completedLabel: 'quiz',
       };
   }
 }
 
 // ─── getTicketWithRoomConfig ──────────────────────────────────────────────────
-// Joins room row to get game_type alongside existing config_json.
-// Also joins clubs table so club_name is available without a second query.
 
 export async function getTicketWithRoomConfig(ticketId) {
-  const TICKETS_TABLE = `${TABLE_PREFIX}quiz_tickets`;
-  const ROOMS_TABLE = `${TABLE_PREFIX}web2_quiz_rooms`;
+  const TICKETS_TABLE     = `${TABLE_PREFIX}quiz_tickets`;
+  const ROOMS_TABLE       = `${TABLE_PREFIX}web2_quiz_rooms`;
   const CLUBS_TABLE_LOCAL = `${TABLE_PREFIX}clubs`;
 
   const [rows] = await connection.execute(
@@ -122,12 +117,26 @@ export async function getTicketWithRoomConfig(ticketId) {
      FROM ${TICKETS_TABLE} t
      LEFT JOIN ${ROOMS_TABLE} r
        ON r.room_id COLLATE utf8mb4_0900_ai_ci = t.room_id COLLATE utf8mb4_0900_ai_ci
- LEFT JOIN ${CLUBS_TABLE_LOCAL} c
-  ON c.id COLLATE utf8mb4_0900_ai_ci = t.club_id COLLATE utf8mb4_0900_ai_ci
+     LEFT JOIN ${CLUBS_TABLE_LOCAL} c
+       ON c.id COLLATE utf8mb4_0900_ai_ci = t.club_id COLLATE utf8mb4_0900_ai_ci
      WHERE t.ticket_id = ? LIMIT 1`,
     [ticketId]
   );
-  return rows?.[0] || null;
+
+  const row = rows?.[0] || null;
+
+  // ── DIAGNOSTIC — remove once game_type routing is confirmed working ────────
+  console.log('[getTicketWithRoomConfig] ticketId:', ticketId);
+  console.log('[getTicketWithRoomConfig] row found:', !!row);
+  if (row) {
+    console.log('[getTicketWithRoomConfig] room_id on ticket:', row.room_id);
+    console.log('[getTicketWithRoomConfig] game_type from JOIN:', row.game_type);
+    console.log('[getTicketWithRoomConfig] club_name from JOIN:', row.club_name);
+    console.log('[getTicketWithRoomConfig] config_json present:', !!row.config_json);
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  return row;
 }
 
 // ─── sendTicketConfirmationEmail ──────────────────────────────────────────────
@@ -147,15 +156,49 @@ export async function sendTicketConfirmationEmail({
   hostName,
   eventDateTime,
   timeZone,
-  gameType = 'quiz',   // ← new param, defaults to 'quiz' for backwards compat
-  clubName: clubNameParam = null, // ← can be passed in directly (from getTicketWithRoomConfig)
+  gameType      = 'quiz',
+  clubName:       clubNameParam = null,
+  eventTitle     = null,
+  eventLocation  = null,
 }) {
-   console.log('[TicketEmail] 🔍 gameType received:', gameType, '| clubName:', clubNameParam);
+  // ── DIAGNOSTIC — remove once confirmed working ────────────────────────────
+  console.log('[sendTicketConfirmationEmail] ─────────────────────────────────');
+  console.log('[sendTicketConfirmationEmail] ticketId:', ticketId);
+  console.log('[sendTicketConfirmationEmail] gameType param:', gameType);
+  console.log('[sendTicketConfirmationEmail] clubNameParam:', clubNameParam);
+  console.log('[sendTicketConfirmationEmail] eventTitle:', eventTitle);
+  console.log('[sendTicketConfirmationEmail] eventLocation:', eventLocation);
+  console.log('[sendTicketConfirmationEmail] purchaserEmail:', purchaserEmail);
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  // ── Ticketed events get their own dedicated email ─────────────────────────
+  if (gameType === 'ticketed_event') {
+    console.log('[sendTicketConfirmationEmail] ✅ Routing to ticketed event email');
+    const clubName = clubNameParam || (await getClubName(clubId));
+    return sendTicketedEventConfirmationEmail({
+      ticketId,
+      purchaserEmail,
+      purchaserName,
+      playerName,
+      entryFee,
+      extrasTotal,
+      totalAmount,
+      currency,
+      currencySymbol,
+      clubName,
+      eventTitle,
+      eventLocation,
+      eventDateTime,
+      timeZone,
+    });
+  }
+
+  console.log('[sendTicketConfirmationEmail] ➡️  Routing to quiz/elimination email, gameType:', gameType);
+
+  // ── Quiz / elimination email (original flow) ──────────────────────────────
   const appUrl = process.env.APP_URL || 'https://fundraisely.ie';
 
-  // Prefer passed-in clubName (already fetched by getTicketWithRoomConfig join),
-  // fall back to a lookup, then to hostName.
-  const clubName = clubNameParam || (await getClubName(clubId));
+  const clubName    = clubNameParam || (await getClubName(clubId));
   const displayName = clubName || hostName || 'your host';
 
   const meta = getGameTypeMeta(gameType, null, ticketId, appUrl);
@@ -165,7 +208,7 @@ export async function sendTicketConfirmationEmail({
     : null;
 
   const extrasHtml = buildExtrasHtml(extras, currencySymbol);
-  const symbol = currencySymbol || '€';
+  const symbol     = currencySymbol || '€';
 
   const html = `
     <!DOCTYPE html>
@@ -211,10 +254,7 @@ export async function sendTicketConfirmationEmail({
             ${playerName && playerName !== purchaserName ? `You'll be playing as <strong>${playerName}</strong>.` : ''}
           </p>
 
-          ${
-            formattedDate
-              ? `
-          <!-- Event date -->
+          ${formattedDate ? `
           <div style="background:#f0f4ff;border-radius:8px;padding:14px 16px;margin:20px 0;display:flex;align-items:center;gap:10px;">
             <span style="font-size:20px;">📅</span>
             <div>
@@ -223,17 +263,13 @@ export async function sendTicketConfirmationEmail({
               </div>
               <span style="color:#3730a3;font-weight:600;font-size:15px;">${formattedDate}</span>
             </div>
-          </div>`
-              : ''
-          }
+          </div>` : ''}
 
-          <!-- Ticket ID -->
           <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;margin:20px 0;">
             <p style="margin:0 0 4px;color:#888;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;">Ticket ID</p>
             <p style="margin:0;color:#111;font-size:16px;font-weight:700;font-family:monospace;">${ticketId}</p>
           </div>
 
-          <!-- Payment breakdown -->
           <div style="margin:20px 0;">
             <p style="font-weight:600;color:#333;margin-bottom:8px;">Payment summary:</p>
             <table style="width:100%;border-collapse:collapse;">
@@ -248,13 +284,11 @@ export async function sendTicketConfirmationEmail({
 
           ${extrasHtml}
 
-          <!-- Total -->
           <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px 16px;margin:20px 0;display:flex;justify-content:space-between;align-items:center;">
             <span style="font-weight:700;color:#166534;font-size:16px;">Total paid</span>
             <span style="font-weight:700;color:#166534;font-size:20px;">${formatAmount(totalAmount, symbol)}</span>
           </div>
 
-          <!-- What happens next -->
           <div style="background:#fafafa;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:20px 0;">
             <p style="font-weight:600;color:#333;margin:0 0 10px;">What happens next</p>
             <ol style="margin:0;padding-left:20px;color:#555;font-size:14px;line-height:1.8;">
@@ -265,7 +299,6 @@ export async function sendTicketConfirmationEmail({
             </ol>
           </div>
 
-          <!-- CTA button -->
           <div style="text-align:center;margin:28px 0 8px;">
             <a href="${meta.joinUrl}"
                style="display:inline-block;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:16px;font-weight:700;">
@@ -291,7 +324,7 @@ export async function sendTicketConfirmationEmail({
   `;
 
   return sendEmailSafe({
-    to: purchaserEmail,
+    to:      purchaserEmail,
     subject: `${meta.emoji} Your ${meta.subjectLabel} ticket is confirmed — ${displayName}`,
     html,
   });
