@@ -1,7 +1,9 @@
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { navGroups } from '../../config/siteNavigation';
 import { MobileNav } from './MobileNav';
 import { siteBrand, socialLinks } from '../../config/siteBrand';
+import { useAuth } from '@/features/auth';
+
 
 function SocialIcon({ label }: { label: string }) {
   if (label.includes('LinkedIn')) return <>in</>;
@@ -10,6 +12,13 @@ function SocialIcon({ label }: { label: string }) {
 }
 
 export function SiteHeader() {
+    const navigate = useNavigate();
+  const { isAuthenticated,  logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
   return (
     <header className="site-header" aria-label="Main site header">
       <div className="site-header__inner site-shell">
@@ -49,9 +58,35 @@ export function SiteHeader() {
               </a>
             ))}
           </div>
-          <a href={siteBrand.loginUrl} className="button button--small button--ghost-dark">Login</a>
-          {/* <Link to="/demo" className="button button--small button--outline-dark">Demo</Link> */}
-          <MobileNav />
+       {isAuthenticated ? (
+  <>
+    <Link
+      to="/quiz/eventdashboard"
+      className="button button--small button--ghost-dark"
+    >
+      Dashboard
+    </Link>
+{/* 
+    <span className="site-header__user">
+      Hi, {club?.name ?? user?.name ?? user?.email}
+    </span> */}
+
+    <button
+      type="button"
+      onClick={handleLogout}
+      className="button button--small button--ghost-dark"
+    >
+      Log out
+    </button>
+  </>
+) : (
+  <a href={siteBrand.loginUrl} className="button button--small button--ghost-dark">
+    Login
+  </a>
+)}
+
+{/* <Link to="/demo" className="button button--small button--outline-dark">Demo</Link> */}
+<MobileNav />
         </div>
       </div>
     </header>

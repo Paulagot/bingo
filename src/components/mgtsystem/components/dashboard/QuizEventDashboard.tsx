@@ -1,6 +1,6 @@
 // src/components/mgtsystem/components/dashboard/QuizEventDashboard.tsx
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { eventIntegrationsService } from '../../services/EventIntegrationsService';
 import QuizRoomsService, { type RoomStats } from '../../services/quizRoomServices';
 import { quizPaymentMethodsService } from '../../services/QuizPaymentMethodsService';
@@ -14,7 +14,7 @@ import ticketedEventMgmtService from '../../services/TicketedEventMgmtService';
 import {
   CreditCard, Calendar, PlusCircle, RefreshCw,
   Trophy, CalendarDays, CheckCircle,
-  LayoutGrid, LayoutList, Search, X, Play, Puzzle, Sparkles, Ticket,
+  LayoutGrid, LayoutList, Search, X, Play, Puzzle, Sparkles, Ticket, LogOut,
 } from 'lucide-react';
 
 import { quizApi } from '../../../../shared/api';
@@ -29,6 +29,7 @@ import { FundraiselyEventRow } from '../cards/FundraiselyEventRow';
 import CreateEventForm from '../forms/CreateEventForm';
 import eventsService from '../../services/eventsServices';
 import type { Event, CreateEventForm as CreateEventFormData, UpdateEventForm } from '../../types/event';
+import NotificationsTicker from './NotificationsTicker';
 
 type ViewMode = 'table' | 'cards';
 type StatusFilter = 'all' | 'upcoming' | 'live' | 'completed' | 'cancelled';
@@ -64,7 +65,15 @@ function parseConfigJson(v: any) {
 }
 
 export default function QuizEventDashboard() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+
+  const logout = useAuthStore((s: any) => s.logout);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
 
   const clubId          = useAuthStore((s: any) => s.club?.id || s.user?.club_id);
   const clubName        = useAuthStore((s: any) => s.user?.club_name || s.user?.clubName || 'Your Club');
@@ -563,8 +572,32 @@ const handleUpdateEvent = async (data: CreateEventFormData | UpdateEventForm) =>
               onMouseLeave={e => (e.currentTarget.style.background = '#157f85')}>
               <PlusCircle className="h-4 w-4" /> Create Event
             </button>
+            <button
+  type="button"
+  onClick={handleLogout}
+  className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition whitespace-nowrap"
+  style={{
+    background: '#ffffff',
+    borderColor: '#f2c5c2',
+    color: '#b42318',
+  }}
+  onMouseEnter={e => {
+    e.currentTarget.style.background = '#fff4f3';
+  }}
+  onMouseLeave={e => {
+    e.currentTarget.style.background = '#ffffff';
+  }}
+>
+  <LogOut className="h-4 w-4" />
+  Log out
+</button>
           </div>
         </div>
+
+        {/* ── Notifications ── */}
+<div className="mb-6">
+  <NotificationsTicker />
+</div>
 
         {/* ── Stats ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">

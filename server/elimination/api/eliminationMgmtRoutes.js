@@ -75,16 +75,6 @@ const sendError = (res, err) => {
 };
 
 // ─── POST /api/elimination/mgmt/schedule ─────────────────────────────────────
-//
-// Entitlement checks happen here, before anything is written to the DB:
-//   1. Resolve entitlements for this club (scope='elimination')
-//   2. Check credits — 402 if zero
-//   3. Check player cap — 403 if requested players exceed plan limit
-//   4. Override maxPlayers with the plan cap (client value is ignored)
-//   5. Stamp roomCaps into config_json
-//   6. scheduleEliminationRoom() — writes to DB
-//   7. consumeCredit() — only called after successful DB insert
-//
 router.post('/schedule', async (req, res) => {
   try {
     const clubId = req.club_id;
@@ -92,9 +82,14 @@ router.post('/schedule', async (req, res) => {
 
     const {
       roomId, hostId, hostName, scheduledAt, timeZone,
-      entryFee, currency, maxPlayers: requestedPlayers,
-      prizeDescription, prizeValue,
+      entryFee, currency, maxPlayers,
+      prizeDescription: _legacyDesc, prizeValue: _legacyVal,
+      prizes,
     } = req.body;
+
+    // Extract from prizes array, falling back to legacy flat fields
+    const prizeDescription = prizes?.[0]?.description ?? _legacyDesc;
+    const prizeValue       = prizes?.[0]?.value        ?? _legacyVal;
 
     console.log(`[eliminationMgmtRoutes] 📅 Schedule elimination — club: ${clubId} room: ${roomId}`);
 
@@ -108,8 +103,6 @@ router.post('/schedule', async (req, res) => {
       console.log(`[eliminationMgmtRoutes] 🚫 No credits — club: ${clubId} plan: ${ents.plan_code}`);
       return res.status(402).json({
         error: 'no_credits',
-        // Message and upgradeUrl come from consumeCredit but we check early here
-        // so we don't partially process the request before finding out.
         message: ents.plan_code === 'FREE'
           ? `You've used your lifetime elimination credit. Upgrade your plan to run more games.`
           : `You've used all your credits for this month. Upgrade to Pro for more.`,
@@ -119,8 +112,7 @@ router.post('/schedule', async (req, res) => {
 
     // ── 3. Check player cap ──────────────────────────────────────────────────
     const capsCheck = checkCaps(ents, {
-      requestedPlayers: requestedPlayers ?? 1,
-      // Elimination has no rounds or round types — pass nothing for those
+      requestedPlayers: maxPlayers ?? 1,
     });
 
     if (!capsCheck.ok) {
@@ -133,17 +125,11 @@ router.post('/schedule', async (req, res) => {
     }
 
     // ── 4. Apply plan cap to maxPlayers ──────────────────────────────────────
-    // We use the plan's limit, not what the client sent.
-    // If the client requested fewer players than the plan allows, honour that.
-    // If they requested more, clamp to the plan limit.
-    const cappedMaxPlayers = requestedPlayers
-      ? Math.min(requestedPlayers, ents.max_players_per_game)
+    const cappedMaxPlayers = maxPlayers
+      ? Math.min(maxPlayers, ents.max_players_per_game)
       : ents.max_players_per_game;
 
     // ── 5. Build roomCaps — stamped into config_json ─────────────────────────
-    // Persisted on the room so join-time enforcement uses the caps that were
-    // active at creation, not the current plan (plan changes don't affect
-    // in-flight rooms).
     const roomCaps = {
       maxPlayers:       cappedMaxPlayers,
       concurrentRooms:  ents.concurrent_rooms,
@@ -160,20 +146,16 @@ router.post('/schedule', async (req, res) => {
       timeZone,
       entryFee,
       currency,
-      maxPlayers: cappedMaxPlayers,   // entitlement-capped value
+      maxPlayers: cappedMaxPlayers,
       prizeDescription,
       prizeValue,
-      roomCaps,                        // passed through to be stored in config_json
+      roomCaps,
     });
 
     // ── 7. Consume credit — only after successful DB insert ──────────────────
     const creditResult = await consumeCredit(clubId, 'elimination', ents.plan_code);
 
     if (!creditResult.ok) {
-      // This shouldn't happen — we checked above — but handle the race condition.
-      // The room is already created at this point. Log it but don't fail the
-      // response; the room is valid. The credit discrepancy can be reconciled
-      // manually if it ever occurs.
       console.error(
         `[eliminationMgmtRoutes] ⚠️ Credit consume failed after room creation — club: ${clubId} room: ${result.roomId} reason: ${creditResult.reason}`,
         '(room is valid — this is a race condition or DB issue)'
@@ -236,16 +218,23 @@ router.patch('/rooms/:roomId', async (req, res) => {
     const roomId = String(req.params.roomId || '').trim();
     if (!roomId) return res.status(400).json({ error: 'missing_room_id' });
 
+    // Note: roomId comes from req.params above — do NOT destructure it from req.body
     const {
-      scheduledAt, timeZone, entryFee, currency,
-      maxPlayers, prizeDescription, prizeValue, config_json,
+      scheduledAt, timeZone,
+      entryFee, currency, maxPlayers,
+      prizeDescription: _legacyDesc, prizeValue: _legacyVal,
+      prizes,
     } = req.body;
+
+    // Extract from prizes array, falling back to legacy flat fields
+    const prizeDescription = prizes?.[0]?.description ?? _legacyDesc;
+    const prizeValue       = prizes?.[0]?.value        ?? _legacyVal;
 
     console.log(`[eliminationMgmtRoutes] ✏️  Update elimination room ${roomId} — club: ${clubId}`);
 
     const updated = await updateEliminationRoom({
       clubId, roomId, scheduledAt, timeZone, entryFee, currency,
-      maxPlayers, prizeDescription, prizeValue, configJson: config_json,
+      maxPlayers, prizeDescription, prizeValue,
     });
 
     return res.status(200).json({ room: updated });

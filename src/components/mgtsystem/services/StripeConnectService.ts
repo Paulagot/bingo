@@ -17,10 +17,13 @@ interface StatusResponse {
   message?: string;
 }
 
+interface DisconnectResponse {
+  ok: boolean;
+  error?: string;
+}
+
 class StripeConnectService extends BaseService {
   startConnect(appOrigin: string) {
-    // BaseService likely adds Authorization automatically
-    // We need the origin header so return_url points to 5174 / .ie / .co.uk correctly.
     return this.request<StartConnectResponse>(`/stripe/connect/start`, {
       method: 'POST',
       headers: {
@@ -33,6 +36,12 @@ class StripeConnectService extends BaseService {
 
   getStatus() {
     return this.request<StatusResponse>(`/stripe/connect/status`);
+  }
+
+  disconnect() {
+    return this.request<DisconnectResponse>(`/stripe/connect/disconnect`, {
+      method: 'POST',
+    });
   }
 }
 

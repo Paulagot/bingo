@@ -79,7 +79,6 @@ export default function ScheduleEliminationModal({ onClose, onSaved, event, exis
   const [prizeValue,       setPrizeValue]       = useState(
     existingPrize?.value != null ? String(existingPrize.value) : '',
   );
-  // New: sponsor field — optional free text, saved inside the prizes array
   const [prizeSponsor,     setPrizeSponsor]     = useState(
     existingPrize?.sponsor ?? '',
   );
@@ -119,9 +118,12 @@ export default function ScheduleEliminationModal({ onClose, onSaved, event, exis
       const payload = {
         scheduledAt,
         timeZone,
-        entryFee: Number(entryFee),
+        entryFee:         Number(entryFee),
         currency,
         prizes,
+        // Flat fields kept for backend compatibility during migration
+        prizeDescription: prizeDescription.trim(),
+        prizeValue:       prizeValue ? Number(prizeValue) : undefined,
       };
 
       if (isEditMode && existingRoom) {
@@ -273,7 +275,7 @@ export default function ScheduleEliminationModal({ onClose, onSaved, event, exis
                 )}
               </div>
 
-              {/* Sponsor — new field */}
+              {/* Sponsor */}
               <div>
                 <label className="block text-xs font-semibold mb-1.5" style={{ color: '#102532' }}>
                   <span className="inline-flex items-center gap-1.5">

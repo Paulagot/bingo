@@ -14,6 +14,7 @@ import { useAuthStore } from '../../../features/auth';
 import { currencySymbol } from '../shared/CurrencySelect';
 import type { Prize, Web2FundraisingMode } from '@/components/Quiz/types/quiz';
 import type { Event } from '../types/event';
+import { utcToLocalInput, detectTimezone } from '../../../utils/dateUtils';
 
 interface Props {
   onClose: () => void;
@@ -78,8 +79,18 @@ export default function ScheduleQuizModal({ onClose, onSaved, event }: Props) {
 
   useEffect(() => {
     hardReset({ flow: 'web2' });
-    const dt = event.start_datetime || (event.event_date ? `${event.event_date}T19:00:00` : null);
-    const tz = event.time_zone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+     const tz = event.time_zone || detectTimezone();
+
+  // FIX: event.start_datetime is UTC from the DB (e.g. "2025-06-07T18:00:00.000Z").
+  // The quiz setup store uses eventDateTime to pre-fill the schedule display.
+  // We convert UTC → local so it shows "19:00" not "18:00" in the quiz setup UI.
+  // The fallback T19:00:00 is a reasonable default but had no timezone — now we
+  // build it properly from event_date + midnight local (T00:00 in local = some UTC).
+  const dt = event.start_datetime
+    ? utcToLocalInput(event.start_datetime, tz)   // "2025-06-07T19:00" (local)
+    : event.event_date
+    ? `${event.event_date}T19:00`                 // fallback: assume 7pm on that date
+    : null;
 
     // Seed currency from club — quiz config stores the symbol (e.g. '€')
     updateSetupConfig({ currencySymbol: clubCurrencySym } as any);
