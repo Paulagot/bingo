@@ -30,9 +30,69 @@ interface CreateEventFormProps {
   existingEvent?: Event | null;
 }
 
+// ── Timezone helpers ───────────────────────────────────────────────────────────
+//
+// THE CORE PROBLEM:
+//   A <input type="datetime-local"> gives you a string like "2025-06-07T19:00"
+//   with NO timezone info. The browser treats it as local time (Dublin = UTC+1
+//   in summer), but if you send that bare string to the backend and store it in
+//   MySQL, it gets saved as "19:00" with no offset — and Railway/MySQL running
+//   in UTC will later treat it as "19:00 UTC", which is 20:00 Dublin. Wrong.
+//
+// THE SOLUTION:
+//   1. On SUBMIT  → convert "2025-06-07T19:00" (local) → "2025-06-07T18:00:00.000Z" (UTC)
+//   2. On LOAD    → convert "2025-06-07T18:00:00.000Z" (UTC from DB) → "2025-06-07T19:00" (local)
+//   The browser's own timezone is used for both, which is correct because
+//   `detectTimezone()` already captures it as "Europe/Dublin".
+
 function detectTimezone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
+
+/**
+ * Convert a datetime-local string ("YYYY-MM-DDTHH:MM") entered in the
+ * browser's local timezone into a UTC ISO string for storage.
+ *
+ * Why `new Date(str)` works here:
+ *   Browsers parse "YYYY-MM-DDTHH:MM" (no Z, no offset) as LOCAL time.
+ *   So new Date("2025-06-07T19:00") in a Dublin browser = 19:00 IST = 18:00 UTC.
+ *   .toISOString() then gives us "2025-06-07T18:00:00.000Z" — correct for storage.
+ */
+function localInputToUTC(localDateTimeStr: string): string {
+  if (!localDateTimeStr) return '';
+  return new Date(localDateTimeStr).toISOString();
+}
+
+/**
+ * Convert a UTC datetime string from the database back to the "YYYY-MM-DDTHH:MM"
+ * format that <input type="datetime-local"> needs, expressed in the user's
+ * local timezone so the form shows the correct local time.
+ *
+ * Example: "2025-06-07T18:00:00.000Z" → "2025-06-07T19:00" (in Dublin, UTC+1)
+ */
+function utcToLocalInput(utcString: string, timeZone: string): string {
+  if (!utcString) return '';
+  const date = new Date(utcString);
+  if (isNaN(date.getTime())) return '';
+
+  // Intl.DateTimeFormat gives us the correct local time parts for the given timezone
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year:   'numeric',
+    month:  '2-digit',
+    day:    '2-digit',
+    hour:   '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+
+  const get = (type: string) => parts.find(p => p.type === type)?.value ?? '00';
+
+  // datetime-local expects exactly "YYYY-MM-DDTHH:MM"
+  return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
+}
+
+// ── Other helpers ──────────────────────────────────────────────────────────────
 
 function isValidUrl(url: string): boolean {
   try { new URL(url); return true; } catch { return false; }
@@ -92,7 +152,6 @@ const inputClass = (hasError?: string) =>
     hasError ? 'border-[#e9574f] bg-red-50' : 'border-[#dce1df] bg-white hover:border-[#b8c6b0]'
   }`;
 
-// ── Section wrapper — white card on cream body ─────────────────────────────────
 const Section: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <div className="rounded-xl p-5" style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
     {children}
@@ -104,7 +163,7 @@ const Section: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 const CreateEventForm: React.FC<CreateEventFormProps> = ({
   onSubmit, onCancel, campaigns = [], editMode = false, existingEvent = null,
 }) => {
-  const tz = detectTimezone();
+  const tz = detectTimezone(); // e.g. "Europe/Dublin"
 
   const getInitialData = (): CreateEventFormData => {
     if (editMode && existingEvent) {
@@ -117,24 +176,39 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({
         location_label:      existingEvent.location_label || '',
         online_url:          existingEvent.online_url || '',
         primary_action_type: 'attend',
-        event_date:          existingEvent.event_date
-          ? new Date(existingEvent.event_date).toISOString().split('T')[0]
+
+        // FIX: the DB stores UTC (e.g. "2025-06-07T18:00:00.000Z").
+        // We must convert it back to local time for the datetime-local input,
+        // otherwise the form shows 18:00 instead of 19:00.
+        // Old (buggy):  existingEvent.start_datetime.slice(0, 16)
+        //               — this just strips the Z and treats UTC as local time.
+        // New (correct): utcToLocalInput() converts UTC → local "YYYY-MM-DDTHH:MM".
+        start_datetime: existingEvent.start_datetime
+          ? utcToLocalInput(existingEvent.start_datetime, existingEvent.time_zone || tz)
           : '',
-        start_datetime:      existingEvent.start_datetime
-          ? existingEvent.start_datetime.slice(0, 16)  // datetime-local needs "YYYY-MM-DDTHH:MM" exactly
-          : '',
-        end_datetime:        '',
-        time_zone:           existingEvent.time_zone || tz,
-        goal_amount:         existingEvent.goal_amount || 0,
-        campaign_id:         existingEvent.campaign_id || '',
+
+        // event_date should also reflect local date, not UTC date
+        // (a 23:30 Dublin event on Jun 7 is Jun 7 UTC+1, not Jun 8 UTC)
+        event_date: existingEvent.start_datetime
+          ? utcToLocalInput(existingEvent.start_datetime, existingEvent.time_zone || tz).split('T')[0]
+          : existingEvent.event_date
+            ? existingEvent.event_date.slice(0, 10)
+            : '',
+
+        end_datetime:   '',
+        time_zone:      existingEvent.time_zone || tz,
+        goal_amount:    existingEvent.goal_amount || 0,
+        campaign_id:    existingEvent.campaign_id || '',
       };
     }
+
     return {
       title: '', type: '', summary: '', description: '',
       location_type: 'in_person', location_label: '', online_url: '',
       primary_action_type: 'attend',
       event_date: '', start_datetime: '', end_datetime: '',
-      time_zone: tz, goal_amount: 0, campaign_id: '',
+      time_zone: tz,
+      goal_amount: 0, campaign_id: '',
     };
   };
 
@@ -197,6 +271,8 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({
     if (!form.start_datetime && !form.event_date) {
       e.event_date = 'Date and time is required';
     } else if (!editMode) {
+      // form.start_datetime is still local time at this point (before submit converts it),
+      // so new Date() correctly parses it as local time for the past-date check
       const d = new Date(form.start_datetime || form.event_date || '');
       const today = new Date(); today.setHours(0, 0, 0, 0);
       if (d < today) e.event_date = 'Date cannot be in the past';
@@ -211,16 +287,42 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({
     if (!validate()) return;
     setSubmitting(true);
     try {
+      // FIX: Convert local datetime → UTC before sending to backend.
+      //
+      // form.start_datetime is "YYYY-MM-DDTHH:MM" from the datetime-local input.
+      // The browser treats this as local time (Dublin = UTC+1 in summer).
+      // localInputToUTC() calls new Date(str) — which the browser parses as local —
+      // then .toISOString() which gives us the correct UTC string.
+      //
+      // Example: user picks 19:00 in Dublin
+      //   form.start_datetime = "2025-06-07T19:00"
+      //   localInputToUTC()   = "2025-06-07T18:00:00.000Z"   ← stored in DB as UTC
+      //   On load back:  utcToLocalInput() = "2025-06-07T19:00"  ← shown to user correctly
+      //
+      // Old (buggy): sent "2025-06-07T19:00" raw → MySQL stored it as 19:00 UTC
+      //              → displayed back as 19:00 but launch calc treated it as UTC → off by 1hr
+      const utcStartDatetime = form.start_datetime
+        ? localInputToUTC(form.start_datetime)
+        : '';
+
+      // event_date should be the LOCAL date (not UTC date), because a 23:30 Dublin
+      // event on Sat Jun 7 is still Jun 7 in Dublin even though it's Jun 8 UTC.
+      const localEventDate = form.start_datetime
+        ? form.start_datetime.split('T')[0]   // take date from local string before UTC conversion
+        : form.event_date;
+
       const payload = {
         ...form,
-        title:              form.title.trim(),
-        summary:            form.summary?.trim() || undefined,
-        campaign_id:        form.campaign_id || undefined,
-        event_date:         form.start_datetime ? form.start_datetime.split('T')[0] : form.event_date,
-        ticket_method_ids:  ticketMethodIds,
-        onnight_method_ids: onnightMethodIds,
+        title:                form.title.trim(),
+        summary:              form.summary?.trim() || undefined,
+        campaign_id:          form.campaign_id || undefined,
+        start_datetime:       utcStartDatetime,     // ← UTC ISO string, correct for DB storage
+        event_date:           localEventDate,        // ← local date (YYYY-MM-DD)
+        ticket_method_ids:    ticketMethodIds,
+        onnight_method_ids:   onnightMethodIds,
         payment_methods_json: { ticket_method_ids: ticketMethodIds, onnight_method_ids: onnightMethodIds },
       } as CreateEventFormData & { ticket_method_ids: number[]; onnight_method_ids: number[]; payment_methods_json: any };
+
       await onSubmit(payload);
       onCancel();
     } catch (err: any) {
@@ -241,7 +343,7 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({
       <div className="relative flex flex-col w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden"
         style={{ background: '#ffffff', maxHeight: '92vh' }}>
 
-        {/* Header — white with teal accent border */}
+        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 flex-shrink-0"
           style={{ borderBottom: '3px solid #157f85', background: '#ffffff' }}>
           <div className="flex items-center gap-3">
@@ -265,7 +367,7 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({
           </button>
         </div>
 
-        {/* Body — cream background, white section cards */}
+        {/* Body */}
         <div className="overflow-y-auto flex-1 px-5 py-5 space-y-4" style={{ background: '#f6f1e8' }}>
 
           {/* ── 1. The Basics ── */}
@@ -315,10 +417,21 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({
               subtitle="Set the date and time for this event" />
             <div className="space-y-3">
               <Field label="Date & Start Time" required error={errors.event_date}>
-                <input name="start_datetime" type="datetime-local"
+                <input
+                  name="start_datetime"
+                  type="datetime-local"
                   value={form.start_datetime || ''}
-                  onChange={e => { handleChange(e); if (e.target.value) set('event_date', e.target.value.split('T')[0]); }}
-                  className={inputClass(errors.event_date)} disabled={submitting} />
+                  onChange={e => {
+                    // Store the raw local string in form state — we convert to UTC only on submit.
+                    // Also keep event_date in sync using the LOCAL date portion (before T).
+                    handleChange(e);
+                    if (e.target.value) {
+                      set('event_date', e.target.value.split('T')[0]);
+                    }
+                  }}
+                  className={inputClass(errors.event_date)}
+                  disabled={submitting}
+                />
               </Field>
               <p className="text-xs flex items-center gap-1.5" style={{ color: '#8a9bab' }}>
                 <Clock className="h-3.5 w-3.5 flex-shrink-0" />
@@ -385,7 +498,7 @@ const CreateEventForm: React.FC<CreateEventFormProps> = ({
               subtitle="How much are you aiming to raise?" />
             <Field label="Fundraising Goal" required error={errors.goal_amount}>
               <div className="relative">
-               <span className="absolute left-3 top-2 text-sm font-semibold" style={{ color: '#52636f' }}>{sym}</span>
+                <span className="absolute left-3 top-2 text-sm font-semibold" style={{ color: '#52636f' }}>{sym}</span>
                 <input name="goal_amount" type="number" min="1" step="1"
                   value={form.goal_amount || ''} onChange={handleChange} placeholder="500"
                   className={`${inputClass(errors.goal_amount)} pl-7`} disabled={submitting} />

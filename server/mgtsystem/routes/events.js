@@ -18,6 +18,8 @@ function nullIfEmpty(val) {
   return val === '' || val === undefined ? null : val;
 }
 
+
+
 // ── Create a new event (as draft) ──────────────────────────────────────────────
 router.post('/events',
   authenticateToken,

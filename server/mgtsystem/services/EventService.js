@@ -37,6 +37,18 @@ class EventService {
     return val === '' || val === undefined ? null : val;
   }
 
+  _toMySQLDatetime(val) {
+  if (!val) return null;
+  // Already in MySQL format?
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(val)) return val;
+  // Convert ISO string → MySQL format
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString()
+    .replace('T', ' ')      // "2026-06-07T23:09:00.000Z" → "2026-06-07 23:09:00.000Z"
+    .replace(/\.\d{3}Z$/, ''); // → "2026-06-07 23:09:00"
+}
+
   /**
    * After any event create/update that touches scheduling or payment methods,
    * push the relevant fields to every linked quiz/elimination room.
@@ -194,7 +206,10 @@ class EventService {
         location_type || 'in_person', finalLocationLabel, online_url || null, venue || null,
         primary_action_type || 'attend', primary_action_label || null, primary_action_url || null,
         max_participants || null, goal_amount,
-        event_date || null, start_datetime || null, end_datetime || null, time_zone || null,
+       event_date || null,
+this._toMySQLDatetime(start_datetime),
+this._toMySQLDatetime(end_datetime),
+time_zone || null,
         external_source || null, external_ref || null,
         pmJson,
       ]
@@ -251,6 +266,11 @@ class EventService {
         updateData.payment_methods_json = JSON.stringify(updateData.payment_methods_json);
       }
     }
+    ['start_datetime', 'end_datetime'].forEach(f => {
+  if (updateData[f]) updateData[f] = this._toMySQLDatetime(updateData[f]);
+});
+
+
 
     const allowedFields = [
       'title', 'summary', 'type', 'description',

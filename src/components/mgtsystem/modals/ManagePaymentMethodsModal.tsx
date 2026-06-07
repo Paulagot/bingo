@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
+  Unlink,
 } from 'lucide-react';
 
 import PaymentMethodForm from './PaymentMethodForm';
@@ -299,6 +300,12 @@ export default function ManagePaymentMethodsModal({
   const [stripeBusy, setStripeBusy] = useState(false);
   const [stripeStatusMsg, setStripeStatusMsg] = useState<string | null>(null);
 
+  // Disconnect confirm state — shows inline confirm buttons before wiping the account
+  const [disconnectConfirm, setDisconnectConfirm] = useState(false);
+
+  // Disable confirm state — shown only when disabling (not enabling, which is harmless)
+  const [disableConfirm, setDisableConfirm] = useState(false);
+
   const loadMethods = async () => {
     try {
       setLoadingList(true);
@@ -345,6 +352,7 @@ export default function ManagePaymentMethodsModal({
 
         await loadMethods();
 
+        // All three must be true for the account to be usable
         const ready = !!(
           status.detailsSubmitted &&
           status.chargesEnabled &&
@@ -352,7 +360,9 @@ export default function ManagePaymentMethodsModal({
         );
 
         setStripeStatusMsg(
-          ready ? 'Stripe connected ✅' : 'Stripe setup needs attention'
+          ready
+            ? 'Stripe connected ✅'
+            : 'Stripe setup incomplete — charges, payouts or details not yet confirmed by Stripe'
         );
 
         params.delete('stripe');
@@ -368,7 +378,7 @@ export default function ManagePaymentMethodsModal({
         setError(err?.message || 'Stripe return handling failed');
       } finally {
         setStripeBusy(false);
-        window.setTimeout(() => setStripeStatusMsg(null), 4000);
+        window.setTimeout(() => setStripeStatusMsg(null), 6000);
       }
     };
 
@@ -386,34 +396,34 @@ export default function ManagePaymentMethodsModal({
   }, [methods]);
 
   const cashMethod = useMemo(() => {
-  return (
-    methods.find(
-      (method) =>
-        method.methodCategory === 'instant_payment' &&
-        method.providerName === 'cash'
-    ) || null
-  );
-}, [methods]);
+    return (
+      methods.find(
+        (method) =>
+          method.methodCategory === 'instant_payment' &&
+          method.providerName === 'cash'
+      ) || null
+    );
+  }, [methods]);
 
-const cardTapMethod = useMemo(() => {
-  return (
-    methods.find(
-      (method) =>
-        method.methodCategory === 'instant_payment' &&
-        method.providerName === 'card_tap'
-    ) || null
-  );
-}, [methods]);
+  const cardTapMethod = useMemo(() => {
+    return (
+      methods.find(
+        (method) =>
+          method.methodCategory === 'instant_payment' &&
+          method.providerName === 'card_tap'
+      ) || null
+    );
+  }, [methods]);
 
-const allManualMethods = useMemo(
-  () =>
-    methods.filter(
-      (method) =>
-        method.methodCategory === 'instant_payment' &&
-        !isPayAtDoorMethod(method)
-    ),
-  [methods]
-);
+  const allManualMethods = useMemo(
+    () =>
+      methods.filter(
+        (method) =>
+          method.methodCategory === 'instant_payment' &&
+          !isPayAtDoorMethod(method)
+      ),
+    [methods]
+  );
 
   const allCryptoMethods = useMemo(
     () => methods.filter((method) => method.methodCategory === 'crypto'),
@@ -449,23 +459,38 @@ const allManualMethods = useMemo(
 
   const hiddenDisabledCount = useMemo(() => {
     if (showDisabledMethods) return 0;
-
     return methods.filter((method) => !method.isEnabled).length;
   }, [methods, showDisabledMethods]);
 
-  const stripeEnabled = !!stripeMethod?.isEnabled;
-  const showStripeCard = showDisabledMethods || !stripeMethod || stripeEnabled;
+  // ─── Stripe derived state ────────────────────────────────────────────────────
 
   const stripeConnect = useMemo(() => {
     const config: any = stripeMethod?.methodConfig || {};
     return config?.connect || null;
   }, [stripeMethod]);
 
+  /**
+   * stripeReady — true only when ALL THREE flags from Stripe are confirmed.
+   * This mirrors the backend check in getReadyStripeForClub and the new
+   * upsertStripeMethodForClub logic. If any one of these is false, players
+   * cannot pay and the row has is_enabled: false.
+   */
   const stripeReady = !!(
     stripeConnect?.detailsSubmitted &&
     stripeConnect?.chargesEnabled &&
     stripeConnect?.payoutsEnabled
   );
+
+  /**
+   * stripeEnabled — whether the club admin has manually enabled card payments.
+   * Only meaningful when stripeReady is true; the backend won't set is_enabled
+   * to true until all three flags pass, so this reflects the admin's explicit toggle.
+   */
+  const stripeEnabled = !!stripeMethod?.isEnabled;
+
+  const showStripeCard = showDisabledMethods || !stripeMethod || stripeEnabled || !stripeReady;
+
+  // ─── Stripe actions ──────────────────────────────────────────────────────────
 
   const handleStripeConnect = async () => {
     try {
@@ -547,61 +572,91 @@ const allManualMethods = useMemo(
     }
   };
 
-  const handleTogglePayAtDoorMethod = async (
-  providerName: PayAtDoorProvider,
-  enabled: boolean
-) => {
-  const existingMethod = providerName === 'cash' ? cashMethod : cardTapMethod;
+  /**
+   * Disconnect — calls POST /api/stripe/connect/disconnect.
+   * The backend deauthorizes the Stripe account and deletes the DB row.
+   * After this, handleStripeConnect will create a fresh account on next click.
+   */
+  const handleStripeDisconnect = async () => {
+    try {
+      setStripeBusy(true);
+      setError(null);
 
-  // If disabling and it does not exist yet, there is nothing to do.
-  if (!enabled && !existingMethod) return;
+      const response = await StripeConnectService.disconnect();
 
-  const defaults = getPayAtDoorDefaults(providerName);
-
-  try {
-    setLoading(true);
-    setError(null);
-
-    if (existingMethod) {
-      const methodIdNum = toMethodIdNumber(existingMethod.id);
-
-      if (!Number.isFinite(methodIdNum)) {
-        setError('Payment method id is not numeric, cannot update.');
+      if (!response?.ok) {
+        setError(response?.error || 'Failed to disconnect Stripe');
         return;
       }
 
-      await PaymentMethodsService.update(clubId, methodIdNum, {
-        methodCategory: 'instant_payment',
-        providerName,
-        methodLabel: existingMethod.methodLabel || defaults.methodLabel,
-        playerInstructions:
-          existingMethod.playerInstructions || defaults.playerInstructions,
-        methodConfig: existingMethod.methodConfig || defaults.methodConfig,
-        isEnabled: enabled,
-        displayOrder: existingMethod.displayOrder ?? defaults.displayOrder,
-        isOfficialClubAccount: false,
-      } as any);
-    } else {
-      await PaymentMethodsService.create(clubId, {
-        methodCategory: 'instant_payment',
-        providerName,
-        methodLabel: defaults.methodLabel,
-        playerInstructions: defaults.playerInstructions,
-        methodConfig: defaults.methodConfig,
-        isEnabled: true,
-        displayOrder: defaults.displayOrder,
-        isOfficialClubAccount: false,
-      } as any);
+      setDisconnectConfirm(false);
+      await loadMethods();
+    } catch (err: any) {
+      console.error('Stripe disconnect failed:', err);
+      setError(err?.message || 'Failed to disconnect Stripe');
+    } finally {
+      setStripeBusy(false);
     }
+  };
 
-    await loadMethods();
-  } catch (err: any) {
-    console.error('Failed to update on-the-night payment method:', err);
-    setError(err?.message || 'Failed to update on-the-night payment method');
-  } finally {
-    setLoading(false);
-  }
-};
+  // ─── Pay-at-door toggles ─────────────────────────────────────────────────────
+
+  const handleTogglePayAtDoorMethod = async (
+    providerName: PayAtDoorProvider,
+    enabled: boolean
+  ) => {
+    const existingMethod = providerName === 'cash' ? cashMethod : cardTapMethod;
+
+    if (!enabled && !existingMethod) return;
+
+    const defaults = getPayAtDoorDefaults(providerName);
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      if (existingMethod) {
+        const methodIdNum = toMethodIdNumber(existingMethod.id);
+
+        if (!Number.isFinite(methodIdNum)) {
+          setError('Payment method id is not numeric, cannot update.');
+          return;
+        }
+
+        await PaymentMethodsService.update(clubId, methodIdNum, {
+          methodCategory: 'instant_payment',
+          providerName,
+          methodLabel: existingMethod.methodLabel || defaults.methodLabel,
+          playerInstructions:
+            existingMethod.playerInstructions || defaults.playerInstructions,
+          methodConfig: existingMethod.methodConfig || defaults.methodConfig,
+          isEnabled: enabled,
+          displayOrder: existingMethod.displayOrder ?? defaults.displayOrder,
+          isOfficialClubAccount: false,
+        } as any);
+      } else {
+        await PaymentMethodsService.create(clubId, {
+          methodCategory: 'instant_payment',
+          providerName,
+          methodLabel: defaults.methodLabel,
+          playerInstructions: defaults.playerInstructions,
+          methodConfig: defaults.methodConfig,
+          isEnabled: true,
+          displayOrder: defaults.displayOrder,
+          isOfficialClubAccount: false,
+        } as any);
+      }
+
+      await loadMethods();
+    } catch (err: any) {
+      console.error('Failed to update on-the-night payment method:', err);
+      setError(err?.message || 'Failed to update on-the-night payment method');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ─── Form actions ─────────────────────────────────────────────────────────────
 
   const handleAddManual = () => {
     setSelectedMethod(null);
@@ -691,6 +746,61 @@ const allManualMethods = useMemo(
           ? 'Add Solana Wallet'
           : 'Edit Payment Method';
 
+  // ─── Stripe status badge helper ───────────────────────────────────────────────
+
+  function StripeStatusBadge() {
+    if (!stripeMethod) {
+      return (
+        <span className="px-2 py-0.5 bg-gray-200 text-gray-700 text-xs font-semibold rounded">
+          Not connected
+        </span>
+      );
+    }
+    // Account exists but onboarding not complete — all three flags not yet true.
+    // Backend sets is_enabled: false in this state.
+    if (!stripeReady) {
+      return (
+        <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded">
+          Setup incomplete
+        </span>
+      );
+    }
+    // Onboarding done but admin manually disabled card payments
+    if (!stripeEnabled) {
+      return (
+        <span className="px-2 py-0.5 bg-gray-200 text-gray-600 text-xs font-semibold rounded">
+          Disabled
+        </span>
+      );
+    }
+    // All three flags true + admin has it enabled = fully live
+    return (
+      <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs font-semibold rounded">
+        Connected
+      </span>
+    );
+  }
+
+  // ─── Stripe incomplete detail helper ─────────────────────────────────────────
+
+  function StripeIncompleteHint() {
+    if (!stripeMethod || stripeReady) return null;
+
+    const missing: string[] = [];
+    if (!stripeConnect?.detailsSubmitted) missing.push('business details');
+    if (!stripeConnect?.chargesEnabled) missing.push('charges');
+    if (!stripeConnect?.payoutsEnabled) missing.push('payouts');
+
+    if (missing.length === 0) return null;
+
+    return (
+      <p className="text-xs text-yellow-700 mt-2">
+        Still waiting on Stripe to enable: <strong>{missing.join(', ')}</strong>.
+        Complete your Stripe onboarding or contact Stripe support if this persists.
+      </p>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(16,37,50,0.55)', backdropFilter: 'blur(2px)' }}>
       <div className="flex flex-col w-full max-w-3xl max-h-[90vh] rounded-xl shadow-2xl overflow-hidden" style={{ background: '#ffffff' }}>
@@ -723,17 +833,11 @@ const allManualMethods = useMemo(
         {error && (
           <div className="mx-6 mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-
             <div className="flex-1">
               <p className="text-sm font-semibold text-red-900">Error</p>
               <p className="text-sm text-red-700 mt-1">{error}</p>
             </div>
-
-            <button
-              type="button"
-              onClick={() => setError(null)}
-              className="text-red-600 hover:text-red-700"
-            >
+            <button type="button" onClick={() => setError(null)} className="text-red-600 hover:text-red-700">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -743,7 +847,6 @@ const allManualMethods = useMemo(
         <div className="flex-1 overflow-y-auto p-6" style={{ background: '#f6f1e8' }}>
           {view === 'list' ? (
             <div className="space-y-4">
-        
 
               {/* Disabled Toggle */}
               <div className="flex items-center justify-between gap-3 rounded-xl px-4 py-3" style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
@@ -762,9 +865,7 @@ const allManualMethods = useMemo(
 
                 <button
                   type="button"
-                  onClick={() =>
-                    setShowDisabledMethods((previousValue) => !previousValue)
-                  }
+                  onClick={() => setShowDisabledMethods((prev) => !prev)}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-semibold transition-colors ${
                     showDisabledMethods
                       ? 'border-indigo-300 bg-indigo-50 text-indigo-700'
@@ -772,20 +873,14 @@ const allManualMethods = useMemo(
                   }`}
                 >
                   {showDisabledMethods ? (
-                    <>
-                      <EyeOff className="h-4 w-4" />
-                      Hide disabled
-                    </>
+                    <><EyeOff className="h-4 w-4" />Hide disabled</>
                   ) : (
-                    <>
-                      <Eye className="h-4 w-4" />
-                      Show disabled
-                    </>
+                    <><Eye className="h-4 w-4" />Show disabled</>
                   )}
                 </button>
               </div>
 
-              {/* Stripe Connect Card */}
+              {/* ── Stripe Connect Card ─────────────────────────────────────────── */}
               {showStripeCard && (
                 <section className="rounded-xl p-4 space-y-3" style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
                   <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
@@ -800,49 +895,31 @@ const allManualMethods = useMemo(
                     }`}
                   >
                     <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-semibold text-gray-900">
                             Card payments via Stripe
                           </h3>
-
-                          {!stripeMethod ? (
-                            <span className="px-2 py-0.5 bg-gray-200 text-gray-700 text-xs font-semibold rounded">
-                              Not connected
-                            </span>
-                          ) : !stripeEnabled ? (
-                            <span className="px-2 py-0.5 bg-gray-200 text-gray-700 text-xs font-semibold rounded">
-                              Disabled
-                            </span>
-                          ) : stripeReady ? (
-                            <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs font-semibold rounded">
-                              Connected
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded">
-                              Setup incomplete
-                            </span>
-                          )}
+                          <StripeStatusBadge />
                         </div>
 
                         <p className="text-sm text-gray-700 mt-1">
-                          Let players pay by card. These payments are verified
-                          through Stripe and funds go directly to the club’s
-                          connected Stripe account.
+                          Let players pay by card. Payments are verified through
+                          Stripe and funds go directly to the club's connected
+                          Stripe account.
                         </p>
 
+                        {/* Incomplete detail hint — lists which flags are still false */}
+                        <StripeIncompleteHint />
+
                         {stripeStatusMsg && (
-                          <p className="text-xs text-gray-700 mt-2">
-                            {stripeStatusMsg}
-                          </p>
+                          <p className="text-xs text-gray-700 mt-2">{stripeStatusMsg}</p>
                         )}
 
                         {stripeConnect?.accountId && (
                           <p className="text-xs text-gray-600 mt-2">
                             Account:{' '}
-                            <span className="font-mono">
-                              {stripeConnect.accountId}
-                            </span>
+                            <span className="font-mono">{stripeConnect.accountId}</span>
                           </p>
                         )}
 
@@ -854,7 +931,10 @@ const allManualMethods = useMemo(
                         )}
                       </div>
 
-                      <div className="flex flex-col gap-2 flex-shrink-0">
+                      {/* ── Action buttons ─────────────────────────────────────── */}
+                      <div className="flex flex-col gap-2 flex-shrink-0 min-w-[160px]">
+
+                        {/* Connect / Continue setup */}
                         {!stripeReady ? (
                           <button
                             type="button"
@@ -862,9 +942,7 @@ const allManualMethods = useMemo(
                             disabled={stripeBusy}
                             className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50"
                           >
-                            {stripeMethod
-                              ? 'Continue Stripe setup'
-                              : 'Connect Stripe'}
+                            {stripeMethod ? 'Continue setup' : 'Connect Stripe'}
                           </button>
                         ) : (
                           <button
@@ -872,23 +950,110 @@ const allManualMethods = useMemo(
                             onClick={refreshStripeStatus}
                             disabled={stripeBusy}
                             className="px-4 py-2 bg-white border border-indigo-300 text-indigo-700 text-sm font-semibold rounded-lg hover:bg-indigo-100 disabled:opacity-50"
-                            title="Re-check Stripe connection"
                           >
                             Refresh status
                           </button>
                         )}
 
+                        {/* Enable / Disable toggle — only shown when fully ready */}
+                        {stripeMethod && stripeReady && (
+                          <>
+                            {stripeEnabled ? (
+                              // Disabling needs a confirm — turning off mid-event breaks player checkout
+                              <>
+                                {disableConfirm ? (
+                                  <div className="flex flex-col gap-1 rounded-lg border border-orange-200 bg-orange-50 p-2">
+                                    <p className="text-xs text-orange-800 font-semibold text-center">
+                                      Disable card payments?
+                                    </p>
+                                    <p className="text-xs text-orange-700 text-center mb-1">
+                                      Players won't be able to pay by card until you re-enable this.
+                                    </p>
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        await setStripeEnabled(false);
+                                        setDisableConfirm(false);
+                                      }}
+                                      disabled={stripeBusy}
+                                      className="px-4 py-2 bg-orange-600 text-white text-sm font-semibold rounded-lg hover:bg-orange-700 disabled:opacity-50"
+                                    >
+                                      Yes, disable
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setDisableConfirm(false)}
+                                      disabled={stripeBusy}
+                                      className="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-100 disabled:opacity-50"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setDisableConfirm(true)}
+                                    disabled={stripeBusy}
+                                    className="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-100 disabled:opacity-50"
+                                  >
+                                    Disable card payments
+                                  </button>
+                                )}
+                              </>
+                            ) : (
+                              // Enabling is safe — no confirm needed
+                              <button
+                                type="button"
+                                onClick={() => setStripeEnabled(true)}
+                                disabled={stripeBusy}
+                                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-100 disabled:opacity-50"
+                              >
+                                Enable card payments
+                              </button>
+                            )}
+                          </>
+                        )}
+
+                        {/* Disconnect — available whenever an account row exists */}
                         {stripeMethod && (
-                          <button
-                            type="button"
-                            onClick={() => setStripeEnabled(!stripeEnabled)}
-                            disabled={stripeBusy}
-                            className="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-100 disabled:opacity-50"
-                          >
-                            {stripeEnabled
-                              ? 'Disable card payments'
-                              : 'Enable card payments'}
-                          </button>
+                          <>
+                            {disconnectConfirm ? (
+                              <div className="flex flex-col gap-1 rounded-lg border border-red-200 bg-red-50 p-2">
+                                <p className="text-xs text-red-700 font-semibold text-center">
+                                  Disconnect this Stripe account?
+                                </p>
+                                <p className="text-xs text-red-600 text-center mb-1">
+                                  You can reconnect a different account afterwards.
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={handleStripeDisconnect}
+                                  disabled={stripeBusy}
+                                  className="px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 disabled:opacity-50"
+                                >
+                                  Yes, disconnect
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setDisconnectConfirm(false)}
+                                  disabled={stripeBusy}
+                                  className="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-100 disabled:opacity-50"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setDisconnectConfirm(true)}
+                                disabled={stripeBusy}
+                                className="flex items-center justify-center gap-1.5 px-4 py-2 bg-white border border-red-300 text-red-600 text-sm font-semibold rounded-lg hover:bg-red-50 disabled:opacity-50"
+                              >
+                                <Unlink className="h-3.5 w-3.5" />
+                                Disconnect
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
@@ -896,76 +1061,70 @@ const allManualMethods = useMemo(
                 </section>
               )}
 
-              {/* On-the-night payments */}
-<section className="rounded-xl p-4 space-y-3" style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
-  <div>
-    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
-      On-the-night payments
-    </h3>
-    <p className="text-xs text-gray-500">
-      These enable the “Pay at the Door” option for players joining on the night.
-      They are not shown as public ticket-sale methods.
-    </p>
-  </div>
+              {/* ── On-the-night payments ───────────────────────────────────────── */}
+              <section className="rounded-xl p-4 space-y-3" style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                    At the door payment methods
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    These enable the "Pay at the Door" option for players joining on the night.
+                    They are not shown as public ticket-sale methods.
+                  </p>
+                </div>
 
-  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-    <label
-      className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition ${
-        cashMethod?.isEnabled
-          ? 'border-emerald-300 bg-emerald-50'
-          : 'border-gray-200 bg-white hover:border-gray-300'
-      }`}
-    >
-      <input
-        type="checkbox"
-        checked={!!cashMethod?.isEnabled}
-        disabled={loading}
-        onChange={(event) =>
-          handleTogglePayAtDoorMethod('cash', event.target.checked)
-        }
-        className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-      />
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <label
+                    className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition ${
+                      cashMethod?.isEnabled
+                        ? 'border-emerald-300 bg-emerald-50'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!!cashMethod?.isEnabled}
+                      disabled={loading}
+                      onChange={(e) => handleTogglePayAtDoorMethod('cash', e.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        Enable cash on the night
+                      </p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Lets players join as unpaid and pay the host/admin in cash.
+                      </p>
+                    </div>
+                  </label>
 
-      <div>
-        <p className="text-sm font-semibold text-gray-900">
-          Enable cash on the night payments
-        </p>
-        <p className="mt-1 text-xs text-gray-500">
-          Lets players join as unpaid and pay the host/admin in cash.
-        </p>
-      </div>
-    </label>
+                  <label
+                    className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition ${
+                      cardTapMethod?.isEnabled
+                        ? 'border-emerald-300 bg-emerald-50'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!!cardTapMethod?.isEnabled}
+                      disabled={loading}
+                      onChange={(e) => handleTogglePayAtDoorMethod('card_tap', e.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        Enable CardTap on the night
+                      </p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Lets players join as unpaid and pay by card tap with the host/admin.
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              </section>
 
-    <label
-      className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition ${
-        cardTapMethod?.isEnabled
-          ? 'border-emerald-300 bg-emerald-50'
-          : 'border-gray-200 bg-white hover:border-gray-300'
-      }`}
-    >
-      <input
-        type="checkbox"
-        checked={!!cardTapMethod?.isEnabled}
-        disabled={loading}
-        onChange={(event) =>
-          handleTogglePayAtDoorMethod('card_tap', event.target.checked)
-        }
-        className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-      />
-
-      <div>
-        <p className="text-sm font-semibold text-gray-900">
-          Enable CardTap on the night payments
-        </p>
-        <p className="mt-1 text-xs text-gray-500">
-          Lets players join as unpaid and pay by card tap with the host/admin.
-        </p>
-      </div>
-    </label>
-  </div>
-</section>
-
-              {/* Manual Payments */}
+              {/* ── Manual Payments ─────────────────────────────────────────────── */}
               <section className="rounded-xl p-4 space-y-3" style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -1020,7 +1179,7 @@ const allManualMethods = useMemo(
                   ))}
               </section>
 
-              {/* Crypto Wallets */}
+              {/* ── Crypto Wallets ──────────────────────────────────────────────── */}
               <section className="rounded-xl p-4 space-y-3" style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -1075,7 +1234,7 @@ const allManualMethods = useMemo(
                   ))}
               </section>
 
-              {/* Other Methods */}
+              {/* ── Other Methods ───────────────────────────────────────────────── */}
               {!loadingList && otherMethods.length > 0 && (
                 <section className="rounded-xl p-4 space-y-3" style={{ background: '#ffffff', border: '1px solid #dce1df' }}>
                   <div>

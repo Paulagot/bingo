@@ -1,14 +1,28 @@
-//server/stripe/stripeService.js
+// server/stripe/stripeService.js
 import { connection, TABLE_PREFIX } from '../config/database.js';
 
 const METHODS_TABLE = `${TABLE_PREFIX}club_payment_methods`;
 
+/**
+ * Get the active Stripe method for a club.
+ *
+ * Skips any row that has been disconnected (connect.disconnectedAt is set).
+ * Disconnected rows are kept in the DB so historical ledger/report joins on
+ * club_payment_method_id continue to resolve — they are just invisible to
+ * all active payment flows.
+ *
+ * Returns the most recently created non-disconnected stripe row, or null.
+ */
 export async function getStripeMethodForClub(clubId) {
   const sql = `
     SELECT *
     FROM ${METHODS_TABLE}
     WHERE club_id = ?
       AND method_category = 'stripe'
+      AND (
+        JSON_EXTRACT(method_config, '$.connect.disconnectedAt') IS NULL
+        OR JSON_EXTRACT(method_config, '$.connect.disconnectedAt') = 'null'
+      )
     ORDER BY created_at DESC
     LIMIT 1
   `;
@@ -16,8 +30,27 @@ export async function getStripeMethodForClub(clubId) {
   return rows[0] || null;
 }
 
+/**
+ * Insert or update the Stripe method row for a club.
+ *
+ * is_enabled is gated on all three Stripe flags being true:
+ *   chargesEnabled + payoutsEnabled + detailsSubmitted
+ *
+ * If any one is false the row is saved with is_enabled: false so the club UI
+ * shows "Setup incomplete" and players cannot reach the Stripe checkout.
+ *
+ * Only touches non-disconnected rows — disconnected rows are never updated
+ * because getStripeMethodForClub already filters them out.
+ */
 export async function upsertStripeMethodForClub({ clubId, accountId, connectStatus, addedBy }) {
   const existing = await getStripeMethodForClub(clubId);
+
+  // All three Stripe flags must be true before we allow card payments
+  const isReady = !!(
+    connectStatus?.chargesEnabled &&
+    connectStatus?.payoutsEnabled &&
+    connectStatus?.detailsSubmitted
+  );
 
   const methodConfig = {
     connect: {
@@ -33,14 +66,13 @@ export async function upsertStripeMethodForClub({ clubId, accountId, connectStat
         (club_id, method_category, provider_name, method_label,
          display_order, is_enabled, player_instructions, method_config,
          added_by, is_official_club_account)
-      VALUES (?, 'stripe', 'stripe', ?, 0, TRUE, ?, ?, ?, TRUE)
+      VALUES (?, 'stripe', 'stripe', ?, 0, ?, ?, ?, ?, TRUE)
     `;
-    const label = 'Card (Stripe)';
-    const instructions = 'Pay securely by card.';
     const [result] = await connection.execute(insertSql, [
       clubId,
-      label,
-      instructions,
+      'Card (Stripe)',
+      isReady,                        // false until all three flags pass
+      'Pay securely by card.',
       JSON.stringify(methodConfig),
       addedBy || null,
     ]);
@@ -50,13 +82,14 @@ export async function upsertStripeMethodForClub({ clubId, accountId, connectStat
   const updateSql = `
     UPDATE ${METHODS_TABLE}
     SET
-      is_enabled = TRUE,
+      is_enabled    = ?,
       method_config = ?,
-      updated_at = UTC_TIMESTAMP()
+      updated_at    = UTC_TIMESTAMP()
     WHERE id = ? AND club_id = ?
   `;
 
   await connection.execute(updateSql, [
+    isReady,                          // false until all three flags pass
     JSON.stringify(methodConfig),
     existing.id,
     clubId,

@@ -4,6 +4,7 @@ import { authenticateToken } from '../middleware/auth.js';
 import {
   startStripeConnect,
   getStripeConnectStatus,
+  disconnectStripeConnect,
 } from './stripeController.js';
 import { createWalkinStripeSession, createEliminationWalkinStripeSession } from './stripeWalkinCheckout.js';
 import { createCampaignStripeSession } from './campaignStripeCheckoutService.js'; // ✅ NEW
@@ -119,3 +120,4 @@ stripeRouter.use(authenticateToken);
 
 stripeRouter.post('/connect/start', startStripeConnect);
 stripeRouter.get('/connect/status', getStripeConnectStatus);
+stripeRouter.post('/connect/disconnect', disconnectStripeConnect);

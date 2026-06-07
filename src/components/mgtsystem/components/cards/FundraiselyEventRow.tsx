@@ -3,26 +3,18 @@
 import {
   MapPin, Globe, Layers,
   Trophy, Play, Settings, FileText, Eye, PlusCircle,
-  Ticket, 
+  Ticket,
 } from 'lucide-react';
 
 import type { RoomStats } from '../../services/quizRoomServices';
 import type { FundraiselyEventCardProps } from './FundraiselyEventCard';
 import { useCurrency } from '../../hooks/useCurrency';
 
+// FIX: import the shared UTC-aware helpers instead of using new Date() directly.
+// See src/utils/dateUtils.ts for full explanation.
+import { utcToLocalDate, utcToLocalTime } from '../../../../utils/dateUtils';
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function formatDate(value: string | null | undefined): string {
-  if (!value) return '—';
-  return new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
-function formatTime(value: string | null | undefined): string {
-  if (!value) return '';
-  return new Date(value).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-}
-
-
 
 function getTicketsSold(stats?: RoomStats): number {
   if (!stats) return 0;
@@ -60,15 +52,25 @@ export function FundraiselyEventRow({
   onPublish,
   onUnpublish,
 }: FundraiselyEventCardProps) {
-  const hasActivity = !!linkedActivity;
-  const ticketsSold = getTicketsSold(activityStats);
-  const totalIncome = activityStats?.totalIncome ?? 0;
-  const goalAmount  = Number(event.goal_amount || 0);
+  const hasActivity  = !!linkedActivity;
+  const ticketsSold  = getTicketsSold(activityStats);
+  const totalIncome  = activityStats?.totalIncome ?? 0;
+  const goalAmount   = Number(event.goal_amount || 0);
   const raisedAmount = Number(event.actual_amount || 0);
-  const progress    = goalAmount > 0 ? Math.min(Math.round((raisedAmount / goalAmount) * 100), 100) : 0;
+  const progress     = goalAmount > 0 ? Math.min(Math.round((raisedAmount / goalAmount) * 100), 100) : 0;
 
-  const displayDate = event.start_datetime ? formatDate(event.start_datetime) : formatDate(event.event_date);
-  const displayTime = event.start_datetime ? formatTime(event.start_datetime) : '';
+  // FIX: use UTC-aware helpers with the event's stored timezone.
+  // Old code used formatDate/formatTime which called new Date(value).toLocaleDateString()
+  // — fine with a Z suffix but breaks with bare strings like "2025-06-07T18:00:00" (no Z).
+  // utcToLocalDate/Time normalise to UTC first, then convert to the event's local timezone.
+  const tz          = event.time_zone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const displayDate = event.start_datetime
+    ? utcToLocalDate(event.start_datetime, tz)
+    : utcToLocalDate(event.event_date, tz);
+  const displayTime = event.start_datetime
+    ? utcToLocalTime(event.start_datetime, tz)
+    : '';
+
   const { fmt: formatMoney } = useCurrency();
 
   const LocationIcon = event.location_type === 'online' ? Globe
@@ -89,7 +91,6 @@ export function FundraiselyEventRow({
       {/* Event title + location */}
       <div className="min-w-0">
         <div className="flex items-center gap-1.5 mb-0.5">
-          {/* Published pill */}
           <span className="inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-bold flex-shrink-0"
             style={event.is_published
               ? { background: 'rgba(21,127,133,0.10)', color: '#157f85', borderColor: 'rgba(21,127,133,0.25)' }
@@ -104,11 +105,11 @@ export function FundraiselyEventRow({
           <LocationIcon className="h-3 w-3 flex-shrink-0" />
           <span className="truncate">{locationText}</span>
         </div>
-        {/* Goal progress bar */}
         {goalAmount > 0 && (
           <div className="mt-1.5 flex items-center gap-2">
             <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: '#f1f0ee' }}>
-              <div className="h-1 rounded-full" style={{ width: `${progress}%`, background: progress >= 100 ? '#22c55e' : '#157f85' }} />
+              <div className="h-1 rounded-full"
+                style={{ width: `${progress}%`, background: progress >= 100 ? '#22c55e' : '#157f85' }} />
             </div>
             <span className="text-[10px] font-semibold flex-shrink-0" style={{ color: '#52636f' }}>
               {progress}%
@@ -127,7 +128,6 @@ export function FundraiselyEventRow({
       <div className="flex flex-col gap-1">
         {hasActivity ? (
           <>
-            {/* Game type badge */}
             {linkedActivity!.game_type === 'elimination' ? (
               <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold w-fit"
                 style={{ background: 'rgba(233,87,79,0.1)', color: '#c8423b', borderColor: 'rgba(233,87,79,0.3)' }}>
@@ -139,7 +139,6 @@ export function FundraiselyEventRow({
                 <Play className="h-2.5 w-2.5" /> Quiz
               </span>
             )}
-            {/* Status badge */}
             <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold w-fit"
               style={activityBadgeStyle(linkedActivity!.status)}>
               {linkedActivity!.status === 'live' && (
@@ -161,9 +160,7 @@ export function FundraiselyEventRow({
         {hasActivity ? (
           <span className="text-sm font-bold flex items-center gap-1"
             style={{ color: ticketsSold > 0 ? '#4f46e5' : '#d1d5db' }}>
-            {ticketsSold > 0 ? (
-              <><Ticket className="h-3 w-3" />{ticketsSold}</>
-            ) : '—'}
+            {ticketsSold > 0 ? <><Ticket className="h-3 w-3" />{ticketsSold}</> : '—'}
           </span>
         ) : <span style={{ color: '#d1d5db' }}>—</span>}
       </div>
@@ -184,15 +181,11 @@ export function FundraiselyEventRow({
             {outstandingCount} unpaid
           </span>
         )}
-
-        {/* Edit */}
         <button type="button" onClick={onEdit} title="Edit event"
           className="rounded-lg p-1.5 transition-colors hover:bg-gray-100"
           style={{ color: '#8a9bab' }}>
           <Settings className="h-3.5 w-3.5" />
         </button>
-
-        {/* Publish toggle */}
         <button type="button"
           onClick={event.is_published ? onUnpublish : onPublish}
           className="hidden lg:block rounded-lg px-2 py-1 text-[10px] font-semibold transition-colors"
@@ -201,8 +194,6 @@ export function FundraiselyEventRow({
             : { background: 'rgba(21,127,133,0.1)', color: '#157f85' }}>
           {event.is_published ? 'Unpublish' : 'Publish'}
         </button>
-
-        {/* Drawer / Add activity */}
         {hasActivity && drawerMeta && DrawerIcon ? (
           <button type="button" onClick={onOpenDrawer}
             className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors"

@@ -270,7 +270,7 @@ export default function SetupTab({ room, linkedEvent, onEditQuiz, onSaved }: Pro
               <div>
                 <h3 className="text-base font-black text-[#102532]">Setup</h3>
                 <p className="mt-1 text-sm text-[#52636f]">
-                  This event is {room.status}. Setup details are kept for reference — editing is only available while scheduled.
+                  This event is {room.status}. Setup details are kept for reference - editing is only available while scheduled.
                 </p>
               </div>
             </div>

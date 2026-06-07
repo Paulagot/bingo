@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { navGroups } from '../../config/siteNavigation';
 import { siteBrand, socialLinks } from '../../config/siteBrand';
+import { useAuth } from '@/features/auth';
 
 function SocialIcon({ label }: { label: string }) {
   if (label.includes('LinkedIn')) return <>in</>;
@@ -10,6 +11,14 @@ function SocialIcon({ label }: { label: string }) {
 }
 
 export function MobileNav() {
+    const navigate = useNavigate();
+  const { isAuthenticated, logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    setOpen(false);
+    navigate('/');
+  };
   const [open, setOpen] = useState(false);
   return (
     <div className="mobile-nav">
@@ -27,8 +36,26 @@ export function MobileNav() {
             </div>
           ))}
           <Link to="/pricing" onClick={() => setOpen(false)}>Pricing</Link>
-          <a href={siteBrand.loginUrl} onClick={() => setOpen(false)}>Login</a>
-          <Link to="/demo" className="button button--primary-dark" onClick={() => setOpen(false)}>Book a demo</Link>
+         {isAuthenticated ? (
+  <>
+    <Link to="/quiz/eventdashboard" onClick={() => setOpen(false)}>
+      Dashboard
+    </Link>
+
+    <button
+      type="button"
+      className="mobile-nav__link-button"
+      onClick={handleLogout}
+    >
+      Log out
+    </button>
+  </>
+) : (
+  <a href={siteBrand.loginUrl} onClick={() => setOpen(false)}>
+    Login
+  </a>
+)}
+          <Link to="/contact" className="button button--primary-dark" onClick={() => setOpen(false)}>Book a demo</Link>
           <div className="mobile-nav__socials" aria-label="FundRaisely social links">
             {socialLinks.map((link) => (
               <a key={link.label} href={link.href} target="_blank" rel="noreferrer" aria-label={link.label} className="social-icon">
