@@ -307,9 +307,7 @@ export default function ClubRegisterForm({ onSwitchToLogin }: ClubRegisterFormPr
                     Reporting Currency <span style={{ color: '#e9574f' }}>*</span>
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <DollarSign className="h-4 w-4" style={{ color: '#8a9bab' }} />
-                    </div>
+                   
                     <div className="pl-9">
                       <CurrencySelect id="reporting-currency" value={reportingCurrency}
                         onChange={setReportingCurrency} disabled={isLoading} />
@@ -412,10 +410,11 @@ export default function ClubRegisterForm({ onSwitchToLogin }: ClubRegisterFormPr
               <h3 className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: '#8a9bab' }}>What you get</h3>
               <ul className="space-y-2">
                 {[
-                  '3 free quiz event credits to get started',
-                  'Full selection of quiz templates or create your own',
+                  '1 free credit for each activity type to get you started',
+                  'easy-to-use tools to manage ticket sales, check-ins and live scores',
                   '20 connected players/teams per event',
                   'Reconcile payments and download audit-ready reports',
+                  'Event Impact Dashboard to showcase your fundraising success',
                 ].map(item => (
                   <li key={item} className="flex items-center gap-2 text-sm" style={{ color: '#52636f' }}>
                     <CheckCircle className="h-3.5 w-3.5 flex-shrink-0 text-green-600" />

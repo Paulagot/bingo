@@ -224,50 +224,61 @@ router.get('/:roomId/tickets', flexAuth, async (req, res) => {
 // ─── POST /api/ticketed-event/checkin/:roomId/scan ───────────────────────────
 // QR code scan — redeem a ticket by its join_token.
 // This is the endpoint the QR scanner calls when a guest scans in.
+
+//
+// The frontend sends either:
+//   { joinToken: "raw-token" }      — manual entry or raw-token QR
+//   { ticketId:  "TICKET-ABC123" }  — scanned from the ticket status page URL
+//
 router.post('/:roomId/scan', flexAuth, async (req, res) => {
   try {
-    const roomId    = String(req.params.roomId || '').trim();
-    const joinToken = String(req.body?.joinToken || '').trim();
-
-    if (!roomId)    return res.status(400).json({ error: 'missing_room_id' });
-    if (!joinToken) return res.status(400).json({ error: 'missing_join_token' });
-
+    const roomId    = String(req.params.roomId   || '').trim();
+    const joinToken = String(req.body?.joinToken  || '').trim();
+    const ticketId  = String(req.body?.ticketId   || '').trim();
+ 
+    if (!roomId)               return res.status(400).json({ error: 'missing_room_id' });
+    if (!joinToken && !ticketId) return res.status(400).json({ error: 'missing_join_token' });
+ 
     const hasAccess = await verifyRoomAccess(req, roomId);
     if (!hasAccess) return res.status(403).json({ error: 'forbidden' });
-
-    // Find the ticket by join_token + room_id
+ 
+    // Find the ticket — match by join_token OR ticket_id, whichever was provided
     const [rows] = await connection.execute(
       `SELECT ticket_id, purchaser_name, player_name,
               payment_status, redemption_status, redeemed_at
        FROM ${TICKETS_TABLE}
-       WHERE room_id = ? AND join_token = ?
+       WHERE room_id = ?
+         AND (
+               (? != '' AND join_token = ?)
+            OR (? != '' AND ticket_id  = ?)
+             )
        LIMIT 1`,
-      [roomId, joinToken]
+      [roomId, joinToken, joinToken, ticketId, ticketId]
     );
-
+ 
     const ticket = rows?.[0];
-
+ 
     if (!ticket) {
       return res.status(404).json({
-        ok: false,
-        error: 'ticket_not_found',
+        ok:      false,
+        error:   'ticket_not_found',
         message: 'This QR code is not valid for this event.',
       });
     }
-
+ 
     // Block if payment not confirmed
     if (ticket.payment_status !== 'payment_confirmed') {
       return res.status(400).json({
-        ok: false,
-        error: 'payment_not_confirmed',
-        message: `Payment not yet confirmed for ${ticket.purchaser_name}. Please confirm payment before checking in.`,
+        ok:            false,
+        error:         'payment_not_confirmed',
+        message:       `Payment not yet confirmed for ${ticket.purchaser_name}. Please confirm payment before checking in.`,
         ticketId:      ticket.ticket_id,
         purchaserName: ticket.purchaser_name,
         paymentStatus: ticket.payment_status,
       });
     }
-
-    // Already redeemed — return a warning but tell the caller who and when
+ 
+    // Already redeemed — return a warning with who/when
     if (ticket.redemption_status === 'redeemed') {
       return res.status(200).json({
         ok:           true,
@@ -279,7 +290,7 @@ router.post('/:roomId/scan', flexAuth, async (req, res) => {
         redeemedAt:    ticket.redeemed_at,
       });
     }
-
+ 
     // Mark as redeemed
     await connection.execute(
       `UPDATE ${TICKETS_TABLE}
@@ -289,9 +300,9 @@ router.post('/:roomId/scan', flexAuth, async (req, res) => {
        LIMIT 1`,
       [ticket.ticket_id]
     );
-
+ 
     console.log(`[ticketedEventCheckin] ✅ Checked in: ${ticket.purchaser_name} (${ticket.ticket_id}) for room ${roomId}`);
-
+ 
     return res.status(200).json({
       ok:           true,
       alreadyUsed:  false,
@@ -306,6 +317,7 @@ router.post('/:roomId/scan', flexAuth, async (req, res) => {
     return res.status(500).json({ error: 'internal_error' });
   }
 });
+ 
 
 // ─── PATCH /api/ticketed-event/checkin/:roomId/tickets/:ticketId/confirm ──────
 // Confirm a ticket payment — same as quiz ticket confirm but accessible to

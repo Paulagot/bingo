@@ -1,29 +1,29 @@
 // server/stripe/stripeController.js
 import { stripe } from './stripeClient.js';
 import { getBaseUrl } from './stripeUtils.js';
-import { getStripeMethodForClub, upsertStripeMethodForClub } from './stripeService.js';
+import {
+  getStripeMethodForClub,
+  getMostRecentStripeRowForClub,
+  upsertStripeMethodForClub,
+} from './stripeService.js';
 import { connection, TABLE_PREFIX } from '../config/database.js';
 
 const DEBUG = false;
 
+const METHODS_TABLE = `${TABLE_PREFIX}club_payment_methods`;
+
 /**
  * Start Stripe Connect onboarding.
- *
- * - If no active (non-disconnected) row exists, creates a new Stripe account
- *   and inserts a fresh row.
- * - If an active row exists with an accountId, reuses it so the club can
- *   continue incomplete onboarding without creating duplicate accounts.
- * - Disconnected rows are invisible to getStripeMethodForClub so a previously
- *   disconnected club always gets a brand new account and row here.
+ * Reuses existing accountId if an active (non-disconnected) row exists.
+ * Creates a brand new account if no active row is found.
  */
 export const startStripeConnect = async (req, res) => {
   try {
-    const clubId = req.user?.club_id;
+    const clubId  = req.user?.club_id;
     if (!clubId) return res.status(401).json({ ok: false, error: 'unauthorized' });
 
     const addedBy = req.user?.name || req.user?.email || null;
 
-    // 1) Find active (non-disconnected) stripe row
     const row = await getStripeMethodForClub(clubId);
 
     let accountId = null;
@@ -31,35 +31,22 @@ export const startStripeConnect = async (req, res) => {
       const cfg = typeof row.method_config === 'string'
         ? JSON.parse(row.method_config)
         : row.method_config;
-
-      // Only reuse accountId if this row has never been disconnected.
-      // getStripeMethodForClub already filters out disconnected rows, so
-      // disconnectedAt should never be set here — but we guard anyway.
       const wasDisconnected = !!cfg?.connect?.disconnectedAt;
       accountId = wasDisconnected ? null : (cfg?.connect?.accountId || null);
     }
 
-    // 2) Create a new Stripe account if we don't have a live one
     if (!accountId) {
       const account = await stripe.accounts.create({ type: 'standard' });
       accountId = account.id;
-
       await upsertStripeMethodForClub({
-        clubId,
-        accountId,
-        connectStatus: {
-          detailsSubmitted: false,
-          chargesEnabled:   false,
-          payoutsEnabled:   false,
-        },
+        clubId, accountId,
+        connectStatus: { detailsSubmitted: false, chargesEnabled: false, payoutsEnabled: false },
         addedBy,
       });
-
       if (DEBUG) console.log('[Stripe] ✅ Created connected account:', { clubId, accountId });
     }
 
-    // 3) Create onboarding link
-    const baseUrl = getBaseUrl(req);
+    const baseUrl   = getBaseUrl(req);
     const accountLink = await stripe.accountLinks.create({
       account:     accountId,
       refresh_url: `${baseUrl}/quiz/eventdashboard?stripe=refresh`,
@@ -75,13 +62,12 @@ export const startStripeConnect = async (req, res) => {
 };
 
 /**
- * Fetch the latest account status from Stripe and sync it to the DB row.
- * Updates chargesEnabled, payoutsEnabled, detailsSubmitted — and therefore
- * is_enabled — based on what Stripe currently reports.
+ * Fetch latest status from Stripe and sync to DB row.
+ * Sets is_enabled based on all three flags.
  */
 export const getStripeConnectStatus = async (req, res) => {
   try {
-    const clubId = req.user?.club_id;
+    const clubId  = req.user?.club_id;
     if (!clubId) return res.status(401).json({ ok: false, error: 'unauthorized' });
 
     const addedBy = req.user?.name || req.user?.email || null;
@@ -116,20 +102,11 @@ export const getStripeConnectStatus = async (req, res) => {
 /**
  * Disconnect the club's Stripe account.
  *
- * Does NOT delete the row. Instead it:
- *   1. Best-effort deauthorizes the account with Stripe (OAuth only — fails
- *      silently for Standard accounts created via API).
- *   2. Sets is_enabled: false on the row.
- *   3. Stamps connect.disconnectedAt and connect.disconnectedBy into
- *      method_config so there is an audit trail.
+ * Does NOT delete the row — stamps disconnectedAt into method_config and sets
+ * is_enabled = FALSE. The row stays for historical ledger joins.
  *
- * The row and its accountId are preserved so any historical ledger or report
- * rows that reference club_payment_method_id continue to resolve correctly.
- *
- * After disconnect, getStripeMethodForClub returns null for this club, so all
- * active payment flows (ticket checkout, walk-in, etc.) immediately stop
- * offering Stripe as an option. The club can then call /connect/start to link
- * a new account — a fresh row will be inserted alongside the archived one.
+ * After this getStripeMethodForClub returns null so all payment flows stop
+ * offering Stripe immediately.
  */
 export const disconnectStripeConnect = async (req, res) => {
   try {
@@ -145,7 +122,7 @@ export const disconnectStripeConnect = async (req, res) => {
 
     const accountId = cfg?.connect?.accountId;
 
-    // 1) Best-effort Stripe deauthorize (only works for OAuth-connected accounts)
+    // Best-effort deauthorize — only works for OAuth accounts, safe to ignore for API-created ones
     if (accountId) {
       try {
         await stripe.oauth.deauthorize({
@@ -154,14 +131,10 @@ export const disconnectStripeConnect = async (req, res) => {
         });
         if (DEBUG) console.log('[Stripe] ✅ OAuth deauthorized:', accountId);
       } catch (oauthErr) {
-        // Standard accounts created via stripe.accounts.create (not OAuth) will
-        // throw here — that is expected and safe to ignore.
-        console.warn('[Stripe] ⚠️ OAuth deauthorize skipped (likely API-created account):', oauthErr.message);
+        console.warn('[Stripe] ⚠️ OAuth deauthorize skipped (API-created account):', oauthErr.message);
       }
     }
 
-    // 2) Stamp disconnectedAt onto method_config — preserves accountId for
-    //    historical joins but makes the row invisible to getStripeMethodForClub
     const updatedConfig = {
       ...cfg,
       connect: {
@@ -171,9 +144,8 @@ export const disconnectStripeConnect = async (req, res) => {
       },
     };
 
-    // 3) Disable the row and save the updated config
     await connection.execute(
-      `UPDATE ${TABLE_PREFIX}club_payment_methods
+      `UPDATE ${METHODS_TABLE}
        SET is_enabled    = FALSE,
            method_config = ?,
            updated_at    = UTC_TIMESTAMP()
@@ -181,15 +153,125 @@ export const disconnectStripeConnect = async (req, res) => {
       [JSON.stringify(updatedConfig), row.id, clubId]
     );
 
-    console.log('[Stripe] ✅ Disconnected (row preserved for history):', {
-      clubId,
-      accountId,
-      rowId: row.id,
-    });
-
+    console.log('[Stripe] ✅ Disconnected (row preserved):', { clubId, accountId, rowId: row.id });
     return res.json({ ok: true });
   } catch (err) {
     console.error('[Stripe] ❌ disconnectStripeConnect failed:', err);
     return res.status(500).json({ ok: false, error: 'stripe_disconnect_failed' });
+  }
+};
+
+/**
+ * Reconnect the most recently disconnected Stripe account.
+ *
+ * Clears disconnectedAt on the existing row (reactivates it) and returns a
+ * fresh Stripe onboarding link. The row id is preserved so all historical
+ * ledger joins remain intact.
+ *
+ * After the admin completes onboarding, GET /connect/status will update
+ * is_enabled to true once all three flags pass.
+ */
+export const reconnectStripeConnect = async (req, res) => {
+  try {
+    const clubId = req.user?.club_id;
+    if (!clubId) return res.status(401).json({ ok: false, error: 'unauthorized' });
+
+    const row = await getMostRecentStripeRowForClub(clubId);
+    if (!row) return res.status(404).json({ ok: false, error: 'stripe_not_found' });
+
+    const cfg = typeof row.method_config === 'string'
+      ? JSON.parse(row.method_config)
+      : row.method_config;
+
+    const accountId = cfg?.connect?.accountId;
+    if (!accountId) return res.status(400).json({ ok: false, error: 'stripe_account_id_missing' });
+
+    // Fetch current status from Stripe — account may still be fully ready
+    let stripeAccount;
+    try {
+      stripeAccount = await stripe.accounts.retrieve(accountId);
+    } catch (stripeErr) {
+      return res.status(400).json({ ok: false, error: 'stripe_account_not_found_on_stripe' });
+    }
+
+    const chargesEnabled   = !!stripeAccount.charges_enabled;
+    const payoutsEnabled   = !!stripeAccount.payouts_enabled;
+    const detailsSubmitted = !!stripeAccount.details_submitted;
+    const isReady = chargesEnabled && payoutsEnabled && detailsSubmitted;
+
+    // Clear disconnectedAt and restore the row — no onboarding needed if still ready
+    const updatedConfig = {
+      ...cfg,
+      connect: {
+        ...cfg.connect,
+        chargesEnabled,
+        payoutsEnabled,
+        detailsSubmitted,
+        disconnectedAt: null,
+        disconnectedBy: null,
+        reconnectedAt:  new Date().toISOString(),
+        reconnectedBy:  req.user?.name || req.user?.email || null,
+        updatedAt:      new Date().toISOString(),
+      },
+    };
+
+    await connection.execute(
+      `UPDATE ${METHODS_TABLE}
+       SET is_enabled    = ?,
+           method_config = ?,
+           updated_at    = UTC_TIMESTAMP()
+       WHERE id = ? AND club_id = ?`,
+      [isReady, JSON.stringify(updatedConfig), row.id, clubId]
+    );
+
+    console.log('[Stripe] ✅ Reconnected:', { clubId, accountId, isReady });
+
+    // If still ready — just tell the frontend, no redirect needed
+    // If somehow not ready — send them through onboarding
+    if (isReady) {
+      return res.json({ ok: true, ready: true, accountId, chargesEnabled, payoutsEnabled, detailsSubmitted });
+    }
+
+    const baseUrl     = getBaseUrl(req);
+    const accountLink = await stripe.accountLinks.create({
+      account:     accountId,
+      refresh_url: `${baseUrl}/quiz/eventdashboard?stripe=refresh`,
+      return_url:  `${baseUrl}/quiz/eventdashboard?stripe=return`,
+      type:        'account_onboarding',
+    });
+
+    return res.json({ ok: true, ready: false, url: accountLink.url });
+  } catch (err) {
+    console.error('[Stripe] ❌ reconnectStripeConnect failed:', err);
+    return res.status(500).json({ ok: false, error: 'stripe_reconnect_failed' });
+  }
+};
+
+/**
+ * Return the most recent Stripe row for UI display — including disconnected ones.
+ * Used to show the "previously connected" history panel after a disconnect.
+ */
+export const getStripeHistory = async (req, res) => {
+  try {
+    const clubId = req.user?.club_id;
+    if (!clubId) return res.status(401).json({ ok: false, error: 'unauthorized' });
+
+    const row = await getMostRecentStripeRowForClub(clubId);
+    if (!row) return res.json({ ok: true, hasHistory: false, accountId: null, disconnectedAt: null, disconnectedBy: null });
+
+    const cfg = typeof row.method_config === 'string'
+      ? JSON.parse(row.method_config)
+      : row.method_config;
+
+    return res.json({
+      ok:             true,
+      hasHistory:     true,
+      accountId:      cfg?.connect?.accountId      || null,
+      disconnectedAt: cfg?.connect?.disconnectedAt || null,
+      disconnectedBy: cfg?.connect?.disconnectedBy || null,
+    });
+  } catch (err) {
+    console.error('[Stripe] ❌ getStripeHistory failed:', err);
+    return res.status(500).json({ ok: false, error: 'stripe_history_failed' });
   }
 };
