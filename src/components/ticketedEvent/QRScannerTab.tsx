@@ -36,22 +36,52 @@ function getAuthHeaders(token?: string | null): Record<string, string> {
   };
 }
 
+// ─── Parse a raw QR value into the payload the backend expects ────────────────
+//
+// The QR on the ticket status page encodes window.location.href, e.g.:
+//   https://yoursite.com/tickets/status/TICKET-ABC123
+//
+// The backend scan route accepts either:
+//   { joinToken: "raw-join-token" }   — for manual entry / raw token QRs
+//   { ticketId:  "TICKET-ABC123" }    — for ticket status page URLs
+//
+function parseScannedValue(raw: string): { joinToken?: string; ticketId?: string } {
+  try {
+    const url = new URL(raw.trim());
+    const segments = url.pathname.split('/').filter(Boolean);
+
+    // /tickets/status/:ticketId  — the shape our QR codes produce
+    if (segments.length >= 2 && segments[segments.length - 2] === 'status') {
+      return { ticketId: segments[segments.length - 1] };
+    }
+
+    // Fallback: last path segment if it looks like a ticket/token ID
+    const last = segments[segments.length - 1];
+    if (last && last.length > 6) {
+      return { ticketId: last };
+    }
+
+    // URL query params (legacy / other QR formats)
+    const t = url.searchParams.get('token') || url.searchParams.get('joinToken');
+    if (t) return { joinToken: t };
+
+    // Give up and send the whole URL — backend will 404 gracefully
+    return { joinToken: raw.trim() };
+  } catch {
+    // Not a URL at all — treat as a raw join token (manual entry)
+    return { joinToken: raw.trim() };
+  }
+}
+
 // ─── Result banner ────────────────────────────────────────────────────────────
 
 const ResultBanner: React.FC<{ result: ScanResult; onDismiss: () => void }> = ({ result, onDismiss }) => {
-  const isError  = !result.ok;
-  const isWarn   = result.ok && result.alreadyUsed;
+  const isError = !result.ok;
+  const isWarn  = result.ok && result.alreadyUsed;
 
-
-  const colours = isError
-    ? 'border-red-200 bg-red-50'
-    : isWarn
-      ? 'border-yellow-200 bg-yellow-50'
-      : 'border-green-200 bg-green-50';
-
+  const colours    = isError ? 'border-red-200 bg-red-50' : isWarn ? 'border-yellow-200 bg-yellow-50' : 'border-green-200 bg-green-50';
   const textColour = isError ? 'text-red-800' : isWarn ? 'text-yellow-800' : 'text-green-800';
-
-  const Icon = isError ? XCircle : isWarn ? AlertTriangle : CheckCircle2;
+  const Icon       = isError ? XCircle : isWarn ? AlertTriangle : CheckCircle2;
   const iconColour = isError ? 'text-red-500' : isWarn ? 'text-yellow-500' : 'text-green-500';
 
   return (
@@ -86,19 +116,19 @@ export const QRScannerTab: React.FC<Props> = ({ roomId, token }) => {
   const [manualToken,   setManualToken]   = useState('');
   const [manualLoading, setManualLoading] = useState(false);
 
-  const scannerRef = useRef<Html5Qrcode | null>(null);
-  // Prevent double-scanning the same QR code
+  const scannerRef    = useRef<Html5Qrcode | null>(null);
   const lastScannedRef = useRef<string>('');
 
-  // ── Submit a joinToken to the backend ──────────────────────────────────────
-  const submitToken = async (joinToken: string) => {
-    if (!joinToken.trim()) return;
+  // ── Submit to backend ──────────────────────────────────────────────────────
+  const submitScan = async (raw: string) => {
+    if (!raw.trim()) return;
     setScanning(true);
     try {
+      const payload = parseScannedValue(raw);
       const res = await fetch(`/api/ticketed-event/checkin/${roomId}/scan`, {
         method:  'POST',
         headers: getAuthHeaders(token),
-        body:    JSON.stringify({ joinToken: joinToken.trim() }),
+        body:    JSON.stringify(payload),
       });
       const data: ScanResult = await res.json();
       setLastResult(data);
@@ -110,6 +140,21 @@ export const QRScannerTab: React.FC<Props> = ({ roomId, token }) => {
     }
   };
 
+  // ── Force-release the camera MediaStream ──────────────────────────────────
+  // html5-qrcode doesn't always release the stream on .stop(), so we grab
+  // the video element directly and stop every track on it.
+  const releaseMediaStream = () => {
+    try {
+      const video = document.querySelector(`#${SCANNER_DIV_ID} video`) as HTMLVideoElement | null;
+      if (video?.srcObject) {
+        (video.srcObject as MediaStream).getTracks().forEach(t => t.stop());
+        video.srcObject = null;
+      }
+    } catch {
+      // ignore — best effort
+    }
+  };
+
   // ── Start camera ───────────────────────────────────────────────────────────
   const startCamera = async () => {
     setCameraError(null);
@@ -118,32 +163,13 @@ export const QRScannerTab: React.FC<Props> = ({ roomId, token }) => {
       scannerRef.current = scanner;
 
       await scanner.start(
-        { facingMode: 'environment' },   // rear camera on phones
-      { fps: 10, qrbox: { width: 250 as number, height: 250 as number } },
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 250 as number, height: 250 as number } },
         (decodedText) => {
-          // Avoid re-scanning the same code within 3 seconds
           if (decodedText === lastScannedRef.current) return;
           lastScannedRef.current = decodedText;
           setTimeout(() => { lastScannedRef.current = ''; }, 3000);
-
-          // The QR code contains the full checkin URL or just the token
-          // Extract the joinToken from the URL if needed
-          let joinToken = decodedText;
-          try {
-            const url = new URL(decodedText);
-            const t = url.searchParams.get('token') || url.searchParams.get('joinToken');
-            if (t) joinToken = t;
-            // Also handle /join/ROOMID?ticket=TOKEN pattern
-            const pathParts = url.pathname.split('/');
-            const ticketIdx = pathParts.indexOf('ticket');
-            if (ticketIdx !== -1 && pathParts[ticketIdx + 1]) {
-           joinToken = pathParts[ticketIdx + 1] ?? joinToken;
-            }
-          } catch {
-            // Not a URL — use raw text as the token
-          }
-
-          submitToken(joinToken);
+          submitScan(decodedText);
         },
         () => { /* ignore per-frame failures */ }
       );
@@ -170,12 +196,20 @@ export const QRScannerTab: React.FC<Props> = ({ roomId, token }) => {
       } catch { /* ignore */ }
       scannerRef.current = null;
     }
+    // Always force-release the stream — html5-qrcode doesn't always do this
+    releaseMediaStream();
     setCameraActive(false);
   };
 
-  // Cleanup on unmount
+  // Cleanup on unmount or tab switch
   useEffect(() => {
-    return () => { stopCamera(); };
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.stop().catch(() => {});
+        scannerRef.current = null;
+      }
+      releaseMediaStream();
+    };
   }, []);
 
   // ─── Render ────────────────────────────────────────────────────────────────
@@ -188,7 +222,7 @@ export const QRScannerTab: React.FC<Props> = ({ roomId, token }) => {
         <ResultBanner result={lastResult} onDismiss={() => setLastResult(null)} />
       )}
 
-      {/* Camera viewport — always in DOM so html5-qrcode can mount into it */}
+      {/* Camera viewport */}
       <div className="rounded-xl border border-[#dce1df] overflow-hidden bg-black">
         <div id={SCANNER_DIV_ID} className="w-full" style={{ minHeight: cameraActive ? 280 : 0 }} />
 
@@ -229,7 +263,7 @@ export const QRScannerTab: React.FC<Props> = ({ roomId, token }) => {
         </button>
       )}
 
-      {/* Manual token entry — always available as fallback */}
+      {/* Manual token entry */}
       <div className="rounded-xl border border-[#dce1df] bg-white p-4">
         <p className="text-xs font-semibold text-[#52636f] mb-2">Manual entry</p>
         <div className="flex gap-2">
@@ -241,7 +275,7 @@ export const QRScannerTab: React.FC<Props> = ({ roomId, token }) => {
             onKeyDown={e => {
               if (e.key === 'Enter' && manualToken.trim()) {
                 setManualLoading(true);
-                submitToken(manualToken).finally(() => setManualLoading(false));
+                submitScan(manualToken).finally(() => setManualLoading(false));
               }
             }}
             className="flex-1 rounded-lg border border-[#dce1df] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#157f85]"
@@ -250,7 +284,7 @@ export const QRScannerTab: React.FC<Props> = ({ roomId, token }) => {
             type="button"
             onClick={() => {
               setManualLoading(true);
-              submitToken(manualToken).finally(() => setManualLoading(false));
+              submitScan(manualToken).finally(() => setManualLoading(false));
             }}
             disabled={!manualToken.trim() || manualLoading || scanning}
             className="inline-flex items-center gap-1.5 rounded-lg bg-[#157f85] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0e6268] disabled:opacity-40 transition-colors"

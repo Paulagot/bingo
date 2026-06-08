@@ -93,6 +93,16 @@ export class AuthService {
           [clubId, freePlanId, 3, null]
         );
 
+        // ✅ ADD THIS — seed the per-activity credit rows for FREE plan
+const FREE_CREDIT_KEYS = ['quiz', 'elimination', 'ticketed_event'];
+for (const key of FREE_CREDIT_KEYS) {
+  await conn.execute(
+    `INSERT INTO ${PREFIX}club_credit_balances (club_id, credit_key, balance, updated_at)
+     VALUES (?, ?, 1, CURRENT_TIMESTAMP)`,
+    [clubId, key]
+  );
+}
+
         // 4. Consent audit log
         const consentTypes = [
           { type: 'gdpr',           given: gdprConsent },

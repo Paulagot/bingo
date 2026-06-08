@@ -21,8 +21,31 @@ export async function getStripeMethodForClub(clubId) {
       AND method_category = 'stripe'
       AND (
         JSON_EXTRACT(method_config, '$.connect.disconnectedAt') IS NULL
-        OR JSON_EXTRACT(method_config, '$.connect.disconnectedAt') = 'null'
+        OR JSON_EXTRACT(method_config, '$.connect.disconnectedAt') = CAST('null' AS JSON)
       )
+    ORDER BY created_at DESC
+    LIMIT 1
+  `;
+  const [rows] = await connection.execute(sql, [clubId]);
+  return rows[0] || null;
+}
+
+/**
+ * Get the most recent Stripe row for a club regardless of disconnected state.
+ *
+ * Used only for UI display — lets the frontend show previously disconnected
+ * account details (accountId, disconnectedAt, disconnectedBy) so the admin
+ * knows what was there before and can make an informed decision about whether
+ * to reconnect the same account or start fresh.
+ *
+ * Never used in payment flows — use getStripeMethodForClub for those.
+ */
+export async function getMostRecentStripeRowForClub(clubId) {
+  const sql = `
+    SELECT *
+    FROM ${METHODS_TABLE}
+    WHERE club_id = ?
+      AND method_category = 'stripe'
     ORDER BY created_at DESC
     LIMIT 1
   `;

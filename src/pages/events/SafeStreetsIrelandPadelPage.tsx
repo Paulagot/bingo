@@ -28,7 +28,7 @@ const HERO_IMAGE_SRC =
 
 const FUNDRAISELY_LOGO = '/Fundraiselynobackground.png';
 
-const HOUSE_OF_PADEL_URL = 'https://www.houseofpadel.ie/';
+// const HOUSE_OF_PADEL_URL = 'https://www.houseofpadel.ie/';
 
 type PublicRoomInfo = {
   roomId: string;
@@ -223,14 +223,14 @@ export default function SafeStreetsIrelandPadelPage() {
                   <PlaceholderPartnerCard name="SAFE STREETS IRELAND" />
                 </div>
 
-                <div className="mt-4 rounded-2xl border border-[#d9def5] bg-[#f5f7ff] p-4">
+                {/* <div className="mt-4 rounded-2xl border border-[#d9def5] bg-[#f5f7ff] p-4">
                   <p className="text-sm leading-7 text-[#555a7a]">
                     This event is being set up through{' '}
                     <span className="font-bold text-[#23254a]">FundRaisely Ticketed Events</span>,
                     allowing organisers to sell tickets, share a live event link, track
                     attendance and reconcile payments after the event.
                   </p>
-                </div>
+                </div> */}
               </div>
             </div>
           </div>
