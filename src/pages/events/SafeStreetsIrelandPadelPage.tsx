@@ -21,7 +21,7 @@ import { Link } from 'react-router-dom';
 
 import TicketPurchaseFlow from '../../components/Quiz/tickets/TicketPurchaseFlow';
 
-const ROOM_ID = 'REPLACE_WITH_SAFE_STREETS_ROOM_ID';
+const ROOM_ID = '368F216EECEC494B';
 
 const HERO_IMAGE_SRC =
   'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?auto=format&fit=crop&w=1600&q=80';
@@ -46,7 +46,7 @@ function usePublicRoomInfo(roomId: string) {
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (!roomId || roomId === 'REPLACE_WITH_SAFE_STREETS_ROOM_ID') {
+    if (!roomId) {
       setRoomInfo(null);
       setLoading(false);
       return;
@@ -96,31 +96,29 @@ export default function SafeStreetsIrelandPadelPage() {
     error: roomStatusError,
   } = usePublicRoomInfo(ROOM_ID);
 
-  const hasLinkedRoom = Boolean(ROOM_ID) && ROOM_ID !== 'REPLACE_WITH_SAFE_STREETS_ROOM_ID';
+  const hasLinkedRoom = Boolean(ROOM_ID);
 
   const ticketSalesOpen = roomInfo?.capacity?.ticketSalesOpen ?? true;
   const roomStatus = roomInfo?.status ?? 'scheduled';
 
-  const ticketPageUrl =
+  const eventPageUrl =
     typeof window !== 'undefined'
       ? `${window.location.origin}/events/safe-streets-ireland-padel`
       : '';
 
-  const shouldShowTicketFlow =
-    hasLinkedRoom &&
-    ticketSalesOpen &&
-    roomStatus !== 'completed' &&
-    roomStatus !== 'cancelled';
+  const ticketBuyUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/tickets/buy/${ROOM_ID}`
+      : `/tickets/buy/${ROOM_ID}`;
+
+  const shouldShowEnded =
+    hasLinkedRoom && (roomStatus === 'completed' || roomStatus === 'cancelled');
 
   const shouldShowHoldTight =
     hasLinkedRoom &&
     !ticketSalesOpen &&
     roomStatus !== 'completed' &&
     roomStatus !== 'cancelled';
-
-  const shouldShowEnded =
-    hasLinkedRoom &&
-    (roomStatus === 'completed' || roomStatus === 'cancelled');
 
   return (
     <div className="min-h-screen bg-[#f8f6f2] text-[#1f2240]">
@@ -286,7 +284,7 @@ export default function SafeStreetsIrelandPadelPage() {
                 <InfoPanel
                   icon={<Ticket className="h-6 w-6" />}
                   title="Buy a ticket"
-                  text="Supporters can reserve their place by buying a ticket through this page. The ticket panel can be connected to the live room once the event is created."
+                  text="Supporters can reserve their place by buying a ticket through this page. The ticket panel is connected to the live FundRaisely ticket room."
                 />
 
                 <InfoPanel
@@ -356,7 +354,7 @@ export default function SafeStreetsIrelandPadelPage() {
                 <InfoPanel
                   icon={<CreditCard className="h-6 w-6" />}
                   title="Pay online"
-                  text="Supporters can buy tickets in advance through the embedded ticket panel once the event room is linked."
+                  text="Supporters can buy tickets in advance through the embedded ticket panel on this page."
                 />
 
                 <InfoPanel
@@ -412,18 +410,18 @@ export default function SafeStreetsIrelandPadelPage() {
               </p>
 
               <h3 className="mt-2 text-2xl font-black text-[#23254a]">
-                {shouldShowHoldTight
-                  ? 'Tickets opening soon'
-                  : shouldShowEnded
-                    ? 'Event unavailable'
+                {shouldShowEnded
+                  ? 'Event unavailable'
+                  : shouldShowHoldTight
+                    ? 'Tickets opening soon'
                     : 'Get your event ticket'}
               </h3>
 
               <p className="mt-2 text-sm leading-7 text-[#555a7a]">
-                {shouldShowHoldTight
-                  ? 'Ticket sales are not open right now. Once the organiser opens the room, this panel will show the live ticket flow.'
-                  : shouldShowEnded
-                    ? 'This event has ended or is no longer available.'
+                {shouldShowEnded
+                  ? 'This event has ended or is no longer available.'
+                  : shouldShowHoldTight
+                    ? 'Ticket sales are not open right now. Once the organiser opens the room, this panel will show the live ticket flow.'
                     : 'Buy your ticket for the SAFE STREETS IRELAND padel fundraiser. Final event details can be updated once confirmed.'}
               </p>
 
@@ -435,22 +433,33 @@ export default function SafeStreetsIrelandPadelPage() {
             </div>
 
             {!hasLinkedRoom ? (
-              <TicketComingSoonCard ticketPageUrl={ticketPageUrl} />
-            ) : roomStatusLoading ? (
-              <TicketPanelLoadingCard />
-            ) : roomStatusError ? (
-              <TicketPanelErrorCard error={roomStatusError} />
+              <TicketComingSoonCard eventPageUrl={eventPageUrl} />
             ) : shouldShowEnded ? (
               <EventEndedCard status={roomStatus} />
-            ) : shouldShowTicketFlow ? (
-              <TicketPurchaseFlow roomId={ROOM_ID} mode="embedded" />
             ) : (
-              <HoldTightTicketCard
-                reason={roomInfo?.capacity?.ticketSalesCloseReason || roomInfo?.capacity?.message}
-              />
+              <>
+                {roomStatusLoading && <TicketPanelStatusNote text="Checking ticket status..." />}
+
+                {roomStatusError && (
+                  <TicketPanelStatusNote
+                    tone="warning"
+                    text="We could not check the room status, but the ticket panel is still available below."
+                  />
+                )}
+
+                {shouldShowHoldTight ? (
+                  <HoldTightTicketCard
+                    reason={roomInfo?.capacity?.ticketSalesCloseReason || roomInfo?.capacity?.message}
+                  />
+                ) : (
+                  <TicketPurchaseFlow roomId={ROOM_ID} mode="embedded" />
+                )}
+
+                <DirectTicketLinkCard ticketBuyUrl={ticketBuyUrl} />
+              </>
             )}
 
-            <ShareEventCard ticketPageUrl={ticketPageUrl} />
+            <ShareEventCard eventPageUrl={eventPageUrl} />
 
             <div className="mt-4 rounded-[1.75rem] border border-[#ece7dc] bg-white p-5">
               <p className="text-sm leading-7 text-[#555a7a]">
@@ -641,7 +650,7 @@ function PlaceholderPartnerCard({ name }: { name: string }) {
   );
 }
 
-function TicketComingSoonCard({ ticketPageUrl }: { ticketPageUrl: string }) {
+function TicketComingSoonCard({ eventPageUrl }: { eventPageUrl: string }) {
   return (
     <div className="rounded-[1.75rem] border border-[#ece7dc] bg-white p-6 shadow-sm">
       <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#7b7f9f]">
@@ -657,49 +666,31 @@ function TicketComingSoonCard({ ticketPageUrl }: { ticketPageUrl: string }) {
         the live ticket purchase flow.
       </p>
 
-      {ticketPageUrl && (
+      {eventPageUrl && (
         <p className="mt-4 break-all rounded-2xl border border-[#ece7dc] bg-[#fafafc] p-3 text-xs leading-6 text-[#7b7f9f]">
-          Preview URL: {ticketPageUrl}
+          Preview URL: {eventPageUrl}
         </p>
       )}
     </div>
   );
 }
 
-function TicketPanelLoadingCard() {
+function TicketPanelStatusNote({
+  text,
+  tone = 'neutral',
+}: {
+  text: string;
+  tone?: 'neutral' | 'warning';
+}) {
   return (
-    <div className="rounded-[1.75rem] border border-[#ece7dc] bg-white p-6 shadow-sm">
-      <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#7b7f9f]">
-        Checking event status
-      </p>
-
-      <h3 className="mt-2 text-2xl font-black text-[#23254a]">
-        Loading ticket panel
-      </h3>
-
-      <p className="mt-3 text-sm leading-7 text-[#555a7a]">
-        We are checking whether tickets are currently open for this event.
-      </p>
-    </div>
-  );
-}
-
-function TicketPanelErrorCard({ error }: { error: string }) {
-  return (
-    <div className="rounded-[1.75rem] border border-red-200 bg-white p-6 shadow-sm">
-      <p className="text-xs font-bold uppercase tracking-[0.18em] text-red-500">
-        Event status unavailable
-      </p>
-
-      <h3 className="mt-2 text-2xl font-black text-[#23254a]">
-        We could not check the ticket status
-      </h3>
-
-      <p className="mt-3 text-sm leading-7 text-[#555a7a]">{error}</p>
-
-      <p className="mt-3 text-sm leading-7 text-[#555a7a]">
-        Please refresh the page or contact the organiser.
-      </p>
+    <div
+      className={`mb-4 rounded-2xl border p-4 text-sm leading-6 ${
+        tone === 'warning'
+          ? 'border-amber-200 bg-amber-50 text-amber-800'
+          : 'border-[#ece7dc] bg-white text-[#555a7a]'
+      }`}
+    >
+      {text}
     </div>
   );
 }
@@ -751,14 +742,36 @@ function EventEndedCard({ status }: { status: string }) {
   );
 }
 
-function ShareEventCard({ ticketPageUrl }: { ticketPageUrl: string }) {
+function DirectTicketLinkCard({ ticketBuyUrl }: { ticketBuyUrl: string }) {
+  return (
+    <div className="mt-4 rounded-[1.75rem] border border-[#ece7dc] bg-white p-5">
+      <p className="text-sm leading-7 text-[#555a7a]">
+        Having trouble with the embedded ticket panel?
+      </p>
+
+      <a
+        href={ticketBuyUrl}
+        className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#158467] px-5 py-4 text-base font-black text-white transition hover:bg-[#126b53]"
+      >
+        Open ticket page
+        <ArrowRight className="h-5 w-5" />
+      </a>
+
+      <p className="mt-3 break-all text-center text-xs leading-6 text-[#7b7f9f]">
+        {ticketBuyUrl}
+      </p>
+    </div>
+  );
+}
+
+function ShareEventCard({ eventPageUrl }: { eventPageUrl: string }) {
   const [copied, setCopied] = React.useState(false);
 
   const copyEventLink = async () => {
-    if (!ticketPageUrl) return;
+    if (!eventPageUrl) return;
 
     try {
-      await navigator.clipboard.writeText(ticketPageUrl);
+      await navigator.clipboard.writeText(eventPageUrl);
       setCopied(true);
 
       window.setTimeout(() => {
@@ -787,16 +800,16 @@ function ShareEventCard({ ticketPageUrl }: { ticketPageUrl: string }) {
       <button
         type="button"
         onClick={copyEventLink}
-        disabled={!ticketPageUrl}
+        disabled={!eventPageUrl}
         className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-[#ece7dc] bg-white px-5 py-3 text-sm font-bold text-[#23254a] transition hover:bg-[#f8f6f2] disabled:cursor-not-allowed disabled:opacity-50"
       >
         {copied ? 'Copied' : 'Copy event link'}
         <Copy className="h-4 w-4" />
       </button>
 
-      {ticketPageUrl && (
+      {eventPageUrl && (
         <p className="mt-3 break-all text-center text-xs leading-6 text-[#7b7f9f]">
-          {ticketPageUrl}
+          {eventPageUrl}
         </p>
       )}
     </div>
