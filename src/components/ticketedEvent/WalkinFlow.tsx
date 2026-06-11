@@ -11,9 +11,13 @@
 //   - Email is optional
 //   - Ticket is created as payment_confirmed + redeemed immediately
 //   - No extras, no QR code step
+//
+// Status guard: if the room is not 'open', redirects to /
+// (covers completed, cancelled, and any other non-open state)
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Loader2, AlertTriangle, CheckCircle2, UserPlus, RefreshCw } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Loader2, AlertTriangle, CheckCircle2, UserPlus } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -48,7 +52,7 @@ interface WalkinResult {
 interface WalkinFlowProps {
   roomId:  string;
   token?:  string | null;
-  onDone?: () => void; // called after successful check-in, e.g. to go back to dashboard
+  onDone?: () => void;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -67,6 +71,8 @@ function getAuthHeaders(token?: string | null): Record<string, string> {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone }) => {
+  const navigate = useNavigate();
+
   const [step, setStep]         = useState<'loading' | 'form' | 'submitting' | 'done' | 'error'>('loading');
   const [roomInfo, setRoomInfo] = useState<RoomInfo | null>(null);
   const [methods,  setMethods]  = useState<PaymentMethod[]>([]);
@@ -84,7 +90,6 @@ export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone })
   useEffect(() => {
     const load = async () => {
       try {
-        // Room info — use the existing ticket room info endpoint
         const infoRes = await fetch(`/api/quiz/tickets/room/${roomId}/info`);
         if (!infoRes.ok) {
           const d = await infoRes.json().catch(() => ({}));
@@ -95,6 +100,14 @@ export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone })
         // Verify this is a ticketed event room
         if (info.gameType && info.gameType !== 'ticketed_event') {
           throw new Error('This walk-in page is only for ticketed events.');
+        }
+
+        // ── Status guard ────────────────────────────────────────────────────
+        // Only allow walk-ins when the room is open (check-in running).
+        // Completed, cancelled, scheduled → redirect to home.
+        if (info.status !== 'open') {
+          navigate('/', { replace: true });
+          return;
         }
 
         setRoomInfo({
@@ -108,7 +121,7 @@ export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone })
           gameType:        info.gameType,
         });
 
-        // On-night payment methods — no context param = onnight (default in the route)
+        // On-night payment methods
         const methodsRes = await fetch(
           `/api/quiz-rooms/${roomId}/available-payment-methods`,
           { headers: getAuthHeaders(token) }
@@ -118,8 +131,6 @@ export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone })
           ? methodsData.paymentMethods
           : [];
 
-        // Filter to enabled methods only — include cash, card tap, instant payment
-        // (everything the onnight context returns)
         const enabled = all.filter(m => m.isEnabled !== false);
         setMethods(enabled);
 
@@ -133,7 +144,7 @@ export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone })
     };
 
     load();
-  }, [roomId, token]);
+  }, [roomId, token, navigate]);
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const isDonation = roomInfo?.fundraisingMode === 'donation';
@@ -163,13 +174,13 @@ export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone })
         method:  'POST',
         headers: getAuthHeaders(token),
         body: JSON.stringify({
-          purchaserName:      name.trim(),
-          purchaserEmail:     email.trim() || null,
-          playerName:         name.trim(),
-          totalAmount:        amount,
-          paymentMethod:      selectedMethod!.providerName || selectedMethod!.methodCategory,
+          purchaserName:       name.trim(),
+          purchaserEmail:      email.trim() || null,
+          playerName:          name.trim(),
+          totalAmount:         amount,
+          paymentMethod:       selectedMethod!.providerName || selectedMethod!.methodCategory,
           clubPaymentMethodId: selectedMethod!.id,
-          confirmedByName:    token ? 'Door staff' : 'Admin',
+          confirmedByName:     token ? 'Door staff' : 'Admin',
         }),
       });
 
@@ -324,7 +335,7 @@ export const WalkinFlow: React.FC<WalkinFlowProps> = ({ roomId, token, onDone })
           </div>
         </div>
 
-        {/* Donation amount — only for donation mode */}
+        {/* Donation amount */}
         {isDonation && (
           <div className="bg-white rounded-xl border border-[#dce1df] p-4">
             <h2 className="text-sm font-bold text-[#102532] mb-3">Donation amount</h2>

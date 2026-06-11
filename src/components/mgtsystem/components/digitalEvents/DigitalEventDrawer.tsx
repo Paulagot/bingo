@@ -17,6 +17,7 @@ import LaunchTab from "./tabs/LaunchTab";
 import ReportTab from "./tabs/ReportTab";
 import ApprovalTotalsTab from "./tabs/ApprovalTotalsTab";
 import ImpactTab from "./tabs/ImpactTab";
+import TicketedEventReconciliationTab from "./tabs/reconciliation/TicketedEventReconciliationTab";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -24,7 +25,8 @@ import ImpactTab from "./tabs/ImpactTab";
 
 type TabId =
   | "impact" | "overview" | "setup" | "payments"
-  | "tickets" | "launch" | "report" | "approval";
+  | "tickets" | "launch" | "report" | "approval"
+  | "reconciliation";
 
 interface Tab {
   id: TabId;
@@ -143,9 +145,17 @@ export default function DigitalEventDrawer({
     }
   }, [open, room?.room_id, room?.status, isCompleted, fetchAuditView]);
 
+  // ── Initial tab selection ──────────────────────────────────────────────────
+  // Completed ticketed events: open to "reconciliation" if not yet approved,
+  // "impact" if already approved. All other rooms: existing behaviour.
   useEffect(() => {
     if (open) {
-      setActiveTab(room?.status === "completed" ? "impact" : "overview");
+      if (room?.status === "completed" && isTicketedEvent) {
+        const reconciliationStatus = (room as any).reconciliation_status;
+        setActiveTab(reconciliationStatus === 'closed' ? 'impact' : 'reconciliation');
+      } else {
+        setActiveTab(room?.status === "completed" ? "impact" : "overview");
+      }
     }
   }, [open, room?.room_id]);
 
@@ -204,12 +214,30 @@ export default function DigitalEventDrawer({
     disabledReason: "Not available for cancelled events",
   };
 
+  // reconciliation_status = 'closed' means the ticketed event reconciliation
+  // has been approved — only then do Impact / Report / Approval Totals have
+  // data to show (they all depend on fundraisely_quiz_reconciliation existing).
+  const reconciliationClosed = (room as any).reconciliation_status === 'closed';
+
   // ── Tab sets ───────────────────────────────────────────────────────────────
   const tabs: Tab[] = isCompleted
     ? [
-        { id: "impact",   label: "Impact",         icon: <Heart className="h-3.5 w-3.5" /> },
-        { id: "report",   label: "Report",          icon: <BarChart3 className="h-3.5 w-3.5" /> },
-        { id: "approval", label: "Approval Totals", icon: <Scale className="h-3.5 w-3.5" /> },
+        // Impact, Report, Approval Totals — always for quiz/elimination.
+        // For ticketed events, only shown after reconciliation is closed;
+        // before that those endpoints 404 (no quiz_reconciliation row yet).
+        ...(!isTicketedEvent || reconciliationClosed
+          ? [
+              { id: "impact"   as TabId, label: "Impact",         icon: <Heart className="h-3.5 w-3.5" /> },
+              { id: "report"   as TabId, label: "Report",          icon: <BarChart3 className="h-3.5 w-3.5" /> },
+              { id: "approval" as TabId, label: "Approval Totals", icon: <Scale className="h-3.5 w-3.5" /> },
+            ]
+          : []
+        ),
+        // Reconciliation tab — ticketed events only
+        ...(isTicketedEvent
+          ? [{ id: "reconciliation" as TabId, label: "Reconciliation", icon: <Scale className="h-3.5 w-3.5" /> }]
+          : []
+        ),
         // Payments tab for outstanding — quiz/elimination only (ticketed events
         // don't use the late payments flow)
         ...(canUsePayments && outstandingCount > 0 && !isTicketedEvent
@@ -359,6 +387,13 @@ export default function DigitalEventDrawer({
             <ApprovalTotalsTab room={room} config={config}
               auditView={auditView} auditViewLoading={auditViewLoading}
               auditViewError={auditViewError} onRefresh={handleRefresh} />
+          )}
+
+          {activeTab === "reconciliation" && (
+            <TicketedEventReconciliationTab
+              room={room}
+              onRefreshRoom={handleRefresh}
+            />
           )}
         </div>
       </div>

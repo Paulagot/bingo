@@ -10,6 +10,8 @@ import ScheduleEliminationModal from '../../modals/ScheduleEliminationModal';
 import ScheduleQuizModal from '../../modals/ScheduleQuizModal';
 import ScheduleTicketedEventModal from '../../modals/ScheduleTicketedEventModal';
 import ticketedEventMgmtService from '../../services/TicketedEventMgmtService';
+import { DashboardFundraisingSummary } from '../progress/DashboardFundraisingSummary';
+
 
 import {
   CreditCard, Calendar, PlusCircle, RefreshCw,
@@ -114,6 +116,8 @@ export default function QuizEventDashboard() {
   const [entsError, setEntsError]     = useState<string | null>(null);
   const featureAccess    = useMemo(() => getFeatureAccess(ents), [ents]);
   const creditsRemaining = useMemo(() => extractCreditsRemaining(ents), [ents]);
+
+  const [incomeSeries, setIncomeSeries] = useState<{ date: string; total: number }[]>([]);
 
   // ── Mobile detection ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -220,30 +224,15 @@ export default function QuizEventDashboard() {
     }
   };
 
-  const loadEvents = async () => {
-    if (!clubId) return;
-    setEventsLoading(true);
-    setEventsError(null);
-    try {
-      const res = await eventsService.getClubEvents(clubId);
-      const loaded = res.events || [];
-      setEvents(loaded);
-      if (loaded.length > 0) await loadActivities(loaded);
-    } catch (e: any) {
-      setEventsError(e?.message || 'Failed to load events');
-    } finally {
-      setEventsLoading(false);
-    }
-  };
-
-  const loadActivities = async (eventList: Event[]) => {
+  // ── loadActivities now returns the fresh rowMap so callers can sync
+  // drawerRoom without relying on stale closure state. ────────────────────────
+  const loadActivities = async (eventList: Event[]): Promise<Record<string, Room>> => {
     try {
       const pairs = await Promise.all(
         eventList.map(async (event) => {
           try {
             const res = await eventsService.getEventIntegrations(event.id);
             const integrations = res?.integrations || [];
-            // Include all three activity types
             const linked = integrations.find((i: any) =>
               i.integration_type === 'quiz_web2' ||
               i.integration_type === 'elimination' ||
@@ -279,16 +268,16 @@ export default function QuizEventDashboard() {
 
       setActivityMap(newActivityMap);
 
+      let freshRowMap: Record<string, Room> = {};
+
       if (roomIds.length > 0) {
-        // Load real room rows and update statuses
         try {
           const roomsRes = await quizApi.getWeb2RoomsList({ status: 'all' as any, time: 'all' });
-          const rowMap: Record<string, Room> = {};
           const updatedActivityMap: Record<string, LinkedActivity> = { ...newActivityMap };
 
           for (const room of roomsRes.rooms || []) {
             if (roomIds.includes(room.room_id)) {
-              rowMap[room.room_id] = room as unknown as Room;
+              freshRowMap[room.room_id] = room as unknown as Room;
               const eventId = Object.keys(updatedActivityMap).find(
                 eid => updatedActivityMap[eid]!.room_id === room.room_id
               );
@@ -301,11 +290,10 @@ export default function QuizEventDashboard() {
             }
           }
 
-          setRoomRowsMap(rowMap);
+          setRoomRowsMap(freshRowMap);
           setActivityMap(updatedActivityMap);
 
           // Outstanding payments — only for completed non-ticketed-event rooms
-          // (ticketed events use check-in, not the quiz payment flow)
           const completedIds = Object.values(updatedActivityMap)
             .filter((a): a is LinkedActivity =>
               !!a &&
@@ -335,6 +323,11 @@ export default function QuizEventDashboard() {
         const stats = await QuizRoomsService.batchGetRoomStats(roomIds);
         setRoomStatsMap(stats);
 
+        // Cumulative income time series for the dashboard chart
+QuizRoomsService.getRoomIncomeSeries(roomIds)
+  .then(series => setIncomeSeries(series))
+  .catch(() => {}); // non-blocking — chart falls back gracefully
+
         const pmResults = await Promise.all(
           roomIds.map(id =>
             quizPaymentMethodsService.getQuizPaymentMethods(id)
@@ -361,8 +354,33 @@ export default function QuizEventDashboard() {
         }
         setLinkedEventsMap(leMap);
       }
+
+      return freshRowMap;
     } catch (e) {
       console.error('Failed to load activities:', e);
+      return {};
+    }
+  };
+
+  // ── loadEvents returns the fresh rowMap so onRefreshRoom can sync
+  // drawerRoom immediately, without waiting for React to flush state. ──────────
+  const loadEvents = async (): Promise<Record<string, Room>> => {
+    if (!clubId) return {};
+    setEventsLoading(true);
+    setEventsError(null);
+    try {
+      const res = await eventsService.getClubEvents(clubId);
+      const loaded = res.events || [];
+      setEvents(loaded);
+      if (loaded.length > 0) {
+        return await loadActivities(loaded);
+      }
+      return {};
+    } catch (e: any) {
+      setEventsError(e?.message || 'Failed to load events');
+      return {};
+    } finally {
+      setEventsLoading(false);
     }
   };
 
@@ -431,7 +449,6 @@ export default function QuizEventDashboard() {
         console.error('Failed to auto-link activity to event:', e);
       }
 
-      // Apply payment methods from the event to the new room
       try {
         const pendingEvent = events.find(e => e.id === pendingActivityEventId);
         const pm = pendingEvent?.payment_methods_json;
@@ -463,29 +480,27 @@ export default function QuizEventDashboard() {
     await loadEvents();
   };
 
-const handleUpdateEvent = async (data: CreateEventFormData | UpdateEventForm) => {
-  if (!eventToEdit) return;
-  await eventsService.updateEvent(eventToEdit.id, data as UpdateEventForm);
+  const handleUpdateEvent = async (data: CreateEventFormData | UpdateEventForm) => {
+    if (!eventToEdit) return;
+    await eventsService.updateEvent(eventToEdit.id, data as UpdateEventForm);
 
-  // For ticketed events, propagate date/timezone changes to the room row
-  // so the check-in dashboard and scheduled_at stay in sync
-  const activity = activityMap[eventToEdit.id];
-  if (activity?.game_type === 'ticketed_event' && activity.status === 'scheduled') {
-    try {
-      const updates: any = {};
-      if ((data as any).start_datetime) updates.scheduledAt = (data as any).start_datetime;
-      if ((data as any).time_zone)      updates.timeZone    = (data as any).time_zone;
-      if (Object.keys(updates).length > 0) {
-        await ticketedEventMgmtService.updateRoom(activity.room_id, updates);
+    const activity = activityMap[eventToEdit.id];
+    if (activity?.game_type === 'ticketed_event' && activity.status === 'scheduled') {
+      try {
+        const updates: any = {};
+        if ((data as any).start_datetime) updates.scheduledAt = (data as any).start_datetime;
+        if ((data as any).time_zone)      updates.timeZone    = (data as any).time_zone;
+        if (Object.keys(updates).length > 0) {
+          await ticketedEventMgmtService.updateRoom(activity.room_id, updates);
+        }
+      } catch (e) {
+        console.error('Failed to sync date to ticketed event room:', e);
       }
-    } catch (e) {
-      console.error('Failed to sync date to ticketed event room:', e);
     }
-  }
 
-  setEventToEdit(null);
-  await loadEvents();
-};
+    setEventToEdit(null);
+    await loadEvents();
+  };
 
   const handlePublish   = async (event: Event) => { await eventsService.publishEvent(event.id);   await loadEvents(); };
   const handleUnpublish = async (event: Event) => { await eventsService.unpublishEvent(event.id); await loadEvents(); };
@@ -573,31 +588,33 @@ const handleUpdateEvent = async (data: CreateEventFormData | UpdateEventForm) =>
               <PlusCircle className="h-4 w-4" /> Create Event
             </button>
             <button
-  type="button"
-  onClick={handleLogout}
-  className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition whitespace-nowrap"
-  style={{
-    background: '#ffffff',
-    borderColor: '#f2c5c2',
-    color: '#b42318',
-  }}
-  onMouseEnter={e => {
-    e.currentTarget.style.background = '#fff4f3';
-  }}
-  onMouseLeave={e => {
-    e.currentTarget.style.background = '#ffffff';
-  }}
->
-  <LogOut className="h-4 w-4" />
-  Log out
-</button>
+              type="button"
+              onClick={handleLogout}
+              className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition whitespace-nowrap"
+              style={{ background: '#ffffff', borderColor: '#f2c5c2', color: '#b42318' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#fff4f3'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#ffffff'; }}
+            >
+              <LogOut className="h-4 w-4" />
+              Log out
+            </button>
           </div>
         </div>
 
         {/* ── Notifications ── */}
-<div className="mb-6">
-  <NotificationsTicker />
-</div>
+        <div className="mb-6">
+          <NotificationsTicker />
+        </div>
+
+        {/* ── Fundraising summary ── */}
+{!eventsLoading && events.length > 0 && (
+<DashboardFundraisingSummary
+  events={events}
+  activityMap={activityMap}
+  roomStatsMap={roomStatsMap}
+  incomeSeries={incomeSeries}
+/>
+)}
 
         {/* ── Stats ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
@@ -681,8 +698,6 @@ const handleUpdateEvent = async (data: CreateEventFormData | UpdateEventForm) =>
           {/* Game type + search row */}
           <div className="flex items-center gap-2 px-3 py-2 flex-wrap sm:flex-nowrap">
             <div className="flex items-center gap-1 flex-shrink-0 flex-wrap">
-
-              {/* Active game type filters */}
               {gameTypeButtons.map(({ key, label, icon, count }) => {
                 const isActive = gameTypeFilter === key;
                 return (
@@ -704,7 +719,6 @@ const handleUpdateEvent = async (data: CreateEventFormData | UpdateEventForm) =>
                 );
               })}
 
-              {/* Coming soon placeholders */}
               {[
                 { label: 'Puzzle', icon: <Puzzle className="h-3 w-3" /> },
                 { label: 'Other',  icon: <Sparkles className="h-3 w-3" /> },
@@ -724,7 +738,6 @@ const handleUpdateEvent = async (data: CreateEventFormData | UpdateEventForm) =>
 
             <div className="hidden sm:block h-4 w-px bg-gray-200 flex-shrink-0" />
 
-            {/* Search */}
             <div className="relative flex-1 min-w-[140px]">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
               <input
@@ -905,7 +918,16 @@ const handleUpdateEvent = async (data: CreateEventFormData | UpdateEventForm) =>
           onClose={() => { setDrawerOpen(false); setTimeout(() => setDrawerRoom(null), 200); }}
           onSaved={async () => { await loadEvents(); }}
           onLinked={async () => { await loadEvents(); }}
-          onRefreshRoom={async () => { await loadEvents(); }}
+          onRefreshRoom={async () => {
+            // loadEvents now returns the fresh rowMap synchronously within the
+            // same async chain, so we can update drawerRoom before React flushes
+            // the setState calls — avoiding the stale closure problem.
+            const freshRowMap = await loadEvents();
+            if (drawerRoom) {
+              const fresh = freshRowMap[drawerRoom.room_id];
+              if (fresh) setDrawerRoom(fresh as unknown as Room);
+            }
+          }}
           confirmUnlink={confirmUnlink}
           onLaunchFromHere={() => openRoom(drawerRoom.room_id, drawerRoom.host_id)}
           onPaymentMethodSuccess={() => handlePaymentMethodSuccess(drawerRoom.room_id)}
