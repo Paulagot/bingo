@@ -135,3 +135,27 @@ export async function getBatchRoomStats(roomIds) {
   
   return statsMap;
 }
+
+// Add to quizStatsService.js
+export async function getRoomIncomeTimeSeries(roomIds) {
+  if (!roomIds || roomIds.length === 0) return [];
+
+  const placeholders = roomIds.map(() => '?').join(',');
+
+  const sql = `
+    SELECT
+      DATE(COALESCE(confirmed_at, created_at)) as payment_date,
+      SUM(amount) as daily_total
+    FROM ${PAYMENT_LEDGER_TABLE}
+    WHERE room_id IN (${placeholders})
+      AND status IN ('confirmed', 'reconciled')
+    GROUP BY DATE(COALESCE(confirmed_at, created_at))
+    ORDER BY payment_date ASC
+  `;
+
+  const [rows] = await connection.execute(sql, roomIds);
+  return rows.map(r => ({
+    date: r.payment_date,
+    total: parseFloat(r.daily_total) || 0,
+  }));
+}

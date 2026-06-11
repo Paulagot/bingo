@@ -1,6 +1,6 @@
 // server/mgtsystem/routes/quizStats.js
 import express from 'express';
-import { getRoomStats, getBatchRoomStats } from '../services/quizStatsService.js';
+import { getRoomStats, getBatchRoomStats, getRoomIncomeTimeSeries } from '../services/quizStatsService.js';
 
 const router = express.Router();
 
@@ -77,6 +77,21 @@ router.post('/rooms/batch-stats', async (req, res) => {
       error: 'Failed to fetch batch stats',
       message: error.message
     });
+  }
+});
+
+// Add to quizStats.js router
+router.post('/rooms/income-series', async (req, res) => {
+  try {
+    const { roomIds } = req.body;
+    if (!roomIds || !Array.isArray(roomIds)) {
+      return res.status(400).json({ ok: false, error: 'roomIds array is required' });
+    }
+    const series = await getRoomIncomeTimeSeries(roomIds);
+    res.json({ ok: true, series });
+  } catch (error) {
+    console.error('Error fetching income series:', error);
+    res.status(500).json({ ok: false, error: 'Failed to fetch income series' });
   }
 });
 

@@ -31,17 +31,11 @@ const DEFAULT_ITEMS: NotificationItem[] = [
     kind: 'external',
     icon: <Video className="h-4.5 w-4.5 text-red-700" />,
   },
-  {
-    id: 'clubs-league',
-    text: 'Win Funds for your Club - join the Junior Sports Clubs Quiz League',
-    href: '/campaigns/clubs-league',
-    kind: 'internal',
-    icon: <Trophy className="h-4.5 w-4.5 text-yellow-700" />,
-  },
+
   {
     id: 'founding-partners',
     text: 'Get lifetime access at our lowest-ever rate - Join as a Founding Partner',
-    href: '/founding-partners',
+    href: '/pricing',
     kind: 'internal',
     icon: <DollarSign className="h-4.5 w-4.5 text-green-700" />,
   },
@@ -120,7 +114,7 @@ export default function NotificationsTicker({ items, className }: NotificationsT
 
       <style>{`
         .ticker {
-          animation: ticker-marquee 40s linear infinite;
+          animation: ticker-marquee 60s linear infinite;
         }
         .group:hover .ticker {
           animation-play-state: paused;

@@ -9,6 +9,7 @@ import {
 import type { Event } from '../../types/event';
 import type { RoomStats } from '../../services/quizRoomServices';
 import { useCurrency } from '../../hooks/useCurrency';
+import { EventGoalProgress } from '../progress/EventGoalProgress';
 
 // FIX: import the shared UTC-aware helpers instead of using new Date() directly.
 // The DB stores datetimes in UTC (e.g. "2025-06-07T18:00:00.000Z").
@@ -354,26 +355,15 @@ export function FundraiselyEventCard({
         </div>
       )}
 
-      {/* Goal progress */}
-      <div className="px-4 py-3" style={{ borderTop: '1px solid #f1f0ee' }}>
-        <div className="flex items-center justify-between text-xs mb-1.5">
-          <span style={{ color: '#52636f' }}>
-            Goal: <span className="font-semibold" style={{ color: '#102532' }}>{formatMoney(goalAmount)}</span>
-          </span>
-          {raisedAmount > 0 && (
-            <span className="flex items-center gap-1 font-semibold" style={{ color: '#16a34a' }}>
-              <TrendingUp className="h-3 w-3" />{progress}%
-            </span>
-          )}
-        </div>
-        <div className="h-1.5 w-full rounded-full overflow-hidden" style={{ background: '#f1f0ee' }}>
-          <div className="h-1.5 rounded-full transition-all"
-            style={{ width: `${progress}%`, background: progress >= 100 ? '#22c55e' : theme?.stripe ?? '#157f85' }} />
-        </div>
-        {raisedAmount > 0 && (
-          <p className="mt-1 text-xs" style={{ color: '#52636f' }}>{formatMoney(raisedAmount)} raised</p>
-        )}
-      </div>
+    
+  {/* Goal progress */}
+<div className="px-4" style={{ borderTop: '1px solid #f1f0ee' }}>
+  <EventGoalProgress
+    event={event}
+    activityStats={activityStats}
+    accentColor={theme?.stripe}
+  />
+</div>
 
       {/* Footer */}
       <div className="mt-auto flex items-center justify-between gap-2 px-4 py-2.5"

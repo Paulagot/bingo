@@ -30,19 +30,16 @@ function toMysqlUtcDateTime(value) {
 }
 
 function safeJsonParam(v) {
-  // We store as MySQL JSON. mysql2 will pass string fine; cast in SQL.
-  if (v === undefined) return undefined; // means "not provided"
-  if (v === null) return null; // means "explicitly clear"
+  if (v === undefined) return undefined;
+  if (v === null) return null;
   if (typeof v === 'string') {
-    // If they pass a JSON string, ensure it's valid JSON
     try {
       JSON.parse(v);
       return v;
     } catch {
-      return undefined; // invalid -> treat as not provided
+      return undefined;
     }
   }
-  // object/array/number/bool
   try {
     return JSON.stringify(v);
   } catch {
@@ -91,21 +88,22 @@ router.get('/web2/rooms', authenticateToken, async (req, res) => {
         : 'ORDER BY scheduled_at ASC, created_at DESC';
 
     const sql = `
-   SELECT
-  room_id,
-  host_id,
-  game_type,
-  status,
-  scheduled_at,
-  ended_at,
-  time_zone,
-  config_json,
-  room_caps_json,
-  prize_description,
-  prize_value,
-  created_at,
-  updated_at
-FROM ${WEB2_ROOMS_TABLE}
+      SELECT
+        room_id,
+        host_id,
+        game_type,
+        status,
+        reconciliation_status,
+        scheduled_at,
+        ended_at,
+        time_zone,
+        config_json,
+        room_caps_json,
+        prize_description,
+        prize_value,
+        created_at,
+        updated_at
+      FROM ${WEB2_ROOMS_TABLE}
       WHERE ${where.join(' AND ')}
       ${orderBy}
       LIMIT 200
@@ -131,21 +129,22 @@ router.get('/web2/rooms/:roomId', authenticateToken, async (req, res) => {
     if (!roomId) return res.status(400).json({ error: 'missing_room_id' });
 
     const sql = `
-   SELECT
-  room_id,
-  host_id,
-  game_type,
-  status,
-  scheduled_at,
-  ended_at,
-  time_zone,
-  config_json,
-  room_caps_json,
-  prize_description,
-  prize_value,
-  created_at,
-  updated_at
-FROM ${WEB2_ROOMS_TABLE}
+      SELECT
+        room_id,
+        host_id,
+        game_type,
+        status,
+        reconciliation_status,
+        scheduled_at,
+        ended_at,
+        time_zone,
+        config_json,
+        room_caps_json,
+        prize_description,
+        prize_value,
+        created_at,
+        updated_at
+      FROM ${WEB2_ROOMS_TABLE}
       WHERE club_id = ? AND room_id = ?
       LIMIT 1
     `;
@@ -161,15 +160,7 @@ FROM ${WEB2_ROOMS_TABLE}
 });
 
 /**
- * Update editable fields on a scheduled room:
- * - scheduled_at
- * - time_zone
- * - config_json
- * - room_caps_json
- *
- * Safety:
- * - Must belong to club
- * - Only allow updates while status = 'scheduled' (simple rule for now)
+ * Update editable fields on a scheduled room
  */
 router.patch('/web2/rooms/:roomId', authenticateToken, async (req, res) => {
   try {
@@ -179,7 +170,6 @@ router.patch('/web2/rooms/:roomId', authenticateToken, async (req, res) => {
     const roomId = String(req.params.roomId || '').trim();
     if (!roomId) return res.status(400).json({ error: 'missing_room_id' });
 
-    // Load current row (status gating)
     const [existingRows] = await connection.execute(
       `SELECT room_id, status FROM ${WEB2_ROOMS_TABLE} WHERE club_id = ? AND room_id = ? LIMIT 1`,
       [clubId, roomId]
@@ -196,13 +186,12 @@ router.patch('/web2/rooms/:roomId', authenticateToken, async (req, res) => {
       });
     }
 
-   const scheduledAt = toMysqlUtcDateTime(req.body?.scheduled_at);
+    const scheduledAt = toMysqlUtcDateTime(req.body?.scheduled_at);
     const timeZone = req.body?.time_zone === undefined ? undefined : String(req.body.time_zone || '').trim();
 
     const configJson = safeJsonParam(req.body?.config_json);
     const roomCapsJson = safeJsonParam(req.body?.room_caps_json);
 
-    // If user tried to send invalid JSON, reject explicitly
     if (req.body?.config_json !== undefined && configJson === undefined) {
       return res.status(400).json({ error: 'invalid_config_json' });
     }
@@ -214,7 +203,6 @@ router.patch('/web2/rooms/:roomId', authenticateToken, async (req, res) => {
     const params = [];
 
     if (req.body?.scheduled_at !== undefined) {
-      // allow null to clear, or valid datetime string
       sets.push(`scheduled_at = ?`);
       params.push(scheduledAt);
     }
@@ -225,7 +213,6 @@ router.patch('/web2/rooms/:roomId', authenticateToken, async (req, res) => {
     }
 
     if (req.body?.config_json !== undefined) {
-      // Cast to JSON so MySQL stores it properly
       sets.push(`config_json = CAST(? AS JSON)`);
       params.push(configJson === null ? null : configJson);
     }
@@ -255,28 +242,25 @@ router.patch('/web2/rooms/:roomId', authenticateToken, async (req, res) => {
       return res.status(409).json({ error: 'update_failed_or_room_changed' });
     }
 
-    // Return updated row
     const [rows] = await connection.execute(
-      `
- SELECT
-  room_id,
-  host_id,
-  game_type,
-  status,
-  scheduled_at,
-  ended_at,
-  time_zone,
-  config_json,
-  room_caps_json,
-  prize_description,
-  prize_value,
-  created_at,
-  updated_at
-FROM ${WEB2_ROOMS_TABLE}
-      FROM ${WEB2_ROOMS_TABLE}
-      WHERE club_id = ? AND room_id = ?
-      LIMIT 1
-      `,
+      `SELECT
+         room_id,
+         host_id,
+         game_type,
+         status,
+         reconciliation_status,
+         scheduled_at,
+         ended_at,
+         time_zone,
+         config_json,
+         room_caps_json,
+         prize_description,
+         prize_value,
+         created_at,
+         updated_at
+       FROM ${WEB2_ROOMS_TABLE}
+       WHERE club_id = ? AND room_id = ?
+       LIMIT 1`,
       [clubId, roomId]
     );
 
@@ -291,8 +275,6 @@ FROM ${WEB2_ROOMS_TABLE}
  * Cancel a scheduled room
  */
 router.post('/web2/rooms/:roomId/cancel', authenticateToken, async (req, res) => {
- 
-
   try {
     const clubId = req.club_id;
     if (!clubId) return res.status(401).json({ error: 'unauthorized' });
@@ -300,19 +282,18 @@ router.post('/web2/rooms/:roomId/cancel', authenticateToken, async (req, res) =>
     const roomId = String(req.params.roomId || '').trim();
     if (!roomId) return res.status(400).json({ error: 'missing_room_id' });
 
-     console.log('[web2-rooms API] ✅ Cancel handler matched:', { roomId, clubId });
+    console.log('[web2-rooms API] ✅ Cancel handler matched:', { roomId, clubId });
 
     const sql = `
       UPDATE ${WEB2_ROOMS_TABLE}
       SET status = 'cancelled', updated_at = UTC_TIMESTAMP()
-     WHERE club_id = ? AND room_id = ? AND status IN ('scheduled', 'open')
+      WHERE club_id = ? AND room_id = ? AND status IN ('scheduled', 'open')
       LIMIT 1
     `;
 
     const [result] = await connection.execute(sql, [clubId, roomId]);
 
     if (!result || result.affectedRows !== 1) {
-      // Either not found, or not scheduled anymore
       const [rows] = await connection.execute(
         `SELECT status FROM ${WEB2_ROOMS_TABLE} WHERE club_id = ? AND room_id = ? LIMIT 1`,
         [clubId, roomId]

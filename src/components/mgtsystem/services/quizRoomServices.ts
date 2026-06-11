@@ -62,6 +62,14 @@ class QuizRoomsService extends BaseService {
     );
     return response.stats;
   }
+
+  async getRoomIncomeSeries(roomIds: string[]): Promise<{ date: string; total: number }[]> {
+  const response = await this.request<{ ok: boolean; series: { date: string; total: number }[] }>(
+    `/quiz/web2/rooms/income-series`,
+    { method: 'POST', body: JSON.stringify({ roomIds }) }
+  );
+  return response.series;
+}
   
   /**
    * Batch load stats for multiple rooms (efficient - single DB query!)
@@ -82,5 +90,7 @@ class QuizRoomsService extends BaseService {
     return response.stats;
   }
 }
+
+
 
 export default new QuizRoomsService();

@@ -112,6 +112,8 @@ import {
   campaignSellerPublicRoutes,
 } from './campaigns/api/campaignSellerRoutes.js';
 import { createFeedbackRouter } from './routes/feedbackRoutes.js';
+import ticketedEventReconciliationRoutes from
+  './ticketedEvent/api/ticketedEventReconciliationRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -473,6 +475,7 @@ app.use('/api/quiz/crypto-donation', quizCryptoDonationRoutes);
 app.use('/api/quiz/crypto-fixed-fee', quizCryptoFixedFeeRouter);
 app.use('/api/ticketed-event/mgmt', ticketedEventMgmtRoutes);
 app.use('/api/ticketed-event/checkin', ticketedEventCheckinRoutes); 
+app.use('/api/ticketed-event/reconciliation', ticketedEventReconciliationRoutes);
 
 console.log('✅ All routes setup complete');
 
